@@ -24,16 +24,20 @@ import { Reactivations } from "./reactivation";
  * command that creates in it at the right of the title — filled, the one filled command of the
  * card (`SectionCard`) —, offered on an empty list too, and its body (`ListBody` says an empty
  * list). The screen gives the creation as a function of the variant the card draws it at, never
- * the variant itself.
+ * the variant itself. A section with nothing to list says it in one sentence (`empty`) in place of its
+ * body, as a section of the state of the platform does when it has no alert (#3446).
  */
 export function ReferenceCard({
   title,
   icon,
   creation,
+  empty,
   children,
 }: {
   readonly title: string;
   readonly icon: LucideIcon;
+  /** What the section says when it has nothing to list, in place of its body; `undefined` when it has. */
+  readonly empty?: string | undefined;
   /** The command that creates an object of the list; none for a session that does not write. */
   readonly creation?: Principal["command"] | undefined;
   readonly children: ReactNode;
@@ -44,7 +48,11 @@ export function ReferenceCard({
       icon={icon}
       principal={creation === undefined ? undefined : { does: "create", command: creation }}
     >
-      <div className="flex min-w-0 flex-col gap-2">{children}</div>
+      {empty === undefined ? (
+        <div className="flex min-w-0 flex-col gap-2">{children}</div>
+      ) : (
+        <p className="text-sm text-muted-foreground">{empty}</p>
+      )}
     </SectionCard>
   );
 }

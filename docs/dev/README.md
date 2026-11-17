@@ -598,13 +598,13 @@ the instants of the start of the first and of the start of the day after the las
 excluded. The states are told as the filter of the projects is, by chips: an address that names no
 state asks those the account kept, else the states by default, Created, Pricing and In progress,
 told « (by default) »; `states=all` lifts them and asks all six, where the contract, without
-`states`, would render only the projects in progress (WF-PTF-0010): the address is authoritative.
-A period the server refuses — an end before the start, 422 `VALUE_OUT_OF_RANGE`
-on `/query/to`, `params.minimum` the start given — is said at its field, the start named by its
-local day, which takes the focus each time the list comes back refused, like a bound of a column
-of numbers (`range-filter.tsx`); the list is not read, and a sentence holds the place of the grid.
-Its totals row says how many projects the server retains, and it leads to the other pages by
-`ListPages`; a page asked for beyond its end says so, and brings back to its last page: only a
+`states`, would render only the projects in progress (WF-PTF-0010): the address is authoritative. A
+period the server refuses — an end before the start, 422 `VALUE_OUT_OF_RANGE` on `/query/to`,
+`params.minimum` the start given — is said at its field, the start named by its local day, which
+takes the focus each time the list comes back refused, like a bound of a column of numbers
+(`range-filter.tsx`); the list is not read, and a sentence holds the place of the grid. Its totals
+row says how many projects the server retains, and it leads to the other pages by `ListPages`; a
+page asked for beyond its end says so, and brings back to its last page: only a
 list that holds no project, without state, period or search, says it is empty. The screens of the
 project itself — the project, its settings with its subprojects and its contributors, its
 lifecycle — exercise the exit from the lifecycle (`ExitCommand`), irreversible, confirmed in the
@@ -2584,7 +2584,14 @@ available command launches its server action, and the server's refusal is said b
 the request included (the opening of a revision), or the background task it handed to the
 tracking, until its end (`useTaskRunning`) — the same way everywhere (`waiting.tsx`, #3103):
 inert (`aria-disabled`, a second press relaunches nothing), `aria-busy`, a wheel in place of its
-icon, beside its label, which stays; an answer, a failure included, gives it back.
+icon, beside its label, which stays; an answer, a failure included, gives it back. The waiting is
+found again on remounting, within the tab: the button hands its task to the tracking with what it
+aims at (`aim`, composed by `taskAim` from its kind and its object — the revision marked or
+exported, the project of an import, the installation for a backup or a reading of the accounts),
+which the tracking keeps with it in the session of the tab (`storage.ts`); remounted — the tab
+reloaded, the screen left then found again —, it waits on the task it has just launched or, failing
+that, on the one running for what it aims at (`useRunningTask`, #3404). A task launched from another
+tab or another workstation has no object: no button waits for it.
 
 ### The tooltips of the commands
 
@@ -2615,8 +2622,11 @@ A menu item is written by `MenuCommand` (`menu-command.tsx`), which takes the it
 icon and `onSelect`: the name is both the text of the item and that of the tooltip, and the keys
 are set on the item, shown at its end and in the tooltip, from a single input. An item that leads
 elsewhere takes `href` instead of `onSelect` — one or the other, never both —, and is rendered as a
-link; `detail` is a text the item says under its name, the condition a gesture of the Kanban lacks
-(#1435).
+link. An unavailable item follows the rule of `Command` (#3430): the condition it lacks
+(`unavailable`) is read in its tooltip, by pointer as by keyboard, and describes it, without being
+written under its name; pressed, it runs nothing, and the screen that holds the menu says what is
+missing in its region of the refusals, from its `onSelect` — the card of the Kanban, by the alert of
+the card, the menu closed.
 
 The tooltip follows WCAG 1.4.13: it opens on hover, after a short rest, and on keyboard focus, at
 once — in a menu, after the same rest, so that Escape pressed at once closes the menu (`inMenu`,
@@ -3107,7 +3117,7 @@ its side; a failure of the chain is therefore reproduced by the same command.
 | `make check-<famille>`                                                  | one family: `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service`, `production`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `make changes BASE=…`                                                 | the families a change touches                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | one single test file, during development; without `TESTS`, all of them, as in the chain                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `make service-install`                                                  | bootstraps the started service platform, its realm applied (`waterfall-api install`, US-0420): applies the migrations under the owner of the tables, creates the installation, its three predefined roles and its local administrator, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` by default), in the language `WATERFALL_DEFAULT_LANGUAGE` (`fr` by default), and its minimal reference (EP-05): the shared settings, with the currency `WATERFALL_CURRENCY` (`EUR` by default) and the name of the company `WATERFALL_COMPANY_NAME` (`Delmas Automatismes` by default, those of the witness), and the time zone `WATERFALL_TIME_ZONE` (`UTC` by default, a name of the IANA database, refused if unknown, in which the current day is taken, US-2200), the units of duration, the mapping of the actual costs, empty, the default calendar, the nature and the category of provision for risks; writes on its output only the link that sets its password, valid until it is used; run again, it creates nothing, says another currency, another name or another time zone ignored, and writes a new link, which replaces the previous one, as long as the administrator has no password, none afterwards                                                                                                                                                                                                   |
+| `make service-install`                                                  | bootstraps the started service platform, its realm applied (`waterfall-api install`, US-0420): applies the migrations under the owner of the tables, creates the installation, its three predefined roles and its local administrator, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` by default), in the language `WATERFALL_DEFAULT_LANGUAGE` (`fr` by default), and its minimal reference (EP-05): the shared settings, with the currency `WATERFALL_CURRENCY` (`EUR` by default) and the name of the company `WATERFALL_COMPANY_NAME` (`Delmas Automatismes` by default, those of the witness), and the time zone `WATERFALL_TIME_ZONE` (`UTC` if the variable is empty, at the first writing only, a name of the IANA database, refused if unknown, in which the current day is taken, US-2200), the units of duration, the mapping of the actual costs, empty, the default calendar, the nature and the category of provision for risks; writes on its output only the link that sets its password, valid until it is used; run again, it creates nothing, says another currency, another name or another time zone ignored — run again without a time zone, nothing is said —, and writes a new link, which replaces the previous one, as long as the administrator has no password, none afterwards                                                                                                                                                                                                   |
 | `make service-witness`                                                  | loads the witness on the service platform, started and bootstrapped (`waterfall-api load-witness`, service `witness`, EP-05): the examples of the contract, `fixtures/api/`, mounted read-only, written by the role of the service; run again, it writes nothing; one slice per object, in the order of the dependencies, in one transaction ("The back and the boundaries of the core")                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `make service-purge`                                                    | runs by hand the purge of what expired on the service platform, started (`waterfall-worker purge`, in the container of the `scheduler` service, which calls it at the interval of `WATERFALL_PURGE_INTERVAL`, 600 s by default): reports of imports past their term, deposits past their term, exports of more than twenty-four hours, the history of the sessions older than `WATERFALL_UNDO_RETENTION_HOURS` hours (12 by default), and the objects that no row designates any more under `uploads/` and `exports/`; two purges never run together (advisory lock)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `make measure-core`                                                     | measures the core in process (`backend/measure/`, US-2210, EP-26), without HTTP or Keycloak, on the database of the service platform of the slot, which it first resets — stopped, its data dropped (`service-down WATERFALL_RESET_DATA=yes`), then started, bootstrapped and the witness loaded (`service-up`, `service-install`, `service-witness`), the secrets of `service-up` expected in the environment —: a whole read of PRJ-001 alone, then with `kinds=task`; the same under a profile, by stage (read, body, serialisation), with PostgreSQL's share; by several threads and by several processes; the ratio of an entry — a label, a duration that redates — to a read; the opening of a revision; the last marked revision read whole from its rows, then kept and read from what is kept, whole and projected, the size kept and the volume a platform of the volumes of §4.6.2 would keep, and the marking of the current revision followed by the keeping of its main structure (US-2270). The identifiers of the structures are read from the database; every write is rolled back, so the next measure starts from the same witness. The report is written readable, and as JSON with `JSON=<file>`; `RUNS=<n>` sets the identical runs of the whole read, of the cell entered and of the revision opened (five: their spread says what a difference must exceed to be a gain), each after one run that warms and is not counted; the profile and the waves of reads by threads and processes make one pass, which the report says, and the waves warm each worker and give each one read; `ONLY="read profile parallel write revision kept"` plays one part only. The entries rolled back leave dead tuples in the witness's tables, which a long series can show: the next measure starts again from a reloaded witness. It takes the workstation for itself alone (`$(exclusive)`, "The workstation for a measure alone"): every heavy run of the other deliverers waits for it to end. It never fails on a duration and the chain does not run it. The package is typed and linted like `src/waterfall` (Ruff, Pyright), and absent from the back's image and from its coverage |
@@ -3253,19 +3263,27 @@ revision, opened again (`createRevision`, outside the measure) before each pass 
 each read at its background task (`getBackgroundTask`), from its submission to its end. The marking
 comes last: it freezes the revision the load writes, whose entries are refused from then on. The
 report (`frontend/e2e/measure/version.ts`) has the form `make check-measures` confronts, with
-`taken_at` and `conditions` besides, the volumes read at the preparation (tasks, estimate lines) and the summary of the load among them (gestures, readings and entries refused, duration, gestures expected);
-opening a grid gathers the four openings of the journey, filtering, sorting or searching the three
+`taken_at` and `conditions` besides, the volumes read at the preparation (tasks, estimate lines) and
+the summary of the load among them (gestures, readings and entries refused, duration, gestures
+expected); opening a grid gathers the four openings of the journey, filtering, sorting or searching the three
 gestures on the estimate, recomputing the duration entered (the label recomputes nothing); the
 median and the worst duration are those of every measure, the dispersion the standard deviation (n -
 1) of the medians of the passes. It is written in `MEASURE_VERSION_REPORT`
 (`frontend/.e2e/measures/<version>.json`, the version of `frontend/package.json` unless
 `MEASURE_VERSION`), never by itself under `docs/measures/`, where the lot of the version versions
 it, with the `note` of its overruns. The measure fails on no duration: only on an account it cannot
-make, volumes below those of §4.6.2 (a thousand tasks, five estimate lines a task on average, less the witness's rounding: 4.9 at least), a step the
-browser does not reach the end of, a background task that fails, or a load that did not run as asked
+make, volumes below those of §4.6.2 (a thousand tasks, five estimate lines a task on average, less the
+witness's rounding: 4.9 at least), a step the browser does not reach the end of, a background task that fails, or a load that did not run as asked
 (`load-check.ts`): without a summary, a user refused for want of a token, more than one percent of
-readings or entries refused — the entries the marking refuses (`409`), the only ones expected,
-apart —, fewer than half the gestures the pauses promise (users × duration ÷ 10 s). The passes of
+readings or entries refused (one refusal isolated per category is tolerated if it is named in the
+report, read in the k6 log before the stop; a refusal the summary counts and the log does not name,
+occurring during the stop, is not tolerated) — the gestures the marking refuses, apart: the `409`
+`STATE_FORBIDS_OPERATION`, the only one expected, not any `409` — an entry on the marked
+revision, the reading of the workload on the current revision of a project that has none left —,
+counted on their own (`reads_frozen`, `writes_frozen`) and only after the first marking asked,
+within the share of the load during which the revision stood frozen, to ten percent: more of
+them than that fail the load, a load frozen for its whole duration accepting them all; and fewer
+than half the gestures the pauses promise (users × duration ÷ 10 s). The passes of
 the import are not at a constant volume: the second imports its eighteen thousand lines beside the
 eighteen thousand of the first, the third beside thirty-six thousand, as a project that receives
 costs would, and the report says so. The container of the load stops at the end of the measure,
@@ -4206,11 +4224,13 @@ the witness of hydration: the cookie `wf_last_project`, which the shell writes o
 Outside a project, nothing witnesses it: the gesture is repeated until React answers it, without
 undoing the one it has already received (`setExpanded`, `openMenu`, and `sortUntilAddress` for a
 sort, which never hurries blindly). A grid screen is waited for up to the bound of grid screens,
-fifteen seconds (`WORKING`, #315, #419), whether a click reaches it or reloads it (a sort, a filter,
-a search, the detail of a line). A grid screen is a dense grid — estimate, planning, remaining to
-commit, risks, actual costs, portfolio —, or a screen that reads the structure of a thousand tasks:
-the tree and the timelines, by `listNodes`, and the Kanban, by `listStartableTasks` — the
-measure of #646 on PRJ-001, against the service: about 1.3 seconds for the 960 cards and their
+fifteen seconds (`WORKING`, #315, #419; it, `MARKING` and the other bounds of the paths are written,
+with the measures that justify them, in `frontend/e2e/bounds.ts`, US-2290), whether a click reaches
+it or reloads it (a sort, a filter, a search, the detail of a line). A grid screen is a dense grid —
+estimate, planning, remaining to commit, risks, actual costs, portfolio —, or a screen that reads
+the structure of a thousand tasks: the tree and the timelines, by `listNodes`, and the Kanban, by
+`listStartableTasks` — the measure of #646 on PRJ-001, against the service: about 1.3 seconds for
+the 960 cards and their
 1.8 megabytes, and two seconds from the click or the address to the first card, far below this
 bound. The comparison of two revisions joins them, for
 the time of a decision: it renders its 2,770 modifications in a plain table, rendered on the server,
@@ -4823,9 +4843,22 @@ which the server of Next was answering the browser — document, component tree,
 prefetch asked before the step and that it waits for — or the API was answering Next, less the
 API's; the browser, the rest. The weight of the answer is what Next sent the browser for the step.
 The time of Next and the weight keep the same requests: not the prefetches the step starts itself
-for the screens to come, which it does not wait for — their time is the browser's, at work
-meanwhile. A limit: the requests of the API such a prefetch makes stay in the part of the API, the
-log tying a request to an account and a moment, not to the request of Next that made it. The
+for another screen, which it does not wait for — their time is the browser's, at work
+meanwhile; the one it starts for the screen it ends on — same path and same query (filter, sort, search) —,
+when the router asks it anew, it waits for, and it counts; a prefetch of the same path under
+another query serves a step to come, and does not. The part of the API counts the requests of the account only while a request of Next
+the step waits for is under way: the requests of such a prefetch outside it count for none. A
+limit: those made within it stay, the log tying a request to an account and a moment, not to the
+request of Next that made it. The browser never calls the API itself (its components go through
+server actions): such a request, outside Next, would fall in the browser's part. A weight of 0
+beside an API that answered is not a download that never was: a step under load waits for a
+request the router cut short (a prefetch a navigation takes over, which Playwright reports as
+failed) or whose sizes never came, and its bytes are unknown. Such a request is marked
+`weighed: false`, the step counts it (`unweighed`), the weight of its sample stays out of the
+statistic — its times stay —, and the log of the run says how many samples were left out. The report of the step carries that number (`unweighed`)
+and gives `bytes` as `null` when no sample has a weight: neither a 0 read as a download that never
+was, nor silence. A step
+served from the router's cache, without a request, has no API time either. The
 journey is played by one,
 four and eight users at once (`MEASURE_USERS`, which always names `1`: only a user alone fails the measure), an account each, each in its own browser context,
 and the duration of `getMe` is recorded meanwhile, in the log of the API and by a client that asks
@@ -5445,7 +5478,11 @@ that of the logo.
   its title, a level 2 heading,
   its commands to the right of the title, then its body. Its commands wrap under the title rather
   than overflow: at a zoom of 150 %, none becomes unreachable. A screen does not compose its card
-  itself.
+  itself. The grid of a screen of work, which has no title of section — the title of the screen says
+  it —, and a chart that names itself take the card of the grid, `GridCard`
+  (`frontend/src/components/shell/grid-card.tsx`, #3421, #3446): without title or commands, it fills
+  the room its screen leaves it (`fill`); `SectionCard` keeps its required title. An empty section
+  says its sentence in place of its body (`empty` of `ReferenceCard`).
 - **The rule of the commands** (#3088, rules 2 to 4): a card has at most one principal command, the
   last to the right of its title (`principal`), filled when it creates or triggers, outlined when
   it modifies — the screen tells the card what it does (`does`) and gives it the command as a

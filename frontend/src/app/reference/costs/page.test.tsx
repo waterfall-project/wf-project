@@ -223,36 +223,22 @@ describe("the leaf of the correspondence of the actual costs", () => {
   });
 });
 
-describe("the name of the company beside the currency", () => {
-  it("is read with the command that modifies it by a session that holds cost_settings.write", async () => {
-    const page = await costsAt();
-    expect(page).toContain("Delmas Automatismes");
-    expect(page).toContain("Modifier le nom de l’entreprise");
-  });
-
-  it("is placed right after the currency, and the page shows no mock-up notice", async () => {
-    const page = await costsAt();
-    const currency = page.indexOf("Montants exprimés en");
-    const name = page.search(/<dd[^>]*>[^<]*Delmas Automatismes/);
-    const command = page.indexOf("Modifier le nom de l’entreprise");
-    expect(currency).toBeGreaterThan(-1);
-    expect(name).toBeGreaterThan(currency);
-    expect(command).toBeGreaterThan(currency);
-    expect(page).not.toContain('role="note"');
-  });
-
-  it("is read without any command to modify it by a session that does not hold cost_settings.write", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /me": "me_estimator",
-      [TYPES]: "cost_types_reader",
-    };
-    const page = await costsAt();
-    expect(page).not.toContain("Modifier le nom de l’entreprise");
-    const currency = page.indexOf("Montants exprimés en");
-    expect(currency).toBeGreaterThan(-1);
-    expect(page.search(/<dd[^>]*>[^<]*Delmas Automatismes/)).toBeGreaterThan(currency);
-  });
+describe("the name of the company", () => {
+  it.each([
+    ["a session that holds installation.write", "me"],
+    ["a session that holds cost_settings.write alone", "me_manager"],
+  ] as const)(
+    "is no longer on the screen of the costs, which the card of the installation carries, for %s",
+    async (_who, me) => {
+      server.answers = { ...server.answers, "GET /me": me };
+      const page = await costsAt();
+      expect(page).toContain("Montants exprimés en");
+      expect(page).not.toContain("Delmas Automatismes");
+      expect(page).not.toContain("Modifier le nom de l’entreprise");
+      expect(page).not.toContain("Nom de l’entreprise");
+      expect(page).not.toContain('role="note"');
+    },
+  );
 });
 
 describe("the layout of the settings of the costs", () => {

@@ -7,7 +7,8 @@
  */
 import { expect, type Locator, type Page } from "@playwright/test";
 
-import { setExpanded, WORKING } from "./hydration";
+import { WORKING } from "./bounds";
+import { setExpanded } from "./hydration";
 
 /** The button of the menu of a label, not the header of a column of the same name. */
 export function menuButton(page: Page, label: string): Locator {

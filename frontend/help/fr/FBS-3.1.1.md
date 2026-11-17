@@ -25,7 +25,7 @@ Un code ou un libellé déjà porté est refusé à son champ, qui nomme l’obj
 Au-dessus de chaque table, pour tous :
 
 - **Types de nature** retient les natures des types choisis ; **Nature** retient les catégories d’une nature ;
-- un filtre d’état — **Tous les états**, **Actifs**, **Désactivés** — quand les désactivés sont affichés ;
+- le filtre **État** de sa barre — **Actifs** (par défaut), **Désactivés**, **Tous les états** —, offert à qui peut modifier les paramètres de coûts ;
 - le champ de recherche retient les objets dont le code ou le libellé contient le texte saisi, et, pour les catégories, le code comptable ;
 - **Colonnes**, **Lignes par page**, **Précédent** et **Suivant**.
 

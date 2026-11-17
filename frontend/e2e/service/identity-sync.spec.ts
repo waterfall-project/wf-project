@@ -14,8 +14,8 @@
  */
 import { expect, type Locator, test } from "@playwright/test";
 
+import { WORKING } from "../bounds";
 import { compileAnswered } from "../compile";
-import { WORKING } from "../hydration";
 import { heldToTheContract } from "./contract";
 import { accountAdministrator, localAccount, signIn, withdrawRoles } from "./realm";
 

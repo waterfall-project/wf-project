@@ -11,12 +11,14 @@
  * answer awaited is the answer of that request, not of any action of the page (`answerOf`). A
  * command pressed again each second until its row answered asked its write twice when the answer
  * came past the second, or pressed the opposite command the answer had just put in its place
- * (#3135, #3191). The window left: a request that leaves past the wait of the try after a click
- * Playwright did accept (`TAKEN`) still comes after a second press.
+ * (#3135, #3191). A command that says it is occupied — `aria-busy="true"` or `aria-disabled="true"`
+ * — is not pressed again at all: its request is awaited only (#3448). The window left: a request
+ * that leaves past the wait of the try after a click Playwright did accept (`TAKEN`) still comes
+ * after a second press.
  */
 import { expect, type Locator, type Page, type Request, type Response } from "@playwright/test";
 
-import { WORKING } from "./hydration";
+import { WORKING } from "./bounds";
 
 /** Whether a request is a server action of Next, which a write of a screen is (`next-action`). */
 export const isServerAction = (request: Request): boolean =>
@@ -43,6 +45,8 @@ export async function pressOnce(
   let sent: Request | undefined;
   // The last click Playwright refused, said with the failure of the tries if none is taken (#3254).
   let refused: Error | undefined;
+  // Whether the command was found occupied, and so not pressed, at its last try.
+  let idle = false;
   const listen = (request: Request) => {
     if (sent === undefined && isServerAction(request) && asked(request)) {
       sent = request;
@@ -56,8 +60,12 @@ export async function pressOnce(
       }
       let wait = REFUSED;
       try {
-        await command.click({ timeout: 1_000 });
-        wait = TAKEN;
+        // A command occupied is not pressed: the action it waits for is awaited, nothing more.
+        idle = await occupied(command);
+        if (!idle) {
+          await command.click({ timeout: 1_000 });
+          wait = TAKEN;
+        }
       } catch (error) {
         // Refused by Playwright: no action can have left from this press, the next try presses again.
         if (error instanceof Error) {
@@ -67,23 +75,45 @@ export async function pressOnce(
       await expect.poll(() => sent !== undefined, { timeout: wait }).toBe(true);
     }).toPass({ timeout: WORKING });
   } catch (error) {
-    throw new Error(failedPress(refused), { cause: error });
+    throw new Error(failedPress(refused, idle), { cause: error });
   } finally {
     page.off("request", listen);
   }
   if (sent === undefined) {
-    throw new Error(failedPress(refused));
+    throw new Error(failedPress(refused, idle));
   }
   return sent;
 }
 
 /**
- * What the tries of `pressOnce` say when no action left from the command: that none did, and the
- * last click Playwright refused, if any — an element covered, detached… —, which is the cause.
+ * Whether a command waits for its own answer, `aria-busy="true"` or `aria-disabled="true"`: its
+ * action has left, or is leaving, and a click would ask nothing — or, where an answer put the
+ * opposite command in its place, press that one (#3448, #3396). A command absent reads as not
+ * occupied: the click then fails, and the next try looks again.
  */
-export function failedPress(refused: Error | undefined): string {
+async function occupied(command: Locator): Promise<boolean> {
+  try {
+    const [busy, disabled] = await Promise.all([
+      command.getAttribute("aria-busy", { timeout: 500 }),
+      command.getAttribute("aria-disabled", { timeout: 500 }),
+    ]);
+    return busy === "true" || disabled === "true";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * What the tries of `pressOnce` say when no action left from the command: that none did, and the
+ * last click Playwright refused, if any — an element covered, detached… —, which is the cause; or
+ * that the command was occupied at the last try, and so not pressed.
+ */
+export function failedPress(refused: Error | undefined, occupiedNotPressed = false): string {
   const said = "no server action asked left from the command pressed";
-  return refused === undefined ? said : `${said}; the last click refused: ${refused.message}`;
+  const busy = occupiedNotPressed ? "; the command was occupied, and not pressed" : "";
+  return refused === undefined
+    ? `${said}${busy}`
+    : `${said}; the last click refused: ${refused.message}${busy}`;
 }
 
 /** Whether the body of an action is `setActivation(target, state)`: `[{"kind":…,"id":…,…},state]`. */

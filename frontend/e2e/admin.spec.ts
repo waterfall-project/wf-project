@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { WORKING } from "./bounds";
 import { menuButton, openAudit, openFilters, pick } from "./check-menu";
 import { expect, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
-import { setExpanded, sortUntilAddress, WORKING } from "./hydration";
+import { setExpanded, sortUntilAddress } from "./hydration";
 import { inService, test } from "./mode";
 import { grantRole } from "./service/realm";
 
@@ -79,10 +80,11 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
 
   await page.goto("/admin/access-roles");
   const matrix = page.getByRole("table", { name: "Permissions par fonction" });
-  // A header, the forty-one permissions of the functions — the functions in reading alone, the
+  // A header, the forty-three permissions of the functions — the functions in reading alone, the
   // state of the system, the journal of audit and the views of the portfolio, have their
-  // consultation alone (#739) —, and the ten permissions of their own.
-  await expect(matrix.getByRole("row")).toHaveCount(52);
+  // consultation alone (#739), the installation its reading and its modification (WF-ADM-0100-A)
+  // —, and the ten permissions of their own.
+  await expect(matrix.getByRole("row")).toHaveCount(54);
   await expect(
     matrix.getByRole("rowheader", { name: "Journal d’audit", exact: true }),
   ).toBeVisible();

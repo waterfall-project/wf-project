@@ -18,7 +18,7 @@
  * kept to be changed, the end of a period refused said at its field with the start the API was
  * given (`params.minimum`); any other read the API refuses, or cannot answer, is thrown for the
  * pages of the shell to say. The grid, with its bar and its pages, is a card of work
- * (`WorkCard`, EP-25, US-2140/L2) beside the journal of the imports, a card of its own.
+ * (`GridCard`, EP-25, US-2140/L2) beside the journal of the imports, a card of its own.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -70,7 +70,7 @@ import { requestSession } from "@/session/request";
 import { screenMetadata } from "../../../../../title";
 import { type GridAddress, gridAddress } from "../grid-screen";
 import type { RevisionParams } from "../page";
-import { WorkCard } from "../work-card";
+import { GridCard } from "@/components/shell/grid-card";
 
 /** The refusal of filters the server cannot apply (`listActualCosts`, 422). */
 const FILTERS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
@@ -280,7 +280,7 @@ export default async function ActualCostsPage({
           )}
           <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row">
             <div className="flex min-w-0 flex-col lg:min-h-0 lg:flex-1">
-              <WorkCard fill>
+              <GridCard fill>
                 {"refused" in costs ? (
                   <>
                     {panel}
@@ -306,7 +306,7 @@ export default async function ActualCostsPage({
                     />
                   </>
                 )}
-              </WorkCard>
+              </GridCard>
             </div>
             <aside className="flex shrink-0 flex-col gap-4 lg:w-[28rem] lg:overflow-y-auto">
               {exclusion === undefined || line === undefined ? null : (

@@ -39,7 +39,7 @@ import {
   usableAt,
   watchGrids,
 } from "../usable";
-import { failedRequest, type FrontRequest, type Interval } from "./report";
+import { failedRequest, type FrontRequest, type Interval, screenOf } from "./report";
 
 export const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 export const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -233,21 +233,29 @@ export async function player(page: Page, origin: string): Promise<Player> {
     }
     const { startTime: start, responseEnd } = request.timing();
     const prefetch = request.headers()["next-router-prefetch"] !== undefined;
+    const path = screenOf(request.url());
     // The sizes of an answer the browser no longer reads — a prefetch a navigation left behind —
     // never come, or are refused once its page is gone: its time is kept all the same, and its
-    // bytes counted for none.
-    const unsized = new Promise<number>((resolve) => {
+    // bytes unknown (`weighed`).
+    const unsized = new Promise<undefined>((resolve) => {
       setTimeout(() => {
-        resolve(0);
+        resolve(undefined);
       }, SIZED);
     });
     const sized = request.sizes().then(
       ({ responseBodySize }) => responseBodySize,
-      () => 0,
+      () => undefined,
     );
     reading.push(
       Promise.race([sized, unsized]).then((bytes) => {
-        front.push({ start, end: start + responseEnd, bytes, prefetch });
+        front.push({
+          start,
+          end: start + responseEnd,
+          bytes: bytes ?? 0,
+          path,
+          prefetch,
+          ...(bytes === undefined ? { weighed: false } : {}),
+        });
       }),
     );
   });
@@ -257,7 +265,13 @@ export async function player(page: Page, origin: string): Promise<Player> {
     if (rendered(request, origin)) {
       const prefetch = request.headers()["next-router-prefetch"] !== undefined;
       front.push(
-        failedRequest(request.timing().startTime, asked.get(request), Date.now(), prefetch),
+        failedRequest(
+          request.timing().startTime,
+          asked.get(request),
+          Date.now(),
+          prefetch,
+          screenOf(request.url()),
+        ),
       );
     }
   });
@@ -493,10 +507,14 @@ async function bounded<T>(step: Step, play: () => Promise<T>): Promise<T> {
   }
 }
 
-/** A step of the journey: its name, and its span, if the user reached its end. */
+/**
+ * A step of the journey: its name, its span if the user reached its end, and the screen
+ * it ended on (`screenOf`), which the parts of the step take for its destination (`partsOf`).
+ */
 export interface Timed {
   readonly step: Step;
   readonly span: Interval | undefined;
+  readonly destination: string;
 }
 
 /**
@@ -576,7 +594,7 @@ export async function journey(player: Player, target: Target, tag: string): Prom
   let reached = true;
   for (const [step, play] of plays) {
     if (!reached) {
-      timed.push({ step, span: undefined });
+      timed.push({ step, span: undefined, destination: "" });
       continue;
     }
     try {
@@ -585,12 +603,12 @@ export async function journey(player: Player, target: Target, tag: string): Prom
         await settle(requests, LOADED);
         return played;
       });
-      timed.push({ step, span });
+      timed.push({ step, span, destination: screenOf(page.url()) });
     } catch (error) {
       const [why = ""] = (error instanceof Error ? error.message : String(error)).split("\n");
       console.log(`${step}: not reached at ${page.url()}, ${await gridsShown(page)} (${why})`);
       reached = false;
-      timed.push({ step, span: undefined });
+      timed.push({ step, span: undefined, destination: "" });
     }
   }
   return timed;

@@ -17,8 +17,9 @@
  */
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import { compile } from "./compile";
-import { untilHydrated, WORKING } from "./hydration";
+import { untilHydrated } from "./hydration";
 
 test.describe.configure({ mode: "parallel" });
 test.slow();
@@ -269,7 +270,7 @@ for (const size of WINDOWS) {
     await expect(grid.getByRole("row").last()).toHaveText("43 inscriptions");
     await expect(page.getByText("43 inscriptions")).toHaveCount(1);
     // The table is in a card, which has no title of section: no region named by a heading.
-    const card = page.locator('main [data-slot="card"]');
+    const card = page.locator('main [data-slot="grid-card"]');
     await expect(card).toHaveCount(1);
     await expect(card.locator('[data-slot="card-title"]')).toHaveCount(0);
     await expect(card.getByRole("heading")).toHaveCount(0);

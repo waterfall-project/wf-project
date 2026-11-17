@@ -592,14 +592,13 @@ dernier, la fin exclue. Les états se disent comme le filtre des projets, par de
 adresse qui ne nomme aucun état demande ceux que le compte a gardés, à défaut les états par défaut,
 Créé, Chiffrage et En cours, dits « (par défaut) » ; `states=all` les lève et demande les six,
 là où le contrat, sans `states`, ne rendrait que les projets en cours (WF-PTF-0010) : l'adresse fait
-foi.
-Une période que le serveur refuse — une fin qui
-précède le début, 422 `VALUE_OUT_OF_RANGE` sur `/query/to`, `params.minimum` le début donné — est
-dite à son champ, le début nommé par son jour local, qui prend le focus chaque fois que la liste
-revient refusée, comme une borne d'une colonne de nombres (`range-filter.tsx`) ; la liste n'est pas
-lue, et une phrase tient la place de la grille. Sa ligne de totaux dit combien de projets le serveur
-retient, et elle mène aux autres pages par `ListPages` ; une page demandée au-delà de sa fin le dit,
-et ramène à sa dernière page : seule une liste qui ne tient aucun projet, sans état, période ni
+foi. Une période que le serveur refuse — une fin qui précède le début, 422 `VALUE_OUT_OF_RANGE` sur
+`/query/to`, `params.minimum` le début donné — est dite à son champ, le début nommé par son jour
+local, qui prend le focus chaque fois que la liste revient refusée, comme une borne d'une colonne de
+nombres (`range-filter.tsx`) ; la liste n'est pas lue, et une phrase tient la place de la grille. Sa
+ligne de totaux dit combien de projets le serveur retient, et elle mène aux autres pages par
+`ListPages` ; une page demandée au-delà de sa fin le dit, et ramène à sa dernière page : seule une
+liste qui ne tient aucun projet, sans état, période ni
 recherche, se dit vide. Les écrans du projet lui-même — le projet, ses paramètres avec ses
 sous-projets et ses contributeurs, son cycle de vie — exercent la sortie du cycle de vie
 (`ExitCommand`), irréversible, confirmée dans la page avant que son action serveur ne la demande, la
@@ -2593,7 +2592,13 @@ elle attend ce qu'elle a lancé — sa requête, écriture lente faite dans la r
 (l'ouverture d'une révision), ou la tâche de fond qu'elle a remise au suivi, jusqu'à sa fin
 (`useTaskRunning`) — de la même façon partout (`waiting.tsx`, #3103) : inerte (`aria-disabled`,
 une seconde pression ne relance rien), `aria-busy`, une roue à la place de son icône, à côté de son
-libellé, qui reste ; une réponse, un échec compris, la rend.
+libellé, qui reste ; une réponse, un échec compris, la rend. L'attente se retrouve au remontage, dans
+l'onglet : le bouton remet sa tâche au suivi avec ce qu'il vise (`aim`, composé par `taskAim` de sa
+nature et de son objet — la révision marquée ou exportée, le projet d'un import, l'installation pour
+une sauvegarde ou une lecture des comptes), que le suivi garde avec elle dans la session de l'onglet
+(`storage.ts`) ; remonté — l'onglet rechargé, l'écran quitté puis retrouvé —, il attend sur la tâche
+qu'il vient de lancer ou, à défaut, sur celle qui court pour ce qu'il vise (`useRunningTask`, #3404).
+Une tâche lancée d'un autre onglet ou d'un autre poste n'a pas d'objet : aucun bouton ne l'attend.
 
 ### Les infobulles des commandes
 
@@ -2624,8 +2629,11 @@ Un article de menu s'écrit par `MenuCommand` (`menu-command.tsx`), qui prend l'
 et `onSelect` : le nom est à la fois le texte de l'article et celui de l'infobulle, et les touches
 sont posées sur l'article, montrées à sa fin et dans l'infobulle, d'une seule saisie. Un article qui
 mène ailleurs prend `href` au lieu d'`onSelect` — l'un ou l'autre, jamais les deux —, et s'y rend en
-lien ; `detail` est un texte que l'article dit sous son nom, la condition qui manque à un geste du
-Kanban (#1435).
+lien. Un article indisponible suit la règle de `Command` (#3430) : la condition qui lui manque
+(`unavailable`) se lit dans son infobulle, au pointeur comme au clavier, et le décrit, sans s'écrire
+sous son nom ; pressé, il ne lance rien, et l'écran qui tient le menu dit ce qui manque dans sa
+région des refus, depuis son `onSelect` — la carte du Kanban, par l'alerte de la carte, le menu
+refermé.
 
 L'infobulle suit WCAG 1.4.13 : elle s'ouvre au survol, après un court repos, et au focus du clavier,
 aussitôt — dans un menu, après le même repos, pour qu'Échap pressé aussitôt ferme le menu (`inMenu`,
@@ -3120,7 +3128,7 @@ commande.
 | `make check-<famille>`                                                  | une famille : `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service`, `production`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `make changes BASE=…`                                                   | les familles qu'une modification touche                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | un seul fichier de tests, pendant le développement ; sans `TESTS`, tous, comme dans la chaîne                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `make service-install`                                                  | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et son référentiel minimal (EP-05) : les paramètres communs, avec la devise `WATERFALL_CURRENCY` (`EUR` par défaut) et le nom de l'entreprise `WATERFALL_COMPANY_NAME` (`Delmas Automatismes` par défaut, ceux du témoin), et le fuseau horaire `WATERFALL_TIME_ZONE` (`UTC` par défaut, un nom de la base IANA, refusé s'il est inconnu, dans lequel s'entend le jour courant, US-2200), les unités de durée, la correspondance des coûts réels, vide, le calendrier par défaut, la nature et la catégorie de provision pour risques ; écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, dit ignorés une autre devise, un autre nom ou un autre fuseau, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite                                                                                                                                                                                              |
+| `make service-install`                                                  | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et son référentiel minimal (EP-05) : les paramètres communs, avec la devise `WATERFALL_CURRENCY` (`EUR` par défaut) et le nom de l'entreprise `WATERFALL_COMPANY_NAME` (`Delmas Automatismes` par défaut, ceux du témoin), et le fuseau horaire `WATERFALL_TIME_ZONE` (`UTC` si la variable est vide, à la première écriture seulement, un nom de la base IANA, refusé s'il est inconnu, dans lequel s'entend le jour courant, US-2200), les unités de durée, la correspondance des coûts réels, vide, le calendrier par défaut, la nature et la catégorie de provision pour risques ; écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, dit ignorés une autre devise, un autre nom ou un autre fuseau — relancée sans fuseau, rien n'est dit —, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite                                                                                                                                                                                              |
 | `make service-witness`                                                  | charge le témoin sur la plateforme de service démarrée et amorcée (`waterfall-api load-witness`, service `witness`, EP-05) : les exemples du contrat, `fixtures/api/`, montés en lecture seule, écrits par le rôle du service ; relancée, elle n'écrit rien ; une tranche par objet, dans l'ordre des dépendances, en une transaction (« Le back et les frontières du noyau »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make service-purge`                                                    | lance à la main la purge de ce qui a expiré sur la plateforme de service démarrée (`waterfall-worker purge`, dans le conteneur du service `scheduler`, qui l'appelle à l'intervalle de `WATERFALL_PURGE_INTERVAL`, 600 s par défaut) : comptes rendus d'import échus, dépôts échus, exports de plus de vingt-quatre heures, historique des sessions de plus de `WATERFALL_UNDO_RETENTION_HOURS` heures (12 par défaut), et les objets que plus aucune ligne ne désigne sous `uploads/` et `exports/` ; deux purges ne tournent jamais ensemble (verrou consultatif)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `make measure-core`                                                     | lance la mesure du cœur dans le processus (`backend/measure/`, US-2210, EP-26), sans HTTP ni Keycloak, sur la base de la plateforme de service du créneau, qu'elle remet d'abord à zéro — arrêtée, ses données supprimées (`service-down WATERFALL_RESET_DATA=yes`), puis démarrée, amorcée et le témoin chargé (`service-up`, `service-install`, `service-witness`), les secrets de `service-up` attendus dans l'environnement — : une lecture entière de PRJ-001 seule, puis avec `kinds=task` ; la même sous profil, par étape (lecture, corps, sérialisation), avec la part de PostgreSQL ; par plusieurs fils et par plusieurs processus ; le rapport d'une saisie — un libellé, une durée qui redate — à une lecture ; l'ouverture d'une révision ; la dernière révision marquée lue entière depuis ses lignes, puis gardée et lue depuis ce qui est gardé, entière et projetée, la taille gardée et le volume qu'en garderait une plateforme aux volumes du §4.6.2, et le marquage de la révision en cours suivi de la garde de sa structure principale (US-2270). Les identifiants des structures se lisent dans la base ; chaque écriture est annulée, la mesure suivante part du même témoin. Le rapport s'écrit lisible, et en JSON avec `JSON=<fichier>` ; `RUNS=<n>` règle les passages identiques de la lecture entière, de la saisie et de l'ouverture de révision (cinq : leur dispersion dit ce qu'un écart doit dépasser pour être un gain), chacun après un passage d'échauffement qu'on ne compte pas ; le profil et les vagues de lectures par fils et par processus n'ont qu'un passage, ce que le rapport dit, et les vagues échauffent chaque fil et chaque processus et assurent une lecture à chacun ; `ONLY="read profile parallel write revision kept"` n'en joue qu'une part. Les saisies annulées laissent des tuples morts dans les tables du témoin, ce qu'une longue série peut montrer : la mesure suivante repart d'un témoin rechargé. Elle prend le poste pour elle seule (`$(exclusive)`, « Le poste pour une mesure seule ») : toutes les exécutions lourdes des autres livreurs attendent sa fin. Elle n'échoue jamais sur une durée et la chaîne ne la joue pas. Le paquet est typé et analysé comme `src/waterfall` (Ruff, Pyright), absent de l'image du back et de la couverture |
@@ -3280,8 +3288,13 @@ versionne le lot de la version, avec les `note` de ses dépassements. La mesure 
 durée : seulement sur un compte qu'elle ne peut créer, des volumes inférieurs à ceux du §4.6.2 (mille
 tâches, cinq lignes de devis par tâche en moyenne, à l'arrondi près du témoin : 4,9 au moins), une étape que le navigateur ne mène pas à sa fin, une tâche
 de fond qui échoue, ou une charge qui n'a pas tourné comme demandé (`load-check.ts`) : sans résumé,
-un utilisateur refusé faute de jeton, plus d'un pour cent de lectures ou de saisies refusées — les
-saisies refusées par le marquage (`409`), seules attendues, mises à part —, moins de la moitié des
+un utilisateur refusé faute de jeton, plus d'un pour cent de lectures ou de saisies refusées (un refus isolé par catégorie est toléré s'il est nommé au rapport, lu dans le journal de k6 avant l'arrêt ; un refus que le résumé compte et que le journal ne nomme pas, survenu pendant l'arrêt, n'est pas toléré), hors
+les gestes que le marquage refuse — le `409` `STATE_FORBIDS_OPERATION`, seul attendu, et non tout
+`409` : une saisie sur la révision marquée, la lecture du plan de charge sur la révision en cours
+d'un projet qui n'en a plus —, comptés à part (`reads_frozen`, `writes_frozen`) : ceux-là ne
+comptent qu'après le premier marquage demandé, et que dans la part de la charge où la révision est
+restée gelée, à une marge de dix pour cent près (une charge gelée pendant toute sa durée les
+accepte toutes) ; ou moins de la moitié des
 gestes que promettent les pauses (utilisateurs × durée ÷ 10 s). Les passages d'import ne sont pas à
 volume constant : le deuxième importe ses dix-huit mille lignes à côté des dix-huit mille du
 premier, le troisième à côté de trente-six mille, comme le ferait un projet qui reçoit des coûts, et
@@ -4243,11 +4256,13 @@ perdent (#471). Un parcours ouvre donc un écran de projet par `openHydrated`
 que la coquille n'écrit que dans un effet. Hors projet, rien n'en témoigne : le geste se répète
 jusqu'à ce que React y réponde, sans défaire celui qu'il a déjà reçu (`setExpanded`, `openMenu`, et
 `sortUntilAddress` pour un tri, qui ne se presse jamais à l'aveugle). Un écran de grille s'attend à
-la borne des écrans de grille, quinze secondes (`WORKING`, #315, #419), qu'un clic l'atteigne ou le
-relise (un tri, un filtre, une recherche, le détail d'une ligne). Un écran de grille est une grille
-dense — devis, planning, reste à engager, risques, coûts réels, portefeuille —, ou un écran qui lit
-la structure de mille tâches : l'arborescence et les chronologies, par `listNodes`, et le Kanban,
-par `listStartableTasks` — la mesure de #646 sur PRJ-001, contre le service : environ 1,3 seconde
+la borne des écrans de grille, quinze secondes (`WORKING`, #315, #419 ; elle, `MARKING` et les
+autres bornes des parcours sont écrites, avec les mesures qui les justifient, dans
+`frontend/e2e/bounds.ts`, US-2290), qu'un clic l'atteigne ou le relise (un tri, un filtre, une
+recherche, le détail d'une ligne). Un écran de grille est une grille dense — devis, planning, reste
+à engager, risques, coûts réels, portefeuille —, ou un écran qui lit la structure de mille tâches :
+l'arborescence et les chronologies, par `listNodes`, et le Kanban, par `listStartableTasks` — la
+mesure de #646 sur PRJ-001, contre le service : environ 1,3 seconde
 pour les 960 cartes et leurs 1,8 mégaoctet, et deux secondes du clic ou de l'adresse à la première
 carte, loin sous cette borne. La
 comparaison de deux révisions s'y ajoute, le temps d'une décision : elle rend ses 2 770
@@ -4924,10 +4939,26 @@ différence, le temps où le serveur de Next répondait au navigateur — docume
 action serveur, préchargement demandé avant l'étape et qu'elle attend — ou l'API à Next, moins
 celui de l'API ; le navigateur, le reste. Le poids de la réponse est ce que Next a envoyé au
 navigateur pour l'étape. Temps de Next et poids retiennent les mêmes requêtes : pas les
-préchargements que l'étape lance elle-même pour les écrans suivants, qu'elle n'attend pas — leur
-temps est celui du navigateur, qui travaille pendant ce temps. Limite : les requêtes d'API d'un tel
-préchargement restent dans la part de l'API, le journal rattachant une requête à un compte et à un
-instant, non à la requête de Next qui l'a faite. Le parcours se
+préchargements que l'étape lance elle-même pour un autre écran, qu'elle n'attend pas — leur
+temps est celui du navigateur, qui travaille pendant ce temps — ; celui qu'elle lance pour l'écran
+où elle finit — même chemin et même requête (filtre, tri, recherche) —, quand le routeur le demande
+de nouveau, elle l'attend, et il compte ; un préchargement du même chemin sous une autre requête
+sert une étape à venir, et ne compte pas. La part de
+l'API ne compte les requêtes du compte que pendant une requête de Next que l'étape attend : celles
+d'un tel préchargement hors d'elle ne comptent pour rien. Limite : celles qui sont faites pendant
+elle restent, le journal rattachant une requête à un compte et à un instant, non à la requête de
+Next qui l'a faite. Le navigateur n'appelle jamais l'API lui-même (ses composants passent par
+des actions serveur) : une telle requête, hors de Next, tomberait dans la part du navigateur. Un
+poids de 0 à côté d'une API qui a répondu n'est pas un téléchargement qui n'a pas eu lieu : sous
+charge, une étape attend une requête que le routeur a coupée (un préchargement qu'une navigation
+reprend, que Playwright dit échoué) ou dont les tailles ne sont jamais venues, et ses octets sont
+inconnus. Une telle requête est marquée `weighed: false`, l'étape la compte (`unweighed`), le poids
+de son échantillon reste hors de la statistique — ses temps restent — et le journal du passage dit
+combien d'échantillons ont été écartés. Le rapport de l'étape porte ce nombre (`unweighed`) et
+rend `bytes` à `null` quand aucun échantillon n'a de poids : ni un 0 qui se lirait comme un
+téléchargement qui n'a pas eu lieu, ni un silence. Une étape servie par le cache du routeur, sans requête,
+n'a pas non plus de temps d'API. Le
+parcours se
 joue à un, quatre et huit utilisateurs à la fois (`MEASURE_USERS`, qui nomme toujours `1` : seul un utilisateur seul fait échouer la mesure), un compte chacun, chacun dans
 son contexte de navigateur, et la durée de `getMe` est relevée pendant ce temps, dans le journal de
 l'API et par un client qui la demande chaque seconde, avec un compte à lui, sans rôle, qui ne joue
@@ -5565,7 +5596,11 @@ l'anneau du focus ; la police est Geist, celle du logo.
   nommée par son titre, un titre de
   niveau 2, ses commandes à droite du titre, puis son corps. Ses commandes passent à la ligne sous
   le titre plutôt que de déborder : à 150 % d'agrandissement, aucune ne devient inatteignable. Un
-  écran ne compose pas sa carte lui-même.
+  écran ne compose pas sa carte lui-même. La grille d'un écran de travail, qui n'a pas de titre de
+  section — celui de l'écran le dit —, et un graphique qui se nomme lui-même ont la carte de grille,
+  `GridCard` (`frontend/src/components/shell/grid-card.tsx`, #3421, #3446) : sans titre ni
+  commandes, elle remplit la place que l'écran lui laisse (`fill`) ; `SectionCard` garde son titre
+  exigé. Une section vide dit sa phrase à la place de son corps (`empty` de `ReferenceCard`).
 - **La règle des commandes** (#3088, règles 2 à 4) : une carte a au plus une commande principale,
   la dernière à droite de son titre (`principal`), pleine quand elle crée ou déclenche, à contour
   quand elle modifie — l'écran dit à la carte ce qu'elle fait (`does`) et lui donne la commande

@@ -6,8 +6,9 @@
  * (`listBackgroundTasks`) does not say —, kept in the storage of the session of the tab
  * (`sessionStorage`), and read back when the shell mounts.
  *
- * Kept with care: only what names a running task still followed — its identifier, its kind, its status and
- * the subject the user typed —, read back only when it has that shape, and nothing is lost
+ * Kept with care: only what names a running task still followed — its identifier, its kind, its status,
+ * the subject the user typed, and what the button that started it aims at, by which the button finds
+ * it again once mounted anew (`taskAim`, #3404) —, read back only when it has that shape, and nothing is lost
  * but the follow-up when the storage is refused (a private window, a quota). A task that
  * ended is not kept: its end was announced. The command that started a task does not survive
  * a reload — a function is no data —: a task followed again after one cannot be relaunched
@@ -36,12 +37,14 @@ const KINDS: Readonly<Record<TaskKind, true>> = {
 };
 
 /** What is kept of a task. */
-interface KeptTask {
+export interface KeptTask {
   readonly key: string;
   readonly task_id: string;
   readonly kind: TaskKind;
   readonly status: TaskStatus;
   readonly subject?: string | undefined;
+  /** What the button that started it aims at; none for a task the API listed. */
+  readonly aim?: string | undefined;
 }
 
 /** Whether a value read back is a task kept here, still running. */
@@ -58,7 +61,8 @@ function isKept(value: unknown): value is KeptTask {
     typeof kept.status === "string" &&
     Object.hasOwn(RUNNING, kept.status) &&
     RUNNING[kept.status as TaskStatus] &&
-    (kept.subject === undefined || typeof kept.subject === "string")
+    (kept.subject === undefined || typeof kept.subject === "string") &&
+    (kept.aim === undefined || typeof kept.aim === "string")
   );
 }
 
@@ -79,7 +83,7 @@ function readKept(): unknown[] {
 export function restoreTasks(): TrackedTask[] {
   return readKept()
     .filter(isKept)
-    .map(({ key, task_id, kind, status, subject }) => ({
+    .map(({ key, task_id, kind, status, subject, aim }) => ({
       key,
       task: {
         task_id,
@@ -92,6 +96,7 @@ export function restoreTasks(): TrackedTask[] {
         result_url: null,
       },
       subject,
+      aim,
       command: undefined,
       outcome: undefined,
       interrupted: undefined,
@@ -123,12 +128,13 @@ export function forgetTasks(): void {
 
 /** Keep the tasks worth following again, for a reload of the tab to follow them on. */
 export function saveTasks(tasks: readonly TrackedTask[]): void {
-  const kept: KeptTask[] = tasks.filter(isResumable).map(({ key, task, subject }) => ({
+  const kept: KeptTask[] = tasks.filter(isResumable).map(({ key, task, subject, aim }) => ({
     key,
     task_id: task.task_id,
     kind: task.kind,
     status: task.status,
     subject,
+    aim,
   }));
   try {
     if (kept.length === 0) {

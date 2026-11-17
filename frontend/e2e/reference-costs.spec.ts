@@ -32,10 +32,11 @@
  * its nature alone, the deactivated shown. Neither failure was a state another path left, nor the
  * load of the API, which answered their writes within about a second (US-2060).
  */
-import { expect, type Locator } from "@playwright/test";
+import { expect, type Locator, type Page, type Request } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import { openFilters, pick } from "./check-menu";
-import { sortUntilAddress, WORKING } from "./hydration";
+import { sortUntilAddress } from "./hydration";
 import { inService, test } from "./mode";
 import { rowAt, scroller, withinBox } from "./scroll";
 import {
@@ -45,6 +46,24 @@ import {
   isServerAction,
   pressOnce,
 } from "./server-action";
+
+/**
+ * A command of a row pressed once (`pressOnce`), its action answered (`answerOf`), and no command of
+ * the page busy any more (`aria-busy`) before the state of the row is affirmed: the answer puts the
+ * opposite command in the place of the one pressed, and a state affirmed while the first still
+ * waits is read at the wrong moment (#3448).
+ */
+async function pressSettled(
+  page: Page,
+  command: Locator,
+  asked: (request: Request) => boolean,
+): Promise<void> {
+  const answer = await answerOf(await pressOnce(page, command, asked));
+  expect(answer.ok()).toBe(true);
+  await expect(page.getByRole("main").locator('button[aria-busy="true"]')).toHaveCount(0, {
+    timeout: WORKING,
+  });
+}
 
 /** The rate typed in a cell, and what the cell then shows: the service answers what was typed. */
 const TYPED = "85";
@@ -551,7 +570,7 @@ test("deactivates a nature from its row, the row showing what the service or the
   // sent —, and never after: a press past it would wait for a command the answer has taken away, or
   // press the reactivation put in its place (#3135).
   const reactivation = natures.getByRole("button", { name: `Réactiver «\u00a0${label}\u00a0»` });
-  await pressOnce(
+  await pressSettled(
     page,
     natures.getByRole("button", { name: `Désactiver «\u00a0${label}\u00a0»` }),
     isDeactivation,
@@ -715,7 +734,7 @@ test("shows the deactivated natures and categories by the filter of the state of
 
     // The nature deactivated from its row: its categories go with it (WF-REF-0010-A). The command
     // is pressed until the request of its action leaves, and never after (#3135, #3252).
-    await pressOnce(page, deactivation, isDeactivation);
+    await pressSettled(page, deactivation, isDeactivation);
     await expect(deactivated).toBeVisible({ timeout: WORKING });
     if (inService) {
       // A page read anew, the active ones alone, leaves both out.
@@ -777,12 +796,12 @@ test("shows the deactivated natures and categories by the filter of the state of
 
       // Reactivated by its row: the row shows what the server answers, active again. The fake back
       // has no example of a reactivation: the service alone.
-      await pressOnce(page, reactivation, isReactivation);
+      await pressSettled(page, reactivation, isReactivation);
       await expect(deactivation).toBeVisible({ timeout: WORKING });
       await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
       // The category stays deactivated with the nature reactivated: its row is reactivated in turn
       // (WF-REF-0150-A), and the row shows it active again.
-      await pressOnce(page, categoryReactivation, isReactivation);
+      await pressSettled(page, categoryReactivation, isReactivation);
       await expect(categoryDeactivation).toBeVisible({ timeout: WORKING });
       await expect(category).not.toContainText("Désactivé");
       await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
@@ -820,7 +839,7 @@ test("shows the deactivated natures and categories by the filter of the state of
       await expect(natures).toBeVisible({ timeout: WORKING });
       await expect(categories).toBeVisible();
       if (await deactivation.isVisible()) {
-        await pressOnce(page, deactivation, isDeactivation);
+        await pressSettled(page, deactivation, isDeactivation);
         await expect(reactivation).toBeVisible({ timeout: WORKING });
       }
     }

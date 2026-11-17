@@ -12,8 +12,9 @@ import { randomBytes } from "node:crypto";
 
 import { type Browser, expect, type Locator, type Page, test } from "@playwright/test";
 
+import { WORKING } from "../bounds";
 import { compileAnswered } from "../compile";
-import { openMenu, WORKING } from "../hydration";
+import { openMenu } from "../hydration";
 import { heldToTheContract } from "./contract";
 import {
   accountButton,

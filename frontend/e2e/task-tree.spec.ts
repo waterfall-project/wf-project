@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { type Browser, expect } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import type { components } from "../src/api/generated/schema";
 import type { Answer } from "./answer";
 import { DEFAULT_DEPTH } from "../src/components/tree/summaries";
 import { compile } from "./compile";
-import { openHydrated, WORKING } from "./hydration";
+import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
 import { API, frontToken, type LocalPerson } from "./service/realm";
 

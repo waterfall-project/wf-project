@@ -254,6 +254,26 @@ export const ENTRIES: readonly Entry[] = [
   },
 ];
 
+/** The status of a refusal by a state (`STATE_FORBIDS_OPERATION`, docs/api, `Problem`). */
+const STATE_REFUSAL_STATUS = 409;
+/** The code of that refusal. */
+const STATE_REFUSAL_CODE = "STATE_FORBIDS_OPERATION";
+
+/**
+ * Whether an answer is the refusal a state makes — an entry on a revision marked (`revision_draft`),
+ * the workload of the current revision of a project that has none (`current_remaining`) —, which
+ * the marking of the measure causes: a 409 whose code is that of a state, not any 409.
+ */
+export function refusedByState(status: number, body: unknown): boolean {
+  return (
+    status === STATE_REFUSAL_STATUS &&
+    typeof body === "object" &&
+    body !== null &&
+    "code" in body &&
+    body.code === STATE_REFUSAL_CODE
+  );
+}
+
 /** The path of the time facet of a task, which an entry writes (`updateTaskFacet`). */
 export function taskPath({ project, revision, structure }: Place, task: Written): string {
   return `/projects/${project}/revisions/${revision}/structures/${structure}/nodes/${task.node}/task`;

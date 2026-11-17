@@ -31,6 +31,7 @@ from waterfall.core.planning.attachments import (
     stray_fault,
     strays,
 )
+from waterfall.core.planning.calendars import default_calendar
 from waterfall.core.planning.carrying import (
     judge_facets_moved,
     judge_lines_moved,
@@ -39,6 +40,7 @@ from waterfall.core.planning.carrying import (
 from waterfall.core.planning.dating import constants_of
 from waterfall.core.planning.entries import (
     AUTOMATIC,
+    INERT_TASK_FIELDS,
     MANUAL,
     dating_pointers,
     judged_change,
@@ -89,16 +91,18 @@ from waterfall.platform.errors import (
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
     from datetime import date, datetime
     from decimal import Decimal
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.planning.calendars import Applicable
     from waterfall.core.planning.entries import Facet
     from waterfall.core.planning.filters import NodeFilters
-    from waterfall.core.planning.scheduling import Duration
+    from waterfall.core.planning.scheduling import Duration, UnitConstants
+    from waterfall.core.planning.tree import NodeColumns, TaskColumns
     from waterfall.core.planning.writing import Write
     from waterfall.platform.audit import Act
 
@@ -272,16 +276,34 @@ def _judge_parent(tree: Tree, parent: UUID | None) -> None:
 
 
 @dataclass(frozen=True, slots=True)
-class Ground:
+class Ground[N: NodeColumns = Node, T: TaskColumns = Task]:
     """What a cell is judged on: the tree of its structure as read, under its lock or not.
 
-    ``is_main`` tells whether the structure is the main one, the only to bear an attachment.
+    ``is_main`` tells whether the structure is the main one, the only to bear an attachment. Its
+    tree holds objects of the session, or rows for an entry whose columns are all inert
+    (``read_inert``).
     """
 
     session: Session
     project_id: UUID
-    tree: Tree
+    tree: Tree[N, T]
     is_main: bool
+
+
+@dataclass(frozen=True, slots=True)
+class Defaults:
+    """What a judgment reads of the installation: its default calendar and its unit constants.
+
+    A paste reads them once for all its rows (#2605), not at each of them.
+    """
+
+    calendar: Applicable
+    constants: UnitConstants
+
+
+def read_defaults(session: Session) -> Defaults:
+    """Read the default calendar and the constants of the units, as a judgment of a task needs."""
+    return Defaults(default_calendar(session), constants_of(session))
 
 
 @dataclass(frozen=True, slots=True)
@@ -336,22 +358,27 @@ def _entry(creation: NodeCreation) -> TaskEntry:
     return creation.task
 
 
-def judge_creation(ground: Ground, creation: NodeCreation, node_id: UUID) -> CreationJudged:
+def judge_creation(
+    ground: Ground, creation: NodeCreation, node_id: UUID, defaults: Defaults | None = None
+) -> CreationJudged:
     """Judge a task to create on the tree of a ground, as ``createNode`` does; nothing is written.
 
     Its parent (``MILESTONE_HAS_NO_SUBTASK``, WF-PLA-0050), its facet and attachment, all refusals
-    at once, then its place (``NODE_NOT_SIBLING``). A paste calls it for rows past the last node.
+    at once, then its place (``NODE_NOT_SIBLING``). A paste calls it for rows past the last node,
+    handing the ``defaults`` it read once: a task not yet created is on the default calendar, no
+    facet naming one under it.
     """
     session, tree = ground.session, ground.tree
     parent, entry = creation.parent_id, _entry(creation)
     _judge_parent(tree, parent)
-    applicable = calendar_of(session, ground.project_id, node_id).calendar
+    held_defaults = defaults or read_defaults(session)
+    applicable = held_defaults.calendar.calendar
     lineage = () if parent is None else (parent, *tree.ancestors(parent))
     bearer = Bearer(node_id, entry.label or "", lineage, created=True)
     held = (ground.project_id, tree, ground.is_main)
     sent = entry.attachment(creation=True)
     attached = judged_attachment(session, held, bearer, sent, "/task")
-    facet = _together(lambda: judged_creation(entry, applicable, constants_of(session)), attached)
+    facet = _together(lambda: judged_creation(entry, applicable, held_defaults.constants), attached)
     rank = _rank(tree, creation)
     shifted = tuple(each for each in tree.subtasks(parent) if tree.nodes[each].rank >= rank)
     made_summary = (
@@ -467,21 +494,35 @@ def create_node(
         return redated.written((node_id,))
 
 
-def judge_cell(ground: Ground, node_id: UUID, entry: TaskEntry) -> tuple[Facet, Attached]:
+def judge_cell[N: NodeColumns, T: TaskColumns](
+    ground: Ground[N, T],
+    node_id: UUID,
+    entry: TaskEntry,
+    defaults: Defaults | None = None,
+    *,
+    created: bool = False,
+) -> tuple[Facet, Attached]:
     """Judge what is sent of the facet of a task, and of its attachment, all refusals at once.
 
     The rules of the entry of a cell, which the paste of a block applies to each of its rows
-    (``UnprocessableError`` when the entry is refused); nothing is written.
+    (``UnprocessableError`` when the entry is refused); nothing is written. A paste hands the
+    ``defaults`` it read once, and says when the task is one it creates — on the default calendar,
+    no facet naming one under it —; a task written has the calendars its facets name read.
     """
     session, tree = ground.session, ground.tree
     task = tree.tasks[node_id]
-    applicable = calendar_of(session, ground.project_id, node_id).calendar
+    held_defaults = defaults or read_defaults(session)
+    if created:
+        applicable = held_defaults.calendar.calendar
+    else:
+        named = calendar_of(session, ground.project_id, node_id, default=held_defaults.calendar)
+        applicable = named.calendar
     carried = (task.work_package_id, task.order_item_id)
     bearer = Bearer(node_id, task.label, tuple(tree.ancestors(node_id)), carried)
     held = (ground.project_id, tree, ground.is_main)
     attached = judged_attachment(session, held, bearer, entry.attachment(creation=False), "")
     facet = _together(
-        lambda: judged_change(tree, task, entry, applicable, constants_of(session)), attached
+        lambda: judged_change(tree, node_id, entry, applicable, held_defaults.constants), attached
     )
     return facet, attached
 
@@ -560,23 +601,53 @@ def update_task_facet(
     version (412), or for what it computes or does not accept (422, ``entries``), its attachment
     to the work breakdown with it (``attachments``, WF-PLA-0170). Beyond fifteen years, refused
     naming the task (WF-PLA-0150), an amount past its column at the fields that date it (#3094).
+    A write whose fields are all inert takes the short path, the engine not replayed
+    (``INERT_TASK_FIELDS``, ``Write.count``, US-2250), its structure read as rows but the task
+    written (``read_inert``, US-2250/L2).
     """
-    with writing(session, place, writer, ("cell", (node_id,))) as write:
-        tree = write.tree
-        if node_id not in tree.tasks:
-            raise NotFoundError(NOT_FOUND)
-        node, task = tree.nodes[node_id], tree.tasks[node_id]
-        if node.lock_version != entry.lock_version:
-            raise PreconditionFailedError(
-                STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
-            )
-        ground = Ground(session, place.project_id, tree, write.facts.is_main)
-        judged = judge_cell(ground, node_id, entry)
-        write.before((node_id,))
-        write_cell(ground, node_id, entry, judged, writer.act)
-        redated = write.redate((node_id, task.label), entered=dating_pointers(entry))
-        write.after((node_id,))
-        return redated.written((node_id,))
+    inert = {f"{TASK}.{name}" for name in entry.sent} <= INERT_TASK_FIELDS
+    written = (node_id,) if inert else ()
+    with writing(session, place, writer, ("cell", (node_id,)), written) as write:
+        held, is_main = write.inert, write.facts.is_main
+        if held is None:
+            tree = write.tree
+            ground = Ground(session, place.project_id, tree, is_main)
+            return _cell(write, ground, (tree.nodes, tree.tasks), node_id, entry)
+        ground = Ground(session, place.project_id, held.tree, is_main)
+        return _cell(write, ground, (held.nodes, held.tasks), node_id, entry)
+
+
+def _cell[N: NodeColumns, T: TaskColumns](
+    write: Write,
+    ground: Ground[N, T],
+    objects: tuple[Mapping[UUID, Node], Mapping[UUID, Task]],
+    node_id: UUID,
+    entry: TaskEntry,
+) -> NodesWritten:
+    """Write the cell of a task on the ground its write holds, through the ``objects``.
+
+    The objects of the session of the node and of its task, which the ground holds too — whole, or
+    those of a write whose fields are all inert, the others rows (``updateTaskFacet``).
+    """
+    if node_id not in ground.tree.tasks:
+        raise NotFoundError(NOT_FOUND)
+    nodes, tasks = objects
+    node, task = nodes[node_id], tasks[node_id]
+    if node.lock_version != entry.lock_version:
+        raise PreconditionFailedError(
+            STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
+        )
+    judged = judge_cell(ground, node_id, entry)
+    write.before((node_id,))
+    apply_cell(task, entry, judged)
+    stamp(node, write.writer.act)
+    redated = (
+        write.count()
+        if write.inert is not None
+        else write.redate((node_id, task.label), entered=dating_pointers(entry))
+    )
+    write.after((node_id,))
+    return redated.written((node_id,))
 
 
 # The rule a computed field of a summary follows (WF-IHM-0030, WF-PLA-0040, WF-PLA-0100): a field

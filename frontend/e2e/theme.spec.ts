@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import { axeViolations } from "./axe";
-import { holdRoute, setExpanded, untilHydrated, WORKING } from "./hydration";
+import { holdRoute, setExpanded, untilHydrated } from "./hydration";
 import { path } from "./routes";
 
 // The account of the fake back follows the workstation (`theme: default`): the mode the
@@ -210,17 +211,23 @@ test.describe("the two families of screens, in a window of 2560 points", () => {
     await page.goto("/");
     await untilHydrated(page);
     const nav = page.getByRole("navigation", { name: "Fonctions" });
-    // The skeleton shows at the click only once the router has prefetched it, with the link.
-    const prefetched = page.waitForResponse(
-      (response) =>
+    // The skeleton shows at the click only once the router has prefetched it, with the link. The
+    // router asks first for the tree of the routes (`next-router-segment-prefetch: /_tree`), which
+    // answers well before the segment that holds the skeleton: that one is the prefetch awaited.
+    const prefetched = page.waitForResponse((response) => {
+      const headers = response.request().headers();
+      return (
         new URL(response.url()).pathname === "/reference/costs" &&
-        response.request().headers()["next-router-prefetch"] === "1",
-    );
+        headers["next-router-prefetch"] === "1" &&
+        headers["next-router-segment-prefetch"] === undefined
+      );
+    });
     await setExpanded(
       nav.getByRole("button", { name: "Paramètres applicatifs", exact: true }),
       true,
     );
     await prefetched;
+    await page.waitForLoadState("networkidle");
     const held = await holdRoute(page, "**/reference/costs?**", async (route, released) => {
       const headers = route.request().headers();
       if (headers.rsc === "1" && headers["next-router-prefetch"] !== "1") {

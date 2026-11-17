@@ -7,15 +7,13 @@
  */
 import { type APIRequestContext, expect, type Page } from "@playwright/test";
 
-import { openHydrated, WORKING } from "./hydration";
+import { MARKING, WORKING } from "./bounds";
+import { openHydrated } from "./hydration";
 import { employRole, wiringService } from "./own-project";
 import type { Seeded } from "./planning-seed";
 import { API } from "./service/realm";
 import type { components } from "../src/api/generated/schema";
 import { workbook } from "./workbook";
-
-/** How long the worker is given to mark a revision: a task taken from the queue, one transaction. */
-export const MARKING = 60_000;
 
 type Schemas = components["schemas"];
 

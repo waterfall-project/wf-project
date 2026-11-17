@@ -16,8 +16,9 @@
  */
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import { compile } from "./compile";
-import { untilHydrated, WORKING } from "./hydration";
+import { untilHydrated } from "./hydration";
 import { path } from "./routes";
 
 test.describe.configure({ mode: "parallel" });
@@ -61,7 +62,7 @@ interface Fit {
 function measure(page: Page): Promise<Fit> {
   return page.evaluate(() => {
     const main = document.querySelector("main");
-    const card = main?.querySelector("[data-slot='work-card']");
+    const card = main?.querySelector("[data-slot='grid-card']");
     const body = card?.querySelector("[data-slot='card-content']");
     const grid = card?.querySelector("[role='grid'], [role='treegrid']");
     if (!(main instanceof HTMLElement) || !(card instanceof HTMLElement)) {
@@ -149,7 +150,7 @@ test("the task tree is in a card as wide as the window, no centred column [WF-IH
   await untilHydrated(page);
   const { main, card } = await page.evaluate(() => {
     const screen = document.querySelector("main")?.getBoundingClientRect();
-    const around = document.querySelector("main [data-slot='work-card']")?.getBoundingClientRect();
+    const around = document.querySelector("main [data-slot='grid-card']")?.getBoundingClientRect();
     if (screen === undefined || around === undefined) {
       throw new Error("no card in the task tree");
     }
@@ -175,7 +176,7 @@ test("the actual costs hold their grid in a card that fills the window, and the 
   await untilHydrated(page);
   const { main, card, body, table, journal } = await page.evaluate(() => {
     const screen = document.querySelector("main");
-    const work = screen?.querySelector("[data-slot='work-card']");
+    const work = screen?.querySelector("[data-slot='grid-card']");
     const inside = work?.querySelector("[data-slot='card-content']");
     const frame = work?.querySelector("[role='grid']")?.parentElement;
     const region = document.querySelector("main section[aria-label='Journal des imports']");

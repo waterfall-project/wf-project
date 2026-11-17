@@ -15,8 +15,8 @@
  * unchanged. The volume is therefore not constant from one pass to the next: the second pass
  * imports its eighteen thousand lines beside the eighteen thousand of the first, the third beside
  * thirty-six thousand, and the report says it as it is — each pass is a project that has received
- * more costs, as a project does. A marking freezes the revision it marks: the passes after the first open the current
- * revision again (`createRevision`, outside the measure), and mark it.
+ * more costs, as a project does. A marking freezes the revision it marks: the passes after the
+ * first open the current revision again (`createRevision`, outside the measure), and mark it.
  */
 import { type APIRequestContext, expect } from "@playwright/test";
 
@@ -97,7 +97,9 @@ async function ended(api: Caller, task: TaskRead): Promise<number> {
   return taskSeconds(read, momentOf);
 }
 
-/** The export of the planning of a revision, from its request to its file (`ms_project_schedule`). */
+/**
+ * The export of the planning of a revision, from its request to its file (`ms_project_schedule`).
+ */
 export async function exportPlanning(api: Caller, project: string, revision: string) {
   const task = await api.post<TaskRead>(`/projects/${project}/exports`, {
     kind: "ms_project_schedule",
@@ -120,7 +122,9 @@ export function extraction(code: string, subprojects: readonly string[], pass: n
   ]);
 }
 
-/** The analysis then the application of an import of the extraction of a pass, read at its tasks. */
+/**
+ * The analysis then the application of an import of the extraction of a pass, read at its tasks.
+ */
 export async function importCosts(api: Caller, project: string, pass: number) {
   const { code } = await api.get<Schemas["Project"]>(`/projects/${project}`);
   const subprojects = await api.get<Schemas["Subproject"][]>(`/projects/${project}/subprojects`);

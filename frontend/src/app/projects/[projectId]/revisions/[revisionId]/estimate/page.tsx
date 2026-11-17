@@ -27,7 +27,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 
 import { readEveryPageUnlessRefused } from "@/api/every-page";
 import { OPTIONAL_READ_REFUSALS, readOrFail, readUnlessRefused } from "@/api/problem";
@@ -36,7 +36,9 @@ import { serverClient } from "@/api/server";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { ContextBanner, type Restrictions } from "@/components/context/context-banner";
 import type { ProjectReading } from "@/components/context/reading";
-import { EstimateSummary } from "@/components/estimate/estimate-summary";
+import { startReading } from "@/components/start-reading";
+import { Streamed } from "@/components/streamed";
+import { EstimateSummary, EstimateSummaryLoading } from "@/components/estimate/estimate-summary";
 import { ExchangesLink } from "@/components/exchanges/exchanges-link";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
 import { TreeFilters } from "@/components/grid/tree-filters";
@@ -62,7 +64,7 @@ import { type Permission, requestSession } from "@/session/request";
 import { screenMetadata } from "../../../../../title";
 import { type GridAddress, gridAddress, readGridScreen } from "../grid-screen";
 import type { RevisionParams } from "../page";
-import { WorkCard } from "../work-card";
+import { GridCard } from "@/components/shell/grid-card";
 
 /** Title the tab with the function, and with the project. */
 export async function generateMetadata({
@@ -121,6 +123,29 @@ async function readEstimateFigures(at: GridAddress) {
       }),
     ),
   ]);
+}
+
+/**
+ * What the screen says above its grid — the rates its calculation lacks, its indicators —, read
+ * and rendered on their own: the grid does not wait for them, nor the address of a filter that
+ * leaves them as they are (#3630). `Streamed` shows them, so that the transition of a filter is
+ * not retained until they are read again. `requestSession()` and `requestCurrency()` are those
+ * the page calls too: React's `cache()` answers them once per request.
+ */
+async function summaryOf(at: GridAddress): Promise<ReactNode> {
+  const [[indicators, missingRates], session, currency] = await Promise.all([
+    readEstimateFigures(at),
+    requestSession(),
+    requestCurrency(),
+  ]);
+  return (
+    <EstimateSummary
+      indicators={indicators}
+      missingRates={missingRates}
+      permissions={session?.permissions ?? []}
+      currency={currency}
+    />
+  );
 }
 
 /**
@@ -278,7 +303,8 @@ export default async function EstimatePage({
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "estimate");
-  const [screen, [indicators, missingRates], reference, session, currency] = await Promise.all([
+  const summary = startReading(summaryOf(at));
+  const [screen, reference] = await Promise.all([
     readGridScreen(at, {
       key: ESTIMATE_GRID.key,
       sortable: ESTIMATE_SORT_COLUMNS,
@@ -288,10 +314,7 @@ export default async function EstimatePage({
       byOrigin: true,
       chooses: true,
     }),
-    readEstimateFigures(at),
     readReference(revision.projectId),
-    requestSession(),
-    requestCurrency(),
   ]);
   // The sub-project of a line is entered from the list of the project, in a revision open to
   // entry: elsewhere, its identifier does not cross to the browser, its label alone shown.
@@ -320,13 +343,15 @@ export default async function EstimatePage({
             <ExchangesLink project={screen.reading.project} kind="estimate" context={at.context} />
           }
         />
-        <EstimateSummary
-          indicators={indicators}
-          missingRates={missingRates}
-          permissions={session?.permissions ?? []}
-          currency={currency}
-        />
-        <WorkCard fill>
+        {/* The indicators take the sub-project the address filters: another one is a new boundary,
+            which says them loading rather than keeping the figures of the other. */}
+        <Suspense
+          key={at.context.parameters.get("subproject_id") ?? ""}
+          fallback={<EstimateSummaryLoading />}
+        >
+          <Streamed content={summary} />
+        </Suspense>
+        <GridCard fill>
           <EstimateGrid
             key={screen.structure.structure_id}
             nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}
@@ -350,7 +375,7 @@ export default async function EstimatePage({
             }
             inflation={inflationOf(screen.reading)}
           />
-        </WorkCard>
+        </GridCard>
       </Screen>
     </PendingAddress>
   );

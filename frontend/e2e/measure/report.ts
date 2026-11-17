@@ -10,10 +10,11 @@
  * three parts:
  *
  * - **the API**: the time during which at least one request of the user's account was under way at
- *   the API within the step, read in the log of the API — each request writes, once answered, its
- *   `duration_ms` and its actor, the account that asked —: the front sends no identifier of
- *   correlation, and each user of the measure has an account of its own, so that the account and
- *   the window of the step tie a request to its step;
+ *   the API within the step, while a request of Next the step waits for was under way, read in the
+ *   log of the API — each request writes, once answered, its `duration_ms` and its actor, the
+ *   account that asked —: the front sends no identifier of correlation, and each user of the
+ *   measure has an account of its own, so that the account and the window of the step tie a
+ *   request to its step;
  * - **Next**, by difference: the time during which the server of Next was answering the browser —
  *   a document, a component tree of the server, a server action, as the browser saw them, a
  *   prefetch asked before the step too: the menu of a filter prefetches the reading its choice
@@ -23,11 +24,13 @@
  *
  * The weight of the answer is what the server of Next sent the browser for the step, the bodies
  * of its answers as they came over the network. Its time and its weight count the same requests of
- * Next: those under way within the step, but a prefetch the step started itself — the links of a
- * grid hydrated prefetch the screens they lead to —, which serves a step to come, and which the step
- * does not wait for: its time is the browser's, at work meanwhile. The requests of the API such a
- * prefetch makes stay in the part of the API all the same: the log ties a request to an account and
- * a moment, not to the request of Next that made it — a limit the guide states.
+ * Next: those under way within the step, but a prefetch the step started itself for another screen
+ * — the links of a grid hydrated prefetch the screens they lead to —, which serves a step to come,
+ * and which the step does not wait for: its time is the browser's, at work meanwhile. One the step
+ * started for the screen it ends on, a router asking again an entry gone stale, is waited for and
+ * counts. The requests of the API made meanwhile for such a prefetch, outside the requests the step
+ * waits for, count for none; those made within them still do — the log ties a request to an
+ * account and a moment, not to the request of Next that made it — a limit the guide states.
  *
  * Five passes give the dispersion: for each step, the median and the worst of every sample of the
  * passes, and the spread, the gap between the highest and the lowest median of a pass — what a
@@ -43,8 +46,15 @@ export interface Interval {
 /** A request the browser made of the server of Next, and the bytes of its answer. */
 export interface FrontRequest extends Interval {
   readonly bytes: number;
+  /** The screen it asks for, as `screenOf` writes it: the path and the query of the grid. */
+  readonly path: string;
   /** Whether the router asked it ahead of a navigation (`Next-Router-Prefetch`). */
   readonly prefetch: boolean;
+  /**
+   * `false` when its bytes are not known: the router cut it short, or its sizes never came. Its
+   * `bytes` is then 0, which says nothing of what Next sent. Known unless said otherwise.
+   */
+  readonly weighed?: boolean;
 }
 
 /**
@@ -59,9 +69,23 @@ export function failedRequest(
   asked: number | undefined,
   failed: number,
   prefetch: boolean,
+  path: string,
 ): FrontRequest {
   const start = timedStart > 0 ? timedStart : (asked ?? failed);
-  return { start, end: failed, bytes: 0, prefetch };
+  return { start, end: failed, bytes: 0, path, prefetch, weighed: false };
+}
+
+/**
+ * The screen an address asks for: its path, and its query without `_rsc`, the key the router adds
+ * to each request of Next, the other parameters sorted — those of the grid, its filter, sort and
+ * search. Two addresses of one path with other queries are two screens.
+ */
+export function screenOf(address: string): string {
+  const { pathname, searchParams } = new URL(address, "http://screen.invalid");
+  searchParams.delete("_rsc");
+  searchParams.sort();
+  const query = searchParams.toString();
+  return query === "" ? pathname : `${pathname}?${query}`;
 }
 
 /** A request the API answered, as its log writes it. */
@@ -80,6 +104,11 @@ export interface StepParts {
   readonly next: number;
   readonly browser: number;
   readonly bytes: number;
+  /**
+   * How many of the requests the step waits for have no known bytes (`FrontRequest.weighed`): when
+   * any, `bytes` is a floor, not a weight, and the report leaves the sample out of its statistic.
+   */
+  readonly unweighed: number;
   /** How many requests of the account the API answered within the step. */
   readonly apiRequests: number;
 }
@@ -110,20 +139,43 @@ export function covered(spans: readonly Interval[], window: Interval): number {
 }
 
 /**
+ * Whether the step waits for a request of Next: one the browser asked of it within the step — a
+ * document, a tree of components, a server action —, or a prefetch asked before the step, which a
+ * gesture made before it is answered waits for, or a prefetch the step asked itself for the screen
+ * it ends on: a router whose entry of the prefetch cache has gone stale asks the screen anew, as a
+ * prefetch, and waits for it — the step then waits for that request, whatever its header says.
+ * Any other prefetch the step started serves a step to come, which this one does not wait for.
+ */
+function awaited(request: FrontRequest, step: Interval, destination: string): boolean {
+  return !request.prefetch || request.start < step.start || request.path === destination;
+}
+
+/**
  * Where the time of a step went: the requests the browser made of Next within it, and those the
- * API answered for the account of its user, `actor` — no other's, the client of `getMe` included.
+ * API answered for the account of its user, `actor` — no other's, the client of `getMe` included —,
+ * during the requests of Next the step waits for and no other time: an API request that outlives
+ * them, or runs while no such request does, is made for a prefetch of a screen to come — the links
+ * of the grid prefetch the screens they lead to — and under the load of several users, queued, it
+ * would cover the whole step and leave nothing to Next or the browser. `destination` is the screen
+ * the step ends on, as `screenOf` writes it.
  */
 export function partsOf(
   step: Interval,
   front: readonly FrontRequest[],
   api: readonly ApiRequest[],
   actor: string,
+  destination = "",
 ): StepParts {
   const usable = step.end - step.start;
-  const ownFront = front.filter((request) => meets(request, step));
-  const answered = ownFront.filter((request) => !request.prefetch || request.start < step.start);
-  const ownApi = api.filter((request) => request.actor === actor && meets(request, step));
-  const served = covered([...answered, ...ownApi], step);
+  const answered = front.filter(
+    (request) => meets(request, step) && awaited(request, step, destination),
+  );
+  const pieces = api
+    .filter((request) => request.actor === actor && meets(request, step))
+    .map((request) => within(request, answered))
+    .filter((parts) => parts.length > 0);
+  const ownApi = pieces.flat();
+  const served = covered(answered, step);
   const apiPart = covered(ownApi, step);
   return {
     usable,
@@ -131,8 +183,19 @@ export function partsOf(
     next: served - apiPart,
     browser: usable - served,
     bytes: answered.reduce((sum, request) => sum + request.bytes, 0),
-    apiRequests: ownApi.length,
+    unweighed: answered.filter((request) => request.weighed === false).length,
+    apiRequests: pieces.length,
   };
+}
+
+/** The parts of a request that fall within some spans, each part a span of its own. */
+function within(request: Interval, spans: readonly Interval[]): Interval[] {
+  return spans
+    .map(({ start, end }) => ({
+      start: Math.max(start, request.start),
+      end: Math.min(end, request.end),
+    }))
+    .filter(({ start, end }) => end > start);
 }
 
 /** The structured record the API writes once it has answered a request (`request.completed`). */
@@ -260,8 +323,25 @@ export interface StepReport {
   readonly api_ms: Statistic;
   readonly next_ms: Statistic;
   readonly browser_ms: Statistic;
-  readonly bytes: Statistic;
+  /**
+   * What Next sent, over the samples whose bytes are all known; `null` when none is, which says
+   * nothing of the weight and is not the 0 of a download that never was.
+   */
+  readonly bytes: Statistic | null;
+  /**
+   * How many samples of the step waited for a request whose bytes are unknown, and are left out of
+   * `bytes`: when any, `bytes` rests on fewer samples than `samples`, and may understate.
+   */
+  readonly unweighed: number;
   readonly api_requests: Statistic;
+}
+
+/**
+ * Whether a step says what a part weighs: the bytes of a step that waited for a request whose
+ * bytes are unknown are a floor, and a median of floors reads as a download that never was.
+ */
+function weighs(parts: StepParts, part: keyof StepParts): boolean {
+  return part !== "bytes" || parts.unweighed === 0;
 }
 
 /** The statistic of one part of the samples of a step, by pass. */
@@ -273,7 +353,9 @@ function partStatistic(
   return statisticOf(
     Array.from({ length: passes }, (_, pass) =>
       samples.flatMap((sample) =>
-        sample.pass === pass && sample.parts !== undefined ? [sample.parts[part]] : [],
+        sample.pass === pass && sample.parts !== undefined && weighs(sample.parts, part)
+          ? [sample.parts[part]]
+          : [],
       ),
     ),
   );
@@ -296,7 +378,10 @@ export function stepReports(
         api_ms: statistic("api"),
         next_ms: statistic("next"),
         browser_ms: statistic("browser"),
-        bytes: statistic("bytes"),
+        bytes: own.some((sample) => sample.parts !== undefined && weighs(sample.parts, "bytes"))
+          ? statistic("bytes")
+          : null,
+        unweighed: own.filter((sample) => (sample.parts?.unweighed ?? 0) > 0).length,
         api_requests: statistic("apiRequests"),
       };
       return [step, report];

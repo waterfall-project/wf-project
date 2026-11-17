@@ -20,14 +20,18 @@ of the session (``read_tree``, ``read_links``), which it changes and flushes; a 
 nothing reads the same columns as rows (``read_rows``, ``read_link_rows``), which cost a fraction of
 an object of the session: a structure read whole holds six thousand nodes. The tree is generic in
 what it holds of a node and of a task (``NodeColumns``, ``TaskColumns``), the objects by default;
-a test holds the two paths to the same reading on the witness.
+a test holds the two paths to the same reading on the witness. A write reads its tree once, under
+the lock: the replay that follows it is handed that tree brought to what the write made of it, the
+place and the counter of each node read as rows, the nodes written past their objects read again
+(``reshaped``, US-2250). A write whose columns are all inert reads its structure as rows, the nodes
+it writes alone as objects (``read_inert``, US-2250/L2).
 """
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, NamedTuple
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, inspect, or_, select
 
 from waterfall.core.planning.interface.open_lines import held_open
 from waterfall.core.planning.tables import Node, Task, TaskLink, TrackingEntry
@@ -43,6 +47,8 @@ if TYPE_CHECKING:
 TASK = "task"
 LINE = "estimate_line"
 COMPLETED = "completed"
+# What an expired object holds of an attribute: nothing, which no row matches.
+_EXPIRED = object()
 
 
 class NodeRow(NamedTuple):
@@ -228,16 +234,91 @@ def read_tree(session: Session, project_id: UUID, structure_id: UUID) -> Tree:
     ).all()
     tasks = {node.id: task for node, task in rows if node.kind == TASK}
     tree = Tree({node.id: node for node, _ in rows}, tasks)
-    tree.held = held_open(session, project_id, _closing(tree))
+    reheld(session, project_id, tree)
     return tree
 
 
-def read_rows(session: Session, project_id: UUID, structure_id: UUID) -> Tree[NodeRow, TaskRow]:
-    """Read the nodes of a structure and their facet task as rows, for a reading alone.
+def reheld(session: Session, project_id: UUID, tree: Tree) -> None:
+    """Read the summaries an own line holds open, as the tree now stands (``held``).
 
-    The columns ``read_tree`` reads, in one statement as it does, but as rows, not as objects of
-    the session: what a reading of six thousand nodes spent most in building (#3174).
+    At the reading of the tree, and again once a write has written (``reshaped``): a state or a
+    remaining to commit it wrote changes them (US-2250).
     """
+    tree.held = held_open(session, project_id, _closing(tree))
+
+
+def reshaped(session: Session, project_id: UUID, structure_id: UUID, tree: Tree) -> Tree:
+    """Bring a tree a write read under the lock of its structure to what the write made of it.
+
+    What a write gives the replay instead of reading the tree a second time (US-2250, #3169). Its
+    objects of the session already hold what the write changed through them; what a statement
+    wrote past them — a node created, deleted with the nodes under it, its siblings moved down by
+    one — is told by the place and the counter of each node of the structure, read as rows: a node
+    the tree does not hold, or whose parent, rank or counter differs from its object, is read with
+    its facet, the others kept, those gone dropped. A write advances the counter of every node it
+    writes (``Node.lock_version``), by its objects or by its statements, which is what makes a
+    node written past its object read again. The order of the plan is computed again on what the
+    tree then holds — a move through the objects changes it without any node read again —, and the
+    summaries an own line holds open read again (``reheld``). Called once the write is flushed.
+
+    It rests on two facts about what a write does, which ``test_inert_writes.py`` holds by
+    listening to the statements of every write: a statement that writes a node (a rank moved down,
+    a node deleted) advances its counter in the same statement, and none writes a facet task — the
+    task is written through its object alone, which the tree holds. The structure is locked
+    (``structure_facts``) since the write read its tree, so the rows read here and the nodes read
+    again after them are one snapshot: no other write advances a counter between the two reads.
+    A statement that wrote a node without its counter, or a task, would leave it kept stale.
+
+    The test holds the statements ``UPDATE`` alone, outside the flush of the objects — whose node
+    is one whose object holds the counter it compares — and asks of one that writes a node that its
+    ``SET`` advance the counter (``lock_version = node.lock_version + …``), naming it is not enough
+    (#3563). An ``INSERT`` and a ``DELETE`` are not held, and need not be: a node a statement
+    creates is one the tree does not hold, read whatever its counter, and one it deletes is no
+    longer among the rows, dropped. Neither can leave a node kept stale.
+    """
+    shape = session.execute(
+        select(Node.id, Node.parent_id, Node.rank, Node.lock_version).where(
+            Node.project_id == project_id, Node.structure_id == structure_id
+        )
+    ).all()
+    nodes: dict[UUID, Node] = {}
+    tasks: dict[UUID, Task] = {}
+    stale: list[UUID] = []
+    for node_id, parent_id, rank, version in shape:
+        node = tree.nodes.get(node_id)
+        if node is None or _held_place(node) != (parent_id, rank, version):
+            stale.append(node_id)
+            continue
+        nodes[node_id] = node
+        task = tree.tasks.get(node_id)
+        if task is not None:
+            tasks[node_id] = task
+    if stale:
+        rows = session.execute(
+            select(Node, Task)
+            .outerjoin(Task, and_(Task.project_id == Node.project_id, Task.node_id == Node.id))
+            .where(Node.project_id == project_id, among(Node.id, stale))
+            .execution_options(populate_existing=True)
+        ).all()
+        for node, task in rows:
+            nodes[node.id] = node
+            if node.kind == TASK:
+                tasks[node.id] = task
+    rebuilt = Tree(nodes, tasks)
+    reheld(session, project_id, rebuilt)
+    return rebuilt
+
+
+def _held_place(node: Node) -> tuple[object, object, object]:
+    """Give the parent, the rank and the counter an object holds, none read for an expired one."""
+    held = inspect(node).dict
+    return held.get("parent_id", _EXPIRED), held.get("rank"), held.get("lock_version")
+
+
+def _columns_of(
+    session: Session, project_id: UUID, structure_id: UUID
+) -> tuple[dict[UUID, NodeRow], dict[UUID, TaskRow]]:
+    """Read the nodes of a structure and their facet task as rows, in one statement."""
     rows = session.execute(
         select(*_NODE_COLUMNS, *_TASK_COLUMNS)
         .outerjoin(Task, and_(Task.project_id == Node.project_id, Task.node_id == Node.id))
@@ -251,9 +332,65 @@ def read_rows(session: Session, project_id: UUID, structure_id: UUID) -> Tree[No
         nodes[node.id] = node
         if node.kind == TASK:
             tasks[node.id] = TaskRow._make(row[split:])
-    tree = Tree(nodes, tasks)
+    return nodes, tasks
+
+
+def read_rows(session: Session, project_id: UUID, structure_id: UUID) -> Tree[NodeRow, TaskRow]:
+    """Read the nodes of a structure and their facet task as rows, for a reading alone.
+
+    The columns ``read_tree`` reads, in one statement as it does, but as rows, not as objects of
+    the session: what a reading of six thousand nodes spent most in building (#3174).
+    """
+    tree = Tree(*_columns_of(session, project_id, structure_id))
     tree.held = held_open(session, project_id, _closing(tree))
     return tree
+
+
+@dataclass(frozen=True, slots=True)
+class InertTree:
+    """The tree a write whose columns are all inert holds (``read_inert``, US-2250/L2, #3540).
+
+    ``tree`` the structure, its nodes as rows but those the write names, which are the objects of
+    the session ``nodes`` and ``tasks`` hold, through which it writes.
+    """
+
+    tree: Tree[NodeColumns, TaskColumns]
+    nodes: dict[UUID, Node]
+    tasks: dict[UUID, Task]
+
+
+def read_inert(
+    session: Session, project_id: UUID, structure_id: UUID, node_ids: Collection[UUID]
+) -> InertTree:
+    """Read a structure for a write whose columns are all inert: as rows, but the nodes it names.
+
+    Those it writes are read as objects of the session, with their facet task, as ``read_tree``
+    reads them; the others as rows, as ``read_rows`` does, a fraction of an object each: the whole
+    structure as objects was two thirds of a label entered (#3540). The write locks its structure
+    before, so the two statements are one snapshot: no other write changes a node between them.
+    The structure is still read whole: what the write gives back — the rows of the plan, the sums
+    and the states of the summaries above the node, the totals of the structure — is computed on it.
+    """
+    found = session.execute(
+        select(Node, Task)
+        .outerjoin(Task, and_(Task.project_id == Node.project_id, Task.node_id == Node.id))
+        .where(
+            Node.project_id == project_id,
+            Node.structure_id == structure_id,
+            among(Node.id, node_ids),
+        )
+        .execution_options(populate_existing=True)
+    ).all()
+    rows, row_tasks = _columns_of(session, project_id, structure_id)
+    nodes: dict[UUID, NodeColumns] = {**rows}
+    tasks: dict[UUID, TaskColumns] = {**row_tasks}
+    objects = {node.id: node for node, _ in found}
+    facets = {node.id: task for node, task in found if node.kind == TASK}
+    nodes.update(objects)
+    tasks.update(facets)
+    tree = Tree(nodes, tasks)
+    tree.held = held_open(session, project_id, _closing(tree))
+    return InertTree(tree, objects, facets)
 
 
 def read_task_rows(

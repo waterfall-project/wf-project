@@ -29,7 +29,7 @@ import { useUnmet } from "@/components/commands/command";
 import { type CommandHelp, CommandTooltip } from "@/components/commands/command-tooltip";
 import { MenuCommand } from "@/components/commands/menu-command";
 import { UNAVAILABLE } from "@/components/commands/offer";
-import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
+import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -108,9 +108,10 @@ function CardDate({ card }: { readonly card: KanbanCard }) {
 
 /**
  * A gesture of the menu of a card, with its tooltip (`MenuCommand`, #1435): its name, what it does
- * (`commands.<gesture>.help`), and, unavailable, the conditions it lacks, said under its name and in
- * its tooltip — chosen, it does nothing, the menu left open on why; the entry of the remaining to
- * commit a link to the grid on the task. While a gesture is written, the others wait, and say so.
+ * (`commands.<gesture>.help`), and, unavailable, the conditions it lacks, said in the tooltip and
+ * the description of the item. Chosen unavailable, it launches nothing: the menu closes and the
+ * card says what it lacks. The entry of the remaining to commit is a link to the grid on the task.
+ * While a gesture is written, the others wait, and say so.
  */
 function GestureItem({
   card,
@@ -118,11 +119,14 @@ function GestureItem({
   remaining,
   busy,
   onChosen,
+  onRefused,
 }: {
   readonly card: KanbanCard;
   readonly gesture: CardGesture;
   readonly remaining: string;
   readonly busy: boolean;
+  /** The gesture pressed while unavailable: the card says what it lacks, the menu closed. */
+  readonly onRefused: () => void;
   /** The gesture chosen: it is made once the menu is gone. */
   readonly onChosen: () => void;
 }) {
@@ -130,7 +134,6 @@ function GestureItem({
   const helps = useTranslations("commands");
   const commands = useTranslations("enums.KanbanCommand");
   const unmet = useUnmet();
-  const lacking = useId();
   const Icon = ICONS[gesture.command];
   const said = {
     item: DropdownMenuItem,
@@ -144,16 +147,8 @@ function GestureItem({
       <MenuCommand
         {...said}
         unavailable={conditions}
-        describedBy={lacking}
-        detail={
-          <span id={lacking} className="block text-xs text-muted-foreground">
-            {conditions}
-          </span>
-        }
         className={UNAVAILABLE}
-        onSelect={(event) => {
-          event.preventDefault();
-        }}
+        onSelect={onRefused}
       />
     );
   }
@@ -189,6 +184,7 @@ function CardMenu({
   open,
   onOpenChange,
   onGesture,
+  onRefuse,
   onDismiss,
 }: {
   readonly card: KanbanCard;
@@ -197,6 +193,8 @@ function CardMenu({
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onGesture: (gesture: CardGesture) => void;
+  /** An unavailable gesture pressed: the card tells what it lacks (WF-IHM-0090). */
+  readonly onRefuse: (gesture: CardGesture) => void;
   /** The menu closed with no gesture chosen: the focus goes back to the card. */
   readonly onDismiss: () => void;
 }) {
@@ -259,6 +257,9 @@ function CardMenu({
             busy={busy}
             onChosen={() => {
               chosen.current = gesture;
+            }}
+            onRefused={() => {
+              onRefuse(gesture);
             }}
           />
         ))}
@@ -351,6 +352,8 @@ export interface CardActions {
   readonly carryFrom: (card: KanbanCard, key: string) => boolean;
   readonly drag: (id: string | undefined) => void;
   readonly gesture: (card: KanbanCard, gesture: CardGesture) => void;
+  /** Tell, on the card, what an unavailable gesture pressed in its menu lacks. */
+  readonly refuse: (card: KanbanCard, gesture: CardGesture) => void;
   readonly date: (card: KanbanCard, gesture: CardGesture, date: string) => void;
   readonly cancel: (id: string) => void;
   readonly forget: (id: string) => void;
@@ -364,6 +367,11 @@ export interface CardState {
   readonly notice: Notice | undefined;
   /** The card answered a gesture: being updated, or not up to date once the reading is over. */
   readonly reading: "updating" | "outdated" | undefined;
+  /**
+   * A gesture of the card lost once sent: its gestures wait until the screen has been read anew
+   * (US-2240) — read once by the board (`useReadAnew`), not by each card.
+   */
+  readonly lost: boolean;
 }
 
 /** The title of a card: its number, the mark of a milestone, its label, and when it ends. */
@@ -534,8 +542,7 @@ export function Card({
   const isSelected = selected === card.node_id;
   const [menuOpen, setMenuOpen] = useState(false);
   const item = useRef<HTMLLIElement | null>(null);
-  // A gesture of the card lost once sent: its gestures wait until the screen has been read anew (US-2240).
-  const lost = useReadAnew(state.notice?.kind === "outcome" ? state.notice.outcome : undefined);
+  const { lost } = state;
   return (
     <li
       ref={(element) => {
@@ -607,6 +614,9 @@ export function Card({
             }}
             onGesture={(gesture) => {
               actions.gesture(card, gesture);
+            }}
+            onRefuse={(gesture) => {
+              actions.refuse(card, gesture);
             }}
           />
         </div>

@@ -161,15 +161,15 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Coûts réels, reste à engager et import des coûts | livré | EP-07 |
 | [EP-23](EP-23-dette-constats-ep02-ep03.md) | Dette des constats d'EP-02 et d'EP-03 | livré | EP-02, EP-03, EP-06 |
 | [EP-24](EP-24-consolidation-apres-v0-3-0.md) | Consolidation après la v0.3.0 | livré | EP-09, EP-23 |
-| [EP-25](EP-25-refonte-ergonomique.md) | Refonte ergonomique | en cours | EP-24 |
-| [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Lecture et performance des grilles | en cours | EP-25 |
-| [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparaison dans les grilles | à planifier | EP-26 |
-| [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | en cours | EP-09 |
+| [EP-25](EP-25-refonte-ergonomique.md) | Refonte ergonomique | livré | EP-24 |
+| [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Lecture et performance des grilles | livré | EP-25 |
+| [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparaison dans les grilles | en cours | EP-26 |
+| [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | en cours | EP-25, EP-26 |
 | [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10, EP-27 |
 | [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
 | [EP-13](EP-13-exploitation.md) | Exploitation et mise en production | à planifier | EP-04 |
-| [EP-28](EP-28-chaine-et-outillage.md) | Chaîne et outillage de développement | à planifier | rien |
+| [EP-28](EP-28-chaine-et-outillage.md) | Chaîne et outillage de développement | en cours | rien |
 
 La ventilation du 2026-11-14, à la livraison d'EP-24, a réparti le reste à faire par thème — celui du
 code touché — et non plus par date de report : EP-25 ne garde que la refonte ergonomique et passe en
@@ -394,7 +394,11 @@ le lot pivot que le cadrage de celle-ci désigne (décision du 2026-11-07) : US-
 pour `epic/EP-07`, US-1490/L1 (#2370) pour `epic/EP-09`, US-1580/L1 (#2398) pour `epic/EP-10`, US-1660/L1 (#2437) pour
 `epic/EP-08`. Troisième : `epic/EP-26` tirée d'`epic/EP-25` dès l'ouverture des issues d'EP-26,
 ses lots de back et ses outils de mesure ne touchant aucun fichier de la refonte (décision du
-2026-11-14).
+2026-11-14). Quatrième : `epic/EP-27` tirée d'`epic/EP-26` dès la fusion d'US-2270/L2 (#3322), la
+comparaison sur les lectures gardées, sur laquelle la sienne s'appuie (décision du 2026-11-15). Depuis
+le recadrage d'EP-10 du 2026-11-15, `epic/EP-10` ne suit plus la série : EP-09 livré, elle se tire
+de `main` une fois EP-25 livré, sans attendre EP-26, dont elle dépend aussi : seuls US-1680 et US-2420
+attendent EP-26 dans `main` ; `epic/EP-08` garde son lot pivot.
 
 La chaîne s'exécute sur toute pull request, vers une branche d'EPIC comme vers `main`, et
 aucune n'est fusionnée si elle échoue.

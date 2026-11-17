@@ -109,6 +109,23 @@ def test_a_row_past_the_last_node_without_a_label_creates_nothing() -> None:
     assert mockundoable.created_numbers(block) == [mockcore.current()[-1].number + 1]
 
 
+@pytest.mark.requirement("WF-PLA-0150-A")
+def test_the_paste_beyond_the_horizon_names_the_task_created_by_its_row_in_the_block() -> None:
+    # « Le déplacement d'une tâche qui porterait la fin du projet à quinze ans et un jour de son
+    # début est refusé, et la tâche est nommée. » Deux tâches créées de même libellé, sans nœud :
+    # le refus nomme la seconde par sa ligne dans le bloc, comptée depuis zéro (#3624).
+    refused = fixture("paste_apply_horizon_exceeded")
+    assert refused["code"] == "PROJECT_HORIZON_EXCEEDED"
+    assert refused["params"] == {
+        "task": {
+            "node_id": None,
+            "label": mockundoable.BEYOND_LABEL,
+            "row": mockundoable.BEYOND_ROW,
+        }
+    }
+    assert "fields" not in refused
+
+
 def test_an_undo_gives_the_label_back_one_version_further_than_the_renaming() -> None:
     renamed = mockwrites.task_renamed()
     [written] = cast("list[Node]", renamed["nodes"])

@@ -269,6 +269,23 @@ def test_too_many_kept_columns_are_refused_on_the_list_and_not_on_one_of_them() 
 
 
 @pytest.mark.requirement("WF-REF-0190-A")
+def test_too_many_labels_of_a_column_read_are_refused_on_its_list_and_not_on_one_of_them() -> None:
+    # #3270: the refusal of a column read beyond its 20 labels has its example, the list of that
+    # column designated — the first, that of the witness's mapping, which holds fewer.
+    bound = _schemas("reference.yaml")["ActualCostMappingColumnWrite"]["properties"]["labels"]
+    assert len(fixture("actual_cost_mapping")["columns"][0]["labels"]) < bound["maxItems"]
+    refused = fixture("actual_cost_mapping_labels_too_many")
+    assert (refused["code"], refused["status"]) == ("VALIDATION_FAILED", 422)
+    assert refused["fields"] == [
+        {
+            "pointer": "/columns/0/labels",
+            "code": "VALUE_TOO_LONG",
+            "params": {"max_length": bound["maxItems"]},
+        }
+    ]
+
+
+@pytest.mark.requirement("WF-REF-0190-A")
 def test_labels_compare_without_regard_to_case_accents_or_spaces_at_the_ends() -> None:
     assert normalized("  NOM MATRICULE ") == normalized("Nom Matricule")
     assert normalized("Élément d'OTP") == normalized("elément d'otp")

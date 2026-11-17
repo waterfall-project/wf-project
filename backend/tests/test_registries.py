@@ -32,6 +32,7 @@ from uuid import UUID, uuid4
 import pytest
 from estimate_support import give_a_line
 from planning_support import give_a_task
+from project_rows import insert_project
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from sqlalchemy import select
@@ -64,8 +65,10 @@ from waterfall.core.planning.interface import (
 from waterfall.core.projects.interface import (
     Attachments,
     detach_item,
+    hold_items,
     item_cited,
     register_attachments,
+    share_items,
 )
 from waterfall.core.resource_settings.interface import (
     DEFAULT_UNITS,
@@ -194,7 +197,9 @@ REGISTERED = {
     "projects.attachments": [
         (
             f"Attachments({PLANNING}.work_breakdown.work_breakdown_item_cited, "
-            f"{PLANNING}.work_breakdown.detach_work_breakdown_item)"
+            f"{PLANNING}.work_breakdown.detach_work_breakdown_item, "
+            f"{PLANNING}.work_breakdown.hold_work_breakdown_items, "
+            f"{PLANNING}.work_breakdown.share_work_breakdown_revision)"
         )
     ],
     "projects.opening": [f"{PLANNING}.skeleton.opening_with_tasks"],
@@ -231,6 +236,8 @@ LINE_HOOKS = (
     "waterfall.core.cost_settings.records.share_natures",
     f"{CORE}.reading.line_columns",
     f"{CORE}.tallying.line_tallies",
+    # The inert fields of a line (US-2250), a tuple, its names joined.
+    "estimate_line.label:estimate_line.payment_delay_days:estimate_line.subproject_id",
 )
 # What the estimate answers the projects of its lines (US-1490/L4), in the order of
 # ``EstimateFacts``.
@@ -625,11 +632,15 @@ def test_a_recalculation_registered_runs_once_what_dates_the_plannings_is_writte
         assert ran == ["redated"] * 3
 
 
-def test_the_attachments_registered_tell_and_detach_an_element_of_the_work_breakdown(
+def test_the_attachments_registered_tell_share_hold_and_detach_an_element_of_the_work_breakdown(
     session: Session,
 ) -> None:
     detached: list[tuple[UUID, UUID]] = []
+    held: list[tuple[UUID, tuple[UUID, ...]]] = []
+    shared: list[UUID] = []
     project_id, item_id = uuid4(), uuid4()
+    # A project without revision: the planning registered shares none, and refuses an unknown one.
+    session.execute(insert_project(id=project_id))
     assert not item_cited(session, item_id)
     with ExitStack() as registered:
         registered.callback(
@@ -637,11 +648,17 @@ def test_the_attachments_registered_tell_and_detach_an_element_of_the_work_break
                 Attachments(
                     lambda _session, item: item == item_id,
                     lambda _session, project, item: detached.append((project, item)),
+                    lambda _session, project, items: held.append((project, tuple(items))),
+                    lambda _session, project: shared.append(project),
                 )
             )
         )
         assert (item_cited(session, item_id), item_cited(session, uuid4())) == (True, False)
+        share_items(session, project_id)
+        hold_items(session, project_id, [item_id])
         detach_item(session, project_id, item_id)
+    assert shared == [project_id]
+    assert held == [(project_id, (item_id,))]
     assert detached == [(project_id, item_id)]
 
 

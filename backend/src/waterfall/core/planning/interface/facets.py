@@ -23,7 +23,9 @@ US-1570/L5 with what a write takes before the lock of its structure (``before_lo
 US-2220/L1 with the reading of the facets of a structure as rows, which a reading that writes
 nothing asks instead of ``totals`` and ``read`` (``columns``, EP-26, "La lecture d'une structure"),
 and by US-2280/L1 with what the nodes of a kind count under each task, read grouped, which a reading
-of the tasks alone asks instead of reading them (``tally``, ``Tally``; EP-26, "L'agrégat d'abord").
+of the tasks alone asks instead of reading them (``tally``, ``Tally``; EP-26, "L'agrégat d'abord"),
+and by US-2250 with the fields of a node of the kind whose write can move no date nor change an
+amount, which take the short path of a write (``inert``; EP-26, "Les écritures").
 """
 
 from dataclasses import dataclass
@@ -256,6 +258,10 @@ class FacetHooks:
     (``Tally``), read in one statement grouped by task from the nodes of the structure the planning
     names — a subquery of their ``node_id``, the ``task_id`` bearing them and whether they are
     ``from_risk`` —, for a reading of the tasks alone, which reads none of these nodes (US-2280).
+    ``inert`` names, as ``FacetRead.editable_fields`` does, the fields of a node of the kind that
+    neither the calendars the kind names (``calendars``) nor any amount of the kind (``reinflate``,
+    ``totals``) read: a write that sends none but these can move no date nor change an amount, and
+    takes the short path (``Write.count``, US-2250); a field in doubt is not named.
     """
 
     read: Callable[[Session, UUID, Mapping[UUID, BearingTask]], Mapping[UUID, FacetRead]]
@@ -276,6 +282,7 @@ class FacetHooks:
     before_lock: Callable[[Session], None]
     columns: Callable[[Session, UUID, Collection[UUID]], FacetColumns]
     tally: Callable[[Session, UUID, Subquery], Mapping[UUID, Tally]]
+    inert: tuple[str, ...]
 
 
 # The hooks of each kind of node other than the task, in the order of their registration.

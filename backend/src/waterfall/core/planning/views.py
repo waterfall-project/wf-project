@@ -335,7 +335,7 @@ def own_lines[N: NodeColumns, T: TaskColumns](
     return node_id in tree.held, closed
 
 
-def state_of(tree: Tree, node_id: UUID) -> State:
+def state_of[N: NodeColumns, T: TaskColumns](tree: Tree[N, T], node_id: UUID) -> State:
     """Give the state of a task of a tree: its own for a leaf, derived for a summary (0040).
 
     A summary's, from its subordinates and from its own lines (``own_lines``).

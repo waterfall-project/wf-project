@@ -38,6 +38,13 @@
           "route": "/admin/audit-log",
           "scope": "platform",
           "permission": "audit_log"
+        },
+        {
+          "code": "FBS-1.6",
+          "label": "functions.installation",
+          "route": "/admin/installation",
+          "scope": "platform",
+          "permission": "installation"
         }
       ]
     },

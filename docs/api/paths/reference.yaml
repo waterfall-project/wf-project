@@ -61,8 +61,8 @@
       The currency is chosen at installation and cannot be modified (WF-REF-0140). Each field
       falls under the permission of its function (WF-ADM-0100): the company name
       (`company_name`), entered at installation and modifiable afterwards (WF-EXP-0020), under
-      `cost_settings.write`, the function of the cost settings, whose screen shows it next to
-      the currency; the risk matrix
+      `installation.write`, the function of the installation (FBS-1.6), whose screen shows it
+      next to what the bootstrap set; the risk matrix
       (`risk_matrix`) under `risk_settings.write` (WF-REF-0160); the index thresholds and the
       interval between two reviews (`index_thresholds`, `max_weeks_between_reviews`)
       under `indicator_settings.write` (WF-REF-0170, WF-REF-0180). A request carries only what
@@ -97,7 +97,7 @@
       '403':
         description: >-
           A field for whose function the session does not hold the permission:
-          `PERMISSION_MISSING`, `params.missing_permission` naming it — `cost_settings.write`
+          `PERMISSION_MISSING`, `params.missing_permission` naming it — `installation.write`
           for the company name, `risk_settings.write` for the matrix,
           `indicator_settings.write` for the thresholds and the interval (WF-ADM-0100,
           WF-ADM-0110); nothing is written.
@@ -106,6 +106,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               permission_missing: { $ref: ../../../fixtures/api/reference_settings_permission_missing.json }
+              company_permission_missing: { $ref: ../../../fixtures/api/reference_settings_company_permission_missing.json }
       '412':
         description: >-
           Stale `lock_version`: the settings have been modified since they were read, by one
@@ -2091,5 +2092,6 @@
               duplicate: { $ref: ../../../fixtures/api/actual_cost_mapping_duplicate.json }
               labels_refused: { $ref: ../../../fixtures/api/actual_cost_mapping_labels_refused.json }
               kept_columns_too_many: { $ref: ../../../fixtures/api/actual_cost_mapping_kept_columns_too_many.json }
+              labels_too_many: { $ref: ../../../fixtures/api/actual_cost_mapping_labels_too_many.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

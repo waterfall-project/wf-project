@@ -2604,6 +2604,7 @@
       "required": "(required)",
       "optional": "(optional)",
       "noLabel": "No label.",
+      "readColumns": "Columns read",
       "kept": "Kept columns",
       "keptHint": "The columns of the extraction that Waterfall keeps for information, given back when the imported lines are consulted. A column read is not also declared kept.",
       "noKept": "No kept column.",
@@ -2995,12 +2996,21 @@
     "applicationSettings": "Application settings",
     "projects": "Projects"
   },
+  "installation": {
+    "title": "Installation",
+    "name": "Company name",
+    "currency": "Currency",
+    "defaultLanguage": "Default language",
+    "timeZone": "Time zone",
+    "fixed": "The currency, the default language and the time zone are fixed at installation: no screen modifies them."
+  },
   "functions": {
     "users": "User management",
     "accessRoles": "Access role management",
     "systemStatus": "System status monitoring",
     "backups": "Backup and restore",
     "auditLog": "Audit log",
+    "installation": "Installation",
     "portfolioProjects": "Project portfolio",
     "portfolioWorkload": "Aggregated workload",
     "portfolioPerformance": "Portfolio performance",
@@ -3160,6 +3170,7 @@
     "cycle": "Loop of links, in order: {tasks}.",
     "link": "Link concerned, the summary first: {tasks}.",
     "horizon_task": "Task concerned: {task}.",
+    "horizon_task_row": "Task concerned: {task}, row {row} of the pasted block.",
     "taskName": "“{label}”",
     "unknown_value": "Value read in the file: “{value}”.",
     "ambiguous_label": "Label read: “{label}”, shared by the tasks {tasks}.",
@@ -3195,6 +3206,10 @@
     },
     "audit_log": {
       "read": "View the audit log"
+    },
+    "installation": {
+      "read": "View the installation",
+      "write": "Edit the installation"
     },
     "portfolio_projects": {
       "read": "View the project portfolio"

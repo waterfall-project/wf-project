@@ -23,7 +23,6 @@ import {
   History,
   Server,
   SlidersHorizontal,
-  type LucideIcon,
 } from "lucide-react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -43,7 +42,7 @@ import { ValuesFilter } from "@/components/grid/values-filter";
 import { LocalTime } from "@/components/local-time";
 import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { Reactivations } from "@/components/reference/reactivation";
-import { BoundsRefused } from "@/components/reference/section";
+import { BoundsRefused, ReferenceCard } from "@/components/reference/section";
 import { SectionCard } from "@/components/shell/section-card";
 import { Signal } from "@/components/signal/signal";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
@@ -99,37 +98,6 @@ function Outcome({
   );
 }
 
-/**
- * A section of the state of the platform, in its card (`SectionCard`, EP-25): its title with its
- * icon, no command — the screen is read, not written —, and its body spaced; what the section says
- * in place of its table when it is empty, as the one sentence.
- *
- * It does what `ReferenceCard` (`reference/section.tsx`) does, plus that sentence; the two stay
- * apart until the common card of section is settled (#3446), a screen's lot not touching it.
- */
-function StatusCard({
-  title,
-  icon,
-  empty,
-  children,
-}: {
-  readonly title: string;
-  readonly icon: LucideIcon;
-  /** What the section says when its list is empty; `undefined` when it is not. */
-  readonly empty?: string | undefined;
-  readonly children: ReactNode;
-}) {
-  return (
-    <SectionCard title={title} icon={icon}>
-      {empty === undefined ? (
-        <div className="flex min-w-0 flex-col gap-2">{children}</div>
-      ) : (
-        <p className="text-sm text-muted-foreground">{empty}</p>
-      )}
-    </SectionCard>
-  );
-}
-
 /** The components of the platform, each available or not, when last checked, and its version. */
 export function ComponentList({
   components: list,
@@ -139,7 +107,7 @@ export function ComponentList({
   const t = useTranslations("admin.status");
   const names = useTranslations("enums.PlatformComponent");
   return (
-    <StatusCard title={t("components")} icon={Server}>
+    <ReferenceCard title={t("components")} icon={Server}>
       <ListTable
         label={t("components")}
         columns={[t("component"), t("availability"), t("checkedAt"), t("componentVersion")]}
@@ -157,7 +125,7 @@ export function ComponentList({
           </TableRow>
         ))}
       </ListTable>
-    </StatusCard>
+    </ReferenceCard>
   );
 }
 
@@ -170,7 +138,7 @@ export function StorageFacts({ storage }: { readonly storage: SystemStatus["stor
     ["free", storage.available_bytes],
   ] as const;
   return (
-    <StatusCard title={t("storage")} icon={HardDrive}>
+    <ReferenceCard title={t("storage")} icon={HardDrive}>
       <dl className="grid w-fit grid-cols-[auto_auto] gap-x-6 gap-y-1 text-sm">
         {facts.map(([key, value]) => (
           <div key={key} className="contents">
@@ -179,7 +147,7 @@ export function StorageFacts({ storage }: { readonly storage: SystemStatus["stor
           </div>
         ))}
       </dl>
-    </StatusCard>
+    </ReferenceCard>
   );
 }
 
@@ -205,7 +173,7 @@ export function OperatingParametersFacts({
     ["errorWindow", t("seconds", { count: parameters.error_rate_window_seconds })],
   ] as const;
   return (
-    <StatusCard title={t("title")} icon={SlidersHorizontal}>
+    <ReferenceCard title={t("title")} icon={SlidersHorizontal}>
       <dl className="grid w-fit grid-cols-[auto_auto] gap-x-6 gap-y-1 text-sm">
         {facts.map(([key, value]) => (
           <div key={key} className="contents">
@@ -214,7 +182,7 @@ export function OperatingParametersFacts({
           </div>
         ))}
       </dl>
-    </StatusCard>
+    </ReferenceCard>
   );
 }
 
@@ -262,7 +230,7 @@ function OperationRow({
 export function OperationList({ status }: { readonly status: SystemStatus }) {
   const t = useTranslations("admin.status");
   return (
-    <StatusCard title={t("operations")} icon={History}>
+    <ReferenceCard title={t("operations")} icon={History}>
       <ListTable
         label={t("operations")}
         columns={[t("operation"), t("at"), t("outcome"), t("motive")]}
@@ -272,7 +240,7 @@ export function OperationList({ status }: { readonly status: SystemStatus }) {
         <OperationRow name={t("backupCopy")} outcome={status.last_backup_copy} />
         <OperationRow name={t("restoreTest")} outcome={status.last_restore_test} />
       </ListTable>
-    </StatusCard>
+    </ReferenceCard>
   );
 }
 
@@ -330,7 +298,7 @@ export function AlertList({ alerts }: { readonly alerts: readonly Alert[] }) {
   const t = useTranslations("admin.status");
   const codes = useTranslations("enums.Alert.code");
   return (
-    <StatusCard
+    <ReferenceCard
       title={t("alerts")}
       icon={Bell}
       empty={alerts.length === 0 ? t("noAlert") : undefined}
@@ -351,7 +319,7 @@ export function AlertList({ alerts }: { readonly alerts: readonly Alert[] }) {
           </TableRow>
         ))}
       </ListTable>
-    </StatusCard>
+    </ReferenceCard>
   );
 }
 

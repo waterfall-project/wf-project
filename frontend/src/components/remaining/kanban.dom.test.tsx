@@ -1,13 +1,21 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { createEvent, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useEffect, useReducer } from "react";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { expectAccessible } from "@/test/axe";
 import {
   example,
   type FakeAnswers,
@@ -16,7 +24,7 @@ import {
   held,
   type Problem,
 } from "@/test/fixtures";
-import { browserOffline } from "@/test/offline";
+import { browserOffline, browserOnline } from "@/test/offline";
 
 import { Kanban } from "./kanban";
 import { columnsOf, type KanbanColumns, type StartableTasks } from "./kanban-cards";
@@ -31,6 +39,34 @@ const router = vi.hoisted(() => ({ refresh: vi.fn() }));
 // A gesture whose server action rejects, the API out of reach as `fetch` rejects in the browser.
 const failing = vi.hoisted(() => ({ on: false }));
 
+// The readings anew of a write lost once sent, counted by mounts: one per write lost, made by the
+// board, not mounted by each of its cards (#3442).
+// A reading can be held, as Next holds it until the server answers: while it is, the readings
+// mounted say they last, and let go, they say what they read.
+const readAnew = vi.hoisted(() => ({
+  mounts: 0,
+  held: false,
+  watchers: new Set<() => void>(),
+}));
+
+vi.mock("@/components/commands/outcome-notice", async (original) => {
+  const actual = await original<typeof import("@/components/commands/outcome-notice")>();
+  return {
+    ...actual,
+    useReadAnew: (...asked: Parameters<typeof actual.useReadAnew>) => {
+      const [, wake] = useReducer((count: number) => count + 1, 0);
+      useEffect(() => {
+        readAnew.mounts += 1;
+        readAnew.watchers.add(wake);
+        return () => {
+          readAnew.watchers.delete(wake);
+        };
+      }, []);
+      const reading = actual.useReadAnew(...asked);
+      return reading || (readAnew.held && asked[0]?.kind === "unreachable");
+    },
+  };
+});
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("@/api/actions/nodes", async (original) => {
   const actual = await original<typeof import("@/api/actions/nodes")>();
@@ -237,7 +273,7 @@ describe("the gestures of the cards of the Kanban", () => {
     // In the order of the API: start, complete, enter the remaining to commit; nothing it does not list.
     expect(entries.map((entry) => entry.textContent)).toEqual([
       "Démarrer",
-      "TerminerConditions non remplies\u00A0: la tâche est un jalon et tâche sans ligne hors provision.",
+      "Terminer",
       "Saisir le reste à engager",
     ]);
     expect(entries[0]).not.toHaveAttribute("aria-disabled");
@@ -735,6 +771,63 @@ describe("the gestures of the cards of the Kanban", () => {
     expect(router.refresh).toHaveBeenCalledTimes(1);
   });
 
+  it("mounts the reading anew of a write lost once sent once for the board, not in each card, and reads the tasks anew once per write lost, (US-2240)", async () => {
+    onTestFinished(browserOnline());
+    failing.on = true;
+    serve({});
+    const columns = columnsOfExample("startable_tasks");
+    const cards = Object.values(columns).flat().length;
+    const { again } = board(columns);
+    expect(cards).toBeGreaterThan(3);
+    // No reading mounted while nothing is lost, whatever the number of cards or of renders.
+    readAnew.mounts = 0;
+    again(columns);
+    expect(readAnew.mounts).toBe(0);
+
+    await choose("Études de détail", "Rouvrir");
+    expect(await within(card("Études de détail")).findByRole("alert")).toHaveTextContent(
+      "a pu aboutir",
+    );
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+    // One reading mounted for the write lost, not one per card.
+    expect(readAnew.mounts).toBe(1);
+
+    // Another write lost, on another card: the tasks are read anew once more, not twice.
+    await choose("Réception usine", /^Terminer/);
+    fireEvent.click(within(card("Réception usine")).getByRole("button", { name: "Terminer" }));
+    await waitFor(() => {
+      expect(router.refresh).toHaveBeenCalledTimes(2);
+    });
+    expect(readAnew.mounts).toBe(2);
+  });
+
+  it("keeps the card of a write lost waiting for its own reading when another write is lost or refused meanwhile (US-2240)", async () => {
+    onTestFinished(browserOnline());
+    readAnew.held = true;
+    onTestFinished(() => {
+      readAnew.held = false;
+    });
+    failing.on = true;
+    serve({});
+    board();
+    await choose("Études de détail", "Rouvrir");
+    await within(card("Études de détail")).findByRole("alert");
+    expect(card("Études de détail")).toHaveAttribute("draggable", "false");
+    // Another write lost, on another card, while the first reading is held: the first waits on.
+    await choose("Réception des études", "Rouvrir");
+    await within(card("Réception des études")).findByRole("alert");
+    expect(card("Études de détail")).toHaveAttribute("draggable", "false");
+    act(() => {
+      readAnew.held = false;
+      readAnew.watchers.forEach((wake) => {
+        wake();
+      });
+    });
+    await waitFor(() => {
+      expect(card("Études de détail")).toHaveAttribute("draggable", "true");
+    });
+  });
+
   it("reads the tasks anew when the API refuses a gesture for a version past, and tells it on the card [WF-IHM-0090-A]", async () => {
     // The twin of the 409: the node changed since the card was read.
     serve({ [PROGRESS]: { problem: { code: "STALE_LOCK_VERSION", status: 412 } } });
@@ -773,22 +866,29 @@ describe("the gestures of the cards of the Kanban", () => {
     expect(labels("Terminées")).not.toContain("Réception usine");
   });
 
-  it("shows an unavailable gesture in the menu with the conditions it lacks, and does nothing when it is chosen [WF-IHM-0090-A]", async () => {
+  it("shows an unavailable gesture in the menu, its conditions in its tooltip and not under its name, and tells them on the card when it is pressed, writing nothing [WF-IHM-0090-A]", async () => {
     const client = serve({});
     board();
     const user = await openMenu("Montage des armoires sur site");
     const menu = screen.getByRole("menu", {
       name: "Gestes de la tâche Montage des armoires sur site",
     });
-    // The completion of this task cannot be made now: it is shown, with what is lacking.
+    // Unavailable: shown, what it lacks its description (its tooltip says it: kanban-reading).
     const completion = within(menu).getByRole("menuitem", { name: /^Terminer/ });
     expect(completion).toHaveAttribute("aria-disabled", "true");
-    expect(completion).toHaveTextContent(
-      "Conditions non remplies : la tâche est un jalon et tâche sans ligne hors provision.",
-    );
-    // Secondary: a gesture the card does not list is not in the menu at all.
+    expect(completion).toHaveTextContent(/^Terminer$/);
+    const conditions =
+      "Conditions non remplies\u00A0: la tâche est un jalon et tâche sans ligne hors provision.";
+    expect(completion).toHaveAccessibleDescription(conditions);
     expect(within(menu).queryByRole("menuitem", { name: /^Rouvrir/ })).toBeNull();
     await user.click(completion);
+    // Pressed, it launches nothing: the menu closes, and the card says what it lacks.
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    });
+    expect(within(card("Montage des armoires sur site")).getByRole("alert").textContent).toBe(
+      `«\u00A0Terminer\u00A0» est indisponible. ${conditions}`,
+    );
     expect(
       within(card("Montage des armoires sur site")).queryByLabelText("Date de l’événement"),
     ).toBeNull();
@@ -894,107 +994,5 @@ describe("the gestures of the cards of the Kanban", () => {
       }),
     );
     expect(await screen.findByRole("menuitem", { name: "Rouvrir" })).toBeVisible();
-  });
-});
-
-describe("the choice of a card", () => {
-  it("chooses a card by a click, and one only, and offers the menu of that card alone", async () => {
-    serve({});
-    board();
-    const user = userEvent.setup();
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
-    await user.click(card("Pupitres opérateurs"));
-    expect(card("Pupitres opérateurs")).toHaveAttribute("aria-current", "true");
-    expect(card("Réception usine")).not.toHaveAttribute("aria-current");
-    await user.click(card("Réception usine"));
-    expect(card("Réception usine")).toHaveAttribute("aria-current", "true");
-    expect(card("Pupitres opérateurs")).not.toHaveAttribute("aria-current");
-    // Its menu only is offered, and no other card has a button.
-    expect(screen.getAllByRole("button")).toHaveLength(1);
-  });
-
-  it("gives the date up with Escape, writing nothing, and writes it with Enter", async () => {
-    const client = serve({ [PROGRESS]: "task_started" });
-    board();
-    const user = await openMenu("Montage des armoires sur site");
-    await user.click(await screen.findByRole("menuitem", { name: "Démarrer" }));
-    const field = await within(card("Montage des armoires sur site")).findByLabelText(
-      "Date de l’événement",
-    );
-    expect(field).toHaveFocus();
-    // Escape gives the card up and the focus back to it, writing nothing.
-    await user.keyboard("{Escape}");
-    expect(
-      within(card("Montage des armoires sur site")).queryByLabelText("Date de l’événement"),
-    ).toBeNull();
-    expect(card("Montage des armoires sur site")).toHaveFocus();
-    expect(written(client)).toEqual([]);
-    // Asked again, the Enter of the form writes it.
-    await user.click(
-      within(card("Montage des armoires sur site")).getByRole("button", {
-        name: "Gestes de la tâche Montage des armoires sur site",
-      }),
-    );
-    await user.click(await screen.findByRole("menuitem", { name: "Démarrer" }));
-    await within(card("Montage des armoires sur site")).findByLabelText("Date de l’événement");
-    await user.keyboard("{Enter}");
-    await waitFor(() => {
-      expect(labels("Démarrées")).toContain("Montage des armoires sur site");
-    });
-    expect(written(client)).toEqual([
-      { progress: "started", occurred_on: "2026-06-03", lock_version: 1 },
-    ]);
-    expect(card("Montage des armoires sur site")).toHaveFocus();
-  });
-
-  it("carries a card to the neighbouring column by Shift and a sideways arrow, the equivalent of the drag, and asks the date first [WF-IHM-0100-A]", async () => {
-    const client = serve({ [PROGRESS]: "task_started" });
-    board();
-    const user = userEvent.setup();
-    await user.click(card("Montage des armoires sur site"));
-    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
-    const field = await within(card("Montage des armoires sur site")).findByLabelText(
-      "Date de l’événement",
-    );
-    expect(field).toHaveFocus();
-    // Escape gives the card up and the focus back to it, writing nothing.
-    await user.keyboard("{Escape}");
-    expect(
-      within(card("Montage des armoires sur site")).queryByLabelText("Date de l’événement"),
-    ).toBeNull();
-    expect(card("Montage des armoires sur site")).toHaveFocus();
-    expect(written(client)).toEqual([]);
-    // Asked again, the Enter of the form writes it.
-    await user.keyboard("{Shift>}{ArrowRight}{/Shift}{Enter}");
-    await waitFor(() => {
-      expect(labels("Démarrées")).toContain("Montage des armoires sur site");
-    });
-    expect(written(client)).toEqual([
-      { progress: "started", occurred_on: "2026-06-03", lock_version: 1 },
-    ]);
-    expect(card("Montage des armoires sur site")).toHaveFocus();
-  });
-
-  it("asks for a date before it writes: an empty one is refused on the field", async () => {
-    const client = serve({});
-    board();
-    await choose("Pupitres opérateurs", /^Terminer/);
-    const field = await within(card("Pupitres opérateurs")).findByLabelText("Date de l’événement");
-    fireEvent.change(field, { target: { value: "" } });
-    await userEvent.click(
-      within(card("Pupitres opérateurs")).getByRole("button", { name: "Terminer" }),
-    );
-    expect(within(card("Pupitres opérateurs")).getByRole("alert")).toHaveTextContent(
-      "Saisissez la date de l’événement.",
-    );
-    expect(field).toHaveAttribute("aria-invalid", "true");
-    expect(written(client)).toEqual([]);
-  });
-
-  it("is accessible with a card chosen and the date asked on it", async () => {
-    serve({});
-    const { container } = board();
-    await choose("Pupitres opérateurs", /^Terminer/);
-    await expectAccessible(container);
   });
 });

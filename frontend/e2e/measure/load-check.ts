@@ -15,10 +15,15 @@ export interface LoadSummary {
   /** Every gesture, readings and entries. */
   readonly gestures: number;
   readonly reads: number;
-  /** The readings a screen did not get a full answer to. */
+  /**
+   * The readings the marking refuses (409 `STATE_FORBIDS_OPERATION`): the workload of a project
+   * left without a current revision once its revision is marked.
+   */
+  readonly reads_frozen: number;
+  /** The readings a screen did not get a full answer to, otherwise. */
   readonly reads_refused: number;
   readonly writes: number;
-  /** The entries refused on a revision the measure has marked (409): the marking's doing. */
+  /** The entries refused on a revision the measure has marked (409, the state's): its doing. */
   readonly writes_frozen: number;
   /** The entries refused otherwise. */
   readonly writes_refused: number;
@@ -33,12 +38,32 @@ export interface LoadRun {
   readonly users: number;
   /** How long the load lasted, in seconds, from its start to its stop. */
   readonly duration_s: number;
-  /** Whether the measure marked the revision under the load, which freezes it for the entries. */
-  readonly marked: boolean;
+  /**
+   * How long the revision stood frozen under the load, in seconds, from the asking of the first
+   * marking the measure made — the back refuses the entries from the submission of its task, while
+   * it is queued or runs, then once the revision is marked — to the stop of the load; 0 when the
+   * measure marked nothing. The passes after the first mark a revision opened again, in which the
+   * load, which writes in its own, never enters: they extend nothing.
+   */
+  readonly frozen_s: number;
 }
 
 /** The share of the readings, or of the entries, that may be refused before the load is void. */
 export const REFUSED_TOLERANCE = 0.01;
+/**
+ * The readings, and the entries, that may be refused whatever their share: one of each, counted
+ * apart. A hundredth of the seventy entries of a load tolerates none, and a single refusal at
+ * random would void a measure of twenty minutes; the one tolerated is named in the report
+ * (`conditions.load.refusals`), and a refusal the log does not name is not tolerated this way.
+ */
+export const REFUSED_LEAST = 1;
+/** The most refusals the report names: a load that refused more has failed. */
+export const REFUSALS_REPORTED = 50;
+/**
+ * The share of the entries, and of the readings, beside the share of the duration the revision
+ * stood frozen, that may be refused as frozen: the gestures of a user fall at random in time.
+ */
+export const FROZEN_SLACK = 0.1;
 /** The mean pause between two gestures of a user, in seconds (`bench/draw.ts`). */
 export const PAUSE_MEAN_S = 10;
 /** The share of the gestures its pauses promise below which the load did not run as asked. */
@@ -49,28 +74,86 @@ export function gesturesExpected(users: number, durationSeconds: number): number
   return (users * durationSeconds) / PAUSE_MEAN_S;
 }
 
+/** What the load refused otherwise than by the marking, as its log names it. */
+export interface Refusal {
+  readonly kind: string;
+  readonly name: string;
+  readonly status: number;
+}
+
+/**
+ * The refusals a log of k6 names, one `msg="refused <kind> <name>: <status>"` a line
+ * (`bench/load.ts`), the first of them up to what the report holds.
+ */
+export function refusalsOf(log: string): Refusal[] {
+  const refusals: Refusal[] = [];
+  for (const match of log.matchAll(/msg="refused (\S+) (.+?): (\d+)"/g)) {
+    refusals.push({ kind: match[1] ?? "", name: match[2] ?? "", status: Number(match[3]) });
+  }
+  return refusals.slice(0, REFUSALS_REPORTED);
+}
+
+/** The log of a container as `docker logs` gives it: k6 writes to its error output, after the output. */
+export function logText(output: { stdout?: string | null; stderr?: string | null }): string {
+  return `${output.stdout ?? ""}\n${output.stderr ?? ""}`;
+}
+
+/**
+ * The refusals tolerated of gestures: a hundredth of them, rounded down, one at least — unless
+ * the load refused some its log does not name (`unnamed`), the one at least being tolerated only
+ * for being named.
+ */
+export function refusedTolerated(gestures: number, unnamed = 0): number {
+  const share = Math.floor(gestures * REFUSED_TOLERANCE);
+  return unnamed > 0 ? share : Math.max(share, REFUSED_LEAST);
+}
+
 /** The reasons the load did not run as asked; none when it did. */
-export function loadFailures(summary: LoadSummary | undefined, run: LoadRun): string[] {
+export function loadFailures(
+  summary: LoadSummary | undefined,
+  run: LoadRun,
+  refusals: readonly Refusal[],
+): string[] {
   if (summary === undefined) {
     return ["the load wrote no summary"];
   }
   const failures: string[] = [];
-  const tolerated = `${String(REFUSED_TOLERANCE * 100)} % tolerated`;
+  // The log is read before the stop of the load: what it refuses during the stop is counted by
+  // k6 and named nowhere. Unless the report is full, such a refusal is not tolerated as isolated.
+  const counted = summary.reads_refused + summary.writes_refused;
+  const unnamed = refusals.length < REFUSALS_REPORTED ? Math.max(counted - refusals.length, 0) : 0;
+  const allowed = (gestures: number) => refusedTolerated(gestures, unnamed);
+  const tolerated = (gestures: number) =>
+    `${String(allowed(gestures))} tolerated` +
+    (unnamed > 0 ? `, ${String(unnamed)} refusal(s) not named` : "");
   if (summary.unauthorised !== 0) {
     failures.push(`${String(summary.unauthorised)} gestures refused for want of a valid token`);
   }
-  if (summary.reads === 0 || summary.reads_refused > summary.reads * REFUSED_TOLERANCE) {
+  if (summary.reads === 0 || summary.reads_refused > allowed(summary.reads)) {
     failures.push(
-      `${String(summary.reads_refused)} of ${String(summary.reads)} readings refused, ${tolerated}`,
+      `${String(summary.reads_refused)} of ${String(summary.reads)} readings refused, ${tolerated(summary.reads)}`,
     );
   }
-  if (summary.writes_refused > summary.writes * REFUSED_TOLERANCE) {
+  if (summary.writes_refused > allowed(summary.writes)) {
     failures.push(
-      `${String(summary.writes_refused)} of ${String(summary.writes)} entries refused, ${tolerated}`,
+      `${String(summary.writes_refused)} of ${String(summary.writes)} entries refused, ${tolerated(summary.writes)}`,
     );
   }
-  if (summary.writes_frozen > 0 && !run.marked) {
-    failures.push(`${String(summary.writes_frozen)} entries refused before any marking`);
+  const frozenShare = run.duration_s > 0 ? Math.min(1, run.frozen_s / run.duration_s) : 0;
+  const shares = [
+    { gestures: "entries", frozen: summary.writes_frozen, of: summary.writes },
+    { gestures: "readings", frozen: summary.reads_frozen, of: summary.reads },
+  ];
+  for (const { gestures, frozen, of } of shares) {
+    if (frozen > 0 && run.frozen_s <= 0) {
+      failures.push(`${String(frozen)} ${gestures} refused though the revision was never frozen`);
+    }
+    if (frozen > of * (frozenShare + FROZEN_SLACK)) {
+      failures.push(
+        `${String(frozen)} of ${String(of)} ${gestures} refused as frozen, ` +
+          `the revision having stood frozen ${String(Math.round(frozenShare * 100))} % of the load`,
+      );
+    }
   }
   const expected = gesturesExpected(run.users, run.duration_s);
   if (summary.gestures < expected * GESTURES_LEAST_SHARE) {

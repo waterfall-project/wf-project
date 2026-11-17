@@ -8,7 +8,9 @@
  * icon, beside its label, which stays: the button keeps its name. The wheel turns, a state the
  * button tells and that stops with the answer; it stands still when the workstation asks for less
  * motion, as the pulse of the loading skeleton does (guide, « Charte graphique »). A failure gives
- * the button back: the same treatment can be run again.
+ * the button back: the same treatment can be run again. A button mounted anew while its task runs —
+ * the tab reloaded, the screen left and come back to — waits the same way: it finds the task by what
+ * it aims at (`taskAim`, `useRunningTask`, #3404), in the tab that started it only.
  */
 import { LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";

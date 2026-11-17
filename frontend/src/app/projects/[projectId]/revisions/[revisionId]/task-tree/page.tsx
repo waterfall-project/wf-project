@@ -35,7 +35,7 @@ import { type PageSearchParams, searchQuery } from "@/navigation/context";
 import { screenMetadata } from "../../../../../title";
 import { gridAddress, readGridScreen } from "../grid-screen";
 import type { RevisionParams } from "../page";
-import { WorkCard } from "../work-card";
+import { GridCard } from "@/components/shell/grid-card";
 
 /** Title the tab with the leaf, and with the project. */
 export async function generateMetadata({
@@ -114,9 +114,9 @@ function TaskTreeScreen({
           </div>
         }
       />
-      <WorkCard fill>
+      <GridCard fill>
         <TaskTree name={t("taskTree.name")} project={project} nodes={nodes} />
-      </WorkCard>
+      </GridCard>
       {levels === 0 ? (
         <p className="text-sm text-muted-foreground">{t("taskTree.noSummary")}</p>
       ) : null}

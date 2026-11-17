@@ -1,7 +1,7 @@
 ---
 id: EP-26
 titre: Ouvrir, filtrer et saisir dans une grille de mille tâches sans attendre
-statut: en cours
+statut: livré
 depend_de: EP-25
 famille: back, front
 issue: 3299
@@ -505,7 +505,7 @@ lectures simultanées durent chacune six fois une lecture seule.
 
 ## US-2240 — Ouvrir une révision d'un projet de mille tâches en deux secondes, sans que le front la dise injoignable
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-REV-0010-A`
 - **opérations** : `createRevision`, `listRevisions`
 - **issue** : #3312
@@ -547,13 +547,19 @@ pas croire à un échec à chaque revue.
 **Notes de réalisation.** Une seule occurrence relevée, le 2026-11-13 : le `POST` a répondu 201 en
 9 599 ms, le front avait rendu la main à 4,9 s. US-2170 d'EP-25 reprend l'attente du bouton et la
 relecture de l'écran pour les traitements ; cette US en garde le message de la connexion perdue.
+US-2240/L6 (#3548, constat #3535) : la révision ouverte l'année suivant sa source rechiffre ses
+lignes par ensemble — le calcul reste ligne à ligne, en Python, les montants qui bougent s'écrivent
+par une `UPDATE … FROM (VALUES …)` par lot de 2 000 lignes — : 2 141 instructions, dont 2 076
+`UPDATE estimate_line`, puis, sur PRJ-001, moins de 200 (mesure du 2026-11-16, abandon de la 102 et
+ouverture : 129 instructions, dont 3 `UPDATE estimate_line`, l'année suivante ; 120, dont aucune, dans la
+même année).
 
 **Hors périmètre.** L'ouverture en tâche de fond, écartée au cadrage. Si la borne ne tient pas, le
 dépassement est documenté (US-2300) et devient une issue à trancher.
 
 ## US-2250 — Une saisie qui ne déplace rien ne rejoue pas le moteur, et une écriture ne lit l'arbre qu'une fois
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — le gain se lit dans le rapport de WF-QUA-0060 (US-2300)
 - **opérations** : `updateTaskFacet`, `updateEstimateLine`, `setLineRemaining`, `setTaskProgress`,
   `setNodeTracking`, `setPredecessors`
@@ -573,20 +579,78 @@ entière de la structure, **afin de** saisir plusieurs cellules de suite sans at
   prennent le chemin court ;
 - propre à l'US : le chemin court ne relit pas l'arbre entier et ne rejoue pas le moteur ; le
   compteur de la structure avance toujours, la réponse et l'historique annulable ne changent pas ;
-- propre à l'US : les autres écritures lisent l'arbre une seule fois ;
+- propre à l'US : les autres écritures lisent l'arbre une seule fois ; une saisie inerte n'en lit aucun en objets (`read_inert`, US-2250/L2) ;
 - propre à l'US : le gain est dit par la mesure d'US-2210 — un libellé, une durée qui redate —,
   avant et après, au-delà de la dispersion.
 
 **Notes de réalisation.** Tous les chemins passent aujourd'hui par `Write`, `replayed` et
 `redated_structure` : la cellule d'une tâche, une ligne de devis, l'avancement, le suivi, les
 prédécesseurs, le collage (#3169). Le front s'adosse au compteur de la structure à chaque écriture
-(`structure-version.ts`).
+(`structure-version.ts`). Colonnes inertes retenues : la tâche, son libellé, sa description, son
+poste, son lot et ses inscriptions (`INERT_TASK_FIELDS`, `setNodeTracking` toujours par le chemin
+court) ; la ligne, son libellé, son délai de paiement et son sous-projet (`FacetHooks.inert`). Les
+autres restent dans le chemin entier : le mode, la durée et les dates (le moteur), l'avancement
+(l'état d'une tâche est une entrée du rejeu, qui en dérive celui de ses récapitulatives et réévalue
+ses lignes dessus), les prédécesseurs, la catégorie, le rôle (le calendrier de la tâche), la
+quantité, les heures et le déboursé (le prix). Le chemin court (`Write.count`) donne la structure qu'il laisse sur
+les calendriers des seules tâches du nœud écrit et de ses ancêtres, sans rejouer le moteur. Une saisie inerte
+ne lit aucun arbre en objets de session : `read_inert` (`tree.py`) lit la structure et ses liens en
+lignes, et le seul nœud écrit, avec sa tâche, en objets (#3540) ; le test d'US-2250 dit
+`trees_read == (0 if field in INERT else 1)`. Toute autre écriture qui passe par `Write`
+— création, suppression, déplacement, collage, écriture de la structure, ébauche, application d'un
+import de devis — et l'annulation comme le rétablissement lisent l'arbre une fois, sous le verrou :
+le rejeu reçoit cet arbre (`Holding.tree`) et le met à jour de l'écriture (`reshaped`) — la place et
+le compteur de chaque nœud lus en lignes, les nœuds créés ou écrits par une instruction (le décalage
+des frères d'une création) relus seuls avec leur facette, ceux qui ont disparu retirés, l'ordre du
+plan recalculé ; aucun appelant ne dit ce qu'il a changé, et le drapeau qui le disait
+(`kept_places`) a disparu. Une écriture avance le compteur de tout nœud qu'elle écrit, par ses
+objets ou par une instruction : c'est sur quoi la relecture d'un nœud repose. Un test fige une
+lecture par écriture, la même réponse et la même structure en base qu'en relisant l'arbre
+(`test_inert_writes.py`, `test_skeleton.py`, `test_paste.py`,
+`test_estimate_import_application.py`).
+Mesure du 2026-11-16 (`make measure-core ONLY=write RUNS=15`, médianes de 15 passages, dispersion —
+l'écart du plus lent au plus rapide — entre parenthèses), l'état d'avant l'US (le commit de la
+branche d'EPIC d'où le lot est parti, `e6f4d1c38`) et l'état livré (`reshaped`) mesurés en
+alternance dans la même séance, toutes les séances consignées, la médiane et la dispersion de
+chacune : un libellé, avant 405 ms (132) et 408 ms (120), après 177 ms (84), 161 ms (85) et 155 ms
+(79) ; une durée qui redate 957 tâches, avant 879 ms (233) et 828 ms (131), après 838 ms (233), 777
+ms (109) et 781 ms (136). Le gain du libellé, plus du double, dépasse la dispersion. Celui de la
+durée, une cinquantaine de millisecondes sur 850 (6 %), ne la dépasse pas. Le critère est tenu pour
+le libellé ; pour la durée, l'écart est accepté par décision de l'auteur du 2026-11-16, sa cause
+étant le moteur et la réévaluation des lignes des 957 tâches redatées, que l'US ne touche pas, et sa
+lecture revient au rapport de WF-QUA-0060 (US-2300), à cinquante utilisateurs. Une séance du soir,
+sur un poste plus chargé, est écartée comme non comparable : une durée qui redate y a coûté 870 ms
+(158). Les mesures d'états que le code a quittés (l'arbre gardé sur la parole de l'appelant,
+`kept_places`) ne sont plus citées : elles ne disent rien de l'état livré. Ce qui restait d'un libellé était la lecture de l'arbre en objets de session, deux tiers du chemin
+court : `read_inert` (US-2250/L2, #3540) la retire. Mesure du 2026-11-16 (`make measure-core
+ONLY=write RUNS=15`, médianes, dispersion entre parenthèses, quatre séances alternées, deux avant et
+deux après) : un libellé, avant 140 ms (86) et 140 ms (85), après 92 ms (71) et 92 ms (78), soit 48
+ms, 34 %, le même d'une séance à l'autre ; une durée qui redate, avant 774 ms (143) et 770 ms (110),
+après 770 ms (129) et 776 ms (115), inchangée. Le gain du libellé, reproduit, reste sous la
+dispersion (71 à 85 ms), trop large pour départager un gain de cette taille : il est accepté par
+décision de l'auteur du 2026-11-16 (option 1 de #3578), et sa lecture revient au rapport de
+WF-QUA-0060 (US-2300). La structure entière est encore lue, en lignes, car la réponse en dépend
+(rangs du plan, sommes et états des ancêtres, totaux) : le profil après le lot, environ 87 ms, en
+donne un tiers à cette lecture, un tiers à la réponse sur la structure entière et environ 10 % aux
+liens. Lire seulement le nœud et ses ancêtres demanderait de calculer autrement la réponse : conception
+écartée. Le retrait d'un élément du découpage avance le compteur de chaque nœud dont il écrit la
+tâche (#3562), et le garde de `reshaped` exige un compteur avancé (#3563). Une durée coûte,
+d'après ces passages et sans profil, la lecture entière d'une structure (environ 205 ms : 838 ms
+pour 4,07 fois la lecture) plus le moteur et la réévaluation des lignes des 957 tâches redatées, que
+l'US ne touche pas : la lecture de l'arbre qu'elle économise ne pèse qu'une petite part des 800 ms.
+`reshaped` coûte à une durée une lecture, en lignes `id, parent_id, rank, lock_version`, de toute la
+structure (5 999 nœuds sur le témoin), la reconstruction de `Tree` et la relecture des sommaires que
+tient une ligne propre : environ 39 ms sur le témoin, dont 3 pour ces sommaires, contre 83 ms pour
+`read_tree` sur des objets déjà chargés. Garder `tree.order` quand rien n'a bougé gagnerait au plus
+ces 39 ms, dans la dispersion : elle n'est pas faite. Un test tient ce que `reshaped` suppose :
+`test_inert_writes.py` écoute les instructions SQL de chaque écriture et refuse un `UPDATE node`
+hors du flush dont le `SET` n'avance pas `lock_version`, ou un `UPDATE task` hors du flush.
 
 **Hors périmètre.** Le collage qui crée (US-2260) ; les valeurs dérivées stockées (US-2280).
 
 ## US-2260 — Les constats reçus du back des grilles sont soldés
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-06 et EP-07
 - **opérations** : `createNode`, `moveNodes`, `previewPaste`, `applyPaste`, `updateTaskFacet`,
   `createRevision`
@@ -613,6 +677,17 @@ soient corrigés, **afin que** l'EPIC ne laisse pas derrière lui la dette qu'il
   par cause (#3094, décision de l'auteur du 2026-11-14).
 
 **Hors périmètre.** #3138, corrigé par US-2220, qui touche son fichier.
+
+**Notes de réalisation.** US-2260/L2 : le collage qui crée lit le calendrier par défaut et les
+constantes des unités une fois (`Defaults`, `read_defaults`, dans le `_Board`) ; une tâche créée n'a
+pas de calendrier propre, aucune facette n'en nomme sous elle. Un collage de 201 lignes qui créent,
+à la confirmation : 2 046 requêtes avant, 446 après (calendrier 804 → 4, constantes 402 → 2, nœuds
+407 → 7 ; le reste, les 401 insertions), 1,04 s avant, 0,45 s après ; l'aperçu, 0,68 s avant,
+0,15 s après. Le refus d'horizon nomme la tâche que le moteur trouve hors horizon quand c'en est une
+du collage (`Blamed.among`), sinon sa première ligne. US-2260/L4 : ce refus porte aussi la ligne du
+bloc, comptée depuis zéro (`params.task.row`, #3624, `docs/api/DECISIONS.md`) ; `Blamed` ne garde
+qu'un nom (`Named`) ou un nom par tâche, sans la première ligne, et une tâche qu'aucune ligne ne
+nomme l'est comme l'arbre la porte (#3625).
 
 ## US-2270 — La lecture d'une structure marquée est calculée une fois et gardée
 
@@ -711,7 +786,7 @@ migration ni invariant à tenir.
 
 ## US-2290 — Les parcours lourds contre le service ont des bornes de temps mesurées, et le parcours en quarantaine est rejoué
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : `listNodes`
 - **issue** : #3323
@@ -733,11 +808,24 @@ une lecture lente.
 - propre à l'US : `make queue-report` sur `epic/EP-26` montre moins d'un échec sur dix sur
   cinquante passages.
 
+**Notes de réalisation.** `make queue-report BRANCH=epic/EP-26 LAST=50`, le 2026-11-16 : la branche
+ne compte que 36 passages, du 2026-11-14 au 2026-11-16 — 33 réussis, 2 échoués, 1 annulé, 0 non
+terminé — et non cinquante : l'EPIC n'en a pas produit davantage, et le critère se lit sur ces 36
+(36 passages, non 50). Sur les 35 terminés : 0 régression, 2 échecs classés aléas connus (#3448) sur
+35 terminés (5,7 %), aucun d'infrastructure, aucun à classer. Les deux échecs sont le même test,
+`e2e/reference-costs.spec.ts:486` (étape `service / paths`, `make e2e-service`), qui échoue à la
+ligne 659 (`toHaveCount(1)`, `Received: 0`) : c'est le reclic de `pressOnce` que #3448 décrit, et
+l'entrée est ajoutée à `tools/queue-known.toml`. Temps des 19 passages complets réussis : médiane
+14,1 min, 90e centile 17,5 min. #3411 : `make measure` rejoué le 2026-11-16, la part navigateur de
+`planning.by-address` est de 159, 122 et 162 ms à 1, 4 et 8 utilisateurs (0,3 ms avant, à 8), le
+poids de `planning.from-remaining` d'environ 49,9 Ko à chaque niveau, les échantillons non pesés
+étant écartés (11 sur 20 à 4 utilisateurs, 18 sur 40 à 8).
+
 **Hors périmètre.** Le parcours de la comparaison de PRJ-001, en quarantaine (#3192) — EP-27.
 
 ## US-2300 — Le rapport de mesures d'une version : chaque opération du tableau 15, à cinquante utilisateurs, comparée à la version précédente
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-QUA-0060-A`
 - **opérations** : `listNodes`, `updateTaskFacet`, `updateEstimateLine`, `getProjectWorkload`,
   `markRevision`, `openImport`, `applyImport`, `requestExport`, `getBackgroundTask`
@@ -783,6 +871,32 @@ glisse.
 **Notes de réalisation.** L'annexe C de la spécification nomme k6 pour les tests de charge. La
 mesure d'US-0110, contre le faux back, renvoyait la seconde tenue à EP-13 : c'est ici qu'elle se
 mesure contre le service.
+
+**Notes de réalisation (premier rapport).** Le rapport de la version 0.4.0, versionné dans
+`docs/measures/0.4.0.json`, a été pris le 2026-11-16 par `make measure-version
+MEASURE_VERSION=0.4.0` (cinquante utilisateurs, cinq passages, trois passages des chemins lourds ; 8
+min en tout, dont 3,3 min de mesure). Il est sans précédent : seuls les objectifs sont tenus, les
+durées de `reference.json` (avant corrections) y sont citées comme telles. Médianes : ouvrir une
+grille 0,952 s pour 1 s ; recalculer après une saisie 1,999 s pour 1 s — le seul objectif dépassé,
+documenté (la durée qui redate 957 tâches, gain d'US-2250 sous la dispersion, décisions du
+2026-11-16) ; filtrer, trier, chercher 0,833 s pour 2 s (#3171 tenu, la pire passe, 1,969 s, à 31 ms
+de l'objectif) ; plan de charge 0,574 s ; marquage 0,101 s (pire 0,240 s) pour 60 s ; import 3,411 s
+pour 300 s ; export 0,575 s pour 30 s. Non servies, avec leur EPIC : indicateurs et projection de
+dépenses (EP-10), portefeuille (EP-11), grille comparée et saisie comparée (EP-27) ; l'écart des
+trois cents projets et quinze ans (WF-QUA-0040) est à EP-13. La charge : 652 gestes sur 718
+attendus, aucun refus (`conditions.load.refusals` vide), 7 lectures et 7 saisies refusées par le
+marquage (`reads_frozen`, `writes_frozen`). L'écart de `createRevision` (2,35 s pour 2 s, #3314
+option B) est cité dans la note générale. Le volume des lectures gardées (US-2270) n'est pas mesuré,
+il est calculé, calcul validé par l'auteur : 76 octets par nœud × 5 994 nœuds (PRJ-001) × 600
+projets × 180 révisions ≈ 49 Go, soit environ 25 à 33 % des 150 à 200 Go du §4.6.2 (le chiffre de 82
+Go avancé auparavant n'est pas retenu) ; hypothèses : 5 994 nœuds par révision, 180 révisions
+réellement gardées (toute révision marquée lue au moins une fois), sans compter la compression de
+PostgreSQL. État mesuré : le commit bae29e7de de la branche du lot, sur la base d'`epic/EP-26` à
+eeee85e82 ; US-2250/L3 (#3665, c9b57c00e : le compteur de structure au retrait d'un élément du
+découpage, et des pages de front rendues en flux) a été fusionné dans `epic/EP-26` après la mesure
+et n'y est pas. Les 66 gestes manquants sur 718 (91 %) sont le temps des gestes eux-mêmes et de la
+fin de la charge, que le décompte n'enlève pas. La durée du marquage mesurée est citée dans
+`frontend/e2e/bounds.ts` (`MARKING`).
 
 **Hors périmètre.** Rendre un objectif bloquant : WF-QUA-0060 demande qu'un dépassement soit
 signalé et documenté, non interdit.

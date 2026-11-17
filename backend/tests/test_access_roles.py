@@ -66,6 +66,11 @@ SECOND_LEVEL = (
 )
 # The functions that have only the permission to consult, as WF-ADM-0100 names them.
 READ_ONLY = frozenset({"FBS-1.3", "FBS-1.5", *(f"FBS-2.{number}" for number in range(1, 8))})
+# Provisional exception: FBS-1.6 « Installation », with its two permissions (to consult and to
+# change), is decided by #3197 and not yet written in the tree of the specification. The revision
+# of the specification adds it there and removes this constant, and the test below fails until
+# then to say so.
+PENDING_IN_THE_SPECIFICATION = "FBS-1.6"
 
 
 @pytest.fixture
@@ -153,6 +158,10 @@ def test_each_function_of_the_second_level_has_its_two_permissions_or_the_one_to
     tree = second_level(PROJECTION.read_text(encoding="utf-8"))
     # The reading found the tree: the functions the requirement names, and others beside them.
     assert tree > READ_ONLY
+    # The exception applies only while the specification lacks the function: once it draws it,
+    # this fails, and the exception is to be removed so that the test rests on the tree alone.
+    assert PENDING_IN_THE_SPECIFICATION not in tree
+    tree = tree | {PENDING_IN_THE_SPECIFICATION}
     expected = {
         code: ["function_read"] if code in READ_ONLY else ["function_read", "function_write"]
         for code in tree

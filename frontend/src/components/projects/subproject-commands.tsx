@@ -62,12 +62,12 @@ import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
-import type { PrincipalVariant } from "@/components/shell/section-card";
 import { CellCommand, UnavailableCellCommand } from "@/components/reference/cell-command";
 import { ANOTHER_OBJECT } from "@/components/reference/commands";
 import { useListReading } from "@/components/reference/list-reading";
 import { useListReport } from "@/components/reference/reactivation";
 import { ReferenceForm, required } from "@/components/reference/reference-form";
+import type { PrincipalVariant } from "@/components/shell/section-card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
