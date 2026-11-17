@@ -194,9 +194,10 @@ def measure_cache(
         f"rows linear through one scope and the whole entry of {subprojects} subprojects, no more"
     ]
     if medians["whole-cold"] > OBJECTIVE_S:
+        alone = "within" if medians["cell-cold"] <= OBJECTIVE_S else "still over"
         notes.append(
-            f"the cold reading of the whole entry exceeds the objective of {OBJECTIVE_S:g} s: "
-            "the entry is by scope (#3628)"
+            f"the cold reading of the whole entry exceeds the {OBJECTIVE_S:g} s objective (#3628); "
+            f"one scope alone, cold, is {alone} it"
         )
     measures.append(Measure("indicators cache", facts=facts, rows=rows, notes=tuple(notes)))
     return tuple(measures)
