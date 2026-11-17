@@ -11253,7 +11253,10 @@ décision de l'auteur du 2026-11-07). `compareRevisions` refuse la révision en 
 révisions marquées », et une révision en cours change sous son lecteur ; la vue « en cours contre
 référence » est écartée. Une révision d'un autre projet est un 404, comme une révision inexistante.
 `from_revision_id` et `to_revision_id` sont décrits. Exemple engendré `comparison_revision_draft`
-(`wftools.mockrevisionminors`).
+(`wftools.mockrevisionminors`). *Depuis EP-27 (US-2320/L1, #3492), la révision lue
+(`to_revision_id`) peut être en cours, et la vue « en cours contre référence » est celle des
+grilles : le 409 ne vaut plus que pour la base, et l'exemple est réengendré sur une base en
+cours.*
 
 **Un objet naît à la version 1, et la révision n'avance que par ses propres écritures** (revue du
 2026-10-31, E-09 et V-03 ; décision de l'auteur du 2026-11-07). `LockVersion` le dit, y compris pour
@@ -11974,10 +11977,23 @@ lecture qu'EP-26 a figé. Ce qui change :
   pour un nœud modifié dont rien de lu ne diffère, nul pour un nœud ajouté, inchangé ou retiré. Un
   parent et un prédécesseur sont nommés par le nœud que la comparaison rend, rapprochés par la
   lignée.
+- **Les identifiants que portent les valeurs.** Un nœud qu'une valeur nomme se rapproche par sa
+  lignée, comme le parent : la tâche porteuse d'une ligne (`estimate_line.bearing_task_node_id`),
+  dont l'identifiant change d'une révision à l'autre pour le même nœud, se compare et se rend dans
+  `base` par le nœud que la comparaison rend. `origin_risk_id` se compare tel quel : un risque
+  appartient au projet et garde son identifiant dans chaque révision (WF-RIS-0020), il ne change
+  qu'avec l'origine du nœud. Un libellé résolu à la lecture — du sous-projet, de la catégorie, du
+  rôle, de la tâche porteuse — se compare avec l'identifiant qu'il suit, jamais seul : l'objet
+  renommé n'est pas une valeur du nœud. Un sous-projet ou une catégorie renommé, l'identifiant
+  gardé, ne marque donc rien — ni `modified`, ni `subproject`, ni `other` — ; l'identifiant
+  changé, `base` porte le libellé avec lui et `changes` dit `subproject` ou `cost_category`.
 - **`ComparedNodeRead.deltas`** (`NodeDeltas`, `TaskDeltas`, `EstimateLineDeltas`) : de même forme,
   pour les seuls champs de `base` qui sont une date (en jours calendaires, la date seule d'un
   `WorkInstant`), une durée (dans l'unité de la durée lue) ou un montant ; la révision lue moins la
-  base ; nul quand l'une des deux valeurs l'est.
+  base ; absent pour un champ qui ne diffère pas. Nul quand l'une des deux valeurs l'est, pour les
+  seuls champs qui peuvent l'être — une date de début réelle, un débours unitaire — ; les montants
+  qu'une facette porte toujours (`base_amount`, `budgeted_amount`, `reestimated_amount`) ont un
+  écart jamais nul, que le contrat déclare non nullable.
 - **`NodeChange.other`.** Un nœud est modifié dès qu'une valeur qu'il porte diffère, saisie ou
   calculée, des deux facettes, que `fields` la nomme ou non : `other` dit une valeur que
   WF-REV-0080 n'énumère pas — un libellé, une description, un prédécesseur, le montant aux taux de
@@ -11986,6 +12002,10 @@ lecture qu'EP-26 a figé. Ce qui change :
   sont pas comparés, parce qu'ils changent d'une révision à l'autre sans que rien du nœud ne
   change : les identifiants, le compteur, le numéro de ligne, le rang et le niveau, les listes des
   champs calculés et modifiables, `remaining_entry` et `finish_overdue`, drapeau du jour de calcul.
+  Cette liste étend celle de la conception d'EP-27 (« les identifiants, les compteurs, le numéro
+  de ligne, le rang, les champs modifiables ») de `level`, de `computed_fields`, de
+  `remaining_entry` et de `finish_overdue`, qui sont de la même espèce : le niveau suit le rang,
+  et les trois autres disent ce que le serveur calcule ou accepte, ou le jour de la lecture.
   La lecture d'un différentiel ne change pas : ni `other`, ni `base`, ni `deltas`. Conséquence
   dans les exemples : de l'offre à la référence, 5 962 nœuds modifiés par leurs valeurs au lieu de
   4 997, les tâches par leurs montants, et aucune par son seul contenu (`comparison_volume`).
@@ -11995,8 +12015,9 @@ lecture qu'EP-26 a figé. Ce qui change :
   `amount_deltas` ne changent pas.
 - **`include_differences`** (`ComparisonIncludeDifferences`) : sous un filtre d'état, retient en
   outre les nœuds en écart qu'il écarte, comptés dans les totaux ; la grille du reste à engager
-  l'envoie, elle seule. `difference` reste un paramètre, que les grilles n'envoient plus : le repli
-  se fait dans le navigateur.
+  l'envoie, elle seule. Le paramètre est de `compareRevisions` seul : `listNodes` ne compare rien
+  et ne le déclare pas. `difference` reste un paramètre, que les grilles n'envoient plus : le
+  repli se fait dans le navigateur.
 
 **Exigées en deux temps.** Les propriétés nouvelles sont déclarées sans être exigées : le service ne
 les rend pas encore, et chaque réponse est validée contre le contrat. Le lot du service qui en sert
@@ -12007,7 +12028,10 @@ une la passe en exigée — `base` et `deltas` avec la comparaison d'une révisi
 `compared`, `read_with_fields`), portent `base`, `deltas`, `base_totals` et `totals_delta` ; un
 exemple de plus, `comparison_current`, rend la révision en cours du témoin comparée à la référence
 dont elle est issue, sur le sous-arbre de l'installation sur site. La borne de l'exemple de volume
-(#1204) passe de 1,5 à 1,6 Mo : chaque nœud y rend sa base et ses écarts réduits aux champs lus.
+(#1204) passe de 1,5 à 2 Mo : chaque nœud y rend sa base et ses écarts réduits aux champs lus, et
+l'exemple pèse 1,55 Mo. Aucune exigence ne fixe 1,5 Mo — #1204 estimait l'exemple à 1,3 Mo, et la
+borne ne garde que contre des nœuds rendus entiers, 7,4 Mo — : 2 Mo laissent une marge d'un quart,
+qu'un libellé de plus ne consomme pas, et refusent encore une lecture qui ne réduirait pas `fields`.
 `info.version` reste `1.0.0` : des propriétés facultatives, un paramètre facultatif et une valeur
 d'énumération de plus.
 
@@ -12026,8 +12050,8 @@ gardes deviennent :
 `listNodes` rend, à qui le lit déjà, et le bandeau lit `getRevision`, `listCostStructures` et
 `listRevisions`. La fonction « Gestion des révisions » reste gardée par `revisions.read` dans la
 navigation, et ses commandes par leurs permissions. Le refus d'un compte qui ne porte aucune de ces
-permissions ne change pas. Réalisé par US-2320/L2 et L3. Écartée : `compareRevisions` seul ouvert, qui laissait le Vérif de WF-REV-0080 non
-constaté sur l'écran.
+permissions ne change pas. Réalisé par US-2320/L2 et L3. Écartée : `compareRevisions` seul
+ouvert, qui laissait le Vérif de WF-REV-0080 non constaté sur l'écran.
 
 ## Collage et annulation
 

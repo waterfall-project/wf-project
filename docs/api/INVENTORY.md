@@ -282,6 +282,6 @@ surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 | DAT | WF-DAT-0050, WF-DAT-0140, WF-DAT-0150 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |
 | DEV | WF-DEV-0090, WF-DEV-0100 | Le détail du plan de charge et la projection de dépenses, ajoutés par la spécification 1.0.6 : leur contrat reste à écrire, avec EP-10 (#3181, #3182). |
 | EXP | WF-EXP-0010 | Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune n'est une opération d'API. |
-| IHM | WF-IHM-0010, WF-IHM-0100, WF-IHM-0140 | Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent dans le front. La lecture d'une comparaison dans les grilles (WF-IHM-0150 à 0170), ajoutée par la spécification 1.0.6, attend son contrat, avec EP-27 (#3176, #3179). |
+| IHM | WF-IHM-0010, WF-IHM-0100, WF-IHM-0140 | Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent dans le front. |
 | INTF | WF-INTF-0010, WF-INTF-0020, WF-INTF-0030, WF-INTF-0170 | Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par le catalogue des permissions ; la règle de traduction vit dans le front. |
 | QUA | WF-QUA-0010, WF-QUA-0020, WF-QUA-0030, WF-QUA-0040, WF-QUA-0050, WF-QUA-0060, WF-QUA-0070, WF-QUA-0080 | Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle s'exerce sur le contrat, elle n'y figure pas. |

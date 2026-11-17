@@ -1134,7 +1134,6 @@
       - $ref: ../components/parameters.yaml#/NodeCostCategoryFilter
       - $ref: ../components/parameters.yaml#/NodeResourceRoleFilter
       - $ref: ../components/parameters.yaml#/NodeProgressFilter
-      - $ref: ../components/parameters.yaml#/ComparisonIncludeDifferences
       - $ref: ../components/parameters.yaml#/NodeCriticalFilter
       - $ref: ../components/parameters.yaml#/NodeSummariesOnly
       - $ref: ../components/parameters.yaml#/NodeMaxLevel

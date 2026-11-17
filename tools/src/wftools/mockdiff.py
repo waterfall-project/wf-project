@@ -122,28 +122,49 @@ _NAMED = {
 """The values each change of `NodeChange` names, in the order of the enum, the labels resolved
 with the identifiers they name; any other that differs is ``other``."""
 
+FOLLOWING = {
+    "estimate_line.subproject_label": "estimate_line.subproject_id",
+    "estimate_line.cost_category_label": "estimate_line.cost_category_id",
+    "estimate_line.resource_role_label": "estimate_line.resource_role_id",
+    "estimate_line.bearing_task_label": "estimate_line.bearing_task_node_id",
+}
+"""The labels resolved on read, each compared with the identifier it follows, never alone: the
+object it names — a subproject, a cost category, a role, the bearing task — is renamed outside the
+node, which changes nothing of it (EP-27, « Ce qui fait un nœud modifié »); the label goes with its
+identifier in ``base`` when that identifier differs."""
+
+BY_LINEAGE = frozenset({"estimate_line.bearing_task_node_id"})
+"""The identifiers of a facet that name a node, compared by the lineage of that node, as the parent
+and a predecessor: the node of the base and that of the revision read differ by their identifier,
+the same by their lineage (EP-27). `origin_risk_id` is compared as it is: a risk belongs to the
+project and keeps its identifier in every revision (WF-RIS-0020), so that it changes only with
+the origin of the node."""
+
+_NEVER_NULL = frozenset(
+    f"{facet}.{key}"
+    for facet in (mockcore.TASK, mockcore.ESTIMATE_LINE)
+    for key in ("base_amount", "budgeted_amount", "reestimated_amount")
+)
+"""The amounts a facet always carries (`TaskFacet`, `EstimateLineFacet`): their delta is never
+null, absent when they do not differ (`TaskDeltas`, `EstimateLineDeltas`)."""
+
 _DATES = frozenset({"task.start", "task.finish", "task.started_on", "task.completed_on"})
 _DURATIONS = frozenset({"task.duration", "task.total_float"})
-_AMOUNTS = frozenset(
-    {
-        f"{facet}.{key}"
-        for facet in (mockcore.TASK, mockcore.ESTIMATE_LINE)
-        for key in ("base_amount", "budgeted_amount", "reestimated_amount")
-    }
-    | {
-        "estimate_line.unit_disbursement",
-        "estimate_line.previous_unit_disbursement",
-        "estimate_line.previous_reestimated_amount",
-    }
-)
+_AMOUNTS = _NEVER_NULL | {
+    "estimate_line.unit_disbursement",
+    "estimate_line.previous_unit_disbursement",
+    "estimate_line.previous_reestimated_amount",
+}
 """The values that bear a delta: a date, a duration, an amount (`NodeDeltas`)."""
 
 
-def _values(row: mockcore.Row, ids: dict[int, str]) -> dict[str, JsonValue]:
+def _values(row: mockcore.Row, ids: dict[int, str], same: dict[str, str]) -> dict[str, JsonValue]:
     """Return what a node carries that a comparison judges, by name, a facet's as `task.label`.
 
     The parent by the node it names, found by lineage; a predecessor by the node it names and its
-    link, not by the row it is rendered at, which the nodes around it move.
+    link, not by the row it is rendered at, which the nodes around it move; the bearing task of a
+    line by the node it names (``BY_LINEAGE``). ``same`` renames the node of either side as the
+    comparison renders it: the node read for a node of both sides, found by lineage.
     """
     values: dict[str, JsonValue] = {
         key: value
@@ -153,22 +174,37 @@ def _values(row: mockcore.Row, ids: dict[int, str]) -> dict[str, JsonValue]:
     values["parent_id"] = None if row.parent is None else ids[row.parent]
     if "predecessors" in values:
         values["predecessors"] = [
-            {key: value for key, value in link.items() if key != "predecessor_row_number"}
+            {
+                **{key: value for key, value in link.items() if key != "predecessor_row_number"},
+                "predecessor_node_id": _same(link["predecessor_node_id"], same),
+            }
             for link in cast("list[JsonObject]", values["predecessors"])
         ]
     facet = cast("JsonObject | None", row.node.get(row.kind)) or {}
     values.pop(row.kind, None)
     for key, value in facet.items():
         if key not in FACET_NOT_COMPARED[row.kind]:
-            values[f"{row.kind}.{key}"] = value
+            name = f"{row.kind}.{key}"
+            values[name] = _same(value, same) if name in BY_LINEAGE else value
     return values
 
 
-def differing(row: mockcore.Row, was: mockcore.Row, ids: dict[int, str]) -> list[str]:
-    """Return the names of the values of a node that differ from its base, in the node's order."""
-    now, then = _values(row, ids), _values(was, ids)
+def _same(node_id: JsonValue, same: dict[str, str]) -> JsonValue:
+    """Return a node named on either side as the comparison renders it, by its lineage."""
+    return same.get(cast("str", node_id), node_id) if node_id is not None else None
+
+
+def differing(
+    row: mockcore.Row, was: mockcore.Row, ids: dict[int, str], same: dict[str, str]
+) -> list[str]:
+    """Return the names of the values of a node that differ from its base, in the node's order.
+
+    A label that follows an identifier differs with it alone (``FOLLOWING``).
+    """
+    now, then = _values(row, ids, same), _values(was, ids, same)
     names = [*now, *(name for name in then if name not in now)]
-    return [name for name in names if now.get(name) != then.get(name)]
+    found = [name for name in names if now.get(name) != then.get(name)]
+    return [name for name in found if name not in FOLLOWING or FOLLOWING[name] in found]
 
 
 def named(kind: str, names: Collection[str]) -> list[JsonValue]:
@@ -191,10 +227,16 @@ def _day(value: JsonValue) -> date:
 def _delta(name: str, now: JsonValue, was: JsonValue) -> JsonValue:
     """Return the delta of a value, the revision read less the base; null if one side has none.
 
+    Never null for an amount a facet always carries (``_NEVER_NULL``), which the contract does not
+    let be null.
+
     A date in calendar days; a duration in the unit of the duration read, which the witness never
     changes from one revision to the other; an amount to the cent.
     """
     if now is None or was is None:
+        if name in _NEVER_NULL:
+            message = f"{name}: an amount the facet always carries is null on one side"
+            raise ValueError(message)
         return None
     if name in _DATES:
         return (_day(now) - _day(was)).days
@@ -221,20 +263,29 @@ def _nested(values: dict[str, JsonValue]) -> JsonObject:
 
 
 def base_and_deltas(
-    row: mockcore.Row, was: mockcore.Row, ids: dict[int, str], rows: dict[str, int]
+    row: mockcore.Row,
+    was: mockcore.Row,
+    ids: dict[int, str],
+    same: dict[str, str],
+    rows: dict[str, int],
 ) -> tuple[JsonObject, JsonObject]:
     """Return what the base carried of a node modified, and the deltas of what differs of it.
 
     `ComparedNodeRead.base`, and the delta of each date, duration and amount among them,
-    `ComparedNodeRead.deltas`. The values that differ alone; a predecessor of the base at the row
-    its node is rendered at, as the predecessors of the node read.
+    `ComparedNodeRead.deltas`. The values that differ alone; a node the base names — a parent, a
+    predecessor, a bearing task — named as the comparison renders it, a predecessor at the row it
+    is rendered at (``rows``), as the predecessors of the node read.
     """
-    names = differing(row, was, ids)
-    now, then = _values(row, ids), _values(was, ids)
+    names = differing(row, was, ids, same)
+    now, then = _values(row, ids, same), _values(was, ids, same)
     base = {name: then.get(name) for name in names}
     if "predecessors" in base:
         base["predecessors"] = [
-            {**link, "predecessor_row_number": rows[cast("str", link["predecessor_node_id"])]}
+            {
+                **link,
+                "predecessor_node_id": (named := _same(link["predecessor_node_id"], same)),
+                "predecessor_row_number": rows[cast("str", named)],
+            }
             for link in cast("list[JsonObject]", was.node.get("predecessors") or [])
         ]
     deltas = {
@@ -299,6 +350,10 @@ def marked(
         if was[number].parent != now[number].parent
     }
     ids = {row.number: cast("str", row.node["node_id"]) for row in [*before, *after]}
+    # Each node of either side as the comparison renders it, found by its lineage: the base and the
+    # revision read name the same node by two identifiers when the service copies a revision.
+    lineage = {cast("str", row.node["node_id"]): row.number for row in [*before, *after]}
+    same = {node_id: ids[number] for node_id, number in lineage.items()}
     own: dict[int, list[JsonValue]] = {}
     marks: dict[int, str] = {}
     for number, _, _ in reversed(order):
@@ -308,7 +363,7 @@ def marked(
             marks[number] = REMOVED
         else:
             own[number] = (
-                named(now[number].kind, differing(now[number], was[number], ids))
+                named(now[number].kind, differing(now[number], was[number], ids, same))
                 if compared
                 else changes(now[number], was[number])
             )
@@ -316,8 +371,7 @@ def marked(
             marks[number] = MODIFIED if own[number] or below or number in left else UNCHANGED
     source = {number: (now.get(number) or was[number]).node for number, _, _ in order}
     rows = {number: at for at, (number, _, _) in enumerate(order, start=1)}
-    numbers = {cast("str", node["node_id"]): number for number, node in source.items()}
-    rendered = {node_id: rows[number] for node_id, number in numbers.items()}
+    rendered = {node_id: rows[number] for node_id, number in lineage.items()}
     nodes: list[JsonObject] = []
     for number, parent, level in order:
         node = dict(source[number])
@@ -329,9 +383,7 @@ def marked(
             node["predecessors"] = [
                 {
                     **link,
-                    "predecessor_row_number": rows[
-                        numbers[cast("str", link["predecessor_node_id"])]
-                    ],
+                    "predecessor_row_number": rendered[cast("str", link["predecessor_node_id"])],
                 }
                 for link in cast("list[JsonObject]", node["predecessors"])
             ]
@@ -343,7 +395,7 @@ def marked(
             node["base"], node["deltas"] = None, None
             if marks[number] == MODIFIED:
                 node["base"], node["deltas"] = base_and_deltas(
-                    now[number], was[number], ids, rendered
+                    now[number], was[number], ids, same, rendered
                 )
         nodes.append(node)
     return nodes

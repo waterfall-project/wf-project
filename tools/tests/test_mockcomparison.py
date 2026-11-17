@@ -381,10 +381,12 @@ def test_the_volume_of_the_comparison_is_the_whole_comparison_read_with_the_fiel
     assert "852 890,95 et -1 013 056,56 en tout" in summary
 
 
-VOLUME_BOUND = 1_600_000
+VOLUME_BOUND = 2_000_000
 """The bytes the volume of the comparison stays under, written as the fixture is (#1204): raised
-from 1,5 Mo by EP-27, each node rendering its base and its deltas, reduced to the fields read —
-still far under the 7,4 Mo of the nodes rendered whole that it guards against."""
+from 1,5 Mo by EP-27, each node rendering its base and its deltas, reduced to the fields read,
+1,55 Mo. No requirement sets 1,5 Mo — #1204 estimated the example at 1,3 Mo —: the bound guards
+against the 7,4 Mo of the nodes rendered whole, so that 2 Mo leave a quarter of margin to the
+example and still refuse a reading that does not reduce its nodes to `fields`."""
 
 
 def test_the_volume_of_the_comparison_stays_under_its_bound() -> None:

@@ -3849,16 +3849,38 @@ class TaskDeltas(ContractModel):
         Duration | None,
         Field(description="The total float read minus that of the base, in working days, signed."),
     ] = None
-    base_amount: Money | None = None
-    budgeted_amount: Money | None = None
-    reestimated_amount: Money | None = None
+    base_amount: Annotated[
+        Money | None,
+        Field(
+            description="The amount at the rates of the reference year read minus that of the base; never null, the facet always carrying both."
+        ),
+    ] = None
+    budgeted_amount: Annotated[
+        Money | None,
+        Field(description="The budgeted amount read minus that of the base; never null."),
+    ] = None
+    reestimated_amount: Annotated[
+        Money | None,
+        Field(description="The re-estimated amount read minus that of the base; never null."),
+    ] = None
 
 
 class EstimateLineDeltas(ContractModel):
     unit_disbursement: Money | None = None
-    base_amount: Money | None = None
-    budgeted_amount: Money | None = None
-    reestimated_amount: Money | None = None
+    base_amount: Annotated[
+        Money | None,
+        Field(
+            description="The amount at the rates of the reference year read minus that of the base; never null, the facet always carrying both."
+        ),
+    ] = None
+    budgeted_amount: Annotated[
+        Money | None,
+        Field(description="The budgeted amount read minus that of the base; never null."),
+    ] = None
+    reestimated_amount: Annotated[
+        Money | None,
+        Field(description="The re-estimated amount read minus that of the base; never null."),
+    ] = None
     previous_unit_disbursement: Money | None = None
     previous_reestimated_amount: Money | None = None
 

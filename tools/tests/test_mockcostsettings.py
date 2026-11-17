@@ -171,6 +171,7 @@ def examples() -> dict[str, Any]:
 
 def _walk(value: Any) -> list[Entry]:
     """Return every object a value holds, itself included, but a base compared (`base`, EP-27)."""
+    # A partial line, whose categories test_mockcomparedvalues checks; `deltas` names none.
     if isinstance(value, list):
         return [found for item in cast("list[Any]", value) for found in _walk(item)]
     if not isinstance(value, dict):

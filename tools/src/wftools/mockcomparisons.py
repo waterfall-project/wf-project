@@ -380,6 +380,12 @@ def comparison_volume() -> JsonObject:
         for key in ("budgeted_delta", "reestimated_delta")
     )
     read = mockdiff.read_with_fields(nodes, VOLUME_FIELDS)
+    # A count of none is not written: no task of the volume is modified by its content alone.
+    by_content = (
+        f"{mocktext.count(len(content))} tâches modifiées par leur seul contenu et "
+        if content
+        else "et "
+    )
     return mocktext.example(
         f"De l'offre v1.0 à la révision de référence, rapprochées par lignée sur toute la "
         f"structure du témoin aux volumes du §4.6.2, lue entière, sans filtre, comme l'écran de la "
@@ -389,8 +395,7 @@ def comparison_volume() -> JsonObject:
         f"{mocktext.count(len(nodes))} nœuds dans l'ordre du plan, dont "
         f"{mocktext.count(len(added))} ajoutés, {mocktext.count(len(removed))} retirés et rendus "
         f"à leur place, {mocktext.count(len(changed))} modifiés par leurs propres valeurs — une "
-        f"tâche par ses montants, ceux de ses lignes —, "
-        f"{mocktext.count(len(content))} tâches modifiées par leur seul contenu et "
+        f"tâche par ses montants, ceux de ses lignes —, {by_content}"
         f"{mocktext.count(unchanged)} inchangés (C-361). Les totaux et la meta sont ceux de "
         f"`listNodes` sur la référence entière, ceux de la base ceux de l'offre entière, "
         f"{_totals_text(compared)} ; les écarts des montants budgétés et réestimés ceux "
