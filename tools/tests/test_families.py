@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import pytest
 import yaml
 
 from wftools import REPOSITORY, paths
@@ -39,7 +40,7 @@ def makefile() -> tuple[dict[str, str], dict[str, tuple[list[str], list[str]]]]:
                 rules[current][1].append(line)
             continue
         current = None
-        if defined := re.match(r"^([A-Z_]+)\s*:?=\s*(.*)$", line):
+        if defined := re.match(r"^([A-Za-z_][A-Za-z0-9_-]*)\s*:?=\s*(.*)$", line):
             variables[defined.group(1)] = defined.group(2)
         elif (rule := re.match(r"^([a-z][a-z0-9-]*):([^=#]*)(?:#.*)?$", line)) and not re.match(
             r"\s*export\b", rule.group(2)
@@ -53,8 +54,15 @@ def makefile() -> tuple[dict[str, str], dict[str, tuple[list[str], list[str]]]]:
 def expand(text: str, variables: dict[str, str]) -> str:
     """Replace the variables of the Makefile a text names, as long as one is left to replace."""
     for _ in range(5):
-        text = re.sub(r"\$\(([A-Z_]+)\)", lambda m: variables.get(m.group(1), ""), text)
+        text = re.sub(
+            r"\$\(([A-Za-z_][A-Za-z0-9_-]*)\)", lambda m: variables.get(m.group(1), ""), text
+        )
     return text
+
+
+def _recipes(rules: dict[str, tuple[list[str], list[str]]], targets: set[str]) -> str:
+    """Return the recipes of the targets, joined."""
+    return "\n".join(line for target in sorted(targets) for line in rules[target][1])
 
 
 def reached(targets: list[str]) -> tuple[set[str], set[str]]:
@@ -77,8 +85,14 @@ def reached(targets: list[str]) -> tuple[set[str], set[str]]:
             modules.update(re.findall(r"\$\(WFTOOLS\)\.(\w+)", line))
             for called in re.findall(r"\$\(MAKE\)([^;&|]*)", line):
                 pending += re.findall(r"[a-z][a-z0-9-]+", called)
-            scripts.update(re.findall(r"python ([\w./-]+\.py)", expand(line, variables)))
-    return modules, scripts
+            expanded = expand(line, {**variables, "CURDIR": "."})
+            scripts.update(re.findall(r"python3? \.?/?([\w./-]+\.py)", expanded))
+    # What the launcher runs is run by the Makefile too: `launch.py slots` runs slots.py (US-2450).
+    launched = {
+        f"tools/src/wftools/{tool}.py"
+        for tool in re.findall(r"launch\.py (\w+)", expand(_recipes(rules, seen), variables))
+    }
+    return modules, scripts | launched
 
 
 def imported(path: Path) -> Iterator[str]:
@@ -144,6 +158,7 @@ def wakes(declaration: paths.Declaration, family: paths.Family, path: str) -> bo
     return family in declaration.touched([path])
 
 
+@pytest.mark.story("US-2480")
 def test_each_family_wakes_on_the_tools_its_checks_run() -> None:
     declaration = paths.read()
     missing: list[str] = []
@@ -153,6 +168,33 @@ def test_each_family_wakes_on_the_tools_its_checks_run() -> None:
         missing += [
             f"{family.name}: {path}" for path in found if not wakes(declaration, family, path)
         ]
+    assert missing == []
+
+
+def mounted() -> list[str]:
+    """Return what compose.service.yaml mounts read-only from the repository."""
+    compose = REPOSITORY / "deploy" / "compose"
+    text = (compose / "compose.service.yaml").read_text(encoding="utf-8")
+    found = re.findall(r"^\s*- (\.{1,2}/[^:\s]+):[^:\s]+:ro\s*$", text, flags=re.MULTILINE)
+    return sorted(
+        (compose / name).resolve().relative_to(REPOSITORY.resolve()).as_posix() for name in found
+    )
+
+
+@pytest.mark.story("US-2480")
+def test_what_the_service_platform_mounts_wakes_a_family_that_starts_it() -> None:
+    declaration = paths.read()
+    callers = [
+        family
+        for family in declaration.families
+        if "deploy/compose/compose.service.yaml" in family.paths
+    ]
+    assert callers
+    missing = [
+        path
+        for path in mounted()
+        if not any(wakes(declaration, family, path) for family in callers)
+    ]
     assert missing == []
 
 
@@ -174,6 +216,7 @@ def test_each_family_wakes_on_its_workflows_and_the_local_actions_they_take() ->
     assert missing == []
 
 
+@pytest.mark.story("US-2480")
 def test_the_reading_sees_what_it_must() -> None:
     # The guard above is only as good as what it reads: what each family is known to run.
     declaration = paths.read()
@@ -184,6 +227,15 @@ def test_the_reading_sees_what_it_must() -> None:
     assert "docs/api/tools/inventory.py" in contract[1]
     assert "tools/src/wftools/projection.py" in closure(*contract)
     assert "tools/src/wftools/codecoverage.py" in closure(*reached(["check-keycloak"]))
+    # The scripts run by `python3 $(CURDIR)/…`, and the tools the launcher runs.
+    launched = reached(["check-back"])[1]
+    assert {"tools/src/wftools/launch.py", "tools/src/wftools/slots.py"} <= launched
+    assert {
+        "deploy/compose/garage.toml",
+        "deploy/compose/storage-buckets.sh",
+        "fixtures/api",
+        "deploy/keycloak/development",
+    } <= set(mounted())
     assert families_of_the_chain()["front"] == [
         ".github/workflows/front.yml",
         ".github/workflows/e2e.yml",
