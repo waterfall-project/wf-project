@@ -157,55 +157,52 @@ l'accorde. Un test des outils (`tools/tests/test_permissions.py`) l'éprouve.
   `FINDING=<n> ATTACHED=… DECISION=…`, qui relit le corps sous un verrou du poste juste avant
   de l'écrire et ne change que la ligne demandée (guide, « Commandes »). Le cadreur, qui écrit le
   tableau pour la première fois, l'écrit lui-même ; ensuite, `make tracking`.
-- **Un lot ne laisse rien derrière lui** (#1444). Après la fusion de sa pull request, l'agent
-  de livraison supprime la branche locale du lot et toute branche de travail qu'il a tirée
-  (`git branch -d`, qui refuse une branche non fusionnée), retire les worktrees du lot — le
-  sien et ceux de ses développeurs — (`git worktree remove`, puis `git worktree prune`), et
-  vérifie qu'aucun processus lancé pour le lot ne tourne encore : serveur de Next, Prism,
-  Chromium. Les serveurs de l'e2e se rendent par `make e2e-down`, avant `make slot-release`
-  (qui l'appelle) et dès qu'un `make e2e`, `make e2e-service` ou `make check-front` s'interrompt
-  (US-1300, #2198). Un agent de développement fait de même, avant de rendre la main, pour les branches
-  de travail qu'il a tirées à côté de celle du lot et les commandes qu'il a lancées en
-  arrière-plan. Une centaine de branches fusionnées et quinze worktrees de lots fusionnés
-  brouillaient `git branch` et `git worktree list`. Le nettoyage d'un dépôt déjà encombré se
-  fait à la main, une fois.
-- **Un agent n'arrête que ce qu'il a lancé** (US-1080), par son PID ou par un nom propre à
-  son lot ; jamais par motif. Ni `pkill`, ni `killall`, ni un `kill` dont une cible n'est pas
-  un PID écrit en chiffres — `kill $(pgrep make)`, `kill $pid`, un nom —, lancé par `xargs`,
-  ou qui vise `-1` ou `0`, ni `kill-port` ; ni `docker rm`, `docker stop`, `docker kill`, `docker rmi` ou
-  `docker volume rm` d'une cible calculée — substitution, variable, joker —, d'un tube ou d'un
-  filtre, quand une cible littérale passe (US-1310) ; ni `docker … prune` ; ni
-  `docker compose … down` hors du Makefile. `pkill -f "^make check"` a pu interrompre ainsi, le 2026-11-03, le
-  `make check` d'un livreur d'un autre EPIC. Ce que le Makefile a démarré, sa cible l'arrête :
-  `make service-down` pour la plateforme de service, `make e2e-down` pour les serveurs de l'e2e
-  du créneau (trouvés par leur port, arrêtés par leur PID). Un verrou de git (`.git/…/*.lock`) ne
-  se supprime ni ne se déplace — ni `rm`, ni `find … -delete` ou `-exec rm`, ni `mv` ou
-  `rename` — : une commande `git` le tient, peut-être dans un autre worktree, et la
-  commande se relance. Le hook `PreToolUse` de `.claude/settings.json` tient la règle : avant
-  chaque commande de l'outil `Bash`, `tools/src/wftools/guard.py` refuse ces formes où
-  qu'elles se trouvent dans la ligne — derrière `sudo`, `env`, `su -c`, `flock`, `watch`,
-  `busybox`, `uv run`, `npx` ou `pnpm dlx`, après un `cd` dans `.git`, ou un `cd` vers un chemin
-  calculé, qu'il tient pour `.git`, dans le corps d'un here-document remis à `bash`, `sh` ou `zsh`,
-  ou dans le texte qu'un `echo` ou un `printf` envoie à l'un d'eux par un tube —, et dit quoi faire
-  à la place ; une commande `make` (ou `gmake`) passe, sauf la cible `merge-queue`
-  (`make merge-queue EPIC=EP-nn`, qui crée le jeu de règles de la file avec le jeton de
-  l'utilisateur : une personne la lance), que le garde refuse, comme
-  `python -m wftools.mergequeue create` ; `make merge-queue-check` passe.
-  Il refuse aussi `find … | xargs rm` (ou `unlink`, `mv`, `rename`) quand une commande plus haut
-  dans le même tube nomme `.git` ou un `.lock` ; `rm`, `mv` ou `truncate` d'un opérande qui est
-  `.git`, passe par `.git/`, s'ouvre par `.git` suivi d'un joker ou forme un motif qui désigne
-  `.git` (`.g*`, `.{git,x}`, et toute classe POSIX ou suite de lettres entre accolades), valeur
-  d'une option comprise ; et `find` qui nomme `.git`
-  et supprime ce qu'il trouve (`-name .git -exec rm`, `-delete`) ; `command -v <nom>` ne lance
-  rien et passe. Le hook le lance par `tools/src/wftools/launch.py guard || exit 2`, et le garde
-  échoue fermé (US-2450) : sous un `python3` antérieur à 3.14, ou s'il lève en jugeant, toute
+- **Un lot ne laisse rien derrière lui** (#1444). Après la fusion de sa pull request, l'agent de
+  livraison supprime la branche locale du lot et toute branche de travail qu'il a tirée (`git branch
+  -d`, qui refuse une branche non fusionnée), retire les worktrees du lot — le sien et ceux de ses
+  développeurs — (`git worktree remove`, puis `git worktree prune`), et vérifie qu'aucun processus
+  lancé pour le lot ne tourne encore : serveur de Next, Prism, Chromium. Les serveurs de l'e2e se
+  rendent par `make e2e-down`, avant `make slot-release` (qui l'appelle) et dès qu'un `make e2e`,
+  `make e2e-service` ou `make check-front` s'interrompt (US-1300, #2198). Un agent de développement
+  fait de même, avant de rendre la main, pour les branches de travail qu'il a tirées à côté de celle
+  du lot et les commandes qu'il a lancées en arrière-plan. Une centaine de branches fusionnées et
+  quinze worktrees de lots fusionnés brouillaient `git branch` et `git worktree list`. Le nettoyage
+  d'un dépôt déjà encombré se fait à la main, une fois.
+- **Un agent n'arrête que ce qu'il a lancé** (US-1080), par son PID ou par un nom propre à son lot ;
+  jamais par motif. Ni `pkill`, ni `killall`, ni un `kill` dont une cible n'est pas un PID écrit en
+  chiffres — `kill $(pgrep make)`, `kill $pid`, un nom —, lancé par `xargs`, ou qui vise `-1` ou
+  `0`, ni `kill-port` ; ni `docker rm`, `docker stop`, `docker kill`, `docker rmi` ou `docker volume
+  rm` d'une cible calculée — substitution, variable, joker —, d'un tube ou d'un filtre, quand une
+  cible littérale passe (US-1310) ; ni `docker … prune` ; ni `docker compose … down` hors du
+  Makefile. `pkill -f "^make check"` a pu interrompre ainsi, le 2026-11-03, le `make check` d'un
+  livreur d'un autre EPIC. Ce que le Makefile a démarré, sa cible l'arrête : `make service-down`
+  pour la plateforme de service, `make e2e-down` pour les serveurs de l'e2e du créneau (trouvés par
+  leur port, arrêtés par leur PID). Un verrou de git (`.git/…/*.lock`) ne se supprime ni ne se
+  déplace — ni `rm`, ni `find … -delete` ou `-exec rm`, ni `mv` ou `rename` — : une commande `git`
+  le tient, peut-être dans un autre worktree, et la commande se relance. Le hook `PreToolUse` de
+  `.claude/settings.json` tient la règle : avant chaque commande de l'outil `Bash`,
+  `tools/src/wftools/guard.py` refuse ces formes où qu'elles se trouvent dans la ligne — derrière
+  `sudo`, `env`, `su -c`, `flock`, `watch`, `busybox`, `uv run`, `npx` ou `pnpm dlx`, après un `cd`
+  dans `.git`, ou un `cd` vers un chemin calculé, qu'il tient pour `.git`, dans le corps d'un
+  here-document remis à `bash`, `sh` ou `zsh`, ou dans le texte qu'un `echo` ou un `printf` envoie à
+  l'un d'eux par un tube —, et dit quoi faire à la place ; une commande `make` (ou `gmake`) passe,
+  sauf la cible `merge-queue` (`make merge-queue EPIC=EP-nn`, qui crée le jeu de règles de la file
+  avec le jeton de l'utilisateur : une personne la lance), que le garde refuse, comme `python -m
+  wftools.mergequeue create` ; `make merge-queue-check` passe. Il refuse aussi `find … | xargs rm`
+  (ou `unlink`, `mv`, `rename`) quand une commande plus haut dans le même tube nomme `.git` ou un
+  `.lock` ; `rm`, `mv` ou `truncate` d'un opérande qui est `.git`, passe par `.git/`, s'ouvre par
+  `.git` suivi d'un joker ou forme un motif qui désigne `.git` (`.g*`, `.{git,x}`, et toute classe
+  POSIX ou suite de lettres entre accolades), valeur d'une option comprise ; et `find` qui nomme
+  `.git` et supprime ce qu'il trouve (`-name .git -exec rm`, `-delete`) ; `command -v <nom>` ne
+  lance rien et passe. Le hook le lance par `tools/src/wftools/launch.py guard || exit 2`, et le
+  garde échoue fermé (US-2450) : sous un `python3` antérieur à 3.14, ou s'il lève en jugeant, toute
   commande est refusée, avec la raison ; sans `python3`, ou quand le lanceur lui-même ne va pas au
   bout, le `|| exit 2` du hook refuse aussi. Il lit le texte de la commande, non ce que le shell en
-  calcule : ses limites connues — une cible calculée (`rm -rf $(git rev-parse --git-dir)`,
-  `find "$GIT" | xargs rm`, une liste relue d'un fichier), `xargs sh -c`, un `rm` sans verrou
-  après un `cd .git`, `shred`, `rsync --delete` et les autres écritures hors `rm` et `mv`, un
-  événement illisible qui laisse passer la commande — sont dans le guide, « Outils du dépôt » ;
-  elles ne sont pas une permission.
+  calcule : ses limites connues — une cible calculée (`rm -rf $(git rev-parse --git-dir)`, `find
+  "$GIT" | xargs rm`, une liste relue d'un fichier), `xargs sh -c`, un `rm` sans verrou après un `cd
+  .git`, `shred`, `rsync --delete` et les autres écritures hors `rm` et `mv`, un événement illisible
+  qui laisse passer la commande — sont dans le guide, « Outils du dépôt » ; elles ne sont pas une
+  permission.
 - **Avant de rendre la main**, un agent qui a modifié le dépôt lance
   `make check BASE=origin/epic/EP-nn`, qui éprouve ce que la modification touche, fichiers
   non commités compris. Il peut demander un créneau : depuis US-1100, dans un worktree lié qui

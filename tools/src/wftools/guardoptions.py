@@ -177,11 +177,13 @@ _NPM_EXEC = Options(
     versions=True,
 )
 PREFIXES["npx"] = _NPM_EXEC
-# `pnpm dlx` and `pnpm exec`: `-c` is a flag there, which runs the command by a shell.
+# `pnpm dlx` and `pnpm exec`: `-c` is a flag there, which runs the command by a shell; the word
+# that follows is that command, judged as the script of `npx -c`.
 _PNPM_EXEC = Options(
-    "",
-    _names("allow-build", "package", "report-summary", "resume-from"),
-    _HELP | _names("no-reporter-hide-prefix", "parallel", "recursive", "shell-mode", "silent"),
+    "c",
+    _names("allow-build", "package", "report-summary", "resume-from", "shell-mode"),
+    _HELP | _names("no-reporter-hide-prefix", "parallel", "recursive", "silent"),
+    scripts=frozenset({"-c", "--shell-mode"}),
     versions=True,
 )
 # `uv run` (clap, which takes no abbreviation): the options that take the next word.
@@ -197,6 +199,8 @@ UV_RUN = Options(
     | _names("exclude-newer", "exclude-newer-package", "extra", "extra-index-url", "find-links")
     | _names("fork-strategy", "group", "index", "index-strategy", "index-url", "keyring-provider")
     | _names("link-mode", "no-binary-package", "no-build-isolation-package", "no-build-package")
+    | _names("no-extra", "upgrade-group", "no-editable-package", "prerelease-package")
+    | _names("no-sources-package")
     | _names("no-group", "only-group", "package", "prerelease", "python", "python-platform")
     | _names("python-preference", "refresh-package", "reinstall-package", "resolution")
     | _names("upgrade-package", "with", "with-editable", "with-requirements"),
@@ -207,7 +211,7 @@ UV_RUN = Options(
 # subcommand that runs one (US-2450): `uv run pkill`, `pnpm dlx kill-port`.
 LAUNCHERS = {
     "uv": (Options("", _UV, abbreviates=False, chdir=_names("directory")), {"run": UV_RUN}),
-    "npm": (Options("", _names("prefix", "userconfig", "workspace")), {"exec": _NPM_EXEC}),
+    "npm": (Options("w", _names("prefix", "userconfig", "workspace")), {"exec": _NPM_EXEC}),
     "pnpm": (
         Options(
             "CF",

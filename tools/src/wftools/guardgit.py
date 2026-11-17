@@ -30,7 +30,7 @@ import itertools
 import re
 from typing import NamedTuple
 
-SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ksh"})
+SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ksh", "ash", "rbash"})
 # The actions of `find` that run a command on what it found, and the commands that remove.
 _FIND_EXECS = frozenset({"-exec", "-execdir", "-ok", "-okdir"})
 _FIND_REMOVERS = frozenset({"rm", "unlink", "mv", "rename", "truncate"}) | SHELLS
@@ -54,6 +54,10 @@ _NAME_MAX = 255
 _REPOSITORY = (
     "it removes or changes what git holds, the repository that every worktree shares, and the "
     "work of each"
+)
+_UNEVALUATED = (
+    "the pattern may name `.git`, and the guard does not evaluate classes or sequences of "
+    "braces: write the paths in clear"
 )
 
 
@@ -122,14 +126,19 @@ def reaches_git(path: str) -> bool:
     of ``.git`` without looking, like a pattern too long to match. A sequence of numbers makes
     neither a dot nor a letter: ``log{1..3}`` passes.
     """
-    if "[:" in path or any(
-        not (first.lstrip("+-").isdigit() and last.lstrip("+-").isdigit())
-        for first, last in _SEQUENCE.findall(path)
-    ):
+    if _unevaluated(path):
         return True
     expanded = _expand(path)
     return expanded is None or any(
         _git_part(part) for written in expanded for part in written.split("/")
+    )
+
+
+def _unevaluated(path: str) -> bool:
+    """Say whether ``path`` holds a class of POSIX or a sequence of characters, never evaluated."""
+    return "[:" in path or any(
+        not (first.lstrip("+-").isdigit() and last.lstrip("+-").isdigit())
+        for first, last in _SEQUENCE.findall(path)
     )
 
 
@@ -187,7 +196,8 @@ def unlink(command: Command) -> str | None:
     if command.name in _GIT_OPERANDS:
         for operand in _operands(command.name, command.arguments):
             if reaches_git(operand):
-                return f"`{command.name} {operand}`: {_REPOSITORY}"
+                why = _UNEVALUATED if _unevaluated(operand) else _REPOSITORY
+                return f"`{command.name} {operand}`: {why}"
     return None
 
 

@@ -3857,6 +3857,9 @@ the command, not what the shell computes from it. Its known limits, which it doe
   written to a file then read back, `find .git … > list; xargs rm < list`;
 - the script of `xargs sh -c`, whose arguments come from the pipe;
 - after a `cd .git`, it keeps the locks alone: `cd .git && rm -rf *` passes;
+- text read by another interpreter, or encoded: `source /dev/stdin`, `. /dev/stdin`,
+  `while read l; do eval "$l"`, `python <<EOF` that calls `os.system`, `uvx` and `uv tool run`,
+  shells outside the list (`fish`…), obscured text (`printf '\x70kill'`, `base64 | bash`);
 - the destructive writes other than `rm`, `mv`, `truncate` and `find`: `shred`,
   `rsync --delete`, `cp /dev/null .git/index`, `: > .git/index`, `ln -sf x .git`;
 - an event it cannot read — unreadable JSON, empty input, no `command` — exits with code 0, and

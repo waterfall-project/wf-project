@@ -32,6 +32,11 @@ pipeline write there — the literal arguments of ``echo`` and ``printf``, the b
 here-documents (``cat <<EOF | bash``). A group counts as one element of its pipeline: in
 ``{ echo 'pkill x'; bash; }``, the ``bash`` is judged as if it read the ``echo`` (the safe side).
 
+Out of scope too, text that another interpreter reads or that is encoded: ``source /dev/stdin``,
+``while read l; do eval "$l"``, ``python <<EOF`` (``os.system``), ``uvx`` and ``uv tool run``, the
+shells outside ``guardgit.SHELLS`` (``fish``…), obscured text (``printf`` with hex escapes,
+``base64 | bash``).
+
 Three more forms are refused (US-1340): ``xargs rm`` (or ``unlink``, ``mv``, ``rename``) when a
 command before it in its pipeline names ``.git`` or a lock (US-2450: ``find .git; ls | xargs rm``
 passes), ``rm -r`` of ``.git``, and the target ``merge-queue`` of ``make``, which a person alone
@@ -676,12 +681,14 @@ def _shell(command: guardgit.Command) -> str | None:
     ``bash`` and ``dash`` take the argument of each ``-o`` or ``-O`` of a cluster from the words
     that follow it, ``zsh`` from the rest of the cluster when the ``-o`` does not end it: the
     script is judged under both readings. A shell without ``-c``, under either reading, reads its
-    input: what the line writes there is judged as its script (US-2450), with or without ``-s``.
+    input when no operand names a script file, or when ``-s`` is there: what the line writes
+    there is judged as its script (US-2450). ``bash -n`` alone reads its input too, and is judged.
     """
     arguments = command.arguments
-    found = {_script(arguments, rest=rest) for rest in (False, True)}
+    read = [_script(arguments, rest=rest) for rest in (False, True)]
+    found = {at for at, _ in read}
     scripts = [arguments[at] for at in sorted(at for at in found if at is not None)]
-    scripts += command.fed if None in found else ()
+    scripts += command.fed if any(at is None and reads for at, reads in read) else ()
     return next(
         (
             form
@@ -692,14 +699,17 @@ def _shell(command: guardgit.Command) -> str | None:
     )
 
 
-def _script(arguments: list[str], *, rest: bool) -> int | None:
-    """Return the index of the script of a shell run with ``-c``, or None when there is none.
+def _script(arguments: list[str], *, rest: bool) -> tuple[int | None, bool]:
+    """Return the index of the script of a shell run with ``-c`` or None, and if it reads its input.
+
+    A shell reads its input when it has no operand after its options, or when ``-s`` is there.
 
     ``rest``: an ``-o`` that does not end its cluster takes the rest of it for its argument;
     otherwise each ``-o`` of a cluster takes the next word.
     """
     index = 0
     scripted = False
+    stdin = False
     while index < len(arguments):
         word = arguments[index]
         if word in {"-", "--"}:
@@ -720,7 +730,11 @@ def _script(arguments: list[str], *, rest: bool) -> int | None:
                 index += 1
             # `bash` and `dash` read a `c` of `+c` as one of `-c`.
             scripted = scripted or char == "c"
-    return index if scripted and index < len(arguments) else None
+            stdin = stdin or char == "s"
+    return (
+        index if scripted and index < len(arguments) else None,
+        stdin or index >= len(arguments),
+    )
 
 
 def _su(command: guardgit.Command) -> str | None:

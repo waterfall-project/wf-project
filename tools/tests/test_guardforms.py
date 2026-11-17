@@ -11,9 +11,13 @@ has its case, and the neighbouring commands that stay legitimate pass. The guard
 the repository: no test cites a requirement (WF-QUA-0010).
 """
 
+import re
+import shutil
+import subprocess
+
 import pytest
 
-from wftools import guard
+from wftools import guard, guardoptions
 
 STOP = "`pkill`: it stops processes by a pattern"
 
@@ -244,7 +248,7 @@ def test_a_posix_class_or_a_sequence_of_braces_is_taken_for_git(operand: str) ->
     """#3792: `fnmatch` knows neither: the guard refuses without looking, as past its bounds."""
     said = guard.refusal(f"rm -rf {operand}")
     assert said is not None
-    assert "the repository that every worktree shares" in said
+    assert "write the paths in clear" in said
 
 
 @pytest.mark.story("US-2450")
@@ -252,3 +256,88 @@ def test_a_posix_class_or_a_sequence_of_braces_is_taken_for_git(operand: str) ->
 def test_a_sequence_of_numbers_passes(command: str) -> None:
     """#3792: a sequence of numbers makes neither a dot nor a letter."""
     assert guard.refusal(command) is None
+
+
+@pytest.mark.story("US-2450")
+@pytest.mark.parametrize(
+    "option",
+    [
+        "--no-extra",
+        "--upgrade-group",
+        "--no-editable-package",
+        "--prerelease-package",
+        "--no-sources-package",
+    ],
+)
+def test_the_options_of_uv_run_that_take_a_value_do_not_hide_the_command(option: str) -> None:
+    """PLC-07: the value of `--no-extra` is no command: `pkill` that follows it is judged."""
+    assert guard.refusal(f"uv run {option} x pkill -f make") == STOP
+
+
+@pytest.mark.story("US-2450")
+@pytest.mark.skipif(shutil.which("uv") is None, reason="uv is absent")
+def test_the_table_of_uv_run_holds_the_options_its_help_says_take_a_value() -> None:
+    """PLC-07: every `--option <VALUE>` of `uv run --help` is in the table of the guard."""
+    text = subprocess.run(
+        ["uv", "run", "--help"], capture_output=True, text=True, check=False
+    ).stdout
+    found = set(re.findall(r"(--[a-z][a-z-]*) <", text))
+    assert found
+    assert found <= guardoptions.UV_RUN.long
+
+
+@pytest.mark.story("US-2450")
+@pytest.mark.parametrize(
+    "command",
+    [
+        "pnpm exec -c 'pkill x'",
+        "pnpm dlx --shell-mode 'pkill x'",
+        "pnpm dlx -c 'pkill x'",
+        "npm -w x exec pkill y",
+        "npm -w x exec -- pkill y",
+    ],
+)
+def test_pnpm_shell_mode_and_npm_workspace_are_followed(command: str) -> None:
+    """PLC-07: `pnpm exec -c` runs a line of shell; `npm -w <ws>` takes its value."""
+    said = guard.refusal(command)
+    assert said is not None
+    assert "pkill" in said
+
+
+@pytest.mark.story("US-2450")
+@pytest.mark.parametrize(
+    "command",
+    [
+        "echo 'pkill x' | bash script.sh",
+        "bash script.sh <<< 'pkill'",
+        "bash script.sh <<EOF\npkill x\nEOF",
+        "echo 'pkill x' | bash -x -- script.sh",
+    ],
+)
+def test_a_shell_with_a_script_file_does_not_read_its_input(command: str) -> None:
+    """PLC-07: with an operand and no `-s`, the text given to the shell is not its script."""
+    assert guard.refusal(command) is None
+
+
+@pytest.mark.story("US-2450")
+@pytest.mark.parametrize(
+    "command",
+    [
+        "echo 'pkill x' | bash -n",
+        "echo 'pkill x' | bash -s script.sh",
+        "echo 'pkill x' | ash",
+        "echo 'pkill x' | rbash",
+    ],
+)
+def test_a_shell_that_reads_its_input_is_still_judged(command: str) -> None:
+    """PLC-07: `bash -n` and `-s` read the input; `ash` and `rbash` are shells."""
+    assert guard.refusal(command) == STOP
+
+
+@pytest.mark.story("US-2450")
+def test_a_sequence_of_braces_is_refused_with_its_own_message() -> None:
+    """#3792: the guard does not evaluate the pattern, and says so, not that it names git."""
+    said = guard.refusal("rm -rf out/{a..c}")
+    assert said is not None
+    assert "every worktree shares" not in said
+    assert "write the paths in clear" in said

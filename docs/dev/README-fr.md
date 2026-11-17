@@ -3888,6 +3888,9 @@ la commande, non ce que le shell en calcule. Ses limites connues, qu'il ne code 
   écrite dans un fichier puis relue, `find .git … > liste; xargs rm < liste` ;
 - le script de `xargs sh -c`, dont les arguments viennent du tube ;
 - après un `cd .git`, il ne garde que les verrous : `cd .git && rm -rf *` passe ;
+- le texte lu par un autre interpréteur, ou encodé : `source /dev/stdin`, `. /dev/stdin`,
+  `while read l; do eval "$l"`, `python <<EOF` qui appelle `os.system`, `uvx` et `uv tool run`,
+  les shells hors de la liste (`fish`…), le texte obscurci (`printf '\x70kill'`, `base64 | bash`) ;
 - les écritures destructrices autres que `rm`, `mv`, `truncate` et `find` : `shred`,
   `rsync --delete`, `cp /dev/null .git/index`, `: > .git/index`, `ln -sf x .git` ;
 - un événement qu'il ne sait pas lire — JSON illisible, entrée vide, sans `command` — sort en
