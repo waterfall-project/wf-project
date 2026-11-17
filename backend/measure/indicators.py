@@ -45,7 +45,10 @@ OBJECTIVE_S = 1.0
 SUBPROJECTS = (10, 50, 100)
 """The numbers of subprojects the figures are extrapolated to."""
 FIXED_SCOPES = 2
-"""The scopes a project has beside its subprojects: itself, and its lines without a subproject."""
+"""The scopes a project has beside its subprojects: itself, and its lines without a subproject.
+
+Also defined, for the same count, in ``tools/src/wftools/measures.py``: keep the two equal.
+"""
 SHAPES = {"cell": "one scope", "all": "every scope"}
 """What is read: the scope of the project alone, or every scope of the project."""
 

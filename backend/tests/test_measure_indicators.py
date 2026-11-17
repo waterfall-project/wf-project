@@ -1,11 +1,11 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The measure of the entry of the cache of the indicators (US-2420, #3628; WF-QUA-0060).
+"""The measure of the entry of the cache of the indicators (US-2420, #3628).
 
 ``make measure-core ONLY=indicators`` measures, on PRJ-001 of the witness and in the Redis of the
 platform, the size of the entries of the day, one by scope, and the reading of one scope and of
-every scope, cold and hot. The tool is the one of WF-QUA-0060: these tests hold its arithmetic,
-and its promise to leave no entry in Redis.
+every scope, cold and hot. The tool is a tool of the repository, no requirement's, and its tests
+cite none: they hold its arithmetic, and its promise to leave no entry in Redis.
 """
 
 from typing import TYPE_CHECKING, Protocol, cast
@@ -36,7 +36,7 @@ def keys_of(cache: IndicatorsCache) -> set[str]:
 
 
 def test_a_figure_is_extrapolated_on_the_line_through_one_scope_and_every_scope() -> None:
-    # WF-QUA-0060: 0.2 s for one scope, 0.5 s for the four of the witness: 0.1 s a scope.
+    # 0.2 s for one scope, 0.5 s for the four of the witness: 0.1 s a scope.
     assert linear(0.2, 0.5, 4, 1) == pytest.approx(0.2)
     assert linear(0.2, 0.5, 4, 4) == pytest.approx(0.5)
     assert linear(0.2, 0.5, 4, 12) == pytest.approx(1.3)
@@ -86,7 +86,7 @@ def cache(queue: TaskQueue) -> Iterator[IndicatorsCache]:
 def test_the_entries_of_the_day_measured_give_their_size_and_reading_and_leave_none(
     witness: Database, cache: IndicatorsCache
 ) -> None:
-    # WF-QUA-0060: the figures are those the report of a version carries.
+    # the figures are those the report of a version carries.
     target = locate(witness)
     before = keys_of(cache)
 

@@ -728,7 +728,10 @@ Réécrite au recadrage du 2026-11-15 : EP-26 a refait la lecture d'une structur
   sous-projets ; toutes les mailles du témoin, 47 891 octets, 1,678 s à froid, 22 ms à chaud,
   1,1 Mo et 19,4 s à froid extrapolés à 100 sous-projets. Aucune lecture d'une
   révision marquée ne passe par le cache. Deux lectures parallèles d'une entrée absente calculent
-  toutes deux et écrivent la même valeur : aucun verrou.
+  toutes deux et écrivent la même valeur : aucun verrou. Une maille froide coûtant
+  environ 1,1 s et le front pouvant lancer `indicators`, `cost-curve` et `earned-value-curves` en
+  parallèle sur la même maille, elle peut être calculée trois fois : conséquence connue et
+  acceptée, à mesurer si le rapport de version la montre.
 - **L'indisponibilité** : `IndicatorsCache` attrape `redis.exceptions.RedisError` et les délais
   (`socket_timeout` d'une seconde, comme `DEPOSIT_TIMEOUT`), rend `None` à la lecture, ignore à
   l'écriture, et journalise `indicators.cache_unavailable` une fois par cause ; le calcul est rendu.
