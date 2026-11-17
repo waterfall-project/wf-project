@@ -764,8 +764,9 @@ test("the contributors of a project created are written on the screen, the quali
   playwright,
   manager,
 }) => {
-  if (!inService || manager === undefined) {
-    test.skip(true, SERVICE_ONLY);
+  test.skip(!inService, SERVICE_ONLY);
+  // The service makes the manager of the worker (mode.ts); only a fake back leaves it undefined.
+  if (manager === undefined) {
     return;
   }
   test.slow();
@@ -811,8 +812,9 @@ test("a labour line of a role of a service proposes the accounts of the service 
   playwright,
   manager,
 }) => {
-  if (!inService || manager === undefined) {
-    test.skip(true, SERVICE_ONLY);
+  test.skip(!inService, SERVICE_ONLY);
+  // The service makes the manager of the worker (mode.ts); only a fake back leaves it undefined.
+  if (manager === undefined) {
     return;
   }
   test.slow();

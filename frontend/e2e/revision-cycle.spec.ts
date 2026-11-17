@@ -223,8 +223,9 @@ test("a reference that bears a task and a line is designated, the project stays 
   playwright,
   manager,
 }) => {
-  if (!inService || manager === undefined) {
-    test.skip(true, SERVICE_ONLY);
+  test.skip(!inService, SERVICE_ONLY);
+  // The service makes the manager of the worker (mode.ts); only a fake back leaves it undefined.
+  if (manager === undefined) {
     return;
   }
   test.slow();
