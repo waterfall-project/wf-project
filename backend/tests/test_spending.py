@@ -25,7 +25,7 @@ from workload_support import NOV_DEC, NOVEMBER, STATE_FORBIDS, Site, make_site
 
 from waterfall.core.cost_settings.tables import CostCategory, CostType, HourlyRate
 from waterfall.core.estimate.interface import remaining_of_revision
-from waterfall.core.estimate.tables import EstimateLine, RevisionRate
+from waterfall.core.estimate.tables import EstimateLine
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -91,16 +91,13 @@ def referenced_with(site: Site) -> None:
 def unrate(site: Site) -> None:
     """Withdraw the rate of the category of labour for this year from the reference.
 
-    And from the rates a marking kept: a marked revision is read on those.
+    Before the marking: a marked revision keeps its rates, a trigger forbids deleting them.
     """
     with site.stage.owner.begin() as connection:
         connection.execute(
             delete(HourlyRate).where(
                 HourlyRate.cost_category_id == site.costs.labour, HourlyRate.year == YEAR
             )
-        )
-        connection.execute(
-            delete(RevisionRate).where(RevisionRate.cost_category_id == site.costs.labour)
         )
 
 
@@ -493,8 +490,16 @@ def _refused_for_rates(site: Site, basis: str, **query: Any) -> None:
 
 
 @pytest.mark.requirement("WF-DEV-0010-A")
-@pytest.mark.parametrize("basis", ["reference_budget", "marked_remaining", "current_remaining"])
-@pytest.mark.parametrize("case", ["plain", "outside_subproject", "nothing_left", "two_lines"])
+@pytest.mark.parametrize(
+    ("basis", "case"),
+    [
+        (basis, case)
+        for basis in ("reference_budget", "marked_remaining", "current_remaining")
+        for case in ("plain", "outside_subproject", "two_lines")
+    ]
+    # On the others the task is set completed on the revision in progress, after the marking.
+    + [("current_remaining", "nothing_left")],
+)
 def test_a_labour_category_without_a_rate_refuses_the_projection_and_names_it(
     site: Site, clock: Clock, basis: str, case: str
 ) -> None:
@@ -526,8 +531,12 @@ def test_a_labour_category_without_a_rate_refuses_the_projection_and_names_it(
             for each in current.items()
             if each["kind"] == "task" and each["task"]["label"] == "Pose"
         )
+        before = site.plan("current_remaining")["monthly_totals"]
         set_progress(site.stage, task["node_id"], "completed", date(2026, 11, 10))
         clock(date(2026, 11, 12))
+        # Nothing is left of the line: the refusal comes from the rate withdrawn alone.
+        assert before != []
+        assert site.plan("current_remaining")["monthly_totals"] == []
     _refused_for_rates(site, basis, **query)
 
 
