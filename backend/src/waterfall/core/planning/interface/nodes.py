@@ -65,6 +65,7 @@ from waterfall.core.planning.shaping import (
 )
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tables import Node, Task, TaskLink
+from waterfall.core.planning.tallying import weighing
 from waterfall.core.planning.tree import TASK, Tree, read_tree
 from waterfall.core.planning.views import COMPLETED, NOT_STARTED, NodeView, state_of
 from waterfall.core.planning.writing import (
@@ -666,24 +667,31 @@ _AMOUNTS = ("task.base_amount", "task.budgeted_amount", "task.reestimated_amount
 _DATES = ("task.start", "task.finish")
 
 
-def _summary_rule(tree: Tree, node_id: UUID, field: str) -> tuple[str, list[UUID]] | None:
+def _summary_rule(
+    session: Session, place: Place, tree: Tree, node_id: UUID, field: str
+) -> tuple[str, list[UUID]] | None:
     """Give the rule a computed field of a summary follows and its rows; none if entered."""
     rule = _SUMMARY_RULES.get(field)
     if rule is None:
         return None
     if field == _PHYSICAL:
-        # What the share weighs and counts: the lines and the tasks of the whole subtree.
-        return rule, tree.ordered([each for each in tree.subtree(node_id) if each != node_id])
+        # What the share weighs and counts: the lines and the tasks of the whole subtree, a
+        # provision line out (it weighs nothing), read in one grouped statement by kind.
+        below = [each for each in tree.subtree(node_id) if each != node_id]
+        weighs = weighing(session, place, [each for each in below if each not in tree.tasks])
+        return rule, tree.ordered([each for each in below if each in tree.tasks or each in weighs])
     lines = tree.lines(node_id) if rule == "lines_and_subordinates" else []
     return rule, [*lines, *tree.subtasks(node_id)]
 
 
-def _rule(tree: Tree, node_id: UUID, field: str) -> tuple[str, list[UUID]] | None:
+def _rule(
+    session: Session, place: Place, tree: Tree, node_id: UUID, field: str
+) -> tuple[str, list[UUID]] | None:
     """Give the rule a computed field of a task follows and the rows it reads; none if entered."""
     if field in _AMOUNTS:
         return "lines_and_subordinates", [*tree.lines(node_id), *tree.subtasks(node_id)]
     if tree.is_summary(node_id):
-        return _summary_rule(tree, node_id, field)
+        return _summary_rule(session, place, tree, node_id, field)
     manual = tree.tasks[node_id].scheduling_mode == MANUAL
     if field == "task.total_float":
         return ("manual_mode" if manual else "float_dates"), []
@@ -698,9 +706,10 @@ def computed_value_dependencies(
     """Name what a computed value of a node depends on (``getComputedValueDependencies``).
 
     The rule, and the rows it reads — the direct subordinates of a summary, the lines and the
-    direct subordinates of a task, the lines and the tasks of the whole subtree for the physical
-    progress of a summary — in the order of the plan, whatever a reading retains; for a
-    node of another kind, the rules its facet names (``FacetHooks.dependencies``), without a row.
+    direct subordinates of a task, the lines (a provision line out) and the tasks of the whole
+    subtree for the physical progress of a summary — in the order of the plan, whatever a reading
+    retains; for a node of another kind, the rules its facet names (``FacetHooks.dependencies``),
+    without a row.
     A field the server does not compute for the node is refused (422, ``params.field``); a node the
     structure does not hold is not found (404).
     """
@@ -716,7 +725,7 @@ def computed_value_dependencies(
         if named is None:
             raise UnprocessableError(VALIDATION_FAILED, {"field": field})
         return Dependencies(node_id, field, named, ())
-    found = _rule(tree, node_id, field)
+    found = _rule(session, place, tree, node_id, field)
     if found is None:
         raise UnprocessableError(VALIDATION_FAILED, {"field": field})
     rule, rows = found

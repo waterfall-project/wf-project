@@ -327,7 +327,7 @@ def test_the_physical_progress_of_a_summary_depends_on_the_whole_subtree(
 ) -> None:
     # The share weighs the amounts of the lines and counts the tasks completed of the whole subtree,
     # not of the first level: a summary of a summary names every line and every task under it, in
-    # the order of the plan, and not itself.
+    # the order of the plan, and not itself, and no line of provision.
     tree = Tree(api, stage, opened(api, stage))
     lines = Lines(tree)
     top = tree.made(LOT)
@@ -336,6 +336,14 @@ def test_the_physical_progress_of_a_summary_depends_on_the_whole_subtree(
     studies = tree.made("Études", parent_id=middle["node_id"])
     studied = lines.made(studies, **material(costs, line_of("Études"), "100.00", None))
     wiring = tree.made("Câblage", parent_id=middle["node_id"])
+    # A line of provision under the lower task weighs nothing: it is not one of the rows.
+    held = lines.made(wiring, **material(costs, "Provision", "300.00", None))
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.node_id == UUID(held["nodes"][0]["node_id"]))
+            .values(cost_category_id=costs.provision)
+        )
     path = f"{tree.path}/nodes/{top['node_id']}/dependencies?field=task.physical_progress"
     answer = api.get(path, headers=stage.manager.headers)
     assert answer.status_code == 200, answer.text
