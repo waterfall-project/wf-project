@@ -5,7 +5,6 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { UnexpectedAnswer } from "@/api/problem";
 import type { RevisionComparison } from "@/components/revisions/revision-comparison";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { formatMoney } from "@/i18n/format";
@@ -134,8 +133,6 @@ beforeEach(() => {
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/revisions": "revisions",
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
-    "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
-    "GET /projects/{project_id}/revisions/{revision_id}/rate-update": "rate_update",
     "GET /projects/{project_id}/revisions/comparison": "comparison",
   };
 });
@@ -183,10 +180,12 @@ describe("the screen of the revisions of a project", () => {
     );
     expect(table(page, "Historique des révisions")).toBe(
       "Version État Marquée le Année de référence Copie de Taux d’inflation Probabilité de gain " +
-        "Description Consultation " +
+        "Description Consultation Commandes " +
         "Révision en cours En cours d’élaboration Non marquée 2026 Référence 3 % 100 % Ouvrir " +
         "Référence Référence Marquée 2026 Offre v1.0 3 % 100 % Ouvrir " +
-        "Offre v1.0 Marquée 2025 Aucune 3 % 100 % Offre remise au client avant la commande. Ouvrir",
+        "Désigner comme référence Condition non remplie : référence encore corrigeable. " +
+        "Offre v1.0 Marquée 2025 Aucune 3 % 100 % Offre remise au client avant la commande. Ouvrir " +
+        "Désigner comme référence Condition non remplie : référence encore corrigeable.",
     );
     // Each instant of marking, in the local time of the workstation, which the browser writes.
     expect([...page.matchAll(/<time dateTime="([^"]+)"/g)].map((match) => match[1])).toEqual([
@@ -406,143 +405,66 @@ describe("the comparison of two revisions", () => {
   });
 });
 
-describe("the parts of the revision the screen reads in", () => {
-  it("lists its cost structures, each by its nature and its label, an amendment merged said so", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
-      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures_amendments",
-    };
-    const page = html(await RevisionsPage(at({ revision_id: REFERENCE })));
-    expect(callTo("GET /projects/{project_id}/revisions/{revision_id}/structures")?.path).toBe(
-      `${REVISIONS}/${REFERENCE}/structures`,
-    );
-    expect(table(page, "Structures de coûts")).toBe(
-      "Nature Libellé État Structure principale Structure principale " +
-        "Avenant Avenant 1 — extension du poste Fusionnée Avenant Avenant 2 — reprise des essais " +
-        "Devis de risque Risque de reprise du câblage " +
-        "Devis de risque Retard de livraison des armoires " +
-        "Devis de risque Indisponibilité de l'automaticien",
-    );
-    // A marked revision is immutable: no rate update is read for it.
-    expect(
-      callTo("GET /projects/{project_id}/revisions/{revision_id}/rate-update"),
-    ).toBeUndefined();
-    expect(text(page)).not.toContain("Mise à jour des taux");
+describe("the screen of the revisions, the history and its commands alone (US-2370)", () => {
+  const STRUCTURES = "GET /projects/{project_id}/revisions/{revision_id}/structures";
+  const PROPOSAL = "GET /projects/{project_id}/revisions/{revision_id}/rate-update";
+
+  it("reads neither the cost structures nor the rate update, whatever the revision it reads in, and lists none of them", async () => {
+    for (const revision of [DRAFT, REFERENCE]) {
+      server.answers = {
+        ...server.answers,
+        "GET /projects/{project_id}/revisions/{revision_id}":
+          revision === DRAFT ? "revision_rate_update_offered" : "revision_marked",
+      };
+      server.clients = [];
+      const page = html(await RevisionsPage(at({ revision_id: revision })));
+      expect(callTo(STRUCTURES)).toBeUndefined();
+      expect(callTo(PROPOSAL)).toBeUndefined();
+      expect(text(page)).not.toContain("Structures de coûts");
+      expect(text(page)).not.toContain("Taux du référentiel");
+      expect(text(page)).not.toContain("Mise à jour des taux proposée");
+      expect(text(page)).not.toContain("Désignation de la référence");
+    }
   });
 
-  it("presents the rate update proposed for the current revision, category by category, as the API gives it", async () => {
-    // À la création d'une révision suivant une modification de taux, l'écart est présenté
-    // catégorie par catégorie — la mise à jour, jamais imposée, n'est pas appliquée ici.
-    const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
-    expect(callTo("GET /projects/{project_id}/revisions/{revision_id}/rate-update")?.path).toBe(
-      `${REVISIONS}/${DRAFT}/rate-update`,
-    );
-    expect(text(page)).toContain(
-      "Mise à jour des taux proposée Taux de l’année 2026 Une proposition, jamais imposée",
-    );
-    expect(table(page, "Mise à jour des taux proposée")).toBe(
-      "Catégorie Taux précédent Taux proposé Origine " +
-        "Ingénierie électrique 80,86 80,00 Taux du référentiel " +
-        "Mise en service 75,71 75,00 Taux du référentiel",
-    );
-  });
-
-  it("says the reference has not changed when no rate update is proposed", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /projects/{project_id}/revisions/{revision_id}/rate-update": "rate_update_none",
-      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
-    };
-    const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
-    expect(text(page)).toContain(
-      "Mise à jour des taux proposée Le référentiel n’a pas changé : aucune mise à jour des taux n’est proposée.",
-    );
-    expect(text(page)).not.toContain("Taux de l’année");
-    // Without a proposal, the structures and the abandon are still rendered.
-    expect(text(page)).toContain("Structures de coûts");
-    expect(offered(page, "Abandonner la révision en cours")).toBe("available");
-  });
-
-  it("fails as any read does when getRateUpdateProposal answers 404, the service serving the proposal (US-1530) [WF-REV-0060-A]", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /projects/{project_id}/revisions/{revision_id}/rate-update": NOT_FOUND,
-    };
-    await expect(RevisionsPage(at({ revision_id: DRAFT }))).rejects.toMatchObject({
-      digest: "NEXT_HTTP_ERROR_FALLBACK;404",
-    });
-  });
-
-  it("fails as any read does when getRateUpdateProposal answers an error", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /projects/{project_id}/revisions/{revision_id}/rate-update": {
-        problem: { code: "INTERNAL_ERROR", status: 500 },
-      },
-    };
-    await expect(RevisionsPage(at({ revision_id: DRAFT }))).rejects.toBeInstanceOf(
-      UnexpectedAnswer,
-    );
-  });
-
-  it("offers the application of the rates as the revision lists it, and the designation of the reference under the history [WF-REV-0060-A]", async () => {
+  it("offers the rate update as a command of the current revision, as the revision lists it, the proposal left to its dialog [WF-REV-0060-A]", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}": "revision_rate_update_offered",
-      "GET /projects/{project_id}/revisions/{revision_id}/rate-update": "rate_update",
-      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
     };
     const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
     expect(offered(page, "Appliquer la mise à jour des taux")).toBe("available");
-    expect(text(page)).toContain("Désignation de la référence");
-    expect(offered(page, "Désigner comme référence")).toBe("unavailable");
+    expect(page).toContain('aria-haspopup="dialog"');
   });
 
-  it("offers the application of the rates unavailable when the revision lists it lacking a condition [WF-IHM-0090-A]", async () => {
+  it("offers the rate update unavailable when the revision lists it lacking a condition [WF-IHM-0090-A]", async () => {
     // `revision` lists `apply_rate_update` lacking `rate_update_available`.
     const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
     expect(offered(page, "Appliquer la mise à jour des taux")).toBe("unavailable");
     expect(text(page)).toContain("une mise à jour des taux disponible");
   });
 
-  it("offers no application of the rates when none is proposed [WF-REV-0060-A]", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /projects/{project_id}/revisions/{revision_id}/rate-update": "rate_update_none",
-      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
-    };
-    const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
-    expect(offered(page, "Appliquer la mise à jour des taux")).toBe("absent");
+  it("offers no rate update when the revision does not list the command", async () => {
+    // The revision lists `apply_rate_update` for the callers who may exercise it (#1351): a
+    // reader's lists none, nor an estimator's (`edit_estimate` alone).
+    for (const revision of ["revision_reader", "revision_estimator"] as const) {
+      server.answers = {
+        ...server.answers,
+        "GET /projects/{project_id}/revisions/{revision_id}": revision,
+      };
+      const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
+      expect(offered(page, "Appliquer la mise à jour des taux")).toBe("absent");
+    }
   });
 
-  it("offers no application of the rates when the revision does not list the command, though the update is proposed", async () => {
-    // The revision lists `apply_rate_update` for the callers who may exercise it (#1351): a
-    // reader's lists none, and the proposal is left to be read, even to an estimator
-    // (`edit_estimate` alone).
-    server.answers = {
-      ...server.answers,
-      "GET /projects/{project_id}/revisions/{revision_id}": "revision_reader",
-      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
-    };
-    const read = html(await RevisionsPage(at({ revision_id: DRAFT })));
-    expect(text(read)).toContain("Taux du référentiel");
-    expect(offered(read, "Appliquer la mise à jour des taux")).toBe("absent");
-
-    server.answers = {
-      ...server.answers,
-      "GET /projects/{project_id}/revisions/{revision_id}": "revision_estimator",
-    };
-    const estimated = html(await RevisionsPage(at({ revision_id: DRAFT })));
-    expect(offered(estimated, "Appliquer la mise à jour des taux")).toBe("absent");
+  it("offers the designation of the reference on each marked revision of the history, unavailable here, in no region of its own [WF-REV-0040-A]", async () => {
+    const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
+    expect(text(page)).not.toContain("Désignation de la référence");
+    expect(offered(page, "Désigner comme référence")).toBe("unavailable");
   });
 
   it("reads nothing of a revision when the address carries none", async () => {
     const page = html(await RevisionsPage(at()));
-    expect(calls().map((call) => call.route)).not.toContain(
-      "GET /projects/{project_id}/revisions/{revision_id}/structures",
-    );
-    expect(text(page)).not.toContain("Structures de coûts");
     // The commands of the project remain — the opening of a revision —, those of a revision do not.
     expect(offered(page, "Marquer la révision")).toBe("absent");
     expect(offered(page, "Ouvrir une révision en cours")).toBe("unavailable");

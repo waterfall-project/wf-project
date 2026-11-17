@@ -77,15 +77,14 @@ test("the project manager of the run prices a project — a quantity entered, it
   // The revision marked by the worker, then designated: the reference bears a task and a line.
   await openHydrated(page, `${seeded.own.path}/revisions?revision_id=${seeded.ids.revision}`);
   await mark(page, "v1.0");
-  const designation = main.getByRole("region", { name: "Désignation de la référence" });
-  const designate = designation
-    .getByRole("listitem")
+  const history = main.getByRole("table", { name: "Historique des révisions" });
+  const designate = history
+    .getByRole("row")
     .filter({ hasText: "v1.0" })
     .getByRole("button", { name: "Désigner comme référence" });
   await expect(designate).not.toHaveAttribute("aria-disabled", "true", { timeout: WORKING });
   await designate.click();
-  await designation.getByRole("button", { name: "Confirmer la désignation" }).click();
-  const history = main.getByRole("table", { name: "Historique des révisions" });
+  await history.getByRole("button", { name: "Confirmer la désignation" }).click();
   await expect(history.getByRole("row").nth(1)).toContainText("Référence", { timeout: WORKING });
 
   // The code entered takes the project In progress, without another action.

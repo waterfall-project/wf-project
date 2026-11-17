@@ -2085,11 +2085,10 @@
     "rateUpdate": {
       "label": "Apply the rate update",
       "statement": "The rates of the current revision are replaced by the proposed rates, for the categories retained; the amounts of its lines and of its totals are calculated anew. A marked revision keeps the rates it calculated.",
-      "categories": "Categories updated",
-      "change": "{category}: {previous} → {proposed}",
       "noneRetained": "Retain at least one category.",
       "submit": "Confirm the update",
-      "done": "{count, plural, one {The rates of # category are updated.} other {The rates of # categories are updated.}}"
+      "done": "{count, plural, one {The rates of # category are updated.} other {The rates of # categories are updated.}}",
+      "reading": "Reading the proposal…"
     }
   },
   "projectList": {
@@ -2294,10 +2293,8 @@
       "reference": "Reference",
       "notMarked": "Not marked",
       "open": "Open",
-      "openRevision": "Open the revision “{name}”"
-    },
-    "designation": {
-      "title": "Designation of the reference"
+      "openRevision": "Open the revision “{name}”",
+      "commands": "Commands"
     },
     "comparison": {
       "title": "Comparison of two revisions",
@@ -2313,14 +2310,6 @@
       "reestimatedDelta": "Re-estimated deviation",
       "unnamed": "Unnamed"
     },
-    "structures": {
-      "title": "Cost structures",
-      "none": "This revision has no cost structure.",
-      "kind": "Kind",
-      "label": "Label",
-      "state": "Status",
-      "merged": "Merged"
-    },
     "rateUpdate": {
       "title": "Proposed rate update",
       "year": "Rates of {year}",
@@ -2329,7 +2318,8 @@
       "category": "Category",
       "previous": "Previous rate",
       "proposed": "Proposed rate",
-      "source": "Source"
+      "source": "Source",
+      "retained": "Kept"
     }
   },
   "exitProject": {
