@@ -289,6 +289,10 @@
       "label": "Differences only",
       "help": "Keep only the rows the amendment adds, removes or modifies."
     },
+    "differenceFold": {
+      "run": "{count, plural, one {# row without difference folded} other {# rows without difference folded}}",
+      "help": "Fold the rows that do not differ from the base; each folded run unfolds in its place. Nothing is taken out of the totals."
+    },
     "breakdownFilter": {
       "label": "Work package or order item",
       "every": "All work packages and order items",

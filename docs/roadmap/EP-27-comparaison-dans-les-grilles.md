@@ -587,7 +587,7 @@ les compte : la règle est gardée et écrite par la spécification 1.0.6 (déci
 
 ## US-2360 — Les branches sans écart se replient, chaque suite repliée signalée à sa place avec son nombre de lignes
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0170-A`
 - **opérations** : `compareRevisions`
 - **issue** : #3489

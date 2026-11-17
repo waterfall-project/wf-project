@@ -289,6 +289,10 @@
       "label": "Écarts seulement",
       "help": "Ne garder que les lignes ajoutées, supprimées ou modifiées par l’avenant."
     },
+    "differenceFold": {
+      "run": "{count, plural, one {# ligne sans écart repliée} other {# lignes sans écart repliées}}",
+      "help": "Replier les lignes sans écart avec la base ; chaque suite repliée se déplie à sa place. Rien n’est retiré des totaux."
+    },
     "breakdownFilter": {
       "label": "Lot ou poste",
       "every": "Tous les lots et postes",

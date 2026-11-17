@@ -2557,6 +2557,24 @@ ancestors, once for that search. The folded state is kept in the session storage
 (`sessionStorage`), per grid and per revision, without sending anything to the server: the server
 renders the tree unfolded, which the browser folds again once hydrated.
 
+When the grid reads a comparison, « Écarts seulement » (« Differences only »), in its bar, folds
+the rows without difference (WF-IHM-0170, US-2360, `difference-fold.ts`, `folded-runs.tsx`): a state
+of `fold.tsx`, kept with the folds, under the same key, out of the address and without asking the
+server anything. The grid removes from its rendered rows each node the server marks unchanged and
+under which none is marked otherwise — on its marks alone, comparing no value —, and sets in the
+place of each run a marker row that says its number of rows. That row is counted among those of
+the grid (`aria-rowindex`, `aria-rowcount`, the window of the virtualisation), without being a row
+of the answer: no command, entry, selection or paste reaches it. The arrows stop on it, between the
+rows around it, the active cell remaining the only tab stop; Enter, Space or Alt and plus unfold
+it, as does a click on its button, and its first row becomes the active cell. A run unfolded stays
+so while the folding is on, readings anew included; a row a write makes differ comes back at the
+reading anew, and a row the grid writes — typed, pasted, or the row of the active cell at an undo —
+stays shown, even read back unchanged, while the folding is on: the focus does not leave it. Home,
+End and the pages, from a marker row, start from the neighbouring row; its other keys stay inert.
+The totals are the answer's. Limit of the Gantt (#3785, to be settled): a vertical link is cut over
+the height of a marker row. On a differential, « Écarts seulement » remains the server's filter
+(`difference`, US-0700).
+
 ### The commands
 
 A command is displayed by `Command` of `frontend/src/components/commands/` (WF-IHM-0090): absent

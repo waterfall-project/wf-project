@@ -2565,6 +2565,25 @@ une ligne pliée déplie ses ancêtres, une fois pour cette recherche. L'état p
 stockage de session de l'onglet (`sessionStorage`), par grille et par révision, sans rien envoyer
 au serveur : le serveur rend l'arbre déplié, que le navigateur replie une fois hydraté.
 
+Quand la grille lit une comparaison, « Écarts seulement », dans sa barre, replie les lignes sans
+écart (WF-IHM-0170, US-2360, `difference-fold.ts`, `folded-runs.tsx`) : un état de `fold.tsx`, gardé
+avec les plis, sous la même clé, hors de l'adresse et sans rien demander au serveur. La grille retire
+de ses lignes rendues chaque nœud que le serveur marque inchangé et sous lequel aucun ne l'est
+autrement — sur ses seules marques, sans comparer de valeur —, et pose à la place de chaque suite
+une ligne de marque qui en dit le nombre de lignes. Cette ligne est comptée parmi celles de la
+grille (`aria-rowindex`, `aria-rowcount`, la fenêtre de la virtualisation), sans être une ligne de
+la réponse : aucune commande, saisie, sélection ni collage ne l'atteint. Les flèches s'y arrêtent,
+entre les lignes qui l'entourent, la cellule active restant le seul arrêt de tabulation ; Entrée,
+Espace ou Alt et plus la déplient, comme le clic sur son bouton, et sa première ligne devient la
+cellule active. Une suite dépliée le reste tant que le repli est actif, relectures comprises ; une
+ligne qu'une écriture fait différer reparaît à la relecture, et une ligne que la grille écrit —
+saisie, collée, ou la ligne de la cellule active à une annulation — reste montrée, même relue
+inchangée, tant que le repli est actif : le focus ne la quitte pas. Home, End et les pages, d'une
+ligne de marque, partent de la ligne voisine ; les autres touches y restent inertes. Les totaux sont
+ceux de la réponse. Limite du Gantt (#3785, à trancher) : un lien vertical est coupé sur la hauteur
+d'une ligne de marque. Sur un différentiel, « Écarts seulement » reste le filtre du serveur
+(`difference`, US-0700).
+
 ### Les commandes
 
 Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) : absente
