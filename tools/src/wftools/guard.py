@@ -9,8 +9,9 @@ error output; otherwise it says nothing and returns 0. Claude Code lets a comman
 code: the launcher, and the hook past it, turn a failure of the guard, or a Python older than 3.14,
 into a refusal (US-2450); a JSON the guard cannot read lets the command pass.
 
-It depends on the standard library alone and imports no other module of ``wftools``: a fresh
-worktree runs it before its environment is synchronised.
+It depends on the standard library alone and on ``guardgit.py``, the module beside it that judges
+the forms which reach ``.git`` and its locks: a fresh worktree runs it before its environment is
+synchronised, by its path, outside the package, and finds that module in its own directory.
 
 The line is cut into simple commands the way the shell runs them: at its operators, inside each
 substitution — ``$( )``, backquotes, ``<( )`` —, inside the script of ``bash -c``, ``sh -c`` or
@@ -24,27 +25,33 @@ which the shell runs. ``shlex`` cuts the words alone: its operators do not tell 
 from one that ends a command, and ``kill 1 ';' $pid`` would hide its last target.
 
 Three more forms are refused (US-1340): ``xargs rm`` (or ``unlink``, ``mv``, ``rename``) when a
-command before it on the line names ``.git`` or a lock, ``rm -r`` of ``.git``, and the target
-``merge-queue`` of ``make``, which a person alone runs. ``command -v`` looks a name up and runs
-nothing: the name that follows is not judged.
+command before it in its pipeline names ``.git`` or a lock (US-2450: ``find .git; ls | xargs rm``
+passes), ``rm -r`` of ``.git``, and the target ``merge-queue`` of ``make``, which a person alone
+runs, wherever it stands among the options of ``make`` (US-2450: in ``make -C merge-queue``, it is
+a directory). ``command -v`` looks a name up and runs nothing: the name that follows is not judged.
 
-A ``cd`` into a directory of git is followed along the line, into the scripts it runs: the
-relative paths that come after it are read from there. A ``cd`` to a literal path outside
-``.git``, ``cd ..`` and ``cd -`` reset it. ``popd`` is not followed: after ``cd .git; popd`` the
-state is kept, and ``rm foo.lock`` is refused although the shell may have left ``.git`` (the safe
-side).
+A ``cd`` into a directory of git is followed along the line, into the scripts it runs
+(``guardgit.py``).
 
 Out of scope, known limits: the ``cd`` is followed in the order of writing, whatever the ``&&``
 and ``||`` between the commands (``cd .git && true || cd ..; rm x.lock`` passes); and a ``cd ..``
 resets the state even from ``.git/refs/heads``, where the shell is still under ``.git``.
 """
 
-import itertools
 import json
 import re
 import shlex
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, cast
+
+# The type checker reads the package; the launcher runs this file by its path, outside the
+# package: the module beside it is imported from its directory, put first, before any other.
+if TYPE_CHECKING or __package__:
+    from wftools import guardgit
+else:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import guardgit
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -69,15 +76,30 @@ _OPERATORS = frozenset(";&|()\n")
 # The longest first: `<<-` before `<<`, `>>` before `>`.
 _REDIRECTION = re.compile(r"&>>?|<<<|<<-?|<>|<&|<|>>|>&|>\||>")
 _BACKSLASHED = re.compile(r"\\([\\`$])")
-# What a line not cut is refused for naming: the command words of the forms refused.
+# A word of shell, its quoted parts holding blanks, that runs over no other `make`: the search,
+# which tries each `make` of the line, then reads each character once (`make -C make -C …`).
+_FREE = r"(?!(?<![\w-])make\s)"
+_WORD = rf"""(?:'(?:{_FREE}[^'])*+'|"(?:{_FREE}[^"])*+"|(?:{_FREE}[^\s'"])++)++"""
+# What a line not cut is refused for naming: the command words of the forms refused. Between
+# `make` and `merge-queue` stand its options, its assignments, a number of `-j 2` and quoted words;
+# an option that takes the next word for its argument takes it, once (`make -C merge-queue`
+# passes). Each element is atomic, and none opens by a blank. Limit: a quoted word that holds
+# `make ` ends the options (`make -f 'a make b' merge-queue 'x` passes); the shell, which does
+# not run a line with an open quote, runs none of them.
 _FORBIDDEN = re.compile(
     r"(?<![\w-])(?:pkill|killall|kill|docker|docker-compose)(?![\w-])|\.lock\b"
-    r"|(?<![\w-])make\s+merge-queue(?![\w-])"
+    rf"|(?<![\w-])make(?:\s+(?>-[CEfIoW]\s+{_WORD}|-{_WORD}|[A-Za-z_]\w*\+?=(?:{_WORD})?"
+    rf"""|[0-9.]+|(?=['"]){_WORD}))*+"""
+    r"\s+merge-queue(?![\w-])"
 )
 _ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\+?=")
 _PID = re.compile(r"-?[0-9]+")
 _KEYWORDS = frozenset({"!", "{", "if", "then", "else", "elif", "do", "while", "until"})
-_SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ksh"})
+# The words that open a group of commands, and those that close it, as the first of a command.
+_GROUPS: dict[str, int] = {
+    **dict.fromkeys(("{", "if", "while", "until", "for", "case", "select"), 1),
+    **dict.fromkeys(("}", "fi", "done", "esac"), -1),
+}
 _CONTAINER_STOPS = frozenset({"rm", "remove", "stop", "kill", "restart"})
 # What `docker` removes, by the group of its subcommand: `docker rmi`, `docker volume rm`…
 _DOCKER_REMOVALS = {
@@ -89,10 +111,6 @@ _DOCKER_REMOVALS = {
 _COMPOSE_STOPS = frozenset({"down", "stop", "kill", "rm"})
 # `kill -1` or `kill -0` alone reads as a signal without a target, or as a target: refused.
 _LONE_TARGETS = frozenset({"-1", "-0"})
-# The actions of `find` that run a command on what it found, and the commands that remove.
-_FIND_EXECS = frozenset({"-exec", "-execdir", "-ok", "-okdir"})
-_FIND_REMOVERS = frozenset({"rm", "unlink", "mv", "rename"}) | _SHELLS
-_FIND_OPTIONS = frozenset({"-H", "-L", "-P"})
 
 
 class _UnsplittableError(ValueError):
@@ -284,6 +302,20 @@ _DOCKER = _Options(
     abbreviates=False,
 )
 _TRAP = _Options()
+# The options of GNU `make` that take the next word; `-j`, `-l`, `-O` take theirs in the same word
+# only, a `-j 2` making `2` an operand, which no target is named.
+_MAKE = _Options(
+    "CEfIoW",
+    _names("assume-new", "assume-old", "directory", "eval", "file", "include-dir", "makefile")
+    | _names("new-file", "old-file", "what-if"),
+    _HELP
+    | _names("always-make", "check-symlink-times", "debug", "dry-run", "environment-overrides")
+    | _names("ignore-errors", "jobs", "just-print", "keep-going", "load-average", "max-load")
+    | _names("no-builtin-rules", "no-builtin-variables", "no-keep-going", "no-print-directory")
+    | _names("no-silent", "output-sync", "print-data-base", "print-directory", "question")
+    | _names("quiet", "recon", "shuffle", "silent", "stop", "touch", "trace")
+    | _names("warn-undefined-variables"),
+)
 _COMPOSE = _Options(
     "fp",
     _names("ansi", "env-file", "file", "parallel", "profile", "progress", "project-directory")
@@ -299,9 +331,18 @@ class _Scanner:
 
     A substitution is cut in turn, its commands appended to the same list, and stands as
     ``$(…)`` in the word that holds it.
+
+    Each command comes with the number of its pipeline, which a ``;``, an ``&``, an ``&&``, an
+    ``||`` or a newline ends; ``|`` and ``|&`` do not, nor the newlines and comments that follow
+    them before the next command. A group — ``( )``, ``{ }``, ``if … fi``, a
+    loop, ``case … esac`` — is one element of the pipeline that holds it: what it writes may feed
+    a pipe after it, and the separators inside it end nothing. The commands of a substitution
+    belong to the pipeline of the command that holds it, whose argument they make.
     """
 
-    def __init__(self, text: str, commands: list[str], depth: int) -> None:
+    def __init__(
+        self, text: str, commands: list[tuple[str, int]], depth: int, root: _Scanner | None = None
+    ) -> None:
         if depth > _MAX_DEPTH:
             raise _UnsplittableError
         self.text = text
@@ -309,6 +350,13 @@ class _Scanner:
         self.depth = depth
         self.position = 0
         self.heredocs: list[_Heredoc] = []
+        # The scanner of the line counts its pipelines and its groups; those of its
+        # substitutions number their commands by it.
+        self.root = self if root is None else root
+        self.pipeline = 0
+        self.groups = 0
+        # A `|` or `|&` was read, and no word since.
+        self.piping = False
 
     def scan(self, start: int = 0, *, closing: bool = False) -> int:
         """Cut from ``start`` to the end, or to the ``)`` that closes a substitution."""
@@ -327,6 +375,11 @@ class _Scanner:
                 self._redirection()
             elif char in _OPERATORS:
                 self._close(words)
+                ends = _ends_pipeline(text, self.position) and not (char == "\n" and self.piping)
+                if self.root is self and nesting == 0 and self.groups == 0:
+                    self.pipeline += ends
+                # `a |⏎ b` is one pipeline: a newline, or a comment, after a pipe ends nothing.
+                self.piping = _pipes(text, self.position) or (self.piping and char in "&\n")
                 self.position += 1
                 if char == "(":
                     nesting += 1
@@ -337,6 +390,7 @@ class _Scanner:
                 elif char == "\n":
                     self._bodies()
             else:
+                self.piping = False
                 word = self._word()
                 # `2>/dev/null`: the digits name the descriptor redirected, not an argument.
                 if not (word.isdigit() and _redirects(text, self.position)):
@@ -348,7 +402,8 @@ class _Scanner:
 
     def _close(self, words: list[str]) -> None:
         if words:
-            self.commands.append(" ".join(words))
+            self.commands.append((" ".join(words), self.root.pipeline))
+            self.groups = max(self.groups + _GROUPS.get(words[0], 0), 0)
             words.clear()
 
     def _word(self) -> str:
@@ -407,7 +462,8 @@ class _Scanner:
         raise _UnsplittableError
 
     def _substitution(self, start: int) -> int:
-        return _Scanner(self.text, self.commands, self.depth + 1).scan(start, closing=True)
+        nested = _Scanner(self.text, self.commands, self.depth + 1, self.root)
+        return nested.scan(start, closing=True)
 
     def _backquoted(self, start: int) -> int:
         text = self.text
@@ -417,7 +473,7 @@ class _Scanner:
                 index += 2
             elif text[index] == "`":
                 inner = _BACKSLASHED.sub(r"\1", text[start:index])
-                _Scanner(inner, self.commands, self.depth + 1).scan()
+                _Scanner(inner, self.commands, self.depth + 1, self.root).scan()
                 return index + 1
             else:
                 index += 1
@@ -476,6 +532,21 @@ def _redirects(text: str, index: int) -> bool:
     )
 
 
+def _pipes(text: str, index: int) -> bool:
+    """Say whether the operator at ``index`` is a ``|`` that pipes: neither ``||`` nor a half."""
+    return text[index] == "|" and not _ends_pipeline(text, index)
+
+
+def _ends_pipeline(text: str, index: int) -> bool:
+    """Say whether the operator at ``index`` ends a pipeline: neither ``|`` nor ``|&`` does."""
+    char = text[index]
+    if char == "|":
+        return text.startswith("||", index) or text[index - 1 : index] == "|"
+    if char == "&":
+        return text[index - 1 : index] != "|"
+    return char in ";\n"
+
+
 def refusal(command: str) -> str | None:
     """Return the refused form a command line takes, or None when it may run."""
     return _line(command, 0)
@@ -492,26 +563,25 @@ def _judge(
 
     ``moved``: the line runs after a ``cd`` into a directory of git.
     """
-    commands: list[str] = []
+    commands: list[tuple[str, int]] = []
     try:
         _Scanner(text, commands, depth).scan()
-        split = [shlex.split(command) for command in commands]
+        split = [(shlex.split(command), pipeline) for command, pipeline in commands]
     except ValueError:
         found = _FORBIDDEN.search(text)
         form = None if found is None else f"a line it cannot cut, which names `{found.group()}`"
         return form, moved
+    # What a command of the pipeline before it named feeds no `xargs rm` of this one.
     named = False
-    for words in split:
+    previous = 0
+    for words, pipeline in split:
+        named = named and pipeline == previous
+        previous = pipeline
         form, moved = _simple(words, depth, piped=piped, moved=moved, named=named or moved)
         if form is not None:
             return form, moved
-        named = named or _names_git(words)
+        named = named or guardgit.names_git(words)
     return None, moved
-
-
-def _names_git(words: list[str]) -> bool:
-    """Say whether a command names a path of git or a lock: the source a pipe may feed to ``rm``."""
-    return any(".lock" in word or ".git" in word.split("/") for word in words)
 
 
 def _simple(
@@ -538,12 +608,14 @@ def _simple(
         if prefix is None:
             arguments = words[index + 1 :]
             if name in {"cd", "pushd"}:
-                return None, _cd(arguments, moved=here, pushd=name == "pushd")
+                return None, guardgit.cd(arguments, moved=here, pushd=name == "pushd")
             # `eval` runs in the shell itself: its `cd` holds for what follows it.
             if name == "eval":
                 return _judge(" ".join(arguments), depth + 1, moved=here)
             check = _CHECKS.get(name)
-            command = _Command(name, arguments, piped=piped, depth=depth, moved=here, named=named)
+            command = guardgit.Command(
+                name, arguments, piped=piped, depth=depth, moved=here, named=named
+            )
             return (None if check is None else check(command)), moved
         # What `xargs` runs takes its arguments from the pipe: they are never literal.
         piped = piped or name == "xargs"
@@ -552,9 +624,9 @@ def _simple(
         index += prefix.operands
         for option, value in options:
             if option in prefix.chdir:
-                here = _moved(value, moved=here)
+                here = guardgit.into_git(value, moved=here)
         if name == "chroot" and operands:
-            here = _moved(operands[0], moved=here)
+            here = guardgit.into_git(operands[0], moved=here)
         scripts = [value for option, value in options if option in prefix.scripts]
         if name == "flock" and words[index : index + 1] in (["-c"], ["--command"]):
             scripts.append(words[index + 1] if index + 1 < len(words) else "")
@@ -581,56 +653,11 @@ def _describes(arguments: list[str]) -> bool:
     return False
 
 
-def _cd(arguments: list[str], *, moved: bool, pushd: bool) -> bool:
-    """Return whether the shell stands in a directory of git after ``cd`` or ``pushd``.
-
-    ``pushd`` alone, or with ``+N`` or ``-N``, turns its stack: where it lands is not known, and
-    the state is kept.
-    """
-    operands = list(arguments)
-    while operands[:1] and operands[0].startswith("-") and operands[0] != "-":
-        if operands.pop(0) == "--":
-            break
-    if not operands:
-        return moved if pushd else False
-    return _moved(operands[0], moved=moved)
-
-
-def _moved(path: str, *, moved: bool) -> bool:
-    """Return whether a change of directory to ``path`` leaves the shell in a directory of git.
-
-    A path computed by a substitution or a variable is taken for ``git rev-parse --git-dir``; a
-    relative path that does not climb keeps the state it starts from.
-
-    Limit: any ``..`` first component resets the state, as the criterion asks, even when the
-    shell is still under ``.git``: ``cd .git/refs/heads; cd ..; rm main.lock`` passes.
-    """
-    if "$" in path or ".git" in path.split("/"):
-        return True
-    if path in {"", "-"} or path.startswith(("/", "~")) or path.partition("/")[0] == "..":
-        return False
-    return moved
-
-
-class _Command(NamedTuple):
-    """A simple command to judge: the base name of its command word, and its arguments."""
-
-    name: str
-    arguments: list[str]
-    piped: bool
-    """Run by ``xargs``: its arguments come from a pipe."""
-    depth: int
-    moved: bool = False
-    """Run in a directory of git, after a ``cd`` on the same line or by an option of a prefix."""
-    named: bool = False
-    """A command before it, or the directory it runs in, names a path of git or a lock."""
-
-
-def _pattern(command: _Command) -> str | None:
+def _pattern(command: guardgit.Command) -> str | None:
     return f"`{command.name}`: it stops processes by a pattern"
 
 
-def _fuser(command: _Command) -> str | None:
+def _fuser(command: guardgit.Command) -> str | None:
     killing = any(
         word == "--kill" or (word[:1] == "-" and word[1:2] != "-" and "k" in word[1:])
         for word in command.arguments
@@ -638,7 +665,7 @@ def _fuser(command: _Command) -> str | None:
     return "`fuser -k`: it stops the processes that hold a file or a port" if killing else None
 
 
-def _kill(command: _Command) -> str | None:
+def _kill(command: guardgit.Command) -> str | None:
     if command.piped:
         return "`kill` run by `xargs`: its targets come from a pipe"
     for target in _kill_targets(command.arguments):
@@ -665,7 +692,7 @@ def _kill_targets(arguments: list[str]) -> list[str]:
     return targets if targets or first not in _LONE_TARGETS else [first]
 
 
-def _docker(command: _Command) -> str | None:
+def _docker(command: guardgit.Command) -> str | None:
     words = command.arguments[_DOCKER.skip(command.arguments, 0) :]
     if not words:
         return None
@@ -696,7 +723,7 @@ def _container_stop(verb: str, arguments: list[str], *, piped: bool) -> str | No
     return None
 
 
-def _compose(command: _Command) -> str | None:
+def _compose(command: guardgit.Command) -> str | None:
     arguments = command.arguments
     index = (_COMPOSE_V1 if command.name == "docker-compose" else _COMPOSE).skip(arguments, 0)
     if index < len(arguments) and arguments[index] in _COMPOSE_STOPS:
@@ -707,79 +734,14 @@ def _compose(command: _Command) -> str | None:
     return None
 
 
-def _unlink(command: _Command) -> str | None:
-    """Refuse to remove or move a lock of git, or to remove ``.git``: ``rm``, ``unlink``, ``mv``."""
-    if command.piped and command.named:
-        return (
-            f"`{command.name}` run by `xargs` on what a command that names .git or a .lock "
-            "found: a lock of git is held by a git command that runs, maybe in another worktree"
-        )
-    if command.name == "rm" and _recursive(command.arguments):
-        for argument in command.arguments:
-            if argument.rstrip("/").rpartition("/")[2] == ".git":
-                return (
-                    f"`rm -r {argument}`: it removes the repository, and the work of every worktree"
-                )
-    for argument in command.arguments:
-        directories, _, last = argument.rstrip("/").rpartition("/")
-        lock = last.endswith(".lock")
-        in_git = ".git" in directories.split("/") or (command.moved and lock)
-        # A directory computed by a substitution or a variable is `git rev-parse --git-dir`.
-        if (in_git and (lock or last[-1:] in {"*", "?", "]"})) or (lock and "$" in directories):
-            return (
-                f"`{command.name} {argument}`: a lock of git is held by a git command that runs, "
-                "maybe in another worktree"
-            )
-    return None
+def _make(command: guardgit.Command) -> str | None:
+    """Refuse the target ``merge-queue``, which a person runs; ``merge-queue-check`` passes.
 
-
-def _recursive(arguments: list[str]) -> bool:
-    """Say whether the options of an ``rm`` ask for a recursive removal."""
-    for word in arguments:
-        if word == "--":
-            return False
-        if word == "--recursive" or (
-            word[:1] == "-" and word[1:2] != "-" and set(word) & set("rR")
-        ):
-            return True
-    return False
-
-
-def _find(command: _Command) -> str | None:
-    """Judge a ``find`` that removes what it finds, by ``-delete`` or ``-exec rm``.
-
-    It is refused in a directory of git, or when it looks for a lock: from the root of a clone,
-    ``find . -name '*.lock' -delete`` reaches the locks of ``.git``.
+    A target is an operand that is no assignment, wherever it stands among the options, which
+    GNU ``make`` permutes: in ``make -C merge-queue check``, ``merge-queue`` is a directory.
     """
-    arguments = command.arguments
-    index = 0
-    while index < len(arguments) and (
-        arguments[index] in _FIND_OPTIONS or arguments[index][:2] in {"-D", "-O"}
-    ):
-        index += 2 if arguments[index] == "-D" else 1
-    paths: list[str] = []
-    while index < len(arguments) and arguments[index][:1] not in {"-", "(", ")", "!"}:
-        paths.append(arguments[index])
-        index += 1
-    expression = arguments[index:]
-    removes = "-delete" in expression or any(
-        word in _FIND_EXECS and following.rsplit("/", 1)[-1] in _FIND_REMOVERS
-        for word, following in itertools.pairwise(expression)
-    )
-    in_git = command.moved or any(".git" in path.split("/") for path in paths)
-    names_lock = any(".lock" in word for word in expression)
-    if removes and (in_git or names_lock):
-        reason = "the expression names a .lock" if names_lock and not in_git else "it is in git"
-        return (
-            f"`find … -delete` or `-exec rm` ({reason}): a lock of git is held by a git "
-            "command that runs, maybe in another worktree"
-        )
-    return None
-
-
-def _make(command: _Command) -> str | None:
-    """Refuse the target ``merge-queue``, which a person runs; ``merge-queue-check`` passes."""
-    if "merge-queue" in command.arguments:
+    _, operands = _MAKE.permuted(command.arguments)
+    if "merge-queue" in operands:
         return (
             "`make merge-queue`: it creates the rule set of the merge queue with the token of the "
             "user; a person runs it, and `make merge-queue-check` says whether it is there"
@@ -787,7 +749,7 @@ def _make(command: _Command) -> str | None:
     return None
 
 
-def _shell(command: _Command) -> str | None:
+def _shell(command: guardgit.Command) -> str | None:
     """Judge the script of ``bash -c``, ``sh -c`` and their like; a script file is not read.
 
     ``bash`` and ``dash`` take the argument of each ``-o`` or ``-O`` of a cluster from the words
@@ -838,7 +800,7 @@ def _script(arguments: list[str], *, rest: bool) -> int | None:
     return index if scripted and index < len(arguments) else None
 
 
-def _su(command: _Command) -> str | None:
+def _su(command: guardgit.Command) -> str | None:
     """Judge the script of ``su -c`` or ``runuser -c``, and the command of ``runuser -u``.
 
     Their options are read wherever they stand, as ``getopt`` permutes them; the words that
@@ -862,37 +824,38 @@ def _su(command: _Command) -> str | None:
     return None
 
 
-def _watch(command: _Command) -> str | None:
+def _watch(command: guardgit.Command) -> str | None:
     """Judge what ``watch`` runs: its operands, joined, are the script of ``sh -c``."""
     index = _WATCH.skip(command.arguments, 0)
     script = " ".join(command.arguments[index:])
     return _line(script, command.depth + 1, piped=command.piped, moved=command.moved)
 
 
-def _trap(command: _Command) -> str | None:
+def _trap(command: guardgit.Command) -> str | None:
     """Judge the action of ``trap``, which the shell runs on its signal: ``trap 'kill 0' EXIT``."""
     arguments = command.arguments[_TRAP.skip(command.arguments, 0) :]
     return _line(arguments[0], command.depth + 1, moved=command.moved) if arguments else None
 
 
-_CHECKS: dict[str, Callable[[_Command], str | None]] = {
+_CHECKS: dict[str, Callable[[guardgit.Command], str | None]] = {
     "pkill": _pattern,
     "killall": _pattern,
     "fuser": _fuser,
     "kill": _kill,
     "docker": _docker,
     "docker-compose": _compose,
-    "rm": _unlink,
-    "unlink": _unlink,
-    "mv": _unlink,
-    "rename": _unlink,
-    "find": _find,
+    "rm": guardgit.unlink,
+    "unlink": guardgit.unlink,
+    "mv": guardgit.unlink,
+    "rename": guardgit.unlink,
+    "truncate": guardgit.unlink,
+    "find": guardgit.find,
     "make": _make,
     "su": _su,
     "runuser": _su,
     "watch": _watch,
     "trap": _trap,
-} | dict.fromkeys(_SHELLS, _shell)
+} | dict.fromkeys(guardgit.SHELLS, _shell)
 
 
 def _command_of(event: object) -> str | None:
