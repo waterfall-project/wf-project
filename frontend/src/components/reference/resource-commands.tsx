@@ -287,13 +287,7 @@ export function ResourceRoleDialog({
     required: true,
     choices,
   });
-  const number = (name: string, label: string, required = true): FormField => ({
-    name,
-    label,
-    control: "number",
-    required,
-  });
-  const attachments = [
+  const attachments: FormField[] = [
     choice(
       "cost_category_id",
       columns("costCategory"),
@@ -317,9 +311,19 @@ export function ResourceRoleDialog({
         ),
       ),
     ),
-    // Optional: the hours per month are calculated, what is typed there is not written.
-    number("capacity/monthly_hours", columns("monthlyHours"), false),
-    number("capacity/headcount", columns("headcount")),
+    // The hours per month are calculated, never typed (WF-IHM-0030): shown read-only once the role
+    // exists, absent from the creation, which has none yet.
+    ...(role === undefined
+      ? []
+      : [
+          {
+            name: "capacity/monthly_hours",
+            label: columns("monthlyHours"),
+            control: "fixed" as const,
+            note: t("roleForm.hoursNote"),
+          },
+        ]),
+    { name: "capacity/headcount", label: columns("headcount"), control: "number", required: true },
   ];
   const written = (values: Draft) => ({
     code: values.code ?? "",
