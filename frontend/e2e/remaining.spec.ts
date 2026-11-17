@@ -558,30 +558,27 @@ async function referenceOf(page: Page, seeded: Seeded) {
 }
 
 /**
- * The reference budget and the planned value the service serves for the project in progress
- * (`getProjectIndicators`, WF-IND-0010), read by the API under the token of its creator, with the
- * day of the reading: the planned value is that of the current day, and the service does not yet
- * answer `as_of` for a project in progress (it raises `NotImplementedError`, US-1670/L2), so a
- * comparison of two readings holds the planned value only when the day has not changed between them.
+ * The reference budget the service serves for the project in progress (`getProjectIndicators`,
+ * WF-IND-0010), read by the API under the token of its creator. Not the planned value, which is that
+ * of the current day: `as_of` cannot pin it here, the project having no revision marked In progress
+ * (the one it has was marked before the passage, and kept no indicator: 409).
  */
 async function figuresOf(calls: APIRequestContext, seeded: Seeded) {
-  const day = today();
   const read = await calls.get(`${API}/projects/${seeded.ids.project}/indicators`, {
     headers: seeded.headers,
   });
   expect(read.status()).toBe(200);
   const body = (await read.json()) as components["schemas"]["ProjectIndicators"];
-  return { day, budget: body.reference_budget, planned: body.planned_value };
+  return { budget: body.reference_budget };
 }
 
 /**
- * The figures before the gesture: both amounts are asserted non-zero, since a service that
+ * The figures before the gesture: the reference budget is asserted non-zero, since a service that
  * answered « 0.00 » everywhere would leave every comparison between two readings true.
  */
 async function figuresBefore(calls: APIRequestContext, seeded: Seeded) {
   const before = await figuresOf(calls, seeded);
   expect(Number(before.budget)).toBeGreaterThan(0);
-  expect(Number(before.planned)).toBeGreaterThan(0);
   return before;
 }
 
@@ -593,13 +590,6 @@ async function expectFiguresKept(
 ) {
   const after = await figuresOf(calls, seeded);
   expect(after.budget).toBe(before.budget);
-  // A run across midnight moves the planned value of the day, not the reference.
-  if (after.day === before.day) expect(after.planned).toBe(before.planned);
-}
-
-/** Today, as the date the contract reads (`PlanningDate`). */
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
 }
 
 /**
@@ -685,7 +675,7 @@ test("adds a task from the remaining to commit of a project in progress the run 
     // ... while the reference is the same revision, without the task.
     const kept = await referenceOf(page, seeded);
     expect(kept.reference).toBe(reference.reference);
-    // ... and the reference budget and the planned value do not move (WF-RAE-0040-A).
+    // ... and the reference budget does not move (WF-RAE-0040-A).
     await expectFiguresKept(calls, seeded, before);
     await openHydrated(page, `${seeded.own.path}/revisions/${reference.reference}/planning`);
     const referenced = page.getByRole("treegrid", { name: "Grille de planning" });
@@ -744,7 +734,7 @@ test("inserts a line in the remaining to commit of a project in progress the run
     // make a line of labour), and the quantity is the one entered.
     await expect(created.getByRole("img", { name: "Ligne de débours" })).toBeVisible();
     // The line is added to the revision in progress, which the reference ignores: the reference
-    // budget and the planned value do not move (WF-RAE-0040-A).
+    // budget does not move (WF-RAE-0040-A).
     await expectFiguresKept(calls, seeded, before);
   } finally {
     await calls.dispose();

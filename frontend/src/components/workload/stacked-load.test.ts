@@ -21,9 +21,16 @@ const PALETTE: ChartPalette = {
 };
 
 /** The roles of the witness project, as the service gives them: the third is loaded on 8 months. */
-const ROLES = (example("workload") as { roles: LoadRole[] }).roles;
+const ROLES: LoadRole[] = (
+  example("workload") as {
+    roles: { label: string; months: { month: string; hours: string }[] }[];
+  }
+).roles.map((role) => ({
+  label: role.label,
+  months: role.months.map(({ month, hours }) => ({ month, value: hours })),
+}));
 
-/** The `[instant, hours]` points of each series. */
+/** The `[instant, value]` points of each series. */
 function points(roles: readonly LoadRole[]) {
   return stackedRoles(PALETTE, roles).map((series) => series.data);
 }
@@ -41,7 +48,7 @@ describe("the series of the roles of a stack of bars", () => {
     const rank = (month: string) => instants(electrician)?.indexOf(`${month}-01T00:00:00Z`) ?? -1;
     expect(instants(electrician)).toEqual([...(instants(electrician) ?? [])].sort());
     // The wirer is on its own months, at the rank of those months — September 2027, not June 2026.
-    expect(wirer?.[rank("2027-09")]).toEqual(["2027-09-01T00:00:00Z", ROLES[2]?.months[0]?.hours]);
+    expect(wirer?.[rank("2027-09")]).toEqual(["2027-09-01T00:00:00Z", ROLES[2]?.months[0]?.value]);
     expect(wirer?.[rank("2026-06")]?.[1]).toBe("-");
     expect(wirer?.[rank("2029-08")]?.[1]).toBe("-");
     // And the others are empty in December 2027, where only the wirer is loaded.
@@ -52,7 +59,7 @@ describe("the series of the roles of a stack of bars", () => {
   it("keeps the hours of the API as they are: nothing is summed, nothing is rounded [WF-ARC-0020-A]", () => {
     const [electrician] = points(ROLES);
     const given = new Map(
-      ROLES[0]?.months.map((each) => [`${each.month}-01T00:00:00Z`, each.hours]),
+      ROLES[0]?.months.map((each) => [`${each.month}-01T00:00:00Z`, each.value]),
     );
     for (const [instant, hours] of electrician ?? []) {
       if (hours !== "-") {

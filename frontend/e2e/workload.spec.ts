@@ -147,9 +147,7 @@ test("presents the detail of the plan under its chart, a tree grid from the role
   await expect(region.getByRole("searchbox")).toHaveCount(0);
 });
 
-// Against the fake back alone until US-2040/L2 (#3512), which makes the service detail the tasks:
-// the tag `@shared` then joins it.
-test("leads from a task of the detail to its row in the planning grid of the revision read, unfolded down to it and aimed at [WF-DEV-0090-A]", async ({
+test("leads from a task of the detail to its row in the planning grid of the revision read, unfolded down to it and aimed at @shared [WF-DEV-0090-A]", async ({
   page,
 }) => {
   // Depuis une tâche du détail, l'utilisateur atteint cette tâche dans la grille de planning, la

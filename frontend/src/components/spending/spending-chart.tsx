@@ -106,9 +106,9 @@ export function SpendingChart({ spending, provenance }: SpendingChartProps) {
       // strings of the API, only aligned.
       const stacked = types.map((type) => ({
         label: type.label,
-        months: type.months.map(({ month, amount }) => ({ month, hours: amount })),
+        months: type.months.map(({ month, amount }) => ({ month, value: amount })),
       }));
-      const monthly = totals.map(({ month, amount }) => ({ month, hours: amount }));
+      const monthly = totals.map(({ month, amount }) => ({ month, value: amount }));
       return {
         useUTC: true,
         textStyle: { fontFamily: palette.font, color: palette.text },

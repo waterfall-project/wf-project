@@ -120,6 +120,12 @@ export function WorkloadChart({ workload, provenance }: WorkloadChartProps) {
     (palette: ChartPalette): ChartOption => {
       const tick = new Intl.NumberFormat(formatLocale(locale));
       const months = totals.map((each) => planningInstant(each.month));
+      // The stack reads a value where the contract names hours: the same strings, only aligned.
+      const stacked = roles.map((role) => ({
+        label: role.label,
+        months: role.months.map(({ month, hours }) => ({ month, value: hours })),
+      }));
+      const monthly = totals.map(({ month, hours }) => ({ month, value: hours }));
       return {
         // Its axis of time is in UTC: its ticks too (`timeAxis`).
         useUTC: true,
@@ -137,8 +143,8 @@ export function WorkloadChart({ workload, provenance }: WorkloadChartProps) {
         },
         tooltip: monthTooltip(palette, locale, (hours) => t("workload.hoursUnit", { hours })),
         series: [
-          ...stackedRoles(palette, roles),
-          monthTotals(palette, totalSeries, totals, locale),
+          ...stackedRoles(palette, stacked),
+          monthTotals(palette, totalSeries, monthly, locale),
         ],
       };
     },
