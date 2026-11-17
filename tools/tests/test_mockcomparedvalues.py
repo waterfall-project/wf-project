@@ -167,10 +167,14 @@ def test_the_current_revision_is_compared_with_the_reference_it_was_opened_from(
     assert "La révision en cours du témoin" in str(example["summary"])
 
 
+@pytest.mark.requirement("WF-REV-0080-A")
+@pytest.mark.requirement("WF-IHM-0160-A")
 def test_the_planning_variant_carries_a_shifted_finish_a_removed_line_and_branches_unchanged() -> (
     None
 ):
-    # EP-27, #3778: a task whose finish is later than its base's (`base.task.finish`,
+    # EP-27, #3778; WF-REV-0080 (the delayed finish, the removed line, the amount modified) and
+    # WF-IHM-0160 (the totals and the deltas of the amounts, the removed line counted in the base
+    # alone): a task whose finish is later than its base's (`base.task.finish`,
     # `deltas.task.finish`), a line removed without base, an amount modified, and whole branches
     # without difference, a summary included, for the screen to fold.
     example = mockcomparisons.examples()["comparison_planning.json"]
@@ -203,6 +207,15 @@ def test_the_planning_variant_carries_a_shifted_finish_a_removed_line_and_branch
         ("unchanged", None, None)
     }
     assert branch[0]["task"]["is_summary"] is True
+    # The removed provision is in the base and not in the read: 8 lines read, 9 in the base.
+    assert value["totals"]["estimate_line_count"] == 8
+    assert value["base_totals"]["estimate_line_count"] == 9
+    [provision] = [
+        entry
+        for entry in value["amount_deltas"]
+        if entry["dimension"] == "cost_type" and entry["label"] == "Provision"
+    ]
+    assert Decimal(provision["budgeted_delta"]) == Decimal("-250000.00")
 
 
 @pytest.mark.parametrize(
