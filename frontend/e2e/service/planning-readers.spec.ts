@@ -183,3 +183,36 @@ test("an account that reads every project and is no contributor reads the planni
   });
   expect(created.status(), "POST nodes once inscribed").toBe(201);
 });
+
+test("an account that reads the planning without reading the revisions opens the grid and its banner [WF-REV-0080-A]", async ({
+  page,
+  browser,
+}) => {
+  test.slow();
+  // « planning.read » reads the planning; « project_settings.read » the project and its subprojects
+  // the context of the screen asks. No « revisions.read »: the banner reads the revision by
+  // getRevision, which the planning reader may (US-2320/L2).
+  const planner = await localAccount(browser, administrator);
+  await administrator.giveAlso(planner.id, [
+    ["Lecteur de planning", ["planning.read", "project_settings.read"]],
+  ]);
+  await signIn(page, creator, "/account");
+  const seeded = await seedPlanning(page, browser, calls, creator, "Sans révisions");
+  await inscribe(browser, calls, creator, planner, seeded.own);
+
+  const context = await browser.newContext({ ignoreHTTPSErrors: true });
+  try {
+    const screen = await context.newPage();
+    await signIn(screen, planner, "/account");
+    await openHydrated(screen, seeded.planning);
+    const grid = screen.getByRole("treegrid", { name: "Grille de planning" });
+    await expect(grid.getByRole("row", { name: new RegExp(`^2 .*${SEEDED[2]}`) })).toBeVisible({
+      timeout: WORKING,
+    });
+    await expect(screen.getByRole("banner")).toContainText(seeded.own.label);
+    // The function of the revisions stays out of her navigation.
+    await expect(screen.getByRole("link", { name: "Gestion des révisions" })).toHaveCount(0);
+  } finally {
+    await context.close();
+  }
+});
