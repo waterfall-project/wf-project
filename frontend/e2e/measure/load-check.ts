@@ -51,9 +51,10 @@ export interface LoadRun {
 /** The share of the readings, or of the entries, that may be refused before the load is void. */
 export const REFUSED_TOLERANCE = 0.01;
 /**
- * The readings, or the entries, that may be refused whatever their share: one. A hundredth of the
- * seventy entries of a load tolerates none, and a single refusal at random would void a measure of
- * twenty minutes; the one tolerated is named in the report (`conditions.load.refusals`).
+ * The readings, and the entries, that may be refused whatever their share: one of each, counted
+ * apart. A hundredth of the seventy entries of a load tolerates none, and a single refusal at
+ * random would void a measure of twenty minutes; the one tolerated is named in the report
+ * (`conditions.load.refusals`), and a refusal the log does not name is not tolerated this way.
  */
 export const REFUSED_LEAST = 1;
 /** The most refusals the report names: a load that refused more has failed. */
@@ -81,38 +82,59 @@ export interface Refusal {
 }
 
 /**
- * The refusals a log of k6 names, one `refused <kind> <name>: <status>` a line
+ * The refusals a log of k6 names, one `msg="refused <kind> <name>: <status>"` a line
  * (`bench/load.ts`), the first of them up to what the report holds.
  */
 export function refusalsOf(log: string): Refusal[] {
   const refusals: Refusal[] = [];
-  for (const match of log.matchAll(/refused (\S+) (.+?): (\d+)/g)) {
+  for (const match of log.matchAll(/msg="refused (\S+) (.+?): (\d+)"/g)) {
     refusals.push({ kind: match[1] ?? "", name: match[2] ?? "", status: Number(match[3]) });
   }
   return refusals.slice(0, REFUSALS_REPORTED);
 }
 
-/** The refusals tolerated of gestures: a hundredth of them, rounded down, one at least. */
-export function refusedTolerated(gestures: number): number {
-  return Math.max(Math.floor(gestures * REFUSED_TOLERANCE), REFUSED_LEAST);
+/** The log of a container as `docker logs` gives it: k6 writes to its error output, after the output. */
+export function logText(output: { stdout?: string | null; stderr?: string | null }): string {
+  return `${output.stdout ?? ""}\n${output.stderr ?? ""}`;
+}
+
+/**
+ * The refusals tolerated of gestures: a hundredth of them, rounded down, one at least — unless
+ * the load refused some its log does not name (`unnamed`), the one at least being tolerated only
+ * for being named.
+ */
+export function refusedTolerated(gestures: number, unnamed = 0): number {
+  const share = Math.floor(gestures * REFUSED_TOLERANCE);
+  return unnamed > 0 ? share : Math.max(share, REFUSED_LEAST);
 }
 
 /** The reasons the load did not run as asked; none when it did. */
-export function loadFailures(summary: LoadSummary | undefined, run: LoadRun): string[] {
+export function loadFailures(
+  summary: LoadSummary | undefined,
+  run: LoadRun,
+  refusals: readonly Refusal[],
+): string[] {
   if (summary === undefined) {
     return ["the load wrote no summary"];
   }
   const failures: string[] = [];
-  const tolerated = (gestures: number) => `${String(refusedTolerated(gestures))} tolerated`;
+  // The log is read before the stop of the load: what it refuses during the stop is counted by
+  // k6 and named nowhere. Unless the report is full, such a refusal is not tolerated as isolated.
+  const counted = summary.reads_refused + summary.writes_refused;
+  const unnamed = refusals.length < REFUSALS_REPORTED ? Math.max(counted - refusals.length, 0) : 0;
+  const allowed = (gestures: number) => refusedTolerated(gestures, unnamed);
+  const tolerated = (gestures: number) =>
+    `${String(allowed(gestures))} tolerated` +
+    (unnamed > 0 ? `, ${String(unnamed)} refusal(s) not named` : "");
   if (summary.unauthorised !== 0) {
     failures.push(`${String(summary.unauthorised)} gestures refused for want of a valid token`);
   }
-  if (summary.reads === 0 || summary.reads_refused > refusedTolerated(summary.reads)) {
+  if (summary.reads === 0 || summary.reads_refused > allowed(summary.reads)) {
     failures.push(
       `${String(summary.reads_refused)} of ${String(summary.reads)} readings refused, ${tolerated(summary.reads)}`,
     );
   }
-  if (summary.writes_refused > refusedTolerated(summary.writes)) {
+  if (summary.writes_refused > allowed(summary.writes)) {
     failures.push(
       `${String(summary.writes_refused)} of ${String(summary.writes)} entries refused, ${tolerated(summary.writes)}`,
     );

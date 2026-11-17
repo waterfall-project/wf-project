@@ -267,11 +267,11 @@ test("measures each operation of table 15 the service serves under the load of f
     // The marking, last of the background tasks, froze the revision
     // from the asking of its first pass.
     const frozenSeconds = frozenAt === undefined ? 0 : (stopped - frozenAt) / 1000;
-    const failures = loadFailures(summary, {
-      users,
-      duration_s: durationSeconds,
-      frozen_s: frozenSeconds,
-    });
+    const failures = loadFailures(
+      summary,
+      { users, duration_s: durationSeconds, frozen_s: frozenSeconds },
+      refusals,
+    );
     if (summary === undefined || failures.length > 0) {
       throw new Error(`The load did not run as asked: ${failures.join("; ")}`);
     }

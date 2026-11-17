@@ -30,6 +30,7 @@ import { frontTokens, type Person } from "../service/realm";
 import type { Caller } from "./background";
 import {
   type LoadSummary,
+  logText,
   type Refusal,
   refusalsOf,
   type Volumes,
@@ -180,10 +181,17 @@ function docker(arguments_: readonly string[]): string {
   return run.stdout;
 }
 
-/** What the log of the load says, k6 writing it to its error output. */
+/** What the log of the load says; what keeps it from being read is said, not fatal. */
 function logOf(name: string): string {
-  const run = spawnSync("docker", ["logs", name], { encoding: "utf8" });
-  return `${run.stdout}\n${run.stderr}`;
+  const run = spawnSync("docker", ["logs", name], {
+    encoding: "utf8",
+    maxBuffer: 256 * 1024 * 1024,
+  });
+  if (run.error !== undefined || run.status !== 0) {
+    const why = run.error?.message ?? `docker logs exited ${String(run.status)}: ${run.stderr}`;
+    console.log(`The load: log unreadable: ${why}`);
+  }
+  return logText(run);
 }
 
 /** The load once stopped: its summary, if it wrote one, and the refusals its log names. */
