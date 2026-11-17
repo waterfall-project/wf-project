@@ -3809,14 +3809,18 @@ Règles des workflows :
 - un outil téléchargé hors d'une action est épinglé par sa version et vérifié par son
   empreinte, comme pandoc dans `spec.yml`.
 - Dependabot propose chaque mois, par une pull request par écosystème, les mises à jour de
-  ce qu'il suit : les Actions, uv (`/backend`, `/tools`), npm (`/frontend`), Maven (l'extension de
-  Keycloak) et les images des Dockerfiles et des fichiers Compose ; les mineures et les
+  ce qu'il suit : les Actions — celles des workflows et celles des actions locales,
+  `.github/actions/*` —, uv (`/backend`, `/tools`), npm (`/frontend`), Maven (l'extension de
+  Keycloak) et les images des Dockerfiles — `deploy/e2e`, l'image de travail des parcours, compris — et
+  des fichiers Compose ; les mineures et les
   correctifs d'un écosystème arrivent groupés, chaque majeure dans la sienne, sous le préfixe
   `Chaîne :`. Les dépendances `org.keycloak` et `jakarta.ws.rs-api` de l'extension sont
   ignorées : elles suivent l'image de Keycloak. La majeure de TypeScript n'a pas de règle
   d'ignorance : l'auteur ferme sa pull request tant que `typescript-eslint` ne la tient pas.
 - Dependabot ne suit pas, et l'auteur relève à la main, à la pull request mensuelle de
-  Dependabot : `packageManager` du front, l'uv et le client PostgreSQL de l'image `waterfall`
+  Dependabot : une action ou une image épinglée dans un répertoire qu'aucune entrée de
+  `.github/dependabot.yml` ne nomme (un test des outils tient que ceux des actions et de `deploy/e2e` le
+  sont, et qu'une action a la même empreinte partout), `packageManager` du front, l'uv et le client PostgreSQL de l'image `waterfall`
   (et sa clé, `backend/pgdg.asc`), les runners et le pandoc de la chaîne, et
   `maven.compiler.release` du `pom.xml` de l'extension,
   qui reste à 21 exprès (le Java de l'image de Keycloak, pas le JDK de construction) : il se
