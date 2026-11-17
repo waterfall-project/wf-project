@@ -64,7 +64,6 @@ describe("a revision as the banner offers it", () => {
     expect(current && listedRevision(current)).toEqual({
       revision_id: CURRENT,
       version_name: null,
-      status: "draft",
       is_reference: false,
     });
   });

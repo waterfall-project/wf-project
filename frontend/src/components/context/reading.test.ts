@@ -243,16 +243,15 @@ describe("the revisions a screen offers to read instead", () => {
     const [reading] = await Promise.all([read(REMAINING), read(`${REMAINING}?as_of=2026-05-31`)]);
     expect(reading).toMatchObject({
       revisions: [
-        { revision_id: REVISION, version_name: null, status: "draft", is_reference: false },
-        { version_name: "Référence", status: "marked", is_reference: true },
-        { version_name: "Offre v1.0", status: "marked", is_reference: false },
+        { revision_id: REVISION, version_name: null, is_reference: false },
+        { version_name: "Référence", is_reference: true },
+        { version_name: "Offre v1.0", is_reference: false },
       ],
     });
     // Nothing more of a revision than what the banner names crosses to the browser.
     expect(typeof reading === "object" && Object.keys(reading.revisions?.[0] ?? {})).toEqual([
       "revision_id",
       "version_name",
-      "status",
       "is_reference",
     ]);
     const listed = fake.calls.filter((call) => call.route === REVISIONS);

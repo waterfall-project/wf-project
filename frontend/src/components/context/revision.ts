@@ -20,7 +20,6 @@ export interface ListedRevision {
   readonly revision_id: string;
   /** Its version name; `null` for the revision under way, which has none. */
   readonly version_name: string | null;
-  readonly status: components["schemas"]["RevisionStatus"];
   readonly is_reference: boolean;
 }
 
@@ -28,17 +27,13 @@ export interface ListedRevision {
 export function listedRevision({
   revision_id,
   version_name,
-  status,
   is_reference,
 }: Pick<
   components["schemas"]["Revision"],
-  "revision_id" | "version_name" | "status" | "is_reference"
+  "revision_id" | "version_name" | "is_reference"
 >): ListedRevision {
-  return { revision_id, version_name, status, is_reference };
+  return { revision_id, version_name, is_reference };
 }
-
-// A function of a revision: `/projects/{project}/revisions/{revision}[/{screen}]`.
-const REVISION_SEGMENT = 4;
 
 /**
  * The address of the same screen on another revision, from the address a change goes on from —
@@ -52,10 +47,12 @@ export function revisionHref(pathname: string, query: URLSearchParams, revisionI
     return pathname;
   }
   const chosen = { ...context, revisionId };
-  if (!context.revisionInPath) {
+  if (!context.revisionInPath || context.revisionId === undefined) {
     return pathname + contextQuery(chosen, true);
   }
-  const segments = pathname.split("/");
-  segments[REVISION_SEGMENT] = revisionId;
-  return segments.join("/") + contextQuery(chosen, false);
+  // A function of a revision, as `readContext` reads it: `/projects/{project}/revisions/{revision}`,
+  // then the screen if any, which is kept.
+  const revisionPath = (id: string) => `/projects/${context.projectId}/revisions/${id}`;
+  const screen = pathname.slice(revisionPath(context.revisionId).length);
+  return revisionPath(revisionId) + screen + contextQuery(chosen, false);
 }
