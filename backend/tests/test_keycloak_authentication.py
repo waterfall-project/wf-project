@@ -252,14 +252,22 @@ def settings() -> ServiceSettings:
     return served_settings()
 
 
-@pytest.fixture
-def logs() -> Iterator[Logs]:
+@contextmanager
+def realm_logs() -> Generator[Logs]:
     """Capture the logs in memory, the secrets of the realm masked, then restore them.
 
     The fixture of ``conftest.py`` stays clear of the environment, and this one reads the secrets
-    of the realm as ``served_settings`` does (#935).
+    of the realm as ``served_settings`` does (#935). The fixture ``logs`` of the Keycloak tests
+    gives it, here and in ``test_keycloak_sign_in.py``.
     """
     with captured_logs(served_settings().secret_values()) as captured:
+        yield captured
+
+
+@pytest.fixture
+def logs() -> Iterator[Logs]:
+    """Give the logs of the realm, captured."""
+    with realm_logs() as captured:
         yield captured
 
 

@@ -397,13 +397,30 @@ def test_a_composition_of_an_object_and_a_list_is_followed_by_the_shape_of_the_v
     assert rejected.value.pointers == ["/hint"]
 
 
+# The compositions of the contract that the client would refuse, known: the body of a request, which
+# the client never reads, offers the two branches of an object that are not apart (#ISSUE_SONDE).
+# The list can only empty: the test fails on one that is no longer ambiguous.
+KNOWN_AMBIGUOUS = {
+    "docs/api/components/schemas/projects.yaml#/ProjectExit/properties/current_revision",
+    "docs/api/components/schemas/projects.yaml#/CurrentRevisionFate",
+}
+
+
+def known(where: str) -> str:
+    """Give where a composition is as ``KNOWN_AMBIGUOUS`` writes it, from ``docs/api``."""
+    return "docs/api/" + where.split("/docs/api/", 1)[1]
+
+
 @pytest.mark.requirement("WF-ARC-0110-A")
-def test_no_composition_of_the_contract_offers_an_answer_more_than_one_branch_to_follow(
+def test_no_composition_of_the_contract_offers_a_value_more_than_one_branch_to_follow(
     contract: OpenAPI,
 ) -> None:
-    # Every ``anyOf`` and ``oneOf`` of the contract, not those an answer of a test happens to reach:
-    # a composition that the client would refuse is found when the contract changes.
-    assert ambiguous_compositions(contract) == []
+    # Every ``anyOf`` and ``oneOf`` of the whole contract, ``components`` and the bodies of the
+    # requests included, not those an answer of a test happens to reach: a composition that the
+    # client would refuse is found when the contract changes.
+    found = {known(where) for where in ambiguous_compositions(contract)}
+    assert found - KNOWN_AMBIGUOUS == set(), "a composition the client cannot follow"
+    assert KNOWN_AMBIGUOUS - found == set(), "a known composition that is no longer ambiguous"
     # Positive controls: the walk reaches the compositions of the contract, and finds an ambiguous
     # one when there is one, or it would pass on nothing.
     assert len(list(compositions(contract))) > 100

@@ -434,12 +434,11 @@ def target(address: str, reference: str) -> tuple[str, Pointer]:
 
 
 def compositions(contract: OpenAPI) -> Iterator[tuple[str, SchemaPath]]:
-    """Give each node that composes by ``anyOf`` or ``oneOf`` in what an answer is held to.
+    """Give each node that composes by ``anyOf`` or ``oneOf`` in the whole contract.
 
-    The client reads answers only: a node is given when it is reached from the ``responses`` of an
-    operation, by the references it follows from one document to another, examples left out. Each
-    comes as a schema path that resolves its references in its own document: where it is, then
-    the node.
+    Each node of each document the contract reaches by its references, the schemas of ``components``
+    and the bodies of the requests as well as the answers, examples left out. Each comes as a
+    schema path that resolves its references in its own document: where it is, then the node.
     """
     root = contract.spec.base_uri
     found = documents(root, contract.spec.read_value())
@@ -447,32 +446,10 @@ def compositions(contract: OpenAPI) -> Iterator[tuple[str, SchemaPath]]:
         (address, DRAFT202012.create_resource(each)) for address, each in found.items()
     )
     crawled = registry.crawl()
-    pending = [
-        (address, pointer)
-        for address, each in found.items()
-        for pointer, _ in below(each, ())
-        if pointer and pointer[-1] == "responses"
-    ]
-    seen = set(pending)
-    given: set[tuple[str, Pointer]] = set()
-    while pending:
-        address, start = pending.pop()
-        value: Any = found[address]
-        for part in start:
-            value = value[part]
-        for pointer, node in below(value, start):
-            if not isinstance(node, dict):
-                continue
-            held = cast("dict[str, object]", node)
-            reference = held.get("$ref")
-            if isinstance(reference, str):
-                reached = target(address, reference)
-                if reached not in seen:
-                    seen.add(reached)
-                    pending.append(reached)
-            if ("anyOf" in held or "oneOf" in held) and (address, pointer) not in given:
-                given.add((address, pointer))
-                accessor = SchemaAccessor(found[address], crawled.resolver(base_uri=address))
+    for address, each in found.items():
+        for pointer, node in below(each, ()):
+            if isinstance(node, dict) and ("anyOf" in node or "oneOf" in node):
+                accessor = SchemaAccessor(each, crawled.resolver(base_uri=address))
                 schema = SchemaPath(accessor, separator=SPEC_SEPARATOR)
                 for part in pointer:
                     schema = schema / part

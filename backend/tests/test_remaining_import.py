@@ -9,7 +9,7 @@ is marked and whose current revision is open (``remaining_support``); each answe
 the contract. The export, and the round trip with it, are US-1630/L4's.
 """
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -507,14 +507,14 @@ def test_a_remaining_imported_after_the_new_year_run_keeps_the_year_the_test_was
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # The revision an import opens takes its year from the clock of ``running``, which ``pin_year``
-    # holds at the last instant of ``YEAR``: a clock that reads a year later, as a run that
-    # crosses New Year would, still gives the revision ``YEAR``.
+    # holds near the end of ``YEAR``: a clock that reads a year later, as a run that crosses New
+    # Year would, still gives the revision ``YEAR``.
     review_marked(stage, scene.tree.revision, "Revue 1")
     rows = scene.exported()
     rows[0][3] = 3
     import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
     monkeypatch.setattr("estimate_support.utc_now", lambda: LATER)
-    assert running.utc_now() == LAST_INSTANT
+    assert LAST_INSTANT - timedelta(seconds=2) < running.utc_now() <= LAST_INSTANT
     applied(api, stage, worker, import_id)
     created = project_of(api, stage)["current_revision_id"]
     assert created != scene.tree.revision["revision_id"]

@@ -36,6 +36,8 @@ from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import pytest
     from nodes_support import Tree
     from projects_support import Person
@@ -317,20 +319,53 @@ CLOCKED = (
 )
 
 
+# What is left of ``YEAR`` after the instant a pinned clock stops at: a clock that has stopped goes
+# on by a microsecond a reading, and this is the number of readings it has before the year ends.
+HEADROOM = timedelta(seconds=1)
+CEILING = LAST_INSTANT - HEADROOM
+
+
+def pinned_clock(read: Callable[[], datetime]) -> Callable[[], datetime]:
+    """Give a clock that reads ``read`` but never leaves ``YEAR``, and never reads twice the same.
+
+    It follows ``read`` until ``CEILING``, a second before the last instant of ``YEAR``. Past it,
+    it advances by a microsecond at each reading: a test that compares two instants it reads (a
+    review that must be after another) still finds them apart, where a clock stopped at one
+    instant would give them equal (#3739).
+    """
+    last: list[datetime] = []
+
+    def clock() -> datetime:
+        instant = min(read(), CEILING)
+        if last and instant <= last[0]:
+            instant = last[0] + timedelta(microseconds=1)
+        last[:] = [instant]
+        return instant
+
+    return clock
+
+
+def read_clock() -> datetime:
+    """Read ``utc_now`` of this module at each call: a test sets it to cross New Year."""
+    return utc_now()
+
+
 def pin_year(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep the services that read the year or the day in ``YEAR``, though the run crosses New Year.
 
     The year a revision is born with is the one its clock reads at the request (WF-REV-0060), by
     the service or by the import that opens it; the rates of ``costing`` are for ``YEAR``, read
-    once. The clock of each module of ``CLOCKED`` still runs, but stops at ``LAST_INSTANT``, the
-    last instant of ``YEAR``: an instant after midnight, when the run has crossed it, falls on
-    that one. It runs before every test (the fixture ``pinned_year`` of ``conftest.py``), so that a
-    test or a fixture that sets a clock of its own sets it over this one; a clock already set when
-    it runs would be pinned over, or left, and fails the test instead.
+    once. The clock of each module of ``CLOCKED`` still runs, but stops near the end of ``YEAR``
+    (``pinned_clock``): an instant after midnight, when the run has crossed it, falls there,
+    on the 31 December, and each reading is after the one before. It runs before every test (the
+    fixture ``pinned_year`` of ``conftest.py``), so that a test or a fixture that sets a clock of
+    its own sets it over this one; a clock already set when it runs would be pinned over, or
+    left, and fails the test instead.
     """
+    clock = pinned_clock(read_clock)
     for module in CLOCKED:
         assert import_module(module).utc_now is utc_now, f"the clock of {module} is already set"
-        monkeypatch.setattr(f"{module}.utc_now", lambda: min(utc_now(), LAST_INSTANT))
+        monkeypatch.setattr(f"{module}.utc_now", clock)
 
 
 @dataclass(frozen=True)
