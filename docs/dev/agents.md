@@ -188,7 +188,9 @@ l'accorde. Un test des outils (`tools/tests/test_permissions.py`) l'éprouve.
   (`make merge-queue EPIC=EP-nn`, qui crée le jeu de règles de la file avec le jeton de
   l'utilisateur : une personne la lance), que le garde refuse ; `make merge-queue-check` passe.
   Il refuse aussi `find … | xargs rm` (ou `unlink`, `mv`, `rename`) quand une commande plus haut
-  dans le tube nomme `.git` ou un `.lock`, et `rm -r` de `.git` ; `command -v <nom>` ne lance
+  dans le même tube nomme `.git` ou un `.lock` ; `rm`, `mv` ou `truncate` d'un opérande qui est
+  `.git`, passe par `.git/` ou s'ouvre par `.git` suivi d'un joker ; et `find` qui nomme `.git`
+  et supprime ce qu'il trouve (`-name .git -exec rm`, `-delete`) ; `command -v <nom>` ne lance
   rien et passe. Le hook le lance par `tools/src/wftools/launch.py guard || exit 2`, et le garde
   échoue fermé (US-2450) : sous un `python3` antérieur à 3.14, ou s'il lève en jugeant, toute
   commande est refusée, avec la raison ; sans `python3`, ou quand le lanceur lui-même ne va pas au

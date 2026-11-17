@@ -25,9 +25,10 @@ which the shell runs. ``shlex`` cuts the words alone: its operators do not tell 
 from one that ends a command, and ``kill 1 ';' $pid`` would hide its last target.
 
 Three more forms are refused (US-1340): ``xargs rm`` (or ``unlink``, ``mv``, ``rename``) when a
-command before it on the line names ``.git`` or a lock, ``rm -r`` of ``.git``, and the target
-``merge-queue`` of ``make``, which a person alone runs. ``command -v`` looks a name up and runs
-nothing: the name that follows is not judged.
+command before it in its pipeline names ``.git`` or a lock (US-2450: ``find .git; ls | xargs rm``
+passes), ``rm -r`` of ``.git``, and the target ``merge-queue`` of ``make``, which a person alone
+runs, wherever it stands among the options of ``make`` (US-2450: in ``make -C merge-queue``, it is
+a directory). ``command -v`` looks a name up and runs nothing: the name that follows is not judged.
 
 A ``cd`` into a directory of git is followed along the line, into the scripts it runs
 (``guardgit.py``).
@@ -75,14 +76,22 @@ _OPERATORS = frozenset(";&|()\n")
 # The longest first: `<<-` before `<<`, `>>` before `>`.
 _REDIRECTION = re.compile(r"&>>?|<<<|<<-?|<>|<&|<|>>|>&|>\||>")
 _BACKSLASHED = re.compile(r"\\([\\`$])")
-# What a line not cut is refused for naming: the command words of the forms refused.
+# What a line not cut is refused for naming: the command words of the forms refused. Between
+# `make` and `merge-queue` stand its options, its assignments and a number of `-j 2`; an option
+# that takes the next word for its argument takes it, once (`make -C merge-queue` passes).
 _FORBIDDEN = re.compile(
     r"(?<![\w-])(?:pkill|killall|kill|docker|docker-compose)(?![\w-])|\.lock\b"
-    r"|(?<![\w-])make\s+merge-queue(?![\w-])"
+    r"|(?<![\w-])make(?:\s+(?>-[CEfIoW]\s+\S+|-\S+|[A-Za-z_]\w*\+?=\S*|[0-9.]+))*"
+    r"\s+merge-queue(?![\w-])"
 )
 _ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\+?=")
 _PID = re.compile(r"-?[0-9]+")
 _KEYWORDS = frozenset({"!", "{", "if", "then", "else", "elif", "do", "while", "until"})
+# The words that open a group of commands, and those that close it, as the first of a command.
+_GROUPS: dict[str, int] = {
+    **dict.fromkeys(("{", "if", "while", "until", "for", "case", "select"), 1),
+    **dict.fromkeys(("}", "fi", "done", "esac"), -1),
+}
 _CONTAINER_STOPS = frozenset({"rm", "remove", "stop", "kill", "restart"})
 # What `docker` removes, by the group of its subcommand: `docker rmi`, `docker volume rm`…
 _DOCKER_REMOVALS = {
@@ -285,6 +294,20 @@ _DOCKER = _Options(
     abbreviates=False,
 )
 _TRAP = _Options()
+# The options of GNU `make` that take the next word; `-j`, `-l`, `-O` take theirs in the same word
+# only, a `-j 2` making `2` an operand, which no target is named.
+_MAKE = _Options(
+    "CEfIoW",
+    _names("assume-new", "assume-old", "directory", "eval", "file", "include-dir", "makefile")
+    | _names("new-file", "old-file", "what-if"),
+    _HELP
+    | _names("always-make", "check-symlink-times", "debug", "dry-run", "environment-overrides")
+    | _names("ignore-errors", "jobs", "just-print", "keep-going", "load-average", "max-load")
+    | _names("no-builtin-rules", "no-builtin-variables", "no-keep-going", "no-print-directory")
+    | _names("no-silent", "output-sync", "print-data-base", "print-directory", "question")
+    | _names("quiet", "recon", "shuffle", "silent", "stop", "touch", "trace")
+    | _names("warn-undefined-variables"),
+)
 _COMPOSE = _Options(
     "fp",
     _names("ansi", "env-file", "file", "parallel", "profile", "progress", "project-directory")
@@ -300,9 +323,17 @@ class _Scanner:
 
     A substitution is cut in turn, its commands appended to the same list, and stands as
     ``$(…)`` in the word that holds it.
+
+    Each command comes with the number of its pipeline, which a ``;``, an ``&``, an ``&&``, an
+    ``||`` or a newline ends; ``|`` and ``|&`` do not. A group — ``( )``, ``{ }``, ``if … fi``, a
+    loop, ``case … esac`` — is one element of the pipeline that holds it: what it writes may feed
+    a pipe after it, and the separators inside it end nothing. The commands of a substitution
+    belong to the pipeline of the command that holds it, whose argument they make.
     """
 
-    def __init__(self, text: str, commands: list[str], depth: int) -> None:
+    def __init__(
+        self, text: str, commands: list[tuple[str, int]], depth: int, root: _Scanner | None = None
+    ) -> None:
         if depth > _MAX_DEPTH:
             raise _UnsplittableError
         self.text = text
@@ -310,6 +341,11 @@ class _Scanner:
         self.depth = depth
         self.position = 0
         self.heredocs: list[_Heredoc] = []
+        # The scanner of the line counts its pipelines and its groups; those of its
+        # substitutions number their commands by it.
+        self.root = self if root is None else root
+        self.pipeline = 0
+        self.groups = 0
 
     def scan(self, start: int = 0, *, closing: bool = False) -> int:
         """Cut from ``start`` to the end, or to the ``)`` that closes a substitution."""
@@ -328,6 +364,8 @@ class _Scanner:
                 self._redirection()
             elif char in _OPERATORS:
                 self._close(words)
+                if self.root is self and nesting == 0 and self.groups == 0:
+                    self.pipeline += _ends_pipeline(text, self.position)
                 self.position += 1
                 if char == "(":
                     nesting += 1
@@ -349,7 +387,8 @@ class _Scanner:
 
     def _close(self, words: list[str]) -> None:
         if words:
-            self.commands.append(" ".join(words))
+            self.commands.append((" ".join(words), self.root.pipeline))
+            self.groups = max(self.groups + _GROUPS.get(words[0], 0), 0)
             words.clear()
 
     def _word(self) -> str:
@@ -408,7 +447,8 @@ class _Scanner:
         raise _UnsplittableError
 
     def _substitution(self, start: int) -> int:
-        return _Scanner(self.text, self.commands, self.depth + 1).scan(start, closing=True)
+        nested = _Scanner(self.text, self.commands, self.depth + 1, self.root)
+        return nested.scan(start, closing=True)
 
     def _backquoted(self, start: int) -> int:
         text = self.text
@@ -418,7 +458,7 @@ class _Scanner:
                 index += 2
             elif text[index] == "`":
                 inner = _BACKSLASHED.sub(r"\1", text[start:index])
-                _Scanner(inner, self.commands, self.depth + 1).scan()
+                _Scanner(inner, self.commands, self.depth + 1, self.root).scan()
                 return index + 1
             else:
                 index += 1
@@ -477,6 +517,16 @@ def _redirects(text: str, index: int) -> bool:
     )
 
 
+def _ends_pipeline(text: str, index: int) -> bool:
+    """Say whether the operator at ``index`` ends a pipeline: neither ``|`` nor ``|&`` does."""
+    char = text[index]
+    if char == "|":
+        return text.startswith("||", index) or text[index - 1 : index] == "|"
+    if char == "&":
+        return text[index - 1 : index] != "|"
+    return char in ";\n"
+
+
 def refusal(command: str) -> str | None:
     """Return the refused form a command line takes, or None when it may run."""
     return _line(command, 0)
@@ -493,16 +543,20 @@ def _judge(
 
     ``moved``: the line runs after a ``cd`` into a directory of git.
     """
-    commands: list[str] = []
+    commands: list[tuple[str, int]] = []
     try:
         _Scanner(text, commands, depth).scan()
-        split = [shlex.split(command) for command in commands]
+        split = [(shlex.split(command), pipeline) for command, pipeline in commands]
     except ValueError:
         found = _FORBIDDEN.search(text)
         form = None if found is None else f"a line it cannot cut, which names `{found.group()}`"
         return form, moved
+    # What a command of the pipeline before it named feeds no `xargs rm` of this one.
     named = False
-    for words in split:
+    previous = 0
+    for words, pipeline in split:
+        named = named and pipeline == previous
+        previous = pipeline
         form, moved = _simple(words, depth, piped=piped, moved=moved, named=named or moved)
         if form is not None:
             return form, moved
@@ -661,8 +715,13 @@ def _compose(command: guardgit.Command) -> str | None:
 
 
 def _make(command: guardgit.Command) -> str | None:
-    """Refuse the target ``merge-queue``, which a person runs; ``merge-queue-check`` passes."""
-    if "merge-queue" in command.arguments:
+    """Refuse the target ``merge-queue``, which a person runs; ``merge-queue-check`` passes.
+
+    A target is an operand that is no assignment, wherever it stands among the options, which
+    GNU ``make`` permutes: in ``make -C merge-queue check``, ``merge-queue`` is a directory.
+    """
+    _, operands = _MAKE.permuted(command.arguments)
+    if "merge-queue" in operands:
         return (
             "`make merge-queue`: it creates the rule set of the merge queue with the token of the "
             "user; a person runs it, and `make merge-queue-check` says whether it is there"
@@ -769,6 +828,7 @@ _CHECKS: dict[str, Callable[[guardgit.Command], str | None]] = {
     "unlink": guardgit.unlink,
     "mv": guardgit.unlink,
     "rename": guardgit.unlink,
+    "truncate": guardgit.unlink,
     "find": guardgit.find,
     "make": _make,
     "su": _su,

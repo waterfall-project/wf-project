@@ -3,9 +3,16 @@
 """Judge the forms of the command guard that reach ``.git`` and its locks (US-1310, US-2450).
 
 ``guard.py`` cuts the line into simple commands and judges each by its command word; this module
-holds the judgement of those that may remove or move what git holds: ``rm``, ``unlink``, ``mv``
-and ``rename``, ``find`` with ``-delete`` or ``-exec rm``, and the ``cd`` that leaves the shell in
-a directory of git. It holds too the simple command that every check of the guard receives.
+holds the judgement of those that may remove or move what git holds: ``rm``, ``unlink``, ``mv``,
+``rename`` and ``truncate``, ``find`` with ``-delete`` or ``-exec rm``, and the ``cd`` that leaves
+the shell in a directory of git. It holds too the simple command that every check of the guard
+receives.
+
+``rm``, ``unlink``, ``mv`` and ``truncate`` are refused an operand that is ``.git``, passes through
+a ``.git/`` or opens by ``.git`` and a joker (``.git*``), wherever it stands among the operands
+(US-2450, #2417). ``find`` is refused when a branch of its expression — what an ``-o`` at the top
+separates — names ``.git`` and removes: ``find . -name .git -prune -exec rm -rf {} +``; the usual
+``find . -name .git -prune -o -name '*.pyc' -delete`` passes, its removal in the other branch.
 
 Like the guard, it depends on the standard library alone: the hook runs the guard, and the guard
 this module, before the environment of the tools is synchronised.
@@ -25,6 +32,15 @@ SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ksh"})
 _FIND_EXECS = frozenset({"-exec", "-execdir", "-ok", "-okdir"})
 _FIND_REMOVERS = frozenset({"rm", "unlink", "mv", "rename"}) | SHELLS
 _FIND_OPTIONS = frozenset({"-H", "-L", "-P"})
+_FIND_OR = frozenset({"-o", "-or"})
+# The commands refused an operand that reaches `.git`: `rename` takes an expression first, which
+# names no file.
+_GIT_OPERANDS = frozenset({"rm", "unlink", "mv", "truncate"})
+_JOKERS = frozenset({"*", "?", "["})
+_REPOSITORY = (
+    "it removes or changes what git holds, the repository that every worktree shares, and the "
+    "work of each"
+)
 
 
 class Command(NamedTuple):
@@ -77,8 +93,22 @@ def into_git(path: str, *, moved: bool) -> bool:
     return moved
 
 
+def reaches_git(path: str) -> bool:
+    """Say whether a path is ``.git``, passes through ``.git/``, or opens by ``.git`` and a joker.
+
+    ``.gitignore``, ``.github`` and ``.git-old`` do not; ``.git*`` and ``x/.git?/HEAD`` do.
+    """
+    return any(
+        part == ".git" or (part.startswith(".git") and part[4:5] in _JOKERS)
+        for part in path.split("/")
+    )
+
+
 def unlink(command: Command) -> str | None:
-    """Refuse to remove or move a lock of git, or to remove ``.git``: ``rm``, ``unlink``, ``mv``."""
+    """Refuse to remove, move or truncate a lock of git, or what ``.git`` holds.
+
+    ``rm``, ``unlink``, ``mv``, ``rename`` and ``truncate``.
+    """
     if command.piped and command.named:
         return (
             f"`{command.name}` run by `xargs` on what a command that names .git or a .lock "
@@ -100,7 +130,19 @@ def unlink(command: Command) -> str | None:
                 f"`{command.name} {argument}`: a lock of git is held by a git command that runs, "
                 "maybe in another worktree"
             )
+    if command.name in _GIT_OPERANDS:
+        for operand in _operands(command.arguments):
+            if reaches_git(operand):
+                return f"`{command.name} {operand}`: {_REPOSITORY}"
     return None
+
+
+def _operands(arguments: list[str]) -> list[str]:
+    """Return the operands of a command: the words that are no option, and all past ``--``."""
+    if "--" not in arguments:
+        return [word for word in arguments if word[:1] != "-"]
+    end = arguments.index("--")
+    return [word for word in arguments[:end] if word[:1] != "-"] + arguments[end + 1 :]
 
 
 def _recursive(arguments: list[str]) -> bool:
@@ -132,10 +174,7 @@ def find(command: Command) -> str | None:
         paths.append(arguments[index])
         index += 1
     expression = arguments[index:]
-    removes = "-delete" in expression or any(
-        word in _FIND_EXECS and following.rsplit("/", 1)[-1] in _FIND_REMOVERS
-        for word, following in itertools.pairwise(expression)
-    )
+    removes = _removes(expression)
     in_git = command.moved or any(".git" in path.split("/") for path in paths)
     names_lock = any(".lock" in word for word in expression)
     if removes and (in_git or names_lock):
@@ -144,4 +183,31 @@ def find(command: Command) -> str | None:
             f"`find … -delete` or `-exec rm` ({reason}): a lock of git is held by a git "
             "command that runs, maybe in another worktree"
         )
+    if any(_removes(branch) and any(map(reaches_git, branch)) for branch in _branches(expression)):
+        return f"`find … -name .git` with `-delete` or `-exec rm`: {_REPOSITORY}"
     return None
+
+
+def _removes(expression: list[str]) -> bool:
+    """Say whether an expression of ``find`` removes what it finds: ``-delete``, ``-exec rm``."""
+    return "-delete" in expression or any(
+        word in _FIND_EXECS and following.rsplit("/", 1)[-1] in _FIND_REMOVERS
+        for word, following in itertools.pairwise(expression)
+    )
+
+
+def _branches(expression: list[str]) -> list[list[str]]:
+    """Cut an expression of ``find`` at each ``-o`` outside parentheses.
+
+    A branch runs its actions on what its own tests matched: past an ``-o``, a ``-name .git
+    -prune`` no longer holds. The words of an ``-exec`` stand in the branch, as they come.
+    """
+    branches: list[list[str]] = [[]]
+    nesting = 0
+    for word in expression:
+        nesting += {"(": 1, ")": -1}.get(word, 0)
+        if word in _FIND_OR and nesting == 0:
+            branches.append([])
+        else:
+            branches[-1].append(word)
+    return branches
