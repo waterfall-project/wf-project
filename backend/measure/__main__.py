@@ -33,6 +33,7 @@ from measure.target import (
 )
 from measure.writing import measure_opening, measure_writes
 from waterfall.platform.correlation import correlation_id_from
+from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.logs import PLATFORM, logging_context
 
 if TYPE_CHECKING:
@@ -82,6 +83,9 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _indicators(database: Database, place: Place, runs: int) -> tuple[Measure, ...]:
+    # The day of the key is that of the time zone of the installation, which the service reads from
+    # this database at its start.
+    TIME_ZONE.read_from(stored_in(database))
     cache = cache_from_environment()
     try:
         return measure_cache(database, place.project_id, cache, runs)
