@@ -31,7 +31,7 @@ from estimate_support import (
     Lines,
     add_role,
     costing,
-    pin_year,
+    task_in,
 )
 from estimate_support import insert_line as insert_line_row
 from nodes_support import Tree, mark, opened, refusal
@@ -95,10 +95,8 @@ def stage(
     owner: Engine,
     database: Database,
     realm: TestRealm,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
-    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 
@@ -271,7 +269,7 @@ def test_the_workload_of_a_marked_revision_keeps_the_calendar_the_capacity_and_t
     # Closes #2627: the plan of workload on ``marked_remaining`` reads the images of the marking,
     # not the reference as it stands: the calendar of the role (the hours of its months), its
     # capacity and its label (the roles keep the order of the reference as it stands).
-    site: Site = make_site(api, owner, database, realm, monkeypatch)
+    site: Site = make_site(api, owner, database, realm)
     clock: Clock = day_setter(monkeypatch)
     clock(date(2026, 10, 15))
     site.labour(site.task("Câblage", NOV_DEC), "352")
@@ -489,11 +487,7 @@ def test_a_new_rate_of_inflation_prices_the_current_revision_again_and_no_marked
     # again, the others not (the provision line is EP-08's).
     later = offer.tree.made(
         "Exploitation",
-        task={
-            "scheduling_mode": "manual",
-            "start": {"date": f"{YEAR + 2}-11-06"},
-            "finish": {"date": f"{YEAR + 2}-11-07"},
-        },
+        task=task_in(YEAR + 2),
     )
     future = node_of(
         offer.lines.made(later, quantity="1", resource_role_id=str(costs.role), hours="10")

@@ -10,12 +10,12 @@ checked against the contract. A revision is marked by the transaction of the wor
 
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import YEAR, give_a_line, pin_year
+from estimate_support import CEILING, YEAR, give_a_line, pin_year, pinned_clock
 from planning_support import give_a_task
 from projects_support import MANAGING, PROJECTS, READING, Scene, person, put_in_state
 from projects_support import scene as make_scene
@@ -61,10 +61,8 @@ def stage(
     owner: Engine,
     database: Database,
     realm: TestRealm,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> Scene:
     """Give a platform whose reference is complete, its sessions, and a project its manager made."""
-    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 
@@ -851,6 +849,22 @@ def test_the_witness_opens_and_marks_its_revisions_as_the_service_and_the_worker
     ]
 
 
+@pytest.mark.requirement("WF-REV-0060-A")
+def test_a_pinned_clock_past_its_ceiling_goes_on_a_microsecond_a_reading_within_the_year() -> None:
+    # A run that has crossed New Year reads an instant past the ceiling at every reading, as a
+    # clock stopped there would give twice (#3739): two readings are apart, and in ``YEAR``.
+    clock = pinned_clock(lambda: datetime(YEAR + 1, 1, 1, tzinfo=UTC))
+    first, second, third = clock(), clock(), clock()
+    assert first == CEILING
+    assert first < second < third
+    assert second - first == third - second == timedelta(microseconds=1)
+    assert third.year == YEAR
+    # Followed from an earlier instant, it reads that one, and never goes back.
+    early = pinned_clock(iter([CEILING - timedelta(days=1), CEILING - timedelta(days=2)]).__next__)
+    assert early() == CEILING - timedelta(days=1)
+    assert early() == CEILING - timedelta(days=1) + timedelta(microseconds=1)
+
+
 def test_a_withdrawal_withdraws_its_registration_once() -> None:
     # A detail of the realization which reprises no Vérif (#2179): called again, the withdrawal
     # does nothing, and never withdraws the same entry registered anew since.
@@ -864,3 +878,15 @@ def test_a_withdrawal_withdraws_its_registration_once() -> None:
     assert registry.entries() == ("tasks",)
     again()
     assert registry.entries() == ()
+
+
+@pytest.mark.requirement("WF-REV-0060-A")
+def test_a_clock_already_set_when_the_year_is_pinned_is_refused_not_pinned_over(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # ``pinned_year`` has pinned the clocks before this test ran: pinning them again, as a fixture
+    # called in the wrong order would, says so, where it once left the clock without a word.
+    with pytest.raises(
+        AssertionError, match=r"the clock of waterfall\.api\.revisions is already set"
+    ):
+        pin_year(monkeypatch)

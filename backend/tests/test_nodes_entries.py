@@ -16,7 +16,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from access_rows import role
-from estimate_support import Costing, Lines, costing, pin_year
+from estimate_support import Costing, Lines, costing
 from history_support import redo, redone, undo, undone
 from nodes_support import SESSION, Tree, opened, refusal
 from projects_support import Person, contribute
@@ -48,10 +48,8 @@ def stage(
     owner: Engine,
     database: Database,
     realm: TestRealm,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
-    pin_year(monkeypatch)
     return make_scene(api, owner, database, realm)
 
 

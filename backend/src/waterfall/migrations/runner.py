@@ -10,7 +10,7 @@ from alembic import command
 from alembic.config import Config
 
 from waterfall import __version__
-from waterfall.platform.settings import SettingsError, load_settings
+from waterfall.platform.settings import SettingsError, load_platform_settings
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -55,7 +55,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 2
     try:
-        load_settings()
+        load_platform_settings()
     except SettingsError as error:
         sys.stderr.write(f"{NAME}: {error}\n")
         return 2

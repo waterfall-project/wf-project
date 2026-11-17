@@ -5,6 +5,7 @@
 import io
 import json
 import logging
+import os
 
 import pytest
 import structlog
@@ -41,6 +42,18 @@ def test_a_record_is_a_json_line_with_its_severity_its_time_and_its_author(logs:
     assert record["count"] == 3
     assert record["actor"] == "platform"
     assert record["timestamp"].endswith("Z")
+
+
+@pytest.mark.requirement("WF-OBS-0020-A")
+def test_the_fixture_of_the_logs_leaves_no_secret_of_the_test_platform_in_the_environment(
+    logs: Logs,
+) -> None:
+    # « Une recherche des secrets et des jetons connus dans les journaux ne les trouve pas. » The
+    # fixture masks the secrets of the test platform, and gives none to the process: a settings
+    # read after it, by a test of Keycloak, finds the real ones (#935).
+    get_logger("test").info("masked", detail=PLATFORM_SECRETS["WATERFALL_SERVICE_CLIENT_SECRET"])
+    assert PLATFORM_SECRETS["WATERFALL_SERVICE_CLIENT_SECRET"] not in logs.text
+    assert [name for name, value in PLATFORM_SECRETS.items() if os.environ.get(name) == value] == []
 
 
 def test_the_context_is_bound_to_every_record_written_inside_it(logs: Logs) -> None:

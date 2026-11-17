@@ -8,6 +8,7 @@ the test, and the chain with it (WF-ARC-0060). The paths played against the serv
 answers they traverse to the same contract, by Prism as a proxy (``make e2e-service``).
 """
 
+import json
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
@@ -25,10 +26,13 @@ from support import (
     PLATFORM_SECRETS,
     SESSION_COOKIE,
     UNRESOLVED,
+    WITNESS,
     AmbiguousCompositionError,
     ContractClient,
     Logs,
     UndeclaredPropertyError,
+    ambiguous_compositions,
+    compositions,
     documents,
     found_in,
     operations,
@@ -170,41 +174,10 @@ def test_a_response_that_the_contract_does_not_describe_is_rejected(
         ContractClient(TestClient(app), contract).get("/api/v1/health")
 
 
-# A failed background task, as the contract's example ``task_failed`` gives it.
-FAILED_TASK = {
-    "task_id": "01926f3a-7c00-7000-8000-000000000931",
-    "kind": "revision_mark",
-    "status": "failed",
-    "progress": 40,
-    "submitted_at": "2026-06-03T14:05:00Z",
-    "finished_at": "2026-06-03T14:07:00Z",
-    "result_url": None,
-}
-
-# The current account, as the contract's example ``me_grid_settings`` gives it, its
-# permissions cut short.
-ME = {
-    "user_id": "01926f3a-7c00-7000-8000-000000000301",
-    "last_name": "Martin",
-    "first_name": "Camille",
-    "email": "camille.martin@example.com",
-    "anonymized_at": None,
-    "is_active": True,
-    "origin": "local",
-    "org_node_id": None,
-    "org_node_label": None,
-    "access_role_ids": ["01926f3a-7c00-7000-8000-000000000701"],
-    "access_role_labels": ["Direction de projet"],
-    "has_avatar": False,
-    "audit": {
-        "created_at": "2025-09-01T09:00:00Z",
-        "created_by": {"kind": "platform"},
-        "updated_at": "2026-06-03T14:05:00Z",
-        "updated_by": {"kind": "platform"},
-    },
-    "lock_version": 3,
-    "permissions": ["users.read"],
-}
+# A failed background task and the current account, as the contract's examples ``task_failed`` and
+# ``me_grid_settings`` give them, read from the files that the contract names.
+FAILED_TASK: dict[str, Any] = json.loads((WITNESS / "task_failed.json").read_text("utf-8"))["value"]
+ME: dict[str, Any] = json.loads((WITNESS / "me_grid_settings.json").read_text("utf-8"))["value"]
 
 # A refusal whose field problem carries a sentence the contract does not declare.
 REFUSAL_WITH_A_MESSAGE = {
@@ -357,10 +330,10 @@ def two_objects(part: str) -> dict[str, object]:
 
 @pytest.mark.requirement("WF-ARC-0110-A")
 @pytest.mark.parametrize(
-    ("schema", "body"),
+    ("schema", "body", "shape"),
     [
-        (two_objects("oneOf"), {"a": "x"}),
-        (two_objects("anyOf"), {"a": "x"}),
+        (two_objects("oneOf"), {"a": "x"}, "an object"),
+        (two_objects("anyOf"), {"a": "x"}, "an object"),
         (
             {
                 "type": "object",
@@ -369,6 +342,7 @@ def two_objects(part: str) -> dict[str, object]:
                 },
             },
             {"c": {"a": "x"}},
+            "an object",
         ),
         (
             {
@@ -378,23 +352,79 @@ def two_objects(part: str) -> dict[str, object]:
                 ]
             },
             ["x"],
+            "a list",
         ),
     ],
     ids=["a oneOf of two objects", "an anyOf of two objects", "below a property", "two lists"],
 )
-def test_a_composition_of_which_more_than_one_branch_describes_an_object_is_refused(
-    schema: dict[str, object], body: object
+def test_a_composition_of_which_more_than_one_branch_describes_an_object_or_a_list_is_refused(
+    schema: dict[str, object], body: object, shape: str
 ) -> None:
     # Held to both branches at once, an object of the first would be allowed what only the
-    # second declares: the client refuses to read the composition rather than open it.
+    # second declares: the client refuses to read the composition rather than open it, and says
+    # which shape the branches share.
     app = FastAPI()
 
     @app.get("/api/v1/health")
     def health() -> JSONResponse:
         return JSONResponse(body)
 
-    with pytest.raises(AmbiguousCompositionError):
+    with pytest.raises(AmbiguousCompositionError, match=f"describes {shape}$"):
         ContractClient(TestClient(app), minimal_contract(schema)).get("/api/v1/health")
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+def test_a_composition_of_an_object_and_a_list_is_followed_by_the_shape_of_the_value() -> None:
+    # The mixed case that is allowed: one branch describes an object, the other a list, and a value
+    # is held to the one of its own shape, an undeclared property of the object found, a list read.
+    schema: dict[str, object] = {
+        "oneOf": [
+            {"type": "object", "properties": {"a": TEXT}},
+            {"type": "array", "items": {"type": "string"}},
+        ]
+    }
+    app = FastAPI()
+    bodies: list[object] = [["x", "y"], {"a": "x", "hint": "Phrase"}]
+
+    @app.get("/api/v1/health")
+    def health() -> JSONResponse:
+        return JSONResponse(bodies.pop(0))
+
+    client = ContractClient(TestClient(app), minimal_contract(schema))
+    assert client.get("/api/v1/health").json() == ["x", "y"]
+    with pytest.raises(UndeclaredPropertyError) as rejected:
+        client.get("/api/v1/health")
+    assert rejected.value.pointers == ["/hint"]
+
+
+# The compositions of the contract that the client would refuse, known: the body of a request, which
+# the client never reads, offers the two branches of an object that are not apart (#3746).
+# The list can only empty: the test fails on one that is no longer ambiguous.
+KNOWN_AMBIGUOUS = {
+    "docs/api/components/schemas/projects.yaml#/ProjectExit/properties/current_revision",
+    "docs/api/components/schemas/projects.yaml#/CurrentRevisionFate",
+}
+
+
+def known(where: str) -> str:
+    """Give where a composition is as ``KNOWN_AMBIGUOUS`` writes it, from ``docs/api``."""
+    return "docs/api/" + where.split("/docs/api/", 1)[1]
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+def test_no_composition_of_the_contract_offers_a_value_more_than_one_branch_to_follow(
+    contract: OpenAPI,
+) -> None:
+    # Every ``anyOf`` and ``oneOf`` of the whole contract, ``components`` and the bodies of the
+    # requests included, not those an answer of a test happens to reach: a composition that the
+    # client would refuse is found when the contract changes.
+    found = {known(where) for where in ambiguous_compositions(contract)}
+    assert found - KNOWN_AMBIGUOUS == set(), "a composition the client cannot follow"
+    assert KNOWN_AMBIGUOUS - found == set(), "a known composition that is no longer ambiguous"
+    # Positive controls: the walk reaches the compositions of the contract, and finds an ambiguous
+    # one when there is one, or it would pass on nothing.
+    assert len(list(compositions(contract))) > 100
+    assert len(ambiguous_compositions(minimal_contract(two_objects("oneOf")))) == 1
 
 
 @pytest.mark.requirement("WF-ARC-0110-A")
