@@ -135,6 +135,8 @@ test("shows the physical progress of a summary as a percentage the service compu
   await expect(page.getByRole("textbox")).toHaveCount(0);
   await expect(page.getByRole("spinbutton")).toHaveCount(0);
   await page.keyboard.press("Escape");
+  await expect(refused).toHaveCount(0);
+  await expect(cell).toBeFocused();
   await expect(cell).toContainText(/100\s*%/);
   for (const name of [/^\d+ .*Dossier de conception/, /^\d+ .*Réception des études/]) {
     const row = grid.getByRole("row", { name });
