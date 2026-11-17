@@ -16,7 +16,6 @@ import pytest
 from waterfall.core.estimate.subtracting import deltas_of
 from waterfall.core.planning.interface import Duration, UnitConstants
 
-REQUIREMENT = "WF-IHM-0150-A"
 # The constants of the units by default: eight hours a day, forty a week, twenty days a month.
 CONSTANTS = UnitConstants(Decimal(8), Decimal(40), Decimal(20))
 
@@ -31,7 +30,7 @@ def duration(value: str, unit: str) -> dict[str, str]:
     return {"value": value, "unit": unit}
 
 
-@pytest.mark.requirement(REQUIREMENT)
+@pytest.mark.requirement("WF-IHM-0150-A")
 @pytest.mark.parametrize(
     ("read", "base", "delta"),
     [
@@ -60,7 +59,7 @@ def test_a_duration_differs_in_working_time_in_the_unit_of_the_one_read(
     assert found == {"task.duration": delta}
 
 
-@pytest.mark.requirement(REQUIREMENT)
+@pytest.mark.requirement("WF-IHM-0150-A")
 def test_a_date_differs_in_calendar_days_and_an_amount_to_the_cent() -> None:
     # The date alone of an instant of work, the hours of the day aside; a date of entry as it is;
     # an amount to the cent; a value that bears no difference left out.
@@ -84,7 +83,7 @@ def test_a_date_differs_in_calendar_days_and_an_amount_to_the_cent() -> None:
     }
 
 
-@pytest.mark.requirement(REQUIREMENT)
+@pytest.mark.requirement("WF-IHM-0150-A")
 def test_a_difference_is_null_when_either_value_is() -> None:
     # A task not started in the base, started in the revision read; a manual task without float.
     base = task(started_on=None, total_float=duration("2", "d"))
@@ -93,7 +92,7 @@ def test_a_difference_is_null_when_either_value_is() -> None:
     assert found == {"task.started_on": None, "task.total_float": None}
 
 
-@pytest.mark.requirement(REQUIREMENT)
+@pytest.mark.requirement("WF-IHM-0150-A")
 def test_a_duration_less_another_keeps_the_unit_of_the_first() -> None:
     # ``Duration.less``, which the planning gives the estimate: the values of the same unit
     # subtracted exactly, those of two units by their hours.

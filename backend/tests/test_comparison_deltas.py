@@ -28,9 +28,6 @@ if TYPE_CHECKING:
 
     from waterfall.platform.database import Database
 
-DELTAS = "WF-IHM-0150-A"
-TOTALS = "WF-IHM-0160-A"
-FOLDING = "WF-IHM-0170-A"
 TOTALS_FIELDS = (
     "task_count",
     "estimate_line_count",
@@ -106,7 +103,7 @@ def remove(stage: Scene, current: Tree, node: dict[str, Any]) -> None:
 # --- The differences of each value ----------------------------------------------------------------
 
 
-@pytest.mark.requirement(DELTAS)
+@pytest.mark.requirement("WF-IHM-0150-A")
 def test_each_date_duration_and_amount_that_differs_gives_its_difference(
     api: ContractClient, stage: Scene, pair: tuple[dict[str, Any], Tree]
 ) -> None:
@@ -136,7 +133,7 @@ def test_each_date_duration_and_amount_that_differs_gives_its_difference(
     assert {found[each]["deltas"] is None for each in ("Tirages", "Banc d'essais")} == {True}
 
 
-@pytest.mark.requirement(DELTAS)
+@pytest.mark.requirement("WF-IHM-0150-A")
 def test_the_differences_are_those_of_the_fields_read_and_of_a_modified_node_alone(
     api: ContractClient, stage: Scene, costs: Costing, pair: tuple[dict[str, Any], Tree]
 ) -> None:
@@ -161,7 +158,7 @@ def test_the_differences_are_those_of_the_fields_read_and_of_a_modified_node_alo
 # --- The totals of the base -----------------------------------------------------------------------
 
 
-@pytest.mark.requirement(TOTALS)
+@pytest.mark.requirement("WF-IHM-0160-A")
 def test_a_line_removed_counts_in_the_totals_of_the_base_and_their_difference_alone(
     api: ContractClient, stage: Scene, pair: tuple[dict[str, Any], Tree]
 ) -> None:
@@ -185,7 +182,7 @@ def test_a_line_removed_counts_in_the_totals_of_the_base_and_their_difference_al
     assert totals == current.read().json()["totals"]
 
 
-@pytest.mark.requirement(TOTALS)
+@pytest.mark.requirement("WF-IHM-0160-A")
 def test_a_filter_retains_the_same_nodes_in_the_totals_of_the_base(
     api: ContractClient, stage: Scene, pair: tuple[dict[str, Any], Tree]
 ) -> None:
@@ -209,7 +206,7 @@ def test_a_filter_retains_the_same_nodes_in_the_totals_of_the_base(
     assert balanced(material_lines)
 
 
-@pytest.mark.requirement(TOTALS)
+@pytest.mark.requirement("WF-IHM-0160-A")
 def test_an_identical_pair_gives_the_totals_of_the_base_equal_and_a_nought_difference(
     api: ContractClient, stage: Scene, pair: tuple[dict[str, Any], Tree]
 ) -> None:
@@ -223,7 +220,7 @@ def test_an_identical_pair_gives_the_totals_of_the_base_equal_and_a_nought_diffe
 # --- The lines in difference of the remaining to commit ------------------------------------------
 
 
-@pytest.mark.requirement(DELTAS)
+@pytest.mark.requirement("WF-IHM-0150-A")
 def test_the_nodes_in_difference_a_filter_of_progress_leaves_out_are_retained_and_counted(
     api: ContractClient, stage: Scene, pair: tuple[dict[str, Any], Tree]
 ) -> None:
@@ -257,7 +254,7 @@ def test_the_nodes_in_difference_a_filter_of_progress_leaves_out_are_retained_an
 # --- The marks the grid folds on -----------------------------------------------------------------
 
 
-@pytest.mark.requirement(FOLDING)
+@pytest.mark.requirement("WF-IHM-0170-A")
 def test_a_summary_that_bears_a_difference_is_modified_and_a_branch_without_one_unchanged(
     api: ContractClient, stage: Scene, pair: tuple[dict[str, Any], Tree]
 ) -> None:
