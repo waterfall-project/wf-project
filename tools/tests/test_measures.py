@@ -427,7 +427,18 @@ def test_one_scope_read_cold_over_the_objective_is_signalled_and_fails_unless_do
 @pytest.mark.requirement("WF-QUA-0060-A")
 @pytest.mark.parametrize(
     "change",
-    ["missing", "scopes", "no-rows", "negative", "lighter", "row", "elsewhere", "unsorted", "note"],
+    [
+        "missing",
+        "scopes",
+        "no-rows",
+        "negative",
+        "lighter",
+        "row",
+        "elsewhere",
+        "unsorted",
+        "duplicate",
+        "note",
+    ],
 )
 def test_a_cost_of_the_cache_that_does_not_hold_is_refused(change: str) -> None:
     body = report("0.5.0")
@@ -447,6 +458,8 @@ def test_a_cost_of_the_cache_that_does_not_hold_is_refused(change: str) -> None:
         del given["extrapolation"][0]["cold_cell_s"]
     elif change == "unsorted":
         given["extrapolation"].append({**given["extrapolation"][0], "subprojects": 50})
+    elif change == "duplicate":
+        given["extrapolation"].append(dict(given["extrapolation"][-1]))
     elif change == "note":
         given["note"] = 3
     else:

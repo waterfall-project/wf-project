@@ -72,6 +72,7 @@ by the ``note`` of the ``cache`` object alone, and the ``note`` of the operation
 median over the objective and the degradation.
 """
 
+import itertools
 import json
 import math
 import re
@@ -220,8 +221,11 @@ def _cache(entry: dict[str, object], where: str) -> Cache:
             for key in CACHE_ROW
         }
         sizes.append(figures_of_row["subprojects"])
-    if sizes != sorted(sizes):
-        message = f"{here}: the rows of extrapolation are sorted by subprojects, ascending"
+    if any(before >= after for before, after in itertools.pairwise(sizes)):
+        message = (
+            f"{here}: the rows of extrapolation are sorted by subprojects, strictly ascending,"
+            " one row per size"
+        )
         raise ValueError(message)
     note = given.get("note", "")
     if not isinstance(note, str):
