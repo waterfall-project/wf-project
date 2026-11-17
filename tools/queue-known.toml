@@ -156,9 +156,11 @@ cause = "établie : 500 de `POST /projects`, blocage mutuel (`DeadlockDetected`)
 # US-1890/L2 (#3046) a traité ces parcours, et déplacé leurs lignes : les entrées visent donc le
 # titre du parcours, non sa ligne. La famille n'a pas été remesurée dans la file depuis, d'où les
 # causes encore en hypothèse. Le parcours des désactivés de `reference-costs.spec.ts` n'en était
-# pas : son aide `press` recliquait une commande dont l'action était en vol ; corrigé par #3135,
-# son entrée est retirée — puis rouverte pour #3448 : `pressOnce` (#3398) réduit la fenêtre du
-# reclic sans la fermer, la correction côté test revenant à EP-25.
+# pas : il a sa propre famille, ci-dessous.
+
+# Parcours des désactivés (#3448) : son aide `press` recliquait une commande dont l'action était en
+# vol ; corrigé par #3135, son entrée est retirée — puis rouverte : `pressOnce` (#3398) réduit la
+# fenêtre du reclic sans la fermer, la correction côté test revenant à EP-25.
 
 [[known]]
 class = "known flakiness"
