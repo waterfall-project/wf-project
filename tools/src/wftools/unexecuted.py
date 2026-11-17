@@ -8,7 +8,7 @@ The coverage of the requirements is read in the test files without running them
 cover nothing. This plugin makes the mark compulsory: a test that skips — by ``pytest.skip``, a
 ``skipif`` or ``importorskip`` — without it, or with a mark that gives no reason, fails, and so
 does a module that skips whole as it is imported, which no mark can declare. An expected failure
-(``xfail``) is no skip.
+(``xfail``) is no skip — but ``xfail(run=False)``, which never runs the test, is one.
 
 The tests of the back and those of the tools load it, by the ``pytest_plugins`` of their
 ``conftest.py``: one implementation for both packages, the back finding it on its ``pythonpath``.
@@ -23,6 +23,9 @@ if TYPE_CHECKING:
 
 MARK = "unexecuted"
 """The name of the mark, which ``wftools.coverage`` reads too."""
+
+NOT_RUN = "[NOTRUN]"
+"""What Pytest prefixes the reason of an ``xfail(run=False)`` with, which it reports as skipped."""
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -50,11 +53,11 @@ def pytest_runtest_makereport(
     """Fail the report of a test that skipped without declaring it."""
     del call
     report = yield
-    if report.skipped and not hasattr(report, "wasxfail"):
+    if report.skipped and _is_skip(report):
         undeclared = _undeclared(item)
         if undeclared is not None:
             report.outcome = "failed"
-            report.longrepr = f"{undeclared}: {_reason(report.longrepr)}"
+            report.longrepr = f"{undeclared}: {_reason(report)}"
     return report
 
 
@@ -68,13 +71,22 @@ def pytest_make_collect_report(
         report.outcome = "failed"
         report.longrepr = (
             f"the module skips as it is imported, which no @pytest.mark.{MARK} declares: "
-            f"{_reason(report.longrepr)}"
+            f"{_reason(report)}"
         )
     return report
 
 
-def _reason(longrepr: object) -> str:
+def _is_skip(report: pytest.TestReport) -> bool:
+    """Tell a skip from an expected failure, which reports as skipped too, but for ``run=False``."""
+    expected = getattr(report, "wasxfail", None)
+    return expected is None or str(expected).startswith(NOT_RUN)
+
+
+def _reason(report: pytest.TestReport | pytest.CollectReport) -> str:
     """Return the reason a skip gave, which Pytest keeps last in a triple."""
+    if (expected := getattr(report, "wasxfail", None)) is not None:
+        return str(expected).removeprefix(NOT_RUN).strip()
+    longrepr = report.longrepr
     match longrepr:
         case (str(), int(), str() as reason):
             return reason.removeprefix("Skipped: ")

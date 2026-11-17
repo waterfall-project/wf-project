@@ -12,11 +12,14 @@ without running them: removing a test makes its requirement uncovered at once, a
 is the tests' own business. A citation in a comment is no citation.
 
 A test that is not run proves nothing, and is told by what it declares (US-2440): a Python test
-that can skip bears the mark ``@pytest.mark.unexecuted("<reason>")`` — on the test, its class or
-the module —, which ``wftools.unexecuted`` makes compulsory; a TypeScript test is declared
-``.skip``, ``.fixme`` or ``.todo``, or sits in a ``describe.skip`` or ``describe.fixme``. Its
-citations are listed under their requirement, « non exécuté », and cover nothing. A skip a
-TypeScript test decides in its body (``test.skip(condition, …)``) is not seen.
+that can skip bears the mark ``@pytest.mark.unexecuted("<reason>")`` — on the test, its class, the
+module, or a ``pytest.param`` of its ``parametrize`` —, which ``wftools.unexecuted`` makes
+compulsory; any call of that mark counts, whatever its argument, as the plugin accepts any string. A
+TypeScript test is declared ``.skip``, ``.fixme`` or ``.todo``, or sits in a ``describe.skip`` or
+``describe.fixme``. Its citations are listed under their requirement, « non exécuté », and cover
+nothing. A skip a TypeScript test decides in its body (``test.skip(condition, …)``), or by
+``it.skipIf`` and ``it.runIf``, is not seen: the test counts as run. A form of declaration that
+``wftools.titles`` does not know fails the report, naming the file and the line.
 
 Each citation belongs to the family of its file — end-to-end against the service, end-to-end,
 front, back or tools, as ``tools/paths.toml`` declares them — and the report says, for every
@@ -49,6 +52,7 @@ from pathlib import Path
 from typing import TypeGuard
 
 from wftools import REPOSITORY, paths, projection, roadmap, titles
+from wftools.unexecuted import MARK
 
 ACCEPTANCE = "Vérifiée en recette"
 """What opens the Vérif field of a requirement an acceptance report covers (WF-QUA-0010)."""
@@ -58,9 +62,6 @@ FRONT_FAMILIES = frozenset({"front", "end-to-end"})
 
 ``end-to-end-service`` is not one of them: its paths run against the real service.
 """
-
-UNEXECUTED = "unexecuted"
-"""The mark of a Python test that may not run, and covers nothing (``wftools.unexecuted``)."""
 
 _TITLE_CITATION = re.compile(r"\[(WF-[A-Z]+-\d{4}-[A-Z])\]")
 _TYPESCRIPT = frozenset({".ts", ".tsx"})
@@ -84,10 +85,11 @@ def python_citations(path: str, source: str, kind: str) -> list[Citation]:
     """Return the requirements the tests of a Python file of this family cite, test by test."""
     tree = ast.parse(source)
     module = _module_marks(tree)
+    names = _assigned(tree)
     found: list[Citation] = []
 
     def cite(test: str, marks: list[ast.expr]) -> None:
-        executed = not _marked(marks, UNEXECUTED)
+        executed = not _unexecuted(marks, names)
         found.extend(Citation(requirement, test, kind, executed) for requirement in _marked(marks))
 
     for node in tree.body:
@@ -107,7 +109,7 @@ def typescript_citations(path: str, source: str, kind: str) -> list[Citation]:
     Each citation is placed at its line; it runs as the test, or the group, whose title holds it.
     """
     found: list[Citation] = []
-    for title, runs in titles.declarations(source, jsx=path.endswith(".tsx")):
+    for title, runs in titles.declarations(source, jsx=path.endswith(".tsx"), path=path):
         for string in title.strings:
             for match in _TITLE_CITATION.finditer(string.text):
                 line = source.count("\n", 0, string.start + match.start()) + 1
@@ -121,25 +123,66 @@ def _is_test(node: ast.stmt) -> TypeGuard[_Test]:
 
 def _module_marks(tree: ast.Module) -> list[ast.expr]:
     for node in tree.body:
-        if isinstance(node, ast.Assign) and any(
-            isinstance(target, ast.Name) and target.id == "pytestmark" for target in node.targets
+        targets, value = _assignment(node)
+        if value is not None and any(
+            isinstance(target, ast.Name) and target.id == "pytestmark" for target in targets
         ):
-            value = node.value
             return list(value.elts) if isinstance(value, ast.List | ast.Tuple) else [value]
     return []
 
 
-def _marked(expressions: list[ast.expr], mark: str = "requirement") -> list[str]:
-    """Return the arguments of the marks of this name among decorators or marks.
+def _assignment(node: ast.stmt) -> tuple[list[ast.expr], ast.expr | None]:
+    """Return the targets and the value of an assignment, annotated or not."""
+    if isinstance(node, ast.Assign):
+        return node.targets, node.value
+    if isinstance(node, ast.AnnAssign):
+        return [node.target], node.value
+    return [], None
 
-    A ``requirement`` mark gives its identifiers, an ``unexecuted`` mark its reason.
+
+def _assigned(tree: ast.Module) -> dict[str, ast.expr]:
+    """Return the value each name assigned at the top of the module holds."""
+    return {
+        target.id: value
+        for node in tree.body
+        for targets, value in [_assignment(node)]
+        if value is not None
+        for target in targets
+        if isinstance(target, ast.Name)
+    }
+
+
+def _unexecuted(expressions: list[ast.expr], names: dict[str, ast.expr]) -> bool:
+    """Tell whether any call of the mark ``unexecuted`` is in these decorators or marks.
+
+    The mark counts whatever its argument is: ``@pytest.mark.unexecuted(REASON)`` skips as well as
+    one with a string, the plugin taking any string at run time. It is looked for in the whole
+    expression, which finds ``pytest.param(…, marks=pytest.mark.unexecuted(…))`` in a
+    ``parametrize`` (a test with a case that may skip may not run), and in the module-level names
+    the expression reads, a list of cases built apart. A name from another module is not seen.
     """
+    seen: set[str] = set()
+    pending = list(expressions)
+    while pending:
+        for node in ast.walk(pending.pop()):
+            if isinstance(node, ast.Call) and _named(node.func, MARK):
+                return True
+            if isinstance(node, ast.Name) and node.id in names and node.id not in seen:
+                seen.add(node.id)
+                pending.append(names[node.id])
+    return False
+
+
+def _named(function: ast.expr, name: str) -> bool:
+    return isinstance(function, ast.Attribute) and function.attr == name
+
+
+def _marked(expressions: list[ast.expr]) -> list[str]:
+    """Return the identifiers the ``requirement`` marks among decorators or marks give."""
     return [
         argument.value
         for expression in expressions
-        if isinstance(expression, ast.Call)
-        and isinstance(expression.func, ast.Attribute)
-        and expression.func.attr == mark
+        if isinstance(expression, ast.Call) and _named(expression.func, "requirement")
         for argument in expression.args
         if isinstance(argument, ast.Constant) and isinstance(argument.value, str)
     ]
@@ -347,7 +390,12 @@ def main(arguments: list[str]) -> int:
     requirements = projection.read()
     declaration = paths.read()
     front_closed = closed_by_the_front(roadmap.read())
-    result = report(requirements, citations(declaration), declaration, front_closed)
+    try:
+        found = citations(declaration)
+    except titles.UnreadableError as unreadable:
+        print(unreadable, file=sys.stderr)
+        return 1
+    result = report(requirements, found, declaration, front_closed)
     mandatory = [requirement for requirement in requirements if requirement.is_mandatory]
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:

@@ -13,8 +13,14 @@ of tests: ``it(``, ``test(``, ``describe(``, ``test.describe(``, with their vari
 A test declared ``.skip``, ``.fixme`` or ``.todo``, or held by a group declared ``.skip`` or
 ``.fixme``, does not run. A group runs if one of its tests runs. A call of ``test.skip`` or
 ``test.fixme`` whose first argument is no title — ``test.skip(!inService, "…")`` — is a skip that
-the test, or the group, decides as it runs: it is listed apart (``Title.decided``), and the test
-it sits in still counts as run, since only running it tells.
+the test, or the group, decides as it runs, as is ``it.skipIf(condition)(…)`` or
+``it.runIf(condition)(…)``: only running tells, so the test still counts as run. The same goes for
+``test.fail(condition)``, an annotation of Playwright, which is no test.
+
+A call on ``it``, ``test`` or ``describe`` that this module knows neither as a declaration nor as
+something that declares nothing (``test.use``, ``test.step``…) is not skipped over:
+the reading fails (``UnreadableError``), naming the file and the line, so that a form of
+declaration it does not read is never lost without a word.
 """
 
 import re
@@ -22,7 +28,32 @@ from dataclasses import dataclass
 
 _HEADS = frozenset({"it", "test", "describe"})
 _NOT_RUN = frozenset({"skip", "fixme", "todo"})
-_VARIANTS = frozenset({"each", "only", "concurrent", "sequential", "fail", *_NOT_RUN})
+_VARIANTS = frozenset(
+    {
+        "each",
+        "for",
+        "only",
+        "concurrent",
+        "sequential",
+        "shuffle",
+        "fails",
+        "fail",
+        "skipIf",
+        "runIf",
+    }
+    | _NOT_RUN
+)
+_GROUPING = frozenset({"describe", "serial", "parallel"})
+"""What a group adds: ``test.describe``, and the ``.serial`` and ``.parallel`` modes."""
+_CALLED = frozenset({"each", "for", "skipIf", "runIf"})
+"""The variants called before the title is: ``it.each(table)("title", …)``, ``it.skipIf(c)(…)``."""
+_ANNOTATIONS = frozenset({"skip", "fixme", "fail"})
+"""The members that, called with no title, annotate the test they sit in."""
+_DECLARING_NOTHING = frozenset(
+    {"use", "beforeEach", "afterEach", "beforeAll", "afterAll", "step", "extend", "info", "slow"}
+    | {"setTimeout", "configure", "expect", "scoped"}
+)
+"""The members of ``it``, ``test`` and ``describe`` that declare no test."""
 _KEYWORDS = frozenset(
     {"return", "typeof", "case", "in", "of", "delete", "void", "throw", "new", "else", "do"}
     | {"yield", "await", "instanceof"}
@@ -209,9 +240,19 @@ def tokens(source: str, *, jsx: bool) -> list[Token]:
     return _Lexer(source, jsx=jsx).run()
 
 
+class UnreadableError(ValueError):
+    """A call on ``it``, ``test`` or ``describe`` of a form not known, with its file and line."""
+
+    def __init__(self, path: str, line: int, call: str, unknown: set[str]) -> None:
+        super().__init__(
+            f"{path}:{line}: {call}(…) is a call that is not known ({', '.join(sorted(unknown))}): "
+            "teach wftools.titles to read it"
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class Title:
-    """A call that declares a test or a group, or decides a skip, and what it says of itself.
+    """A call that declares a test or a group, and what it says of itself.
 
     ``strings`` are the strings of its title, ``span`` the tokens of its call, its body included.
     """
@@ -220,7 +261,6 @@ class Title:
     span: range
     group: bool
     not_run: bool
-    decided: bool
 
 
 def _closing(found: list[Token]) -> dict[int, int]:
@@ -265,45 +305,83 @@ def _past_type_arguments(found: list[Token], at: int) -> int:
     return at
 
 
-def _declaration(found: list[Token], pairs: dict[int, int], index: int) -> Title | None:
-    """Read the call that starts at this token, if it declares a test, a group or a skip."""
+def _called(
+    found: list[Token], pairs: dict[int, int], at: int, member: str
+) -> tuple[int, list[Token]] | None:
+    """Read what a member called before the title is — ``each``, ``skipIf`` — takes.
+
+    Return the index past it and, for a table (``each``, ``for``), its tokens: the title is formed
+    from each row, so a citation in a row is in the title. The table is an array, or a template
+    literal tagged by the member (``it.each`a|b`(…)``); a condition (``skipIf``) is no title.
+    """
+    at = _past_type_arguments(found, at)
+    if at >= len(found):
+        return None
+    table = member in {"each", "for"}
+    if found[at].text == "(" and at in pairs:
+        return pairs[at] + 1, found[at + 1 : pairs[at]] if table else []
+    if table and found[at].kind == "string" and found[at].text.startswith("`"):
+        end = next((i for i in range(at, len(found)) if _ends_template(found[i])), None)
+        if end is not None:
+            return end + 1, found[at : end + 1]
+    return None
+
+
+def _ends_template(token: Token) -> bool:
+    """Tell whether this token is the last text of a template literal."""
+    return token.kind == "string" and token.text.endswith("`")
+
+
+def _declaration(
+    found: list[Token], pairs: dict[int, int], index: int, source: str, path: str
+) -> Title | None:
+    """Read the call that starts at this token, if it declares a test or a group."""
     if found[index].text not in _HEADS or (index and found[index - 1].text == "."):
         return None
     members: list[str] = []
+    table: list[Token] = []
     at = index + 1
     while at + 1 < len(found) and found[at].text == "." and found[at + 1].kind == "name":
-        members.append(found[at + 1].text)
+        member = found[at + 1].text
+        members.append(member)
         at += 2
+        if member in _CALLED:
+            read = _called(found, pairs, at, member)
+            if read is None:
+                return None
+            at, rows = read
+            table += rows
     at = _past_type_arguments(found, at)
     if at >= len(found) or found[at].text != "(" or at not in pairs:
         return None
-    group = found[index].text == "describe" or "describe" in members
-    if not set(members) <= _VARIANTS | ({"describe"} if group else set()):
+    if _DECLARING_NOTHING & set(members):
         return None
-    table: list[Token] = []
-    if "each" in members:
-        # The title is formed from each row of the table: a citation in a row is in its title.
-        table = found[at + 1 : pairs[at]]
-        at = pairs[at] + 1
-        if at >= len(found) or found[at].text != "(" or at not in pairs:
-            return None
+    group = found[index].text == "describe" or "describe" in members
+    if unknown := set(members) - _VARIANTS - (_GROUPING if group else set()):
+        line = source.count("\n", 0, found[index].start) + 1
+        call = ".".join([found[index].text, *members])
+        raise UnreadableError(path, line, call, unknown)
     first = _first_argument(found, at, pairs[at])
+    # A skip or a failure whose first argument is no title is no test: it annotates the test it
+    # sits in, which decides as it runs whether it is skipped.
+    if not group and _ANNOTATIONS & set(members) and not (first and first[0].kind == "string"):
+        return None
     strings = tuple(token for token in [*table, *first] if token.kind == "string")
-    not_run = bool(_NOT_RUN & set(members))
-    # A skip whose first argument is no title: none, a condition. A title built by code — a name,
-    # a call — is a test still, that cites nothing.
-    decided = not group and not_run and not (first and first[0].kind == "string")
-    return Title(strings, range(index, pairs[at] + 1), group, not_run, decided)
+    return Title(strings, range(index, pairs[at] + 1), group, bool(_NOT_RUN & set(members)))
 
 
-def declarations(source: str, *, jsx: bool) -> list[tuple[Title, bool]]:
-    """Return the tests, the groups and the decided skips of a file, each with whether it runs.
+def declarations(source: str, *, jsx: bool, path: str = "") -> list[tuple[Title, bool]]:
+    """Return the tests and the groups of a file, each with whether it runs.
 
-    A decided skip is said to run: it is the test that holds it that may not.
+    A call on ``it``, ``test`` or ``describe`` of an unknown form fails, naming ``path`` and line.
     """
     found = tokens(source, jsx=jsx)
     pairs = _closing(found)
-    titles = [title for index in range(len(found)) if (title := _declaration(found, pairs, index))]
+    titles = [
+        title
+        for index in range(len(found))
+        if (title := _declaration(found, pairs, index, source, path))
+    ]
     groups = [title for title in titles if title.group]
 
     def held(title: Title) -> bool:
@@ -314,20 +392,14 @@ def declarations(source: str, *, jsx: bool) -> list[tuple[Title, bool]]:
         )
 
     tests = {
-        id(title): not title.not_run and not held(title)
-        for title in titles
-        if not title.group and not title.decided
+        id(title): not title.not_run and not held(title) for title in titles if not title.group
     }
 
     def runs(title: Title) -> bool:
-        if title.decided:
-            return True
         if not title.group:
             return tests[id(title)]
         return any(
-            tests[id(test)]
-            for test in titles
-            if not test.group and not test.decided and test.span.start in title.span
+            tests[id(test)] for test in titles if not test.group and test.span.start in title.span
         )
 
     return [(title, runs(title)) for title in titles]

@@ -447,4 +447,41 @@ def test_a_release_with_an_f0_requirement_only_tests_not_run_cite_fails_naming_i
 
 
 def test_the_mark_the_report_reads_is_the_one_the_plugin_requires() -> None:
-    assert coverage.UNEXECUTED == unexecuted.MARK
+    skip = f"@pytest.mark.{unexecuted.MARK}('r')"
+    source = f"import pytest\n\n{MARK}('WF-QUA-0010-A')\n{skip}\ndef test_a(): ...\n"
+    assert [c.executed for c in coverage.python_citations("t.py", source, "back")] == [False]
+
+
+def test_the_mark_unexecuted_is_read_in_every_form_the_plugin_accepts() -> None:
+    source = """
+import pytest
+
+REASON = "no docker"
+CASES = [pytest.param(1, marks=pytest.mark.unexecuted("no schema")), 2]
+pytestmark: list[object] = [pytest.mark.requirement("WF-QUA-0010-A")]
+
+
+@pytest.mark.unexecuted(REASON)
+def test_constant() -> None: ...
+
+
+@pytest.mark.parametrize(
+    "x", [pytest.param(1, marks=pytest.mark.unexecuted("no docker")), 2]
+)
+def test_param(x: int) -> None: ...
+
+
+@pytest.mark.parametrize("x", CASES)
+def test_cases_built_apart(x: int) -> None: ...
+
+
+@pytest.mark.parametrize("x", [1, 2])
+def test_run(x: int) -> None: ...
+"""
+    found = coverage.python_citations("backend/tests/t.py", source, "back")
+    assert [(c.test.split("::")[1], c.executed) for c in found] == [
+        ("test_constant", False),
+        ("test_param", False),
+        ("test_cases_built_apart", False),
+        ("test_run", True),
+    ]

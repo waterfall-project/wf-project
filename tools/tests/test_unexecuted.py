@@ -67,6 +67,26 @@ def test_expected_to_fail() -> None:
     result.assert_outcomes(skipped=2, xfailed=1)
 
 
+def test_an_expected_failure_that_is_not_run_is_a_skip(pytester: pytest.Pytester) -> None:
+    result = run(
+        pytester,
+        """
+import pytest
+
+@pytest.mark.xfail(run=False, reason="breaks the worker")
+def test_not_run() -> None: ...
+
+@pytest.mark.unexecuted("breaks the worker")
+@pytest.mark.xfail(run=False, reason="breaks the worker")
+def test_not_run_declared() -> None: ...
+""",
+    )
+    result.assert_outcomes(errors=1, xfailed=1)
+    result.stdout.fnmatch_lines(
+        ["*skipped without @pytest.mark.unexecuted(<reason>): breaks the worker*"]
+    )
+
+
 def test_a_mark_without_a_reason_declares_nothing(pytester: pytest.Pytester) -> None:
     result = run(
         pytester,
