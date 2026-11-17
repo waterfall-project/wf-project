@@ -505,9 +505,10 @@ def test_a_labour_category_without_a_rate_refuses_the_projection_and_names_it(
 ) -> None:
     # « Le refus énumère les catégories de coût sans taux horaire pour l'année de référence. »
     # (#3565) The projection has meaning only complete, on any basis: the rate of the engineering
-    # withdrawn from the reference and from the marking, a line of labour without one is refused
-    # 422 `HOURLY_RATE_MISSING`, without field, the category and its year named once. Every line of
-    # the revision is looked at, those out of the subproject filter and those with nothing left too.
+    # withdrawn from the reference (the marking keeps its own, which a trigger forbids touching), a
+    # line of labour without one is refused 422 `HOURLY_RATE_MISSING`, without field, the category
+    # and its year named once. Every line of the revision is looked at, those out of the subproject
+    # filter and those with nothing left too.
     clock(date(2026, 10, 15))
     query: dict[str, Any] = {}
     if case == "outside_subproject":
@@ -534,7 +535,8 @@ def test_a_labour_category_without_a_rate_refuses_the_projection_and_names_it(
         before = site.plan("current_remaining")["monthly_totals"]
         set_progress(site.stage, task["node_id"], "completed", date(2026, 11, 10))
         clock(date(2026, 11, 12))
-        # Nothing is left of the line: the refusal comes from the rate withdrawn alone.
+        # No hour is left on the line, by the workload: the refusal comes from the rate withdrawn
+        # alone.
         assert before != []
         assert site.plan("current_remaining")["monthly_totals"] == []
     _refused_for_rates(site, basis, **query)

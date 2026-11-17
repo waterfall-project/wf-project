@@ -194,7 +194,8 @@ def test_a_review_marked_at_midnight_sharp_of_the_completion_gives_no_point(
     project.date(STUDIES, JUNE_30)
     midnight = datetime(done.year, done.month, done.day, tzinfo=UTC)
     monkeypatch.setattr("indicators_support.now", lambda: midnight)
-    marked(project.stage, project.tree.revision, "v2")
+    # The instant of the marking is asserted: were the patch not applied, it would be nine o’clock.
+    assert marked(project.stage, project.tree.revision, "v2") == midnight
     found = milestone(project.diagram(done + timedelta(days=3)), STUDIES)
     assert points(found) == [
         (at_nine(eve), "2027-06-30"),
