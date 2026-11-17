@@ -179,7 +179,10 @@ def _structures(
 
 
 def revision_structures(session: Session, project_id: UUID, revision_id: UUID) -> tuple[UUID, ...]:
-    """Give the structures of a revision, in the order of their identifiers, which locks them."""
+    """Give the structures of a revision, in the order of their identifiers, unlocked.
+
+    The caller locks them (``structure_facts``, ``lock=True``), in that order.
+    """
     return tuple(
         session.scalars(
             select(CostStructure.id)

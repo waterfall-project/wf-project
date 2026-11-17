@@ -28,6 +28,7 @@ from waterfall.core.projects.interface.attachments import (
     hold_items,
     item_cited,
     register_attachments,
+    share_items,
 )
 
 # ``contributors`` (US-0930; the kind and the existence, US-0910/L2): a project's contributors.
@@ -281,6 +282,7 @@ __all__ = [
     "set_current_revision",
     "set_reference_revision",
     "set_work_breakdown",
+    "share_items",
     "stored_lock_version",
     "subproject_has_actual_costs",
     "subproject_labels",

@@ -15,7 +15,10 @@ work packages and order items of a project, those marked deleted included, by
 
 The tree is read in one statement, so that the counter and the elements it numbers belong to one
 snapshot. It is written under the lock of the project, which every decision is read under; the
-positions, unique under their parent, are freed before they are taken again.
+positions, unique under their parent, are freed before they are taken again. The locks follow the
+order of every write of the service (``estimate/repricing.py``): the current revision shared, by
+the modules whose rows bear an element (``share_items``, #3654), then the project, then what those
+rows are written under (``hold_items``), then the elements.
 """
 
 from dataclasses import dataclass
@@ -28,7 +31,12 @@ from waterfall.core.projects.commands import (
     PROJECT_NOT_TERMINAL,
     TERMINAL,
 )
-from waterfall.core.projects.interface.attachments import detach_item, hold_items, item_cited
+from waterfall.core.projects.interface.attachments import (
+    detach_item,
+    hold_items,
+    item_cited,
+    share_items,
+)
 from waterfall.core.projects.interface.contributors import require_project_manager
 from waterfall.core.projects.interface.lifecycle import no_background_task_running
 from waterfall.core.projects.tables import Deliverable, OrderItem, Project, WorkPackage
@@ -552,8 +560,10 @@ def set_work_breakdown(
     counter that is not the project's (412), and each identifier that names no element of its
     nature, or that is sent twice (422, at its field). Nothing is written then. An element sent
     without identifier is new and receives one; an element left out is deleted. The work breakdown
-    is answered whole with its next counter, built before the commit.
+    is answered whole with its next counter, built before the commit. The current revision is
+    shared before the project is locked (``share_items``), as the marking locks them.
     """
+    share_items(session, project_id)
     project = _locked(session, project_id)
     require_project_manager(session, project_id, viewer)
     if project.state in TERMINAL:
@@ -644,8 +654,10 @@ def load_work_breakdown(session: Session, load: WorkBreakdownLoad, act: Act) -> 
 
     It replaces the one the project was born with, which nothing has written yet: a project whose
     work breakdown was written is refused (409, ``ALREADY_EXISTS``), as the witness never
-    overwrites what a platform holds. The identifiers the witness imposes are kept.
+    overwrites what a platform holds. The identifiers the witness imposes are kept. The current
+    revision is shared before the project is locked (``share_items``), as ``set_work_breakdown``.
     """
+    share_items(session, load.project_id)
     project = _locked(session, load.project_id)
     if project.work_breakdown_lock_version != BORN_LOCK_VERSION:
         raise ConflictError(ALREADY_EXISTS, {"conflicting_object_id": str(project.id)})

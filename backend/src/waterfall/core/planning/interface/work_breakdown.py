@@ -4,9 +4,14 @@
 
 Registered at the import of the interface in the registry of the projects
 (``register_attachments``): whether a task of a marked revision bears a work package or an order
-item, the lock of the structures of the current revision, taken before the elements it removes,
-and the withdrawal of an element from the tasks of that revision, which ``set_work_breakdown``
-asks of them.
+item, the share of the current revision, taken before the project is locked, the lock of the
+structures of that revision, taken before the elements it removes, and the withdrawal of an element
+from the tasks of that revision, which ``set_work_breakdown`` asks of them.
+
+The locks follow the order every write of the service takes (``estimate/repricing.py``): the
+current revision shared (``share_work_breakdown_revision``, #3654), then the project, then the
+structures, then the elements. The writing of the work breakdown locks the project, and the marking
+locks the revision, then the project: shared first, the revision is never awaited both ways.
 
 The withdrawal is a write of the planning: it writes the tasks of a structure under its lock and
 advances its counter, on which the front leans every write (US-2250/L3, #3600). Every structure of
@@ -18,7 +23,8 @@ withdrawal would then wait for a structure another write holds while it waits fo
 deadlock, and write that structure's tasks without its counter. The structures of a revision are
 fixed under the lock of the project, which ``set_work_breakdown`` holds, and which the opening and
 the marking of a revision take: the set locked is the set written. The withdrawal reads the
-structures it writes under that lock, and advances their counters alone.
+structures it writes under that lock, and advances their counters alone; it does not lock them again
+for each element (#3660): ``set_work_breakdown`` holds them once for all the elements it removes.
 
 Declared by US-1380/L1, filled by US-1380/L3: a task of a revision other than the current one of
 its project is one of a marked revision — an abandoned revision leaves no task —; the tasks of the
@@ -33,6 +39,7 @@ from waterfall.core.planning.tables import Node, Task
 from waterfall.core.planning.tree import LINE
 from waterfall.core.revisions.interface import (
     current_revision,
+    hold_current_revision,
     revision_structures,
     structure_counted,
     structure_facts,
@@ -121,10 +128,23 @@ def _held(session: Session, project_id: UUID, current: UUID) -> None:
     """Lock every structure of the current revision, ``FOR UPDATE``, in the order of their ids.
 
     As every write that locks several does (``reprice_revision``); a structure held already costs
-    nothing.
+    nothing. The list is read before the locks, and is the list the locks hold: no structure is
+    created out of the lock of the project (``lock_project``: ``create_main_structure``,
+    ``copy_structures``), which the caller holds. The differentials of EP-08 will have to take it
+    too, before they create a structure (#3661).
     """
     for structure_id in revision_structures(session, project_id, current):
         structure_facts(session, project_id, structure_id, lock=True)
+
+
+def share_work_breakdown_revision(session: Session, project_id: UUID) -> None:
+    """Share the lock of the current revision of a project, before the project is locked (#3654).
+
+    Asked by ``set_work_breakdown`` before anything else: the order of every write of the service,
+    and of the marking, which locks the revision, then the project. The revision is read again
+    under the lock of the project (``hold_work_breakdown_items``).
+    """
+    hold_current_revision(session, project_id)
 
 
 def hold_work_breakdown_items(
@@ -149,8 +169,12 @@ def detach_work_breakdown_item(session: Session, project_id: UUID, item_id: UUID
     The node of each task it writes counts the write, its counter advanced (``Node.lock_version``)
     in a statement of its own, before the tasks are written: a write of the tree that would read
     such a task again rests on that counter (``reshaped``, US-2250/L2, #3562), and an entry made
-    on the task as it was is refused at the counter it read (412). Every structure of the revision
-    is locked first, held already when ``hold_work_breakdown_items`` took them; those whose tasks
+    on the task as it was is refused at the counter it read (412).
+
+    Its contract: asked after ``hold_work_breakdown_items``, in the same transaction, under the lock
+    of the project. Every structure of the revision is held already, and is not locked again for
+    each element (#3660): a caller that skipped the hold would write tasks out of the lock of their
+    structure. Those whose tasks
     it writes, read under that lock, have their counter advanced once their tasks are written
     (``structure_counted``, #3600): a write of the tree reads none of them halfway, and the front
     knows its reading stale.
@@ -158,7 +182,6 @@ def detach_work_breakdown_item(session: Session, project_id: UUID, item_id: UUID
     current = current_revision(session, project_id)
     if current is None:
         return
-    _held(session, project_id, current)
     structures = _bearing(session, project_id, current, item_id)
     if not structures:
         return
