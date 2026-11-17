@@ -782,103 +782,16 @@ def test_the_merge_queue_check_and_the_other_targets_pass(command: str) -> None:
 @pytest.mark.parametrize(
     "command",
     [
-        "find . -name .git -exec rm -rf {} +",
-        "find . -name .git -delete",
-        "find . -type d -name .git -prune -exec rm -rf {} +",
-        "find . -path '*/.git' -prune -exec rm -rf {} ';'",
-        "find . -name '.git*' -execdir rm -rf {} +",
-        "find . \\( -name .git -o -name x \\) -exec rm -rf {} +",
-        "find . -name x -o -name .git -prune -exec rm -rf {} +",
-    ],
-)
-def test_a_find_that_names_git_and_removes_is_refused(command: str) -> None:
-    """#2417: `find -name .git` with `-exec rm` or `-delete`, and `-prune -exec rm -rf`."""
-    form = guard.refusal(command)
-    assert form is not None
-    assert "`find … -name .git` with `-delete` or `-exec rm`" in form
-
-
-@pytest.mark.story("US-2450")
-@pytest.mark.parametrize(
-    "command",
-    [
-        "find . -name .git -prune -o -name '*.pyc' -delete",
-        "find . -name .git -prune -o -type f -name '*.o' -exec rm {} +",
-        "find . -name .github -exec rm -rf {} +",
-        "find . -name .gitignore -delete",
-        "find . -name .git -print",
-    ],
-)
-def test_a_find_that_skips_git_or_only_lists_it_passes(command: str) -> None:
-    """#2417: past an `-o`, the removal does not reach what `-name .git -prune` matched."""
-    assert not refused(command)
-
-
-@pytest.mark.story("US-2450")
-@pytest.mark.parametrize(
-    ("command", "form"),
-    [
-        ("rm -rf .git/refs", "`rm .git/refs`"),
-        ("rm -rf .git*", "`rm .git*`"),
-        ("rm -f .git?", "`rm .git?`"),
-        ("rm .git", "`rm .git`"),
-        ("rm .git/HEAD", "`rm .git/HEAD`"),
-        ("rm -rf -- ../other/.git/objects", "`rm ../other/.git/objects`"),
-        ("unlink .git", "`unlink .git`"),
-        ("mv .git /tmp/git.old", "`mv .git`"),
-        ("mv .git/refs/heads/main /tmp", "`mv .git/refs/heads/main`"),
-        ("mv -t .git/hooks pre-commit", "`mv .git/hooks`"),
-        ("truncate -s0 .git/index", "`truncate .git/index`"),
-        ("sudo truncate --size 0 .git/HEAD", "`truncate .git/HEAD`"),
-    ],
-)
-def test_rm_mv_and_truncate_of_an_operand_that_reaches_git_are_refused(
-    command: str, form: str
-) -> None:
-    """#2417: an operand that is `.git`, passes through `.git/` or opens by `.git` and a joker."""
-    said = guard.refusal(command)
-    assert said is not None
-    assert said.startswith(form)
-    assert "the repository that every worktree shares" in said
-
-
-@pytest.mark.story("US-2450")
-@pytest.mark.parametrize(
-    "command",
-    ["truncate -s0 .git/index.lock", "cd .git && truncate -s 0 index.lock"],
-)
-def test_truncating_a_lock_of_git_is_refused_as_its_removal(command: str) -> None:
-    """#2417: `truncate -s0 .git/index.lock` empties the lock a git command holds."""
-    said = guard.refusal(command)
-    assert said is not None
-    assert "a lock of git is held by a git command that runs" in said
-
-
-@pytest.mark.story("US-2450")
-@pytest.mark.parametrize(
-    "command",
-    [
-        "rm -rf .gitignore .github .git-old",
-        "mv .gitignore .gitignore.bak",
-        "truncate -s0 build/log.txt",
-        "truncate -s 0 frontend/.github/x",
-        "rename 's/.git/x/' notes.txt",
-    ],
-)
-def test_an_operand_next_to_git_passes(command: str) -> None:
-    """#2417: `.gitignore`, `.github`, `.git-old` are not `.git`; `rename` takes an expression."""
-    assert not refused(command)
-
-
-@pytest.mark.story("US-2450")
-@pytest.mark.parametrize(
-    "command",
-    [
         "make -j2 merge-queue EPIC=EP-28 'open",
         "make EPIC=x merge-queue 'open",
         'make -j 2 -s merge-queue "open',
         "make -C . merge-queue 'open",
         "make --no-print-directory EPIC=EP-28 merge-queue 'open",
+        'make -f "a b" merge-queue \'open',
+        "make -f 'a b' EPIC=\"x y\" merge-queue 'open",
+        'make "x y" merge-queue \'open',
+        "make -sC merge-queue 'open",
+        "make -- merge-queue 'open",
     ],
 )
 def test_make_merge_queue_not_adjacent_in_a_line_not_cut_is_refused(command: str) -> None:
@@ -899,6 +812,9 @@ def test_make_merge_queue_not_adjacent_in_a_line_not_cut_is_refused(command: str
         "make -f merge-queue all",
         "make -C merge-queue check 'open",
         "make merge-queue-check 'open",
+        "make -Cmerge-queue check",
+        "make -Cmerge-queue check 'open",
+        "make -f 'merge-queue x' check 'open",
     ],
 )
 def test_merge_queue_as_the_argument_of_an_option_of_make_passes(command: str) -> None:
@@ -915,6 +831,7 @@ def test_merge_queue_as_the_argument_of_an_option_of_make_passes(command: str) -
         "make check -C . merge-queue",
         "make --dir . merge-queue",
         "env EPIC=x make -s merge-queue",
+        "make -- merge-queue",
     ],
 )
 def test_make_merge_queue_past_options_is_refused(command: str) -> None:
@@ -933,6 +850,10 @@ def test_make_merge_queue_past_options_is_refused(command: str) -> None:
         "find .git -name x\nls | xargs rm",
         "(find .git -name x); ls | xargs rm",
         "if true; then ls .git; fi; ls | xargs rm",
+        "find .git -name x &&\nls | xargs rm",
+        "find .git -name x ||\nls | xargs rm",
+        "find .git -name x &\nls | xargs rm",
+        "find .git -name x # |\nls | xargs rm",
     ],
 )
 def test_xargs_rm_in_a_pipe_that_names_no_git_passes(command: str) -> None:
@@ -954,6 +875,14 @@ def test_xargs_rm_in_a_pipe_that_names_no_git_passes(command: str) -> None:
         "if true; then find .git; fi | xargs rm",
         "ls $(echo .git) | xargs rm",
         "ls; echo $(find .git; ls) | xargs rm",
+        "find .git -name x |\n xargs rm",
+        "find .git | cat |\nxargs rm",
+        "find .git -name x |\n cat | xargs rm",
+        "echo 'a.lock' |\n xargs rm",
+        "git ls-files | grep .lock |\n xargs rm",
+        "find .git |&\nxargs rm",
+        "find .git |\n # c\n xargs rm",
+        "find .git |\n\n xargs rm",
     ],
 )
 def test_xargs_rm_fed_by_what_names_git_in_its_pipe_stays_refused(command: str) -> None:

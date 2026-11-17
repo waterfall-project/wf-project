@@ -46,11 +46,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, cast
 
 # The type checker reads the package; the launcher runs this file by its path, outside the
-# package: the module beside it is imported from its directory, whatever the interpreter put first.
+# package: the module beside it is imported from its directory, put first, before any other.
 if TYPE_CHECKING or __package__:
     from wftools import guardgit
 else:
-    sys.path.append(str(Path(__file__).resolve().parent))
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
     import guardgit
 
 if TYPE_CHECKING:
@@ -76,12 +76,20 @@ _OPERATORS = frozenset(";&|()\n")
 # The longest first: `<<-` before `<<`, `>>` before `>`.
 _REDIRECTION = re.compile(r"&>>?|<<<|<<-?|<>|<&|<|>>|>&|>\||>")
 _BACKSLASHED = re.compile(r"\\([\\`$])")
+# A word of shell, its quoted parts holding blanks, that runs over no other `make`: the search,
+# which tries each `make` of the line, then reads each character once (`make -C make -C …`).
+_FREE = r"(?!(?<![\w-])make\s)"
+_WORD = rf"""(?:'(?:{_FREE}[^'])*+'|"(?:{_FREE}[^"])*+"|(?:{_FREE}[^\s'"])++)++"""
 # What a line not cut is refused for naming: the command words of the forms refused. Between
-# `make` and `merge-queue` stand its options, its assignments and a number of `-j 2`; an option
-# that takes the next word for its argument takes it, once (`make -C merge-queue` passes).
+# `make` and `merge-queue` stand its options, its assignments, a number of `-j 2` and quoted words;
+# an option that takes the next word for its argument takes it, once (`make -C merge-queue`
+# passes). Each element is atomic, and none opens by a blank. Limit: a quoted word that holds
+# `make ` ends the options (`make -f 'a make b' merge-queue 'x` passes); the shell, which does
+# not run a line with an open quote, runs none of them.
 _FORBIDDEN = re.compile(
     r"(?<![\w-])(?:pkill|killall|kill|docker|docker-compose)(?![\w-])|\.lock\b"
-    r"|(?<![\w-])make(?:\s+(?>-[CEfIoW]\s+\S+|-\S+|[A-Za-z_]\w*\+?=\S*|[0-9.]+))*"
+    rf"|(?<![\w-])make(?:\s+(?>-[CEfIoW]\s+{_WORD}|-{_WORD}|[A-Za-z_]\w*\+?=(?:{_WORD})?"
+    rf"""|[0-9.]+|(?=['"]){_WORD}))*+"""
     r"\s+merge-queue(?![\w-])"
 )
 _ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\+?=")
@@ -325,7 +333,8 @@ class _Scanner:
     ``$(…)`` in the word that holds it.
 
     Each command comes with the number of its pipeline, which a ``;``, an ``&``, an ``&&``, an
-    ``||`` or a newline ends; ``|`` and ``|&`` do not. A group — ``( )``, ``{ }``, ``if … fi``, a
+    ``||`` or a newline ends; ``|`` and ``|&`` do not, nor the newlines and comments that follow
+    them before the next command. A group — ``( )``, ``{ }``, ``if … fi``, a
     loop, ``case … esac`` — is one element of the pipeline that holds it: what it writes may feed
     a pipe after it, and the separators inside it end nothing. The commands of a substitution
     belong to the pipeline of the command that holds it, whose argument they make.
@@ -346,6 +355,8 @@ class _Scanner:
         self.root = self if root is None else root
         self.pipeline = 0
         self.groups = 0
+        # A `|` or `|&` was read, and no word since.
+        self.piping = False
 
     def scan(self, start: int = 0, *, closing: bool = False) -> int:
         """Cut from ``start`` to the end, or to the ``)`` that closes a substitution."""
@@ -364,8 +375,11 @@ class _Scanner:
                 self._redirection()
             elif char in _OPERATORS:
                 self._close(words)
+                ends = _ends_pipeline(text, self.position) and not (char == "\n" and self.piping)
                 if self.root is self and nesting == 0 and self.groups == 0:
-                    self.pipeline += _ends_pipeline(text, self.position)
+                    self.pipeline += ends
+                # `a |⏎ b` is one pipeline: a newline, or a comment, after a pipe ends nothing.
+                self.piping = _pipes(text, self.position) or (self.piping and char in "&\n")
                 self.position += 1
                 if char == "(":
                     nesting += 1
@@ -376,6 +390,7 @@ class _Scanner:
                 elif char == "\n":
                     self._bodies()
             else:
+                self.piping = False
                 word = self._word()
                 # `2>/dev/null`: the digits name the descriptor redirected, not an argument.
                 if not (word.isdigit() and _redirects(text, self.position)):
@@ -515,6 +530,11 @@ def _redirects(text: str, index: int) -> bool:
     return text.startswith("&>", index) or (
         text[index : index + 1] in {"<", ">"} and not text.startswith("(", index + 1)
     )
+
+
+def _pipes(text: str, index: int) -> bool:
+    """Say whether the operator at ``index`` is a ``|`` that pipes: neither ``||`` nor a half."""
+    return text[index] == "|" and not _ends_pipeline(text, index)
 
 
 def _ends_pipeline(text: str, index: int) -> bool:

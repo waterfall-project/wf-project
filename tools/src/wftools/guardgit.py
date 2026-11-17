@@ -9,7 +9,8 @@ the shell in a directory of git. It holds too the simple command that every chec
 receives.
 
 ``rm``, ``unlink``, ``mv`` and ``truncate`` are refused an operand that is ``.git``, passes through
-a ``.git/`` or opens by ``.git`` and a joker (``.git*``), wherever it stands among the operands
+a ``.git/``, opens by ``.git`` and a joker (``.git*``) or is a pattern that matches ``.git``
+(``.g*``, ``.{git,x}``), wherever it stands among the operands or in the value of an option
 (US-2450, #2417). ``find`` is refused when a branch of its expression — what an ``-o`` at the top
 separates — names ``.git`` and removes: ``find . -name .git -prune -exec rm -rf {} +``; the usual
 ``find . -name .git -prune -o -name '*.pyc' -delete`` passes, its removal in the other branch.
@@ -24,19 +25,30 @@ state is kept, and ``rm foo.lock`` is refused although the shell may have left `
 side).
 """
 
+import fnmatch
 import itertools
+import re
 from typing import NamedTuple
 
 SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ksh"})
 # The actions of `find` that run a command on what it found, and the commands that remove.
 _FIND_EXECS = frozenset({"-exec", "-execdir", "-ok", "-okdir"})
-_FIND_REMOVERS = frozenset({"rm", "unlink", "mv", "rename"}) | SHELLS
+_FIND_REMOVERS = frozenset({"rm", "unlink", "mv", "rename", "truncate"}) | SHELLS
 _FIND_OPTIONS = frozenset({"-H", "-L", "-P"})
 _FIND_OR = frozenset({"-o", "-or"})
 # The commands refused an operand that reaches `.git`: `rename` takes an expression first, which
 # names no file.
 _GIT_OPERANDS = frozenset({"rm", "unlink", "mv", "truncate"})
 _JOKERS = frozenset({"*", "?", "["})
+# The short options whose argument may be written in the same word: `mv -t.git`, `truncate -r…`.
+_ATTACHED = {"mv": "St", "truncate": "rs"}
+# A group of braces, innermost; the shell expands it when it holds a comma.
+_BRACES = re.compile(r"\{[^{}]*\}")
+# Past this many words, a brace expansion is not followed: the path is taken for one of `.git`.
+_MAX_EXPANSIONS = 256
+# Past this length a pattern is not matched, which would take a time of its square: it is taken
+# for one of `.git`. No name of a file is longer.
+_NAME_MAX = 255
 _REPOSITORY = (
     "it removes or changes what git holds, the repository that every worktree shares, and the "
     "work of each"
@@ -96,12 +108,39 @@ def into_git(path: str, *, moved: bool) -> bool:
 def reaches_git(path: str) -> bool:
     """Say whether a path is ``.git``, passes through ``.git/``, or opens by ``.git`` and a joker.
 
-    ``.gitignore``, ``.github`` and ``.git-old`` do not; ``.git*`` and ``x/.git?/HEAD`` do.
+    ``.gitignore``, ``.github`` and ``.git-old`` do not; ``.git*`` and ``x/.git?/HEAD`` do, and so
+    does a part whose pattern matches ``.git`` — ``.g*``, ``.[g]it``, ``.*`` —, and a path whose
+    braces expand to one of them: ``.{git,x}``. A joker does not match the dot that opens a name.
     """
-    return any(
-        part == ".git" or (part.startswith(".git") and part[4:5] in _JOKERS)
-        for part in path.split("/")
+    expanded = _expand(path)
+    return expanded is None or any(
+        _git_part(part) for written in expanded for part in written.split("/")
     )
+
+
+def _git_part(part: str) -> bool:
+    if part == ".git" or (part.startswith(".git") and part[4:5] in _JOKERS):
+        return True
+    if part[:1] != "." or not _JOKERS & set(part):
+        return False
+    return len(part) > _NAME_MAX or fnmatch.fnmatchcase(".git", part.replace("[^", "[!"))
+
+
+def _expand(path: str) -> list[str] | None:
+    """Return the words the braces of ``path`` expand to; None past ``_MAX_EXPANSIONS``."""
+    pending = [path]
+    done: list[str] = []
+    while pending:
+        word = pending.pop()
+        group = next((found for found in _BRACES.finditer(word) if "," in found.group()), None)
+        if group is None:
+            done.append(word)
+            continue
+        head, tail = word[: group.start()], word[group.end() :]
+        pending += [head + choice + tail for choice in group.group()[1:-1].split(",")]
+        if len(pending) + len(done) > _MAX_EXPANSIONS:
+            return None
+    return done
 
 
 def unlink(command: Command) -> str | None:
@@ -131,18 +170,32 @@ def unlink(command: Command) -> str | None:
                 "maybe in another worktree"
             )
     if command.name in _GIT_OPERANDS:
-        for operand in _operands(command.arguments):
+        for operand in _operands(command.name, command.arguments):
             if reaches_git(operand):
                 return f"`{command.name} {operand}`: {_REPOSITORY}"
     return None
 
 
-def _operands(arguments: list[str]) -> list[str]:
-    """Return the operands of a command: the words that are no option, and all past ``--``."""
-    if "--" not in arguments:
-        return [word for word in arguments if word[:1] != "-"]
-    end = arguments.index("--")
-    return [word for word in arguments[:end] if word[:1] != "-"] + arguments[end + 1 :]
+def _operands(name: str, arguments: list[str]) -> list[str]:
+    """Return the paths a command names: its operands, all past ``--``, and the paths of options.
+
+    The value of a long option after ``=`` is judged as a path, ``mv --target-directory=.git``,
+    and so is the argument written in the word of a short one that takes it, ``mv -t.git``.
+    """
+    paths: list[str] = []
+    attached = _ATTACHED.get(name, "")
+    for at, word in enumerate(arguments):
+        if word == "--":
+            return paths + arguments[at + 1 :]
+        if word.startswith("--"):
+            paths += [word.partition("=")[2]] if "=" in word else []
+        elif word[:1] == "-":
+            cluster = word[1:]
+            taking = next((place for place, char in enumerate(cluster) if char in attached), None)
+            paths += [cluster[taking + 1 :]] if taking is not None and cluster[taking + 1 :] else []
+        else:
+            paths.append(word)
+    return paths
 
 
 def _recursive(arguments: list[str]) -> bool:
