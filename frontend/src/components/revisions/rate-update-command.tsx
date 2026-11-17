@@ -20,7 +20,15 @@
 
 import { RefreshCw, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type RefObject, type SubmitEvent, useEffect, useId, useRef, useState } from "react";
+import {
+  type RefObject,
+  type SubmitEvent,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 
 import { applyRateUpdate, readRateUpdateProposal } from "@/api/actions/revisions";
 import type { components } from "@/api/generated/schema";
@@ -175,10 +183,13 @@ function RateUpdateDialog({
   const [proposal, setProposal] = useState<Outcome<Proposal>>();
   const [refused, setRefused] = useState<ReadonlySet<string>>(new Set());
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  const [busy, setBusy] = useState(false);
+  const [busy, startTransition] = useTransition();
   // An update lost once sent: the dialog waits until the screen has been read anew (US-2240).
   const reading = useReadAnew(outcome);
   const waiting = busy || reading;
+  // The dialog is mounted once per revision and unmounted when it closes: the command that opens it
+  // is keyed by the revision (`object-commands.tsx`), so both values are constant for the life of
+  // this component and the read starts once; `current` drops the answer of a read that outlives it.
   useEffect(() => {
     let current = true;
     void readRateUpdateProposal(projectId, revisionId).then((read) => {
@@ -201,20 +212,23 @@ function RateUpdateDialog({
     if (waiting || retained.length === 0) {
       return;
     }
-    setBusy(true);
     setOutcome(undefined);
-    void held(
-      applyRateUpdate(projectId, revisionId, {
-        categoryIds: retained.map(({ cost_category_id: id }) => id),
-        lockVersion,
-      }),
-    ).then((answer) => {
-      setBusy(false);
+    // In a transition, as the dialogs that write are: the answer, told or closed, is committed with
+    // the end of the request, while Escape is still held.
+    startTransition(async () => {
+      const answer = await held(
+        applyRateUpdate(projectId, revisionId, {
+          categoryIds: retained.map(({ cost_category_id: id }) => id),
+          lockVersion,
+        }),
+      );
       if (answer.kind === "done") {
         onApplied(retained.length);
         onClose();
       } else {
-        setOutcome(answer);
+        startTransition(() => {
+          setOutcome(answer);
+        });
       }
     });
   };

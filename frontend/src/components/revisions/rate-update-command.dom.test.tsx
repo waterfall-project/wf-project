@@ -189,6 +189,11 @@ describe("the rate update, a command of the current revision (US-2370)", () => {
     expect(bodies(client, RATES)).toHaveLength(1);
     await userEvent.click(await within(dialog).findByRole("button", { name: "Recharger" }));
     expect(router.refresh).toHaveBeenCalledOnce();
+    // The dialog closes with the reload: the proposal read before the refusal is never confirmed
+    // again; the command reads a new one when it opens anew.
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
   });
 
   it("tells a proposal it cannot read, and applies nothing [WF-REV-0060-A]", async () => {

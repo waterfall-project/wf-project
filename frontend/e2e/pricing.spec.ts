@@ -84,7 +84,10 @@ test("the project manager of the run prices a project — a quantity entered, it
     .getByRole("button", { name: "Désigner comme référence" });
   await expect(designate).not.toHaveAttribute("aria-disabled", "true", { timeout: WORKING });
   await designate.click();
-  await history.getByRole("button", { name: "Confirmer la désignation" }).click();
+  // The confirmation unfolds in the cell of a table of ten columns: it stays in the window.
+  const confirmation = history.getByRole("button", { name: "Confirmer la désignation" });
+  await expect(confirmation).toBeInViewport({ ratio: 1 });
+  await confirmation.click();
   await expect(history.getByRole("row").nth(1)).toContainText("Référence", { timeout: WORKING });
 
   // The code entered takes the project In progress, without another action.
