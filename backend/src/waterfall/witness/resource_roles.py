@@ -28,7 +28,6 @@ from pydantic import BaseModel
 from waterfall.api.contract.models import ResourceRole
 from waterfall.api.resource_role_admission import category_admission
 from waterfall.core.resource_settings.interface import (
-    Capacity,
     RoleDraft,
     create_role,
     read_calendar,
@@ -109,10 +108,8 @@ def load(session: Session, witness: Witness) -> bool:
             category_id,
             category_admission(session, category_id),
             role.calendar_id.root,
-            Capacity(
-                Decimal(role.capacity.monthly_hours.root.root),
-                Decimal(role.capacity.headcount.root),
-            ),
+            # The hours of the example are calculated, as the service calculates them (US-2410).
+            Decimal(role.capacity.headcount.root),
         )
         create_role(session, draft, witness.act, identifier=role.resource_role_id.root)
     for node_id in reopened:

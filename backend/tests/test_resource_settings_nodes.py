@@ -747,7 +747,6 @@ def write_role(database: Database, node: UUID) -> UUID:
                 org_node_id=node,
                 cost_category_id=category,
                 calendar_id=calendar,
-                monthly_hours=Decimal(140),
                 headcount=Decimal(2),
                 is_active=True,
                 **audit,

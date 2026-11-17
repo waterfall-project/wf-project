@@ -159,8 +159,7 @@ def make_below(site: Site) -> Below:
                 org_node_id=child,
                 cost_category_id=held[1],
                 calendar_id=held[2],
-                monthly_hours=Decimal(100),
-                headcount=Decimal(1),
+                headcount=Decimal("0.5"),
                 is_active=True,
                 **STAMP,
             )
