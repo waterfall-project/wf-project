@@ -11954,6 +11954,81 @@ aucune forme ne change, aucune opération n'est touchée.
 `VALUE_OUT_OF_RANGE` avec `params.maximum` au champ, qui dirait une borne du champ saisi alors que
 c'est le montant calculé qui déborde ; laisser tel quel (option (c)).
 
+### La comparaison d'une révision en cours, la valeur de base et les totaux de la base (US-2320/L1, #3492, #3176)
+
+La spécification 1.0.6 fait de la comparaison une dimension du contexte de lecture des grilles : une
+révision lue, en cours ou marquée, comparée à une base marquée, chaque valeur modifiée rendue avec
+celle de la base (WF-REV-0080, WF-IHM-0150 à WF-IHM-0170). Décisions de l'auteur du 2026-11-15, au
+cadrage d'EP-27 (conception, « Le contrat ») : **`compareRevisions` est étendu**, et non la
+comparaison lue par `listNodes`, qui laissait `compareRevisions` sans écran et touchait le chemin de
+lecture qu'EP-26 a figé. Ce qui change :
+
+- **Les deux révisions.** `to_revision_id` est la révision lue, en cours ou marquée ;
+  `from_revision_id` la base, marquée. Le 409 `STATE_FORBIDS_OPERATION` (`revision_marked`) ne vaut
+  plus que pour la base, et revient sur la décision du 2026-11-07 (annexe E, E-07), qui écartait la
+  vue « en cours contre référence » ; l'exemple `comparison_revision_draft` est réengendré sur une
+  base en cours. Les noms des paramètres ne changent pas. Une révision en cours se lit dans son état
+  du moment, comme `listNodes` la lit : rien n'est gardé d'une lecture à l'autre.
+- **`ComparedNodeRead.base`** (`ComparedNodeBase`) : les valeurs que la base portait, sous les noms
+  du nœud, pour les seuls champs que la lecture rend (`fields`) et dont la valeur diffère ; vide
+  pour un nœud modifié dont rien de lu ne diffère, nul pour un nœud ajouté, inchangé ou retiré. Un
+  parent et un prédécesseur sont nommés par le nœud que la comparaison rend, rapprochés par la
+  lignée.
+- **`ComparedNodeRead.deltas`** (`NodeDeltas`, `TaskDeltas`, `EstimateLineDeltas`) : de même forme,
+  pour les seuls champs de `base` qui sont une date (en jours calendaires, la date seule d'un
+  `WorkInstant`), une durée (dans l'unité de la durée lue) ou un montant ; la révision lue moins la
+  base ; nul quand l'une des deux valeurs l'est.
+- **`NodeChange.other`.** Un nœud est modifié dès qu'une valeur qu'il porte diffère, saisie ou
+  calculée, des deux facettes, que `fields` la nomme ou non : `other` dit une valeur que
+  WF-REV-0080 n'énumère pas — un libellé, une description, un prédécesseur, le montant aux taux de
+  l'année de référence, les montants d'une tâche, le reste à engager précédent d'une ligne. Les
+  libellés résolus du sous-projet et de la catégorie suivent leur identifiant, sans `other`. Ne
+  sont pas comparés, parce qu'ils changent d'une révision à l'autre sans que rien du nœud ne
+  change : les identifiants, le compteur, le numéro de ligne, le rang et le niveau, les listes des
+  champs calculés et modifiables, `remaining_entry` et `finish_overdue`, drapeau du jour de calcul.
+  La lecture d'un différentiel ne change pas : ni `other`, ni `base`, ni `deltas`. Conséquence
+  dans les exemples : de l'offre à la référence, 5 962 nœuds modifiés par leurs valeurs au lieu de
+  4 997, les tâches par leurs montants, et aucune par son seul contenu (`comparison_volume`).
+- **`RevisionComparison.base_totals` et `totals_delta`** (`NodeTotalsDelta`) : les totaux de la
+  base sur les nœuds que la lecture retient, retirés compris et ajoutés exclus, une ligne comptée
+  par son parent dans la révision lue comme pour `amount_deltas` ; et leur écart signé. `totals` et
+  `amount_deltas` ne changent pas.
+- **`include_differences`** (`ComparisonIncludeDifferences`) : sous un filtre d'état, retient en
+  outre les nœuds en écart qu'il écarte, comptés dans les totaux ; la grille du reste à engager
+  l'envoie, elle seule. `difference` reste un paramètre, que les grilles n'envoient plus : le repli
+  se fait dans le navigateur.
+
+**Exigées en deux temps.** Les propriétés nouvelles sont déclarées sans être exigées : le service ne
+les rend pas encore, et chaque réponse est validée contre le contrat. Le lot du service qui en sert
+une la passe en exigée — `base` et `deltas` avec la comparaison d'une révision en cours,
+`base_totals` et `totals_delta` avec les totaux de la base (US-2320/L2, L3, US-2340, US-2350).
+
+**Les exemples**, engendrés par `wftools.mockcomparisons` et `wftools.mockdiff` (`marked` lu avec
+`compared`, `read_with_fields`), portent `base`, `deltas`, `base_totals` et `totals_delta` ; un
+exemple de plus, `comparison_current`, rend la révision en cours du témoin comparée à la référence
+dont elle est issue, sur le sous-arbre de l'installation sur site. La borne de l'exemple de volume
+(#1204) passe de 1,5 à 1,6 Mo : chaque nœud y rend sa base et ses écarts réduits aux champs lus.
+`info.version` reste `1.0.0` : des propriétés facultatives, un paramètre facultatif et une valeur
+d'énumération de plus.
+
+### Les lectures d'une grille ouvertes à qui la consulte (US-2320, conception d'EP-27, « Les gardes »)
+
+Décision de l'auteur du 2026-11-15, au cadrage d'EP-27 : un compte qui consulte le planning sans
+consulter les révisions y active une comparaison (WF-REV-0080, 1.0.6). Aucune forme ne change ; les
+gardes deviennent :
+
+| Opération | Avant | Après |
+|---|---|---|
+| `compareRevisions` | `estimate.read` | l'une de `planning.read`, `estimate.read`, `remaining.read` |
+| `getRevision`, `listCostStructures`, `listRevisions` | `revisions.read` | `revisions.read`, ou l'une des trois ci-dessus |
+
+`listNodes` ne demande déjà que `planning.read` pour les trois grilles : la comparaison rend ce que
+`listNodes` rend, à qui le lit déjà, et le bandeau lit `getRevision`, `listCostStructures` et
+`listRevisions`. La fonction « Gestion des révisions » reste gardée par `revisions.read` dans la
+navigation, et ses commandes par leurs permissions. Le refus d'un compte qui ne porte aucune de ces
+permissions ne change pas. Réalisé par US-2320/L2 et L3. Écartée : `compareRevisions` seul ouvert, qui laissait le Vérif de WF-REV-0080 non
+constaté sur l'écran.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

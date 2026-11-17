@@ -3656,7 +3656,8 @@
       "payment_delay_days": "Payment delay",
       "parent": "Parent",
       "subproject": "Subproject",
-      "cost_category": "Cost category"
+      "cost_category": "Cost category",
+      "other": "Other value"
     },
     "NodeDifference": {
       "added": "Added",

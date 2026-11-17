@@ -22,9 +22,10 @@ ELSEWHERE = {
     "comparison.json": "the reference 101 compared with the offer 100",
     "volume/comparison_volume.json": "the same comparison, of the whole structure (#1201)",
     "comparison_differences.json": "the same comparison, by its differences alone (#1398)",
+    "comparison_current.json": "the current revision compared with the reference (EP-27)",
 }
 """The readings of nodes exempt from #421, besides the declared counterfactual variants: the
-comparisons of two marked revisions, which name their nodes by the identifiers of the current
+comparisons of two revisions, which name their nodes by the identifiers of the current
 revision's, by the convention of #287 (C12), their removed nodes counted in `row_number`. The
 comparison of the offer with itself, the variant with four levels and the Kanban of the wiring
 supposed completed are counterfactual variants declared, their summaries opening with the word
