@@ -423,6 +423,8 @@ def create_calendar(
             )
         )
     if default:
+        # No ``entered``: only the bootstrap and the loader of the witness pass ``default`` (the
+        # API never does), before any project exists: no line to price again, no field to name.
         recalculate(session, act.at)
     return read_calendar(session, calendar_id)
 

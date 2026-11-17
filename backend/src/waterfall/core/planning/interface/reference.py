@@ -99,7 +99,8 @@ def reschedule_current_structures(
     (422 ``PROJECT_HORIZON_EXCEEDED``, ``params.projects``, WF-ADM-0110): the author of the change
     may consult none of them. A line priced again past its column refuses the change at
     ``entered``, the fields of the request that carry it, or without a field (``refused_at``,
-    #3401).
+    #3401). That refusal is raised at once, whereas the horizon's is gathered and raised at the end:
+    the first wins, whatever the order of the structures.
     """
     beyond: set[UUID] = set()
     for each in current_structures(session, lock=True):

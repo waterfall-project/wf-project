@@ -765,3 +765,31 @@ def test_a_default_calendar_designated_that_carries_a_line_past_its_column_has_n
     halved(lines)
     designated = api.put(path, headers=changing, json={"lock_version": shorter["lock_version"]})
     assert designated.status_code == 200, designated.text
+
+
+@pytest.mark.requirement("WF-DEV-0040-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_hours_of_a_calendar_that_is_not_the_default_redate_and_reprice_nothing(
+    api: ContractClient, stage: Scene, realm: TestRealm, lines: Lines, costs: Costing
+) -> None:
+    # #3401 (US-2400): the hours of the task of thirty days, at its limit, would carry its line past
+    # the year on the default calendar cut to three days (see above). On another calendar, no task
+    # of EP-06 is on it: the change is kept (200), nothing is redated nor priced again.
+    task = thirty_days_at_its_limit(api, stage, lines, costs)
+    before = kept_line(lines.tree)
+    changing = holding(stage.database, realm, "resource_settings.read", "resource_settings.write")
+    body = {"label": "Autre semaine", "weekly_hours": dict(zip(WEEKDAYS, "8888800", strict=True))}
+    created = api.post(CALENDARS, headers=changing, json=body)
+    assert created.status_code == 201, created.text
+    other = created.json()
+    assert not other["is_default"]
+    sent = {
+        "label": other["label"],
+        "weekly_hours": three_days_a_week(),
+        "lock_version": other["lock_version"],
+    }
+    changed = api.patch(f"{CALENDARS}/{other['calendar_id']}", headers=changing, json=sent)
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["weekly_hours"] == three_days_a_week()
+    assert kept_line(lines.tree) == before
+    assert lines.tree.node(task["node_id"])["task"]["finish"] == task["task"]["finish"]
