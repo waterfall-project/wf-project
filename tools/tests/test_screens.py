@@ -249,12 +249,16 @@ PENDING_TREE = (
 )
 
 
+PENDING = {"FBS-1.6": "Installation"}
+SPENDING = {"FBS-4.4.5": "Projection de dépenses du projet"}
+
+
 def pending_app() -> dict[str, str]:
     return {**app(), "/admin/installation": ""}
 
 
 def test_the_function_pending_in_the_specification_is_accepted_under_its_parent() -> None:
-    assert screens.confront(PENDING_TREE, with_pending(), pending_app(), {}, "FBS-1.6") == []
+    assert screens.confront(PENDING_TREE, with_pending(), pending_app(), {}, PENDING) == []
     assert screens.confront(PENDING_TREE, with_pending(), pending_app(), {}) == [
         "FBS-1.6: in the table, but not a function of the FBS"
     ]
@@ -266,26 +270,62 @@ def test_another_unknown_code_is_still_refused_with_a_pending_function() -> None
     cast("list[dict[str, object]]", groups[0]["functions"]).append(
         {"code": "FBS-1.7", "route": "/admin/installation"}
     )
-    assert screens.confront(PENDING_TREE, found, pending_app(), {}, "FBS-1.6") == [
+    assert screens.confront(PENDING_TREE, found, pending_app(), {}, PENDING) == [
         "FBS-1.7: in the table, but not a function of the FBS"
     ]
 
 
+def with_spending(*, addressed: bool) -> dict[str, object]:
+    """Return the table, with the leaf FBS-4.4.5 of FBS-4.4 when it is addressed."""
+    found = table()
+    if addressed:
+        groups = cast("list[dict[str, object]]", found["groups"])
+        functions = cast("list[dict[str, object]]", groups[-1]["functions"])
+        leaves = cast("list[dict[str, object]]", functions[0]["leaves"])
+        leaves.append({"code": "FBS-4.4.5", "route": WORKLOAD + "/spending"})
+    return found
+
+
+def test_the_leaf_pending_in_the_specification_is_accepted_under_its_function() -> None:
+    # The projection of spending is a leaf of FBS-4.4 the specification does not draw yet (#3643).
+    spending_app = {**app(), WORKLOAD + "/spending": ""}
+    source = f'leafOf("FBS-4.4.4") leafOf("FBS-4.4.5") {app()[ESTIMATE]}'
+    spending_app[ESTIMATE] = source
+    assert screens.confront(TREE, with_spending(addressed=True), spending_app, {}, SPENDING) == []
+    assert screens.confront(TREE, with_spending(addressed=True), spending_app, {}) == [
+        "FBS-4.4.5: in the table, but not a function of the FBS"
+    ]
+
+
+def test_the_leaf_pending_in_the_specification_needs_no_route_before_the_front_has_it() -> None:
+    assert screens.confront(TREE, with_spending(addressed=False), app(), {}, SPENDING) == []
+    assert screens.confront(TREE, with_spending(addressed=False), app(), {}) == []
+
+
+def test_a_leaf_the_specification_has_met_is_named() -> None:
+    tree = (*TREE, Function("FBS-4.4.5", "Projection de dépenses du projet"))
+    assert screens.confront(tree, with_spending(addressed=True), app(), {}, SPENDING)[0] == (
+        "FBS-4.4.5: declared pending in the specification, but it has it"
+    )
+
+
 def test_a_pending_function_without_its_parent_in_the_tree_is_not_accepted() -> None:
-    findings = screens.confront(TREE, with_pending(), pending_app(), {}, "FBS-1.6")
+    findings = screens.confront(TREE, with_pending(), pending_app(), {}, PENDING)
     assert "FBS-1.6: in the table, but not a function of the FBS" in findings
 
 
 def test_a_pending_declaration_the_specification_has_met_is_named() -> None:
     tree = (*PENDING_TREE, Function("FBS-1.6", "Installation"))
-    assert screens.confront(tree, with_pending(), pending_app(), {}, "FBS-1.6") == [
+    assert screens.confront(tree, with_pending(), pending_app(), {}, PENDING) == [
         "FBS-1.6: declared pending in the specification, but it has it"
     ]
 
 
 def test_the_repository_declares_a_pending_function_the_projection_lacks() -> None:
     named = {fn.code for fn in projection.read_functions()}
-    assert screens.PENDING_IN_THE_SPECIFICATION not in named
+    assert not set(screens.PENDING_IN_THE_SPECIFICATION) & named
+    # FBS-4.4.5, the projection of spending, decided on 2026-11-16 (#3643, option C).
+    assert "FBS-4.4.5" in screens.PENDING_IN_THE_SPECIFICATION
 
 
 def test_the_command_accepts_the_pending_function_until_the_specification_has_it(
@@ -302,7 +342,7 @@ def test_the_command_accepts_the_pending_function_until_the_specification_has_it
 
     monkeypatch.setattr(screens, "pages", pages)
     monkeypatch.setattr(screens, "WITHOUT_SCREEN", {})
-    monkeypatch.setattr(screens, "PENDING_IN_THE_SPECIFICATION", "FBS-1.6")
+    monkeypatch.setattr(screens, "PENDING_IN_THE_SPECIFICATION", PENDING)
     assert screens.main() == 0
     tree = (*PENDING_TREE, Function("FBS-1.6", "Installation"))
     assert screens.main() == 1

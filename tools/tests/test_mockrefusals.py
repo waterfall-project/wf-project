@@ -340,6 +340,27 @@ def test_the_projection_of_spending_without_a_rate_names_the_same_categories() -
     assert "spending_rate_missing" in _cited("getProjectSpending", "422")
 
 
+@pytest.mark.requirement("WF-DEV-0100-A")
+def test_the_refusals_of_the_projection_of_spending_name_their_state_or_parameter() -> None:
+    # Vérif : le refus de `getProjectSpending` désigne l'état ou le paramètre refusé, sur sa
+    # propre corrélation (#3627, engendrés comme `spending_rate_missing`).
+    state = fixture("spending_no_reference")
+    assert (state["status"], state["code"]) == (409, "STATE_FORBIDS_OPERATION")
+    assert state["params"] == {"state": "pricing", "state_enum": "ProjectState"}
+    revision = fixture("spending_revision_refused")
+    assert revision["fields"] == [{"pointer": "/query/revision_id", "code": "VALIDATION_FAILED"}]
+    subproject = fixture("spending_subproject_unknown")
+    assert subproject["fields"] == [
+        {"pointer": "/query/subproject_id", "code": "UNKNOWN_SUBPROJECT"}
+    ]
+    cited = {*_cited("getProjectSpending", "422"), *_cited("getProjectSpending", "409")}
+    assert {
+        "spending_no_reference",
+        "spending_revision_refused",
+        "spending_subproject_unknown",
+    } <= cited
+
+
 # --- The refusals of the common tree declared without an example (F-17, #1648) ----------------
 
 

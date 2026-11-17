@@ -343,8 +343,9 @@ def test_a_task_not_started_carries_its_whole_load_on_the_months_that_follow_the
     clock(date(2026, 11, 16))
     read = site.plan("current_remaining")
     assert read["context"]["computed_at"] == "2026-11-16T09:00:00Z"
-    # 88 and 184 hours remain to work: the 352 hours of the line are shared between them.
-    november = (Decimal(352) * 88 / 272).quantize(CENT)
+    # 80 and 184 hours remain to work after the end of Monday 16 (#3615): the 352 hours of the line
+    # are shared between them.
+    november = (Decimal(352) * 80 / 264).quantize(CENT)
     assert months_of(role_of(read, site.worker)) == [
         ("2026-11", str(november)),
         ("2026-12", str(352 - november)),
@@ -384,7 +385,7 @@ def test_on_a_marked_revision_the_date_of_calculation_is_its_marking_date(
     clock(date(2031, 6, 1))
     read = site.plan("marked_remaining", revision_id=site.tree.revision["revision_id"])
     assert read["context"]["computed_at"] == "2026-11-16T09:00:00Z"
-    november = (Decimal(352) * 88 / 272).quantize(CENT)
+    november = (Decimal(352) * 80 / 264).quantize(CENT)
     assert totals_of(read) == [("2026-11", str(november)), ("2026-12", str(352 - november))]
 
 

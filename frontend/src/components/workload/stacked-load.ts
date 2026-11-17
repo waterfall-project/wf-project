@@ -61,6 +61,7 @@ export function monthTotals(
   name: string,
   totals: readonly { readonly month: string; readonly hours: string }[],
   locale: Locale,
+  amount: (value: string) => string = (value) => formatDecimal(value, locale),
 ): LineSeriesOption {
   return {
     type: "line",
@@ -78,7 +79,7 @@ export function monthTotals(
       color: palette.text,
       formatter: (point) => {
         const [, hours] = pointOf(point.value);
-        return typeof hours === "string" ? formatDecimal(hours, locale) : "";
+        return typeof hours === "string" ? amount(hours) : "";
       },
     },
   };
@@ -100,6 +101,7 @@ export function monthTooltip(
   palette: ChartPalette,
   locale: Locale,
   unit: (hours: string) => string,
+  amount: (value: string) => string = (value) => formatDecimal(value, locale),
 ): TooltipComponentOption {
   return {
     trigger: "axis",
@@ -114,7 +116,7 @@ export function monthTooltip(
       const lines = loaded.map((row) => {
         const [, hours] = pointOf(row.value);
         const marker = typeof row.marker === "string" ? row.marker : "";
-        const shown = typeof hours === "string" ? formatDecimal(hours, locale) : "";
+        const shown = typeof hours === "string" ? amount(hours) : "";
         return `${marker}${escapeHtml(row.seriesName ?? "")} <b>${escapeHtml(unit(shown))}</b>`;
       });
       return [`<b>${escapeHtml(month)}</b>`, ...lines].join("<br/>");

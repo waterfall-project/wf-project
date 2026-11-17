@@ -15,6 +15,7 @@
 import {
   Activity,
   ArrowLeftRight,
+  Banknote,
   BookOpen,
   Briefcase,
   BriefcaseBusiness,
@@ -100,6 +101,7 @@ export const LEAF_ICONS = {
   "FBS-4.3.4": ArrowLeftRight,
   "FBS-4.3.5": Network,
   "FBS-4.4.4": ChartColumnStacked,
+  "FBS-4.4.5": Banknote,
   "FBS-4.5.3": Kanban,
 } as const satisfies Readonly<Record<string, LucideIcon>>;
 
@@ -158,6 +160,7 @@ export const LEAF_DENSITY = {
   "FBS-4.3.4": "airy",
   "FBS-4.3.5": "dense",
   "FBS-4.4.4": "airy",
+  "FBS-4.4.5": "airy",
   "FBS-4.5.3": "dense",
 } as const satisfies Readonly<Record<keyof typeof LEAF_ICONS, Density>>;
 

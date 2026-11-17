@@ -20,13 +20,13 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import TYPE_CHECKING
 
+from waterfall.core.estimate.parting import ONE_DAY
 from waterfall.core.estimate.spreading import MONEY, Month
 from waterfall.core.planning.interface import WorkInstant
 
 if TYPE_CHECKING:
     from waterfall.core.estimate.spreading import Placement
 
-ONE_DAY = timedelta(days=1)
 MONTHS_PER_YEAR = 12
 WHOLE = Fraction(1)
 NOUGHT = Fraction(0)

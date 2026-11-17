@@ -1651,7 +1651,7 @@ est d'EP-02 ; EP-24 a corrigé l'empilement de son histogramme (US-2030).
 
 ## US-2050 — La projection de dépenses du projet
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-DEV-0100-A`
 - **opérations** : `getProjectSpending` (nouvelle), `listSubprojects`
 - **issue** : #3507

@@ -104,8 +104,9 @@ describe("the leaves with a screen of their own", () => {
     ]).toEqual([leafHref("timelines"), leafHref("exchanges"), leafHref("task-tree")]);
   });
 
-  it("is led to from the head of the estimate, by its name, in the same context: the workload of the project", async () => {
+  it("is led to from the head of the estimate, by its name, in the same context: the workload and the spending projection of the project [WF-DEV-0100-A]", async () => {
     const found = links(html(await EstimatePage({ params: PARAMS, searchParams: SEARCH })));
     expect(found[nameOf("FBS-4.4.4")]).toBe(`${leafHref("workload")}&basis=reference_budget`);
+    expect(found[nameOf("FBS-4.4.5")]).toBe(`${leafHref("spending")}&basis=reference_budget`);
   });
 });
