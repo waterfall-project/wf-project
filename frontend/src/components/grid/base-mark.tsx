@@ -5,9 +5,10 @@
  * same for the three grids, a sign at the start of the cell — never the colour alone (WF-IHM-0070) —
  * and the value of the base, given on demand: in a tooltip while the pointer is over the cell or the
  * cell has the focus of the keyboard, and, for a reader of the screen, in the content of the cell
- * itself, after its value — neither the sign nor that text is selectable, so that the copy of a cell
- * carries its value alone, as the cell would without the mark. The grid compares nothing: it marks the cell the server names
- * (`ComparedNodeRead.base`) and shows the value the server gives (WF-ARC-0020).
+ * itself, after its value — the sign and that text carry the class that excludes them from a
+ * selection (`select-none`), so that the browser's copy of a cell leaves them out. The grid compares
+ * nothing: it marks the cell the server names (`ComparedNodeRead.base`) and shows the value the
+ * server gives (WF-ARC-0020).
  *
  * The cell is the target of the pointer and of the keyboard, not the mark: the mark follows the
  * cell it is in, by its events. Its tooltip, a Radix root, mounts while it is shown alone: a

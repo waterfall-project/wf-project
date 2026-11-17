@@ -18,8 +18,8 @@ import type { NodeList, NodeSortColumn } from "./nodes";
 import type { GridQuery } from "./query";
 
 // What a comparison leaves of the entry of a grid (WF-IHM-0150, US-2340): the line a comparison
-// removes is read in its place, and no paste, no gesture of structure acts on it nor, where it would
-// reach it, around it. The server of Next, as far as the grid needs it, as for the other tests.
+// removes is read in its place, and no gesture of structure acts on it nor, where it would reach it,
+// around it; a block pasted on it is for the server to refuse, whole, with its reason. The server of Next, as far as the grid needs it, as for the other tests.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 
@@ -138,13 +138,18 @@ afterEach(() => {
 });
 
 describe("a block pasted on a comparison", () => {
-  it("is not pasted on the line removed, which is read only: no plan is asked, no dialog opens [WF-IHM-0150-A]", async () => {
+  it("asks the plan of a block pasted on the line removed, for the server to refuse it and say why: the dialog opens [WF-IHM-0150-A]", async () => {
     const client = serve();
     render(comparedGrid(comparison));
+    const block = [["Provision revue"]];
     labelAt(REMOVED).focus();
-    await userEvent.paste(copied([["Provision revue"]]));
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(bodies(client, PREVIEW)).toEqual([]);
+    await userEvent.paste(copied(block));
+    // The refusal (PASTE_TARGET_REMOVED, whole) is the server's: the contract carries no example of
+    // it for the fake back, which answers its plan of the witness. The grid asks it and presents it.
+    expect(await screen.findByRole("dialog", { name: "Coller depuis un tableur" })).toBeVisible();
+    expect(bodies(client, PREVIEW)).toEqual([
+      { target_node_id: comparison.items[REMOVED]?.node_id, target_column: "label", rows: block },
+    ]);
     expect(bodies(client, APPLY)).toEqual([]);
   });
 

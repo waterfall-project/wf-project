@@ -173,14 +173,7 @@ function landedAt<Row extends RowData, Sort extends string, Totals>(
   const column = at === undefined ? undefined : landing(config, at);
   // A column the contract does not name — a drawing, a mark — takes no paste.
   const named = column?.contract;
-  // A node a differential or a comparison removes is read in its place, read only: nothing is
-  // pasted on it, as nothing is entered in it; the rows after it are the server's to fill.
-  const removed = row !== undefined && config.difference?.(row) === "removed";
-  return at === undefined ||
-    row === undefined ||
-    removed ||
-    column === undefined ||
-    named === undefined
+  return at === undefined || row === undefined || column === undefined || named === undefined
     ? undefined
     : { at, row, column, named };
 }

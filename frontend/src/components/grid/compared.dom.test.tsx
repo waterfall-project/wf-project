@@ -183,24 +183,14 @@ describe("the grid of the planning on a comparison", () => {
     expect(screen.queryByRole("tooltip")).toBeNull();
   });
 
-  it("keeps the mark out of what is copied of a cell: the sign and the text for the reader of the screen cannot be selected [WF-IHM-0150-A]", () => {
-    // No code of the grid reads the text of a cell to copy or export it (the copy is the browser's,
-    // the export the server's): what the copy of a selection carries is what is selectable.
+  it("gives the sign and the text for the reader of the screen the class that excludes them from a selection [WF-IHM-0150-A]", () => {
+    // jsdom applies no style and copies nothing: this proves the class, not the copy of the browser.
     render(planningGrid(true));
     const finish = cellOf(DESIGN, "finish");
     const spoken = finish.querySelector<HTMLElement>(".sr-only");
-    const sign = within(finish).getByText("Δ");
     expect(spoken).toHaveTextContent("Base : 17/04/2026");
     expect(spoken).toHaveClass("select-none");
-    expect(sign).toHaveClass("select-none");
-    // What stays selectable is the value of the cell alone.
-    const copy = finish.cloneNode(true) as HTMLElement;
-    copy.querySelectorAll(".select-none").forEach((each) => {
-      each.remove();
-    });
-    expect(copy.textContent).not.toContain("Base");
-    expect(copy.textContent).not.toContain("Δ");
-    expect(copy.textContent.trim()).not.toBe("");
+    expect(within(finish).getByText("Δ")).toHaveClass("select-none");
   });
 
   it("gives the number of days of the finish in its column of difference, once chosen [WF-IHM-0150-A]", async () => {
