@@ -263,6 +263,8 @@ class FacetHooks:
     (``Tally``), read in one statement grouped by task from the nodes of the structure the planning
     names — a subquery of their ``node_id``, the ``task_id`` bearing them and whether they are
     ``from_risk`` —, for a reading of the tasks alone, which reads none of these nodes (US-2280).
+    ``provisions`` gives, of the nodes the planning names as ``tally`` does, those that are lines of
+    provision, whatever their amount (WF-IND-0060, US-1680).
     ``inert`` names, as ``FacetRead.editable_fields`` does, the fields of a node of the kind that
     neither the calendars the kind names (``calendars``) nor any amount of the kind (``reinflate``,
     ``totals``) read: a write that sends none but these can move no date nor change an amount, and
@@ -287,6 +289,7 @@ class FacetHooks:
     before_lock: Callable[[Session], None]
     columns: Callable[[Session, UUID, Collection[UUID]], FacetColumns]
     tally: Callable[[Session, UUID, Subquery], Mapping[UUID, Tally]]
+    provisions: Callable[[Session, UUID, Subquery], frozenset[UUID]]
     inert: tuple[str, ...]
 
 

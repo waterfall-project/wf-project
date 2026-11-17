@@ -11,7 +11,8 @@ commit, which hold the task open unless a provision (``open_tasks``, WF-PLA-0040
 the lines, whose calendars the task's follows (``line_calendars``, WF-PLA-0010), and the budgeted
 amounts of the lines not of a provision, which the physical progress of a summary weighs
 (``Tally.earnable``, WF-IND-0060; US-1680): the categories of the provision kind are read first,
-and the statement leaves their lines out of that sum. A node whose facet is missing — written
+and the statement leaves their lines out of that sum; and which lines are of a provision
+(``line_provisions``). A node whose facet is missing — written
 around the service — counts in the number and adds nought.
 """
 
@@ -33,6 +34,27 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 NOUGHT = Decimal("0.00")
+
+
+def line_provisions(session: Session, project_id: UUID, nodes: Subquery) -> frozenset[UUID]:
+    """Give those of the lines named that are of a category of provision, whatever their amount.
+
+    ``nodes`` as ``line_tallies`` is given them; one statement, the categories of the provision
+    kind read first.
+    """
+    provisions = categories_of_kind(session, PROVISION)
+    if not provisions:
+        return frozenset()
+    return frozenset(
+        session.scalars(
+            select(EstimateLine.node_id)
+            .join(nodes, nodes.c.node_id == EstimateLine.node_id)
+            .where(
+                EstimateLine.project_id == project_id,
+                EstimateLine.cost_category_id.in_(list(provisions)),
+            )
+        )
+    )
 
 
 def line_tallies(session: Session, project_id: UUID, nodes: Subquery) -> dict[UUID, Tally]:

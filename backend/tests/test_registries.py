@@ -238,6 +238,7 @@ LINE_HOOKS = (
     "waterfall.core.cost_settings.records.share_natures",
     f"{CORE}.reading.line_columns",
     f"{CORE}.tallying.line_tallies",
+    f"{CORE}.tallying.line_provisions",
     # The inert fields of a line (US-2250), a tuple, its names joined.
     "estimate_line.label:estimate_line.payment_delay_days:estimate_line.subproject_id",
 )

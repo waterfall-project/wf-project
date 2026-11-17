@@ -344,17 +344,22 @@ def test_the_physical_progress_of_a_summary_depends_on_the_whole_subtree(
             .where(EstimateLine.node_id == UUID(held["nodes"][0]["node_id"]))
             .values(cost_category_id=costs.provision)
         )
+    # A line not of a provision at nought weighs nothing today, and is one of the rows all the same:
+    # the share depends on it as soon as it is given an amount.
+    nought = lines.made(wiring, **material(costs, line_of("Nul"), "0.00", None))
     path = f"{tree.path}/nodes/{top['node_id']}/dependencies?field=task.physical_progress"
     answer = api.get(path, headers=stage.manager.headers)
     assert answer.status_code == 200, answer.text
     body = answer.json()
     assert body["depends_on"] == ["lines_and_subordinates"]
+    assert held["nodes"][0]["node_id"] not in [row["node_id"] for row in body["rows"]]
     assert [row["node_id"] for row in body["rows"]] == [
         own["nodes"][0]["node_id"],
         middle["node_id"],
         studies["node_id"],
         studied["nodes"][0]["node_id"],
         wiring["node_id"],
+        nought["nodes"][0]["node_id"],
     ]
     assert [row["row_number"] for row in body["rows"]] == sorted(
         row["row_number"] for row in body["rows"]

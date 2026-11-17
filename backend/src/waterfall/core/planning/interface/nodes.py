@@ -65,7 +65,7 @@ from waterfall.core.planning.shaping import (
 )
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tables import Node, Task, TaskLink
-from waterfall.core.planning.tallying import weighing
+from waterfall.core.planning.tallying import provisions_of
 from waterfall.core.planning.tree import TASK, Tree, read_tree
 from waterfall.core.planning.views import COMPLETED, NOT_STARTED, NodeView, state_of
 from waterfall.core.planning.writing import (
@@ -676,10 +676,11 @@ def _summary_rule(
         return None
     if field == _PHYSICAL:
         # What the share weighs and counts: the lines and the tasks of the whole subtree, a
-        # provision line out (it weighs nothing), read in one grouped statement by kind.
+        # provision line out (it weighs nothing today, and the kind alone says so), read in one
+        # statement by kind, whatever the amounts.
+        provisions = provisions_of(session, place)
         below = [each for each in tree.subtree(node_id) if each != node_id]
-        weighs = weighing(session, place, [each for each in below if each not in tree.tasks])
-        return rule, tree.ordered([each for each in below if each in tree.tasks or each in weighs])
+        return rule, tree.ordered([each for each in below if each not in provisions])
     lines = tree.lines(node_id) if rule == "lines_and_subordinates" else []
     return rule, [*lines, *tree.subtasks(node_id)]
 
