@@ -27,6 +27,7 @@ import httpx2
 import pytest
 from access_rows import role
 from sqlalchemy import select
+from support import captured_logs
 from test_keycloak_authentication import (
     DIRECTORY_CREDENTIAL,
     EXTERNAL_CREDENTIAL,
@@ -93,6 +94,17 @@ pytestmark = pytest.mark.keycloak
 CONSULTING = "users.read"
 PLANNING = "planning.read"
 SESSIONS = "/api/v1/me/sessions"
+
+
+@pytest.fixture
+def logs() -> Iterator[Logs]:
+    """Capture the logs in memory, the secrets of the realm masked, then restore them.
+
+    The fixture of ``conftest.py`` stays clear of the environment, and this one reads the secrets
+    of the realm as ``served_settings`` does (#935).
+    """
+    with captured_logs(served_settings().secret_values()) as captured:
+        yield captured
 
 
 @pytest.fixture

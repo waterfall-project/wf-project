@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import pytest
 from access_rows import role
+from estimate_support import pin_year
 from fastapi.testclient import TestClient
 from installations import Installation, Take, installed, taker
 from installed_reference import install
@@ -89,6 +90,16 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
 
 @pytest.fixture(autouse=True)
+def pinned_year(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Hold the clocks of the services that read a year or a day at the year of ``YEAR``.
+
+    Before every test, and before the fixtures a test asks for, which set the clocks they want over
+    these ones: no fixture calls ``pin_year`` in an order that would undo it (#3739).
+    """
+    pin_year(monkeypatch)
+
+
+@pytest.fixture(autouse=True)
 def installation_time_zone() -> None:
     """Give each test a process whose installation is in universal time, read from no database.
 
@@ -162,9 +173,18 @@ def api(
 
 
 @pytest.fixture
-def logs(platform_settings: ServiceSettings) -> Iterator[Logs]:
-    """Capture the logs in memory, as a service of the test platform writes them, then restore."""
-    with captured_logs(platform_settings.secret_values()) as logs:
+def logs() -> Iterator[Logs]:
+    """Capture the logs in memory, the secrets of the test platform masked, then restore.
+
+    The secrets are read in an environment given for that alone and then forgotten: the fixture
+    leaves none in the process, where a ``served_settings()`` of the Keycloak tests would read the
+    false secret of the service account, which Keycloak refuses (#935).
+    """
+    with pytest.MonkeyPatch.context() as patch:
+        for name, value in {**PLATFORM_SECRETS, **PLATFORM_ADDRESSES}.items():
+            patch.setenv(name, value)
+        secrets = load_service_settings().secret_values()
+    with captured_logs(secrets) as logs:
         yield logs
 
 
