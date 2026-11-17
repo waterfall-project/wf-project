@@ -6,16 +6,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UnexpectedAnswer } from "@/api/problem";
-import type { RevisionComparison } from "@/components/revisions/revision-comparison";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { formatMoney } from "@/i18n/format";
-import {
-  example,
-  type FakeAnswers,
-  type FakeCall,
-  type FakeClient,
-  fakeClient,
-} from "@/test/fixtures";
+import { type FakeAnswers, type FakeCall, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import RevisionsPage, { generateMetadata } from "./page";
 
@@ -51,16 +43,6 @@ const BANNER = '<section aria-label="Contexte de lecture"';
 const REVISIONS = `/projects/${PROJECT}/revisions`;
 const IMPORT = "01926f3a-7c00-7000-8000-000000000a11";
 const GET_IMPORT = "GET /projects/{project_id}/imports/{import_id}";
-
-const COMPARISON = example("comparison") as RevisionComparison;
-// The axes of the deviations, as the French catalogue names them.
-const DIMENSIONS: Record<RevisionComparison["amount_deltas"][number]["dimension"], string> = {
-  cost_type: "Nature de coût",
-  subproject: "Sous-projet",
-};
-
-// What changes of a node, as the French catalogue names it.
-const CHANGES = CATALOGUES.fr.enums.NodeChange;
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
@@ -134,7 +116,6 @@ beforeEach(() => {
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/revisions": "revisions",
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
-    "GET /projects/{project_id}/revisions/comparison": "comparison",
   };
 });
 
@@ -218,7 +199,7 @@ describe("the screen of the revisions of a project", () => {
     expect(page).toContain('aria-label="Ouvrir la révision «\u00a0Offre v1.0\u00a0»"');
   });
 
-  it("says a project has no revision, and offers no comparison", async () => {
+  it("says a project has no revision, in the one card of the screen, which holds no comparison [WF-REV-0070-A]", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions": "revisions_empty",
@@ -226,183 +207,9 @@ describe("the screen of the revisions of a project", () => {
     const page = html(await RevisionsPage(at()));
     const words = text(page);
     expect(words).toContain("Ce projet n’a aucune révision.");
-    expect(words).toContain(
-      "Comparaison de deux révisions La comparaison demande deux révisions marquées.",
-    );
-    // The history comes before the comparison.
-    const headings = [...page.matchAll(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/g)].map((match) =>
-      text(match[1] ?? ""),
-    );
-    const history = headings.indexOf("Historique des révisions");
-    expect(history).toBeGreaterThanOrEqual(0);
-    expect(history).toBeLessThan(headings.indexOf("Comparaison de deux révisions"));
+    expect(words).not.toContain("Comparaison de deux révisions");
+    expect(page.match(/<section[^>]*aria-label="Historique des révisions"/g)).toHaveLength(1);
     expect(page).not.toContain("<form");
-  });
-});
-
-describe("the comparison of two revisions", () => {
-  it("offers the marked revisions alone, the second compared to the first by default", async () => {
-    const page = html(await RevisionsPage(at({ revision_id: DRAFT, as_of: "2026-05-31" })));
-    expect(callTo("GET /projects/{project_id}/revisions/comparison")).toBeUndefined();
-    const form = /<form[^>]*action="([^"]*)"[^>]*>(.*?)<\/form>/.exec(page);
-    expect(form?.[1]).toBe(REVISIONS);
-    const fields = form?.[2] ?? "";
-    // The context of the screen is carried on, named as the address names it.
-    expect(
-      [...fields.matchAll(/<input type="hidden" name="([^"]+)" value="([^"]+)"/g)].map(
-        (match) => `${match[1] ?? ""}=${match[2] ?? ""}`,
-      ),
-    ).toEqual([`revision_id=${DRAFT}`, "as_of=2026-05-31"]);
-    expect([...fields.matchAll(/<select[^>]*name="([^"]+)"/g)].map((match) => match[1])).toEqual([
-      "from_revision_id",
-      "to_revision_id",
-    ]);
-    const selected = [...fields.matchAll(/<option[^>]*value="([^"]+)" selected="">/g)].map(
-      (match) => match[1],
-    );
-    expect(selected).toEqual([OFFER, REFERENCE]);
-    expect(text(fields)).toBe(
-      "De la révision Référence Offre v1.0 À la révision Référence Offre v1.0 Comparer",
-    );
-  });
-
-  it("presents what compareRevisions gives, nothing paired, summed nor ordered by the front [WF-ARC-0020-A] [WF-REV-0080-A]", async () => {
-    // Les montants, dates et indices affichés sont ceux que l'API renvoie, sans recalcul.
-    const page = html(
-      await RevisionsPage(at({ from_revision_id: OFFER, to_revision_id: REFERENCE })),
-    );
-    const call = callTo("GET /projects/{project_id}/revisions/comparison");
-    expect(call?.path).toBe(`${REVISIONS}/comparison`);
-    // The tree read whole, reduced to what the grid shows (#1201): the two revisions, then
-    // `fields`.
-    expect([...(call?.query.keys() ?? [])]).toEqual([
-      "from_revision_id",
-      "to_revision_id",
-      "fields",
-    ]);
-    expect(call?.query.get("from_revision_id")).toBe(OFFER);
-    expect(call?.query.get("to_revision_id")).toBe(REFERENCE);
-    expect(call?.query.get("fields")).toBe("kind,task.label,estimate_line.label");
-    // The window `comparison` reads, the sub-tree of « Installation sur site » (`subtree_of`), as
-    // its description counts it: 9 nodes in the order of the API, each with the mark the server
-    // gives it — 2 added, 2 removed, 5 modified — and what changes of it, as the catalogue names
-    // it; the totals are those of the answer, which the front does not add up.
-    const mark = { added: "+ Ajouté", removed: "- Retiré", modified: "M Modifié", unchanged: "" };
-    const nodes = COMPARISON.items.map(
-      (node) =>
-        `${mark[node.difference]} ${node.row_number.toString()} ` +
-        `${node.task?.label ?? node.estimate_line?.label ?? ""} ` +
-        node.changes.map((change) => CHANGES[change]).join(" "),
-    );
-    const { task_count: tasks, estimate_line_count: lines } = COMPARISON.totals;
-    expect(table(page, "Nœuds comparés")).toBe(
-      text(
-        `Écart N° Libellé Ce qui change ${nodes.join(" ")} Total — ${tasks.toString()} tâches, ` +
-          `${lines.toString()} lignes`,
-      ),
-    );
-    expect(COMPARISON.items.map((node) => node.difference)).toEqual([
-      "modified",
-      "modified",
-      "modified",
-      "added",
-      "modified",
-      "modified",
-      "added",
-      "removed",
-      "removed",
-    ]);
-    // The deviations as the API gives them, in its order, each named by the label it resolves
-    // (#204), or as the catalogue names one without a label: no total the front would add up, no
-    // identifier shown.
-    const unnamed = CATALOGUES.fr.revisionScreen.comparison.unnamed;
-    const deltas = COMPARISON.amount_deltas.map(
-      (delta) =>
-        `${DIMENSIONS[delta.dimension]} ${
-          delta.key === "unassigned" ? "Hors sous-projet" : (delta.label ?? unnamed)
-        } ${formatMoney(delta.budgeted_delta, "fr")} ${formatMoney(delta.reestimated_delta, "fr")}`,
-    );
-    expect(table(page, "Écarts de montants")).toBe(
-      text(`Axe Poste Écart budgété Écart réestimé ${deltas.join(" ")}`),
-    );
-    // Three natures of cost and two sub-projects, as the description of `comparison` lists them.
-    expect(deltas).toHaveLength(5);
-    // The two deviations differ in the witness: each is shown under the header that names it.
-    expect(COMPARISON.amount_deltas[0]?.budgeted_delta).not.toBe(
-      COMPARISON.amount_deltas[0]?.reestimated_delta,
-    );
-    for (const { key } of COMPARISON.amount_deltas) {
-      expect(page).not.toContain(key);
-    }
-    // The choice keeps the two revisions compared.
-    const selected = [...page.matchAll(/<option[^>]*value="([^"]+)" selected="">/g)].map(
-      (match) => match[1],
-    );
-    expect(selected).toEqual([OFFER, REFERENCE]);
-  });
-
-  it("marks no node of an identical pair — the same revision twice, compared, not refused", async () => {
-    // Le contrat le dit : une paire identique rend une comparaison vide, jamais un refus.
-    server.answers = {
-      ...server.answers,
-      "GET /projects/{project_id}/revisions/comparison": "comparison_identical",
-    };
-    const page = html(await RevisionsPage(at({ from_revision_id: OFFER, to_revision_id: OFFER })));
-    const call = callTo("GET /projects/{project_id}/revisions/comparison");
-    expect(call?.query.get("from_revision_id")).toBe(OFFER);
-    expect(call?.query.get("to_revision_id")).toBe(OFFER);
-    // Every node of the tree is shown, none marked nor tinted, and no deviation is told.
-    const identical = example("comparison_identical") as RevisionComparison;
-    const grid = table(page, "Nœuds comparés");
-    for (const node of identical.items) {
-      expect(grid).toContain(node.task?.label ?? node.estimate_line?.label ?? "");
-    }
-    expect(grid).not.toMatch(/Ajouté|Retiré|Modifié/);
-    expect(page).not.toContain("bg-diff-");
-    expect(text(page)).toContain("Écarts de montants Aucun écart de montant.");
-  });
-
-  it("presents a comparison read with fields, each node reduced to what the screen shows (#1208)", async () => {
-    // The volume of the witness, whole, each node reduced by `fields` to its kind and its label:
-    // no `lineage_id`, which the rows are not keyed by, nothing but what the grid shows.
-    server.answers = {
-      ...server.answers,
-      "GET /projects/{project_id}/revisions/comparison": "volume/comparison_volume",
-    };
-    const volume = example("volume/comparison_volume") as RevisionComparison;
-    expect(volume.items.some((node) => "lineage_id" in node)).toBe(false);
-    const page = html(
-      await RevisionsPage(at({ from_revision_id: OFFER, to_revision_id: REFERENCE })),
-    );
-    // The grid knows all of the nodes, the header and the totals besides, and renders a window of
-    // them, the rows in view, as every grid does.
-    expect(page).toContain(`aria-rowcount="${(volume.items.length + 2).toString()}"`);
-    const rendered = [...page.matchAll(/<tr[^>]*aria-rowindex="(\d+)"/g)].length;
-    expect(rendered).toBeGreaterThan(20);
-    expect(rendered).toBeLessThan(100);
-    // The first nodes by their labels, in the order of the API.
-    const grid = table(page, "Nœuds comparés");
-    const at3 = volume.items
-      .slice(0, 3)
-      .map((node) => grid.indexOf(node.task?.label ?? node.estimate_line?.label ?? "?"));
-    expect(at3[0]).toBeGreaterThan(-1);
-    expect(at3[1]).toBeGreaterThan(at3[0] ?? 0);
-    expect(at3[2]).toBeGreaterThan(at3[1] ?? 0);
-  });
-
-  it("asks nothing of the API until the address names both revisions", async () => {
-    await RevisionsPage(at({ from_revision_id: OFFER, to_revision_id: "" }));
-    expect(callTo("GET /projects/{project_id}/revisions/comparison")).toBeUndefined();
-  });
-
-  it("is not found when the API finds neither revision, as the other screens of a project", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /projects/{project_id}/revisions/comparison": NOT_FOUND,
-    };
-    await expect(
-      RevisionsPage(at({ from_revision_id: OFFER, to_revision_id: REFERENCE })),
-    ).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
   });
 });
 
@@ -568,49 +375,6 @@ describe("the address of the screen of the revisions", () => {
     expect((await generateMetadata({ params })).title).toBe(
       "Gestion des révisions · Modernisation du poste de commande — Waterfall",
     );
-  });
-});
-
-describe("« Écarts seulement » on the comparison of two revisions [WF-REV-0080-A] [WF-REV-0100-A]", () => {
-  const ALL = "added,removed,modified";
-  const COMPARISON_ROUTE = "GET /projects/{project_id}/revisions/comparison";
-  const BUTTON =
-    /<button[^>]*aria-pressed="(true|false)"[^>]*>(?:(?!<\/button>).)*Écarts seulement(?:<\/span>)?<\/button>/;
-  const chips = (page: string) =>
-    /<ul aria-label="Filtres actifs"(?:(?!<\/ul>).)*<\/ul>/.exec(page)?.[0] ?? "";
-
-  it("passes the differences to the server, presses the button, says it in the banner and keeps it through the choice of the pair, the grid reading the answer", async () => {
-    server.answers = { ...server.answers, [COMPARISON_ROUTE]: "comparison_differences" };
-    const page = html(
-      await RevisionsPage(
-        at({ from_revision_id: OFFER, to_revision_id: REFERENCE, difference: ALL }),
-      ),
-    );
-    expect(callTo(COMPARISON_ROUTE)?.query.get("difference")).toBe(ALL);
-    expect(BUTTON.exec(page)?.[1]).toBe("true");
-    expect(chips(page)).toContain("Écarts seulement");
-    expect(chips(page)).toContain("Lever le filtre");
-    expect(page).toContain(`<input type="hidden" name="difference" value="${ALL}"`);
-    const answered = example("comparison_differences") as RevisionComparison;
-    const grid = table(page, "Nœuds comparés");
-    for (const node of answered.items) {
-      expect(grid).toContain(node.task?.label ?? node.estimate_line?.label ?? "");
-    }
-  });
-
-  it("offers it unpressed, and asks the server nothing of the differences, when the address names none", async () => {
-    const page = html(
-      await RevisionsPage(at({ from_revision_id: OFFER, to_revision_id: REFERENCE })),
-    );
-    expect(callTo(COMPARISON_ROUTE)?.query.has("difference")).toBe(false);
-    expect(BUTTON.exec(page)?.[1]).toBe("false");
-    expect(chips(page)).toBe("");
-  });
-
-  it("neither offers nor says it while no pair is compared", async () => {
-    const page = html(await RevisionsPage(at({ difference: ALL })));
-    expect(callTo(COMPARISON_ROUTE)).toBeUndefined();
-    expect(page).not.toContain("Écarts seulement");
   });
 });
 
