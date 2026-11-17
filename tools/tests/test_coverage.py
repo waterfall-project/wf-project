@@ -569,6 +569,9 @@ def test_a_mark_takes_only_the_kind_of_identifier_it_names() -> None:
     assert [c.requirement for c in result.unknown] == ["WF-QUA-0010-A", "US-2160"]
     assert "WF-QUA-0010-A" not in result.covered
     assert result.unknown_stories == []
+    messages = [coverage.unknown_message(c) for c in result.unknown]
+    assert messages[0].endswith("unknown (a requirement goes under `requirement`, not `story`)")
+    assert messages[1].endswith("unknown (a story goes under `story`, not `requirement`)")
 
 
 def test_importing_the_report_does_not_load_pytest() -> None:

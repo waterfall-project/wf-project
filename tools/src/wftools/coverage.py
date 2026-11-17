@@ -338,6 +338,17 @@ class Report:
         return verdict + not_run
 
 
+def unknown_message(citation: Citation) -> str:
+    """Say why a citation matches nothing; a misplaced one says which mark to use."""
+    message = f"{citation.test}: cites {citation.requirement}, unknown"
+    if citation.misplaced:
+        if _STORY_IDENTIFIER.fullmatch(citation.requirement):
+            message += " (a story goes under `story`, not `requirement`)"
+        else:
+            message += " (a requirement goes under `requirement`, not `story`)"
+    return message
+
+
 def report(
     requirements: tuple[projection.Requirement, ...],
     found: list[Citation],
@@ -453,7 +464,7 @@ def main(arguments: list[str]) -> int:
         with Path(summary).open("a", encoding="utf-8") as output:
             output.write(result.markdown([r for r in requirements if not r.is_example]))
     for citation in result.unknown:
-        print(f"{citation.test}: cites {citation.requirement}, unknown", file=sys.stderr)
+        print(unknown_message(citation), file=sys.stderr)
     for citation, current in result.outdated:
         print(
             f"{citation.test}: cites {citation.requirement}, now {current}",
