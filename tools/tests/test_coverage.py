@@ -3,11 +3,13 @@
 """Tests of the report of requirement coverage by tests."""
 
 import subprocess
+import sys
+import tomllib
 from pathlib import Path
 
 import pytest
 
-from wftools import coverage, paths, projection, roadmap, unexecuted
+from wftools import REPOSITORY, coverage, marks, paths, projection, roadmap
 from wftools.coverage import Citation
 
 pytestmark = pytest.mark.requirement("WF-QUA-0010-A")
@@ -447,7 +449,7 @@ def test_a_release_with_an_f0_requirement_only_tests_not_run_cite_fails_naming_i
 
 
 def test_the_mark_the_report_reads_is_the_one_the_plugin_requires() -> None:
-    skip = f"@pytest.mark.{unexecuted.MARK}('r')"
+    skip = f"@pytest.mark.{marks.MARK}('r')"
     source = f"import pytest\n\n{MARK}('WF-QUA-0010-A')\n{skip}\ndef test_a(): ...\n"
     assert [c.executed for c in coverage.python_citations("t.py", source, "back")] == [False]
 
@@ -484,4 +486,133 @@ def test_run(x: int) -> None: ...
         ("test_param", False),
         ("test_cases_built_apart", False),
         ("test_run", True),
+    ]
+
+
+# US-2440: a criterion of a story is cited by the story.
+
+STORY_EPIC = roadmap.Epic("EP-02", "en cours", (), (roadmap.Story("US-2160", (), ""),), ("front",))
+
+
+def test_a_story_cited_in_a_title_or_by_a_mark_is_listed_apart_from_the_requirements() -> None:
+    source = """\
+test("draws a chart [US-2160]", () => {});
+test.fixme("draws it again [US-2160]", () => {});
+test("walks [WF-QUA-0010-A] [US-2160]", () => {});
+"""
+    typescript = coverage.typescript_citations("frontend/src/a.test.tsx", source, "front")
+    python = coverage.python_citations(
+        "backend/tests/t.py",
+        'import pytest\n\n@pytest.mark.story("US-2160")\ndef test_a(): ...\n',
+        "back",
+    )
+    assert [(c.requirement, c.is_story, c.executed) for c in typescript] == [
+        ("US-2160", True, True),
+        ("US-2160", True, False),
+        ("WF-QUA-0010-A", False, True),
+        ("US-2160", True, True),
+    ]
+    assert [(c.requirement, c.is_story) for c in python] == [("US-2160", True)]
+    requirements = document(("WF-QUA-0010-A", "F0"))
+    result = coverage.report(
+        requirements, [*typescript, *python], DECLARATION, known_stories=frozenset({"US-2160"})
+    )
+    assert result.unknown_stories == []
+    assert result.unknown == []
+    assert [c.test for c in result.covered["WF-QUA-0010-A"]] == ["frontend/src/a.test.tsx:3"]
+    assert len(result.stories["US-2160"]) == 4
+    text = result.markdown(list(requirements))
+    assert "## Critères propres aux US" in text
+    assert "`frontend/src/a.test.tsx:2` (non exécuté)" in text
+
+
+def test_a_story_no_file_of_the_roadmap_holds_fails_the_report(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+
+    def two_stories(_declaration: paths.Declaration, _repository: Path = Path()) -> list[Citation]:
+        return [front("US-2160"), front("US-9999", "frontend/src/b.test.ts:4")]
+
+    monkeypatch.setattr(coverage, "citations", two_stories)
+    monkeypatch.setattr(roadmap, "read", lambda: (STORY_EPIC,))
+    monkeypatch.setattr(projection, "read", lambda: document(("WF-QUA-0010-A", "F0")))
+    assert coverage.main([]) == 1
+    captured = capsys.readouterr()
+    assert "frontend/src/b.test.ts:4: cites US-9999, a story no file of docs/roadmap holds" in (
+        captured.err
+    )
+    assert "US-2160: own criteria of the story" in captured.out
+    assert "US-2160" not in captured.err
+
+
+def test_the_mark_story_is_declared_where_pytest_declares_its_marks() -> None:
+    for package in ("backend", "tools"):
+        text = (REPOSITORY / package / "pyproject.toml").read_text(encoding="utf-8")
+        declared = tomllib.loads(text)["tool"]["pytest"]["ini_options"]["markers"]
+        assert any(entry.startswith(f"{marks.STORY}(") for entry in declared), package
+
+
+def test_a_mark_takes_only_the_kind_of_identifier_it_names() -> None:
+    source = (
+        "import pytest\n\n"
+        '@pytest.mark.story("WF-QUA-0010-A")\ndef test_a(): ...\n\n'
+        '@pytest.mark.requirement("US-2160")\ndef test_b(): ...\n'
+    )
+    found = coverage.python_citations("backend/tests/t.py", source, "back")
+    result = coverage.report(
+        document(("WF-QUA-0010-A", "F0")),
+        found,
+        DECLARATION,
+        known_stories=frozenset({"US-2160"}),
+    )
+    assert [c.requirement for c in result.unknown] == ["WF-QUA-0010-A", "US-2160"]
+    assert "WF-QUA-0010-A" not in result.covered
+    assert result.unknown_stories == []
+    messages = [coverage.unknown_message(c) for c in result.unknown]
+    assert messages[0].endswith("unknown (a requirement goes under `requirement`, not `story`)")
+    assert messages[1].endswith("unknown (a story goes under `story`, not `requirement`)")
+
+
+def test_importing_the_report_does_not_load_pytest() -> None:
+    # #3752: the names of the marks live in a module of their own, shared with the plugin.
+    code = "import sys, wftools.coverage; sys.exit('pytest' in sys.modules)"
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, check=False)
+    assert result.returncode == 0, result.stderr
+
+
+def test_a_pytestmark_in_the_body_of_a_class_is_read_as_its_decorators() -> None:
+    source = """
+import pytest
+
+
+class TestAlone:
+    pytestmark = pytest.mark.unexecuted("no schema")
+
+    def test_a(self) -> None: ...
+
+
+class TestListed:
+    pytestmark = [pytest.mark.requirement("WF-QUA-0010-A"), pytest.mark.unexecuted("no")]
+
+    def test_b(self) -> None: ...
+
+
+class TestCited:
+    pytestmark: list[object] = [pytest.mark.story("US-2160")]
+
+    @pytest.mark.requirement("WF-QUA-0020-A")
+    def test_c(self) -> None: ...
+
+
+class TestPlain:
+    @pytest.mark.requirement("WF-QUA-0030-A")
+    def test_d(self) -> None: ...
+"""
+    found = coverage.python_citations("backend/tests/t.py", source, "back")
+    assert [(c.test.split("::")[2], c.requirement, c.executed) for c in found] == [
+        ("test_b", "WF-QUA-0010-A", False),
+        ("test_c", "WF-QUA-0020-A", True),
+        ("test_c", "US-2160", True),
+        ("test_d", "WF-QUA-0030-A", True),
     ]

@@ -3991,6 +3991,25 @@ revision index included (WF-QUA-0010).
 A test cites the requirement whose Vérif it exercises, not the one it talks about. A test that
 covers no requirement — a tool, an implementation detail — cites none.
 
+**A criterion that belongs to a story** — which no requirement carries, because the Vérif of the
+neighbouring requirement is not what the test exercises — is cited by the story: `[US-2160]` in the
+title of a TypeScript test, `@pytest.mark.story("US-2160")` in Python (a mark declared in
+`backend/pyproject.toml` and `tools/pyproject.toml`). The report lists these citations apart,
+« Critères propres aux US », out of the count of the requirements, and fails on a story that no file
+of `docs/roadmap` holds, as on an unknown requirement identifier.
+
+**A test that is not run** covers nothing, and the report knows it without running the tests, by what
+the test declares: in TypeScript, a `.skip`, `.fixme` or `.todo`, or a call under a `describe.skip`
+or a `describe.fixme`; in Python, the mark `@pytest.mark.unexecuted("<reason>")`, on the test, its
+class (`pytestmark` included) or its module, which a test that may skip — for lack of the MSPDI XSD,
+of a service — carries, and which a hook of the `conftest.py` files makes compulsory: a test that
+skips without it fails. The report lists its citations under their requirement, « non exécuté »,
+without counting them: a requirement that only tests not run cite is not covered, and
+`make requirements-release` names it. A skip decided in the body of a test (`test.skip(condition,
+…)`) is not seen: the test counts as run. A citation in a comment is no citation: only the titles of
+`it(` and `test(` are read, and a form of call that the report does not know makes it fail, naming
+the file and the line.
+
 _Checks_: `make requirements` reads the citations in the test files, without running them, and
 publishes the report — each F0 requirement with the tests that cover it and their family, the one
 `tools/paths.toml` declares for their path in its `[tests]` table: end to end against the service

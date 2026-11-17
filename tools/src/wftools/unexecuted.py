@@ -18,11 +18,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from wftools.marks import MARK
+
 if TYPE_CHECKING:
     from collections.abc import Generator
-
-MARK = "unexecuted"
-"""The name of the mark, which ``wftools.coverage`` reads too."""
 
 NOT_RUN = "[NOTRUN]"
 """What Pytest prefixes the reason of an ``xfail(run=False)`` with, which it reports as skipped."""

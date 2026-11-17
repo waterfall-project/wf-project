@@ -123,8 +123,9 @@ l'accorde. Un test des outils (`tools/tests/test_permissions.py`) l'éprouve.
 
 - **Un lot, une issue, une branche `lot/<identifiant>`, une pull request** vers la branche
   de son EPIC, `epic/EP-nn` — jamais vers `main`.
-- **Chaque test cite l'exigence qu'il couvre** (WF-QUA-0010) : la forme est dans le guide,
-  « Un test qui cite son exigence ».
+- **Chaque test cite l'exigence qu'il couvre** (WF-QUA-0010), ou l'US dont il porte un critère
+  propre, `[US-nnnn]` ; un test qui peut se sauter se déclare non exécuté : la forme est dans le
+  guide, « Un test qui cite son exigence ».
 - **Les modules du noyau ne se lisent que par leur interface**, et le code suit les règles de
   son langage, défauts déjà rencontrés compris.
 - **Le code est en anglais, la documentation en français**, comme les messages de commit :
