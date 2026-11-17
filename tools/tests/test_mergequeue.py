@@ -50,10 +50,22 @@ BRANCH = "refs/heads/epic/EP-21"
 
 
 def ruleset(
-    identifier: int, branch: str = BRANCH, enforcement: str = "active", *, queue: bool = True
+    identifier: int,
+    branch: str = BRANCH,
+    enforcement: str = "active",
+    *,
+    queue: bool = True,
+    gate: bool = True,
 ) -> dict[str, object]:
     """Return a ruleset as the API reads it."""
     rules: list[dict[str, object]] = [{"type": "non_fast_forward"}]
+    if gate:
+        rules.append(
+            {
+                "type": "required_status_checks",
+                "parameters": {"required_status_checks": [{"context": "gate"}]},
+            }
+        )
     if queue:
         rules.append({"type": "merge_queue", "parameters": {}})
     return {
@@ -328,3 +340,36 @@ def test_the_patterns_of_ref_name_are_read_as_github_does(
     assert (code == 0) is targets
     if not targets:
         assert f"no ruleset targets {BRANCH}" in error
+
+
+def test_check_says_that_no_check_is_required(tmp_path: Path) -> None:
+    """US-2470: a queue with no required ``gate`` is refused: « aucun contrôle exigé » (PLC-01)."""
+    code, _, error = serving(tmp_path, ruleset(2, gate=False)).run("check", "EP-21")
+    assert code == 1
+    assert "aucun contrôle exigé" in error
+
+
+def test_check_takes_the_gate_from_another_active_ruleset(tmp_path: Path) -> None:
+    """US-2470: « epic protection » (``epic/*``) may carry the gate, apart from the queue."""
+    protection = ruleset(3, "refs/heads/epic/*", queue=False)
+    code, out, error = serving(tmp_path, ruleset(2, gate=False), protection).run("check", "EP-21")
+    assert (code, error) == (0, "")
+    assert "requires 'gate'" in out
+
+
+def test_check_ignores_the_gate_of_a_ruleset_that_is_not_active(tmp_path: Path) -> None:
+    """US-2470: a ruleset that is not active holds nothing, whatever it requires."""
+    disabled = ruleset(3, "refs/heads/epic/*", "disabled", queue=False)
+    code, _, error = serving(tmp_path, ruleset(2, gate=False), disabled).run("check", "EP-21")
+    assert code == 1
+    assert "aucun contrôle exigé" in error
+
+
+def test_the_model_requires_signatures_and_the_gap_is_said(tmp_path: Path) -> None:
+    """US-2470: the model has ``required_signatures``; ``check`` says the rule types it lacks."""
+    model = json.loads((REPOSITORY / ".github" / "rulesets" / "merge-queue.json").read_text())
+    assert "required_signatures" in [rule["type"] for rule in model["rules"]]
+    code, out, _ = serving(tmp_path, ruleset(2)).run("check", "EP-21")
+    assert code == 0
+    assert "differs from the model: lacks pull_request, required_signatures" in out
+    assert "has besides required_status_checks" in out
