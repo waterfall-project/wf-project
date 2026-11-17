@@ -11,6 +11,7 @@ and every migration is applied as the owner that script makes ``NOSUPERUSER``.
 
 import os
 import re
+import stat
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
@@ -72,20 +73,45 @@ def production_script(name: str) -> str:
     return script
 
 
+# The client the script is run by, as the backups call /usr/bin/pg_dump (worker/backup.py).
+PSQL = "/usr/bin/psql"
+
+# The script reads the environment by ``\getenv``, which ``psql`` has since its version 15.
+PSQL_MINIMUM = 15
+
+
+def require_psql(psql: str) -> None:
+    """Fail, saying what to install, when ``psql`` is missing or older than the script needs."""
+    advice = (
+        f"the production script needs psql {PSQL_MINIMUM} or later at {psql}: install"
+        " postgresql-client-18 and point /usr/bin/psql at /usr/lib/postgresql/18/bin/psql"
+    )
+    try:
+        said = subprocess.run(
+            [psql, "--version"], capture_output=True, text=True, check=False
+        ).stdout
+    except OSError:
+        pytest.fail(f"{psql} is missing: {advice}")
+    found = re.search(r"\(PostgreSQL\) (\d+)", said)
+    if found is None or int(found.group(1)) < PSQL_MINIMUM:
+        pytest.fail(f"{psql} says {said.strip()!r}, too old or unknown: {advice}")
+
+
 def run_production_script(server: str, name: str, password: str) -> None:
     """Run the production script by ``psql``, as the administrator does, on the server given.
 
     The password of the owner goes by the environment, as in the production, and so does the
     superuser's; ``psql`` stops at the first error, which fails the test with what it said.
     """
+    require_psql(PSQL)
     address = engine_url(server)
-    environment = {"OWNER_DATABASE_PASSWORD": password}
+    environment = {**os.environ, "OWNER_DATABASE_PASSWORD": password}
     if address.password is not None:
         environment["PGPASSWORD"] = str(address.password)
     libpq = address.set(drivername="postgresql", password=None)
     ran = subprocess.run(
         [
-            "/usr/bin/psql",
+            PSQL,
             "--no-psqlrc",
             "--quiet",
             "--set=ON_ERROR_STOP=1",
@@ -98,7 +124,42 @@ def run_production_script(server: str, name: str, password: str) -> None:
         text=True,
         check=False,
     )
-    assert ran.returncode == 0, f"the production script failed: {ran.stderr}"
+    shown = ran.stderr.replace(password, "***")
+    if address.password is not None:
+        shown = shown.replace(str(address.password), "***")
+    assert ran.returncode == 0, f"the production script failed: {shown}"
+
+
+def fake_psql(tmp_path: Path, version: str) -> Path:
+    """Write an executable that says it is the ``psql`` of ``version``."""
+    psql = tmp_path / "psql"
+    psql.write_text(f"#!/bin/sh\necho '{version}'\n")
+    psql.chmod(psql.stat().st_mode | stat.S_IXUSR)
+    return psql
+
+
+@pytest.mark.parametrize(
+    ("version", "said"),
+    [
+        pytest.param(None, "is missing", id="absent"),
+        pytest.param("psql (PostgreSQL) 14.0", "too old", id="too-old"),
+        pytest.param("not a client", "too old or unknown", id="unknown"),
+    ],
+)
+def test_a_psql_missing_or_too_old_fails_saying_what_to_install(
+    tmp_path: Path, version: str | None, said: str
+) -> None:
+    psql = tmp_path / "psql" if version is None else fake_psql(tmp_path, version)
+
+    with pytest.raises(pytest.fail.Exception) as refused:
+        require_psql(str(psql))
+
+    assert said in str(refused.value)
+    assert "install postgresql-client-18" in str(refused.value)
+
+
+def test_a_psql_of_the_minimum_version_is_accepted(tmp_path: Path) -> None:
+    require_psql(str(fake_psql(tmp_path, "psql (PostgreSQL) 15.2")))
 
 
 @pytest.fixture
