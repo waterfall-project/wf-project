@@ -558,10 +558,12 @@ async function referenceOf(page: Page, seeded: Seeded) {
 }
 
 /**
- * The reference budget the service serves for the project in progress (`getProjectIndicators`,
- * WF-IND-0010), read by the API under the token of its creator. Not the planned value, which is that
- * of the current day: `as_of` cannot pin it here, the project having no revision marked In progress
- * (the one it has was marked before the passage, and kept no indicator: 409).
+ * The figures the service serves for the project in progress (`getProjectIndicators`, WF-IND-0010),
+ * read by the API under the token of its creator: the reference budget, and the planned value of the
+ * current day, with the day the service computed it (`context.computed_at`). `as_of` pins neither:
+ * the project has no revision marked In progress (the one it has was marked before the passage, and
+ * kept no indicator: 409), and a reading kept at the marking would be immune to the gesture, so it
+ * could not see a drift the gesture caused.
  */
 async function figuresOf(calls: APIRequestContext, seeded: Seeded) {
   const read = await calls.get(`${API}/projects/${seeded.ids.project}/indicators`, {
@@ -569,20 +571,30 @@ async function figuresOf(calls: APIRequestContext, seeded: Seeded) {
   });
   expect(read.status()).toBe(200);
   const body = (await read.json()) as components["schemas"]["ProjectIndicators"];
-  return { budget: body.reference_budget };
+  return {
+    budget: body.reference_budget,
+    planned: body.planned_value,
+    day: body.context.computed_at.slice(0, 10),
+  };
 }
 
 /**
- * The figures before the gesture: the reference budget is asserted non-zero, since a service that
- * answered « 0.00 » everywhere would leave every comparison between two readings true.
+ * The figures before the gesture: both asserted non-zero, since a service that answered « 0.00 »
+ * everywhere would leave every comparison between two readings true. The planned value is positive
+ * because the planning starts on a fixed day of the past (`Extras.pastStart`).
  */
 async function figuresBefore(calls: APIRequestContext, seeded: Seeded) {
   const before = await figuresOf(calls, seeded);
   expect(Number(before.budget)).toBeGreaterThan(0);
+  expect(Number(before.planned)).toBeGreaterThan(0);
   return before;
 }
 
-/** The figures read again after the gesture are those of before (the reference did not move). */
+/**
+ * The figures read again after the gesture are those of before (WF-RAE-0040-A): the reference budget
+ * always, the planned value when the two readings were computed the same day (a run over midnight
+ * moves it, and says nothing of the gesture).
+ */
 async function expectFiguresKept(
   calls: APIRequestContext,
   seeded: Seeded,
@@ -590,6 +602,9 @@ async function expectFiguresKept(
 ) {
   const after = await figuresOf(calls, seeded);
   expect(after.budget).toBe(before.budget);
+  if (after.day === before.day) {
+    expect(after.planned).toBe(before.planned);
+  }
 }
 
 /**
@@ -605,7 +620,7 @@ async function openOwnRemaining(
   manager: LocalPerson | undefined,
   name: string,
 ) {
-  const seeded = await seedPlanning(page, browser, calls, manager, name);
+  const seeded = await seedPlanning(page, browser, calls, manager, name, { pastStart: true });
   await bringInProgress(page, calls, seeded);
   // The reference as the project in progress has it, read before the grid is opened (the read
   // leaves the page).

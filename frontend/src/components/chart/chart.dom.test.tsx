@@ -27,6 +27,12 @@ import {
 } from "./chart";
 import { ChartPatternsProvider } from "./patterns";
 
+// `init` stays ECharts', except where a test takes it over to read the option an export hands it.
+vi.mock("echarts/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("echarts/core")>();
+  return { ...actual, init: vi.fn(actual.init) };
+});
+
 /** A chart of one series of two points, its option recorded with each palette it is drawn in. */
 function drawn(option: (palette: ChartPalette) => ChartOption, note?: string) {
   return render(
@@ -57,12 +63,6 @@ function line(palette: ChartPalette): ChartOption {
     ],
   };
 }
-
-// `init` stays ECharts', except where a test takes it over to read the option an export hands it.
-vi.mock("echarts/core", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("echarts/core")>();
-  return { ...actual, init: vi.fn(actual.init) };
-});
 
 afterEach(() => {
   document.documentElement.removeAttribute("data-theme");

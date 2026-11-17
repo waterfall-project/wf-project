@@ -25,7 +25,12 @@ import {
   timeAxis,
   valueAxis,
 } from "@/components/chart/chart";
-import { monthTooltip, monthTotals, stackedRoles } from "@/components/workload/stacked-load";
+import {
+  alignedLoad,
+  monthTooltip,
+  monthTotals,
+  stackedRoles,
+} from "@/components/workload/stacked-load";
 import { formatDecimal, formatLocale, formatMonth } from "@/i18n/format";
 
 import { usePortfolioExport } from "./provenance";
@@ -45,10 +50,7 @@ export function PortfolioWorkloadChart({ workload }: { readonly workload: Portfo
     (palette: ChartPalette): ChartOption => {
       const tick = new Intl.NumberFormat(formatLocale(locale));
       // The stack reads a value where the contract names hours: the same strings, only aligned.
-      const stacked = roles.map((role) => ({
-        label: role.label,
-        months: role.months.map(({ month, hours }) => ({ month, value: hours })),
-      }));
+      const stacked = alignedLoad(roles, "hours");
       const monthly = totals.map(({ month, hours }) => ({ month, value: hours }));
       return {
         // Its axis of time is in UTC: its ticks too (`timeAxis`).

@@ -23,6 +23,23 @@ export interface LoadRole {
   readonly months: readonly { readonly month: string; readonly value: string }[];
 }
 
+/**
+ * A load of the API aligned for the stack: the contract names its values `hours`, or `amount`, where
+ * the stack reads a `value` — the same strings, only renamed (WF-ARC-0020).
+ */
+export function alignedLoad<K extends string>(
+  series: readonly {
+    readonly label: string;
+    readonly months: readonly ({ readonly month: string } & Readonly<Record<K, string>>)[];
+  }[],
+  key: K,
+): LoadRole[] {
+  return series.map(({ label, months }) => ({
+    label,
+    months: months.map((each) => ({ month: each.month, value: each[key] })),
+  }));
+}
+
 /** The name of the stack all the roles share. */
 const STACK = "load";
 

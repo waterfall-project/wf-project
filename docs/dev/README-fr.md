@@ -4650,10 +4650,10 @@ coût du §4.6.2). Les indicateurs n'ont pas de tranche : le marquage rejoué pa
 sous-projets et « hors sous-projet » — à son instant, le 1er février 2026 à 9 h, l'offre 100 ne
 gardant aucun indicateur projet, et le service calcule ceux du jour sur la 102 (US-1740) ; **EP-08**
 y ajoute les provisions et les risques, qui changent la référence, **EP-11** le portefeuille,
-**EP-13** les révisions marquées suivantes et les volumes entiers. En service, la structure de PRJ-001 compte 5 966 nœuds, non
-les 5 999 du volume que le faux back sert. Ce que lisent PRJ-001
-En cours, sa référence et ses lignes se joue donc contre le service, aux attendus des exemples près
-que la liste ci-dessous nomme. Les assertions d'écriture affirment ce qui a été écrit, relu, par
+**EP-13** les révisions marquées suivantes et les volumes entiers. En service, la structure de
+PRJ-001 compte 5 966 nœuds, non les 5 999 du volume que le faux back sert. Ce que lisent PRJ-001 En
+cours, sa référence et ses lignes se joue donc contre le service, aux attendus des exemples près que
+la liste ci-dessous nomme. Les assertions d'écriture affirment ce qui a été écrit, relu, par
 `inService`.
 
 La liste consolidée de ce qu'un parcours ne rejoue pas encore contre le service tient ici : il se
@@ -4798,8 +4798,9 @@ La définition de fini d'EP-07 se constate par des parcours contre le service, j
 d'une ligne saisie, son montant calculé par le service, la révision marquée par le worker, désignée
 pour référence, le code saisi (`pricing.spec.ts`, WF-INTF-0010-A, FBS-4.4), puis la lecture des
 indicateurs de la révision marquée (`service/project-manager-indicators.spec.ts`, WF-INTF-0010-A,
-FBS-4.8) ; un devis exporté en Excel, réimporté sans écart et confirmé (`exchanges.spec.ts`, FLX-03 et FLX-04) ; cinquante saisies
-d'une ligne annulées une à une puis rétablies dans l'ordre (`undo.spec.ts`, WF-IHM-0110-A).
+FBS-4.8) ; un devis exporté en Excel, réimporté sans écart et confirmé (`exchanges.spec.ts`, FLX-03
+et FLX-04) ; cinquante saisies d'une ligne annulées une à une puis rétablies dans l'ordre
+(`undo.spec.ts`, WF-IHM-0110-A).
 
 Les deux lecteurs d'un projet (`service/project-readers.spec.ts`, WF-ADM-0040-A) se jouent contre le
 service seul : deux comptes locaux qui portent « Manager » et « Chef de projet », l'un lisant en

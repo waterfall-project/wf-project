@@ -4654,9 +4654,9 @@ the epic that lifts it; that epic removes the guard and its entry:
 - `context.spec.ts` — the banner of the context on the risks and on a differential structure
   (`BEFORE_THE_RISKS`, `BEFORE_THE_DIFFERENTIALS`): lifted by **EP-08** (the risks and the
   differential structures); the entry of the indicators (`BEFORE_THE_INDICATORS`) has been lifted
-  since US-1730. The path that goes through the remaining to commit then
-  the risks stays guarded by the risks. The banner of the planning (EP-06), of the estimate (US-1560, EP-07), of the screens of a project created, of
-  its settings and of its revisions plays against the service.
+  since US-1730. The path that goes through the remaining to commit then the risks stays guarded by
+  the risks. The banner of the planning (EP-06), of the estimate (US-1560, EP-07), of the screens of
+  a project created, of its settings and of its revisions plays against the service.
 - `review.spec.ts` — the figures of the indicators (the remaining to commit, the reference budget,
   the planned value, the variance and the schedule and cost indices, the date of the calculation)
   are those of revision 101 of the examples; the reference of the loaded witness stays offer 100;
@@ -4754,9 +4754,9 @@ manager » account of the run: a project priced through the grid then taken In p
 quantity of a line entered, its amount computed by the service, the revision marked by the worker,
 designated as the reference, the code entered (`pricing.spec.ts`, WF-INTF-0010-A, FBS-4.4), then
 the reading of the indicators of the revision marked
-(`service/project-manager-indicators.spec.ts`, WF-INTF-0010-A, FBS-4.8); an estimate exported to Excel, imported back without a difference and confirmed (`exchanges.spec.ts`,
-FLX-03 and FLX-04); fifty entries of a line undone one by one then redone in order (`undo.spec.ts`,
-WF-IHM-0110-A).
+(`service/project-manager-indicators.spec.ts`, WF-INTF-0010-A, FBS-4.8); an estimate exported to
+Excel, imported back without a difference and confirmed (`exchanges.spec.ts`, FLX-03 and FLX-04);
+fifty entries of a line undone one by one then redone in order (`undo.spec.ts`, WF-IHM-0110-A).
 
 The two readers of a project (`service/project-readers.spec.ts`, WF-ADM-0040-A) play against the
 service alone: two local accounts holding « Manager » and « Chef de projet », one reading in French
