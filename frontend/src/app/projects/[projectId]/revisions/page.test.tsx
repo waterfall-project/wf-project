@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { UnexpectedAnswer } from "@/api/problem";
 import type { RevisionComparison } from "@/components/revisions/revision-comparison";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { formatMoney } from "@/i18n/format";
