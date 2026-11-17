@@ -9,7 +9,10 @@ node it writes alone as an object of the session; one that is not reads the tree
 And what ``reshaped`` rests on, out of a write: the withdrawal of an element of the work breakdown
 advances the counter of the nodes whose task it writes (#3562), and, through ``setWorkBreakdown``,
 waits for the lock of every structure of the current revision before it locks the element, as a
-write of the tree takes them (US-2250/L3, #3600).
+write of the tree takes them (US-2250/L3, #3600). Its locks follow the order of every write of
+the service: the current revision shared before the project, which a marking locks the other way
+(#3654); and the structures are locked once for all the elements removed, not again for each
+(#3660; US-2250/L4).
 
 The tests through ``setWorkBreakdown`` prove the Vérif of WF-PLA-0170 they cite — the deletion of
 an order item a task of the current revision bears succeeds, and the task bears it no more —, under
@@ -20,12 +23,12 @@ counters, and cite none.
 import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from nodes_support import Tree, opened, work_breakdown
 from planning_support import insert_task
-from project_rows import delete_structure, lifted_kind_check, structure_row
+from project_rows import STAMP, delete_structure, lifted_kind_check, structure_row
 from projects_support import scene as make_scene
 from sqlalchemy import event, func, insert, select, update
 from sqlalchemy.exc import OperationalError
@@ -45,12 +48,16 @@ from test_witness_projects import PRJ_001, REVISION_102
 from test_work_breakdown_attachments import attachment, without_item
 
 from waterfall.core.planning import writing
-from waterfall.core.planning.interface import Writer, detach_work_breakdown_item
+from waterfall.core.planning.interface import (
+    Writer,
+    detach_work_breakdown_item,
+    hold_work_breakdown_items,
+)
 from waterfall.core.planning.tables import Node, Task
 from waterfall.core.projects.interface import work_breakdown_items
-from waterfall.core.projects.tables import OrderItem
+from waterfall.core.projects.tables import OrderItem, Project
 from waterfall.core.revisions.interface import structure_facts
-from waterfall.core.revisions.tables import CostStructure
+from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.audit import Act
 
 if TYPE_CHECKING:
@@ -145,6 +152,7 @@ def test_the_withdrawal_of_an_element_advances_the_counter_of_the_nodes_it_write
             before = session.scalar(select(Node.lock_version).where(Node.id == bearing.node_id))
             assert item is not None
             sent.clear()
+            hold_work_breakdown_items(session, PRJ_001, [item])
             detach_work_breakdown_item(session, PRJ_001, item)
             after = session.execute(
                 select(Node.lock_version, column)
@@ -306,7 +314,8 @@ def test_the_withdrawal_of_an_element_writes_its_tasks_under_the_counted_lock_of
     witness: Database,
 ) -> None:
     # US-2250, its own: the withdrawal of an element of the work breakdown advances the counter of
-    # the structure under its lock (#3600). The witness: a work package its tasks bear.
+    # the structure under its lock (#3600). The witness: a work package its tasks bear. The lock is
+    # the hold's, which the withdrawal is asked after and does not take again (#3660).
     read = read_of(witness)
     bearing = read.first(lambda each: each.task is not None and bool(each.task.work_package_id))
     assert bearing.task is not None
@@ -316,6 +325,7 @@ def test_the_withdrawal_of_an_element_writes_its_tasks_under_the_counted_lock_of
         try:
             before = _structure_counter(session, read)
             sent.clear()
+            hold_work_breakdown_items(session, PRJ_001, [item])
             detach_work_breakdown_item(session, PRJ_001, item)
             statements = tuple(sent)
             after = _structure_counter(session, read)
@@ -346,3 +356,104 @@ def test_the_statements_of_a_withdrawal_out_of_the_lock_of_its_structure_are_tol
     # Under the lock, a node written without its counter is told still.
     forgetting = "UPDATE node SET rank=node.rank + %(rank_1)s WHERE node.id IN (1)"
     assert told(lock, forgetting, task, count) == [forgetting]
+
+
+@pytest.mark.requirement("WF-PLA-0170-A")
+def test_the_writing_of_the_work_breakdown_shares_the_revision_before_the_project_as_a_marking(
+    api: ContractClient, owner: Engine, database: Database, realm: TestRealm
+) -> None:
+    # US-2250, its own (#3654): the writing of the work breakdown takes its locks in the order of
+    # every write of the service, the current revision shared, then the project. A marking locks the
+    # revision, then the project: held by it, the revision makes the writing wait before it locks
+    # the project, which the marking then takes at once — no lock is awaited both ways. Taken the
+    # other way, the writing held the project, then waited for the revision at the task it writes,
+    # and the marking waited for the project: a deadlock.
+    stage = make_scene(api, owner, database, realm)
+    tree = Tree(api, stage, opened(api, stage))
+    _, item = work_breakdown(stage)
+    task = tree.made("Câblage", task={"order_item_id": str(item)})
+    project_id, revision_id = UUID(stage.project["project_id"]), UUID(tree.revision["revision_id"])
+    with ThreadPoolExecutor(max_workers=1) as pool, stage.owner.begin() as marking:
+        marking.execute(select(Revision.id).where(Revision.id == revision_id).with_for_update())
+        holder = marking.scalar(select(func.pg_backend_pid()))
+        waiting = pool.submit(without_item, api, stage, str(item))
+        assert blocked_by(stage, holder, waiting)
+        # The project is free while the writing waits: the marking locks it without waiting.
+        marking.execute(
+            select(Project.id).where(Project.id == project_id).with_for_update(nowait=True)
+        )
+        assert not waiting.done()
+    waiting.result(timeout=30)
+    assert attachment(tree.node(task["node_id"])) == (None, None, None)
+
+
+# The statements a withdrawal of an element sends at most, whatever the number of the structures
+# of its revision: the current revision, the structures that bear it, the counters of its nodes,
+# its two columns, the counter of the one structure that bears it.
+WITHDRAWAL_STATEMENTS = 6
+
+
+def test_a_massive_withdrawal_locks_each_structure_once_whatever_the_number_of_elements(
+    api: ContractClient, owner: Engine, database: Database, realm: TestRealm
+) -> None:
+    # US-2250, its own (#3660): the structures of the current revision are locked once for all the
+    # elements removed (``hold_work_breakdown_items``), not again for each (``_held``): about 800
+    # statements for 200 elements and 3 structures. Three structures and six order items, each
+    # borne by a task of the second: each structure is locked once, and each withdrawal sends the
+    # same few statements, none of which locks a structure.
+    stage = make_scene(api, owner, database, realm)
+    tree = Tree(api, stage, opened(api, stage))
+    package, _ = work_breakdown(stage)
+    project_id, revision_id = UUID(stage.project["project_id"]), UUID(tree.revision["revision_id"])
+    items = [uuid4() for _ in range(6)]
+    # No differential is written before EP-08, and the kind of a structure is checked: lifted for
+    # this test alone, and restored.
+    rows = [
+        structure_row(project_id, revision_id, kind="differential", label=label)
+        for label in ("Alpha", "Bêta")
+    ]
+    bearing = rows[0]["id"]
+    assert isinstance(bearing, UUID)
+    with lifted_kind_check(owner):
+        try:
+            with owner.begin() as connection:
+                connection.execute(insert(CostStructure), rows)
+                for rank, item in enumerate(items, start=1):
+                    connection.execute(
+                        insert(OrderItem).values(
+                            id=item,
+                            project_id=project_id,
+                            work_package_id=package,
+                            label=f"Poste {rank}",
+                            position=rank,
+                            **STAMP,
+                        )
+                    )
+                    insert_task(
+                        connection, project_id, revision_id, bearing, rank=rank, order_item_id=item
+                    )
+            with listened() as sent, Session(stage.database.engine) as session:
+                try:
+                    hold_work_breakdown_items(session, project_id, items)
+                    held = [each.text for each in sent]
+                    withdrawals: list[list[str]] = []
+                    for item in items:
+                        sent.clear()
+                        detach_work_breakdown_item(session, project_id, item)
+                        withdrawals.append([each.text for each in sent])
+                    left = session.scalar(
+                        select(func.count())
+                        .select_from(Task)
+                        .where(Task.project_id == project_id, Task.order_item_id.in_(items))
+                    )
+                finally:
+                    session.rollback()
+        finally:
+            for row in rows:
+                structure_id = row["id"]
+                assert isinstance(structure_id, UUID)
+                delete_structure(owner, structure_id)
+    assert left == 0
+    assert sum(1 for text in held if _STRUCTURE_LOCKED.search(text)) == 3
+    assert not any(_STRUCTURE_LOCKED.search(text) for each in withdrawals for text in each)
+    assert max(len(each) for each in withdrawals) <= WITHDRAWAL_STATEMENTS, withdrawals

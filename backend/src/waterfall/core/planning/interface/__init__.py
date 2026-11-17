@@ -490,6 +490,9 @@ from waterfall.core.planning.interface.work_breakdown import (
     hold_work_breakdown_items as hold_work_breakdown_items,
 )
 from waterfall.core.planning.interface.work_breakdown import (
+    share_work_breakdown_revision as share_work_breakdown_revision,
+)
+from waterfall.core.planning.interface.work_breakdown import (
     work_breakdown_item_cited as work_breakdown_item_cited,
 )
 from waterfall.core.planning.interface.work_breakdown import (
@@ -601,7 +604,12 @@ register_closing("content", delete_nodes)
 register_idle_task_guard(tasks_left_idle)
 register_recalculation(reschedule_current_structures)
 register_attachments(
-    Attachments(work_breakdown_item_cited, detach_work_breakdown_item, hold_work_breakdown_items)
+    Attachments(
+        work_breakdown_item_cited,
+        detach_work_breakdown_item,
+        hold_work_breakdown_items,
+        share_work_breakdown_revision,
+    )
 )
 register_opening_question(opening_with_tasks)
 register_format("ms_project_schedule", MS_PROJECT_FORMAT)
