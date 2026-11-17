@@ -482,6 +482,8 @@ describe("the screen of the remaining to commit", () => {
   it("shows unasked, compared, a line in difference of a task not started, and the values at the previous remaining to commit as the revision read carries them, whatever the base [WF-IHM-0150-A]", async () => {
     // Dans la grille de reste à engager, une ligne en écart d'une tâche non démarrée apparaît sans
     // être demandée, et les valeurs au reste à engager précédent ne changent pas avec la base.
+    // Ce test ne prouve que la demande et l'affichage : la sélection des lignes en écart est tenue
+    // par le service, éprouvée par les tests du back d'US-2340/L1.
     const reference = "01926f3a-7c00-7000-8000-000000000101";
     server.answers = { ...server.answers, [COMPARISON]: "comparison_current" };
     const page = await remainingAt({ base_revision_id: reference });

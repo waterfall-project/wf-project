@@ -473,6 +473,45 @@ describe("the base of a cell, read as the contract types it (#3781)", () => {
     expect(() => finishBase({ task: { finish: { hours: "8" } } })).toThrow(RangeError);
   });
 
+  it.each([
+    ["instant", "finish", "2026-04-17"],
+    ["duration", "duration", { unit: "days" }],
+    ["duration", "duration", { value: "3", unit: "fortnights" }],
+    ["share", "physical_progress", {}],
+    ["mode", "scheduling_mode", "sometimes"],
+    ["progress", "progress", "nearly"],
+    ["plain", "started_on", { date: "2026-04-17" }],
+  ])("fails on a %s base malformed in %s: %j [WF-IHM-0150-A]", (_shown, key, value) => {
+    const column = comparedGrid(PLANNING_GRID, true).columns.find((one) => one.key === key);
+    const row = { ...design, base: { task: { [key]: value } } } as PlanningNode;
+    expect(() =>
+      renderToStaticMarkup(
+        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+          {column?.base?.(row)}
+        </NextIntlClientProvider>,
+      ),
+    ).toThrow(RangeError);
+  });
+
+  it("fails on a share said computable without a value, rather than say it is not computable [WF-IHM-0150-A]", () => {
+    // Chosen: the contract gives `null` when not computable, so `is_computable: true` and null is a
+    // defect of the API, said by the failure and not hidden under « not computable ».
+    const column = comparedGrid(PLANNING_GRID, true).columns.find(
+      (one) => one.key === "physical_progress",
+    );
+    const row = {
+      ...design,
+      base: { task: { physical_progress: { is_computable: true, value: null } } },
+    } as PlanningNode;
+    expect(() =>
+      renderToStaticMarkup(
+        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+          {column?.base?.(row)}
+        </NextIntlClientProvider>,
+      ),
+    ).toThrow(RangeError);
+  });
+
   it("names the fields a showing reads by the types of the contract", () => {
     // A field renamed or retyped in the contract leaves these, and the configuration of the base
     // of the columns fails to compile.

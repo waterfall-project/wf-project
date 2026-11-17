@@ -43,8 +43,10 @@ type Predecessor = components["schemas"]["Predecessor"];
 /**
  * The facets of the base of a node and of its differences, as the contract gives them
  * (`ComparedNodeRead.base`, `deltas`): a column reads its field by a key of these types, and its
- * value by the type the contract gives it, down to the access — a field renamed or retyped in the
- * contract is a failure of the type, never a cell left without its mark, unsaid (#3781).
+ * value by the type the contract gives it, down to the access for the base — a field renamed or
+ * retyped in the contract is a failure of the type, never a cell left without its mark, unsaid
+ * (#3781). The differences (`deltas`) are typed to the facet alone: `DeltaCell` still reads a
+ * `value: unknown` (#3795).
  */
 type TaskBase = components["schemas"]["ComparedTaskFacet"];
 type LineBase = components["schemas"]["ComparedEstimateLineFacet"];
@@ -219,8 +221,9 @@ function heldOf(spec: BaseField, row: GridNode): BaseHeld | undefined {
 
 /**
  * The value the base of a cell carried, as the cell would have shown it. A value is read as the
- * contract types it: one malformed fails here — a date that is no date, a decimal that is none —,
- * never shown as a base that held nothing (#3781).
+ * contract types it: one malformed fails here — a date that is no date, a decimal that is none, a
+ * share without its `is_computable`, a mode or a progress the catalogue does not name, a text that
+ * is an object —, never shown as a base that held nothing (#3781).
  */
 function BaseValue({ held, format }: { readonly held: BaseHeld; readonly format: CellFormat }) {
   const t = useTranslations();
@@ -234,24 +237,55 @@ function BaseValue({ held, format }: { readonly held: BaseHeld; readonly format:
     case "duration":
       return t("planningGrid.duration", {
         value: formatDecimal(held.value.value, locale),
-        unit: t(`enums.DurationUnit.${held.value.unit}`),
+        unit: named(t, "enums.DurationUnit", held.value.unit),
       });
     case "share":
-      return held.value.is_computable
+      return isComputable(held.value)
         ? formatShare(computedShare(held.value), locale, (key, values) => t(`share.${key}`, values))
         : t("indicator.notComputable");
     case "mode":
-      return t(`enums.SchedulingMode.${held.value}`);
+      return named(t, "enums.SchedulingMode", held.value);
     case "progress":
-      return t(`enums.TaskProgress.${held.value}`);
+      return named(t, "enums.TaskProgress", held.value);
     case "predecessors":
       return <PredecessorLinks links={held.value} />;
     case "plain":
-      return formatCell(format, String(held.value), locale, currency);
+      return formatCell(format, plainText(held.value), locale, currency);
   }
 }
 
-/** The value of a share the server says computable, which the contract then gives. */
+/** The name of an enumerated value of the base, which the catalogue must know: else it fails. */
+function named(t: ReturnType<typeof useTranslations>, scope: string, value: unknown): string {
+  // The key is built from a value the contract types but the base may not hold: the catalogue is
+  // asked by its loose form, which is the point.
+  const loose = t as unknown as { (key: string): string; has(key: string): boolean };
+  if (typeof value !== "string" || !loose.has(`${scope}.${value}`)) {
+    throw new RangeError(`Not a value of ${scope}: ${JSON.stringify(value)}`);
+  }
+  return loose(`${scope}.${value}`);
+}
+
+/** Whether a share is computable, as the contract says it: a boolean, else it fails. */
+function isComputable({ is_computable: computable }: Computable): boolean {
+  if (typeof computable !== "boolean") {
+    throw new RangeError(`A share without \`is_computable\`: ${JSON.stringify(computable)}`);
+  }
+  return computable;
+}
+
+/** The text of a value shown as it is: a string or a number, else it fails. */
+function plainText(value: Plain): string {
+  if (typeof value !== "string" && typeof value !== "number") {
+    throw new RangeError(`Not a text nor a number: ${JSON.stringify(value)}`);
+  }
+  return String(value);
+}
+
+/**
+ * The value of a share the server says computable, which the contract then gives. A `Computable`
+ * computable with a null value fails — an API defect, the contract saying « null when not
+ * computable » —, rather than read « not computable »: the choice is to say the defect, not hide it.
+ */
 function computedShare({ value }: Computable): string {
   if (value === null) {
     throw new RangeError("A share said computable carries no value");

@@ -330,4 +330,18 @@ describe("the answers laid over the comparison read anew", () => {
     expect(reread).toHaveBeenCalledTimes(3);
     expect(result.current.rows[SUMMARY]?.base).toBeUndefined();
   });
+
+  it("keeps the totals of the answer when the reading asked never comes back: wanted, a comparison asks no `retotal` [WF-IHM-0150-A]", async () => {
+    // A grid compared reads its screen anew, totals with it, and never `retotal`: should that
+    // reading not come back, the totals stay those the writes answered — wanted, not a lapse.
+    const reread = vi.fn();
+    const { result, write } = entered(reread);
+    await write(
+      answering(() => redated),
+      "121",
+    );
+    expect(reread).toHaveBeenCalledTimes(1);
+    expect(redated.totals).toBeDefined();
+    expect(result.current.totals).toEqual(redated.totals);
+  });
 });
