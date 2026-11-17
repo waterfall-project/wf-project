@@ -19,7 +19,7 @@
 import type { components } from "@/api/generated/schema";
 import type { Catalogue } from "@/i18n/catalogues";
 
-import { contextQuery, type ProjectContext, readsStructure } from "./context";
+import { contextQuery, type ProjectContext, readsBase, readsStructure } from "./context";
 import table from "./functions.json";
 
 type PermissionCode = components["schemas"]["PermissionCode"];
@@ -199,7 +199,9 @@ export function functionAt(code: string): NavigationFunction | undefined {
  * The address of a function: its route outside a project; in a project, its route in the
  * context given — the same revision, sub-project and calculation date, the revision as the
  * parameter `revision_id` on a function of the project itself, so that the next function of
- * a revision finds it. `undefined` for a function of a project outside any project, and for
+ * a revision finds it; the structure from the planning to the estimate and back, the base of a
+ * comparison among the planning, the estimate and the remaining to commit (US-2330), to no other
+ * function. `undefined` for a function of a project outside any project, and for
  * a function of a revision without a revision to read in.
  */
 export function functionHref(
@@ -223,7 +225,7 @@ export function functionHref(
   }
   return (
     inProject.replace(CONTEXT_SEGMENTS.revisionId, () => revisionId) +
-    contextQuery(context, false, readsStructure(fn.route))
+    contextQuery(context, false, readsStructure(fn.route), readsBase(fn.route))
   );
 }
 

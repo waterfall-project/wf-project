@@ -8,7 +8,8 @@
  * Enter, Space or the down arrow, the arrows go from one revision to the next, Enter chooses.
  *
  * `RevisionMenu` is the menu alone, which leaves to its caller what a choice does: the revision read
- * (`ReadRevisionChoice`), the base of a comparison. A choice only changes the address, from the
+ * (`ReadRevisionChoice`), the base of a comparison (`BaseChoice`), whose button shows an icon of its
+ * own. A choice only changes the address, from the
  * address last asked (`usePendingAddress`), shared by the screen between its banner and its grid
  * (`PendingAddress`): a filter of the sub-project chosen just before is kept (défaut n° 20 de
  * `typescript.md`); the menu shows the revision chosen checked until the page read anew arrives
@@ -19,7 +20,7 @@
  */
 "use client";
 
-import { History } from "lucide-react";
+import { GitCompareArrows, History } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useOptimistic, useTransition } from "react";
 
@@ -33,7 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { revisionHref } from "./revision";
+import { baseHref, revisionHref } from "./revision";
 
 /** A revision offered, by its identifier and the text that names it. */
 export interface RevisionOption {
@@ -51,19 +52,25 @@ export interface RevisionChoiceProps {
   readonly chosen: string | undefined;
 }
 
-/** What the menu alone takes besides: what a choice does, and what it offers after the revisions. */
+/** What the menu alone takes besides: what a choice does, and the icon of its button. */
 export interface RevisionMenuProps extends RevisionChoiceProps {
   /** Ask the address of the revision chosen; called in the transition that shows it checked. */
   readonly onChoose: (revisionId: string) => void;
-  /** Items offered after the revisions — lifting a choice made —, if any. */
-  readonly children?: ReactNode;
+  /** The icon of the button; the history, for the revision read. */
+  readonly icon?: ReactNode;
 }
 
 /**
  * Render a menu of revisions, the one chosen checked from the choice made until it arrives; the one
  * shown chosen again asks nothing.
  */
-export function RevisionMenu({ label, options, chosen, onChoose, children }: RevisionMenuProps) {
+export function RevisionMenu({
+  label,
+  options,
+  chosen,
+  onChoose,
+  icon = <History aria-hidden="true" className="size-3.5" />,
+}: RevisionMenuProps) {
   const [shown, show] = useOptimistic(chosen);
   const [, startTransition] = useTransition();
   const choose = (revisionId: string) => {
@@ -80,7 +87,7 @@ export function RevisionMenu({ label, options, chosen, onChoose, children }: Rev
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button type="button" variant="ghost" className="size-6 p-0" aria-label={label}>
-          <History aria-hidden="true" className="size-3.5" />
+          {icon}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-80">
@@ -97,7 +104,6 @@ export function RevisionMenu({ label, options, chosen, onChoose, children }: Rev
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
-        {children}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -105,7 +111,8 @@ export function RevisionMenu({ label, options, chosen, onChoose, children }: Rev
 
 /**
  * Render the choice of the revision a screen reads: the revision chosen opens on the same screen,
- * the sub-project and the date of calculation kept (`revisionHref`).
+ * the sub-project, the date of calculation and the base of a comparison kept — but for the base
+ * itself, which lifts the comparison (`revisionHref`).
  */
 export function ReadRevisionChoice(props: RevisionChoiceProps) {
   const pathname = usePathname();
@@ -115,6 +122,24 @@ export function ReadRevisionChoice(props: RevisionChoiceProps) {
       {...props}
       onChoose={(revisionId) => {
         request((query) => revisionHref(pathname, query, revisionId));
+      }}
+    />
+  );
+}
+
+/**
+ * Render the choice of the base a grid is compared to (US-2330): the base chosen is set in the
+ * address, the rest of it kept; the banner lifts it by a link of its own (`ChipLift`).
+ */
+export function BaseChoice(props: RevisionChoiceProps) {
+  const pathname = usePathname();
+  const { request } = usePendingAddress();
+  return (
+    <RevisionMenu
+      {...props}
+      icon={<GitCompareArrows aria-hidden="true" className="size-3.5" />}
+      onChoose={(baseId) => {
+        request((query) => baseHref(pathname, query, baseId));
       }}
     />
   );

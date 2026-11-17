@@ -17,7 +17,10 @@
  * names — the planning, the estimate (US-0500) — gives it, and the banner names it, its kind
  * besides when it is not the main one — a differential, the own estimate of a risk —, and offers
  * the other structures of the revision to read instead (`StructureChoice`); a filter of the
- * context lifted leaves the grid on it. An icon before each fact, whose name the list of
+ * context lifted leaves the grid on it. The three grids that compare — the planning, the estimate,
+ * the remaining to commit —, read on the main structure, give the bases they may be compared to, and
+ * the banner offers them (`BaseChoice`), names the base chosen and offers to lift the comparison
+ * (US-2330). An icon before each fact, whose name the list of
  * definitions gives to a screen reader; the states in badges, in words.
  *
  * A server component: what it shows is the reading of the page, and a filter is lifted by
@@ -29,7 +32,16 @@
  * screen whose other parts change the address does, the banner under it: a filter lifted, then a
  * revision chosen before the first navigation arrived, goes on from the address asked.
  */
-import { Calculator, Filter, Folder, GitBranch, Layers, Lock, X } from "lucide-react";
+import {
+  Calculator,
+  Filter,
+  Folder,
+  GitBranch,
+  GitCompareArrows,
+  Layers,
+  Lock,
+  X,
+} from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import {
@@ -47,13 +59,13 @@ import { ShowProject } from "@/components/shell/shown-project";
 import { Badge } from "@/components/ui/badge";
 import { formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
-import { UNASSIGNED } from "@/navigation/context";
+import { BASE_PARAMETER, UNASSIGNED } from "@/navigation/context";
 
 import { ChipLift } from "./chip-lift";
 import type { Revision } from "./read-only";
 import type { ContextFilter, ProjectReading, Subproject } from "./reading";
-import type { ListedRevision } from "./revision";
-import { ReadRevisionChoice } from "./revision-choice";
+import type { BaseChoices, ListedRevision } from "./revision";
+import { BaseChoice, ReadRevisionChoice, type RevisionOption } from "./revision-choice";
 import { type ListedStructure, runsOfKind, type StructureChoices } from "./structure";
 import { StructureChoice } from "./structure-choice";
 
@@ -99,6 +111,11 @@ export interface ContextBannerProps {
    * for a screen that reads the main structure alone, which the banner then does not name.
    */
   readonly structure?: StructureChoices | undefined;
+  /**
+   * The base the grid of the screen is compared to, and the bases it may be: given by the three grids
+   * that compare, read on the main structure (US-2330); none on any other screen, which offers none.
+   */
+  readonly base?: BaseChoices | undefined;
 }
 
 /** The part of a screen a filter restricts alone, by the key of its text in the catalogue. */
@@ -222,6 +239,66 @@ function useRevisionName(): (revision: Pick<ListedRevision, "version_name">) => 
   return ({ version_name }) => version_name ?? t("currentRevision");
 }
 
+/** The revisions a menu offers, each by its name, the reference said so. */
+function useRevisionOptions(): (revisions: readonly ListedRevision[]) => RevisionOption[] {
+  const t = useTranslations("contextBanner");
+  const nameOf = useRevisionName();
+  return (revisions) =>
+    revisions.map((listed) => ({
+      revision_id: listed.revision_id,
+      text: listed.is_reference ? t("referenceOption", { name: nameOf(listed) }) : nameOf(listed),
+    }));
+}
+
+/**
+ * The base of a comparison, on a grid that compares: the base chosen named — by its version name, or
+ * as unnamed when the project does not list it —, with a link that lifts the comparison; and the
+ * choice of a base among those offered, when there are some, whose button says the base chosen to a
+ * screen reader.
+ */
+function BaseFacts({
+  base,
+  revisions = [],
+}: {
+  readonly base: BaseChoices;
+  readonly revisions?: readonly ListedRevision[] | undefined;
+}) {
+  const t = useTranslations("contextBanner");
+  const nameOf = useRevisionName();
+  const options = useRevisionOptions()(base.offered);
+  const { chosen } = base;
+  if (chosen === undefined && options.length === 0) {
+    return null;
+  }
+  const listed = revisions.find((revision) => revision.revision_id === chosen);
+  const name = listed === undefined ? t("unnamedRevision") : nameOf(listed);
+  return (
+    <div className={FACT}>
+      <dt>
+        <GitCompareArrows aria-hidden="true" className={ICON} />
+        <span className="sr-only">{t("base")}</span>
+      </dt>
+      {chosen === undefined ? null : (
+        <dd className={FACT}>
+          {t("comparedTo", { base: name })}
+          <ChipLift lifts={[BASE_PARAMETER]} label={t("liftBase", { base: name })}>
+            <X aria-hidden="true" className="size-3" />
+          </ChipLift>
+        </dd>
+      )}
+      {options.length === 0 ? null : (
+        <dd>
+          <BaseChoice
+            label={chosen === undefined ? t("chooseBase") : t("changeBase", { base: name })}
+            options={options}
+            chosen={chosen}
+          />
+        </dd>
+      )}
+    </div>
+  );
+}
+
 /**
  * The revision read: its name, its status, the revision it is a copy of when it has one
  * (`source_version_name`, WF-IHM-0020), whether it is the reference; and, when the project has
@@ -240,12 +317,7 @@ function RevisionFacts({
   const t = useTranslations();
   const nameOf = useRevisionName();
   const name = nameOf(revision);
-  const options = revisions.map((listed) => ({
-    revision_id: listed.revision_id,
-    text: listed.is_reference
-      ? t("contextBanner.referenceOption", { name: nameOf(listed) })
-      : nameOf(listed),
-  }));
+  const options = useRevisionOptions()(revisions);
   // The revision read is offered too, checked; a project with no other has nothing to offer.
   const offered = options.some((option) => option.revision_id !== revision.revision_id);
   return (
@@ -353,6 +425,7 @@ export function ContextBanner({
   breakdown,
   difference,
   structure,
+  base,
 }: ContextBannerProps) {
   const t = useTranslations();
   const chips = useChips(reading, restricts, breakdown, difference);
@@ -383,6 +456,7 @@ export function ContextBanner({
             <RevisionFacts revision={revision} revisions={revisions} />
           )}
           {structure === undefined ? null : <StructureFacts structure={structure} />}
+          {base === undefined ? null : <BaseFacts base={base} revisions={revisions} />}
           {computedOn === undefined || computedOn.revisionId === revision?.revision_id ? null : (
             <ComputedOnFacts computedOn={computedOn} />
           )}

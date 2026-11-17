@@ -252,6 +252,7 @@ describe("the revisions a screen offers to read instead", () => {
     expect(typeof reading === "object" && Object.keys(reading.revisions?.[0] ?? {})).toEqual([
       "revision_id",
       "version_name",
+      "status",
       "is_reference",
     ]);
     const listed = fake.calls.filter((call) => call.route === REVISIONS);
