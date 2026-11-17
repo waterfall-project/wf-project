@@ -46,6 +46,13 @@ def duration(value: str, unit: str) -> dict[str, str]:
         (duration("4", "d"), duration("1", "ed"), duration("1", "d")),
         # Read elapsed: in elapsed days, the days of work at their hours.
         (duration("2", "ed"), duration("3", "d"), duration("1", "ed")),
+        # Mixed: an elapsed day of 24 hours less a day of work of eight, in elapsed days: 16/24.
+        (duration("1", "ed"), duration("1", "d"), duration("0.6666666667", "ed")),
+        # The reverse, in days of work: a day of work less an elapsed day, sixteen hours short.
+        (duration("1", "d"), duration("1", "ed"), duration("-2", "d")),
+        # An elapsed hour counts for an hour, and an elapsed day for the 24 hours of a day.
+        (duration("1", "eh"), duration("1", "h"), duration("0", "eh")),
+        (duration("24", "h"), duration("1", "ed"), duration("0", "h")),
         # A third of an hour of difference, given as the engine renders a value.
         (duration("1", "h"), duration("40", "min"), duration("0.3333333333", "h")),
     ],
@@ -99,3 +106,25 @@ def test_a_duration_less_another_keeps_the_unit_of_the_first() -> None:
     week = Duration(Decimal(1), "w")
     assert week.less(Duration(Decimal("0.5"), "w"), CONSTANTS) == Duration(Decimal("0.5"), "w")
     assert week.less(Duration(Decimal(5), "d"), CONSTANTS) == Duration(Decimal(0), "w")
+
+
+@pytest.mark.requirement("WF-IHM-0150-A")
+@pytest.mark.parametrize(
+    ("read", "base", "delta"),
+    [
+        (duration("5", "d"), duration("2", "d"), "3"),
+        (duration("-1.5", "d"), duration("0.5", "d"), "-2"),
+        # The float is written in days of work (``TaskDeltas``), whatever the unit given.
+        (duration("1", "w"), duration("2", "d"), "3"),
+        (duration("4", "h"), duration("1", "d"), "-0.5"),
+    ],
+)
+def test_a_total_float_differs_in_working_days(
+    read: dict[str, str], base: dict[str, str], delta: str
+) -> None:
+    # « le total_float lu moins celui de la base, en jours ouvrés » (the contract): the unit
+    # written is the day, not that of the value read, as a duration's is.
+    found = deltas_of(
+        ["task.total_float"], task(total_float=base), task(total_float=read), CONSTANTS
+    )
+    assert found == {"task.total_float": {"value": delta, "unit": "d"}}

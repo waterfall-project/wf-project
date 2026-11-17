@@ -11,12 +11,13 @@ retains the nodes in difference the filter leaves out, counted in the totals. An
 the current revision opened from it and changed; every answer is checked against the contract.
 """
 
+from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 import pytest
 from estimate_support import Costing, Lines, costing
-from nodes_support import Tree, opened
+from nodes_support import Tree, opened, set_progress
 from projects_support import Scene
 from projects_support import scene as make_scene
 from test_comparison import by_label, compared, label_of, labour, mark, material
@@ -57,6 +58,19 @@ def pair(api: ContractClient, stage: Scene, costs: Costing) -> tuple[dict[str, A
     « Études » bears « Conception » (ten hours at 65.00) and « Plans » (« Tirages », 250.00);
     « Réception », of two days, bears « Banc d'essais », 100.00.
     """
+    return built(api, stage, costs, started=False)
+
+
+@pytest.fixture
+def started_pair(api: ContractClient, stage: Scene, costs: Costing) -> tuple[dict[str, Any], Tree]:
+    """Give the pair of ``pair``, « Conception » started since 2 November in the offer."""
+    return built(api, stage, costs, started=True)
+
+
+def built(
+    api: ContractClient, stage: Scene, costs: Costing, *, started: bool
+) -> tuple[dict[str, Any], Tree]:
+    """Make the offer, « Conception » started if asked, mark it, and open the current revision."""
     offer = opened(api, stage)
     tree = Tree(api, stage, offer)
     lines = Lines(tree)
@@ -67,6 +81,8 @@ def pair(api: ContractClient, stage: Scene, costs: Costing) -> tuple[dict[str, A
     lines.made(plans, **material(costs, "Tirages", "250.00"))
     acceptance = tree.made("Réception", task={"duration": {"value": "2", "unit": "d"}})
     lines.made(acceptance, **material(costs, "Banc d'essais", "100.00"))
+    if started:
+        set_progress(stage, design["node_id"], "started", date(2026, 11, 2))
     mark(stage, offer, "v1.0")
     current = opened(api, stage)
     return offer, Tree(api, stage, current)
@@ -249,6 +265,57 @@ def test_the_nodes_in_difference_a_filter_of_progress_leaves_out_are_retained_an
     assert balanced(found)
     every = read(api, stage, pair, "&progress=not_started&include_differences=true")
     assert every == read(api, stage, pair, "&progress=not_started")
+
+
+@pytest.mark.requirement("WF-IHM-0150-A")
+def test_a_summary_of_a_state_asked_is_retained_as_a_reading_retains_it_with_the_differences(
+    api: ContractClient, stage: Scene, started_pair: tuple[dict[str, Any], Tree]
+) -> None:
+    # The state judged on the view of a node is the one ``listNodes`` filters on, a summary's
+    # derived from its subordinates (``views.State``): « Conception » started in both revisions
+    # makes « Études » started in both, neither in difference; « Réception », renamed, is, and
+    # is retained with the differences. « Études » stays, as a reading retains it, by its state.
+    pair = started_pair
+    _, current = pair
+    nodes = by_label(current.items())
+    assert nodes["Études"]["task"]["progress"] == "started"
+    current.changed(nodes["Réception"], label="Réception sur site")
+    alone = read(api, stage, pair, "&progress=started")
+    found = read(api, stage, pair, "&progress=started&include_differences=true")
+    assert [(label_of(each), each["difference"]) for each in alone["items"]] == [
+        ("Études", "unchanged"),
+        ("Conception", "unchanged"),
+        ("Conception — Ingénieur", "unchanged"),
+    ]
+    assert [(label_of(each), each["difference"]) for each in found["items"]] == [
+        ("Études", "unchanged"),
+        ("Conception", "unchanged"),
+        ("Conception — Ingénieur", "unchanged"),
+        ("Réception sur site", "modified"),
+    ]
+    listed = current.read("?progress=started").json()
+    assert alone["totals"] == listed["totals"]
+    assert found["totals"]["task_count"] == alone["totals"]["task_count"] + 1
+    assert balanced(found)
+
+
+@pytest.mark.requirement("WF-IHM-0160-A")
+def test_an_identical_pair_under_a_filter_of_progress_gives_the_totals_of_the_reading(
+    api: ContractClient, stage: Scene, pair: tuple[dict[str, Any], Tree]
+) -> None:
+    # Widened, the totals are counted by the union, not read: on a pair identical they are those
+    # of ``listNodes`` on the same nodes, and their difference with the base's is nought. The
+    # current revision, just opened, is the offer again; its reading is the one a marked revision
+    # has no way to give here.
+    _, current = pair
+    for state in ("not_started", "started"):
+        query = f"&progress={state}"
+        listed = current.read(f"?progress={state}").json()["totals"]
+        for widened in ("", "&include_differences=true"):
+            found = read(api, stage, pair, query + widened)
+            assert found["totals"] == listed
+            assert found["base_totals"] == found["totals"]
+            assert set(figures(found["totals_delta"])) == {0}
 
 
 # --- The marks the grid folds on -----------------------------------------------------------------

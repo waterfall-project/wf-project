@@ -64,6 +64,15 @@ def _difference(name: str, now: Any, then: Any, constants: UnitConstants) -> Any
         return None
     if name in DATES:
         return (_day(now) - _day(then)).days
+    if name == "task.total_float":
+        # In working days, as the float is (``TaskDeltas``): each value taken from nought in days,
+        # whatever its unit, the difference of the two as the node writes it.
+        nought = Duration(Decimal(0), "d")
+        days = (
+            nought.less(_duration(then), constants).value
+            - nought.less(_duration(now), constants).value
+        )
+        return {"value": format(days.normalize(), "f"), "unit": "d"}
     if name in DURATIONS:
         found = _duration(now).less(_duration(then), constants)
         return {"value": format(found.value.normalize(), "f"), "unit": found.unit}
