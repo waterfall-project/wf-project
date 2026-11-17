@@ -15,7 +15,7 @@ from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from estimate_support import Lines, add_role, costing
+from estimate_support import Lines, add_role, costing, pin_year
 from nodes_support import Tree, set_progress
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
@@ -128,6 +128,7 @@ def plant(
     """Give a platform, the project its manager made, a role to load, the clock at January."""
     stage = make_scene(api, owner, database, realm)
     costing(database)
+    pin_year(monkeypatch)  # first: ``Plant.clock`` sets its own readings over those it pins
     made = Plant(api, stage, add_role(database, "WRK", WORKED_DAYS), monkeypatch)
     made.clock(STARTED_ON)
     return made

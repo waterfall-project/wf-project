@@ -483,7 +483,7 @@ def test_the_history_lists_the_marked_revisions_with_each_of_their_attributes(
     assert wrong.status_code == 422
 
 
-@pytest.mark.requirement("WF-REV-0100-A")
+@pytest.mark.requirement("WF-REV-0060-A")
 @pytest.mark.parametrize(
     ("instant", "year"),
     [

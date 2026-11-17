@@ -11,13 +11,13 @@ helper writes it in its own file.
 """
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from planning_support import node_row
+from planning_support import DAY, node_row
 from project_rows import AT, STAMP
 from sqlalchemy import insert, select
 
@@ -270,23 +270,62 @@ def category_image_row(
     }
 
 
-# The year the revisions of the tests are priced at: that of their creation.
+# The year the revisions of the tests are priced at: that of their creation. ``YEAR`` and
+# ``LAST_INSTANT`` are both taken once, when this module is loaded.
 YEAR = utc_now().year
 LAST_INSTANT = datetime(YEAR, 12, 31, 23, 59, 59, 999999, tzinfo=UTC)
 
 
-def pin_year(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep the service that opens a revision in ``YEAR``, even when the run crosses New Year.
+def monday_in(year: int) -> date:
+    """Give a Monday of the autumn of a year: that of the tests of the planning, moved whole weeks.
 
-    The year a revision is born with is the one its clock reads at the request (WF-REV-0100); the
-    rates of ``costing`` are for ``YEAR``, read once. The clock still runs, but stops at the last
-    instant of ``YEAR``. A test that sets that clock itself, as the tests of a later year do, keeps
-    its own: it is not replaced.
+    ``planning_support.DAY`` is where a tree starts its planning, in 2026; a task that must be
+    consumed in ``YEAR`` or two years later is placed on the Monday ``monday_in`` gives, working
+    whatever the year, where a date written in the test would fall on a day off.
     """
-    module = "waterfall.api.revisions"
-    if import_module(module).utc_now is not utc_now:
-        return
-    monkeypatch.setattr(f"{module}.utc_now", lambda: min(utc_now(), LAST_INSTANT))
+    return DAY + timedelta(weeks=52 * (year - DAY.year))
+
+
+def task_in(year: int) -> dict[str, Any]:
+    """Give the facts of a task set by hand on two days of a year, to consume its lines there."""
+    first = monday_in(year)
+    return {
+        "scheduling_mode": "manual",
+        "start": {"date": first.isoformat()},
+        "finish": {"date": (first + timedelta(days=1)).isoformat()},
+    }
+
+
+# The modules whose reading of the clock gives a year or a day that a test compares to ``YEAR``:
+# the year of a revision (the service, and the import that opens one), the day a structure starts
+# on or a review is dated, the day the plans and the indicators are read at.
+CLOCKED = (
+    "waterfall.api.revisions",
+    "waterfall.api.nodes",
+    "waterfall.api.work_breakdown",
+    "waterfall.api.workload",
+    "waterfall.api.estimate_indicators",
+    "waterfall.api.remaining_indicators",
+    "waterfall.core.exchanges.running",
+    "waterfall.core.exchanges.interface.exports",
+    "waterfall.core.estimate.interface.remaining_excel",
+    "waterfall.core.revisions.interface.reference",
+)
+
+
+def pin_year(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the services that read the year or the day in ``YEAR``, though the run crosses New Year.
+
+    The year a revision is born with is the one its clock reads at the request (WF-REV-0060), by
+    the service or by the import that opens it; the rates of ``costing`` are for ``YEAR``, read
+    once. The clock of each module of ``CLOCKED`` still runs, but stops at ``LAST_INSTANT``, the
+    last instant of ``YEAR``: an instant after midnight, when the run has crossed it, falls on
+    that one. A module whose clock is already set, by another fixture or by the test, keeps it,
+    and ``pin_year`` leaves it without a word: call it first when both are wanted.
+    """
+    for module in CLOCKED:
+        if import_module(module).utc_now is utc_now:
+            monkeypatch.setattr(f"{module}.utc_now", lambda: min(utc_now(), LAST_INSTANT))
 
 
 @dataclass(frozen=True)
