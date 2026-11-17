@@ -673,7 +673,7 @@ def _summary_rule(tree: Tree, node_id: UUID, field: str) -> tuple[str, list[UUID
         return None
     if field == _PHYSICAL:
         # What the share weighs and counts: the lines and the tasks of the whole subtree.
-        return rule, tree.ordered(each for each in tree.subtree(node_id) if each != node_id)
+        return rule, tree.ordered([each for each in tree.subtree(node_id) if each != node_id])
     lines = tree.lines(node_id) if rule == "lines_and_subordinates" else []
     return rule, [*lines, *tree.subtasks(node_id)]
 
