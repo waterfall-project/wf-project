@@ -720,16 +720,18 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
             editable_fields=editable,
         )
 
-    def records(self, node_ids: Sequence[UUID]) -> list[NodeRecord]:
+    def records(self, node_ids: Sequence[UUID], *, progress: bool = True) -> list[NodeRecord]:
         """Give the nodes named as records, in their order: what ``node`` gives, without its views.
 
         Each node's columns and derived values looked up once, the facets of the other kinds read
         once for them all (``prefetch``): a structure read whole returns six thousand nodes, which
         the API writes from these records (US-2220). The physical progress of the summaries among
-        them is asked once too (``progress``).
+        them is asked once too (``progress``), unless the reading says it gives none: a projection
+        that names no physical progress asks nothing of the tallies of the structure.
         """
         self.prefetch(node_ids)
-        self.progress(node_ids)
+        if progress:
+            self.progress(node_ids)
         nodes, tasks = self.tree.nodes, self.tree.tasks
         return [
             self._task_record(node_id, node, tasks[node_id])

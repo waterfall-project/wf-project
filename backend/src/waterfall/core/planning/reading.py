@@ -190,15 +190,18 @@ def retained_reading(
     return reading, found, facts.scheduled_at
 
 
-def list_records(session: Session, place: Place, filters: NodeFilters) -> NodeRecords:
+def list_records(
+    session: Session, place: Place, filters: NodeFilters, *, progress: bool = True
+) -> NodeRecords:
     """Read the nodes of a structure as ``list_nodes`` does, as records (``listNodes``, US-2220).
 
     The same nodes, numbers, meta and totals, each node a record rather than a view: the API
-    writes the body from them.
+    writes the body from them. ``progress`` is whether the summaries are given their physical
+    progress: a projection that names none leaves it out (a bound on it asks it all the same).
     """
     reading, found, scheduled_at = retained_reading(session, place, filters)
     return NodeRecords(
-        tuple(reading.records(found.order)),
+        tuple(reading.records(found.order, progress=progress)),
         found.task_count,
         reading.summary_depth(),
         scheduled_at,

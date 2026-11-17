@@ -637,6 +637,14 @@ def joined(document: bytes, inscriptions: Mapping[UUID, tuple[TrackingView, ...]
     return b"".join(parts)
 
 
+def _gives_progress(fields: frozenset[str] | None) -> bool:
+    """Tell whether a reading gives the physical progress of the summaries (``listNodes``).
+
+    Whole, or when ``fields`` names it, or names the facet of a task that holds it.
+    """
+    return fields is None or bool(fields & {"task", "task.physical_progress"})
+
+
 def whole_nodes(session: Session, place: Place, fields: frozenset[str] | None) -> Response:
     """Give a structure read whole, projected by ``fields`` or not (``listNodes``, US-2270).
 
@@ -648,7 +656,8 @@ def whole_nodes(session: Session, place: Place, fields: frozenset[str] | None) -
     if fields is not None:
         read = kept_body(session, place)
         if read is None:
-            return read_body(nodes_body(list_records(session, place, NodeFilters()), fields))
+            records = list_records(session, place, NodeFilters(), progress=_gives_progress(fields))
+            return read_body(nodes_body(records, fields))
         read["items"] = [projected(item, fields) for item in read["items"]]
         return read_body(read)
     found = kept_document(session, place)
@@ -827,7 +836,8 @@ def get_nodes(
     filters, fields = asked
     if filters == NodeFilters():
         return whole_nodes(session, place, fields)
-    return read_body(nodes_body(list_records(session, place, filters), fields))
+    read = list_records(session, place, filters, progress=_gives_progress(fields))
+    return read_body(nodes_body(read, fields))
 
 
 @router.post(

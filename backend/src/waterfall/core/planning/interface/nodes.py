@@ -652,6 +652,7 @@ def _cell[N: NodeColumns, T: TaskColumns](
 
 # The rule a computed field of a summary follows (WF-IHM-0030, WF-PLA-0040, WF-PLA-0100): a field
 # absent is entered for it. The amounts of any task follow its lines and its subordinates.
+_PHYSICAL = "task.physical_progress"
 _SUMMARY_RULES = {
     "task.scheduling_mode": "subordinates",
     "task.duration": "subordinates",
@@ -659,10 +660,22 @@ _SUMMARY_RULES = {
     "task.finish": "subordinates",
     "task.progress": "subordinates",
     "task.total_float": "subordinates",
-    "task.physical_progress": "lines_and_subordinates",
+    _PHYSICAL: "lines_and_subordinates",
 }
 _AMOUNTS = ("task.base_amount", "task.budgeted_amount", "task.reestimated_amount")
 _DATES = ("task.start", "task.finish")
+
+
+def _summary_rule(tree: Tree, node_id: UUID, field: str) -> tuple[str, list[UUID]] | None:
+    """Give the rule a computed field of a summary follows and its rows; none if entered."""
+    rule = _SUMMARY_RULES.get(field)
+    if rule is None:
+        return None
+    if field == _PHYSICAL:
+        # What the share weighs and counts: the lines and the tasks of the whole subtree.
+        return rule, tree.ordered(each for each in tree.subtree(node_id) if each != node_id)
+    lines = tree.lines(node_id) if rule == "lines_and_subordinates" else []
+    return rule, [*lines, *tree.subtasks(node_id)]
 
 
 def _rule(tree: Tree, node_id: UUID, field: str) -> tuple[str, list[UUID]] | None:
@@ -670,11 +683,7 @@ def _rule(tree: Tree, node_id: UUID, field: str) -> tuple[str, list[UUID]] | Non
     if field in _AMOUNTS:
         return "lines_and_subordinates", [*tree.lines(node_id), *tree.subtasks(node_id)]
     if tree.is_summary(node_id):
-        rule = _SUMMARY_RULES.get(field)
-        if rule is None:
-            return None
-        lines = tree.lines(node_id) if rule == "lines_and_subordinates" else []
-        return rule, [*lines, *tree.subtasks(node_id)]
+        return _summary_rule(tree, node_id, field)
     manual = tree.tasks[node_id].scheduling_mode == MANUAL
     if field == "task.total_float":
         return ("manual_mode" if manual else "float_dates"), []
@@ -689,7 +698,8 @@ def computed_value_dependencies(
     """Name what a computed value of a node depends on (``getComputedValueDependencies``).
 
     The rule, and the rows it reads — the direct subordinates of a summary, the lines and the
-    direct subordinates of a task — in the order of the plan, whatever a reading retains; for a
+    direct subordinates of a task, the lines and the tasks of the whole subtree for the physical
+    progress of a summary — in the order of the plan, whatever a reading retains; for a
     node of another kind, the rules its facet names (``FacetHooks.dependencies``), without a row.
     A field the server does not compute for the node is refused (422, ``params.field``); a node the
     structure does not hold is not found (404).

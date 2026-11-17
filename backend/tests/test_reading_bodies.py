@@ -15,9 +15,10 @@ the other tests' (``test_witness_lines_reads``), their bytes this one's.
 
 US-1680 computes the physical progress of the summaries, not computable before in every body: the
 SHA-256 of the bodies that give a summary's are taken again after it, the body of the fields of the
-estimate grid, which does not ask it, keeping its own. Read before and after, the bodies differ only
-by ``task.physical_progress`` of the 39 summaries of each structure, a leaf's null in both (EP-10,
-"L'avancement physique").
+estimate grid, which does not ask it, keeping its own. Read before and after, field by field, the
+bodies differ only by ``task.physical_progress`` of the summaries that bear a budgeted amount — 39
+of the 40 of the current revision, the 39 of the marked one —, from "not computable" to a value, a
+leaf's null in both (EP-10, "L'avancement physique").
 """
 
 import hashlib

@@ -24,6 +24,7 @@ from projects_support import Scene
 from projects_support import scene as make_scene
 from remaining_support import in_progress, line_named, task_named
 from sqlalchemy import select, update
+from test_inert_writes import listened
 
 from waterfall.api.contract.models import TaskFacetUpdate, TaskFacetWrite
 from waterfall.api.nodes import FORMAT
@@ -241,3 +242,112 @@ def test_a_marked_revision_is_computed_on_its_own_states_and_kept_with_its_readi
     assert kept == FORMAT
     assert progress_of(tree, LOT, "?kinds=task") == share("0.5")
     assert progress_of(tree, LOT, "?fields=kind,task.label,task.physical_progress") == share("0.5")
+
+
+def progress_in(answer: dict[str, Any], node_id: str) -> Any:
+    """Read the physical progress of a task among the nodes and the ancestors an answer gives."""
+    return next(
+        item["task"]["physical_progress"]
+        for item in (*answer["nodes"], *answer["ancestors"])
+        if item["node_id"] == node_id
+    )
+
+
+def zeroing(tree: Tree, label: str) -> Any:
+    """Start a task of a label, then set its line to nought; give the answer of the second write."""
+    progressed(tree, task_named(tree, label), "started", DAY)
+    line = line_named(tree, line_of(label))
+    sent = {
+        "lock_version": line["lock_version"],
+        "reestimated_amount_basis": {"quantity": "0"},
+        "completed_on": DAY.isoformat(),
+    }
+    written = tree.api.put(
+        f"{tree.path}/nodes/{line['node_id']}/remaining",
+        headers=tree.stage.manager.headers,
+        json=sent,
+    )
+    assert written.status_code == 200, written.text
+    return written.json()
+
+
+@pytest.mark.requirement("WF-IND-0060-A")
+def test_the_answer_of_a_write_gives_the_summary_above_with_the_progress_it_now_has(
+    api: ContractClient, stage: Scene, costs: Costing
+) -> None:
+    # « … sur une récapitulative, la part des montants budgétés de son sous-arbre que gagnent ses
+    # tâches terminées … » The answers are given one by one, not in the reading of the structure:
+    # the summary above a subordinate a write moves is given back with the value it now has. Two
+    # subordinates completed by their line (the write of a line), 100 then 200 of 400; the second
+    # reopened by the gesture of its card (``setTaskProgress``), 100 of 400. A task that bears lines
+    # is completed by its line alone: the card refuses it.
+    tree = in_progress(api, stage, build(costs)).tree
+    lot = ids_of(tree)[LOT]
+    assert progress_in(zeroing(tree, "Études"), lot) == share("0.25")
+    assert progress_in(zeroing(tree, "Câblage"), lot) == share("0.5")
+    task = task_named(tree, "Câblage")
+    reopened = api.put(
+        f"{tree.path}/nodes/{task['node_id']}/progress",
+        headers=stage.manager.headers,
+        json={"progress": "started", "lock_version": task["lock_version"]},
+    )
+    assert reopened.status_code == 200, reopened.text
+    assert progress_in(reopened.json(), lot) == share("0.25")
+    # The label of a subordinate changed, a write of the short path: the summary is given alike.
+    renamed = tree.changed(reopened.json()["nodes"][0], label="Câblage de la baie")
+    assert progress_in(renamed, lot) == share("0.25")
+
+
+@pytest.mark.requirement("WF-IND-0060-A")
+@pytest.mark.parametrize("named", ["kind,task.label", "task.label,estimate_line.label"])
+def test_a_projection_that_names_no_physical_progress_asks_nothing_for_it(
+    api: ContractClient, stage: Scene, costs: Costing, named: str
+) -> None:
+    # A reading projected by ``fields`` that leaves the physical progress out does not pay for it:
+    # the same reading naming it, or the facet that holds it, sends the statements of the tallies
+    # and of the categories of provision more, and none of the projection does.
+    tree = in_progress(api, stage, build(costs)).tree
+    sent: dict[str, int] = {}
+    for name, fields in {
+        "without": named,
+        "field": f"{named},task.physical_progress",
+        "facet": f"{named},task",
+    }.items():
+        with listened() as statements:
+            answer = tree.read(f"?fields={fields}")
+        assert answer.status_code == 200, answer.text
+        sent[name] = len(statements)
+    assert sent["without"] < sent["field"]
+    assert sent["without"] < sent["facet"]
+
+
+@pytest.mark.requirement("WF-IND-0060-A")
+def test_the_physical_progress_of_a_summary_depends_on_the_whole_subtree(
+    api: ContractClient, stage: Scene, costs: Costing
+) -> None:
+    # The share weighs the amounts of the lines and counts the tasks completed of the whole subtree,
+    # not of the first level: a summary of a summary names every line and every task under it, in
+    # the order of the plan, and not itself.
+    tree = Tree(api, stage, opened(api, stage))
+    lines = Lines(tree)
+    top = tree.made(LOT)
+    own = lines.made(top, **material(costs, line_of(LOT), "50.00", None))
+    middle = tree.made("Sous-lot", parent_id=top["node_id"])
+    studies = tree.made("Études", parent_id=middle["node_id"])
+    studied = lines.made(studies, **material(costs, line_of("Études"), "100.00", None))
+    wiring = tree.made("Câblage", parent_id=middle["node_id"])
+    path = f"{tree.path}/nodes/{top['node_id']}/dependencies?field=task.physical_progress"
+    answer = api.get(path, headers=stage.manager.headers)
+    assert answer.status_code == 200, answer.text
+    body = answer.json()
+    assert body["depends_on"] == ["lines_and_subordinates"]
+    assert [row["node_id"] for row in body["rows"]] == [
+        own["nodes"][0]["node_id"],
+        middle["node_id"],
+        studies["node_id"],
+        studied["nodes"][0]["node_id"],
+        wiring["node_id"],
+    ]
+    assert [row["row_number"] for row in body["rows"]] == sorted(
+        row["row_number"] for row in body["rows"]
+    )

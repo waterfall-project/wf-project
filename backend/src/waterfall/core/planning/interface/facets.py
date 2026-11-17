@@ -131,7 +131,7 @@ class Tally:
     as ``register_open_lines`` tells; ``calendars`` the calendars they name, as ``calendars`` gives
     them (WF-PLA-0010); ``earnable`` the budgeted amounts of those not of a provision, as
     ``Amounts.budgeted`` reads each, which the physical progress of a summary weighs (WF-IND-0060,
-    US-1680), nought for a kind that bears none.
+    US-1680), which every hook of a kind says, nought for a kind that bears none.
     """
 
     amounts: Amounts
@@ -139,7 +139,7 @@ class Tally:
     own: bool
     held_open: bool
     calendars: frozenset[UUID]
-    earnable: Decimal = Decimal("0.00")
+    earnable: Decimal
 
 
 @dataclass(frozen=True, slots=True)
