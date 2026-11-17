@@ -252,6 +252,33 @@ test.describe("out", () => {
 
 
 @pytest.mark.story("US-2440")
+def test_a_skip_in_an_outer_group_stops_the_tests_of_an_inner_group_without_skip() -> None:
+    source = """\
+test.describe("outer", () => {
+  test.beforeEach(() => { test.skip(true, "x"); });
+  test.describe("inner", () => {
+    test("a [WF-QUA-0050-A]", async () => {});
+  });
+});
+test.describe("other", () => {
+  test("b [WF-QUA-0060-A]", async () => {});
+});
+"""
+    assert runs(source) == {"WF-QUA-0050-A": False, "WF-QUA-0060-A": True}
+
+
+@pytest.mark.story("US-2440")
+def test_the_platform_skip_in_a_group_hook_does_not_stop_the_tests_of_the_group() -> None:
+    source = """\
+test.describe("in", () => {
+  test.beforeEach(() => { test.skip(!inService, SERVICE_ONLY); });
+  test("a [WF-QUA-0050-A]", async () => {});
+});
+"""
+    assert runs(source) == {"WF-QUA-0050-A": True}
+
+
+@pytest.mark.story("US-2440")
 def test_fail_and_the_declaration_of_a_skipped_test_read_as_before() -> None:
     source = """\
 test("a [WF-QUA-0050-A]", async () => { test.fail(true, "x"); });
