@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
 GUARD = REPOSITORY / "tools" / "src" / "wftools" / "guard.py"
 GUARDGIT = GUARD.with_name("guardgit.py")
+GUARDOPTIONS = GUARD.with_name("guardoptions.py")
 SETTINGS = REPOSITORY / ".claude" / "settings.json"
 HOOK = 'python3 "$CLAUDE_PROJECT_DIR/tools/src/wftools/launch.py" guard || exit 2'
 
@@ -404,16 +405,18 @@ def imported_by(path: Path) -> set[str]:
 def test_the_guard_imports_the_standard_library_and_the_module_beside_it_alone() -> None:
     """US-1310: the guard stays a script of the standard library; US-2450: under 1,000 lines.
 
-    The forms that reach `.git` are judged by `guardgit.py`, beside it (US-2450): the guard
-    imports it by the package, or by its own name when the hook runs the guard by its path. That
-    module imports the standard library alone, and each file stays under 1,000 lines.
+    The forms that reach `.git` are judged by `guardgit.py`, and the options of the prefixes read
+    by `guardoptions.py`, beside it (US-2450): the guard imports them by the package, or by their
+    own names when the hook runs the guard by its path. Those modules import the standard library
+    alone, and each file stays under 1,000 lines.
     """
-    beside = {"guardgit", "wftools.guardgit"}
+    beside = {"guardgit", "wftools.guardgit", "guardoptions", "wftools.guardoptions"}
     imported = imported_by(GUARD)
     assert beside <= imported
     assert {name.split(".")[0] for name in imported - beside} <= sys.stdlib_module_names
-    assert {name.split(".")[0] for name in imported_by(GUARDGIT)} <= sys.stdlib_module_names
-    for path in (GUARD, GUARDGIT):
+    for path in (GUARDGIT, GUARDOPTIONS):
+        assert {name.split(".")[0] for name in imported_by(path)} <= sys.stdlib_module_names
+    for path in (GUARD, GUARDGIT, GUARDOPTIONS):
         assert len(path.read_text(encoding="utf-8").splitlines()) <= 1000, path.name
 
 

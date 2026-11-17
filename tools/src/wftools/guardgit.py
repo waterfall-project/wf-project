@@ -30,7 +30,7 @@ import itertools
 import re
 from typing import NamedTuple
 
-SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ksh"})
+SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ksh", "ash", "rbash"})
 # The actions of `find` that run a command on what it found, and the commands that remove.
 _FIND_EXECS = frozenset({"-exec", "-execdir", "-ok", "-okdir"})
 _FIND_REMOVERS = frozenset({"rm", "unlink", "mv", "rename", "truncate"}) | SHELLS
@@ -44,6 +44,8 @@ _JOKERS = frozenset({"*", "?", "["})
 _ATTACHED = {"mv": "St", "truncate": "rs"}
 # A group of braces, innermost; the shell expands it when it holds a comma.
 _BRACES = re.compile(r"\{[^{}]*\}")
+# A sequence of braces, `{a..z}` or `{1..9..2}`: of letters, it may make `.git` (`.{g..h}it`).
+_SEQUENCE = re.compile(r"\{([^{}]|[-+]?\d+)\.\.([^{}]|[-+]?\d+)(?:\.\.[-+]?\d+)?\}")
 # Past this many words, a brace expansion is not followed: the path is taken for one of `.git`.
 _MAX_EXPANSIONS = 256
 # Past this length a pattern is not matched, which would take a time of its square: it is taken
@@ -52,6 +54,10 @@ _NAME_MAX = 255
 _REPOSITORY = (
     "it removes or changes what git holds, the repository that every worktree shares, and the "
     "work of each"
+)
+_UNEVALUATED = (
+    "the pattern may name `.git`, and the guard does not evaluate classes or sequences of "
+    "braces: write the paths in clear"
 )
 
 
@@ -67,6 +73,9 @@ class Command(NamedTuple):
     """Run in a directory of git, after a ``cd`` on the same line or by an option of a prefix."""
     named: bool = False
     """A command before it, or the directory it runs in, names a path of git or a lock."""
+    fed: tuple[str, ...] = ()
+    """What it reads on its input that the line writes: the body of a here-document, a
+    here-string, what an ``echo`` or a ``printf`` before it in its pipeline writes."""
 
 
 def names_git(words: list[str]) -> bool:
@@ -111,10 +120,25 @@ def reaches_git(path: str) -> bool:
     ``.gitignore``, ``.github`` and ``.git-old`` do not; ``.git*`` and ``x/.git?/HEAD`` do, and so
     does a part whose pattern matches ``.git`` — ``.g*``, ``.[g]it``, ``.*`` —, and a path whose
     braces expand to one of them: ``.{git,x}``. A joker does not match the dot that opens a name.
+
+    ``fnmatch`` knows neither the classes of POSIX nor the sequences of braces (#3792): a path that
+    holds a class, ``.[[:alpha:]]it``, or a sequence of characters, ``.{g..h}it``, is taken for one
+    of ``.git`` without looking, like a pattern too long to match. A sequence of numbers makes
+    neither a dot nor a letter: ``log{1..3}`` passes.
     """
+    if _unevaluated(path):
+        return True
     expanded = _expand(path)
     return expanded is None or any(
         _git_part(part) for written in expanded for part in written.split("/")
+    )
+
+
+def _unevaluated(path: str) -> bool:
+    """Say whether ``path`` holds a class of POSIX or a sequence of characters, never evaluated."""
+    return "[:" in path or any(
+        not (first.lstrip("+-").isdigit() and last.lstrip("+-").isdigit())
+        for first, last in _SEQUENCE.findall(path)
     )
 
 
@@ -172,7 +196,8 @@ def unlink(command: Command) -> str | None:
     if command.name in _GIT_OPERANDS:
         for operand in _operands(command.name, command.arguments):
             if reaches_git(operand):
-                return f"`{command.name} {operand}`: {_REPOSITORY}"
+                why = _UNEVALUATED if _unevaluated(operand) else _REPOSITORY
+                return f"`{command.name} {operand}`: {why}"
     return None
 
 
