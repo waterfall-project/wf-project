@@ -169,7 +169,7 @@ closes. Four rules, which each slice follows:
 | [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparison in the grids | en cours | EP-26 |
 | [EP-10](EP-10-indicateurs.md) | Project indicators | en cours | EP-25, EP-26 |
 | [EP-08](EP-08-avenants-et-risques.md) | Amendments, risks and provisions | en cours | EP-10, EP-27 |
-| [EP-11](EP-11-portefeuille.md) | Portfolio | à planifier | EP-08 |
+| [EP-11](EP-11-portefeuille.md) | Portfolio | prêt | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | File exchanges (FLX-01 to FLX-06) | abandonné : each round trip is validated in its functional block | — |
 | [EP-13](EP-13-exploitation.md) | Operations and going to production | à planifier | EP-04 |
 | [EP-28](EP-28-chaine-et-outillage.md) | Chain and development tooling | en cours | nothing |

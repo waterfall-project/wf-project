@@ -1,7 +1,7 @@
 ---
 id: EP-11
 titre: Voir l'ensemble des projets : valeur, charge, performance, risques, courbe en S, santé
-statut: à planifier
+statut: prêt
 depend_de: EP-08
 famille: front, back
 issue:
@@ -165,6 +165,252 @@ indicateurs, conservés ou calculés, et les risques, leurs provisions et leur c
   mesures existantes tiennent leurs objectifs et ne se dégradent pas de plus d'un quart
   (WF-QUA-0060).
 
+## Conception
+
+Écrite au cadrage du 2026-11-17, sur le code de `main` et d'`epic/EP-10` à cette date, et sur la
+conception d'EP-08, dont aucun lot n'est encore livré. Elle dit ce qu'un lot devrait sinon décider
+seul ; ce qui relève d'un lot reste au lot.
+
+### Ce que le cadrage décide
+
+Décisions de l'auteur du 2026-11-17, chacune avec l'option écartée :
+
+- **Treize US, le socle en lot technique de la première** : la migration, le module
+  `core/portfolio` à vide avec son interface déclarée, les huit routeurs vides, les fabriques des
+  tests. Tout lot du back en dépend.
+- **`epic/EP-11` se tire d'`epic/EP-08` dès son socle**, US-2550/L1 (« Préalables »). Écartée : la
+  règle, qui mettait deux EPIC en série quand les vues qui ne lisent aucun risque n'attendent rien
+  d'EP-08.
+- **Le module est `core/portfolio`** (FBS-2), au sommet des modules du domaine : il importe les
+  interfaces des indicateurs, des risques, du devis, des coûts, du planning, des révisions, des
+  projets et des réglages, et aucun ne l'importe. Écartés : étendre `core/indicators`, qui est
+  FBS-4.8 et mêlerait le projet à l'ensemble, contre le découpage par bloc de WF-ARC-0010 ; une
+  requête d'agrégation sur les tables des autres modules, que le guide interdit.
+- **Le portefeuille somme des contributions, il ne lit jamais les lignes d'un projet** : chaque
+  projet donne, par révision, des documents — ceux d'EP-10 et ceux qu'ajoute cet EPIC —, conservés
+  au marquage et, au jour courant, calculés une fois et gardés par le cache d'EP-10. Les huit vues
+  ne font que choisir, pondérer et sommer ces documents, de la même façon aux deux dates. Écartés :
+  un calcul d'ensemble par vue, qui lirait cinq mille lignes par projet à chaque ouverture ; une
+  table d'agrégats du portefeuille tenue à l'écriture, que chaque saisie d'un projet devrait
+  mettre à jour.
+- **Les documents nouveaux vont dans `revision_indicator`**, sous des natures nouvelles qu'une
+  migration admet (#3549), écrits par `core/indicators` à la demande de `core/portfolio`. Écartée :
+  une table propre au portefeuille, un second mécanisme d'immuabilité et de refus hors marquage.
+- **Une révision marquée avant cet EPIC ne reçoit rien** : ni reprise, ni repli sur un calcul à la
+  lecture. Écartés : étendre au portefeuille le repli d'EP-10 (#3612, décision du 2026-11-17), qui
+  ferait lire des lignes de tâche et de devis à une date passée, contre le Vérif de WF-DAT-0040 ;
+  une reprise au déploiement, qui demanderait d'écrire dans `revision_indicator` hors d'un marquage
+  et calculerait sur les coûts d'aujourd'hui.
+- **Le contrat change sur un point, contre le gel d'EP-16** (décision du 2026-10-22) : les filtres
+  par colonne de `getPortfolioProjects`. Écartés : tenir le seul Vérif de WF-IHM-0130 avec un constat
+  de spécification ; filtrer dans le front une liste que le serveur pagine.
+- **Le filtre par nœud d'organisation ne change aucun montant de la liste, de la valeur ni de la
+  performance** : il y est retenu dans le périmètre rendu, et ne restreint que le plan de charge et
+  la main-d'œuvre de la structure des coûts. La description de `PortfolioOrgNode` le dit. Écartés :
+  restreindre ce qui se ventile par ligne, qui rapporterait une valeur acquise restreinte à un coût
+  réel entier ; retirer le paramètre de ces trois vues, un changement d'écran de plus.
+- **La tranche du témoin vit hors du contrat** : sa description et ses lectures attendues sont dans
+  `fixtures/witness/portfolio/`, engendrées par `make mock-data`. Écartés : dix lignes de la liste à
+  trois cents projets, dont il faudrait reproduire au centime les formules du générateur par un vrai
+  saisi ; des exemples de plus au contrat figé.
+- **Pas de préchauffage du cache** : la première lecture calcule ce qui manque ; US-2790 mesure à
+  froid et à chaud, et EP-13 décide sur le jeu aux volumes. Écartés : une tâche planifiée du
+  worker ; une durée de validité propre au portefeuille.
+- **WF-QUA-0020 se clôt sur les calculs du noyau** : les autres exemples chiffrés du relevé sont
+  déclarés hors du harnais. Écartés : déplacer la clôture à EP-13 ; clore sans le rattrapage des
+  EPIC livrés.
+- **Une somme de portefeuille est une somme de montants déjà arrondis** : chaque contribution est
+  arrondie une fois, par projet, comme EP-10 l'arrondit — la part pondérée d'une offre au centime,
+  un demi loin de zéro —, et le portefeuille n'arrondit que ses rapports, à quatre décimales. C'est
+  ce qui tient « chaque point de la courbe agrégée égale la somme des points » au centime. Écarté :
+  sommer des montants exacts et arrondir le total, qui s'écarterait de la somme des projets.
+- **La main-d'œuvre est conservée par rôle, et groupée par nœud à la lecture**, sur l'arbre
+  courant : un nœud déplacé emporte ses rôles dans le plan de charge agrégé (WF-REF-0070), et le
+  libellé du nœud est résolu à la lecture, comme le contrat le dit de `PortfolioScope`. Écarté :
+  conserver des totaux par nœud, qu'un déplacement laisserait sous l'ancien parent.
+- **La case d'un risque et la zone d'un indice se classent à la lecture**, sur les bornes et les
+  seuils courants du référentiel, pour un document conservé comme pour le jour courant (la règle
+  d'EP-10 pour les zones). Écarté : conserver la case, qu'une borne déplacée rendrait fausse.
+
+### Tables et migrations
+
+Aucune table. Une migration, dans le socle, chaînée sur la dernière d'`epic/EP-08` au tirage de la
+branche (celle de son socle), sans donnée à reprendre : le contrôle `kind_known` de
+`revision_indicator` admet cinq natures de plus, toutes à la maille `project` :
+
+| Nature | Ce qu'elle conserve | Pour |
+|---|---|---|
+| `portfolio_workload` | les heures par rôle de ressource et par mois chargé — sur le reste à engager d'un projet en cours, sur le devis d'une offre —, sans pondération | US-2700 |
+| `portfolio_cost_structure` | les totaux par nature de coût du budget de référence, hors lignes de provision, et du reste à engager, provisions comprises ; la main-d'œuvre de l'un et de l'autre par rôle, avec le nœud du rôle au marquage ; pour une offre, son devis tient lieu des deux | US-2720 |
+| `portfolio_risks` | chaque risque de la révision : son identifiant, son libellé, sa probabilité, sa gravité, sa provision, son état, l'assiette de son projet ; le coût à la survenance et le réestimé d'un survenu | US-2730 |
+| `portfolio_milestones` | les jalons inscrits au suivi temps/temps : la lignée, le libellé, la date de référence, la date de terminaison | US-2750 |
+| `portfolio_offer_curves` | pour une offre : les séries au pas du mois de son devis, hors provisions et provisions comprises, sans et avec les délais de paiement | US-2740 |
+
+Le déclencheur qui refuse une ligne dont `computed_at` n'est pas le `marked_at` de sa révision ne
+change pas : ces documents sont calculés à l'`Act` du marquage (#3549). Les droits du rôle du
+service sont ceux de la table. La descente rétablit le contrôle d'EP-10, et échoue tant qu'une ligne
+de ces natures existe. La réserve et la couverture ne sont pas reprises ici : EP-08 les conserve
+dans le document `remaining`.
+
+Les tests : `test_migrations.py` (le contrôle élargi), `test_database_constraints.py`,
+`test_revision_immutability.py` étendu aux natures nouvelles.
+
+### Modules
+
+| Module | Ce qu'il reçoit | Ce qu'il expose |
+|---|---|---|
+| `core/portfolio` (nouveau, FBS-2) | le périmètre et sa résolution ; la contribution d'un projet ; les huit vues ; le sous-paquet pur `aggregation/` — la pondération, les sommes, les rapports de sommes, les parts, le taux de transformation, la répartition par zone, les trimestres | son interface, un fichier par vue, réexportés par le module ; `store_contribution(session, revision_id, act)`, qu'il enregistre à `register_indicators` après `store_indicators` |
+| `core/indicators` | les cinq natures ; l'écriture d'un document conservé pour un autre module ; la lecture conservée et la lecture du jour de plusieurs projets à la fois ; l'entrée du cache de la contribution d'un projet, sous la même empreinte | `keep_document`, `kept_documents_of` (plusieurs révisions, une requête), `day_documents_of` (plusieurs projets, par le cache), `offer_curves` (les séries d'un devis, par `series/`) ; `formulas/` sert tel quel |
+| `core/estimate` | les totaux par nature et la main-d'œuvre par rôle d'une révision, dans un fichier nouveau de son interface | `portfolio_totals` ; `workload` (EP-07, EP-10) sert tel quel |
+| `core/risks` (EP-08) | les risques d'une révision tels que le portefeuille les lit, et les changements d'état d'une période, dans un fichier nouveau de son interface | `portfolio_risks`, `outcomes_between`, `reviewed_since` ; le registre, la matrice, la réserve et la couverture servent tels quels |
+| `core/planning` | rien | `tracked_milestones`, `milestone_forecasts` (EP-10) servent tels quels |
+| `core/costs` | l'instant du dernier import de plusieurs projets, dans un fichier nouveau de son interface | `last_imports` |
+| `core/revisions` | la dernière révision marquée de plusieurs projets à un instant, et leur révision courante | `last_marked_at_instant`, en une requête |
+| `core/projects` | les projets retenus par leur état à une date ; les offres sorties du chiffrage dans une période ; ce que l'appelant peut ouvrir, pour plusieurs projets | `projects_in_states_on`, `offers_closed_between`, `openable` ; `ALL_PROJECTS_READ` relu d'une seule définition (#3341) |
+| `core/resource_settings`, `core/indicator_settings`, `core/risk_settings` | rien | les rôles, leur capacité calculée et leur nœud ; le sous-arbre d'un nœud ; les seuils, le délai entre deux revues ; la matrice |
+
+- **La couche** : `portfolio` entre au contrat de couches d'import-linter, au-dessus
+  d'`indicators` et de `risks` ; `api`, `worker` et `witness` l'importent — c'est son import qui
+  remplit le registre, et `test_registries.py` s'étend à lui.
+- **L'unique définition d'`ALL_PROJECTS_READ`** descend dans `platform`, que `projects` et
+  `access_roles` importent tous deux (#3341).
+- **Chaque fichier nouveau d'une interface d'un autre module** est créé à vide et réexporté par le
+  socle, pour que deux lots sans dépendance n'écrivent pas le même `__init__`.
+
+### La contribution d'un projet
+
+- **Au marquage**, `store_contribution` écrit, par `keep_document`, les natures du tableau que
+  l'état du projet appelle : un projet en cours, les quatre premières ; une offre, les mêmes moins
+  ce qui demande une référence, et ses courbes. Une exception remonte au marquage, qui échoue
+  entier (la politique d'EP-10).
+- **Au jour courant**, la même fonction de calcul donne les mêmes documents pour la révision
+  courante du projet — la révision en cours ou, à défaut, la dernière marquée —, gardés par le cache
+  d'EP-10 sous l'empreinte du projet, que les compteurs des risques complètent (EP-08). Les
+  indicateurs du jour, les courbes et le reste à engager sont ceux d'EP-10, lus par le même cache.
+- **À une date passée**, la révision retenue d'un projet est sa dernière révision marquée dont
+  l'instant du marquage ne dépasse pas la fin du jour demandé, dans le fuseau de l'installation ;
+  ses documents se lisent en une requête pour tous les projets du périmètre. Une nature absente —
+  une révision antérieure à cet EPIC, une offre sans référence — ne contribue pas.
+- **Le poids d'un projet** : un pour un projet en cours ou terminé ; pour une offre, la probabilité
+  de gain que sa révision a gardée au marquage (EP-07), ou celle du projet au jour courant. Il ne
+  s'applique ni au pipeline brut ni aux risques.
+
+### Les vues
+
+Chaque vue résout le périmètre par une seule fonction — les états à la date, par les transitions ;
+la période, celle par défaut comprise, et son refus ; le nœud et son libellé —, lit les
+contributions des projets retenus et rend `PortfolioScope`.
+
+- **La liste et la valeur** (US-2690) : les documents `project`, `estimate` et `remaining` d'EP-10.
+  Le filtre, le tri et la pagination se font sur les lignes formées, en mémoire : trois cents
+  projets, et des colonnes calculées qu'aucune table ne porte. Le taux de transformation lit les
+  transitions de la période, périmètre ou non.
+- **Le plan de charge** (US-2700) : `portfolio_workload`, pondéré, sommé par rôle et par mois ; les
+  rôles retenus et leur capacité par `core/resource_settings` ; la zone de chaque mois.
+- **La performance** (US-2710) : les grandeurs du document `project` sommées, puis les formules
+  d'EP-10 appliquées aux sommes ; chaque trimestre passé est une lecture à son dernier jour.
+- **La structure des coûts** (US-2720) : `portfolio_cost_structure`, pondéré ; les parts arrondies
+  de façon que leur somme soit un ; la main-d'œuvre groupée par le nœud courant du rôle.
+- **Les risques** (US-2730) : `portfolio_risks`, sans pondération ; la couverture, du document
+  `remaining` ; les issues de la période, par `outcomes_between`.
+- **La courbe en S** (US-2740) : les documents `cost_curve` et `cost_curve_payment_delays` d'EP-10,
+  et `portfolio_offer_curves` pondéré, sommés mois par mois sur la fenêtre demandée.
+- **La santé du pilotage** (US-2750) : l'instant du dernier marquage face au délai du référentiel ;
+  `reviewed_since` ; `last_imports` ; `portfolio_milestones`.
+
+### Le contrat
+
+Modifié par un lot, avant le code qui le consomme, et le client réengendré :
+
+- **`getPortfolioProjects`** reçoit un filtre par colonne, nommé comme ceux des tables plates
+  (README du contrat) : le code ; des bornes `_min` et `_max` pour le budget de référence, le devis
+  courant, la probabilité de gain, la projection du chef de projet, l'écart à la référence, l'indice
+  de coût et l'indice de délai ; une période pour l'instant de la dernière révision marquée. Une
+  borne inversée est refusée par 422 `VALUE_OUT_OF_RANGE` sur la borne haute, une période inversée
+  par la règle des périodes. Un projet dont la colonne est nulle n'est retenu par aucune borne de
+  cette colonne.
+- **`PortfolioOrgNode`** dit que le nœud ne change aucun montant de la liste, de la valeur ni de la
+  performance.
+- **Un exemple** de la liste filtrée est engendré par `make mock-data` depuis les trois cents
+  projets ; le faux back le sert.
+- `docs/api/DECISIONS.md` reçoit ces deux décisions, et celle des révisions marquées avant l'EPIC.
+
+Aucun schéma de réponse ne change.
+
+### Le service d'API et le worker
+
+Un routeur par vue, huit, créés vides par le socle, avec leurs aides de test (`asked_portfolio_*`).
+Chaque route est gardée par la permission de sa fonction au catalogue d'EP-03 — la valeur par celle
+de la liste, FBS-2.1 — et par elle seule : ni la qualité de contributeur ni « consulter tous les
+projets » n'y entrent, sinon pour `can_open`. Chaque réponse est validée contre le contrat dans les
+tests. Le worker importe l'interface du portefeuille pour que le marquage qu'il exécute conserve ses
+documents ; il ne reçoit aucune tâche.
+
+### Le témoin
+
+`fixtures/witness/portfolio/` porte la description de la tranche — une dizaine de projets en petits
+nombres, chacun avec ses tâches, ses lignes, ses coûts, ses risques, ses marquages et ses
+transitions, dans la forme des schémas du contrat, que ses modèles valident — et les huit lectures
+attendues. Un générateur de `wftools` les calcule de cette description et des lectures de PRJ-001,
+sans rien réemployer du back ; `make mock-data` les écrit, `make mock-data-up-to-date` les garde.
+
+Le chargeur insère la tranche dans la marche des événements, après celle des risques et des
+avenants d'EP-08, par les interfaces des modules et aux instants de sa chronologie. Les lectures
+sont comparées à la date du témoin, le 3 juin 2026, par `as_of` : c'est la lecture conservée qui est
+ainsi comparée. Le jour courant, qui dépend de l'horloge, est prouvé par les tests du back à horloge
+fixée, et par des invariants dans le parcours — la ligne de PRJ-001 égale ses indicateurs, chaque
+total égale la somme de ses lignes.
+
+### Le front
+
+Les écrans existent. Quatre changements de code : le panneau des filtres par colonne de la liste,
+porté par l'adresse ; l'identifiant de l'adresse lu par la fonction du référentiel (#2867) ; la
+levée des gardes `inService` des parcours du portefeuille, ceux qui affirment trois cents projets
+restant joués contre le faux back seul ; le parcours du manager. Le guide de l'utilisateur est mis à
+jour.
+
+### Les tests et les contrôles
+
+- **Les exemples chiffrés** du §3.4.3, de WF-PRJ-0090, de WF-CYC-0130 et de WF-REF-0100 sont des
+  tests sans base d'`aggregation/` (`tests/examples`), chacun citant son exigence, et les mêmes sur
+  le service.
+- **Les fabriques** du socle donnent aux lots un projet en cours, une offre à 40 %, un projet
+  terminé dans la période, une offre perdue, chacun marqué.
+- **La lecture conservée** : un test relève les requêtes de chaque vue lue avec `as_of` et refuse
+  toute lecture des tables des nœuds, des tâches et des lignes de devis.
+- **`wftools.examples`** reçoit la liste versionnée des exemples hors du harnais, chacun avec sa
+  raison et l'EPIC qui le prouve, et échoue sur un exemple qui n'a ni test ni déclaration.
+- **La constante modifiée** : pour chaque famille de calcul que WF-QUA-0020 nomme, un test change
+  une constante nommée du noyau et constate qu'un exemple du harnais échoue.
+- **L'unique implémentation** : une table versionnée nomme, pour chaque calcul que WF-ARC-0010 cite,
+  son module du noyau ; un contrôle constate que l'API, le worker et `core/portfolio` l'importent
+  de là et n'en définissent aucun.
+- **La liste fermée des échanges** : un test des outils confronte les opérations du contrat qui
+  déposent ou rendent un fichier au tableau des flux de la spécification.
+
+### La mesure
+
+Les huit vues entrent au parcours de `make measure` et de `make measure-version`, au jour courant, à
+cache froid puis chaud, et à une date passée ; `make measure-core` relève leur durée et le nombre de
+leurs requêtes dans le noyau. Le rapport dit que le témoin ne porte pas trois cents projets.
+
+### L'ordre de construction
+
+1. **Le socle, et ce qui ne l'attend pas**, en parallèle : le socle (US-2670) ; le contrat
+   (US-2690) ; les outils des exemples, de l'unique implémentation et des échanges (US-2780), qui ne
+   touchent pas le portefeuille.
+2. **La contribution** : ce que le marquage conserve et ce que le jour courant garde (US-2680). Sa
+   part des risques attend le registre et la couverture d'EP-08 (US-2600/L1, US-2610/L1).
+3. **Les vues**, sans dépendance entre elles : la liste et la valeur (US-2690), le plan de charge
+   (US-2700), la performance (US-2710), la structure des coûts (US-2720), la courbe en S (US-2740) ;
+   puis celles qui lisent les risques, les risques (US-2730) et la santé du pilotage (US-2750), qui
+   attendent aussi les réexamens d'EP-08 (US-2590/L1).
+4. **Le périmètre éprouvé sur toutes les vues** (US-2670, dernier lot), puis **les écrans**
+   (US-2760).
+5. **Le témoin** (US-2770), qui attend tout le back et le témoin d'EP-08 (US-2650/L1), puis **la
+   mesure** (US-2790) et **la vérification d'ensemble**, seule : le parcours du manager, la
+   définition de fini.
+
 ---
 
 ## US-2670 — Le périmètre, la date de calcul et la règle d'agrégation
@@ -197,7 +443,9 @@ de** comparer les vues entre elles et de retrouver le portefeuille tel qu'il ét
   de sa dernière transition datée de ce jour ou d'avant (WF-CYC-0130) ;
 - `WF-PTF-0010-A` — « Le filtre par nœud laisse inchangés les totaux hors main-d'œuvre. » :
   `org_node_id` ne restreint que les lignes de main-d'œuvre dont le rôle relève du nœud ou de l'un de
-  ses descendants ; un nœud inconnu est refusé par 422 sur `/query/org_node_id` ;
+  ses descendants, au plan de charge et dans la structure des coûts ; sur la liste, la valeur et la
+  performance, il est retenu dans le périmètre rendu et ne change aucun montant (décision de
+  l'auteur du 2026-11-17) ; un nœud inconnu est refusé par 422 sur `/query/org_node_id` ;
 - `WF-PTF-0010-A` — « Un projet dont la revue vient d'être marquée et qui n'a pas de révision en
   cours contribue par cette revue. » : au jour courant, par sa dernière révision marquée, recalculée
   avec le coût réel du jour (WF-IND-0010, la sélection d'EP-10) ;
