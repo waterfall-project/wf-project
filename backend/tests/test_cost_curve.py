@@ -8,6 +8,7 @@ starts there, the same shifted by the payment delays, the scope, and the refusal
 The project is the one of ``curves_support``. Every answer is checked against the contract.
 """
 
+from datetime import timedelta
 from decimal import Decimal
 from itertools import pairwise
 from typing import TYPE_CHECKING, Any
@@ -16,12 +17,14 @@ from uuid import UUID
 import pytest
 from curves_support import COST_CURVE, TODAY, curve, curve_answer, over_three_months, series
 from day_indicators_support import indicators, subproject
-from indicators_support import clock_setter
+from indicators_support import clock_setter, marked
 from nodes_support import Tree, faults, opened, refusal
 from projects_support import PROJECTS
 from projects_support import scene as make_scene
-from test_witness_lines_reads import READ_AT
-from test_witness_projects import PRJ_001, example, read
+from witness_support import PRJ_001, READ_AT, example, read
+
+from waterfall.core.projects.interface import current_day
+from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
     from indicators_support import Clock
@@ -197,6 +200,27 @@ def test_a_revision_named_with_a_date_is_refused_and_an_unknown_revision_is_not_
     unknown = curve_answer(api, stage, COST_CURVE, f"?revision_id={UUID(int=1)}")
     assert unknown.status_code == 404, unknown.text
     assert curve_answer(api, stage, COST_CURVE, f"?revision_id={revision_id}").status_code == 200
+
+
+@pytest.mark.requirement("WF-DAT-0040-A")
+def test_a_kept_curve_of_a_subproject_created_after_the_marking_is_refused_without_a_state(
+    api: ContractClient, stage: Scene, clock: Clock
+) -> None:
+    # Décision de l'auteur du 2026-11-16 (#3604), as for ``getProjectIndicators``: the revision,
+    # named or designated by its date, kept the curves of the project, not those of a subproject
+    # created since, which the project has today — no 422 —: 409 ``STATE_FORBIDS_OPERATION``
+    # without ``params``, with or without the payment delays, and no empty series in its place.
+    # The marking is set after the reference, which the service marked at the instant it wrote it.
+    found = over_three_months(api, stage, clock)
+    revision_id = found.tree.revision["revision_id"]
+    at = clock(utc_now().date() + timedelta(days=1))
+    marked(stage, found.tree.revision, "Revue de novembre")
+    since = subproject(api, stage, "SP-9", "Essais")
+    for query in (f"?revision_id={revision_id}", f"?as_of={current_day(at).isoformat()}"):
+        assert curve(api, stage, COST_CURVE, query)["context"]["is_stored"] is True, query
+        for asked in (f"{query}&scope={since}", f"{query}&scope={since}&payment_delays=true"):
+            assert refusal(curve_answer(api, stage, COST_CURVE, asked)) == (*FORBIDDEN, {}), asked
+    assert curve(api, stage, COST_CURVE, f"?scope={since}")["context"]["is_stored"] is False
 
 
 # The provision of the risk identified, 500 000, and the two lines its occurrence added, 120 and 80,

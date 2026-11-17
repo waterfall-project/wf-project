@@ -39,7 +39,12 @@ SortOrder:
 SubprojectFilter:
   name: subproject_id
   in: query
-  description: '`unassigned` for what falls under no subproject (WF-IND-0020, WF-CRE-0020).'
+  description: >-
+    `unassigned` for what falls under no subproject (WF-IND-0020, WF-CRE-0020). A subproject that
+    the project does not have, or an identifier written otherwise than in its hyphenated form —
+    between braces, as `urn:uuid:`, without hyphens —, is refused with 422 `VALIDATION_FAILED`,
+    `fields[]` designating `/query/subproject_id` with `UNKNOWN_SUBPROJECT`, as `scope` is (`Scope`):
+    no empty list stands in for a refusal (#3567, #3597).
   schema:
     anyOf:
       - type: string

@@ -6,8 +6,9 @@ A document of indicators written around the service, valid unless a test changes
 set, which the routes of the indicators read as the instant of their computation and the worker
 marks at; and a project In progress written through the interfaces of EP-04 to EP-09 — its
 reference designated, its tasks and their lines, a task completed and another started in its
-current revision, lines of cost loaded. The stories of EP-10 read it; a story that needs another
-helper writes it in its own file.
+current revision, lines of cost loaded; the thresholds of the indices set, as the reference
+settings set them. The stories of EP-10 read it; a story that needs another helper writes it in
+its own file, and a helper that several test modules read lives here, never in one of them (#3619).
 
 The day of the clock is the one of the time zone of the installation (``current_day``, US-2200):
 in universal time unless a test sets the zone, at nine in the morning, which every zone of the
@@ -16,6 +17,7 @@ world puts on the same day.
 
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -26,8 +28,15 @@ from project_rows import AT
 from remaining_support import Review, in_progress, line_named, task_named
 from sqlalchemy.orm import Session
 
+from waterfall.core.cost_settings.interface import (
+    IndexThresholds,
+    SettingsChange,
+    read_reference_settings,
+    write_reference_settings,
+)
 from waterfall.core.revisions.interface import mark_revision
 from waterfall.platform.audit import Act
+from waterfall.platform.database import utc_now
 from waterfall.platform.logs import logging_context
 
 if TYPE_CHECKING:
@@ -110,6 +119,18 @@ def marked(stage: Scene, revision: dict[str, Any], version_name: str) -> datetim
         marking = (UUID(revision["revision_id"]), version_name, None)
         mark_revision(session, *marking, Act(None, at))
     return at
+
+
+# --- The thresholds of the indices ---------------------------------------------------------------
+
+
+def thresholds(stage: Scene, watch: str, alert: str) -> None:
+    """Set the watch and alert thresholds of both indices, as ``updateReferenceSettings`` does."""
+    held = IndexThresholds(Decimal(watch), Decimal(alert), Decimal(watch), Decimal(alert))
+    with stage.database.transaction() as session:
+        counter = read_reference_settings(session).lock_version
+        change = SettingsChange(index_thresholds=held)
+        write_reference_settings(session, change, counter, Act(None, utc_now()))
 
 
 # --- A project under way, through the interfaces -------------------------------------------------

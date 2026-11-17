@@ -12065,6 +12065,38 @@ quel. Le calcul dans le service, la
 migration qui abandonne les heures saisies (US-2410/L2) et l'écran qui ne saisit plus que
 l'effectif (US-2410/L3) suivent.
 
+### Le filtre de sous-projet des nœuds, la maille créée après le marquage, les préférences d'une grille (US-2430/L3, #3597, #3604, #3589)
+
+Décisions de l'auteur du 2026-11-16, en un lot de contrat d'EP-10 (conception, « Le contrat que
+US-2430/L3 change ») :
+
+- **Le 422 de `listNodes` et de `compareRevisions` nomme `UNKNOWN_SUBPROJECT`** sur
+  `/query/subproject_id` (#3597). Depuis US-2430/L2 (#3567), les deux routes lisent le filtre
+  strictement, comme `listActualCosts` et `getProjectIndicators` : un sous-projet que le projet
+  n'a pas, ou un identifiant écrit autrement qu'à tirets — accolades, `urn:uuid:`, sans tirets —,
+  est refusé ainsi, à la place du 422 de validation. Leur 422 le dit, `SubprojectFilter` aussi,
+  pour les quatre opérations qui le lisent, et l'exemple `nodes_subproject_unknown`, que les deux
+  opérations citent comme leurs autres refus de nœuds, le montre ; il s'écrit à la main, comme
+  `actual_costs_subproject_unknown` et `spending_subproject_unknown`. Écarté : laisser le contrat
+  tel quel, la route rendant alors un code qu'il ne publie pas et que le client engendré ignore.
+- **Une lecture conservée d'une maille créée après le marquage est refusée par 409
+  `STATE_FORBIDS_OPERATION`, sans `params`** (#3604) : `revision_id` ou `as_of` désignant une
+  révision marquée, `scope` un sous-projet créé depuis, que le projet a aujourd'hui — il n'est donc
+  pas refusé par 422 `UNKNOWN_SUBPROJECT`. La révision a conservé le document du projet, pas celui
+  de cette maille : le même refus qu'une révision marquée avant En cours, que le front distingue
+  d'un projet antérieur à En cours par l'absence de `params.state` (#247). Le 409 de
+  `getProjectIndicators`, de `getCostCurve` et de `getEarnedValueCurves` le dit, et `Problem.params`
+  le compte parmi les refus sans paramètre. Écartés : un 422 `UNKNOWN_SUBPROJECT`, qui dirait au
+  client que le sous-projet n'existe pas quand il existe ; des séries vides ou des indicateurs nuls,
+  qui répondraient par un zéro à ce qui n'a jamais été calculé.
+- **Les préférences d'une grille portent 256 réglages par liste**, au lieu de 64 (#3589) :
+  `maxItems` de `known_columns` et de `hidden_columns`, `maxProperties` de `column_widths`. La
+  grille du détail du plan de charge a une colonne par mois, près de cent quatre-vingt-cinq pour un
+  plan de quinze ans : au-delà de 64, un réglage retombait à son défaut à la visite suivante, sans
+  refus. Le refus d'une liste trop longue reste `VALUE_TOO_LONG`, `params.max_length` à 256.
+  `TimelinePreferences.lanes` reste borné à 64 tâches placées, que rien n'a mis en cause. Écarté :
+  garder 64 et laisser ces réglages se perdre.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

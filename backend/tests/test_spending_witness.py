@@ -13,8 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 from projects_support import PROJECTS
-from test_witness_lines_reads import READ_AT
-from test_witness_projects import PRJ_001, example, read
+from witness_support import PRJ_001, READ_AT, example, read
 
 if TYPE_CHECKING:
     from realm import TestRealm

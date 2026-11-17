@@ -20,12 +20,11 @@ import pytest
 from costs_support import load_import
 from curves_support import over_three_months
 from day_indicators_support import dated, indicators, subproject
-from indicators_support import clock_setter, marked
+from indicators_support import clock_setter, marked, thresholds
 from nodes_support import Tree, faults, opened, refusal
 from planning_support import DAY
 from projects_support import PROJECTS
 from projects_support import scene as make_scene
-from test_project_indicators import thresholds
 
 from waterfall.core.cost_settings.interface import (
     IndexThresholds,

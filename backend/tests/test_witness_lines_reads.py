@@ -23,7 +23,7 @@ named with its cause where the test stands:
 import copy
 from bisect import bisect_left
 from collections import Counter, defaultdict
-from datetime import UTC, date, datetime
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
@@ -32,16 +32,9 @@ import pytest
 from projects_support import PROJECTS
 from sqlalchemy import select
 from test_witness_lines import CABLER, INSTALLATION, OPENED, PROVISION, RATES_UPDATED, line_rows
-from test_witness_projects import (
-    PRJ_001,
-    REVISION_100,
-    REVISION_101,
-    REVISION_102,
-    example,
-    instant,
-    read,
-)
+from test_witness_projects import REVISION_100, REVISION_101, REVISION_102, instant
 from test_witness_tasks import REVISIONS, difference, structure_of
+from witness_support import PRJ_001, READ_AT, example, read
 
 from waterfall.core.estimate.interface import roles_employed
 from waterfall.core.estimate.tables import RevisionCategory
@@ -57,8 +50,6 @@ pytestmark = pytest.mark.requirement("WF-QUA-0040-A")
 # The requirement of the amount deltas of the comparison (US-1530): a test of them cites it too.
 COMPARISON_REQUIREMENT = "WF-REV-0080-A"
 
-# The day of the reading of the examples: the 3 June 2026, 14:05.
-READ_AT = datetime(2026, 6, 3, 14, 5, tzinfo=UTC)
 # The recapitulative "Poste de commande", whose estimate the examples read.
 CORE = "01926f3a-7c00-7000-8000-000000000551"
 # What a line of the examples carries that the witness does not (EP-09): the previous figures.

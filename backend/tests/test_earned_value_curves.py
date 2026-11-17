@@ -24,13 +24,15 @@ from curves_support import (
     series,
 )
 from day_indicators_support import Planned, completed, indicators, priced, subproject
-from indicators_support import clock_setter
+from indicators_support import clock_setter, marked
 from nodes_support import faults, refusal
 from planning_support import DAY
 from projects_support import PROJECTS
 from projects_support import scene as make_scene
-from test_witness_lines_reads import READ_AT
-from test_witness_projects import PRJ_001, example, read
+from witness_support import PRJ_001, READ_AT, example, read
+
+from waterfall.core.projects.interface import current_day
+from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
     from indicators_support import Clock
@@ -210,6 +212,28 @@ def test_the_refusals_are_those_of_the_indicators(
     ]
     unknown = curve_answer(api, stage, EARNED_VALUE_CURVES, f"?revision_id={UUID(int=1)}")
     assert unknown.status_code == 404, unknown.text
+
+
+@pytest.mark.requirement("WF-DAT-0040-A")
+def test_kept_curves_of_a_subproject_created_after_the_marking_are_refused_without_a_state(
+    api: ContractClient, stage: Scene, clock: Clock
+) -> None:
+    # Décision de l'auteur du 2026-11-16 (#3604), as for ``getProjectIndicators``: the revision,
+    # named or designated by its date, kept the curves of the project, not those of a subproject
+    # created since, which the project has today — no 422 —: 409 ``STATE_FORBIDS_OPERATION``
+    # without ``params``, and no empty series in its place. The marking is set after the
+    # reference, which the service marked at the instant it wrote it.
+    found = over_three_months(api, stage, clock)
+    revision_id = found.tree.revision["revision_id"]
+    at = clock(utc_now().date() + timedelta(days=1))
+    marked(stage, found.tree.revision, "Revue de novembre")
+    since = subproject(api, stage, "SP-9", "Essais")
+    for query in (f"?revision_id={revision_id}", f"?as_of={current_day(at).isoformat()}"):
+        assert curve(api, stage, EARNED_VALUE_CURVES, query)["context"]["is_stored"] is True
+        refused = curve_answer(api, stage, EARNED_VALUE_CURVES, f"{query}&scope={since}")
+        assert refusal(refused) == (409, "STATE_FORBIDS_OPERATION", {}), query
+    day = curve(api, stage, EARNED_VALUE_CURVES, f"?scope={since}")
+    assert day["context"]["is_stored"] is False
 
 
 def points_of(body: dict[str, Any], name: str) -> dict[str, D]:

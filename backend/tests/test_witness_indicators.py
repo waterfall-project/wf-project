@@ -39,16 +39,9 @@ from projects_support import PROJECTS, READING, person
 from sqlalchemy import select
 from test_witness import load, wipe
 from test_witness_lines import line_rows
-from test_witness_lines_reads import READ_AT, deviations
-from test_witness_projects import (
-    PRJ_001,
-    REVISION_100,
-    REVISION_101,
-    REVISION_102,
-    example,
-    read,
-    without,
-)
+from test_witness_lines_reads import deviations
+from test_witness_projects import REVISION_100, REVISION_101, REVISION_102, without
+from witness_support import PRJ_001, READ_AT, example, read
 
 from waterfall.core.indicators import interface as indicators_interface
 from waterfall.core.indicators.tables import RevisionIndicator
