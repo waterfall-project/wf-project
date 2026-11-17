@@ -35,13 +35,23 @@ import { PredecessorLinks } from "./planning-cells";
 /** A duration, in the unit of its entry (WF-PLA-0160). */
 type Duration = components["schemas"]["Duration"];
 
+/**
+ * The facets of the base of a node and of its differences, as the contract gives them: the fields a
+ * column names are keys of these types, so that a field renamed in the contract is a failure of the
+ * type — never a cell left without its mark, unsaid.
+ */
+type TaskBase = components["schemas"]["ComparedTaskFacet"];
+type LineBase = components["schemas"]["ComparedEstimateLineFacet"];
+type TaskDeltas = components["schemas"]["TaskDeltas"];
+type LineDeltas = components["schemas"]["EstimateLineDeltas"];
+
 /** How the base of a cell is shown, from what the contract gives of the field. */
 type Shown = "plain" | "instant" | "duration" | "mode" | "progress" | "share" | "predecessors";
 
 /** The field of a node a column shows, in the base of a task and of a line, and how it is shown. */
 interface BaseField {
-  readonly task?: string;
-  readonly line?: string;
+  readonly task?: keyof TaskBase;
+  readonly line?: keyof LineBase;
   readonly shown?: Shown;
 }
 
@@ -79,25 +89,72 @@ const BASE_FIELDS: Readonly<Record<string, BaseField>> = {
 /** What a difference is: a number of calendar days, a duration, an amount. */
 type DeltaKind = "days" | "duration" | "money";
 
-/** The columns of difference, by the key of the column they are the difference of. */
-const DELTAS: Readonly<Record<string, { readonly label: ColumnLabel; readonly kind: DeltaKind }>> =
-  {
-    start: { label: "deltaStartDate", kind: "days" },
-    finish: { label: "deltaFinishDate", kind: "days" },
-    started_on: { label: "deltaStartedOn", kind: "days" },
-    completed_on: { label: "deltaCompletedOn", kind: "days" },
-    duration: { label: "deltaDuration", kind: "duration" },
-    total_float: { label: "deltaTotalFloat", kind: "duration" },
-    unit_disbursement: { label: "deltaUnitDisbursement", kind: "money" },
-    base_amount: { label: "deltaReferenceAmount", kind: "money" },
-    budgeted_amount: { label: "deltaBudgetedAmount", kind: "money" },
-    reestimated_amount: { label: "deltaReestimatedAmount", kind: "money" },
-    previous_unit_disbursement: { label: "deltaPreviousUnitDisbursement", kind: "money" },
-    previous_reestimated_amount: { label: "deltaPreviousReestimatedAmount", kind: "money" },
-  };
+/** The fields that have a difference: the keys of the differences of a task or of a line. */
+type DeltaField = keyof TaskDeltas | keyof LineDeltas;
+
+/** A column of difference: the field it is the difference of, its label, what the difference is. */
+interface Delta {
+  readonly field: DeltaField;
+  readonly label: ColumnLabel;
+  readonly kind: DeltaKind;
+}
+
+/** The columns of difference, by the field they are the difference of. */
+const DELTAS: readonly Delta[] = [
+  { field: "start", label: "deltaStartDate", kind: "days" },
+  { field: "finish", label: "deltaFinishDate", kind: "days" },
+  { field: "started_on", label: "deltaStartedOn", kind: "days" },
+  { field: "completed_on", label: "deltaCompletedOn", kind: "days" },
+  { field: "duration", label: "deltaDuration", kind: "duration" },
+  { field: "total_float", label: "deltaTotalFloat", kind: "duration" },
+  { field: "unit_disbursement", label: "deltaUnitDisbursement", kind: "money" },
+  { field: "base_amount", label: "deltaReferenceAmount", kind: "money" },
+  { field: "budgeted_amount", label: "deltaBudgetedAmount", kind: "money" },
+  { field: "reestimated_amount", label: "deltaReestimatedAmount", kind: "money" },
+  { field: "previous_unit_disbursement", label: "deltaPreviousUnitDisbursement", kind: "money" },
+  { field: "previous_reestimated_amount", label: "deltaPreviousReestimatedAmount", kind: "money" },
+];
 
 /** The value of a field of an object that is read by its name alone. */
 type Fields = Readonly<Record<string, unknown>>;
+
+/** Whether a value is an object, which a guard may read the fields of. */
+function isObject(value: unknown): value is Fields {
+  return typeof value === "object" && value !== null;
+}
+
+/** Whether a value is a duration: a quantity in a unit. */
+function isDuration(value: unknown): value is Duration {
+  return isObject(value) && typeof value.value === "string" && typeof value.unit === "string";
+}
+
+/** Whether a value is a figure that may not be computable. */
+function isComputable(value: unknown): value is components["schemas"]["Computable"] {
+  return isObject(value) && typeof value.is_computable === "boolean";
+}
+
+/** The base of a date, of a duration or of a share. */
+function BaseMeasure({ shown, value }: { readonly shown: Shown; readonly value: unknown }) {
+  const t = useTranslations();
+  const locale = useLocale();
+  if (shown === "instant") {
+    return isObject(value) && typeof value.date === "string"
+      ? formatCell("date", value.date, locale)
+      : t("grid.compared.empty");
+  }
+  if (shown === "duration" && isDuration(value)) {
+    return t("planningGrid.duration", {
+      value: formatDecimal(value.value, locale),
+      unit: t(`enums.DurationUnit.${value.unit}`),
+    });
+  }
+  if (shown === "duration") {
+    return t("grid.compared.empty");
+  }
+  return isComputable(value) && value.is_computable && value.value !== null
+    ? formatShare(value.value, locale, (key, values) => t(`share.${key}`, values))
+    : t("indicator.notComputable");
+}
 
 /** The value the base of a cell carried, as the cell would have shown it. */
 function BaseValue({
@@ -117,33 +174,19 @@ function BaseValue({
   }
   switch (shown) {
     case "instant":
-      return formatCell("date", (value as { readonly date: string }).date, locale);
-    case "duration": {
-      const duration = value as Duration;
-      return t("planningGrid.duration", {
-        value: formatDecimal(duration.value, locale),
-        unit: t(`enums.DurationUnit.${duration.unit}`),
-      });
-    }
+    case "duration":
+    case "share":
+      return <BaseMeasure shown={shown} value={value} />;
     case "mode":
       return t(`enums.SchedulingMode.${value as components["schemas"]["SchedulingMode"]}`);
     case "progress":
       return t(`enums.TaskProgress.${value as components["schemas"]["TaskProgress"]}`);
-    case "share": {
-      const share = value as components["schemas"]["Computable"];
-      return share.is_computable && share.value !== null
-        ? formatShare(share.value, locale, (key, values) => t(`share.${key}`, values))
-        : t("indicator.notComputable");
-    }
     case "predecessors":
-      return <PredecessorLinks links={value as readonly components["schemas"]["Predecessor"][]} />;
+      return Array.isArray(value) ? <PredecessorLinks links={value} /> : t("grid.compared.empty");
     case "plain":
-      return formatCell(
-        format,
-        typeof value === "number" ? String(value) : (value as string),
-        locale,
-        currency,
-      );
+      return typeof value === "string" || typeof value === "number"
+        ? formatCell(format, String(value), locale, currency)
+        : t("grid.compared.empty");
   }
 }
 
@@ -163,19 +206,20 @@ function baseOf(spec: BaseField, format: CellFormat): (row: GridNode) => ReactNo
         <BaseValue shown={shown} format={format} value={base.predecessors} />
       ) : undefined;
     }
-    const facet = row.kind === "task" ? base.task : base.estimate_line;
+    const facet: Fields | undefined = row.kind === "task" ? base.task : base.estimate_line;
     const field = row.kind === "task" ? spec.task : spec.line;
     if (facet === undefined || field === undefined || !Object.hasOwn(facet, field)) {
       return undefined;
     }
-    return <BaseValue shown={shown} format={format} value={(facet as Fields)[field]} />;
+    return <BaseValue shown={shown} format={format} value={facet[field]} />;
   };
 }
 
 /** The difference of a field of a node, when its base differs and holds a value for it. */
-function deltaOf(row: GridNode, field: string): unknown {
-  const facet = row.kind === "task" ? row.deltas?.task : row.deltas?.estimate_line;
-  return facet === undefined ? undefined : (facet as Fields)[field];
+function deltaOf(row: GridNode, field: DeltaField): unknown {
+  const facet: Partial<Record<DeltaField, unknown>> | undefined =
+    row.kind === "task" ? row.deltas?.task : row.deltas?.estimate_line;
+  return facet?.[field];
 }
 
 /** An exact decimal that reads as zero: `0`, `-0`, `0.00`. */
@@ -202,17 +246,17 @@ function DeltaCell({ kind, value }: { readonly kind: DeltaKind; readonly value: 
       const days = String(value);
       return t("grid.compared.days", { days: signed(days, formatDecimal(days, locale)) });
     }
-    case "duration": {
-      const duration = value as Duration;
-      return t("planningGrid.duration", {
-        value: signed(duration.value, formatDecimal(duration.value, locale)),
-        unit: t(`enums.DurationUnit.${duration.unit}`),
-      });
-    }
-    case "money": {
-      const amount = value as string;
-      return signed(amount, formatCell("money", amount, locale, currency));
-    }
+    case "duration":
+      return isDuration(value)
+        ? t("planningGrid.duration", {
+            value: signed(value.value, formatDecimal(value.value, locale)),
+            unit: t(`enums.DurationUnit.${value.unit}`),
+          })
+        : null;
+    case "money":
+      return typeof value === "string"
+        ? signed(value, formatCell("money", value, locale, currency))
+        : null;
   }
 }
 
@@ -222,11 +266,9 @@ function DeltaCell({ kind, value }: { readonly kind: DeltaKind; readonly value: 
  */
 function deltaColumn<Row extends GridNode, Sort extends string, Totals>(
   source: GridColumn<Row, Sort, Totals>,
-  delta: { readonly label: ColumnLabel; readonly kind: DeltaKind },
+  delta: Delta,
 ): GridColumn<Row, Sort, Totals> {
-  const raw = (row: Row) => {
-    return deltaOf(row, source.key) ?? undefined;
-  };
+  const raw = (row: Row) => deltaOf(row, delta.field) ?? undefined;
   return {
     key: `delta_${source.key}`,
     label: delta.label,
@@ -253,7 +295,7 @@ export function comparedGrid<Row extends GridNode, Sort extends string, Totals>(
   const columns = config.columns.flatMap((column) => {
     const spec = BASE_FIELDS[column.key];
     const marked = spec === undefined ? column : { ...column, base: baseOf(spec, column.format) };
-    const delta = DELTAS[column.key];
+    const delta = DELTAS.find((each) => each.field === column.key);
     return delta === undefined ? [marked] : [marked, deltaColumn(column, delta)];
   });
   return {

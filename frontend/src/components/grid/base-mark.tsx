@@ -5,7 +5,8 @@
  * same for the three grids, a sign at the start of the cell — never the colour alone (WF-IHM-0070) —
  * and the value of the base, given on demand: in a tooltip while the pointer is over the cell or the
  * cell has the focus of the keyboard, and, for a reader of the screen, in the content of the cell
- * itself, after its value. The grid compares nothing: it marks the cell the server names
+ * itself, after its value — neither the sign nor that text is selectable, so that the copy of a cell
+ * carries its value alone, as the cell would without the mark. The grid compares nothing: it marks the cell the server names
  * (`ComparedNodeRead.base`) and shows the value the server gives (WF-ARC-0020).
  *
  * The cell is the target of the pointer and of the keyboard, not the mark: the mark follows the
@@ -80,7 +81,7 @@ export function BaseMark({
   // The tooltip shown is dismissed by Escape (WCAG 1.4.13) until the cell is left and reached again.
   const [open, setOpen] = useCellShown(mark);
   const sign = (
-    <span aria-hidden="true" className="shrink-0 font-bold text-foreground">
+    <span aria-hidden="true" className="shrink-0 font-bold text-foreground select-none">
       {SIGN}
     </span>
   );
@@ -104,7 +105,7 @@ export function BaseMark({
         )}
       </span>
       <span className="min-w-0 truncate">{children}</span>
-      <span className="sr-only">
+      <span className="sr-only select-none">
         {t("base")} {base}
       </span>
     </span>

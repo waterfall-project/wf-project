@@ -8,9 +8,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { ApiClient } from "@/api/client";
 import { example, fakeClient } from "@/test/fixtures";
-import { PREFERENCES } from "@/test/grid-preferences";
+import { allShown, keysOf, PREFERENCES } from "@/test/grid-preferences";
 import { estimateReference } from "@/test/reference";
 
+import { PLANNING_GRID } from "./planning";
+import { REMAINING_GRID } from "./remaining";
 import { ESTIMATE_FIELDS } from "./estimate";
 import { EstimateGrid } from "./estimate-grid";
 import { type NodeList, type NodeRows, projectNodes } from "./nodes";
@@ -166,6 +168,41 @@ describe("the grid of the planning on a comparison", () => {
     });
   });
 
+  it("gives the date of the base to the pointer too: the tooltip opens on the cell hovered, and closes when it leaves [WF-IHM-0150-A]", async () => {
+    render(planningGrid(true));
+    const finish = cellOf(DESIGN, "finish");
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    await userEvent.hover(finish);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Base : 17/04/2026");
+    await userEvent.unhover(finish);
+    await waitFor(() => {
+      expect(screen.queryByRole("tooltip")).toBeNull();
+    });
+    // A cell that does not differ shows no base to the pointer.
+    await userEvent.hover(cellOf(DESIGN, "start"));
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("keeps the mark out of what is copied of a cell: the sign and the text for the reader of the screen cannot be selected [WF-IHM-0150-A]", () => {
+    // No code of the grid reads the text of a cell to copy or export it (the copy is the browser's,
+    // the export the server's): what the copy of a selection carries is what is selectable.
+    render(planningGrid(true));
+    const finish = cellOf(DESIGN, "finish");
+    const spoken = finish.querySelector<HTMLElement>(".sr-only");
+    const sign = within(finish).getByText("Δ");
+    expect(spoken).toHaveTextContent("Base : 17/04/2026");
+    expect(spoken).toHaveClass("select-none");
+    expect(sign).toHaveClass("select-none");
+    // What stays selectable is the value of the cell alone.
+    const copy = finish.cloneNode(true) as HTMLElement;
+    copy.querySelectorAll(".select-none").forEach((each) => {
+      each.remove();
+    });
+    expect(copy.textContent).not.toContain("Base");
+    expect(copy.textContent).not.toContain("Δ");
+    expect(copy.textContent.trim()).not.toBe("");
+  });
+
   it("gives the number of days of the finish in its column of difference, once chosen [WF-IHM-0150-A]", async () => {
     render(planningGrid(true));
     await userEvent.click(screen.getByRole("button", { name: "Colonnes" }));
@@ -218,6 +255,88 @@ describe("the grid of the planning on a comparison", () => {
     render(reopened(true));
     expect(screen.getByRole("columnheader", { name: "Écart de la fin" })).toBeInTheDocument();
   });
+
+  it.each([
+    {
+      name: "planning",
+      key: "planning",
+      columns: PLANNING_GRID.columns,
+      grid: (preferences: GridPreferences, comparing: boolean) => (
+        <PlanningGrid
+          nodes={projectNodes(compared, PLANNING_FIELDS, PLANNING_KINDS)}
+          structure={STRUCTURE}
+          structureVersion={1}
+          filters={{}}
+          query={NO_QUERY}
+          preferences={preferences}
+          comparing={comparing}
+        />
+      ),
+    },
+    {
+      name: "remaining to commit",
+      key: "remaining",
+      columns: REMAINING_GRID.columns,
+      grid: (preferences: GridPreferences, comparing: boolean) => (
+        <RemainingGrid
+          nodes={projectNodes(comparison, REMAINING_FIELDS)}
+          structure={STRUCTURE}
+          structureVersion={1}
+          filters={{}}
+          editable
+          query={NO_QUERY}
+          preferences={preferences}
+          comparing={comparing}
+        />
+      ),
+    },
+  ])(
+    "hides the columns of difference of the $name set before they existed, records them as known, and moves no other column [WF-IHM-0150-A]",
+    async ({ key, columns, grid, name }) => {
+      // Les réglages d'avant le lot : toutes les colonnes de la grille connues et affichées, aucune
+      // colonne d'écart connue.
+      const before = allShown(columns);
+      expect(before.known_columns?.some((column) => column.startsWith("delta_"))).toBe(false);
+      const client = fakeClient({ [PREFERENCES]: "preferences" });
+      server.client = client;
+      const wrap = (comparing: boolean) => (
+        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+          {grid(before, comparing)}
+        </NextIntlClientProvider>
+      );
+      const alone = render(wrap(false));
+      const headers = screen.getAllByRole("columnheader").map((header) => header.textContent);
+      alone.unmount();
+      render(wrap(true));
+      // Offered, unknown to the account: hidden, whatever the account showed of the others.
+      const offeredNow = await offered();
+      const deltas = offeredNow.filter((label) => label.startsWith("Écart"));
+      expect(deltas.length, name).toBeGreaterThan(0);
+      const shown = screen.getAllByRole("columnheader").map((header) => header.textContent);
+      expect(shown.filter((label) => label !== "Écart")).toEqual(headers);
+      deltas.forEach((label) => {
+        expect(screen.queryByRole("columnheader", { name: label })).toBeNull();
+      });
+      // The first choice the account makes records the columns of difference as known and hidden.
+      const other = offeredNow.find((label) => !label.startsWith("Écart")) ?? "";
+      await userEvent.click(screen.getByRole("button", { name: "Colonnes" }));
+      await userEvent.click(
+        within(screen.getByRole("menu")).getByRole("menuitemcheckbox", { name: other }),
+      );
+      await userEvent.keyboard("{Escape}");
+      await waitFor(() => {
+        expect(client.calls.filter((call) => call.route === PREFERENCES)).toHaveLength(1);
+      });
+      const [call] = client.calls;
+      const recorded = (call?.body as { grids: Record<string, GridPreferences> }).grids[key];
+      const deltaKeys = (recorded?.known_columns ?? []).filter((column) =>
+        column.startsWith("delta_"),
+      );
+      expect(deltaKeys.length).toBe(deltas.length);
+      expect(recorded?.known_columns).toEqual(expect.arrayContaining(keysOf(columns)));
+      expect(recorded?.hidden_columns).toEqual(expect.arrayContaining(deltaKeys));
+    },
+  );
 
   it("holds a revision marked read only: no cell of the comparison is entered [WF-IHM-0150-A]", () => {
     // Une révision marquée comparée reste en lecture seule : la structure n'offre pas `edit_planning`.
