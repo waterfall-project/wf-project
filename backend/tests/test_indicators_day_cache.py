@@ -17,9 +17,10 @@ import time
 from annotationlib import Format
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, cast
 from urllib.parse import urlsplit, urlunsplit
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from costs_support import load_import
@@ -57,7 +58,7 @@ from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, WORKER_TIMEOUT, TaskQueue
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Callable, Iterator, Mapping, Sequence
 
     from day_indicators_support import Priced
     from openapi_core import OpenAPI
@@ -569,6 +570,70 @@ def test_a_scope_read_is_computed_and_written_alone_the_others_left_absent(
     keys = entries(queue, stage)
     assert sorted(scope_of(key) for key in keys) == sorted([PROJECT, lot, "unassigned"])
     assert len({fingerprint_of(key) for key in keys}) == 1
+
+
+@pytest.mark.usefixtures("project")
+def test_the_point_of_the_day_of_each_scope_is_at_the_instant_of_its_own_computation(
+    api: ContractClient, stage: Scene, clock: Clock
+) -> None:
+    # Propre à l'US (#3628) : une entrée par maille, donc un instant par maille. The project is
+    # read at nine; at noon the evolution of the indices without a scope reads the entry of the
+    # project, kept, and computes the others.
+    read(api, stage, "indicators")
+    with stage.database.transaction() as session:
+        (lot,) = (str(each) for each in subproject_ids(session, UUID(stage.project["project_id"])))
+    clock(NOON)
+    scopes = read(api, stage, "indicators/index-history")["scopes"]
+    last = {each["scope"]: datetime.fromisoformat(each["points"][-1]["at"]) for each in scopes}
+    assert set(last) == {PROJECT, lot, "unassigned"}
+    assert last[PROJECT] == MORNING
+    assert last[lot] == last["unassigned"] == NOON
+
+
+class _Recording:
+    """An ``IndicatorsCache`` that keeps nothing, answers every entry absent and records writes."""
+
+    def __init__(self) -> None:
+        self.written: dict[str, str] = {}
+
+    def lookup_many(self, keys: Sequence[str]) -> list[str | None]:
+        return [None for _ in keys]
+
+    def write_many(self, documents: Mapping[str, str]) -> None:
+        self.written.update(documents)
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+def test_a_scope_outside_the_key_is_computed_and_given_but_not_written(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The key covers the project, its unassigned lines and its subprojects as read: a scope the
+    # reading did not see is computed and answered, and no entry is written for it.
+    known, unknown = uuid4(), uuid4()
+
+    def subprojects(_session: object, _project: object) -> list[UUID]:
+        return [known]
+
+    def day(*_args: object) -> str:
+        return "key"
+
+    def entry_of(_session: object, _basis: object, _context: object, scopes: Any) -> dict[str, Any]:
+        return {
+            str(each): {kind: {"scope": str(each)} for kind in caching.KINDS} for each in scopes
+        }
+
+    monkeypatch.setattr(caching, "subproject_ids", subprojects)
+    monkeypatch.setattr(caching, "day_key", day)
+    monkeypatch.setattr(caching, "day_entry", entry_of)
+    recording = _Recording()
+    held = cast("IndicatorsCache", recording)
+    basis = cast("Any", SimpleNamespace(project_id=uuid4()))
+    scopes = (PROJECT, known, unknown)
+    given = caching.cached_scopes(cast("Any", None), basis, cast("Any", None), scopes, held)
+    assert set(given) == {PROJECT, known, unknown}
+    assert given[unknown]["project"] == {"scope": str(unknown)}
+    assert set(recording.written) == {f"key:{PROJECT}", f"key:{known}"}
+    assert json.loads(recording.written[f"key:{known}"])["project"] == {"scope": str(known)}
 
 
 @pytest.mark.requirement("WF-DAT-0130-A")
