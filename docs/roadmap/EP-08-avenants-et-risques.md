@@ -1,10 +1,10 @@
 ---
 id: EP-08
 titre: Gérer les risques, leurs provisions et la réserve, et déplacer la référence par avenant
-statut: prêt
+statut: en cours
 depend_de: EP-10, EP-27
 famille: front, back
-issue:
+issue: 3809
 ---
 
 # EP-08 — Avenants, risques et provisions
@@ -273,7 +273,7 @@ qu'un lot devrait sinon décider seul ; ce qui relève d'un lot reste au lot.
 - **Une tâche démarrée que le différentiel retire garde le budgété de ses lignes** ; seul leur reste
   à engager passe à zéro, comme `mergeCostStructure` le dit. « Sa valeur acquise est inchangée » se
   lit du montant que la tâche porte : terminée par la fusion, elle l'acquiert (WF-IND-0030). Un
-  constat de spécification demande de préciser le Vérif et le motif de WF-REV-0050 (« ramène son
+  constat de spécification (#3850) demande de préciser le Vérif et le motif de WF-REV-0050 (« ramène son
   budget à ce qui a été fait ») ; il ne bloque aucun lot. Écarté : mettre à zéro ses grandeurs de
   référence, que ni le contrat ni le corps de l'exigence ne disent.
 - **Le témoin rejoue la fusion de l'avenant 1** (« Le chargeur du témoin »). Écarté : charger la
@@ -490,8 +490,7 @@ bâtisse pas le sien.
   `updateTaskFacet`, `updateEstimateLine`, `setPredecessors`, `moveNodes`, `deleteNode`,
   `previewPaste`, `applyPaste`, `undoLastChange`), `openImport`, `applyImport` ; `setNodeTracking`,
   `generatePlanningSkeleton` (les refus)
-- **issue** :
-
+- **issue** : #3810
 **En tant que** chef de projet, **je veux** ouvrir une structure différentielle, copie de la
 structure principale de la révision en cours, y saisir et y importer ce qu'un avenant change sans
 toucher à la principale, en préparer plusieurs à la fois, et abandonner celle qui ne se signera pas,
@@ -619,8 +618,7 @@ révision suivante ne reprend pas une structure fusionnée » (E-04), « Les ré
   `WF-REV-0080-A`
 - **opérations** : `getStructureMergeReport`, `mergeCostStructure`, `getBackgroundTask`,
   `getRevision`, `listRevisions`, `designateReferenceRevision`, `compareRevisions`
-- **issue** :
-
+- **issue** : #3817
 **En tant que** chef de projet, **je veux** lire ce que la fusion d'un différentiel ferait de la
 structure principale, puis la confirmer sous un nom de version, **afin que** l'avenant
 contractualisé devienne la référence en une seule opération, sans perdre ni l'identité des tâches,
@@ -784,8 +782,7 @@ planifiée (US-2630) ; la réserve à une nouvelle référence (US-2610) ; les �
   propre, les lectures et les écritures de l'arbre (`listNodes`, `createNode`, `updateTaskFacet`,
   `updateEstimateLine`, `setPredecessors`, `moveNodes`, `deleteNode`, `previewPaste`, `applyPaste`),
   `openImport`, `applyImport`
-- **issue** :
-
+- **issue** : #3812
 **En tant que** chef de projet, **je veux** déclarer un risque — son libellé, sa description, ses
 actions de mitigation, sa probabilité — et décrire dans un devis à part ce qu'il coûterait s'il
 survenait, **afin que** sa gravité soit un chiffrage et non une affirmation.
@@ -871,8 +868,7 @@ Les révisions et les structures » (E-09 : le devis propre naît et disparaît 
   `WF-PRJ-0050-A`, `WF-PLA-0040-A`, `WF-PLA-0050-A`, `WF-INTF-0120-A`
 - **opérations** : `createRisk`, `updateRiskProvision`, `reviewRisk`, `listNodes`, `deleteNode`,
   `applyImport`, `setTaskProgress`, `getEstimateIndicators`, `getRemainingIndicators`
-- **issue** :
-
+- **issue** : #3813
 **En tant que** chef de projet, **je veux** que chaque risque identifié pèse sur le devis et sur le
 reste à engager par une ligne de provision calculée — sa gravité pondérée par sa probabilité —,
 portée par la tâche, la catégorie et le sous-projet que je désigne, **afin que** ce que les risques
@@ -1061,8 +1057,7 @@ d'aucune tâche » (F-02).
 - **exigences** : `WF-RIS-0020-A`, `WF-IHM-0110-A`
 - **opérations** : `reviewRisk`, `listRiskReviews`, `deleteRisk`, `listRisks` (`last_review_on_to`),
   `abandonRevision`, `undoLastChange`, `redoLastUndo`
-- **issue** :
-
+- **issue** : #3814
 **En tant que** chef de projet, **je veux** réexaminer à chaque revue la probabilité et l'état de
 chaque risque, écarter celui qui ne peut plus se produire, le reprendre s'il revient, supprimer
 celui qu'aucune révision marquée ne cite, et annuler une saisie malheureuse, **afin que** le
@@ -1139,8 +1134,7 @@ revue (US-2640).
 - **exigences** : `WF-RIS-0040-A`, `WF-REF-0160-A`
 - **opérations** : `listRisks`, `getRisk`, `listRiskReviews`, `getProjectRiskMatrix`,
   `getReferenceSettings`
-- **issue** :
-
+- **issue** : #3815
 **En tant que** chef de projet, **je veux** lire le registre des risques du projet, trié par ce que
 chacun fait peser, filtré sur chacune de ses colonnes, coloré par la matrice de l'entreprise, avec
 ses totaux, **afin de** mener la revue des risques par ordre d'importance.
@@ -1205,8 +1199,7 @@ couple (probabilité, gravité) est exposée par `core/risk_settings` (EP-05).
 - **exigences** : `WF-RIS-0050-A`, `WF-RAE-0020-A`, `WF-RAE-0010-A`
 - **opérations** : `getProjectRiskCoverage`, `getRemainingIndicators`, `listNodes` (`totals`),
   `listRisks` (`ProvisionTotals`)
-- **issue** :
-
+- **issue** : #3816
 **En tant que** chef de projet, **je veux** voir, à chaque revue, la réserve pour risques de la
 référence face à ce que les risques pèsent encore et à ce que les survenus ont coûté, **afin de**
 savoir si le projet consomme ses provisions sans que cela se voie dans son budget.
@@ -1317,8 +1310,7 @@ portefeuille (EP-11).
 - **exigences** : `WF-RIS-0060-A`
 - **opérations** : `getRiskOccurrenceReport`, `declareRiskOccurrence`, `getBackgroundTask`,
   `listNodes` et `compareRevisions` (`is_from_risk`, `origin_risk_ids`), `getRisk`
-- **issue** :
-
+- **issue** : #3818
 **En tant que** chef de projet, **je veux** déclarer qu'un risque est survenu, après avoir lu ce que
 cela fera de la structure principale, **afin que** son devis propre devienne du travail comme un
 autre — planifié, réestimé, terminé —, sans budget, et que ce qu'il coûte se suive jusqu'au bout.
@@ -1395,8 +1387,7 @@ devant elle (US-2630) ; l'écran (US-2640).
 - **exigences** : `WF-IND-0030-A`, `WF-IND-0100-A`, `WF-DEV-0080-A`
 - **opérations** : `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves`,
   `getRemainingIndicators`, `markRevision`, `mergeCostStructure` (la conservation)
-- **issue** :
-
+- **issue** : #3819
 **En tant que** chef de projet, **je veux** que les indicateurs, les courbes et la valeur planifiée
 disent juste devant un risque provisionné, un risque survenu et un avenant contractualisé, **afin
 que** la dérive d'un risque se lise comme une dérive, et un avenant comme un déplacement de la
@@ -1475,8 +1466,7 @@ des indicateurs, inchangé.
 - **exigences** : `WF-IHM-0020-A`
 - **opérations** : celles des US-2550 à US-2630, par le client engendré ; `deleteCostStructure` (le
   geste nouveau)
-- **issue** :
-
+- **issue** : #3820
 **En tant que** chef de projet, **je veux** que le registre des risques, le détail d'un risque, son
 devis propre, sa revue, sa survenance, et la préparation, la contractualisation et l'abandon d'un
 avenant fassent contre le service ce que la maquette montrait, **afin de** mener une revue des
@@ -1531,8 +1521,7 @@ d'EP-25 ; cette US ne les redessine pas.
 - **statut** : à faire
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0010-A`
 - **opérations** : celles des US-2550 à US-2630, lues sur le témoin chargé
-- **issue** :
-
+- **issue** : #3821
 **En tant que** développeur, **je veux** que le témoin chargé dans le service porte les risques, les
 provisions et les avenants de PRJ-001, et que la référence y soit celle que la fusion de l'avenant 1
 a produite, **afin que** les exemples du contrat soient l'attendu du service sur toute la
@@ -1593,8 +1582,7 @@ rejoue la fusion. `docs/api/DECISIONS.md`, « L'univers témoin », « Révision
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-06, EP-07 et
   EP-09
 - **opérations** : `openImport`, `listImports`, `getImport`, `applyImport`
-- **issue** :
-
+- **issue** : #3811
 **En tant que** développeur, **je veux** que les constats rattachés à cet EPIC par la ventilation du
 2026-11-14 soient corrigés, **afin qu'** il ne laisse pas derrière lui la dette qu'il a reçue.
 

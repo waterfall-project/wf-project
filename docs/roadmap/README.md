@@ -166,7 +166,7 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Reading and performance of the grids | livré | EP-25 |
 | [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparison in the grids | en cours | EP-26 |
 | [EP-10](EP-10-indicateurs.md) | Project indicators | en cours | EP-25, EP-26 |
-| [EP-08](EP-08-avenants-et-risques.md) | Amendments, risks and provisions | prêt | EP-10, EP-27 |
+| [EP-08](EP-08-avenants-et-risques.md) | Amendments, risks and provisions | en cours | EP-10, EP-27 |
 | [EP-11](EP-11-portefeuille.md) | Portfolio | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | File exchanges (FLX-01 to FLX-06) | abandonné : each round trip is validated in its functional block | — |
 | [EP-13](EP-13-exploitation.md) | Operations and going to production | à planifier | EP-04 |
