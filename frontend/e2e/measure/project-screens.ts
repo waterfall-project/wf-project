@@ -32,7 +32,9 @@ const WORKLOAD: Screen = {
   step: "workload.from-planning",
   link: "Plan de charge",
   address: /\/workload(\?|$)/,
-  sections: [{ name: "Plan de charge du projet", chart: true, windowed: true }],
+  sections: [
+    { name: "Plan de charge du projet", chart: true, empty: "^Aucun rôle", windowed: true },
+  ],
 };
 
 /** The projection of expenses, after the workload. */
@@ -40,7 +42,9 @@ const SPENDING: Screen = {
   step: "spending.from-workload",
   link: "Projection de dépenses",
   address: /\/spending(\?|$)/,
-  sections: [{ name: "Projection de dépenses", chart: true, windowed: true }],
+  sections: [
+    { name: "Projection de dépenses", chart: true, empty: "^Aucune nature", windowed: true },
+  ],
 };
 
 /**
@@ -53,11 +57,14 @@ const INDICATORS: Screen = {
   address: /\/indicators(\?|$)/,
   sections: [
     { name: "Avancement financier", chart: false, windowed: true },
-    { name: "Suivi des jalons", chart: true, windowed: false },
-    { name: "Coûts cumulés", chart: true, windowed: false },
-    { name: "Courbes de valeur acquise", chart: true, windowed: false },
+    { name: "Suivi des jalons", chart: true, empty: "^Aucun jalon", windowed: false },
+    { name: "Coûts cumulés", chart: true, empty: "^Rien à tracer", windowed: false },
+    { name: "Courbes de valeur acquise", chart: true, empty: "^Rien à tracer", windowed: false },
   ],
 };
+
+/** The screens, for the tests that read them against the catalogue of the messages. */
+export const SCREENS: readonly Screen[] = [WORKLOAD, SPENDING, INDICATORS];
 
 /** The name of the step of each screen in the log and in the report (`version.ts`). */
 export const WORKLOAD_STEP = WORKLOAD.step;

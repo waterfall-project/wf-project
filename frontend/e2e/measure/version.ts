@@ -121,6 +121,15 @@ function figure(of: unknown, key: string): number {
   return value;
 }
 
+/** A whole number of 0 or more of the JSON of the core measure, or a refusal. */
+function count(of: unknown, key: string): number {
+  const value = figure(of, key);
+  if (!Number.isInteger(value)) {
+    throw new Error(`the cost of the cache: ${key} must be a whole number, not ${String(value)}`);
+  }
+  return value;
+}
+
 /**
  * The cost of the entry of the cache of the indicators, read in the JSON of `make measure-core
  * ONLY=indicators` (US-2420): the facts and the rows of its measure "indicators cache". A JSON
@@ -141,7 +150,7 @@ export function cacheOf(core: unknown): Cache {
   const facts = found.facts;
   const read = {
     subprojects: figure(facts, "subprojects"),
-    scopes: figure(facts, "scopes"),
+    scopes: count(facts, "scopes"),
     cell_bytes: figure(facts, "cell_bytes"),
     all_bytes: figure(facts, "all_bytes"),
     cold_cell_s: figure(facts, "cold_cell_s"),
@@ -172,8 +181,10 @@ export function cacheOf(core: unknown): Cache {
     );
   }
   const sizes = read.extrapolation.map(({ subprojects }) => subprojects);
-  if (sizes.some((size, index) => index > 0 && size < (sizes[index - 1] ?? size))) {
-    throw new Error("the cost of the cache: the rows of extrapolation are sorted by subprojects");
+  if (sizes.some((size, index) => index > 0 && size <= (sizes[index - 1] ?? -Infinity))) {
+    throw new Error(
+      "the cost of the cache: the rows of extrapolation are sorted by subprojects, strictly ascending, one row per size",
+    );
   }
   return read;
 }

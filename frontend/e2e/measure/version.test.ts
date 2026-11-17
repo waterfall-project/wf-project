@@ -251,6 +251,10 @@ describe("cacheOf", () => {
     expect(() => cacheOf(coreWith({ facts: { scopes: 5 } }))).toThrow(/scopes are the subprojects/);
   });
 
+  it("refuses scopes that are not a whole number [WF-QUA-0060-A]", () => {
+    expect(() => cacheOf(coreWith({ facts: { scopes: 4.5 } }))).toThrow(/scopes must be a whole/);
+  });
+
   it("refuses entries of every scope that weigh less than the one of the project [WF-QUA-0060-A]", () => {
     expect(() => cacheOf(coreWith({ facts: { all_bytes: 14999 } }))).toThrow(/weigh at least/);
   });
@@ -267,6 +271,20 @@ describe("cacheOf", () => {
         }),
       ),
     ).toThrow(/sorted by subprojects/);
+  });
+
+  it("refuses two rows of extrapolation of the same size [WF-QUA-0060-A]", () => {
+    const row = CACHE.extrapolation[0];
+    expect(() =>
+      cacheOf(
+        coreWith({
+          rows: [
+            { ...row, subprojects: 100 },
+            { ...row, subprojects: 100 },
+          ],
+        }),
+      ),
+    ).toThrow(/strictly ascending, one row per size/);
   });
 });
 
