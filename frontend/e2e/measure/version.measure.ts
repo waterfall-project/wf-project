@@ -30,7 +30,7 @@
  * frozen). Not a path: it plays alone, in its project `measure-version` (`playwright.config.ts`),
  * which no goal of the chain plays.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
 import { type APIRequestContext, type Browser, test } from "@playwright/test";
@@ -38,6 +38,7 @@ import { type APIRequestContext, type Browser, test } from "@playwright/test";
 import { frontToken, type LocalPerson, resetGridPreferences } from "../service/realm";
 import { settle } from "../usable";
 import { administratorReady, contributorsOf, measureUsers } from "./accounts";
+import { cacheRead } from "./cache-read";
 import { type Caller, caller, exportPlanning, importCosts, markRevision } from "./background";
 import {
   gesturesExpected,
@@ -58,14 +59,7 @@ import {
   type Target,
   targets,
 } from "./steps";
-import {
-  type Cache,
-  cacheOf,
-  type Measured,
-  OPERATION_OF_STEP,
-  type VersionReport,
-  versionReport,
-} from "./version";
+import { type Measured, OPERATION_OF_STEP, type VersionReport, versionReport } from "./version";
 import {
   INDICATORS_STEP,
   indicatorsFromSpending,
@@ -96,22 +90,6 @@ const PASSES = whole("E2E_MEASURE_PASSES", 5);
 const TASK_PASSES = whole("E2E_MEASURE_TASK_PASSES", 3);
 if (PASSES < 2 || TASK_PASSES < 2) {
   throw new Error("two passes at least: a single one gives no dispersion");
-}
-
-/**
- * The cost of the entry of the cache of the indicators, read in the JSON of `make measure-core
- * ONLY=indicators` (US-2420), which the measure of a version cannot play itself: both start from a
- * witness freshly loaded and take the workstation alone. Read before anything is prepared, so that
- * its absence costs no hour of measure.
- */
-function cacheRead(file: string): Cache {
-  if (file === "" || !existsSync(file)) {
-    throw new Error(
-      `the cost of the cache of the indicators is read in ${file === "" ? "E2E_MEASURE_CACHE" : file}, ` +
-        "which make measure-core ONLY=indicators JSON=<file> writes: run it first",
-    );
-  }
-  return cacheOf(JSON.parse(readFileSync(file, "utf8")));
 }
 
 /** How old the token of the user of the browser may grow before it is asked again. */

@@ -855,6 +855,11 @@ MEASURE_TASK_PASSES ?= 3
 # it from MEASURE_CACHE. The two both start from a witness freshly loaded and take the workstation alone:
 # they follow each other, they never nest.
 MEASURE_CACHE ?= $(FRONT)/.e2e/measure-core-indicators.json
+# The file of the cost of the cache is checked first, before the install and the build: its absence costs
+# no minute. (Prerequisites run in order; the measure is never played with -j.)
+.PHONY: measure-cache-present
+measure-cache-present:
+	@test -f $(MEASURE_CACHE) || { echo 'The cost of the cache of the indicators is missing: run make measure-core ONLY=indicators JSON=$(MEASURE_CACHE) first.' >&2; exit 1; }
 .PHONY: measure-version
 $(call slot-export,measure-version,$(SLOT_SERVICE) $(SLOT_PATHS))
 measure-version: export WATERFALL_FRONT_ADDRESS = http://127.0.0.1:$(E2E_FRONT_PORT)
@@ -872,8 +877,7 @@ measure-version: export E2E_MEASURE_VERSION = $(MEASURE_VERSION)
 measure-version: export E2E_MEASURE_VERSION_REPORT = $(abspath $(MEASURE_VERSION_REPORT))
 measure-version: export E2E_MEASURE_CACHE = $(abspath $(MEASURE_CACHE))
 measure-version: export PRISM_VERSION := $(PRISM_VERSION)
-measure-version: measure-secrets install-front $(call e2e-build) ## The report of the measures of a version (US-2300): on the witness loaded afresh, each operation of table 15 the service serves, measured by a browser under the load of fifty users played by k6, then the export, the import of 18,000 lines of actual costs and the marking, read at their tasks; takes the workstation alone; MEASURE_VERSION (that of frontend/package.json), MEASURE_PASSES=5, MEASURE_TASK_PASSES=3, MEASURE_VERSION_REPORT=<file> (frontend/.e2e/measures/<version>.json); the cost of the entry of the cache of the indicators is read in MEASURE_CACHE (frontend/.e2e/measure-core-indicators.json), which make measure-core ONLY=indicators JSON=<that file> writes first; needs the secrets of service-up and a browser
-	@test -f $(MEASURE_CACHE) || { echo 'The cost of the cache of the indicators is missing: run make measure-core ONLY=indicators JSON=$(MEASURE_CACHE) first.' >&2; exit 1; }
+measure-version: measure-cache-present measure-secrets install-front $(call e2e-build) ## The report of the measures of a version (US-2300): on the witness loaded afresh, each operation of table 15 the service serves, measured by a browser under the load of fifty users played by k6, then the export, the import of 18,000 lines of actual costs and the marking, read at their tasks; takes the workstation alone; MEASURE_VERSION (that of frontend/package.json), MEASURE_PASSES=5, MEASURE_TASK_PASSES=3, MEASURE_VERSION_REPORT=<file> (frontend/.e2e/measures/<version>.json); the cost of the entry of the cache of the indicators is read in MEASURE_CACHE (frontend/.e2e/measure-core-indicators.json), which make measure-core ONLY=indicators JSON=<that file> writes first; needs the secrets of service-up and a browser
 	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) build --quiet install witness
