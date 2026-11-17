@@ -3158,7 +3158,7 @@ class Revision(ContractModel):
     snapshot: Annotated[
         RevisionSnapshot | None,
         Field(
-            description="The reference data values that the revision keeps (WF-REV-0030). Returned by `getRevision` for a marked revision, which froze them at its marking; omitted for the current revision, whose values follow the reference data as long as it is not marked, apart from the rates it keeps (WF-REV-0060), and in `listRevisions` as in the response of a write, which do not read it."
+            description="The reference data values that the revision keeps (WF-REV-0030). Returned by `getRevision` for a marked revision, which froze them at its marking; omitted for the current revision, whose values follow the reference data as long as it is not marked, apart from the rates it keeps (WF-REV-0060), for whoever does not hold `revisions.read` — a reader of one of the three grids, whose banner reads the revision, and to whom the values kept are guarded elsewhere (EP-27, US-2320) —, and in `listRevisions` as in the response of a write, which do not read it."
         ),
     ] = None
     available_commands: Annotated[
@@ -3955,7 +3955,7 @@ class ComparedNodeRead(ContractModel):
         Field(
             description="The values the base revision carried, for a `modified` node: under the names of the node — `parent_id`, `predecessors`, `task.…`, `estimate_line.…` —, only those that the read returns (`fields`, all of them without it) and whose value differs from the revision read; empty when none of them does, a task modified by its content alone or a value that `fields` leaves out. Always returned, like `difference`. Null for a node added, unchanged or removed — a removed node is already returned on its base values. A cell is marked when `base` carries its field, with the value of the base: the grid compares nothing (WF-REV-0080, WF-IHM-0150, WF-ARC-0020). A parent and a predecessor are those of the base, matched by lineage and named by the node the comparison returns, a predecessor at the row it is returned at."
         ),
-    ] = None
+    ]
     deltas: Annotated[
         NodeDeltas | None,
         Field(

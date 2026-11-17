@@ -56,6 +56,13 @@ from waterfall.core.estimate.comparing import (
 from waterfall.core.estimate.comparing import (
     UnitedComparison as UnitedComparison,
 )
+
+# ``comparing`` (US-2320): how the reader of a comparison writes a node, whose values it compares.
+from waterfall.core.estimate.comparing import (
+    Written as Written,
+)
+
+# ``comparing`` (US-2270): the comparison no filter restricts, and the revisions it judges first.
 from waterfall.core.estimate.comparing import (
     compare_united as compare_united,
 )
@@ -367,10 +374,7 @@ from waterfall.core.estimate.spreading import (
     PlannedLine as PlannedLine,
 )
 
-# ``uniting`` (US-2270): what the union of a comparison reads of a node, and gives of it.
-from waterfall.core.estimate.uniting import (
-    Compared as Compared,
-)
+# ``uniting`` (US-2270; US-2320): what the union of a comparison reads of a node, and gives of it.
 from waterfall.core.estimate.uniting import (
     LineAmounts as LineAmounts,
 )
@@ -379,12 +383,6 @@ from waterfall.core.estimate.uniting import (
 )
 from waterfall.core.estimate.uniting import (
     UnitedNode as UnitedNode,
-)
-from waterfall.core.estimate.uniting import (
-    line_compared as line_compared,
-)
-from waterfall.core.estimate.uniting import (
-    task_compared as task_compared,
 )
 
 # ``workloading`` (US-1520): what a plan of workload is asked and gives.

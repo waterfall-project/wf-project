@@ -1,18 +1,21 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The comparison of two marked revisions, private to the module (US-1530, WF-REV-0080).
+"""The comparison of a revision with a marked base, private to the module (US-1530, WF-REV-0080).
 
-Two marked revisions of a project are compared — a revision unknown or of another project refused
-first (404), then the current one, which still changes under its reader (409, ``revision_marked``)
-—, their main structures read whole, as they were marked: the lines on the amounts they keep and
-the labels of the images of their revision (US-1500), nothing priced again on the reference of the
-day. Their union (``uniting``) is read as ``listNodes`` reads a structure (#1193): the filters
-retain on each side what they retain of its structure, a removed node judged on its values in the
-base revision; ``subtree_of`` is a window onto the union, a removed task included; the ancestors
-of what is retained come with it, but under ``timeline_id``; ``difference`` keeps the nodes of
-the marks named, and their ancestors; the sort orders the lines under each task, a removed one
-among them on its values; ``kinds`` chooses what is returned. The totals and the meta are those of
-the compared revision, ``difference`` not restricting them.
+The revision read, current or marked, is compared with a marked revision of its project, the base —
+a revision unknown or of another project refused first (404), then a base not marked, which still
+changes under its reader (409, ``revision_marked``) (EP-27, US-2320) —, their main structures read
+whole: a marked one as it was marked, the lines on the amounts they keep and the labels of the
+images of their revision (US-1500), nothing priced again on the reference of the day; the current
+one in its state of the moment, nothing kept of a comparison. Their union (``uniting``) is read as
+``listNodes`` reads a structure (#1193): the filters retain on each side what they retain of its
+structure, a removed node judged on its values in the base revision; ``subtree_of`` is a window
+onto the union, a removed task included; the ancestors of what is retained come with it, but under
+``timeline_id``; ``difference`` keeps the nodes of the marks named, and their ancestors; the sort
+orders the lines under each task, a removed one among them on its values; ``kinds`` chooses what
+is returned. The totals and the meta are those of the compared revision, ``difference`` not
+restricting them. The union compares every value of a node as the API writes it, which its reader
+gives (``written``): the core does not know the form of a response.
 
 The differences of amounts are counted on the lines retained, removed ones included, whatever
 ``kinds`` (``amount_deltas``): each line counts its amounts in the compared revision under the
@@ -20,10 +23,11 @@ nature of its category and its subproject there, minus its amounts in the base r
 own there (#1751), the nature read on the images of each revision. A key whose two differences are
 nought is left out; the sum by subproject is that by nature, each line counted once in each.
 
-A comparison no filter restricts reads the two readings kept of its structures (EP-26, "La
-comparaison", US-2270): the API gives what the union reads of their nodes, and applies to them the
-place and the mark of each node returned (``compare_united``); the revisions are read and judged
-first (``compared_places``), as ``compare`` reads and judges them.
+A comparison no filter restricts reads the reading kept of the base, and that of the revision read
+when it is marked, its columns when it is current (EP-26, "La comparaison", US-2270, US-2220): the
+API gives what the union reads of their nodes, and applies to them the place, the mark and the base
+of each node returned (``compare_united``); the revisions are read and judged first
+(``compared_places``), as ``compare`` reads and judges them.
 """
 
 from dataclasses import dataclass, replace
@@ -38,8 +42,6 @@ from waterfall.core.estimate.uniting import (
     PlacedNode,
     Union,
     UnitedNode,
-    line_compared,
-    task_compared,
     unite,
 )
 from waterfall.core.planning.interface import Place, read_structure
@@ -53,13 +55,13 @@ from waterfall.platform.errors import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Sequence
+    from collections.abc import Callable, Collection, Mapping, Sequence
     from datetime import datetime
+    from typing import Any
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.estimate.uniting import Compared
     from waterfall.core.planning.interface import (
         LineSort,
         NodeFilters,
@@ -88,13 +90,22 @@ class ComparisonAsked:
     differences: tuple[str, ...] | None = None
 
 
+# How the reader writes a node whole, as the API does (``Node``): what the union compares of it.
+type Written = Callable[[NodeView], Mapping[str, Any]]
+
+
 @dataclass(frozen=True, slots=True)
 class ComparedNode:
-    """A node of the comparison: as it is read, numbered in the union, and its mark."""
+    """A node of the comparison: as it is read, numbered in the union, its mark and its base.
+
+    ``base`` what the base carried of the values that differ, by their name in the node, of a
+    modified node present on both sides; none for any other (``PlacedNode.base``).
+    """
 
     view: NodeView
     difference: str
     changes: tuple[str, ...]
+    base: dict[str, Any] | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,11 +158,12 @@ def compared_places(
 ) -> tuple[tuple[RevisionRead, RevisionRead], tuple[Place, Place]]:
     """Read the two revisions a comparison asks and their main structures, the base one first.
 
-    A revision unknown or of another project refused first (404), then one not marked (409).
+    A revision unknown or of another project refused first (404), then a base not marked (409):
+    the revision read may be the current one, which nothing of the comparison keeps.
     """
     base_read, base_place = _revision(session, project_id, asked.from_revision_id)
     compared_read, compared_place = _revision(session, project_id, asked.to_revision_id)
-    if not (base_read.marked and compared_read.marked):
+    if not base_read.marked:
         raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": REVISION_MARKED})
     return (base_read, compared_read), (base_place, compared_place)
 
@@ -209,31 +221,17 @@ def _sorted(
     return result
 
 
-def _united(view: NodeView) -> UnitedNode[UUID]:
-    """Give what the union reads of a node as a reading of the rows gives it."""
-    task = view.task
+def _united(view: NodeView, written: Written) -> UnitedNode[UUID]:
+    """Give what the union reads of a node as a reading of the rows gives it, and its values."""
     facet = None if view.facet is None else view.facet.view
     line = facet if isinstance(facet, LineView) else None
-    compared: Compared = ()
-    if task is not None:
-        compared = task_compared(
-            (task.start, task.finish), (task.duration_value, task.duration_unit), task.progress
-        )
-    elif line is not None:
-        compared = line_compared(
-            line.budgeted_amount,
-            line.reestimated_amount,
-            line.payment_delay_days,
-            line.subproject_id,
-            line.cost_category_id,
-        )
     return UnitedNode(
         view.node_id,
         view.lineage_id,
         view.kind,
         view.parent_id,
         tuple(each.predecessor_id for each in view.predecessors),
-        compared,
+        written(view),
         None
         if line is None
         else LineAmounts(
@@ -343,14 +341,22 @@ def _counted[K](
     return before, after
 
 
-def compare(session: Session, project_id: UUID, asked: ComparisonAsked) -> Comparison:
-    """Compare two marked revisions of a project, read as ``listNodes`` reads a structure."""
+def compare(
+    session: Session, project_id: UUID, asked: ComparisonAsked, written: Written
+) -> Comparison:
+    """Compare a revision with a marked base, read as ``listNodes`` reads a structure.
+
+    ``written`` how the reader writes a node whole, whose values the union compares.
+    """
     reads, (base_place, compared_place) = compared_places(session, project_id, asked)
     filters = asked.filters
     compared = read_structure(session, compared_place, filters)
     # The window is the union's: a removed node is held in the base structure whole.
     base = read_structure(session, base_place, replace(filters, subtree_of=None))
-    union = unite(list(map(_united, base.nodes)), list(map(_united, compared.nodes)))
+    union = unite(
+        [_united(each, written) for each in base.nodes],
+        [_united(each, written) for each in compared.nodes],
+    )
     sides = (base.kept | base.lines, compared.kept | compared.lines)
     held = _retained(union, sides, filters.subtree_of, asked.differences)
     order = _ordered(union, held, ancestors=filters.timeline_id is None)
@@ -364,7 +370,9 @@ def compare(session: Session, project_id: UUID, asked: ComparisonAsked) -> Compa
         from_revision_id=asked.from_revision_id,
         to_revision_id=asked.to_revision_id,
         items=tuple(
-            ComparedNode(_placed_view(views[each.node_id], each), each.difference, each.changes)
+            ComparedNode(
+                _placed_view(views[each.node_id], each), each.difference, each.changes, each.base
+            )
             for each in placed
         ),
         task_count=compared.task_count,
@@ -386,8 +394,8 @@ def compare_united[K](
 
     What ``compare`` gives of a comparison that no filter restricts, from what the reader gives
     of each structure — the nodes of two readings kept, written as the API writes them (US-2270):
-    the nodes returned, placed and marked, which the reader applies to what it read, and the
-    differences of amounts. ``reads`` the two revisions ``compared_places`` read.
+    the nodes returned, placed, marked and with their base, which the reader applies to what it
+    read, and the differences of amounts. ``reads`` the two revisions ``compared_places`` read.
     """
     base, compared = sides
     union = unite(base, compared)

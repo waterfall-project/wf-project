@@ -12035,8 +12035,9 @@ lecture qu'EP-26 a figé. Ce qui change :
 
 **Exigées en deux temps.** Les propriétés nouvelles sont déclarées sans être exigées : le service ne
 les rend pas encore, et chaque réponse est validée contre le contrat. Le lot du service qui en sert
-une la passe en exigée — `base` et `deltas` avec la comparaison d'une révision en cours,
-`base_totals` et `totals_delta` avec les totaux de la base (US-2320/L2, L3, US-2340, US-2350).
+une la passe en exigée — `base` avec la comparaison d'une révision en cours (US-2320/L3),
+`deltas` avec les écarts (US-2340), `base_totals` et `totals_delta` avec les totaux de la base
+(US-2350).
 
 **Les exemples**, engendrés par `wftools.mockcomparisons` et `wftools.mockdiff` (`marked` lu avec
 `compared`, `read_with_fields`), portent `base`, `deltas`, `base_totals` et `totals_delta` ; un
@@ -12048,6 +12049,21 @@ borne ne garde que contre des nœuds rendus entiers, 7,4 Mo — : 2 Mo laissent 
 qu'un libellé de plus ne consomme pas, et refusent encore une lecture qui ne réduirait pas `fields`.
 `info.version` reste `1.0.0` : des propriétés facultatives, un paramètre facultatif et une valeur
 d'énumération de plus.
+
+**Le service** (US-2320/L3, #3494) compare une révision lue en cours, rend `base` et `other`, et
+`base` devient exigée ; `deltas` reste déclarée sans être exigée, et vient avec US-2340, comme
+`base_totals` et `totals_delta` avec US-2350 (l'US-2320 les met hors de son périmètre). La base se
+lit dans sa lecture gardée, la révision lue en cours par ses colonnes (US-2220), rien n'en étant
+gardé. L'union (`core/estimate/uniting.py`) compare chaque nœud tel que l'API l'écrit entier, et la
+liste des valeurs non comparées y est écrite une fois (`NOT_COMPARED`, `FACET_NOT_COMPARED`) : celle
+du contrat, ci-dessus, sans rien de plus ; `parent_id` et `predecessors` s'y comparent par la lignée,
+le lien et le décalage, jamais par le rang. Deux conséquences d'une valeur calculée comparée, que
+le contrat veut : une tâche dont le successeur est retiré, ou que l'allongement d'une autre décale
+dans le chemin critique, est modifiée par sa marge (`total_float`, `is_critical`), et une révision
+ouverte d'une source marquée une fois le projet En cours porte le reste à engager d'avant la revue
+de chaque ligne (`previous_*`, EP-09) : elle se compare modifiée à sa source par ces valeurs
+(`other`), et inchangée, nœud par nœud, à la source d'un projet qui n'est pas encore En cours —
+son budgété, repris de la référence, différant aussi d'une source qui n'est pas la référence.
 
 ### Les lectures d'une grille ouvertes à qui la consulte (US-2320, conception d'EP-27, « Les gardes »)
 
