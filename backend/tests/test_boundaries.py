@@ -114,7 +114,10 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
 PLANNING_INTERFACES: dict[str, set[str]] = {
     "planning": {
         "closing",
+        # The copy of the nodes of a revision, moved out of ``nodes`` (US-2240/L2).
+        "copying",
         "facets",
+        "kept_readings",
         "lines",
         "loading",
         "msproject",

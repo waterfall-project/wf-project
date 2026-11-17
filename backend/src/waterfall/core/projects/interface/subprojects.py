@@ -562,6 +562,19 @@ def subproject_labels(
     return dict(session.execute(query).all())
 
 
+def project_subproject_labels(session: Session, project_id: UUID) -> dict[UUID, str]:
+    """Give the label of each subproject of a project, all of them.
+
+    What a line of estimate shows of its subproject, read whole: what a reading kept of a marked
+    revision depends on outside it (EP-26, US-2270), a label changed making it stale.
+    """
+    return dict(
+        session.execute(
+            select(Subproject.id, Subproject.label).where(Subproject.project_id == project_id)
+        ).all()
+    )
+
+
 def subprojects_named(
     session: Session, project_id: UUID, labels: Collection[str]
 ) -> dict[str, list[UUID]]:

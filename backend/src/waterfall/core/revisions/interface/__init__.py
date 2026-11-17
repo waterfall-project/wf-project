@@ -113,6 +113,7 @@ from waterfall.core.revisions.interface.shared import hold_current_revision
 
 # ``structures`` (US-0960; the facts the planning reads, US-1380/L2; written, US-1390/L2).
 from waterfall.core.revisions.interface.structures import (
+    MAIN,
     CurrentStructure,
     StructureFacts,
     StructureView,
@@ -121,6 +122,7 @@ from waterfall.core.revisions.interface.structures import (
     list_cost_structures,
     revision_structures,
     structure_commands,
+    structure_counted,
     structure_facts,
     structure_in_revision,
     structure_phase_conditions,
@@ -131,6 +133,7 @@ from waterfall.core.revisions.interface.structures import (
 __all__ = [
     "CLOSING_STAGES",
     "KEPT",
+    "MAIN",
     "ClosingKind",
     "ClosingStage",
     "CurrentStructure",
@@ -196,6 +199,7 @@ __all__ = [
     "revisions_present",
     "run_marking",
     "structure_commands",
+    "structure_counted",
     "structure_facts",
     "structure_in_revision",
     "structure_phase_conditions",

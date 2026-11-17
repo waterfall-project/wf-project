@@ -22,7 +22,7 @@ from wftools import REPOSITORY
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-SCRIPTS = ("guard.py", "slots.py")
+SCRIPTS = ("guard.py", "slots.py", "heavyturns.py")
 
 
 def _outside_the_venv(entries: Sequence[str]) -> list[str]:

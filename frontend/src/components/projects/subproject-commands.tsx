@@ -64,6 +64,7 @@ import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { CellCommand, UnavailableCellCommand } from "@/components/reference/cell-command";
 import { ANOTHER_OBJECT } from "@/components/reference/commands";
+import { useListReading } from "@/components/reference/list-reading";
 import { useListReport } from "@/components/reference/reactivation";
 import { ReferenceForm, required } from "@/components/reference/reference-form";
 import type { PrincipalVariant } from "@/components/shell/section-card";
@@ -475,8 +476,10 @@ function DeleteConfirmation({
   const own = useHeldCommand();
   const held = list?.held ?? own;
   const [pending, startTransition] = useTransition();
+  // A write of the list lost once sent: the list is read anew, and this waits until it is back (US-2240).
+  const reading = useListReading();
   const confirm = () => {
-    if (pending) {
+    if (pending || reading) {
       return;
     }
     // The reading the deletion is confirmed on: its refusal is told on it alone.
@@ -523,7 +526,12 @@ function DeleteConfirmation({
         >
           {form("cancel")}
         </Button>
-        <Button type="button" aria-busy={pending} onClick={confirm}>
+        <Button
+          type="button"
+          aria-busy={pending || reading}
+          aria-disabled={reading ? true : undefined}
+          onClick={confirm}
+        >
           <Trash2 aria-hidden="true" />
           {pending ? form("sending") : t("delete")}
         </Button>

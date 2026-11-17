@@ -52,6 +52,17 @@ from waterfall.core.estimate.comparing import (
     ComparisonAsked as ComparisonAsked,
 )
 
+# ``comparing`` (US-2270): a comparison no filter restricts, of two readings kept.
+from waterfall.core.estimate.comparing import (
+    UnitedComparison as UnitedComparison,
+)
+from waterfall.core.estimate.comparing import (
+    compare_united as compare_united,
+)
+from waterfall.core.estimate.comparing import (
+    compared_places as compared_places,
+)
+
 # ``calendars`` (US-1490/L1; US-1500): the calendars of the roles, which a change must not idle.
 # ``entries`` (US-1490/L3): what a write sends of a line.
 from waterfall.core.estimate.entries import (
@@ -253,12 +264,9 @@ from waterfall.core.estimate.interface.rates import (
     reinflate_project as reinflate_project,
 )
 
-# ``remaining`` (US-1580/L1; US-1580/L2): a line reestimated, the remaining of the review before.
+# ``remaining`` (US-1580/L1; US-1580/L2): a line reestimated.
 from waterfall.core.estimate.interface.remaining import (
     LineRemaining as LineRemaining,
-)
-from waterfall.core.estimate.interface.remaining import (
-    copy_previous as copy_previous,
 )
 from waterfall.core.estimate.interface.remaining import (
     set_line_remaining as set_line_remaining,
@@ -359,6 +367,26 @@ from waterfall.core.estimate.spreading import (
     PlannedLine as PlannedLine,
 )
 
+# ``uniting`` (US-2270): what the union of a comparison reads of a node, and gives of it.
+from waterfall.core.estimate.uniting import (
+    Compared as Compared,
+)
+from waterfall.core.estimate.uniting import (
+    LineAmounts as LineAmounts,
+)
+from waterfall.core.estimate.uniting import (
+    PlacedNode as PlacedNode,
+)
+from waterfall.core.estimate.uniting import (
+    UnitedNode as UnitedNode,
+)
+from waterfall.core.estimate.uniting import (
+    line_compared as line_compared,
+)
+from waterfall.core.estimate.uniting import (
+    task_compared as task_compared,
+)
+
 # ``workloading`` (US-1520): what a plan of workload is asked and gives.
 from waterfall.core.estimate.workloading import (
     RoleLoad as RoleLoad,
@@ -401,14 +429,14 @@ from waterfall.core.revisions.interface import (
 # rates of a revision presents a category (US-1500/L1); the categories and the subprojects the
 # lines employ, and the current revisions a rate of the reference written prices again; what a
 # revision keeps at its marking, and the budgeted amounts a designation refreshes (US-1500/L2). The
-# remaining to commit (EP-09): the remaining of the review before, copied after the rates, and the
-# format and the exporter of its workbook, each without effect until its story (US-1580/L1); the
-# own lines that hold a summary task open, which the planning asks at the reading (US-1590/L1), and
-# when they were set to nought, which a summary completed again reads (US-1650/L2, #2803).
+# remaining to commit (EP-09): the format and the exporter of its workbook (the remaining of the
+# review before is written by the copy of the lines since US-2240/L2), each without effect until
+# its story (US-1580/L1); the own lines that hold a summary task open, which the planning asks at
+# the reading (US-1590/L1), and when they were set to nought, which a summary completed again reads
+# (US-1650/L2, #2803).
 register_facet("estimate_line", LINE_FACET)
 register_tasks_and_lines("lines", revision_has_lines)
 register_copy(copy_rates)
-register_copy(copy_previous)
 register_rate_update(rate_update_offered)
 register_closing("content", close_rates)
 register_employment(category_is_employed, reprice_after_rate)

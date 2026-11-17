@@ -17,8 +17,9 @@ import {
   test,
 } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import type { components } from "../src/api/generated/schema";
-import { openHydrated, WORKING } from "./hydration";
+import { openHydrated } from "./hydration";
 import { ADMINISTRATOR, API, frontToken, type LocalPerson } from "./service/realm";
 
 type Schemas = components["schemas"];

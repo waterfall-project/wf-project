@@ -38,10 +38,11 @@ REMAINING_WRITE = "remaining.write"
 ENTRIES = (PLANNING_WRITE, ESTIMATE_WRITE, REMAINING_WRITE)
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from waterfall.core.planning.interface.nodes import InstantSent, TaskEntry
     from waterfall.core.planning.scheduling import Calendar, UnitConstants
-    from waterfall.core.planning.tables import Task
-    from waterfall.core.planning.tree import Tree
+    from waterfall.core.planning.tree import NodeColumns, TaskColumns, Tree
 
 VALUE_REQUIRED = "VALUE_REQUIRED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
@@ -53,6 +54,32 @@ AUTOMATIC = "automatic"
 MANUAL = "manual"
 # A task created without a duration lasts a day (WF-DEV-0050, WF-RAE-0040).
 ONE_DAY = Duration(Decimal(1), "d")
+# The fields of a modification of a task that date it, in the order of ``TaskFacetUpdate``.
+DATING = ("scheduling_mode", "duration", "start", "finish")
+# The fields of a task whose write can move no date nor change an amount, as ``editable_fields``
+# names them (US-2250): the engine reads of a task its mode, its duration, its manual dates, its
+# place in the tree and the calendars its lines name (``dating``, ``scheduling``), and reads its
+# label only to name a refusal; the estimate prices a line on the dates, the calendar and the state
+# of its task (``BearingTask``). The inscriptions are ``setNodeTracking``'s. The progress is not
+# inert: the state of a task is an input of the replay, which derives from it that of the
+# summaries above it and prices its lines on it (``state_of``, ``setTaskProgress``).
+INERT_TASK_FIELDS = frozenset(
+    {
+        "task.label",
+        "task.description",
+        "task.order_item_id",
+        "task.work_package_id",
+        "task.tracking",
+    }
+)
+
+
+def dating_pointers(entry: TaskEntry) -> tuple[str, ...]:
+    """Give the pointers of the fields a modification sends that date the task, in their order.
+
+    Those an amount its redating carries past its column is refused at (``Write.redate``, #3094).
+    """
+    return tuple(f"/{name}" for name in DATING if name in entry.sent)
 
 
 def decimal_text(value: Decimal) -> str:
@@ -136,17 +163,22 @@ def finish_after(
 
 
 def _finish_within(
-    task: Task, start: WorkInstant, duration: Duration, calendar: Calendar, constants: UnitConstants
+    task: tuple[UUID, str],
+    start: WorkInstant,
+    duration: Duration,
+    calendar: Calendar,
+    constants: UnitConstants,
 ) -> WorkInstant:
     """Give the finish a duration entered leads to, or refuse a task that leaves the calendar.
 
-    A duration so long that its finish is no date is beyond the horizon (WF-PLA-0150): refused
-    naming the task (422 ``PROJECT_HORIZON_EXCEEDED``), as the engine does for an automatic one.
+    ``task`` its node and its label. A duration so long that its finish is no date is beyond the
+    horizon (WF-PLA-0150): refused naming the task (422 ``PROJECT_HORIZON_EXCEEDED``), as the engine
+    does for an automatic one.
     """
     try:
         return finish_after(start, duration, calendar, constants)
     except (ValueError, ArithmeticError) as error:
-        raise horizon_exceeded(task.node_id, task.label) from error
+        raise horizon_exceeded(*task) from error
 
 
 def days_between(
@@ -192,12 +224,14 @@ def judged_creation(entry: TaskEntry, calendar: Calendar, constants: UnitConstan
     return Facet(mode, duration, start, finish)
 
 
-def _derived(tree: Tree, task: Task, sent: frozenset[str]) -> list[FieldError]:
+def _derived[N: NodeColumns, T: TaskColumns](
+    tree: Tree[N, T], node_id: UUID, sent: frozenset[str]
+) -> list[FieldError]:
     """Refuse what a summary derives: its mode and its duration, its dates (WF-PLA-0040).
 
     A date sent names the direct subordinates it is drawn from (``SUMMARY_TASK_DERIVED``).
     """
-    subordinates = [str(each) for each in tree.subtasks(task.node_id)]
+    subordinates = [str(each) for each in tree.subtasks(node_id)]
     faults = [
         FieldError(f"/{name}", COMPUTED_VALUE)
         for name in ("scheduling_mode", "duration")
@@ -232,16 +266,19 @@ def _ends(
     return ends, faults
 
 
-def judged_change(
-    tree: Tree, task: Task, entry: TaskEntry, calendar: Calendar, constants: UnitConstants
+def judged_change[N: NodeColumns, T: TaskColumns](
+    tree: Tree[N, T], node_id: UUID, entry: TaskEntry, calendar: Calendar, constants: UnitConstants
 ) -> Facet:
-    """Judge what a modification sends of the time of a task; give what it leaves of it."""
-    node_id, sent = task.node_id, entry.sent
+    """Judge what a modification sends of the time of a task; give what it leaves of it.
+
+    On a tree of objects of the session, or of rows (``read_inert``).
+    """
+    task, sent = tree.tasks[node_id], entry.sent
     start = WorkInstant(task.start_date, task.start_hours)
     finish = WorkInstant(task.finish_date, task.finish_hours)
     current = Facet(task.scheduling_mode, duration_of(task), start, finish)
     if tree.is_summary(node_id):
-        _refuse(_derived(tree, task, sent))
+        _refuse(_derived(tree, node_id, sent))
         return current
     faults: list[FieldError] = []
     if "scheduling_mode" in sent and entry.scheduling_mode is None:
@@ -262,6 +299,6 @@ def judged_change(
         _refuse(_ordered(start, finish, "/finish"))
         return Facet(MANUAL, days_between(start, finish, calendar, constants), start, finish)
     if "duration" in sent:
-        finish = _finish_within(task, start, duration, calendar, constants)
+        finish = _finish_within((node_id, task.label), start, duration, calendar, constants)
         return Facet(MANUAL, duration, start, finish)
     return Facet(MANUAL, duration, start, finish)

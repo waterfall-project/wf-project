@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page, test } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import { pngSize } from "./download";
-import { holdScripts, openHydrated, WORKING } from "./hydration";
+import { holdScripts, openHydrated } from "./hydration";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";

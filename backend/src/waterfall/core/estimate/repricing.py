@@ -23,12 +23,12 @@ ways (#2104, #2615):
    it before anything else, and no path that holds the lock of a revision or of a structure takes
    it after;
 2. the current revision, shared (``FOR SHARE``): a rate written reads the current revisions so
-   (``current_structures``), the designation and the change of the rate of inflation share it
-   before they lock the project (``hold_current_revision``), as a write of the tree does before
-   its structure; the marking and the abandonment, which lock it ``FOR UPDATE``, wait for it, or
-   are waited for;
-3. the project, for the designation and the change of the rate of inflation, after the revision —
-   the order of the marking and of the abandonment;
+   (``current_structures``), the designation, the change of the rate of inflation and the writing
+   of the work breakdown share it before they lock the project (``hold_current_revision``, #3654),
+   as a write of the tree does before its structure; the marking and the abandonment, which lock
+   it ``FOR UPDATE``, wait for it, or are waited for;
+3. the project, for the designation, the change of the rate of inflation and the writing of the
+   work breakdown, after the revision — the order of the marking and of the abandonment;
 4. each structure of the revision, ``FOR UPDATE``, in the order of its identifier, the revisions in
    the order of their project: the lines are read under it, then priced.
 

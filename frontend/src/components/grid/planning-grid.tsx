@@ -51,7 +51,7 @@ import {
 } from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
 import { Command } from "@/components/commands/command";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedRead } from "@/components/commands/rejection";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
 import {
@@ -294,7 +294,7 @@ function useRowNames(
         const into = asked.current;
         await Promise.all(
           numbers.map(async (number) => {
-            const outcome = await resolveRowNumber(structure, number).catch(rejected);
+            const outcome = await resolveRowNumber(structure, number).catch(rejectedRead);
             if (outcome.kind === "done") {
               into.set(number, outcome.data.kind === "task" ? outcome.data.node_id : null);
             } else if (outcome.kind !== "unreachable" && outcome.problem.status === 404) {

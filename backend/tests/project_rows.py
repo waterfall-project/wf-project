@@ -117,6 +117,7 @@ def partition_of(project_id: UUID) -> str:
 # names is dropped after the other's. The rates and the images of the estimate name a revision
 # alone, which is no partitioned table.
 REVISED = (
+    "structure_reading",
     "estimate_line",
     "revision_rate",
     "revision_role",

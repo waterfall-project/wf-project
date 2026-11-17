@@ -33,8 +33,8 @@ import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useAccountNaming } from "@/components/account/account-name";
 import { initials } from "@/components/account/initials";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
+import { rejectedWrite } from "@/components/commands/rejection";
 import { useForgetTasks } from "@/components/tasks/task-tracker";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -88,6 +88,8 @@ interface PreferenceProps<V extends string> {
   /** The values, in the order they are offered, each with what the menu says of it. */
   readonly options: readonly { readonly value: V; readonly label: string }[];
   readonly choose: (value: V) => void;
+  /** Whether the screen is read anew after a write lost once sent: no other is made (US-2240). */
+  readonly reading: boolean;
 }
 
 /**
@@ -101,11 +103,12 @@ function Preference<V extends string>({
   preference,
   options,
   choose,
+  reading,
 }: PreferenceProps<V>) {
   const current = options.find((option) => option.value === preference);
   return (
     <DropdownMenuSub>
-      <DropdownMenuSubTrigger>
+      <DropdownMenuSubTrigger disabled={reading}>
         <Icon aria-hidden="true" />
         <span className="flex-1">{label}</span>
         <span className="text-xs whitespace-nowrap text-muted-foreground">{current?.label}</span>
@@ -116,6 +119,7 @@ function Preference<V extends string>({
             <DropdownMenuRadioItem
               key={option.value}
               value={option.value}
+              disabled={reading}
               onSelect={() => {
                 choose(option.value);
               }}
@@ -134,8 +138,10 @@ function Preferences({
   language,
   theme,
   write,
+  reading,
 }: Omit<AccountMenuProps, "account"> & {
   readonly write: (apply: () => Promise<Written>) => void;
+  readonly reading: boolean;
 }) {
   const t = useTranslations();
   const label = useId();
@@ -153,6 +159,7 @@ function Preferences({
           <Preference
             icon={Languages}
             label={t("languageSelector.label")}
+            reading={reading}
             preference={language}
             options={PREFERENCES.map((value) => ({
               value,
@@ -167,6 +174,7 @@ function Preferences({
           <Preference
             icon={SunMoon}
             label={t("themeSelector.label")}
+            reading={reading}
             preference={theme}
             options={THEME_PREFERENCES.map((value) => ({
               value,
@@ -189,16 +197,24 @@ export function AccountMenu({ account, language, theme }: AccountMenuProps) {
   const forgetTasks = useForgetTasks();
   const [pending, startTransition] = useTransition();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
+  // A write lost once sent: the menu waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(outcome);
   const name = useAccountNaming().person(account);
   const mark = initials(account, locale);
   const write = (apply: () => Promise<Written>) => {
+    if (reading) {
+      return;
+    }
     startTransition(async () => {
-      setOutcome(await apply().catch(rejected));
+      setOutcome(await apply().catch(rejectedWrite()));
     });
   };
   const leave = () => {
+    if (reading) {
+      return;
+    }
     startTransition(async () => {
-      const closed = await signOut().catch(rejected);
+      const closed = await signOut().catch(rejectedWrite());
       if (closed.kind !== "left") {
         setOutcome(closed);
         return;
@@ -221,7 +237,7 @@ export function AccountMenu({ account, language, theme }: AccountMenuProps) {
                 ? t("accountMenu.labelWithoutInitials", { name })
                 : t("accountMenu.label", { name, initials: mark })
             }
-            aria-busy={pending}
+            aria-busy={pending || reading}
           >
             <Avatar aria-hidden="true">
               <AvatarFallback>{mark}</AvatarFallback>
@@ -239,7 +255,7 @@ export function AccountMenu({ account, language, theme }: AccountMenuProps) {
               <span className="truncate text-xs text-muted-foreground">{account.email}</span>
             </span>
           </DropdownMenuLabel>
-          <Preferences language={language} theme={theme} write={write} />
+          <Preferences language={language} theme={theme} write={write} reading={reading} />
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             {ACCOUNT_PAGES.map(({ page, route, label }) => {
@@ -259,7 +275,7 @@ export function AccountMenu({ account, language, theme }: AccountMenuProps) {
             })}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={leave}>
+          <DropdownMenuItem disabled={reading} onSelect={leave}>
             <LogOut aria-hidden="true" />
             {t("accountMenu.signOut")}
           </DropdownMenuItem>
@@ -268,6 +284,7 @@ export function AccountMenu({ account, language, theme }: AccountMenuProps) {
       <div className="order-last basis-full empty:hidden">
         <OutcomeNotice
           outcome={outcome}
+          reading={reading}
           onClear={() => {
             setOutcome(undefined);
           }}

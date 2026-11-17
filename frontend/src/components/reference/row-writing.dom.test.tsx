@@ -23,6 +23,7 @@ import {
   held,
   type Problem,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import { CommandedList, useAnswered, useRowCommand } from "./commands";
 import { type Calendar, type OrgNode } from "./resource-grids";
@@ -172,6 +173,8 @@ afterEach(() => {
   failing.until = undefined;
   refresh.mockClear();
 });
+
+beforeEach(browserOffline);
 
 describe("a row of the reference data being written", () => {
   it.each([

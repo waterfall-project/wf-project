@@ -14,10 +14,11 @@
 import { type Browser, expect, type Locator, type Page, test } from "@playwright/test";
 
 import catalogue from "../messages/fr.json" with { type: "json" };
+import { WORKING } from "./bounds";
 import type { Locale } from "../src/i18n/locale";
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
-import { setExpanded, WORKING } from "./hydration";
+import { setExpanded } from "./hydration";
 import { rowAt } from "./scroll";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";

@@ -14,11 +14,18 @@ import { LAST_CONTEXT_COOKIE } from "@/navigation/context";
 import { loadDocument } from "@/navigation/document";
 import { createIdentityProvider } from "@/session/provider";
 import { SessionLost } from "@/session/tokens";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  refusedConnection,
+} from "@/test/fixtures";
 import { TEST_SETTINGS } from "@/test/identity-provider";
 import { cookieJar } from "@/test/session";
 
 import { tasksRegion } from "@/test/task-panel";
+import { browserOffline } from "@/test/offline";
 
 import { Shell } from "./shell";
 
@@ -129,6 +136,8 @@ beforeEach(() => {
   document.cookie = `${LAST_CONTEXT_COOKIE}=${encodeURIComponent(SCREEN)}; path=/`;
 });
 
+beforeEach(browserOffline);
+
 describe("signing out from the menu of the account", () => {
   it("closes the session, forgets the last project, the tasks and the messages of the tab, and loads the sign-in page", async () => {
     const client = serve({ [SIGN_OUT]: { status: 204 }, "GET /tasks/{task_id}": "task_running" });
@@ -179,7 +188,7 @@ describe("signing out from the menu of the account", () => {
   it("says the API out of reach, and keeps what the session left, which still stands", async () => {
     server.client = createApiClient({
       address: "http://unreachable.invalid",
-      fetch: () => Promise.reject(new TypeError("fetch failed")),
+      fetch: () => Promise.reject(refusedConnection()),
     });
     shell();
     await signOut();

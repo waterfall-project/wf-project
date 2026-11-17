@@ -312,7 +312,7 @@ Décisions de l'auteur du 2026-11-15, sauf mention « recadrage », qui sont du 
   les numéros de lots d'EP-06, d'EP-07 et d'EP-09 que cite la suite sont tous fusionnés, et se
   lisent comme l'origine d'un fichier, non comme une attente.
 - **Les migrations ne portent plus de numéro dans ce fichier** (recadrage). `0028` est prise par
-  EP-24, `0029` par EP-25, `0030` par EP-26. Le socle chaîne celle de `revision_indicator` sur la
+  EP-24, `0029` et `0030` par EP-25, `0031` par EP-26. Le socle chaîne celle de `revision_indicator` sur la
   dernière de `main` au moment où il se livre ; celle de la capacité (US-2410) se chaîne sur elle.
   Partout où la suite dit `0028`, lire « la migration du socle ».
 - **Le jour courant est celui du fuseau de l'installation** (US-2200 d'EP-25) : la date de calcul

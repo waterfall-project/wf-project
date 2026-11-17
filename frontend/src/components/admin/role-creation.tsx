@@ -21,6 +21,7 @@ import type { components } from "@/api/generated/schema";
 import { useHeldCommand } from "@/components/commands/held";
 import { useNoteRefusal } from "@/components/commands/outcome-notice";
 import { parsedEntry } from "@/components/grid/cell-values";
+import { useListReading } from "@/components/reference/list-reading";
 import { useListReport } from "@/components/reference/reactivation";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,6 +68,8 @@ export function RoleCreation({
   // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
   // whose end would wait for every other write of the table under way (#1484).
   const [busy, setBusy] = useState(false);
+  // A write of the list lost once sent: the list is read anew, and this waits until it is back (US-2240).
+  const reading = useListReading();
   // Asked anew at each refusal: the field takes the focus after the commit that says its refusal,
   // described by it as it is heard (#1484).
   const [focused, setFocused] = useState<object>();
@@ -88,7 +91,7 @@ export function RoleCreation({
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (busy) {
+    if (busy || reading) {
       return;
     }
     const parsed = parsedEntry({ type: "text", maxLength: LABEL_LENGTH }, label, locale);
@@ -179,7 +182,11 @@ export function RoleCreation({
               <X aria-hidden="true" />
               {form("cancel")}
             </Button>
-            <Button type="submit" aria-busy={busy}>
+            <Button
+              type="submit"
+              aria-busy={busy || reading}
+              aria-disabled={reading ? true : undefined}
+            >
               <Plus aria-hidden="true" />
               {form(busy ? "sending" : "create")}
             </Button>

@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 
     from waterfall.core.planning.interface.facets import LineSort
     from waterfall.core.planning.scheduling import UnitConstants
+    from waterfall.core.planning.tree import NodeColumns, TaskColumns
     from waterfall.core.planning.views import Reading
 
 type Bounds[T] = tuple[T | None, T | None]
@@ -112,13 +113,15 @@ def _searched(
     return frozenset(session.scalars(found))
 
 
-def _subtree(reading: Reading, root: UUID) -> frozenset[UUID]:
+def _subtree[N: NodeColumns, T: TaskColumns](reading: Reading[N, T], root: UUID) -> frozenset[UUID]:
     """Give the subtree of a task of the structure, the task included; nothing for another."""
     tree = reading.tree
     return frozenset(tree.subtree(root)) if root in tree.tasks else frozenset()
 
 
-def _carrying(reading: Reading, column: str, item: UUID) -> frozenset[UUID]:
+def _carrying[N: NodeColumns, T: TaskColumns](
+    reading: Reading[N, T], column: str, item: UUID
+) -> frozenset[UUID]:
     """Give the subtree of the task that bears a work package or an order item (WF-PLA-0170)."""
     tree = reading.tree
     for node_id, task in tree.tasks.items():
@@ -127,8 +130,8 @@ def _carrying(reading: Reading, column: str, item: UUID) -> frozenset[UUID]:
     return frozenset()
 
 
-def _predicates(
-    reading: Reading, filters: NodeFilters, constants: UnitConstants
+def _predicates[N: NodeColumns, T: TaskColumns](
+    reading: Reading[N, T], filters: NodeFilters, constants: UnitConstants
 ) -> list[Callable[[UUID], bool]]:
     """Give the tests of a task the filters ask for, each on the task alone."""
     tree = reading.tree
@@ -168,10 +171,10 @@ def _predicates(
     return tests
 
 
-def retained(
+def retained[N: NodeColumns, T: TaskColumns](
     session: Session,
     structure: tuple[UUID, UUID],
-    reading: Reading,
+    reading: Reading[N, T],
     filters: NodeFilters,
     constants: UnitConstants,
 ) -> Retained:
@@ -215,8 +218,12 @@ def retained(
     return Retained(order, counted, lines, frozenset(kept))
 
 
-def _lines(
-    session: Session, project_id: UUID, reading: Reading, kept: set[UUID], asked: object | None
+def _lines[N: NodeColumns, T: TaskColumns](
+    session: Session,
+    project_id: UUID,
+    reading: Reading[N, T],
+    kept: set[UUID],
+    asked: object | None,
 ) -> frozenset[UUID]:
     """Give the lines the tasks retained bear that the filters of their facets retain."""
     tree = reading.tree
@@ -231,8 +238,12 @@ def _lines(
     return frozenset(found)
 
 
-def _sorted(
-    session: Session, project_id: UUID, reading: Reading, order: list[UUID], sort: LineSort
+def _sorted[N: NodeColumns, T: TaskColumns](
+    session: Session,
+    project_id: UUID,
+    reading: Reading[N, T],
+    order: list[UUID],
+    sort: LineSort,
 ) -> list[UUID]:
     """Sort the lines under each task by the hooks of their facets; the tasks keep their place.
 

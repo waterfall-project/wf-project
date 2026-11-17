@@ -23,7 +23,7 @@ import { startTransition, useCallback, useEffect, useRef, useState } from "react
 import { updateGridPreferences } from "@/api/actions/preferences";
 import type { components } from "@/api/generated/schema";
 import type { Settled } from "@/api/problem";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedWrite } from "@/components/commands/rejection";
 
 import { MAX_WIDTH, MIN_WIDTH, WIDEST } from "./columns";
 import { pageSizeOf } from "./query";
@@ -214,7 +214,7 @@ export function useKeptWriter<P>(
     async (sent: P) => {
       latest.current += 1;
       const order = latest.current;
-      const result = await write(grid, sent).catch(rejected);
+      const result = await write(grid, sent).catch(rejectedWrite());
       if (order === latest.current) {
         setOutcome(result.kind === "done" ? undefined : result);
       }

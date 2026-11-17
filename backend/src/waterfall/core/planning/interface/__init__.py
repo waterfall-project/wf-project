@@ -40,8 +40,14 @@ from waterfall.core.planning.interface.closing import (
     delete_nodes as delete_nodes,
 )
 
-# ``facets`` (US-1380/L1; read by US-1380/L2; completed by US-1490/L3): the facets of a node
-# other than the task (EP-07).
+# ``copying`` (US-1380/L2; moved out of ``nodes`` and written as one statement a table by
+# US-2240/L2): the copy of the nodes of a revision opened from a marked one.
+from waterfall.core.planning.interface.copying import (
+    copy_nodes as copy_nodes,
+)
+
+# ``facets`` (US-1380/L1; read by US-1380/L2; completed by US-1490/L3, US-2260/L3, US-2280/L1): the
+# facets of a node other than the task (EP-07).
 from waterfall.core.planning.interface.facets import (
     Amounts as Amounts,
 )
@@ -56,6 +62,9 @@ from waterfall.core.planning.interface.facets import (
 )
 from waterfall.core.planning.interface.facets import (
     CellsPasted as CellsPasted,
+)
+from waterfall.core.planning.interface.facets import (
+    FacetColumns as FacetColumns,
 )
 from waterfall.core.planning.interface.facets import (
     FacetCreation as FacetCreation,
@@ -76,6 +85,12 @@ from waterfall.core.planning.interface.facets import (
     LineSort as LineSort,
 )
 from waterfall.core.planning.interface.facets import (
+    RepricedBeyondColumnError as RepricedBeyondColumnError,
+)
+from waterfall.core.planning.interface.facets import (
+    Tally as Tally,
+)
+from waterfall.core.planning.interface.facets import (
     calendar_of as calendar_of,
 )
 from waterfall.core.planning.interface.facets import (
@@ -89,6 +104,17 @@ from waterfall.core.planning.interface.facets import (
 )
 from waterfall.core.planning.interface.facets import (
     register_facet as register_facet,
+)
+
+# ``kept_readings`` (US-2270/L1): the reading of a structure of a marked revision, kept.
+from waterfall.core.planning.interface.kept_readings import (
+    KeptReading as KeptReading,
+)
+from waterfall.core.planning.interface.kept_readings import (
+    keep_reading as keep_reading,
+)
+from waterfall.core.planning.interface.kept_readings import (
+    kept_reading as kept_reading,
 )
 
 # ``lines`` (US-1380/L1; US-1490/L3, L4; US-1550/L3): the lines of a task, their place, their
@@ -230,9 +256,6 @@ from waterfall.core.planning.interface.nodes import (
     computed_value_dependencies as computed_value_dependencies,
 )
 from waterfall.core.planning.interface.nodes import (
-    copy_nodes as copy_nodes,
-)
-from waterfall.core.planning.interface.nodes import (
     create_node as create_node,
 )
 from waterfall.core.planning.interface.nodes import (
@@ -249,6 +272,9 @@ from waterfall.core.planning.interface.nodes import (
 )
 from waterfall.core.planning.interface.nodes import (
     move_nodes as move_nodes,
+)
+from waterfall.core.planning.interface.nodes import (
+    read_defaults as read_defaults,
 )
 from waterfall.core.planning.interface.nodes import (
     resolve_row_number as resolve_row_number,
@@ -461,15 +487,29 @@ from waterfall.core.planning.interface.work_breakdown import (
     detach_work_breakdown_item as detach_work_breakdown_item,
 )
 from waterfall.core.planning.interface.work_breakdown import (
+    hold_work_breakdown_items as hold_work_breakdown_items,
+)
+from waterfall.core.planning.interface.work_breakdown import (
+    share_work_breakdown_revision as share_work_breakdown_revision,
+)
+from waterfall.core.planning.interface.work_breakdown import (
     work_breakdown_item_cited as work_breakdown_item_cited,
 )
 from waterfall.core.planning.interface.work_breakdown import (
     work_package_lines as work_package_lines,
 )
 
-# Beside the interface (US-1530): a structure read whole, and what a reading's filters retain of it.
+# Beside the interface (US-1530; US-2220/L2): a structure read whole, and what a reading's filters
+# retain of it; a reading of a structure, its nodes as flat records, which the API writes the body
+# of ``listNodes`` from, and a node as it is read made a record (``record_of``, with the views).
+from waterfall.core.planning.reading import (
+    NodeRecords as NodeRecords,
+)
 from waterfall.core.planning.reading import (
     StructureRead as StructureRead,
+)
+from waterfall.core.planning.reading import (
+    list_records as list_records,
 )
 from waterfall.core.planning.reading import (
     read_structure as read_structure,
@@ -498,6 +538,12 @@ from waterfall.core.planning.views import (
     ConflictView as ConflictView,
 )
 from waterfall.core.planning.views import (
+    FacetRecord as FacetRecord,
+)
+from waterfall.core.planning.views import (
+    NodeRecord as NodeRecord,
+)
+from waterfall.core.planning.views import (
     NodeView as NodeView,
 )
 from waterfall.core.planning.views import (
@@ -507,10 +553,16 @@ from waterfall.core.planning.views import (
     ScheduleView as ScheduleView,
 )
 from waterfall.core.planning.views import (
+    TaskRecord as TaskRecord,
+)
+from waterfall.core.planning.views import (
     TaskView as TaskView,
 )
 from waterfall.core.planning.views import (
     TrackingView as TrackingView,
+)
+from waterfall.core.planning.views import (
+    record_of as record_of,
 )
 from waterfall.core.planning.writing import (
     InflationView as InflationView,
@@ -551,7 +603,14 @@ register_tasks_and_lines("tasks", revision_has_tasks)
 register_closing("content", delete_nodes)
 register_idle_task_guard(tasks_left_idle)
 register_recalculation(reschedule_current_structures)
-register_attachments(Attachments(work_breakdown_item_cited, detach_work_breakdown_item))
+register_attachments(
+    Attachments(
+        work_breakdown_item_cited,
+        detach_work_breakdown_item,
+        hold_work_breakdown_items,
+        share_work_breakdown_revision,
+    )
+)
 register_opening_question(opening_with_tasks)
 register_format("ms_project_schedule", MS_PROJECT_FORMAT)
 register_exporter("ms_project_schedule", MS_PROJECT_EXPORTER)

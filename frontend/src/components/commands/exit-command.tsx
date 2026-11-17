@@ -18,7 +18,9 @@
  * project (409): the offers it shows are the server's again, and a confirmation whose exit is no
  * longer available closes, the focus back on its command. What the API answered stays said under
  * the command — the new state, or the refusal (`OutcomeNotice`) —, whether the confirmation is
- * still open or not.
+ * still open or not. An exit whose connection was lost once sent may have been applied: the screen
+ * is read anew, and the command and its confirmation wait until it is (US-2240), the command
+ * inactive as while a write is under way (`writing`).
  */
 "use client";
 
@@ -40,10 +42,11 @@ import type { ProjectState } from "@/navigation/home";
 
 import { Command } from "./command";
 import { EXIT_STATES, type ExitCommandName } from "./exits";
+import { heldAttributes } from "./held-attributes";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "./icons";
 import type { CommandOffer } from "./offer";
-import { type ObjectNames, OutcomeNotice } from "./outcome-notice";
-import { rejected } from "./rejection";
+import { type ObjectNames, OutcomeNotice, useReadAnew } from "./outcome-notice";
+import { rejectedWrite } from "./rejection";
 
 /** An exit the project lists, and what it offers of it. */
 export interface ExitOffer {
@@ -85,6 +88,11 @@ interface ExitFormProps {
   readonly onDone: (state: ProjectState, marking?: string) => void;
   /** What of a refusal is no field's to say: none when every refusal is said at its field. */
   readonly onRefused: (outcome: Outcome<unknown> | undefined) => void;
+  /**
+   * Whether the screen is read anew after an exit whose connection was lost once sent (US-2240,
+   * `useReadAnew`): the confirmation waits, and a press runs nothing.
+   */
+  readonly reading: boolean;
 }
 
 const FIELD = "max-w-md";
@@ -164,6 +172,7 @@ function ExitForm({
   onClose,
   onDone,
   onRefused,
+  reading,
 }: ExitFormProps) {
   const t = useTranslations();
   const field = useId();
@@ -207,7 +216,7 @@ function ExitForm({
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (busy) {
+    if (busy || reading) {
       return;
     }
     // The fate of the revision is the user's choice (WF-CYC-0090-A), and a marking needs its
@@ -244,7 +253,7 @@ function ExitForm({
     const command = () => exitProject(projectId, exit);
     setBusy(true);
     void command()
-      .catch(rejected)
+      .catch(rejectedWrite())
       .then((result) => {
         setBusy(false);
         if (result.kind !== "done") {
@@ -264,7 +273,7 @@ function ExitForm({
     <form
       id={id}
       aria-label={t(`enums.ProjectCommand.${command}`)}
-      aria-busy={busy}
+      aria-busy={busy || reading}
       noValidate
       onSubmit={submit}
       className="max-w-xl space-y-2 rounded-md border p-3 text-sm"
@@ -356,7 +365,12 @@ function ExitForm({
         </fieldset>
       ) : null}
       <div className="flex gap-2">
-        <Button type="submit" size="sm" aria-describedby={statement}>
+        <Button
+          type="submit"
+          size="sm"
+          aria-describedby={statement}
+          {...heldAttributes(busy, reading)}
+        >
           {commandIcon(PROJECT_COMMAND_ICONS[command])}
           {t("exitProject.submit")}
         </Button>
@@ -416,6 +430,10 @@ function ExitCommand({
   // The task that marks the revision, which the exit waits for: it applies when it succeeds.
   const [marking, setMarking] = useState<{ readonly task: string; readonly state: ProjectState }>();
   const button = useRef<HTMLButtonElement>(null);
+  // An exit lost once sent: the screen is read anew before the exit can be confirmed or opened
+  // again (US-2240) — read here, where it stays mounted, rather than by the notice, and the
+  // confirmation waits as long as the command.
+  const reading = useReadAnew(outcome);
   // The page read again may no longer offer the exit: its confirmation closes.
   const shown = open && offer.is_available;
   const withdrawn = open && !offer.is_available;
@@ -442,6 +460,7 @@ function ExitCommand({
         help={t(`commands.project.${command}.help`)}
         icon={commandIcon(PROJECT_COMMAND_ICONS[command])}
         names={names}
+        writing={reading}
         disclosure={{
           expanded: shown,
           controls: form,
@@ -481,11 +500,13 @@ function ExitCommand({
             close();
           }}
           onRefused={setOutcome}
+          reading={reading}
         />
       ) : null}
       <OutcomeNotice
         outcome={outcome}
         names={names}
+        reading={reading}
         onClear={() => {
           setOutcome(undefined);
         }}

@@ -4,7 +4,7 @@ import { render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
@@ -23,6 +23,7 @@ import {
 } from "@/test/fixtures";
 
 import { updateReferenceSettings } from "@/api/actions/reference";
+import { browserOffline } from "@/test/offline";
 import { InstallationFacts } from "./installation-facts";
 import { IndicatorSettings, InstallationSettings, RiskSettings } from "./settings-forms";
 
@@ -135,6 +136,8 @@ afterEach(() => {
   refresh.mockClear();
   router.refresh.mockClear();
 });
+
+beforeEach(browserOffline);
 
 describe("the form of the risk matrix", () => {
   it("modifies the six bounds and the zones, sends the matrix alone with the version read, and shows the answer in place of the reading [WF-REF-0160-A]", async () => {

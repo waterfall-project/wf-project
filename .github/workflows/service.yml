@@ -143,6 +143,26 @@ jobs:
         with:
           name: front-build
           path: frontend/.next/
+      # The processors of the runner, in the log of the job, beside what shares them (US-2290, #3172):
+      # three workers of Playwright, three quarters of them (E2E_SERVICE_WORKERS), and the processes
+      # of the API of the service platform (WATERFALL_API_PROCESSES, US-2230; four is the default of
+      # compose.service.yaml, and the log prints what the platform is given, not that four), as many
+      # as the processors, with the front, Prism and Keycloak. The workers follow the processors of
+      # a runner, the API does not: the log shows an accord that broke. Neither this step nor the
+      # `env:` of `make check-service` sets E2E_WORKERS or E2E_SERVICE_PROCESSORS (its TIER, SHARD,
+      # E2E_BUILT and E2E_IMAGE do not enter the count): both read the same workers; a variable set
+      # in one of them would have to go to the `env:` of the job. Not saturated by them: in the
+      # queue of 2026-11-15 and 16, the parts at four processes (epic/EP-26, 16 runs) took 10.4,
+      # 9.4, 9.1 and 7.2 minutes in the median, against 11.7, 10.4, 9.5 and 8.1 at one (the other
+      # branches, 78 runs); a slower part, the sign of a runner saturated, would show here what it
+      # was given. The count is read in its own assignment under `set -e`: a `make` that fails (a
+      # secret removed from the `env:` of the job) fails the step, it does not print an empty count.
+      - name: Processors of the runner
+        run: |
+          set -e
+          workers=$(make --no-print-directory -s e2e-service-workers)
+          api=$(make --no-print-directory -s service-api-processes)
+          echo "nproc $(nproc), workers of the paths $workers, processes of the API $api"
       # The front ci.yml built: the harness starts it, and builds nothing (playwright.config.ts).
       - run: make check-service
         env:

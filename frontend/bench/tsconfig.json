@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "incremental": false,
+    "plugins": [],
+    "types": ["node", "k6"]
+  },
+  "include": ["./**/*.ts", "../src/i18n/next-intl.d.ts"]
+}
