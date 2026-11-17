@@ -20,12 +20,17 @@ import json
 import os
 import subprocess
 import sys
+from typing import TYPE_CHECKING
 
 import pytest
 
 from wftools import REPOSITORY, guard
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 GUARD = REPOSITORY / "tools" / "src" / "wftools" / "guard.py"
+GUARDGIT = GUARD.with_name("guardgit.py")
 SETTINGS = REPOSITORY / ".claude" / "settings.json"
 HOOK = 'python3 "$CLAUDE_PROJECT_DIR/tools/src/wftools/launch.py" guard || exit 2'
 
@@ -380,16 +385,36 @@ def test_the_hook_runs_the_guard_as_claude_code_does(command: str, code: int) ->
     assert ("`pkill`" in ran.stderr) == (code == 2)
 
 
-def test_the_guard_imports_the_standard_library_alone() -> None:
-    """US-1310: the guard stays a script of the standard library, under 1,000 lines."""
-    text = GUARD.read_text(encoding="utf-8")
-    nodes = list(ast.walk(ast.parse(text)))
+def imported_by(path: Path) -> set[str]:
+    """Return the modules a file imports, each by its full name, ``from`` imports included."""
+    nodes = list(ast.walk(ast.parse(path.read_text(encoding="utf-8"))))
     imports = [node for node in nodes if isinstance(node, ast.Import)]
     imported = {alias.name for node in imports for alias in node.names}
     imported |= {node.module or "" for node in nodes if isinstance(node, ast.ImportFrom)}
-    assert imported
-    assert {name.split(".")[0] for name in imported} <= sys.stdlib_module_names
-    assert len(text.splitlines()) <= 1000
+    # `from wftools import guardgit` imports the module beside it.
+    imported |= {
+        f"{node.module}.{alias.name}"
+        for node in nodes
+        if isinstance(node, ast.ImportFrom) and node.module == "wftools"
+        for alias in node.names
+    }
+    return imported - {"wftools"}
+
+
+def test_the_guard_imports_the_standard_library_and_the_module_beside_it_alone() -> None:
+    """US-1310: the guard stays a script of the standard library; US-2450: under 1,000 lines.
+
+    The forms that reach `.git` are judged by `guardgit.py`, beside it (US-2450): the guard
+    imports it by the package, or by its own name when the hook runs the guard by its path. That
+    module imports the standard library alone, and each file stays under 1,000 lines.
+    """
+    beside = {"guardgit", "wftools.guardgit"}
+    imported = imported_by(GUARD)
+    assert beside <= imported
+    assert {name.split(".")[0] for name in imported - beside} <= sys.stdlib_module_names
+    assert {name.split(".")[0] for name in imported_by(GUARDGIT)} <= sys.stdlib_module_names
+    for path in (GUARD, GUARDGIT):
+        assert len(path.read_text(encoding="utf-8").splitlines()) <= 1000, path.name
 
 
 @pytest.mark.parametrize(
