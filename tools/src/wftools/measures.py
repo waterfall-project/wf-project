@@ -67,7 +67,9 @@ the entry of the scope of the project, which ``getProjectIndicators`` reads; ``a
 ``cold_all_s`` and ``hot_all_s`` those of the entries of every scope, which the evolution of the
 indices without a scope reads. The extrapolation is linear for every scope, never taken on a larger
 set; a scope alone does not depend on the number of subprojects, its figures repeated. One scope
-read cold over the objective of the operation is a finding, as a median over it.
+read cold over the objective of the operation is a finding, as a median over it; it is documented
+by the ``note`` of the ``cache`` object alone, and the ``note`` of the operation documents only the
+median over the objective and the degradation.
 """
 
 import json
@@ -127,7 +129,10 @@ CACHE_FIGURES = (
 )
 CACHE_ROW = ("subprojects", *CACHE_FIGURES)
 FIXED_SCOPES = 2
-"""The scopes a project has beside its subprojects: itself, and its lines without a subproject."""
+"""The scopes a project has beside its subprojects: itself, and its lines without a subproject.
+
+Also defined, for the same count, in ``backend/measure/indicators.py``: keep the two equal.
+"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,6 +144,7 @@ class Cache:
     cell_bytes: float
     all_bytes: float
     extrapolated: int
+    note: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -204,12 +210,23 @@ def _cache(entry: dict[str, object], where: str) -> Cache:
         message = f"{here}: extrapolation is a list of sizes extrapolated, one at least"
         raise TypeError(message)
     listed = cast("list[object]", rows)
+    sizes: list[float] = []
     for row in listed:
         if not isinstance(row, dict):
             message = f"{here}: a row of extrapolation is an object, not {row!r}"
             raise TypeError(message)
-        for key in CACHE_ROW:
-            _number(cast("dict[str, object]", row), key, f"{here}, extrapolation")
+        figures_of_row = {
+            key: _number(cast("dict[str, object]", row), key, f"{here}, extrapolation")
+            for key in CACHE_ROW
+        }
+        sizes.append(figures_of_row["subprojects"])
+    if sizes != sorted(sizes):
+        message = f"{here}: the rows of extrapolation are sorted by subprojects, ascending"
+        raise ValueError(message)
+    note = given.get("note", "")
+    if not isinstance(note, str):
+        message = f"{here}: note must be a text"
+        raise TypeError(message)
     if figures["scopes"] != figures["subprojects"] + FIXED_SCOPES:
         message = f"{here}: scopes are the subprojects, the project and its own lines"
         raise ValueError(message)
@@ -222,6 +239,7 @@ def _cache(entry: dict[str, object], where: str) -> Cache:
         figures["cell_bytes"],
         figures["all_bytes"],
         len(listed),
+        note.strip(),
     )
 
 
@@ -305,7 +323,12 @@ def read(directory: Path) -> list[Report]:
 
 
 def confront(latest: Report, previous: Report | None) -> list[Finding]:
-    """Return what the latest report exceeds or degrades, and whether its notes document it."""
+    """Return what the latest report exceeds or degrades, and whether its notes document it.
+
+    Each kind of finding has its own note: the median over its objective, and a degradation, the
+    ``note`` of the operation; one scope read cold over the objective, the ``note`` of its
+    ``cache``.
+    """
     findings: list[Finding] = []
     for line in TABLE:
         measured = latest.operations[line.id]
@@ -326,7 +349,7 @@ def confront(latest: Report, previous: Report | None) -> list[Finding]:
                 f"{line.label}: the entry of one scope read cold, {cache.cold_cell_s:g} s, is "
                 f"above the objective of {line.objective_s:g} s"
             )
-            findings.append(Finding(line.id, text, documented))
+            findings.append(Finding(line.id, text, bool(cache.note)))
         if previous is None or before is None:
             continue
         if median > before * DEGRADATION:

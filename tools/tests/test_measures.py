@@ -414,7 +414,11 @@ def test_one_scope_read_cold_over_the_objective_is_signalled_and_fails_unless_do
     code, out = run(tmp_path, capsys)
     assert code == 1
     assert "the entry of one scope read cold, 1.5 s" in out
-    _indicators(slow)["note"] = "one scope read cold is over its objective: an issue to settle"
+    _indicators(slow)["note"] = "a note of the operation, which does not speak of the cache"
+    write(tmp_path, slow)
+    code, _ = run(tmp_path, capsys)
+    assert code == 1
+    cast("dict[str, Any]", _indicators(slow)["cache"])["note"] = "an issue to settle"
     write(tmp_path, slow)
     code, _ = run(tmp_path, capsys)
     assert code == 0
@@ -422,7 +426,8 @@ def test_one_scope_read_cold_over_the_objective_is_signalled_and_fails_unless_do
 
 @pytest.mark.requirement("WF-QUA-0060-A")
 @pytest.mark.parametrize(
-    "change", ["missing", "scopes", "no-rows", "negative", "lighter", "row", "elsewhere"]
+    "change",
+    ["missing", "scopes", "no-rows", "negative", "lighter", "row", "elsewhere", "unsorted", "note"],
 )
 def test_a_cost_of_the_cache_that_does_not_hold_is_refused(change: str) -> None:
     body = report("0.5.0")
@@ -440,6 +445,10 @@ def test_a_cost_of_the_cache_that_does_not_hold_is_refused(change: str) -> None:
         given["all_bytes"] = 10
     elif change == "row":
         del given["extrapolation"][0]["cold_cell_s"]
+    elif change == "unsorted":
+        given["extrapolation"].append({**given["extrapolation"][0], "subprojects": 50})
+    elif change == "note":
+        given["note"] = 3
     else:
         other = next(
             each
