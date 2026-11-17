@@ -235,14 +235,14 @@ describe("the answers laid over the comparison read anew", () => {
     };
   }
 
-  it("lets the answers taken before the reading was asked give way to it, and keeps over it the one given since [WF-IHM-0150-A]", async () => {
-    const reread = vi.fn();
+  /** The hook of the writes on the first reading, which reads anew as `reread` says, and a write. */
+  function entered(reread: () => void) {
     const rules: CellRules<EstimateNode, NodeTotals> = {
       rowKey: nodeKey,
       fresher: nodeFresher,
       reread,
     };
-    const { result, rerender } = renderHook(
+    const hook = renderHook(
       (reading: CellReading<EstimateNode, NodeTotals>) => useCellWrites(reading, rules),
       {
         initialProps: first,
@@ -254,29 +254,80 @@ describe("the answers laid over the comparison read anew", () => {
       },
     );
     const write = async (entry: CellEntry<EstimateNode, NodeTotals>, value: string) => {
-      const row = result.current.rows[WIRING];
+      const row = hook.result.current.rows[WIRING];
       if (row === undefined) {
         throw new Error("the comparison holds the wiring on site");
       }
       await act(async () => {
-        result.current.write({ row, column: "hours", entry, value, shown: value });
+        hook.result.current.write({ row, column: "hours", entry, value, shown: value });
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
     };
-    const earlier = answering(() => redated);
-    await write(earlier, "121");
-    expect(reread).toHaveBeenCalledTimes(1);
-    // The summary as the write answered it, at the version read: no mark of the comparison.
-    expect(result.current.rows[SUMMARY]?.base).toBeUndefined();
-    // A write answered after the reading was asked, before the reading arrives.
-    await write(answering(later), "130");
+    return { ...hook, write };
+  }
+
+  /** The later write answering besides the summaries above the line, recalculated at their version. */
+  function laterRecalculated(from: EstimateNode): RowsWritten<EstimateNode, NodeTotals> {
+    return { ...later(from), changed: redated.changed };
+  }
+
+  /** The reading read once the later write was done: the line at the version it answered. */
+  function readSince(): CellReading<EstimateNode, NodeTotals> {
+    const read = structuredClone(rows.items);
+    const wiring = read[WIRING];
+    if (wiring?.estimate_line === null || wiring?.estimate_line === undefined) {
+      throw new Error("the comparison holds the wiring on site");
+    }
+    const { estimate_line: line } = wiring;
+    return {
+      ...first,
+      rows: read.map((row, at) =>
+        at === WIRING
+          ? { ...row, lock_version: row.lock_version + 1, estimate_line: { ...line, hours: "130" } }
+          : row,
+      ),
+    };
+  }
+
+  it("answers two readings asked with one read, the summaries the second write recalculated not kept on their marks [WF-IHM-0150-A]", async () => {
+    const reread = vi.fn();
+    const { result, rerender, write } = entered(reread);
+    await write(
+      answering(() => redated),
+      "121",
+    );
+    await write(answering(laterRecalculated), "130");
     expect(reread).toHaveBeenCalledTimes(2);
-    rerender({ ...first, rows: structuredClone(rows.items) });
-    // The reading asked first takes the place of what was answered before it was asked — the
-    // summary, whose version says nothing — and the answer given since stays laid over it.
+    expect(result.current.rows[SUMMARY]?.base).toBeUndefined();
+    // The router reads once for both: the reading holds the later write.
+    rerender(readSince());
     expect(result.current.rows[SUMMARY]?.base).toEqual(rows.items[SUMMARY]?.base);
-    expect(rows.items[SUMMARY]?.base).toBeTruthy();
     expect(result.current.rows[SUMMARY]?.difference).toBe("modified");
     expect(result.current.rows[WIRING]?.estimate_line?.hours).toBe("130");
+  });
+
+  it("answers the readings asked with the first read, and takes the place of the write done since the first was asked [WF-IHM-0150-A]", async () => {
+    const reread = vi.fn();
+    const { result, rerender, write } = entered(reread);
+    await write(
+      answering(() => redated),
+      "121",
+    );
+    await write(answering(laterRecalculated), "130");
+    // A reading older than the second write answers both demands: the summaries recalculated at
+    // their version give way to it, as the line the second write answered.
+    rerender({ ...first, rows: structuredClone(rows.items) });
+    expect(result.current.rows[SUMMARY]?.base).toEqual(rows.items[SUMMARY]?.base);
+    expect(result.current.rows[WIRING]?.estimate_line?.hours).toBe(
+      rows.items[WIRING]?.estimate_line?.hours,
+    );
+    // The reading of the second demand brings the line back, at the version answered.
+    rerender(readSince());
+    expect(result.current.rows[SUMMARY]?.base).toEqual(rows.items[SUMMARY]?.base);
+    expect(result.current.rows[WIRING]?.estimate_line?.hours).toBe("130");
+    // No demand left awaited: a write answered since stays over the reading anew.
+    await write(answering(laterRecalculated), "131");
+    expect(reread).toHaveBeenCalledTimes(3);
+    expect(result.current.rows[SUMMARY]?.base).toBeUndefined();
   });
 });

@@ -24,6 +24,15 @@
  * answer taken before it was asked, whatever their counters say: it takes their place, the marks it
  * carries with it, and only the answers given since stay laid over it.
  *
+ * Which reading answers which demand is not told: the router may read once for two demands close
+ * together, and a demand that fails reads nothing. So the first reading anew answers every demand
+ * awaited, and takes the place of every answer taken before the latest of them was asked: a summary
+ * a second write recalculated, at its version, never keeps out the marks of a reading read once for
+ * both, and no demand left unread waits for a reading that has nothing to do with it. A reading read
+ * for the first demand alone, before the second write was done, takes the place of that write too —
+ * its counters say nothing on a fake back, which keeps nothing — until the reading of the second
+ * demand brings it back.
+ *
  * Pure, and neither server nor client: the cells written keep one of these by address, and change
  * it in their callbacks alone — a render lays a copy over a reading anew (`copyAnswers`).
  */
@@ -61,10 +70,10 @@ export interface Answers<Row, Totals> {
   /** The rows of the reading by their key, made at the first answer that needs it. */
   index: ReadonlyMap<string, Row> | undefined;
   /**
-   * For each reading asked anew once the writes answered and not read yet, in the order asked, the
-   * place of the latest answer taken when it was asked: the reading takes the place of those.
+   * The place of the latest answer taken when the reading was last asked anew once the writes
+   * answered, until a reading anew: that reading takes the place of the answers up to it.
    */
-  readonly asked: number[];
+  asked: number;
 }
 
 /** No answer yet in a reading, and its totals. */
@@ -81,16 +90,16 @@ export function answersOf<Row, Totals>(
     totals: undefined,
     latest: Number.NEGATIVE_INFINITY,
     index: undefined,
-    asked: [],
+    asked: Number.NEGATIVE_INFINITY,
   };
 }
 
 /**
- * Note that the reading is asked anew once the writes answered: the next reading anew takes the
- * place of every answer taken so far (`reread`).
+ * Note that the reading is asked anew once the writes answered: the next reading anew, whichever
+ * demand it answers, takes the place of every answer taken so far (`reread`).
  */
 export function askedAnew<Row, Totals>(answers: Answers<Row, Totals>): void {
-  answers.asked.push(answers.latest);
+  answers.asked = answers.latest;
 }
 
 /** Whether an answer at a place comes after what was answered before, if anything was. */
@@ -258,7 +267,6 @@ export function copyAnswers<Row, Totals>(answers: Answers<Row, Totals>): Answers
     rows: new Map(answers.rows),
     writtenBy: new Map(answers.writtenBy),
     parts: new Map(answers.parts),
-    asked: [...answers.asked],
   };
 }
 
@@ -361,10 +369,11 @@ function forget<Row, Totals>(answers: Answers<Row, Totals>): void {
  * before did, the server having said nothing newer of it: a write answered before the reading
  * caught up, or the fake back, which keeps nothing. A part that judges by its own counter stays while
  * it changes the row read anew. A row the reading anew no longer holds is let go. A later answer
- * still prevails over an earlier one for the same row, as when they were taken. The reading asked
- * anew once the writes answered (`askedAnew`), the first awaited, catches up with every answer taken
- * before it was asked, whatever the counters say — a summary recalculated keeps its version, and
- * would keep out the marks of a comparison its answer does not carry.
+ * still prevails over an earlier one for the same row, as when they were taken. A reading anew once
+ * the reading was asked anew after the writes answered (`askedAnew`) answers every demand awaited,
+ * and catches up with every answer taken before the latest was asked, whatever the counters say — a
+ * summary recalculated keeps its version, and would keep out the marks of a comparison its answer
+ * does not carry.
  */
 export function reread<Row, Totals>(
   answers: Answers<Row, Totals>,
@@ -377,8 +386,10 @@ export function reread<Row, Totals>(
     return;
   }
   const now = new Map(reading.map((row) => [rowKey(row), row]));
-  // The first reading asked anew once the writes answered, if one is awaited, is this one.
-  const outdated = answers.asked.shift() ?? Number.NEGATIVE_INFINITY;
+  // Every reading asked anew and awaited is answered by this one: the router may have read once for
+  // several, and a demand that failed reads nothing.
+  const outdated = answers.asked;
+  answers.asked = Number.NEGATIVE_INFINITY;
   const judge = { rowKey, fresher, verdicts: verdictsOf(answers, now, rowKey, fresher, outdated) };
   for (const key of new Set([...answers.rows.keys(), ...answers.parts.keys()])) {
     rereadRow(answers, key, now.get(key), judge);
