@@ -173,9 +173,20 @@ describe("« Comparer à la révision lue » in the history [WF-IHM-0010-A] US-2
     ]);
   });
 
-  it("offers the grids the session may read alone, and nothing to a session that may read none", () => {
+  it("offers the grids the session may read alone, and nothing to a session that may read none", async () => {
     const { unmount } = history(["estimate.read"]);
     expect(screen.getAllByRole("button", { name: /^Comparer à la révision lue/ })).toHaveLength(2);
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Comparer à la révision lue\u00a0: «\u00a0Offre v1.0\u00a0»",
+      }),
+    );
+    const items = screen.getAllByRole("menuitem");
+    expect(items).toHaveLength(1);
+    expect(items[0]).toHaveTextContent("Chiffrage et devis");
+    expect(items[0]?.getAttribute("href")).toBe(
+      `/projects/${PROJECT}/revisions/${DRAFT}/estimate?base_revision_id=${OFFER}`,
+    );
     unmount();
     history([]);
     expect(screen.queryByRole("button", { name: /^Comparer à la révision lue/ })).toBeNull();
@@ -189,6 +200,13 @@ describe("« Comparer à la révision lue » in the history [WF-IHM-0010-A] US-2
     const names = screen.getAllByRole("button", { name: /^Comparer à la révision lue/ });
     expect(names).toHaveLength(1);
     expect(names[0]?.getAttribute("aria-label")).not.toContain("Offre v1.0");
-    expect(REFERENCE).not.toBe(OFFER);
+  });
+
+  it("leaves, on the revision read, the other marked revision as the base of its comparison", async () => {
+    history(["planning.read"], { ...CONTEXT, revisionId: OFFER });
+    await userEvent.click(screen.getByRole("button", { name: /^Comparer à la révision lue/ }));
+    expect(screen.getByRole("menuitem").getAttribute("href")).toBe(
+      `/projects/${PROJECT}/revisions/${OFFER}/planning?base_revision_id=${REFERENCE}`,
+    );
   });
 });
