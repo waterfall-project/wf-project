@@ -17,15 +17,7 @@ import { expect, type Page } from "@playwright/test";
 import { CLICKED } from "../usable";
 import { forget, gestureStart, LOADED } from "./steps";
 import type { Interval } from "./report";
-
-/** A section of a screen the script waits for, by the name the page gives it. */
-interface Watched {
-  readonly name: string;
-  /** Whether it holds a chart, which is hydrated and drawn before the section is usable. */
-  readonly chart: boolean;
-  /** Whether its top, or its chart's, must lie within the window. */
-  readonly windowed: boolean;
-}
+import { armScreen, type Watched } from "./screen-watch";
 
 /** A screen of the project: its step in the report, its link, its address, its sections. */
 interface Screen {
@@ -75,59 +67,10 @@ export const INDICATORS_STEP = INDICATORS.step;
 /** Where the script writes the moment the screen became usable. */
 const ARMED = "wfMeasureScreen";
 
-/** The arguments of the script that watches a screen. */
-interface Watch {
-  readonly sections: readonly Watched[];
-  readonly armed: string;
-}
-
-/**
- * Run in the page before the click: watch every frame until each section is usable, and write the
- * moment, on the clock of the operating system. Self-contained: Playwright hands its source to the
- * page.
- */
-function armScreen({ sections, armed }: Watch): void {
-  const slot = window as unknown as Record<string, number | null>;
-  slot[armed] = null;
-  const hydrated = (element: Element) =>
-    Object.keys(element).some((key) => key.startsWith("__reactProps$"));
-  const within = (element: Element) => {
-    const box = element.getBoundingClientRect();
-    return box.top >= 0 && box.top < innerHeight;
-  };
-  const usable = ({ name, chart, windowed }: Watched): boolean => {
-    const section = document.querySelector(
-      `section[aria-label="${name}"], [role="region"][aria-label="${name}"]`,
-    );
-    if (section === null) {
-      return false;
-    }
-    if (!chart) {
-      return !windowed || within(section);
-    }
-    if (![...section.querySelectorAll("button")].some(hydrated)) {
-      return false;
-    }
-    const drawn = section.querySelector('[role="img"]');
-    if (drawn === null) {
-      return section.querySelector("p") !== null;
-    }
-    return drawn.querySelector("svg path") !== null && (!windowed || within(drawn));
-  };
-  const frame = () => {
-    if (sections.every(usable)) {
-      slot[armed] = performance.timeOrigin + performance.now();
-      return;
-    }
-    requestAnimationFrame(frame);
-  };
-  requestAnimationFrame(frame);
-}
-
 /** Open a screen of the project by the navigation, from the screen shown: from the click. */
 async function opened(page: Page, { sections, link, address }: Screen): Promise<Interval> {
   await forget(page);
-  await page.evaluate(armScreen, { sections, armed: ARMED });
+  await page.evaluate(armScreen, { sections, address: address.source, armed: ARMED });
   await page
     .getByRole("navigation", { name: "Fonctions" })
     .getByRole("link", { name: link, exact: true })
