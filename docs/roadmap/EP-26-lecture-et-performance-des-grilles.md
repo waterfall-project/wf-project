@@ -1,7 +1,7 @@
 ---
 id: EP-26
 titre: Ouvrir, filtrer et saisir dans une grille de mille tâches sans attendre
-statut: en cours
+statut: livré
 depend_de: EP-25
 famille: back, front
 issue: 3299
