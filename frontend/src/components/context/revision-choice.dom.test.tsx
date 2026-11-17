@@ -44,8 +44,16 @@ const READ_CURRENT = `Changer de révision, «${NB}Révision en cours${NB}» lue
 /** The revisions of the witness, as the reading of the context gives them. */
 const REVISIONS = (example("revisions") as { items: Revision[] }).items.map(listedRevision);
 
-/** The banner of the remaining to commit of the witness, in French, at the address given. */
-function banner(revisions: readonly ListedRevision[] | undefined, search = "") {
+/**
+ * The banner of the remaining to commit of the witness, in French, at the address given; under the
+ * address the screen shares, as the screens whose other parts change the address render it, or
+ * alone, as the others do.
+ */
+function banner(
+  revisions: readonly ListedRevision[] | undefined,
+  search = "",
+  screenShares = true,
+) {
   page.search = search;
   const context = readContext(REMAINING, new URLSearchParams(search));
   if (context === undefined) {
@@ -67,11 +75,10 @@ function banner(revisions: readonly ListedRevision[] | undefined, search = "") {
         ? []
         : [{ name: "subproject_id", value: subproject.subproject_id, subproject }],
   };
+  const shown = <ContextBanner reading={reading} />;
   return render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-      <PendingAddress>
-        <ContextBanner reading={reading} />
-      </PendingAddress>
+      {screenShares ? <PendingAddress>{shown}</PendingAddress> : shown}
     </NextIntlClientProvider>,
   );
 }
@@ -179,17 +186,24 @@ describe("the choice of the revision read", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("goes on from the address last asked: a filter lifted just before stays lifted", async () => {
-    // A filter lifted from its chip, the address not arrived yet: the revision chosen goes on from
-    // the address asked (défaut n° 20 de `typescript.md`).
-    banner(REVISIONS, `subproject_id=${SUBPROJECT}`);
-    await userEvent.click(within(region()).getByRole("link", { name: /^Lever le filtre/ }));
-    expect(router.push).toHaveBeenLastCalledWith(REMAINING, { scroll: false });
-    await userEvent.click(choice());
-    await userEvent.click(screen.getByRole("menuitemradio", { name: "Offre v1.0" }));
-    expect(router.push).toHaveBeenLastCalledWith(
-      `/projects/${PROJECT}/revisions/${OFFER}/remaining`,
-      { scroll: false },
-    );
-  });
+  it.each([
+    ["under the address the screen shares", true],
+    ["on a screen that shares none", false],
+  ])(
+    "goes on from the address last asked, %s: a filter lifted just before stays lifted",
+    async (_, screenShares) => {
+      // A filter lifted from its chip, the address not arrived yet: the revision chosen goes on from
+      // the address asked (défaut n° 20 de `typescript.md`); the banner shares it between its chips
+      // and its choices whether or not the screen shares one around it.
+      banner(REVISIONS, `subproject_id=${SUBPROJECT}`, screenShares);
+      await userEvent.click(within(region()).getByRole("link", { name: /^Lever le filtre/ }));
+      expect(router.push).toHaveBeenLastCalledWith(REMAINING, { scroll: false });
+      await userEvent.click(choice());
+      await userEvent.click(screen.getByRole("menuitemradio", { name: "Offre v1.0" }));
+      expect(router.push).toHaveBeenLastCalledWith(
+        `/projects/${PROJECT}/revisions/${OFFER}/remaining`,
+        { scroll: false },
+      );
+    },
+  );
 });

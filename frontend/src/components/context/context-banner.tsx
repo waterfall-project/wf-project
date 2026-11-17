@@ -23,6 +23,11 @@
  * A server component: what it shows is the reading of the page, and a filter is lifted by
  * following a link, not by a state of the browser. It hands the project on to the shell, which
  * names it in its side bar and its breadcrumb (`ShowProject`).
+ *
+ * Its chips and its choices change the address from the address last asked, shared among them
+ * (`PendingAddress`) and with the screen when the screen shares one around the banner — which a
+ * screen whose other parts change the address does, the banner under it: a filter lifted, then a
+ * revision chosen before the first navigation arrived, goes on from the address asked.
  */
 import { Calculator, Filter, Folder, GitBranch, Layers, Lock, X } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
@@ -37,6 +42,7 @@ import {
   type DifferenceValue,
   isDifferencesOnly,
 } from "@/components/grid/difference-filter";
+import { PendingAddress } from "@/components/grid/pending-address";
 import { ShowProject } from "@/components/shell/shown-project";
 import { Badge } from "@/components/ui/badge";
 import { formatPlanningDate } from "@/i18n/format";
@@ -229,7 +235,7 @@ function RevisionFacts({
   revisions = [],
 }: {
   readonly revision: Revision;
-  readonly revisions: readonly ListedRevision[] | undefined;
+  readonly revisions?: readonly ListedRevision[] | undefined;
 }) {
   const t = useTranslations();
   const nameOf = useRevisionName();
@@ -352,56 +358,58 @@ export function ContextBanner({
   const chips = useChips(reading, restricts, breakdown, difference);
   const { project, revision, revisions, readOnly } = reading;
   return (
-    <section
-      aria-label={t("contextBanner.label")}
-      className="flex min-h-10 flex-wrap items-center gap-x-4 gap-y-1 border-b bg-muted px-5 py-1.5 text-xs text-foreground"
-    >
-      <ShowProject
-        project={{
-          project_id: project.project_id,
-          label: project.label,
-          code: project.code ?? null,
-          state: project.state,
-        }}
-      />
-      <dl className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <div className={FACT}>
-          <dt>
-            <Folder aria-hidden="true" className={ICON} />
-            <span className="sr-only">{t("contextBanner.project")}</span>
-          </dt>
-          <dd className="font-medium">{project.label}</dd>
-        </div>
-        {revision === undefined ? null : (
-          <RevisionFacts revision={revision} revisions={revisions} />
+    <PendingAddress>
+      <section
+        aria-label={t("contextBanner.label")}
+        className="flex min-h-10 flex-wrap items-center gap-x-4 gap-y-1 border-b bg-muted px-5 py-1.5 text-xs text-foreground"
+      >
+        <ShowProject
+          project={{
+            project_id: project.project_id,
+            label: project.label,
+            code: project.code ?? null,
+            state: project.state,
+          }}
+        />
+        <dl className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <div className={FACT}>
+            <dt>
+              <Folder aria-hidden="true" className={ICON} />
+              <span className="sr-only">{t("contextBanner.project")}</span>
+            </dt>
+            <dd className="font-medium">{project.label}</dd>
+          </div>
+          {revision === undefined ? null : (
+            <RevisionFacts revision={revision} revisions={revisions} />
+          )}
+          {structure === undefined ? null : <StructureFacts structure={structure} />}
+          {computedOn === undefined || computedOn.revisionId === revision?.revision_id ? null : (
+            <ComputedOnFacts computedOn={computedOn} />
+          )}
+        </dl>
+        {readOnly ? (
+          <p className={`${FACT} font-medium`}>
+            <Lock aria-hidden="true" className={ICON} />
+            {t("contextBanner.readOnly")}
+          </p>
+        ) : null}
+        {chips.length === 0 ? null : (
+          <ul aria-label={t("contextBanner.filters")} className="ml-auto flex flex-wrap gap-1.5">
+            {chips.map(({ name, text, lifts }) => (
+              <li
+                key={name}
+                className="flex h-6 items-center gap-1.5 rounded-full border bg-background pr-1 pl-2"
+              >
+                <Filter aria-hidden="true" className={ICON} />
+                {text}
+                <ChipLift lifts={lifts} label={t("contextBanner.removeFilter", { filter: text })}>
+                  <X aria-hidden="true" className="size-3" />
+                </ChipLift>
+              </li>
+            ))}
+          </ul>
         )}
-        {structure === undefined ? null : <StructureFacts structure={structure} />}
-        {computedOn === undefined || computedOn.revisionId === revision?.revision_id ? null : (
-          <ComputedOnFacts computedOn={computedOn} />
-        )}
-      </dl>
-      {readOnly ? (
-        <p className={`${FACT} font-medium`}>
-          <Lock aria-hidden="true" className={ICON} />
-          {t("contextBanner.readOnly")}
-        </p>
-      ) : null}
-      {chips.length === 0 ? null : (
-        <ul aria-label={t("contextBanner.filters")} className="ml-auto flex flex-wrap gap-1.5">
-          {chips.map(({ name, text, lifts }) => (
-            <li
-              key={name}
-              className="flex h-6 items-center gap-1.5 rounded-full border bg-background pr-1 pl-2"
-            >
-              <Filter aria-hidden="true" className={ICON} />
-              {text}
-              <ChipLift lifts={lifts} label={t("contextBanner.removeFilter", { filter: text })}>
-                <X aria-hidden="true" className="size-3" />
-              </ChipLift>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+      </section>
+    </PendingAddress>
   );
 }
