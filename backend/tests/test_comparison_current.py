@@ -135,8 +135,8 @@ def test_each_value_that_differs_gives_its_base_a_node_named_by_the_node_returne
 ) -> None:
     # « pour une ligne, ses grandeurs et ses montants ; et toute autre colonne » : a line's hours
     # and amounts, its subproject with its label; a task's predecessor, named by the node of its
-    # lineage
-    # the comparison returns and its row there; a task moved, its parent in the base, so named.
+    # lineage the comparison returns and its row there; a task moved, its parent in the base, so
+    # named.
     offer, current = pair
     nodes = by_label(current.items())
     Lines(current).changed(nodes["Conception — Ingénieur"], hours="12")

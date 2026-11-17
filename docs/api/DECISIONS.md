@@ -12021,8 +12021,9 @@ lecture qu'EP-26 a figé. Ce qui change :
 
 **Exigées en deux temps.** Les propriétés nouvelles sont déclarées sans être exigées : le service ne
 les rend pas encore, et chaque réponse est validée contre le contrat. Le lot du service qui en sert
-une la passe en exigée — `base` et `deltas` avec la comparaison d'une révision en cours,
-`base_totals` et `totals_delta` avec les totaux de la base (US-2320/L2, L3, US-2340, US-2350).
+une la passe en exigée — `base` avec la comparaison d'une révision en cours (US-2320/L3),
+`deltas` avec les écarts (US-2340), `base_totals` et `totals_delta` avec les totaux de la base
+(US-2350).
 
 **Les exemples**, engendrés par `wftools.mockcomparisons` et `wftools.mockdiff` (`marked` lu avec
 `compared`, `read_with_fields`), portent `base`, `deltas`, `base_totals` et `totals_delta` ; un

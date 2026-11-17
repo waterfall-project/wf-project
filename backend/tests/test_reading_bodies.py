@@ -218,9 +218,12 @@ def test_the_comparison_of_two_marked_revisions_changes_only_by_what_it_gains(
     assert hashlib.sha256(before).hexdigest() == DIGESTS["whole comparison"]
 
 
+@pytest.mark.requirement("WF-REV-0080-A")
 def test_the_comparison_filtered_by_its_marks_reads_to_the_byte_what_it_read_at_us_2320(
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
+    # The digest guards the stability of the body; the rightness of the marks is for
+    # test_comparison*.py.
     name = "comparison filtered and sorted"
     assert digest(api, witness, realm, comparing(name)) == COMPARED_DIGESTS[name]
 
