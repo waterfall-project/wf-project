@@ -3237,10 +3237,14 @@ issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
 
 `make merge-queue-check EPIC=EP-nn` checks that an active ruleset targets `refs/heads/epic/EP-nn`
 with a `merge_queue` rule (`wftools.mergequeue`, through `gh api`), and fails saying what is
-missing: no ruleset, no queue rule, an inactive ruleset. It passes as soon as one of the rulesets
-targeting the branch is active with a `merge_queue` rule; a ruleset that excludes the branch does
-not target it. The references of `include` and `exclude` are read as patterns, by `fnmatch`
-with `FNM_PATHNAME`, as GitHub reads them (`refs/heads/epic/*`, `~ALL`): a `*` or a `?` stops at
+missing: no ruleset, no queue rule, an inactive ruleset, or no required check. It passes as soon as
+one of the rulesets targeting the branch is active with a `merge_queue` rule and an active ruleset
+that targets it — the same or another, like « epic protection », which targets `epic/*` — requires
+the `gate` check (`required_status_checks`): a queue that merges with no required check merges what
+nothing has tried. It also says the gap between the rule types of the queue's ruleset and those of
+the model (`required_signatures`, which the rulesets of EP-10, EP-26 and EP-27 carry, is in it).
+A ruleset that excludes the branch does not target it. The references of `include` and `exclude`
+are read as patterns, by `fnmatch` with `FNM_PATHNAME`, as GitHub reads them (`refs/heads/epic/*`, `~ALL`): a `*` or a `?` stops at
 a `/`, so `refs/heads/*` does not target `refs/heads/epic/EP-nn`; only a `**/` that starts a
 segment crosses directories, zero or more (`refs/heads/**/*`), any other `**` is a `*`, and
 `refs/heads/**` does not target the branch either; braces are read as they stand, GitHub not
@@ -3888,11 +3892,11 @@ the stories of the following epics are written. The tool reads only the reposito
 issues is not its business.
 
 It also fails on a `make` command that an agent cites (`.claude/agents/`,
-`docs/dev/agents.md`) and that the Makefile does not have: a renamed target does not let an agent
-call a command that has disappeared.
+`docs/dev/agents.md`, `.claude/skills/`, the `pilote` skill among them) and that the Makefile does
+not have: a renamed target does not let an agent call a command that has disappeared.
 
 _Check_: `make roadmap`, `roadmap` family of the chain, woken also by a
-change of the projection or of the agents.
+change of the projection, of the agents or of a skill.
 
 ## Comments
 
@@ -3925,8 +3929,10 @@ reason. No source file exceeds 1,000 lines, blank lines and comments included;
 generated files are excluded from it.
 
 _Checks_: `make lint-back`, `make typecheck-back`, `make lint-tools`,
-`make typecheck-tools`; `make sources` for the exemption comments and the size of the
-files, over the whole repository. The tools of `docs/spec/tools` and `docs/api/tools` follow
+`make typecheck-tools`; `make sources` for the exemption comments — those of flake8, Ruff,
+isort, coverage (`pragma`, with or without a colon, `no cover` and `no branch`) and, in a
+`Dockerfile` or a `*.Dockerfile`, of hadolint — and the size of the files, over the whole
+repository. The tools of `docs/spec/tools` and `docs/api/tools` follow
 the same rules as those of `tools/`; an exception, if one is needed, is declared in
 `tools/paths.toml`, with its reason and what will lift it.
 

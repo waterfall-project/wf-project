@@ -269,3 +269,21 @@ def test_a_wrapped_requirements_field_is_read_whole() -> None:
     )
     (story,) = roadmap.parse_epic("EP-09", text).stories
     assert story.requirements == ("WF-QUA-0010-A", "WF-QUA-0020-A")
+
+
+def test_the_skills_are_read_with_the_agents(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """US-2470 (PLC-14): a skill is read, and a command it cites that the Makefile lacks fails."""
+    path = ".claude/skills/pilote/SKILL.md"
+    (tmp_path / path).parent.mkdir(parents=True)
+    (tmp_path / path).write_text("Lis `make slots`, puis `make nope`.", encoding="utf-8")
+    for arguments in (["init", "--quiet"], ["add", "."]):
+        subprocess.run(["git", *arguments], cwd=tmp_path, check=True, capture_output=True)
+    monkeypatch.setattr(roadmap, "REPOSITORY", tmp_path)
+    assert ".claude/skills/**/*.md" in roadmap.AGENT_FILES
+    texts = roadmap.agent_texts()
+    assert list(texts) == [path]
+    assert roadmap.missing_commands(texts, {"slots"}) == [
+        f"{path}: cites `make nope`, which the Makefile does not define"
+    ]

@@ -572,7 +572,7 @@ que** deux exécutions ne se croient jamais seules sur le poste et qu'aucune n'a
 
 ## US-2470 — Les contrôles du dépôt vérifient ce que le guide affirme
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3683

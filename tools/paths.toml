@@ -131,6 +131,7 @@ paths = [
     "tools/src/wftools/projection.py",
     ".github/workflows/roadmap.yml",
     ".claude/agents/**",
+    ".claude/skills/**",
     # Every guide the agents read (roadmap.AGENT_FILES), whose commands the check holds.
     "docs/dev/*.md",
 ]

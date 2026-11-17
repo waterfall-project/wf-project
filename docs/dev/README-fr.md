@@ -3250,10 +3250,14 @@ poste propre à l'issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
 
 `make merge-queue-check EPIC=EP-nn` vérifie qu'un jeu de règles actif vise `refs/heads/epic/EP-nn`
 avec une règle `merge_queue` (`wftools.mergequeue`, par `gh api`), et échoue en disant ce qui
-manque : aucun jeu, pas de règle de file, jeu inactif. Elle passe dès qu'un des jeux visant la
-branche est actif avec une règle `merge_queue` ; un jeu qui exclut la branche ne la vise pas. Les
-références de `include` et d'`exclude` se lisent comme des motifs, par `fnmatch`
-avec `FNM_PATHNAME`, comme GitHub les lit (`refs/heads/epic/*`, `~ALL`) : un `*` ou un `?` s'arrête
+manque : aucun jeu, pas de règle de file, jeu inactif, ou aucun contrôle exigé. Elle passe dès
+qu'un des jeux visant la branche est actif avec une règle `merge_queue` et qu'un jeu actif qui la
+vise — le même ou un autre, comme « epic protection », qui vise `epic/*` — exige le contrôle
+`gate` (`required_status_checks`) : une file qui fusionne sans contrôle exigé fusionne ce que rien
+n'a éprouvé. Elle dit aussi l'écart entre les types de règles du jeu de la file et ceux du
+modèle (`required_signatures`, que portent les jeux d'EP-10, d'EP-26 et d'EP-27, y est).
+Un jeu qui exclut la branche ne la vise pas. Les références de `include` et d'`exclude` se lisent
+comme des motifs, par `fnmatch` avec `FNM_PATHNAME`, comme GitHub les lit (`refs/heads/epic/*`, `~ALL`) : un `*` ou un `?` s'arrête
 à un `/`, donc `refs/heads/*` ne vise pas `refs/heads/epic/EP-nn` ; seul un `**/` en début de
 segment franchit des répertoires, zéro ou plus (`refs/heads/**/*`), un autre `**` vaut `*`, et
 `refs/heads/**` ne vise pas plus la branche ; les accolades se lisent telles quelles, GitHub
@@ -3920,11 +3924,11 @@ mesure que les US des EPIC suivants s'écrivent. L'outil ne lit que le dépôt :
 issues n'est pas son affaire.
 
 Il échoue aussi sur une commande `make` que cite un agent (`.claude/agents/`,
-`docs/dev/agents.md`) et que le Makefile n'a pas : une cible renommée ne laisse pas un agent
-appeler une commande disparue.
+`docs/dev/agents.md`, `.claude/skills/`, dont le skill `pilote`) et que le Makefile n'a pas : une
+cible renommée ne laisse pas un agent appeler une commande disparue.
 
 _Contrôle_ : `make roadmap`, famille `roadmap` de la chaîne, réveillée aussi par un
-changement de la projection ou des agents.
+changement de la projection, des agents ou d'un skill.
 
 ## Commentaires
 
@@ -3957,8 +3961,10 @@ raison. Aucun fichier source ne dépasse 1 000 lignes, lignes vides et commentai
 les fichiers engendrés en sont exclus.
 
 _Contrôles_ : `make lint-back`, `make typecheck-back`, `make lint-tools`,
-`make typecheck-tools` ; `make sources` pour les commentaires d'exemption et la taille des
-fichiers, sur tout le dépôt. Les outils de `docs/spec/tools` et `docs/api/tools` suivent
+`make typecheck-tools` ; `make sources` pour les commentaires d'exemption — ceux de flake8, de
+Ruff, d'isort, de couverture (`pragma`, avec ou sans deux-points, `no cover` et `no branch`) et,
+dans un `Dockerfile` ou un `*.Dockerfile`, de hadolint — et la taille des fichiers, sur tout le
+dépôt. Les outils de `docs/spec/tools` et `docs/api/tools` suivent
 les mêmes règles que ceux de `tools/` ; une exception, s'il en faut une, se déclare dans
 `tools/paths.toml`, avec sa raison et ce qui la lèvera.
 
