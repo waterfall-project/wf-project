@@ -55,7 +55,10 @@ test("the opening of a second current revision and the designation beyond the co
     /^Condition non remplie\s: aucune révision en cours d’élaboration\.$/,
   );
 
-  const offer = history.getByRole("row").filter({ hasText: "Offre v1.0" });
+  // The reference row quotes « Offre v1.0 » in its own text: the row is the one that opens it.
+  const offer = history
+    .getByRole("row")
+    .filter({ has: page.getByLabel("Ouvrir la révision « Offre v1.0 »") });
   const designate = offer.getByRole("button", { name: "Désigner comme référence" });
   await expect(designate).toHaveAttribute("aria-disabled", "true");
   await expect(designate).toHaveAccessibleDescription(/référence encore corrigeable/);
