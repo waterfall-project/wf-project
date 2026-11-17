@@ -142,6 +142,37 @@ test("a grid opened on a differential structure names it, chosen in the banner, 
   await expect(facts.filter({ hasText: /^Avenant$/ })).toHaveCount(0);
 });
 
+test("from the same grid, another revision of the project opens without going through the history, the sub-project filtered kept [WF-IHM-0020-A]", async ({
+  page,
+}) => {
+  // Depuis la même grille, il ouvre une autre révision du projet sans passer par l'historique. The
+  // fake back lists the revisions of the witness (`revisions`), and answers any of them by its first
+  // example: the address says the revision opened, the same screen with the same sub-project.
+  const reference = "01926f3a-7c00-7000-8000-000000000101";
+  await openHydrated(page, `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
+  await banner(page)
+    .getByRole("button", { name: "Changer de révision, «\u00a0Révision en cours\u00a0» lue" })
+    .click();
+  const menu = page.getByRole("menu");
+  await expect(menu.getByRole("menuitemradio")).toHaveText([
+    "Révision en cours",
+    "Référence (référence)",
+    "Offre v1.0",
+  ]);
+  await expect(menu.getByRole("menuitemradio", { checked: true })).toHaveText("Révision en cours");
+  await menu.getByRole("menuitemradio", { name: "Référence (référence)" }).click();
+  await expect(page).toHaveURL(
+    `/projects/${PROJECT}/revisions/${reference}/remaining?subproject_id=${SUBPROJECT}`,
+    { timeout: WORKING },
+  );
+  await expect(page.getByRole("treegrid", { name: "Grille de reste à engager" })).toBeVisible({
+    timeout: WORKING,
+  });
+  await expect(banner(page).getByRole("list", { name: "Filtres actifs" })).toContainText(
+    "SP-CMD — Poste de commande",
+  );
+});
+
 test("the screens of a project created name the project, then the revision opened, in the reading context, as the service keeps them @shared [WF-IHM-0020-A]", async ({
   page,
 }) => {

@@ -83,9 +83,13 @@ function text(markup: string): string {
     .trim();
 }
 
-/** The names of the buttons of a page. */
+/**
+ * The names of the buttons of a page under its banner — whose choice of the revision read the tests
+ * of the banner prove.
+ */
 function buttons(markup: string): string[] {
-  return [...markup.matchAll(/<button[^>]*>(.*?)<\/button>/g)].map((match) => text(match[1] ?? ""));
+  const screen = markup.replace(/^<section aria-label="Reading context".*?<\/section>/, "");
+  return [...screen.matchAll(/<button[^>]*>(.*?)<\/button>/g)].map((match) => text(match[1] ?? ""));
 }
 
 /** The addresses the links of a page lead to. */

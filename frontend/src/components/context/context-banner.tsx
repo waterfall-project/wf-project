@@ -46,6 +46,8 @@ import { UNASSIGNED } from "@/navigation/context";
 import { ChipLift } from "./chip-lift";
 import type { Revision } from "./read-only";
 import type { ContextFilter, ProjectReading, Subproject } from "./reading";
+import type { ListedRevision } from "./revision";
+import { ReadRevisionChoice } from "./revision-choice";
 import { type ListedStructure, runsOfKind, type StructureChoices } from "./structure";
 import { StructureChoice } from "./structure-choice";
 
@@ -208,21 +210,54 @@ function useChips(
   ];
 }
 
+/** The name of a revision: its version name, or what it is when it has none — the one under way. */
+function useRevisionName(): (revision: Pick<ListedRevision, "version_name">) => string {
+  const t = useTranslations("contextBanner");
+  return ({ version_name }) => version_name ?? t("currentRevision");
+}
+
 /**
  * The revision read: its name, its status, the revision it is a copy of when it has one
- * (`source_version_name`, WF-IHM-0020), whether it is the reference. The source is shown whole at
- * every width, never hidden nor cut: on a narrow window the banner wraps onto a second row, and the
- * page scrolls when the window is too low for the floor of the grid under it (US-0560).
+ * (`source_version_name`, WF-IHM-0020), whether it is the reference; and, when the project has
+ * others, the choice of the revision to read instead (US-2330), whose button says the revision read
+ * to a screen reader, each revision named in its menu, the reference said so. The source is shown
+ * whole at every width, never hidden nor cut: on a narrow window the banner wraps onto a second
+ * row, and the page scrolls when the window is too low for the floor of the grid under it (US-0560).
  */
-function RevisionFacts({ revision }: { readonly revision: Revision }) {
+function RevisionFacts({
+  revision,
+  revisions = [],
+}: {
+  readonly revision: Revision;
+  readonly revisions: readonly ListedRevision[] | undefined;
+}) {
   const t = useTranslations();
+  const nameOf = useRevisionName();
+  const name = nameOf(revision);
+  const options = revisions.map((listed) => ({
+    revision_id: listed.revision_id,
+    text: listed.is_reference
+      ? t("contextBanner.referenceOption", { name: nameOf(listed) })
+      : nameOf(listed),
+  }));
+  // The revision read is offered too, checked; a project with no other has nothing to offer.
+  const offered = options.some((option) => option.revision_id !== revision.revision_id);
   return (
     <div className={FACT}>
       <dt>
         <GitBranch aria-hidden="true" className={ICON} />
         <span className="sr-only">{t("contextBanner.revision")}</span>
       </dt>
-      <dd>{revision.version_name ?? t("contextBanner.currentRevision")}</dd>
+      <dd className={FACT}>
+        {name}
+        {offered ? (
+          <ReadRevisionChoice
+            label={t("contextBanner.chooseRevision", { revision: name })}
+            options={options}
+            chosen={revision.revision_id}
+          />
+        ) : null}
+      </dd>
       <dd>
         <Badge>{t(`enums.RevisionStatus.${revision.status}`)}</Badge>
       </dd>
@@ -315,7 +350,7 @@ export function ContextBanner({
 }: ContextBannerProps) {
   const t = useTranslations();
   const chips = useChips(reading, restricts, breakdown, difference);
-  const { project, revision, readOnly } = reading;
+  const { project, revision, revisions, readOnly } = reading;
   return (
     <section
       aria-label={t("contextBanner.label")}
@@ -337,7 +372,9 @@ export function ContextBanner({
           </dt>
           <dd className="font-medium">{project.label}</dd>
         </div>
-        {revision === undefined ? null : <RevisionFacts revision={revision} />}
+        {revision === undefined ? null : (
+          <RevisionFacts revision={revision} revisions={revisions} />
+        )}
         {structure === undefined ? null : <StructureFacts structure={structure} />}
         {computedOn === undefined || computedOn.revisionId === revision?.revision_id ? null : (
           <ComputedOnFacts computedOn={computedOn} />

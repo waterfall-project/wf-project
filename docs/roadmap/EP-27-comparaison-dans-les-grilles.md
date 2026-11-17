@@ -431,7 +431,7 @@ US-2340 et US-2350.
 
 ## US-2330 — La révision lue et la base d'une comparaison se choisissent dans le bandeau, et la base suit du planning au devis et au reste à engager
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0020-A`, `WF-IHM-0010-A`
 - **opérations** : `listRevisions`, `getRevision`, `compareRevisions`
 - **issue** : #3485
