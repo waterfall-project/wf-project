@@ -61,6 +61,9 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The plugin that fails a test which skips without the mark `unexecuted` (wftools.unexecuted, US-2440),
+# which the conftest loads: one implementation, shared with the tests of the tools.
+pythonpath = ["../tools/src"]
 # The tests of Keycloak need its platform: `make test-keycloak` selects them, `-m keycloak`
 # overriding the selection below.
 addopts = ["--strict-markers", "--strict-config", "-m", "not keycloak"]

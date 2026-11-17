@@ -14,6 +14,10 @@ import pytest
 
 from wftools import mockdata
 
+# A test that skips without declaring it by the mark ``unexecuted`` fails (US-2440); Pytester runs
+# the plugin on tests written for its own tests.
+pytest_plugins = ("pytester", "wftools.unexecuted")
+
 
 @pytest.fixture(autouse=True)
 def no_process_table(

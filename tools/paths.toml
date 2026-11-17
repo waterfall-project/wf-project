@@ -115,6 +115,8 @@ paths = [
     ".github/workflows/back.yml",
     # The thresholds of the coverage.
     "tools/src/wftools/codecoverage.py",
+    # The plugin that fails a test which skips undeclared, loaded by tests/conftest.py (US-2440).
+    "tools/src/wftools/unexecuted.py",
 ]
 target = "check-back"
 
@@ -167,6 +169,9 @@ paths = [
     ".github/workflows/keycloak.yml",
     ".github/actions/**",
     "tools/src/wftools/codecoverage.py",
+    # The plugin that fails a test which skips undeclared, which both conftest.py load (US-2440).
+    "tools/src/wftools/unexecuted.py",
+    "tools/tests/conftest.py",
 ]
 target = "check-keycloak"
 

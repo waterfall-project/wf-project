@@ -362,6 +362,7 @@ def schema() -> etree.XMLSchema:
 
 
 @pytest.mark.requirement("WF-QUA-0080-A")
+@pytest.mark.unexecuted("skipped unless WATERFALL_MSPDI_SCHEMA_PATH names the schema of MSPDI")
 @pytest.mark.parametrize("entry", FILES, ids=[entry["file"] for entry in FILES])
 def test_each_planning_of_the_corpus_read_then_written_is_valid_against_the_schema(
     entry: dict[str, Any], schema: etree.XMLSchema
