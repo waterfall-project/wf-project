@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { globSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -33,6 +34,11 @@ import {
   KNOWN_BOUND,
   recordedPreferences,
 } from "./settings";
+
+const ACCESS_SCHEMAS = join(
+  import.meta.dirname,
+  "../../../../docs/api/components/schemas/access.yaml",
+);
 
 describe("the settings a grid starts from", () => {
   it("are the columns the grid hides, and no width, without preferences", () => {
@@ -200,9 +206,9 @@ const FIFTEEN_YEARS = Array.from({ length: 180 }, (_, at) => {
   return `${year.toString()}-${(1 + (at % 12)).toString().padStart(2, "0")}`;
 });
 
-// WF-IHM-0060-A : les préférences d'une grille tiennent aux bornes du contrat (US-0650, US-2430 :
-// `known_columns`, `hidden_columns` et `column_widths` bornés à 256 réglages, clés de 64 caractères ;
-// une grille de plus de colonnes garde d'abord celles qu'elle masque par défaut).
+// aucune exigence : propre à l'US (US-0650, US-2430 : `known_columns`, `hidden_columns` et
+// `column_widths` bornés par le contrat à 256 réglages, clés de 64 caractères ; une grille de plus
+// de colonnes garde d'abord celles qu'elle masque par défaut).
 describe("the columns a grid records as known", () => {
   it("records every column of a grid within the bound, in its order", () => {
     expect(gridShape(PLANNING_GRID.columns).known).toEqual(
@@ -221,10 +227,31 @@ describe("the columns a grid records as known", () => {
     expect(known[1]).toBe("shown_0");
   });
 
-  // WF-IHM-0060-A : `hidden_columns` et `column_widths` sont bornés par le contrat à 256, comme
-  // `known_columns` ; `KNOWN_BOUND` suit cette borne (US-2430, #3589).
-  it("holds the bound of the grid to the 256 settings the contract allows", () => {
-    expect(KNOWN_BOUND).toBe(256);
+  // aucune exigence : propre à l'US (US-2430, #3589) : `KNOWN_BOUND` est la borne que le contrat
+  // pose aux trois réglages d'une grille.
+  it("holds the bound of the grid to the three bounds of GridPreferences in the contract", () => {
+    const lines = readFileSync(ACCESS_SCHEMAS, "utf-8").split("\n");
+    const indentOf = (line: string) => line.length - line.trimStart().length;
+    // The lines nested under a key, whatever the line it stands on and the indentation of the file.
+    const under = (within: readonly string[], key: string): readonly string[] => {
+      const at = within.findIndex((line) => line.trim() === `${key}:`);
+      const rest = at === -1 ? [] : within.slice(at + 1);
+      const end = rest.findIndex(
+        (line) => line.trim() !== "" && indentOf(line) <= indentOf(within[at] ?? ""),
+      );
+      return end === -1 ? rest : rest.slice(0, end);
+    };
+    const bound = (key: string, keyword: string): number => {
+      const list = under(under(under(lines, "GridPreferences"), "properties"), key);
+      const found = list.map((line) => new RegExp(`^\\s*${keyword}: (\\d+)$`).exec(line)?.[1]);
+      expect(list.length).toBeGreaterThan(0);
+      return Number(found.find(Boolean));
+    };
+    expect([
+      bound("known_columns", "maxItems"),
+      bound("hidden_columns", "maxItems"),
+      bound("column_widths", "maxProperties"),
+    ]).toEqual([KNOWN_BOUND, KNOWN_BOUND, KNOWN_BOUND]);
   });
 
   it("records at most the bound of the contract of hidden columns and widths, the first set", () => {
