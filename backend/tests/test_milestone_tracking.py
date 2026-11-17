@@ -178,7 +178,7 @@ def test_a_review_marked_the_eve_of_the_completion_gives_a_point_and_the_day_its
     ]
 
 
-@pytest.mark.requirement("WF-QUA-0010")
+@pytest.mark.requirement("WF-IND-0090-A")
 def test_a_review_marked_at_midnight_sharp_of_the_completion_gives_no_point(
     project: Project, monkeypatch: pytest.MonkeyPatch
 ) -> None:
