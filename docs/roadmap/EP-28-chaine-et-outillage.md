@@ -604,7 +604,7 @@ un mot (PLC-01, PLC-05, PLC-14).
 
 ## US-2480 — Un changement réveille les contrôles qu'il peut casser
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3684
