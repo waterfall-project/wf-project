@@ -19,7 +19,8 @@ import type { GridQuery } from "./query";
 
 // What a comparison leaves of the entry of a grid (WF-IHM-0150, US-2340): the line a comparison
 // removes is read in its place, and no gesture of structure acts on it nor, where it would reach it,
-// around it; a block pasted on it is for the server to refuse, whole, with its reason. The server of Next, as far as the grid needs it, as for the other tests.
+// around it; a block pasted on it is for the server to refuse, whole, with its reason. The server
+// of Next, as far as the grid needs it, as for the other tests.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 
