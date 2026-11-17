@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import OperationalError
 
+from measure.current import measure_current
 from measure.document import (
     measure_comparison,
     measure_filtered,
@@ -42,7 +43,7 @@ DEFAULT_RUNS = 5
 """Identical runs of the whole reading, a cell entered and a revision opened: the spread of five is
 what a gain must exceed. The profile and the waves of reads make one pass."""
 
-_PARTS = ("read", "profile", "parallel", "write", "revision", "kept")
+_PARTS = ("read", "profile", "parallel", "write", "revision", "kept", "current")
 
 
 def _at_least_one(text: str) -> int:
@@ -98,6 +99,7 @@ def _passage(address: str, target: Target, runs: int, parts: Sequence[str]) -> t
             *measure_comparison(database, target, runs),
             measure_filtered(database, target, runs),
         ),
+        "current": lambda: measure_current(database, target, runs),
     }
     return tuple(measure for part in _PARTS if part in parts for measure in plan[part]())
 
