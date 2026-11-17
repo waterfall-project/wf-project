@@ -154,8 +154,10 @@ describe("a grid compared to the base its address names", () => {
   });
 
   it("offers no base on a grid that compares nothing, and compares nothing there", async () => {
-    // La base est portée par l'adresse, et par les liens entre ces trois grilles seulement ; les
-    // autres écrans ne la portent pas, et une grille ouverte sans elle ne compare rien (US-2330).
+    // US-2330 : « la base est portée par l'adresse, et par les liens entre ces trois grilles
+    // seulement ; les autres écrans ne la portent pas, et elle n'est gardée ni dans les préférences
+    // du compte ni avec le dernier contexte du projet : une grille ouverte sans elle ne compare
+    // rien ».
     const grid = await read("task-tree", { [BASE_PARAMETER]: REFERENCE });
     expect(grid.base).toBeUndefined();
     expect(callsOf(COMPARISON)).toHaveLength(0);
