@@ -16,13 +16,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 import { expectAccessible } from "@/test/axe";
-import { APPLY, PREVIEW } from "@/test/paste-grid";
+import * as pasted from "@/test/paste-grid";
 import { estimateReference } from "@/test/reference";
 
-import { ESTIMATE_FIELDS } from "./estimate";
+import { ESTIMATE_FIELDS, type EstimateNode } from "./estimate";
 import { EstimateGrid } from "./estimate-grid";
 import { FOLD_STORAGE_PREFIX } from "./fold";
-import { type NodeList, type NodeRows, projectNodes } from "./nodes";
+import { type NodeList, type NodeRows, type NodesWritten, projectNodes } from "./nodes";
 import type { FoldReach } from "./fold";
 import { PLANNING_FIELDS, PLANNING_KINDS, type PlanningNode } from "./planning";
 import { PlanningGrid } from "./planning-grid";
@@ -387,6 +387,22 @@ describe("the row of a run, its keys and its places", () => {
     expect(labelOf(renamed)).toHaveFocus();
   });
 
+  it("keeps nothing of a row written on a grid that reads no comparison, the folding stored on left as it was [WF-IHM-0170-A]", async () => {
+    const wiring = "Câblage des armoires";
+    const nested = example("nodes_nested") as NodeList;
+    const key = `${FOLD_STORAGE_PREFIX}planning:${STRUCTURE.revision_id}`;
+    const stored = '{"collapsed":[],"revealed":"","differences":{"on":true,"opened":[]}}';
+    window.sessionStorage.setItem(key, stored);
+    server.client = fakeClient({ [TASK]: "task_renamed" });
+    render(planningGrid(projectNodes(nested, PLANNING_FIELDS, PLANNING_KINDS), false));
+    labelOf(wiring).focus();
+    await userEvent.keyboard("Câblage et repérage des armoires{Enter}");
+    await vi.waitFor(() => {
+      expect(server.client?.calls.some((call) => call.route === TASK)).toBe(true);
+    });
+    expect(window.sessionStorage.getItem(key)).toBe(stored);
+  });
+
   /** The planning of the witness read anew, the design file marked as `mark` says, renamed or not. */
   function readAnew(mark: "modified" | "unchanged", label = DESIGN) {
     const read = compared(mark === "modified" ? MARKED : { [SUMMARY]: "modified" });
@@ -418,31 +434,67 @@ describe("the row of a run, its keys and its places", () => {
   });
 
   it("keeps the rows of a block pasted shown while the folding is on, read back unchanged [WF-IHM-0170-A]", async () => {
-    const pasted = "Dossier de conception révisé";
-    const written = example("paste_applied") as { readonly nodes: unknown[] };
-    const design = planning.items.find((node) => node.task?.label === DESIGN);
-    const body = JSON.stringify({
-      ...written,
-      nodes: [{ ...design, lock_version: 3, task: { ...design?.task, label: pasted } }],
-      ancestors: [],
-      rejected: [],
-    });
+    // The twelve rows of the estimate the examples paste on, their three lines marked.
+    const shown = (marked: boolean, from: NodeList = pasted.nodes) =>
+      projectNodes(
+        {
+          ...from,
+          items: from.items.map((node, at) => ({
+            ...node,
+            difference:
+              marked && at >= pasted.FIRST && at < pasted.FIRST + 3
+                ? ("modified" as const)
+                : ("unchanged" as const),
+            changes: [],
+            base: null,
+            deltas: null,
+          })),
+        },
+        ESTIMATE_FIELDS,
+      );
+    const grid = (nodes: NodeRows<EstimateNode>) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <EstimateGrid
+          filters={{}}
+          reference={estimateReference()}
+          editable
+          tasksEditable
+          nodes={nodes}
+          structure={pasted.STRUCTURE}
+          structureVersion={pasted.STRUCTURE_VERSION}
+          query={NO_QUERY}
+          preferences={undefined}
+          comparing
+        />
+      </NextIntlClientProvider>
+    );
     server.client = fakeClient({
-      [PREVIEW]: "paste_plan",
-      // The contract cites no answer of a paste that wrote a task: this one is served as the JSON
-      // the example `paste_applied` gives, its node the design file renamed.
-      [APPLY]: { body, type: "application/json", status: 200 } as never,
+      [pasted.PREVIEW]: "paste_plan",
+      [pasted.APPLY]: "paste_applied",
     });
-    const { rerender } = render(planningGrid(compared(MARKED)));
+    const { rerender } = render(grid(shown(true)));
     await userEvent.click(differencesOnly());
-    labelOf(DESIGN).focus();
-    await userEvent.paste(pasted);
+    // The three lines marked, under their summaries; every other row folded.
+    const summaries = labels().slice(0, -3);
+    expect(labels()).toEqual([...summaries, ...pasted.READ]);
+    labelOf(pasted.READ[0] ?? "").focus();
+    await userEvent.paste(pasted.copied(pasted.BLOCK));
     const dialog = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
     await userEvent.click(within(dialog).getByRole("button", { name: "Appliquer le collage" }));
-    expect(await screen.findByText(pasted)).toBeInTheDocument();
-    rerender(planningGrid(readAnew("unchanged", pasted)));
-    expect(labels()).toContain(pasted);
-    expect(labelOf(pasted)).toHaveAttribute("tabindex", "0");
+    const written = pasted.BLOCK.map(([label]) => label ?? "");
+    await vi.waitFor(() => {
+      expect(labels()).toEqual([...summaries, ...written]);
+    });
+    // Read anew, the rows written as the example answered them, every row marked unchanged.
+    const applied = example("paste_applied") as NodesWritten;
+    const reading: NodeList = {
+      ...pasted.nodes,
+      items: pasted.nodes.items.map(
+        (node) => applied.nodes.find((one) => one.node_id === node.node_id) ?? node,
+      ),
+    };
+    rerender(grid(shown(false, reading)));
+    expect(labels()).toEqual([...summaries, ...written]);
   });
 
   it.each<[FoldReach, string]>([
