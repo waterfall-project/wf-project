@@ -133,7 +133,10 @@ secrets de WF-OBS-0020.
 ### Les tests
 
 - Un test cite l'exigence dont il éprouve le Vérif (`@pytest.mark.requirement`), et son nom
-  dit ce qu'il vérifie : `test_a_module_that_reads_the_tables_of_another_is_rejected`.
+  dit ce qu'il vérifie : `test_a_module_that_reads_the_tables_of_another_is_rejected`. Un
+  critère propre à une US se cite par `@pytest.mark.story("US-nnnn")`, un test qui ne
+  s'exécute pas se déclare `@pytest.mark.unexecuted` : voir « Un test qui cite son
+  exigence » dans `docs/dev/README-fr.md`.
 - Un test d'exemple chiffré reprend les entrées et la valeur de sa phrase, par sa fixture ;
   il ne recalcule pas l'attendu.
 - Un test vérifie quelque chose : une assertion sur le résultat, pas le simple fait qu'une

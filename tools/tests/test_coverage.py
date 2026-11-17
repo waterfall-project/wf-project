@@ -4,6 +4,7 @@
 
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -548,7 +549,26 @@ def test_a_story_no_file_of_the_roadmap_holds_fails_the_report(
 def test_the_mark_story_is_declared_where_pytest_declares_its_marks() -> None:
     for package in ("backend", "tools"):
         text = (REPOSITORY / package / "pyproject.toml").read_text(encoding="utf-8")
-        assert f'"{marks.STORY}(identifier)' in text
+        declared = tomllib.loads(text)["tool"]["pytest"]["ini_options"]["markers"]
+        assert any(entry.startswith(f"{marks.STORY}(") for entry in declared), package
+
+
+def test_a_mark_takes_only_the_kind_of_identifier_it_names() -> None:
+    source = (
+        "import pytest\n\n"
+        '@pytest.mark.story("WF-QUA-0010-A")\ndef test_a(): ...\n\n'
+        '@pytest.mark.requirement("US-2160")\ndef test_b(): ...\n'
+    )
+    found = coverage.python_citations("backend/tests/t.py", source, "back")
+    result = coverage.report(
+        document(("WF-QUA-0010-A", "F0")),
+        found,
+        DECLARATION,
+        known_stories=frozenset({"US-2160"}),
+    )
+    assert [c.requirement for c in result.unknown] == ["WF-QUA-0010-A", "US-2160"]
+    assert "WF-QUA-0010-A" not in result.covered
+    assert result.unknown_stories == []
 
 
 def test_importing_the_report_does_not_load_pytest() -> None:

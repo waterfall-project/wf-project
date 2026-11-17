@@ -86,11 +86,12 @@ class Citation:
     test: str
     family: str
     executed: bool = True
+    misplaced: bool = False
 
     @property
     def is_story(self) -> bool:
         """Tell a citation of a story (``US-nnnn``) from one of a requirement."""
-        return _STORY_IDENTIFIER.fullmatch(self.requirement) is not None
+        return not self.misplaced and _STORY_IDENTIFIER.fullmatch(self.requirement) is not None
 
 
 def python_citations(path: str, source: str, kind: str) -> list[Citation]:
@@ -102,8 +103,13 @@ def python_citations(path: str, source: str, kind: str) -> list[Citation]:
 
     def cite(test: str, marks: list[ast.expr]) -> None:
         executed = not _unexecuted(marks, names)
-        cited = [*_marked(marks, "requirement"), *_marked(marks, STORY)]
-        found.extend(Citation(identifier, test, kind, executed) for identifier in cited)
+        # The mark, not the shape of the string, says what is cited: a story under `requirement`,
+        # or a requirement under `story`, is no coverage and fails the report as unknown.
+        for name in ("requirement", STORY):
+            for identifier in _marked(marks, name):
+                is_story_shaped = _STORY_IDENTIFIER.fullmatch(identifier) is not None
+                misplaced = is_story_shaped != (name == STORY)
+                found.append(Citation(identifier, test, kind, executed, misplaced))
 
     for node in tree.body:
         if isinstance(node, ast.ClassDef):
@@ -355,7 +361,9 @@ def report(
     stories: dict[str, list[Citation]] = defaultdict(list)
     unknown_stories: list[Citation] = []
     for citation in found:
-        if citation.is_story:
+        if citation.misplaced:
+            unknown.append(citation)
+        elif citation.is_story:
             stories[citation.requirement].append(citation)
             if citation.requirement not in known_stories:
                 unknown_stories.append(citation)
