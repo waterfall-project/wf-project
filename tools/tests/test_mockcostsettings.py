@@ -170,8 +170,10 @@ def examples() -> dict[str, Any]:
 
 
 def _walk(value: Any) -> list[Entry]:
-    """Return every object a value holds, itself included, but a base compared (`base`, EP-27)."""
-    # A partial line, whose categories test_mockcomparedvalues checks; `deltas` names none.
+    """Return every object a value holds, itself included, but a base compared and its deltas.
+
+    A base is a partial line (EP-27), whose categories ``test_mockcomparedvalues`` checks.
+    """
     if isinstance(value, list):
         return [found for item in cast("list[Any]", value) for found in _walk(item)]
     if not isinstance(value, dict):
@@ -182,10 +184,8 @@ def _walk(value: Any) -> list[Entry]:
 
 
 def _categories() -> dict[str, Entry]:
-    return {
-        category["cost_category_id"]: category
-        for category in fixture("volume/cost_categories")["items"]
-    }
+    items = fixture("volume/cost_categories")["items"]
+    return {category["cost_category_id"]: category for category in items}
 
 
 def _lined(examples: dict[str, Any]) -> set[str]:

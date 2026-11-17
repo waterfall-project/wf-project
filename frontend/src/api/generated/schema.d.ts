@@ -1538,7 +1538,7 @@ export interface paths {
         };
         /**
          * A revision and its snapshot
-         * @description Attributes of the revision and content of its snapshot (WF-REV-0090, WF-REV-0030): the reference data values that a marked revision has frozen (`snapshot`), omitted for the current revision.
+         * @description Attributes of the revision and content of its snapshot (WF-REV-0090, WF-REV-0030): the reference data values that a marked revision has frozen (`snapshot`), omitted for the current revision, and for whoever does not hold `revisions.read` — a reader of one of the three grids, whose banner reads the revision (EP-27, US-2320).
          */
         get: operations["getRevision"];
         put?: never;
@@ -4294,7 +4294,7 @@ export interface components {
             source_revision_id: components["schemas"]["Uuid"] | null;
             /** @description The version name of the source revision (`source_revision_id`), resolved on read, so that the screen names it without rereading the history (WF-IHM-0020, WF-ARC-0020); null along with it. */
             source_version_name: string | null;
-            /** @description The reference data values that the revision keeps (WF-REV-0030). Returned by `getRevision` for a marked revision, which froze them at its marking; omitted for the current revision, whose values follow the reference data as long as it is not marked, apart from the rates it keeps (WF-REV-0060), and in `listRevisions` as in the response of a write, which do not read it. */
+            /** @description The reference data values that the revision keeps (WF-REV-0030). Returned by `getRevision` for a marked revision, which froze them at its marking; omitted for the current revision, whose values follow the reference data as long as it is not marked, apart from the rates it keeps (WF-REV-0060), for whoever does not hold `revisions.read` — a reader of one of the three grids, whose banner reads the revision, and to whom the values kept are guarded elsewhere (EP-27, US-2320) —, and in `listRevisions` as in the response of a write, which do not read it. */
             snapshot?: components["schemas"]["RevisionSnapshot"] | null;
             /** @description Commands of the revision that the caller has permission to exercise, each available or not, with the conditions it lacks (WF-IHM-0090). A grid whose entry command is absent or unavailable presents itself as read-only. A revision of a terminal project lists only its exports, which do not modify it: no other command will become available again (WF-CYC-0080, WF-CYC-0100, WF-IHM-0090; US-0702/L3). */
             available_commands: components["schemas"]["RevisionCommandAvailability"][];
@@ -4619,7 +4619,7 @@ export interface components {
             task?: components["schemas"]["TaskDeltas"];
             estimate_line?: components["schemas"]["EstimateLineDeltas"];
         };
-        /** @description A node of the comparison (`RevisionComparison.items`), as `compareRevisions` returns it: the properties of `Node`, taken over from it, of which only those that a read always returns are required — `node_id`, `row_number`, `level` and `lock_version`, and the node's mark, `difference` and `changes` —, the others being returned only if `fields` names them, or all of them if it is omitted (#166, #1201, #1208). Its facets are partial likewise, those of `NodeProjection`, which `listNodes` returns likewise (#2485). `Node`, which the writes return whole, does not change. `base` and `deltas` are not yet required: the service returns them from EP-27 on (EP-27, « Exigées en deux temps »). */
+        /** @description A node of the comparison (`RevisionComparison.items`), as `compareRevisions` returns it: the properties of `Node`, taken over from it, of which only those that a read always returns are required — `node_id`, `row_number`, `level` and `lock_version`, and the node's mark, `difference`, `changes` and `base` —, the others being returned only if `fields` names them, or all of them if it is omitted (#166, #1201, #1208). Its facets are partial likewise, those of `NodeProjection`, which `listNodes` returns likewise (#2485). `Node`, which the writes return whole, does not change. `deltas` is not yet required: the service returns it from US-2340 on (EP-27, « Exigées en deux temps »). */
         ComparedNodeRead: {
             node_id: components["schemas"]["Uuid"];
             lineage_id?: components["schemas"]["Uuid"];
@@ -4648,7 +4648,7 @@ export interface components {
             /** @description What changes of the node itself, in the order of `NodeChange`, returned with `difference`: empty for a node added, removed or unchanged, and for a task marked modified by its content alone — a line or a subordinate added, removed, modified or moved. */
             changes: components["schemas"]["NodeChange"][];
             /** @description The values the base revision carried, for a `modified` node: under the names of the node — `parent_id`, `predecessors`, `task.…`, `estimate_line.…` —, only those that the read returns (`fields`, all of them without it) and whose value differs from the revision read; empty when none of them does, a task modified by its content alone or a value that `fields` leaves out. Always returned, like `difference`. Null for a node added, unchanged or removed — a removed node is already returned on its base values. A cell is marked when `base` carries its field, with the value of the base: the grid compares nothing (WF-REV-0080, WF-IHM-0150, WF-ARC-0020). A parent and a predecessor are those of the base, matched by lineage and named by the node the comparison returns, a predecessor at the row it is returned at. */
-            base?: components["schemas"]["ComparedNodeBase"] | null;
+            base: components["schemas"]["ComparedNodeBase"] | null;
             /** @description The differences of a `modified` node, the revision read minus the base, for the fields of `base` alone that are a date, a duration or an amount (`NodeDeltas`): the grid displays them in its columns of difference without computing them (WF-IHM-0150, WF-ARC-0020). Always returned, like `base`. Null for any other node: a line added or removed weighs in the totals (`totals_delta`), not in a column of difference. */
             deltas?: components["schemas"]["NodeDeltas"] | null;
         };

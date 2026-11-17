@@ -12035,6 +12035,21 @@ qu'un libellé de plus ne consomme pas, et refusent encore une lecture qui ne r�
 `info.version` reste `1.0.0` : des propriétés facultatives, un paramètre facultatif et une valeur
 d'énumération de plus.
 
+**Le service** (US-2320/L3, #3494) compare une révision lue en cours, rend `base` et `other`, et
+`base` devient exigée ; `deltas` reste déclarée sans être exigée, et vient avec US-2340, comme
+`base_totals` et `totals_delta` avec US-2350 (l'US-2320 les met hors de son périmètre). La base se
+lit dans sa lecture gardée, la révision lue en cours par ses colonnes (US-2220), rien n'en étant
+gardé. L'union (`core/estimate/uniting.py`) compare chaque nœud tel que l'API l'écrit entier, et la
+liste des valeurs non comparées y est écrite une fois (`NOT_COMPARED`, `FACET_NOT_COMPARED`) : celle
+du contrat, ci-dessus, sans rien de plus ; `parent_id` et `predecessors` s'y comparent par la lignée,
+le lien et le décalage, jamais par le rang. Deux conséquences d'une valeur calculée comparée, que
+le contrat veut : une tâche dont le successeur est retiré, ou que l'allongement d'une autre décale
+dans le chemin critique, est modifiée par sa marge (`total_float`, `is_critical`), et une révision
+ouverte d'une source marquée une fois le projet En cours porte le reste à engager d'avant la revue
+de chaque ligne (`previous_*`, EP-09) : elle se compare modifiée à sa source par ces valeurs
+(`other`), et inchangée, nœud par nœud, à la source d'un projet qui n'est pas encore En cours —
+son budgété, repris de la référence, différant aussi d'une source qui n'est pas la référence.
+
 ### Les lectures d'une grille ouvertes à qui la consulte (US-2320, conception d'EP-27, « Les gardes »)
 
 Décision de l'auteur du 2026-11-15, au cadrage d'EP-27 : un compte qui consulte le planning sans

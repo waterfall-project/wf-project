@@ -101,8 +101,10 @@ Revision:
         The reference data values that the revision keeps (WF-REV-0030). Returned by
         `getRevision` for a marked revision, which froze them at its marking; omitted for the
         current revision, whose values follow the reference data as long as it is not marked,
-        apart from the rates it keeps (WF-REV-0060), and in `listRevisions` as in the response
-        of a write, which do not read it.
+        apart from the rates it keeps (WF-REV-0060), for whoever does not hold `revisions.read`
+        — a reader of one of the three grids, whose banner reads the revision, and to whom the
+        values kept are guarded elsewhere (EP-27, US-2320) —, and in `listRevisions` as in the
+        response of a write, which do not read it.
     available_commands:
       type: array
       description: >-
@@ -2738,16 +2740,16 @@ RevisionComparison:
 
 ComparedNodeRead:
   type: object
-  required: [node_id, row_number, level, lock_version, difference, changes]
+  required: [node_id, row_number, level, lock_version, difference, changes, base]
   description: >-
     A node of the comparison (`RevisionComparison.items`), as `compareRevisions` returns it:
     the properties of `Node`, taken over from it, of which only those that a read always returns
     are required — `node_id`, `row_number`, `level` and `lock_version`, and the node's mark,
-    `difference` and `changes` —, the others being returned only if `fields` names them, or all
-    of them if it is omitted (#166, #1201, #1208). Its facets are partial likewise, those of
-    `NodeProjection`, which `listNodes` returns likewise (#2485). `Node`, which the writes return
-    whole, does not change. `base` and `deltas` are not yet required: the service returns them
-    from EP-27 on (EP-27, « Exigées en deux temps »).
+    `difference`, `changes` and `base` —, the others being returned only if `fields` names them,
+    or all of them if it is omitted (#166, #1201, #1208). Its facets are partial likewise, those
+    of `NodeProjection`, which `listNodes` returns likewise (#2485). `Node`, which the writes
+    return whole, does not change. `deltas` is not yet required: the service returns it from
+    US-2340 on (EP-27, « Exigées en deux temps »).
   properties:
     <<: *node_properties
     task:

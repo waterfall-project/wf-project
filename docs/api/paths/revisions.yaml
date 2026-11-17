@@ -144,7 +144,8 @@
     description: >-
       Attributes of the revision and content of its snapshot (WF-REV-0090, WF-REV-0030): the
       reference data values that a marked revision has frozen (`snapshot`), omitted for the
-      current revision.
+      current revision, and for whoever does not hold `revisions.read` — a reader of one of the
+      three grids, whose banner reads the revision (EP-27, US-2320).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId

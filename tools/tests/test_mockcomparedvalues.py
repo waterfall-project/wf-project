@@ -250,9 +250,9 @@ def _identified_anew(rows: list[mockcore.Row]) -> tuple[list[mockcore.Row], list
 
 
 def test_a_copy_under_new_identifiers_of_the_same_lineage_is_unchanged() -> None:
-    # A parent, a predecessor and the bearing task of a line are compared by the lineage of the
-    # node they name (`ComparedNodeBase`, EP-27): a revision copied under new identifiers is
-    # compared unchanged with its source, node by node.
+    # WF-REV-0080-A, matched by lineage (WF-DAT-0030-A): a parent, a predecessor and the bearing
+    # task of a line are compared by the lineage of the node they name (`ComparedNodeBase`): a
+    # revision copied under new identifiers is compared unchanged with its source, node by node.
     before, after = _identified_anew(mockhistory.reference_rows())
     nodes = mockdiff.marked(before, after, compared=True)
     marks = {(node["difference"], tuple(cast("list[str]", node["changes"]))) for node in nodes}
@@ -260,8 +260,8 @@ def test_a_copy_under_new_identifiers_of_the_same_lineage_is_unchanged() -> None
 
 
 def test_a_line_carried_by_another_task_names_the_bearing_task_of_the_base_as_rendered() -> None:
-    # The bearing task of the base is named by the node the comparison renders for it, found by
-    # lineage, not by the identifier the base gives it.
+    # WF-REV-0080-A, the value of the base: the bearing task of the base is named by the node the
+    # comparison renders for it, found by lineage, not by the identifier the base gives it.
     before, after = _identified_anew(mockhistory.reference_rows())
     moved = [
         _with_line(row, bearing_task_node_id=identifier(9, 0))
@@ -292,9 +292,10 @@ def test_the_risk_a_node_comes_from_is_compared_as_it_is() -> None:
 
 
 def test_a_subproject_renamed_alone_changes_nothing_of_the_line() -> None:
-    # A label resolved on read follows its identifier (EP-27, DECISIONS): a subproject renamed,
-    # its identifier kept, neither marks the line nor says `subproject`; another subproject, its
-    # label goes with it in `base`, and `changes` says `subproject` alone.
+    # WF-REV-0080-A, what makes a node modified: a label resolved on read follows its identifier
+    # (`ComparedNodeBase`): a subproject renamed, its identifier kept, neither marks the line nor
+    # says `subproject`; another subproject, its label goes with it in `base`, and `changes` says
+    # `subproject` alone.
     rows = mockhistory.reference_rows()
     [wiring] = [row for row in rows if row.number == N.WIRING_ON_SITE]
     facet = cast("Node", wiring.node["estimate_line"])
@@ -321,8 +322,10 @@ def test_a_subproject_renamed_alone_changes_nothing_of_the_line() -> None:
 
 
 def test_a_duration_whose_unit_changes_and_an_amount_left_null_are_refused() -> None:
-    # The witness never changes the unit of a duration from one revision to the other, and a facet
-    # always carries its amounts (`TaskDeltas`): the generator refuses to write either delta.
+    # WF-REV-0080-A, the deltas of a modified node (`TaskDeltas`, WF-IHM-0150): the witness never
+    # changes the unit of a duration from one revision to the other, and a facet always carries
+    # its amounts; the generator refuses to write either delta rather than one the contract does
+    # not hold.
     rows = mockhistory.reference_rows()
     [design] = [row for row in rows if row.number == N.DESIGN_FILE]
     facet = cast("Node", design.node["task"])
@@ -349,8 +352,9 @@ def _bases(value: Any) -> list[Node]:
 
 
 def test_the_identifiers_a_base_names_are_those_of_the_reference_and_the_project() -> None:
-    # A line of `base` is partial, which ``test_mockcostsettings`` leaves out of the categories
-    # employed: each category, role and subproject it names is one the witness holds.
+    # WF-REV-0080-A, the value of the base: a line of `base` is partial, which
+    # ``test_mockcostsettings`` leaves out of the categories employed: each category, role and
+    # subproject it names is one the witness holds.
     held = {
         "cost_category_id": fixture("volume/cost_categories")["items"],
         "resource_role_id": fixture("resource_roles")["items"],
@@ -368,8 +372,9 @@ def test_the_identifiers_a_base_names_are_those_of_the_reference_and_the_project
 
 
 def test_include_differences_is_a_parameter_of_the_comparison_alone() -> None:
-    # `include_differences` retains the nodes in difference that a progress filter leaves out: a
-    # comparison has some, the reading of a structure (`listNodes`) none (EP-27, DECISIONS).
+    # WF-REV-0080-A, the comparison in the grids: `include_differences` retains the nodes in
+    # difference that a progress filter leaves out; a comparison has some, the reading of a
+    # structure (`listNodes`) none (`ComparisonIncludeDifferences`).
     text = (REPOSITORY / "docs/api/paths/revisions.yaml").read_text("utf-8")
     paths = cast("dict[str, dict[str, Any]]", yaml.safe_load(text))
     operations = [
