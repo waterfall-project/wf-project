@@ -15,6 +15,8 @@ import type { components } from "@/api/generated/schema";
 import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 import { atCommit } from "@/test/committed";
 import { heldLink } from "@/test/held-link";
+import { holdReading, Reading, releaseReading } from "@/test/held-reading";
+import { browserOffline } from "@/test/offline";
 
 import { AvatarForm } from "./avatar-form";
 import { AvatarPicture } from "./avatar-picture";
@@ -24,6 +26,8 @@ import { PreferencesForm } from "./preferences-form";
 // refresh a server action asks for, which renders the page again.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const refresh = vi.hoisted(() => vi.fn());
+// The router of the page, whose refresh a test makes a reading held (`held-reading.tsx`).
+const router = vi.hoisted(() => ({ refresh: vi.fn() }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/cache", () => ({ refresh }));
@@ -34,7 +38,7 @@ vi.mock("@/api/actions/preferences", async (original) => {
 });
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
-  useRouter: () => ({ refresh: () => undefined }),
+  useRouter: () => router,
   usePathname: () => "/account",
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -81,9 +85,12 @@ function sent(client: FakeClient, route: string): unknown[] {
 }
 
 beforeEach(() => {
+  router.refresh.mockReset();
   refresh.mockReset();
   forgetMessages();
 });
+
+beforeEach(browserOffline);
 
 describe("the preferences on the screen of the account", () => {
   it("records the language and the mode chosen, the same fields the menu of the account writes", async () => {
@@ -268,6 +275,32 @@ describe("the preferences on the screen of the account", () => {
     await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     expect((await screen.findByRole("alert")).textContent).toBe(CATALOGUES.fr.outcome.unreachable);
     expect(screen.getByRole("radio", { name: "Français" })).toBeChecked();
+  });
+});
+
+describe("the preferences, a write whose connection was lost once sent (US-2240)", () => {
+  it("holds the save, aria-disabled, until the screen has been read anew, then gives it back (US-2240)", async () => {
+    serve({});
+    holdReading(router.refresh);
+    vi.mocked(updateDisplay).mockResolvedValueOnce({ kind: "unreachable", sent: true });
+    render(inFrench(<PreferencesForm language="default" theme="default" patterns={false} />), {
+      wrapper: Reading,
+    });
+    const save = screen.getByRole("button", { name: "Enregistrer" });
+    await userEvent.click(screen.getByRole("radio", { name: "Français" }));
+    await userEvent.click(save);
+    expect(await screen.findByRole("alert")).toHaveTextContent("a pu aboutir");
+    // The screen not yet read anew: the save waits, and a press sends nothing more.
+    expect(save).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(save);
+    expect(updateDisplay).toHaveBeenCalledTimes(1);
+    expect(router.refresh).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      releaseReading();
+      await Promise.resolve();
+    });
+    expect(save).toHaveAttribute("aria-disabled", "false");
   });
 });
 

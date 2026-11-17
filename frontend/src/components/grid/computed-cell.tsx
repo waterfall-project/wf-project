@@ -29,7 +29,7 @@ import { useTranslations } from "next-intl";
 import { type ComponentProps, type ReactNode, useEffect, useId, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedRead } from "@/components/commands/rejection";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 
@@ -98,7 +98,7 @@ function useDependencies<Row>(
       }
     };
     void reader.read(id, field).then(answered, (error: unknown) => {
-      answered(rejected(error));
+      answered(rejectedRead(error));
     });
     return () => {
       live = false;

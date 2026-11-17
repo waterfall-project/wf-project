@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The hours a month of a role, calculated from its headcount: migration 0033 (US-2410/L2)."""
+"""The hours a month of a role, calculated from its headcount: migration 0034 (US-2410/L2)."""
 
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -11,7 +11,6 @@ from estimate_support import role_image_row, write_reference
 from project_rows import MARKED, STAMP, insert_project, insert_revision
 from sqlalchemy import func, insert, select, text, update
 from sqlalchemy.orm import Session
-from test_migrations import scratch_database
 
 from waterfall.core.estimate.tables import RevisionRole
 from waterfall.core.resource_settings.interface import Capacity, read_roles
@@ -20,8 +19,6 @@ from waterfall.core.revisions.tables import Revision
 from waterfall.migrations.runner import downgrade, upgrade
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-
     from sqlalchemy import Engine
 
 # The hours a month a role held in the column, and its constraint, before the migration.
@@ -33,13 +30,6 @@ CONSTRAINT = (
     "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
     "WHERE conname = 'ck_resource_role_monthly_hours_not_negative'"
 )
-
-
-@pytest.fixture
-def empty_engine(database_url: str) -> Iterator[Engine]:
-    """Give an engine on a database of its own, without a table."""
-    with scratch_database(database_url) as engine:
-        yield engine
 
 
 def entered(engine: Engine) -> dict[str, tuple[Decimal, Decimal]]:
@@ -141,7 +131,7 @@ def test_the_migration_keeps_the_headcount_and_drops_the_hours_and_the_descent_c
     assert kept(empty_engine) == image
     calculated = served(empty_engine)
     assert set(calculated) == {"ING", "DEMI", "BAS", "HAUT"}
-    downgrade(empty_engine, "0032")
+    downgrade(empty_engine, "0033")
     # What the descent fills is what the service calculated before it, role by role.
     assert {code: hours for code, (hours, _) in entered(empty_engine).items()} == {
         code: capacity.monthly_hours for code, capacity in calculated.items()

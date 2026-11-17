@@ -9,7 +9,7 @@
  * told by the bar of the shell, unless what asked it tells it still (`LeftRefusals`, #863).
  *
  * The one point every command of a screen goes through: `useHeldCommand` gives the outcome of its
- * server action, a rejection read as the screen of failure reads it (`rejected`), and holds the
+ * server action, a rejection read as the screen of failure reads it (`rejectedWrite`), and holds the
  * navigations until it is known — applied when done, refused otherwise.
  */
 "use client";
@@ -26,7 +26,7 @@ import {
   type WriteAnswer,
 } from "@/navigation/held-writes";
 
-import { rejected } from "./rejection";
+import { rejectedWrite } from "./rejection";
 
 /**
  * Hold the navigations of the page while the writes of the screen answer — each a promise of
@@ -111,9 +111,13 @@ export function useHeldWrites(
 
 /**
  * The outcome of the server action of a command, a rejection read as the outcome it stands for
- * (`rejected`), the navigations of the page held until it is known — released as `useHeldWrites`
- * releases them, `scope` changed among them, and its refusal once released told by the bar of the
- * shell unless `told` says that what asked it tells it still.
+ * (`rejectedWrite`), the navigations of the page held until it is known — released as
+ * `useHeldWrites` releases them, `scope` changed among them, and its refusal once released told by
+ * the bar of the shell unless `told` says that what asked it tells it still.
+ *
+ * Precondition: the state of the link (`navigator.onLine`) is read when the promise is handed
+ * over, not when the request leaves, so the caller starts the action in the very turn that calls
+ * `held(...)`: an action started in a later turn would have its link read too early or too late.
  */
 export function useHeldCommand(
   scope?: string,
@@ -121,7 +125,7 @@ export function useHeldCommand(
   const hold = useHeldWrites(scope);
   return useCallback(
     <T>(command: Promise<Outcome<T>>, told?: () => boolean) => {
-      const outcome = command.catch(rejected);
+      const outcome = command.catch(rejectedWrite());
       hold(outcome, told);
       return outcome;
     },

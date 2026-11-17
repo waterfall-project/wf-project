@@ -18,7 +18,7 @@
  */
 import { expect, type Locator, type Page, type Request, type Response } from "@playwright/test";
 
-import { WORKING } from "./hydration";
+import { WORKING } from "./bounds";
 
 /** Whether a request is a server action of Next, which a write of a screen is (`next-action`). */
 export const isServerAction = (request: Request): boolean =>

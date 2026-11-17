@@ -19,6 +19,7 @@ import { createContext, type ReactNode, useContext, useRef, useState } from "rea
 import { updateAccessRole } from "@/api/actions/access-roles";
 import type { components } from "@/api/generated/schema";
 import { useHeldCommand } from "@/components/commands/held";
+import { useListReading } from "@/components/reference/list-reading";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -79,6 +80,8 @@ function Writing({ order, roles, children }: WritesProps) {
   const own = useHeldCommand();
   const heldWrite = list?.held ?? own;
   const answers = useRoleAnswers();
+  // A write of the list lost once sent: the list is read anew, and this waits until it is back (US-2240).
+  const reading = useListReading();
   const [asked, setAsked] = useState<ReadonlyMap<string, ReadonlySet<PermissionCode>>>(
     () => new Map(),
   );
@@ -93,7 +96,7 @@ function Writing({ order, roles, children }: WritesProps) {
       role,
       codes: codes ?? new Set(role.permissions),
       // Any write of the role, a renaming or a deletion as well as a cell (#2261).
-      writing: answers?.writing.has(id) === true || codes !== undefined,
+      writing: answers?.writing.has(id) === true || codes !== undefined || reading,
     };
   };
   const write = (
@@ -105,7 +108,7 @@ function Writing({ order, roles, children }: WritesProps) {
     // The role as the screen holds it now: an answer may have arrived since the last render.
     const role = answers?.latest(shown) ?? shown;
     const id = role.access_role_id;
-    if (answers?.isWriting(id) === true) {
+    if (answers?.isWriting(id) === true || reading) {
       // Marked busy and unavailable: the write of the role under way is answered first.
       return;
     }

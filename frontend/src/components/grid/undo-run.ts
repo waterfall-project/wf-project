@@ -24,6 +24,7 @@ import { useState } from "react";
 import { redoLastUndo, undoLastChange } from "@/api/actions/history";
 import type { Outcome } from "@/api/problem";
 import { useHeldCommand } from "@/components/commands/held";
+import { useReadAnew } from "@/components/commands/outcome-notice";
 
 import type { StructureAccount } from "./structure-version";
 import type { UndoCommand, UndoControl, UndoneCommand } from "./undo-commands";
@@ -59,10 +60,13 @@ export function useUndoRedo(
   const [told, setTold] = useState<Told>();
   const [done, setDone] = useState<Done>();
   const structure = scope.structure_id;
+  const shown = told?.structure === structure ? told.outcome : undefined;
+  // A command lost once sent: the structure is read anew, and none is asked until it is back (US-2240).
+  const reading = useReadAnew(shown);
   const press = (command: UndoCommand) => {
     // One command at a time, and none while the structure is being written: the history the server
     // undoes is the one the writes under way are about to grow.
-    if (account.busy) {
+    if (account.busy || reading) {
       return;
     }
     const ask = command === "undo" ? undoLastChange : redoLastUndo;
@@ -93,8 +97,9 @@ export function useUndoRedo(
   }
   return {
     press,
-    busy: account.busy,
-    outcome: told?.structure === structure ? told.outcome : undefined,
+    busy: account.busy || reading,
+    reading,
+    outcome: shown,
     done: done?.structure === structure ? done : undefined,
     clear: () => {
       setTold(undefined);

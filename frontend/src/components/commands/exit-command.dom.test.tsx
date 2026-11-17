@@ -22,7 +22,9 @@ import {
   fakeClient,
   type FakeTiming,
   held,
+  refusedConnection,
 } from "@/test/fixtures";
+import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 import { closeTasks, tasksRegion } from "@/test/task-panel";
 
 import { LifecycleCommands } from "./object-commands";
@@ -645,13 +647,49 @@ describe("the exits of the lifecycle of a project", () => {
   it("says the API out of reach, and the screen stays", async () => {
     server.client = createApiClient({
       address: "http://unreachable.invalid",
-      fetch: () => Promise.reject(new TypeError("fetch failed")),
+      fetch: () => Promise.reject(refusedConnection()),
     });
     open();
     await confirm("Abandonner le projet");
     expect(screen.getByRole("alert")).toHaveTextContent("Le service est injoignable");
     expect(screen.getByRole("form", { name: "Abandonner le projet" })).toBeInTheDocument();
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("waits, confirmed again, until the page has been read anew after an exit whose connection was lost once sent (US-2240)", async () => {
+    const lost = new TypeError("fetch failed", {
+      cause: Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" }),
+    });
+    const send = vi.fn(() => Promise.reject(lost));
+    server.client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    // The page as Next reads it anew: the refresh a transition that stays pending until the server
+    // answers — here until the test lets it go (`held-reading.tsx`).
+    holdReading(router.refresh);
+    render(<Reading>{exitsOf("project")}</Reading>);
+    await confirm("Abandonner le projet");
+    const confirmed = screen.getByRole("button", { name: "Confirmer la sortie" });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("l’opération a pu aboutir");
+    expect(router.refresh).toHaveBeenCalledOnce();
+    expect(confirmed).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("form", { name: "Abandonner le projet" })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+    await userEvent.click(confirmed);
+    expect(send).toHaveBeenCalledOnce();
+    // The command waits too: pressed, it neither closes the confirmation nor opens it again.
+    const command = exit("Abandonner le projet");
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(command);
+    expect(command).toHaveAttribute("aria-expanded", "true");
+
+    await act(async () => {
+      releaseReading();
+      await Promise.resolve();
+    });
+    expect(confirmed).not.toHaveAttribute("aria-disabled");
+    expect(command).not.toHaveAttribute("aria-disabled");
   });
 
   it("closes without asking anything when cancelled, the focus back on the command", async () => {

@@ -18,8 +18,14 @@ whose facets name no calendar, the intersection of those they name otherwise; ``
 gives it to the tasks of a structure, the default read once, the calendars of the facets asked
 once. Completed by US-1490/L3 (EP-07, "Les points d'extension"), by US-1490/L4 with the
 judgement of the nodes a move gives another task (``moved``), by US-1560/L1 with the judgement
-and the write of the cells a paste gives a node of the kind (``judge_cell``, ``write_cell``), and by
-US-1570/L5 with what a write takes before the lock of its structure (``before_lock``, #2615).
+and the write of the cells a paste gives a node of the kind (``judge_cell``, ``write_cell``), by
+US-1570/L5 with what a write takes before the lock of its structure (``before_lock``, #2615), and by
+US-2220/L1 with the reading of the facets of a structure as rows, which a reading that writes
+nothing asks instead of ``totals`` and ``read`` (``columns``, EP-26, "La lecture d'une structure"),
+and by US-2280/L1 with what the nodes of a kind count under each task, read grouped, which a reading
+of the tasks alone asks instead of reading them (``tally``, ``Tally``; EP-26, "L'agrégat d'abord"),
+and by US-2250 with the fields of a node of the kind whose write can move no date nor change an
+amount, which take the short path of a write (``inert``; EP-26, "Les écritures").
 """
 
 from dataclasses import dataclass
@@ -27,17 +33,18 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from waterfall.core.planning.calendars import (
-    applicable_among,
+    applicable_calendars,
     applicable_of,
     default_calendar,
-    weeks_of,
 )
+from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Mapping
     from uuid import UUID
 
+    from sqlalchemy import Subquery
     from sqlalchemy.orm import Session
 
     from waterfall.core.history.interface import JsonValue
@@ -97,6 +104,37 @@ class FacetRead:
     label: str
     computed_fields: tuple[str, ...]
     editable_fields: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class FacetColumns:
+    """The facets of nodes of a kind read once as rows, for a reading that writes nothing.
+
+    ``figures`` what each node counts in the totals, as ``FacetHooks.totals`` gives it; ``read`` the
+    facet of each node named, the task bearing it given, as ``FacetHooks.read`` gives it, from the
+    same rows, in the transaction they were read in.
+    """
+
+    figures: Mapping[UUID, Amounts]
+    read: Callable[[Mapping[UUID, BearingTask]], Mapping[UUID, FacetRead]]
+
+
+@dataclass(frozen=True, slots=True)
+class Tally:
+    """What the nodes of a kind a task bears count, read grouped by task (``FacetHooks.tally``).
+
+    ``amounts`` their figures summed, as ``Amounts`` adds them, nought for nodes without a facet;
+    ``count`` how many they are, those without a facet included; ``own`` whether one is not
+    provided for a risk (``Node.origin_risk_id``); ``held_open`` whether one of those keeps it open,
+    as ``register_open_lines`` tells; ``calendars`` the calendars they name, as ``calendars`` gives
+    them (WF-PLA-0010).
+    """
+
+    amounts: Amounts
+    count: int
+    own: bool
+    held_open: bool
+    calendars: frozenset[UUID]
 
 
 @dataclass(frozen=True, slots=True)
@@ -184,6 +222,16 @@ class LineSort:
     descending: bool
 
 
+class RepricedBeyondColumnError(UnprocessableError):
+    """A node of a kind, priced again on the dates of its task, crosses a column (``reinflate``).
+
+    The hook raises it without a field: it knows the task redated, not the request. The write
+    whose entry redated the task names the fields that carry the entry (``Write.redate``,
+    ``entered``); a write that sends none leaves it without (``docs/api/DECISIONS.md``, #3093,
+    #3094).
+    """
+
+
 @dataclass(frozen=True, slots=True)
 class FacetHooks:
     """What the planning asks of the facet of a kind of node, each hook given its session.
@@ -194,15 +242,26 @@ class FacetHooks:
     of the nodes of the kind under each task named; ``create`` writes the facet of a node created;
     ``snapshot`` gives the facets as the history keeps them, ``restore`` writes them back;
     ``reinflate`` prices again the nodes on the dates of their tasks and gives those whose amounts
-    or year moved; ``totals`` gives the figures of each node named; ``filters`` keeps, of the
-    nodes named, those a filter asked of the kind retains; ``sort`` orders them, or gives none for a
-    column it does not sort; ``dependencies`` names what a computed value of a node depends on,
-    none for a field it does not compute; ``moved`` judges the nodes a move gives another task,
+    or year moved, refusing one carried past a column (``RepricedBeyondColumnError``); ``totals``
+    gives the figures of each node named; ``filters`` keeps, of the nodes named, those a filter
+    asked of the kind retains; ``sort`` orders them, or gives none for a column it does not sort;
+    ``dependencies`` names what a computed value of a node depends on, none for a field it does
+    not compute; ``moved`` judges the nodes a move gives another task,
     placed under it already, in the order of the plan, and refuses what it does not accept (422);
     ``judge_cell`` judges the cells a paste gives a node, by the very functions of the entry of a
     cell, naming every refusal at once; ``write_cell`` writes the entry it judged; ``before_lock``
     takes what a write of the tree must hold before the lock of its structure — the estimate shares
-    the lock of the natures (#2615) —, called first by every write of the tree.
+    the lock of the natures (#2615) —, called first by every write of the tree. ``columns`` reads
+    the nodes named once as rows, for a reading that writes nothing (``listNodes``,
+    ``compareRevisions``): their figures and their facets, which ``totals`` and ``read`` give a
+    write from its objects (US-2220). ``tally`` gives, by task, what its nodes of the kind count
+    (``Tally``), read in one statement grouped by task from the nodes of the structure the planning
+    names — a subquery of their ``node_id``, the ``task_id`` bearing them and whether they are
+    ``from_risk`` —, for a reading of the tasks alone, which reads none of these nodes (US-2280).
+    ``inert`` names, as ``FacetRead.editable_fields`` does, the fields of a node of the kind that
+    neither the calendars the kind names (``calendars``) nor any amount of the kind (``reinflate``,
+    ``totals``) read: a write that sends none but these can move no date nor change an amount, and
+    takes the short path (``Write.count``, US-2250); a field in doubt is not named.
     """
 
     read: Callable[[Session, UUID, Mapping[UUID, BearingTask]], Mapping[UUID, FacetRead]]
@@ -221,6 +280,9 @@ class FacetHooks:
     judge_cell: Callable[[CellsPasted], CellsJudged]
     write_cell: Callable[[FacetWrite, object], None]
     before_lock: Callable[[Session], None]
+    columns: Callable[[Session, UUID, Collection[UUID]], FacetColumns]
+    tally: Callable[[Session, UUID, Subquery], Mapping[UUID, Tally]]
+    inert: tuple[str, ...]
 
 
 # The hooks of each kind of node other than the task, in the order of their registration.
@@ -273,14 +335,4 @@ def calendars_of(
     Computed once for each set of calendars named: the tasks of a structure name few of them, and
     an intersection costs the building of a calendar (#3048).
     """
-    default = default_calendar(session)
-    named = named_calendars(session, project_id, task_ids)
-    weeks = weeks_of(session, [each for held in named.values() for each in held])
-    computed: dict[frozenset[UUID], Applicable] = {}
-    found: dict[UUID, Applicable] = {}
-    for task_id in task_ids:
-        held = frozenset(named[task_id])
-        if held not in computed:
-            computed[held] = applicable_among(held, default, weeks)
-        found[task_id] = computed[held]
-    return found
+    return applicable_calendars(session, named_calendars(session, project_id, task_ids))

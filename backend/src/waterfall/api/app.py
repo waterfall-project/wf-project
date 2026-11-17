@@ -73,7 +73,13 @@ from waterfall.core.indicators import interface as indicators_interface
 from waterfall.core.planning import interface as planning_interface
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from contextlib import AbstractAsyncContextManager
+
     from waterfall.api.authentication import Services
+
+    # What runs around the serving of an application: its start, then its stop.
+    type Lifespan = Callable[[FastAPI], AbstractAsyncContextManager[None]]
 
 # The single prefix of version the contract declares in its ``servers``.
 PREFIX = "/api/v1"
@@ -90,11 +96,12 @@ EXTENDING = (
 )
 
 
-def create_app(services: Services) -> FastAPI:
+def create_app(services: Services, lifespan: Lifespan | None = None) -> FastAPI:
     """Build the application on its services: its routes, its correlation, its envelope of errors.
 
     Nothing is reached before a request needs it: a probe answers without the database or
-    Keycloak.
+    Keycloak. ``lifespan`` runs around the serving of the application: the process that opened
+    the services closes them by it (``api.main``).
     """
     schema.declared()
     app = FastAPI(
@@ -104,6 +111,7 @@ def create_app(services: Services) -> FastAPI:
         redoc_url=None,
         openapi_url=None,
         redirect_slashes=False,
+        lifespan=lifespan,
     )
     # Added first, run second: a refusal in maintenance carries the correlation of its request.
     app.add_middleware(MaintenanceMiddleware, maintenance=services.maintenance)

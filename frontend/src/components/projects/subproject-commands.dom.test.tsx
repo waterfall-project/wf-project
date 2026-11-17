@@ -21,6 +21,7 @@ import {
   type FakeTiming,
   held,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import type { Subproject } from "./settings-grids";
 import { SubprojectList } from "./settings-lists";
@@ -143,6 +144,8 @@ afterEach(() => {
   refresh.mockClear();
   router.refresh.mockClear();
 });
+
+beforeEach(browserOffline);
 
 describe("the creation and the modification of a sub-project", () => {
   it("creates a sub-project from a project that has none, its code and its label required before anything is asked [WF-PRJ-0050-A]", async () => {

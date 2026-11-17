@@ -26,7 +26,7 @@ from waterfall.core.resource_settings.interface.extensions import (
 )
 from waterfall.core.resource_settings.interface.readiness import lock_reference
 from waterfall.core.resource_settings.interface.resource_roles import idle_tasks_refused
-from waterfall.core.resource_settings.tables import DAYS, Calendar
+from waterfall.core.resource_settings.tables import DAYS, Calendar, ResourceRole
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
     NOT_FOUND,
@@ -549,3 +549,23 @@ def list_calendars(
         .execution_options(populate_existing=True)
     ).all()
     return CalendarPage(_views(rows), total)
+
+
+def calendar_settings(session: Session) -> tuple[tuple[str, ...], ...]:
+    """Give, as texts, what the hours of a task follow: the calendars, and the calendar of a role.
+
+    Each calendar with its hours and whether it is the default, then each role with its calendar,
+    in the order of their identifiers (WF-PLA-0010). What a reading kept of a marked revision
+    depends on outside it (EP-26, US-2270): a change of it makes the readings kept stale.
+    """
+    hours = [getattr(Calendar, day) for day in DAYS]
+    calendars = session.execute(
+        select(Calendar.id, *hours, Calendar.is_default).order_by(Calendar.id)
+    )
+    roles = session.execute(
+        select(ResourceRole.id, ResourceRole.calendar_id).order_by(ResourceRole.id)
+    )
+    return (
+        *(("calendar", *(str(value) for value in row)) for row in calendars),
+        *(("role", *(str(value) for value in row)) for row in roles),
+    )

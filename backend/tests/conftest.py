@@ -13,6 +13,7 @@ from access_rows import role
 from fastapi.testclient import TestClient
 from installations import Installation, Take, installed, taker
 from installed_reference import install
+from migrations_support import scratch_database
 from openapi_core import Config, OpenAPI
 from project_rows import drop_partitions, unguarded
 from pydantic import SecretStr
@@ -190,6 +191,13 @@ def client(contract: OpenAPI, services: Services) -> ContractClient:
 
 
 TEST_DATABASE_VARIABLE = "WATERFALL_TEST_DATABASE_URL"
+
+
+@pytest.fixture
+def empty_engine(database_url: str) -> Iterator[Engine]:
+    """Give an engine on a database of its own, without a table."""
+    with scratch_database(database_url) as engine:
+        yield engine
 
 
 @pytest.fixture(scope="session")

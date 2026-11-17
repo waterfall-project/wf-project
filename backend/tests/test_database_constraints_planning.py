@@ -44,6 +44,7 @@ from waterfall.core.planning.tables import (
     PROGRESSES,
     SCHEDULING_MODES,
     Node,
+    StructureReading,
     Task,
     TaskLink,
     Timeline,
@@ -426,6 +427,8 @@ CASCADES = {
     "fk_tracking_entry_timeline_id_timeline",
     # The facet estimate line with its node (EP-07, "Tables et migrations").
     "fk_estimate_line_project_id_node",
+    # The reading kept of a structure with its structure (EP-26, "Tables et migrations").
+    "fk_structure_reading_project_id_cost_structure",
 }
 
 
@@ -490,6 +493,41 @@ def test_inside_a_current_revision_a_structure_takes_its_nodes_and_a_timeline_it
         connection.execute(delete(CostStructure).where(CostStructure.id == parents.structure))
         connection.execute(delete(Timeline).where(Timeline.id == parents.timeline))
     assert [count(database, table) for table in (Node, Task, TaskLink, TrackingEntry)] == [0] * 4
+
+
+def reading_row(parents: Parents, **values: object) -> Executable:
+    """Give the insertion of a reading kept of the structure of the parents."""
+    return insert(StructureReading).values(
+        {
+            "project_id": parents.project,
+            "structure_id": parents.structure,
+            "revision_id": parents.revision,
+            "format": 1,
+            "settings_digest": bytes(32),
+            "document": b"{}",
+            "kept_at": AT,
+            **values,
+        }
+    )
+
+
+def test_a_reading_kept_names_a_format_and_goes_with_its_structure(
+    database: Database, parents: Parents
+) -> None:
+    # A reading kept is of a format, counted from 1, and of a structure of its revision; deleted
+    # with its structure (EP-26, "Tables et migrations", US-2270).
+    assert (
+        refusal(database.engine, reading_row(parents, format=0))
+        == "ck_structure_reading_format_positive"
+    )
+    assert (
+        refusal(database.engine, reading_row(parents, revision_id=uuid4()))
+        == "fk_structure_reading_project_id_cost_structure"
+    )
+    with database.engine.begin() as connection:
+        connection.execute(reading_row(parents))
+        connection.execute(delete(CostStructure).where(CostStructure.id == parents.structure))
+    assert count(database, StructureReading) == 0
 
 
 @pytest.mark.usefixtures("parents")

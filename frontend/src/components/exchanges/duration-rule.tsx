@@ -25,8 +25,8 @@ import { useId, useState } from "react";
 
 import { type ImportDurationRule, setFileImportDurationRule } from "@/api/actions/exchanges";
 import type { Outcome } from "@/api/problem";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
+import { rejectedWrite } from "@/components/commands/rejection";
 import { useReadAnewWhenTaskEnds, useTrackTask } from "@/components/tasks/task-tracker";
 
 const RULES: readonly ImportDurationRule[] = ["keep_durations", "keep_dates"];
@@ -66,13 +66,22 @@ export function DurationRule(props: DurationRuleProps) {
   }
   const followed = props.task ?? analysis;
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
+  // A choice lost once sent: the rule waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(outcome);
   return (
     <>
       {props.rule === undefined || !props.awaiting ? null : (
-        <Choice {...props} rule={props.rule} onAnalysing={setAnalysis} onOutcome={setOutcome} />
+        <Choice
+          {...props}
+          rule={props.rule}
+          reading={reading}
+          onAnalysing={setAnalysis}
+          onOutcome={setOutcome}
+        />
       )}
       <OutcomeNotice
         outcome={outcome}
+        reading={reading}
         onClear={() => {
           setOutcome(undefined);
         }}
@@ -88,10 +97,13 @@ function Choice({
   importId,
   filename,
   rule,
+  reading,
   onAnalysing,
   onOutcome,
 }: DurationRuleProps & {
   readonly rule: ImportDurationRule;
+  /** Whether the screen is read anew after a choice lost once sent: no other is taken. */
+  readonly reading: boolean;
   readonly onAnalysing: (taskId: string) => void;
   readonly onOutcome: (outcome: Outcome<unknown> | undefined) => void;
 }) {
@@ -106,13 +118,13 @@ function Choice({
   };
 
   const choose = (asked: ImportDurationRule) => {
-    if (busy || asked === rule) {
+    if (busy || reading || asked === rule) {
       return;
     }
     setBusy(true);
     onOutcome(undefined);
     void setFileImportDurationRule(projectId, importId, asked)
-      .catch(rejected)
+      .catch(rejectedWrite())
       .then((result) => {
         setBusy(false);
         if (result.kind === "done") {
@@ -133,7 +145,7 @@ function Choice({
   };
 
   return (
-    <fieldset aria-busy={busy} className="space-y-1 text-sm">
+    <fieldset aria-busy={busy || reading} className="space-y-1 text-sm">
       <legend className="text-sm font-semibold">{t("legend")}</legend>
       {RULES.map((each) => (
         <label key={each} className="flex items-start gap-2">
@@ -142,6 +154,7 @@ function Choice({
             name={name}
             value={each}
             checked={rule === each}
+            aria-disabled={reading ? true : undefined}
             onChange={() => {
               choose(each);
             }}

@@ -21,6 +21,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
+import paste_support
 import pytest
 from history_support import counter, plans, redone, undone
 from nodes_support import (
@@ -29,14 +30,14 @@ from nodes_support import (
     entries,
     instant,
     mark,
-    opened,
     refusal,
     signed_in,
     work_breakdown,
 )
+from paste_support import applied, apply, planned, preview
 from planning_support import DAY, node_row
-from projects_support import scene as make_scene
 from sqlalchemy import insert, inspect, update
+from test_inert_writes import Statement, listened, trees_read, unkept
 
 from waterfall.core.planning.attachments import Attached
 from waterfall.core.planning.entries import Facet
@@ -67,86 +68,17 @@ from waterfall.platform.errors import UnprocessableError
 if TYPE_CHECKING:
     from projects_support import Person, Scene
     from realm import TestRealm
-    from sqlalchemy import Engine
-    from support import ContractClient
 
-    from waterfall.platform.database import Database
 
 MILESTONE = {"duration": {"value": "0", "unit": "d"}}
 
 
-@pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
-    """Give a platform, its sessions, and the project its manager made."""
-    return make_scene(api, owner, database, realm)
-
-
-@pytest.fixture
-def tree(api: ContractClient, stage: Scene) -> Tree:
-    """Give the main structure of the revision the manager opened on the project of the stage."""
-    return Tree(api, stage, opened(api, stage))
-
-
-@pytest.fixture
-def who(stage: Scene, realm: TestRealm) -> Person:
-    """Give a contributor of the project whose token carries a session of sign-in."""
-    return signed_in(stage, realm)
-
-
-def preview(
-    tree: Tree,
-    target: dict[str, Any],
-    column: str,
-    rows: list[list[str]],
-    who: Person | None = None,
-) -> Any:
-    """Preview a block pasted on a cell of a task; give the answer."""
-    sent = {"target_node_id": target["node_id"], "target_column": column, "rows": rows}
-    headers = (who or tree.stage.manager).headers
-    return tree.api.post(f"{tree.path}/nodes/paste-preview", headers=headers, json=sent)
-
-
-def planned(
-    tree: Tree,
-    target: dict[str, Any],
-    column: str,
-    rows: list[list[str]],
-    who: Person | None = None,
-) -> dict[str, Any]:
-    """Preview a block that must be previewed; give the plan."""
-    answer = preview(tree, target, column, rows, who)
-    assert answer.status_code == 200, answer.text
-    return answer.json()
-
-
-def apply(
-    tree: Tree, plan: dict[str, Any], who: Person | None = None, lock_version: int | None = None
-) -> Any:
-    """Confirm a plan at the counter of the structure unless one is sent; give the answer."""
-    sent = {
-        "paste_id": plan["paste_id"],
-        "confirmed": True,
-        "lock_version": counter(tree) if lock_version is None else lock_version,
-    }
-    headers = (who or tree.stage.manager).headers
-    return tree.api.post(f"{tree.path}/nodes/paste", headers=headers, json=sent)
-
-
-def applied(tree: Tree, plan: dict[str, Any], who: Person | None = None) -> dict[str, Any]:
-    """Confirm a plan that must be confirmed; give what is answered."""
-    answer = apply(tree, plan, who)
-    assert answer.status_code == 200, answer.text
-    return answer.json()
+stage, tree, who = paste_support.stage, paste_support.tree, paste_support.who
 
 
 def reasons(plan: dict[str, Any]) -> list[tuple[int, str | None, str]]:
     """Give the refusals of a plan: the row, the column if there is one, the code."""
     return [(each["row"], each.get("column"), each["code"]) for each in plan["rejected"]]
-
-
-def labels_of(tree: Tree) -> list[str]:
-    """Read the labels of the tasks, in the order of the plan."""
-    return tree.labels()
 
 
 # --- The two steps of a paste -------------------------------------------------------------------
@@ -172,7 +104,7 @@ def test_a_block_previewed_then_confirmed_writes_its_rows_in_one_operation_and_o
     plan = planned(tree, study, "label", block, who)
     assert (plan["accepted"], plan["rejected"]) == (3, [])
     # The preview writes nothing: neither the tasks, nor the counter, nor the history.
-    assert labels_of(tree) == ["Étude", "Note", "Travaux"]
+    assert tree.labels() == ["Étude", "Note", "Travaux"]
     assert counter(tree) == before
     assert [each.kind for each in entries(stage)] == ["node_create"] * 3
     assert len(plans(stage)) == 1
@@ -182,7 +114,7 @@ def test_a_block_previewed_then_confirmed_writes_its_rows_in_one_operation_and_o
     assert body["structure_lock_version"] == before + 1
     written = [each["node_id"] for each in body["nodes"]]
     assert sorted(written) == sorted([study["node_id"], note["node_id"], works["node_id"]])
-    assert labels_of(tree) == ["Études de détail", "Note de calcul", "Travaux de câblage"]
+    assert tree.labels() == ["Études de détail", "Note de calcul", "Travaux de câblage"]
     read = {each["node_id"]: each["task"] for each in tree.items()}
     assert read[note["node_id"]]["description"] is None
     assert read[works["node_id"]]["description"] == "Le poste"
@@ -198,7 +130,7 @@ def test_a_block_previewed_then_confirmed_writes_its_rows_in_one_operation_and_o
     # The three rows are undone by one undoing, and redone by one.
     first = undone(tree, who)
     assert first["undone"]["kind"] == "paste"
-    assert labels_of(tree) == ["Étude", "Note", "Travaux"]
+    assert tree.labels() == ["Étude", "Note", "Travaux"]
     assert tree.node(works["node_id"])["task"]["duration"] == {"value": "1", "unit": "d"}
 
 
@@ -236,7 +168,7 @@ def test_the_cells_empty_write_nothing_and_a_row_of_empty_cells_is_not_a_row_to_
     read = tree.node(first["node_id"])["task"]
     assert (read["label"], read["description"]) == ("Étude", "Une description")
     assert tree.node(second["node_id"])["task"]["label"] == "Travaux"
-    assert labels_of(tree) == ["Étude", "Travaux", "Essais finaux"]
+    assert tree.labels() == ["Étude", "Travaux", "Essais finaux"]
 
 
 @pytest.mark.requirement("WF-IHM-0050-A")
@@ -294,7 +226,7 @@ def test_a_cell_refused_is_named_by_its_row_and_its_column_and_its_row_is_not_wr
     body = applied(tree, plan, who)
     assert body["rejected"] == plan["rejected"]
     assert len(body["nodes"]) == 1
-    assert labels_of(tree) == ["Étude", "Travaux", "Essais", "Recette 2"]
+    assert tree.labels() == ["Étude", "Travaux", "Essais", "Recette 2"]
 
 
 @pytest.mark.requirement("WF-IHM-0050-A")
@@ -461,13 +393,13 @@ def test_the_rows_past_the_last_node_are_counted_by_the_preview_then_created_bes
     plan = planned(tree, note, "label", block, who)
     assert (plan["accepted"], plan["created"], plan["rejected"]) == (3, 2, [])
     # The preview creates nothing: neither the tasks, nor the counter, nor the history.
-    assert labels_of(tree) == ["Étude", "Note"]
+    assert tree.labels() == ["Étude", "Note"]
     assert (counter(tree), len(entries(stage))) == (before, kept)
 
     body = applied(tree, plan, who)
     assert body["rejected"] == []
     assert (body["structure_lock_version"], body["totals"]["task_count"]) == (before + 1, 4)
-    assert labels_of(tree) == ["Étude", "Note de calcul", "Plan", "Recette"]
+    assert tree.labels() == ["Étude", "Note de calcul", "Plan", "Recette"]
     items = tree.items()
     made = [each["node_id"] for each in items[2:]]
     assert [each["node_id"] for each in body["nodes"]] == [note["node_id"], *made]
@@ -505,7 +437,7 @@ def test_a_row_past_the_last_node_without_a_label_is_refused_on_its_label_and_cr
     assert reasons(plan) == [(1, "label", "VALIDATION_FAILED")]
     body = applied(tree, plan, who)
     assert reasons(body) == reasons(plan)
-    assert labels_of(tree) == ["Étude 2", "Travaux"]
+    assert tree.labels() == ["Étude 2", "Travaux"]
     assert len(body["nodes"]) == 2
     # A block that does not start at the label column has no label to create a task with.
     described = planned(tree, tree.items()[-1], "description", [["Une"], ["Deux"]], who)
@@ -576,7 +508,7 @@ def test_a_row_that_creates_is_judged_again_and_refused_since_it_is_not_created(
         )
     body = applied(tree, plan, who)
     assert reasons(body) == [(1, "work_breakdown", "UNKNOWN_WORK_BREAKDOWN_ITEM")]
-    assert labels_of(tree) == ["Études", "Recette"]
+    assert tree.labels() == ["Études", "Recette"]
     assert len(body["nodes"]) == 2
     assert body["totals"]["task_count"] == 2
 
@@ -594,7 +526,7 @@ def test_a_plan_that_creates_creates_nothing_abandoned_or_stale(
     assert (tree.items(), counter(tree), len(entries(stage))) == before
     assert tree.change(tree.node(task["node_id"]), None, description="Repris").status_code == 200
     assert refusal(apply(tree, abandoned, who))[:2] == (412, "STALE_LOCK_VERSION")
-    assert labels_of(tree) == ["Étude"]
+    assert tree.labels() == ["Étude"]
     assert [each.kind for each in entries(stage)] == ["node_create"]
 
 
@@ -624,33 +556,68 @@ def test_the_plan_names_the_node_it_creates_and_the_cell_of_the_work_breakdown_i
 
 @pytest.mark.requirement("WF-IHM-0110-A")
 def test_a_paste_that_creates_is_undone_by_deleting_its_tasks_and_redone_by_creating_them(
-    tree: Tree, stage: Scene, who: Person
+    tree: Tree, stage: Scene, who: Person, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # Vérif : « Cinquante modifications successives s’annulent une par une, puis se rétablissent
     # dans l’ordre. » (WF-IHM-0110-A) : ici une seule entrée, celle du collage — critère d'US-1450 :
     # annuler le collage supprime les tâches qu'il a créées, le rétablir les recrée. As the undoing
     # of a creation, it names the nodes it deletes, and gives back none of them among the nodes
-    # written.
+    # written. Each of the three writes reads the tree once, a criterion of US-2250: the paste
+    # that creates, the undoing that deletes, the redoing that creates again.
     task = tree.made("Étude", who=who)
     plan = planned(tree, task, "label", [["Étude 2"], ["Plan", "", "", "2"], ["Recette"]], who)
-    body = applied(tree, plan, who)
+    read = trees_read(monkeypatch)
+    with listened() as sent:
+        body = applied(tree, plan, who)
+    assert read.count == 1
+    # What the replay rests on holds on the paste (``reshaped``, US-2250/L2, #3563).
+    assert any(each.text.startswith("INSERT INTO node ") for each in sent)
+    assert unkept(sent) == []
     made = [each["node_id"] for each in body["nodes"][1:]]
     assert len(made) == 2
 
     first = undone(tree, who)
+    assert read.count == 2
     assert first["undone"]["kind"] == "paste"
     assert sorted(first["undone"]["node_ids"]) == sorted([task["node_id"], *made])
     assert [each["node_id"] for each in first["written"]["nodes"]] == [task["node_id"]]
     assert first["written"]["totals"]["task_count"] == 1
-    assert labels_of(tree) == ["Étude"]
+    assert tree.labels() == ["Étude"]
 
     again = redone(tree, who)
+    assert read.count == 3
     assert again["undone"]["kind"] == "paste"
     assert [each["node_id"] for each in again["written"]["nodes"]] == [task["node_id"], *made]
     assert again["written"]["totals"]["task_count"] == 3
-    assert labels_of(tree) == ["Étude 2", "Plan", "Recette"]
+    assert tree.labels() == ["Étude 2", "Plan", "Recette"]
     assert tree.node(made[0])["task"]["duration"] == {"value": "2", "unit": "d"}
     assert [each.undone for each in entries(stage)][-1] is False
+
+
+def _reads_of_the_defaults(sent: list[Statement]) -> int:
+    """Count the statements that read the calendars and the constants of the units."""
+    return sum(" FROM calendar" in each.text or " FROM duration_unit" in each.text for each in sent)
+
+
+@pytest.mark.requirement("WF-IHM-0050-A")
+def test_a_paste_that_creates_reads_the_calendar_and_the_constants_once_not_at_each_row(
+    tree: Tree, who: Person
+) -> None:
+    # #2605 : le collage qui crée relit, pour chaque ligne qui crée, le calendrier et les constantes
+    # des unités ; il les lit une fois par collage, à l'aperçu comme à la confirmation (qui rejuge
+    # sous le verrou). Le nombre de lectures ne dépend plus de la hauteur du bloc.
+    task = tree.made("Étude", who=who)
+    reads: dict[int, tuple[int, int]] = {}
+    for height in (2, 12):
+        block = [["Étude"], *([f"Ligne {height}-{at}", "", "", "2"] for at in range(height))]
+        with listened() as previewing:
+            plan = planned(tree, task, "label", block, who)
+        with listened() as confirming:
+            body = applied(tree, plan, who)
+        assert len(body["nodes"]) == height + 1
+        reads[height] = (_reads_of_the_defaults(previewing), _reads_of_the_defaults(confirming))
+    assert reads[2] == reads[12]
+    assert all(each <= 4 for each in reads[12])
 
 
 @pytest.mark.requirement("WF-PLA-0050-A")
@@ -716,7 +683,7 @@ def test_a_block_wider_than_the_columns_of_the_facet_from_the_targeted_one_is_re
         assert refusal(answer) == (422, "PASTE_TOO_WIDE", {"max_columns": columns}), column
         assert preview(tree, task, column, [["x"] * columns, []], who).status_code == 200, column
     assert len(plans(stage)) == 3
-    assert labels_of(tree) == ["Étude"]
+    assert tree.labels() == ["Étude"]
 
 
 @pytest.mark.requirement("WF-IHM-0050-A")
@@ -769,7 +736,7 @@ def test_a_plan_is_applied_once_by_the_account_that_previewed_it_on_its_structur
     assert refusal(apply(tree, {"paste_id": str(uuid4())}, who))[:2] == (404, "NOT_FOUND")
     applied(tree, plan, who)
     assert refusal(apply(tree, plan, who))[:2] == (404, "NOT_FOUND")
-    assert labels_of(tree) == ["Études"]
+    assert tree.labels() == ["Études"]
 
 
 @pytest.mark.requirement("WF-REV-0020-A")

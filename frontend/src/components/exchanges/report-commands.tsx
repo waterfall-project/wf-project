@@ -20,8 +20,8 @@ import type { Outcome } from "@/api/problem";
 import { Command } from "@/components/commands/command";
 import { commandIcon } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
+import { rejectedWrite } from "@/components/commands/rejection";
 import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
 import {
   useRunningTask,
@@ -79,18 +79,21 @@ function ConfirmForm({
   // Busy from the press to the answer, and lifted in the very update that tells it — not a
   // transition, whose end would wait for every other async action of the page (#1484).
   const [busy, setBusy] = useState(false);
+  // An application lost once sent: the confirmation waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(outcome);
+  const waiting = busy || reading;
   useEffect(() => {
     confirm.current?.focus();
   }, []);
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (busy) {
+    if (waiting) {
       return;
     }
     const command = () => applyFileImport(projectId, importId);
     setBusy(true);
     void command()
-      .catch(rejected)
+      .catch(rejectedWrite())
       .then((result) => {
         setBusy(false);
         if (result.kind === "done") {
@@ -106,14 +109,14 @@ function ConfirmForm({
     <form
       id={id}
       aria-label={t("confirmTitle")}
-      aria-busy={busy}
+      aria-busy={waiting}
       onSubmit={submit}
       className="space-y-2 rounded-md border p-3 text-sm"
     >
       <p>{t("confirmQuestion", { file: filename })}</p>
       <div className="flex gap-2">
-        <Button type="submit" size="sm" ref={confirm} {...waitingAttributes(busy)}>
-          <WaitingIcon waiting={busy} icon={<CheckCheck aria-hidden="true" />} />
+        <Button type="submit" size="sm" ref={confirm} {...waitingAttributes(waiting)}>
+          <WaitingIcon waiting={waiting} icon={<CheckCheck aria-hidden="true" />} />
           {t("confirm")}
         </Button>
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
@@ -123,6 +126,7 @@ function ConfirmForm({
       </div>
       <OutcomeNotice
         outcome={outcome}
+        reading={reading}
         onClear={() => {
           setOutcome(undefined);
         }}

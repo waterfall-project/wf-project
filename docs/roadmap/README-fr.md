@@ -162,14 +162,14 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-23](EP-23-dette-constats-ep02-ep03.md) | Dette des constats d'EP-02 et d'EP-03 | livré | EP-02, EP-03, EP-06 |
 | [EP-24](EP-24-consolidation-apres-v0-3-0.md) | Consolidation après la v0.3.0 | livré | EP-09, EP-23 |
 | [EP-25](EP-25-refonte-ergonomique.md) | Refonte ergonomique | livré | EP-24 |
-| [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Lecture et performance des grilles | en cours | EP-25 |
+| [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Lecture et performance des grilles | livré | EP-25 |
 | [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparaison dans les grilles | en cours | EP-26 |
 | [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | en cours | EP-25, EP-26 |
 | [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10, EP-27 |
 | [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
 | [EP-13](EP-13-exploitation.md) | Exploitation et mise en production | à planifier | EP-04 |
-| [EP-28](EP-28-chaine-et-outillage.md) | Chaîne et outillage de développement | à planifier | rien |
+| [EP-28](EP-28-chaine-et-outillage.md) | Chaîne et outillage de développement | en cours | rien |
 
 La ventilation du 2026-11-14, à la livraison d'EP-24, a réparti le reste à faire par thème — celui du
 code touché — et non plus par date de report : EP-25 ne garde que la refonte ergonomique et passe en

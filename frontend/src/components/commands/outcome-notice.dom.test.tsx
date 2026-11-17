@@ -18,7 +18,7 @@ import { expectAccessible } from "@/test/axe";
 import { example, type Problem } from "@/test/fixtures";
 
 import { OutcomeNotice } from "./outcome-notice";
-import { rejected } from "./rejection";
+import { rejectedRead } from "./rejection";
 
 // The router of the application, as the notice reads it: a router that would take over the links of
 // the page is one a link of the router calls.
@@ -94,6 +94,19 @@ function refusedFor(lines: ReturnType<typeof borneLines>) {
   );
 }
 
+/**
+ * The outcome of a write whose `fetch` rejected as undici does, its cause carrying the code of the
+ * network given: decoded as a server action decodes it.
+ */
+function lostWrite(code: string) {
+  const lost = new TypeError("fetch failed", { cause: Object.assign(new Error(code), { code }) });
+  const client = createApiClient({
+    address: "http://api.invalid",
+    fetch: () => Promise.reject(lost),
+  });
+  return decode(() => client.PATCH("/me/preferences", { body: {} }));
+}
+
 beforeEach(() => {
   forgetMessages();
   vi.clearAllMocks();
@@ -129,7 +142,7 @@ describe("the notice of an outcome", () => {
     const thrown = Object.assign(new Error("Server Components render"), { digest: "3141592653" });
     const { rerender } = render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-        <OutcomeNotice outcome={rejected(thrown)} onClear={vi.fn()} />
+        <OutcomeNotice outcome={rejectedRead(thrown)} onClear={vi.fn()} />
       </NextIntlClientProvider>,
     );
     expect(screen.getByRole("alert")).toHaveTextContent(
@@ -176,10 +189,84 @@ describe("the notice of an outcome", () => {
   it("says the API out of reach for a server action the browser could not reach", () => {
     render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-        <OutcomeNotice outcome={rejected(new TypeError("Failed to fetch"))} onClear={vi.fn()} />
+        <OutcomeNotice outcome={rejectedRead(new TypeError("Failed to fetch"))} onClear={vi.fn()} />
       </NextIntlClientProvider>,
     );
     expect(screen.getByRole("alert")).toHaveTextContent("Le service est injoignable");
+  });
+
+  it.each([
+    ["fr", "l’opération a pu aboutir", "injoignable"],
+    ["en", "the operation may have gone through", "cannot be reached"],
+  ] as const)(
+    "says, in %s, that a write whose connection was lost once sent may have been done, never to try again in a moment (US-2240)",
+    async (locale, said, unsaid) => {
+      const outcome = await lostWrite("UND_ERR_SOCKET");
+      render(
+        <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]}>
+          <OutcomeNotice outcome={outcome} onClear={vi.fn()} />
+        </NextIntlClientProvider>,
+      );
+      const alert = screen.getByRole("alert");
+      expect(alert).toHaveTextContent(said);
+      expect(alert).not.toHaveTextContent(unsaid);
+      expect(readMessages().messages[0]?.sentence).toContain(said);
+    },
+  );
+
+  it("reads the screen anew, once, before the write is offered again, when its connection was lost once sent (US-2240)", async () => {
+    const outcome = await lostWrite("ECONNRESET");
+    const notice = (told: typeof outcome) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <OutcomeNotice outcome={told} onClear={vi.fn()} />
+      </NextIntlClientProvider>
+    );
+    const { rerender } = render(notice(outcome));
+    expect(router.refresh).toHaveBeenCalledOnce();
+    // The same outcome rendered again — by the screen read anew — reads nothing more.
+    rerender(notice(outcome));
+    expect(router.refresh).toHaveBeenCalledOnce();
+    // Another write lost the same way reads the screen anew in its turn.
+    rerender(notice(await lostWrite("UND_ERR_SOCKET")));
+    expect(router.refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads the screen anew once more when its notice is mounted anew with the same outcome, a form opened again: a read, which changes nothing (US-2240)", async () => {
+    const outcome = await lostWrite("UND_ERR_SOCKET");
+    const notice = (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <OutcomeNotice outcome={outcome} onClear={vi.fn()} />
+      </NextIntlClientProvider>
+    );
+    const { unmount } = render(notice);
+    expect(router.refresh).toHaveBeenCalledOnce();
+    unmount();
+    render(notice);
+    expect(router.refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("says the screen read anew in a status out of the alert, so that the alert is not announced again with it (US-2240)", async () => {
+    // What the status says while the screen is read is the test of the command (`command.dom.test`):
+    // here, the region it says it in, present while the outcome is told.
+    const { container } = render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <OutcomeNotice outcome={await lostWrite("UND_ERR_SOCKET")} onClear={vi.fn()} reading />
+      </NextIntlClientProvider>,
+    );
+    // A screen being read anew, as its command says it: the status says so.
+    expect(screen.getByRole("status")).toHaveTextContent("Relecture de l’écran…");
+    expect(within(screen.getByRole("alert")).queryByRole("status")).toBeNull();
+    await expectAccessible(container);
+  });
+
+  it("says a write that did not leave out of reach, to try again in a moment, and reads nothing anew (US-2240)", async () => {
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <OutcomeNotice outcome={await lostWrite("ECONNREFUSED")} onClear={vi.fn()} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Le service est injoignable");
+    expect(router.refresh).not.toHaveBeenCalled();
   });
 
   it("names the holder of a value taken by the label the refusal gives it, when the screen does not show it, and by its own name otherwise (#714)", () => {
@@ -272,7 +359,7 @@ describe("the notice of an outcome", () => {
     });
     render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-        <OutcomeNotice outcome={rejected(lost)} onClear={vi.fn()} />
+        <OutcomeNotice outcome={rejectedRead(lost)} onClear={vi.fn()} />
       </NextIntlClientProvider>,
     );
     const link = screen.getByRole("link", { name: "Se connecter" });
@@ -323,7 +410,7 @@ describe("the notice of an outcome", () => {
     });
     const notice = (error: Error) => (
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-        <OutcomeNotice outcome={rejected(error)} onClear={vi.fn()} />
+        <OutcomeNotice outcome={rejectedRead(error)} onClear={vi.fn()} />
       </NextIntlClientProvider>
     );
     // A session lost leads to the sign-in page: the control of the absence below.

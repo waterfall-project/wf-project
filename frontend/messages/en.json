@@ -2021,6 +2021,8 @@
   },
   "outcome": {
     "unreachable": "The service cannot be reached; try again in a moment.",
+    "dropped": "The connection to the service was lost once the request had left: the operation may have gone through. The screen is read anew; check it before doing it again.",
+    "readingAnew": "Reading the screen anew…",
     "conflictingObject": "Conflicting object: {name}.",
     "reload": "Reload",
     "signIn": "Sign in",
@@ -3210,6 +3212,7 @@
     "cycle": "Loop of links, in order: {tasks}.",
     "link": "Link concerned, the summary first: {tasks}.",
     "horizon_task": "Task concerned: {task}.",
+    "horizon_task_row": "Task concerned: {task}, row {row} of the pasted block.",
     "taskName": "“{label}”",
     "unknown_value": "Value read in the file: “{value}”.",
     "ambiguous_label": "Label read: “{label}”, shared by the tasks {tasks}.",

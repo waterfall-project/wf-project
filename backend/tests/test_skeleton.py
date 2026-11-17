@@ -22,6 +22,7 @@ from projects_support import PROJECTS, Person, Scene, contribute, person, put_in
 from projects_support import scene as make_scene
 from sqlalchemy import select, update
 from support import WITNESS
+from test_inert_writes import listened, trees_read, unkept
 
 from waterfall.core.planning.tables import Node, TaskLink
 from waterfall.core.projects.commands import Running, commands_of
@@ -253,9 +254,13 @@ def test_two_work_packages_and_three_order_items_give_their_summaries_leaves_and
 
 
 @pytest.mark.requirement("WF-PRJ-0030-A")
-def test_the_default_work_breakdown_gives_what_the_contract_example_says(tree: Tree) -> None:
+def test_the_default_work_breakdown_gives_what_the_contract_example_says(
+    tree: Tree, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # « Sur le lotissement par défaut, la génération produit une récapitulative de lot, une
-    # récapitulative de poste sans feuille, et leurs deux jalons de fin. »
+    # récapitulative de poste sans feuille, et leurs deux jalons de fin. » And, a criterion of
+    # US-2250, the generation reads the tree once: the nodes it inserts by statements are read
+    # once written, for the replay, not the whole tree again.
     example = json.loads((WITNESS / "skeleton_generated.json").read_text(encoding="utf-8"))["value"]
     with tree.stage.owner.begin() as connection:
         connection.execute(
@@ -269,7 +274,13 @@ def test_the_default_work_breakdown_gives_what_the_contract_example_says(tree: T
     read_counter = next(
         each["lock_version"] for each in listed if each["structure_id"] == tree.structure_id
     )
-    written = generated(tree)
+    read = trees_read(monkeypatch)
+    with listened() as sent:
+        written = generated(tree)
+    assert read.count == 1
+    # What the replay rests on holds on the skeleton (``reshaped``, US-2250/L2, #3563).
+    assert any(each.text.startswith("INSERT INTO node ") for each in sent)
+    assert unkept(sent) == []
 
     def shape(body: dict[str, Any], label: str) -> list[dict[str, Any]]:
         """Give the nodes without their identifiers: their places, links and facets.

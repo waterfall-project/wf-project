@@ -118,6 +118,7 @@ def partition_of(project_id: UUID) -> str:
 # name a revision alone, which is no partitioned table.
 REVISED = (
     "revision_indicator",
+    "structure_reading",
     "estimate_line",
     "revision_rate",
     "revision_role",

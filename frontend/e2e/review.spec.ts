@@ -14,10 +14,11 @@
 import { type Browser, expect, type Locator, type Page } from "@playwright/test";
 
 import catalogue from "../messages/fr.json" with { type: "json" };
+import { WORKING } from "./bounds";
 import type { Locale } from "../src/i18n/locale";
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
-import { setExpanded, WORKING } from "./hydration";
+import { setExpanded } from "./hydration";
 import { inService, test } from "./mode";
 import { rowAt } from "./scroll";
 

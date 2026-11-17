@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import { closeMenu, menuButton, openMenu, pick } from "./check-menu";
 import { columnsOf } from "./columns";
 import { pngSize } from "./download";
-import { holdScripts, openHydrated, WORKING } from "./hydration";
+import { holdScripts, openHydrated } from "./hydration";
 import { test } from "./mode";
 import { rowAt, scrollToPosition, withinBox } from "./scroll";
 import { isServerAction } from "./server-action";

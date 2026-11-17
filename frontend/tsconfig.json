@@ -16,6 +16,7 @@
     "verbatimModuleSyntax": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
+    "types": ["node", "react", "react-dom", "next"],
     "noEmit": true,
     "incremental": true,
     "allowJs": false,
@@ -34,7 +35,6 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "e2e/**/*.ts",
-    "bench/**/*.ts",
     "*.config.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"

@@ -33,6 +33,7 @@ import {
   type FakeTiming,
   held,
 } from "@/test/fixtures";
+import { streamed } from "@/test/page-stream";
 
 import ProjectPage, { generateMetadata as projectMetadata } from "./[projectId]/page";
 import EstimatePage, {
@@ -706,9 +707,7 @@ describe("the indicators and the missing rates of the estimate", () => {
   const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
 
   it("shows the indicators of the revision above its grid, with the date they are computed at", async () => {
-    const html = renderToStaticMarkup(
-      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
-    );
+    const html = await streamed(inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })));
     // « Help »: the button the address of the mock, a project's page, puts in each header (#1439).
     expect(text(html)).toMatch(
       /Costing and estimate Help Structure principale · 6 tasks, 1 line Workload Spending projection Imports and exports Key figures Estimate indicators Computed on Estimate total €68,950,649.05 .*No\. Label/,
@@ -736,7 +735,14 @@ describe("the indicators and the missing rates of the estimate", () => {
   });
 
   it("reads the indicators for the sub-project the address filters", async () => {
-    await EstimatePage({ params, searchParams: Promise.resolve({ subproject_id: "unassigned" }) });
+    await streamed(
+      inEnglish(
+        await EstimatePage({
+          params,
+          searchParams: Promise.resolve({ subproject_id: "unassigned" }),
+        }),
+      ),
+    );
     expect(Object.fromEntries(callOf("/estimate-indicators")?.query ?? [])).toEqual({
       revision_id: REVISION,
       scope: "unassigned",
@@ -748,16 +754,14 @@ describe("the indicators and the missing rates of the estimate", () => {
       ...server.answers,
       "GET /projects/{project_id}/estimate-indicators/missing-rates": "missing_rates",
     };
-    const html = renderToStaticMarkup(
-      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
-    );
+    const html = await streamed(inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })));
     expect(text(html)).toContain(
       "Missing hourly rates The estimate cannot be calculated until these cost categories have an hourly rate for its reference year: Ingénierie électrique — 2026 Enter the hourly rates",
     );
     expect(links(html)).toContain("/reference/costs");
 
     server.answers = { ...server.answers, "GET /me": "me_estimator" };
-    const estimator = renderToStaticMarkup(
+    const estimator = await streamed(
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     // An estimator reads the rates, and may not enter them.
@@ -771,9 +775,7 @@ describe("the indicators and the missing rates of the estimate", () => {
       "GET /projects/{project_id}/estimate-indicators": NOT_FOUND,
       "GET /projects/{project_id}/estimate-indicators/missing-rates": "missing_rates",
     };
-    const html = renderToStaticMarkup(
-      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
-    );
+    const html = await streamed(inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })));
     expect(text(html)).toContain(
       "Ingénierie électrique — 2026 Enter the hourly rates Estimate indicators The estimate indicators are unavailable.",
     );
@@ -782,7 +784,7 @@ describe("the indicators and the missing rates of the estimate", () => {
 
   it("does not swallow a failure of the service reading the indicators: the screen of failure names it by its correlation identifier", async () => {
     server.undeclared = { route: "/estimate-indicators", answer: () => failure("req-9b1c") };
-    const page = EstimatePage({ params, searchParams: NO_SEARCH });
+    const page = streamed(inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })));
     await expect(page).rejects.toBeInstanceOf(UnexpectedAnswer);
     await expect(page).rejects.toMatchObject({
       operation: "getEstimateIndicators",
@@ -795,7 +797,9 @@ describe("the indicators and the missing rates of the estimate", () => {
       ...server.answers,
       "GET /projects/{project_id}/estimate-indicators": UNAUTHORIZED,
     };
-    await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+    await expect(
+      streamed(inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH }))),
+    ).rejects.toMatchObject({
       operation: "getEstimateIndicators",
       digest: SESSION_REQUIRED_DIGEST,
     });
@@ -806,9 +810,9 @@ describe("the indicators and the missing rates of the estimate", () => {
       route: "/estimate-indicators",
       answer: () => new Response("<html>Bad gateway</html>", { status: 502 }),
     };
-    await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toBeInstanceOf(
-      Unreachable,
-    );
+    await expect(
+      streamed(inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH }))),
+    ).rejects.toBeInstanceOf(Unreachable);
   });
 
   it("says the indicators unavailable when the API refuses them for a missing hourly rate", async () => {
@@ -820,9 +824,7 @@ describe("the indicators and the missing rates of the estimate", () => {
           { status: 422, headers: { "content-type": "application/problem+json" } },
         ),
     };
-    const html = renderToStaticMarkup(
-      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
-    );
+    const html = await streamed(inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })));
     expect(text(html)).toContain("The estimate indicators are unavailable.");
   });
 });

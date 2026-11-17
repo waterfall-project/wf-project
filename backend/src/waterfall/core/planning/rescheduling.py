@@ -9,12 +9,14 @@ dates' instant moved on and its counter advanced. The interface offers it as ``r
 (``interface.structures``); the frame of a write calls it here, so that the interface may frame a
 write of the structure itself without the two files importing each other. A write that holds the
 lock of the structure already hands the replay what it read under it (``Holding``, #2492): the
-structure, not read again, what the engine's refusal names, and the links in conflict. The nodes of
-the other kinds under the tasks it redated, and under those the write names, are then priced again
-by the hooks of their facets (``FacetHooks.reinflate``, EP-07, "Le calcul des montants").
+structure, not read again, what the engine's refusal names, and the links in conflict; and the
+tree it read under the lock, which is brought to what the write made of it rather than read a
+second time (``reshaped``, US-2250, #3169). The nodes of the other kinds under the tasks it
+redated, and under those the write names, are then priced again by the hooks of their facets
+(``FacetHooks.reinflate``, EP-07, "Le calcul des montants").
 
 Written by US-1380/L2 in ``interface.structures``, moved here by US-1390/L2; ``Holding`` posed by
-US-1380/L3.
+US-1380/L3, its tree by US-2250.
 """
 
 from dataclasses import dataclass
@@ -23,12 +25,12 @@ from typing import TYPE_CHECKING
 from waterfall.core.planning.dating import dated, horizon_exceeded, kept, replay_of
 from waterfall.core.planning.interface.facets import BearingTask, calendars_of, facets
 from waterfall.core.planning.scheduling import WorkInstant
-from waterfall.core.planning.tree import read_tree
+from waterfall.core.planning.tree import read_tree, reshaped
 from waterfall.core.planning.views import state_of
 from waterfall.core.revisions.interface import structure_facts, structure_rescheduled
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Mapping
     from datetime import datetime
     from uuid import UUID
 
@@ -45,7 +47,8 @@ if TYPE_CHECKING:
 class Rescheduled:
     """A structure replayed: its tree as written, its links and calendars, what moved.
 
-    ``reinflated`` the nodes of the other kinds whose amounts or year their hooks changed.
+    ``is_main`` whether it is the main structure; ``reinflated`` the nodes of the other kinds whose
+    amounts or year their hooks changed.
     """
 
     tree: Tree
@@ -53,19 +56,35 @@ class Rescheduled:
     calendars: dict[UUID, Applicable]
     moved: frozenset[UUID]
     counter: int
+    is_main: bool
     reinflated: frozenset[UUID] = frozenset()
+
+
+@dataclass(frozen=True, slots=True)
+class Named:
+    """A task as the refusal of the horizon names it: its node, null for a task created, its label.
+
+    ``row`` the row of the block of a paste that writes it, counted from zero as a refusal of the
+    paste counts it (``PasteRejection.row``), so that two tasks created with one label are told
+    apart (#3624); none for any other write.
+    """
+
+    node_id: UUID | None
+    label: str
+    row: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class Blamed:
     """What a write names when the engine refuses it: the task it writes, where a loop starts.
 
-    ``node_id`` and ``label`` name the task beyond the horizon — the node null for a task created
-    —, ``origin`` the task whose predecessors are entered, a loop being named from it.
+    ``named`` the task beyond the horizon, or, for a write of several tasks, what each is named, by
+    task: the task the engine finds beyond the horizon is named as it is there when it is one of
+    them, and as the tree has it otherwise — a task the write moves without writing it. ``origin``
+    the task whose predecessors are entered, a loop being named from it.
     """
 
-    node_id: UUID | None
-    label: str
+    named: Named | Mapping[UUID, Named]
     origin: Origin = None
 
 
@@ -78,13 +97,16 @@ class Holding:
     in conflict read under the lock before the write, each by its two tasks: a link it deletes in
     conflict moves its ends that stay (``kept``). ``None`` takes the links of the replay as they
     are, which a recalculation writes none of. ``repriced`` the tasks whose nodes of the other
-    kinds are priced again whether they moved or not: the bearer of a line written.
+    kinds are priced again whether they moved or not: the bearer of a line written. ``tree`` the
+    tree the write read under the lock, before it wrote, none to read it: the replay brings it to
+    what the write made of it (``reshaped``), whatever the write created, deleted or moved.
     """
 
     facts: StructureFacts | None = None
     blamed: Blamed | None = None
     conflicts: Collection[tuple[UUID, UUID]] | None = None
     repriced: Collection[UUID] = ()
+    tree: Tree | None = None
 
 
 def replayed(
@@ -97,17 +119,23 @@ def replayed(
     """Replay the engine on a structure locked, write what changes; give what it moved.
 
     The structure is locked (read under its lock unless ``held`` hands what the write read), its
-    dates' instant moved on to ``at`` and its counter advanced.
+    dates' instant moved on to ``at`` and its counter advanced. A tree ``held`` hands is brought to
+    what the write made of it (``reshaped``), not read again.
     Beyond fifteen years (WF-PLA-0150), refused (422 ``PROJECT_HORIZON_EXCEEDED``), nothing
-    written: naming the task the write blames — its node, none for a task created, and its label
-    — or, without one, the task that finishes last. A loop of links is named from the origin the
-    write gives (422 ``LINK_CYCLE``), a link across the hierarchy refused (``LINK_FORBIDDEN``).
+    written: naming the task the write blames — its node, none for a task created, its label, and
+    the row of the block of a paste — or, without one, the task that finishes last. A loop of
+    links is named from the origin the write gives (422 ``LINK_CYCLE``), a link across the
+    hierarchy refused (``LINK_FORBIDDEN``).
     """
     held = held or Holding()
     blamed = held.blamed
     facts = held.facts or structure_facts(session, project_id, structure_id, lock=True)
     session.flush()
-    tree = read_tree(session, project_id, structure_id)
+    tree = (
+        read_tree(session, project_id, structure_id)
+        if held.tree is None
+        else reshaped(session, project_id, structure_id, held.tree)
+    )
     calendars = calendars_of(session, project_id, tree.tasks)
     replay = replay_of(
         session, (project_id, structure_id, facts.planning_start_on), tree, calendars
@@ -115,9 +143,8 @@ def replayed(
     computed = dated(replay, None if blamed is None else blamed.origin)
     beyond = computed.horizon_exceeded_by
     if beyond is not None:
-        if blamed is None:
-            raise horizon_exceeded(beyond, tree.tasks[beyond].label)
-        raise horizon_exceeded(blamed.node_id, blamed.label)
+        named = _named(blamed, beyond, tree)
+        raise horizon_exceeded(named.node_id, named.label, named.row)
     moved = kept(replay, computed, held.conflicts)
     session.flush()
     counter = structure_rescheduled(session, project_id, structure_id, at)
@@ -128,7 +155,18 @@ def replayed(
         if bearer is not None:
             bearers.add(bearer)
     reinflated = _reinflated(session, (project_id, facts.is_main), tree, calendars, bearers)
-    return Rescheduled(tree, replay.links, calendars, frozenset(moved), counter, reinflated)
+    return Rescheduled(
+        tree, replay.links, calendars, frozenset(moved), counter, facts.is_main, reinflated
+    )
+
+
+def _named(blamed: Blamed | None, beyond: UUID, tree: Tree) -> Named:
+    """Name the task the engine finds beyond the horizon: as the write blames it, or as read."""
+    named = None if blamed is None else blamed.named
+    if isinstance(named, Named):
+        return named
+    found = Named(beyond, tree.tasks[beyond].label)
+    return found if named is None else named.get(beyond, found)
 
 
 def _reinflated(

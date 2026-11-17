@@ -147,7 +147,9 @@ contre le service ;
 2026-11-15) ;
 - #3467 — contrat : le paragraphe des causes sans champ de `docs/api/DECISIONS.md` (US-2260/L3) a
 un retour à la ligne irrégulier — relevé pendant EP-26, reporté ici avec #3401, dont le lot
-réécrit ce paragraphe.
+réécrit ce paragraphe ;
+- #3532 — back : la lecture gardée projetée par `fields` relit encore le document entier (reporté
+→ EP-27, décision de l'auteur du 2026-11-15).
 
 ## Conception
 

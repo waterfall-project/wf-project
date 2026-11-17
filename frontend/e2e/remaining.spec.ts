@@ -9,9 +9,10 @@ import {
 } from "@playwright/test";
 
 import type { components } from "../src/api/generated/schema";
+import { WORKING } from "./bounds";
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
-import { openHydrated, WORKING } from "./hydration";
+import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
 import { bringInProgress } from "./in-progress";
 import { createOwnProject, openRevision } from "./own-project";

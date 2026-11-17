@@ -36,7 +36,7 @@ import { IdentitySyncScheduleSection } from "@/components/admin/identity-sync-sc
 import { useAccountNaming } from "@/components/account/account-name";
 import { AnonymizedName } from "@/components/account/anonymized-name";
 import { useHeldCommand } from "@/components/commands/held";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
 import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
 import { LocalTime } from "@/components/local-time";
 import { useRunningTask, useTaskRunning, useTrackTask } from "@/components/tasks/task-tracker";
@@ -197,9 +197,12 @@ const SYNC_AIM = taskAim("identity_sync", INSTALLATION);
 /** Ask a reading of the accounts, and hand its task over to the tracker. */
 function StartIdentitySync({
   onTold,
+  reading,
 }: {
   /** Tell the outcome of the command, or take it away once it succeeded. */
   readonly onTold: (outcome: Outcome<unknown> | undefined) => void;
+  /** Whether the screen is read anew after a command lost once sent (`useReadAnew`, US-2240). */
+  readonly reading: boolean;
 }) {
   const t = useTranslations("admin.identitySync");
   const track = useTrackTask();
@@ -212,7 +215,8 @@ function StartIdentitySync({
   const [started, setStarted] = useState<string>();
   const found = useRunningTask(SYNC_AIM);
   const running = useTaskRunning(started ?? found);
-  const waiting = busy || running;
+  // A command lost once sent: the screen is read anew, and this waits until it is back (US-2240).
+  const waiting = busy || running || reading;
   const start = () => {
     if (waiting) {
       return;
@@ -262,15 +266,18 @@ export function IdentitySync({
 }) {
   const t = useTranslations("admin.identitySync");
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
+  // Read here because the card carries both the command and the notice (US-2240).
+  const reading = useReadAnew(outcome);
   return (
     <SectionCard
       title={t("title")}
       icon={UserRoundSearch}
-      commands={startable ? <StartIdentitySync onTold={setOutcome} /> : undefined}
+      commands={startable ? <StartIdentitySync onTold={setOutcome} reading={reading} /> : undefined}
     >
       <div className="space-y-3 text-sm">
         <OutcomeNotice
           outcome={outcome}
+          reading={reading}
           onClear={() => {
             setOutcome(undefined);
           }}

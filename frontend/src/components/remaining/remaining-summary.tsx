@@ -23,7 +23,7 @@ import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { ComputedTotal } from "@/components/computed-amount";
-import { FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
+import { FiguresCard, FiguresGrid, FiguresList, FiguresLoading } from "@/components/figures-card";
 import { FoldingFigures } from "@/components/folding-figures";
 import { ComputableValue } from "@/components/computable-value";
 import { RiskCoverageSummary } from "@/components/risks/risk-coverage";
@@ -141,5 +141,15 @@ export function RemainingSummary({
     <FoldingFigures title={t("fold")}>
       <Figures indicators={indicators} currency={currency} />
     </FoldingFigures>
+  );
+}
+
+/** The card of the indicators while the API computes them, the grid below being shown already. */
+export function RemainingSummaryLoading() {
+  const t = useTranslations("remainingSummary");
+  return (
+    <FiguresGrid>
+      <FiguresLoading title={t("title")} />
+    </FiguresGrid>
   );
 }

@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToReadableStream } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { nodeFieldNames } from "@/components/grid/nodes";
 import { REMAINING_FIELDS } from "@/components/grid/remaining";
 import type { RemainingGridProps } from "@/components/grid/remaining-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { streamUntil } from "@/test/page-stream";
 import { filtersOf, menuText } from "@/test/filter-menu";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 
 import RemainingPage, { generateMetadata } from "./page";
 
@@ -69,24 +70,34 @@ const ITEM = "01926f3a-7c00-7000-8000-000000000712";
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
+  // The streamed markup keeps the comments that part the texts of a node, and escapes quotes.
   return markup
+    .replace(/<!--.*?-->/g, "")
     .replace(/<[^>]*>/g, " ")
+    .replace(/&#x27;/g, "'")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-/** Render in English, as the shell hands its texts to a screen. */
-function html(page: ReactNode): string {
-  return renderToStaticMarkup(
+/**
+ * The markup of a page once all of it is ready, its boundaries of suspense settled — the
+ * indicators stream apart from the grid —, as the shell hands its texts to a screen, in English.
+ */
+async function html(page: ReactNode): Promise<string> {
+  const stream = await renderToReadableStream(
     <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
       {page}
     </NextIntlClientProvider>,
+    // A boundary settled is written in its place, whatever its size: no fallback is left.
+    { progressiveChunkSize: Infinity },
   );
+  await stream.allReady;
+  return new Response(stream).text();
 }
 
 /** The screen of the remaining to commit at the query given. */
 async function remainingAt(search: Record<string, string> = {}) {
-  return html(
+  return await html(
     await RemainingPage({
       params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
       searchParams: Promise.resolve(search),
@@ -163,6 +174,34 @@ describe("the screen of the remaining to commit", () => {
     expect(text(banner)).toContain("Subproject: SP-CMD — Poste de commande, on the grid only");
     expect(text(banner)).not.toContain("Calculation date");
     expect(queryOf(INDICATORS)).toEqual({ revision_id: REVISION });
+  });
+
+  it("hands the grid without waiting for the indicators, which a filter of the grid does not change: the address of a filter arrives with the grid alone (US-2290, #3630)", async () => {
+    // The indicators are held at the API: the page resolves, and its first markup — what the
+    // address of a filter waits for — shows the grid and the card of the indicators loading.
+    const indicators = held();
+    server.clients = [
+      fakeClient(server.answers, {
+        hold: (route) => (route === INDICATORS ? indicators.until : undefined),
+      }),
+    ];
+    const rendered = await RemainingPage({
+      params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
+      searchParams: Promise.resolve({ work_package_id: LOT }),
+    });
+    const page = await streamUntil(
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
+        {rendered}
+      </NextIntlClientProvider>,
+      'aria-label="Remaining to commit grid"',
+    );
+    // The shell is written to the grid; the indicators, held, are not in it, their card is.
+    expect(page.shell).toContain("Remaining to commit grid");
+    expect(page.shell).not.toContain("Margin on the reference budget");
+    expect(page.shell).toContain("Remaining to commit indicators");
+    // The figures follow once the API has given them.
+    indicators.release();
+    expect(text(await page.rest())).toContain("Margin on the reference budget");
   });
 
   it("asks the tasks not started too when the address asks them, their lines then entered, and offers to show the started alone again [WF-RAE-0040-A]", async () => {

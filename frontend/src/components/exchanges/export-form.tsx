@@ -29,7 +29,7 @@ import { PressRefusal, useUnmet } from "@/components/commands/command";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE } from "@/components/commands/offer";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
 import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
 import {
   useDownloadWhenTaskSucceeds,
@@ -110,10 +110,12 @@ function OfferedExports({
   const [exporting, setExporting] = useState<string>();
   const found = useRunningTask(aim);
   const running = useTaskRunning(exporting ?? found);
+  // An export lost once sent: the request waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(outcome);
   // Its file leaves by itself once made, while the form that asked it still shows (#3103): one found
   // again leaves from the card of its end, lest a form mounted after that end download it again.
   useDownloadWhenTaskSucceeds(exporting);
-  const waiting = busy || running;
+  const waiting = busy || running || reading;
   // A link clicked while the export is asked waits for it, and is not followed when refused.
   const held = useHeldCommand();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
@@ -230,6 +232,7 @@ function OfferedExports({
       {offer === undefined ? null : <PressRefusal offer={offer} presses={presses} />}
       <OutcomeNotice
         outcome={outcome}
+        reading={reading}
         onClear={() => {
           setOutcome(undefined);
         }}
