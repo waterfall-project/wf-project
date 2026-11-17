@@ -381,14 +381,22 @@ describe("the list [WF-QUA-0070-A]", () => {
     ]
 
 
-def test_a_skip_decided_in_the_body_of_a_test_is_not_seen() -> None:
+@pytest.mark.story("US-2440")
+def test_a_platform_skip_in_the_body_leaves_the_citation_executed_and_another_stops_it() -> None:
     source = """\
 test("imports [WF-QUA-0010-A]", async ({ page }) => {
-  test.skip(!inService, "the fake back keeps nothing [WF-QUA-0020-A]");
+  test.skip(!inService, "the fake back keeps nothing");
+});
+test("exports [WF-QUA-0020-A]", async ({ page }) => {
+  test.skip(true, "service only");
 });
 """
     found = coverage.typescript_citations("frontend/e2e/i.spec.ts", source, "end-to-end")
-    assert found == [Citation("WF-QUA-0010-A", "frontend/e2e/i.spec.ts:1", "end-to-end")]
+    assert [(c.requirement, c.executed) for c in found] == [
+        ("WF-QUA-0010-A", True),
+        ("WF-QUA-0020-A", False),
+    ]
+    assert found[0] == Citation("WF-QUA-0010-A", "frontend/e2e/i.spec.ts:1", "end-to-end")
 
 
 PYTHON_RUN_AND_NOT = f"""

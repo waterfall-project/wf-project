@@ -4034,10 +4034,13 @@ class (`pytestmark` included) or its module, which a test that may skip — for 
 of a service — carries, and which a hook of the `conftest.py` files makes compulsory: a test that
 skips without it fails. The report lists its citations under their requirement, « non exécuté »,
 without counting them: a requirement that only tests not run cite is not covered, and
-`make requirements-release` names it. A skip decided in the body of a test (`test.skip(condition,
-…)`) is not seen: the test counts as run. A citation in a comment is no citation: only the titles of
-`it(` and `test(` are read, and a form of call that the report does not know makes it fail, naming
-the file and the line.
+`make requirements-release` names it. A `test.skip(` or `test.fixme(` with no title, called in the
+body of a test (in the group, failing that), leaves the test executed when its first argument is
+`inService` or `!inService`, and makes it « non exécuté » for any other (`true`,
+`!inService || manager === undefined`…), as does a test that carries both forms; `it.skipIf(` and
+`it.runIf(` are not seen: the test counts as run. A citation in a comment is no citation: only the
+titles of `it(` and `test(` are read, and a form of call that the report does not know makes it
+fail, naming the file and the line.
 
 _Checks_: `make requirements` reads the citations in the test files, without running them, and
 publishes the report — each F0 requirement with the tests that cover it and their family, the one
@@ -5440,8 +5443,10 @@ lot, and only the revisions a tool generates on its own would be declared in
 
 _Checks_: `make test-back` (`tests/test_migrations.py`: a single head, a migration
 already applied is not replayed, the downgrade is the mirror of the upgrade, the schema — check
-constraints and defaults included — is that of the tables of the code, four instances together),
-against PostgreSQL (see « Tests »); the compatibility
+constraints and defaults included — is that of the tables of the code, four instances together;
+`tests/test_migrations_as_owner.py`: all apply as the `NOSUPERUSER` owner that the script of the
+production, `deploy/compose/waterfall-database.sql`, makes, and a migration that needs the
+superuser fails there, #958), against PostgreSQL (see « Tests »); the compatibility
 with the neighbouring code, the review.
 
 ## Agents
