@@ -51,21 +51,23 @@ contract that carry it (EP-26, US-2300):
 EP-27) have no operation yet: they are unserved. Until EP-10 delivered them, ``indicators`` and the
 projection of expenses were too.
 
-The operation ``indicators``, once served, also says what the entry of the cache of the indicators
-of the day costs (US-2420, #3628): a ``cache`` object, taken by ``make measure-core
+The operation ``indicators``, once served, also says what the entries of the cache of the
+indicators of the day cost (US-2420, #3628): a ``cache`` object, taken by ``make measure-core
 ONLY=indicators`` on the same witness (the ``facts`` and the ``rows`` of its measure "indicators
 cache")::
 
-    "cache": {"subprojects": 3, "scopes": 5, "entry_bytes": 52000, "cell_bytes": 11000,
-              "cold_whole_s": 0.4, "cold_cell_s": 0.15, "hot_whole_s": 0.004, "hot_cell_s": 0.002,
-              "extrapolation": [{"subprojects": 100, "entry_bytes": 1100000,
-                                 "cold_whole_s": 7.9, "hot_whole_s": 0.04}]}
+    "cache": {"subprojects": 2, "scopes": 4, "cell_bytes": 15000, "all_bytes": 48000,
+              "cold_cell_s": 1.1, "hot_cell_s": 0.02, "cold_all_s": 1.5, "hot_all_s": 0.03,
+              "extrapolation": [{"subprojects": 100, "cell_bytes": 15000, "cold_cell_s": 1.1,
+                                 "hot_cell_s": 0.02, "all_bytes": 1100000, "cold_all_s": 15.0,
+                                 "hot_all_s": 0.4}]}
 
-``entry_bytes``, ``cold_whole_s`` and ``hot_whole_s`` are those of the entry of the project, which
-carries every scope; ``cell_bytes``, ``cold_cell_s`` and ``hot_cell_s`` those of an entry of one
-scope alone; the extrapolation is linear, never taken on a larger set. A whole entry read cold over
-the objective of the operation is a finding, as a median over it: the entry is then by scope
-(#3628).
+The entry is one by scope (#3628). ``cell_bytes``, ``cold_cell_s`` and ``hot_cell_s`` are those of
+the entry of the scope of the project, which ``getProjectIndicators`` reads; ``all_bytes``,
+``cold_all_s`` and ``hot_all_s`` those of the entries of every scope, which the evolution of the
+indices without a scope reads. The extrapolation is linear for every scope, never taken on a larger
+set; a scope alone does not depend on the number of subprojects, its figures repeated. One scope
+read cold over the objective of the operation is a finding, as a median over it.
 """
 
 import json
@@ -116,25 +118,26 @@ CACHED = "indicators"
 """The operation that carries the cost of the entry of the cache of the indicators."""
 CACHE_COUNTS = ("subprojects", "scopes")
 CACHE_FIGURES = (
-    "entry_bytes",
     "cell_bytes",
-    "cold_whole_s",
+    "all_bytes",
     "cold_cell_s",
-    "hot_whole_s",
     "hot_cell_s",
+    "cold_all_s",
+    "hot_all_s",
 )
-CACHE_ROW = ("subprojects", "entry_bytes", "cold_whole_s", "hot_whole_s")
+CACHE_ROW = ("subprojects", *CACHE_FIGURES)
 FIXED_SCOPES = 2
 """The scopes a project has beside its subprojects: itself, and its lines without a subproject."""
 
 
 @dataclass(frozen=True, slots=True)
 class Cache:
-    """What the entry of the cache of the indicators costs, as far as it is confronted."""
+    """What the entries of the cache of the indicators cost, as far as it is confronted."""
 
-    cold_whole_s: float
+    cold_cell_s: float
     scopes: int
-    entry_bytes: float
+    cell_bytes: float
+    all_bytes: float
     extrapolated: int
 
 
@@ -210,8 +213,15 @@ def _cache(entry: dict[str, object], where: str) -> Cache:
     if figures["scopes"] != figures["subprojects"] + FIXED_SCOPES:
         message = f"{here}: scopes are the subprojects, the project and its own lines"
         raise ValueError(message)
+    if figures["all_bytes"] < figures["cell_bytes"]:
+        message = f"{here}: the entries of every scope weigh at least the one of the project"
+        raise ValueError(message)
     return Cache(
-        figures["cold_whole_s"], int(figures["scopes"]), figures["entry_bytes"], len(listed)
+        figures["cold_cell_s"],
+        int(figures["scopes"]),
+        figures["cell_bytes"],
+        figures["all_bytes"],
+        len(listed),
     )
 
 
@@ -311,10 +321,10 @@ def confront(latest: Report, previous: Report | None) -> list[Finding]:
             text = f"{line.label}: {median:g} s, above its objective of {line.objective_s:g} s"
             findings.append(Finding(line.id, text, documented))
         cache = measured.cache
-        if cache is not None and cache.cold_whole_s > line.objective_s:
+        if cache is not None and cache.cold_cell_s > line.objective_s:
             text = (
-                f"{line.label}: the entry of the cache read cold, {cache.cold_whole_s:g} s, is "
-                f"above the objective of {line.objective_s:g} s: the entry is by scope (#3628)"
+                f"{line.label}: the entry of one scope read cold, {cache.cold_cell_s:g} s, is "
+                f"above the objective of {line.objective_s:g} s"
             )
             findings.append(Finding(line.id, text, documented))
         if previous is None or before is None:
@@ -339,8 +349,9 @@ def compare(latest: Report, previous: Report | None) -> list[str]:
         cache = latest.operations[line.id].cache
         if cache is not None:
             lines.append(
-                f"{line.id}: entry of the cache {cache.entry_bytes:g} bytes for {cache.scopes} "
-                f"scopes, read cold {cache.cold_whole_s:g} s, {cache.extrapolated} extrapolations"
+                f"{line.id}: entry of the cache {cache.cell_bytes:g} bytes a scope, "
+                f"{cache.all_bytes:g} for {cache.scopes} scopes, one scope read cold "
+                f"{cache.cold_cell_s:g} s, {cache.extrapolated} extrapolations"
             )
     return lines
 

@@ -18,19 +18,27 @@ if TYPE_CHECKING:
 UNSERVED = {"portfolio-view": "EP-11", "open-compared-grid": "EP-27"}
 
 
-def cache(cold_whole_s: float = 0.3) -> dict[str, object]:
-    """Return the cost of the entry of the cache of the indicators, as the core measure gives it."""
+def cache(cold_cell_s: float = 0.3) -> dict[str, object]:
+    """Return the cost of the entries of the cache of the indicators, as the core measure says."""
     return {
         "subprojects": 3,
         "scopes": 5,
-        "entry_bytes": 52000,
         "cell_bytes": 11000,
-        "cold_whole_s": cold_whole_s,
-        "cold_cell_s": 0.1,
-        "hot_whole_s": 0.004,
+        "all_bytes": 52000,
+        "cold_cell_s": cold_cell_s,
         "hot_cell_s": 0.002,
+        "cold_all_s": 0.5,
+        "hot_all_s": 0.004,
         "extrapolation": [
-            {"subprojects": 100, "entry_bytes": 1_100_000, "cold_whole_s": 2.0, "hot_whole_s": 0.05}
+            {
+                "subprojects": 100,
+                "cell_bytes": 11000,
+                "cold_cell_s": cold_cell_s,
+                "hot_cell_s": 0.002,
+                "all_bytes": 1_100_000,
+                "cold_all_s": 9.0,
+                "hot_all_s": 0.05,
+            }
         ],
     }
 
@@ -388,15 +396,16 @@ def test_the_indicators_served_carry_the_cost_of_the_entry_of_the_cache() -> Non
 
     cached = result.operations["indicators"].cache
     assert cached is not None
-    assert (cached.scopes, cached.entry_bytes, cached.extrapolated) == (5, 52000, 1)
+    assert (cached.scopes, cached.cell_bytes, cached.all_bytes) == (5, 11000, 52000)
+    assert cached.extrapolated == 1
     assert any(
-        "entry of the cache 52000 bytes for 5 scopes" in line
+        "entry of the cache 11000 bytes a scope, 52000 for 5 scopes" in line
         for line in measures.compare(result, None)
     )
 
 
 @pytest.mark.requirement("WF-QUA-0060-A")
-def test_an_entry_read_cold_over_the_objective_is_signalled_and_fails_unless_documented(
+def test_one_scope_read_cold_over_the_objective_is_signalled_and_fails_unless_documented(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     slow = report("0.5.0")
@@ -404,15 +413,17 @@ def test_an_entry_read_cold_over_the_objective_is_signalled_and_fails_unless_doc
     write(tmp_path, slow)
     code, out = run(tmp_path, capsys)
     assert code == 1
-    assert "the entry of the cache read cold, 1.5 s" in out
-    _indicators(slow)["note"] = "the entry is by scope (#3628)"
+    assert "the entry of one scope read cold, 1.5 s" in out
+    _indicators(slow)["note"] = "one scope read cold is over its objective: an issue to settle"
     write(tmp_path, slow)
     code, _ = run(tmp_path, capsys)
     assert code == 0
 
 
 @pytest.mark.requirement("WF-QUA-0060-A")
-@pytest.mark.parametrize("change", ["missing", "scopes", "no-rows", "negative", "elsewhere"])
+@pytest.mark.parametrize(
+    "change", ["missing", "scopes", "no-rows", "negative", "lighter", "row", "elsewhere"]
+)
 def test_a_cost_of_the_cache_that_does_not_hold_is_refused(change: str) -> None:
     body = report("0.5.0")
     entry = _indicators(body)
@@ -425,6 +436,10 @@ def test_a_cost_of_the_cache_that_does_not_hold_is_refused(change: str) -> None:
         given["extrapolation"] = []
     elif change == "negative":
         given["hot_cell_s"] = -1
+    elif change == "lighter":
+        given["all_bytes"] = 10
+    elif change == "row":
+        del given["extrapolation"][0]["cold_cell_s"]
     else:
         other = next(
             each

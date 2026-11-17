@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The cache of the indicators of the current day, kept in the Redis of the queue (WF-DAT-0130-A).
 
-One document per project and per day, under a key that carries the fingerprint of what the
-indicators depend on: a write changes the key, so no entry is ever served for a state that is no
+One document per scope of a project and per day, under a key that carries the fingerprint of what
+the indicators depend on: a write changes the key, so no entry is ever served for a state that is no
 longer the project's, and the validity period, set at the write, bounds what is kept. The cache
 holds a copy, never the only one: a Redis that does not answer — connection, delay, reply — is no
 reason to refuse a read or an entry. The read gives ``None`` (``lookup`` tells it from an entry
@@ -11,7 +11,7 @@ absent: ``UNAVAILABLE``), the write is ignored, and the fault is logged once by 
 cause, the class of the error (``indicators.cache_unavailable``); the caller computes.
 """
 
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any, Self, cast
 
 from redis import ConnectionPool, Redis
 from redis.exceptions import RedisError
@@ -20,6 +20,8 @@ from waterfall.platform.logs import get_logger
 from waterfall.platform.queue import DEPOSIT_TIMEOUT
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
     from waterfall.platform.queue import TaskQueue
 
 # What every key of the cache starts with, beside the keys of the queue, in the same database.
@@ -88,17 +90,26 @@ class IndicatorsCache:
         causes.
         """
         try:
-            document = self.client.get(PREFIX + key)
+            document: object = self.client.get(PREFIX + key)
         except RedisError as error:
             _report(error)
             return UNAVAILABLE
-        if isinstance(document, bytes):
-            try:
-                return document.decode("utf-8")
-            except UnicodeDecodeError as error:
-                _report(error)
-                return None
-        return document if isinstance(document, str) else None
+        return _decoded(document)
+
+    def lookup_many(self, keys: Sequence[str]) -> list[str | None] | Unavailable:
+        """Give the documents kept under keys, in their order, in one exchange with Redis.
+
+        Each as ``lookup`` gives it — ``None`` for an entry absent or not UTF-8 —; ``UNAVAILABLE``
+        for all when Redis fails.
+        """
+        if not keys:
+            return []
+        try:
+            documents = cast("list[object]", self.client.mget([PREFIX + key for key in keys]))
+        except RedisError as error:
+            _report(error)
+            return UNAVAILABLE
+        return [_decoded(each) for each in documents]
 
     def write(self, key: str, document: str) -> None:
         """Keep a document under a key for the validity period; ignore a Redis that fails."""
@@ -106,6 +117,30 @@ class IndicatorsCache:
             self.client.set(PREFIX + key, document, ex=self.ttl)
         except RedisError as error:
             _report(error)
+
+    def write_many(self, documents: Mapping[str, str]) -> None:
+        """Keep documents under their keys, each for the validity period; stop at a Redis failing.
+
+        No transaction: each entry stands alone. The first failure is ignored, as by ``write``, and
+        the documents left are not written: the read waits for Redis once, not once by document.
+        """
+        for key, document in documents.items():
+            try:
+                self.client.set(PREFIX + key, document, ex=self.ttl)
+            except RedisError as error:
+                _report(error)
+                return
+
+
+def _decoded(document: object) -> str | None:
+    """Give a document as Redis gave it, decoded; ``None`` when absent or not UTF-8 (logged)."""
+    if isinstance(document, bytes):
+        try:
+            return document.decode("utf-8")
+        except UnicodeDecodeError as error:
+            _report(error)
+            return None
+    return document if isinstance(document, str) else None
 
 
 def _report(error: RedisError | UnicodeDecodeError) -> None:

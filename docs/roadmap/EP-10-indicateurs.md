@@ -684,8 +684,9 @@ Réécrite au recadrage du 2026-11-15 : EP-26 a refait la lecture d'une structur
 
 ### Le cache
 
-- **La clé** : `waterfall:indicators:<project_id>:<empreinte>`, l'empreinte étant le haché
-  (SHA-256, tronqué) d'un texte canonique formé de : l'état, la révision en cours, la référence et le
+- **La clé** : `waterfall:indicators:<project_id>:<empreinte>:<maille>` — la maille, `project`,
+  l'identifiant d'un sous-projet ou `unassigned`, depuis US-2420 (« L'entrée ») —, l'empreinte
+  étant le haché (SHA-256, tronqué) d'un texte canonique formé de : l'état, la révision en cours, la référence et le
   compteur du projet (`project_facts`, `read_project`, `stored_lock_version`) ; la révision calculée
   R et sa référence Ref ; `revision_content_stamp(R)` et `lines_stamp(R)` ; `costs_stamp(project)`, qui rend aussi
   la somme des `lock_version` de `cost_line` (décision de l'auteur du 2026-11-16, #3629) ;
@@ -711,12 +712,23 @@ Réécrite au recadrage du 2026-11-15 : EP-26 a refait la lecture d'une structur
   entrée n'est jamais servie pour une clé qui n'est plus celle du projet ». **Pour EP-08** : la clé
   lit le compteur de la seule structure principale de la révision ; quand EP-08 donne aux autres
   structures leur compteur, elle lira celui de toutes.
-- **L'entrée** : un seul document JSON par projet et par jour — les `ProjectIndicators` et les trois
-  `CurveSeries` de chaque maille, zones nulles —, écrit après un calcul complet avec la durée de
-  validité ; `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves` au jour courant et le
-  dernier point de `getIndexHistory` le lisent ; aucune lecture d'une révision marquée ne passe par
-  le cache. Deux lectures parallèles d'une entrée absente calculent toutes deux et écrivent la même
-  valeur : aucun verrou.
+- **L'entrée** : un document JSON par maille et par jour — les `ProjectIndicators` et les trois
+  `CurveSeries` de la maille, zones nulles —, sous la clé du projet suivie de la maille, écrit avec
+  la durée de validité (US-2420, décision de l'auteur du 2026-11-16, #3628). Le document unique par
+  projet, qui portait toutes les mailles, manquait l'objectif d'une seconde : sur PRJ-001 du témoin
+  (2 sous-projets, 4 mailles, `make measure-core ONLY=indicators`, 5 passages), 48 008 octets, lu à
+  froid en 1,499 s, une maille seule 1,080 s ; 1,1 Mo et 15,2 s à froid extrapolés à 100
+  sous-projets. Une lecture lit en un échange les entrées des mailles qu'elle demande, calcule en
+  une passe celles qui manquent, et n'écrit qu'elles : `getProjectIndicators`, `getCostCurve` et
+  `getEarnedValueCurves` au jour courant lisent une maille ; le dernier point de `getIndexHistory`,
+  la sienne ou, sans maille, toutes, chacune à l'instant de son calcul. L'empreinte, celle du projet,
+  est partagée par ses mailles : une écriture qui la change les quitte toutes à la fois. Mesuré
+  après le changement : une maille, 15 328 octets, lue à froid en 1,134 s (de 1,011 à 1,146 s sur
+  trois mesures : l'objectif reste manqué de peu), à chaud en 26 ms, quel que soit le nombre de
+  sous-projets ; toutes les mailles du témoin, 47 891 octets, 1,678 s à froid, 22 ms à chaud,
+  1,1 Mo et 19,4 s à froid extrapolés à 100 sous-projets. Aucune lecture d'une
+  révision marquée ne passe par le cache. Deux lectures parallèles d'une entrée absente calculent
+  toutes deux et écrivent la même valeur : aucun verrou.
 - **L'indisponibilité** : `IndicatorsCache` attrape `redis.exceptions.RedisError` et les délais
   (`socket_timeout` d'une seconde, comme `DEPOSIT_TIMEOUT`), rend `None` à la lecture, ignore à
   l'écriture, et journalise `indicators.cache_unavailable` une fois par cause ; le calcul est rendu.
@@ -1845,7 +1857,7 @@ d'EP-05 le note en écart d'US-0850.
 
 ## US-2420 — Les indicateurs, le plan de charge et la projection de dépenses sont mesurés
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — l'outil de WF-QUA-0060, que clôt US-2300 (EP-26)
 - **opérations** : `getProjectIndicators`, `getProjectWorkload`, `getProjectSpending`
 - **issue** : #3510

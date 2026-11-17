@@ -20,9 +20,10 @@ current revision, or, without one, on the last marked revision with the actual c
 (WF-IND-0010), ``is_stored`` false; the day is that of the time zone of the installation
 (``current_day``, US-2200), the instant of the reading its ``computed_at``. The reference is the
 project's, read now. One pass reads what every scope needs (``day_documents``). Given the cache of
-the process, the indicators of the day are read in its entry for the key of the project, which
-one pass computes for every scope when it is not kept, its ``computed_at`` that of the reading
-that computed it (``caching``, US-1720/L2); a marked revision is read as its marking kept it.
+the process, the indicators of the day of a scope are read in its entry for the key of the project,
+which one pass computes for the scopes asked that are not kept, its ``computed_at`` that of the
+reading that computed it (``caching``, US-1720/L2; one entry by scope, US-2420, #3628); a marked
+revision is read as its marking kept it.
 
 Declared by US-1660/L1, the socle of EP-10; filled by US-1660/L3 for the current day, by US-1670/L2
 for a marking kept; the cache, by US-1720/L2.

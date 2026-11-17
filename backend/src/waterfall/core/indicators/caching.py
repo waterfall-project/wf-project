@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The indicators of the current day, kept in the cache under a versioned key (WF-DAT-0130-A).
 
-The key of the entry of a project is the fingerprint of what its indicators of the day depend on,
+The key of the day of a project is the fingerprint of what its indicators of the day depend on,
 read at each reading by the interfaces of the modules (EP-10, "Le cache"): the state, the current
 revision, the reference and the counter of the project; the revision computed and its reference;
 the counter and the instant of the dates of its main structure; the number of its nodes, of its
@@ -16,13 +16,16 @@ calls the cache. The counter of a line of cost advances under the lock of the pr
 its writes, so that two exclusions that overlap each change the sum (#3629). A change of the
 thresholds escapes it: the zones are classified at each reading.
 
-The entry is one document by project and by key: for each scope — the project, each subproject,
-the lines of the project alone —, the indicators and the three curves, computed in one pass, the
-zones null. The key is read before the computation: a write that comes between them changes the
-key, and what was computed is kept under a key no reading asks for any longer. Two readings of an
-entry absent compute it both and write the same: no lock. A Redis that does not answer is a miss,
-and the computation is answered (``IndicatorsCache``); the scopes asked alone are computed, for
-no entry is written.
+The entry is one document by scope and by key (decision of the author of 2026-11-16, #3628; the
+measure of US-2420): for a scope — the project, a subproject, the lines of the project alone —, its
+indicators and its three curves, the zones null, under the key of the project followed by the scope.
+A reading computes and writes only the scopes it asks that are not kept, in one pass: one scope for
+the indicators and the curves, every scope for the evolution of the indices without a scope. The
+fingerprint is the project's, shared by its scopes: a write that changes it leaves every scope of
+the project at once. The key is read before the computation: a write that comes between them
+changes the key, and what was computed is kept under a key no reading asks for any longer. Two
+readings of an entry absent compute it both and write the same: no lock. A Redis that does not
+answer is a miss, and the computation is answered (``IndicatorsCache``); nothing is written.
 """
 
 import hashlib
@@ -65,13 +68,15 @@ if TYPE_CHECKING:
 
 # The form of an entry: a change of what an entry holds changes it, and the entries of the form
 # before are no longer read, without waiting for their validity to end.
-FORM = "1"
+FORM = "2"
 # The length of the fingerprint kept in the key: 128 bits of the SHA-256 of the canonical text.
 FINGERPRINT_LENGTH = 32
 
 # What an entry holds for a scope: a document by kind (``IndicatorKind``), the indicators of the
 # project under ``project``.
 type ScopeEntry = dict[str, Document]
+# The kinds an entry of a scope holds, each a document: an entry that lacks one is a miss.
+KINDS = ("project", "cost_curve", "cost_curve_payment_delays", "earned_value_curves")
 
 
 def _text(value: object) -> str:
@@ -83,9 +88,10 @@ def _text(value: object) -> str:
 
 
 def day_key(session: Session, basis: Basis, context: Context, subprojects: Sequence[UUID]) -> str:
-    """Give the key of the entry of the day of a project: its identifier, then the fingerprint.
+    """Give the key of the day of a project: its identifier, then the fingerprint.
 
-    ``subprojects`` are those of the project, as the entry draws them.
+    ``subprojects`` are those of the project, as its scopes are drawn. The entry of a scope is kept
+    under this key followed by the scope (``scope_key``).
     """
     project_id, revision_id = basis.project_id, basis.revision_id
     facts = project_facts(session, project_id)
@@ -126,6 +132,11 @@ def day_key(session: Session, basis: Basis, context: Context, subprojects: Seque
     return f"{project_id}:{fingerprint}"
 
 
+def scope_key(key: str, scope: CostScope) -> str:
+    """Give the key of the entry of a scope: the key of the day of its project, then the scope."""
+    return f"{key}:{scope}"
+
+
 def day_entry(
     session: Session, basis: Basis, context: Context, scopes: Collection[CostScope]
 ) -> dict[str, ScopeEntry]:
@@ -152,11 +163,11 @@ def day_entry(
     return entry
 
 
-def _read_entry(kept: str | None) -> dict[str, ScopeEntry] | None:
-    """Give the scopes of an entry kept, or none for an entry absent or that cannot be read.
+def _read_entry(kept: str | None) -> ScopeEntry | None:
+    """Give the documents of the entry of a scope, or none for an entry absent or unreadable.
 
-    An entry is unreadable when it is not JSON, holds no scopes, or a scope that lacks the
-    indicators of the project: it is a miss, and is written again.
+    An entry is unreadable when it is not JSON, is not an object, or lacks a kind or holds one that
+    is not a document: it is a miss, and is written again.
     """
     if kept is None:
         return None
@@ -166,13 +177,10 @@ def _read_entry(kept: str | None) -> dict[str, ScopeEntry] | None:
         return None
     if not isinstance(held, dict):
         return None
-    scopes = cast("dict[str, object]", held).get("scopes")
-    if not isinstance(scopes, dict):
+    documents = cast("dict[str, object]", held)
+    if any(not isinstance(documents.get(kind), dict) for kind in KINDS):
         return None
-    for each in cast("dict[str, object]", scopes).values():
-        if not isinstance(each, dict) or "project" not in each:
-            return None
-    return cast("dict[str, ScopeEntry]", scopes)
+    return cast("ScopeEntry", documents)
 
 
 def cached_scopes(
@@ -182,26 +190,37 @@ def cached_scopes(
     scopes: Collection[CostScope],
     cache: IndicatorsCache,
 ) -> dict[CostScope, ScopeEntry]:
-    """Give the documents of the day of the scopes asked, by kind, from the entry of the key.
+    """Give the documents of the day of the scopes asked, by kind, from their entries for the key.
 
-    Served by the entry when it is kept; otherwise every scope of the project is computed, the
-    entry written, and the scopes asked taken from it; when Redis does not answer, the scopes asked
-    alone are computed. A scope the entry lacks — a subproject created between the reading of the
-    key and the refusal of the scope — is computed alone.
+    The entries of the scopes asked are read in one exchange; those not kept are computed together,
+    in one pass, and written, none other. When Redis does not answer, the scopes asked are computed
+    and nothing is written. A scope that is not one of the key — a subproject the reading of the
+    scopes did not see — is computed and not written: the key does not cover it.
     """
-    subprojects = subproject_ids(session, basis.project_id)
+    project_id = basis.project_id
+    subprojects = subproject_ids(session, project_id)
     key = day_key(session, basis, context, subprojects)
-    found = cache.lookup(key)
+    asked: list[CostScope] = list(dict.fromkeys(scopes))
+    found = cache.lookup_many([scope_key(key, scope) for scope in asked])
     if isinstance(found, Unavailable):
-        # Redis fails: the write would fail too, and the other scopes would be computed for nothing.
-        entry = day_entry(session, basis, context, scopes)
-        return {scope: entry[str(scope)] for scope in scopes}
-    entry = _read_entry(found)
-    if entry is None:
-        drawn: list[CostScope] = [PROJECT, *subprojects, UNASSIGNED]
-        entry = day_entry(session, basis, context, drawn)
-        cache.write(key, json.dumps({"scopes": entry}, separators=(",", ":")))
-    missing: list[CostScope] = [scope for scope in scopes if str(scope) not in entry]
+        # Redis fails: the write would fail too.
+        computed = day_entry(session, basis, context, asked)
+        return {scope: computed[str(scope)] for scope in asked}
+    held: dict[CostScope, ScopeEntry] = {}
+    for scope, kept in zip(asked, found, strict=True):
+        entry = _read_entry(kept)
+        if entry is not None:
+            held[scope] = entry
+    missing: list[CostScope] = [scope for scope in asked if scope not in held]
     if missing:
-        entry = {**entry, **day_entry(session, basis, context, missing)}
-    return {scope: entry[str(scope)] for scope in scopes}
+        computed = day_entry(session, basis, context, missing)
+        drawn: set[CostScope] = {PROJECT, UNASSIGNED, *subprojects}
+        cache.write_many(
+            {
+                scope_key(key, scope): json.dumps(computed[str(scope)], separators=(",", ":"))
+                for scope in missing
+                if scope in drawn
+            }
+        )
+        held.update({scope: computed[str(scope)] for scope in missing})
+    return {scope: held[scope] for scope in asked}

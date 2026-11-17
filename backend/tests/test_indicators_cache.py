@@ -278,3 +278,67 @@ def test_the_validity_period_is_ten_minutes_unless_the_environment_says_otherwis
     assert load_settings().indicators_cache_ttl == 600
     monkeypatch.setenv("WATERFALL_INDICATORS_CACHE_TTL", "30")
     assert load_settings().indicators_cache_ttl == 30
+
+
+# --- Several entries at once: the entries of the scopes of a project (US-2420, #3628) ----------
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+def test_entries_written_to_a_redis_that_never_answers_wait_for_it_once(
+    silent: IndicatorsCache, key: str
+) -> None:
+    started = time.monotonic()
+    silent.write_many({f"{key}:{rank}": "{}" for rank in range(5)})
+    assert time.monotonic() - started < 2 * DEPOSIT_TIMEOUT
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+def test_entries_written_together_are_read_together_in_their_order(
+    indicators: IndicatorsCache, queue: TaskQueue, key: str
+) -> None:
+    keys = [f"{key}:project", f"{key}:unassigned", f"{key}:absent"]
+    try:
+        indicators.write_many({keys[1]: '{"v": 2}', keys[0]: '{"v": 1}'})
+        assert indicators.lookup_many(keys) == ['{"v": 1}', '{"v": 2}', None]
+        for each in keys[:2]:
+            assert 0 < queue.client.ttl(PREFIX + each) <= 600
+    finally:
+        queue.client.delete(*(PREFIX + each for each in keys))
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+def test_no_key_asked_reads_nothing_and_nothing_to_write_writes_nothing(
+    unreachable: IndicatorsCache,
+) -> None:
+    with capture_logs() as records:
+        assert unreachable.lookup_many([]) == []
+        unreachable.write_many({})
+    assert records == []
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+def test_a_redis_that_answers_nowhere_reads_several_as_unavailable_and_ignores_their_write(
+    unreachable: IndicatorsCache, key: str
+) -> None:
+    with capture_logs() as records:
+        assert unreachable.lookup_many([key, f"{key}:other"]) is UNAVAILABLE
+        unreachable.write_many({key: "{}", f"{key}:other": "{}"})
+    unavailable = [r for r in records if r["event"] == "indicators.cache_unavailable"]
+    assert [r["cause"] for r in unavailable] == ["ConnectionError"]
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+def test_several_entries_read_as_bytes_are_decoded_and_one_not_utf8_is_none(
+    queue: TaskQueue, redis_url: str, key: str
+) -> None:
+    raw = redis.from_url(redis_url)
+    try:
+        raw.set(PREFIX + key, '{"é": 1}'.encode())
+        raw.set(PREFIX + key + ":bad", b"\xff")
+        served = IndicatorsCache(raw, 600)
+        with capture_logs() as records:
+            assert served.lookup_many([key, f"{key}:bad"]) == ['{"é": 1}', None]
+        assert [r["cause"] for r in records] == ["UnicodeDecodeError"]
+    finally:
+        queue.client.delete(PREFIX + key, PREFIX + key + ":bad")
+        raw.close()
