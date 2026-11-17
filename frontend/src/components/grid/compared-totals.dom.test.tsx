@@ -375,7 +375,7 @@ describe("the differences of amounts of a comparison (US-2350)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Écarts de montants" }));
     const table = screen.getByRole("table", { name: "Écarts de montants à la base" });
     expect(within(table).getByText(/^\+250,00/)).toBeInTheDocument();
-    expect(within(table).getByText(/^-10,00|^−10,00/)).toBeInTheDocument();
+    expect(within(table).getByText(/^-10,00/)).toBeInTheDocument();
   });
 
   it("is not offered by the planning, which has no amount to compare [WF-IHM-0160-A]", () => {
