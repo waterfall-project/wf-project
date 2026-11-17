@@ -155,6 +155,10 @@ describe("a block pasted on a comparison", () => {
     expect(dialog).toBeVisible();
     expect(dialog).toHaveTextContent("La cible du collage a disparu entre-temps");
     expect(dialog).toHaveTextContent("Ligne 1 du bloc");
+    // Whole refusal: nothing accepted, so the dialog says no line will be written and offers no way
+    // to apply (the button is not rendered when plan.accepted is 0).
+    expect(dialog).toHaveTextContent("Aucune ligne ne sera écrite.");
+    expect(within(dialog).queryByRole("button", { name: "Appliquer le collage" })).toBeNull();
     expect(bodies(client, PREVIEW)).toEqual([
       { target_node_id: comparison.items[REMOVED]?.node_id, target_column: "label", rows: block },
     ]);
