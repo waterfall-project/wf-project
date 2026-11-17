@@ -161,10 +161,25 @@ describe("versionReport", () => {
     // under the 60 s of the marking.
     expect(notes.indicators).toMatch(/Objective exceeded: 1\.5 s for 1 s at the median/);
     expect(notes["mark-revision"]).toBeUndefined();
-    expect(notes["workload-or-projection"]).toMatch(/workload.*projection of expenses/);
+    // The operation shared by two screens has no note of its own: a median under its objective
+    // documents nothing, and a standing note would document every finding of the operation.
+    expect(notes["workload-or-projection"]).toBeUndefined();
   });
 
-  it("documents a scope read cold over the objective, though the median holds [WF-QUA-0060-A]", () => {
+  it("writes no note on an operation whose median holds, whatever the screens it joins [WF-QUA-0060-A]", () => {
+    const quick = TABLE.filter((line) => line.unserved === undefined).flatMap(({ id }) => [
+      measured(id, 0, 0.4),
+      measured(id, 1, 0.6),
+    ]);
+    const report = versionReport("0.4.0", new Date(), CONDITIONS, quick, CACHE);
+    expect(report.operations.filter((operation) => "note" in operation)).toEqual([]);
+    const indicators = report.operations.find(({ id }) => id === "indicators");
+    expect(indicators !== undefined && "cache" in indicators ? indicators.cache : null).toEqual(
+      CACHE,
+    );
+  });
+
+  it("documents a scope read cold over the objective in the note of the cache, not of the operation [WF-QUA-0060-A]", () => {
     const quick = TABLE.filter((line) => line.unserved === undefined).flatMap(({ id }) => [
       measured(id, 0, 0.4),
       measured(id, 1, 0.6),
@@ -174,9 +189,11 @@ describe("versionReport", () => {
       cold_cell_s: 1.13,
     });
     const indicators = report.operations.find(({ id }) => id === "indicators");
-    const note = indicators !== undefined && "note" in indicators ? (indicators.note ?? "") : "";
-    expect(note).toMatch(/one scope read cold, 1\.13 s for 1 s/);
-    expect(note).not.toMatch(/at the median/);
+    expect(indicators).toBeDefined();
+    expect(indicators).not.toHaveProperty("note");
+    const cache = indicators !== undefined && "cache" in indicators ? indicators.cache : undefined;
+    expect(cache?.note).toMatch(/one scope read cold, 1\.13 s for 1 s/);
+    expect(cache?.note).toMatch(/#3802/);
   });
 
   it("refuses an operation measured in a single pass, which has no dispersion to give", () => {
@@ -220,21 +237,51 @@ describe("cacheOf", () => {
     expect(cacheOf(CORE)).toEqual(CACHE);
   });
 
-  it("refuses a JSON without the measure of the cache, or with a figure that is no number", () => {
+  it("refuses a JSON without the measure of the cache, or with a figure that is no number [WF-QUA-0060-A]", () => {
     expect(() => cacheOf({ measures: [] })).toThrow(/indicators cache/);
     expect(() => cacheOf(null)).toThrow(/indicators cache/);
-    const broken = {
-      measures: [
-        {
-          name: "indicators cache",
-          facts: { ...CORE.measures[1]?.facts, cold_cell_s: "1" },
-          rows: [],
-        },
-      ],
-    };
-    expect(() => cacheOf(broken)).toThrow(/cold_cell_s/);
+    expect(() => cacheOf(coreWith({ facts: { cold_cell_s: "1" } }))).toThrow(/cold_cell_s/);
+  });
+
+  it("refuses, as the chain does, an extrapolation that is empty [WF-QUA-0060-A]", () => {
+    expect(() => cacheOf(coreWith({ rows: [] }))).toThrow(/one size at least/);
+  });
+
+  it("refuses scopes that are not the subprojects and the two of the project [WF-QUA-0060-A]", () => {
+    expect(() => cacheOf(coreWith({ facts: { scopes: 5 } }))).toThrow(/scopes are the subprojects/);
+  });
+
+  it("refuses entries of every scope that weigh less than the one of the project [WF-QUA-0060-A]", () => {
+    expect(() => cacheOf(coreWith({ facts: { all_bytes: 14999 } }))).toThrow(/weigh at least/);
+  });
+
+  it("refuses rows of extrapolation that are not sorted by subprojects [WF-QUA-0060-A]", () => {
+    const row = CACHE.extrapolation[0];
+    expect(() =>
+      cacheOf(
+        coreWith({
+          rows: [
+            { ...row, subprojects: 200 },
+            { ...row, subprojects: 100 },
+          ],
+        }),
+      ),
+    ).toThrow(/sorted by subprojects/);
   });
 });
+
+/** The JSON of the core measure with some of the facts, or the rows, of the cache changed. */
+function coreWith(change: { facts?: Record<string, unknown>; rows?: readonly unknown[] }) {
+  return {
+    measures: [
+      {
+        name: "indicators cache",
+        facts: { ...CORE.measures[1]?.facts, ...change.facts },
+        rows: change.rows ?? CORE.measures[1]?.rows,
+      },
+    ],
+  };
+}
 
 describe("sampleDeviation", () => {
   it("is the standard deviation of a sample, n - 1, and 0 for a single value", () => {

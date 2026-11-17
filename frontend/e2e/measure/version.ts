@@ -103,7 +103,12 @@ export interface Cache {
   readonly cold_all_s: number;
   readonly hot_all_s: number;
   readonly extrapolation: readonly Extrapolated[];
+  /** What documents the scope read cold past the objective (`measures.py`: optional). */
+  readonly note?: string;
 }
+
+/** The scopes of the entries of the cache beyond the subprojects: the project and its own lines. */
+export const FIXED_SCOPES = 2;
 
 /** A finite number of 0 or more of an object of the JSON of the core measure, or a refusal. */
 function figure(of: unknown, key: string): number {
@@ -134,7 +139,7 @@ export function cacheOf(core: unknown): Cache {
   }
   const rows = found.rows as readonly unknown[];
   const facts = found.facts;
-  return {
+  const read = {
     subprojects: figure(facts, "subprojects"),
     scopes: figure(facts, "scopes"),
     cell_bytes: figure(facts, "cell_bytes"),
@@ -153,6 +158,24 @@ export function cacheOf(core: unknown): Cache {
       hot_all_s: figure(row, "hot_all_s"),
     })),
   };
+  if (read.extrapolation.length === 0) {
+    throw new Error("the cost of the cache: extrapolation holds one size at least");
+  }
+  if (read.scopes !== read.subprojects + FIXED_SCOPES) {
+    throw new Error(
+      "the cost of the cache: scopes are the subprojects, the project and its own lines",
+    );
+  }
+  if (read.all_bytes < read.cell_bytes) {
+    throw new Error(
+      "the cost of the cache: the entries of every scope weigh at least the one of the project",
+    );
+  }
+  const sizes = read.extrapolation.map(({ subprojects }) => subprojects);
+  if (sizes.some((size, index) => index > 0 && size < (sizes[index - 1] ?? size))) {
+    throw new Error("the cost of the cache: the rows of extrapolation are sorted by subprojects");
+  }
+  return read;
 }
 
 /** What the measure was taken under: the load, the passes, the platform. */
@@ -218,48 +241,45 @@ function durations(id: string, samples: readonly Measured[]) {
   };
 }
 
-/** What an operation measured over two screens says of itself, whatever its durations. */
-const SCREENS_NOTE: Readonly<Record<string, string>> = {
-  "workload-or-projection":
-    "Two screens, one operation: the samples are those of the workload (getProjectWorkload) and " +
-    "of the projection of expenses (getProjectSpending), each opened by the navigation, one of " +
-    "each in every pass.",
-};
-
 /** A duration in seconds as a note writes it. */
 function inSeconds(value: number): string {
   return `${String(second(value))} s`;
 }
 
 /**
- * The note of a served operation: what it measures when it joins screens, and, when its median
- * stands over its objective — or, for the indicators, one scope of the cache read cold —, that
- * the objective is exceeded, with the figures. A measure never fails on a duration: the note
- * documents, and an issue decides (US-2420).
+ * The note of a served operation: only that its median stands over its objective, with the
+ * figures — nothing otherwise, so that a note means a finding documented. A measure never fails on
+ * a duration: the note documents, and an issue decides (US-2420). The scope read cold past the
+ * objective is documented by the `note` of the cache, not here (`withNote`).
  */
 function noted(
   line: Line,
   served: { median_s: number; worst_s: number; dispersion_s: number },
-  cache: Cache | undefined,
 ): { note?: string } {
-  const parts: string[] = [];
-  const own = SCREENS_NOTE[line.id];
-  if (own !== undefined) {
-    parts.push(own);
+  return served.median_s > line.objective
+    ? {
+        note:
+          `Objective exceeded: ${inSeconds(served.median_s)} for ${String(line.objective)} s at the ` +
+          `median (worst ${inSeconds(served.worst_s)}, dispersion ${inSeconds(served.dispersion_s)}).`,
+      }
+    : {};
+}
+
+/** The issue that decides the calculation of one scope read cold (the author's, 2026-11-17). */
+const COLD_CELL_ISSUE = "#3802";
+
+/** The cache, with the note that documents the scope read cold when it is past the objective. */
+function withNote(cache: Cache, objective: number): Cache {
+  if (cache.cold_cell_s <= objective) {
+    return cache;
   }
-  if (served.median_s > line.objective) {
-    parts.push(
-      `Objective exceeded: ${inSeconds(served.median_s)} for ${String(line.objective)} s at the ` +
-        `median (worst ${inSeconds(served.worst_s)}, dispersion ${inSeconds(served.dispersion_s)}).`,
-    );
-  }
-  if (cache !== undefined && cache.cold_cell_s > line.objective) {
-    parts.push(
+  return {
+    ...cache,
+    note:
       `Objective exceeded by the entry of the cache: one scope read cold, ${inSeconds(cache.cold_cell_s)} ` +
-        `for ${String(line.objective)} s (one entry by scope, #3628).`,
-    );
-  }
-  return parts.length === 0 ? {} : { note: parts.join(" ") };
+      `for ${String(objective)} s (one entry by scope, #3628); the calculation of one scope cold is ` +
+      `decided in ${COLD_CELL_ISSUE}.`,
+  };
 }
 
 /**
@@ -282,8 +302,8 @@ export function versionReport(
       return { ...head, unserved: line.unserved };
     }
     const served = durations(line.id, samples);
-    const own = line.id === "indicators" ? cache : undefined;
-    return { ...head, ...served, ...noted(line, served, own), ...(own ? { cache: own } : {}) };
+    const own = line.id === "indicators" ? withNote(cache, line.objective) : undefined;
+    return { ...head, ...served, ...noted(line, served), ...(own ? { cache: own } : {}) };
   });
   return { version, taken_at: takenAt.toISOString(), conditions, operations };
 }
