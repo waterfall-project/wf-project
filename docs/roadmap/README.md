@@ -122,7 +122,9 @@ contract describe (`docs/api/DECISIONS.md`, "L'univers témoin"; #1402, decision
 2026-10-28). It is loaded in slices: each epic of the back names its own in "Ce qui en fait
 partie" and loads it in turn — the reference data in EP-05, the projects and the revisions in
 EP-04, the tasks in EP-06, the lines in EP-07, the costs in EP-09, the amendments and the risks in
-EP-08, the three hundred projects in EP-13, which closes. Four rules, which each slice follows:
+EP-08, about ten projects beside the witness in EP-11, so that each view of the portfolio has
+something to sum (decision of the author of 2026-11-17), the three hundred projects in EP-13, which
+closes. Four rules, which each slice follows:
 
 - **what is entered is loaded, never by an `INSERT`**: by a command of the back that goes through
   the interfaces of the modules of the core, with the identifiers of the witness imposed by this
@@ -401,7 +403,10 @@ the reframing of EP-10 of 2026-11-15, `epic/EP-10` no longer follows the series:
 is created from `main` once EP-25 is delivered, without waiting for EP-26, on which it also depends:
 only US-1680 and US-2420 wait for EP-26 in `main`. `epic/EP-08` does not keep its pivot lot: since
 EP-08 also depends on EP-27, whose branch is a distinct one, it is created from `main` once EP-10 and
-EP-27 are delivered, as the rule says (decision of 2026-11-17, at the framing of EP-08).
+EP-27 are delivered, as the rule says (decision of 2026-11-17, at the framing of EP-08). Fifth:
+`epic/EP-11` created from `epic/EP-08` as soon as its base lot, US-2550/L1 (#3822), is merged, which
+gives it the migration of the risks and the declared interface of `core/risks` (decision of
+2026-11-17, at the framing of EP-11).
 
 The chain runs on every pull request, towards an epic's branch as towards `main`, and
 none is merged if it fails.
