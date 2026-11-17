@@ -393,8 +393,21 @@ def _label(node: Node) -> str:
 
 
 def _amounts(node: Node) -> list[str]:
-    """Return what changed of a node besides its subproject, which moves none of its amounts."""
-    return [change for change in cast("list[str]", node["changes"]) if change != "subproject"]
+    """Return what changed of a node besides its subproject, which moves none of its amounts.
+
+    Nor ``other``, the values WF-REV-0080 does not enumerate (EP-27): what is tried here is what
+    moves of the values it names.
+    """
+    return [
+        change
+        for change in cast("list[str]", node["changes"])
+        if change not in {"subproject", "other"}
+    ]
+
+
+def _named(node: Node) -> list[str]:
+    """Return what changed of a node among the values WF-REV-0080 enumerates, ``other`` left out."""
+    return [change for change in cast("list[str]", node["changes"]) if change != "other"]
 
 
 def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_lineage(
@@ -424,9 +437,7 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
         "Location du banc d'essais",
     ]
     changed = {
-        node["lineage_id"]: node["changes"]
-        for node in _marked(compared, "modified")
-        if node["changes"]
+        node["lineage_id"]: _named(node) for node in _marked(compared, "modified") if _named(node)
     }
     core = {lineage: changes for lineage, changes in changed.items() if lineage in reference_ids}
     assert core == {
@@ -450,7 +461,7 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
     # the reference puts under a subproject change it besides, which moves none of their amounts
     # (#1751).
     drawn = {
-        lineage: [change for change in cast("list[str]", changes) if change != "subproject"]
+        lineage: [change for change in changes if change != "subproject"]
         for lineage, changes in changed.items()
         if lineage not in core
     }
@@ -485,7 +496,7 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
     # Read whole, its totals are those of listNodes on the reference (#1193).
     assert len(compared["items"]) == 5_999
     # Modified by their own values: the six of the core and every line drawn (#1628).
-    assert sum(1 for node in _marked(compared, "modified") if node["changes"]) == 6 + DRAWN_LINES
+    assert sum(1 for node in _marked(compared, "modified") if _named(node)) == 6 + DRAWN_LINES
     assert compared["totals"] == mockcore.whole(mockhistory.reference_rows())["totals"]
     # Its meta is that of listNodes, but for when the dates were last computed: the marking, which
     # the merge of the amendment redated, and after which nothing redates it (#1404, WF-DAT-0020).
@@ -605,8 +616,14 @@ def test_the_comparison_is_the_tree_of_the_reference_with_the_nodes_removed_at_t
     assert rental["parent_id"] == trials["node_id"]
     assert rental["row_number"] == trials["row_number"] + 1
     assert (trials["editable_fields"], rental["editable_fields"]) == ([], [])
+    # Its amounts are its lines', which the provision added moves: another value (EP-27).
     installation = by_id[universe(N.INSTALLATION)]
-    assert (installation["difference"], installation["changes"]) == ("modified", [])
+    assert (installation["difference"], installation["changes"]) == ("modified", ["other"])
+    assert set(installation["base"]["task"]) == {
+        "base_amount",
+        "budgeted_amount",
+        "reestimated_amount",
+    }
     for node in nodes:
         for link in node.get("predecessors", []):
             predecessor = by_id[link["predecessor_node_id"]]

@@ -170,13 +170,15 @@ def examples() -> dict[str, Any]:
 
 
 def _walk(value: Any) -> list[Entry]:
-    """Return every object a value read from JSON holds, itself included."""
+    """Return every object a value holds, itself included, but a base compared (`base`, EP-27)."""
+    # A partial line, whose categories test_mockcomparedvalues checks; `deltas` names none.
     if isinstance(value, list):
         return [found for item in cast("list[Any]", value) for found in _walk(item)]
     if not isinstance(value, dict):
         return []
     entry = cast("Entry", value)
-    return [entry, *(found for item in entry.values() for found in _walk(item))]
+    kept = [item for key, item in entry.items() if key not in {"base", "deltas"}]
+    return [entry, *(found for item in kept for found in _walk(item))]
 
 
 def _categories() -> dict[str, Entry]:
