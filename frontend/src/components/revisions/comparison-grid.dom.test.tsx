@@ -112,9 +112,12 @@ describe("the grid of the comparison of two revisions", () => {
     expect(cell(unchanged, "diff_mark")).toBeEmptyDOMElement();
     const row = cell(unchanged, "diff_mark").closest("tr");
     expect(row?.className).not.toMatch(/bg-diff-/);
+    // A node that keeps its own values names no change.
+    expect(VOLUME.items[unchanged]?.changes).toEqual([]);
+    expect(cell(unchanged, "changes").textContent).toBe("");
   });
 
-  it("names what changes of a node as the server names it, nothing for a node that keeps its own values [WF-REV-0080-A]", () => {
+  it("names what changes of a node as the server names it, nothing for an added node [WF-REV-0080-A]", () => {
     render(grid(COMPARISON));
     const wired = indexOfLabel(COMPARISON, "Câblage sur site");
     // The line changed sub-project between the two revisions: it is modified on that ground too (E-01).
