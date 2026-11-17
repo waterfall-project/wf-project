@@ -2627,15 +2627,22 @@ PasteApply:
 
 RevisionComparison:
   type: object
-  required: [from_revision_id, to_revision_id, items, totals, meta, amount_deltas]
+  required:
+    - from_revision_id
+    - to_revision_id
+    - items
+    - totals
+    - base_totals
+    - totals_delta
+    - meta
+    - amount_deltas
   description: >-
     Comparison of the revision read, current or marked, with a marked base revision, matched by
     the lineage identifier (WF-REV-0080, WF-DAT-0030): the tree of the main structure of the
     revision read, with the marks of a differential, the values the base carried and their
     differences, the totals of the base and the amount differences. It has the shape of the
     response of `listNodes` — `items`, `totals`, `meta` —, and is read like it, whole or through
-    the window that its filters retain (#1193). `base_totals` and `totals_delta` are not yet
-    required: the service returns them from EP-27 on (EP-27, « Exigées en deux temps »).
+    the window that its filters retain (#1193).
   properties:
     from_revision_id: { $ref: ../common.yaml#/Uuid }
     to_revision_id: { $ref: ../common.yaml#/Uuid }
@@ -2740,16 +2747,15 @@ RevisionComparison:
 
 ComparedNodeRead:
   type: object
-  required: [node_id, row_number, level, lock_version, difference, changes, base]
+  required: [node_id, row_number, level, lock_version, difference, changes, base, deltas]
   description: >-
     A node of the comparison (`RevisionComparison.items`), as `compareRevisions` returns it:
     the properties of `Node`, taken over from it, of which only those that a read always returns
     are required — `node_id`, `row_number`, `level` and `lock_version`, and the node's mark,
-    `difference`, `changes` and `base` —, the others being returned only if `fields` names them,
-    or all of them if it is omitted (#166, #1201, #1208). Its facets are partial likewise, those
-    of `NodeProjection`, which `listNodes` returns likewise (#2485). `Node`, which the writes
-    return whole, does not change. `deltas` is not yet required: the service returns it from
-    US-2340 on (EP-27, « Exigées en deux temps »).
+    `difference`, `changes`, `base` and `deltas` —, the others being returned only if `fields`
+    names them, or all of them if it is omitted (#166, #1201, #1208). Its facets are partial
+    likewise, those of `NodeProjection`, which `listNodes` returns likewise (#2485). `Node`,
+    which the writes return whole, does not change.
   properties:
     <<: *node_properties
     task:

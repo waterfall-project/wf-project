@@ -12,12 +12,15 @@ tasks alone without their lines: ``kinds=task`` filtered by a task, and of a mar
 added, their SHA-256 taken before US-2280/L1 touched the code (``TASKS_DIGESTS``). US-2320/L3 makes
 the comparison judge a node on every value it carries and give its base: between two marked
 revisions, the whole one is the body before, but for what it gains (``as_before``); the filtered
-one, which ``difference`` filters by the marks, is taken again (``COMPARED_DIGESTS``).
+one, which ``difference`` filters by the marks, is taken again (``COMPARED_DIGESTS``). US-2340/L1
+adds the deltas of each node and the totals of the base: both comparisons are those bodies but for
+what it adds (``without_gains``).
 The bodies are read straight from the application, unchecked against the contract: their form is
 the other tests' (``test_witness_lines_reads``), their bytes this one's.
 """
 
 import hashlib
+import json
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -121,6 +124,24 @@ COMPARED_DIGESTS = {
 }
 
 
+def without_gains(body: dict[str, Any]) -> dict[str, Any]:
+    """Give a comparison as it was before US-2340/L1: without its deltas and the base's totals.
+
+    Each node keeps its place, its mark and its base: the lot only adds to the body.
+    """
+    assert {"base_totals", "totals_delta"} <= set(body)
+    del body["base_totals"], body["totals_delta"]
+    for each in body["items"]:
+        del each["deltas"]
+    return body
+
+
+def gains_digest(body: bytes) -> str:
+    """Give the SHA-256 of a comparison written without what US-2340/L1 adds to it."""
+    stripped = without_gains(json.loads(body))
+    return hashlib.sha256(bytes(read_body(stripped).body)).hexdigest()
+
+
 # The SHA-256 of ``listNodes`` of the marked revision REVISION_100, whole: its labels are read
 # through the revisions of the tasks bearing the lines. Taken at 587127f0c, as the others.
 MARKED_DIGEST = "eaadbe84e77482ac75b037e5a3269ab44183badd3154112f6d9818a503967dae"
@@ -168,7 +189,7 @@ def as_before(body: dict[str, Any]) -> dict[str, Any]:
     A node was modified by the values WF-REV-0080 names, or by its content: a node under it added,
     removed or modified, or moved from under it — the parent the base names (``base.parent_id``).
     """
-    items: list[dict[str, Any]] = body["items"]
+    items: list[dict[str, Any]] = without_gains(body)["items"]
     parents = {each["node_id"]: each["parent_id"] for each in items}
     formers: list[str | None] = []
     for each in items:
@@ -225,7 +246,9 @@ def test_the_comparison_filtered_by_its_marks_reads_to_the_byte_what_it_read_at_
     # The digest guards the stability of the body; the rightness of the marks is for
     # test_comparison*.py.
     name = "comparison filtered and sorted"
-    assert digest(api, witness, realm, comparing(name)) == COMPARED_DIGESTS[name]
+    answer = api.client.get(comparing(name), headers=person(witness, realm, *READING).headers)
+    assert answer.status_code == 200, answer.text
+    assert gains_digest(answer.content) == COMPARED_DIGESTS[name]
 
 
 def test_the_nodes_of_a_marked_revision_read_to_the_byte_what_they_read_before_the_lot(

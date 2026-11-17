@@ -12065,6 +12065,21 @@ de chaque ligne (`previous_*`, EP-09) : elle se compare modifiée à sa source p
 (`other`), et inchangée, nœud par nœud, à la source d'un projet qui n'est pas encore En cours —
 son budgété, repris de la référence, différant aussi d'une source qui n'est pas la référence.
 
+**Les écarts et les totaux de la base** (US-2340/L1, #3501) : le service rend `deltas`,
+`base_totals` et `totals_delta`, et les trois deviennent exigées. L'écart se calcule dans l'union, à
+côté de `base`, pour les seules valeurs qui diffèrent, et se réduit comme elle aux champs lus. Deux
+durées de même unité s'écartent de la différence de leurs valeurs ; de deux unités, chacune est
+convertie en heures comme son unité le dit, aux constantes de l'installation (WF-PLA-0160), et
+l'écart est rendu dans l'unité de la durée lue — une heure écoulée y compte pour une heure, comme le
+filtre de durée compte une durée écoulée en jours de travail. Les totaux de la base se comptent sur
+les nœuds que la lecture retient sans `difference` — ceux-là mêmes dont `amount_deltas` compte les
+lignes quand `difference` est absent —, tels que la base les porte : une ligne de la révision lue
+retenue par un filtre y compte pour ce que la base en portait, une ligne que le filtre retient dans
+la base seulement, et qui est encore dans la révision lue, n'y compte pas. Sous un filtre d'état,
+`include_differences` lit les deux révisions sans ce filtre et retient un nœud dont la tâche est
+d'un état demandé, ou qui est en écart ; `totals` est alors celui des nœuds retenus, compté comme
+une lecture le compte.
+
 ### Les lectures d'une grille ouvertes à qui la consulte (US-2320, conception d'EP-27, « Les gardes »)
 
 Décision de l'auteur du 2026-11-15, au cadrage d'EP-27 : un compte qui consulte le planning sans

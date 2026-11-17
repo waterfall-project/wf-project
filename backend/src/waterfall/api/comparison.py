@@ -6,11 +6,13 @@
 (``planning.read``, ``estimate.read`` or ``remaining.read``), which read it on the main structure:
 the revision read, current or marked, compared with a marked base, the tree of the revision read
 with the mark of each node and what its base carried of what differs, its totals and its meta, and
-the differences of the amounts by nature and by subproject. It reads the parameters of
-``listNodes``, judged as it judges them (``node_reading``), and ``difference``, the marks it keeps;
-each node is written as ``listNodes`` writes it, ``fields`` choosing what of it, ``difference``,
-``changes`` and ``base`` always returned, ``base`` reduced to the fields read as the node is: the
-core does not know ``fields``, and judges a node on every value it carries.
+the differences of the amounts by nature and by subproject, and the totals of the base and their
+difference (US-2340, US-2350). It reads the parameters of ``listNodes``, judged as it judges them
+(``node_reading``), ``difference``, the marks it keeps, and ``include_differences``, the nodes in
+difference a filter of progress leaves out; each node is written as ``listNodes`` writes it,
+``fields`` choosing what of it, ``difference``, ``changes``, ``base`` and ``deltas`` always
+returned, ``base`` and ``deltas`` reduced to the fields read as the node is: the core does not
+know ``fields``, and judges a node on every value it carries.
 
 A comparison no filter restricts — ``difference`` and ``fields`` asked or not — reads the reading
 kept of the base (EP-26, "La comparaison", US-2270), made and kept if it is not, and that of the
@@ -49,6 +51,7 @@ from waterfall.core.estimate.interface import (
     ComparedNode,
     Comparison,
     ComparisonAsked,
+    CountedTotals,
     LineAmounts,
     UnitedNode,
     compare_revisions,
@@ -103,13 +106,19 @@ def _base_body(
 
 
 def _compared(node: ComparedNode, fields: frozenset[str] | None) -> dict[str, Any]:
-    """Write a node of the comparison: as ``listNodes`` does, with its mark and its base always."""
+    """Write a node of the comparison: as ``listNodes`` does, its mark, base and deltas always."""
     return {
         **node_body(node.view, fields),
         "difference": node.difference,
         "changes": list(node.changes),
         "base": _base_body(node.base, fields),
+        "deltas": _base_body(node.deltas, fields),
     }
+
+
+def _totals(counted: CountedTotals) -> dict[str, Any]:
+    """Write totals counted by the comparison, or their difference (``NodeTotalsDelta``)."""
+    return totals_body(counted.task_count, counted.totals)
 
 
 def _delta(each: AmountDelta) -> dict[str, Any]:
@@ -140,11 +149,14 @@ def _united(item: dict[str, Any], ids: dict[str, UUID]) -> UnitedNode[str]:
     amounts = None
     if line is not None:
         subproject = line["subproject_id"]
+        hours = line["hours"]
         amounts = LineAmounts(
             _identifier(ids, line["cost_category_id"]),
             None if subproject is None else _identifier(ids, subproject),
             Decimal(line["budgeted_amount"]),
             Decimal(line["reestimated_amount"]),
+            Decimal(0) if hours is None else Decimal(hours),
+            Decimal(line["base_amount"]),
         )
     return UnitedNode(
         item["node_id"],
@@ -174,6 +186,7 @@ def _placed(
     written["difference"] = placed.difference
     written["changes"] = list(placed.changes)
     written["base"] = _base_body(placed.base, fields)
+    written["deltas"] = _base_body(placed.deltas, fields)
     return written
 
 
@@ -211,6 +224,8 @@ def kept_comparison(
         "to_revision_id": str(asked.to_revision_id),
         "items": [_placed(nodes[each.node_id], each, fields) for each in found.items],
         "totals": compared["totals"],
+        "base_totals": _totals(found.base_totals),
+        "totals_delta": _totals(found.totals_delta),
         "meta": compared["meta"],
         "amount_deltas": [_delta(each) for each in found.amount_deltas],
     }
@@ -225,7 +240,9 @@ def comparison_body(found: Comparison, fields: frozenset[str] | None) -> dict[st
         "from_revision_id": str(found.from_revision_id),
         "to_revision_id": str(found.to_revision_id),
         "items": [_compared(each, fields) for each in found.items],
-        "totals": totals_body(found.task_count, found.totals),
+        "totals": _totals(found.totals),
+        "base_totals": _totals(found.base_totals),
+        "totals_delta": _totals(found.totals_delta),
         "meta": meta.model_dump(mode="json"),
         "amount_deltas": [_delta(each) for each in found.amount_deltas],
     }
@@ -236,12 +253,18 @@ def comparison_reading(
     to_revision_id: Annotated[UUID, Query()],
     asked: Annotated[tuple[NodeFilters, frozenset[str] | None], Depends(node_reading)],
     difference: Annotated[str | None, Query()] = None,
+    *,
+    include_differences: Annotated[bool, Query()] = False,
 ) -> tuple[ComparisonAsked, frozenset[str] | None]:
-    """Read what ``compareRevisions`` asks: its revisions, the reading of the tree, the marks."""
+    """Read what ``compareRevisions`` asks: its revisions, the reading of the tree, the marks.
+
+    ``include_differences`` the nodes in difference a filter of progress leaves out, retained.
+    """
     filters, fields = asked
     marks = listed("difference", difference, DifferenceAsked)
     kept = None if marks is None else tuple(each.value for each in marks)
-    return ComparisonAsked(from_revision_id, to_revision_id, filters, kept), fields
+    found = ComparisonAsked(from_revision_id, to_revision_id, filters, kept, include_differences)
+    return found, fields
 
 
 @router.get(

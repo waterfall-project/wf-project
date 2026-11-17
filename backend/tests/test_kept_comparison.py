@@ -15,14 +15,16 @@ base est refusée. », on the witness.
 """
 
 import hashlib
+import json
 import zlib
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 import pytest
 from projects_support import PROJECTS, READING, person
 from sqlalchemy import update
 from test_kept_readings import FORGED, kept_row, place_of, read
-from test_reading_bodies import COMPARED_DIGESTS, ESTIMATE_FIELDS
+from test_reading_bodies import COMPARED_DIGESTS, ESTIMATE_FIELDS, gains_digest
 from test_witness_projects import PRJ_001, REVISION_100, REVISION_101, REVISION_102
 
 from waterfall.api.comparison import comparison_body, kept_comparison
@@ -105,7 +107,27 @@ def test_a_comparison_reads_what_is_kept_and_a_filtered_one_reads_the_rows(
         "&difference=modified&reestimated_amount_min=1000&sort_by=base_amount&sort_order=desc"
     )
     body = read(api, headers, COMPARISON + filtered)
-    assert hashlib.sha256(body).hexdigest() == COMPARED_DIGESTS["comparison filtered and sorted"]
+    assert gains_digest(body) == COMPARED_DIGESTS["comparison filtered and sorted"]
+
+
+@pytest.mark.requirement("WF-IHM-0160-A")
+def test_the_totals_difference_of_a_kept_comparison_is_its_totals_less_those_of_its_base(
+    api: ContractClient, witness: Database, realm: TestRealm
+) -> None:
+    # The pair of the witness differs: ``totals`` is the document kept of the revision read,
+    # ``totals_delta`` and ``base_totals`` the union's, the base counted from the same kept
+    # document of its own. Whatever the way, the difference is the totals less the base's, the
+    # counts and the hours and amounts, field by field. A document kept is of the format of this
+    # code, else it is ignored and made again (``kept_reading``): a line of it always bears its
+    # hours and its base amount, required of a node.
+    headers = person(witness, realm, *READING).headers
+    for _ in range(2):  # made, then read
+        found = json.loads(read(api, headers, COMPARISON))
+        totals, base, delta = (found[name] for name in ("totals", "base_totals", "totals_delta"))
+        assert set(delta) == set(base) == set(totals) != set()
+        for name, value in totals.items():
+            assert Decimal(str(value)) - Decimal(str(base[name])) == Decimal(str(delta[name]))
+        assert any(Decimal(str(each)) != 0 for each in delta.values())
 
 
 @pytest.mark.requirement("WF-REV-0080-A")

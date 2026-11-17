@@ -30,6 +30,12 @@ from waterfall.core.exchanges.interface import register_exporter, register_forma
 from waterfall.core.planning.calendars import (
     Applicable as Applicable,
 )
+
+# Beside the interface (US-2340/L1): the constants of the units of the installation, which the
+# difference of two durations of a comparison is counted by (``Duration.less``).
+from waterfall.core.planning.dating import (
+    constants_of as constants_of,
+)
 from waterfall.core.planning.entries import (
     ENTRIES as ENTRIES,
 )
@@ -530,6 +536,12 @@ from waterfall.core.planning.scheduling import (
 )
 from waterfall.core.planning.scheduling import (
     Duration as Duration,
+)
+from waterfall.core.planning.scheduling import (
+    DurationUnit as DurationUnit,
+)
+from waterfall.core.planning.scheduling import (
+    UnitConstants as UnitConstants,
 )
 from waterfall.core.planning.scheduling import (
     WorkInstant as WorkInstant,

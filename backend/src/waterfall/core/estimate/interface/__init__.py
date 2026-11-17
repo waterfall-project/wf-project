@@ -52,6 +52,11 @@ from waterfall.core.estimate.comparing import (
     ComparisonAsked as ComparisonAsked,
 )
 
+# ``comparing`` (US-2340/L1): the totals of the base of a comparison, and their difference.
+from waterfall.core.estimate.comparing import (
+    CountedTotals as CountedTotals,
+)
+
 # ``comparing`` (US-2270): a comparison no filter restricts, of two readings kept.
 from waterfall.core.estimate.comparing import (
     UnitedComparison as UnitedComparison,

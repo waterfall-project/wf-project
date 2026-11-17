@@ -780,10 +780,11 @@ def test_kinds_search_fields_and_a_column_filter_read_the_comparison_as_list_nod
         "difference",
         "changes",
         "base",
+        "deltas",
     }
     assert first["task"] == {"label": "Études"}
-    # Its base, its amounts, reduced to the fields read: none (US-2320).
-    assert (first["changes"], first["base"]) == (["other"], {})
+    # Its base and their differences, its amounts, reduced to the fields read: none (US-2320).
+    assert (first["changes"], first["base"], first["deltas"]) == (["other"], {}, {})
     inverted = comparison(
         api, stage, revisions(pair), "&reestimated_amount_min=10&reestimated_amount_max=5"
     )
