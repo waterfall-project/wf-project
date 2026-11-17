@@ -195,8 +195,8 @@ engendrés, client du front régénéré, entrée de `docs/api/DECISIONS.md`.
 - **Exigées en deux temps.** Le lot du contrat déclare les propriétés nouvelles sans les exiger :
   le service ne les rend pas encore, et chaque réponse est validée contre le contrat. Le lot du
   service qui en sert une la passe en exigée — `base` avec la comparaison d'une révision en cours
-  (US-2320/L3), `deltas` avec US-2340, `base_totals` et `totals_delta` avec US-2350. Écarté : un seul
-  lot pour le contrat et le service, au-delà de ce qu'une revue relit.
+  (US-2320/L3), `deltas` avec US-2340, `base_totals` et `totals_delta` avec US-2350. Écarté : un
+  seul lot pour le contrat et le service, au-delà de ce qu'une revue relit.
 
 ### Les gardes
 

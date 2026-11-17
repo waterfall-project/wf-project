@@ -3961,7 +3961,7 @@ class ComparedNodeRead(ContractModel):
         Field(
             description="The differences of a `modified` node, the revision read minus the base, for the fields of `base` alone that are a date, a duration or an amount (`NodeDeltas`): the grid displays them in its columns of difference without computing them (WF-IHM-0150, WF-ARC-0020). Always returned, like `base`. Null for any other node: a line added or removed weighs in the totals (`totals_delta`), not in a column of difference."
         ),
-    ] = None
+    ]
 
 
 class NodeTotals(ContractModel):
@@ -4047,17 +4047,17 @@ class RevisionComparison(ContractModel):
         ),
     ]
     base_totals: Annotated[
-        NodeTotals | None,
+        NodeTotals,
         Field(
             description="The totals of the base revision (`from_revision_id`) on the nodes the read retains, as the base carries them: the removed nodes included, which are of the base, the added ones left out, which are not; a line counts where the read retains it, by its parent in the revision read, as `amount_deltas` counts it. `difference` does not restrict them, as it does not restrict `totals`; the lines in difference that `include_differences` adds to a progress filter count in them as in `totals` (WF-REV-0080, WF-IHM-0160). An identical pair returns them equal to `totals`."
         ),
-    ] = None
+    ]
     totals_delta: Annotated[
-        NodeTotalsDelta | None,
+        NodeTotalsDelta,
         Field(
             description="The signed difference of `totals` and `base_totals`, the revision read minus the base, field by field (WF-IHM-0160): the grid displays it without computing it (WF-ARC-0020)."
         ),
-    ] = None
+    ]
     meta: Annotated[
         NodeListMeta,
         Field(description="What the read says about the main structure of the compared revision."),
