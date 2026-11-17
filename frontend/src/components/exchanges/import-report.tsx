@@ -1,22 +1,21 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The report of an import, as `getImport` gives it (WF-INTF-0080): the file, its kind and where
- * the import stands, when it was opened and until when its report applies; then, once analysed,
- * the lines read, of which those left as they are, the reasons that ask for an explicit
- * confirmation, each line rejected by its place in the file — its tab, when the file has tabs, and
- * its row — and its motive, each task the file dates or lasts otherwise than Waterfall computes it,
- * with the columns that differ (WF-INTF-0040), each value of the file
- * kept and signalled, each task the import completes at the date of the review the file bears, the
- * unit constants of an MS Project file that differ from the installation's, with both (WF-PLA-0160),
- * and each difference with the existing data — a line of
- * actual cost by its document and its item (US-0630) —, with the fields it changes named as the
- * columns of their grid, and what the import ignores — the columns of an
- * extraction of actual costs by the label the file gives them (WF-REF-0190). Every sentence
- * is the catalogue's, written from the codes the API gives (WF-ARC-0110): a motive from its code
- * and parameters, as a refusal is; the label of a line, which comes from the file or the project,
- * as it is. The front counts, sorts and filters nothing: the lists are in the order received.
- * Under it, its application and its abandonment (`ReportCommands`).
+ * The report of an import, as `getImport` gives it (WF-INTF-0080): the file, its kind and where the
+ * import stands, when it was opened and until when its report applies; then, once analysed, the
+ * lines read, of which those left as they are, the reasons that ask for an explicit confirmation,
+ * each line rejected by its place in the file — its tab, when the file has tabs, and its row — and
+ * its motive, each task the file dates or lasts otherwise than Waterfall computes it, with the
+ * columns that differ (WF-INTF-0040), each value of the file kept and signalled, each task the
+ * import completes at the date of the review the file bears, the unit constants of an MS Project
+ * file that differ from the installation's, with both (WF-PLA-0160), and each difference with the
+ * existing data — a line of actual cost by its document and its item (US-0630) —, with the fields
+ * it changes named as the columns of their grid, and what the import ignores — the columns of an
+ * extraction of actual costs by the label the file gives them (WF-REF-0190). Every sentence is the
+ * catalogue's, written from the codes the API gives (WF-ARC-0110): a motive from its code and
+ * parameters, as a refusal is; the label of a line, which comes from the file or the project, as it
+ * is. The front counts, sorts and filters nothing: the lists are in the order received. Under it,
+ * its application and its abandonment (`ReportCommands`).
  */
 import { FileSpreadsheet } from "lucide-react";
 import { useFormatter, useLocale, useMessages, useTranslations } from "next-intl";
@@ -264,8 +263,9 @@ function Ignored({ ignored }: { readonly ignored: Report["ignored"] }) {
 
 /**
  * What the import keeps as the file bears it and signals, or corrects: each task by its label, the
- * column that bears the value, the kind of signal and its sentence, from the code and the parameters
- * the API gives, as a refusal of an entry is (WF-INTF-0040, WF-PLA-0020), in the order received.
+ * column that bears the value, the kind of signal and its sentence, from the code and the
+ * parameters the API gives, as a refusal of an entry is (WF-INTF-0040, WF-PLA-0020), in the order
+ * received.
  */
 function Signals({ signals }: { readonly signals: Report["signals"] }) {
   const t = useTranslations();

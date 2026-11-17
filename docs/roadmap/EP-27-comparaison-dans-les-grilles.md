@@ -716,7 +716,7 @@ mesures, **afin de** savoir si la comparaison tient ses deux secondes avant de p
 
 ## US-2400 — Les constats reçus sont soldés
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-06 et EP-07
 - **opérations** : `applyRateUpdate`, `moveNodes`, `applyPaste`, `updateCalendar`,
   `setDurationUnits`
