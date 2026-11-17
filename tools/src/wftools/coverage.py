@@ -22,9 +22,11 @@ module, or a ``pytest.param`` of its ``parametrize`` —, which ``wftools.unexec
 compulsory; any call of that mark counts, whatever its argument, as the plugin accepts any string. A
 TypeScript test is declared ``.skip``, ``.fixme`` or ``.todo``, or sits in a ``describe.skip`` or
 ``describe.fixme``. Its citations are listed under their requirement, « non exécuté », and cover
-nothing. A skip a TypeScript test decides in its body (``test.skip(condition, …)``), or by
-``it.skipIf`` and ``it.runIf``, is not seen: the test counts as run. A form of declaration that
-``wftools.titles`` does not know fails the report, naming the file and the line.
+nothing. A ``test.skip`` or ``test.fixme`` called in its body without a title leaves it run if its
+first argument is ``inService`` or ``!inService``, and stops it otherwise (``test.skip(true, …)``,
+any other condition). A skip by ``it.skipIf`` or ``it.runIf`` is not seen: the test counts as run. A
+form of declaration that ``wftools.titles`` does not know fails the report, naming the file and the
+line.
 
 Each citation belongs to the family of its file — end-to-end against the service, end-to-end,
 front, back or tools, as ``tools/paths.toml`` declares them — and the report says, for every
