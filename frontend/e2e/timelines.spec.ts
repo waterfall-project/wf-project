@@ -189,6 +189,9 @@ test("lays out the frieze of a timeline by the keyboard and the mouse, and recor
   const isLanes = (request: Request) =>
     isServerAction(request) && (request.postData() ?? "").includes("lanes");
   const recorded = page.waitForResponse((response) => isLanes(response.request()));
+  // Awaited or not, a wait left pending when the journey fails first must not end as an unhandled
+  // rejection: the first error is the one reported.
+  recorded.catch(() => undefined);
   await frieze.focus();
   await page.keyboard.press("End");
   try {
@@ -216,8 +219,14 @@ test("lays out the frieze of a timeline by the keyboard and the mouse, and recor
   } finally {
     // Left as it was found whatever happened, for the next test: a rectangle still in the second
     // lane is dragged back.
-    if (await commissioning(2).isVisible()) {
-      await dragUp();
+    // The clean-up never replaces the error of the journey: a page closed by a timeout makes it
+    // throw too, and that second error is dropped.
+    try {
+      if (await commissioning(2).isVisible()) {
+        await dragUp();
+      }
+    } catch {
+      // The page is gone or the gesture failed: the error of the journey stands.
     }
   }
 });

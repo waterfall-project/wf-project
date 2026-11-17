@@ -7,7 +7,7 @@ import { closeMenu, menuButton, openMenu, pick } from "./check-menu";
 import { columnsOf } from "./columns";
 import { pngSize } from "./download";
 import { holdScripts, openHydrated } from "./hydration";
-import { test } from "./mode";
+import { inService, test } from "./mode";
 import { rowAt, scrollToPosition, withinBox } from "./scroll";
 import { isServerAction } from "./server-action";
 
@@ -76,12 +76,16 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   // number 5, the 20th the number 38 —, and the fake back counts them too, as the marks below do,
   // though its lines are not the witness's.
   const factory = await numberOf(grid, /^\d+ .*Réception usine/);
-  // Row 39 is the 20th task (`test_the_ranks_among_the_tasks_the_planning_journeys_read`), and the
-  // grid renders only the rows in view and a margin around them: in a short grid the 20th lies
+  // The 20th task is row 39 on the fake back (`test_the_ranks_among_the_tasks_the_planning_journeys_read`)
+  // and row 38 on the service, whose structure is the witness's; the grid renders only the rows in view and a margin around them: in a short grid the 20th lies
   // past that margin as the grid opens, so it is scrolled to, and checked in the window. The
   // critical path is marked by its icon, whatever the colour.
   const critical = await scrollToPosition(grid, 20);
   await expect(critical).toHaveAccessibleName(/^\d+ .*Revue 1\.1\.3/);
+  if (inService) {
+    // The number the service gives the 20th task is the one the comment above states.
+    expect(await numberOfRow(critical)).toBe("38");
+  }
   await expect(critical.getByRole("img", { name: "Tâche", exact: true })).toBeVisible();
   await expect(critical.getByRole("img", { name: "Automatique" })).toBeVisible();
   await expect(critical.getByRole("img", { name: "Non démarrée" })).toBeVisible();
