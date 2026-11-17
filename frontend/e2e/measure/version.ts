@@ -16,6 +16,8 @@
  * openings of the grids compared to the reference — the planning by the base chosen in the banner,
  * then the estimate, the remaining to commit and the planning again by the navigation —; to
  * recompute in a grid compared, the duration entered anew there, until its marks are read anew;
+ * the estimate compared is opened sorted, as the account keeps the sort of the step before
+ * (`steps.ts`);
  * the workload, its screen opened by the navigation. The three background tasks are read at their
  * task, from its submission to its end. Each pass gives a value per operation, the median of its
  * samples within the pass; the median and the worst are those of every sample, and the dispersion
