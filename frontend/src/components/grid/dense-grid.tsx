@@ -77,8 +77,10 @@ import {
   type DependencyReader,
   DIFF_MARK_KEY,
   formatCell,
+  type GridColumn,
   type GridConfig,
   headingOf,
+  offeredColumns,
   ROW_NUMBER_KEY,
 } from "./columns";
 import {
@@ -93,6 +95,7 @@ import { CellEditor, EntryProblemNotice } from "./cell-editor";
 import { useCellWrites } from "./cell-writes";
 import { ComputedCell } from "./computed-cell";
 import { cellContent } from "./dense-grid-cell";
+import { BaseMark } from "./base-mark";
 import { DiffMark, differenceTint } from "./diff-mark";
 import {
   FOLD_KEYS,
@@ -255,6 +258,28 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
 }
 
 /**
+ * What a cell shows: the text its write waits on, the mark of the difference of its row, or its
+ * content — which bears the mark of the base where its value differs from it, and gives it.
+ */
+function shownContent<Row extends RowData, Sort extends string, Totals>(
+  config: GridConfig<Row, Sort, Totals>,
+  column: GridColumn<Row, Sort, Totals> | undefined,
+  row: Row,
+  { pending, marks }: { readonly pending: string | undefined; readonly marks: boolean },
+  [locale, currency]: readonly [Locale, string | undefined],
+): ReactNode {
+  if (pending !== undefined) {
+    return pending;
+  }
+  if (marks) {
+    return <DiffMark difference={config.difference?.(row)} />;
+  }
+  const content = cellContent(config, column, row, locale, currency);
+  const base = column?.base?.(row);
+  return base === undefined ? content : <BaseMark base={base}>{content}</BaseMark>;
+}
+
+/**
  * A cell of a row: the active one in the order of tabulation, the others reached by the arrows;
  * its entry while entered; what was validated while the server has not answered. A cell the
  * server computes in this row is shaded and marked (WF-IHM-0030), and refuses an entry.
@@ -285,13 +310,10 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
   const pinning = pinningOf(table, position.column, "z-10");
   const state = cellStateOf(cells, config.rowKey(row), position);
   const marks = position.column === DIFF_MARK_KEY;
-  const content =
-    state.pending ??
-    (marks ? (
-      <DiffMark difference={config.difference?.(row)} />
-    ) : (
-      cellContent(config, column, row, locale, currency)
-    ));
+  const content = shownContent(config, column, row, { pending: state.pending, marks }, [
+    locale,
+    currency,
+  ]);
   let shown = content;
   if (state.draft !== undefined && column !== undefined) {
     shown = cells.editor(state.draft, column);
@@ -440,7 +462,10 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   ending,
 }: DenseGridProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
-  const { config, pick } = useSelectedConfig(given, selecting);
+  const { config: selected, pick } = useSelectedConfig(given, selecting);
+  // Its columns of difference are offered, and shown once chosen, while it reads a comparison; its
+  // settings are those of the columns it has, whatever it reads.
+  const config = useMemo(() => offeredColumns(selected), [selected]);
   const locale = useLocale();
   const currency = useCurrency();
   const pathname = usePathname();
@@ -453,8 +478,8 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   const keptSort = useRef(preferences?.sort);
   // The size of its pages the account keeps for the grid: the session's, then the last one chosen.
   const [keptSize, setKeptSize] = useState(keptPageSize(preferences));
-  const [settings, setSettings] = useState(() => initialSettings(preferences, config.columns));
-  const shape = useMemo(() => gridShape(config.columns), [config.columns]);
+  const [settings, setSettings] = useState(() => initialSettings(preferences, selected.columns));
+  const shape = useMemo(() => gridShape(selected.columns), [selected.columns]);
   // The settings as they are now, which a preference written later reads: kept at each change.
   const currentSettings = useRef(settings);
   const writer = useSettingsWriter(config.key);

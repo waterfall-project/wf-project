@@ -273,6 +273,7 @@ export default async function PlanningPage({
               undoable: editable,
               editable,
               differential: screen.kind === "amendment",
+              comparing: screen.base?.chosen !== undefined,
               origins: originNames(screen.origin),
               treeFilters: (
                 <TreeFilters

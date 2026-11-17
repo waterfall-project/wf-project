@@ -225,6 +225,18 @@
       "description": "Description",
       "physicalProgress": "Avancement physique",
       "gantt": "Gantt",
+      "deltaStartDate": "Écart du début",
+      "deltaFinishDate": "Écart de la fin",
+      "deltaStartedOn": "Écart du démarrage",
+      "deltaCompletedOn": "Écart de l’achèvement",
+      "deltaDuration": "Écart de la durée",
+      "deltaTotalFloat": "Écart de la marge",
+      "deltaUnitDisbursement": "Écart du débours unit.",
+      "deltaBudgetedAmount": "Écart du budgété",
+      "deltaReferenceAmount": "Écart du montant de réf.",
+      "deltaReestimatedAmount": "Écart du réestimé",
+      "deltaPreviousUnitDisbursement": "Écart du débours unit. précédent",
+      "deltaPreviousReestimatedAmount": "Écart du réestimé précédent",
       "updatedAt": "Modifié le",
       "createdAt": "Créé le",
       "createdBy": "Créé par",
@@ -248,6 +260,11 @@
       "passwordLink": "Lien de fixation"
     },
     "computed": "Calculé",
+    "compared": {
+      "base": "Base :",
+      "empty": "aucune valeur",
+      "days": "{days} j"
+    },
     "entry": {
       "none": "Aucun",
       "codedChoice": "{code} — {label}",

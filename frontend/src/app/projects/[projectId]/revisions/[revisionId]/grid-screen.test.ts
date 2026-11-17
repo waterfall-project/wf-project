@@ -131,6 +131,16 @@ describe("a grid compared to the base its address names", () => {
     },
   );
 
+  it("offers no comparison on a grid opened on a differential structure, whatever its address names [WF-IHM-0150-A]", async () => {
+    // Une grille ouverte sur une structure différentielle n'offre pas la comparaison : éprouvé contre
+    // le faux back, qui seul sert un différentiel avant EP-08.
+    const amendment = await read("estimate", { [BASE_PARAMETER]: REFERENCE, structure: AMENDMENT });
+    expect(amendment.kind).toBe("amendment");
+    expect(amendment.base).toBeUndefined();
+    expect(callsOf(COMPARISON)).toHaveLength(0);
+    expect(amendment.nodes.items.every((row) => row.base === undefined)).toBe(true);
+  });
+
   it("reads the structure itself without a base, and on a structure other than the main one", async () => {
     // Sur une autre structure que la principale, le bandeau n'offre pas de base (US-2330).
     await read("planning");

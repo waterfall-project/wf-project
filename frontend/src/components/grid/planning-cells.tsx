@@ -214,6 +214,16 @@ function ConflictMark({ node }: { readonly node: PlanningNode }) {
  * marked after them and named.
  */
 export function PredecessorsCell({ node }: { readonly node: PlanningNode }) {
+  return (
+    <>
+      <PredecessorLinks links={node.predecessors ?? []} />
+      <ConflictMark node={node} />
+    </>
+  );
+}
+
+/** Render links to predecessors as the cell of the predecessors names them, one by one. */
+export function PredecessorLinks({ links }: { readonly links: readonly Predecessor[] }) {
   const t = useTranslations("planningGrid");
   const units = useTranslations("enums.LagUnit");
   const locale = useLocale();
@@ -225,12 +235,7 @@ export function PredecessorsCell({ node }: { readonly node: PlanningNode }) {
       lag: formatDecimal(predecessor.lag.value, locale),
       unit: units(predecessor.lag.unit),
     });
-  return (
-    <>
-      {(node.predecessors ?? []).map(name).join(t("predecessorSeparator"))}
-      <ConflictMark node={node} />
-    </>
-  );
+  return links.map(name).join(t("predecessorSeparator"));
 }
 
 /**
