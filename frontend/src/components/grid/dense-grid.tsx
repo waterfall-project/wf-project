@@ -293,8 +293,8 @@ function useComparedReread(comparing: boolean | undefined): (() => void) | undef
 /**
  * The totals of the base and their difference, as the totals row says them: none out of a comparison,
  * and none once a write answered the totals — those the base and the difference were read with are
- * no longer the totals shown, and the page read anew brings the three together (`reread`); until it
- * does, the row says the figures of the answer alone.
+ * no longer the totals shown, and the page read anew, which takes the place of the totals written
+ * (`askedAnew`, `reread`), brings the three together; until it does, the row says the figures of the answer alone.
  */
 function comparedTotals<Totals>(
   comparison: { readonly base: Totals; readonly delta: Totals } | undefined,

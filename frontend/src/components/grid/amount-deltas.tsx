@@ -13,10 +13,9 @@
 "use client";
 
 import { GitCompareArrows } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 
-import { Amount } from "@/components/amount";
 import { CELL, ListTable } from "@/components/projects/project-tables";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,9 +27,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { TableCell, TableRow } from "@/components/ui/table";
+import { useCurrency } from "@/currency/context";
+import { formatMoney } from "@/i18n/format";
 import { UNASSIGNED } from "@/navigation/context";
 
 import type { AmountDelta } from "./nodes";
+import { signed } from "./signed";
+
+/** A deviation of an amount, its sign written in front of a positive one as the columns of difference do. */
+function SignedAmount({ value }: { readonly value: AmountDelta["budgeted_delta"] }) {
+  const written = formatMoney(value, useLocale(), useCurrency());
+  return signed(value, written);
+}
 
 /** The deviations of amounts, by nature of cost and by sub-project, in the order of the server. */
 export function AmountDeltasTable({ deltas }: { readonly deltas: readonly AmountDelta[] }) {
@@ -52,10 +60,10 @@ export function AmountDeltasTable({ deltas }: { readonly deltas: readonly Amount
             {delta.key === UNASSIGNED ? unassigned : (delta.label ?? t("unnamed"))}
           </TableCell>
           <TableCell className={`${CELL} tabular-nums`}>
-            <Amount value={delta.budgeted_delta} />
+            <SignedAmount value={delta.budgeted_delta} />
           </TableCell>
           <TableCell className={`${CELL} tabular-nums`}>
-            <Amount value={delta.reestimated_delta} />
+            <SignedAmount value={delta.reestimated_delta} />
           </TableCell>
         </TableRow>
       ))}

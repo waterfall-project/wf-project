@@ -185,7 +185,10 @@ function Figure<Totals>({
   );
 }
 
-/** Whether the totals of a comparison differ: a figure of a column, or what the caption counts. */
+/**
+ * Whether the totals of a comparison differ: a figure of a column, or what the caption counts. Every
+ * column of the configuration is judged, those hidden by the reader included.
+ */
 function differ<Row extends RowData, Sort extends string, Totals>(
   config: GridConfig<Row, Sort, Totals>,
   totals: Totals,

@@ -7,22 +7,27 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { example } from "@/test/fixtures";
+import type { ApiClient } from "@/api/client";
+import { example, fakeClient } from "@/test/fixtures";
 import { expectAccessible } from "@/test/axe";
 import { estimateReference } from "@/test/reference";
 
 import { ESTIMATE_FIELDS } from "./estimate";
 import { EstimateGrid } from "./estimate-grid";
-import { type NodeList, type NodeRows, projectNodes } from "./nodes";
+import { type NodeList, type NodeRows, type NodesWritten, projectNodes } from "./nodes";
 import { PLANNING_FIELDS, PLANNING_KINDS, type PlanningNode } from "./planning";
 import { PlanningGrid } from "./planning-grid";
 import type { GridQuery } from "./query";
 import { REMAINING_FIELDS } from "./remaining";
 import { RemainingGrid } from "./remaining-grid";
 
+const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
+const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+
+vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => router,
   usePathname: () => "/projects/p/revisions/r/estimate",
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -42,7 +47,10 @@ type Comparison = NodeList &
   >;
 const comparison = example("comparison_current") as Comparison;
 
-/** The same comparison, its re-estimated amount read, in the base, and their gap as given. */
+/**
+ * The same comparison, its re-estimated amount read, in the base, and their gap as given: the
+ * contract has no example of totals that weigh 1 000 against 1 200, only `comparison_current`.
+ */
 function weighing(read: string, base: string, gap: string, counts = { read: 3, base: 3, gap: 0 }) {
   return {
     ...comparison,
@@ -62,6 +70,7 @@ function weighing(read: string, base: string, gap: string, counts = { read: 3, b
 
 // A frame that lays out: the rows of the answer are in the window of the rows in view.
 beforeEach(() => {
+  router.refresh.mockReset();
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1000);
 });
@@ -126,7 +135,8 @@ describe("the totals row of a comparison (US-2350)", () => {
   });
 
   it("does not mark the row when the totals are equal [WF-IHM-0160-A]", () => {
-    // Every total of the difference is zero, as for an identical pair.
+    // The contract has no example of equal totals: those of `comparison_current`, its base made of
+    // them and every total of the difference zero, as for an identical pair.
     const identical: Comparison = {
       ...comparison,
       base_totals: comparison.totals,
@@ -219,9 +229,83 @@ describe("the totals row of a comparison (US-2350)", () => {
     expect(screen.queryByRole("button", { name: "Écarts de montants" })).toBeNull();
   });
 
-  it("fails on a comparison that gives the totals of the base without their difference", () => {
-    const half = { ...comparison, totals_delta: undefined } as unknown as NodeList;
+  it.each([
+    ["the difference and the amounts", { totals_delta: undefined, amount_deltas: undefined }],
+    ["the difference", { totals_delta: undefined }],
+    ["the amounts", { amount_deltas: undefined }],
+    ["the base and the amounts", { base_totals: undefined, amount_deltas: undefined }],
+    ["the base and the difference", { base_totals: undefined, totals_delta: undefined }],
+    ["the base", { base_totals: undefined }],
+  ])("fails on a comparison that leaves out %s", (_name, left) => {
+    const half = { ...comparison, ...left } as unknown as NodeList;
     expect(() => projectNodes(half, ESTIMATE_FIELDS)).toThrow(RangeError);
+  });
+});
+
+describe("the totals row of a comparison, once a write answered (US-2350)", () => {
+  const LINE =
+    "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line";
+  const redated = example("estimate_line_redated") as NodesWritten;
+
+  /** Write the line of the wiring, and wait for the page to be asked anew. */
+  async function write() {
+    server.client = fakeClient({ [LINE]: "estimate_line_redated" });
+    const view = render(estimateOf(comparison));
+    const wiring = comparison.items.findIndex(
+      (node) => (node.task?.label ?? node.estimate_line?.label) === "Câblage sur site",
+    );
+    const cell = document.querySelector<HTMLElement>(
+      `td[data-row="${wiring.toString()}"][data-column="hours"]`,
+    );
+    if (cell === null) {
+      throw new Error("no cell to write");
+    }
+    cell.focus();
+    await userEvent.keyboard("121{Enter}");
+    await vi.waitFor(() => {
+      expect(router.refresh).toHaveBeenCalledTimes(1);
+    });
+    return view;
+  }
+
+  it.each([
+    ["other totals", () => weighing("1300.00", "1000.00", "300.00")],
+    ["the totals the write left", () => structuredClone(comparison)],
+  ])(
+    "says the total of the answer alone, then the three again once the page is read anew with %s [WF-IHM-0160-A]",
+    async (_name, again) => {
+      const { rerender } = await write();
+      // The answer of the write gave the totals: the base and the difference read before are not
+      // the totals shown.
+      expect(redated.totals).toBeDefined();
+      expect(within(totalsRow()).queryByText("Base :")).toBeNull();
+      expect(totalsRow()).not.toHaveAttribute("data-difference");
+      rerender(estimateOf(again()));
+      const row = totalsRow();
+      expect(within(row).getAllByText("Base :").length).toBeGreaterThan(0);
+      expect(within(row).getAllByText("Écart :").length).toBeGreaterThan(0);
+      // The mark follows the difference read.
+      expect(row).toHaveAttribute("data-difference", "modified");
+    },
+  );
+
+  it("marks no more the row of a page read anew whose totals are equal [WF-IHM-0160-A]", async () => {
+    const { rerender } = await write();
+    const equal: Comparison = {
+      ...comparison,
+      base_totals: comparison.totals,
+      totals_delta: {
+        task_count: 0,
+        estimate_line_count: 0,
+        hours: "0",
+        base_amount: "0.00",
+        budgeted_amount: "0.00",
+        reestimated_amount: "0.00",
+      },
+    };
+    rerender(estimateOf(equal));
+    expect(within(totalsRow()).getAllByText("Base :").length).toBeGreaterThan(0);
+    expect(totalsRow()).not.toHaveAttribute("data-difference");
   });
 });
 
@@ -278,6 +362,21 @@ describe("the differences of amounts of a comparison (US-2350)", () => {
       expect(command).toHaveFocus();
     },
   );
+
+  it("writes the sign in front of a positive deviation, as the columns of difference do [WF-IHM-0160-A]", async () => {
+    // The deviations of the contract example are all negative: one is made positive.
+    const grown: Comparison = {
+      ...comparison,
+      amount_deltas: comparison.amount_deltas.map((delta, at) =>
+        at === 0 ? { ...delta, budgeted_delta: "250.00", reestimated_delta: "-10.00" } : delta,
+      ),
+    };
+    render(estimateOf(grown));
+    await userEvent.click(screen.getByRole("button", { name: "Écarts de montants" }));
+    const table = screen.getByRole("table", { name: "Écarts de montants à la base" });
+    expect(within(table).getByText(/^\+250,00/)).toBeInTheDocument();
+    expect(within(table).getByText(/^-10,00|^−10,00/)).toBeInTheDocument();
+  });
 
   it("is not offered by the planning, which has no amount to compare [WF-IHM-0160-A]", () => {
     const planned = example("nodes_planning") as NodeList;
