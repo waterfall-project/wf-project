@@ -186,9 +186,13 @@ _PNPM_EXEC = Options(
 )
 # `uv run` (clap, which takes no abbreviation): the options that take the next word.
 _UV = _names("allow-insecure-host", "cache-dir", "color", "config-file", "directory", "project")
-_UV_RUN = Options(
-    "CPfipw",
+# `-m <module>` and `-s <script>` run Python with no word `python`: their operand is taken as the
+# argument of the option, which `guard.py` judges as the module or the script of `python`.
+UV_PYTHON = frozenset({"-m", "--module", "-s", "--script"})
+UV_RUN = Options(
+    "CPfimpsw",
     _UV
+    | _names("module", "script")
     | _names("config-setting", "config-settings-package", "default-index", "env-file", "exclude")
     | _names("exclude-newer", "exclude-newer-package", "extra", "extra-index-url", "find-links")
     | _names("fork-strategy", "group", "index", "index-strategy", "index-url", "keyring-provider")
@@ -202,7 +206,7 @@ _UV_RUN = Options(
 # The commands that run another past a subcommand: their options, then the options of each
 # subcommand that runs one (US-2450): `uv run pkill`, `pnpm dlx kill-port`.
 LAUNCHERS = {
-    "uv": (Options("", _UV, abbreviates=False, chdir=_names("directory")), {"run": _UV_RUN}),
+    "uv": (Options("", _UV, abbreviates=False, chdir=_names("directory")), {"run": UV_RUN}),
     "npm": (Options("", _names("prefix", "userconfig", "workspace")), {"exec": _NPM_EXEC}),
     "pnpm": (
         Options(

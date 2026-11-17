@@ -185,10 +185,19 @@ def test_gmake_merge_queue_is_refused_as_make_merge_queue(command: str) -> None:
         "uv run --frozen --project tools python -m wftools.mergequeue create EP-28",
         "cd tools && uv run python -m wftools.mergequeue create EP-28",
         "python -m wftools.mergequeue create EP-28 'open",
+        "uv run -m wftools.mergequeue create EP-28",
+        "uv run --module wftools.mergequeue create",
+        "uv run --frozen -m wftools.mergequeue create EP-28",
+        "uv run -s tools/src/wftools/mergequeue.py create EP-28",
+        "uv run --script tools/src/wftools/mergequeue.py create EP-28",
+        "uv run tools/src/wftools/mergequeue.py create EP-28",
     ],
 )
 def test_the_merge_queue_created_by_python_is_refused_under_uv_run_or_not(command: str) -> None:
-    """PLC-07: `python -m wftools.mergequeue create` is what `make merge-queue` runs."""
+    """PLC-07: `python -m wftools.mergequeue create` is what `make merge-queue` runs.
+
+    `uv run -m` and `uv run -s` run the module or the script with no word `python`.
+    """
     said = guard.refusal(command)
     assert said is not None
     assert "mergequeue create" in said
@@ -203,6 +212,10 @@ def test_the_merge_queue_created_by_python_is_refused_under_uv_run_or_not(comman
         "uv run --frozen --project tools --group workflows actionlint",
         "uv run --frozen --project tools python -m wftools.mergequeue check EP-28",
         "python -m wftools.mergequeue check EP-28",
+        "uv run -m wftools.mergequeue check EP-28",
+        "uv run -m pytest tests/test_guard.py",
+        "uv run tools/src/wftools/mergequeue.py check EP-28",
+        "timeout -s KILL 5 make check",
         "python -m wftools.tracking create",
         "python -c 'import wftools.mergequeue' create",
         "uv sync --frozen",

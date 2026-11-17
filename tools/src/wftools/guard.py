@@ -489,20 +489,16 @@ def _simple(words: list[str], depth: int, context: _Context) -> tuple[str | None
                 index = at
         if prefix is None:
             arguments = words[index + 1 :]
-            if name in {"cd", "pushd"}:
-                return None, guardgit.cd(arguments, moved=here, pushd=name == "pushd")
-            # `eval` runs in the shell itself: its `cd` holds for what follows it.
-            if name == "eval":
-                return _judge(" ".join(arguments), depth + 1, moved=here)
-            check = _CHECKS.get(name) or (_python if _PYTHON.fullmatch(name) else None)
             command = guardgit.Command(
                 name, arguments, piped, depth, here, context.named, context.fed
             )
-            return (None if check is None else check(command)), moved
+            return _command(command, moved=moved)
         # What `xargs` runs takes its arguments from the pipe: they are never literal.
         piped = piped or name == "xargs"
         package = package or prefix.versions
         options, index = prefix.parse(words, index + 1)
+        if prefix is guardoptions.UV_RUN:
+            words = [*words[:index], *_uv_python(options, words[index:])]
         operands = words[index : index + prefix.operands]
         index += prefix.operands
         here = _moves(prefix, options, here=here)
@@ -520,6 +516,36 @@ def _simple(words: list[str], depth: int, context: _Context) -> tuple[str | None
             if (form := _line(script, depth + 1, piped=piped, moved=here)) is not None:
                 return form, moved
     return None, moved
+
+
+def _command(command: guardgit.Command, *, moved: bool) -> tuple[str | None, bool]:
+    """Judge a command past its prefixes; ``moved`` is where the shell stood before it.
+
+    Return the refused form, and whether the shell stands in a directory of git after it.
+    """
+    if command.name in {"cd", "pushd"}:
+        pushd = command.name == "pushd"
+        return None, guardgit.cd(command.arguments, moved=command.moved, pushd=pushd)
+    # `eval` runs in the shell itself: its `cd` holds for what follows it.
+    if command.name == "eval":
+        return _judge(" ".join(command.arguments), command.depth + 1, moved=command.moved)
+    name = command.name
+    check = _CHECKS.get(name) or (_python if _PYTHON.fullmatch(name) else None)
+    return (None if check is None else check(command)), moved
+
+
+def _uv_python(options: list[tuple[str, str]], rest: list[str]) -> list[str]:
+    """Return what ``uv run`` runs past its options, the word ``python`` it leaves out restored.
+
+    ``uv run -m <module>``, ``uv run -s <script>``, or a command word that ends in ``.py``, run
+    Python: ``uv run -m wftools.mergequeue create`` is ``python -m wftools.mergequeue create``.
+    """
+    for option, value in options:
+        if option in {"-m", "--module"}:
+            return ["python", "-m", value, *rest]
+        if option in {"-s", "--script"}:
+            return ["python", value, *rest]
+    return ["python", *rest] if rest[:1] and rest[0].endswith(".py") else rest
 
 
 def _moves(prefix: guardoptions.Options, options: list[tuple[str, str]], *, here: bool) -> bool:
