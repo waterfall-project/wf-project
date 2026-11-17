@@ -166,6 +166,49 @@ PREFIXES = {
         scripts=frozenset({"-c", "--command"}),
     ),
 }
+# `npx` and `npm exec` run a command of a package, `-c` a line of shell (US-2450).
+_NPM_EXEC = Options(
+    "cpw",
+    _names("cache", "call", "package", "prefix", "registry", "userconfig", "workspace"),
+    _HELP | _names("include-workspace-root", "no", "quiet", "workspaces", "yes"),
+    scripts=frozenset({"-c", "--call"}),
+)
+PREFIXES["npx"] = _NPM_EXEC
+# `pnpm dlx` and `pnpm exec`: `-c` is a flag there, which runs the command by a shell.
+_PNPM_EXEC = Options(
+    "",
+    _names("allow-build", "package", "report-summary", "resume-from"),
+    _HELP | _names("no-reporter-hide-prefix", "parallel", "recursive", "shell-mode", "silent"),
+)
+# `uv run` (clap, which takes no abbreviation): the options that take the next word.
+_UV = _names("allow-insecure-host", "cache-dir", "color", "config-file", "directory", "project")
+_UV_RUN = Options(
+    "CPfipw",
+    _UV
+    | _names("config-setting", "config-settings-package", "default-index", "env-file", "exclude")
+    | _names("exclude-newer", "exclude-newer-package", "extra", "extra-index-url", "find-links")
+    | _names("fork-strategy", "group", "index", "index-strategy", "index-url", "keyring-provider")
+    | _names("link-mode", "no-binary-package", "no-build-isolation-package", "no-build-package")
+    | _names("no-group", "only-group", "package", "prerelease", "python", "python-platform")
+    | _names("python-preference", "refresh-package", "reinstall-package", "resolution")
+    | _names("upgrade-package", "with", "with-editable", "with-requirements"),
+    abbreviates=False,
+    chdir=_names("directory"),
+)
+# The commands that run another past a subcommand: their options, then the options of each
+# subcommand that runs one (US-2450): `uv run pkill`, `pnpm dlx kill-port`.
+LAUNCHERS = {
+    "uv": (Options("", _UV, abbreviates=False, chdir=_names("directory")), {"run": _UV_RUN}),
+    "npm": (Options("", _names("prefix", "userconfig", "workspace")), {"exec": _NPM_EXEC}),
+    "pnpm": (
+        Options(
+            "CF",
+            _names("dir", "filter", "filter-prod", "loglevel", "reporter"),
+            chdir=frozenset({"-C", "--dir"}),
+        ),
+        {"dlx": _PNPM_EXEC, "exec": _PNPM_EXEC},
+    ),
+}
 SU = Options(
     "Gcgsw",
     _names("command", "group", "session-command", "shell", "supp-group", "whitelist-environment"),

@@ -44,6 +44,8 @@ _JOKERS = frozenset({"*", "?", "["})
 _ATTACHED = {"mv": "St", "truncate": "rs"}
 # A group of braces, innermost; the shell expands it when it holds a comma.
 _BRACES = re.compile(r"\{[^{}]*\}")
+# A sequence of braces, `{a..z}` or `{1..9..2}`: of letters, it may make `.git` (`.{g..h}it`).
+_SEQUENCE = re.compile(r"\{([^{}]|[-+]?\d+)\.\.([^{}]|[-+]?\d+)(?:\.\.[-+]?\d+)?\}")
 # Past this many words, a brace expansion is not followed: the path is taken for one of `.git`.
 _MAX_EXPANSIONS = 256
 # Past this length a pattern is not matched, which would take a time of its square: it is taken
@@ -67,6 +69,9 @@ class Command(NamedTuple):
     """Run in a directory of git, after a ``cd`` on the same line or by an option of a prefix."""
     named: bool = False
     """A command before it, or the directory it runs in, names a path of git or a lock."""
+    fed: tuple[str, ...] = ()
+    """What it reads on its input that the line writes: the body of a here-document, a
+    here-string, what an ``echo`` or a ``printf`` before it in its pipeline writes."""
 
 
 def names_git(words: list[str]) -> bool:
@@ -111,7 +116,17 @@ def reaches_git(path: str) -> bool:
     ``.gitignore``, ``.github`` and ``.git-old`` do not; ``.git*`` and ``x/.git?/HEAD`` do, and so
     does a part whose pattern matches ``.git`` — ``.g*``, ``.[g]it``, ``.*`` —, and a path whose
     braces expand to one of them: ``.{git,x}``. A joker does not match the dot that opens a name.
+
+    ``fnmatch`` knows neither the classes of POSIX nor the sequences of braces (#3792): a path that
+    holds a class, ``.[[:alpha:]]it``, or a sequence of characters, ``.{g..h}it``, is taken for one
+    of ``.git`` without looking, like a pattern too long to match. A sequence of numbers makes
+    neither a dot nor a letter: ``log{1..3}`` passes.
     """
+    if "[:" in path or any(
+        not (first.lstrip("+-").isdigit() and last.lstrip("+-").isdigit())
+        for first, last in _SEQUENCE.findall(path)
+    ):
+        return True
     expanded = _expand(path)
     return expanded is None or any(
         _git_part(part) for written in expanded for part in written.split("/")
