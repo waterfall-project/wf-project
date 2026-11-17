@@ -13,7 +13,8 @@ import { isServerAction } from "./server-action";
 
 // The paths tagged `@shared` play against the service too, on the witness it holds (PRJ-001, loaded
 // by `waterfall-api load-witness`, EP-06): they find a row by its label, or by its rank among the
-// tasks, and read the numbers the grid shows; the rows are the tasks alone, the lines being EP-07's.
+// tasks, and read the numbers the grid shows; the rows are the tasks alone, and the number each
+// shows counts the lines too.
 // The others write on the witness, whose account of the run is no contributor (#2193): they keep to
 // the fake back, which is the only one to hold what they write, and `planning-service.spec.ts` plays
 // their twins on a project the run creates.
@@ -71,8 +72,9 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   await expect(completed.getByRole("img", { name: "Chemin critique" })).toHaveCount(0);
   const at = await columnsOf(grid, { predecessors: "Prédécesseurs" });
   // The rows are found by their label, and the number a task follows is read from the grid, not
-  // written: against the service the rows are numbered by the tasks alone, the lines being EP-07's,
-  // while the fake back counts the lines too, as the marks below do.
+  // written: the service numbers the rows of the structure, lines counted — the 4th task bears the
+  // number 5, the 20th the number 38 —, and the fake back counts them too, as the marks below do,
+  // though its lines are not the witness's.
   const factory = await numberOf(grid, /^\d+ .*Réception usine/);
   // Row 39 is the 20th task (`test_the_ranks_among_the_tasks_the_planning_journeys_read`), and the
   // grid renders only the rows in view and a margin around them: in a short grid the 20th lies
