@@ -171,6 +171,7 @@ def test_gmake_merge_queue_is_refused_as_make_merge_queue(command: str) -> None:
         "python -mwftools.mergequeue create EP-28",
         "python -W ignore -m wftools.mergequeue create EP-28",
         "python tools/src/wftools/mergequeue.py create EP-28",
+        "python -- tools/src/wftools/mergequeue.py create EP-28",
         "uv run python -m wftools.mergequeue create EP-28",
         "uv run --frozen --project tools python -m wftools.mergequeue create EP-28",
         "cd tools && uv run python -m wftools.mergequeue create EP-28",

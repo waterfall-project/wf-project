@@ -21,10 +21,10 @@ and ``watch``; past the assignments and the prefixes that run a command (``sudo`
 ``timeout``, ``nohup``, ``xargs``, ``busybox``, ``chroot``, ``flock``, ``npx``, ``uv run``,
 ``pnpm dlx``…), whose long options take their GNU abbreviations. Each command is then split into
 words by ``shlex``, and judged by the base name of its command word. Comments, redirections and
-the body of a here-document run nothing, and are left out — the body of an unquoted one is still
-searched for substitutions, which the shell runs. ``shlex`` cuts the words alone: its operators do
-not tell a quoted ``;`` from one that ends a command, and ``kill 1 ';' $pid`` would hide its last
-target.
+the body of a here-document run nothing by themselves, and are left out — the body of an unquoted
+one is still searched for substitutions, which the shell runs. ``shlex`` cuts the words alone: its
+operators do not tell a quoted ``;`` from one that ends a command, and ``kill 1 ';' $pid`` would
+hide its last target.
 
 What a shell reads on its input is a line of commands too (US-2450): a shell run without ``-c``
 judges the body of its here-documents and its here-strings, and what the commands before it in its
@@ -734,7 +734,9 @@ def _python(command: guardgit.Command) -> str | None:
     while index < len(arguments):
         word = arguments[index]
         index += 1
-        if word[:1] != "-" or word in {"-", "--"}:
+        if word == "--":
+            continue
+        if word[:1] != "-" or word == "-":
             run = word.rsplit("/", 1)[-1].removesuffix(".py")
             break
         taking = next((at for at, char in enumerate(word[1:], 1) if char in "cmWX"), None)
