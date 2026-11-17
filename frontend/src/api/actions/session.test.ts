@@ -15,6 +15,7 @@ import {
   type FakeClient,
   fakeClient,
   type Problem,
+  refusedConnection,
 } from "@/test/fixtures";
 import { TEST_SETTINGS } from "@/test/identity-provider";
 import { type CookieJar, cookieJar, withTestRedis } from "@/test/session";
@@ -122,7 +123,7 @@ describe("the server action of the session", () => {
     server.jar = cookieJar({ [SESSION_COOKIE]: id });
     server.client = createApiClient({
       address: "http://unreachable.invalid",
-      fetch: () => Promise.reject(new TypeError("fetch failed")),
+      fetch: () => Promise.reject(refusedConnection()),
     });
     expect(await signOut()).toEqual({ kind: "unreachable" });
     expect(await readSession(id)).toBeDefined();

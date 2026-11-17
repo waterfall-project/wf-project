@@ -133,6 +133,16 @@ paths = [
 ]
 target = "check-roadmap"
 
+[families.measures]
+# The reports of the versions are confronted with the objectives and with one another
+# (WF-QUA-0060-A); nothing else is measured by the chain.
+paths = [
+    "docs/measures/**",
+    "tools/src/wftools/measures.py",
+    ".github/workflows/measures.yml",
+]
+target = "check-measures"
+
 [families.keycloak]
 # The image of Keycloak, built and tried on the service platform at each change of what it is made
 # of or started with (US-0350): the extension, the themes, the realm, the files of the platform,
@@ -460,6 +470,7 @@ paths = [
     "fixtures/api/paste_plan_creating.json",
     "fixtures/api/paste_plan_creating_lines.json",
     "fixtures/api/paste_applied_creating.json",
+    "fixtures/api/paste_apply_horizon_exceeded.json",
     "fixtures/api/undo_task_renamed.json",
     "fixtures/api/redo_task_renamed.json",
     "fixtures/api/undo_task_renamed_one_left.json",

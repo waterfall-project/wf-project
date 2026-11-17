@@ -57,7 +57,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Outcome } from "@/api/problem";
 import { useHeldWrites } from "@/components/commands/held";
 import { useNoteRefusal } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedRead, rejectedWrite } from "@/components/commands/rejection";
 import { type MessageScreen, shownScreen } from "@/components/notices/message-history";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
 
@@ -406,7 +406,7 @@ export function useCellWrites<Row, Totals>(
     retotals.current += 1;
     const asked = retotals.current;
     void retotal()
-      .catch(rejected)
+      .catch(rejectedRead)
       .then((answer) => {
         if (asked !== retotals.current) {
           return;
@@ -469,7 +469,7 @@ export function useCellWrites<Row, Totals>(
         settle(at, screen);
         return true;
       }
-      const answer = answering(key, byField(await entry.write(from, value).catch(rejected)));
+      const answer = answering(key, byField(await entry.write(from, value).catch(rejectedWrite())));
       const stale = answer.kind !== "done" && born !== (pasted.current.get(key) ?? 0);
       const data =
         answer.kind === "done" && newer(answer.data, key, first, readRow(memory, rowKey, key))

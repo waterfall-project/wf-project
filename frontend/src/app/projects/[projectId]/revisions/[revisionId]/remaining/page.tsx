@@ -23,7 +23,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 
 import { readEveryPageUnlessRefused } from "@/api/every-page";
 import { OPTIONAL_READ_REFUSALS, readUnlessRefused } from "@/api/problem";
@@ -42,9 +42,14 @@ import {
   REMAINING_GRID,
   REMAINING_SORT_COLUMNS,
 } from "@/components/grid/remaining";
+import { startReading } from "@/components/start-reading";
+import { Streamed } from "@/components/streamed";
 import { RemainingGrid } from "@/components/grid/remaining-grid";
 import { progressHref, readProgress } from "@/components/remaining/address";
-import { RemainingSummary } from "@/components/remaining/remaining-summary";
+import {
+  RemainingSummary,
+  RemainingSummaryLoading,
+} from "@/components/remaining/remaining-summary";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -81,6 +86,18 @@ async function readIndicators({ revision }: GridAddress) {
       },
     }),
   );
+}
+
+/**
+ * The indicators of the remaining to commit, read and rendered on their own: the grid does not
+ * wait for them, nor the address of a filter that changes the grid alone (#3630). `Streamed` shows
+ * them: a boundary of suspense revealed would retain the transition of a filter until they were
+ * read again. A refusal other than not found is thrown where they are shown, under the boundary,
+ * after the shell is sent: the screen of failure says it, by the digest of the error.
+ */
+async function indicatorsOf(at: GridAddress): Promise<ReactNode> {
+  const [indicators, currency] = await Promise.all([readIndicators(at), requestCurrency()]);
+  return <RemainingSummary indicators={indicators} currency={currency} />;
 }
 
 /**
@@ -260,7 +277,9 @@ export default async function RemainingPage({
   const at = gridAddress(revision, search, "remaining");
   const progress = readProgress(at.address);
   // The categories are read where the grid is entered alone — it is where a line is created —, as
-  // soon as the structure says so, with the indicators still under way.
+  // soon as the structure says so. The indicators are not waited for: they stream in their own
+  // boundary, so that a filter of the grid, which they do not take, arrives with the grid alone.
+  const indicators = startReading(indicatorsOf(at));
   const grid = readGridScreen(at, {
     key: REMAINING_GRID.key,
     sortable: REMAINING_SORT_COLUMNS,
@@ -276,11 +295,7 @@ export default async function RemainingPage({
     ]);
     return { screen: read, categories, roles, subprojects };
   });
-  const [{ screen, categories, roles, subprojects }, indicators, currency] = await Promise.all([
-    grid,
-    readIndicators(at),
-    requestCurrency(),
-  ]);
+  const { screen, categories, roles, subprojects } = await grid;
   const notStarted = progress.includes("not_started");
   const editable = screen.commands.has("edit_remaining");
   return (
@@ -303,7 +318,9 @@ export default async function RemainingPage({
             <ExchangesLink project={screen.reading.project} kind="remaining" context={at.context} />
           }
         />
-        <RemainingSummary indicators={indicators} currency={currency} />
+        <Suspense fallback={<RemainingSummaryLoading />}>
+          <Streamed content={indicators} />
+        </Suspense>
         <PendingAddress>
           <GridCard fill>
             <RemainingGrid

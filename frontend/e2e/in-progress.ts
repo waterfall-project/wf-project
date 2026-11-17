@@ -7,15 +7,13 @@
  */
 import { type APIRequestContext, expect, type Page } from "@playwright/test";
 
-import { openHydrated, WORKING } from "./hydration";
+import { MARKING, WORKING } from "./bounds";
+import { openHydrated } from "./hydration";
 import { employRole, wiringService } from "./own-project";
 import type { Seeded } from "./planning-seed";
 import { API } from "./service/realm";
 import type { components } from "../src/api/generated/schema";
 import { workbook } from "./workbook";
-
-/** How long the worker is given to mark a revision: a task taken from the queue, one transaction. */
-export const MARKING = 60_000;
 
 /** Mark the revision shown on the screen of the revisions, and wait for the worker to finish. */
 export async function mark(page: Page, version: string): Promise<void> {
@@ -41,7 +39,7 @@ type Schemas = components["schemas"];
 type Headers = Readonly<Record<string, string>>;
 
 /** The headers of an extraction, as the mapping of the installation declares them (WF-REF-0190). */
-const HEADERS = [
+export const HEADERS = [
   "Elément d'OTP",
   "Nº pièce référence",
   "Poste",

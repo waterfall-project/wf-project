@@ -4,7 +4,8 @@ import { expect } from "@playwright/test";
 
 import { columnsOf } from "../columns";
 import { idle, PHASE, seedEstimate } from "../estimate-seed";
-import { openHydrated, WORKING } from "../hydration";
+import { WORKING } from "../bounds";
+import { openHydrated } from "../hydration";
 import { mark } from "../in-progress";
 import { inService, test } from "../mode";
 import { openRevision } from "../own-project";

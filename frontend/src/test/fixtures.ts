@@ -289,12 +289,22 @@ export function behindTheContract(client: FakeClient, route: Route, problem: Pro
 }
 
 /**
+ * The rejection of `fetch` when the service is down, as undici makes it: the connection refused
+ * (`ECONNREFUSED`), so that a write is known not to have left — a rejection that names no code is a
+ * write that may have (`Dropped`, US-2240).
+ */
+export function refusedConnection(): TypeError {
+  const code = "ECONNREFUSED";
+  return new TypeError("fetch failed", { cause: Object.assign(new Error(code), { code }) });
+}
+
+/**
  * Make a client of the API whose every call finds the API out of reach: `fetch` rejects, as when
  * the service is down, and the client marks it `Unreachable` — what the decoder says as such.
  */
 export function unreachable(): ApiClient {
   return createApiClient({
     address: ADDRESS,
-    fetch: () => Promise.reject(new TypeError("fetch failed")),
+    fetch: () => Promise.reject(refusedConnection()),
   });
 }

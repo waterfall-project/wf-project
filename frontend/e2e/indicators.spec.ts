@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import catalogue from "../messages/fr.json" with { type: "json" };
 import { formatPlanningDate } from "../src/i18n/format";
 import { pngSize } from "./download";
-import { holdScripts, openHydrated, WORKING } from "./hydration";
+import { holdScripts, openHydrated } from "./hydration";
 import {
   expectCards,
   expectCurvePoints,

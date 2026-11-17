@@ -42,7 +42,7 @@ import sys
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, NoReturn, cast
 
-from wftools.slots import runtime_directory
+from wftools.heavyturns import runtime_directory
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Mapping

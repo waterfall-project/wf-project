@@ -3,7 +3,8 @@
 import { expect } from "@playwright/test";
 
 import { compile } from "./compile";
-import { openHydrated, WORKING } from "./hydration";
+import { WORKING } from "./bounds";
+import { openHydrated } from "./hydration";
 import { test } from "./mode";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";

@@ -45,7 +45,9 @@ def update_line(
     if entry.lock_version is None:
         msg = "a modification carries the counter it read"
         raise ValueError(msg)
-    change = FacetChange(node_id, entry.lock_version, lambda write: change_line(write, entry))
+    change = FacetChange(
+        node_id, entry.lock_version, lambda write: change_line(write, entry), entry.sent
+    )
     return write_facet(session, place, change, writer)
 
 

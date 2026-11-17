@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { NextIntlClientProvider } from "next-intl";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToReadableStream } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { streamUntil } from "@/test/page-stream";
 import { estimateGrid } from "@/components/grid/estimate";
 import type { EstimateGridProps } from "@/components/grid/estimate-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -90,11 +91,16 @@ async function estimatePage(
     params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
     searchParams: Promise.resolve(search),
   });
-  return renderToStaticMarkup(
+  // The summary streams apart from the grid: the markup is read once every boundary is settled,
+  // each written in its place whatever its size.
+  const stream = await renderToReadableStream(
     <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
       {page}
     </NextIntlClientProvider>,
+    { progressiveChunkSize: Infinity },
   );
+  await stream.allReady;
+  return (await new Response(stream).text()).replace(/<!--.*?-->/g, "").replace(/&#x27;/g, "'");
 }
 
 /** Read the estimate of the witness revision for the session given; its grid as handed. */
@@ -459,6 +465,29 @@ describe("the filter of the estimate on the rows a risk occurred merged", () => 
     expect(
       server.clients.flatMap((client) => client.calls).filter((call) => call.route === NODE_ROUTE),
     ).toHaveLength(1);
+  });
+
+  it("hands the grid without waiting for the indicators and the rates, which a filter of the grid does not change: the address of a filter arrives with the grid alone (US-2290, #3630)", async () => {
+    server.answers = { ...server.answers, "GET /me": "me" };
+    const answer = held();
+    server.hold = (route) => (route.includes("/estimate-indicators") ? answer.until : undefined);
+    const page = await EstimatePage({
+      params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
+      searchParams: Promise.resolve({ work_package_id: LOT }),
+    });
+    const streamed = await streamUntil(
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
+        {page}
+      </NextIntlClientProvider>,
+      'data-slot="grid-card"',
+    );
+    // Held, the indicators are not in the shell the address waits for: their card is, loading, and
+    // the grid, which the test does not render, was handed its rows.
+    expect(grids.estimate).toHaveLength(1);
+    expect(streamed.shell).toContain("Estimate indicators");
+    expect(streamed.shell).not.toContain("Estimate total");
+    answer.release();
+    expect(await streamed.rest()).toContain("Estimate total");
   });
 
   it("reads the rows with the risks occurred, not after them, when the address names no risk [WF-RIS-0060-A]", async () => {

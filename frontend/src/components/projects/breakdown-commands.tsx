@@ -51,8 +51,9 @@ import type { Outcome } from "@/api/problem";
 import { PressRefusal, useUnmet } from "@/components/commands/command";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
-import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { heldAttributes } from "@/components/commands/held-attributes";
+import { OutcomeNotice, useNoteRefusal, useReadAnew } from "@/components/commands/outcome-notice";
+import { rejectedWrite } from "@/components/commands/rejection";
 import { WritingNote } from "@/components/commands/writing-note";
 import type { RowCommands } from "@/components/grid/undo-commands";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
@@ -141,6 +142,8 @@ interface Commands {
   readonly opened: Opened | undefined;
   /** Whether a write is under way: the commands wait for its answer. */
   readonly writing: boolean;
+  /** Whether the screen is read anew after the refusal above the grid, a write lost once sent (US-2240). */
+  readonly reading: boolean;
   readonly answer: (reading: WorkBreakdown) => void;
   readonly write: (writing: boolean) => void;
   readonly say: Say;
@@ -204,6 +207,8 @@ export function BreakdownCommands({
   // Which opening is the one open, set at the moment it changes (defect n° 2), not in an effect.
   const current = useRef<number | undefined>(undefined);
   const [writing, write] = useState(false);
+  // A write lost once sent, told above the grid: the commands wait until the screen is read anew.
+  const reading = useReadAnew(refusal?.outcome);
   const commands = useMemo<Commands | undefined>(
     () =>
       editing && {
@@ -213,6 +218,7 @@ export function BreakdownCommands({
         refusal,
         opened,
         writing,
+        reading,
         write,
         refuse,
         answer: (reading) => {
@@ -248,7 +254,7 @@ export function BreakdownCommands({
           );
         },
       },
-    [editing, answered, said, say, refusal, opened, writing],
+    [editing, answered, said, say, refusal, opened, writing, reading],
   );
   return <BreakdownContext value={commands}>{children}</BreakdownContext>;
 }
@@ -337,7 +343,7 @@ export function useBreakdownCommands(): RowCommands<BreakdownRow> | undefined {
     return undefined;
   }
   const { writing } = commands;
-  const waiting = writing || !offer.is_available;
+  const waiting = writing || commands.reading || !offer.is_available;
   const why = writing ? `${id}-writing` : unmetId(offer, id);
   return {
     bar: (row) => (
@@ -459,8 +465,11 @@ function RefusalNotice({
   onClear,
   onDismissed,
   dismissible = false,
+  reading,
 }: {
   readonly refusal: Refusal | undefined;
+  /** Whether the screen is read anew after a write lost once sent (`useReadAnew`). */
+  readonly reading: boolean;
   readonly onClear: () => void;
   readonly onDismissed?: () => void;
   readonly dismissible?: boolean;
@@ -478,6 +487,7 @@ function RefusalNotice({
         onClear={onClear}
         onDismissed={onDismissed}
         dismissible={dismissible}
+        reading={reading}
       />
       {refusal.named.length === 0 ? null : (
         <div role="alert" className="space-y-1 text-sm text-destructive">
@@ -505,6 +515,10 @@ function useSend(commands: Commands, opened: Opened) {
   const t = useTranslations("projectLists.workBreakdown");
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<Refusal>();
+  // A write lost once sent, told in the dialog: it waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(refusal?.outcome);
+  const holding = reading || commands.reading;
+  const waiting = pending || holding;
   const noteRefusal = useNoteRefusal();
   const send = (label: string, onField: (problem: FieldProblem) => void) => {
     const { gesture } = opened;
@@ -529,7 +543,9 @@ function useSend(commands: Commands, opened: Opened) {
     commands.write(true);
     startTransition(async () => {
       try {
-        const answer = await setWorkBreakdown(commands.editing.project, sent).catch(rejected);
+        const answer = await setWorkBreakdown(commands.editing.project, sent).catch(
+          rejectedWrite(),
+        );
         if (answer.kind === "done") {
           commands.answer(answer.data);
           const done = { add: "added", rename: "renamed", delete: "deleted" } as const;
@@ -559,7 +575,7 @@ function useSend(commands: Commands, opened: Opened) {
       }
     });
   };
-  return { pending, refusal, setRefusal, send };
+  return { pending, waiting, reading, holding, refusal, setRefusal, send };
 }
 
 /** The dialog that adds an element or renames one, by its label. */
@@ -579,7 +595,10 @@ function LabelDialog({
   const [label, setLabel] = useState(gesture.kind === "add" ? "" : gesture.row.label);
   const [problem, setProblem] = useState<FieldProblem>();
   const input = useRef<HTMLInputElement>(null);
-  const { pending, refusal, setRefusal, send } = useSend(commands, opened);
+  const { pending, waiting, reading, holding, refusal, setRefusal, send } = useSend(
+    commands,
+    opened,
+  );
   // Asked anew at each refusal: the field takes the focus after the commit that says its refusal,
   // described by it as it is heard (#1484).
   const [focused, setFocused] = useState<object>();
@@ -594,7 +613,7 @@ function LabelDialog({
   };
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (pending) {
+    if (waiting) {
       return;
     }
     const typed = label.trim();
@@ -641,6 +660,7 @@ function LabelDialog({
         </div>
         <RefusalNotice
           refusal={refusal}
+          reading={reading}
           onClear={() => {
             setRefusal(undefined);
           }}
@@ -659,7 +679,7 @@ function LabelDialog({
             <X aria-hidden="true" />
             {form("cancel")}
           </Button>
-          <Button type="submit" aria-busy={pending}>
+          <Button type="submit" {...heldAttributes(pending, holding)}>
             {gesture.kind === "add" ? <Plus aria-hidden="true" /> : <Save aria-hidden="true" />}
             {form(pending ? "sending" : gesture.kind === "add" ? "create" : "save")}
           </Button>
@@ -681,7 +701,7 @@ function DeleteConfirmation({
 }) {
   const t = useTranslations("projectLists.workBreakdown");
   const form = useTranslations("reference.form");
-  const { pending, send } = useSend(commands, opened);
+  const { pending, holding, send } = useSend(commands, opened);
   return (
     <>
       <DialogHeader>
@@ -702,9 +722,10 @@ function DeleteConfirmation({
         </Button>
         <Button
           type="button"
-          aria-busy={pending}
+          aria-busy={pending || holding}
+          aria-disabled={holding ? true : undefined}
           onClick={() => {
-            if (!pending) {
+            if (!pending && !holding) {
               send(row.label, () => undefined);
             }
           }}
@@ -735,6 +756,7 @@ export function BreakdownHead() {
       </p>
       <RefusalNotice
         refusal={commands.refusal}
+        reading={commands.reading}
         onClear={() => {
           commands.refuse(undefined);
         }}

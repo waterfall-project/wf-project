@@ -7,7 +7,7 @@ import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type ApiClient } from "@/api/client";
+import { type ApiClient, createApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import type { Revision } from "@/components/context/read-only";
 import type { Project } from "@/components/context/reading";
@@ -21,6 +21,7 @@ import { RateUpdate } from "@/components/revisions/revision-parts";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { expectCommandRule } from "@/test/command-rule";
+import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 import {
   example,
   type FakeAnswers,
@@ -128,7 +129,8 @@ function bodies(client: FakeClient, route: string): unknown[] {
 beforeEach(() => {
   vi.mocked(refresh).mockClear();
   router.push.mockClear();
-  router.refresh.mockClear();
+  // Reset, not cleared: a test makes it read the page anew (US-2240).
+  router.refresh.mockReset();
   router.replace.mockClear();
   server.client = undefined;
 });
@@ -285,6 +287,58 @@ describe("the abandon of the current revision", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Recharger" }));
     expect(router.refresh).toHaveBeenCalledOnce();
     expect(router.replace).not.toHaveBeenCalled();
+  });
+  it("waits, confirmed again, until the page has been read anew after an abandonment whose connection was lost once sent (US-2240)", async () => {
+    const lost = new TypeError("fetch failed", {
+      cause: Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" }),
+    });
+    const send = vi.fn(() => Promise.reject(lost));
+    server.client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    // The page as Next reads it anew: the refresh a transition that stays pending until the server
+    // answers — here until the test lets it go (`held-reading.tsx`).
+    holdReading(router.refresh);
+    show(<Reading>{commands()}</Reading>);
+    await userEvent.click(screen.getByRole("button", { name: "Abandonner la révision en cours" }));
+    const confirm = screen.getByRole("button", { name: "Confirmer l’abandon" });
+    await userEvent.click(confirm);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("l’opération a pu aboutir");
+    expect(router.refresh).toHaveBeenCalledOnce();
+    expect(confirm).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(confirm);
+    expect(send).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      releaseReading();
+      await Promise.resolve();
+    });
+    expect(confirm).not.toHaveAttribute("aria-disabled");
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+  it("holds its command too, until the page has been read anew after an abandonment whose connection was lost once sent, so that the confirmation closed cannot open again before (US-2240)", async () => {
+    const lost = new TypeError("fetch failed", {
+      cause: Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" }),
+    });
+    const send = vi.fn(() => Promise.reject(lost));
+    server.client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    holdReading(router.refresh);
+    show(<Reading>{commands()}</Reading>);
+    const command = screen.getByRole("button", { name: "Abandonner la révision en cours" });
+    await userEvent.click(command);
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer l’abandon" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("l’opération a pu aboutir");
+
+    // The command waits as the confirmation does: pressed, it neither closes nor opens anything.
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(command);
+    expect(command).toHaveAttribute("aria-expanded", "true");
+
+    await act(async () => {
+      releaseReading();
+      await Promise.resolve();
+    });
+    expect(command).not.toHaveAttribute("aria-disabled");
+    expect(send).toHaveBeenCalledOnce();
   });
 });
 

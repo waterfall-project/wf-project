@@ -47,7 +47,8 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
 import { useHeldCommand } from "@/components/commands/held";
-import { rejected } from "@/components/commands/rejection";
+import { useReadAnew } from "@/components/commands/outcome-notice";
+import { rejectedRead } from "@/components/commands/rejection";
 
 import type { CellWrites } from "./cell-writes";
 import type {
@@ -391,6 +392,8 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
 }: GridPasteOptions<Row, Sort, Totals>) {
   const [pasting, setPasting] = useState<Pasting>();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
+  // A paste lost once sent: the grid is read anew, and takes no other until it is back (US-2240).
+  const reading = useReadAnew(outcome);
   // The column the grid does not show a refused block would reach, named to the user (#200).
   const [hidden, setHidden] = useState<Unshown>();
   // What the last paste applied wrote and did not write, kept until the next one.
@@ -424,7 +427,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
     setPasting({ block, width: widest(block), target, plan: undefined, applying: false });
     void asking
       .preview(row, named, block)
-      .catch(rejected)
+      .catch(rejectedRead)
       .then((answer) => {
         if (current.current !== asked) {
           return;
@@ -475,7 +478,8 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   // caret was left in; the handler of the render is the one that runs, through a ref.
   const handler = useRef<(event: ClipboardEvent) => void>(undefined);
   useEffect(() => {
-    handler.current = onPaste;
+    // A paste lost once sent: the grid takes no other until it is read anew (US-2240).
+    handler.current = reading ? undefined : onPaste;
   });
   useEffect(() => {
     if (paste === undefined) {
@@ -502,6 +506,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
       pasting === undefined ||
       plan === undefined ||
       pasting.applying ||
+      reading ||
       busy
     ) {
       return;
@@ -530,8 +535,10 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   return {
     pasting,
     /** Whether the paste shown waits for another write of the grid before it may be applied. */
-    waiting: busy && pasting?.applying !== true,
+    waiting: (busy || reading) && pasting?.applying !== true,
     outcome,
+    /** Whether the grid is read anew after a paste lost once sent (US-2240). */
+    reading,
     /** The column the grid does not show a refused block would reach, if one was refused for it. */
     hidden,
     /** What the last paste applied wrote and did not write. */

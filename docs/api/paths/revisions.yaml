@@ -2534,7 +2534,21 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               stale: { $ref: ../../../fixtures/api/paste_stale.json }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          The plan would take the duration of the project beyond fifteen years:
+          `PROJECT_HORIZON_EXCEEDED`, without `fields`, `params.task` naming the task the engine
+          finds beyond the horizon, by its node and its label, the node null for a task the
+          block creates, and, for a task a row of the block writes or creates, or that bears a
+          line it writes, that row, counted from zero like `PasteRejection.row` (`row`): two
+          tasks created with one label are told apart by it (`Problem.params`; WF-PLA-0150-A,
+          #2606, #3624); nothing is written, the counter of the structure as it was. Or another
+          rule refused, as the common response `UnprocessableEntity` says.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              horizon_exceeded: { $ref: ../../../fixtures/api/paste_apply_horizon_exceeded.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

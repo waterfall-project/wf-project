@@ -115,10 +115,13 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
 PLANNING_INTERFACES: dict[str, set[str]] = {
     "planning": {
         "closing",
+        # The copy of the nodes of a revision, moved out of ``nodes`` (US-2240/L2).
+        "copying",
         "facets",
         # What the indicators read of the planning, laid by US-1660/L3 (EP-10, "Modules").
         "indicator_stamps",
         "indicator_tasks",
+        "kept_readings",
         "lines",
         "loading",
         "milestone_dates",

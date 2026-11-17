@@ -12,8 +12,9 @@ line-length = 100
 # the tool formats them, and a rule is not applied to what no one writes.
 extend-exclude = ["backend/src/waterfall/api/contract/models.py"]
 target-version = "py314"
-# Where the first-party packages live, so that imports sort the same way from anywhere.
-src = ["backend/src", "tools/src"]
+# Where the first-party packages live, so that imports sort the same way from anywhere (``backend``
+# for the measure of the core, which sits beside the package, US-2210).
+src = ["backend", "backend/src", "tools/src"]
 
 [lint]
 select = ["ALL"]

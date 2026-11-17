@@ -23,7 +23,8 @@ import { readFileSync } from "node:fs";
 
 import { type Browser, expect } from "@playwright/test";
 
-import { openHydrated, WORKING } from "./hydration";
+import { WORKING } from "./bounds";
+import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
 import { ScreenSteps } from "./screen-steps";
 import { API, frontToken, type LocalPerson } from "./service/realm";

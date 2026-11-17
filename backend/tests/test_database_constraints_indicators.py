@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The database refuses what the table of the indicators forbids, and a row outside a marking.
 
-The constraints of ``revision_indicator`` (US-1660/L1, migration 0031), one refusal each, as
+The constraints of ``revision_indicator`` (US-1660/L1, migration 0032), one refusal each, as
 ``test_database_constraints_costs.py`` tries those of EP-09; and the trigger that refuses a row
 written outside the marking of its revision, judged at the end of the transaction that wrote it.
 The guard of a marked revision is tried with the others, in ``test_revision_immutability.py``.

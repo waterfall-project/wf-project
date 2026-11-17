@@ -312,7 +312,7 @@ Décisions de l'auteur du 2026-11-15, sauf mention « recadrage », qui sont du 
   les numéros de lots d'EP-06, d'EP-07 et d'EP-09 que cite la suite sont tous fusionnés, et se
   lisent comme l'origine d'un fichier, non comme une attente.
 - **Les migrations ne portent plus de numéro dans ce fichier** (recadrage). `0028` est prise par
-  EP-24, `0029` par EP-25, `0030` par EP-26. Le socle chaîne celle de `revision_indicator` sur la
+  EP-24, `0029` et `0030` par EP-25, `0031` par EP-26. Le socle chaîne celle de `revision_indicator` sur la
   dernière de `main` au moment où il se livre ; celle de la capacité (US-2410) se chaîne sur elle.
   Partout où la suite dit `0028`, lire « la migration du socle ».
 - **Le jour courant est celui du fuseau de l'installation** (US-2200 d'EP-25) : la date de calcul
@@ -456,7 +456,7 @@ rien à emporter.
   attachées comme la fonction le fait, avec la fonction `revision_indicator_refuse_truncate` que la
   fonction attend, les déclencheurs, les droits du rôle du service — `SELECT`, `INSERT` : rien ne se met à
   jour ni ne se supprime — déclarés dans `SERVICE_RIGHTS`. Aucune migration de données.
-- **Une migration pour le compteur des lignes de coût** (`0032_cost_line_lock_version`, US-1720/L3) :
+- **Une migration pour le compteur des lignes de coût** (`0033_cost_line_lock_version`, US-1720/L3) :
   elle ajoute `cost_line.lock_version`, entier non nul, zéro pour chaque ligne qui existe ; il avance
   à chaque écriture d'une valeur que les indicateurs lisent, sous le verrou du projet, et
   `costs_stamp` en rend la somme (décision de l'auteur du 2026-11-16, #3629). Une ligne qu'un

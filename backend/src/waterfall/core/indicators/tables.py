@@ -6,7 +6,7 @@ What a revision keeps of its indicators at its marking (WF-DAT-0040): one JSON d
 revision, kind and scope — the answer of the contract of its kind for its scope, as the marking
 computed it, every zone null —, partitioned by project as the cost structures (WF-DAT-0050). A row
 is written by the marking alone, while its revision is still current, and never changed nor deleted
-after: the triggers of the migration ``0031`` refuse it, owner included. Its key names its revision
+after: the triggers of the migration ``0032`` refuse it, owner included. Its key names its revision
 with its project, and refuses (``RESTRICT``).
 """
 

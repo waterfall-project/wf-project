@@ -23,7 +23,7 @@ import { useTranslations } from "next-intl";
 import { type DragEvent, useCallback, useId, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
 import { WaitingIcon, waitingAttributes } from "@/components/commands/waiting";
 import { useRunningTask, useTaskRunning, useWhenTaskFails } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
@@ -75,10 +75,12 @@ export function FileDrop({
   // anew, while an analysis of the project runs (#3404).
   const found = useRunningTask(analysisAim(projectId));
   const analysing = useTaskRunning(analysis ?? found);
-  const waiting = busy || analysing;
   // The drags that entered the zone or one of its children and did not leave yet.
   const depth = useRef(0);
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
+  // A file lost once sent: the zone takes no other until the screen has been read anew (US-2240).
+  const reading = useReadAnew(outcome);
+  const waiting = busy || analysing || reading;
 
   useWhenTaskFails(
     analysis,
@@ -93,7 +95,7 @@ export function FileDrop({
     if (file === undefined || sent !== undefined || analysing) {
       return;
     }
-    if (busy) {
+    if (busy || reading) {
       setProblem("busy");
       return;
     }
@@ -127,7 +129,7 @@ export function FileDrop({
       role="group"
       aria-labelledby={`${id}-title`}
       aria-describedby={`${id}-hint`}
-      aria-busy={busy}
+      aria-busy={busy || reading}
       onDragEnter={() => {
         depth.current += 1;
         setOver(true);
@@ -204,6 +206,7 @@ export function FileDrop({
       )}
       <OutcomeNotice
         outcome={outcome}
+        reading={reading}
         onClear={() => {
           setOutcome(undefined);
         }}

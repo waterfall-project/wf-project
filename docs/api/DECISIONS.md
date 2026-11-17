@@ -12097,6 +12097,53 @@ US-2430/L3 change ») :
   `TimelinePreferences.lanes` reste borné à 64 tâches placées, que rien n'a mis en cause. Écarté :
   garder 64 et laisser ces réglages se perdre.
 
+### Un montant dérivé qui déborde sa colonne est refusé au champ qui le provoque (US-2260/L3, #3093, #3094)
+
+Les montants d'une ligne de devis, `base_amount` et `reestimated_amount`, sont calculés par le
+serveur et gardés à douze chiffres avant la virgule (999 999 999 999,99 au plus, WF-DAT-0100) :
+un produit, un taux ou une inflation peuvent les porter au-delà, chaque grandeur saisie restant
+dans sa propre colonne. US-1980 (#2996, #3035, #3039) a refusé ces débordements par un 422, sans que
+le contrat les décrive : le 422 du taux horaire ne nomme `/amount` que par `VALUE_OUT_OF_RANGE`,
+celui de `updateProject` que les bornes de `/inflation_rate` (#3093). Décision de l'auteur du
+2026-11-14 (option (b) de #3093) : **une règle générale, ici, plutôt qu'une description par
+opération**. Un montant dérivé qui déborde sa colonne est refusé par un 422 `VALIDATION_FAILED`,
+`fields` sur le champ de la requête qui le provoque, de code `VALIDATION_FAILED`, sans paramètre ;
+rien n'est écrit. Les pointeurs servis :
+
+- l'écriture d'une ligne (`createNode`, `updateEstimateLine`) : sa quantité, `/estimate_line/quantity`
+  à la création, `/quantity` à la modification, que le débordement vienne de la quantité, de la
+  charge, du débours, du rôle ou de l'année de consommation (#2996, #3035, #3039) ;
+- le taux horaire d'une catégorie (`setHourlyRate`), qui rechiffre les lignes des révisions en
+  cours : `/amount` (#3035) ;
+- le taux d'inflation d'un projet (`updateProject`), qui rechiffre sa révision en cours :
+  `/inflation_rate` (#3039) ;
+- la redatation d'une tâche, qui déplace ses lignes d'une année à l'autre (#3094) : par
+  `updateTaskFacet`, chacun des champs envoyés qui la datent, dans l'ordre `/scheduling_mode`,
+  `/duration`, `/start`, `/finish` — la grille en envoie un seul, une cellule à la fois
+  (WF-IHM-0040) ; par `setPredecessors`, `/predecessors`.
+
+La règle ne nomme jamais un champ que la requête ne porte pas. Une cause dont aucun champ n'est
+l'origine reste refusée par le même 422 `VALIDATION_FAILED`, sans `fields` : une annulation ou un
+rétablissement (`undoLastChange`, `redoLastUndo`), qui n'ont pas de corps et donc aucun champ à
+nommer, et l'ouverture d'une révision
+(`createRevision`), dont la copie des taux projette ceux de la révision source sur l'année de
+l'horloge, au taux d'inflation du projet — son corps ne porte que `description` et
+`apply_rate_update`, l'année vient de l'horloge, l'inflation du projet, les montants de la révision
+source. Décision de l'auteur du 2026-11-15 (option (a) de #3303) : cette ouverture reste refusée
+sans `fields`, et le critère « un pointeur par cause » d'US-2260 se lit « par cause qui a un
+champ ». Écartées : `/apply_rate_update` (option (b)), qui ne serait juste que si le débordement
+venait du taux de référence appliqué, et faux sans mise à jour ; un code propre au niveau du
+problème, les lignes débordées en `params` (option (c)), une forme nouvelle du contrat que la
+conception d'EP-26 exclut. Les autres écritures qui rechiffrent des lignes écrites — la mise à jour
+des taux (`applyRateUpdate`), un déplacement (`moveNodes`), un collage (`applyPaste`), un
+changement d'un calendrier ou des unités de durée — restent aussi, à ce jour, sans `fields`, même
+quand un champ de la requête en serait l'origine (`/cost_category_ids` pour `applyRateUpdate`,
+#3401) : leur pointeur est reporté → EP-27, par la même décision. `info.version` reste `1.0.0` :
+aucune forme ne change, aucune opération n'est touchée.
+Écartées : décrire chaque refus dans le 422 de son opération, avec un exemple (option (a)), et
+`VALUE_OUT_OF_RANGE` avec `params.maximum` au champ, qui dirait une borne du champ saisi alors que
+c'est le montant calculé qui déborde ; laisser tel quel (option (c)).
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
@@ -12175,6 +12222,35 @@ le bloc si une ligne de création est refusée, contre WF-IHM-0050 (« les ligne
 clé de catalogue pour un refus que `VALIDATION_FAILED` dit déjà ; laisser le dialogue déduire le
 nombre de créations des lignes au-delà de la grille, qu'il ne connaît que par ce qu'il montre ; un
 champ `created` dans `PasteApplied`, que `nodes` dit déjà.
+
+### Le refus d'horizon d'un collage nomme la tâche par sa ligne dans le bloc (US-2260/L4, #3624)
+
+Depuis US-2260/L2 (#2606), le refus `PROJECT_HORIZON_EXCEEDED` d'un collage (`applyPaste`) nomme la
+tâche que le moteur trouve au-delà de l'horizon, par son nœud et son libellé (`params.task`). Une
+tâche que le collage crée n'a pas encore de nœud (`node_id` nul) : deux tâches créées de même
+libellé ne se distinguaient pas. Décision de l'auteur du 2026-11-16 (#3624) : le constat est corrigé
+dans EP-26, par US-2260/L4, qui en fixe la forme le même jour : **le refus d'un collage porte aussi
+la ligne du bloc**.
+
+- **`params.task.row`**, entier ≥ 0, la ligne du bloc collé comptée depuis zéro, comme
+  `PasteRejection.row` la compte : la même ligne que le dialogue du collage nomme déjà pour un refus
+  de ligne, sur laquelle le front n'a donc rien à recompter. C'est la première ligne du bloc qui
+  nomme la tâche : celle qui l'écrit ou la crée, ou celle d'une ligne de devis qu'elle porte.
+- **Absent, jamais nul**, hors d'un collage, et pour une tâche que le collage déplace sans l'écrire
+  — un successeur qu'il pousse, qu'aucune ligne du bloc ne nomme, désigné par son nœud seul :
+  les refus des autres opérations et leurs exemples ne changent pas, et la présence du champ dit
+  à elle seule qu'il s'agit d'une ligne du bloc.
+- **Un exemple** : `paste_apply_horizon_exceeded` (`applyPaste`, 422, `wftools.mockundoable`), deux
+  tâches « Garantie de parfait achèvement » créées au-delà du dernier nœud, la seconde, ligne `2`,
+  au-delà de l'horizon. Le 422 d'`applyPaste`, jusque-là la réponse commune, se décrit et porte cet
+  exemple.
+
+`ProblemParams` ne déclare pas `task` : ce paramètre reste ouvert, décrit par `Problem.params`,
+comme avant ; rien ne change sur le fil hors d'un collage, et `info.version` reste `1.0.0`.
+Écartés : une ligne comptée depuis un, qui aurait donné deux bases à deux champs `row` du même
+dialogue ; `row` nul hors d'un collage, qui l'aurait ajouté à tous les refus d'horizon et à leurs
+exemples pour ne rien dire ; nommer la tâche créée par un identifiant provisoire, qu'aucune lecture
+ne connaît.
 
 ## Organisation des fichiers
 

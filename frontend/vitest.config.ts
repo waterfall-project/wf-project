@@ -81,8 +81,9 @@ export default defineConfig({
         extends: true,
         test: {
           name: "node",
-          // The legs of the bench around Prism (bench/contract-proxy.ts) are tried with the logic.
-          include: ["src/**/*.test.{ts,tsx}", "bench/**/*.test.ts"],
+          // The legs of the bench around Prism (bench/contract-proxy.ts) are tried with the logic,
+          // and so is the arithmetic of the measure against the service (e2e/measure/report.ts).
+          include: ["src/**/*.test.{ts,tsx}", "bench/**/*.test.ts", "e2e/measure/**/*.test.ts"],
           exclude: [DOM, ...LINT],
           environment: "node",
           setupFiles: [SERVER_ONLY],

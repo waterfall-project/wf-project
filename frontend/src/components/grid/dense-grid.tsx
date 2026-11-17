@@ -56,7 +56,11 @@ import {
   useTransition,
 } from "react";
 
-import { OutcomeNotice, refusalDescription } from "@/components/commands/outcome-notice";
+import {
+  OutcomeNotice,
+  refusalDescription,
+  useReadAnew,
+} from "@/components/commands/outcome-notice";
 import {
   Table,
   TableBody,
@@ -73,7 +77,6 @@ import {
   type DependencyReader,
   DIFF_MARK_KEY,
   formatCell,
-  type GridColumn,
   type GridConfig,
   headingOf,
   ROW_NUMBER_KEY,
@@ -88,7 +91,7 @@ import {
 } from "./cell-attributes";
 import { CellEditor, EntryProblemNotice } from "./cell-editor";
 import { useCellWrites } from "./cell-writes";
-import { ComputedCell, type ComputedColumn } from "./computed-cell";
+import { ComputedCell } from "./computed-cell";
 import { cellContent } from "./dense-grid-cell";
 import { DiffMark, differenceTint } from "./diff-mark";
 import {
@@ -103,9 +106,7 @@ import {
 import { useRoomBelow } from "./frame-width";
 import { EDGE_REM, floorOf, ROW_REM, withBar } from "./grid-floor";
 import {
-  type CellDraft,
   type CellPosition,
-  type CellRefusal,
   HEADER_ROW,
   samePosition,
   useCursor,
@@ -117,7 +118,14 @@ import { GridToolbar, toggledColumns } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
 import { type KeptFilters, useKeptFilters } from "./kept-filters";
 import { useKeptPageSize } from "./kept-size";
-import { gridBusy, held, sharedName, Spacer } from "./dense-grid-parts";
+import {
+  type CellStates,
+  computedIn,
+  gridBusy,
+  held,
+  sharedName,
+  Spacer,
+} from "./dense-grid-parts";
 import { useGridPaste } from "./paste";
 import { PasteAppliedNotice, PasteDialog, UnshownNotice } from "./paste-dialog";
 import { alignClass, TotalsRow } from "./totals-row";
@@ -126,13 +134,7 @@ import { endPinnedWidth, pinnedWidth, pinningOf, useFrameRoom } from "./pinning"
 import { useRootFontSize, useRowWindow } from "./row-window";
 import { restOf, stretchedColumn, tableWidth } from "./table-width";
 import { type GridQuery, type GridSort, searchHref, sortHref } from "./query";
-import {
-  HandleCell,
-  type RowSelection,
-  SelectionNotes,
-  selectedRow,
-  useRowSelection,
-} from "./row-selection";
+import { HandleCell, SelectionNotes, selectedRow, useRowSelection } from "./row-selection";
 import {
   isBarOpen,
   useBarFocus,
@@ -252,42 +254,6 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
   readonly filtering?: Filtering | undefined;
   /** What the screen puts at the end of the bar, at its right edge (`GridToolbar`, #3071). */
   readonly ending?: ReactNode;
-}
-
-/** Whether the server computes the cell of a column in a row. */
-function computedIn<Row extends RowData, Sort extends string, Totals>(
-  column: GridColumn<Row, Sort, Totals> | undefined,
-  row: Row,
-): column is ComputedColumn<Row, Sort, Totals> {
-  return column?.computed?.in(row) === true;
-}
-
-/** What the cells of the body are doing: the active one, the one entered, the refusal shown. */
-interface CellStates<Row extends RowData, Sort extends string, Totals> {
-  readonly cursor: CellPosition;
-  readonly draft: CellDraft | undefined;
-  readonly refusal: CellRefusal;
-  /** What a cell under way shows, by the key of its row and its column, if it is. */
-  readonly pending: (row: string, column: string) => string | undefined;
-  /** The identifier of the refusal told of the write of a cell, by its row and column, if any. */
-  readonly writeRefusal: (row: string, column: string) => string | undefined;
-  /** The entry of the cell entered. */
-  readonly editor: (draft: CellDraft, column: GridColumn<Row, Sort, Totals>) => ReactNode;
-  /** Close the refusal from the keyboard, the focus back on its cell. */
-  readonly closeRefusal: () => void;
-  /** Close the refusal, the focus gone elsewhere. */
-  readonly dismissRefusal: () => void;
-  /** Whether the cells have a menu, which they announce. */
-  readonly menu: boolean;
-  /** The keys of the folding a row that folds tells, as far as they reach; none, none told. */
-  readonly foldKeys: string | undefined;
-  /** The selection of the rows, whose handles are the cells of the row numbers. */
-  readonly selection: RowSelection<unknown>;
-  /** The name of the handle of the row of a number, and the identifier of what describes it. */
-  readonly handle: {
-    readonly name: (number: number) => string;
-    readonly hint: string;
-  };
 }
 
 /**
@@ -608,6 +574,10 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   // Each write a cell or a paste sends is one the commands of the screen wait for (#1224).
   const writing = writingOf(commands);
   const writes = useCellWrites<Row, Totals>({ address, rows, totals }, config, writing);
+  // A write of a cell lost once sent: the grid is read anew, and takes no entry until it is back
+  // (US-2240). The settings written are read anew too, which no entry waits for.
+  const readingCells = useReadAnew(writes.outcome);
+  const readingSettings = useReadAnew(writer.outcome);
   // The totals the writes last answered, or those of the answer.
   const shownTotals = writes.totals ?? totals;
   // The rows the tree leaves unfolded, which the grid renders and moves through.
@@ -672,6 +642,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       return top + rowHeight > edge && top < (element?.offsetHeight ?? 0) - edge;
     },
     writes,
+    reading: readingCells,
     locale,
     currency,
   });
@@ -685,7 +656,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     narrowed: isNarrowed(narrowing),
     writing,
     // The confirmation waits for any other write of the screen, as its gestures do (#1224).
-    busy: busyOf(commands),
+    busy: busyOf(commands, readingCells),
   });
   const undo = useUndoShortcut(undoable, undoControl);
   const foldReach = useFoldReach();
@@ -820,6 +791,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       />
       <OutcomeNotice
         outcome={writer.outcome}
+        reading={readingSettings}
         onClear={writer.clear}
         onDismissed={keyboard.refocus}
         dismissible
@@ -827,12 +799,14 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       <OutcomeNotice
         id={refusalId}
         outcome={writes.outcome}
+        reading={readingCells}
         onClear={writes.clear}
         onDismissed={keyboard.refocus}
         dismissible
       />
       <OutcomeNotice
         outcome={paste.outcome}
+        reading={paste.reading}
         onClear={paste.clear}
         onDismissed={keyboard.refocus}
         dismissible
@@ -868,7 +842,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         aria-rowcount={bodyRows + 2}
         aria-colcount={columns.length}
         aria-multiselectable={selection.multiselectable}
-        aria-busy={gridBusy(pending, screenCommands, undoControl)}
+        aria-busy={gridBusy(pending, screenCommands, undoControl, readingCells)}
         // The grid takes the height its screen leaves it (`Screen`, `fill`), shrinking from that
         // of its rows down to a floor; never taller than the window, so that the rows in view
         // stay a window's worth whatever holds it. The header and the totals stick to its edges,

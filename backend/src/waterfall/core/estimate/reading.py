@@ -16,24 +16,30 @@ category and its unit disbursement; a line of a completed task of the main struc
 (WF-PRJ-0050). The filters of the line retain lines on these values, every bound inclusive, a line
 without the value retained by no bound; the sort orders them, a line without the value after the
 others ascending, before them descending (WF-IHM-0060).
+
+A reading that writes nothing — ``listNodes``, ``compareRevisions`` — reads the lines as rows, once
+for their figures and their facets (``line_columns``), and filters and sorts them on rows too
+(``line_rows``); a write reads them as objects of the session (``rows_of``), which it changes
+(US-2220, EP-26, "La lecture d'une structure"). The views are the same on both.
 """
 
 from dataclasses import dataclass, replace
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from functools import cache
+from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import select
 
 from waterfall.core.cost_settings.interface import CategoryLabel, category_labels
 from waterfall.core.estimate.imaging import kept_labels
 from waterfall.core.estimate.tables import EstimateLine
-from waterfall.core.planning.interface import Amounts, FacetRead, node_revisions
+from waterfall.core.planning.interface import Amounts, FacetColumns, FacetRead, node_revisions
 from waterfall.core.projects.interface import subproject_labels, subprojects_with_actual_costs
 from waterfall.core.resource_settings.interface import read_roles
 from waterfall.platform.database import among
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Mapping
+    from collections.abc import Callable, Collection, Mapping, Sequence
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -127,9 +133,91 @@ class LineFilters:
     previous: tuple[Bounds[Decimal], ...] = ()
 
 
-def budgeted_of(line: EstimateLine) -> Decimal:
+class LineRow(NamedTuple):
+    """A line as a reading that writes nothing reads it, the columns of its view alone."""
+
+    node_id: UUID
+    label: str
+    cost_category_id: UUID
+    resource_role_id: UUID | None
+    quantity: Decimal
+    hours: Decimal | None
+    unit_disbursement: Decimal | None
+    payment_delay_days: int
+    subproject_id: UUID | None
+    base_amount: Decimal
+    budgeted_amount: Decimal | None
+    reestimated_amount: Decimal
+    consumption_year: int
+    previous_quantity: Decimal | None
+    previous_hours: Decimal | None
+    previous_unit_disbursement: Decimal | None
+    previous_reestimated_amount: Decimal | None
+    remaining_reason: str | None
+
+
+# A line as a view reads it: an object of the session for a write, a row for a reading.
+type LineColumns = EstimateLine | LineRow
+
+# The columns of a row, in the order of its fields.
+_LINE_COLUMNS = (
+    EstimateLine.node_id,
+    EstimateLine.label,
+    EstimateLine.cost_category_id,
+    EstimateLine.resource_role_id,
+    EstimateLine.quantity,
+    EstimateLine.hours,
+    EstimateLine.unit_disbursement,
+    EstimateLine.payment_delay_days,
+    EstimateLine.subproject_id,
+    EstimateLine.base_amount,
+    EstimateLine.budgeted_amount,
+    EstimateLine.reestimated_amount,
+    EstimateLine.consumption_year,
+    EstimateLine.previous_quantity,
+    EstimateLine.previous_hours,
+    EstimateLine.previous_unit_disbursement,
+    EstimateLine.previous_reestimated_amount,
+    EstimateLine.remaining_reason,
+)
+
+
+class _Figures(NamedTuple):
+    """What a line counts in the totals, as columns: its hours, its amounts, its year."""
+
+    hours: Decimal | None
+    base_amount: Decimal
+    budgeted_amount: Decimal | None
+    reestimated_amount: Decimal
+    consumption_year: int
+
+
+def budgeted_of(line: LineColumns | _Figures) -> Decimal:
     """Give the budgeted amount of a line as read: its re-estimated one without a reference."""
     return line.reestimated_amount if line.budgeted_amount is None else line.budgeted_amount
+
+
+def _amounts(line: LineColumns | _Figures) -> Amounts:
+    """Give what a line counts in the totals: its hours, its three amounts, its year."""
+    return Amounts(
+        line.hours or Decimal(0),
+        line.base_amount,
+        budgeted_of(line),
+        line.reestimated_amount,
+        line.consumption_year,
+    )
+
+
+def line_rows(session: Session, project_id: UUID, node_ids: Collection[UUID]) -> list[LineRow]:
+    """Read the lines named as rows, for a reading that writes nothing (US-2220)."""
+    if not node_ids:
+        return []
+    rows = session.execute(
+        select(*_LINE_COLUMNS).where(
+            EstimateLine.project_id == project_id, among(EstimateLine.node_id, node_ids)
+        )
+    )
+    return [LineRow._make(row) for row in rows]
 
 
 def rows_of(session: Session, project_id: UUID, node_ids: Collection[UUID]) -> list[EstimateLine]:
@@ -156,8 +244,6 @@ def totals_of(
     """
     if not node_ids:
         return {}
-    if not node_ids:
-        return {}
     rows = session.execute(
         select(
             EstimateLine.node_id,
@@ -168,16 +254,7 @@ def totals_of(
             EstimateLine.consumption_year,
         ).where(EstimateLine.project_id == project_id, among(EstimateLine.node_id, node_ids))
     )
-    return {
-        node_id: Amounts(
-            hours or Decimal(0),
-            base,
-            reestimated if budgeted is None else budgeted,
-            reestimated,
-            year,
-        )
-        for node_id, hours, base, budgeted, reestimated, year in rows
-    }
+    return {row.node_id: _amounts(_Figures(*row[1:])) for row in rows}
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,14 +265,21 @@ class _Named:
     role: tuple[str, bool] | None
 
 
-def _named(session: Session, project_id: UUID, rows: list[EstimateLine]) -> dict[UUID, _Named]:
+def _named(
+    session: Session,
+    project_id: UUID,
+    rows: Sequence[LineColumns],
+    revisions: Mapping[UUID, UUID] | None = None,
+) -> dict[UUID, _Named]:
     """Give, by line, its category and its role: kept by its marked revision, or of the reference.
 
     A marked revision is read on its images (WF-REV-0030, WF-REF-0130): the labels and the states
     of its roles and its categories at its marking; a current one, or one marked before US-1500,
-    on the reference.
+    on the reference. ``revisions`` the revision of each line, if its caller knows them: read
+    otherwise.
     """
-    revisions = node_revisions(session, project_id, [row.node_id for row in rows])
+    if revisions is None:
+        revisions = node_revisions(session, project_id, [row.node_id for row in rows])
     kept = kept_labels(session, project_id, set(revisions.values()))
     categories = category_labels(session, {row.cost_category_id for row in rows})
     roles = {
@@ -223,7 +307,7 @@ def _named(session: Session, project_id: UUID, rows: list[EstimateLine]) -> dict
 def _views(
     session: Session,
     project_id: UUID,
-    rows: list[EstimateLine],
+    rows: Sequence[LineColumns],
     named: Mapping[UUID, _Named] | None = None,
 ) -> dict[UUID, tuple[LineView, bool]]:
     """Give the view of each line, and whether its subproject received actual costs.
@@ -277,19 +361,53 @@ def _fields(view: LineView, bearer: BearingTask, *, costs: bool) -> tuple[tuple[
     computed = (CATEGORY,) if labour else ()
     if bearer.is_main and bearer.progress == COMPLETED:
         return computed, ()
+    subproject = not costs or bearer.progress == NOT_STARTED
+    return computed, _editable(labour=labour, subproject=subproject)
+
+
+@cache
+def _editable(*, labour: bool, subproject: bool) -> tuple[str, ...]:
+    """Give the fields a line accepts, of a labour line or not, its subproject or not.
+
+    Four tuples, written once: a structure read whole asks them of its thousands of lines.
+    """
     refused = {"cost_category_id", "unit_disbursement"} if labour else {"resource_role_id", "hours"}
-    if costs and bearer.progress != NOT_STARTED:
+    if not subproject:
         refused.add("subproject_id")
-    editable = tuple(f"estimate_line.{name}" for name in EDITABLE if name not in refused)
-    return computed, editable
+    return tuple(f"estimate_line.{name}" for name in EDITABLE if name not in refused)
 
 
 def read_lines(
     session: Session, project_id: UUID, lines: Mapping[UUID, BearingTask]
 ) -> dict[UUID, FacetRead]:
     """Give the facet of each line named, read, with the fields it computes and accepts."""
+    return _facets(_views(session, project_id, rows_of(session, project_id, lines)), lines)
+
+
+def line_columns(session: Session, project_id: UUID, node_ids: Collection[UUID]) -> FacetColumns:
+    """Read the lines named once as rows: their figures, and a reader of their facets (US-2220).
+
+    What ``totals_of`` and ``read_lines`` give a write, for a reading that writes nothing: one
+    statement for both, and no object of the session. The revision of a line is that of the task
+    bearing it, which the reader is given: it is not read again.
+    """
+    rows = {row.node_id: row for row in line_rows(session, project_id, node_ids)}
+    figures = {node_id: _amounts(row) for node_id, row in rows.items()}
+
+    def read(lines: Mapping[UUID, BearingTask]) -> dict[UUID, FacetRead]:
+        held = [rows[each] for each in lines if each in rows]
+        revisions = {row.node_id: lines[row.node_id].revision_id for row in held}
+        named = _named(session, project_id, held, revisions)
+        return _facets(_views(session, project_id, held, named), lines)
+
+    return FacetColumns(figures, read)
+
+
+def _facets(
+    views: Mapping[UUID, tuple[LineView, bool]], lines: Mapping[UUID, BearingTask]
+) -> dict[UUID, FacetRead]:
+    """Give the facet of each line of the views, with the fields it computes and accepts."""
     found: dict[UUID, FacetRead] = {}
-    views = _views(session, project_id, rows_of(session, project_id, lines))
     for node_id, (view, costs) in views.items():
         bearer = lines[node_id]
         # The view is written with nothing missing: copied only for a line it holds back, the
@@ -354,7 +472,7 @@ def filter_lines(
     """Keep, of the lines named, those the filters of the line retain (``listNodes``)."""
     if not isinstance(asked, LineFilters):
         return frozenset(node_ids)
-    rows = rows_of(session, project_id, node_ids)
+    rows = line_rows(session, project_id, node_ids)
     named = _named(session, project_id, rows)
     views = _views(session, project_id, rows, named)
     tests = _tests(asked)
@@ -414,7 +532,7 @@ def sort_lines(
     text, number = _TEXTS.get(sort.column), _NUMBERS.get(sort.column)
     if text is None and number is None:
         return None
-    views = _views(session, project_id, rows_of(session, project_id, node_ids))
+    views = _views(session, project_id, line_rows(session, project_id, node_ids))
     given = [each for each in node_ids if each in views]
     if text is not None:
         return _ordered(given, lambda each: text(views[each][0]), descending=sort.descending)

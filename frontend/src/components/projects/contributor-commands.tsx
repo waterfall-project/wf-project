@@ -56,8 +56,8 @@ import { KeptName } from "@/components/account/anonymized-name";
 import { PressRefusal, useUnmet } from "@/components/commands/command";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
-import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { OutcomeNotice, useNoteRefusal, useReadAnew } from "@/components/commands/outcome-notice";
+import { rejectedWrite } from "@/components/commands/rejection";
 import { WritingNote } from "@/components/commands/writing-note";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
 import { ActiveState } from "@/components/reference/section";
@@ -125,6 +125,8 @@ interface Commands {
   readonly opened: Opened | undefined;
   /** Whether a write of the list is under way: the command waits for its answer. */
   readonly writing: boolean;
+  /** Whether the screen is read anew after the refusal above the list, a write lost once sent (US-2240). */
+  readonly reading: boolean;
   readonly answer: (list: ContributorReading) => void;
   /** Told that a write of the list leaves, then that it is answered. */
   readonly write: (writing: boolean) => void;
@@ -186,6 +188,8 @@ export function ContributorCommands({
   // How many times the dialog was opened: what tells an opening from the next.
   const openings = useRef(0);
   const [writing, write] = useState(false);
+  // A write lost once sent, told under the head: the command waits until the screen is read anew.
+  const reading = useReadAnew(refusal);
   const commands = useMemo<Commands | undefined>(
     () =>
       editing && {
@@ -195,6 +199,7 @@ export function ContributorCommands({
         refusal,
         opened,
         writing,
+        reading,
         write,
         answer: (list) => {
           setAnswered((before) => (before === undefined ? list : newer(before, list)));
@@ -211,7 +216,7 @@ export function ContributorCommands({
           );
         },
       },
-    [editing, answered, said, say, refusal, opened, writing],
+    [editing, answered, said, say, refusal, opened, writing, reading],
   );
   return <ContributorContext value={commands}>{children}</ContributorContext>;
 }
@@ -246,7 +251,7 @@ function ModifyContributors({
     return null;
   }
   const unmet = unmetId(offer, id);
-  const { writing } = commands;
+  const writing = commands.writing || commands.reading;
   const why = `${id}-writing`;
   return (
     <div className="flex flex-wrap items-start gap-2">
@@ -342,6 +347,7 @@ export function ContributorHead() {
       )}
       <OutcomeNotice
         outcome={commands.refusal}
+        reading={commands.reading}
         onClear={() => {
           commands.refuse(undefined);
         }}
@@ -380,6 +386,9 @@ function ContributorEditor({
   const [problems, setProblems] = useState<ReadonlyMap<string, FieldProblem>>(() => new Map());
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
+  // A write lost once sent, told in the dialog: it waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(outcome);
+  const holding = reading || commands.reading;
   const first = useRef<HTMLSelectElement>(null);
   const table = useRef<HTMLTableElement>(null);
   const noteRefusal = useNoteRefusal();
@@ -438,7 +447,7 @@ function ContributorEditor({
   };
 
   const submit = () => {
-    if (pending) {
+    if (pending || holding) {
       return;
     }
     setProblems(new Map());
@@ -462,7 +471,7 @@ function ContributorEditor({
         const answer = await setContributors(commands.editing.project, {
           contributors: sent.map(({ user_id, kind }) => ({ user_id, kind })),
           lock_version: opened.counter,
-        }).catch(rejected);
+        }).catch(rejectedWrite());
         take(answer, sent);
       } finally {
         commands.write(false);
@@ -604,6 +613,7 @@ function ContributorEditor({
         )}
         <OutcomeNotice
           outcome={outcome}
+          reading={reading}
           onClear={() => {
             setOutcome(undefined);
           }}
@@ -614,7 +624,12 @@ function ContributorEditor({
             <X aria-hidden="true" />
             {form("cancel")}
           </Button>
-          <Button type="button" aria-busy={pending} onClick={submit}>
+          <Button
+            type="button"
+            aria-busy={pending || holding}
+            aria-disabled={holding ? true : undefined}
+            onClick={submit}
+          >
             <Save aria-hidden="true" />
             {form(pending ? "sending" : "save")}
           </Button>

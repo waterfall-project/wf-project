@@ -2,7 +2,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 
-import { expect, type Page, type Request, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+
+import { OPENING_PATH } from "./bounds";
+import {
+  CLICKED,
+  followRequests,
+  type Requests,
+  settle,
+  type Usable,
+  usableAt,
+  watchGrids,
+} from "./usable";
+import { median } from "./measure/report";
 
 import { withinBox } from "./scroll";
 
@@ -22,7 +34,9 @@ import { withinBox } from "./scroll";
 // The later of the two is set against the second. A script given to each document watches every frame
 // for them, and writes the times it finds, as the start, on the clock of the operating system
 // (`performance.timeOrigin`), which survives the document when a click loads another. Nothing of
-// the harness counts: neither Playwright's round trips nor its polling.
+// the harness counts: neither Playwright's round trips nor its polling. The definition lives in
+// `usable.ts`, which the measure of the journey of the grids against the service shares (`make
+// measure`, US-2210).
 //
 // The front is built for production, and compiles nothing on demand (`playwright.config.ts`).
 // Before each series of five openings, one opening is not measured: the server's first load of
@@ -45,24 +59,24 @@ import { withinBox } from "./scroll";
 // minutes for each test. Past one, the path no longer works — a grid never usable, a page never
 // settled — and fails, whatever the second.
 //
+// Apart from the openings, the path says how long the fake back takes to serve the example of the
+// lines alone — the structure the grids read, a thousand tasks and their lines (`listNodes`) —,
+// asked of it directly, outside any opening: the part of an opening that is Prism's, which the
+// service will not pay (US-2210). Measured, never set against anything.
+//
 // The project runs after all the other paths, alone on the machine: `playwright.config.ts`.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
+/** The main structure of the revision, whose nodes the grids read (`listNodes`). */
+const STRUCTURE = "01926f3a-7c00-7000-8000-000000000201";
+/** The fixed token the front sends the fake back (`src/api/server.ts`): it opens nothing. */
+const MOCK_TOKEN = "waterfall-mock-token";
 
 /** The objective of §4.6.2, in milliseconds. */
 const OBJECTIVE = 1_000;
 
 /** How many times a grid opens each way, once opened unmeasured. */
 const OPENINGS = 5;
-
-/**
- * How long the path waits for what it needs to go on — a grid usable, a page settled —, in
- * milliseconds: a bound of its working, far from the second, which measures nothing.
- */
-const WORKING = 15_000;
-
-/** Where the start of an opening by a click is kept: it survives a document replaced. */
-const CLICKED = "wf_e2e_clicked";
 
 /** A screen of a grid: its address, the link of the navigation to it, its grid and totals. */
 interface GridScreen {
@@ -95,88 +109,6 @@ function address(screen: GridScreen): string {
   return `/projects/${PROJECT}/revisions/${REVISION}/${screen.segment}`;
 }
 
-/**
- * Run in each document from its start: keep the time of each click, and mark, for each grid, the
- * first frame at which its header, its totals and its first row are wholly within the window —
- * `drawn:` — and the first at which React has hydrated the last cell of its totals, the last
- * element of the grid — `hydrated:`. A
- * mark is named for the grid it marks; its detail is the time it was reached on the clock of the
- * operating system. Self-contained: Playwright hands its source to the page.
- */
-function markUsableGrids(clicked: string): void {
-  const marked = { drawn: new WeakSet<Element>(), hydrated: new WeakSet<Element>() };
-  const inWindow = (element: Element | null): boolean => {
-    if (element === null) {
-      return false;
-    }
-    const box = element.getBoundingClientRect();
-    return (
-      box.height > 0 &&
-      box.top >= 0 &&
-      box.left >= 0 &&
-      box.bottom <= window.innerHeight &&
-      box.right <= window.innerWidth
-    );
-  };
-  const reached = {
-    drawn: (grid: Element): boolean =>
-      inWindow(grid.querySelector("thead th")) &&
-      inWindow(grid.querySelector("tfoot td")) &&
-      inWindow(grid.querySelector('tbody tr[aria-rowindex="2"] td')),
-    hydrated: (grid: Element): boolean => {
-      const last = grid.querySelector("tfoot tr:last-child td:last-child");
-      return last !== null && Object.keys(last).some((key) => key.startsWith("__reactProps$"));
-    },
-  };
-  document.addEventListener(
-    "click",
-    (event) => {
-      sessionStorage.setItem(clicked, String(performance.timeOrigin + event.timeStamp));
-    },
-    { capture: true },
-  );
-  const frame = () => {
-    const now = performance.timeOrigin + performance.now();
-    for (const grid of document.querySelectorAll('[role="treegrid"][aria-label]')) {
-      for (const state of ["drawn", "hydrated"] as const) {
-        if (!marked[state].has(grid) && reached[state](grid)) {
-          marked[state].add(grid);
-          performance.mark(`${state}:${grid.getAttribute("aria-label") ?? ""}`, { detail: now });
-        }
-      }
-    }
-    requestAnimationFrame(frame);
-  };
-  requestAnimationFrame(frame);
-}
-
-/** When a grid was drawn, and when it was hydrated, on the clock of the operating system. */
-interface Usable {
-  readonly drawn: number;
-  readonly hydrated: number;
-}
-
-/**
- * When the grid of a screen was first drawn and first hydrated in the page, on the clock of the
- * operating system, once it is both — the last time, should it have been more than once.
- */
-async function usableAt(page: Page, screen: GridScreen): Promise<Usable> {
-  const read = () =>
-    page.evaluate((grid) => {
-      const at = (state: string) => {
-        const last = performance.getEntriesByName(`${state}:${grid}`, "mark").at(-1);
-        return last instanceof PerformanceMark && typeof last.detail === "number"
-          ? last.detail
-          : null;
-      };
-      const drawn = at("drawn");
-      const hydrated = at("hydrated");
-      return drawn === null || hydrated === null ? null : { drawn, hydrated };
-    }, screen.grid);
-  await expect.poll(read, { timeout: WORKING }).not.toBeNull();
-  return (await read()) ?? { drawn: Number.POSITIVE_INFINITY, hydrated: Number.POSITIVE_INFINITY };
-}
-
 /** How long an opening took, from its start, in milliseconds: drawn, hydrated, usable. */
 interface Opening {
   readonly drawn: number;
@@ -202,55 +134,6 @@ function opening(started: number, { drawn, hydrated }: Usable, underWay: number)
   };
 }
 
-/** How long a page must have had no request under way to be settled, in milliseconds. */
-const QUIET = 500;
-
-/** The requests of a page under way, and when the last of them started or ended. */
-interface Requests {
-  /** How many requests are under way. */
-  readonly underWay: () => number;
-  /** How long no request has started nor ended, in milliseconds. */
-  readonly quietFor: () => number;
-}
-
-/**
- * Follow the requests of a page as they start and end — finished or failed —, whatever document
- * sends them: a navigation within the page, a click on a link, sends its own as a new document
- * does.
- */
-function followRequests(page: Page): Requests {
-  const pending = new Set<Request>();
-  let changed = Date.now();
-  const started = (request: Request) => {
-    pending.add(request);
-    changed = Date.now();
-  };
-  const ended = (request: Request) => {
-    pending.delete(request);
-    changed = Date.now();
-  };
-  page.on("request", started);
-  page.on("requestfinished", ended);
-  page.on("requestfailed", ended);
-  return { underWay: () => pending.size, quietFor: () => Date.now() - changed };
-}
-
-/**
- * Wait until the page has had no request under way for half a second: once the grid is hydrated,
- * its links in the navigation still ask the server for the screens they lead to (prefetching),
- * and a navigation started before they are answered would cut them, while the server still
- * renders them — the first time, loading the modules of each route —, in the time of the opening
- * it measures. Waited for between the openings, never within one.
- */
-async function settle(requests: Requests): Promise<void> {
-  await expect
-    .poll(() => requests.underWay() === 0 && requests.quietFor() >= QUIET, {
-      message: `the page settles: no request under way for ${QUIET.toString()} ms`,
-      timeout: WORKING,
-    })
-    .toBe(true);
-}
-
 /**
  * How many requests of the page are under way as an opening starts: none, the page settled —
  * checked here, and written in the log.
@@ -265,7 +148,7 @@ function underWayAtStart(requests: Requests): number {
 async function openByAddress(page: Page, requests: Requests, screen: GridScreen): Promise<Opening> {
   const underWay = underWayAtStart(requests);
   await page.goto(address(screen), { waitUntil: "commit" });
-  const usable = await usableAt(page, screen);
+  const usable = await usableAt(page, screen.grid);
   const { started, served, parsed } = await page.evaluate(() => {
     const [entry] = performance.getEntriesByType("navigation");
     const timing = entry instanceof PerformanceNavigationTiming ? entry : undefined;
@@ -290,27 +173,18 @@ async function openByClick(
   to: GridScreen,
 ): Promise<Opening> {
   await page.goto(address(from));
-  await usableAt(page, from);
+  await usableAt(page, from.grid);
   await settle(requests);
   const underWay = underWayAtStart(requests);
   await page
     .getByRole("navigation", { name: "Fonctions" })
     .getByRole("link", { name: to.link })
     .click();
-  const usable = await usableAt(page, to);
+  const usable = await usableAt(page, to.grid);
   const clicked = await page.evaluate((key) => Number(sessionStorage.getItem(key)), CLICKED);
   await expect(page).toHaveURL(address(to));
   await settle(requests);
   return opening(clicked, usable, underWay);
-}
-
-/** The median of some durations. */
-function median(durations: readonly number[]): number {
-  const sorted = durations.toSorted((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1
-    ? (sorted[middle] ?? 0)
-    : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
 }
 
 /** Some times as the log writes them, rounded to the millisecond: the median and the worst. */
@@ -428,10 +302,10 @@ async function measuresTheSecond(page: Page, screen: GridScreen, from: GridScree
 }
 
 test.describe("the opening of a grid of a thousand tasks", () => {
-  test.describe.configure({ timeout: 180_000 });
+  test.describe.configure({ timeout: OPENING_PATH });
 
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(markUsableGrids, CLICKED);
+    await watchGrids(page);
   });
 
   // US-0110 and US-0220, a declared deviation: measured, never failing on the second.
@@ -445,5 +319,38 @@ test.describe("the opening of a grid of a thousand tasks", () => {
     page,
   }) => {
     await measuresTheSecond(page, PLANNING, ESTIMATE);
+  });
+
+  // US-2210: the part of the fake back, said apart; measured, never failing.
+  test("says apart how long the fake back takes to serve the example of the lines the grids read", async ({
+    request,
+  }) => {
+    const fakeBack = process.env.E2E_FAKE_BACK;
+    expect(fakeBack, "E2E_FAKE_BACK, the fake back the harness started").toBeTruthy();
+    const nodes = `${fakeBack ?? ""}/api/v1/projects/${PROJECT}/revisions/${REVISION}/structures/${STRUCTURE}/nodes`;
+    const serve = async (): Promise<{ readonly served: number; readonly bytes: number }> => {
+      const started = performance.now();
+      const answer = await request.get(nodes, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+      const body = await answer.body();
+      const served = performance.now() - started;
+      expect(answer.status(), "GET the nodes of the structure").toBe(200);
+      return { served, bytes: body.byteLength };
+    };
+    await serve();
+    const served: number[] = [];
+    let bytes = 0;
+    for (let count = 0; count < OPENINGS; count += 1) {
+      const one = await serve();
+      served.push(one.served);
+      bytes = one.bytes;
+    }
+    const line =
+      `The fake back serves the example of the lines (listNodes) in ${inLog(served)},` +
+      ` ${Math.round(bytes / 1024).toString()} KiB`;
+    console.log(line);
+    toSummary(`- ${line}`);
+    expect(bytes, "the example of the lines, as the fake back serves it").toBeGreaterThan(0);
   });
 });

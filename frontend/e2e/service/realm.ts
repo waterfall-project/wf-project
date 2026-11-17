@@ -535,6 +535,23 @@ function pkce(): { verifier: string; challenge: string } {
  * will once they are wired (#449).
  */
 export async function frontToken(browser: Browser, person: Person): Promise<string> {
+  return (await frontTokens(browser, person)).access_token;
+}
+
+/** The tokens the front obtains for a person, as the identity provider answers them. */
+export interface FrontTokens {
+  readonly access_token: string;
+  /** What renews the access token, once, at the identity provider (`revokeRefreshToken`). */
+  readonly refresh_token: string;
+  /** How long the access token lives, in seconds. */
+  readonly expires_in: number;
+}
+
+/**
+ * The tokens of `frontToken`, its refresh token too: for a measure that renews them away from the
+ * front, as the load of the report of a version does (US-2300, `bench/load.ts`).
+ */
+export async function frontTokens(browser: Browser, person: Person): Promise<FrontTokens> {
   const callback = `${process.env.WATERFALL_FRONT_ADDRESS ?? ""}/auth/callback`;
   const { verifier, challenge } = pkce();
   const context = await browser.newContext({ locale: "fr-FR", ignoreHTTPSErrors: true });
@@ -566,7 +583,7 @@ export async function frontToken(browser: Browser, person: Person): Promise<stri
       },
     });
     expect(answer.ok()).toBe(true);
-    return ((await answer.json()) as TokenAnswer).access_token;
+    return (await answer.json()) as FrontTokens;
   } finally {
     await context.close();
   }

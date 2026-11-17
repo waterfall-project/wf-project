@@ -19,6 +19,11 @@ The differences of amounts are counted on the lines retained, removed ones inclu
 nature of its category and its subproject there, minus its amounts in the base revision under its
 own there (#1751), the nature read on the images of each revision. A key whose two differences are
 nought is left out; the sum by subproject is that by nature, each line counted once in each.
+
+A comparison no filter restricts reads the two readings kept of its structures (EP-26, "La
+comparaison", US-2270): the API gives what the union reads of their nodes, and applies to them the
+place and the mark of each node returned (``compare_united``); the revisions are read and judged
+first (``compared_places``), as ``compare`` reads and judges them.
 """
 
 from dataclasses import dataclass, replace
@@ -27,7 +32,16 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.estimate.indicating import natures_of
 from waterfall.core.estimate.reading import LineView, sort_lines
-from waterfall.core.estimate.uniting import TASK, Union, unite
+from waterfall.core.estimate.uniting import (
+    TASK,
+    LineAmounts,
+    PlacedNode,
+    Union,
+    UnitedNode,
+    line_compared,
+    task_compared,
+    unite,
+)
 from waterfall.core.planning.interface import Place, read_structure
 from waterfall.core.projects.interface import subproject_labels
 from waterfall.core.revisions.interface import aimed_structure, read_revision_for
@@ -45,11 +59,11 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.estimate.uniting import Compared
     from waterfall.core.planning.interface import (
         LineSort,
         NodeFilters,
         NodeView,
-        StructureRead,
         StructureTotals,
     )
     from waterfall.core.revisions.interface import RevisionRead
@@ -108,6 +122,17 @@ class Comparison:
     amount_deltas: tuple[AmountDelta, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class UnitedComparison[K]:
+    """A comparison no filter restricts, of what the union reads (``compare_united``).
+
+    ``items`` the nodes returned, in the order of the union, each placed and marked.
+    """
+
+    items: tuple[PlacedNode[K], ...]
+    amount_deltas: tuple[AmountDelta, ...]
+
+
 def _revision(session: Session, project_id: UUID, revision_id: UUID) -> tuple[RevisionRead, Place]:
     """Read a revision of the project and its main structure; or refuse (404)."""
     read = read_revision_for(session, project_id, revision_id)
@@ -117,31 +142,56 @@ def _revision(session: Session, project_id: UUID, revision_id: UUID) -> tuple[Re
     return read, Place(project_id, revision_id, structure_id)
 
 
-def _retained(
-    union: Union,
-    sides: tuple[StructureRead, StructureRead],
-    filters: NodeFilters,
+def compared_places(
+    session: Session, project_id: UUID, asked: ComparisonAsked
+) -> tuple[tuple[RevisionRead, RevisionRead], tuple[Place, Place]]:
+    """Read the two revisions a comparison asks and their main structures, the base one first.
+
+    A revision unknown or of another project refused first (404), then one not marked (409).
+    """
+    base_read, base_place = _revision(session, project_id, asked.from_revision_id)
+    compared_read, compared_place = _revision(session, project_id, asked.to_revision_id)
+    if not (base_read.marked and compared_read.marked):
+        raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": REVISION_MARKED})
+    return (base_read, compared_read), (base_place, compared_place)
+
+
+def _retained[K](
+    union: Union[K],
+    sides: tuple[Collection[K], Collection[K]],
+    subtree_of: K | None,
     differences: tuple[str, ...] | None,
-) -> set[UUID]:
-    """Give the nodes the filters and the marks retain themselves, without their ancestors."""
+) -> set[K]:
+    """Give the nodes the filters and the marks retain themselves, without their ancestors.
+
+    ``sides`` the nodes the filters retain of each structure, the base one first.
+    """
     base, compared = sides
-    held = set(compared.kept | compared.lines)
-    held |= {each for each in union.removed if each in base.kept or each in base.lines}
-    if filters.subtree_of is not None:
-        held &= set(union.subtree(filters.subtree_of))
+    held = set(compared)
+    held |= {each for each in union.removed if each in base}
+    if subtree_of is not None:
+        held &= set(union.subtree(subtree_of))
     if differences is not None:
         held = {each for each in held if union.difference[each] in differences}
     return held
 
 
+def _ordered[K](union: Union[K], held: set[K], *, ancestors: bool) -> list[K]:
+    """Give the nodes returned in the order of the union: those held, and their ancestors."""
+    returned = set(held)
+    if ancestors:
+        returned |= {ancestor for each in held for ancestor in union.ancestors(each)}
+    return [each for each in union.order if each in returned]
+
+
 def _sorted(
-    session: Session, project_id: UUID, union: Union, order: list[UUID], sort: LineSort
+    session: Session, project_id: UUID, union: Union[UUID], order: list[UUID], sort: LineSort
 ) -> list[UUID]:
     """Sort the lines under each task, a removed one on its values; the tasks keep their place.
 
     The lines of a task come together before its subtasks: each run of them is sorted alone.
     """
-    lines = [each for each in order if union.views[each].kind != TASK]
+    lines = [each for each in order if union.nodes[each].kind != TASK]
     ordered = sort_lines(session, project_id, lines, sort) if lines else None
     if ordered is None:
         return order
@@ -159,10 +209,58 @@ def _sorted(
     return result
 
 
-def _line_of(view: NodeView | None) -> LineView | None:
-    """Give the facet of a line as it is read, none for a task or a node absent."""
-    facet = None if view is None or view.facet is None else view.facet.view
-    return facet if isinstance(facet, LineView) else None
+def _united(view: NodeView) -> UnitedNode[UUID]:
+    """Give what the union reads of a node as a reading of the rows gives it."""
+    task = view.task
+    facet = None if view.facet is None else view.facet.view
+    line = facet if isinstance(facet, LineView) else None
+    compared: Compared = ()
+    if task is not None:
+        compared = task_compared(
+            (task.start, task.finish), (task.duration_value, task.duration_unit), task.progress
+        )
+    elif line is not None:
+        compared = line_compared(
+            line.budgeted_amount,
+            line.reestimated_amount,
+            line.payment_delay_days,
+            line.subproject_id,
+            line.cost_category_id,
+        )
+    return UnitedNode(
+        view.node_id,
+        view.lineage_id,
+        view.kind,
+        view.parent_id,
+        tuple(each.predecessor_id for each in view.predecessors),
+        compared,
+        None
+        if line is None
+        else LineAmounts(
+            line.cost_category_id, line.subproject_id, line.budgeted_amount, line.reestimated_amount
+        ),
+    )
+
+
+def _placed_view(view: NodeView, placed: PlacedNode[UUID]) -> NodeView:
+    """Give a node of a reading of the rows as the union returns it: placed, renamed, read-only."""
+    predecessors = view.predecessors
+    if placed.predecessors:
+        predecessors = tuple(
+            each
+            if renamed is None
+            else replace(each, predecessor_id=renamed[0], row_number=renamed[1])
+            for each, renamed in zip(view.predecessors, placed.predecessors, strict=True)
+        )
+    return replace(
+        view,
+        parent_id=placed.parent_id,
+        row_number=placed.row_number,
+        level=placed.level,
+        position=placed.position,
+        predecessors=predecessors,
+        editable_fields=() if placed.removed else view.editable_fields,
+    )
 
 
 @dataclass(slots=True)
@@ -172,12 +270,12 @@ class _Deltas:
     sums: dict[tuple[str, UUID | None], tuple[Decimal, Decimal]]
     labels: dict[tuple[str, UUID | None], str | None]
 
-    def add(self, key: tuple[str, UUID | None], line: LineView, sign: int) -> None:
+    def add(self, key: tuple[str, UUID | None], line: LineAmounts, sign: int) -> None:
         """Count the amounts of a line under a key, added or taken away."""
         budgeted, reestimated = self.sums.get(key, (ZERO, ZERO))
         self.sums[key] = (
-            budgeted + sign * line.budgeted_amount,
-            reestimated + sign * line.reestimated_amount,
+            budgeted + sign * line.budgeted,
+            reestimated + sign * line.reestimated,
         )
 
 
@@ -185,7 +283,7 @@ def _amount_deltas(
     session: Session,
     project_id: UUID,
     reads: tuple[RevisionRead, RevisionRead],
-    sides: tuple[Sequence[LineView], Sequence[LineView]],
+    sides: tuple[Sequence[LineAmounts], Sequence[LineAmounts]],
 ) -> tuple[AmountDelta, ...]:
     """Sum the differences of the lines, each under its key in each revision; drop the nought."""
     base_read, compared_read = reads
@@ -227,55 +325,75 @@ def _amount_deltas(
     return tuple(found)
 
 
-def _counted(union: Union, held: Collection[UUID]) -> tuple[list[LineView], list[LineView]]:
+def _counted[K](
+    union: Union[K], held: Collection[K]
+) -> tuple[list[LineAmounts], list[LineAmounts]]:
     """Give the lines retained as each revision has them: the base one's, the compared one's."""
-    before: list[LineView] = []
-    after: list[LineView] = []
+    before: list[LineAmounts] = []
+    after: list[LineAmounts] = []
     for node_id in held:
-        if union.views[node_id].kind == TASK:
+        node = union.nodes[node_id]
+        if node.kind == TASK:
             continue
-        base = _line_of(union.base.get(node_id))
-        if base is not None:
-            before.append(base)
-        if node_id not in union.removed:
-            compared = _line_of(union.views[node_id])
-            if compared is not None:
-                after.append(compared)
+        base = union.base.get(node_id)
+        if base is not None and base.line is not None:
+            before.append(base.line)
+        if node_id not in union.removed and node.line is not None:
+            after.append(node.line)
     return before, after
 
 
 def compare(session: Session, project_id: UUID, asked: ComparisonAsked) -> Comparison:
     """Compare two marked revisions of a project, read as ``listNodes`` reads a structure."""
-    base_read, base_place = _revision(session, project_id, asked.from_revision_id)
-    compared_read, compared_place = _revision(session, project_id, asked.to_revision_id)
-    if not (base_read.marked and compared_read.marked):
-        raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": REVISION_MARKED})
+    reads, (base_place, compared_place) = compared_places(session, project_id, asked)
     filters = asked.filters
     compared = read_structure(session, compared_place, filters)
     # The window is the union's: a removed node is held in the base structure whole.
     base = read_structure(session, base_place, replace(filters, subtree_of=None))
-    union = unite(base.nodes, compared.nodes)
-    held = _retained(union, (base, compared), filters, asked.differences)
-    returned = set(held)
-    if filters.timeline_id is None:
-        returned |= {ancestor for each in held for ancestor in union.ancestors(each)}
-    order = [each for each in union.order if each in returned]
+    union = unite(list(map(_united, base.nodes)), list(map(_united, compared.nodes)))
+    sides = (base.kept | base.lines, compared.kept | compared.lines)
+    held = _retained(union, sides, filters.subtree_of, asked.differences)
+    order = _ordered(union, held, ancestors=filters.timeline_id is None)
     if filters.sort is not None:
         order = _sorted(session, project_id, union, order, filters.sort)
     if filters.kinds is not None:
-        order = [each for each in order if union.views[each].kind in filters.kinds]
+        order = [each for each in order if union.nodes[each].kind in filters.kinds]
+    views = {each.node_id: each for each in (*base.nodes, *compared.nodes)}
+    placed = [union.placed(each) for each in order]
     return Comparison(
         from_revision_id=asked.from_revision_id,
         to_revision_id=asked.to_revision_id,
         items=tuple(
-            ComparedNode(union.views[each], union.difference[each], union.changes[each])
-            for each in order
+            ComparedNode(_placed_view(views[each.node_id], each), each.difference, each.changes)
+            for each in placed
         ),
         task_count=compared.task_count,
         totals=compared.totals,
         summary_depth=compared.summary_depth,
         scheduled_at=compared.scheduled_at,
-        amount_deltas=_amount_deltas(
-            session, project_id, (base_read, compared_read), _counted(union, held)
-        ),
+        amount_deltas=_amount_deltas(session, project_id, reads, _counted(union, held)),
+    )
+
+
+def compare_united[K](
+    session: Session,
+    project_id: UUID,
+    reads: tuple[RevisionRead, RevisionRead],
+    sides: tuple[Sequence[UnitedNode[K]], Sequence[UnitedNode[K]]],
+    differences: tuple[str, ...] | None,
+) -> UnitedComparison[K]:
+    """Compare two structures read whole, unfiltered, by what the union reads of their nodes.
+
+    What ``compare`` gives of a comparison that no filter restricts, from what the reader gives
+    of each structure — the nodes of two readings kept, written as the API writes them (US-2270):
+    the nodes returned, placed and marked, which the reader applies to what it read, and the
+    differences of amounts. ``reads`` the two revisions ``compared_places`` read.
+    """
+    base, compared = sides
+    union = unite(base, compared)
+    every = ({each.node_id for each in base}, {each.node_id for each in compared})
+    held = _retained(union, every, None, differences)
+    return UnitedComparison(
+        tuple(union.placed(each) for each in _ordered(union, held, ancestors=True)),
+        _amount_deltas(session, project_id, reads, _counted(union, held)),
     )

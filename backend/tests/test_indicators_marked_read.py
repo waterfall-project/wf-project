@@ -377,7 +377,7 @@ def test_a_scope_the_marking_did_not_keep_is_unknown_to_the_revision_not_compute
 def test_a_marked_revision_that_holds_no_document_at_all_is_computed_and_not_stored(
     api: ContractClient, stage: Scene, clock: Clock, project: Priced
 ) -> None:
-    # A revision marked before the indicators were kept holds no row (migration 0031 takes none
+    # A revision marked before the indicators were kept holds no row (migration 0032 takes none
     # up): neither refused nor recomputed as kept, it is read as the current one is, `is_stored`
     # false. The rows the marking kept are deleted, and the real query of ``kept_of_kind`` reads.
     review = project.tree.revision["revision_id"]
