@@ -245,6 +245,7 @@ export default async function PlanningPage({
       <ContextBanner
         reading={screen.reading}
         structure={screen.structures}
+        base={screen.base}
         breakdown={breakdownChip(screen.breakdownFilter, screen.breakdown?.items)}
         difference={screen.difference}
       />

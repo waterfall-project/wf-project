@@ -965,6 +965,11 @@
     "chooseStructure": "Change the structure, “{structure}” read",
     "mergedStructure": "{label} (merged)",
     "unnamedRevision": "unnamed",
+    "base": "Comparison base",
+    "comparedTo": "Compared to “{base}”",
+    "chooseBase": "Choose a comparison base",
+    "changeBase": "Change the base, “{base}” compared",
+    "liftBase": "Lift the comparison with “{base}”",
     "removeFilter": "Remove the filter “{filter}”",
     "restricts": {
       "grid": "{filter}, on the grid only",

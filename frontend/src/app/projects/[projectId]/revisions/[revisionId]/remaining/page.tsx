@@ -287,6 +287,7 @@ export default async function RemainingPage({
         reading={screen.reading}
         restricts={RESTRICTS}
         breakdown={breakdownChip(screen.breakdownFilter, screen.breakdown?.items)}
+        base={screen.base}
       />
       <Screen density={FUNCTION_DENSITY.remaining} fill>
         <RemainingHeader

@@ -27,16 +27,29 @@ type ListNodes = operations["listNodes"];
 type ListNodesOk = ListNodes["responses"][200];
 type ListNodesBody = ListNodesOk["content"]["application/json"];
 
+/** The path of `compareRevisions`. */
+type ComparisonPath = "/projects/{project_id}/revisions/comparison";
+
+type CompareRevisions = operations["compareRevisions"];
+type CompareRevisionsOk = CompareRevisions["responses"][200];
+type CompareRevisionsBody = CompareRevisionsOk["content"]["application/json"];
+
+/** A node of a comparison, read whole as a node is (`ClientPaths`), with its mark and its base. */
+export type ComparedNode = components["schemas"]["Node"] &
+  Pick<components["schemas"]["ComparedNodeRead"], "difference" | "changes" | "base" | "deltas">;
+
 /**
  * The contract of the API as the client types it: that of `generated/schema.d.ts`, but for the
- * `items` of the `200` of `listNodes`, read as whole nodes (`Node`). The contract types them as
- * projections (`NodeProjection`, #2485), a read with `fields` rendering only the fields it named;
- * a read only ever reads what it asked for by `fields` (`nodeFieldNames`, `projectNodes`), so the
- * front reads them whole. This is the one place that says so. What the type does not say: a
+ * `items` of the `200` of `listNodes` and of `compareRevisions`, read as whole nodes (`Node`), a
+ * node of a comparison with its mark and its base besides (`ComparedNode`). The contract types them
+ * as projections (`NodeProjection`, #2485; `ComparedNodeRead`), a read with `fields` rendering only
+ * the fields it named; a read only ever reads what it asked for by `fields` (`nodeFieldNames`,
+ * `projectNodes`), so the front reads them whole — a grid reads a comparison as it reads its
+ * structure (US-2330). This is the one place that says so. What the type does not say: a
  * property that a read did not ask for by `fields` is typed present but would be absent at run
  * time, which is why a read only reads what it asked for.
  */
-type ClientPaths = Omit<paths, NodesPath> & {
+type ClientPaths = Omit<paths, NodesPath | ComparisonPath> & {
   [P in NodesPath]: Omit<paths[P], "get"> & {
     get: Omit<ListNodes, "responses"> & {
       responses: Omit<ListNodes["responses"], 200> & {
@@ -44,6 +57,20 @@ type ClientPaths = Omit<paths, NodesPath> & {
           content: {
             "application/json": Omit<ListNodesBody, "items"> & {
               items: components["schemas"]["Node"][];
+            };
+          };
+        };
+      };
+    };
+  };
+} & {
+  [P in ComparisonPath]: Omit<paths[P], "get"> & {
+    get: Omit<CompareRevisions, "responses"> & {
+      responses: Omit<CompareRevisions["responses"], 200> & {
+        200: Omit<CompareRevisionsOk, "content"> & {
+          content: {
+            "application/json": Omit<CompareRevisionsBody, "items"> & {
+              items: ComparedNode[];
             };
           };
         };

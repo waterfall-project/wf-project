@@ -62,6 +62,7 @@ const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 const SCREEN = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
 const NODES = "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
 const INDICATORS = "GET /projects/{project_id}/remaining-indicators";
+const COMPARISON = "GET /projects/{project_id}/revisions/comparison";
 const REVISION_READ = "GET /projects/{project_id}/revisions/{revision_id}";
 const STRUCTURES = "GET /projects/{project_id}/revisions/{revision_id}/structures";
 // The lot of the witness and its post, as its work breakdown names them.
@@ -447,6 +448,27 @@ describe("the screen of the remaining to commit", () => {
     const page = await remainingAt();
     expect(page).not.toContain("Work package or order item");
     expect(queryOf(NODES)?.order_item_id).toBeUndefined();
+  });
+
+  it("is compared to the base its address names, which the banner names and offers to lift [WF-IHM-0010-A]", async () => {
+    // Une comparaison active sur le planning l'est encore sur le devis puis sur le reste à engager,
+    // avec la même base : arrived with the base, the remaining to commit reads the comparison of
+    // its tasks started.
+    const reference = "01926f3a-7c00-7000-8000-000000000101";
+    server.answers = { ...server.answers, [COMPARISON]: "comparison_current" };
+    const page = await remainingAt({ base_revision_id: reference });
+    expect(queryOf(NODES)).toBeUndefined();
+    const { fields, ...query } = queryOf(COMPARISON) ?? {};
+    expect(query).toEqual({
+      from_revision_id: reference,
+      to_revision_id: REVISION,
+      progress: "started",
+    });
+    expect(fields?.split(",").sort()).toEqual(nodeFieldNames(REMAINING_FIELDS).sort());
+    const banner = text(page.slice(0, page.indexOf("</section>")));
+    expect(banner).toContain("Compared to “Référence”");
+    expect(page).toContain('aria-label="Lift the comparison with “Référence”"');
+    expect(page).toContain('aria-label="Change the base, “Référence” compared"');
   });
 
   it("reads the main structure alone, whatever structure the address names, and offers no other", async () => {

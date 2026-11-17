@@ -11,6 +11,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const APP = import.meta.dirname;
@@ -22,31 +23,45 @@ function pages(): string[] {
     .map((file) => relative(APP, join(APP, file)).split(sep).join("/"));
 }
 
+/** The name of the tag of a JSX element, as written: `PendingAddress`, `ContextBanner`. */
+function tagName(node: ts.Node, file: ts.SourceFile): string | undefined {
+  if (ts.isJsxSelfClosingElement(node)) {
+    return node.tagName.getText(file);
+  }
+  return ts.isJsxElement(node) ? node.openingElement.tagName.getText(file) : undefined;
+}
+
 /**
  * The banners a page writes outside any `PendingAddress` it writes, by their offset: none when it
  * writes no `PendingAddress` — the banner then shares the address among its own chips and choices.
+ * The source is read by the parser of TypeScript, which tells an element from its props whatever
+ * they hold — the `>` of an arrow function included (#3760).
  */
 function bannersBeside(source: string): number[] {
-  if (!/<PendingAddress\b/.test(source)) {
-    return [];
-  }
+  const file = ts.createSourceFile(
+    "page.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const written = { sharing: false };
   const beside: number[] = [];
-  let depth = 0;
-  for (const tag of source.matchAll(
-    /<PendingAddress\b[^>]*?(\/)?>|<\/PendingAddress>|<ContextBanner\b/g,
-  )) {
-    const [text] = tag;
-    if (text.startsWith("<ContextBanner")) {
-      if (depth === 0) {
-        beside.push(tag.index);
-      }
-    } else if (text.startsWith("</")) {
-      depth -= 1;
-    } else if (tag[1] === undefined) {
-      depth += 1;
+  const visit = (node: ts.Node, under: boolean) => {
+    const name = tagName(node, file);
+    if (name === "PendingAddress") {
+      written.sharing = true;
+    } else if (name === "ContextBanner" && !under) {
+      beside.push(node.getStart(file));
     }
-  }
-  return beside;
+    // A self-closing `PendingAddress` holds nothing: an element with children shares around them.
+    const holds = under || (name === "PendingAddress" && ts.isJsxElement(node));
+    ts.forEachChild(node, (child) => {
+      visit(child, holds);
+    });
+  };
+  visit(file, false);
+  return written.sharing ? beside : [];
 }
 
 describe("the banner of a screen that shares the address last asked", () => {
@@ -69,5 +84,13 @@ describe("the banner of a screen that shares the address last asked", () => {
     expect(bannersBeside(`<>${banner}${shared}</>`)).toHaveLength(1);
     expect(bannersBeside(`<>${shared}${banner}</>`)).toHaveLength(1);
     expect(bannersBeside(`<PendingAddress>${banner}<Grid /></PendingAddress>`)).toEqual([]);
+    expect(bannersBeside(`<><PendingAddress />${banner}</>`)).toHaveLength(1);
+  });
+
+  it("is told under one whose props hold a `>`, and beside one closed before it (#3760)", () => {
+    const banner = "<ContextBanner reading={read} />";
+    const kept = "<PendingAddress kept={(a) => a > 1}>";
+    expect(bannersBeside(`${kept}${banner}<Grid /></PendingAddress>`)).toEqual([]);
+    expect(bannersBeside(`<>${kept}<Grid /></PendingAddress>${banner}</>`)).toHaveLength(1);
   });
 });

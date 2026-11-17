@@ -328,6 +328,7 @@ export default async function EstimatePage({
         reading={screen.reading}
         restricts={RESTRICTS}
         structure={screen.structures}
+        base={screen.base}
         breakdown={breakdownChip(screen.breakdownFilter, screen.breakdown?.items)}
         difference={screen.difference}
       />

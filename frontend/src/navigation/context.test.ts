@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BASE_PARAMETER,
   contextAddress,
   contextCookie,
   contextQuery,
@@ -111,6 +112,33 @@ describe("the reading context", () => {
     expect(rememberedAddress(`${REMAINING}?structure=${structure}`)).toBe(REMAINING);
     const context = readContext(planning, new URLSearchParams({ structure }));
     expect(context && contextAddress(planning, context)).toBe(`${planning}?structure=${structure}`);
+  });
+
+  it.each(["planning", "estimate", "remaining"])(
+    "reads the base of a comparison on the %s, and the cookie of the last context does not keep it [WF-IHM-0010-A]",
+    (screen) => {
+      // La base n'est gardée ni dans les préférences du compte ni avec le dernier contexte du projet
+      // (US-2330) : une grille ouverte sans elle ne compare rien.
+      const base = "01926f3a-7c00-7000-8000-000000000101";
+      const pathname = `/projects/${PROJECT}/revisions/${REVISION}/${screen}`;
+      const search = new URLSearchParams({ [BASE_PARAMETER]: base, subproject_id: SUBPROJECT });
+      expect(readContext(pathname, search)).toMatchObject({ base });
+      const address = `${pathname}?${search.toString()}`;
+      expect(rememberedAddress(address)).toBe(`${pathname}?subproject_id=${SUBPROJECT}`);
+      const context = readContext(pathname, search);
+      expect(context && contextAddress(pathname, context)).toBe(
+        `${pathname}?subproject_id=${SUBPROJECT}`,
+      );
+    },
+  );
+
+  it("reads no base on a screen that compares nothing", () => {
+    const base = "01926f3a-7c00-7000-8000-000000000101";
+    const search = new URLSearchParams({ [BASE_PARAMETER]: base });
+    const kanban = `/projects/${PROJECT}/revisions/${REVISION}/kanban`;
+    expect(readContext(kanban, search)?.base).toBeUndefined();
+    expect(readContext(LIFECYCLE, search)?.base).toBeUndefined();
+    expect(readContext(REMAINING, new URLSearchParams(`${BASE_PARAMETER}=`))?.base).toBeUndefined();
   });
 
   it("names the structure parameter as the grids do", () => {
