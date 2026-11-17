@@ -478,7 +478,7 @@ async function gridsShown(page: Page): Promise<string> {
         return "absent";
       }
       const { top, bottom, left, right } = element.getBoundingClientRect();
-      return `${[top, bottom, left, right].map(Math.round).join("/")}`;
+      return [top, bottom, left, right].map(Math.round).join("/");
     };
     const reached = (window as unknown as Record<string, Reached | undefined>)[reachedName];
     return [...document.querySelectorAll('[role="treegrid"][aria-label]')].map((grid) => {
