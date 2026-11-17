@@ -165,7 +165,7 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Lecture et performance des grilles | livré | EP-25 |
 | [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparaison dans les grilles | en cours | EP-26 |
 | [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | en cours | EP-25, EP-26 |
-| [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10, EP-27 |
+| [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | prêt | EP-10, EP-27 |
 | [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
 | [EP-13](EP-13-exploitation.md) | Exploitation et mise en production | à planifier | EP-04 |

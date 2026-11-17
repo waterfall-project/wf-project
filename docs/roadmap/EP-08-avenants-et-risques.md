@@ -1,7 +1,7 @@
 ---
 id: EP-08
 titre: Gérer les risques, leurs provisions et la réserve, et déplacer la référence par avenant
-statut: à planifier
+statut: prêt
 depend_de: EP-10, EP-27
 famille: front, back
 issue:
@@ -253,10 +253,230 @@ projet, le genre jugé dans le noyau (US-2660).
 
 ## Conception
 
-À écrire à la deuxième étape du cadrage, les US validées. Elle reprendra les décisions déjà prises à
-la première : l'opération `deleteCostStructure`, contre le gel du contrat ; la branche tirée de
-`main`, contre l'exception du lot pivot ; la non-régression des mesures en définition de fini, sans
-US de mesure ; et les trois constats tranchés ci-dessus.
+Écrite au cadrage du 2026-11-17, sur le code de `main` et d'`epic/EP-10` à cette date. Elle dit ce
+qu'un lot devrait sinon décider seul ; ce qui relève d'un lot reste au lot.
+
+### Ce que le cadrage décide
+
+- **Douze US, le socle en lot technique de la première** : la migration, les natures de structure,
+  le module `core/risks` à vide avec son interface déclarée, les points d'extension nouveaux et les
+  routeurs vides. Tout lot du back en dépend.
+- **`epic/EP-08` se tire de `main`**, EP-10 et EP-27 livrés (« Préalables »). Écartée : l'exception
+  du lot pivot (décisions du 2026-11-07 et du 2026-11-15), écrite avant la dépendance à EP-27, dont
+  la branche est distincte.
+- **L'abandon d'un différentiel entre au contrat**, `deleteCostStructure`, contre le gel d'EP-16
+  (décision du 2026-10-22). Écartés : ne rien servir, un différentiel jamais fusionné étant recopié
+  dans chaque révision suivante ; un constat laissé « à trancher ».
+- **Cet abandon est irréversible**, hors de l'historique annulable, comme celui d'une révision.
+  Écarté : un genre nouveau d'`UndoneKind` qui restituerait un arbre entier, un instantané de toute
+  la structure dans la pile.
+- **Une tâche démarrée que le différentiel retire garde le budgété de ses lignes** ; seul leur reste
+  à engager passe à zéro, comme `mergeCostStructure` le dit. « Sa valeur acquise est inchangée » se
+  lit du montant que la tâche porte : terminée par la fusion, elle l'acquiert (WF-IND-0030). Un
+  constat de spécification demande de préciser le Vérif et le motif de WF-REV-0050 (« ramène son
+  budget à ce qui a été fait ») ; il ne bloque aucun lot. Écarté : mettre à zéro ses grandeurs de
+  référence, que ni le contrat ni le corps de l'exigence ne disent.
+- **Le témoin rejoue la fusion de l'avenant 1** (« Le chargeur du témoin »). Écarté : charger la
+  révision 101 telle que marquée et la marquer par la fusion d'un avenant vide, qui n'éprouverait
+  rien et ne chargerait pas le saisi comme il a été saisi.
+- **Pas d'US de mesure** : la non-régression des mesures existantes est en définition de fini.
+  Écartée : une US propre, le tableau du §4.6.2 ne citant aucune opération de cet EPIC.
+- **Trois constats tranchés** : #1626, le front relit le risque ; #2002, une variante déclarée de
+  `getProjectRiskCoverage` ; #2473, les routes des imports gardées par la visibilité du projet.
+
+### Tables et migrations
+
+Une migration, dans le socle, chaînée sur la dernière de `main` à la création de la branche (`0034`
+à ce jour), sans donnée à reprendre : aucune révision n'a d'autre structure que la principale, ni de
+risque. Les tables révisées sont partitionnées par projet, comme celles d'EP-04 à EP-07, et la
+fonction qui crée les partitions d'un projet les connaît.
+
+- **`cost_structure`** : `kind_known` admet `main`, `amendment` et `risk` ; une colonne `risk_id`,
+  non nulle si et seulement si la nature est `risk`, clé étrangère vers `risk` ; un devis propre au
+  plus par risque et par révision (index unique partiel). L'unicité de la principale est inchangée.
+- **`risk`**, non révisée : l'identité du risque, donnée du projet — libellé, description, actions
+  de mitigation —, son compteur et son audit. `Risk.lock_version` est ce compteur : il avance à
+  toute écriture du risque, de son évaluation ou de son devis propre, et ne revient jamais en
+  arrière, abandon et annulation compris.
+- **`risk_evaluation`**, révisée, une ligne par risque et par révision qui le porte : la
+  probabilité, l'état, la structure propre, la ligne de provision (nulle hors de l'état identifié),
+  la catégorie, le sous-projet et la lignée de la tâche que le risque désigne — gardés quand il est
+  écarté, pour son retour —, le coût à la survenance (nul hors de l'état survenu). La copie d'une
+  révision la reprend, l'abandon la supprime avec la révision : c'est ce qui ramène l'évaluation à
+  celle de la dernière révision marquée. Un risque dont aucune révision ne garde d'évaluation après
+  un abandon est supprimé avec lui.
+- **`risk_review`**, une ligne par réexamen, rattachée à la révision où il a été fait : sa date, la
+  probabilité, la gravité et l'état retenus. Elle n'est pas copiée : l'historique d'un risque lu
+  dans une révision est celui des révisions marquées qui la précèdent et le sien. L'abandon et
+  l'annulation retirent les réexamens de la révision en cours.
+- **`risk_reference_share`**, une ligne par risque et par révision de référence : la provision que
+  le risque porte dans cette référence. Écrite quand une révision devient la référence — par
+  désignation ou par fusion —, supprimée quand une désignation est corrigée : pour un risque que la
+  nouvelle référence porte identifié, le montant de sa ligne de provision ; pour un risque survenu
+  ou écarté avant elle, la part qu'il avait dans la référence précédente. La réserve est leur somme
+  (M-01), la provision lue d'un survenu ou d'un écarté est sa part (H-03), et le budgété d'une
+  ligne de provision est celle de son risque.
+- **`node.origin_risk_id`** existe (EP-06) : il reçoit sa clé étrangère vers `risk`, et ne désigne
+  plus que le risque dont la survenance a fusionné le nœud, comme le contrat le dit.
+
+Écartés : la réserve dans une colonne de `revision`, qui ne donnerait pas la part de chaque risque
+et ferait écrire `core/revisions` pour les risques ; un réexamen recopié dans chaque révision, cent
+quatre-vingts copies d'un historique qui ne change pas ; l'identité versionnée, contre H-02.
+
+### Ce qui reconnaît une ligne de provision
+
+Une ligne de provision est une ligne dont la catégorie relève d'une nature de type provision pour
+risques (WF-DEV-0020), lue sur l'image des catégories de sa révision. `core/estimate` le dit, et lui
+seul : `core/planning` cesse de la juger par `origin_risk_id` non nul — ce qui tiendrait pour des
+provisions les lignes fusionnées par une survenance, qui sont du travail et retiennent leur tâche —
+et pose la question aux lignes par le registre qu'EP-09 a déclaré (`register_open_lines`). Le socle
+fait ce changement, avec un test qui pose une ligne issue d'un risque sous une tâche : elle la
+retient ouverte. Écarté : un booléen sur `estimate_line`, une seconde source de la même règle.
+
+### Modules
+
+| Module | Ce qu'il reçoit | Ce qu'il expose |
+|---|---|---|
+| `core/risks` (nouveau, FBS-4.6) | les tables des risques ; la déclaration, l'identité, la provision, le réexamen, la suppression ; le registre, la matrice, la couverture, la réserve ; le compte rendu et l'application d'une survenance | son interface, une fonction par opération ; il s'inscrit à `register_copy`, à la clôture d'une révision, à `register_designation`, à `register_coverage`, à l'historique annulable et aux registres ci-dessous |
+| `core/revisions` | les structures d'autres natures : ouvrir, lister, abandonner un différentiel ; la copie qui ne reprend pas une structure consommée ; la fusion — son compte rendu, sa commande, sa tâche de fond, le marquage et la référence qu'elle produit | `merge_report`, `submit_merge`, `run_merge`, `load_merge` pour le témoin ; `register_merge`, par lequel `core/planning` et `core/estimate` donnent chacun leur part des écarts et de l'application ; la question « structure principale » de `main_structure_without_tasks` (#2541) |
+| `core/planning` | la copie d'une structure dans une autre (un différentiel naît copie de la principale) ; les écarts d'un différentiel à la principale par la lignée, et leur application ; la greffe d'un sous-arbre sous une tâche ou après un jalon ; le report d'une ligne de provision dont la tâche disparaît ; le refus de `setNodeTracking` hors de la principale et le verrou de la lignée (#2497, #2499) | `graft`, que la survenance appelle ; sa part de `register_merge` |
+| `core/estimate` | la ligne de provision — créée, déplacée, rechiffrée, retirée par `core/risks` seul — ; les grandeurs de référence que la fusion donne aux lignes désignées ; les lignes greffées à budgété nul ; les imports sur une structure autre que la principale | la question « provision » ; l'écriture de la provision, réservée à `core/risks` ; sa part de `register_merge` |
+| `core/indicators` | les marches d'avenant, les provisions dans la projection et les décaissements, la couverture dans le document `remaining`, les compteurs des risques dans l'empreinte du cache | inchangé |
+| `core/history` | les quatre genres de saisie d'un risque (`risk_create`, `risk_update`, `risk_review`, `risk_delete`) ; `risk_ids` de la réponse (#2538) | `register_undoable`, par lequel `core/risks` dit comment défaire et refaire les siens |
+| `core/exchanges` | la consultation du genre d'un import, jugée dans le noyau (#2473) | inchangé |
+
+Les modules ne se lisent que par leur interface. `core/risks` dépend de `core/revisions`,
+`core/planning`, `core/estimate` et `core/risk_settings` ; aucun d'eux ne dépend de lui : ce qu'ils
+doivent savoir des risques passe par leurs registres.
+
+### La fusion et la survenance
+
+Elles partagent trois choses, écrites une fois : le calcul d'écarts présentés avant d'être
+appliqués (`ImportDifference`, `ReportRefusal`, ceux de l'import), une tâche de fond qui est une
+seule opération, et la création préalable de la révision en cours.
+
+- **Le compte rendu** est calculé par la même fonction que l'application, sous le verrou des
+  structures pour celle-ci : ce que le compte rendu présente est ce qui est écrit. La confirmation
+  porte les compteurs lus et `creates_current_revision` ; le contrôle et le dépôt de la tâche se
+  font dans une transaction, sous le verrou du projet puis des deux structures.
+- **La fusion** applique les écarts du différentiel par la lignée : ajouts sous des lignées
+  nouvelles, modifications, retraits ; une tâche démarrée retirée est gardée, le reste de ses
+  lignes mis à zéro par la fonction de `setLineRemaining` (EP-09) ; une ligne désignée reçoit ses
+  grandeurs de référence, et ses grandeurs courantes si sa tâche n'est pas démarrée et qu'elle ne
+  porte pas la marque d'une réestimation (EP-09) ; le moteur de dates rejoué une fois juge la
+  boucle, le lien interdit, l'horizon, la tâche sans heure et le poste hors de son lot. Elle
+  appelle ensuite le marquage tel qu'il est (`run_marking` : images, indicateurs conservés,
+  journal), fait de la révision marquée la référence par la voie de la désignation
+  (`register_designation`), et marque le différentiel `is_merged`.
+- **Sans révision en cours**, la même tâche ouvre la révision par copie, y fusionne la copie du
+  différentiel — retrouvée par sa lignée — et la marque ; en échec, la transaction ne laisse rien.
+- **La survenance** greffe le devis propre par `graft`, pose `origin_risk_id` sur chaque nœud
+  greffé, retire la ligne de provision, fige le coût à la survenance, écrit le réexamen de
+  survenance et marque le devis propre `is_merged`. Elle ne marque rien.
+- **La copie d'une révision** ne reprend ni un différentiel fusionné ni un devis propre fusionné,
+  ni leurs nœuds : la règle est dans la copie des structures, que les copies des nœuds, des lignes
+  et des images suivent.
+- **Les tâches de fond** portent les genres que le contrat nomme pour la fusion et la survenance ;
+  pendant qu'elles courent, les écritures du projet nomment `no_background_task_running`.
+
+Écarté : un module `core/amendments` à côté de `core/revisions`, qui aurait dû lire ses tables ;
+une fusion qui appliquerait des écritures une à une par les fonctions de saisie, des états
+intermédiaires que le moteur refuserait (c'est la leçon de l'application d'un import, EP-07).
+
+### Le contrat
+
+Modifié par un lot, avant le code qui le consomme, et le client réengendré :
+
+- **`deleteCostStructure`**, `DELETE …/structures/{structure_id}`, avec le compteur lu de la
+  structure : 204 ; 409 `STATE_FORBIDS_OPERATION`, la première condition qui manque dans l'ordre de
+  la commande — `project_not_terminal`, `revision_draft`, `no_background_task_running`,
+  `unmerged_amendment_exists` pour une structure qui n'est pas un différentiel non fusionné — ;
+  412 au compteur périmé. Une commande `delete` s'ajoute aux commandes d'une structure
+  (`StructureCommand`), disponible sur un différentiel non fusionné de la révision en cours, sous
+  la permission de `create_structure`. `structure_abandon` s'ajoute aux actions du journal. La
+  description de `createCostStructure` y renvoie ; `docs/api/DECISIONS.md` reçoit la décision.
+- **`setNodeTracking`** déclare son refus sur une structure autre que la principale (#2497) : 409
+  `STATE_FORBIDS_OPERATION`, par une condition que le lot choisit parmi celles de
+  `CommandCondition` ou y ajoute, et le dit dans `DECISIONS.md`.
+- **`getProjectRiskCoverage`** reçoit une variante contrefactuelle déclarée, engendrée par
+  `make mock-data` : les lignes issues de 752 réestimées, `occurred_reestimated` différent
+  d'`occurred_cost`, l'écart de couverture inchangé (#2002).
+
+Aucun schéma servi par un EPIC livré ne change. Le succès d'une survenance n'a pas d'exemple ajouté
+(#1830), et `NodesWritten` ne rend pas le compteur du risque (#1626).
+
+### Le service d'API et le worker
+
+Un routeur par US, créés vides par le socle, comme en EP-10, pour que deux lots sans dépendance
+n'écrivent pas le même fichier : les différentiels (US-2550), la fusion (US-2560), la déclaration
+(US-2570), la provision (US-2580), les réexamens (US-2590), le registre et la matrice (US-2600), la
+couverture (US-2610), la survenance (US-2620). De même, l'interface de `core/risks` a un fichier
+par sujet, réexportés par le module.
+Les lectures sont sous `risks.read`, les saisies sous `risks.write`, la fusion sous
+`structure_merge` ; la création préalable d'une révision est refusée par 409
+`may_create_revision`, jamais par 403. Chaque réponse est validée contre le contrat dans les tests.
+Le worker reçoit deux tâches, la fusion et la survenance, sur le modèle du marquage.
+
+Les routes des imports ne gardent plus que la visibilité du projet ; le genre est jugé par
+`core/exchanges`, et le test de l'évaluation des accès admet ces routes comme il admet
+`PATH_OBJECTS` (#2473).
+
+### Les indicateurs et le cache
+
+Dans `core/indicators`, sur ce qu'EP-10 a prévu (« Ce que le cadrage laisse à EP-08 ») : `steps`
+se calcule des références successives du projet, chacune en vigueur de son marquage à celui de la
+suivante ; la projection et les décaissements comptent les lignes de provision à leur date, sans
+délai de paiement ; l'exclusion des tâches de survenance de la valeur acquise est déjà dans la
+sélection des lignes, et reçoit son test ; la couverture entre dans le document `remaining`
+conservé au marquage. L'empreinte du cache lit le compteur de toutes les structures de la révision,
+le nombre des risques du projet et la somme de leurs compteurs.
+
+### Le chargeur du témoin
+
+La tranche des risques et des avenants s'insère dans la marche des événements (`witness`), aux
+instants de la chronologie : le 12 janvier 2026, la déclaration des trois risques ouvre la révision
+101, copie de l'offre 100 ; leurs devis propres et l'avenant 1 sont remplis ; le 1er février, la
+fusion de l'avenant 1 (`load_merge`) marque 101 et en fait la référence ; le 2 février, un réexamen
+ouvre 102 ; le 20 février, la survenance de 752 ; l'avenant 2 est ouvert et rempli dans 102.
+
+Le remplissage direct des tâches et des lignes de 101 (EP-06, EP-07) devient celui de l'avenant 1 :
+ce qui sépare l'offre de la référence, que `wftools.mockhistory` décrit déjà pour engendrer
+`comparison`. Ce que la fusion produit est comparé aux exemples de 101 ; un désaccord est arbitré
+par la spécification, et la fixture se corrige. La désignation de l'offre 100 le 15 janvier reste.
+Les lots d'EP-07, EP-09 et EP-10 qui listent des écarts « à la référence près » voient ces listes
+retirées par le lot du témoin.
+
+### Le front
+
+Les écrans existent (EP-15, EP-17, EP-25) et suivent les commandes que le service rend. Trois
+changements de code : le geste « Abandonner l'avenant » et son action de serveur ; la relecture du
+risque après une écriture dans son devis propre (#1626) ; le gestionnaire de la promesse du filtre
+d'origine (#1972). Le reste est la levée des gardes `inService` des parcours et la mise à jour du
+guide.
+
+### Les tests du back
+
+Les exemples chiffrés du §3.4.5.6 et ceux de WF-REV-0050, WF-IND-0030 et WF-IND-0100 qui citent un
+risque survenu, une fusion ou un avenant entrent au harnais d'exemples (`fixtures/examples.json`),
+chacun citant son exigence. Un jeu de fabriques commun aux lots — un projet chiffré à 1 000, un
+risque de gravité 200 à 30 %, un différentiel — est écrit par le socle, pour que chaque lot ne
+bâtisse pas le sien.
+
+### L'ordre de construction
+
+1. **Le socle, et ce qui ne l'attend pas**, en parallèle : le socle (US-2550) ; le contrat
+   (`deleteCostStructure`, le refus de `setNodeTracking`, la variante de la couverture) ; les
+   constats sans lien avec les risques (US-2660).
+2. **Les structures et le risque** : les différentiels (US-2550) ; la déclaration, le devis propre
+   et la ligne de provision (US-2570, US-2580).
+3. **Ce qui lit ou écrit un risque déclaré** : les réexamens et l'annulation (US-2590), le registre
+   et la matrice (US-2600), la réserve et la couverture (US-2610) ; à côté, le compte rendu puis
+   l'application de la fusion (US-2560).
+4. **La survenance** (US-2620), sur la greffe et la couverture ; **les indicateurs** (US-2630), sur
+   la fusion, la survenance et la couverture.
+5. **Les écrans** (US-2640), puis **le témoin** (US-2650), qui attend tout le back, et **la
+   vérification d'ensemble**, seule : le parcours du chef de projet, la définition de fini, les
+   mesures rejouées.
 
 ---
 
@@ -417,8 +637,10 @@ ni ce qui a été réestimé, ni ce qui a été fait.
   le différentiel ne touche pas garde sa lignée, son état, son avancement et ses inscriptions ;
 - `WF-REV-0050-A` — « Une tâche démarrée désignée comme retirée par un différentiel est conservée,
   son reste à engager est nul, et sa valeur acquise est inchangée après la fusion. » : la tâche est
-  conservée, le reste à engager de ses lignes est nul, elle est terminée à la date de la fusion, et
-  sa valeur acquise lue après la fusion est celle d'avant ;
+  conservée, le reste à engager de ses lignes est nul, elle est
+  terminée à la date de la fusion, et ses lignes gardent leur budgété : la valeur que la tâche porte
+  est inchangée, et elle l'acquiert en se terminant (décision de l'auteur du 2026-11-17 ; un constat
+  de spécification demande de préciser la phrase) ;
 - `WF-REV-0050-A` — « Une ligne réestimée à 140 pour un montant budgété de 100, non désignée par le
   différentiel, porte toujours 100 et 140 après la fusion. » : la ligne porte 100 de budgété et 140
   de réestimé après la fusion ;
@@ -808,8 +1030,8 @@ font peser sur le projet se lise là où il se lirait s'ils survenaient.
   tâche et rejette celles qui en termineraient une. » : tenu par EP-09, non touché ici ;
 - `WF-INTF-0120-A` — « Une cellule de reste effacée sur une ligne connue la met à zéro. » : tenu par
   EP-09, non touché ici ;
-- propre à l'US : la ligne de provision est une ligne de la structure principale, de la catégorie
-  que le risque désigne, à budgété nul, dont le montant est la gravité pondérée par la probabilité,
+- propre à l'US : la ligne de provision est une ligne de la structure principale, de la catégorie que le
+  risque désigne, dont le budgété est la provision qu'elle portait dans la référence et le montant est la gravité pondérée par la probabilité,
   au centime ; elle ne s'écrit que par le risque — sa déclaration, `updateRiskProvision`, ses
   réexamens, les écritures de son devis propre — et les écritures de grille, le collage et les
   imports la refusent ou l'ignorent comme le contrat le dit ;
@@ -1226,8 +1448,8 @@ référence.
 - propre à l'US : après une survenance, la projection du chef de projet porte le coût du risque et
   l'indice de coût le compte comme une dérive ; un avenant qui intègre au budget de référence les
   lignes d'un risque survenu rétablit l'indice de coût sans toucher la couverture (WF-RIS-0050,
-  US-2610) ; une tâche démarrée qu'un avenant termine garde sa valeur acquise (WF-REV-0050, US-2560)
-  ;
+  US-2610) ; une tâche démarrée qu'un avenant
+  termine acquiert le budgété que ses lignes gardent (WF-REV-0050, US-2560) ;
 - propre à l'US : l'empreinte du cache des indicateurs lit les compteurs de toutes les structures de
   la révision et ceux des risques (#3629) : après une saisie dans un devis propre, un réexamen, une
   survenance, une fusion ou un abandon de différentiel, aucune entrée périmée n'est servie ;
