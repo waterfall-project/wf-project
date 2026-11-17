@@ -56,6 +56,10 @@ from waterfall.witness.main import load_witness
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+# A test that skips without declaring it by the mark ``unexecuted`` fails (US-2440): the plugin is
+# the tools', shared with their tests, and found on the ``pythonpath`` of pyproject.toml.
+pytest_plugins = ("wftools.unexecuted",)
+
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     """Declare ``--shard``: one part of the tests, as the chain spreads them (back.yml)."""

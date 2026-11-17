@@ -419,7 +419,7 @@ règlent à chaque reprise de `main` dans `epic/EP-28`.
 
 ## US-2440 — Le relevé de couverture ne compte que ce qui s'exécute, et un critère propre à une US se cite `[US-nnnn]`
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3681

@@ -405,6 +405,7 @@ def test_an_export_is_requested_for_a_marked_revision_and_served_once_under_its_
 
 
 @pytest.mark.requirement("WF-INTF-0050-A")
+@pytest.mark.unexecuted("skipped unless WATERFALL_MSPDI_SCHEMA_PATH names the schema of MSPDI")
 def test_the_file_exported_is_valid_against_the_schema_when_it_is_named(
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:

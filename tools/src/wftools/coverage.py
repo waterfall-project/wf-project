@@ -6,9 +6,20 @@ Usage: ``python -m wftools.coverage [--release]``.
 
 A Python test cites a requirement with the marker ``@pytest.mark.requirement("WF-…-A")``, on
 the test, its class, or the module (``pytestmark``); a TypeScript test — Vitest or
-Playwright — cites it between brackets in its title: ``it("… [WF-QUA-0050-A]", …)``. The
-citations are read from the test files themselves, without running them: removing a test
-makes its requirement uncovered at once, and a failing test is the tests' own business.
+Playwright — cites it between brackets in its title: ``it("… [WF-QUA-0050-A]", …)``, or in the
+title of a ``describe`` that holds it. The citations are read from the test files themselves,
+without running them: removing a test makes its requirement uncovered at once, and a failing test
+is the tests' own business. A citation in a comment is no citation.
+
+A test that is not run proves nothing, and is told by what it declares (US-2440): a Python test
+that can skip bears the mark ``@pytest.mark.unexecuted("<reason>")`` — on the test, its class, the
+module, or a ``pytest.param`` of its ``parametrize`` —, which ``wftools.unexecuted`` makes
+compulsory; any call of that mark counts, whatever its argument, as the plugin accepts any string. A
+TypeScript test is declared ``.skip``, ``.fixme`` or ``.todo``, or sits in a ``describe.skip`` or
+``describe.fixme``. Its citations are listed under their requirement, « non exécuté », and cover
+nothing. A skip a TypeScript test decides in its body (``test.skip(condition, …)``), or by
+``it.skipIf`` and ``it.runIf``, is not seen: the test counts as run. A form of declaration that
+``wftools.titles`` does not know fails the report, naming the file and the line.
 
 Each citation belongs to the family of its file — end-to-end against the service, end-to-end,
 front, back or tools, as ``tools/paths.toml`` declares them — and the report says, for every
@@ -23,10 +34,10 @@ not count as covered.
 The report lists every F0 requirement of the document with the tests that cover it, and is
 added to the summary of the chain's job when it runs there. A citation of an unknown
 identifier, or of a revision the document has moved past, always fails. With
-``--release``, an F0 requirement no test covers — or the front alone covers — fails too,
-and is named: a release is refused while one is uncovered. A requirement whose Vérif opens
-with « Vérifiée en recette » awaits an acceptance report; the report says so, until the
-form of such a report is defined.
+``--release``, an F0 requirement no test covers — the front alone covers, or tests not run
+alone cite — fails too, and is named: a release is refused while one is uncovered. A
+requirement whose Vérif opens with « Vérifiée en recette » awaits an acceptance report; the
+report says so, until the form of such a report is defined.
 """
 
 import argparse
@@ -40,7 +51,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeGuard
 
-from wftools import REPOSITORY, paths, projection, roadmap
+from wftools import REPOSITORY, paths, projection, roadmap, titles
+from wftools.unexecuted import MARK
 
 ACCEPTANCE = "Vérifiée en recette"
 """What opens the Vérif field of a requirement an acceptance report covers (WF-QUA-0010)."""
@@ -58,39 +70,51 @@ _Test = ast.FunctionDef | ast.AsyncFunctionDef
 
 @dataclass(frozen=True, slots=True)
 class Citation:
-    """A test that cites a requirement, and the family of tests it belongs to."""
+    """A test that cites a requirement, the family of tests it belongs to, and whether it runs.
+
+    A test that does not run — skipped, or declared so — covers nothing (US-2440).
+    """
 
     requirement: str
     test: str
     family: str
+    executed: bool = True
 
 
 def python_citations(path: str, source: str, kind: str) -> list[Citation]:
     """Return the requirements the tests of a Python file of this family cite, test by test."""
     tree = ast.parse(source)
-    module = _marked(_module_marks(tree))
+    module = _module_marks(tree)
+    names = _assigned(tree)
     found: list[Citation] = []
+
+    def cite(test: str, marks: list[ast.expr]) -> None:
+        executed = not _unexecuted(marks, names)
+        found.extend(Citation(requirement, test, kind, executed) for requirement in _marked(marks))
+
     for node in tree.body:
         if isinstance(node, ast.ClassDef):
-            inherited = module + _marked(node.decorator_list)
             for member in node.body:
                 if _is_test(member):
-                    test = f"{path}::{node.name}::{member.name}"
-                    cited = inherited + _marked(member.decorator_list)
-                    found.extend(Citation(requirement, test, kind) for requirement in cited)
+                    marks = module + node.decorator_list + member.decorator_list
+                    cite(f"{path}::{node.name}::{member.name}", marks)
         elif _is_test(node):
-            test = f"{path}::{node.name}"
-            cited = module + _marked(node.decorator_list)
-            found.extend(Citation(requirement, test, kind) for requirement in cited)
+            cite(f"{path}::{node.name}", module + node.decorator_list)
     return found
 
 
 def typescript_citations(path: str, source: str, kind: str) -> list[Citation]:
-    """Return the requirements the titles of a TypeScript test file of this family cite."""
-    return [
-        Citation(match.group(1), f"{path}:{source.count(chr(10), 0, match.start()) + 1}", kind)
-        for match in _TITLE_CITATION.finditer(source)
-    ]
+    """Return the requirements the titles of a TypeScript test file of this family cite.
+
+    Each citation is placed at its line; it runs as the test, or the group, whose title holds it.
+    """
+    found: list[Citation] = []
+    for title, runs in titles.declarations(source, jsx=path.endswith(".tsx"), path=path):
+        for string in title.strings:
+            for match in _TITLE_CITATION.finditer(string.text):
+                line = source.count("\n", 0, string.start + match.start()) + 1
+                found.append(Citation(match.group(1), f"{path}:{line}", kind, runs))
+    return found
 
 
 def _is_test(node: ast.stmt) -> TypeGuard[_Test]:
@@ -99,22 +123,66 @@ def _is_test(node: ast.stmt) -> TypeGuard[_Test]:
 
 def _module_marks(tree: ast.Module) -> list[ast.expr]:
     for node in tree.body:
-        if isinstance(node, ast.Assign) and any(
-            isinstance(target, ast.Name) and target.id == "pytestmark" for target in node.targets
+        targets, value = _assignment(node)
+        if value is not None and any(
+            isinstance(target, ast.Name) and target.id == "pytestmark" for target in targets
         ):
-            value = node.value
             return list(value.elts) if isinstance(value, ast.List | ast.Tuple) else [value]
     return []
 
 
+def _assignment(node: ast.stmt) -> tuple[list[ast.expr], ast.expr | None]:
+    """Return the targets and the value of an assignment, annotated or not."""
+    if isinstance(node, ast.Assign):
+        return node.targets, node.value
+    if isinstance(node, ast.AnnAssign):
+        return [node.target], node.value
+    return [], None
+
+
+def _assigned(tree: ast.Module) -> dict[str, ast.expr]:
+    """Return the value each name assigned at the top of the module holds."""
+    return {
+        target.id: value
+        for node in tree.body
+        for targets, value in [_assignment(node)]
+        if value is not None
+        for target in targets
+        if isinstance(target, ast.Name)
+    }
+
+
+def _unexecuted(expressions: list[ast.expr], names: dict[str, ast.expr]) -> bool:
+    """Tell whether any call of the mark ``unexecuted`` is in these decorators or marks.
+
+    The mark counts whatever its argument is: ``@pytest.mark.unexecuted(REASON)`` skips as well as
+    one with a string, the plugin taking any string at run time. It is looked for in the whole
+    expression, which finds ``pytest.param(…, marks=pytest.mark.unexecuted(…))`` in a
+    ``parametrize`` (a test with a case that may skip may not run), and in the module-level names
+    the expression reads, a list of cases built apart. A name from another module is not seen.
+    """
+    seen: set[str] = set()
+    pending = list(expressions)
+    while pending:
+        for node in ast.walk(pending.pop()):
+            if isinstance(node, ast.Call) and _named(node.func, MARK):
+                return True
+            if isinstance(node, ast.Name) and node.id in names and node.id not in seen:
+                seen.add(node.id)
+                pending.append(names[node.id])
+    return False
+
+
+def _named(function: ast.expr, name: str) -> bool:
+    return isinstance(function, ast.Attribute) and function.attr == name
+
+
 def _marked(expressions: list[ast.expr]) -> list[str]:
-    """Return the identifiers of the ``requirement`` marks among decorators or marks."""
+    """Return the identifiers the ``requirement`` marks among decorators or marks give."""
     return [
         argument.value
         for expression in expressions
-        if isinstance(expression, ast.Call)
-        and isinstance(expression.func, ast.Attribute)
-        and expression.func.attr == "requirement"
+        if isinstance(expression, ast.Call) and _named(expression.func, "requirement")
         for argument in expression.args
         if isinstance(argument, ast.Constant) and isinstance(argument.value, str)
     ]
@@ -163,7 +231,11 @@ def closed_by_the_front(epics: tuple[roadmap.Epic, ...]) -> frozenset[str]:
 
 @dataclass(frozen=True, slots=True)
 class Report:
-    """What the citations cover, and what is wrong with them."""
+    """What the citations cover, and what is wrong with them.
+
+    ``covered`` holds the citations of the tests that run, ``unexecuted`` those of the tests that
+    do not, which cover nothing: a requirement only they cite is uncovered.
+    """
 
     order: tuple[str, ...]
     covered: dict[str, list[Citation]]
@@ -172,10 +244,14 @@ class Report:
     acceptance: list[str]
     unknown: list[Citation]
     outdated: list[tuple[Citation, str]]
+    unexecuted: dict[str, list[Citation]]
 
     @property
     def missing(self) -> list[str]:
-        """The F0 requirements a release refuses: uncovered, or covered by the front alone."""
+        """The F0 requirements a release refuses: uncovered, or covered by the front alone.
+
+        A requirement only tests not run cite is uncovered.
+        """
         return self.uncovered + self.front_only
 
     def families(self, identifier: str) -> list[str]:
@@ -211,13 +287,20 @@ class Report:
     def _cell(self, requirement: projection.Requirement) -> str:
         identifier = requirement.identifier
         tests = self.covered.get(identifier, [])
+        not_run = "".join(
+            f"<br>`{citation.test}` (non exécuté)"
+            for citation in self.unexecuted.get(identifier, [])
+        )
         if identifier in self.front_only:
-            return "**front seul** : " + "<br>".join(f"`{c.test}`" for c in tests)
+            listed = "<br>".join(f"`{c.test}`" for c in tests)
+            return f"**front seul** : {listed}{not_run}"
         if tests:
-            return "<br>".join(f"`{citation.test}`" for citation in tests)
+            return "<br>".join(f"`{citation.test}`" for citation in tests) + not_run
         if identifier in self.acceptance:
-            return "**non couverte** — vérifiée en recette, procès-verbal attendu"
-        return "**non couverte**" if requirement.is_mandatory else "non couverte"
+            verdict = "**non couverte** — vérifiée en recette, procès-verbal attendu"
+        else:
+            verdict = "**non couverte**" if requirement.is_mandatory else "non couverte"
+        return verdict + not_run
 
 
 def report(
@@ -235,11 +318,12 @@ def report(
     by_identifier = {requirement.identifier: requirement for requirement in requirements}
     by_key = {requirement.key: requirement for requirement in requirements}
     covered: dict[str, list[Citation]] = defaultdict(list)
+    unexecuted: dict[str, list[Citation]] = defaultdict(list)
     unknown: list[Citation] = []
     outdated: list[tuple[Citation, str]] = []
     for citation in found:
         if citation.requirement in by_identifier:
-            covered[citation.requirement].append(citation)
+            (covered if citation.executed else unexecuted)[citation.requirement].append(citation)
         elif (current := by_key.get(citation.requirement[:-2])) is not None:
             outdated.append((citation, current.identifier))
         else:
@@ -266,6 +350,7 @@ def report(
         acceptance,
         unknown,
         outdated,
+        dict(unexecuted),
     )
 
 
@@ -276,6 +361,8 @@ def _print(result: Report, mandatory: list[projection.Requirement]) -> None:
         if families:
             note = " (front alone)" if requirement.identifier in result.front_only else ""
             print(f"{requirement.identifier}: {', '.join(families)}{note}")
+        elif requirement.identifier in result.unexecuted:
+            print(f"{requirement.identifier}: cited by tests not run alone")
     print(
         f"{len(mandatory) - len(result.missing)} of {len(mandatory)} F0 requirements covered; "
         f"{len(result.front_only)} cited by the front alone and closed by another epic, "
@@ -288,6 +375,8 @@ def _reason(result: Report, identifier: str) -> str:
         return " (front alone)"
     if identifier in result.acceptance:
         return " (verified at acceptance: no report yet)"
+    if identifier in result.unexecuted:
+        return " (cited by tests not run alone)"
     return ""
 
 
@@ -301,7 +390,12 @@ def main(arguments: list[str]) -> int:
     requirements = projection.read()
     declaration = paths.read()
     front_closed = closed_by_the_front(roadmap.read())
-    result = report(requirements, citations(declaration), declaration, front_closed)
+    try:
+        found = citations(declaration)
+    except titles.UnreadableError as unreadable:
+        print(unreadable, file=sys.stderr)
+        return 1
+    result = report(requirements, found, declaration, front_closed)
     mandatory = [requirement for requirement in requirements if requirement.is_mandatory]
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:

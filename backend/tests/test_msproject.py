@@ -339,6 +339,7 @@ def test_the_writer_writes_the_elements_in_the_order_of_the_schema() -> None:
 
 
 @pytest.mark.requirement("WF-QUA-0080-A")
+@pytest.mark.unexecuted("skipped unless WATERFALL_MSPDI_SCHEMA_PATH names the schema of MSPDI")
 def test_a_planning_written_is_valid_against_the_schema(schema: etree.XMLSchema) -> None:
     written = write_project(read_project(SAVED).project)
 
@@ -420,6 +421,7 @@ FULL = MsProject(
 
 
 @pytest.mark.requirement("WF-QUA-0080-A")
+@pytest.mark.unexecuted("skipped unless WATERFALL_MSPDI_SCHEMA_PATH names the schema of MSPDI")
 def test_a_planning_with_every_constraint_link_lag_format_milestones_and_manual_tasks_is_valid(
     schema: etree.XMLSchema,
 ) -> None:
@@ -430,6 +432,7 @@ def test_a_planning_with_every_constraint_link_lag_format_milestones_and_manual_
 
 
 @pytest.mark.requirement("WF-QUA-0080-A")
+@pytest.mark.unexecuted("skipped unless WATERFALL_MSPDI_SCHEMA_PATH names the schema of MSPDI")
 def test_an_element_out_of_the_order_of_the_schema_makes_the_file_invalid(
     schema: etree.XMLSchema,
 ) -> None:
@@ -582,6 +585,7 @@ def test_the_head_carries_the_working_day_of_the_calendar_of_the_project() -> No
 
 
 @pytest.mark.requirement("WF-QUA-0080-A")
+@pytest.mark.unexecuted("skipped unless WATERFALL_MSPDI_SCHEMA_PATH names the schema of MSPDI")
 def test_a_planning_with_manual_tasks_written_is_valid_against_the_schema(
     schema: etree.XMLSchema,
 ) -> None:
