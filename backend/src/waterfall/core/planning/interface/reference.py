@@ -38,7 +38,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from waterfall.core.planning.dating import PROJECT_HORIZON_EXCEEDED
-from waterfall.core.planning.interface.facets import named_calendars
+from waterfall.core.planning.interface.facets import named_calendars, refused_at
 from waterfall.core.planning.interface.structures import reschedule
 from waterfall.core.planning.tables import Node
 from waterfall.core.planning.tree import TASK
@@ -88,19 +88,25 @@ def tasks_left_idle(session: Session, change: CalendarChange) -> tuple[IdleProje
     return tuple(IdleProject(label, code) for code, label in sorted(named.values(), key=_by_label))
 
 
-def reschedule_current_structures(session: Session, at: datetime) -> None:
+def reschedule_current_structures(
+    session: Session, at: datetime, entered: tuple[str, ...] = ()
+) -> None:
     """Redate the structures of the current revisions, after a change of the reference.
 
     Their revisions read ``FOR SHARE``, then each structure locked and replayed in the order of
     (``project_id``, ``id``), its dates' instant moved on to ``at``. Beyond fifteen years, the
     change is refused naming each project carried so, by its label and its code, nothing else
     (422 ``PROJECT_HORIZON_EXCEEDED``, ``params.projects``, WF-ADM-0110): the author of the change
-    may consult none of them.
+    may consult none of them. A line priced again past its column refuses the change at
+    ``entered``, the fields of the request that carry it, or without a field (``refused_at``,
+    #3401). That refusal is raised at once, whereas the horizon's is gathered and raised at the end:
+    the first wins, whatever the order of the structures.
     """
     beyond: set[UUID] = set()
     for each in current_structures(session, lock=True):
         try:
-            reschedule(session, each.project_id, each.structure_id, at)
+            with refused_at(entered):
+                reschedule(session, each.project_id, each.structure_id, at)
         except UnprocessableError as refused:
             if refused.code != PROJECT_HORIZON_EXCEEDED:
                 raise

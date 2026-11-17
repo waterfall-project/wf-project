@@ -423,6 +423,8 @@ def create_calendar(
             )
         )
     if default:
+        # No ``entered``: only the bootstrap and the loader of the witness pass ``default`` (the
+        # API never does), before any project exists: no line to price again, no field to name.
         recalculate(session, act.at)
     return read_calendar(session, calendar_id)
 
@@ -436,18 +438,20 @@ def update_calendar(
     leave a task without an hour is refused (422), which EP-06 judges. The structures of the current
     revisions are redated in the transaction, once the calendar is written (``recalculate``), when
     the hours of the default change: a label, or the hours of another calendar, which no task of
-    EP-06 is on, redate nothing.
+    EP-06 is on, redate nothing. A line the redating prices past its column is refused at each day
+    whose hours change, in the order of the week (``/weekly_hours/<day>``, #3401).
     """
     _refuse_hours(change.weekly_hours)
     lock_reference(session)
     calendar = _lock_calendar(session, calendar_id)
     _expect(calendar, lock_version)
     _refuse_idle_tasks(session, calendar_id, change.weekly_hours, default=calendar.is_default)
-    redating = calendar.is_default and _weekly(_hours_of(calendar)) != _weekly(change.weekly_hours)
+    before, after = _weekly(_hours_of(calendar)), _weekly(change.weekly_hours)
+    changed = tuple(json_pointer("weekly_hours", day) for day in DAYS if before[day] != after[day])
     with _unique_label(session, change.label):
-        _write(session, calendar, act, label=change.label, **_weekly(change.weekly_hours))
-    if redating:
-        recalculate(session, act.at)
+        _write(session, calendar, act, label=change.label, **after)
+    if calendar.is_default and changed:
+        recalculate(session, act.at, changed)
     return read_calendar(session, calendar_id)
 
 
@@ -459,7 +463,8 @@ def set_default_calendar(
     The version is judged first, as for any versioned write. A calendar that is the default
     already answers as it is, nothing written; a deactivated one is not designated (409), nor one
     that would leave a task without an hour (422). The structures of the current revisions are
-    redated in the transaction, once it is designated (``recalculate``).
+    redated in the transaction, once it is designated (``recalculate``); a line it prices past its
+    column is refused without a field, the request sending none that carries it (#3401).
     """
     lock_reference(session)
     _lock_designation(session)

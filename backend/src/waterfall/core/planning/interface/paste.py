@@ -905,7 +905,8 @@ def apply_paste(
     any row to write, nothing is written: no entry, the counter as it was. A plan that writes the
     columns of a task is refused, under the lock, to whoever no longer holds ``planning.write``
     among ``permissions`` — ``remaining.write`` for the columns of its execution — (403, #2775,
-    #2805); nothing is written then.
+    #2805); nothing is written then. A line the paste prices past its column is refused without a
+    field: the request carries the plan, not the cells (422, ``docs/api/DECISIONS.md``, #3401).
     """
     facts = facts_of(session, place, lock=False)
     judge_revision(session, place.project_id, place.revision_id)

@@ -12,7 +12,10 @@ hours of a labour line (#2997), and the product of a disbursement and a quantity
 line (#3035) and its re-estimated amount, projected by the inflation (#3039), refused at the
 quantity, or at the field that carries the rate a change would reproject written lines with; and
 the redating of a task that carries a written line past its column, at the fields sent that date it
-(#3094, US-2260/L3). The scenario of the finding is replayed on the test database.
+(#3094, US-2260/L3); a move, at its parent, a change of the default calendar or of the units of
+duration, at the days or the constants changed, a paste and the designation of a default calendar,
+which send no field that carries it, without one (#3401, US-2400/L1). The scenario of the finding
+is replayed on the test database.
 """
 
 from datetime import date, timedelta
@@ -21,8 +24,11 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 from estimate_support import YEAR, Costing, Lines, costing
+from history_support import counter
 from installed_reference import holding
-from nodes_support import Tree, faults, opened
+from nodes_support import Tree, faults, opened, refusal
+from paste_support import apply as apply_paste
+from paste_support import planned
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 
@@ -599,3 +605,191 @@ def test_predecessors_that_carry_a_written_line_beyond_its_column_are_refused_at
     assert faults(refused) == [("/predecessors", PRECISION, {})]
     assert kept_line(tree) == before
     assert tree.node(task["node_id"])["task"] == read["task"]
+
+
+# --- The other writes that price written lines again (US-2400/L1, #3401) -------------------------
+
+CALENDARS = "/api/v1/reference/calendars"
+THIRTY_DAYS = {"duration": {"value": "30", "unit": "d"}}
+WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+
+
+def thirty_days_at_its_limit(
+    api: ContractClient, stage: Scene, lines: Lines, costs: Costing
+) -> dict[str, Any]:
+    """Give a task of thirty days of this year a line at its most, the project inflating at 3 %."""
+    assert inflated(api, stage, "0.03").status_code == 200
+    task = lines.tree.made("Câblage", task=THIRTY_DAYS)
+    at_its_limit(lines, costs, task)
+    return task
+
+
+def halved(lines: Lines) -> None:
+    """Halve the quantity of the only line of the structure, which then crosses no column."""
+    [line] = lines.tree.items("?kinds=estimate_line")
+    lines.changed(line, quantity="0.5")
+
+
+def default_of(api: ContractClient, headers: dict[str, str]) -> dict[str, Any]:
+    """Read the default calendar."""
+    listed = api.get(f"{CALENDARS}?sort_by=is_default", headers=headers).json()["items"]
+    return next(each for each in listed if each["is_default"])
+
+
+def three_days_a_week() -> dict[str, str]:
+    """Give a week of eight hours from Monday to Wednesday, none after."""
+    return dict(zip(WEEKDAYS, ("8", "8", "8", "0", "0", "0", "0"), strict=True))
+
+
+@pytest.mark.requirement("WF-DEV-0040-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_a_line_moved_to_a_task_that_carries_it_past_its_column_is_refused_at_the_parent(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # #3401 (US-2400): the line at its limit, moved under a task two years on at 3 %, is consumed
+    # there: 1.0609 times its amount. The parent sent gives it the dates of that task: the refusal
+    # names it; nothing is written.
+    assert inflated(api, stage, "0.03").status_code == 200
+    task = tree.made("Câblage")
+    at_its_limit(lines, costs, task)
+    before = kept_line(tree)
+    later = in_years(tree, 2, "Plus tard")
+    [line] = tree.items("?kinds=estimate_line")
+    sent = {
+        "node_ids": [line["node_id"]],
+        "parent_id": later["node_id"],
+        "lock_version": counter(tree),
+    }
+    refused = api.post(f"{tree.path}/nodes/move", headers=stage.manager.headers, json=sent)
+    assert faults(refused) == [("/parent_id", PRECISION, {})]
+    assert kept_line(tree) == before
+    assert tree.items("?kinds=estimate_line")[0]["parent_id"] == task["node_id"]
+
+
+@pytest.mark.requirement("WF-DEV-0040-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_a_paste_that_carries_a_written_line_past_its_column_is_refused_without_a_field(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # #3401 (US-2400): a duration of five hundred days pasted on the task of the line carries its
+    # shares over three years at 3 %. The confirmation sends the plan, its confirmation and the
+    # counter, none of the cells: no field of the request carries the change, and the refusal
+    # names none (docs/api/DECISIONS.md); nothing is written. The line halved, the paste is made.
+    assert inflated(api, stage, "0.03").status_code == 200
+    task = tree.made("Câblage")
+    at_its_limit(lines, costs, task)
+    before = kept_line(tree)
+    read = tree.node(task["node_id"])
+    plan = planned(tree, task, "duration", [["500"]])
+    assert (plan["accepted"], plan["rejected"]) == (1, [])
+    refused = apply_paste(tree, plan)
+    assert refusal(refused) == (422, PRECISION, {})
+    assert refused.json().get("fields", []) == []
+    assert kept_line(tree) == before
+    assert tree.node(task["node_id"])["task"] == read["task"]
+    halved(lines)
+    again = apply_paste(tree, planned(tree, task, "duration", [["500"]]))
+    assert again.status_code == 200, again.text
+
+
+@pytest.mark.requirement("WF-DEV-0040-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_hours_per_day_that_carry_a_written_line_past_its_column_are_refused_at_the_constant(
+    api: ContractClient, stage: Scene, realm: TestRealm, lines: Lines, costs: Costing
+) -> None:
+    # #3401 (US-2400): the task of thirty days, at sixteen hours a day, lasts 480 hours on the
+    # calendar of eight: past the year, its share of the next one projected at 3 %. The hours per
+    # day, the one constant changed, carry the change; the two sent as they were are not named.
+    task = thirty_days_at_its_limit(api, stage, lines, costs)
+    before = kept_line(lines.tree)
+    changing = holding(stage.database, realm, "resource_settings.write")
+    refused = put_units(api, changing, hours_per_day="16")
+    assert faults(refused) == [("/hours_per_day", PRECISION, {})]
+    assert api.get(UNITS, headers=changing).json()["hours_per_day"] == "8"
+    assert kept_line(lines.tree) == before
+    assert lines.tree.node(task["node_id"])["task"]["finish"] == task["task"]["finish"]
+
+
+@pytest.mark.requirement("WF-DEV-0040-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_hours_of_the_default_calendar_that_carry_a_line_past_its_column_are_refused_at_each_day(
+    api: ContractClient, stage: Scene, realm: TestRealm, lines: Lines, costs: Costing
+) -> None:
+    # #3401 (US-2400): the default calendar left with three days of eight hours, the task of thirty
+    # days lasts ten weeks, past the year. Each day whose hours change is named, in the order of
+    # the week; the days sent as they were are not; nothing is written.
+    task = thirty_days_at_its_limit(api, stage, lines, costs)
+    before = kept_line(lines.tree)
+    changing = holding(stage.database, realm, "resource_settings.read", "resource_settings.write")
+    calendar = default_of(api, changing)
+    sent = {
+        "label": calendar["label"],
+        "weekly_hours": three_days_a_week(),
+        "lock_version": calendar["lock_version"],
+    }
+    path = f"{CALENDARS}/{calendar['calendar_id']}"
+    refused = api.patch(path, headers=changing, json=sent)
+    assert faults(refused) == [
+        ("/weekly_hours/thursday", PRECISION, {}),
+        ("/weekly_hours/friday", PRECISION, {}),
+    ]
+    assert default_of(api, changing)["weekly_hours"] == calendar["weekly_hours"]
+    assert kept_line(lines.tree) == before
+    assert lines.tree.node(task["node_id"])["task"]["finish"] == task["task"]["finish"]
+
+
+@pytest.mark.requirement("WF-DEV-0040-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_a_default_calendar_designated_that_carries_a_line_past_its_column_has_no_field(
+    api: ContractClient, stage: Scene, realm: TestRealm, lines: Lines, costs: Costing
+) -> None:
+    # #3401 (US-2400): a calendar of three days a week designated the default lengthens the task of
+    # thirty days past the year. The designation sends its counter alone: no field carries the
+    # change, and the refusal names none (docs/api/DECISIONS.md); nothing is written. The line
+    # halved, the calendar is designated.
+    task = thirty_days_at_its_limit(api, stage, lines, costs)
+    before = kept_line(lines.tree)
+    changing = holding(stage.database, realm, "resource_settings.read", "resource_settings.write")
+    former = default_of(api, changing)
+    body = {"label": "Trois jours", "weekly_hours": three_days_a_week()}
+    created = api.post(CALENDARS, headers=changing, json=body)
+    assert created.status_code == 201, created.text
+    shorter = created.json()
+    path = f"{CALENDARS}/{shorter['calendar_id']}/default"
+    refused = api.put(path, headers=changing, json={"lock_version": shorter["lock_version"]})
+    assert refusal(refused) == (422, PRECISION, {})
+    assert refused.json().get("fields", []) == []
+    assert default_of(api, changing)["calendar_id"] == former["calendar_id"]
+    assert kept_line(lines.tree) == before
+    assert lines.tree.node(task["node_id"])["task"]["finish"] == task["task"]["finish"]
+    halved(lines)
+    designated = api.put(path, headers=changing, json={"lock_version": shorter["lock_version"]})
+    assert designated.status_code == 200, designated.text
+
+
+@pytest.mark.requirement("WF-DEV-0040-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_hours_of_a_calendar_that_is_not_the_default_redate_and_reprice_nothing(
+    api: ContractClient, stage: Scene, realm: TestRealm, lines: Lines, costs: Costing
+) -> None:
+    # #3401 (US-2400): the hours of the task of thirty days, at its limit, would carry its line past
+    # the year on the default calendar cut to three days (see above). On another calendar, no task
+    # of EP-06 is on it: the change is kept (200), nothing is redated nor priced again.
+    task = thirty_days_at_its_limit(api, stage, lines, costs)
+    before = kept_line(lines.tree)
+    changing = holding(stage.database, realm, "resource_settings.read", "resource_settings.write")
+    body = {"label": "Autre semaine", "weekly_hours": dict(zip(WEEKDAYS, "8888800", strict=True))}
+    created = api.post(CALENDARS, headers=changing, json=body)
+    assert created.status_code == 201, created.text
+    other = created.json()
+    assert not other["is_default"]
+    sent = {
+        "label": other["label"],
+        "weekly_hours": three_days_a_week(),
+        "lock_version": other["lock_version"],
+    }
+    changed = api.patch(f"{CALENDARS}/{other['calendar_id']}", headers=changing, json=sent)
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["weekly_hours"] == three_days_a_week()
+    assert kept_line(lines.tree) == before
+    assert lines.tree.node(task["node_id"])["task"]["finish"] == task["task"]["finish"]

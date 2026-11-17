@@ -46,8 +46,8 @@ from waterfall.core.planning.interface.copying import (
     copy_nodes as copy_nodes,
 )
 
-# ``facets`` (US-1380/L1; read by US-1380/L2; completed by US-1490/L3, US-2260/L3, US-2280/L1): the
-# facets of a node other than the task (EP-07).
+# ``facets`` (US-1380/L1; read by US-1380/L2; completed by US-1490/L3, US-2260/L3, US-2280/L1,
+# US-2400/L1): the facets of a node other than the task (EP-07).
 from waterfall.core.planning.interface.facets import (
     Amounts as Amounts,
 )
@@ -101,6 +101,9 @@ from waterfall.core.planning.interface.facets import (
 )
 from waterfall.core.planning.interface.facets import (
     named_calendars as named_calendars,
+)
+from waterfall.core.planning.interface.facets import (
+    refused_at as refused_at,
 )
 from waterfall.core.planning.interface.facets import (
     register_facet as register_facet,

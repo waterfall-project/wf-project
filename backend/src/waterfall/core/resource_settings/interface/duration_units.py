@@ -48,6 +48,14 @@ class Units:
     hours_per_week: Decimal
     days_per_month: Decimal
 
+    def named(self) -> tuple[tuple[str, Decimal], ...]:
+        """Give each constant by the name of its field, in the order of the body."""
+        return (
+            ("hours_per_day", self.hours_per_day),
+            ("hours_per_week", self.hours_per_week),
+            ("days_per_month", self.days_per_month),
+        )
+
 
 # What the installation starts with (WF-PLA-0160).
 DEFAULT_UNITS = Units(Decimal(8), Decimal(40), Decimal(20))
@@ -73,11 +81,7 @@ def _refuse_units(units: Units) -> None:
     ten digits before the point, which the column would overflow (#2875).
     """
     faults: list[FieldError] = []
-    for name, value in (
-        ("hours_per_day", units.hours_per_day),
-        ("hours_per_week", units.hours_per_week),
-        ("days_per_month", units.days_per_month),
-    ):
+    for name, value in units.named():
         if value.is_signed() or exceeds_precision(value):
             faults.append(FieldError(f"/{name}", VALIDATION_FAILED))
         elif value == 0:
@@ -136,7 +140,9 @@ def set_duration_units(
     The constants are refused first (422), then the lock of the reference is taken, before the row
     is locked and its version judged: an opening of a revision, which shares it, is waited for or
     waits (EP-06). The structures of the current revisions are redated in the transaction, once
-    the constants are written, when one of them changes (``recalculate``, EP-06).
+    the constants are written, when one of them changes (``recalculate``, EP-06); a line the
+    redating prices past its column is refused at each constant changed, in the order of the body
+    (#3401).
     """
     _refuse_units(units)
     lock_reference(session)
@@ -150,7 +156,8 @@ def set_duration_units(
         raise PreconditionFailedError(
             STALE_LOCK_VERSION, {"expected_lock_version": row.lock_version}
         )
-    changed = _view(row).units != units
+    held = dict(_view(row).units.named())
+    changed = tuple(f"/{name}" for name, value in units.named() if value != held[name])
     session.execute(
         update(DurationUnit)
         .where(DurationUnit.id == SINGLE_ROW)
@@ -164,5 +171,5 @@ def set_duration_units(
         )
     )
     if changed:
-        recalculate(session, act.at)
+        recalculate(session, act.at, changed)
     return get_duration_units(session)
