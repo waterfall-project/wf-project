@@ -165,7 +165,7 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Lecture et performance des grilles | livré | EP-25 |
 | [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparaison dans les grilles | en cours | EP-26 |
 | [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | en cours | EP-25, EP-26 |
-| [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10, EP-27 |
+| [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | en cours | EP-10, EP-27 |
 | [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
 | [EP-13](EP-13-exploitation.md) | Exploitation et mise en production | à planifier | EP-04 |
@@ -398,7 +398,9 @@ ses lots de back et ses outils de mesure ne touchant aucun fichier de la refonte
 comparaison sur les lectures gardées, sur laquelle la sienne s'appuie (décision du 2026-11-15). Depuis
 le recadrage d'EP-10 du 2026-11-15, `epic/EP-10` ne suit plus la série : EP-09 livré, elle se tire
 de `main` une fois EP-25 livré, sans attendre EP-26, dont elle dépend aussi : seuls US-1680 et US-2420
-attendent EP-26 dans `main` ; `epic/EP-08` garde son lot pivot.
+attendent EP-26 dans `main`. `epic/EP-08` ne garde pas son lot pivot : depuis qu'EP-08 dépend aussi
+d'EP-27, dont la branche est distincte, elle se tire de `main` une fois EP-10 et EP-27 livrés, selon
+la règle (décision du 2026-11-17, au cadrage d'EP-08).
 
 La chaîne s'exécute sur toute pull request, vers une branche d'EPIC comme vers `main`, et
 aucune n'est fusionnée si elle échoue.
