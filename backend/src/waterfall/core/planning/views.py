@@ -12,8 +12,11 @@ fields it computes and accepts (``computed_fields``, ``editable_fields``, WF-IHM
 A node of another kind — an estimate line, EP-07 — is read by the hooks of its facet
 (``FacetHooks.read``), opaque here, which say its fields; the amounts of a task are the sum of the
 figures of its lines and of its subordinates (``FacetHooks.totals``), computed at the reading and
-never kept (EP-07, "Le calcul des montants"). The physical progress is EP-07's, not computable.
-The interface re-exports the views; the API writes them as the contract does.
+never kept (EP-07, "Le calcul des montants"). The physical progress of a summary is the
+indicators' (``register_physical_progress``, US-1680): a reading asks it once, for the summaries it
+gives — every summary for one that gives views, a write or a comparison, which gives them one by
+one —, from the tasks it holds and their states. The interface re-exports the views; the API
+writes them as the contract does.
 
 A reading that writes nothing — ``listNodes`` — gives the same values without the views: a record
 by node, flat (``TaskRecord``, ``FacetRecord``), whose body the API writes; a view is made a record
@@ -25,6 +28,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, NamedTuple
 
 from waterfall.core.planning.interface.facets import Amounts, BearingTask, facets
+from waterfall.core.planning.interface.physical_progress import (
+    ProgressTask,
+    SummariesAsked,
+    physical_progress_of,
+)
 from waterfall.core.planning.scheduling import WorkInstant
 from waterfall.core.planning.tree import TASK, NodeRow, TaskRow, tracking_of
 from waterfall.core.projects.interface import work_breakdown_items
@@ -39,8 +47,10 @@ if TYPE_CHECKING:
 
     from waterfall.core.planning.calendars import Applicable
     from waterfall.core.planning.interface.facets import FacetColumns, FacetRead, Tally
+    from waterfall.core.planning.interface.physical_progress import PhysicalShare
     from waterfall.core.planning.tables import Node, Task
     from waterfall.core.planning.tree import LinkColumns, NodeColumns, TaskColumns, Tree
+    from waterfall.core.planning.writing import Place
 
 MANUAL = "manual"
 NOT_STARTED = "not_started"
@@ -89,7 +99,8 @@ class TaskView:
     ``awaiting_own_lines`` tells a summary started whose subordinates are all completed, which an
     own line holds open (WF-PLA-0040); ``calendar_hours`` are the hours of the applicable calendar,
     Monday first; ``total_float`` is in days, none for a task in manual mode and for a summary none
-    of whose subordinates has one.
+    of whose subordinates has one; ``physical_progress`` a summary's, as the indicators answer it
+    (``register_physical_progress``), none for a task that is no summary or while none answers.
     """
 
     label: str
@@ -117,6 +128,7 @@ class TaskView:
     work_breakdown_label: str | None
     external_id: str | None
     amounts: Amounts
+    physical_progress: PhysicalShare | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,6 +200,7 @@ class TaskRecord(NamedTuple):
     work_breakdown_label: str | None
     external_id: str | None
     amounts: Amounts
+    physical_progress: PhysicalShare | None
 
 
 class FacetRecord(NamedTuple):
@@ -275,6 +288,7 @@ def record_of(view: NodeView) -> NodeRecord:
         work_breakdown_label=task.work_breakdown_label,
         external_id=task.external_id,
         amounts=task.amounts,
+        physical_progress=task.physical_progress,
     )
 
 
@@ -399,17 +413,17 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
     def __init__(
         self,
         session: Session,
-        structure: tuple[UUID, datetime, bool],
+        structure: tuple[Place, datetime, bool],
         tree: Tree[N, T],
         links: Sequence[LinkColumns],
         calendars: dict[UUID, Applicable],
     ) -> None:
         """Read the inscriptions of the tasks and the labels of what they bear; derive the states.
 
-        ``structure`` is the project of the structure, the instant of its dates, and whether it is
-        the main one.
+        ``structure`` is the structure, the instant of its dates, and whether it is the main one.
         """
-        project_id, scheduled_at, self.is_main = structure
+        self.place, scheduled_at, self.is_main = structure
+        project_id = self.place.project_id
         self.tree = tree
         self.calendars = calendars
         self.scheduled_on = scheduled_at.date()
@@ -442,6 +456,9 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
             else:
                 self.figures.update(hooks.totals(session, project_id, held))
         self._facets: dict[UUID, FacetRead] = {}
+        # The physical progress of the summaries asked already, and those asked (``progress``).
+        self._shares: dict[UUID, PhysicalShare] = {}
+        self._asked: set[UUID] = set()
         self.states: dict[UUID, State] = {}
         self.awaiting: set[UUID] = set()
         self.summaries: set[UUID] = set()
@@ -474,6 +491,34 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
         for each in self.tree.lines(node_id):
             total += self.figures.get(each, Amounts())
         return total
+
+    def _tallies(self) -> Mapping[UUID, Tally] | None:
+        """Give what the reading counted already under each task, none if it counted nothing."""
+        return None
+
+    def progress(self, node_ids: Collection[UUID]) -> None:
+        """Ask the physical progress of the summaries among the nodes named not asked yet.
+
+        Once for them all (``register_physical_progress``), from every task of the tree and its
+        state: what a reading gives is asked before it is given, so that it asks once.
+        """
+        asked = frozenset(
+            each for each in node_ids if each in self.summaries and each not in self._asked
+        )
+        if not asked:
+            return
+        tree = self.tree
+        tasks = {
+            each: ProgressTask(tree.nodes[each].parent_id, self.states[each].progress == COMPLETED)
+            for each in tree.tasks
+        }
+        summaries = SummariesAsked(self.place, asked, tasks, self._tallies())
+        self._shares.update(physical_progress_of(self._session, summaries))
+        self._asked |= asked
+
+    def physical_progress(self, node_id: UUID) -> PhysicalShare | None:
+        """Give the physical progress of a summary asked, none for another task or none answered."""
+        return self._shares.get(node_id)
 
     def bearer(self, task_id: UUID) -> BearingTask:
         """Give a task as the facet of a node it bears is told of it."""
@@ -582,6 +627,9 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
         state = self.states[node_id]
         applicable = self.calendars[node_id]
         lineage = tree.nodes[node_id].lineage_id
+        # A view is given one by one: the first summary asks for every summary of the structure.
+        if node_id in self.summaries:
+            self.progress(self.summaries)
         return TaskView(
             label=task.label,
             description=task.description,
@@ -611,6 +659,7 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
             work_breakdown_label=self._borne(task.work_package_id or task.order_item_id),
             external_id=task.external_id,
             amounts=self.sums[node_id],
+            physical_progress=self.physical_progress(node_id),
         )
 
     def _borne(self, item_id: UUID | None) -> str | None:
@@ -671,14 +720,18 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
             editable_fields=editable,
         )
 
-    def records(self, node_ids: Sequence[UUID]) -> list[NodeRecord]:
+    def records(self, node_ids: Sequence[UUID], *, progress: bool = True) -> list[NodeRecord]:
         """Give the nodes named as records, in their order: what ``node`` gives, without its views.
 
         Each node's columns and derived values looked up once, the facets of the other kinds read
         once for them all (``prefetch``): a structure read whole returns six thousand nodes, which
-        the API writes from these records (US-2220).
+        the API writes from these records (US-2220). The physical progress of the summaries among
+        them is asked once too (``progress``), unless the reading says it gives none: a projection
+        that names no physical progress asks nothing of the tallies of the structure.
         """
         self.prefetch(node_ids)
+        if progress:
+            self.progress(node_ids)
         nodes, tasks = self.tree.nodes, self.tree.tasks
         return [
             self._task_record(node_id, node, tasks[node_id])
@@ -711,7 +764,7 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
     def _task_record(self, node_id: UUID, node: N, task: T) -> TaskRecord:
         """Give a task as a record: its columns, and what the reading derives of it once.
 
-        The fields are given in the order of ``TaskRecord``, by position: by name, the 38 of them
+        The fields are given in the order of ``TaskRecord``, by position: by name, the 39 of them
         cost three times as much to build (1.0 against 0.3 us), six thousand times a reading.
         """
         tree = self.tree
@@ -762,6 +815,7 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
             self._borne(task.work_package_id or task.order_item_id),
             task.external_id,
             self.sums[node_id],
+            self._shares.get(node_id),
         )
 
     def summary_depth(self) -> int:
@@ -792,7 +846,7 @@ class TasksReading(RowsReading):
     def __init__(
         self,
         session: Session,
-        structure: tuple[UUID, datetime, bool],
+        structure: tuple[Place, datetime, bool],
         read: tuple[Tree[NodeRow, TaskRow], Sequence[LinkColumns], Mapping[UUID, Tally]],
         calendars: dict[UUID, Applicable],
     ) -> None:
@@ -813,6 +867,10 @@ class TasksReading(RowsReading):
         """Give the sum of the figures of the lines a task bears, as its tallies counted them."""
         tally = self.tallies.get(node_id)
         return Amounts() if tally is None else Amounts() + tally.amounts
+
+    def _tallies(self) -> Mapping[UUID, Tally] | None:
+        """Give the tallies the reading read: the physical progress does not read them again."""
+        return self.tallies
 
     def borne(self, task_ids: Collection[UUID]) -> tuple[int, Amounts]:
         """Give how many nodes the tasks named bear, and the sum of their figures."""

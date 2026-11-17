@@ -159,7 +159,7 @@ CLOSING = "revisions.closing"
 # found by their kind, which has one at most — the actual costs, which the planning neither imports
 # nor is imported by, register theirs before or after the planning's, as a process imports them.
 BY_KIND = {"exchanges.formats", "exchanges.exporters"}
-# Every registry of the core and of the witness EP-04, EP-06, EP-07 and EP-09 declare.
+# Every registry of the core and of the witness EP-04, EP-06, EP-07, EP-09 and EP-10 declare.
 DECLARED = {
     "revisions.copy",
     "revisions.tasks_and_lines",
@@ -178,6 +178,7 @@ DECLARED = {
     "planning.facets",
     "planning.open_lines",
     "planning.zeroed_at",
+    "planning.physical_progress",
     "exchanges.formats",
     "exchanges.exporters",
     "witness.revision_fillers",
@@ -237,6 +238,7 @@ LINE_HOOKS = (
     "waterfall.core.cost_settings.records.share_natures",
     f"{CORE}.reading.line_columns",
     f"{CORE}.tallying.line_tallies",
+    f"{CORE}.tallying.line_provisions",
     # The inert fields of a line (US-2250), a tuple, its names joined.
     "estimate_line.label:estimate_line.payment_delay_days:estimate_line.subproject_id",
 )
@@ -295,8 +297,11 @@ REGISTERED_BY_EP09 = {
 }
 INDICATORS = "waterfall.core.indicators.interface"
 # What the socle of EP-10 registers (US-1660/L1): what a marking keeps of the indicators, which
-# US-1670/L1 fills.
-REGISTERED_BY_EP10 = {"revisions.indicators": [f"{INDICATORS}.storing.store_indicators"]}
+# US-1670/L1 fills; and the physical progress of the summaries a reading gives (US-1680).
+REGISTERED_BY_EP10 = {
+    "revisions.indicators": [f"{INDICATORS}.storing.store_indicators"],
+    "planning.physical_progress": [f"{INDICATORS}.physical_progress.physical_progress"],
+}
 
 
 def before(*socles: dict[str, list[str]]) -> dict[str, set[str]]:
@@ -383,7 +388,8 @@ def test_every_registry_holds_what_the_socle_of_ep10_registers_after_the_others(
     everything: dict[str, list[str]],
 ) -> None:
     # The indicators keep their part of a marking, beside the socles before them: nothing else
-    # computes indicators at the marking before EP-11.
+    # computes indicators at the marking before EP-11. They alone answer the physical progress of
+    # the summaries (US-1680).
     others = before(REGISTERED, REGISTERED_BY_EP07, REGISTERED_BY_EP09)
     for name, entries in REGISTERED_BY_EP10.items():
         held = [entry for entry in everything[name] if entry not in others.get(name, set())]
@@ -409,6 +415,7 @@ def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
     assert held["projects.cost_facts"] == REGISTERED_BY_EP09["projects.cost_facts"]
     assert f"actual_costs:{COSTS}.actual_costs.ActualCostsFormat" in held["exchanges.formats"]
     assert held["revisions.indicators"] == REGISTERED_BY_EP10["revisions.indicators"]
+    assert held["planning.physical_progress"] == REGISTERED_BY_EP10["planning.physical_progress"]
 
 
 @pytest.fixture

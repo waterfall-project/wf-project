@@ -1240,7 +1240,7 @@ risques conservés pour le portefeuille (EP-11, EP-08).
 
 ## US-1680 — L'avancement physique des récapitulatives dans la grille de planning
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IND-0060-A`, `WF-PLA-0130-A`
 - **opérations** : `listNodes` (`TaskFacet.physical_progress`), `setTaskProgress`
 - **issue** : 2430

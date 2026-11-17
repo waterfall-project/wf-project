@@ -25,7 +25,9 @@ nothing asks instead of ``totals`` and ``read`` (``columns``, EP-26, "La lecture
 and by US-2280/L1 with what the nodes of a kind count under each task, read grouped, which a reading
 of the tasks alone asks instead of reading them (``tally``, ``Tally``; EP-26, "L'agrégat d'abord"),
 and by US-2250 with the fields of a node of the kind whose write can move no date nor change an
-amount, which take the short path of a write (``inert``; EP-26, "Les écritures").
+amount, which take the short path of a write (``inert``; EP-26, "Les écritures"), and by US-1680
+with the budgeted amounts a tally counts the provisions left out (``Tally.earnable``), which the
+physical progress of a summary weighs (EP-10, "L'avancement physique").
 """
 
 from dataclasses import dataclass
@@ -127,7 +129,9 @@ class Tally:
     ``count`` how many they are, those without a facet included; ``own`` whether one is not
     provided for a risk (``Node.origin_risk_id``); ``held_open`` whether one of those keeps it open,
     as ``register_open_lines`` tells; ``calendars`` the calendars they name, as ``calendars`` gives
-    them (WF-PLA-0010).
+    them (WF-PLA-0010); ``earnable`` the budgeted amounts of those not of a provision, as
+    ``Amounts.budgeted`` reads each, which the physical progress of a summary weighs (WF-IND-0060,
+    US-1680), which every hook of a kind says, nought for a kind that bears none.
     """
 
     amounts: Amounts
@@ -135,6 +139,7 @@ class Tally:
     own: bool
     held_open: bool
     calendars: frozenset[UUID]
+    earnable: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -258,6 +263,8 @@ class FacetHooks:
     (``Tally``), read in one statement grouped by task from the nodes of the structure the planning
     names — a subquery of their ``node_id``, the ``task_id`` bearing them and whether they are
     ``from_risk`` —, for a reading of the tasks alone, which reads none of these nodes (US-2280).
+    ``provisions`` gives, of the nodes the planning names as ``tally`` does, those that are lines of
+    provision, whatever their amount (WF-IND-0060, US-1680).
     ``inert`` names, as ``FacetRead.editable_fields`` does, the fields of a node of the kind that
     neither the calendars the kind names (``calendars``) nor any amount of the kind (``reinflate``,
     ``totals``) read: a write that sends none but these can move no date nor change an amount, and
@@ -282,6 +289,7 @@ class FacetHooks:
     before_lock: Callable[[Session], None]
     columns: Callable[[Session, UUID, Collection[UUID]], FacetColumns]
     tally: Callable[[Session, UUID, Subquery], Mapping[UUID, Tally]]
+    provisions: Callable[[Session, UUID, Subquery], frozenset[UUID]]
     inert: tuple[str, ...]
 
 

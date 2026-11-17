@@ -14,9 +14,10 @@ settings.
 
 The indicators fill, at the import of this interface, ``register_indicators`` of the revisions:
 ``store_indicators``, which keeps the indicators of a revision in the transaction of its marking
-(US-1670/L1). The entry points that mark a revision — the API, the loader of the witness, which
-marks by ``load_marking``, and the worker, which imports it from US-1670/L1 on (EP-10, "Le
-worker") — import it (#2180).
+(US-1670/L1); and ``register_physical_progress`` of the planning: ``physical_progress``, the
+physical progress of the summaries a reading of a structure gives (US-1680). The entry points
+that mark a revision — the API, the loader of the witness, which marks by ``load_marking``, and the
+worker, which imports it from US-1670/L1 on (EP-10, "Le worker") — import it (#2180).
 """
 
 # ``curves`` (US-1660/L1; US-1690/L2, US-1690/L3): the cumulative costs, the earned value curves.
@@ -114,8 +115,11 @@ from waterfall.core.indicators.interface.storing import (
     store_indicators as store_indicators,
 )
 
-# The registry the indicators fill.
+# The registries the indicators fill.
+from waterfall.core.planning.interface import register_physical_progress
 from waterfall.core.revisions.interface import register_indicators
 
-# The registration, once, at the import: what a marking keeps of the indicators (US-1670/L1).
+# The registrations, once, at the import: what a marking keeps of the indicators (US-1670/L1), and
+# the physical progress of the summaries a reading of a structure gives (US-1680).
 register_indicators(store_indicators)
+register_physical_progress(physical_progress)

@@ -15,7 +15,8 @@ hour (``judge_moved_lines``, WF-PLA-0010; US-1490/L4), and the cells a paste giv
 and written (``judge_line_cell``, ``write_line_cell``, ``pasting``; US-1560/L1), and the lines of
 a reading that writes nothing read once as rows, their figures and their facets (``line_columns``;
 US-2220/L1), and what the lines of each task count, read grouped, for a reading of the tasks alone
-(``line_tallies``, ``tallying``; US-2280/L1), and the fields of a line whose write can move no date
+(``line_tallies``, ``tallying``; US-2280/L1), which of them are of a provision (``line_provisions``;
+US-1680), and the fields of a line whose write can move no date
 nor change an amount (``LINE_INERT``; US-2250).
 
 The copy of a line keeps its figures and its amounts, and takes for its budgeted amount that of the
@@ -45,7 +46,7 @@ from waterfall.core.estimate.reading import (
     totals_of,
 )
 from waterfall.core.estimate.tables import EstimateLine
-from waterfall.core.estimate.tallying import line_tallies
+from waterfall.core.estimate.tallying import line_provisions, line_tallies
 from waterfall.core.estimate.writing import create_line, reprice
 from waterfall.core.planning.interface import (
     FacetHooks,
@@ -273,5 +274,6 @@ LINE_FACET = FacetHooks(
     before_lock=share_natures,
     columns=line_columns,
     tally=line_tallies,
+    provisions=line_provisions,
     inert=LINE_INERT,
 )
