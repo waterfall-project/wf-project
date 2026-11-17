@@ -217,9 +217,32 @@ Le relevé reste **lu dans les fichiers de test, sans les lancer** — c'est le 
   `it(`, `test(` et leurs variantes, et lit les citations dans leur titre — ou dans celui du
   `describe(` qui les englobe, tenue pour exécutée si un test du groupe l'est (#3751). Un appel
   `.skip(`, `.fixme(` ou `.todo(`, ou un appel sous un `describe.skip(` ou `describe.fixme(`, donne
-  une citation « non exécuté ». Un saut conditionnel dans le corps d'un test (`test.skip(condition,
-  …)`) n'est pas reconnu : le lot recense ceux qui existent, et s'il en trouve un dont le test cite
-  une exigence, il en fait un constat `à trancher`.
+  une citation « non exécuté ».
+- **Un saut dans le corps d'un test** (US-2440/L3, décision de l'auteur du 2026-11-17, #3749). Le
+  premier lot ne le reconnaissait pas : `test.skip(condition, …)` écrit dans le corps d'un test
+  laissait sa citation « exécutée », et soixante-six tests de `frontend/e2e/` qui citent une
+  exigence se sautent ainsi selon la plateforme. Le relevé le lit désormais, toujours dans les
+  fichiers : un appel `test.skip(` ou `test.fixme(` dont le premier argument n'est pas un titre,
+  et qui se trouve dans un test (ou, à défaut, dans le groupe qui le tient), est un saut
+  conditionnel. Dont le premier argument est exactement `inService` ou `!inService` (le drapeau de
+  `frontend/e2e/mode.ts`), le test reste « exécuté » : il se joue dans l'un des deux parcours,
+  `make e2e` (`ci.yml`, famille `end-to-end`) ou `make e2e-service` (`service.yml`, famille
+  `end-to-end-service`), et les deux tournent dans la chaîne ; sa citation est donc vraie pour la
+  chaîne entière. Tout autre premier argument — `true`, `!inService || manager === undefined`, une
+  autre condition — rend la citation « non exécuté » : un test qui se saute pour une raison
+  que la chaîne ne tient pas ne prouve rien. `test.fail(` reste ce qu'il est, une annotation qui
+  n'empêche pas le test de se jouer ; `it.skipIf(` et `it.runIf(` restent non vus, aucun test du
+  dépôt n'en porte, et le guide le dit. Les trois tests qui sautent aujourd'hui par `test.skip(true,
+  SERVICE_ONLY)` sous un `if (!inService || manager === undefined)` (`revision-cycle.spec.ts`,
+  `projects.spec.ts`, deux fois) écrivent le saut sous la forme reconnue, `test.skip(!inService,
+  SERVICE_ONLY)`, suivi de la garde de `manager` : le lot ne laisse pas trois citations devenir
+  « non exécuté » par la seule écriture. *Option écartée* : ne rien changer (option 1 de #3749) —
+  une citation vraie pour la chaîne, mais le relevé n'attraperait jamais un saut futur qui ne
+  dépend pas du parcours. *Option écartée* : tenir les soixante-six tests pour « non exécuté »
+  (option 3) — la citation y serait fausse, chacun s'exécute dans l'un des parcours de la chaîne.
+  Un test `!inService` n'a de parcours de service que s'il porte `@shared` (`playwright.config.ts`,
+  projet `shared`) : les soixante-trois d'aujourd'hui le portent ; le lot ne contrôle pas
+  l'étiquette, l'écart est noté ici.
 - **Python.** Un test qui peut se sauter porte la marque `@pytest.mark.unexecuted("<raison>")`, sur
   le test, sa classe ou son module, lue par `ast` comme `requirement`. Un crochet des `conftest.py`
   du back et des outils fait **échouer** un test qui se saute sans la porter : la marque ne peut
