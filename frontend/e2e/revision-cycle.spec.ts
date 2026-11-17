@@ -224,9 +224,9 @@ test("a reference that bears a task and a line is designated, the project stays 
   manager,
 }) => {
   test.skip(!inService, SERVICE_ONLY);
-  // The service makes the manager of the worker (mode.ts); only a fake back leaves it undefined.
+  // The service makes the manager of the worker (mode.ts): an undefined one is a defect, not a skip.
   if (manager === undefined) {
-    return;
+    throw new Error("the service makes the manager of the worker");
   }
   test.slow();
   const main = page.getByRole("main");

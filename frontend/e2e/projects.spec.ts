@@ -765,9 +765,9 @@ test("the contributors of a project created are written on the screen, the quali
   manager,
 }) => {
   test.skip(!inService, SERVICE_ONLY);
-  // The service makes the manager of the worker (mode.ts); only a fake back leaves it undefined.
+  // The service makes the manager of the worker (mode.ts): an undefined one is a defect, not a skip.
   if (manager === undefined) {
-    return;
+    throw new Error("the service makes the manager of the worker");
   }
   test.slow();
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
@@ -813,9 +813,9 @@ test("a labour line of a role of a service proposes the accounts of the service 
   manager,
 }) => {
   test.skip(!inService, SERVICE_ONLY);
-  // The service makes the manager of the worker (mode.ts); only a fake back leaves it undefined.
+  // The service makes the manager of the worker (mode.ts): an undefined one is a defect, not a skip.
   if (manager === undefined) {
-    return;
+    throw new Error("the service makes the manager of the worker");
   }
   test.slow();
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
