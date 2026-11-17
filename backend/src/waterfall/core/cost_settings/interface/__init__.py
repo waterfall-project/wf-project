@@ -50,7 +50,8 @@ from waterfall.core.cost_settings.interface.actual_cost_mapping import (
 )
 
 # ``cost_types`` (US-0820): the natures of cost.
-# ``cost_categories`` (US-0820; the lines that employ one, US-1490/L1): the categories of cost.
+# ``cost_categories`` (US-0820; the lines that employ one, US-1490/L1; those of a kind, US-1680):
+# the categories of cost.
 from waterfall.core.cost_settings.interface.cost_categories import (
     CategoryLabel as CategoryLabel,
 )
@@ -71,6 +72,9 @@ from waterfall.core.cost_settings.interface.cost_categories import (
 )
 from waterfall.core.cost_settings.interface.cost_categories import (
     categories_named as categories_named,
+)
+from waterfall.core.cost_settings.interface.cost_categories import (
+    categories_of_kind as categories_of_kind,
 )
 from waterfall.core.cost_settings.interface.cost_categories import (
     category_is_employed as category_is_employed,

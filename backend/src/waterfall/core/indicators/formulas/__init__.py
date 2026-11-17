@@ -100,3 +100,11 @@ from waterfall.core.indicators.formulas.rounding import (
 from waterfall.core.indicators.formulas.rounding import (
     round_ratio as round_ratio,
 )
+
+# ``summaries`` (US-1680): the physical progress of the summary tasks.
+from waterfall.core.indicators.formulas.summaries import (
+    SummaryTask as SummaryTask,
+)
+from waterfall.core.indicators.formulas.summaries import (
+    summary_progress as summary_progress,
+)

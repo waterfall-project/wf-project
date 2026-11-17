@@ -77,6 +77,7 @@ from waterfall.core.planning.interface import (
     NodeRecords,
     NodesWritten,
     NodeView,
+    PhysicalShare,
     Place,
     StructureTotals,
     TaskEntry,
@@ -158,8 +159,9 @@ ALWAYS = ("node_id", "row_number", "level", "lock_version")
 TASK = NodeKind.task.value
 # The format of the body of a structure read whole, as this code writes it: a reading kept of
 # another is ignored and made again (US-2270). A field added to a node changes it, and a value
-# written otherwise: ``FORMAT_SHAPES`` and ``FORMAT_BODIES`` of the tests fail until it does.
-FORMAT = 1
+# written otherwise: ``FORMAT_SHAPES`` and ``FORMAT_BODIES`` of the tests fail until it does. 2: the
+# physical progress of the summaries computed (US-1680), not computable before.
+FORMAT = 2
 
 
 class NodeQuery(BaseModel):
@@ -383,14 +385,20 @@ def _day(value: date | None) -> str | None:
     return None if value is None else value.isoformat()
 
 
+def _share(share: PhysicalShare | None) -> dict[str, Any] | None:
+    """Write the physical progress of a summary as the contract does (``Computable``); none else."""
+    if share is None:
+        return None
+    value = share.value
+    return {
+        "is_computable": value is not None,
+        "value": None if value is None else text_of(value),
+        "reason": share.reason,
+    }
+
+
 def _task(record: TaskRecord) -> dict[str, Any]:
     """Write a facet task as the contract does; its amounts, those of its lines and subordinates."""
-    # A summary's physical progress follows the budgets of its subtree, none without a line.
-    progress = (
-        {"is_computable": False, "value": None, "reason": "no_budgeted_amount"}
-        if record.is_summary
-        else None
-    )
     amounts = record.amounts
     return {
         "label": record.label,
@@ -413,7 +421,7 @@ def _task(record: TaskRecord) -> dict[str, Any]:
         "total_float": _float(record.total_float),
         "is_critical": record.is_critical,
         "link_conflicts": _conflicts(record.link_conflicts),
-        "physical_progress": progress,
+        "physical_progress": _share(record.physical_progress),
         "base_amount": _money(amounts.base),
         "budgeted_amount": _money(amounts.budgeted),
         "reestimated_amount": _money(amounts.reestimated),

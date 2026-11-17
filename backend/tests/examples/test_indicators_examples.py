@@ -4,16 +4,18 @@
 
 From their fixtures under ``fixtures/indicators`` and ``fixtures/reference``: the progress, the
 indices, the variances, the projections and the zone of an index, as ``core.indicators.formulas``
-computes them.
+computes them; the physical progress of a summary task too (US-1680).
 """
 
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
+from uuid import uuid4
 
 import pytest
 
 from waterfall.core.indicator_settings.interface import index_zone
 from waterfall.core.indicators.formulas import (
+    SummaryTask,
     budget_consumption,
     cost_index,
     cost_variance,
@@ -22,6 +24,7 @@ from waterfall.core.indicators.formulas import (
     projections,
     schedule_index,
     schedule_variance,
+    summary_progress,
 )
 
 if TYPE_CHECKING:
@@ -80,6 +83,39 @@ def test_a_budget_of_1000_with_400_on_finished_tasks_has_a_physical_progress_of_
     assert physical_progress(
         _decimal(data, "earned_value"), _decimal(data, "budget")
     ).value == _decimal(data, "physical_progress")
+
+
+def _summary_of(amounts: list[Decimal], completed: set[int]) -> Decimal | None:
+    """Give the physical progress of a summary without own line over subordinates of amounts."""
+    summary = uuid4()
+    tasks = {summary: SummaryTask(None, completed=False, earnable=Decimal(0))}
+    for rank, amount in enumerate(amounts):
+        tasks[uuid4()] = SummaryTask(summary, completed=rank in completed, earnable=amount)
+    return summary_progress(tasks, [summary])[summary].value
+
+
+@pytest.mark.requirement("WF-IND-0060-A")
+def test_a_summary_of_subordinates_100_100_200_shows_50_then_75_percent(
+    example: Callable[[str], Example],
+) -> None:
+    # « Une récapitulative sans ligne propre dont les deux premières de trois subordonnées, de
+    # montants budgétés 100, 100 et 200, sont terminées affiche 50 % ; si la troisième est
+    # terminée à la place de la deuxième, 75 %. » (US-1680)
+    data = example("WF-IND-0060-A#40f59fb2a26d")
+    amounts = [Decimal(each) for each in cast("list[str]", data["subordinates"])]
+    assert _summary_of(amounts, {0, 1}) == _decimal(data, "first_two_completed")
+    assert _summary_of(amounts, {0, 2}) == _decimal(data, "first_and_third_completed")
+
+
+@pytest.mark.requirement("WF-IND-0060-A")
+def test_a_subordinate_started_at_90_percent_of_its_time_adds_nothing_to_its_summary(
+    example: Callable[[str], Example],
+) -> None:
+    # « Une tâche démarrée à 90 % de son temps ne contribue pas. » A summary whose subtree bears
+    # 1 000, 400 on a subordinate completed, shows 40 % (US-1680).
+    data = example("WF-IND-0060-A#61c43a87da0a")
+    amounts = [_decimal(data, "completed"), _decimal(data, "started")]
+    assert _summary_of(amounts, {0}) == _decimal(data, "physical_progress")
 
 
 @pytest.mark.requirement("WF-IND-0070-A")

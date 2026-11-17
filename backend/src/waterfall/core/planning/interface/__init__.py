@@ -371,6 +371,21 @@ from waterfall.core.planning.interface.physical_progress import (
     PhysicalProgress as PhysicalProgress,
 )
 from waterfall.core.planning.interface.physical_progress import (
+    PhysicalShare as PhysicalShare,
+)
+from waterfall.core.planning.interface.physical_progress import (
+    ProgressTask as ProgressTask,
+)
+from waterfall.core.planning.interface.physical_progress import (
+    SummariesAsked as SummariesAsked,
+)
+from waterfall.core.planning.interface.physical_progress import (
+    earnable_amounts as earnable_amounts,
+)
+from waterfall.core.planning.interface.physical_progress import (
+    physical_progress_of as physical_progress_of,
+)
+from waterfall.core.planning.interface.physical_progress import (
     register_physical_progress as register_physical_progress,
 )
 

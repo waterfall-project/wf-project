@@ -12,7 +12,9 @@ retain, which alone it returns, and the task is then rendered for the tree alone
 tasks is nought, as ``NodeTotals`` says of the ancestors (#2699). The lines are sorted under each
 task by those hooks too (``FacetHooks.sort``), the tasks keeping the order of the tree
 (WF-IHM-0060). Each bound is inclusive; a task that bears no value — a manual task's float, a leaf's
-physical progress — is not retained by a bound on it.
+physical progress, a summary's not computed — is not retained by a bound on it. The physical
+progress of a summary is the one the reading gives (``Reading.progress``, US-1680), asked only
+under a bound on it.
 """
 
 from dataclasses import dataclass
@@ -130,6 +132,14 @@ def _carrying[N: NodeColumns, T: TaskColumns](
     return frozenset()
 
 
+def _progress_value[N: NodeColumns, T: TaskColumns](
+    reading: Reading[N, T], node_id: UUID
+) -> Decimal | None:
+    """Give the physical progress of a task as a bound judges it: none but a summary's computed."""
+    share = reading.physical_progress(node_id)
+    return None if share is None else share.value
+
+
 def _predicates[N: NodeColumns, T: TaskColumns](
     reading: Reading[N, T], filters: NodeFilters, constants: UnitConstants
 ) -> list[Callable[[UUID], bool]]:
@@ -142,10 +152,14 @@ def _predicates[N: NodeColumns, T: TaskColumns](
         lambda each: _within(tasks[each].total_float_days, filters.total_float),
         lambda each: _within(reading.states[each].started_on, filters.started_on),
         lambda each: _within(reading.states[each].completed_on, filters.completed_on),
-        # A physical progress is EP-07's, from the budgets of the lines: none is computed here.
-        lambda _each: _within(None, filters.physical_progress),
         lambda each: _within(days_of(tasks[each], constants), filters.duration_days),
     ]
+    if filters.physical_progress != (None, None):
+        # The physical progress of every summary, asked once, before any is judged (US-1680).
+        reading.progress(reading.summaries)
+        tests.append(
+            lambda each: _within(_progress_value(reading, each), filters.physical_progress)
+        )
     if filters.progress is not None:
         tests.append(lambda each: reading.states[each].progress in (filters.progress or ()))
     if filters.is_critical is not None:
