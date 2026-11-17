@@ -152,6 +152,7 @@ def test_the_withdrawal_of_an_element_advances_the_counter_of_the_nodes_it_write
             before = session.scalar(select(Node.lock_version).where(Node.id == bearing.node_id))
             assert item is not None
             sent.clear()
+            hold_work_breakdown_items(session, PRJ_001, [item])
             detach_work_breakdown_item(session, PRJ_001, item)
             after = session.execute(
                 select(Node.lock_version, column)

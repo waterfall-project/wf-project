@@ -171,13 +171,14 @@ def detach_work_breakdown_item(session: Session, project_id: UUID, item_id: UUID
     such a task again rests on that counter (``reshaped``, US-2250/L2, #3562), and an entry made
     on the task as it was is refused at the counter it read (412).
 
+    Those whose tasks it writes, read under that lock, have their counter advanced once their tasks
+    are written (``structure_counted``, #3600): a write of the tree reads none of them halfway, and
+    the front knows its reading stale.
+
     Its contract: asked after ``hold_work_breakdown_items``, in the same transaction, under the lock
     of the project. Every structure of the revision is held already, and is not locked again for
     each element (#3660): a caller that skipped the hold would write tasks out of the lock of their
-    structure. Those whose tasks
-    it writes, read under that lock, have their counter advanced once their tasks are written
-    (``structure_counted``, #3600): a write of the tree reads none of them halfway, and the front
-    knows its reading stale.
+    structure.
     """
     current = current_revision(session, project_id)
     if current is None:
