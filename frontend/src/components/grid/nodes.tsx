@@ -215,10 +215,53 @@ export type RowOf<F extends AnyNodeFields> = NodeRow<
 /** A node as every grid of a structure reads it: what the tree, the number and the label read. */
 export type GridNode = NodeRow;
 
-/** The rows a grid shows, and the totals of the answer they come from. */
+/** The signed difference of two totals of a comparison, field by field (`totals_delta`). */
+export type NodeTotalsDelta = components["schemas"]["NodeTotalsDelta"];
+
+/** The differences of amounts by nature of cost and by sub-project of a comparison. */
+export type AmountDelta = components["schemas"]["RevisionComparison"]["amount_deltas"][number];
+
+/**
+ * What a comparison to a base says besides the rows (WF-IHM-0160): the totals of the base, their
+ * difference to the totals of the revision read, and the differences of amounts by nature of cost
+ * and by sub-project, all as the server gives them, on the rows it retains: the grid sums nothing.
+ */
+export interface NodesComparison {
+  readonly base: NodeTotals;
+  readonly delta: NodeTotalsDelta;
+  readonly amounts: readonly AmountDelta[];
+}
+
+/** The rows a grid shows, the totals of the answer they come from, and those of its comparison. */
 export interface NodeRows<Row> {
   readonly items: readonly Row[];
   readonly totals: NodeTotals;
+  /** What the answer says of the base, when the grid reads a comparison. */
+  readonly comparison?: NodesComparison;
+}
+
+/** The answer of `listNodes`, or the comparison that has its shape and says more of the base. */
+type NodesAnswer = NodeList &
+  Partial<
+    Pick<
+      components["schemas"]["RevisionComparison"],
+      "base_totals" | "totals_delta" | "amount_deltas"
+    >
+  >;
+
+/**
+ * What an answer says of the base: all of it or nothing — an answer that gives some and not the rest
+ * is one the contract rules out, and fails rather than show a comparison half given.
+ */
+function comparisonOf(list: NodesAnswer): NodesComparison | undefined {
+  const { base_totals: base, totals_delta: delta, amount_deltas: amounts } = list;
+  if (base === undefined && delta === undefined && amounts === undefined) {
+    return undefined;
+  }
+  if (base === undefined || delta === undefined || amounts === undefined) {
+    throw new RangeError("A comparison without its base totals, their difference or its amounts");
+  }
+  return { base, delta, amounts };
 }
 
 /**
@@ -310,13 +353,18 @@ export function projectNodes<
   T extends keyof TaskFacet,
   L extends keyof EstimateLineFacet,
 >(
-  list: NodeList,
+  list: NodesAnswer,
   fields: NodeFields<N, T, L>,
   kinds?: readonly NodeKind[],
 ): NodeRows<NodeRow<N, T, L>> {
   const asked =
     kinds === undefined ? list.items : list.items.filter((node) => isOfKind(node, kinds));
-  return { items: asked.map((node) => projectNode(node, fields)), totals: list.totals };
+  const comparison = comparisonOf(list);
+  return {
+    items: asked.map((node) => projectNode(node, fields)),
+    totals: list.totals,
+    ...(comparison === undefined ? {} : { comparison }),
+  };
 }
 
 /** Whether a node is of one of the kinds a reading asked for, or says no kind. */

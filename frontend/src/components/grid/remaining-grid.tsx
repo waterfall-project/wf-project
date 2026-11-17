@@ -22,6 +22,7 @@ import { readNodeTotals, setLineRemaining } from "@/api/actions/nodes";
 
 import { CompletionDate } from "./completion-date";
 import { withDifference } from "./compared";
+import { AmountDeltasCommand } from "./amount-deltas";
 import { DenseGrid } from "./dense-grid";
 import { OwnLinesOpen } from "./remaining-cells";
 import { nodeDependencies } from "./node-dependencies";
@@ -242,6 +243,7 @@ export function RemainingGrid({
         config={config}
         rows={nodes.items}
         totals={nodes.totals}
+        comparison={nodes.comparison}
         totalsCaption={(totals) =>
           t("totals", { tasks: totals.task_count, lines: totals.estimate_line_count })
         }
@@ -253,6 +255,11 @@ export function RemainingGrid({
         undoable={editable}
         commands={gestures}
         treeFilters={treeFilters}
+        ending={
+          nodes.comparison === undefined ? undefined : (
+            <AmountDeltasCommand deltas={nodes.comparison.amounts} />
+          )
+        }
         around={(rows, grid) => <OwnLinesOpen rows={rows}>{grid}</OwnLinesOpen>}
       />
     </>

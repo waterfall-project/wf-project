@@ -34,6 +34,7 @@ import type { Outcome } from "@/api/problem";
 import { formatPercent } from "@/i18n/format";
 
 import { withDifference } from "./compared";
+import { AmountDeltasCommand } from "./amount-deltas";
 import { DenseGrid } from "./dense-grid";
 import {
   ESTIMATE_FIELDS,
@@ -352,6 +353,7 @@ export function EstimateGrid({
         config={config}
         rows={nodes.items}
         totals={nodes.totals}
+        comparison={nodes.comparison}
         totalsCaption={(totals) =>
           t("totals", { tasks: totals.task_count, lines: totals.estimate_line_count })
         }
@@ -364,6 +366,11 @@ export function EstimateGrid({
         undo={undo}
         commands={gestures}
         treeFilters={treeFilters}
+        ending={
+          nodes.comparison === undefined ? undefined : (
+            <AmountDeltasCommand deltas={nodes.comparison.amounts} />
+          )
+        }
       />
     </OriginRisksProvider>
   );

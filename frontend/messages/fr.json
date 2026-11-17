@@ -262,8 +262,23 @@
     "computed": "Calculé",
     "compared": {
       "base": "Base :",
+      "delta": "Écart :",
+      "totalsBase": "Base : {caption}",
+      "totalsDelta": "Écart : {caption}",
       "empty": "aucune valeur",
-      "days": "{days} j"
+      "days": "{days} j",
+      "amountDeltas": {
+        "command": "Écarts de montants",
+        "title": "Écarts de montants à la base",
+        "description": "Les montants budgétés et réestimés de la révision lue moins ceux de la base, par nature de coût et par sous-projet, sur les lignes que la grille retient.",
+        "empty": "Aucun écart de montant.",
+        "dimension": "Axe",
+        "key": "Élément",
+        "budgeted": "Écart budgété",
+        "reestimated": "Écart réestimé",
+        "unnamed": "Sans nom",
+        "close": "Fermer"
+      }
     },
     "entry": {
       "none": "Aucun",
