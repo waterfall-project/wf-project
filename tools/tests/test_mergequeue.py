@@ -12,7 +12,7 @@ import os
 import stat
 import subprocess
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
@@ -373,6 +373,16 @@ def test_the_model_requires_signatures_and_the_gap_is_said(tmp_path: Path) -> No
     assert code == 0
     assert "differs from the model: lacks pull_request, required_signatures" in out
     assert "has besides" not in out
+    assert "required_status_checks" not in out.split("differs from the model")[1]
+
+
+def test_the_gap_says_a_rule_type_the_model_does_not_have(tmp_path: Path) -> None:
+    """US-2470: a queue with a rule the model lacks is said « has besides », not the gate."""
+    queue = ruleset(2)
+    cast("list[dict[str, object]]", queue["rules"]).append({"type": "required_linear_history"})
+    code, out, _ = serving(tmp_path, queue).run("check", "EP-21")
+    assert code == 0
+    assert "has besides required_linear_history" in out
     assert "required_status_checks" not in out.split("differs from the model")[1]
 
 
