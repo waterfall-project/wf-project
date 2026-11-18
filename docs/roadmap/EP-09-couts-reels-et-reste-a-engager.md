@@ -1071,9 +1071,12 @@ tâches démarrées sans attendre un fichier.
   `planned_value` d'EP-07 inchangés ; les grilles, par US-1640 ;
 - `WF-RAE-0040-A` — « Une ligne ajoutée après la référence peut y être portée à un sous-projet. » :
   `updateEstimateLine` écrit `subproject_id` sur une ligne à budgété nul ; la grille, par US-1640 ;
-- `WF-RAE-0040-A` — « Sur un projet qui n’est pas En cours, la grille ne propose ni création ni
-  suppression de tâche ou de ligne. » : `edit_remaining` manque `project_in_progress` hors de
-  l'état En cours (EP-04), et `setLineRemaining` le refuse par 409 ; la grille, par US-1640 ;
+- écart : `WF-RAE-0040-A` — « Sur un projet qui n’est pas En cours, la grille ne propose aucune
+  saisie. » : réécrit par la spécification 1.0.7 (#3372) ; le contrat ferme déjà toute saisie du
+  reste hors En cours ;
+- écart : `WF-RAE-0040-A` — « La création d’une ligne sous une tâche terminée, ou le déplacement
+  d’une ligne vers elle, est refusé. » : passé de WF-DEV-0050 à WF-RAE-0040 par la spécification
+  1.0.7 (#3372) ; tenu par le service (`planning/carrying.py`) ;
 - `WF-RAE-0050-A` — « Après ajout d’une tâche chiffrée en revue périodique, le reste à engager et la
   projection du chef de projet augmentent de son montant ; le budget de référence, la projection au
   budget, la projection au rythme constaté et l’indice de coût sont inchangés. » : le reste à engager
@@ -1193,6 +1196,9 @@ déclarer ce qui a commencé et clore mes phases depuis la vue qui les répartit
   valeur acquise est d'EP-10, qui clôt ;
 - `WF-RAE-0030-A` — « Une tâche feuille démarrée sans ligne de devis est terminée depuis le
   Kanban. » : sa carte liste `complete` disponible, et `setTaskProgress` l'applique ;
+- écart : `WF-RAE-0030-A` — « Sur un projet qui n’est pas En cours, le Kanban ne propose aucun
+  geste. » : ajouté par la spécification 1.0.7 (#3372) ; le contrat ferme déjà tout geste du Kanban
+  hors En cours ;
 - `WF-PLA-0040-A` — « Après déplacement d’une récapitulative portant deux niveaux de subordonnées,
   les tâches et les lignes déplacées sont inchangées, et le devis totalise le même montant. »
 - `WF-PLA-0040-A` — « Les dates et l’état d’une récapitulative ne sont pas saisissables. »
@@ -1604,12 +1610,10 @@ périodique avec l'outil que mes interlocuteurs connaissent.
 - `WF-INTF-0120-A` — « Avec huit heures par jour, une ligne de main-d’œuvre dont le fichier porte
   trois jours a un reste de vingt-quatre heures. » : la constante d'heures par jour de
   l'installation (`getDurationUnits`, EP-05) ;
-- `WF-INTF-0120-A` — « Une tâche démarrée dont toutes les lignes du fichier portent zéro est
-  terminée à la date de la revue ; une tâche non démarrée dont les lignes sont laissées telles
-  quelles reste non réestimée. » : `completed_tasks` nomme la tâche dès l'analyse, `completed_on` la
-  date de la revue lue en « Synthèse » (B9, #2702) et jamais nulle, l'application la termine à cette
-  date — une tâche non démarrée qui n'est pas un jalon passe par l'état démarré, un jalon non, les
-  deux avec `started_on` égal à `completed_on` — ; une ligne laissée telle quelle n'est pas un écart ;
+- écart : `WF-INTF-0120-A` — « Une tâche démarrée dont toutes les lignes, celles absentes du fichier
+  comprises, sont à zéro après l’import, et dont le fichier en met au moins une à zéro, est terminée
+  à la date de la revue ; une tâche non démarrée dont les lignes sont laissées telles quelles reste
+  non réestimée. » : réécrit par la spécification 1.0.7 (#3362) ; #3978 le confronte au livré ;
 - `WF-INTF-0120-A` — « Un fichier qui recopie une ligne avec sa lignée voit les deux lignes
   rejetées, et la ligne existante inchangée. » : `DUPLICATE_LINEAGE`, `params.lines` nommant les
   autres (`{sheet, row}`), réalisé par US-1630/L5 (#2738) ; spécification 1.0.4, #2847 ;
@@ -1738,9 +1742,12 @@ leurs gestes —, **afin de** mener ma revue sans faux back.
   identiques ; la valeur planifiée, par US-1580 ;
 - `WF-RAE-0040-A` — « Une ligne ajoutée après la référence peut y être portée à un sous-projet. » :
   le sous-menu « Sous-projet » d'EP-15 (US-0480), contre le service ;
-- `WF-RAE-0040-A` — « Sur un projet qui n’est pas En cours, la grille ne propose ni création ni
-  suppression de tâche ou de ligne. » : la grille suit `edit_remaining` de la structure principale,
-  que le service rend indisponible hors de l'état En cours ;
+- écart : `WF-RAE-0040-A` — « Sur un projet qui n’est pas En cours, la grille ne propose aucune
+  saisie. » : réécrit par la spécification 1.0.7 (#3372) ; le contrat ferme déjà toute saisie du
+  reste hors En cours ;
+- écart : `WF-RAE-0040-A` — « La création d’une ligne sous une tâche terminée, ou le déplacement
+  d’une ligne vers elle, est refusé. » : passé de WF-DEV-0050 à WF-RAE-0040 par la spécification
+  1.0.7 (#3372) ; tenu par le service (`planning/carrying.py`) ;
 - `WF-RAE-0030-A` — « Une tâche passée à l’état démarré voit ses lignes apparaître dans la grille
   de reste à engager. » : démarrée au Kanban, la tâche a ses lignes dans la grille relue, contre le
   service ;
@@ -1761,6 +1768,9 @@ leurs gestes —, **afin de** mener ma revue sans faux back.
   acquise est d'EP-10, qui clôt ;
 - `WF-RAE-0030-A` — « Une tâche feuille démarrée sans ligne de devis est terminée depuis le
   Kanban. » : par le menu de la carte, contre le service ;
+- écart : `WF-RAE-0030-A` — « Sur un projet qui n’est pas En cours, le Kanban ne propose aucun
+  geste. » : ajouté par la spécification 1.0.7 (#3372) ; le contrat ferme déjà tout geste du Kanban
+  hors En cours ;
 - `WF-REF-0010-A` — « Aucun écran ne propose de supprimer un objet du référentiel. »
 - `WF-REF-0010-A` — « Un objet désactivé n’apparaît plus dans les listes de choix, mais reste
   affiché sur les éléments qui l’emploient. »

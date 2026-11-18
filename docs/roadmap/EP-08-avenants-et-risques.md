@@ -529,14 +529,10 @@ toucher à la principale, en préparer plusieurs à la fois, et abandonner celle
   et par le test du harnais d'EP-10 pour le 4,04 % (#2893), non touché ici ;
 - `WF-DEV-0050-A` — « Dans la structure principale, la création d'une ligne sous une tâche terminée,
   ou le déplacement d'une ligne vers elle, est refusé. » : tenu par EP-07 (`task_not_completed`),
-  non touché ici ;
-- `WF-DEV-0050-A` — « Dans un différentiel, la modification de la quantité d'une ligne d'une tâche
-  terminée aboutit, et la fusion lui donne ce montant budgété ; dans la structure principale, elle
-  est refusée. » : dans un différentiel, la création, la modification, le déplacement et la
-  suppression d'une ligne d'une tâche terminée aboutissent, et la lecture leur laisse leurs champs
-  saisissables (`editable_fields`, F-01) ; la fusion donne à la ligne le montant budgété que ses
-  grandeurs portent (US-2560) ; dans la principale, le refus est tenu par EP-07 ; #1767 se ferme ici
-  ;
+  non touché ici ; la phrase passe à WF-RAE-0040 par la spécification 1.0.7 (#3372) ;
+- écart : `WF-DEV-0050-A` — « Dans un différentiel, la modification de la quantité d’une ligne d’une
+  tâche terminée aboutit, et la fusion lui donne ce montant budgété. » : réécrit par la
+  spécification 1.0.7 (#3372) : le refus dans la structure principale se lit dans WF-RAE-0040 ;
 - `WF-DEV-0050-A` — « La grille de devis ne propose la saisie ni de la durée ni des prédécesseurs
   d'une tâche. » : tenu par EP-07, non touché ici ;
 - `WF-DEV-0050-A` — « Sur un projet En cours, la grille de devis de la structure principale ne
@@ -692,9 +688,11 @@ ni ce qui a été réestimé, ni ce qui a été fait.
 - `WF-PLA-0170-A` — « Une tâche rattachée au poste 2 dont un différentiel allonge la durée porte
   toujours ce rattachement après la fusion. » : la tâche garde son rattachement au poste 2 après la
   fusion ;
-- `WF-ADM-0100-A` — « Chaque fonction de second niveau de l'arborescence est représentée par ses
-  deux permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5 et FBS-2.1 à
-  FBS-2.7. » : tenu par EP-03, EP-18 et EP-25, non touché ici ;
+- écart : `WF-ADM-0100-A` — « Chaque fonction de second niveau de l’arborescence est représentée par
+  ses deux permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5, FBS-2.1 à
+  FBS-2.7, FBS-4.8 et FBS-4.9. » : réécrit par la spécification 1.0.7 (#3354) : FBS-4.8 et FBS-4.9
+  n'ont que la permission de consulter, quand le livré leur donne encore celle de modifier ; #3975
+  l'éprouve ;
 - `WF-ADM-0100-A` — « Un rôle disposant de la modification du chiffrage mais non du marquage permet
   de modifier un devis et refuse de marquer la révision ; un rôle disposant du marquage mais non de
   la fusion refuse de fusionner un différentiel. » : la première moitié est tenue par EP-04 et EP-07
@@ -1021,9 +1019,10 @@ font peser sur le projet se lise là où il se lirait s'ils survenaient.
   non touché ici ;
 - `WF-INTF-0120-A` — « Avec huit heures par jour, une ligne de main-d'œuvre dont le fichier porte
   trois jours a un reste de vingt-quatre heures. » : tenu par EP-09, non touché ici ;
-- `WF-INTF-0120-A` — « Une tâche démarrée dont toutes les lignes du fichier portent zéro est
-  terminée à la date de la revue ; une tâche non démarrée dont les lignes sont laissées telles
-  quelles reste non réestimée. » : tenu par EP-09, non touché ici ;
+- écart : `WF-INTF-0120-A` — « Une tâche démarrée dont toutes les lignes, celles absentes du fichier
+  comprises, sont à zéro après l’import, et dont le fichier en met au moins une à zéro, est terminée
+  à la date de la revue ; une tâche non démarrée dont les lignes sont laissées telles quelles reste
+  non réestimée. » : réécrit par la spécification 1.0.7 (#3362) ; #3978 le confronte au livré ;
 - `WF-INTF-0120-A` — « Un fichier qui recopie une ligne avec sa lignée voit les deux lignes
   rejetées, et la ligne existante inchangée. » : tenu par EP-09, non touché ici ;
 - `WF-INTF-0120-A` — « Un fichier sans date de revue applique les lignes qui ne terminent aucune
@@ -1422,11 +1421,11 @@ référence.
   porte la marche au point du mois de la fusion, égale à l'écart des deux budgets cumulés à cette
   date ; la série du budget lit, à chaque date, la référence alors en vigueur, et atteint 1 200 à la
   fin de la nouvelle ;
-- `WF-IND-0100-A` — « Avec un délai de paiement de 60 jours saisi sur toutes les lignes,
-  main-d'œuvre comprise, la courbe du budget de référence décalée est la courbe non décalée
-  translatée de 60 jours ; la projection l'est aussi, hormis les lignes de provision, qui restent à
-  leur date ; le coût réel n'est pas décalé. » : le décalage est tenu par EP-10 ; les lignes de
-  provision entrent dans la projection à leur date, sans délai de paiement ;
+- écart : `WF-IND-0100-A` — « Avec un délai de paiement de 60 jours saisi sur toutes les lignes,
+  main-d’œuvre comprise, chaque montant de la courbe du budget de référence est compté au mois de sa
+  date décalée de 60 jours ; ceux de la projection le sont aussi, hormis les lignes de provision,
+  qui restent à leur date ; le coût réel n’est pas décalé. » : réécrit par la spécification 1.0.7
+  (#3378) : la courbe est au pas du mois ; tenu par EP-10 (#3564) ;
 - `WF-IND-0100-A` — « La somme des décaissements à venir égale le reste à engager, provisions des
   risques identifiés comprises. » : la somme des `forecast` de `cash_out_by_month` égale
   `remaining`, provisions des risques identifiés comprises, au centime ;

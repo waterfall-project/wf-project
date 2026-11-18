@@ -787,6 +787,9 @@ attendre l'administrateur.
   constaté par EP-05 ;
 - écart : `WF-EXP-0020-A` — « Le nom de l'entreprise saisi à l'installation figure sur un devis
   exporté ; modifié, il figure sur le suivant. » : le devis exporté est d'EP-07, qui clôt ;
+- écart : `WF-EXP-0020-A` — « Le fuseau horaire choisi à l’installation est conservé ; une seconde
+  exécution ne le change pas. » : ajouté par la spécification 1.0.7 (#3382) ; tenu depuis EP-25
+  (US-2200, #2527) ;
 - `WF-PRJ-0080-A` — « La création d'un projet sans libellé est refusée. » : 422, `VALUE_REQUIRED`
   sur `/label` ;
 - `WF-PRJ-0080-A` — « La date de réception de la commande est saisissable à tout moment et n'est
@@ -886,6 +889,8 @@ saisisse ce qu'il doit, et qu'un projet garde toujours un chef.
 - `WF-PRJ-0060-A` — « Le retrait du seul chef de projet d'un projet est refusé, de même que son
   passage en participant ; il est accepté dès qu'un second chef de projet est inscrit. » : 409,
   `LAST_PROJECT_MANAGER`, sans paramètre, sous un verrou de la liste ;
+- écart : `WF-PRJ-0060-A` — « Un participant porteur de la permission d’exclure une ligne de coût ne
+  l’exclut pas. » : ajouté par la spécification 1.0.7 (#3350) ; #3973 l'éprouve ;
 - `WF-ADM-0070-A` — « Une personne retirée de l'annuaire voit son compte désactivé à la
   synchronisation suivante, et ses actes restent consultables. » : un contributeur dont le compte
   est désactivé depuis son inscription reste listé, `is_active` faux, et les lignes qu'il a
@@ -977,6 +982,9 @@ devis se rejoignent à la maille du sous-projet (#1337).
 - écart : `WF-DAT-0080-A` — « Celle d'un poste référencé par une révision marquée le marque
   supprimé : la révision l'affiche toujours, la saisie ne le propose plus. » : le rattachement
   d'une tâche est d'EP-06 ; EP-07 constate (US-0950 prévoit la colonne) ;
+- écart : `WF-DAT-0080-A` — « Une tâche de fond terminée depuis plus que la rétention de son
+  résultat n’est plus dans la base ; un compte rendu d’import et un plan de collage expirés non
+  plus. » : ajouté par la spécification 1.0.7 (#3388) ; la purge est à EP-13 (#921) ;
 - propre à l'US : les trois conditions de `delete` et `project_not_terminal` sont dites d'avance
   par `Subproject.available_commands`, dans l'ordre du contrat, et un refus nomme la première qui
   manque ; la création et la modification suivent la commande `update` du projet (chefs de

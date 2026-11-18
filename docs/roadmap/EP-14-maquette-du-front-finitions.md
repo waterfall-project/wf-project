@@ -1527,7 +1527,10 @@ d'**utiliser Waterfall toute la journée sans que l'outil me coûte plus que le 
   provisoire (décision de l'auteur du 2026-10-11, #782) : les écrans s'ajustent encore à la
   validation de l'auteur, et l'extension du harnais est reportée → EP-15. Levé par EP-17
   (US-0710), qui étend le harnais aux dialogues, aux menus et aux éditeurs de cellule (#782,
-  option A ; cadrage du 2026-10-28).
+  option A ; cadrage du 2026-10-28) ;
+- écart : `WF-IHM-0100-A` — « Un contrôle automatisé ne relève aucun champ de saisie sans libellé
+  associé ni aucune image porteuse d'information sans description. » : ajouté par la spécification
+  1.0.7 (#3379) ; le contrôle axe des parcours le tient (`frontend/e2e/axe.ts`).
 
 **Notes de réalisation.** Le contrôle de contraste est exécuté par la chaîne, sinon il n'est
 fait qu'une fois. Aucune conformité complète à un référentiel n'est visée ni déclarée

@@ -853,6 +853,9 @@ commande se dérobe.
   911 points, la ligne des totaux du reste à engager et des coûts réels reste dans une fenêtre de
   768 de haut — les cartes repliées, ou la grille empilée plafonnée —, et `grid-frame.spec.ts`
   mesure ces deux écrans à 911 (#1209) ;
+- écart : `WF-IHM-0100-A` — « Un contrôle automatisé ne relève aucun champ de saisie sans libellé
+  associé ni aucune image porteuse d'information sans description. » : ajouté par la spécification
+  1.0.7 (#3379) ; le contrôle axe des parcours le tient (`frontend/e2e/axe.ts`) ;
 - propre à l'US : le parcours au clavier joue en sombre comme en clair, et la pull request donne la
   durée du fichier avant et après (#784, point 2) ; les autres points de #784 sont corrigés, ou
   écrits dans « Ce que les tests ne prouvent pas » avec leur raison ;
@@ -951,7 +954,10 @@ prédécesseurs, **afin de** démarrer le travail du jour sans parcourir trois c
 - écart : `WF-RAE-0030-A` — « Un jalon terminé que l’on rouvre est non démarré et ne contribue plus
   à la valeur acquise. » : idem ; EP-09 clôt.
 - écart : `WF-RAE-0030-A` — « Une tâche feuille démarrée sans ligne de devis est terminée depuis le
-  Kanban. » : idem ; EP-09 clôt.
+  Kanban. » : idem ; EP-09 clôt ;
+- écart : `WF-RAE-0030-A` — « Sur un projet qui n’est pas En cours, le Kanban ne propose aucun
+  geste. » : ajouté par la spécification 1.0.7 (#3372) ; le contrat ferme déjà tout geste du Kanban
+  hors En cours.
 - `WF-IHM-0070-A` — « Aucun écran ne distingue deux états par la seule couleur. » : la marque
   « prête à démarrer » se lit sans couleur, et le tiret décoratif de la carte n'est pas lu par les
   lecteurs d'écran (#1356, point 1) ;
@@ -1648,6 +1654,9 @@ ce que le geste ouvre ne coûte pas 38 à 67 % du chemin critique de la chaîne 
   de référence ;
 - `WF-IHM-0100-A` — « À 150 % d'agrandissement, aucune commande ne devient inatteignable. » :
   inchangé, constaté par US-0710 (#1209) ;
+- écart : `WF-IHM-0100-A` — « Un contrôle automatisé ne relève aucun champ de saisie sans libellé
+  associé ni aucune image porteuse d'information sans description. » : ajouté par la spécification
+  1.0.7 (#3379) ; le contrôle axe des parcours le tient (`frontend/e2e/axe.ts`) ;
 - propre à l'US : la pull request donne la durée du fichier du harnais avant et après, avec la part
   du chemin critique qu'elle représente ; la chaîne ne reçoit ni attente allongée, ni `retries`, ni
   `fixme`, ni seuil baissé ;

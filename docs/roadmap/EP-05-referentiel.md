@@ -655,6 +655,9 @@ référentiel existe avant tout projet et dise ce qui lui manque encore.
   (ci-dessous) ;
 - écart : `WF-EXP-0020-A` — « Le lien produit à l'installation est accepté plus d'une heure après
   sa production. » : constaté par EP-03 (US-0420) ;
+- écart : `WF-EXP-0020-A` — « Le fuseau horaire choisi à l’installation est conservé ; une seconde
+  exécution ne le change pas. » : ajouté par la spécification 1.0.7 (#3382) ; tenu depuis EP-25
+  (US-2200, #2527) ;
 - `WF-CYC-0120-A` — « Sur une installation neuve, dont la seule catégorie est celle des provisions
   pour risques, la création est refusée en nommant la catégorie de main-d'œuvre et le rôle
   manquants. » : `getReferenceReadiness` rend `is_complete` faux et `missing` à

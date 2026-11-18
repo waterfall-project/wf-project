@@ -1212,7 +1212,10 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
 - écart : `WF-DAT-0080-A` — « Celle d’un poste référencé par une révision marquée le marque supprimé : la révision l’affiche toujours, la saisie ne le propose plus. » : le lotissement arrive en EP-04.
 - écart : `WF-DAT-0080-A` — « Celle d’un sous-projet que portent des lignes de devis de la révision en cours est refusée et nomme ces lignes ; elle aboutit une fois ces lignes passées hors sous-projet ou à un autre sous-projet. » : EP-04.
 - `WF-DAT-0080-A` — « Aucune commande ne supprime physiquement un rôle de ressource, un rôle d’habilitation ou un compte. » : pour le compte et le rôle
-  d'habilitation ; le rôle de ressource arrive en EP-05, qui le constate pour lui.
+  d'habilitation ; le rôle de ressource arrive en EP-05, qui le constate pour lui ;
+- écart : `WF-DAT-0080-A` — « Une tâche de fond terminée depuis plus que la rétention de son
+  résultat n’est plus dans la base ; un compte rendu d’import et un plan de collage expirés non
+  plus. » : ajouté par la spécification 1.0.7 (#3388) ; la purge est à EP-13 (#921).
 - écart : `WF-DAT-0090-A` — « L’insertion d’une ligne de devis référençant une catégorie inexistante est rejetée par la base. » : le devis arrive en EP-07, qui clôt
   l'exigence.
 - écart : `WF-DAT-0090-A` — « L’insertion de deux sous-projets de même code dans un projet est rejetée par la base, avant toute règle des services. » : EP-04.
@@ -1231,7 +1234,10 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
   est refusé, au champ qui le provoque, sans rien écrire. » : ajouté par la spécification 1.0.6
   (#3100) ; EP-24 l'éprouve (US-1980) ;
 - écart : `WF-DAT-0100-A` — « Un montant calculé de 75,705 est présenté 75,71. » : ajouté par la
-  spécification 1.0.7 (#3369) ; le service arrondit ainsi depuis #2618 (`round_to_cent`).
+  spécification 1.0.7 (#3369) ; le service arrondit ainsi depuis #2618 (`round_to_cent`) ;
+- écart : `WF-DAT-0100-A` — « Sur une installation au fuseau de Paris, une saisie datée faite à 0 h
+  30, heure de Paris, propose le jour de Paris. » : ajouté par la spécification 1.0.7 (#3382) ; tenu
+  depuis EP-25 (US-2200, #2527).
 - propre à l'US : les horodatages d'audit sont conservés en temps universel (WF-DAT-0100).
 - écart : `WF-DAT-0140-A` — « Une installation en version N passe en version N+1 sans perte de données, et le code de la version N s’exécute sur le schéma migré. » : la mise à jour sans interruption relève du
   déploiement — EP-13.
@@ -1505,7 +1511,7 @@ droits selon son organisation, et non selon celle que le logiciel imagine.
 **Critères d'acceptation.**
 
 - `WF-ADM-0010-A` — « Sur une installation neuve, les trois rôles existent et leurs permissions couvrent les usages des exigences citées. »
-- `WF-ADM-0010-A` — « Un administrateur renomme un rôle prédéfini et en modifie les permissions, et il supprime sans erreur un rôle prédéfini qu’aucun compte ne porte. »
+- `WF-ADM-0010-A` — « Un utilisateur habilité à gérer les rôles renomme un rôle prédéfini et en modifie les permissions, et il supprime sans erreur un rôle prédéfini qu’aucun compte ne porte. »
 - `WF-ADM-0010-A` — « La suppression du rôle « administrateur » qu’il porte est refusée (WF-ADM-0090, WF-ADM-0120). »
 - écart : `WF-ADM-0020-A` — « Un rôle d’habilitation composé sur mesure permet à un utilisateur de cumuler des permissions relevant de deux acteurs différents. » : ici, les permissions effectives d'un
   utilisateur portent celles des deux acteurs ; l'exercice des deux attend la première action
@@ -1515,7 +1521,7 @@ droits selon son organisation, et non selon celle que le logiciel imagine.
 - `WF-ADM-0090-A` — « Le retrait d’une permission à un rôle en prive tous ses porteurs sans qu’ils aient à se reconnecter. »
 - `WF-ADM-0090-A` — « La suppression d’un rôle est refusée tant qu’un compte le porte. »
 - `WF-ADM-0090-A` — « Un rôle supprimé n’apparaît plus dans la liste des rôles ni dans les choix d’attribution ; l’inscription du journal d’audit qui l’attribuait à un compte le nomme toujours. » : l'inscription est celle d'US-0410.
-- `WF-ADM-0100-A` — « Chaque fonction de second niveau de l’arborescence est représentée par ses deux permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5 et FBS-2.1 à FBS-2.7. »
+- `WF-ADM-0100-A` — « Chaque fonction de second niveau de l’arborescence est représentée par ses deux permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5, FBS-2.1 à FBS-2.7, FBS-4.8 et FBS-4.9. »
 - écart : `WF-ADM-0100-A` — « Un rôle disposant de la modification du chiffrage mais non du marquage permet de modifier un devis et refuse de marquer la révision ; un rôle disposant du marquage mais non de la fusion refuse de fusionner un différentiel. » : le marquage arrive en EP-04, le devis en EP-07,
   la fusion en EP-08, qui clôt l'exigence.
 - écart : `WF-ADM-0100-A` — « Un utilisateur sans la permission de créer un projet n’en crée pas. » : la création d'un projet arrive en EP-04.
@@ -1695,7 +1701,10 @@ traîne dans une procédure, et que la relancer soit sans danger.
 - `WF-EXP-0020-A` — « Le lien produit à l’installation est accepté plus d’une heure après sa production. »
 - écart : `WF-EXP-0020-A` — « Sur une installation neuve, les bornes de probabilité valent 25 %, 50 % et 75 %, celles de gravité 1 %, 5 % et 10 %, les seuils 0,9 et 0,8, le délai six semaines, et le calendrier par défaut compte huit heures du lundi au vendredi et aucune le week-end. » : les bornes, les seuils et le délai
   arrivent en EP-05, qui les ajoute à l'amorçage.
-- écart : `WF-EXP-0020-A` — « Le nom de l’entreprise saisi à l’installation figure sur un devis exporté ; modifié, il figure sur le suivant. » : ajouté par la reprise de la spécification du 2026-10-22 (C-371), après la livraison de l'EPIC ; l'amorçage qui le demande et le réglage qui le modifie — #1304 —, le devis exporté — EP-07.
+- écart : `WF-EXP-0020-A` — « Le nom de l’entreprise saisi à l’installation figure sur un devis exporté ; modifié, il figure sur le suivant. » : ajouté par la reprise de la spécification du 2026-10-22 (C-371), après la livraison de l'EPIC ; l'amorçage qui le demande et le réglage qui le modifie — #1304 —, le devis exporté — EP-07 ;
+- écart : `WF-EXP-0020-A` — « Le fuseau horaire choisi à l’installation est conservé ; une seconde
+  exécution ne le change pas. » : ajouté par la spécification 1.0.7 (#3382) ; tenu depuis EP-25
+  (US-2200, #2527).
 - propre à l'US : l'amorçage applique les migrations, crée le catalogue des permissions, les
   trois rôles prédéfinis, le compte administrateur local dans le fournisseur d'identité et
   dans Waterfall, et la langue par défaut de l'installation ; les libellés des rôles sont dans

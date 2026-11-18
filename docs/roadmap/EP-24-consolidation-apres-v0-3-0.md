@@ -913,7 +913,10 @@ l'aller-retour ne change pas une ligne de catégorie en ligne de rôle (#2752, #
 - `WF-INTF-0120-A` — « Un reste à engager exporté d'une révision marquée puis réimporté dans la révision en cours met à jour les lignes de même lignée sans en créer aucune. » : sa forme pour un code partagé : le classeur range les libellés des rôles et ceux des catégories dans deux index ; un reste à engager dont un rôle et une catégorie partagent un code est exporté, la ligne de catégorie sous le libellé de sa catégorie, puis réimporté sans qu'aucune ligne change de nature ;
 - écart : `WF-INTF-0120-A` — « Même critère que WF-INTF-0100, appliqué aux grandeurs réestimées ; les montants budgétés et les lignées de toutes les lignes sont inchangés après l'import, et une ligne absente du fichier conserve son reste à engager. » : constaté par EP-09, inchangé ;
 - écart : `WF-INTF-0120-A` — « Avec huit heures par jour, une ligne de main-d'œuvre dont le fichier porte trois jours a un reste de vingt-quatre heures. » : idem ;
-- écart : `WF-INTF-0120-A` — « Une tâche démarrée dont toutes les lignes du fichier portent zéro est terminée à la date de la revue ; une tâche non démarrée dont les lignes sont laissées telles quelles reste non réestimée. » : idem ;
+- écart : `WF-INTF-0120-A` — « Une tâche démarrée dont toutes les lignes, celles absentes du fichier
+  comprises, sont à zéro après l’import, et dont le fichier en met au moins une à zéro, est terminée
+  à la date de la revue ; une tâche non démarrée dont les lignes sont laissées telles quelles reste
+  non réestimée. » : réécrit par la spécification 1.0.7 (#3362) ; #3978 le confronte au livré ;
 - écart : `WF-INTF-0120-A` — « Un fichier qui recopie une ligne avec sa lignée voit les deux lignes rejetées, et la ligne existante inchangée. » : idem ;
 - écart : `WF-INTF-0120-A` — « Un fichier sans date de revue applique les lignes qui ne terminent aucune tâche et rejette celles qui en termineraient une. » : idem ;
 - écart : `WF-INTF-0120-A` — « Une cellule de reste effacée sur une ligne connue la met à zéro. » : idem ;
@@ -954,7 +957,12 @@ se voie (#2909).
 - écart : `WF-RAE-0040-A` — « La modification d'une ligne portée par une tâche terminée est refusée. » : idem ;
 - écart : `WF-RAE-0040-A` — « Une tâche démarrée dont la fin est dépassée est signalée ; sa date n'est pas modifiable depuis cette grille. » : idem ;
 - écart : `WF-RAE-0040-A` — « La saisie d'un reste à engager nul sur toutes les lignes d'une tâche non démarrée la termine, avec une date de démarrage égale à sa date de terminaison. » : idem ;
-- écart : `WF-RAE-0040-A` — « Sur un projet qui n'est pas En cours, la grille ne propose ni création ni suppression de tâche ou de ligne. » : idem ;
+- écart : `WF-RAE-0040-A` — « Sur un projet qui n’est pas En cours, la grille ne propose aucune
+  saisie. » : réécrit par la spécification 1.0.7 (#3372) ; le contrat ferme déjà toute saisie du
+  reste hors En cours ;
+- écart : `WF-RAE-0040-A` — « La création d’une ligne sous une tâche terminée, ou le déplacement
+  d’une ligne vers elle, est refusé. » : passé de WF-DEV-0050 à WF-RAE-0040 par la spécification
+  1.0.7 (#3372) ; tenu par le service (`planning/carrying.py`) ;
 - le commentaire de `structure.spec.ts:299` et le guide ne disent plus ces deux parcours sans
   jumeau.
 
@@ -1004,7 +1012,10 @@ pas rester devant une ligne inerte ni lire « serveur injoignable » à tort (#2
 
 **Critères d'acceptation.**
 
-- `WF-ADM-0010-A` — « Un administrateur renomme un rôle prédéfini et en modifie les permissions, et il supprime sans erreur un rôle prédéfini qu'aucun compte ne porte. » : sa forme pour une écriture en vol ou rejetée : une suppression confirmée dont l'écriture est rejetée libère le rôle, dont la ligne, le libellé, les cases et « Supprimer » redeviennent actifs (#2898) ; un renommage validé pendant qu'une écriture du même rôle est en vol attend que le rôle soit libre, puis part une seule fois de la version répondue, sans message (#2897) ;
+- écart : `WF-ADM-0010-A` — « Un utilisateur habilité à gérer les rôles renomme un rôle prédéfini et
+  en modifie les permissions, et il supprime sans erreur un rôle prédéfini qu’aucun compte ne porte.
+  » : réécrit par la spécification 1.0.7 (#3365) : la gestion des rôles tient à sa permission, non
+  au rôle « administrateur » ;
 - écart : `WF-ADM-0010-A` — « Sur une installation neuve, les trois rôles existent et leurs permissions couvrent les usages des exigences citées. » : constaté par EP-03, inchangé ;
 - écart : `WF-ADM-0010-A` — « La suppression du rôle « administrateur » qu'il porte est refusée (WF-ADM-0090, WF-ADM-0120). » : idem ;
 - `WF-OBS-0020-A` — « Un import échoué peut être suivi du dépôt du fichier à l'échec de la tâche par un seul identifiant, que le message présenté à l'utilisateur contient. » : sa forme pour une réponse inattendue : `UnexpectedAnswer` ne garde dans son digest qu'un `correlation_id` de la forme du contrat (`^[A-Za-z0-9._-]{1,64}$`), comme `envelope()` et `rejection.ts` ; une valeur hors forme n'est pas affichée comme référence sur l'écran de panne (#2882) ;

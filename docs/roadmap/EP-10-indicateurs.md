@@ -1355,12 +1355,11 @@ le projet dépense au rythme prévu et où il atterrira.
   deux cumulés à cette date, et atteint 1 200 à la date de fin de la nouvelle référence. » :
   l'avenant est d'EP-08, qui clôt ; ici, `steps` est rendu vide, et la série du budget lit la seule
   référence désignée ;
-- `WF-IND-0100-A` — « Avec un délai de paiement de 60 jours saisi sur toutes les lignes,
-  main-d’œuvre comprise, la courbe du budget de référence décalée est la courbe non décalée
-  translatée de 60 jours ; la projection l’est aussi, hormis les lignes de provision, qui restent à
-  leur date ; le coût réel n’est pas décalé. » : avec `payment_delays`, chaque part du budget et de
-  la projection est décalée du `payment_delay_days` de sa ligne avant le cumul mensuel, le coût réel
-  non ; les lignes de provision sont d'EP-08, qui clôt, et aucune n'existe ici ;
+- écart : `WF-IND-0100-A` — « Avec un délai de paiement de 60 jours saisi sur toutes les lignes,
+  main-d’œuvre comprise, chaque montant de la courbe du budget de référence est compté au mois de sa
+  date décalée de 60 jours ; ceux de la projection le sont aussi, hormis les lignes de provision,
+  qui restent à leur date ; le coût réel n’est pas décalé. » : réécrit par la spécification 1.0.7
+  (#3378) : la courbe est au pas du mois ; tenu par EP-10 (#3564) ;
 - `WF-IND-0100-A` — « La somme des décaissements à venir égale le reste à engager, provisions des
   risques identifiés comprises. » : la somme des `forecast` de `cash_out_by_month` égale `remaining`
   d'US-1660 au centime ; les provisions sont d'EP-08, qui clôt, et comptent zéro ici ;
@@ -1506,6 +1505,9 @@ que quiconque ne l'ait dit.
   nouveau le point du jour, `completed_on` nul ;
 - `WF-RAE-0030-A` — « Une tâche feuille démarrée sans ligne de devis est terminée depuis le
   Kanban. » : constaté par EP-09 ;
+- écart : `WF-RAE-0030-A` — « Sur un projet qui n’est pas En cours, le Kanban ne propose aucun
+  geste. » : ajouté par la spécification 1.0.7 (#3372) ; le contrat ferme déjà tout geste du Kanban
+  hors En cours ;
 - propre à l'US : `getMilestoneTracking` est calculé pour le seul projet, sans `scope` ; un point
   par révision marquée après le passage En cours du projet — l'instant de la transition, lu par
   l'interface des projets, comparé à `marked_at` — qui porte la lignée, à sa date de marquage, la

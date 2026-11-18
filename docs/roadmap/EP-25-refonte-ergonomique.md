@@ -532,6 +532,9 @@ réécrit sur le filtre d'état ; ici, il n'est qu'isolé.
   `contrast.test.ts` tient chaque paire de texte et de fond des jetons nouveaux, dans les deux
   modes, et le bord des champs reste à 3:1 au moins ;
 - `WF-IHM-0100-A` — « À 150 % d'agrandissement, aucune commande ne devient inatteignable. » ;
+- écart : `WF-IHM-0100-A` — « Un contrôle automatisé ne relève aucun champ de saisie sans libellé
+  associé ni aucune image porteuse d'information sans description. » : ajouté par la spécification
+  1.0.7 (#3379) ; le contrôle axe des parcours le tient (`frontend/e2e/axe.ts`) ;
 - `WF-IHM-0070-A` — « Une copie d'écran en niveaux de gris laisse identifier chaque signalement. » :
   l'état « Actif » se dit par une pastille et son mot, « Désactivé » garde sa marque ;
 - `WF-IHM-0070-A` — « La même zone d'indice porte la même couleur dans la liste des projets, dans
@@ -698,6 +701,9 @@ de l'écran de référence, **afin de** y retrouver les commandes à la même pl
 - `WF-IHM-0100-A` — « Un contrôle automatisé de contraste ne relève aucun écart au niveau AA. » :
   sur chacun de ces écrans, dans les deux modes ;
 - `WF-IHM-0100-A` — « À 150 % d'agrandissement, aucune commande ne devient inatteignable. » ;
+- écart : `WF-IHM-0100-A` — « Un contrôle automatisé ne relève aucun champ de saisie sans libellé
+  associé ni aucune image porteuse d'information sans description. » : ajouté par la spécification
+  1.0.7 (#3379) ; le contrôle axe des parcours le tient (`frontend/e2e/axe.ts`) ;
 - propre à l'US : gestion des utilisateurs — la lecture des comptes du fournisseur d'identité est
   une carte, son bouton à droite de son titre, à contour, son état en corps ; « Créer un compte
   local » est plein, à droite du titre de « Comptes utilisateurs » ; la carte prend la hauteur de
@@ -729,6 +735,9 @@ de référence, **afin de** régler le référentiel sans chercher une commande 
 - `WF-IHM-0100-A` — « Un contrôle automatisé de contraste ne relève aucun écart au niveau AA. » :
   sur chacun de ces écrans, dans les deux modes ;
 - `WF-IHM-0100-A` — « À 150 % d'agrandissement, aucune commande ne devient inatteignable. » ;
+- écart : `WF-IHM-0100-A` — « Un contrôle automatisé ne relève aucun champ de saisie sans libellé
+  associé ni aucune image porteuse d'information sans description. » : ajouté par la spécification
+  1.0.7 (#3379) ; le contrôle axe des parcours le tient (`frontend/e2e/axe.ts`) ;
 - propre à l'US : paramètres de ressources — « Nouveau nœud », « Nouveau rôle » et « Nouveau
   calendrier » sont pleins ; l'arbre d'organisation prend la largeur de sa carte, comme une table
   plate, « Arbre » avec « Colonnes » ; « Modifier les unités de durée » est à droite du titre de sa
@@ -777,10 +786,14 @@ sur l'écran des coûts, auquel il n'a pas trait.
   50 % et 75 %, celles de gravité 1 %, 5 % et 10 %, les seuils 0,9 et 0,8, le délai six semaines, et
   le calendrier par défaut compte huit heures du lundi au vendredi et aucune le week-end. » :
   constaté par EP-05 (US-0810) ;
-- `WF-ADM-0100-A` — « Chaque fonction de second niveau de l'arborescence est représentée par ses
-  deux permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5 et FBS-2.1 à
-  FBS-2.7. » : la fonction « Installation », FBS-1.6, que #3197 ajoute à l'arborescence,
-  a ses deux permissions au catalogue ;
+- écart : `WF-EXP-0020-A` — « Le fuseau horaire choisi à l’installation est conservé ; une seconde
+  exécution ne le change pas. » : ajouté par la spécification 1.0.7 (#3382) ; tenu depuis EP-25
+  (US-2200, #2527) ;
+- écart : `WF-ADM-0100-A` — « Chaque fonction de second niveau de l’arborescence est représentée par
+  ses deux permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5, FBS-2.1 à
+  FBS-2.7, FBS-4.8 et FBS-4.9. » : réécrit par la spécification 1.0.7 (#3354) : FBS-4.8 et FBS-4.9
+  n'ont que la permission de consulter, quand le livré leur donne encore celle de modifier ; #3975
+  l'éprouve ;
 - écart : `WF-ADM-0100-A` — « Un rôle disposant de la modification du chiffrage mais non du marquage
   permet de modifier un devis et refuse de marquer la révision ; un rôle disposant du marquage mais
   non de la fusion refuse de fusionner un différentiel. » : EP-04 et EP-08, comme le dit US-1050 ;
@@ -830,6 +843,9 @@ passant du référentiel à un projet.
 - `WF-IHM-0100-A` — « Un contrôle automatisé de contraste ne relève aucun écart au niveau AA. » :
   sur chacun de ces écrans, dans les deux modes ;
 - `WF-IHM-0100-A` — « À 150 % d'agrandissement, aucune commande ne devient inatteignable. » ;
+- écart : `WF-IHM-0100-A` — « Un contrôle automatisé ne relève aucun champ de saisie sans libellé
+  associé ni aucune image porteuse d'information sans description. » : ajouté par la spécification
+  1.0.7 (#3379) ; le contrôle axe des parcours le tient (`frontend/e2e/axe.ts`) ;
 - `WF-IHM-0120-A` — « Un contributeur de deux projets les voit à sa connexion ; la levée du filtre
   montre aussi les projets qu'il peut ouvrir sans en être contributeur, et aucun autre. » : « mes
   projets » est un filtre de la table, dit par sa pastille « (par défaut) » et levé en l'ôtant,
@@ -883,6 +899,9 @@ planning ou d'un devis.
 - `WF-IHM-0100-A` — « Un contrôle automatisé de contraste ne relève aucun écart au niveau AA. » :
   sur chacun de ces écrans, dans les deux modes ;
 - `WF-IHM-0100-A` — « À 150 % d'agrandissement, aucune commande ne devient inatteignable. » ;
+- écart : `WF-IHM-0100-A` — « Un contrôle automatisé ne relève aucun champ de saisie sans libellé
+  associé ni aucune image porteuse d'information sans description. » : ajouté par la spécification
+  1.0.7 (#3379) ; le contrôle axe des parcours le tient (`frontend/e2e/axe.ts`) ;
 - propre à l'US : planification, chiffrage et devis, reste à engager, arbre des tâches — la grille
   reste serrée, hors colonne centrée, et remplit la fenêtre ; la hauteur de ses lignes ne change
   pas ; « Date de début de planning » ne flotte plus sous le titre ;
@@ -912,6 +931,9 @@ sur le service n'aient pas à la refaire.
 - `WF-IHM-0100-A` — « Un contrôle automatisé de contraste ne relève aucun écart au niveau AA. » :
   sur chacun de ces écrans, dans les deux modes ;
 - `WF-IHM-0100-A` — « À 150 % d'agrandissement, aucune commande ne devient inatteignable. » ;
+- écart : `WF-IHM-0100-A` — « Un contrôle automatisé ne relève aucun champ de saisie sans libellé
+  associé ni aucune image porteuse d'information sans description. » : ajouté par la spécification
+  1.0.7 (#3379) ; le contrôle axe des parcours le tient (`frontend/e2e/axe.ts`) ;
 - propre à l'US : les sept écrans du portefeuille, « Indicateurs projets » et « Surveillance de
   l'état du système » sont en colonne centrée et en cartes, une carte par section, par table et par
   graphique ; leurs filtres de périmètre sont dans une carte ou dans la barre de leur table — pour
@@ -1188,6 +1210,9 @@ même façon sur chaque écran, **afin de** ne pas relancer un traitement qui co
   visible. » : non touché ; tenu écran par écran par US-2100 à US-2150 ;
 - écart : `WF-IHM-0100-A` — « Un contrôle automatisé de contraste ne relève aucun écart au niveau
   AA. » : non touché ; tenu écran par écran par US-2100 à US-2150 ;
+- écart : `WF-IHM-0100-A` — « Un contrôle automatisé ne relève aucun champ de saisie sans libellé
+  associé ni aucune image porteuse d'information sans description. » : ajouté par la spécification
+  1.0.7 (#3379) ; le contrôle axe des parcours le tient (`frontend/e2e/axe.ts`) ;
 - propre à l'US : une carte de grille commune, sans titre, à côté de la carte de section, porte la
   grille d'un écran de travail qui remplit sa fenêtre ; elle remplace les cartes que les écrans
   composaient eux-mêmes — celle du journal d'audit et celle des écrans de travail d'un projet ; la

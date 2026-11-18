@@ -1488,6 +1488,9 @@ connaît, **afin que** les fichiers exportés disent de quelle entreprise ils vi
   - l'amorçage qui demande le nom et la base qui le garde : EP-05 ;
   - le devis exporté qui le porte : EP-07 ;
   - EP-16 en donne le réglage, au contrat et à l'écran (ci-dessous) ;
+- écart : `WF-EXP-0020-A` — « Le fuseau horaire choisi à l’installation est conservé ; une seconde
+  exécution ne le change pas. » : ajouté par la spécification 1.0.7 (#3382) ; tenu depuis EP-25
+  (US-2200, #2527) ;
 - propre à l'US : les paramètres communs (`ReferenceSettings`) portent le nom de l'entreprise, que
   l'écran des paramètres de coûts montre à côté de la devise ;
 - propre à l'US : qui porte `cost_settings.write` modifie le nom de l'entreprise à cet écran ; qui

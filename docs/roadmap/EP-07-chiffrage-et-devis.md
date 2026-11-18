@@ -1117,6 +1117,9 @@ sans construire un second arbre.
   (#3100) ; EP-24 l'éprouve (US-1980) ;
 - écart : `WF-DAT-0100-A` — « Un montant calculé de 75,705 est présenté 75,71. » : ajouté par la
   spécification 1.0.7 (#3369) ; le service arrondit ainsi depuis #2618 (`round_to_cent`) ;
+- écart : `WF-DAT-0100-A` — « Sur une installation au fuseau de Paris, une saisie datée faite à 0 h
+  30, heure de Paris, propose le jour de Paris. » : ajouté par la spécification 1.0.7 (#3382) ; tenu
+  depuis EP-25 (US-2200, #2527) ;
 - `WF-DAT-0010-A` — « Après marquage d’une révision puis création de la suivante, le nombre de
   lignes de chaque table portant l’identifiant de la nouvelle révision égale celui de la révision
   marquée, hors les lignes des structures différentielles fusionnées et des structures propres des
@@ -1149,6 +1152,9 @@ sans construire un second arbre.
   révision l’affiche toujours, la saisie ne le propose plus. » : constaté par EP-06 ;
 - `WF-DAT-0080-A` — « Aucune commande ne supprime physiquement un rôle de ressource, un rôle
   d’habilitation ou un compte. » : constaté par EP-03 et EP-05 ;
+- écart : `WF-DAT-0080-A` — « Une tâche de fond terminée depuis plus que la rétention de son
+  résultat n’est plus dans la base ; un compte rendu d’import et un plan de collage expirés non
+  plus. » : ajouté par la spécification 1.0.7 (#3388) ; la purge est à EP-13 (#921) ;
 - `WF-REF-0040-A` — « La création d’une catégorie sans nature est refusée. »
 - `WF-REF-0040-A` — « La création d’une catégorie dont le code comptable existe déjà est refusée. »
 - `WF-REF-0040-A` — « La création d’une catégorie sans libellé est refusée. » : les trois,
@@ -1651,6 +1657,8 @@ l'exécution avec l'équipe que le chiffrage appelle.
 - `WF-PRJ-0060-A` — « Le retrait du seul chef de projet d’un projet est refusé, de même que son
   passage en participant ; il est accepté dès qu’un second chef de projet est inscrit. » : constaté
   par EP-04 ;
+- écart : `WF-PRJ-0060-A` — « Un participant porteur de la permission d’exclure une ligne de coût ne
+  l’exclut pas. » : ajouté par la spécification 1.0.7 (#3350) ; #3973 l'éprouve ;
 - `WF-PRJ-0070-A` — « Après création d’une ligne de main-d’œuvre portant un rôle relevant d’un
   service dont aucun utilisateur n’est contributeur, Waterfall propose les utilisateurs de ce
   service. » : `listContributorSuggestions` rend les comptes actifs rattachés aux nœuds
@@ -1832,6 +1840,9 @@ connaissent et de revenir sans écart.
   constatées par EP-03, EP-04 et EP-05 ;
 - `WF-EXP-0020-A` — « Le nom de l’entreprise saisi à l’installation figure sur un devis exporté ;
   modifié, il figure sur le suivant. » : l'onglet « Présentation » et le pied de page ;
+- écart : `WF-EXP-0020-A` — « Le fuseau horaire choisi à l’installation est conservé ; une seconde
+  exécution ne le change pas. » : ajouté par la spécification 1.0.7 (#3382) ; tenu depuis EP-25
+  (US-2200, #2527) ;
 - `WF-PRJ-0080-A` — « La création d’un projet sans libellé est refusée. »
 - `WF-PRJ-0080-A` — « La date de réception de la commande est saisissable à tout moment et n’est
   exigée par aucune transition. » : les deux, constatées par EP-04 ;
@@ -1907,11 +1918,10 @@ annulation, tri, filtres, indicateurs —, **afin de** chiffrer mon projet sans 
   projet à 2 % ;
 - `WF-DEV-0050-A` — « Dans la structure principale, la création d’une ligne sous une tâche terminée,
   ou le déplacement d’une ligne vers elle, est refusé. » : le refus du service (#1767) dit à la
-  ligne en cause ;
+  ligne en cause ; la phrase passe à WF-RAE-0040 par la spécification 1.0.7 (#3372) ;
 - écart : `WF-DEV-0050-A` — « Dans un différentiel, la modification de la quantité d’une ligne d’une
-  tâche terminée aboutit, et la fusion lui donne ce montant budgété ; dans la structure principale,
-  elle est refusée. » : le refus sur la structure principale, ici ; le différentiel et la fusion
-  sont d'EP-08, qui clôt ;
+  tâche terminée aboutit, et la fusion lui donne ce montant budgété. » : réécrit par la
+  spécification 1.0.7 (#3372) : le refus dans la structure principale se lit dans WF-RAE-0040 ;
 - `WF-DEV-0050-A` — « La grille de devis ne propose la saisie ni de la durée ni des prédécesseurs
   d’une tâche. » : constaté par EP-15, rejoué contre le service ;
 - écart : `WF-DEV-0050-A` — « Sur un projet En cours, la grille de devis de la structure principale

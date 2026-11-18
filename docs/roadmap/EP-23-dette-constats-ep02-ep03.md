@@ -696,12 +696,10 @@ référentiel (#2272).
 **Critères d'acceptation.**
 
 - écart : `WF-ADM-0010-A` — « Sur une installation neuve, les trois rôles existent et leurs permissions couvrent les usages des exigences citées. » : constaté par EP-03 (US-0380), inchangé.
-- `WF-ADM-0010-A` — « Un administrateur renomme un rôle prédéfini et en modifie les permissions, et il supprime sans erreur un rôle prédéfini qu’aucun compte ne porte. » : sa forme quand ces
-  gestes se suivent avant la réponse du premier : tant qu'une écriture d'un rôle est en route — son
-  renommage, une case de la matrice, sa suppression confirmée —, la cellule de son libellé, ses
-  cases et sa commande « Supprimer » sont occupées (`aria-busy`, `aria-disabled`) et n'envoient
-  rien ; la réponse reçue, l'écriture suivante part avec la `lock_version` et les permissions
-  répondues, sans 412 ; une écriture d'un autre rôle n'attend pas.
+- écart : `WF-ADM-0010-A` — « Un utilisateur habilité à gérer les rôles renomme un rôle prédéfini et
+  en modifie les permissions, et il supprime sans erreur un rôle prédéfini qu’aucun compte ne porte.
+  » : réécrit par la spécification 1.0.7 (#3365) : la gestion des rôles tient à sa permission, non
+  au rôle « administrateur ».
 - écart : `WF-ADM-0010-A` — « La suppression du rôle « administrateur » qu’il porte est refusée (WF-ADM-0090, WF-ADM-0120). » : constaté par EP-03 (US-0380), inchangé.
 - écart : `WF-IHM-0090-A` — « Sur un projet en chiffrage, la commande de terminaison est présentée indisponible en nommant la condition manquante. » : la terminaison est d'EP-04 ;
   ici, sa forme pour un compte : un compte qui liste `set_access_roles` indisponible présente le
@@ -1009,7 +1007,10 @@ valeur hors de ces règles soit refusée à son champ, plutôt qu'enregistrée a
   est refusé, au champ qui le provoque, sans rien écrire. » : ajouté par la spécification 1.0.6
   (#3100) ; EP-24 l'éprouve (US-1980) ;
 - écart : `WF-DAT-0100-A` — « Un montant calculé de 75,705 est présenté 75,71. » : ajouté par la
-  spécification 1.0.7 (#3369) ; le service arrondit ainsi depuis #2618 (`round_to_cent`).
+  spécification 1.0.7 (#3369) ; le service arrondit ainsi depuis #2618 (`round_to_cent`) ;
+- écart : `WF-DAT-0100-A` — « Sur une installation au fuseau de Paris, une saisie datée faite à 0 h
+  30, heure de Paris, propose le jour de Paris. » : ajouté par la spécification 1.0.7 (#3382) ; tenu
+  depuis EP-25 (US-2200, #2527).
 - `WF-REF-0160-A` — « Les six bornes sont saisissables et ordonnées. » : sa forme pour leur
   précision : une borne de plus de dix décimales, ou de plus de dix chiffres avant le point — `"0."`
   suivi de vingt mille `9` —, est refusée par 422 `VALIDATION_FAILED` à `/risk_matrix/<axe>/<rang>`,
