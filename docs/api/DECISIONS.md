@@ -12109,6 +12109,8 @@ révisions marquées avant EP-10 les garde sans aucun document conservé :
   `is_stored` dit au front qu'elle n'a pas été conservée.
 - **Dès que la révision porte un document de la nature, plus aucun recalcul** : une maille que le
   marquage n'a pas conservée — un sous-projet créé depuis — reçoit le 422 `UNKNOWN_SUBPROJECT`.
+  Cela ne vaut que pour `getEstimateIndicators` : `getRemainingIndicators` lit toujours la maille
+  `project`, et n'a pas de maille à refuser.
 - **`getProjectIndicators` refuse une telle révision par 409 `STATE_FORBIDS_OPERATION`, sans
   `params`**, comme une offre : le front ne la distingue d'un projet antérieur à En cours que par
   l'absence de `params.state`.
