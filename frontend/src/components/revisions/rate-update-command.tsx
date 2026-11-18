@@ -213,8 +213,9 @@ function RateUpdateDialog({
       return;
     }
     setOutcome(undefined);
-    // In a transition, as the dialogs that write are: the answer, told or closed, is committed with
-    // the end of the request, while Escape is still held.
+    // In a transition, as the dialogs that write are: the request runs while Escape is still held.
+    // A refusal is set in a nested transition, committed with the end of the request; the end of an
+    // application — `onApplied`, `onClose` — runs after the answer, outside it.
     startTransition(async () => {
       const answer = await held(
         applyRateUpdate(projectId, revisionId, {

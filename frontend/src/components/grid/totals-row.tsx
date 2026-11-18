@@ -10,19 +10,28 @@
  * scrolls sideways, but over the pinned columns alone: its offset is less the columns it spans that
  * are not pinned, so that it never covers a figure scrolled under it, and its words stick to the
  * start of its first column. All of it is CSS, from the widths the table holds.
+ *
+ * Compared to a base (`ComparedTotals`, WF-IHM-0160), each total says three lines: the one of the
+ * revision read, that of the base and their difference, all given by the server — the grid sums and
+ * subtracts nothing (WF-ARC-0020) —, and the row is marked modified when they differ, not when they
+ * are equal.
  */
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { Column, RowData } from "@tanstack/react-table";
+import type { ReactNode } from "react";
 
 import { TableCell, TableRow } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
 import { useCurrency } from "@/currency/context";
 import type { Locale } from "@/i18n/locale";
 
-import { alignment, formatCell, type GridConfig } from "./columns";
+import { alignment, DIFF_MARK_KEY, formatCell, type GridConfig } from "./columns";
+import { DiffMark, differenceTint } from "./diff-mark";
 import { configColumn, type GridFeatures, type GridTable } from "./grid-table";
 import { type Pinning, pinningOf } from "./pinning";
+import { isZero, signed } from "./signed";
 
 /**
  * The classes that align the content of a column: the row numbers and the figures at the end,
@@ -96,7 +105,7 @@ function CaptionCell<Row extends RowData>({
 }: {
   readonly table: GridTable<Row>;
   readonly spanned: readonly TableColumn<Row>[];
-  readonly caption: string;
+  readonly caption: ReactNode;
 }) {
   const { pinning, words } = captionPinning(table, spanned);
   return (
@@ -124,12 +133,83 @@ function CaptionCell<Row extends RowData>({
   );
 }
 
+/** The totals of a comparison, as the server gives them, and what says them in words. */
+export interface ComparedTotals<Totals> {
+  /** The totals of the base, on the rows the reading retains. */
+  readonly base: Totals;
+  /** The difference of the totals of the revision read and of the base, signed. */
+  readonly delta: Totals;
+  /** What the totals row says of totals, before its figures. */
+  readonly caption: (totals: Totals) => string;
+}
+
+/** A line of a total: the one of the base or of the difference, named for a screen reader if need be. */
+function Line({ label, children }: { readonly label?: string; readonly children: ReactNode }) {
+  return (
+    <span className="block font-normal text-muted-foreground">
+      {label === undefined ? null : <span className="sr-only">{label}</span>}
+      {children}
+    </span>
+  );
+}
+
+/** The figure of a total of the answer, and under it, compared, those of the base and the gap. */
+function Figure<Totals>({
+  format,
+  total,
+  totals,
+  compared,
+  locale,
+}: {
+  readonly format: Parameters<typeof formatCell>[0];
+  readonly total: ((totals: Totals) => Parameters<typeof formatCell>[1]) | undefined;
+  readonly totals: Totals;
+  readonly compared: ComparedTotals<Totals> | undefined;
+  readonly locale: Locale;
+}) {
+  const t = useTranslations("grid.compared");
+  const currency = useCurrency();
+  const shown = (of: Totals) => formatCell(format, total?.(of), locale, currency);
+  if (compared === undefined || total === undefined) {
+    return shown(totals);
+  }
+  const gap = total(compared.delta);
+  return (
+    <>
+      <span className="block">{shown(totals)}</span>
+      <Line label={t("base")}>{shown(compared.base)}</Line>
+      <Line label={t("delta")}>
+        {gap === null || gap === undefined ? "" : signed(gap, shown(compared.delta))}
+      </Line>
+    </>
+  );
+}
+
+/**
+ * Whether the totals of a comparison differ: a figure of a column, or what the caption counts. Every
+ * column of the configuration is judged, those hidden by the reader included.
+ */
+function differ<Row extends RowData, Sort extends string, Totals>(
+  config: GridConfig<Row, Sort, Totals>,
+  totals: Totals,
+  compared: ComparedTotals<Totals>,
+): boolean {
+  return (
+    compared.caption(totals) !== compared.caption(compared.base) ||
+    config.columns.some((column) => {
+      const gap = column.total?.(compared.delta);
+      return gap !== null && gap !== undefined && !isZero(gap);
+    })
+  );
+}
+
 /** The totals of the answer, at the foot: what they count under the label, figures under theirs. */
 export function TotalsRow<Row extends RowData, Sort extends string, Totals>({
   table,
   config,
   totals,
   caption,
+  compared,
   index,
   locale,
 }: {
@@ -137,18 +217,39 @@ export function TotalsRow<Row extends RowData, Sort extends string, Totals>({
   readonly config: GridConfig<Row, Sort, Totals>;
   readonly totals: Totals;
   readonly caption: string;
+  /** The totals of the base and their difference, when the grid reads a comparison. */
+  readonly compared?: ComparedTotals<Totals> | undefined;
   readonly index: number;
   readonly locale: Locale;
 }) {
-  const currency = useCurrency();
+  const t = useTranslations("grid.compared");
   const columns = table.getVisibleLeafColumns();
   const at = columns.findIndex((column) => column.id === config.columns[0]?.key);
   const spanned = at < 0 ? [] : columns.slice(at, at + captionSpan(columns, at, config));
+  const modified = compared !== undefined && differ(config, totals, compared);
+  const words =
+    compared === undefined ? (
+      caption
+    ) : (
+      <>
+        <span className="block">{caption}</span>
+        <Line>{t("totalsBase", { caption: compared.caption(compared.base) })}</Line>
+        <Line>{t("totalsDelta", { caption: compared.caption(compared.delta) })}</Line>
+      </>
+    );
   return (
-    <TableRow aria-rowindex={index} className="h-8">
+    <TableRow
+      aria-rowindex={index}
+      data-difference={modified ? "modified" : undefined}
+      className={cn(
+        "h-8",
+        compared !== undefined && "align-top",
+        modified && differenceTint("modified"),
+      )}
+    >
       {columns.map((column, position) => {
         if (position === at) {
-          return <CaptionCell key={column.id} table={table} spanned={spanned} caption={caption} />;
+          return <CaptionCell key={column.id} table={table} spanned={spanned} caption={words} />;
         }
         if (at >= 0 && position > at && position < at + spanned.length) {
           return null;
@@ -166,11 +267,16 @@ export function TotalsRow<Row extends RowData, Sort extends string, Totals>({
               alignClass(configured),
             )}
           >
-            {formatCell(
-              configured?.format ?? "text",
-              configured?.total?.(totals),
-              locale,
-              currency,
+            {column.id === DIFF_MARK_KEY ? (
+              <DiffMark difference={modified ? "modified" : undefined} />
+            ) : (
+              <Figure
+                format={configured?.format ?? "text"}
+                total={configured?.total}
+                totals={totals}
+                compared={compared}
+                locale={locale}
+              />
             )}
           </TableCell>
         );

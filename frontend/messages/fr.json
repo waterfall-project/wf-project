@@ -262,8 +262,23 @@
     "computed": "Calculé",
     "compared": {
       "base": "Base :",
+      "delta": "Écart :",
+      "totalsBase": "Base : {caption}",
+      "totalsDelta": "Écart : {caption}",
       "empty": "aucune valeur",
-      "days": "{days} j"
+      "days": "{days} j",
+      "amountDeltas": {
+        "command": "Écarts de montants",
+        "title": "Écarts de montants à la base",
+        "description": "Les montants budgétés et réestimés de la révision lue moins ceux de la base, par nature de coût et par sous-projet, sur les lignes que la grille retient.",
+        "empty": "Aucun écart de montant.",
+        "dimension": "Axe",
+        "key": "Élément",
+        "budgeted": "Écart budgété",
+        "reestimated": "Écart réestimé",
+        "unnamed": "Sans nom",
+        "close": "Fermer"
+      }
     },
     "entry": {
       "none": "Aucun",
@@ -1986,11 +2001,6 @@
       "passthrough": {
         "help": "Colonne de l’extraction que la correspondance déclare conservée, restituée telle quelle : elle n’entre dans aucun calcul."
       }
-    },
-    "comparison": {
-      "changes": {
-        "help": "Ce qui change du nœud lui-même d’une révision à l’autre, tel que le serveur le nomme : les dates, la durée, l’avancement ou le rattachement d’une tâche ; les montants budgété et réestimé, le délai de paiement ou le rattachement d’une ligne. Vide pour un nœud ajouté, retiré ou inchangé, et pour une tâche modifiée par son seul contenu — une ligne ou une subordonnée qui change."
-      }
     }
   },
   "help": {
@@ -2322,21 +2332,9 @@
       "notMarked": "Non marquée",
       "open": "Ouvrir",
       "openRevision": "Ouvrir la révision « {name} »",
+      "compare": "Comparer à la révision lue",
+      "compareRevision": "Comparer à la révision lue : « {name} »",
       "commands": "Commandes"
-    },
-    "comparison": {
-      "title": "Comparaison de deux révisions",
-      "needsTwo": "La comparaison demande deux révisions marquées.",
-      "from": "De la révision",
-      "to": "À la révision",
-      "compare": "Comparer",
-      "deltas": "Écarts de montants",
-      "noDeltas": "Aucun écart de montant.",
-      "dimension": "Axe",
-      "key": "Poste",
-      "budgetedDelta": "Écart budgété",
-      "reestimatedDelta": "Écart réestimé",
-      "unnamed": "Sans nom"
     },
     "rateUpdate": {
       "title": "Mise à jour des taux proposée",

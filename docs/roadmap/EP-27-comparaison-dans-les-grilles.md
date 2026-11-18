@@ -553,7 +553,7 @@ chronologies, qui ne portent pas la base.
 
 ## US-2350 — La ligne de totaux porte le total de la révision lue, celui de la base et leur écart, et les écarts par nature de coût et par sous-projet s'ouvrent depuis le devis et le reste à engager
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0160-A`
 - **opérations** : `compareRevisions`
 - **issue** : #3488
@@ -621,7 +621,7 @@ applique (`difference`, US-0700) — EP-08, qui sert les différentiels.
 
 ## US-2370 — L'écran « Révisions » : l'historique et ses commandes seuls
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-04, EP-07
   et EP-08
 - **opérations** : `listRevisions`, `getRevision`, `createRevision`, `abandonRevision`,
@@ -661,7 +661,7 @@ tombe avec cette section : la comparaison se lit dans les grilles. WF-REV-0060 v
 
 ## US-2380 — Le parcours de la comparaison de PRJ-001, réécrit sur les grilles et rejoué contre le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — le parcours éprouve US-2320 à US-2360 de bout en bout
 - **opérations** : `compareRevisions`, `listRevisions`, `updateTaskFacet`
 - **issue** : #3490

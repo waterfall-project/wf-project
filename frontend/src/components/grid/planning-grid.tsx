@@ -587,6 +587,7 @@ export function PlanningGrid({
             config={config}
             rows={shown.items}
             totals={shown.totals}
+            comparison={shown.comparison}
             totalsCaption={(totals) => t("totals", { tasks: totals.task_count })}
             query={query}
             preferences={preferences}

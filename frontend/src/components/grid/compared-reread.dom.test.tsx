@@ -331,6 +331,97 @@ describe("the answers laid over the comparison read anew", () => {
     expect(result.current.rows[SUMMARY]?.base).toBeUndefined();
   });
 
+  it.each([
+    ["answers", { kind: "done" as const }],
+    [
+      "is refused",
+      {
+        kind: "refused" as const,
+        problem: { code: "VALUE_OUT_OF_RANGE", status: 422 },
+        conflictingObjectId: null,
+      },
+    ],
+  ])(
+    "lets the reading anew take the place of the totals a write answered between its demand and its return, which no row judges, the write under way then %s [WF-IHM-0150-A]",
+    async (_, ending) => {
+      // A write answered once the reading was asked anew, and before it came back, while another is
+      // still under way — so that it asks nothing itself —, and which wrote no row: no counter says
+      // whether the reading holds it. The reading is the grid's authority on a comparison: its totals
+      // are those the grid shows, the totals written giving way to them.
+      const reread = vi.fn();
+      const { result, rerender, write } = entered(reread);
+      await write(
+        answering(() => redated),
+        "121",
+      );
+      expect(reread).toHaveBeenCalledTimes(1);
+      const answered = held();
+      const waiting = held();
+      const written = { ...first.totals, hours: "999" } as NodeTotals;
+      const totalsOnly: CellEntry<EstimateNode, NodeTotals> = {
+        kind: { type: "decimal", nullable: true },
+        in: () => true,
+        value: () => undefined,
+        write: (from) =>
+          answered.until.then(() => ({
+            kind: "done" as const,
+            // The row at the version it had: a row recalculated says nothing of its freshness.
+            data: {
+              rows: [from],
+              changed: [],
+              parts: [],
+              totals: written,
+              order: redated.order + 1,
+            },
+          })),
+      };
+      const pending: CellEntry<EstimateNode, NodeTotals> = {
+        kind: { type: "decimal", nullable: true },
+        in: () => true,
+        value: () => undefined,
+        write: (from) =>
+          waiting.until.then(() =>
+            ending.kind === "done" ? { kind: "done" as const, data: later(from) } : ending,
+          ) as never,
+      };
+      await write(totalsOnly, "5");
+      await write(pending, "6");
+      await act(async () => {
+        answered.release();
+        await answered.until;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      // The write answered, no demand of its own: only the first was made.
+      expect(reread).toHaveBeenCalledTimes(1);
+      expect(result.current.totals).toEqual(written);
+      // The reading anew holds the line at the version the first write gave it, as the second leaves it.
+      const wiring = result.current.rows[WIRING];
+      rerender({
+        ...first,
+        rows: structuredClone(rows.items).map((row, at) =>
+          at === WIRING && wiring !== undefined
+            ? { ...row, lock_version: wiring.lock_version }
+            : row,
+        ),
+      });
+      // None of the totals written stays: the grid shows those of the reading.
+      expect(result.current.totals).toBeUndefined();
+      // Nor do the rows: the line is the reading's, at the version the first write gave it.
+      expect(result.current.rows[WIRING]?.lock_version).toBe(wiring?.lock_version);
+      expect(result.current.rows[WIRING]?.estimate_line?.hours).toBe(
+        rows.items[WIRING]?.estimate_line?.hours,
+      );
+      // The answer abandoned is not lost: the write under way ends, answered or refused — the flag of
+      // the write done stays laid until then —, and the screen is read anew, which holds what was dropped.
+      await act(async () => {
+        waiting.release();
+        await waiting.until;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(reread).toHaveBeenCalledTimes(2);
+    },
+  );
+
   it("keeps the totals of the answer when the reading asked never comes back: wanted, a comparison asks no `retotal` [WF-IHM-0150-A]", async () => {
     // A grid compared reads its screen anew, totals with it, and never `retotal`: should that
     // reading not come back, the totals stay those the writes answered — wanted, not a lapse.

@@ -298,8 +298,20 @@ function verdictsOf<Row, Totals>(
     });
     verdicts.set(order, said.includes(false) ? false : said.includes(true) ? true : undefined);
   }
+  // A reading asked anew is the authority of the grid it was asked for: an answer taken since the
+  // demand, whose rows the counters do not judge — it came back before the reading did, while
+  // another write was under way and asked nothing itself —, gives way to it, its totals with it
+  // (#3804). What this drops is caught up with: the write done that gave the answer laid the flag
+  // of a screen to read anew, which stays until the write under way ends — answered, refused or
+  // failed alike (`settle`) —, and that reading brings the grid again. Without a demand, nothing is said.
+  const demanded = outdated !== Number.NEGATIVE_INFINITY;
   return {
-    get: (order) => (order <= outdated ? false : verdicts.get(order)),
+    get: (order) => {
+      if (order <= outdated) {
+        return false;
+      }
+      return verdicts.get(order) ?? (demanded ? false : undefined);
+    },
   };
 }
 
@@ -369,11 +381,14 @@ function forget<Row, Totals>(answers: Answers<Row, Totals>): void {
  * before did, the server having said nothing newer of it: a write answered before the reading
  * caught up, or the fake back, which keeps nothing. A part that judges by its own counter stays while
  * it changes the row read anew. A row the reading anew no longer holds is let go. A later answer
- * still prevails over an earlier one for the same row, as when they were taken. A reading anew once
- * the reading was asked anew after the writes answered (`askedAnew`) answers every demand awaited,
- * and catches up with every answer taken before the latest was asked, whatever the counters say — a
- * summary recalculated keeps its version, and would keep out the marks of a comparison its answer
- * does not carry.
+ * still prevails over an earlier one for the same row, as when they were taken.
+ *
+ * The first reading anew answers every demand awaited (`asked`): it takes the place of every answer
+ * taken before the latest demand, whatever the counters say — a summary recalculated keeps its
+ * version, and would keep out the marks of a comparison its answer does not carry. When the
+ * `router.refresh` of a demand never comes back, the threshold stays laid: the first reading to
+ * arrive, a sort with no relation to the writes included, then answers everything that precedes the
+ * demand.
  */
 export function reread<Row, Totals>(
   answers: Answers<Row, Totals>,
