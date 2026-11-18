@@ -2712,30 +2712,31 @@ of its header (`PageHeader`) — a single icon, named, at most the height of a l
 which follows its last word in the same text flow: on the right, among the commands, it would
 shrink the title; an element of a row that wraps, it would take a line of its own under a title on
 two lines, the one of the remaining to commit at 1280 × 720; in both cases, the header would grow
-and push the totals of a grid out of a low window (`grid-frame.spec.ts`, `remaining.spec.ts`). Its header keeps its title at least 24 rem wide and leaves the commands the
-width that remains, where they wrap among themselves, flush right: five commands that took their
-full width shrank the title of the remaining to commit to three lines and its subtitle to three
-more, 76 points more above the grid (#3895, `remaining.spec.ts`). It
+and push the totals of a grid out of a low window (`grid-frame.spec.ts`, `remaining.spec.ts`). It
 only wraps if the last line of the title is full, and it is then there without an indent: a space
 separates it from the title, not a margin —, or F1 anywhere on the screen, opens beside it a side
 panel (`shell/help-panel.tsx`, a `Sheet`) on the page of its FBS code — the one of the route the
 address follows (`helpCodeAt`, `src/help/help.ts`): a function, a sheet, the list of projects
-(FBS-4). A page is a Markdown file, `frontend/help/<language>/<code>.md`; a notion of the method,
-`frontend/help/<language>/notions/<notion>.md` — the same files, under the same names, in French and
-in English (US-0670b). The server reads them when the panel opens, in the language of the interface,
-through the `readHelp` action (`src/api/actions/help.ts`, `src/help/read.ts`, `server-only`), which
-names no file after the request without having checked the page against the codes of the table or
-the form of a notion name, and the language against the languages of the interface (`LOCALES`), and
-whose reading refuses, where the path is written, any file outside the help folder
-(#1462); the standalone takes them along through `outputFileTracingIncludes` (`next.config.ts`).
-The panel renders them with `react-markdown` and `remark-gfm`, without raw HTML (`skipHtml`) and in
-the elements of a text only; a code between backticks reads there as a key (`<kbd>`). A relative
-link to a code or a notion (`FBS-4.4.md`, `notions/valeur-acquise.md`, `../FBS-4.3.md` from a
-notion) shows its page in the panel; any other link reads as text. The search covers the titles of
-the pages written in the language read, which the action returns with the page; the server keeps an
-index per language. No page is read in another language in the place of its own: a missing English
-page is a failure, as a missing French page is. The panel holds the focus, closes by
-Escape and gives the focus back to what had it — the button, or the cell where F1 was pressed; a
+(FBS-4). Its header keeps its title at least 24 rem wide and leaves the commands the width that
+remains, where they wrap among themselves, flush right, or under the title when they do not fit
+beside it: five commands that took their full width shrank the title of the remaining to commit to
+three lines and its subtitle to three more, 76 points more above the grid (#3895,
+`remaining.spec.ts`). A page is a Markdown file, `frontend/help/<language>/<code>.md`; a notion of
+the method, `frontend/help/<language>/notions/<notion>.md` — the same files, under the same names,
+in French and in English (US-0670b). The server reads them when the panel opens, in the language of
+the interface, through the `readHelp` action (`src/api/actions/help.ts`, `src/help/read.ts`,
+`server-only`), which names no file after the request without having checked the page against the
+codes of the table or the form of a notion name, and the language against the languages of the
+interface (`LOCALES`), and whose reading refuses, where the path is written, any file outside the
+help folder (#1462); the standalone takes them along through `outputFileTracingIncludes`
+(`next.config.ts`). The panel renders them with `react-markdown` and `remark-gfm`, without raw HTML
+(`skipHtml`) and in the elements of a text only; a code between backticks reads there as a key
+(`<kbd>`). A relative link to a code or a notion (`FBS-4.4.md`, `notions/valeur-acquise.md`,
+`../FBS-4.3.md` from a notion) shows its page in the panel; any other link reads as text. The search
+covers the titles of the pages written in the language read, which the action returns with the page;
+the server keeps an index per language. No page is read in another language in the place of its own:
+a missing English page is a failure, as a missing French page is. The panel holds the focus, closes
+by Escape and gives the focus back to what had it — the button, or the cell where F1 was pressed; a
 page followed through a link gives the focus to its title. An answer arrived after another request
 is ignored.
 

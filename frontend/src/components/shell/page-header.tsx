@@ -139,7 +139,7 @@ export function PageHeader({
       {actions === undefined ? null : (
         <div
           data-slot="screen-commands"
-          className="flex min-w-0 flex-1 flex-wrap items-start justify-end gap-2"
+          className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-start justify-end gap-2"
         >
           {actions}
         </div>
