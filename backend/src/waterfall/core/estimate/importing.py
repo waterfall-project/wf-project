@@ -51,7 +51,11 @@ from waterfall.core.cost_settings.interface import (
     category_label_of,
     list_cost_categories,
 )
-from waterfall.core.estimate.costing import TASK_WITHOUT_WORKING_HOURS, calendar_hours
+from waterfall.core.estimate.costing import (
+    HOURLY_RATE_MISSING,
+    TASK_WITHOUT_WORKING_HOURS,
+    calendar_hours,
+)
 from waterfall.core.estimate.entries import LineEntry, judged_line
 from waterfall.core.estimate.excel import reader
 from waterfall.core.estimate.excel.writer import FORMAT_VERSION
@@ -477,6 +481,10 @@ def judged(
         judged_amounts(session, (held.project_id, bearer, held_line), draft)
     except UnprocessableError as refusal:
         found: list[dict[str, Any]] = []
+        if refusal.code == HOURLY_RATE_MISSING:
+            # The category of the line has no rate: the column that designates it is the reason.
+            header = reader.ROLE_OR_CATEGORY_HEADER
+            return [rejection(line, HOURLY_RATE_MISSING, {"header": header})]
         for fault in refusal.fields:
             header = headers.get(fault.pointer.rsplit("/", 1)[-1])
             named = {} if header is None else {"header": header}

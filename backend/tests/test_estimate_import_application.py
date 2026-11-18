@@ -760,3 +760,85 @@ def test_a_new_line_beyond_the_base_amount_is_rejected_and_the_others_are_writte
     before = estimate_lines(tree.items())
     applied_now(api, stage, worker, import_id)
     assert len(estimate_lines(tree.items())) == len(before) + 1
+
+
+def overflowing_stuff(held: dict[str, Any]) -> list[list[Any]]:
+    """Give the rows of ``held`` whose line of material costs 10^6 x 10^7, beyond its column."""
+    stuff = held["material"]
+    return [
+        as_exported(held)[0],
+        row(
+            "1 Câblage",
+            held["stuff"],
+            {
+                "Désignation": stuff["estimate_line"]["label"],
+                "Quantité": 1000000,
+                "Débours unitaire": 10000000,
+                "Délai de paiement (j)": 0,
+                "ID ligne": stuff["lineage_id"],
+            },
+        ),
+    ]
+
+
+def projected_far(stage: Scene, held: dict[str, Any]) -> None:
+    """Spread the first task over years, inflate by 90 %: the projected amounts outgrow the base."""
+    held["tree"].changed(held["first"], duration={"value": "1000", "unit": "d"})
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(Project)
+            .where(Project.id == UUID(stage.project["project_id"]))
+            .values(inflation_rate=Decimal("0.9"))
+        )
+
+
+@pytest.mark.requirement("WF-DEV-0020-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+@pytest.mark.requirement("WF-INTF-0080-A")
+@pytest.mark.parametrize("amount", ["disbursement", "reestimated"])
+def test_a_product_or_a_reestimated_amount_beyond_its_column_is_rejected_at_the_report(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    held: dict[str, Any],
+    amount: str,
+) -> None:
+    # #3095 (#3827): the product of a line of material, or the reestimated amount of a line whose
+    # base fits its column, is priced by the analysis as the application prices it: the row is
+    # rejected at the quantity, VALIDATION_FAILED, the application does not fail.
+    if amount == "reestimated":
+        projected_far(stage, held)
+        # 10^6 x 15 000 hours x 65.00 = 975 000 000 000: its base fits, 1.9 times it does not.
+        rows = as_exported(held, {"Quantité": 1000000, "Heures": 15000})
+    else:
+        rows = overflowing_stuff(held)
+    import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
+    rejected = read(api, stage, import_id)["report"]["rejected"]
+    assert [(each["code"], each["params"]) for each in rejected] == [
+        ("VALIDATION_FAILED", {"header": "Quantité"})
+    ]
+    tree = held["tree"]
+    before = tree.items()
+    applied_now(api, stage, worker, import_id)
+    assert tree.items() == before
+
+
+@pytest.mark.requirement("WF-DEV-0010-A")
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_labour_line_whose_category_has_no_rate_is_rejected_at_the_report_not_at_the_application(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
+) -> None:
+    # #3827: the write of a labour line without a rate for the year is refused (HOURLY_RATE_MISSING)
+    # and would fail the whole application; the analysis rejects the row by that code instead, at
+    # the column that designates the role, and the other lines are applied.
+    bare = add_role(stage.database, "NOR", (8, 8, 8, 8, 8, 0, 0), held["costs"].material)
+    entry = entry_of(stage.database, ResourceRole, bare)
+    rows = [*as_exported(held), row("2 Essais", entry, {"Heures": 2})]
+    import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
+    rejected = read(api, stage, import_id)["report"]["rejected"]
+    assert [(each["code"], each["params"]) for each in rejected] == [
+        ("HOURLY_RATE_MISSING", {"header": "Rôle ou catégorie"})
+    ]
+    before = tree.items()
+    applied_now(api, stage, worker, import_id)
+    assert tree.items() == before

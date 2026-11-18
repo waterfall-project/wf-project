@@ -26,7 +26,6 @@ from sqlalchemy import Numeric, SmallInteger, Uuid, column, select, update, valu
 from sqlalchemy.orm.attributes import set_committed_value
 
 from waterfall.core.estimate.costing import (
-    HOURLY_RATE_MISSING,
     Basis,
     Figures,
     basis_of,
@@ -49,7 +48,7 @@ from waterfall.core.estimate.pricing import CENT
 from waterfall.core.estimate.recalling import recalled, remembers
 from waterfall.core.estimate.tables import AMOUNT_PRECISION, AMOUNT_SCALE, EstimateLine
 from waterfall.core.resource_settings.interface import role_calendars
-from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -149,12 +148,18 @@ def _priced_draft(
 def judged_amounts(
     session: Session, held: tuple[UUID, BearingTask, UUID | None], draft: Draft
 ) -> None:
-    """Refuse, as the write of the line would, a draft whose amounts cross their columns (#3095).
+    """Refuse, as the write of the line would, a draft it cannot price (#3095, #3827).
 
     ``held`` is the project, the task that bears the line, and the line, none at its creation. The
     analysis of an import calls it: priced on the task as it stands, a line whose product or whose
-    reestimated amount overflows is rejected at the report, instead of failing the application. A
-    labour line whose category has no rate is not refused here: that is not an overflow.
+    reestimated amount overflows is rejected at the report (``VALIDATION_FAILED`` on ``/quantity``,
+    whichever amount overflows: it is the pointer of the entry, not of the amount), and so is a
+    labour line whose category has no rate (``HOURLY_RATE_MISSING``), instead of failing the
+    application, which refuses both.
+
+    The task is read as the import holds it, not as the other lines of the same file will leave it:
+    the reestimated amount of the analysis may differ from that of the application. A line may
+    then still fail the application, never be rejected wrongly.
     """
     project_id, bearer, _ = held
     basis = recalled(
@@ -162,11 +167,7 @@ def judged_amounts(
         ("basis", project_id, bearer.revision_id),
         lambda: basis_of(session, project_id, bearer.revision_id),
     )
-    try:
-        _priced_draft(session, held, draft, basis, Judging(role_changes=False))
-    except UnprocessableError as refusal:
-        if refusal.code != HOURLY_RATE_MISSING:
-            raise
+    _priced_draft(session, held, draft, basis, Judging(role_changes=False))
 
 
 def judged_priced(
