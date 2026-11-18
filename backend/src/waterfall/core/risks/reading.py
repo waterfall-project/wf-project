@@ -132,7 +132,7 @@ def _shares(
             RiskReferenceShare.risk_id.in_(list(risk_ids)),
         )
     )
-    return dict(rows.tuples())
+    return dict(rows.all())
 
 
 def _reviews(
