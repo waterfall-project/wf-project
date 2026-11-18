@@ -12097,6 +12097,29 @@ US-2430/L3 change ») :
   `TimelinePreferences.lanes` reste borné à 64 tâches placées, que rien n'a mis en cause. Écarté :
   garder 64 et laisser ces réglages se perdre.
 
+### Une révision marquée avant EP-10, sans document conservé, est calculée à la lecture (US-1670/L2, #3612)
+
+Décision de l'auteur du 2026-11-17, qui garde le comportement provisoire d'US-1670/L2 (#2441,
+PR #3616). La migration de `revision_indicator` n'a rien à reprendre, et une base qui porte des
+révisions marquées avant EP-10 les garde sans aucun document conservé :
+
+- **`getEstimateIndicators` et `getRemainingIndicators` calculent à la lecture une révision marquée
+  qui ne porte aucun document de la nature demandée** (`estimate`, `remaining`), `is_stored` faux,
+  `revision_status` `marked`, comme avant EP-10 : la réponse ne change pas pour ces révisions, et
+  `is_stored` dit au front qu'elle n'a pas été conservée.
+- **Dès que la révision porte un document de la nature, plus aucun recalcul** : une maille que le
+  marquage n'a pas conservée — un sous-projet créé depuis — reçoit le 422 `UNKNOWN_SUBPROJECT`.
+  Cela ne vaut que pour `getEstimateIndicators` : `getRemainingIndicators` lit toujours la maille
+  `project`, et n'a pas de maille à refuser.
+- **`getProjectIndicators` refuse une telle révision par 409 `STATE_FORBIDS_OPERATION`, sans
+  `params`**, comme une offre : le front ne la distingue d'un projet antérieur à En cours que par
+  l'absence de `params.state`.
+
+Le contrat ne change pas. Écartés : une reprise au déploiement, qui aurait calculé ces révisions à
+leur date de marquage sur les lignes de coût d'aujourd'hui, non sur celles de leur marquage, et
+donné pour conservé un document que le marquage n'a pas produit ; le 409 sans reprise, qui
+refuserait ce que ces routes rendaient jusqu'ici.
+
 ### Un montant dérivé qui déborde sa colonne est refusé au champ qui le provoque (US-2260/L3, #3093, #3094)
 
 Les montants d'une ligne de devis, `base_amount` et `reestimated_amount`, sont calculés par le
