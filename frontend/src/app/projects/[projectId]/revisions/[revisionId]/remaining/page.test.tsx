@@ -9,7 +9,7 @@ import { nodeFieldNames } from "@/components/grid/nodes";
 import { REMAINING_FIELDS } from "@/components/grid/remaining";
 import type { RemainingGridProps } from "@/components/grid/remaining-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { streamUntil } from "@/test/page-stream";
+import { streamUntil, textOfMarkup } from "@/test/page-stream";
 import { filtersOf, menuText } from "@/test/filter-menu";
 import { type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 
@@ -71,12 +71,7 @@ const ITEM = "01926f3a-7c00-7000-8000-000000000712";
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
   // The streamed markup keeps the comments that part the texts of a node, and escapes quotes.
-  return markup
-    .replace(/<!--.*?-->/g, "")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&#x27;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
+  return textOfMarkup(markup).replace(/\s+/g, " ").trim();
 }
 
 /**
