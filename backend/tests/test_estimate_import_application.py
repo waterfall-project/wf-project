@@ -721,17 +721,42 @@ def test_the_write_of_the_lines_refuses_an_unknown_task_and_an_unknown_line_writ
 
 @pytest.mark.requirement("WF-DEV-0020-A")
 @pytest.mark.requirement("WF-DAT-0100-A")
-def test_a_labour_product_beyond_the_base_amount_fails_the_application_writing_nothing(
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_labour_product_beyond_the_base_amount_is_rejected_at_the_report_naming_its_line(
     api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
 ) -> None:
-    # #3035: 10^6 x 10^6 hours x 65.00, each cell within its column: the analysis does not price,
-    # the application does and refuses the product beyond base_amount; the import fails, nothing
-    # of the file is written.
+    # #3095 (#3035): 10^6 x 10^6 hours x 65.00, each cell within its column, is priced by the
+    # analysis as its entry is, and rejected at its row with the reason of its entry (a refusal at
+    # the quantity, VALIDATION_FAILED, the header of its column); the application does not fail, and
+    # the line is left as it is.
     rows = as_exported(held, {"Quantité": 1000000, "Heures": 1000000})
     import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
-    assert read(api, stage, import_id)["report"]["rejected"] == []
+    rejected = read(api, stage, import_id)["report"]["rejected"]
+    assert [(each["code"], each["params"]) for each in rejected] == [
+        ("VALIDATION_FAILED", {"header": "Quantité"})
+    ]
+    assert rejected[0]["row"] >= 2
     before = tree.items()
-    assert apply(api, stage, import_id).status_code == 202
-    run(worker)
-    assert stored(stage.database, import_id).status == "failed"
+    applied_now(api, stage, worker, import_id)
     assert tree.items() == before
+
+
+@pytest.mark.requirement("WF-DEV-0020-A")
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_new_line_beyond_the_base_amount_is_rejected_and_the_others_are_written(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
+) -> None:
+    # #3095: a line created whose product overflows is rejected alone, the file applied otherwise.
+    rows = [
+        *as_exported(held),
+        row("2 Essais", held["role"], {"Heures": 1000000, "Quantité": 1000000}),
+        row("2 Essais", held["role"], {"Heures": 2}),
+    ]
+    import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
+    rejected = read(api, stage, import_id)["report"]["rejected"]
+    assert [(each["code"], each["params"]["header"]) for each in rejected] == [
+        ("VALIDATION_FAILED", "Quantité")
+    ]
+    before = estimate_lines(tree.items())
+    applied_now(api, stage, worker, import_id)
+    assert len(estimate_lines(tree.items())) == len(before) + 1

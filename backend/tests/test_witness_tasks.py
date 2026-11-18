@@ -36,6 +36,8 @@ from witness_support import PRJ_001, example, read
 
 from waterfall.core.planning.interface import (
     LinkLoad,
+    ParentAbsentError,
+    ParentageLoopError,
     Place,
     TaskLoad,
     TasksLoad,
@@ -753,19 +755,54 @@ def test_a_created_child_described_before_its_created_parent_is_written_after_it
         assert after[parent.lineage_id][0].id == parent.node_id
 
 
-def test_tasks_each_the_parent_of_the_other_are_refused_with_an_explicit_error(
-    witness: Database,
-) -> None:
-    # A parentage cycle in load.tasks must fail loudly, not loop without end.
-    tasks = loaded_tasks(102)
-    first, second = tasks[0], tasks[1]
+def _cycle(tasks: tuple[TaskLoad, ...], shape: str) -> tuple[tuple[TaskLoad, ...], set[UUID]]:
+    """Give the tasks with a parentage cycle of the shape, and the lineages in the cycle."""
+    first, second, third = tasks[0], tasks[1], tasks[2]
+    if shape == "itself":
+        return (replace(first, parent_lineage_id=first.lineage_id), *tasks[1:]), {first.lineage_id}
     one = replace(first, parent_lineage_id=second.lineage_id)
     other = replace(second, parent_lineage_id=first.lineage_id)
+    cycle = {first.lineage_id, second.lineage_id}
+    if shape == "two":
+        return (one, other, *tasks[2:]), cycle
+    # A descendant of the cycle, outside it, comes first: the walk starts from it, and the refusal
+    # must name a task of the cycle, not it (#2883).
+    below = replace(third, parent_lineage_id=first.lineage_id)
+    return (below, one, other, *tasks[3:]), cycle
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.parametrize("shape", ["itself", "two", "below"])
+def test_tasks_with_a_parentage_cycle_are_refused_naming_a_task_of_the_cycle(
+    witness: Database, shape: str
+) -> None:
+    # A parentage cycle in load.tasks must fail loudly, not loop without end (#2883).
+    tasks, cycle = _cycle(loaded_tasks(102), shape)
     with witness.transaction() as session:
         place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
         act = Act(author=None, at=instant(OPENED[102]))
-        with pytest.raises(ValueError, match="loops on itself"):
-            load_tasks(session, place, TasksLoad(PLANNING_START, (one, other, *tasks[2:])), act)
+        with pytest.raises(ParentageLoopError, match="loops on itself") as refused:
+            load_tasks(session, place, TasksLoad(PLANNING_START, tasks), act)
+    assert sum(str(each) in str(refused.value) for each in cycle) == 1
+    if shape == "below":
+        assert str(tasks[0].lineage_id) not in str(refused.value)
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+def test_a_task_whose_parent_is_not_described_is_refused_naming_both(witness: Database) -> None:
+    # A parent_lineage_id absent from load.tasks is no raw KeyError: the error names the task and
+    # the parent that is missing (#2884).
+    tasks = loaded_tasks(102)
+    absent = UUID("01926f3a-7c00-7000-8000-00000000f9f9")
+    orphan = replace(tasks[1], parent_lineage_id=absent)
+    with witness.transaction() as session:
+        place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
+        act = Act(author=None, at=instant(OPENED[102]))
+        described = TasksLoad(PLANNING_START, (tasks[0], orphan, *tasks[2:]))
+        with pytest.raises(ParentAbsentError) as refused:
+            load_tasks(session, place, described, act)
+    assert str(orphan.lineage_id) in str(refused.value)
+    assert str(absent) in str(refused.value)
 
 
 def test_a_task_kept_under_another_identifier_is_written_again_with_its_lineage_its_links_and_state(

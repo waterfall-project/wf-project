@@ -110,6 +110,15 @@ class ParentageLoopError(ValueError):
         super().__init__(f"the parentage of task {lineage_id} loops on itself")
 
 
+class ParentAbsentError(ValueError):
+    """A task described has a parent that the tasks described do not hold."""
+
+    def __init__(self, lineage_id: UUID, parent_lineage_id: UUID) -> None:
+        super().__init__(
+            f"task {lineage_id} has the parent {parent_lineage_id}, which is not described"
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class TasksLoad:
     """What the witness describes of a structure: its planning start, its tasks, in any order."""
@@ -173,11 +182,13 @@ def _parents_first(tasks: tuple[TaskLoad, ...]) -> list[TaskLoad]:
         current: TaskLoad | None = each
         while current is not None and current.lineage_id not in depths:
             if len(chain) >= len(tasks):
-                raise ParentageLoopError(each.lineage_id)
+                # The walk went further than the tasks are many: current is in the cycle.
+                raise ParentageLoopError(current.lineage_id)
             chain.append(current)
-            current = (
-                None if current.parent_lineage_id is None else by_lineage[current.parent_lineage_id]
-            )
+            parent_id = current.parent_lineage_id
+            if parent_id is not None and parent_id not in by_lineage:
+                raise ParentAbsentError(current.lineage_id, parent_id)
+            current = None if parent_id is None else by_lineage[parent_id]
         base = -1 if current is None else depths[current.lineage_id]
         for step, found in enumerate(reversed(chain), start=1):
             depths[found.lineage_id] = base + step
