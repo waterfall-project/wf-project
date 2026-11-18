@@ -575,7 +575,8 @@ async function figuresOf(calls: APIRequestContext, seeded: Seeded) {
   const body = (await read.json()) as components["schemas"]["ProjectIndicators"];
   const installation = await calls.get(`${API}/installation`);
   expect(installation.status()).toBe(200);
-  const { time_zone: timeZone } = (await installation.json()) as { time_zone: string };
+  const { time_zone: timeZone } =
+    (await installation.json()) as components["schemas"]["Installation"];
   return {
     budget: body.reference_budget,
     planned: body.planned_value,
