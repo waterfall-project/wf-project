@@ -36,8 +36,8 @@ from waterfall.core.planning.interface import (
 from waterfall.core.projects.interface import (
     NO_BACKGROUND_TASK_RUNNING,
     PROJECT_NOT_TERMINAL,
-    no_background_task_running,
     lock_project,
+    no_background_task_running,
     project_facts,
     subproject_labels,
 )

@@ -12,9 +12,8 @@ subproject received actual costs (WF-PRJ-0050). Every answer is checked against 
 (``ContractClient``).
 """
 
-import threading
 import time
-from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -24,9 +23,9 @@ import pytest
 from costs_support import cost, load_import
 from estimate_support import Costing, costing
 from nodes_support import mark, refusal, set_progress
+from planning_support import insert_task
 from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
-from planning_support import insert_task
 from risks_support import (
     MAKING,
     RISK_LABEL,
@@ -57,6 +56,8 @@ from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from realm import TestRealm
     from sqlalchemy import Engine
     from support import ContractClient
@@ -522,19 +523,12 @@ def test_a_task_bearing_no_provision_is_deleted_as_before_and_gives_no_node(
 # --- The order of the locks, the counter judged under it ------------------------------------------
 
 
-def concurrently(call: Callable[[], Any]) -> tuple[threading.Thread, list[Any]]:
-    """Start a call in a thread; give the thread and the list its answer, or its failure, joins."""
-    answers: list[Any] = []
-
-    def run() -> None:
-        try:
-            answers.append(call())
-        except BaseException as error:  # noqa: BLE001 - handed back to the test that joins
-            answers.append(error)
-
-    thread = threading.Thread(target=run)
-    thread.start()
-    return thread, answers
+def concurrently(call: Callable[[], Any]) -> Future[Any]:
+    """Start a call in a thread of its own; give its future, whose result joins it."""
+    pool = ThreadPoolExecutor(max_workers=1)
+    future = pool.submit(call)
+    pool.shutdown(wait=False)
+    return future
 
 
 def waiting_for_a_lock(stage: Scene) -> None:
@@ -579,21 +573,25 @@ def test_a_write_of_the_own_estimate_takes_the_main_structure_before_the_risk(
     stage = project.stage
     with stage.owner.connect() as holder:
         holder.execute(select(Risk.id).where(Risk.id == UUID(risk["risk_id"])).with_for_update())
-        thread, answers = concurrently(lambda: risks.costed_at(risk, "300.00"))
+        writing = concurrently(lambda: risks.costed_at(risk, "300.00"))
         waiting_for_a_lock(stage)
         assert lock_held(stage, project.structure_id)
         holder.rollback()
-    thread.join(timeout=30)
-    assert answers == [None]
+    assert writing.result(timeout=30) is None
     assert risks.risk(risk)["lock_version"] > risk["lock_version"]
 
 
-def counted(project: Costed, table: type[Revision] | type[Node]) -> int:
+def counted(project: Costed, table: type[Revision | Node]) -> int:
     """Count the rows of a table of the project: what a provision refused must not have written."""
     with project.stage.database.transaction() as session:
-        return session.scalar(
-            select(func.count()).select_from(table).where(table.project_id == project.project_id)
-        ) or 0
+        return (
+            session.scalar(
+                select(func.count())
+                .select_from(table)
+                .where(table.project_id == project.project_id)
+            )
+            or 0
+        )
 
 
 @pytest.mark.requirement("WF-RIS-0010-A")
@@ -608,7 +606,7 @@ def test_the_counter_of_a_provision_that_would_create_the_revision_is_judged_und
     mark(stage, {"revision_id": str(project.revision_id)})
     with stage.owner.connect() as holder:
         holder.execute(select(Risk.id).where(Risk.id == UUID(risk["risk_id"])).with_for_update())
-        thread, answers = concurrently(lambda: risks.provision(risk, provision_task_id=None))
+        asking = concurrently(lambda: risks.provision(risk, provision_task_id=None))
         waiting_for_a_lock(stage)
         holder.execute(
             update(Risk)
@@ -616,9 +614,7 @@ def test_the_counter_of_a_provision_that_would_create_the_revision_is_judged_und
             .values(lock_version=Risk.lock_version + 1)
         )
         holder.commit()
-    thread.join(timeout=30)
-    assert len(answers) == 1
-    assert refusal(answers[0]) == (
+    assert refusal(asking.result(timeout=30)) == (
         412,
         "STALE_LOCK_VERSION",
         {"expected_lock_version": risk["lock_version"] + 1},
