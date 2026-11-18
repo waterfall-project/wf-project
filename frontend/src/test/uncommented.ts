@@ -25,6 +25,15 @@ function quotedEnd(source: string, from: number): number {
   return source.charAt(end) === quote ? end + 1 : end;
 }
 
+/** Whether the character at `at` follows an odd number of backslashes, so is escaped. */
+function escaped(source: string, at: number): boolean {
+  let slashes = 0;
+  while (source.charAt(at - 1 - slashes) === "\\") {
+    slashes += 1;
+  }
+  return slashes % 2 === 1;
+}
+
 /** Where the text of a template string read from `from` ends: after its backtick or its `${`. */
 function templateEnd(source: string, from: number): number {
   let end = from;
@@ -45,6 +54,9 @@ function templateEnd(source: string, from: number): number {
  * nothing, and the directives the guards look for are strings. A single or double quoted string
  * ends at its line, so that an apostrophe of a text in JSX costs one line at most. A regular
  * expression literal is not told from a division: one that holds a quote or a `/*` is out of reach.
+ * Nor is JSX told from code: a `//` in the text of JSX (a `http://` outside a string) reads as a
+ * comment, and a backtick in the text of JSX or in a regular expression opens a template string
+ * that never ends and keeps the rest of the source. Those sources are out of reach too.
  */
 export function uncommented(source: string): string {
   let out = "";
@@ -57,7 +69,7 @@ export function uncommented(source: string): string {
     const end = templateEnd(source, from);
     out += source.slice(from, end);
     i = end;
-    if (source.slice(end - 2, end) === "${") {
+    if (source.slice(end - 2, end) === "${" && !escaped(source, end - 2)) {
       substitutions.push(depth);
       depth += 1;
     }

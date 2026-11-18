@@ -26,6 +26,17 @@ describe("a source without its comments", () => {
     expect(uncommented("`${{ a: 1 }.a} /* x */` y /* z */")).toBe("`${{ a: 1 }.a} /* x */` y ");
   });
 
+  it("[US-2530] keeps a `http://` written in a string", () => {
+    expect(uncommented('const u = "http://x.test"; a // b')).toBe('const u = "http://x.test"; a ');
+    expect(uncommented("const u = `http://${h}`; a // b")).toBe("const u = `http://${h}`; a ");
+  });
+
+  it("[US-2530] opens no substitution at an escaped `${` ending the source", () => {
+    expect(uncommented("`a \\${")).toBe("`a \\${");
+    expect(uncommented("`a \\${ b` // c")).toBe("`a \\${ b` ");
+    expect(uncommented("`a \\\\${ /* c */ }`")).toBe("`a \\\\${  }`");
+  });
+
   it("[US-2530] ends a quoted string at its line, so that an apostrophe costs one line", () => {
     expect(uncommented("<p>don't</p>\n/* c */ ok")).toBe("<p>don't</p>\n ok");
   });
