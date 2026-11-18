@@ -74,12 +74,16 @@ SPDX-FileCopyrightText = "Contributor Covenant contributors <https://www.contrib
 SPDX-License-Identifier = "CC-BY-4.0"
 
 # The font the image of the task tree is drawn with (EP-06, US-1440/L1): DejaVu Sans, embedded so
-# that the image does not depend on the fonts of the worker's image. Bitstream Vera licence; the
-# changes of DejaVu are in the public domain.
+# that the image does not depend on the fonts of the worker's image. Bitstream Vera licence, whose
+# text also carries the notice of Arev (the glyphs DejaVu imported); the changes of DejaVu are in
+# the public domain. The font declares both holders itself.
 [[annotations]]
 path = "backend/src/waterfall/core/exchanges/fonts/DejaVuSans.ttf"
 precedence = "override"
-SPDX-FileCopyrightText = "2003 Bitstream, Inc."
+SPDX-FileCopyrightText = [
+  "2003 Bitstream, Inc.",
+  "2006 Tavmjong Bah",
+]
 SPDX-License-Identifier = "Bitstream-Vera"
 
 # The font of the login pages of Keycloak (deploy/keycloak/themes/waterfall/login): Geist, the

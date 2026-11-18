@@ -830,7 +830,7 @@ tromper par une chaîne, et que le parcours du thème de connexion mesure tout c
 
 ## US-2540 — Le guide, la politique de sécurité et les licences disent le dépôt d'aujourd'hui
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3689
