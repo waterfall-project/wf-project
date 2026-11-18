@@ -7,7 +7,8 @@ read and write a risk build them without importing the interface, which imports 
 ``RiskView`` is what a reading gives, which the register, the matrix and the portfolio read too;
 a ``RiskEntry`` what a declaration sends, a ``RiskIdentityChange`` what a change of the identity
 sends, a field not sent ``OMITTED``. The objects of ``interface/register.py`` follow, moved here by
-US-2600/L1 for the same reason: what the register asks for and gives. Another module names them
+US-2600/L1 for the same reason: what the register asks for and gives; and those of
+``interface/matrix.py``, moved by US-2600/L2: what the matrix gives. Another module names them
 through the interface.
 """
 
@@ -197,4 +198,52 @@ class RiskList:
 
     risks: list[RiskView]
     total: int
+    totals: ProvisionTotals
+
+
+@dataclass(frozen=True, slots=True)
+class MatrixLevel:
+    """A level of an axis and its bounds (``RiskMatrixLevel``), the upper ``None`` at the last."""
+
+    level: int
+    lower: Decimal
+    upper: Decimal | None
+
+
+@dataclass(frozen=True, slots=True)
+class MatrixCell:
+    """A cell of the matrix, its zone, and how many identified risks it holds."""
+
+    probability_level: int
+    severity_level: int
+    zone: str
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
+class MatrixPoint:
+    """A risk the matrix places (``RiskMatrixPoint``), at the values of the risk read.
+
+    ``severity_ratio`` its severity as a share of the base of the project, ``None`` on a base of
+    nought, which relates it to nothing (#1240).
+    """
+
+    risk_id: UUID
+    label: str
+    probability: Decimal
+    severity_amount: Decimal
+    severity_ratio: Decimal | None
+    provision_amount: Decimal
+    state: RiskState
+    zone: str
+
+
+@dataclass(frozen=True, slots=True)
+class RiskMatrix:
+    """The matrix of a project in a revision (``RiskMatrix``): its levels, cells, points, totals."""
+
+    probability_levels: tuple[MatrixLevel, ...]
+    severity_levels: tuple[MatrixLevel, ...]
+    cells: tuple[MatrixCell, ...]
+    points: tuple[MatrixPoint, ...]
     totals: ProvisionTotals

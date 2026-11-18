@@ -466,6 +466,11 @@ from waterfall.core.estimate.severities import (
     structure_amounts as structure_amounts,
 )
 
+# ``shares`` (US-2600/L2): the share of an amount in a total, to the four places the contract says.
+from waterfall.core.estimate.shares import (
+    share_of as share_of,
+)
+
 # ``spreading`` (US-1520/L1; US-2040/L2): the line the planned value is computed on, which EP-10
 # reads; the rounding of the hours and of the amounts, once, from the exact value.
 from waterfall.core.estimate.spreading import (

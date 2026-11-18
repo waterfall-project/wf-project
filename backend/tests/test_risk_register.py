@@ -40,6 +40,8 @@ if TYPE_CHECKING:
     from waterfall.platform.database import Database
 
 RESERVE = Decimal("850.00")
+# The statements the register sends at most, whatever the number of its risks (#4013).
+MOST_STATEMENTS = 40
 # The five risks: label, probability, severity, the day of the last review.
 DELAY = ("Retard de livraison", "0.30", "200.00", date(2026, 1, 10))
 STUDY = ("Étude hydrologique incomplète", "0.50", "400.00", date(2026, 2, 20))
@@ -665,6 +667,8 @@ def test_the_register_costs_the_same_statements_whatever_the_number_of_its_risks
     declare(10, 5)
     many = measure()
     assert counts == [5, 15]
+    # A count of nought would hold the equality for nothing; the bound is the reading's own.
+    assert 0 < few <= MOST_STATEMENTS
     assert many == few
 
 

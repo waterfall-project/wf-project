@@ -1134,7 +1134,7 @@ revue (US-2640).
 
 ## US-2600 — Le registre des risques et la matrice
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-RIS-0040-A`, `WF-REF-0160-A`
 - **opérations** : `listRisks`, `getRisk`, `listRiskReviews`, `getProjectRiskMatrix`,
   `getReferenceSettings`
