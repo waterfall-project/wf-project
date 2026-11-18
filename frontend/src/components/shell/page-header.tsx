@@ -91,6 +91,12 @@ export interface PageHeaderProps {
    * in for another — not found, a session refused —, whose address names a screen it does not show.
    */
   readonly helped?: boolean;
+  /**
+   * Whether the commands keep their natural width and go under the title, whole, when they do not
+   * fit beside it with the title at 24 rem at least; off, they take what the title leaves, down to
+   * their narrowest, which five commands crush into a column of a few words.
+   */
+  readonly commandsKeepWidth?: boolean;
 }
 
 /** Render the header of a screen. */
@@ -101,10 +107,21 @@ export function PageHeader({
   actions,
   density = "dense",
   helped = true,
+  commandsKeepWidth = false,
 }: PageHeaderProps) {
   return (
-    <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
-      <div className="flex min-w-[min(100%,24rem)] flex-[0_1_auto] flex-col gap-1">
+    <div
+      className={cn(
+        "flex flex-wrap items-start gap-x-4",
+        commandsKeepWidth ? "gap-y-1" : "gap-y-2",
+      )}
+    >
+      <div
+        className={cn(
+          "flex flex-col gap-1",
+          commandsKeepWidth ? "min-w-[min(100%,24rem)] flex-[1_1_24rem]" : "min-w-0 flex-1",
+        )}
+      >
         {/* The help after the last word of the title, in the flow of its text, an icon alone no
             taller than one of its lines (`1lh`): among the commands it would narrow the whole
             title, and as an item of a row that wraps it would take a line of its own under a
@@ -139,7 +156,10 @@ export function PageHeader({
       {actions === undefined ? null : (
         <div
           data-slot="screen-commands"
-          className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-start justify-end gap-2"
+          className={cn(
+            "flex flex-wrap items-start gap-2",
+            commandsKeepWidth ? "max-w-full" : null,
+          )}
         >
           {actions}
         </div>

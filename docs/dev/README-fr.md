@@ -2725,11 +2725,7 @@ grandirait et pousserait les totaux d'une grille hors d'une fenêtre basse (`gri
 est alors sans retrait : une espace le sépare du titre, non une marge —, ou F1 partout sur l'écran,
 ouvre à côté de lui un panneau latéral (`shell/help-panel.tsx`, un `Sheet`) sur la page de son code
 de la FBS — celui de la route que suit l'adresse (`helpCodeAt`, `src/help/help.ts`) : une fonction,
-une feuille, la liste des projets (FBS-4). Son en-tête garde à son titre 24 rem au moins et laisse
-aux commandes la largeur qui reste, où elles passent à la ligne entre elles, à droite, ou sous le
-titre quand elles ne tiennent pas à côté : cinq commandes qui prenaient leur largeur entière
-réduisaient le titre du reste à engager à trois lignes, son sous-titre à trois autres, 76 points de
-plus au-dessus de la grille (#3895, `remaining.spec.ts`). Une page est un fichier Markdown,
+une feuille, la liste des projets (FBS-4). Une page est un fichier Markdown,
 `frontend/help/<langue>/<code>.md` ; une notion de la méthode,
 `frontend/help/<langue>/notions/<notion>.md` — les mêmes fichiers, sous les mêmes noms, en français
 et en anglais (US-0670b). Le serveur les lit à l'ouverture du panneau, dans la langue de

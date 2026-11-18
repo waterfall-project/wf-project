@@ -119,8 +119,8 @@ test("keeps the whole grid of the remaining to commit in the window of 1280 × 7
   await expectWholeGridIn(page, { width: 1280, height: 720 });
 });
 
-for (const width of [360, 768]) {
-  test(`lays the commands of the remaining to commit out readable in a window of ${String(width)} points @shared`, async ({
+for (const width of [360, 900, 1000, 1100, 1280]) {
+  test(`lays the commands of the remaining to commit out whole, beside the title on one row or under it, in a window of ${String(width)} points @shared`, async ({
     page,
   }) => {
     test.skip(inService, NO_VOLUME_IN_SERVICE);
@@ -133,16 +133,22 @@ for (const width of [360, 768]) {
     if (box === null || head === null) {
       throw new Error("the header has no box");
     }
-    // Under the title, or beside it in a width wide enough for a command to read: never a
-    // column of a few tens of points squeezed by the title.
-    expect(box.y >= head.y + head.height - 1 || box.width >= 200).toBe(true);
     expect(box.x + box.width).toBeLessThanOrEqual(width);
     const buttons = commands.locator(":scope > *");
     const count = await buttons.count();
     expect(count).toBeGreaterThanOrEqual(1);
+    const rows = new Set<number>();
     for (let index = 0; index < count; index += 1) {
-      const button = await buttons.nth(index).boundingBox();
-      expect(button?.width ?? 0).toBeGreaterThanOrEqual(32);
+      const button = buttons.nth(index);
+      const fits = await button.evaluate((node) => node.scrollWidth <= node.clientWidth);
+      expect(fits).toBe(true);
+      const at = await button.boundingBox();
+      rows.add(Math.round(at?.y ?? 0));
+    }
+    const under = box.y >= head.y + head.height - 1;
+    if (!under) {
+      // Beside the title: on one row, not a column of buttons squeezed by it.
+      expect(rows.size).toBe(1);
     }
   });
 }
