@@ -3501,15 +3501,17 @@ lourdes, ceux des services de test et ceux du tableau de suivi : `/run/user/<uid
 (`runtime_directory`) le donne à `slots.py` et à `tracking.py` (US-2460). `XDG_RUNTIME_DIR` n'est
 pas lue : une session sans elle — une tâche planifiée, `su`, le terminal d'un éditeur — verrouillait
 sous `/tmp` pendant que les autres verrouillaient sous `/run/user/<uid>`, et deux exécutions se
-croyaient chacune seules sur le poste (PLC-13). Dans une session ordinaire, `XDG_RUNTIME_DIR` vaut
+croyaient chacune seules sur le poste (PLC-13). Sous une session systemd, `XDG_RUNTIME_DIR` vaut
 `/run/user/<uid>` : le répertoire est celui d'avant, et les outils d'une branche qui n'a pas
-US-2460 s'excluent encore avec ceux qui l'ont. `WATERFALL_RUNTIME_DIR`, que seuls les tests posent,
-le remplace : aucun test ne touche les verrous du poste.
+US-2460 s'excluent encore avec ceux qui l'ont. Là où elle pointe ailleurs (WSLg,
+`/mnt/wslg/runtime-dir` ; une session sans systemd), un outil d'une branche qui n'a pas ce lot
+verrouille sous `XDG_RUNTIME_DIR`, un outil qui l'a sous `/run/user/<uid>` ou `/tmp` : ils ne
+s'excluent pas tant que la branche n'a pas repris le lot. `WATERFALL_RUNTIME_DIR`, que seuls les
+tests posent, le remplace : aucun test ne touche les verrous du poste.
 
 Le registre du poste est `waterfall-slots/` de ce répertoire, comme les verrous des exécutions
-lourdes : un fichier `<i>` par créneau pris,
-qui porte le chemin du worktree (`git rev-parse --show-toplevel`) et l'instant de la prise, écrit
-sous un verrou exclusif du registre (`tools/src/wftools/slots.py claim`, `release`, `list`). Un
+lourdes : un fichier `<i>` par créneau pris, qui porte le chemin du worktree
+(`git rev-parse --show-toplevel`) et l'instant de la prise, écrit sous un verrou exclusif du registre (`tools/src/wftools/slots.py claim`, `release`, `list`). Un
 créneau dont le worktree n'existe plus est libre ; celui qui prend un créneau en retire d'abord
 ce qu'un porteur y a laissé (`docker compose -p <projet> down --volumes`, pour chacun de ses deux
 projets), le verrou du registre tenu jusqu'à ce que ce retrait ait réussi, comme le tient

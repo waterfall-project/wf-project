@@ -61,9 +61,12 @@ def runtime_directory(environment: Mapping[str, str]) -> Path:
     ``$WATERFALL_RUNTIME_DIR`` where it is set (the tests), else ``/run/user/<uid>`` where it
     exists, else ``/tmp`` (WSL, a runner). ``XDG_RUNTIME_DIR`` is not read: a session without it
     — a cron job, ``su``, a shell of an IDE — would lock elsewhere than the others, and two runs
-    would each believe themselves alone. In an ordinary session, ``XDG_RUNTIME_DIR`` is
+    would each believe themselves alone. Under a systemd session, ``XDG_RUNTIME_DIR`` is
     ``/run/user/<uid>``: the directory is the one of before, which the tools of a branch without
-    this function still use, and they exclude each other with these.
+    this function still use, and they exclude each other with these. Where it points elsewhere
+    (WSLg, ``/mnt/wslg/runtime-dir``; a session without systemd), a tool of a branch without this
+    function locks under ``XDG_RUNTIME_DIR``, one with it under ``/run/user/<uid>`` or ``/tmp``:
+    they do not exclude each other until the branch has taken this lot.
     """
     chosen = environment.get(RUNTIME_VARIABLE)
     if chosen:

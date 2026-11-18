@@ -26,6 +26,8 @@ def test_the_directory_of_the_locks_is_the_variable_then_the_one_of_the_user_the
     )
     assert heavyturns.runtime_directory(elsewhere) == user_runtime
     assert heavyturns.runtime_directory({"WATERFALL_RUNTIME_DIR": ""}) == user_runtime
+    # Under a systemd session, XDG_RUNTIME_DIR is /run/user/<uid>: the directory of before.
+    assert heavyturns.runtime_directory({"XDG_RUNTIME_DIR": str(user_runtime)}) == user_runtime
     monkeypatch.setattr(heavyturns, "USER_RUNTIME_ROOT", user_runtime / "absent")
     assert heavyturns.runtime_directory(elsewhere) == Path(os.sep, "tmp")
 

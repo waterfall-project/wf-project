@@ -35,6 +35,18 @@ def no_process_table(
     monkeypatch.setenv("WATERFALL_SLOTS_PROC", str(empty))
 
 
+@pytest.fixture(autouse=True)
+def no_workstation_locks(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Point ``WATERFALL_RUNTIME_DIR`` at a temporary directory, inherited by the subprocesses.
+
+    No test, in process or not, can then take a lock or a slot of the workstation (US-2460). A test
+    that sets its own directory overrides it; ``user_runtime`` removes it to test the default.
+    """
+    monkeypatch.setenv(heavyturns.RUNTIME_VARIABLE, str(tmp_path_factory.mktemp("runtime")))
+
+
 @pytest.fixture
 def user_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Move ``/run/user`` under the test, and return the directory of the user in it, created.
@@ -46,6 +58,7 @@ def user_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     own = root / str(os.getuid())
     own.mkdir(parents=True)
     monkeypatch.setattr(heavyturns, "USER_RUNTIME_ROOT", root)
+    monkeypatch.delenv(heavyturns.RUNTIME_VARIABLE, raising=False)
     return own
 
 

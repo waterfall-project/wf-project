@@ -3486,15 +3486,17 @@ exists, `/tmp` otherwise (WSL, a runner); a single function of `tools/src/wftool
 (`runtime_directory`) gives it to `slots.py` and to `tracking.py` (US-2460). `XDG_RUNTIME_DIR` is
 not read: a session without it — a scheduled task, `su`, the terminal of an editor — locked under
 `/tmp` while the others locked under `/run/user/<uid>`, and two runs each believed themselves alone
-on the workstation (PLC-13). In an ordinary session, `XDG_RUNTIME_DIR` is `/run/user/<uid>`: the
-directory is the one of before, and the tools of a branch without US-2460 still exclude each other
-with those that have it. `WATERFALL_RUNTIME_DIR`, which only the tests set, replaces it: no test
-touches the locks of the workstation.
+on the workstation (PLC-13). Under a systemd session, `XDG_RUNTIME_DIR` is
+`/run/user/<uid>`: the directory is the one of before, and the tools of a branch without US-2460
+still exclude each other with those that have it. Where it points elsewhere (WSLg,
+`/mnt/wslg/runtime-dir`; a session without systemd), a tool of a branch without this lot locks
+under `XDG_RUNTIME_DIR`, a tool that has it under `/run/user/<uid>` or `/tmp`: they do not exclude
+each other until the branch has taken the lot. `WATERFALL_RUNTIME_DIR`, which only the tests set,
+replaces it: no test touches the locks of the workstation.
 
 The register of the workstation is `waterfall-slots/` of this directory, like the locks of the
-heavy runs: a file `<i>` per slot taken, which
-holds the path of the worktree (`git rev-parse --show-toplevel`) and the moment it was taken,
-written under an exclusive lock of the register (`tools/src/wftools/slots.py claim`, `release`,
+heavy runs: a file `<i>` per slot taken, which holds the path of the worktree
+(`git rev-parse --show-toplevel`) and the moment it was taken, written under an exclusive lock of the register (`tools/src/wftools/slots.py claim`, `release`,
 `list`). A slot whose worktree no longer exists is free; whoever takes a slot first removes what a
 holder left in it (`docker compose -p <project> down --volumes`, for each of its two projects),
 the lock of the register held until that removal has succeeded, as `make slot-release` holds it: a
