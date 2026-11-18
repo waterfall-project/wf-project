@@ -3473,12 +3473,12 @@ slot 0: its ports and its names are those of before the slots.
 out under the repository (`.claude/worktrees/`) or elsewhere on the disk, never in `/tmp` nor in a
 scratchpad. No tool checks it: `make slot` and `make slots` do not count inodes.
 
-| Command             | What it does                                                                                                                                                                                                                                                                                                            |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `make slot`         | takes for the worktree it is run in the first free slot from 1 to N, or says its own; if the N are taken, it fails, holders named; in the main repository (its `.git` is a directory), it says slot 0, taking nothing                                                                                                   |
-| `make slot-release` | stops the e2e servers of the slot, removes its containers and volumes — the service platform, the services of the tests —, then frees it; if Docker cannot remove them, the slot stays taken, and it says so                                                                                                            |
-| `make e2e-down`     | stops the processes of the user that listen on the e2e ports of the slot — the fake back, the fronts of the paths (at slot 0, 4110 and 3100 to 3139) —, each found by its port in `/proc` and stopped by its PID: `SIGTERM`, then `SIGKILL` after five seconds; it says what it stops, and nothing when nothing listens |
-| `make slots`        | writes N, then each slot taken on the workstation, whatever the repository, with its worktree and the moment it was taken                                                                                                                                                                                               |
+| Command             | What it does                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `make slot`         | takes for the worktree it is run in the first free slot from 1 to N, or says its own; with `LOT=<identifier>`, it writes the lot in it, and if the N are taken, it takes over the one another worktree holds for that same lot, never one of another; if the N are taken and none is to be taken over, it fails, holders named; in the main repository (its `.git` is a directory), it says slot 0, taking nothing |
+| `make slot-release` | stops the e2e servers of the slot, removes its containers and volumes — the service platform, the services of the tests —, then frees it; if Docker cannot remove them, the slot stays taken, and it says so                                                                                                                                                                                                       |
+| `make e2e-down`     | stops the processes of the user that listen on the e2e ports of the slot — the fake back, the fronts of the paths (at slot 0, 4110 and 3100 to 3139) —, each found by its port in `/proc` and stopped by its PID: `SIGTERM`, then `SIGKILL` after five seconds; it says what it stops, and nothing when nothing listens                                                                                            |
+| `make slots`        | writes N, then each slot taken on the workstation, whatever the repository, with its worktree, its lot if it was taken with `LOT`, and the moment it was taken                                                                                                                                                                                                                                                     |
 
 **The directory of the locks of the workstation** holds the register of the slots, the locks of
 the heavy runs, those of the test services and those of the tracking table: `/run/user/<uid>` if it
@@ -3496,9 +3496,14 @@ replaces it: no test touches the locks of the workstation.
 
 The register of the workstation is `waterfall-slots/` of this directory, like the locks of the heavy
 runs: a file `<i>` per slot taken, which holds the path of the worktree (`git rev-parse
---show-toplevel`) and the moment it was taken, written under an exclusive lock of the register
-(`tools/src/wftools/slots.py claim`, `release`, `list`). A slot whose worktree no longer exists is
-free; whoever takes a slot first removes what a holder left in it (`docker compose -p <project> down
+--show-toplevel`), the moment it was taken and, taken with `LOT`, the lot on a third line,
+written under an exclusive lock of the register (`tools/src/wftools/slots.py claim`, `release`,
+`list`); a file of two lines, written without `LOT` or by the tool of an older branch, has no lot.
+A slot whose worktree no longer exists is free. The N taken, `make slot LOT=<identifier>` takes
+over the one another worktree, even one still there, holds for the same lot: the pilot launches one
+deliverer per lot, and the other stopped without `make slot-release` — a usage limit, a deliverer
+that crashed (US-2460); the slot of another lot, or of none, is never taken over. Whoever takes a
+slot, free or taken over, first removes what a holder left in it (`docker compose -p <project> down
 --volumes`, for each of its two projects), the lock of the register held until that removal has
 succeeded, as `make slot-release` holds it: a `make slot` started meanwhile waits, saying so, and if
 Docker fails, the slot is not taken, and the next `make slot` does the removal again. Before that

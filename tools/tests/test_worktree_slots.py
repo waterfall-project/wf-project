@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The slot of a worktree: its ports, its projects of Compose and the tags of its images (US-1100).
 
-The tool is run as the Makefile runs it, ``python3 slots.py claim``, in repositories of git made
-for the test — a main repository and worktrees of it —, with ``WATERFALL_RUNTIME_DIR`` on a
-temporary directory: no test touches the register of the workstation. Docker, pnpm and uv are
-stand-ins on the ``PATH`` that write what they are asked and the variables they are given: the
-Makefile is tried by what it hands its commands, nothing is started.
+The tool is run as ``python3 slots.py claim``, the arguments the Makefile gives it through
+``launch.py slots`` (US-2450), in repositories of git made for the test — a main repository and
+worktrees of it —, with ``WATERFALL_RUNTIME_DIR`` on a temporary directory: no test touches the
+register of the workstation. Docker, pnpm and uv are stand-ins on the ``PATH`` that write what
+they are asked and the variables they are given: the Makefile is tried by what it hands its
+commands, nothing is started.
 """
 
 import fcntl
@@ -444,6 +445,85 @@ def test_a_takeover_whose_removal_failed_is_done_again(workstation: Workstation)
     assert claimed.returncode == 0
     assert f"slot 1 taken: {tree}" in claimed.stdout
     assert docker_asked(workstation.logged()) == DOWNS_OF_SLOT_1
+
+
+def two_lots_in_flight(workstation: Workstation) -> tuple[Path, Path]:
+    """Have two living worktrees take the 2 slots, for US-1/L1 and US-2/L1; return them."""
+    stopped, other = workstation.worktree("stopped"), workstation.worktree("other")
+    for tree, lot in ((stopped, "US-1/L1"), (other, "US-2/L1")):
+        assert workstation.make(tree, "slot", f"LOT={lot}", extra=TWO).returncode == 0
+    workstation.logged()
+    return stopped, other
+
+
+TWO = {"WATERFALL_SLOTS": "2"}
+
+
+def test_every_slot_taken_the_same_lot_takes_over_its_slot(workstation: Workstation) -> None:
+    """[US-2460] PLC-04: the deliverer that takes a lot up gets the slot of the stopped one."""
+    stopped, other = two_lots_in_flight(workstation)
+    listed = workstation.make(workstation.main, "slots", extra=TWO).stdout
+    assert f"slot 1: {stopped} (lot US-1/L1, taken " in listed
+    assert f"slot 2: {other} (lot US-2/L1, taken " in listed
+    tree = workstation.worktree("lot")
+    claimed = workstation.make(tree, "slot", "LOT=US-1/L1", extra=TWO)
+    assert claimed.returncode == 0, claimed.stderr
+    assert f"slot 1 is taken over from {stopped}, of the same lot US-1/L1" in claimed.stdout
+    assert f"slot 1 taken: {tree}" in claimed.stdout
+    assert docker_asked(workstation.logged()) == DOWNS_OF_SLOT_1, "what it left is removed first"
+    taken = slots.holders(workstation.register)
+    assert (taken[1].worktree, taken[1].lot) == (str(tree), "US-1/L1")
+    assert (taken[2].worktree, taken[2].lot) == (str(other), "US-2/L1")
+    assert (workstation.register / "1").read_text().splitlines()[2] == "US-1/L1"
+    assert workstation.tool(stopped, "which").returncode == 1, "the stopped one holds no slot"
+
+
+def test_the_slot_of_another_lot_is_never_taken_over(workstation: Workstation) -> None:
+    """[US-2460] PLC-04: every slot taken, a lot that holds none, or none said, gets nothing."""
+    stopped, other = two_lots_in_flight(workstation)
+    tree = workstation.worktree("lot")
+    for asked in (["LOT=US-3/L1"], []):
+        refused = workstation.make(tree, "slot", *asked, extra=TWO)
+        assert refused.returncode != 0
+        assert "all 2 slot(s) are taken" in refused.stderr
+        assert ("none for lot US-3/L1" in refused.stderr) == bool(asked)
+    assert workstation.logged() == "", "nothing removed"
+    taken = slots.holders(workstation.register)
+    assert [taken[slot].worktree for slot in (1, 2)] == [str(stopped), str(other)]
+
+
+def test_a_free_slot_is_taken_before_the_one_of_the_same_lot(workstation: Workstation) -> None:
+    """[US-2460] PLC-04: a slot free, the one held for the same lot elsewhere is left as it is."""
+    stopped = workstation.worktree("stopped")
+    workstation.make(stopped, "slot", "LOT=US-1/L1", extra=TWO)
+    tree = workstation.worktree("lot")
+    claimed = workstation.make(tree, "slot", "LOT=US-1/L1", extra=TWO)
+    assert f"slot 2 taken: {tree}" in claimed.stdout
+    assert slots.holders(workstation.register)[1].worktree == str(stopped)
+
+
+def test_a_slot_file_of_two_lines_holds_no_lot(tmp_path: Path) -> None:
+    """[US-2460] PLC-04: the file an older tool wrote is read; its slot is of no lot."""
+    register = tmp_path / "waterfall-slots"
+    elsewhere = tmp_path / "elsewhere"
+    (elsewhere / ".git").mkdir(parents=True)
+    register.mkdir()
+    (register / "1").write_text(f"{elsewhere}\n2026-11-18T08:00:00+00:00\n", encoding="utf-8")
+    assert slots.holders(register)[1] == slots.Holder(str(elsewhere), "2026-11-18T08:00:00+00:00")
+    tree = tmp_path / "lot"
+    with pytest.raises(slots.RegisterError, match="none for lot US-1/L1"):
+        slots.claim(register, tree, 1, lambda _slot: None, "US-1/L1")
+    assert slots.claim(register, elsewhere, 1, lambda _slot: None, "US-1/L1") == (1, False)
+    assert slots.holders(register)[1].lot == "US-1/L1", "the lot is written to the slot held"
+
+
+@pytest.mark.parametrize("lot", ["", "US-1/L1\nUS-2/L1", "../x", "a b"])
+def test_a_lot_that_cannot_be_a_line_is_refused(workstation: Workstation, lot: str) -> None:
+    """[US-2460] PLC-04: the lot is one line of the register: anything else is refused, said."""
+    refused = workstation.tool(workstation.worktree("lot"), "claim", "--lot", lot)
+    assert refused.returncode == 2
+    assert "is not the identifier of a lot" in refused.stderr
+    assert slots.holders(workstation.register) == {}
 
 
 def test_no_claim_says_held_before_the_slot_is_emptied(workstation: Workstation) -> None:

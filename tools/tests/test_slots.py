@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The admission of the heavy runs: N at a time, on a share of the processors (US-1090).
 
-The tool is run as the Makefile runs it, ``python3 slots.py run --heavy -- <command>``, with
-``WATERFALL_RUNTIME_DIR`` on a temporary directory: no test touches the locks of the workstation.
+The tool is run as ``python3 slots.py run --heavy -- <command>``, the arguments the Makefile gives
+it through ``launch.py slots`` (US-2450), with ``WATERFALL_RUNTIME_DIR`` on a temporary directory:
+no test touches the locks of the workstation.
 """
 
 import contextlib

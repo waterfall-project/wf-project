@@ -928,8 +928,10 @@ measure-version: measure-cache-present measure-secrets install-front $(call e2e-
 
 # The slot of the worktree, among the N of WATERFALL_SLOTS, in the register of the workstation
 # (waterfall-slots of /run/user/<uid>, of /tmp without it), whatever the repository and the session.
-slot: ## Take a slot of 1 to N for this worktree of a lot — its ports and its names —, or say the one it holds; fails, naming the holders, when all are taken
-	@$(SLOTS) claim
+# LOT=<identifier> writes the lot in the slot: a deliverer stopped without make slot-release holds
+# back no other, the next one of its lot taking its slot over when all are taken (US-2460).
+slot: ## Take a slot of 1 to N for this worktree of a lot — its ports and its names —, or say the one it holds; all taken, takes over the one another worktree holds for the same LOT=<identifier>, else fails, naming the holders
+	@$(SLOTS) claim$(if $(LOT), --lot '$(subst ','\'',$(LOT))')
 
 slot-release: ## Stop the servers of the e2e paths, remove the containers and volumes of the slot of this worktree — the service platform, the services of the tests —, then free it
 	@$(SLOTS) release
@@ -938,7 +940,7 @@ e2e-down: ## Stop the servers of the end-to-end paths of the slot of this worktr
 	@$(SLOTS) stop-servers
 	@docker stop --time 60 $(LOAD_CONTAINER) > /dev/null 2>&1 || true
 
-slots: ## Print N, then the slots taken on the workstation and their worktrees
+slots: ## Print N, then the slots taken on the workstation, their worktrees and their lots
 	@$(SLOTS) list
 
 # PostgreSQL 18, Redis and Garage of the platform, in memory, on the ports of the slot of the worktree

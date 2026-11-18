@@ -4,12 +4,12 @@
 
 (US-1110.)
 
-The tool is run as the Makefile runs it, ``python3 slots.py run --services …``, in the repositories
-of git made for the test by ``test_worktree_slots``: a main repository and worktrees of it, each
-with a Makefile that includes the one of the repository, and the stand-ins of Docker, pnpm and uv
-on the ``PATH``, which write what they are asked and the variables they are given. Nothing is
-started: the tests tell what the Makefile asks of Docker, in which order, and what the tests are
-given.
+The tool is run as ``python3 slots.py run --services …``, the arguments the Makefile gives it
+through ``launch.py slots`` (US-2450), in the repositories of git made for the test by
+``test_worktree_slots``: a main repository and worktrees of it, each with a Makefile that includes
+the one of the repository, and the stand-ins of Docker, pnpm and uv on the ``PATH``, which write
+what they are asked and the variables they are given. Nothing is started: the tests tell what the
+Makefile asks of Docker, in which order, and what the tests are given.
 """
 
 import fcntl
