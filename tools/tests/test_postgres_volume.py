@@ -173,7 +173,7 @@ def test_the_chain_installs_the_client_18_before_the_tests_of_the_back() -> None
     install = next(i for i, run in enumerate(runs) if "/usr/lib/postgresql/18/bin" in run)
     tests = next(i for i, run in enumerate(runs) if run.startswith("make check-back-tests"))
     assert install < tests
-    assert "for tool in pg_dump pg_restore; do" in runs[install]
+    assert "for tool in pg_dump pg_restore psql; do" in runs[install]
     assert "apt" not in runs[install].replace("(PostgreSQL)", "")
     assert '"/usr/lib/postgresql/18/bin/$tool" "/usr/bin/$tool"' in runs[install]
     assert '"/usr/bin/$tool" --version' in runs[install]

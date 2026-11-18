@@ -4070,8 +4070,11 @@ déclare : en TypeScript, un `.skip`, `.fixme` ou `.todo`, ou un appel sous un `
 service — porte, et qu'un crochet des `conftest.py` rend obligatoire : un test qui se saute sans la
 porter échoue. Le relevé liste ses citations sous leur exigence, « non exécuté », sans les compter :
 une exigence que seuls des tests non exécutés citent est non couverte, et `make requirements-release`
-la nomme. Un saut décidé dans le corps d'un test (`test.skip(condition, …)`) n'est pas vu : le test
-compte comme exécuté. Une citation dans un commentaire n'est pas une citation : seuls les titres des
+la nomme. Un `test.skip(` ou `test.fixme(` sans titre, appelé dans le corps d'un test (dans le
+groupe, à défaut), laisse le test exécuté quand son premier argument est `inService` ou `!inService`, et le
+sort « non exécuté » pour tout autre (`true`, `!inService || manager === undefined`…), comme un test
+qui porte les deux formes ; `it.skipIf(` et `it.runIf(` ne sont pas vus : le test compte comme
+exécuté. Une citation dans un commentaire n'est pas une citation : seuls les titres des
 `it(` et `test(` sont lus, et une forme d'appel que le relevé ne connaît pas le fait échouer en
 nommant le fichier et la ligne.
 
@@ -5559,8 +5562,10 @@ lot, et seules les révisions qu'un outil engendre seul seraient déclarées dan
 
 _Contrôles_ : `make test-back` (`tests/test_migrations.py` : une seule tête, une migration
 appliquée ne se rejoue pas, la descente est le miroir de la montée, le schéma — contraintes de
-vérification et défauts compris — est celui des tables du code, quatre instances ensemble),
-contre PostgreSQL (voir « Tests ») ; la compatibilité
+vérification et défauts compris — est celui des tables du code, quatre instances ensemble ;
+`tests/test_migrations_as_owner.py` : toutes s'appliquent en tant que le propriétaire `NOSUPERUSER`
+que fait le script de la production, `deploy/compose/waterfall-database.sql`, et une migration qui
+exige le superutilisateur y échoue, #958), contre PostgreSQL (voir « Tests ») ; la compatibilité
 avec le code voisin, la revue.
 
 ## Agents
