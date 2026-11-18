@@ -28,7 +28,7 @@ from waterfall.api.nodes import (
     Sent,
     Writing,
     unknown_fields,
-    written_of,
+    written_in,
 )
 from waterfall.core.estimate.interface import LineEntry, LineRemaining, set_line_remaining
 from waterfall.platform.errors import VALIDATION_FAILED, UnprocessableError
@@ -87,4 +87,4 @@ def put_remaining(
     session: Transaction,
 ) -> dict[str, Any]:
     """Re-estimate a line at the counter read; complete its task when its last open line is 0."""
-    return written_of(set_line_remaining(session, place, node_id, entry, writer))
+    return written_in(session, place, set_line_remaining(session, place, node_id, entry, writer))

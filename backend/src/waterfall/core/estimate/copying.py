@@ -86,12 +86,12 @@ def copy_lines(copy: RevisionCopy) -> None:
     stamp of the opening; the budgeted amount by the lineage in the reference revision; and, from a
     source marked once its project was In progress, its figures and its re-estimated amount as the
     remaining to commit before the review (``previous_*``), none otherwise (EP-09). The copy of a
-    structure into another of the same revision (``copy.source`` is ``copy.target``, a differential
-    opened) keeps each line as it is: its budgeted amount and its remaining to commit before, not
-    the reference's again.
+    structure into another of the same revision (``copy.within_revision``, a differential opened)
+    keeps each line as it is: its budgeted amount and its remaining to commit before, not the
+    reference's again.
     """
     session, ids = copy.session, copy.identifiers
-    same = copy.source == copy.target
+    within = copy.within_revision
     sources = list(
         session.scalars(
             select(EstimateLine.node_id).where(
@@ -101,7 +101,7 @@ def copy_lines(copy: RevisionCopy) -> None:
     )
     if not sources:
         return
-    budgets, referenced = ({}, False) if same else _budgeted(session, copy.project_id, sources)
+    budgets, referenced = ({}, False) if within else _budgeted(session, copy.project_id, sources)
     node = copies({each: ids[each] for each in sources}, "copied_line")
     at, author = literal(copy.at, UtcDateTime()), literal(copy.author, Uuid())
     replaced: dict[str, ColumnElement[Any]] = {
@@ -112,7 +112,7 @@ def copy_lines(copy: RevisionCopy) -> None:
         "updated_at": at,
         "updated_by": author,
     }
-    if not same:
+    if not within:
         replaced["budgeted_amount"] = null()
         reviewed = was_reviewed(session, copy.project_id, copy.source)
         for figure in PREVIOUS:

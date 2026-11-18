@@ -26,7 +26,8 @@ from fastapi import APIRouter, Depends
 from waterfall.api.authentication import Transaction
 from waterfall.api.contract.models import PasteApply, PastePreview
 from waterfall.api.evaluation import Acting, RequiresProject
-from waterfall.api.nodes import STRUCTURE, Placed, Writing, written_of
+from waterfall.api.nodes import STRUCTURE, Placed, Writing, node_body, written_in, written_of
+from waterfall.api.numbering import removed_in, rows_of
 from waterfall.core.planning.interface import (
     ENTRIES,
     PasteBlock,
@@ -82,6 +83,7 @@ def post_paste_preview(
         target_node_id=body.target_node_id.root,
         target_column=body.target_column.value,
         rows=tuple(tuple(cells) for cells in body.rows),
+        removed=removed_in(rows_of(session, place, node_body)),
     )
     planned = preview_paste(session, place, block, writer, actor.permissions)
     return {
@@ -105,7 +107,7 @@ def post_paste(
     confirmation = PasteConfirmation(body.paste_id.root, body.lock_version.root)
     applied = apply_paste(session, place, confirmation, writer, actor.permissions)
     return {
-        **written_of(applied.written),
+        **written_in(session, place, applied.written),
         "rejected": [_refused(each) for each in applied.rejected],
     }
 

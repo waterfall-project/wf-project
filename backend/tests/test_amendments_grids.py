@@ -20,7 +20,7 @@ import pytest
 from amendments_support import commands_of, listed, on, opened_amendment
 from estimate_support import Costing, Lines, costing
 from history_support import delete, link, undone
-from nodes_support import Tree, set_progress, signed_in
+from nodes_support import Tree, mark, set_progress, signed_in
 from paste_support import apply, counter, planned
 from projects_support import PROJECTS, Person, Scene, put_in_state
 from projects_support import scene as make_scene
@@ -121,6 +121,48 @@ def test_a_differential_is_read_as_a_diff_with_the_main_structure(
     assert tree.read().json()["totals"]["estimate_line_count"] == 2
     # The rows are numbered with the node removed in its place.
     assert [each["row_number"] for each in tree.items()] == [1, 2, 3, 4, 5, 6]
+
+
+@pytest.mark.requirement("WF-REV-0100-A")
+def test_a_differential_of_a_marked_revision_is_read_as_it_was_before_the_marking(
+    api: ContractClient, project: Costed
+) -> None:
+    # The revision marked is read-only, the differential with it: its reading, marks, changes, rows
+    # and totals, is the one the revision gave before its marking.
+    tree = on(project.tree, opened_amendment(api, project))
+    lines = Lines(tree)
+    tests = tree.made("Essais")
+    tree.changed(node_of(tree, MAKING), label="Réalisation et mise au point")
+    delete(tree, node_of(tree, "Fabrication"), project.stage.manager)
+    lines.made(tests, **material(project.costs, "Banc d'essai", "50.00"))
+
+    def reading() -> tuple[Any, ...]:
+        read = tree.read()
+        assert read.status_code == 200, read.text
+        body = read.json()
+        items = [
+            (
+                (each["task"] or each["estimate_line"])["label"],
+                each["difference"],
+                each["changes"],
+                each["row_number"],
+            )
+            for each in body["items"]
+        ]
+        return items, body["totals"]
+
+    before = reading()
+    assert before[1]["reestimated_amount"] == "650.00"
+    assert [each[1] for each in before[0]] == [
+        "unchanged",
+        "unchanged",
+        "modified",
+        "removed",
+        "added",
+        "added",
+    ]
+    mark(project.stage, project.tree.revision)
+    assert reading() == before
 
 
 @pytest.mark.requirement("WF-REV-0100-A")

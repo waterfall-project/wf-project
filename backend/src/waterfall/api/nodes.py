@@ -59,6 +59,7 @@ from waterfall.api.contract.models import (
     WorkInstantWrite,
 )
 from waterfall.api.evaluation import Acting, RequiresProject
+from waterfall.api.numbering import renumbered, resolved, rows_of
 from waterfall.api.queries import read_list, refuse_query
 from waterfall.api.wire import instant_of, text_of
 from waterfall.core.access_roles.interface import PERMISSION_MISSING
@@ -93,7 +94,6 @@ from waterfall.core.planning.interface import (
     list_records,
     move_nodes,
     record_of,
-    resolve_row_number,
     update_task_facet,
 )
 from waterfall.core.projects.interface import subproject_labels
@@ -712,6 +712,16 @@ def written_of(result: NodesWritten) -> dict[str, Any]:
     }
 
 
+def written_in(session: Session, place: Place, result: NodesWritten) -> dict[str, Any]:
+    """Write what a write of a structure gives back, numbered as that structure is read.
+
+    A differential is numbered with the nodes it removes in their place (``numbering``).
+    """
+    body = written_of(result)
+    rows = rows_of(session, place, node_body)
+    return body if rows is None else renumbered(body, rows)
+
+
 def _sent_instant(sent: WorkInstantWrite | None) -> InstantSent | None:
     if sent is None:
         return None
@@ -861,7 +871,7 @@ def post_node(
         kind=body.kind.value,
         facet=None if line is None else line_entry(line, frozenset(line.model_fields_set), None),
     )
-    return written_of(create_node(session, place, creation, writer))
+    return written_in(session, place, create_node(session, place, creation, writer))
 
 
 @router.patch(
@@ -888,7 +898,7 @@ def patch_task(
     if faults or not sent:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
     change = replace(_entry(body, sent), lock_version=body.lock_version.root)
-    return written_of(update_task_facet(session, place, node_id, change, writer))
+    return written_in(session, place, update_task_facet(session, place, node_id, change, writer))
 
 
 @router.delete(
@@ -905,7 +915,7 @@ def delete_task(
     session: Transaction,
 ) -> dict[str, Any]:
     """Delete a node of a structure and its subtree, at the counter of the node read."""
-    return written_of(delete_node(session, place, node_id, lock_version, writer))
+    return written_in(session, place, delete_node(session, place, node_id, lock_version, writer))
 
 
 @router.post(
@@ -928,7 +938,7 @@ def post_move(
         after_given="after_node_id" in body.model_fields_set,
         lock_version=body.lock_version.root,
     )
-    return written_of(move_nodes(session, place, moving, writer))
+    return written_in(session, place, move_nodes(session, place, moving, writer))
 
 
 @router.get(
@@ -945,13 +955,19 @@ def get_dependencies(
 ) -> ComputedValueDependencies:
     """Name what a computed value of a node depends on, the rows by number and label."""
     found = computed_value_dependencies(session, place, node_id, field.value)
+    rows = rows_of(session, place, node_body)
+    numbers = {} if rows is None else {each.node_id: each.row_number for each in rows}
     return ComputedValueDependencies.model_validate(
         {
             "node_id": found.node_id,
             "field": found.field,
             "depends_on": list(found.depends_on),
             "rows": [
-                {"node_id": row.node_id, "row_number": row.row_number, "label": row.label}
+                {
+                    "node_id": row.node_id,
+                    "row_number": numbers.get(row.node_id, row.row_number),
+                    "label": row.label,
+                }
                 for row in found.rows
             ],
         }
@@ -970,7 +986,7 @@ def get_row(
     session: Transaction,
 ) -> RowNumberResolution:
     """Give the node a row number designates in the numbering of the whole structure."""
-    found = resolve_row_number(session, place, row_number)
+    found = resolved(session, place, row_number, node_body)
     return RowNumberResolution.model_validate(
         {
             "node_id": found.node_id,

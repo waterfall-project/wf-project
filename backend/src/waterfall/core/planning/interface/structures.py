@@ -182,7 +182,14 @@ def open_differential(
     act = writer.act
     structure_id = create_differential(session, revision, main, label, act)
     copy = RevisionCopy(
-        session, project_id, revision_id, revision_id, act.at, act.author, {main_id: structure_id}
+        session,
+        project_id,
+        revision_id,
+        revision_id,
+        act.at,
+        act.author,
+        {main_id: structure_id},
+        within_revision=True,
     )
     copy_structure_nodes(copy)
     return structure_id

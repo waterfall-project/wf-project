@@ -187,6 +187,9 @@ class RevisionCopy:
     The copies bear the stamp of the creation of the revision, its author and its instant.
     ``apply_rate_update`` tells whether the creation accepts the update of the rates the proposal
     would present at the rate of the reference (``RevisionCreate.apply_rate_update``, WF-REV-0060).
+    ``within_revision`` tells that the copy is of one structure into another of the same revision
+    (a differential opened, ``source`` and ``target`` then being that revision), the figures of the
+    rows kept as they are and not drawn again from the reference.
     """
 
     session: Session
@@ -197,6 +200,7 @@ class RevisionCopy:
     author: UUID | None
     identifiers: dict[UUID, UUID]
     apply_rate_update: bool = False
+    within_revision: bool = False
 
 
 # The copies a revision opened from a marked one makes, table after table, in the order of their

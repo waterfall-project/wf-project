@@ -10,6 +10,7 @@ a task lists the skeleton available (#2541). Every answer is checked against the
 (``ContractClient``).
 """
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -32,10 +33,16 @@ from projects_support import PROJECTS, Scene, put_in_state
 from projects_support import scene as make_scene
 from risks_support import STUDY, Costed, costed, declared
 from sqlalchemy import select, update
+from sqlalchemy.orm import Session
+from support import wait_for_a_lock
 
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.tables import Node, Task
+from waterfall.core.revisions.interface import mark_revision
 from waterfall.core.revisions.tables import CostStructure
+from waterfall.platform.audit import Act
+from waterfall.platform.database import utc_now
+from waterfall.platform.logs import logging_context
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -273,6 +280,24 @@ def test_the_opening_is_refused_while_a_background_task_runs_and_the_command_say
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
+def test_the_opening_on_a_terminal_project_names_that_the_project_is_not_terminal(
+    api: ContractClient, project: Costed
+) -> None:
+    # The judgment of the revision is the one of every write of it (``judge_revision``): the
+    # revision of a terminal project, marked, is refused naming the state of the project, not the
+    # revision the contract names for a project still under way, which the other test proves.
+    mark(project.stage, project.tree.revision)
+    before = structures_counted(project)
+    for state in ("completed", "lost", "abandoned"):
+        put_in_state(project.stage.owner, str(project.project_id), state)
+        answer = open_amendment(api, project)
+        assert answer.status_code == 409, answer.text
+        assert answer.json()["code"] == "STATE_FORBIDS_OPERATION"
+        assert answer.json()["params"] == {"missing_condition": "project_not_terminal"}
+    assert structures_counted(project) == before
+
+
+@pytest.mark.requirement("WF-REV-0100-A")
 def test_the_command_to_open_a_differential_follows_the_permission_to_manage_the_revisions(
     api: ContractClient, project: Costed
 ) -> None:
@@ -288,7 +313,7 @@ def test_the_command_to_open_a_differential_follows_the_permission_to_manage_the
         headers=stage.reader.headers,
         json={"kind": "amendment", "label": "Avenant"},
     )
-    assert answer.status_code in (403, 404), answer.text
+    assert answer.status_code == 403, answer.text
 
 
 # --- listCostStructures ---------------------------------------------------------------------------
@@ -392,3 +417,59 @@ def test_a_project_without_a_current_revision_judges_the_skeleton_on_the_main_st
     mark(stage, revision)
     held = commands_of(api.get(base, headers=stage.manager.headers).json())
     assert held["generate_skeleton"] == (True, [])
+
+
+# --- The opening and the writes that are in flight ----------------------------------------------
+
+
+@pytest.mark.requirement("WF-REV-0100-A")
+def test_the_opening_waits_for_a_marking_in_flight_and_is_refused_once_the_revision_is_marked(
+    api: ContractClient, project: Costed
+) -> None:
+    # The marking locks the revision before it marks it; the opening judges it under ``FOR SHARE``
+    # before it reads the main structure, so it waits for the marking, reads the revision marked and
+    # is refused (409, ``revision_draft``): no differential is born in a marked revision.
+    stage = project.stage
+    before = structures_counted(project)
+    with (
+        ThreadPoolExecutor(1) as others,
+        Session(stage.database.engine) as marking,
+        logging_context(correlation_id="marking"),
+    ):
+        mark_revision(marking, project.revision_id, "v1.0", None, Act(None, utc_now()))
+        opening = others.submit(open_amendment, api, project)
+        wait_for_a_lock(stage.database)
+        assert not opening.done()
+        marking.commit()
+        answer = opening.result(timeout=10)
+    assert answer.status_code == 409, answer.text
+    assert answer.json()["params"] == {"missing_condition": "revision_draft"}
+    assert structures_counted(project) == before
+
+
+@pytest.mark.requirement("WF-REV-0100-A")
+def test_the_opening_waits_for_a_write_of_the_main_structure_in_flight_and_copies_it(
+    api: ContractClient, project: Costed
+) -> None:
+    # A write of the main structure holds it ``FOR UPDATE``: the opening locks it before it reads
+    # it, waits, then copies what the write left, not the state it would have read before the lock.
+    study = project.tasks[STUDY]
+    with ThreadPoolExecutor(1) as others, project.stage.owner.begin() as writing:
+        writing.execute(
+            select(CostStructure.id)
+            .where(CostStructure.id == UUID(project.tree.structure_id))
+            .with_for_update()
+        )
+        writing.execute(update(Task).where(Task.node_id == study).values(label="Étude révisée"))
+        opening = others.submit(open_amendment, api, project)
+        wait_for_a_lock(project.stage.database)
+        assert not opening.done()
+    answer = opening.result(timeout=10)
+    assert answer.status_code == 201, answer.text
+    read = on(project.tree, answer.json()["structure_id"]).read().json()
+    labels = {
+        (each["task"] or each["estimate_line"])["label"]: each["difference"]
+        for each in read["items"]
+    }
+    assert labels["Étude révisée"] == "unchanged"
+    assert STUDY not in labels

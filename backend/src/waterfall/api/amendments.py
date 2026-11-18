@@ -31,7 +31,7 @@ from waterfall.api.comparison import DifferenceAsked
 from waterfall.api.contract.models import NodeListMeta, StructureCreate, StructureKind
 from waterfall.api.evaluation import Acting, RequiresProject
 from waterfall.api.nodes import (
-    CONSULT as PLANNING,
+    CONSULT as CONSULT_PLANNING,
 )
 from waterfall.api.nodes import (
     STRUCTURE,
@@ -61,7 +61,7 @@ from waterfall.platform.errors import (
 
 router = APIRouter(tags=["revisions"])
 
-CONSULT = "revisions.read"
+CONSULT_REVISIONS = "revisions.read"
 CHANGE = "revisions.write"
 STRUCTURES = "/projects/{project_id}/revisions/{revision_id}/structures"
 
@@ -77,7 +77,7 @@ RevisionOf = Annotated[tuple[UUID, UUID], Depends(revision_of)]
 @router.post(
     STRUCTURES,
     operation_id="createCostStructure",
-    dependencies=[Depends(RequiresProject(CONSULT, CHANGE))],
+    dependencies=[Depends(RequiresProject(CONSULT_REVISIONS, CHANGE))],
     status_code=201,
     response_model=None,
 )
@@ -126,7 +126,7 @@ def differential_body(found: Comparison, fields: frozenset[str] | None) -> dict[
     f"{STRUCTURE}/nodes",
     operation_id="listNodes",
     tags=["planning"],
-    dependencies=[Depends(RequiresProject(PLANNING))],
+    dependencies=[Depends(RequiresProject(CONSULT_PLANNING))],
     response_model=None,
 )
 def get_nodes(

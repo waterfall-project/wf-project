@@ -327,6 +327,9 @@ from waterfall.core.planning.interface.nodes import (
     delete_node as delete_node,
 )
 from waterfall.core.planning.interface.nodes import (
+    describe_row as describe_row,
+)
+from waterfall.core.planning.interface.nodes import (
     judge_cell as judge_cell,
 )
 from waterfall.core.planning.interface.nodes import (
