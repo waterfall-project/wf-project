@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends
 from waterfall.api.authentication import Transaction
 from waterfall.api.contract.models import PredecessorsReplace, StructureUpdate
 from waterfall.api.evaluation import RequiresProject
-from waterfall.api.nodes import CHANGE, CONSULT, STRUCTURE, Placed, Writing, written_of
+from waterfall.api.nodes import CHANGE, CONSULT, STRUCTURE, Placed, Writing, written_in
 from waterfall.core.planning.interface import (
     PredecessorSent,
     PredecessorsEntry,
@@ -59,7 +59,7 @@ def put_predecessors(
         ),
         body.lock_version.root,
     )
-    return written_of(set_predecessors(session, place, node_id, entry, writer))
+    return written_in(session, place, set_predecessors(session, place, node_id, entry, writer))
 
 
 @router.patch(
@@ -87,4 +87,4 @@ def patch_structure(
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
     start = None if body.planning_start_on is None else body.planning_start_on.root
     change = StructureChange(start, body.label, body.lock_version.root)
-    return written_of(update_cost_structure(session, place, change, writer))
+    return written_in(session, place, update_cost_structure(session, place, change, writer))

@@ -183,7 +183,6 @@ DECLARED = {
     "resource_settings.idle_task_guard",
     "resource_settings.recalculation",
     "projects.attachments",
-    "projects.opening",
     "projects.opening_main",
     "projects.estimate_facts",
     "projects.cost_facts",
@@ -224,7 +223,6 @@ REGISTERED = {
             f"{PLANNING}.work_breakdown.share_work_breakdown_revision)"
         )
     ],
-    "projects.opening": [f"{PLANNING}.skeleton.opening_with_tasks"],
     "projects.opening_main": [f"{PLANNING}.skeleton.opening_main_with_tasks"],
     CLOSING: [
         "history:waterfall.core.history.interface.closing.close_history",

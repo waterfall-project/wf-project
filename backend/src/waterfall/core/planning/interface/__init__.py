@@ -78,6 +78,9 @@ from waterfall.core.planning.interface.closing import (
 from waterfall.core.planning.interface.copying import (
     copy_nodes as copy_nodes,
 )
+from waterfall.core.planning.interface.copying import (
+    copy_structure_nodes as copy_structure_nodes,
+)
 
 # ``facets`` (US-1380/L1; read by US-1380/L2; completed by US-1490/L3, US-2260/L3, US-2280/L1,
 # US-2400/L1): the facets of a node other than the task (EP-07).
@@ -331,6 +334,9 @@ from waterfall.core.planning.interface.nodes import (
     delete_node as delete_node,
 )
 from waterfall.core.planning.interface.nodes import (
+    describe_row as describe_row,
+)
+from waterfall.core.planning.interface.nodes import (
     judge_cell as judge_cell,
 )
 from waterfall.core.planning.interface.nodes import (
@@ -500,9 +506,6 @@ from waterfall.core.planning.interface.skeleton import (
 from waterfall.core.planning.interface.skeleton import (
     opening_main_with_tasks as opening_main_with_tasks,
 )
-from waterfall.core.planning.interface.skeleton import (
-    opening_with_tasks as opening_with_tasks,
-)
 
 # ``snapshots`` (US-1380/L1; US-1380/L2, US-1450/L2): the snapshots the history keeps, restored.
 from waterfall.core.planning.interface.snapshots import (
@@ -524,6 +527,9 @@ from waterfall.core.planning.interface.snapshots import (
 # ``structures`` (US-1380/L1; US-1380/L2, US-1390/L2): the dates, the start and the label.
 from waterfall.core.planning.interface.structures import (
     StructureChange as StructureChange,
+)
+from waterfall.core.planning.interface.structures import (
+    open_differential as open_differential,
 )
 from waterfall.core.planning.interface.structures import (
     reschedule as reschedule,
@@ -695,7 +701,6 @@ from waterfall.core.projects.interface import (
     Attachments,
     register_attachments,
     register_opening_main_question,
-    register_opening_question,
 )
 from waterfall.core.resource_settings.interface import (
     register_idle_task_guard,
@@ -725,7 +730,6 @@ register_attachments(
         share_work_breakdown_revision,
     )
 )
-register_opening_question(opening_with_tasks)
 register_opening_main_question(opening_main_with_tasks)
 register_main_task_question(structures_have_task)
 register_format("ms_project_schedule", MS_PROJECT_FORMAT)

@@ -23,6 +23,9 @@ snapshot the history keeps is the structure's own â€” its start and its label â€
 written (``RecordedChange.node_ids`` empty); the structure after is built from what the write
 holds, read once under the lock (#2492), at the counter of its redating, not read again.
 
+``open_differential`` opens a differential, the copy of the main structure of a revision
+(``createCostStructure``, US-2550/L3).
+
 Declared by US-1380/L1; ``reschedule`` filled by US-1380/L2, handed what a write already holds by
 US-1380/L3, ``update_cost_structure`` filled by US-1390/L2, its structure after built by US-1380/L5.
 """
@@ -32,13 +35,21 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.history.interface import ObjectState
 from waterfall.core.planning.calendars import default_calendar
+from waterfall.core.planning.interface.copying import copy_structure_nodes
 from waterfall.core.planning.rescheduling import Holding, replayed
-from waterfall.core.planning.writing import writing
-from waterfall.core.revisions.interface import write_structure
+from waterfall.core.planning.writing import Place, facts_of, judge_revision, writing
+from waterfall.core.revisions.interface import (
+    RevisionCopy,
+    aimed_structure,
+    create_differential,
+    write_structure,
+)
 from waterfall.platform.errors import (
+    NOT_FOUND,
     STALE_LOCK_VERSION,
     VALIDATION_FAILED,
     FieldError,
+    NotFoundError,
     PreconditionFailedError,
     UnprocessableError,
 )
@@ -51,7 +62,7 @@ if TYPE_CHECKING:
 
     from waterfall.core.history.interface import JsonValue
     from waterfall.core.planning.rescheduling import Rescheduled
-    from waterfall.core.planning.writing import NodesWritten, Place, Writer
+    from waterfall.core.planning.writing import NodesWritten, Writer
     from waterfall.core.revisions.interface import StructureFacts
 
 NON_WORKING_DAY = "NON_WORKING_DAY"
@@ -142,3 +153,43 @@ def update_cost_structure(
         after = replace(written, scheduled_at=writer.act.at, lock_version=redated.counter)
         write.frame.keep_after((structure_state(after),))
         return redated.written(())
+
+
+def open_differential(
+    session: Session, revision: tuple[UUID, UUID], label: str, writer: Writer
+) -> UUID:
+    """Open a differential in a revision: a structure that is the copy of the main one; give it.
+
+    Refused on a marked revision (409 ``revision_draft``), a terminal project
+    (``project_not_terminal``) and while a background task writes in the project
+    (``no_background_task_running``), in that order, under the lock of the revision read
+    ``FOR SHARE`` (``judge_revision``); nothing is written then. The main structure is locked, as a
+    write of its nodes does, and copied whole under the lock: its start date, its dates as
+    computed, its tasks and links, its lines at the figures they hold, each node under an
+    identifier of its own and the lineage it has in the main structure, so that the differential
+    is read against the main structure by that lineage, every node ``unchanged`` (WF-REV-0100,
+    WF-REV-0050, C-361). Its tasks bear no attachment to the work breakdown, the main structure's
+    alone (WF-PLA-0170). Not an entry of the history: nothing of a differential opened is undone,
+    it is abandoned (``deleteCostStructure``).
+    """
+    project_id, revision_id = revision
+    # A revision of another project is unknown before it is judged: it has no main structure here.
+    main_id = aimed_structure(session, project_id, revision_id, None)
+    if main_id is None:
+        raise NotFoundError(NOT_FOUND)
+    judge_revision(session, project_id, revision_id)
+    main = facts_of(session, Place(project_id, revision_id, main_id), lock=True)
+    act = writer.act
+    structure_id = create_differential(session, revision, main, label, act)
+    copy = RevisionCopy(
+        session,
+        project_id,
+        revision_id,
+        revision_id,
+        act.at,
+        act.author,
+        {main_id: structure_id},
+        within_revision=True,
+    )
+    copy_structure_nodes(copy)
+    return structure_id

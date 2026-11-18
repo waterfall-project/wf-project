@@ -12417,6 +12417,17 @@ Les refus ont leurs exemples, engendrés par `wftools.mockdifferentials` et tenu
 (`structure_delete_revision_marked`), l'avenant 2 courant au compteur périmé
 (`structure_delete_stale`). Aucun exemple de succès : le 204 n'a pas de corps.
 
+### La permission de l'ouverture d'un différentiel (US-2550/L3, #3824)
+
+`createCostStructure` — la commande `create_structure` de la révision — est sous `revisions.write`,
+et `deleteCostStructure`, que US-2550/L4 sert, y est aussi, par renvoi : ni la conception d'EP-08 ni
+le contrat ne nommaient la permission. Pourquoi : comme `createRevision` et `apply_rate_update`, la
+commande ne dispose d'aucune permission propre au catalogue de WF-ADM-0100 ; ouvrir ou abandonner
+un différentiel est une écriture de la révision, dont `revisions.write` est la gestion. Le lecteur
+d'un projet qui ne la détient pas est refusé par `403`, et la commande lui est listée absente de la
+révision. Écarté : une permission propre, qui ajouterait une ligne au catalogue des rôles pour une
+écriture que tient déjà la gestion des révisions.
+
 ### Le tri des constats de spécification : le référentiel sous permission, l'élément d'OTP comparé en entier (#3349, #3370)
 
 Décisions de l'auteur du 2026-11-18, au tri des constats de la revue du 2026-11-14. Elles retirent

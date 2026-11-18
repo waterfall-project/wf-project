@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends
 from waterfall.api.authentication import Transaction
 from waterfall.api.contract.models import ProgressUpdate
 from waterfall.api.evaluation import RequiresProject
-from waterfall.api.nodes import STRUCTURE, Placed, Writing, written_of
+from waterfall.api.nodes import STRUCTURE, Placed, Writing, written_in
 from waterfall.core.planning.interface import ProgressEntry, set_task_progress
 
 # The tag of ``setTaskProgress`` in the contract.
@@ -46,4 +46,4 @@ def put_progress(
         lock_version=body.lock_version.root,
         occurred_on=None if body.occurred_on is None else body.occurred_on.root,
     )
-    return written_of(set_task_progress(session, place, node_id, entry, writer))
+    return written_in(session, place, set_task_progress(session, place, node_id, entry, writer))
