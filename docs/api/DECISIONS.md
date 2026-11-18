@@ -12337,6 +12337,71 @@ lieu de `estimate.read`) viennent avec US-2320/L3. `info.version` reste `1.0.0`.
 figée à tout lecteur d'une grille (option 2), qui ouvrait les taux à un compte sans
 `cost_settings.read`.
 
+### L'abandon d'un différentiel, l'inscription refusée hors de la principale, la couverture réestimée (US-2550/L2, #3823, #2497, #2002)
+
+Trois modifications que la conception d'EP-08 écrit au contrat (« Le contrat ») avant le code qui
+les sert (US-2550/L4, US-2610). `info.version` reste `1.0.0` : une opération, deux valeurs
+d'énumération de condition et de commande, une action du journal et des exemples de plus ; aucune
+propriété ne change, aucune n'est exigée de plus.
+
+- **`deleteCostStructure`**, `DELETE …/structures/{structure_id}` (décision de l'auteur du
+  2026-11-17, contre le gel d'EP-16 du 2026-10-22) : WF-REV-0100 veut que chaque différentiel soit
+  « fusionné ou abandonné indépendamment », et un différentiel jamais fusionné serait sinon recopié
+  dans chaque révision suivante. Le compteur lu de la structure se passe en paramètre de requête,
+  `lock_version`, comme celui de `abandonRevision` — un `DELETE` n'a pas de corps — ; périmé, 412
+  `STALE_LOCK_VERSION`. 204 sans corps. Le 409 `STATE_FORBIDS_OPERATION` nomme la première
+  condition qui manque dans l'ordre de la conception : `project_not_terminal`, `revision_draft`,
+  `no_background_task_running`, puis `unmerged_amendment_exists` pour une structure qui n'est pas
+  un différentiel non fusionné — la principale, le devis propre d'un risque, qui disparaît avec son
+  risque (`deleteRisk`), un différentiel fusionné, consommé par sa fusion. La condition existait
+  pour la fusion (`merge_structure`) : elle dit ici que la structure visée n'est pas un
+  différentiel à fusionner, et sa description le dit. L'abandon est irréversible, hors de
+  l'historique annulable, comme celui d'une révision (conception, « Ce que le cadrage décide »).
+  La description de `createCostStructure` y renvoie.
+- **La commande `delete`** s'ajoute à `StructureCommand`, après les trois saisies, gardée par la
+  permission de `RevisionCommand.create_structure` (conception). **Elle n'est listée que sur un
+  différentiel non fusionné**, jamais sur la principale, un devis propre ou un différentiel
+  fusionné, où elle ne deviendrait jamais disponible — comme `edit_remaining`, jamais listée hors
+  de la principale, et comme un projet clos ne liste aucune commande ; `unmerged_amendment_exists`
+  n'est donc nommé que par le 409. Elle manque des conditions d'état de la révision comme
+  `create_structure` les nomme — `revision_draft`, `no_background_task_running` —, dans le même
+  ordre. Les exemples écrits à la main la portent : disponible sur l'avenant 2 de la révision
+  courante (`structures`) et à sa création (`amendment_created`), indisponible par
+  `revision_draft` sur l'avenant 2 de la référence marquée (`structures_amendments`), absente de
+  l'avenant 1, fusionné. Écartée : la lister indisponible partout, `unmerged_amendment_exists` en
+  tête, qui ferait proposer un geste mort sur chaque grille de la principale.
+- **`structure_abandon`** s'ajoute à `AuditAction`, après `structure_merge`, l'objet étant la
+  structure (`cost_structure`), son libellé du moment et sa révision ; `params` vide, comme pour
+  l'abandon d'une révision. Aucun exemple du journal ne la porte : le témoin n'abandonne aucun
+  différentiel.
+- **Le refus de `setNodeTracking` hors de la principale** (#2497, décision de l'auteur du
+  2026-11-08) : 409 `STATE_FORBIDS_OPERATION`, **par une condition ajoutée, `main_structure`**,
+  rangée dans `CommandCondition` après `main_structure_without_tasks`, et nommée après
+  `revision_draft` et `no_background_task_running` — la nature de la structure après l'état de sa
+  révision, comme `unmerged_amendment_exists` pour l'abandon. Aucune commande ne la dit d'avance :
+  le nœud d'une autre structure ne nomme pas `task.tracking` dans ses `editable_fields` (#1065),
+  ce qui suffit à l'écran. Écartées : `unmerged_amendment_exists`, qui manquerait sur la
+  principale et non sur un différentiel, l'inverse de ce qu'il faut dire ; un refus sans condition
+  (422 sur `/entries`), alors que la conception veut un 409 d'état ; la seule absence de
+  `task.tracking` dans `editable_fields`, qui ne refusait rien à l'appel direct (le risque que
+  #2497 relève). Exemple : `node_tracking_amendment_refused`, la « Revue de conception » de
+  l'avenant 2.
+- **La couverture réestimée** (#2002) : `getProjectRiskCoverage` reçoit une variante contrefactuelle
+  déclarée, `risk_coverage_reestimated`, engendrée par `wftools.mockhistory` — les deux lignes que
+  la survenance de 752 a fusionnées réestimées de moitié en plus (180,00 et 120,00 au lieu de 120,00
+  et 80,00) : `occurred_reestimated` à 300,00 en regard d'`occurred_cost` à 200,00, la réserve, les
+  provisions restantes et l'écart de couverture (349 860,00) inchangés, comme le dernier Vérif de
+  WF-RIS-0050 (300 en regard de 250). Le premier exemple, que le faux back sert, reste le témoin,
+  qui réestime ces lignes à leur coût. Le portefeuille, qui somme le premier exemple
+  (`portfolio_risks`), garde ses deux montants égaux : resserrer son test sur deux montants
+  différents passe par la variante, que le composant commun de la couverture lit.
+
+Les refus ont leurs exemples, engendrés par `wftools.mockdifferentials` et tenus par
+`tools/tests/test_mockdifferentials.py` : la principale abandonnée
+(`structure_delete_main_refused`), l'avenant 2 de la référence marquée
+(`structure_delete_revision_marked`), l'avenant 2 courant au compteur périmé
+(`structure_delete_stale`). Aucun exemple de succès : le 204 n'a pas de corps.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

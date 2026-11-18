@@ -375,7 +375,17 @@ CommandCondition:
     `unmerged_amendment_exists` is missing for the merge (`merge_structure`) as long as no
     differential of the revision is to be merged, and the revision names it
     (`Revision.available_commands`); the opening of a differential (`create_structure`) does not
-    depend on it, several coexisting (WF-REV-0100; decision of the author, #1211).
+    depend on it, several coexisting (WF-REV-0100; decision of the author, #1211). It is also
+    missing for the abandonment (`deleteCostStructure`) of a structure that is not a
+    differential not merged — the main structure, the own estimate of a risk, a merged
+    differential —, which names it in its 409 after the state conditions; no command states it
+    in advance, `StructureCommand.delete` being listed on a differential not merged alone
+    (WF-REV-0100, WF-REV-0050). `main_structure` is missing for the registration for tracking of
+    a task of a structure other than the main one (`setNodeTracking`), the registrations being
+    carried by the lineage of a task of the main structure, the one executed and tracked
+    (WF-PLA-0060, WF-REV-0100; #2497): `setNodeTracking` names it in its 409, after
+    `revision_draft` and `no_background_task_running`; no command states it in advance, the
+    node not naming `task.tracking` in its `editable_fields`.
     `rate_update_available` is missing for the rate update (`apply_rate_update`) of a current
     revision whose proposal presents no category — its reference year is that of the revision of
     which it is the copy, or each category presented has already been accepted (WF-REV-0060) —;
@@ -445,6 +455,7 @@ CommandCondition:
     - subproject_without_actual_costs
     - subproject_without_estimate_lines
     - main_structure_without_tasks
+    - main_structure
     - import_awaiting_decision
     - import_file_accepted
     - import_not_applied

@@ -97,6 +97,7 @@ from wftools import (
     mockcosts,
     mockcycle,
     mockdeclared,
+    mockdifferentials,
     mockexchanges,
     mockgestures,
     mockhistory,
@@ -306,8 +307,7 @@ def hourly_rate_grid() -> JsonObject:
 # --- The readings of the witness ------------------------------------------------------------
 
 _WIRING, _ACCEPTANCE, _LABOUR, _PROVISION = N.WIRING, N.FACTORY_ACCEPTANCE, N.LABOUR, N.PROVISION
-_DESKS = N.DESKS
-_RISK_OCCURRED = N.MERGED
+_DESKS, _RISK_OCCURRED = N.DESKS, N.MERGED
 _MILESTONE = "Réception usine"
 """The nodes of the core the readings and the dependencies are about (``mockwitness``)."""
 
@@ -324,9 +324,9 @@ def named() -> dict[str, JsonObject]:
     the subprojects and the contributors (``mocklists``), the contributors once an account is
     anonymised (``mockanonymized``); the exit of the witness (``mockproject``); the refusals of one
     form each (``mockrefusals``), those the contract declared without a code, a condition nor an
-    example (``mockdeclared``), those of the administration (``mockadminrefusals``), those served
-    undeclared (``mockservedrefusals``); the majors of the review (``mockreview``); the loaders'
-    (``mockwitness*``, ``mockchronology``).
+    example (``mockdeclared``), of the administration (``mockadminrefusals``), served undeclared
+    (``mockservedrefusals``), of the differentials (``mockdifferentials``); the majors of the
+    review (``mockreview``); the loaders' (``mockwitness*``, ``mockchronology``).
     """
     marked = mocksnapshot.revisions(categories())
     return {
@@ -357,6 +357,7 @@ def named() -> dict[str, JsonObject]:
         **mockdeclared.examples(),
         **mockreview.examples(),
         **mockrevisionminors.examples(),
+        **mockdifferentials.examples(),
         **mockservedrefusals.examples(),
         **mockspendingrefusals.examples(),
         **mockchronology.examples(),
@@ -714,7 +715,7 @@ def volumes() -> dict[str, JsonObject]:
             f"chiffrage, le projet témoin et l'offre en tête ; indices classés par les seuils "
             f"de {_amount(WATCH_THRESHOLD, 1)} et {_amount(ALERT_THRESHOLD, 1)}. La liste est "
             f"lue par un contributeur sans « consulter tous les projets » : chaque "
-            f"{_ordinal(UNOPENABLE_EVERY)} projet engendré, qu'il ne peut pas ouvrir, figure sous "
+            f"{_ORDINALS[UNOPENABLE_EVERY]} projet engendré, qu'il ne peut pas ouvrir, figure sous "
             f"son libellé et son code, sans lien (can_open faux), et compte dans les totaux "
             f"(WF-PTF-0030, WF-ADM-0110). La ligne du témoin est celle de ses indicateurs, toute "
             f"sa structure sommée.",
@@ -834,10 +835,7 @@ def _structure_summary(answer: JsonObject) -> str:
 
 
 _ORDINALS = {7: "septième", 9: "neuvième"}
-
-
-def _ordinal(value: int) -> str:
-    return _ORDINALS[value]
+"""The ordinals the summaries write in words, by their number."""
 
 
 # The envelope of an example and its value are laid out; below them, one line per item.

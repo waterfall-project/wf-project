@@ -7,7 +7,8 @@ AuditAction:
     that WF-SEC-0030 lists, in its order — the creation of a project, the marking of a
     revision, the abandonment of a revision in progress (#1577), the designation of the
     reference revision, the merge of a differential (`structure_merge`, WF-REV-0050), the
-    declaration of an occurred risk, the exit of a project from the life cycle, the exclusion
+    abandonment of a differential that is not merged (`structure_abandon`, `deleteCostStructure`,
+    WF-REV-0100; conception of EP-08), the declaration of an occurred risk, the exit of a project from the life cycle, the exclusion
     and the reinstatement of a cost line, the application of an import, the creation and the
     modification of accounts — including their deactivation and their reactivation, their
     anonymisation (`user_anonymize`, WF-ADM-0060), and the link that sets a password, obtained
@@ -21,6 +22,7 @@ AuditAction:
     - revision_abandon
     - reference_designate
     - structure_merge
+    - structure_abandon
     - risk_occurrence
     - project_exit
     - cost_line_exclude
@@ -50,7 +52,8 @@ AuditObjectKind:
   type: string
   description: >-
     The kind of the object an entry concerns: the project created or exited from the life
-    cycle, the revision marked, abandoned or designated, the differential structure merged, the
+    cycle, the revision marked, abandoned or designated, the differential structure merged or
+    abandoned, the
     occurred risk, the cost line excluded or reinstated, the import applied, the account, the
     role, the backup taken or restored, and the upload of a backup copied outside the platform
     that a restore puts back in place (`external_backup_upload`, the identifier of the upload,
@@ -211,6 +214,8 @@ AuditParams:
     of a revision in progress (`revision_abandon`), which the entry designates by its
     identifier and by its project, a revision in progress not yet having a version name
     (`AuditObject.label` null, WF-REV-0010), its lines deleted with it (#1577); for the
+    abandonment of a differential (`structure_abandon`), which the entry designates by its
+    identifier, its label of the moment and its revision, its nodes deleted with it; for the
     marking, the designation, the merge, the occurrence, the exclusion and the reinstatement
     of a cost line, which their object says in full; for a backup, whose origin is read from
     the author — the platform for a scheduled one. The exit from the life cycle gives the

@@ -490,11 +490,15 @@ StructureCommand:
     - edit_planning
     - edit_estimate
     - edit_remaining
+    - delete
   description: >-
     Entry commands of a structure, one per grid that writes it: the planning, the estimate, the
-    remaining to commit (WF-PLA-0080, WF-DEV-0050, WF-RAE-0040). Each is guarded by the permission
-    of the revision's command of the same name (`RevisionCommand`, `planning.write`,
-    `estimate.write`, `remaining.write`), present or absent like it (WF-ADM-0100). The server
+    remaining to commit (WF-PLA-0080, WF-DEV-0050, WF-RAE-0040); and the abandonment of a
+    differential (`delete`, `deleteCostStructure`, WF-REV-0100). Each entry command is guarded by
+    the permission of the revision's command of the same name (`RevisionCommand`,
+    `planning.write`, `estimate.write`, `remaining.write`), present or absent like it
+    (WF-ADM-0100); `delete` by that of the opening of a differential
+    (`RevisionCommand.create_structure`). The server
     accepts the same writes from the three grids — a task or a line created on the main
     structure of an In progress project is the same write from the planning and from the
     remaining to commit —: it is the structure's command that tells which grid enters it,
@@ -521,6 +525,14 @@ StructureCommand:
     background task that writes into the current revision or freezes it —, in the same order. On a closed project, none is
     listed (US-0702/L3). The revision's commands keep what does not read a structure: the
     skeleton, the marking, the exports, the risks (C-358, #1067).
+
+    `delete` is listed on a differential that is not merged, and on no other structure — the
+    main structure, the own estimate of a risk, which disappears with its risk (`deleteRisk`),
+    a merged differential, consumed by its merge —, on which it would never become available:
+    `deleteCostStructure` names `unmerged_amendment_exists` for them in its 409. It lacks the
+    state conditions of the revision as `create_structure` names them — `revision_draft` on a
+    marked revision, `no_background_task_running` during a background task that writes into the
+    current revision or freezes it —, in the same order (WF-REV-0100, WF-DAT-0020).
 
 StructureCommandAvailability:
   type: object

@@ -23,7 +23,8 @@ from wftools.mockwitnessrisks import DELIVERY_DELAY, DISMISSED, IDENTIFIED, OCCU
 
 type Entry = dict[str, Any]
 
-SCHEMAS = REPOSITORY / "docs" / "api" / "components" / "schemas"
+CONTRACT = REPOSITORY / "docs" / "api"
+SCHEMAS = CONTRACT / "components" / "schemas"
 
 
 def _risks_schemas() -> Entry:
@@ -60,6 +61,35 @@ def test_the_completion_of_merged_tasks_changes_neither_cost_of_occurred_nor_var
     assert amounts["coverage_variance"] == (
         amounts["reserve"] - amounts["remaining_provisions"] - amounts["occurred_cost"]
     )
+
+
+@pytest.mark.requirement("WF-RIS-0050-A")
+def test_the_reestimate_of_the_occurred_is_beside_their_cost_and_out_of_the_variance() -> None:
+    # Vérif : « Sur le projet dont le risque est survenu à 250, la réestimation à 300 des lignes
+    # qui en sont issues présente 300 en regard de 250, et laisse l'écart de couverture à -190. »
+    # On the witness, 752 occurred at 200, its lines re-estimated half as much again (#2002).
+    witness, variant = (
+        mockwitness.fixture("risk_coverage"),
+        mockwitness.fixture("risk_coverage_reestimated"),
+    )
+    assert (variant["occurred_cost"], variant["occurred_reestimated"]) == ("200.00", "300.00")
+    assert witness["occurred_reestimated"] == witness["occurred_cost"]
+    # Nothing else moves: the reserve, the provisions remaining, the variance.
+    assert {key: value for key, value in variant.items() if key != "occurred_reestimated"} == {
+        key: value for key, value in witness.items() if key != "occurred_reestimated"
+    }
+    today, rows = mockcore.current(), mockhistory.reference_rows()
+    assert variant == mockhistory.coverage(mockhistory.reestimated(today), rows)
+    paths = cast("Entry", yaml.safe_load((CONTRACT / "paths" / "risks.yaml").read_text("utf-8")))
+    answer = paths["/projects/{project_id}/risks/coverage"]["get"]["responses"]["200"]
+    # The witness first, which the fake back serves; the variant declared after it.
+    assert [
+        each["$ref"].rsplit("/", 1)[-1]
+        for each in answer["content"]["application/json"]["examples"].values()
+    ] == ["risk_coverage.json", "risk_coverage_reestimated.json"]
+    example = REPOSITORY / "fixtures" / "api" / "risk_coverage_reestimated.json"
+    summary = json.loads(example.read_text(encoding="utf-8"))["summary"]
+    assert summary.startswith("Variante contrefactuelle")
 
 
 @pytest.mark.requirement("WF-RIS-0050-A")
