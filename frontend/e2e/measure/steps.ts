@@ -568,18 +568,21 @@ export async function journey(player: Player, target: Target, tag: string): Prom
       "planning.compared-duration",
       async () => {
         const at = await planningColumns(page);
-        const row = await scrollToPosition(planning, target.position);
+        // The planning compared reads the union of the two structures, which may hold rows of the
+        // base above the task (one on the witness): the task is found near its position by its
+        // label entered, which the tag makes its own, and its row read where it is.
+        await scrollToPosition(planning, target.position);
+        const row = planning.getByRole("row").filter({ hasText: label });
+        await expect(row).toHaveCount(1);
+        const rowIndex = Number(await row.getAttribute("aria-rowindex"));
         const cells = row.getByRole("gridcell");
-        // The comparison adds no row to the planning of the witness, which the load and the journey
-        // write without adding nor removing a node: the task is at its position, its label entered.
-        await expect(cells.nth(at.label)).toContainText(label);
         const finish = (await cells.nth(at.finish).textContent()) ?? "";
         // A cell marked reads its sign and its base besides its value: the duration is the one
         // entered by the step before, not the one read.
         const expected: Expected = {
           grid: PLANNING.grid,
           cell: {
-            row: target.position + 1,
+            row: rowIndex,
             column: at.finish,
             differsFrom: finish,
             marked: at.label,

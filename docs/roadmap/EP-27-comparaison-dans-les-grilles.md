@@ -686,7 +686,7 @@ contre le service, **afin que** la file de fusion éprouve la comparaison telle 
 
 ## US-2390 — La grille comparée et la saisie dans une grille comparée sont mesurées, et l'option des empreintes est instruite
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre — l'outil de WF-QUA-0060, que clôt US-2300 (EP-26)
 - **opérations** : `compareRevisions`, `updateTaskFacet`, `updateEstimateLine`
 - **issue** : #3491
@@ -711,6 +711,28 @@ mesures, **afin de** savoir si la comparaison tient ses deux secondes avant de p
   la révision marquée dont elle est issue ; le verdict est écrit, avec ses chiffres : écartée si
   les deux secondes tiennent, une issue à trancher sinon (décision de l'auteur du 2026-11-15, au
   cadrage).
+
+**Notes de réalisation (mesures du 2026-11-18).** `make measure-version MEASURE_VERSION=0.4.0`
+(cinquante utilisateurs, cinq passages ; 19 min, file d'attente comprise) : ouvrir une grille
+comparée 2,847 s à la médiane pour 2 s (pire 4,608 s, dispersion 0,443 s, vingt échantillons :
+quatre grilles, cinq passages) ; saisir dans une grille comparée 4,502 s pour 2 s (pire 5,1 s,
+dispersion 0,418 s). Les deux objectifs sont dépassés, documentés dans `docs/measures/0.4.0.json`
+et portés chacun par une issue à trancher. Seules ces deux opérations ont été portées au rapport :
+les autres et les conditions restent celles du 2026-11-16, que des décisions de l'auteur
+documentent ; celles que la nouvelle mesure a relevées sous une charge plus longue (quatorze étapes
+au lieu de neuf, 279 s) sont citées dans sa note, non portées — ouvrir une grille y passe à
+1,116 s. Un utilisateur sans charge (`make measure MEASURE_USERS=1 MEASURE_PASSES=1`) : les
+quatre grilles comparées 1,416 s, 2,074 s, 2,321 s et 1,454 s, la saisie comparée 2,532 s, contre
+1,294 s pour la même saisie hors comparaison. `make measure-core ONLY=current RUNS=5` : la
+comparaison entière depuis les lignes 0,884 s, dont lectures 56 %, union 33 %, corps 11 % — union
+et corps 44 %, au-dessus des 15 % de #3168 ; depuis le gardé 0,534 s (34 %) ; tâches seules
+0,807 s (38 %) ; l'union jamais planchée (`union_clamped` faux, `runs_union_negative` 0) ; 43
+nœuds sur 5 999 diffèrent (0,7 %). **Verdict sur l'option 3** : les deux secondes ne tiennent pas,
+l'option n'est donc pas écartée, elle devient une issue à trancher ; les écarts sont rares, mais la
+comparaison du noyau ne pèse que 0,5 à 0,9 s des durées mesurées, et la saisie comparée porte aussi
+l'écriture qui redate : l'option 3 seule ne ramènerait pas cette saisie sous 2 s. L'étape
+`planning.compared-duration` cherche la tâche par son libellé : l'union de la grille comparée
+compte une ligne de la base au-dessus d'elle sur le témoin.
 
 **Hors périmètre.** Réaliser l'option 3 ; rendre un objectif bloquant.
 
