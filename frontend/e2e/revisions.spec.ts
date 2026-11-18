@@ -19,7 +19,7 @@ import { MARKING, WORKING } from "./bounds";
 import { columnsOf } from "./columns";
 import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
-import { seedPlanning } from "./planning-seed";
+import { SECOND_TASK_DAYS, seedPlanning } from "./planning-seed";
 import { rowAt, scrollToFoot } from "./scroll";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -82,7 +82,13 @@ test("the revisions of a project, the history and the commands, no list of struc
   const rates = main.getByRole("button", { name: "Appliquer la mise à jour des taux" });
   await expect(rates).toBeVisible();
   if ((await rates.getAttribute("aria-disabled")) === "true") {
-    await expect(rates).toHaveAccessibleDescription(/Conditions? non remplies?/);
+    // Each text is the whole of what the screen says there: the fake back's account holds the one
+    // condition unmet, the service's account is no contributor of the project, which is another.
+    await expect(rates).toHaveAccessibleDescription(
+      inService
+        ? /^Conditions non remplies\s?: être contributeur du projet et une mise à jour des taux disponible\.$/
+        : /^Condition non remplie\s?: une mise à jour des taux disponible\.$/,
+    );
   } else {
     await rates.click();
     const dialog = page.getByRole("dialog", { name: "Appliquer la mise à jour des taux" });
@@ -142,6 +148,15 @@ async function reachByKeyboard(page: Page, from: Locator, to: Locator): Promise<
   await from.click();
   await expect(async () => {
     if (!(await to.evaluate((cell) => cell === document.activeElement))) {
+      // The arrows only go right: the focus on the last cell of its row, the aim is out of reach.
+      const end = await page.evaluate(() => {
+        const cell = document.activeElement;
+        return cell?.parentElement?.lastElementChild === cell;
+      });
+      expect(
+        end,
+        "the cell aimed at is not to the right of the focus, on the last cell of its row",
+      ).toBe(false);
       await page.keyboard.press("ArrowRight");
     }
     await expect(to).toBeFocused({ timeout: 500 });
@@ -216,7 +231,8 @@ test("the comparison of the current revision of PRJ-001 to its reference, from t
 
   // The branches without difference fold, each run said in its place with its number of rows, and
   // unfold. Every node of the example of the fake back is in difference: none folds there; the
-  // planning of PRJ-001 holds many that the base leaves as they are.
+  // planning of PRJ-001 holds many that the base leaves as they are. The fold on a response with
+  // branches without difference is proved without the service, by `folded-runs.dom.test.tsx`.
   const only = page.getByRole("button", { name: "Écarts seulement" });
   await only.click();
   await expect(only).toHaveAttribute("aria-pressed", "true");
@@ -268,6 +284,7 @@ test("a finish pushed from the planning is read modified, with the date of the b
   request,
   manager,
 }) => {
+  // Wanted, not a gap: the fake back plays no write of a finish, as the issue and the criterion say.
   test.skip(!inService, SERVICE_ONLY);
   test.slow();
   const seeded = await seedPlanning(page, browser, request, manager, "Fin repoussée");
@@ -334,7 +351,7 @@ test("a finish pushed from the planning is read modified, with the date of the b
   await expect(finish).not.toContainText(new RegExp(`^${before}`));
 
   // The finish brought back: the task is read modified no more.
-  await lasting("5 j");
+  await lasting(`${SECOND_TASK_DAYS} j`);
   await expect(row).not.toContainText("Modifié", { timeout: WORKING });
   await expect(finish).not.toContainText("Δ");
   await expect(finish).toContainText(before);
