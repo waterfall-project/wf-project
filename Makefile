@@ -98,6 +98,8 @@ TESTS ?=
 # §4.6.2 on one more (e2e.yml). Empty, it plays them all. `make e2e-service SHARD=i/N` plays a
 # part of the paths against the service, each on a platform of its own (service.yml).
 SHARD ?=
+# SHARD=lint is the part of check-front-tests and test-front alone: the guard below refuses it on the
+# other goals.
 # A part of the paths does not combine with a file of them: the file may be in another part.
 # Refused as the Makefile is read, before the installation and the build of the front, which the
 # recipe would otherwise wait for to say so (#3026). Every goal that reaches the paths is named,
@@ -151,9 +153,10 @@ TESTING_FRONT = $(testing) redis -- env
 # its error output instead: the setting it refuses, or why it did not run (US-2450). The tool runs
 # once: its standard output goes to s, its error output to e by the descriptor 3, and the share to
 # make by the descriptor 5. What the tool said on its standard output instead of a share is relayed
-# after its error output, and the final point of the reason is dropped: make's own closes it. The words of the tool are not read again as make: the $(shell) is
-# escaped ($$) in the eval, which assigns its output as it is, so that a `$` or a `#` it says (in
-# the path of python3, say) stays a letter.
+# after its error output, and the final point of the reason is dropped: make's own closes it. The
+# words of the tool are not read again as make: the $(shell) is escaped ($$) in the eval, which
+# assigns its output as it is, so that a `$` or a `#` it says (in the path of python3, say) stays a
+# letter.
 SLOTS_PROCESSORS = $(if $(filter-out undefined,$(origin WATERFALL_SLOTS)),WATERFALL_SLOTS='$(subst ','\'',$(WATERFALL_SLOTS))') $(SLOTS) processors
 SHARE_OR_REASON = { e=$$( { s=$$($(SLOTS_PROCESSORS) 2>&3 3>&-); if [ $$? -eq 0 ] && [ -n "$$s" ] && [ -z "$$(printf %s "$$s" | tr -d 0-9)" ]; then printf '%s\n' "$$s" >&5; else [ -z "$$s" ] || printf '%s\n' "$$s"; false; fi; } 3>&1 ) || printf '%s\n' "$${e%.}"; } 5>&1
 nondigits = $(subst 0,,$(subst 1,,$(subst 2,,$(subst 3,,$(subst 4,,$(subst 5,,$(subst 6,,$(subst 7,,$(subst 8,,$(subst 9,,$(1)))))))))))
@@ -187,13 +190,17 @@ full-else = $(if $(filter full,$(TIER)),$(1),$(2))
 WFTOOLS := uv run --frozen --project $(TOOLS) python -m wftools
 # A part of the paths of a shape the plan refuses (i/N, N >= 2) is refused as the Makefile is read
 # too, before the installation and the build of the front, whichever goal of the paths asks for it
-# (#3108): one guard for all of E2E_PATH_GOALS. make judges the characters first, and no shell
-# sees a value that is not digits and one slash: an apostrophe closed the quotes the value was
-# between. What passes then reaches the tool by the environment (WATERFALL_SHARD), not interpolated.
-# `nondigits` is the one above.
+# (#3108): one guard for all of E2E_PATH_GOALS. Two things keep the value from a shell. SHARD_BAD
+# judges the characters first: a value that is not digits and one slash never gets further (an
+# apostrophe closed the quotes the value was between). What passes reaches the tool by the
+# environment, not in the text of the shell: WATERFALL_SHARD_ASKED is exported by make, and GNU
+# make 4.4 (the workstation, ubuntu-26.04 of the chain) hands the exported variables to $(shell).
+# `nondigits` is the one above. SHARD=lint is the part of check-front-tests and test-front alone:
+# check, check-front, check-all and e2e refuse it here.
 SHARD_BAD = $(or $(word 2,$(SHARD)),$(call nondigits,$(subst /,,$(SHARD))))
 ifneq ($(and $(SHARD),$(filter $(E2E_PATH_GOALS),$(MAKECMDGOALS))),)
-ifneq ($(or $(SHARD_BAD),$(shell export WATERFALL_SHARD=$(SHARD); $(WFTOOLS).e2eparts service-part "$$WATERFALL_SHARD" >/dev/null 2>&1 || echo refused)),)
+export WATERFALL_SHARD_ASKED = $(SHARD)
+ifneq ($(or $(SHARD_BAD),$(shell $(WFTOOLS).e2eparts service-part "$$WATERFALL_SHARD_ASKED" >/dev/null 2>&1 || echo refused)),)
 $(error SHARD must be i/N with 1 <= i <= N and N >= 2 for the paths: $(SHARD))
 endif
 endif

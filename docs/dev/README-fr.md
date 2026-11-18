@@ -4324,7 +4324,9 @@ parcours en prend autant qu'il a de workers, à partir de lui (ci-dessous), quar
 un bloc ; un port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
 navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, répartis par durée
 mesurée (`tools/e2e-durations.json`, que rafraîchit `make e2e-durations`) — `SHARD` ne se combine pas
-avec `TESTS=<fichier>`, que la recette refuse : le fichier peut être dans un autre morceau —, comme
+avec `TESTS=<fichier>`, que la recette refuse : le fichier peut être dans un autre morceau ;
+`SHARD=lint` ne vaut que pour `make check-front-tests` et `make test-front`, et `check`,
+`check-front`, `check-all` et `e2e` le refusent —, comme
 chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les joue sur `n` workers
 (`E2E_WORKERS`, que lit `playwright.config.ts` ; un entier de 1 à 40, rien d'autre : un front par
 worker, et le bloc d'un créneau n'en porte que quarante), moins que Playwright n'en prend de

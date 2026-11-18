@@ -431,7 +431,7 @@ def test_a_part_with_a_file_is_refused_before_anything_is_built(target: str) -> 
 @pytest.mark.story("US-2500")
 @pytest.mark.parametrize("shard", ["1/1", "x", "3/2", "0/4", "1/2 3", "1/2'"])
 @pytest.mark.parametrize("target", ["e2e", "e2e-service", *PATH_GOALS])
-def test_a_part_of_the_service_paths_of_a_wrong_shape_is_refused_before_anything_is_built(
+def test_a_part_of_the_paths_of_a_wrong_shape_is_refused_before_anything_is_built(
     target: str, shard: str
 ) -> None:
     done = make_dry(target, f"SHARD={shard}")
@@ -456,6 +456,41 @@ def test_a_part_with_an_apostrophe_is_refused_without_running_anything(tmp_path:
     assert done.returncode != 0
     assert "SHARD must be i/N" in done.stderr
     assert not marker.exists()
+
+
+@pytest.mark.story("US-2500")
+def test_the_value_of_a_part_reaches_the_tool_by_the_environment_not_the_shell(
+    tmp_path: Path,
+) -> None:
+    """[US-2500] #3108: past SHARD_BAD, the value is read from the environment, never as shell."""
+    text = (REPOSITORY / "Makefile").read_text(encoding="utf-8")
+    assert "export WATERFALL_SHARD_ASKED = $(SHARD)" in text
+    assert '"$$WATERFALL_SHARD_ASKED"' in text
+    # the shell branch alone, with a hostile value the character filter is taken out of
+    marker = tmp_path / "ran"
+    probe = tmp_path / "Makefile"
+    probe.write_text(
+        'export V = $(SHARD)\nOUT := $(shell printf %s "$$V" > "$(MARK)")\nall: ;\n',
+        encoding="utf-8",
+    )
+    hostile = f"1/2'; touch {marker.with_name('ran.x')}; '"
+    done = subprocess.run(
+        ["make", "-f", str(probe), f"SHARD={hostile}", f"MARK={marker}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert done.returncode == 0, done.stderr
+    assert marker.read_text(encoding="utf-8") == hostile
+    assert not marker.with_name("ran.x").exists()
+
+
+@pytest.mark.story("US-2500")
+def test_the_character_filter_alone_refuses_a_hostile_value() -> None:
+    """[US-2500] #3108: SHARD_BAD is the first guard: a value of other characters stops there."""
+    text = (REPOSITORY / "Makefile").read_text(encoding="utf-8")
+    assert "SHARD_BAD = $(or $(word 2,$(SHARD)),$(call nondigits,$(subst /,,$(SHARD))))" in text
+    assert "ifneq ($(or $(SHARD_BAD),$(shell" in text
 
 
 def test_a_part_of_the_paths_against_the_service_is_checked_then_planned() -> None:
