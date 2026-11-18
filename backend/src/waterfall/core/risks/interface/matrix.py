@@ -21,8 +21,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.projects.interface import Viewer
-    from waterfall.core.risks.interface.register import ProvisionTotals
-    from waterfall.core.risks.views import RiskState
+    from waterfall.core.risks.views import ProvisionTotals, RiskState
 
 
 @dataclass(frozen=True, slots=True)

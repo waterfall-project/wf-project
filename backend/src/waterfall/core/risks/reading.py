@@ -26,7 +26,12 @@ from typing import TYPE_CHECKING
 from sqlalchemy import exists, func, select
 
 from waterfall.core.cost_settings.interface import category_labels, read_reference_settings
-from waterfall.core.estimate.interface import risk_base, round_to_cent, structure_amount
+from waterfall.core.estimate.interface import (
+    lines_for_indicators,
+    risk_base,
+    round_to_cent,
+    structure_amount,
+)
 from waterfall.core.planning.interface import bearing_of
 from waterfall.core.projects.interface import project_facts, subproject_labels
 from waterfall.core.revisions.interface import marked_revisions_at, read_revision_for
@@ -213,7 +218,9 @@ def risk_view(session: Session, project_id: UUID, found: Found, viewer: Viewer) 
         severity=severity,
         provision_amount=provision,
         occurrence_cost=evaluation.occurrence_cost,
-        occurred_reestimated_amount=_occurred_reestimated(state),
+        occurred_reestimated_amount=_occurred_reestimated(
+            session, project_id, revision_id, risk.id, state
+        ),
         state=state,
         structure_id=evaluation.structure_id,
         provision_node_id=evaluation.provision_node_id,
@@ -238,16 +245,20 @@ def risk_view(session: Session, project_id: UUID, found: Found, viewer: Viewer) 
     )
 
 
-def _occurred_reestimated(state: RiskState) -> Decimal | None:
+def _occurred_reestimated(
+    session: Session, project_id: UUID, revision_id: UUID, risk_id: UUID, state: RiskState
+) -> Decimal | None:
     """Give the re-estimated amount of the lines an occurrence merged, none unless occurred.
 
-    The lines of the revision read whose node names the risk (``Node.origin_risk_id``), which the
-    occurrence merges (WF-RIS-0060): US-2620 fills it, no risk occurring before.
+    The lines of the revision read whose task names the risk (``origin_risk_id``), which the
+    occurrence merges (WF-RIS-0060): nought while it has merged none.
     """
     if state != OCCURRED:
         return None
-    msg = "the lines an occurrence merged are read by US-2620"
-    raise NotImplementedError(msg)
+    lines = lines_for_indicators(session, project_id, revision_id)
+    return sum(
+        (line.reestimated_amount for line in lines if line.task_origin_risk_id == risk_id), NOUGHT
+    )
 
 
 def read_found(
