@@ -3,8 +3,9 @@
 """The exclusive mode of the slots: a measure takes the workstation for itself alone (US-2210).
 
 The tool is run as the Makefile runs it, ``python3 slots.py run --exclusive -- <command>``, with
-``XDG_RUNTIME_DIR`` on a temporary directory: no test touches the locks of the workstation. A test
-waits for what it can see — a file the command writes, a line the tool says —, never a delay.
+``WATERFALL_RUNTIME_DIR`` on a temporary directory: no test touches the locks of the workstation.
+A test waits for what it can see — a file the command writes, a line the tool says —, never a
+delay.
 """
 
 import contextlib
@@ -58,7 +59,11 @@ def start(
 
     The mode is one option or several, split on spaces; the variables named are added.
     """
-    environment = {**os.environ, "XDG_RUNTIME_DIR": str(directory), "WATERFALL_SLOTS": slot_count}
+    environment = {
+        **os.environ,
+        "WATERFALL_RUNTIME_DIR": str(directory),
+        "WATERFALL_SLOTS": slot_count,
+    }
     environment.pop(heavyturns.HELD_VARIABLE, None)
     with (directory / f"{name}.err").open("w") as error:
         return subprocess.Popen(
@@ -100,7 +105,7 @@ def moment(directory: Path, name: str) -> int:
 
 def every_lock(directory: Path) -> list[Path]:
     """Return the gate of the exclusive runs, then the nine lock files of the heavy runs."""
-    environment = {"XDG_RUNTIME_DIR": str(directory)}
+    environment = {"WATERFALL_RUNTIME_DIR": str(directory)}
     paths = heavyturns.lock_paths(environment, heavyturns.MAX_SLOTS)
     return [heavyturns.gate_path(environment), *paths]
 
@@ -181,7 +186,7 @@ def test_an_exclusive_run_says_nothing_of_a_gate_a_heavy_run_shares_a_moment(
     tmp_path: Path,
 ) -> None:
     """US-2210: a heavy run shares the gate while it looks for a turn; the measure keeps silent."""
-    gate = heavyturns.gate_path({"XDG_RUNTIME_DIR": str(tmp_path)})
+    gate = heavyturns.gate_path({"WATERFALL_RUNTIME_DIR": str(tmp_path)})
     with gate.open("w") as shared:
         fcntl.flock(shared, fcntl.LOCK_SH)
         run = start(tmp_path, "--exclusive", handshake(tmp_path, "x"))
@@ -309,7 +314,7 @@ def test_an_exception_while_the_workstation_is_taken_frees_what_was_taken(
         fcntl.flock(in_progress, fcntl.LOCK_EX)
         monkeypatch.setattr(fcntl, "flock", interrupted)
         with pytest.raises(KeyboardInterrupt):
-            heavyturns.take_workstation({"XDG_RUNTIME_DIR": str(tmp_path)})
+            heavyturns.take_workstation({"WATERFALL_RUNTIME_DIR": str(tmp_path)})
         monkeypatch.setattr(fcntl, "flock", real)
     assert not any(held(path) for path in every_lock(tmp_path))
 
@@ -387,7 +392,7 @@ def test_heavy_and_exclusive_together_are_refused(tmp_path: Path) -> None:
     command = [sys.executable, str(SLOTS), *both, "--", "touch", str(marker)]
     done = subprocess.run(
         command,
-        env={**os.environ, "XDG_RUNTIME_DIR": str(tmp_path)},
+        env={**os.environ, "WATERFALL_RUNTIME_DIR": str(tmp_path)},
         capture_output=True,
         text=True,
         check=False,

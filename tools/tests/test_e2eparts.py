@@ -397,11 +397,15 @@ def test_the_chain_plays_the_paths_against_the_service_in_four_parts() -> None:
 
 
 def make_dry(*arguments: str) -> subprocess.CompletedProcess[str]:
-    """Run make without running its recipes, as the chain or a developer would call it."""
+    """Run make without running its recipes, as the chain or a developer would call it.
+
+    ``WATERFALL_RUNTIME_DIR`` (the guard of the tests) is dropped: the Makefile only reads the
+    register of the workstation to find the slot of this worktree, and takes no lock.
+    """
     environment = {
         key: value
         for key, value in os.environ.items()
-        if key not in {"MAKEFLAGS", "MAKELEVEL", "SHARD", "TESTS"}
+        if key not in {"MAKEFLAGS", "MAKELEVEL", "SHARD", "TESTS", "WATERFALL_RUNTIME_DIR"}
     }
     return subprocess.run(
         ["make", "--no-print-directory", "-n", "-C", str(REPOSITORY), *arguments],

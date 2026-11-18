@@ -3389,8 +3389,8 @@ cible refuse, code non nul et corps inchangé, une ligne qu'elle ne trouve pas, 
 saut de ligne et une ligne du tableau plus courte que son en-tête ; un `|` d'une valeur est
 échappé. Elle ne prend une variable que sur la ligne de commande de make (une `PR` exportée sur le
 poste ne change rien), et ignore une valeur vide (`STATE=`). Elle relit le corps sous un verrou du
-poste propre à l'issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
-(`/tmp` à défaut), juste avant de l'écrire : deux appels simultanés gardent chacun leur changement.
+poste propre à l'issue, `waterfall-tracking-<issue>.lock` du répertoire des verrous du poste (plus
+bas), juste avant de l'écrire : deux appels simultanés gardent chacun leur changement.
 
 `make merge-queue-check EPIC=EP-nn` vérifie qu'un jeu de règles actif vise `refs/heads/epic/EP-nn`
 avec une règle `merge_queue` (`wftools.mergequeue`, par `gh api`), et échoue en disant ce qui
@@ -3445,10 +3445,11 @@ toute autre valeur est refusée, en le disant. L'admission est
 `tools/src/wftools/launch.py slots` : sous un `python3` antérieur à 3.14, le lanceur dit que l'outil
 n'a pas tourné et quelle version il attend, et le Makefile relaie ce message au lieu de refuser
 `WATERFALL_SLOTS`, US-2450), que le Makefile place devant chaque exécution lourde : elle prend le
-premier de N fichiers de verrou de `$XDG_RUNTIME_DIR` (`/tmp` à défaut) — `waterfall-heavy.lock`, puis
-`waterfall-heavy.2.lock` à `waterfall-heavy.<N>.lock` —, dit une fois que tous sont pris et réessaie
-chaque seconde, garde le verrou jusqu'à la fin de la commande, sans le transmettre à ses enfants (un
-serveur resté derrière ne garde pas le créneau), relaie les signaux et rend le code de la commande.
+premier de N fichiers de verrou du répertoire des verrous du poste (plus bas) —
+`waterfall-heavy.lock`, puis `waterfall-heavy.2.lock` à `waterfall-heavy.<N>.lock` —, dit une fois
+que tous sont pris et réessaie chaque seconde, garde le verrou jusqu'à la fin de la commande, sans le
+transmettre à ses enfants (un serveur resté derrière ne garde pas le créneau), relaie les signaux et
+rend le code de la commande.
 Une exécution d'un seul fichier (`TESTS`) n'attend pas. Elle pose aussi `WATERFALL_PROCESSORS`, les
 processeurs divisés par N, au moins 1 : les workers de pytest (`-n`, huit au plus pour le back), de
 Vitest et de Playwright s'y règlent, sauf `WORKERS`. À N = 1, la part est le poste entier : rien ne
@@ -3494,17 +3495,30 @@ scratchpad. Aucun outil ne le contrôle : `make slot` et `make slots` ne compten
 | `make e2e-down`     | arrête les processus de l'utilisateur qui écoutent sur les ports de l'e2e du créneau — le faux back, les fronts des parcours (au créneau 0, 4110 et 3100 à 3139) —, chacun trouvé par son port dans `/proc`, arrêté par son PID : `SIGTERM`, puis `SIGKILL` après cinq secondes ; elle dit ce qu'elle arrête, et rien quand rien n'écoute |
 | `make slots`        | écrit N, puis chaque créneau pris sur le poste, tous dépôts confondus, avec son worktree et l'instant de sa prise                                                                                                                                                                                                                         |
 
-Le registre du poste est `$XDG_RUNTIME_DIR/waterfall-slots/` — `/tmp/waterfall-slots/` sans
-`XDG_RUNTIME_DIR`, comme les verrous des exécutions lourdes : un fichier `<i>` par créneau pris,
-qui porte le chemin du worktree (`git rev-parse --show-toplevel`) et l'instant de la prise, écrit
-sous un verrou exclusif du registre (`tools/src/wftools/slots.py claim`, `release`, `list`). Un
-créneau dont le worktree n'existe plus est libre ; celui qui prend un créneau en retire d'abord
-ce qu'un porteur y a laissé (`docker compose -p <projet> down --volumes`, pour chacun de ses deux
-projets), le verrou du registre tenu jusqu'à ce que ce retrait ait réussi, comme le tient
-`make slot-release` : un `make slot` lancé entre-temps attend, en le disant, et si Docker échoue,
-le créneau n'est pas pris, et le `make slot` suivant refait le retrait. Avant ce retrait, l'un et
-l'autre arrêtent les serveurs de l'e2e que le créneau a laissés (`make e2e-down`). `slots.py which` dit le
-créneau du worktree courant.
+**Le répertoire des verrous du poste** porte le registre des créneaux, les verrous des exécutions
+lourdes, ceux des services de test et ceux du tableau de suivi : `/run/user/<uid>` s'il existe,
+`/tmp` sinon (WSL, un runner) ; une seule fonction de `tools/src/wftools/heavyturns.py`
+(`runtime_directory`) le donne à `slots.py` et à `tracking.py` (US-2460). `XDG_RUNTIME_DIR` n'est
+pas lue : une session sans elle — une tâche planifiée, `su`, le terminal d'un éditeur — verrouillait
+sous `/tmp` pendant que les autres verrouillaient sous `/run/user/<uid>`, et deux exécutions se
+croyaient chacune seules sur le poste (PLC-13). Sous une session systemd, `XDG_RUNTIME_DIR` vaut
+`/run/user/<uid>` : le répertoire est celui d'avant, et les outils d'une branche qui n'a pas
+US-2460 s'excluent encore avec ceux qui l'ont. Là où elle pointe ailleurs (WSLg,
+`/mnt/wslg/runtime-dir` ; une session sans systemd), un outil d'une branche qui n'a pas ce lot
+verrouille sous `XDG_RUNTIME_DIR`, un outil qui l'a sous `/run/user/<uid>` ou `/tmp` : ils ne
+s'excluent pas tant que la branche n'a pas repris le lot. `WATERFALL_RUNTIME_DIR`, que seuls les
+tests posent, le remplace : aucun test ne touche les verrous du poste.
+
+Le registre du poste est `waterfall-slots/` de ce répertoire, comme les verrous des exécutions
+lourdes : un fichier `<i>` par créneau pris, qui porte le chemin du worktree (`git rev-parse
+--show-toplevel`) et l'instant de la prise, écrit sous un verrou exclusif du registre
+(`tools/src/wftools/slots.py claim`, `release`, `list`). Un créneau dont le worktree n'existe plus
+est libre ; celui qui prend un créneau en retire d'abord ce qu'un porteur y a laissé (`docker
+compose -p <projet> down --volumes`, pour chacun de ses deux projets), le verrou du registre tenu
+jusqu'à ce que ce retrait ait réussi, comme le tient `make slot-release` : un `make slot` lancé
+entre-temps attend, en le disant, et si Docker échoue, le créneau n'est pas pris, et le `make slot`
+suivant refait le retrait. Avant ce retrait, l'un et l'autre arrêtent les serveurs de l'e2e que le
+créneau a laissés (`make e2e-down`). `slots.py which` dit le créneau du worktree courant.
 
 Au créneau i de 1 à 9, les ports sont ceux du bloc `20000 + 100·i`, sous la plage des ports
 éphémères de Linux ; au créneau 0, ceux d'avant :
@@ -3548,9 +3562,9 @@ n'est pas posée, et la pose sur leur port ; une variable que l'environnement do
 son service n'est pas démarré, et le travail de la chaîne, qui pose les trois, n'en est pas changé.
 `make slot-release` les retire avec la plateforme de service. Deux exécutions lancées ensemble
 dans un worktree ne font qu'un `make test-services` à la fois, sous un verrou du créneau
-(`$XDG_RUNTIME_DIR/waterfall-test-services.<créneau>.lock`) : la seconde attend, en le disant, puis
-trouve les services démarrés. Dans un worktree lié sans créneau, ces cibles et `make e2e-down`
-échouent en disant `make slot`.
+(`waterfall-test-services.<créneau>.lock` du répertoire des verrous du poste) : la seconde attend,
+en le disant, puis trouve les services démarrés. Dans un worktree lié sans créneau, ces cibles et
+`make e2e-down` échouent en disant `make slot`.
 
 **Les serveurs de l'e2e.** `make e2e`, `make e2e-service` et `make check-front` lancent un faux back
 et des fronts (`next-server`) qu'un arrêt brutal peut laisser à l'écoute, un cœur occupé, des

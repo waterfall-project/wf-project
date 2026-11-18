@@ -5,10 +5,10 @@
 ``slots.py`` takes them here; this module, as that one, depends on the standard library alone,
 for the ``back`` job of the chain runs ``slots.py`` as a script, this module beside it.
 
-Each turn is a lock file of ``$XDG_RUNTIME_DIR`` (``/tmp`` by default): ``waterfall-heavy.lock``
-first — the lock of a repository whose Makefile predates the tool takes the first turn —, then
-``waterfall-heavy.2.lock`` to ``waterfall-heavy.<N>.lock``. A heavy run takes the first free one
-by a ``flock`` that does not wait, and tries again every second.
+Each turn is a lock file of the directory of the locks of the workstation (``runtime_directory``):
+``waterfall-heavy.lock`` first — the lock of a repository whose Makefile predates the tool takes
+the first turn —, then ``waterfall-heavy.2.lock`` to ``waterfall-heavy.<N>.lock``. A heavy run
+takes the first free one by a ``flock`` that does not wait, and tries again every second.
 
 An exclusive run (US-2210), for a measure, takes the gate ``waterfall-heavy.exclusive.lock`` of the
 same directory, then every lock file, ``waterfall-heavy.lock`` to ``waterfall-heavy.9.lock`` — the
@@ -49,11 +49,30 @@ GATE_POLL = 0.05
 HELD_VARIABLE = "WATERFALL_SLOTS_HELD"
 HELD_EXCLUSIVE = "exclusive"
 """The mark an exclusive run gives its command: the workstation is held above it."""
+RUNTIME_VARIABLE = "WATERFALL_RUNTIME_DIR"
+"""The directory of the locks of the workstation, set by the tests alone."""
+USER_RUNTIME_ROOT = Path(os.sep, "run", "user")
+"""Where the system keeps the runtime directory of each user, ``<root>/<uid>``."""
 
 
 def runtime_directory(environment: Mapping[str, str]) -> Path:
-    """Return ``$XDG_RUNTIME_DIR``, or ``/tmp`` where it is not set (WSL, a runner)."""
-    return Path(environment.get("XDG_RUNTIME_DIR") or Path(os.sep, "tmp"))
+    """Return the directory of the locks of the workstation, the same for every session (US-2460).
+
+    ``$WATERFALL_RUNTIME_DIR`` where it is set (the tests), else ``/run/user/<uid>`` where it
+    exists, else ``/tmp`` (WSL, a runner). ``XDG_RUNTIME_DIR`` is not read: a session without it
+    — a cron job, ``su``, a shell of an IDE — would lock elsewhere than the others, and two runs
+    would each believe themselves alone. Under a systemd session, ``XDG_RUNTIME_DIR`` is
+    ``/run/user/<uid>``: the directory is the one of before, which the tools of a branch without
+    this function still use, and they exclude each other with these. Where it points elsewhere
+    (WSLg, ``/mnt/wslg/runtime-dir``; a session without systemd), a tool of a branch without this
+    function locks under ``XDG_RUNTIME_DIR``, one with it under ``/run/user/<uid>`` or ``/tmp``:
+    they do not exclude each other until the branch has taken this lot.
+    """
+    chosen = environment.get(RUNTIME_VARIABLE)
+    if chosen:
+        return Path(chosen)
+    session = USER_RUNTIME_ROOT / str(os.getuid())
+    return session if session.is_dir() else Path(os.sep, "tmp")
 
 
 def lock_paths(environment: Mapping[str, str], slots: int) -> list[Path]:
