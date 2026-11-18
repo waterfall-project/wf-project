@@ -4128,8 +4128,8 @@ table marks (`WRITTEN_BY_MIGRATION` in its `info`); `session` returns a session 
   `pg_dump` and `pg_restore` in `/usr/bin` (`postgresql-client-18`: Ubuntu 26.04's archive on a
   workstation, the PGDG repository on the runner, whose `ubuntu-26.04` image already carries it),
   which the tests of the backups and the restorations call; `make check-tools` warns of another. A
-  client newer than the server sets settings it does not know, and no restoration ends (#982); an older
-  client refuses to dump the database.
+  client newer than the server sets settings it does not know, and no restoration ends (#982); an
+  older client refuses to dump the database.
 - **Without the variable**, a test that needs the database **fails** saying so, and does not pass
   silently. The tests of `examples/`, sockets closed, do not need it.
 - A test that needs two instances of the service starts two processes (`subprocess`), each

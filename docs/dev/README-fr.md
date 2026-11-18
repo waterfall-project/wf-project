@@ -3656,12 +3656,12 @@ empreinte dans le miroir. Le repli sur Docker Hub quand le miroir ne tient pas t
 construisent ou lancent Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`,
 `production.yml`, `images.yml`) posent `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` et s'y
 connectent ; les services de `back.yml` et de `front.yml` nomment le miroir en toutes lettres.
-Le miroir est tenu par `make mirror PUSH=yes` (`wftools.mirror`) : il lit ces références, demande
-à ghcr.io si l'empreinte y
-est — présente, rien d'autre n'est lu, Docker Hub non plus —, et copie celles qui manquent de Docker
-Hub, par empreinte (`docker buildx imagetools create` écrit le manifeste tel quel, l'empreinte est
-vérifiée après), sous une étiquette qui porte le début de l'empreinte : une même
-étiquette de Docker Hub a pu avoir deux empreintes dans nos fichiers (Caddy, avant le manifeste). Une
+Le miroir est tenu par `make mirror PUSH=yes` (`wftools.mirror`) : il lit ces références, demande à
+ghcr.io si l'empreinte y est — présente, rien d'autre n'est lu, Docker Hub non plus —, et copie
+celles qui manquent de Docker Hub, par empreinte (`docker buildx imagetools create` écrit le
+manifeste tel quel, l'empreinte est vérifiée après), sous une étiquette qui porte le début de
+l'empreinte : une même étiquette de Docker Hub a pu avoir deux empreintes dans nos fichiers (Caddy,
+avant le manifeste). Une
 copie que ghcr.io refuse (`denied`) est refaite une fois avant d'échouer : il a refusé une fois la
 création d'un paquet qu'il a acceptée au passage suivant (#3028). Quand il refuse de répondre, le
 message nomme ses deux causes : la connexion à ghcr.io, ou un paquet pas encore copié (`make mirror
