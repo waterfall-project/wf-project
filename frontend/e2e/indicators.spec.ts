@@ -14,6 +14,7 @@ import {
   expectMilestonePoints,
   type CurveSeries,
   type IndexHistory,
+  LOCALE,
   type Indicators,
   type MilestoneTracking,
   ok,
@@ -97,7 +98,9 @@ test("exports a curve, at the keyboard, as a PNG image drawn on a canvas, named 
   page,
 }) => {
   await openHydrated(page, SCREEN);
-  const figure = page.getByRole("figure", { name: "Diagramme temps/temps" });
+  const figure = page.getByRole("figure", {
+    name: catalogue.projectIndicators.milestones.chartTitle,
+  });
   const command = figure.getByRole("button", { name: catalogue.chart.exportPng });
   await command.focus();
   await expect(command).toBeFocused();
@@ -120,11 +123,11 @@ test("draws the cumulative costs, and shifts them by the payment delays at the s
   // The drawing itself, named by its sentence: the figure holds the icon of its export too.
   await expect(
     page
-      .getByRole("figure", { name: "Courbe en S" })
+      .getByRole("figure", { name: catalogue.projectIndicators.costCurve.chartTitle })
       .getByRole("img", { name: /^Courbes cumulées du budget de référence/ })
       .locator("svg"),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Décaler des délais de paiement" }).click();
+  await page.getByRole("link", { name: catalogue.projectIndicators.costCurve.delay }).click();
   await expect(page).toHaveURL(/payment_delays=true/);
 });
 
@@ -295,7 +298,7 @@ async function expectCurves(
 }
 
 for (const { title, address, scope } of SCOPES) {
-  test(`shows the cards of the revision in progress, and the evolution of its indices, as the service answers for ${title} @shared [WF-ARC-0070-A]`, async ({
+  test(`shows the cards of the revision in progress, the evolution of its indices and its two curves, as the service answers for ${title} @shared [WF-ARC-0070-A]`, async ({
     page,
     browser,
     request,
@@ -427,7 +430,7 @@ test("reads the indicators at a date as the service answers, the revision of the
     "schedule_index",
   );
   await expect(page.getByRole("region", { name: catalogue.contextBanner.label })).toContainText(
-    catalogue.contextBanner.asOf.replace("{date}", formatPlanningDate(asOf, "fr")),
+    catalogue.contextBanner.asOf.replace("{date}", formatPlanningDate(asOf, LOCALE)),
   );
   // Before the first marking, no revision is designated: refused as an offer is.
   const before = "2026-01-15";

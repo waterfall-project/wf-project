@@ -31,7 +31,12 @@ import {
   valueAxis,
 } from "@/components/chart/chart";
 import { CalculationDate } from "@/components/context/indicator";
-import { monthTooltip, monthTotals, stackedRoles } from "@/components/workload/stacked-load";
+import {
+  alignedLoad,
+  monthTooltip,
+  monthTotals,
+  stackedRoles,
+} from "@/components/workload/stacked-load";
 import { useCurrency } from "@/currency/context";
 import { formatLocale, formatMoney, formatMonth } from "@/i18n/format";
 
@@ -104,11 +109,8 @@ export function SpendingChart({ spending, provenance }: SpendingChartProps) {
       const months = totals.map((each) => planningInstant(each.month));
       // The series of the stack read an amount where the roles of the workload read hours: the same
       // strings of the API, only aligned.
-      const stacked = types.map((type) => ({
-        label: type.label,
-        months: type.months.map(({ month, amount }) => ({ month, hours: amount })),
-      }));
-      const monthly = totals.map(({ month, amount }) => ({ month, hours: amount }));
+      const stacked = alignedLoad(types, "amount");
+      const monthly = totals.map(({ month, amount }) => ({ month, value: amount }));
       return {
         useUTC: true,
         textStyle: { fontFamily: palette.font, color: palette.text },

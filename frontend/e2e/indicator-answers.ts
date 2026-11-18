@@ -23,7 +23,8 @@ export type CurveSeries = Schemas["CurveSeries"];
 export type MilestoneTracking = Schemas["MilestoneTracking"];
 type Computable = Schemas["Computable"];
 
-const LOCALE = "fr";
+/** The language of the catalogue the paths read, and of the figures they write. */
+export const LOCALE = "fr";
 
 /** The way a path reads the API: its headers, its currency. */
 export interface Reader {
@@ -265,6 +266,13 @@ export async function expectCurvePoints(
   const months = curves.cash_out_by_month ?? [];
   if (cashOut) {
     expect(months.length, "the answer holds a cash-out to compare").toBeGreaterThan(0);
+  }
+  if (months.length === 0 && !cashOut) {
+    // No cash-out to read, none asked: the screen offers no table of them either.
+    await expect(
+      valuesOf(figure, catalogue.projectIndicators.curves.cashOut),
+      "no table of the cash-out when the answer holds none",
+    ).toHaveCount(0);
   }
   if (months.length > 0) {
     const shifted = await cellsOf(valuesOf(figure, catalogue.projectIndicators.curves.cashOut));

@@ -1335,10 +1335,10 @@ bout en bout » : les parcours de `planning.spec.ts` qui écrivent sur le témoi
 la saisie d'une cellule, la durée et les prédécesseurs, la date de début — ont chacun leur jumeau
 dans `planning-service.spec.ts`, sur un projet de la course ; les lignes, les montants et le devis
 se jouent contre le service sur un projet de la course (EP-07, US-1560), ceux qui lisent le témoin
-attendant ses lignes (US-1570) ; le reste à engager relève d'EP-09, les risques d'EP-08, les
-indicateurs d'EP-10 et les structures différentielles d'EP-08, si bien que le parcours de
-`context.spec.ts` qui ouvre l'avenant, celui de l'écran des risques et celui des indicateurs
-restent sur le faux back. La mesure d'une validation de cellule (#196) et celle du déplacement de
+attendant ses lignes (US-1570) ; le reste à engager relève d'EP-09, les risques et les structures
+différentielles d'EP-08, si bien que le parcours de `context.spec.ts` qui ouvre l'avenant et celui
+de l'écran des risques restent sur le faux back ; les indicateurs, d'EP-10, se jouent contre le
+service (US-1730, `indicators.spec.ts`). La mesure d'une validation de cellule (#196) et celle du déplacement de
 la cellule active sur mille tâches (#620) sont au relevé de livraison d'US-1470.
 
 ### L'écran des risques
@@ -4644,11 +4644,16 @@ viennent d'EP-06. Le générateur des exemples répartit une ligne de devis à c
 comme le service (WF-DEV-0040, #2838) : le calculé est l'attendu, et les chiffres des exemples sont
 ceux du service. Ce que la tranche n'a pas : ni provision, ni avenant, ni risque (**EP-08**, dont la
 fusion de l'avenant 1 fait de la 101 la référence : jusqu'alors la référence est l'offre 100), ni
-indicateur (**EP-10**), ni les volumes entiers (**EP-13**, qui clôt : les trois cents projets et les
-dix-huit mille lignes de coût du §4.6.2). En service, la structure de PRJ-001 compte 5 966 nœuds, non
-les 5 999 du volume que le faux back sert. Ce que lisent PRJ-001
-En cours, sa référence et ses lignes se joue donc contre le service, aux attendus des exemples près
-que la liste ci-dessous nomme. Les assertions d'écriture affirment ce qui a été écrit, relu, par
+les volumes entiers (**EP-13**, qui clôt : les trois cents projets et les dix-huit mille lignes de
+coût du §4.6.2). Les indicateurs n'ont pas de tranche : le marquage rejoué par le chargeur
+(`load_marking`, EP-10, US-1670) conserve ceux de la révision 101 de PRJ-001 — le projet, ses deux
+sous-projets et « hors sous-projet » — à son instant, le 1er février 2026 à 9 h, l'offre 100 ne
+gardant aucun indicateur projet, et le service calcule ceux du jour sur la 102 (US-1740) ; **EP-08**
+y ajoute les provisions et les risques, qui changent la référence, **EP-11** le portefeuille,
+**EP-13** les révisions marquées suivantes et les volumes entiers. En service, la structure de
+PRJ-001 compte 5 966 nœuds, non les 5 999 du volume que le faux back sert. Ce que lisent PRJ-001 En
+cours, sa référence et ses lignes se joue donc contre le service, aux attendus des exemples près que
+la liste ci-dessous nomme. Les assertions d'écriture affirment ce qui a été écrit, relu, par
 `inService`.
 
 La liste consolidée de ce qu'un parcours ne rejoue pas encore contre le service tient ici : il se
@@ -4791,9 +4796,11 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
 La définition de fini d'EP-07 se constate par des parcours contre le service, joués par le compte
 « chef de projet » de la course : un projet chiffré par la grille puis passé En cours — la quantité
 d'une ligne saisie, son montant calculé par le service, la révision marquée par le worker, désignée
-pour référence, le code saisi (`pricing.spec.ts`, WF-INTF-0010-A, FBS-4.4) ; un devis exporté en
-Excel, réimporté sans écart et confirmé (`exchanges.spec.ts`, FLX-03 et FLX-04) ; cinquante saisies
-d'une ligne annulées une à une puis rétablies dans l'ordre (`undo.spec.ts`, WF-IHM-0110-A).
+pour référence, le code saisi (`pricing.spec.ts`, WF-INTF-0010-A, FBS-4.4), puis la lecture des
+indicateurs de la révision marquée (`service/project-manager-indicators.spec.ts`, WF-INTF-0010-A,
+FBS-4.8) ; un devis exporté en Excel, réimporté sans écart et confirmé (`exchanges.spec.ts`, FLX-03
+et FLX-04) ; cinquante saisies d'une ligne annulées une à une puis rétablies dans l'ordre
+(`undo.spec.ts`, WF-IHM-0110-A).
 
 Les deux lecteurs d'un projet (`service/project-readers.spec.ts`, WF-ADM-0040-A) se jouent contre le
 service seul : deux comptes locaux qui portent « Manager » et « Chef de projet », l'un lisant en
@@ -4801,7 +4808,7 @@ français et gardant toutes les colonnes, l'autre en anglais avec une colonne ma
 projet, ses contributeurs et ses révisions ; le premier le crée et ouvre une révision par les
 écrans, et inscrit l'autre par l'API sous son jeton.
 
-**La liste des entrées non rejouées**, telle qu'EP-09 la laisse (US-1650/L3), par l'EPIC qui retire
+**La liste des entrées non rejouées**, telle qu'EP-10 la laisse (US-1740/L2), par l'EPIC qui retire
 la garde et l'entrée ci-dessus :
 
 - **EP-08** — les provisions et les risques, gardés par `inService` jusqu'à lui : la couverture des
@@ -4809,10 +4816,9 @@ la garde et l'entrée ci-dessus :
   d'un risque (`entry.spec.ts`, `paste.spec.ts`, `BEFORE_EP08`), la provision de la douzième ligne du
   devis (`grid.spec.ts`), le bandeau sur les risques et sur une structure différentielle
   (`context.spec.ts`), les risques de `risks.spec.ts`, le retour au projet précédent de
-  `navigation.spec.ts` ; le service ne charge ni provision ni risque, et sert à zéro ce qui en dépend.
-- **EP-10** — le lien d'une tâche du détail du plan de charge vers sa ligne dans la grille de planning
-  (`workload.spec.ts`, sans étiquette), que le service ne détaille pas avant US-2040/L2 (#3512) :
-  la grille du détail, ses rôles seuls, se joue déjà des deux côtés.
+  `navigation.spec.ts`, et les chiffres des indicateurs de `review.spec.ts` — ceux de la référence 101,
+  quand celle du témoin chargé reste l'offre 100 jusqu'à la fusion de l'avenant 1 ; le service ne
+  charge ni provision ni risque, et sert à zéro ce qui en dépend.
 - **EP-11** — l'ouverture, depuis `/`, du portefeuille de `navigation.spec.ts`.
 - **EP-13** — les volumes : le projet de 5 999 nœuds et ses marques (`NO_VOLUME_IN_SERVICE` de
   `revisions.spec.ts` et de `remaining.spec.ts`, l'ouverture et le défilement de la grille, ses fenêtres

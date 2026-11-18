@@ -1338,9 +1338,10 @@ path »: the paths of `planning.spec.ts` that write to the witness — the attac
 cell, the duration and the predecessors, the start date — each have their twin in
 `planning-service.spec.ts`, on a project of the run; the lines, the amounts and the estimate play
 against the service on a project of the run (EP-07, US-1560), those that read the witness waiting
-for its lines (US-1570); the remaining to commit is EP-09's, the risks EP-08's, the indicators
-EP-10's and the differential structures EP-08's, so the path of `context.spec.ts` that opens the
-amendment, that of the risks screen and that of the indicators stay on the fake back. The measure
+for its lines (US-1570); the remaining to commit is EP-09's, the risks and the differential
+structures EP-08's, so the path of `context.spec.ts` that opens the amendment and that of the risks
+screen stay on the fake back; the indicators, EP-10's, play against the service (US-1730,
+`indicators.spec.ts`). The measure
 of a cell validation (#196) and that of the move of the active cell over a thousand tasks (#620) are
 in the delivery report of US-1470.
 
@@ -4600,9 +4601,14 @@ the copy of the reference 101, and their states come from EP-06. The generator o
 a quote line astride two years as the service does (WF-DEV-0040, #2838): the computed is the
 expected, and the figures of the examples are the service's. What the slice does not have: no
 provision, no amendment, no risk (**EP-08**, whose merge of the amendment 1 makes the 101 the
-reference: until then the reference is the offer 100), no indicator (**EP-10**), and not the whole
-volumes (**EP-13**, which closes: the three hundred projects and the eighteen thousand cost lines of
-§4.6.2). Against the service, the structure of PRJ-001 counts 5,966 nodes, not the 5,999 of the
+reference: until then the reference is the offer 100), and not the whole volumes (**EP-13**, which
+closes: the three hundred projects and the eighteen thousand cost lines of §4.6.2). The indicators
+have no slice: the marking replayed by the loader (`load_marking`, EP-10, US-1670) keeps those of
+the revision 101 of PRJ-001 — the project, its two sub-projects and « outside any sub-project » —
+at its instant, 1 February 2026 at 9 a.m., the offer 100 keeping no project indicator, and the
+service computes those of the day on the 102 (US-1740); **EP-08** adds to them the provisions and
+the risks, which change the reference, **EP-11** the portfolio, **EP-13** the marked revisions that
+follow and the whole volumes. Against the service, the structure of PRJ-001 counts 5,966 nodes, not the 5,999 of the
 volume that the fake back serves. What reads PRJ-001 In progress,
 its reference and its lines thus plays against the service, to the expectations of the examples near
 that the list below names. The assertions of a write affirm what was written, read anew, by
@@ -4648,9 +4654,9 @@ the epic that lifts it; that epic removes the guard and its entry:
 - `context.spec.ts` — the banner of the context on the risks and on a differential structure
   (`BEFORE_THE_RISKS`, `BEFORE_THE_DIFFERENTIALS`): lifted by **EP-08** (the risks and the
   differential structures); the entry of the indicators (`BEFORE_THE_INDICATORS`) has been lifted
-  since US-1730. The path that goes through the remaining to commit then
-  the risks stays guarded by the risks. The banner of the planning (EP-06), of the estimate (US-1560, EP-07), of the screens of a project created, of
-  its settings and of its revisions plays against the service.
+  since US-1730. The path that goes through the remaining to commit then the risks stays guarded by
+  the risks. The banner of the planning (EP-06), of the estimate (US-1560, EP-07), of the screens of
+  a project created, of its settings and of its revisions plays against the service.
 - `review.spec.ts` — the figures of the indicators (the remaining to commit, the reference budget,
   the planned value, the variance and the schedule and cost indices, the date of the calculation)
   are those of revision 101 of the examples; the reference of the loaded witness stays offer 100;
@@ -4746,10 +4752,11 @@ the epic that lifts it; that epic removes the guard and its entry:
 The definition of done of EP-07 is observed by paths against the service, played by the « project
 manager » account of the run: a project priced through the grid then taken In progress — the
 quantity of a line entered, its amount computed by the service, the revision marked by the worker,
-designated as the reference, the code entered (`pricing.spec.ts`, WF-INTF-0010-A, FBS-4.4); an
-estimate exported to Excel, imported back without a difference and confirmed (`exchanges.spec.ts`,
-FLX-03 and FLX-04); fifty entries of a line undone one by one then redone in order (`undo.spec.ts`,
-WF-IHM-0110-A).
+designated as the reference, the code entered (`pricing.spec.ts`, WF-INTF-0010-A, FBS-4.4), then
+the reading of the indicators of the revision marked
+(`service/project-manager-indicators.spec.ts`, WF-INTF-0010-A, FBS-4.8); an estimate exported to
+Excel, imported back without a difference and confirmed (`exchanges.spec.ts`, FLX-03 and FLX-04);
+fifty entries of a line undone one by one then redone in order (`undo.spec.ts`, WF-IHM-0110-A).
 
 The two readers of a project (`service/project-readers.spec.ts`, WF-ADM-0040-A) play against the
 service alone: two local accounts holding « Manager » and « Chef de projet », one reading in French
@@ -5740,7 +5747,7 @@ commits » on `main` (*Settings → Rules*), before creating the branch of the n
 targets neither `epic/*` nor `lot/*`. No check of the chain duplicates it: it is GitHub that
 refuses, hence this section.
 
-**The list of the entries not replayed**, as EP-09 leaves it (US-1650/L3), by the epic that removes
+**The list of the entries not replayed**, as EP-10 leaves it (US-1740/L2), by the epic that removes
 the guard and the entry above:
 
 - **EP-08** — the provisions and the risks, guarded by `inService` until it: the risk coverage, a
@@ -5748,11 +5755,9 @@ the guard and the entry above:
   risk (`entry.spec.ts`, `paste.spec.ts`, `BEFORE_EP08`), the provision of the twelfth row of the
   estimate (`grid.spec.ts`), the banner on the risks and on a differential structure
   (`context.spec.ts`), the risks of `risks.spec.ts`, the way back to the previous project of
-  `navigation.spec.ts`; the service loads no provision and no risk, and serves at zero what depends
-  on them.
-- **EP-10** — the link of a task of the detail of the workload to its row in the planning grid
-  (`workload.spec.ts`, untagged), which the service does not detail before US-2040/L2 (#3512): the
-  grid of the detail, its roles alone, is already played on both sides.
+  `navigation.spec.ts`, and the figures of the indicators of `review.spec.ts` — those of the reference
+  101, when that of the loaded witness stays the offer 100 until the merge of the amendment 1; the
+  service loads no provision and no risk, and serves at zero what depends on them.
 - **EP-11** — the opening, from `/`, of the portfolio of `navigation.spec.ts`.
 - **EP-13** — the volumes: the project of 5,999 nodes and its marks (`NO_VOLUME_IN_SERVICE` of
   `revisions.spec.ts` and of `remaining.spec.ts`, the opening and the scroll of the grid, its windows
