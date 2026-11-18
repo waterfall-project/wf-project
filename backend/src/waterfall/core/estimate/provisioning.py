@@ -1,0 +1,111 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+"""The provision line of a risk, written at the request of the risks alone (EP-08, "Modules").
+
+A line of the main structure, of the category of provision the risk designates and of the
+subproject it designates, if one, whose figures are its provision: one unit at that amount, which
+is its base amount and its re-estimated amount, never projected, without a payment delay
+(WF-RIS-0010, WF-DEV-0020, WF-DEV-0030; #733). Its year of consumption is the year of the heaviest
+share of its task, as for any line; its budgeted amount is nought on a project that has a reference
+— the risk declared since bears none in it —, null otherwise, read as the re-estimated one
+(WF-DEV-0020). Its label names its risk.
+
+The risks ask for it at the declaration (``ProvisionEntry``, by ``create_borne_line`` of the
+planning, whose facet hook ``create_line`` addresses here), and write its amount again each time
+the severity or the probability changes (``set_provision``), under the lock of the main structure,
+whose counter advances.
+
+Filled by US-2570/L1.
+"""
+
+from dataclasses import dataclass
+from decimal import Decimal
+from typing import TYPE_CHECKING
+
+from sqlalchemy import select
+
+from waterfall.core.estimate.costing import basis_of, priced
+from waterfall.core.estimate.pricing import CENT
+from waterfall.core.estimate.tables import EstimateLine
+from waterfall.core.revisions.interface import structure_counted, structure_facts
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
+
+    from waterfall.core.planning.interface import FacetCreation, Place
+
+# The label of a provision line, before the label of its risk.
+PROVISION_LABEL = "Provision — {label}"
+ONE = Decimal(1)
+NOUGHT = CENT * 0
+
+
+@dataclass(frozen=True, slots=True)
+class ProvisionEntry:
+    """The provision line of a risk, as the risks ask for it: its risk's label, what bears it.
+
+    ``amount`` the provision, the severity weighted by the probability, to the cent.
+    """
+
+    risk_label: str
+    cost_category_id: UUID
+    subproject_id: UUID | None
+    amount: Decimal
+
+
+def create_provision(creation: FacetCreation, entry: ProvisionEntry) -> None:
+    """Write the facet of a provision line created under its task (``create_borne_line``)."""
+    session, project_id, act = creation.session, creation.project_id, creation.act
+    basis = basis_of(session, project_id, creation.revision_id)
+    year = priced(entry.amount, creation.bearer, basis, None).consumption_year
+    session.add(
+        EstimateLine(
+            project_id=project_id,
+            node_id=creation.node_id,
+            kind="estimate_line",
+            label=PROVISION_LABEL.format(label=entry.risk_label),
+            cost_category_id=entry.cost_category_id,
+            resource_role_id=None,
+            quantity=ONE,
+            hours=None,
+            unit_disbursement=entry.amount,
+            payment_delay_days=0,
+            subproject_id=entry.subproject_id,
+            base_amount=entry.amount,
+            budgeted_amount=NOUGHT if basis.has_reference else None,
+            reestimated_amount=entry.amount,
+            consumption_year=year,
+            lock_version=1,
+            created_at=act.at,
+            created_by=act.author,
+            updated_at=act.at,
+            updated_by=act.author,
+        )
+    )
+    session.flush()
+
+
+def set_provision(session: Session, place: Place, node_id: UUID, amount: Decimal) -> bool:
+    """Write the amount of a provision line again, under the lock of its structure; tell if moved.
+
+    ``place`` is the main structure that bears the line. A line already at the amount is left as
+    it is; one that moves advances the counter of the structure, whose total it changes, and not
+    its own: a figure computed, not entered (``LockVersion``), whose audit is left to the entries.
+    """
+    structure_facts(session, place.project_id, place.structure_id, lock=True)
+    line = session.scalars(
+        select(EstimateLine)
+        .where(EstimateLine.project_id == place.project_id, EstimateLine.node_id == node_id)
+        .execution_options(populate_existing=True)
+    ).one()
+    if (line.unit_disbursement, line.base_amount, line.reestimated_amount) == (amount,) * 3:
+        return False
+    line.quantity = ONE
+    line.unit_disbursement = amount
+    line.base_amount = amount
+    line.reestimated_amount = amount
+    session.flush()
+    structure_counted(session, place.project_id, place.structure_id)
+    return True

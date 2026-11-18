@@ -14,7 +14,8 @@ here, never from the file.
 The risks read the revisions, the planning, the estimate and the risk settings, none of which reads
 them: what they must know of the risks goes through their registries, which the risks fill at the
 import of this interface, each by the story that fills its part, below the imports — the copy and
-the closing of a revision (``register_copy``, ``register_closing``; US-2570/L1), the designation of
+the closing of a revision, and the counter of an own estimate (``register_copy``,
+``register_closing``, ``register_own_estimate_counted``; US-2570/L1), the designation of
 a reference and the coverage of the remaining to commit (``register_designation``,
 ``register_coverage``; US-2610/L1), the four kinds of entry of the history it undoes
 (``register_undoable``; US-2590/L2). The entry points that open, close, mark or designate a revision
@@ -23,6 +24,17 @@ that none lacks their part once a story registers it (#2180).
 """
 
 # ``coverage`` (US-2550/L1; US-2610/L1): the reserve and the coverage of the risks.
+# The registries the risks fill (US-2570/L1).
+from waterfall.core.revisions.interface import (
+    register_closing,
+    register_copy,
+    register_own_estimate_counted,
+)
+from waterfall.core.risks.following import (
+    close_evaluations,
+    copy_evaluations,
+    follow_own_estimate,
+)
 from waterfall.core.risks.interface.coverage import (
     risk_coverage_of as risk_coverage_of,
 )
@@ -71,12 +83,6 @@ from waterfall.core.risks.interface.occurrence import (
 
 # ``provisions`` (US-2550/L1; US-2580/L1): the provision of an identified risk changed.
 from waterfall.core.risks.interface.provisions import (
-    OMITTED as OMITTED,
-)
-from waterfall.core.risks.interface.provisions import (
-    Omitted as Omitted,
-)
-from waterfall.core.risks.interface.provisions import (
     RiskProvisionChange as RiskProvisionChange,
 )
 from waterfall.core.risks.interface.provisions import (
@@ -122,29 +128,6 @@ from waterfall.core.risks.interface.reviews import (
 from waterfall.core.risks.interface.reviews import (
     review_risk as review_risk,
 )
-
-# ``risks`` (US-2550/L1; US-2570/L1): a risk declared, read and renamed.
-from waterfall.core.risks.interface.risks import (
-    ProvisionTask as ProvisionTask,
-)
-from waterfall.core.risks.interface.risks import (
-    RiskCommand as RiskCommand,
-)
-from waterfall.core.risks.interface.risks import (
-    RiskEntry as RiskEntry,
-)
-from waterfall.core.risks.interface.risks import (
-    RiskIdentityChange as RiskIdentityChange,
-)
-from waterfall.core.risks.interface.risks import (
-    RiskMatrixCell as RiskMatrixCell,
-)
-from waterfall.core.risks.interface.risks import (
-    RiskState as RiskState,
-)
-from waterfall.core.risks.interface.risks import (
-    RiskView as RiskView,
-)
 from waterfall.core.risks.interface.risks import (
     create_risk as create_risk,
 )
@@ -154,3 +137,40 @@ from waterfall.core.risks.interface.risks import (
 from waterfall.core.risks.interface.risks import (
     update_risk as update_risk,
 )
+
+# ``risks`` (US-2550/L1; US-2570/L1): a risk declared, read and renamed.
+from waterfall.core.risks.views import (
+    OMITTED as OMITTED,
+)
+from waterfall.core.risks.views import (
+    Omitted as Omitted,
+)
+from waterfall.core.risks.views import (
+    ProvisionTask as ProvisionTask,
+)
+from waterfall.core.risks.views import (
+    RiskCommand as RiskCommand,
+)
+from waterfall.core.risks.views import (
+    RiskEntry as RiskEntry,
+)
+from waterfall.core.risks.views import (
+    RiskIdentityChange as RiskIdentityChange,
+)
+from waterfall.core.risks.views import (
+    RiskMatrixCell as RiskMatrixCell,
+)
+from waterfall.core.risks.views import (
+    RiskState as RiskState,
+)
+from waterfall.core.risks.views import (
+    RiskView as RiskView,
+)
+
+# The registrations, once, at the import: the copy of the evaluations after the structures and the
+# nodes whose copies they name, the interfaces of the revisions and of the planning imported first;
+# their deletion at an abandonment before the nodes and the structures they name (``evaluations``);
+# the counter and the provision of a risk following its own estimate (US-2570/L1).
+register_copy(copy_evaluations)
+register_closing("evaluations", close_evaluations)
+register_own_estimate_counted(follow_own_estimate)

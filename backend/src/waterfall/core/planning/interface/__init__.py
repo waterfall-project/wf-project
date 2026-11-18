@@ -42,6 +42,26 @@ from waterfall.core.planning.entries import (
 from waterfall.core.planning.filters import (
     NodeFilters as NodeFilters,
 )
+
+# ``borne_lines`` (US-2570/L1): the tasks a risk names, and the provision line it asks for (EP-08).
+from waterfall.core.planning.interface.borne_lines import (
+    TaskNamed as TaskNamed,
+)
+from waterfall.core.planning.interface.borne_lines import (
+    bearing_of as bearing_of,
+)
+from waterfall.core.planning.interface.borne_lines import (
+    create_borne_line as create_borne_line,
+)
+from waterfall.core.planning.interface.borne_lines import (
+    first_task as first_task,
+)
+from waterfall.core.planning.interface.borne_lines import (
+    task_of as task_of,
+)
+from waterfall.core.planning.interface.borne_lines import (
+    task_of_lineage as task_of_lineage,
+)
 from waterfall.core.planning.interface.closing import (
     delete_nodes as delete_nodes,
 )

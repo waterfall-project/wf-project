@@ -776,7 +776,7 @@ planifiée (US-2630) ; la réserve à une nouvelle référence (US-2610) ; les �
 
 ## US-2570 — Déclarer un risque et chiffrer son devis propre
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-RIS-0030-A`, `WF-REF-0030-A`, `WF-INTF-0090-A`
 - **opérations** : `createRisk`, `getRisk`, `updateRisk`, `listCostStructures` ; sur le devis
   propre, les lectures et les écritures de l'arbre (`listNodes`, `createNode`, `updateTaskFacet`,

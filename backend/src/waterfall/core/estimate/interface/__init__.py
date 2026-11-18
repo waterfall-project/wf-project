@@ -433,6 +433,15 @@ from waterfall.core.estimate.pricing import (
     round_to_cent as round_to_cent,
 )
 
+# ``provisioning`` (US-2570/L1): the provision line of a risk, which the risks alone ask for and
+# write again (EP-08).
+from waterfall.core.estimate.provisioning import (
+    ProvisionEntry as ProvisionEntry,
+)
+from waterfall.core.estimate.provisioning import (
+    set_provision as set_provision,
+)
+
 # ``reading`` (US-1490/L3): the lines as ``listNodes`` reads them, and what it filters.
 from waterfall.core.estimate.reading import (
     LineFilters as LineFilters,
@@ -444,6 +453,14 @@ from waterfall.core.estimate.reading import (
 # ``repricing`` (US-1500/L2): a current revision priced again after a rate of the reference.
 from waterfall.core.estimate.repricing import (
     reprice_after_rate as reprice_after_rate,
+)
+
+# ``severities`` (US-2570/L1): the total of an own estimate and the base of the matrix (EP-08).
+from waterfall.core.estimate.severities import (
+    risk_base as risk_base,
+)
+from waterfall.core.estimate.severities import (
+    structure_amount as structure_amount,
 )
 
 # ``spreading`` (US-1520/L1; US-2040/L2): the line the planned value is computed on, which EP-10

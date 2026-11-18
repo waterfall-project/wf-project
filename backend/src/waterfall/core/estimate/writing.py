@@ -45,6 +45,7 @@ from waterfall.core.estimate.entries import (
     overflowing,
 )
 from waterfall.core.estimate.pricing import CENT
+from waterfall.core.estimate.provisioning import ProvisionEntry, create_provision
 from waterfall.core.estimate.recalling import recalled, remembers
 from waterfall.core.estimate.tables import AMOUNT_PRECISION, AMOUNT_SCALE, EstimateLine
 from waterfall.core.resource_settings.interface import role_calendars
@@ -175,7 +176,13 @@ def judged_priced(
 
 
 def create_line(creation: FacetCreation) -> None:
-    """Write the facet of a line created under its task, priced (``createNode``); or refuse."""
+    """Write the facet of a line created under its task, priced (``createNode``); or refuse.
+
+    The provision line a risk asks for is written as the risks ask (``provisioning``, EP-08).
+    """
+    if isinstance(creation.entry, ProvisionEntry):
+        create_provision(creation, creation.entry)
+        return
     session, project_id = creation.session, creation.project_id
     entry, judged = _sent(creation.entry)
     draft = judged_line(session, (project_id, creation.bearer), entry, None)

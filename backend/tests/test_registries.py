@@ -193,9 +193,11 @@ DECLARED = {
     "exchanges.exporters",
     "witness.revision_fillers",
     "estimate.coverage",
-    # EP-08 (US-2550/L1): the parts of a merge, the kinds of entry another module undoes.
+    # EP-08 (US-2550/L1): the parts of a merge, the kinds of entry another module undoes; what
+    # follows the counter of an own estimate (US-2570/L1).
     "revisions.merge",
     "history.undoable",
+    "revisions.own_estimate_counted",
 }
 PLANNING = "waterfall.core.planning.interface"
 # What EP-06 registers (US-1380/L1, US-1390/L2), the copy of the nodes after the structures', and
@@ -308,6 +310,15 @@ REGISTERED_BY_EP09 = {
     "planning.open_lines": [f"{ESTIMATE}.kanban.open_lines"],
     "planning.zeroed_at": [f"{ESTIMATE}.kanban.zeroed_lines"],
 }
+RISKS = "waterfall.core.risks.following"
+# What the risks register (US-2570/L1): the copy of their evaluations after the copies of the rows
+# they name, their deletion at an abandonment before the content of the revision, and what follows
+# the counter of an own estimate.
+REGISTERED_BY_EP08 = {
+    "revisions.copy": [f"{RISKS}.copy_evaluations"],
+    CLOSING: [f"evaluations:{RISKS}.close_evaluations"],
+    "revisions.own_estimate_counted": [f"{RISKS}.follow_own_estimate"],
+}
 INDICATORS = "waterfall.core.indicators.interface"
 # What the socle of EP-10 registers (US-1660/L1): what a marking keeps of the indicators, which
 # US-1670/L1 fills; and the physical progress of the summaries a reading gives (US-1680).
@@ -364,11 +375,13 @@ def test_every_registry_holds_what_the_socle_of_ep06_registers(
     everything: dict[str, list[str]],
 ) -> None:
     assert set(everything) == DECLARED
+    later = before(REGISTERED_BY_EP08)
     for name, entries in REGISTERED.items():
+        held = [entry for entry in everything[name] if entry not in later.get(name, set())]
         if name in BY_KIND:
-            assert set(entries) <= set(everything[name]), name
+            assert set(entries) <= set(held), name
         else:
-            assert everything[name][: len(entries)] == entries, name
+            assert held[: len(entries)] == entries, name
 
 
 def test_every_registry_holds_what_the_socle_of_ep07_registers_after_the_planning(
@@ -376,7 +389,7 @@ def test_every_registry_holds_what_the_socle_of_ep07_registers_after_the_plannin
 ) -> None:
     # The extensions of the estimate, each after those of EP-06 in its registry; the marking and the
     # designation filled by US-1500/L2.
-    others = before(REGISTERED, REGISTERED_BY_EP09)
+    others = before(REGISTERED, REGISTERED_BY_EP09, REGISTERED_BY_EP08)
     for name, entries in REGISTERED_BY_EP07.items():
         held = [entry for entry in everything[name] if entry not in others.get(name, set())]
         assert held == entries, name
@@ -389,11 +402,12 @@ def test_every_registry_holds_what_the_socle_of_ep09_registers_after_the_estimat
     # EP-07; the remaining of the review before is no copy of its own: the copy of the lines writes
     # it (US-2240/L2), and the copy of the rates comes last. Nothing answers the coverage of the
     # risks before EP-08.
-    others = before(REGISTERED, REGISTERED_BY_EP07)
+    others = before(REGISTERED, REGISTERED_BY_EP07, REGISTERED_BY_EP08)
     for name, entries in REGISTERED_BY_EP09.items():
         held = [entry for entry in everything[name] if entry not in others.get(name, set())]
         assert held == entries, name
-    assert everything["revisions.copy"][-1] == f"{CORE}.keeping.copy_rates"
+    copies = everything["revisions.copy"]
+    assert copies[copies.index(f"{RISKS}.copy_evaluations") - 1] == f"{CORE}.keeping.copy_rates"
     assert everything["estimate.coverage"] == []
 
 
@@ -403,10 +417,27 @@ def test_every_registry_holds_what_the_socle_of_ep10_registers_after_the_others(
     # The indicators keep their part of a marking, beside the socles before them: nothing else
     # computes indicators at the marking before EP-11. They alone answer the physical progress of
     # the summaries (US-1680).
-    others = before(REGISTERED, REGISTERED_BY_EP07, REGISTERED_BY_EP09)
+    others = before(REGISTERED, REGISTERED_BY_EP07, REGISTERED_BY_EP08, REGISTERED_BY_EP09)
     for name, entries in REGISTERED_BY_EP10.items():
         held = [entry for entry in everything[name] if entry not in others.get(name, set())]
         assert held == entries, name
+
+
+def test_every_registry_holds_what_the_risks_register_after_the_estimate(
+    everything: dict[str, list[str]],
+) -> None:
+    # The evaluations are copied after the structures, the nodes and the lines whose copies they
+    # name, last; deleted at an abandonment before the nodes and the structures, in their stage of
+    # their own; and the risks alone follow the counter of an own estimate (US-2570/L1).
+    others = before(REGISTERED, REGISTERED_BY_EP07, REGISTERED_BY_EP09, REGISTERED_BY_EP10)
+    for name, entries in REGISTERED_BY_EP08.items():
+        held = [entry for entry in everything[name] if entry not in others.get(name, set())]
+        assert held == entries, name
+    assert everything["revisions.copy"][-1] == f"{RISKS}.copy_evaluations"
+    closings = everything[CLOSING]
+    assert closings.index(f"evaluations:{RISKS}.close_evaluations") < closings.index(
+        f"content:{PLANNING}.closing.delete_nodes"
+    )
 
 
 @pytest.mark.parametrize("entry_point", sorted(ENTRY_POINTS))

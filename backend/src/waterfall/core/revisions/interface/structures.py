@@ -26,6 +26,12 @@ condition of the phase an entry lacks, by the rule its commands state
 their revisions read ``FOR SHARE`` (``current_structures``), which a change of the reference
 redates (US-1390/L2).
 
+The own estimate of a risk is born with its risk, in the current revision (``create_own_estimate``,
+E-09; US-2570/L1), labelled as its risk. Its counter is the risk's too: each time it advances —
+whatever writes the tree, once the write has priced its lines —, the modules registered follow it
+(``register_own_estimate_counted``): the risks advance the counter of the risk and take its
+severity from the total of the structure again (#1453, WF-RIS-0010).
+
 Filled by US-0960. The witness loads no structure of its own: the main one is born with its
 revision, the others are EP-06's and EP-07's.
 """
@@ -43,12 +49,14 @@ from waterfall.core.projects.interface import (
     project_facts,
 )
 from waterfall.core.revisions.commands import phase_conditions, structure_commands_of
+from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.states import revision_state
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from datetime import date, datetime
     from uuid import UUID
 
@@ -59,6 +67,8 @@ if TYPE_CHECKING:
     from waterfall.platform.audit import Act
 
 MAIN = "main"
+# The kind of the own estimate of a risk (``StructureKind``).
+RISK = "risk"
 # The label of the main structure at its creation, as the examples of the contract name it.
 MAIN_LABEL = "Structure principale"
 # The counter of a structure at its creation, its own or a copy's: every resource is born at 1
@@ -78,6 +88,61 @@ class StructureView:
     is_merged: bool
     commands: tuple[CommandAvailability, ...]
     lock_version: int
+    risk_id: UUID | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class OwnEstimateCounted:
+    """The own estimate of a risk whose counter just advanced, in the transaction of the write.
+
+    Under the lock of the structure, once the write has written and priced its lines.
+    """
+
+    session: Session
+    project_id: UUID
+    revision_id: UUID
+    structure_id: UUID
+    risk_id: UUID
+
+
+# What follows the counter of the own estimate of a risk, in the order of registration.
+_OWN_ESTIMATES: Registry[Callable[[OwnEstimateCounted], None]] = Registry(
+    "revisions.own_estimate_counted"
+)
+
+
+def register_own_estimate_counted(
+    follower: Callable[[OwnEstimateCounted], None],
+) -> Callable[[], None]:
+    """Add what follows the counter of the own estimate of a risk; give its withdrawal.
+
+    The risks register at the import of their interface (EP-08, US-2570/L1).
+    """
+    return _OWN_ESTIMATES.register(follower)
+
+
+def _counted(
+    session: Session, project_id: UUID, structure_id: UUID, values: dict[str, object]
+) -> int:
+    """Advance the counter of a structure with the values given; give it, its followers told.
+
+    The own estimate of a risk tells what follows it (``register_own_estimate_counted``).
+    """
+    row = session.execute(
+        update(CostStructure)
+        .where(CostStructure.project_id == project_id, CostStructure.id == structure_id)
+        .values(lock_version=CostStructure.lock_version + 1, **values)
+        .returning(CostStructure.lock_version, CostStructure.revision_id, CostStructure.risk_id)
+        .execution_options(synchronize_session=False)
+    ).first()
+    if row is None:
+        raise NotFoundError(NOT_FOUND)
+    counter, revision_id, risk_id = row
+    if risk_id is not None:
+        counted = OwnEstimateCounted(session, project_id, revision_id, structure_id, risk_id)
+        for follower in _OWN_ESTIMATES.entries():
+            follower(counted)
+    return counter
 
 
 def create_main_structure(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> UUID:
@@ -92,6 +157,40 @@ def create_main_structure(session: Session, project_id: UUID, revision_id: UUID,
             label=MAIN_LABEL,
             is_merged=False,
             lineage_id=structure_id,
+            planning_start_on=current_day(act.at),
+            scheduled_at=act.at,
+            lock_version=FIRST_VERSION,
+            created_at=act.at,
+            created_by=act.author,
+            updated_at=act.at,
+            updated_by=act.author,
+        )
+    )
+    session.flush()
+    return structure_id
+
+
+def create_own_estimate(
+    session: Session, revision: tuple[UUID, UUID], risk: tuple[UUID, str], act: Act
+) -> UUID:
+    """Create the own estimate of a risk in a revision, empty, labelled as it is; give it (E-09).
+
+    ``revision`` is the project and its current revision, ``risk`` the risk and its label. Its
+    planning starts on the day of its creation, as the main structure's; the risks judge the
+    revision before.
+    """
+    (project_id, revision_id), (risk_id, label) = revision, risk
+    structure_id = new_id()
+    session.add(
+        CostStructure(
+            project_id=project_id,
+            id=structure_id,
+            revision_id=revision_id,
+            kind=RISK,
+            label=label,
+            is_merged=False,
+            lineage_id=structure_id,
+            risk_id=risk_id,
             planning_start_on=current_day(act.at),
             scheduled_at=act.at,
             lock_version=FIRST_VERSION,
@@ -217,6 +316,7 @@ def list_cost_structures(
                 )
             ),
             lock_version=row.lock_version,
+            risk_id=row.risk_id,
         )
         for row, born in _structures(session, project_id, revision_id)
     ]
@@ -334,18 +434,10 @@ def structure_rescheduled(
 ) -> int:
     """Move the instant of the dates of a structure on to ``at``, advance its counter; give it.
 
-    To be called under the lock of the structure (``structure_facts``), by a write that redates it.
+    To be called under the lock of the structure (``structure_facts``), by a write that redates it,
+    once it has priced its lines: the own estimate of a risk tells what follows it.
     """
-    counted = session.scalar(
-        update(CostStructure)
-        .where(CostStructure.project_id == project_id, CostStructure.id == structure_id)
-        .values(scheduled_at=at, lock_version=CostStructure.lock_version + 1)
-        .returning(CostStructure.lock_version)
-        .execution_options(synchronize_session=False)
-    )
-    if counted is None:
-        raise NotFoundError(NOT_FOUND)
-    return counted
+    return _counted(session, project_id, structure_id, {"scheduled_at": at})
 
 
 def structure_counted(session: Session, project_id: UUID, structure_id: UUID) -> int:
@@ -353,18 +445,10 @@ def structure_counted(session: Session, project_id: UUID, structure_id: UUID) ->
 
     To be called under the lock of the structure (``structure_facts``), by a write that can move
     no date (US-2250): the front leans every write on the counter, and ``scheduled_at`` is the
-    instant of the last write that redated the structure, which this one does not.
+    instant of the last write that redated the structure, which this one does not. The own
+    estimate of a risk tells what follows it.
     """
-    counted = session.scalar(
-        update(CostStructure)
-        .where(CostStructure.project_id == project_id, CostStructure.id == structure_id)
-        .values(lock_version=CostStructure.lock_version + 1)
-        .returning(CostStructure.lock_version)
-        .execution_options(synchronize_session=False)
-    )
-    if counted is None:
-        raise NotFoundError(NOT_FOUND)
-    return counted
+    return _counted(session, project_id, structure_id, {})
 
 
 def write_structure(
