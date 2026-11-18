@@ -33,8 +33,10 @@ from waterfall.core.planning.attachments import (
 )
 from waterfall.core.planning.calendars import default_calendar
 from waterfall.core.planning.carrying import (
+    carry_provisions,
     judge_facets_moved,
     judge_lines_moved,
+    judge_provisions,
     refuse_completed,
 )
 from waterfall.core.planning.dating import constants_of
@@ -795,8 +797,9 @@ def delete_node(
     without subordinate becomes a leaf in its state (WF-PLA-0040) and is given back among the
     ancestors, with the tasks the links taken away redate — and the task a line leaves, whose
     calendar may change (WF-PLA-0010) — and the totals without them; a summary it leaves completed
-    again reads the zeroing of its lines (``closed_again``, #2803). No provision line moves before
-    EP-08: ``nodes`` is empty.
+    again reads the zeroing of its lines (``closed_again``, #2803). The provision lines under the
+    subtree pass to the parent of the node, the first task of the first level left for a task of
+    the first level, and are the ``nodes`` given (``judge_provisions``, WF-PLA-0070).
     """
     with writing(session, place, writer, ("node_delete", (node_id,))) as write:
         tree = write.tree
@@ -814,6 +817,7 @@ def delete_node(
             refuse_completed(write, (parent,))
         former = () if parent is None else (parent, *tree.ancestors(parent))
         subtree = list(tree.subtree(node_id))
+        carried = judge_provisions(write, subtree)
         left_bare = parent is not None and tree.subtasks(parent) == [node_id]
         again = closed_again(session, place.project_id, tree, (node_id,))
         bare = (parent,) if left_bare and parent is not None else ()
@@ -823,10 +827,11 @@ def delete_node(
             emptied(tree, parent)
             stamp(tree.nodes[parent], writer.act)
         completed_again(tree, again, writer.act)
-        deleted(session, place.project_id, tree, subtree)
+        carry_provisions(write, carried)
+        deleted(session, place.project_id, tree, [each for each in subtree if each not in carried])
         redated = write.redate(None)
         write.after(touched)
-        return redated.written((), former)
+        return redated.written(tuple(carried), former)
 
 
 def _judge_move(tree: Tree, placing: Placing) -> None:

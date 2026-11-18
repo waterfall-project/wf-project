@@ -143,7 +143,9 @@ def _probability_faults(probability: Decimal) -> list[FieldError]:
     return []
 
 
-def _category(session: Session, category_id: UUID | None, faults: list[FieldError]) -> UUID | None:
+def designated_category(
+    session: Session, category_id: UUID | None, faults: list[FieldError]
+) -> UUID | None:
     """Judge the category of a provision: the only active one of the kind when none is named.
 
     The natures are shared first (``category_labels``, ``locked``): a deactivation waits for the
@@ -184,7 +186,7 @@ def _designated(
     """
     project_id = place.project_id
     faults = _probability_faults(entry.probability)
-    category = _category(session, entry.provision_cost_category_id, faults)
+    category = designated_category(session, entry.provision_cost_category_id, faults)
     subproject = entry.provision_subproject_id
     if subproject is not None and not subproject_labels(
         session, project_id, [subproject], held=True

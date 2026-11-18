@@ -13,7 +13,8 @@ by the owner of the tables, as the rows the service will write: the risk with it
 task bearing a line of 200, its evaluation identified, and its provision line of 60 in the main
 structure, under the first task of the first level, of the category of provision the installation
 is delivered with (WF-RIS-0010). A lot that serves one may write it through the service here,
-leaving its result unchanged. A helper several test modules read lives here, never in one of them.
+leaving its result unchanged. A helper several test modules read lives here, never in one of them:
+the risks through the service (``Risks``), which the tests of the provision (US-2580) write with.
 """
 
 from dataclasses import dataclass
@@ -25,6 +26,7 @@ from estimate_support import YEAR, Costing, Lines
 from nodes_support import Tree, opened
 from planning_support import insert_task, node_row
 from project_rows import AT, STAMP, risk_row, structure_row
+from projects_support import PROJECTS
 from sqlalchemy import func, insert, select
 
 from waterfall.core.cost_settings.tables import CostCategory, CostType
@@ -46,6 +48,8 @@ PROBABILITY = Decimal("0.30")
 PROVISION = Decimal("60.00")
 # The two tasks of the project costed, each with its line of material and its amount.
 STUDY, MAKING = "Étude", "Réalisation"
+# The label of the risk the tests of the provision declare.
+RISK_LABEL = "Indisponibilité de la grue de levage"
 COSTED = ((STUDY, "Plans", "600.00"), (MAKING, "Fabrication", "400.00"))
 
 
@@ -305,3 +309,106 @@ def differential(costed: Costed, label: str = "Avenant 1") -> UUID:
     with costed.stage.owner.begin() as connection:
         connection.execute(insert(CostStructure).values(**row))
     return structure_id
+
+
+# --- The risks through the service -------------------------------------------------------------
+
+
+class Risks:
+    """The risks of a project costed: declared with their own estimate, provisioned, read.
+
+    Through the service, as its manager does; the helpers of the tests of the provision (US-2580).
+    """
+
+    def __init__(self, api: ContractClient, project: Costed) -> None:
+        self.api = api
+        self.project = project
+        self.stage = project.stage
+        self.base = f"{PROJECTS}/{project.project_id}"
+        self.headers = self.stage.manager.headers
+
+    def declare(self, **body: Any) -> Any:
+        """Ask for a risk at 30 %; give the answer."""
+        sent = {"label": RISK_LABEL, "probability": "0.3", **body}
+        return self.api.post(f"{self.base}/risks", headers=self.headers, json=sent)
+
+    def declared(self, amount: str | None = "200.00", **body: Any) -> dict[str, Any]:
+        """Declare a risk that must be declared, its own estimate at an amount unless none."""
+        answer = self.declare(**body)
+        assert answer.status_code == 201, answer.text
+        risk = answer.json()
+        if amount is not None:
+            self.costed_at(risk, amount)
+            return self.risk(risk)
+        return risk
+
+    def costed_at(self, risk: dict[str, Any], amount: str) -> None:
+        """Write a task bearing a line of material at an amount in the own estimate of a risk."""
+        path = f"{self.base}/revisions/{self.project.revision_id}/structures"
+        path = f"{path}/{risk['structure_id']}/nodes"
+        made = self.api.post(
+            path,
+            headers=self.headers,
+            json={"kind": "task", "parent_id": None, "task": {"label": "Grue"}},
+        )
+        assert made.status_code == 201, made.text
+        line = material(self.project.costs, "Location", amount)
+        sent = {
+            "kind": "estimate_line",
+            "parent_id": made.json()["nodes"][0]["node_id"],
+            "estimate_line": line,
+        }
+        written = self.api.post(path, headers=self.headers, json=sent)
+        assert written.status_code == 201, written.text
+
+    def risk(self, risk: dict[str, Any], revision_id: object = None) -> dict[str, Any]:
+        """Read a risk that must be read, in the revision named or the current one."""
+        query = "" if revision_id is None else f"?revision_id={revision_id}"
+        answer = self.api.get(f"{self.base}/risks/{risk['risk_id']}{query}", headers=self.headers)
+        assert answer.status_code == 200, answer.text
+        return answer.json()
+
+    def provision(self, risk: dict[str, Any], who: Any = None, **body: Any) -> Any:
+        """Change the provision of a risk at the counter read, as the manager by default."""
+        sent = {"lock_version": risk["lock_version"], **body}
+        headers = self.headers if who is None else who.headers
+        return self.api.put(
+            f"{self.base}/risks/{risk['risk_id']}/provision", headers=headers, json=sent
+        )
+
+    def provisioned(self, risk: dict[str, Any], **body: Any) -> dict[str, Any]:
+        """Change the provision of a risk that must be changed; give the risk answered."""
+        answer = self.provision(risk, **body)
+        assert answer.status_code == 200, answer.text
+        return answer.json()
+
+    def indicators(self) -> dict[str, Any]:
+        """Read the indicators of the estimate of the current revision."""
+        answer = self.api.get(f"{self.base}/estimate-indicators", headers=self.headers)
+        assert answer.status_code == 200, answer.text
+        return answer.json()
+
+    def subproject(self, code: str) -> str:
+        """Create a subproject of the project; give its identifier."""
+        answer = self.api.post(
+            f"{self.base}/subprojects", headers=self.headers, json={"code": code, "label": code}
+        )
+        assert answer.status_code == 201, answer.text
+        return answer.json()["subproject_id"]
+
+    def delete(self, node: dict[str, Any]) -> Any:
+        """Delete a node of the main structure, at the counter read."""
+        path = f"{self.project.tree.path}/nodes/{node['node_id']}"
+        return self.api.delete(
+            path, headers=self.headers, params={"lock_version": node["lock_version"]}
+        )
+
+    def task(self, label: str) -> dict[str, Any]:
+        """Create a task at the first level of the main structure, last of them."""
+        return self.project.tree.made(label)
+
+    def remaining(self) -> dict[str, Any]:
+        """Read the indicators of the remaining to commit of the current revision."""
+        answer = self.api.get(f"{self.base}/remaining-indicators", headers=self.headers)
+        assert answer.status_code == 200, answer.text
+        return answer.json()

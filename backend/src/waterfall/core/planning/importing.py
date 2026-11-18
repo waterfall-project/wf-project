@@ -51,11 +51,12 @@ the lock of the structure, so that the application judges again what the analysi
   years (``PROJECT_HORIZON_EXCEEDED``, WF-PLA-0150), whose dates are then not compared.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from decimal import Decimal
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, cast
+from uuid import UUID
 
 from waterfall.core.exchanges.interface import KEEP_DATES, KEEP_DURATIONS
 from waterfall.core.planning.attachments import OUTSIDE, carriers, strays
@@ -92,6 +93,7 @@ from waterfall.core.planning.msproject import (
 from waterfall.core.planning.msproject import (
     duration_of as file_duration_of,
 )
+from waterfall.core.planning.provisioning import provision_moves
 from waterfall.core.planning.scheduling import (
     Duration,
     Lag,
@@ -105,6 +107,7 @@ from waterfall.core.planning.scheduling import (
     schedule,
 )
 from waterfall.core.planning.scheduling import Task as Planned
+from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tables import LABEL_LENGTH
 from waterfall.core.planning.tree import Tree, read_links, read_tree
 from waterfall.core.planning.views import NOT_STARTED, state_of
@@ -116,7 +119,6 @@ from waterfall.platform.identifiers import new_id
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
     from datetime import date
-    from uuid import UUID
 
     from sqlalchemy.orm import Session
 
@@ -212,7 +214,9 @@ class Plan:
     leaves, the order of the plan depth first; ``links`` the links of the file by their two tasks;
     ``gap`` the calendar gap of the file, and ``rule`` the rule of its durations, keeping them
     without a gap; ``constants_differ`` whether the constants of the file differ from the
-    installation's, computed once by ``plan_import``.
+    installation's, computed once by ``plan_import``; ``carried`` the task each provision line
+    under a task removed passes to, by line — a provision is never removed by an import, the
+    risk's alone (WF-RIS-0010) —, ``carried_names`` those lines by lineage and label.
     """
 
     aimed: Aimed
@@ -234,6 +238,8 @@ class Plan:
     gap: Json | None = None
     constants_differ: bool = False
     rule: DurationRule = KEEP_DURATIONS
+    carried: dict[UUID, UUID] = field(default_factory=dict[UUID, UUID])
+    carried_names: list[tuple[UUID, str]] = field(default_factory=list[tuple[UUID, str]])
 
     def parent_of(self, node_id: UUID) -> UUID | None:
         """Give the parent a task has in the structure the import leaves."""
@@ -322,6 +328,28 @@ def _place(plan: Plan, project: MsProject) -> None:
         node_id = pending.pop()
         plan.order.append(node_id)
         pending.extend(reversed(plan.children.get(node_id, [])))
+
+
+def _carry_provisions(session: Session, plan: Plan) -> None:
+    """Pass the provision lines under the tasks removed to the parent of the task removed.
+
+    The nearest ancestor that stays, else the first task of the first level the import leaves
+    (WF-PLA-0070, WF-RIS-0010): the structure the file leaves holds its tasks, and the total of
+    the estimate does not change.
+    """
+    tree = plan.aimed.tree
+    if not plan.removed or not tree.provisions:
+        return
+    first = next((each for each in plan.children.get(None, []) if each not in plan.removed), None)
+    moves = provision_moves(tree, plan.removed, first)
+    plan.carried = {line: task for line, task in moves.items() if task is not None}
+    names = {
+        state.object_id: state.label
+        for state in taken(session, plan.aimed.project_id, list(plan.carried))
+    }
+    plan.carried_names = [
+        (tree.nodes[each].lineage_id, names.get(each, "")) for each in plan.carried
+    ]
 
 
 def _judge_milestones(plan: Plan, file_children: set[int]) -> None:
@@ -623,6 +651,7 @@ def plan_import(
     file_children = {uid for uid in project.parents().values() if uid is not None}
     _judge_labels(plan)
     _place(plan, project)
+    _carry_provisions(session, plan)
     _judge_milestones(plan, file_children)
     constants = constants_of(session)
     found = file_constants_of(project)
@@ -857,6 +886,9 @@ def report_of(plan: Plan, read: ReadProject, items: Mapping[UUID, WorkBreakdownI
         )
     tasks = list(_task_differences(plan))
     differences += [*tasks, *_link_differences(plan), *_absent_differences(plan, items)]
+    differences += [
+        _difference("updated", "estimate_line", named, ["parent"]) for named in plan.carried_names
+    ]
     read_count = len(read.project.tasks)
     ignored = [
         {"kind": each.kind, "count": each.count, "labels": list(each.labels)}

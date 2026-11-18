@@ -131,7 +131,7 @@ def described(session: Session, view: RiskView) -> Risk:
     )
 
 
-def _id(value: object) -> UUID | None:
+def id_of(value: object) -> UUID | None:
     """Give the identifier a body carries, none when it carries none."""
     root = getattr(value, "root", None)
     return root if isinstance(root, UUID) else None
@@ -154,9 +154,9 @@ def post_risk(
         probability=Decimal(body.probability.root.root),
         description=body.description,
         mitigation_notes=body.mitigation_notes,
-        provision_cost_category_id=_id(body.provision_cost_category_id),
-        provision_subproject_id=_id(body.provision_subproject_id),
-        provision_task_id=_id(body.provision_task_id),
+        provision_cost_category_id=id_of(body.provision_cost_category_id),
+        provision_subproject_id=id_of(body.provision_subproject_id),
+        provision_task_id=id_of(body.provision_task_id),
     )
     view = create_risk(session, project_id, entry, writer, viewer_of(actor))
     return described(session, view)

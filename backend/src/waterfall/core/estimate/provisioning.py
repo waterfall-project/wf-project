@@ -13,9 +13,12 @@ share of its task, as for any line; its budgeted amount is nought on a project t
 The risks ask for it at the declaration (``ProvisionEntry``, by ``create_borne_line`` of the
 planning, whose facet hook ``create_line`` addresses here), and write its amount again each time
 the severity or the probability changes (``set_provision``), under the lock of the main structure,
-whose counter advances.
+whose counter advances; and, when the risk designates another category or subproject for it
+(``updateRiskProvision``), write them on the line (``set_provision_bearing``): the subproject of
+a line of a started task that has received actual costs included, which a line entered by the grid
+may not take (WF-PRJ-0050).
 
-Filled by US-2570/L1.
+Filled by US-2570/L1; completed by US-2580/L1.
 """
 
 from dataclasses import dataclass
@@ -106,6 +109,32 @@ def set_provision(session: Session, place: Place, node_id: UUID, amount: Decimal
     line.unit_disbursement = amount
     line.base_amount = amount
     line.reestimated_amount = amount
+    session.flush()
+    structure_counted(session, place.project_id, place.structure_id)
+    return True
+
+
+def set_provision_bearing(
+    session: Session, place: Place, node_id: UUID, bearing: tuple[UUID, UUID | None]
+) -> bool:
+    """Write the category and the subproject of a provision line, its amount as it is; tell if so.
+
+    ``bearing`` the category of provision the risk designates and its subproject, none to take the
+    provision out of its subproject. The line is the risk's alone: no rule of the grid judges the
+    change, neither the actual costs of its subproject nor the state of its task (WF-PRJ-0050).
+    Under the lock of the main structure, whose counter advances, the line's own staying: a figure
+    the risk writes (``LockVersion``).
+    """
+    structure_facts(session, place.project_id, place.structure_id, lock=True)
+    line = session.scalars(
+        select(EstimateLine)
+        .where(EstimateLine.project_id == place.project_id, EstimateLine.node_id == node_id)
+        .execution_options(populate_existing=True)
+    ).one()
+    category, subproject = bearing
+    if (line.cost_category_id, line.subproject_id) == (category, subproject):
+        return False
+    line.cost_category_id, line.subproject_id = category, subproject
     session.flush()
     structure_counted(session, place.project_id, place.structure_id)
     return True
