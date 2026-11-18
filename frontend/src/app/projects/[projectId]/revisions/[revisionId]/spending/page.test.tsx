@@ -194,7 +194,7 @@ describe("the screen of the spending projection of a project", () => {
     expect(page).toContain('aria-label="Spending projection by cost type and by category"');
     // The table of the values of the chart.
     for (const type of plan.cost_types) {
-      expect(page).toContain(type.label.replace("'", "&#x27;"));
+      expect(page).toContain(type.label.replaceAll("'", "&#x27;"));
     }
     expect(text(page)).toContain("Total of the projection");
     expect(page).toContain("66,997,090.97");
