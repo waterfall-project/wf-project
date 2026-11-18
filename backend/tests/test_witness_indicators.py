@@ -467,6 +467,11 @@ def test_the_index_history_is_the_example_but_for_the_last_point_the_reference_m
         UNASSIGNED: D("579217.23"),
     }
     scopes = {mesh: read(api, witness, realm, f"{INDICATORS}?scope={mesh}") for mesh in MESHES}
+    # The indicators of a subproject name it in their context as the example does (#3653), with its
+    # actual cost and its earned value; the rest is measured to the offer, which budgets none.
+    subproject = example("project_indicators_subproject")
+    for field in ("context", "actual_cost", "earned_value"):
+        assert scopes[COMMAND_POST][field] == subproject[field], field
     earned_by_the_example = D(0)
     for found, wanted in zip(body["scopes"], expected["scopes"], strict=True):
         mesh, scope = found["scope"], scopes[found["scope"]]
