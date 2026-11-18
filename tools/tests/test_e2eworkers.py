@@ -35,7 +35,7 @@ def bare(tmp_path: Path) -> dict[str, str]:
     outer = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TESTS", "WATERFALL_SLOTS")
     outer += ("WATERFALL_PROCESSORS", "E2E_WORKERS")
     environment = {k: v for k, v in os.environ.items() if k not in outer}
-    return environment | slots.variables(0) | {"XDG_RUNTIME_DIR": str(tmp_path)}
+    return environment | slots.variables(0) | {"WATERFALL_RUNTIME_DIR": str(tmp_path)}
 
 
 def play(tmp_path: Path, *arguments: str) -> subprocess.CompletedProcess[str]:

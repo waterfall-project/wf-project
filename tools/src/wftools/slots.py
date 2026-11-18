@@ -34,9 +34,10 @@ for no slot and still has its services.
 The same N bounds the worktrees of the lots, each of which takes a slot of 1 to N (``claim``,
 ``make slot``) that gives it its ports, its projects of Compose and the tags of its images; the
 main repository — and every runner of the chain, a main repository too — is at slot 0, on the
-ports and under the names of before. The register of the workstation, whatever the repository, is
-``$XDG_RUNTIME_DIR/waterfall-slots/``: a file ``<i>`` for each slot taken, which holds the path of
-its worktree and the moment it was taken, written under an exclusive lock of the register. A slot
+ports and under the names of before. The register of the workstation, whatever the repository
+and the session, is ``waterfall-slots/`` of the directory of the locks
+(``heavyturns.runtime_directory``): a file ``<i>`` for each slot taken, which holds the path of its
+worktree and the moment it was taken, written under an exclusive lock of the register. A slot
 whose worktree no longer exists is free; whoever takes a slot first removes the projects of
 Compose an earlier holder left in it, volumes included, as ``release`` does before it frees it,
 the lock held until they are removed; both first stop the servers of the end-to-end paths the slot

@@ -3376,8 +3376,8 @@ code and body unchanged, a line it does not find, an empty value or one with a l
 row of the table shorter than its header; a `|` in a value is escaped. It takes a variable only
 from the command line of make (a `PR` exported on the workstation changes nothing) and ignores an
 empty value (`STATE=`). It reads the body again under a lock of the workstation of its own for the
-issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
-(`/tmp` by default), just before writing it: two simultaneous calls each keep their change.
+issue, `waterfall-tracking-<issue>.lock` of the directory of the locks of the workstation (below),
+just before writing it: two simultaneous calls each keep their change.
 
 `make merge-queue-check EPIC=EP-nn` checks that an active ruleset targets `refs/heads/epic/EP-nn`
 with a `merge_queue` rule (`wftools.mergequeue`, through `gh api`), and fails saying what is
@@ -3431,10 +3431,11 @@ alone, and `heavyturns.py` beside it, which takes the turns; run by `python3` wi
 `tools/src/wftools/launch.py slots`: under a `python3` older than 3.14, the launcher says that the
 tool did not run and which version it expects, and the Makefile relays that message instead of
 refusing `WATERFALL_SLOTS`, US-2450), which the Makefile puts before every heavy run: it takes the
-first of N lock files of `$XDG_RUNTIME_DIR` (`/tmp` by default) — `waterfall-heavy.lock`, then
-`waterfall-heavy.2.lock` to `waterfall-heavy.<N>.lock` —, says once that all are taken and tries
-again every second, holds the lock until the command ends without passing it to its children (a
-server left behind does not keep the slot), relays the signals and returns the code of the command.
+first of N lock files of the directory of the locks of the workstation (below) —
+`waterfall-heavy.lock`, then `waterfall-heavy.2.lock` to `waterfall-heavy.<N>.lock` —, says once
+that all are taken and tries again every second, holds the lock until the command ends without
+passing it to its children (a server left behind does not keep the slot), relays the signals and
+returns the code of the command.
 A run of one single file (`TESTS`) does not wait. It also sets `WATERFALL_PROCESSORS`, the
 processors divided by N, at least 1: the workers of pytest (`-n`, eight at most for the back), of
 Vitest and of Playwright follow it, except `WORKERS`. At N = 1 the share is the whole workstation:
@@ -3479,8 +3480,19 @@ scratchpad. No tool checks it: `make slot` and `make slots` do not count inodes.
 | `make e2e-down`     | stops the processes of the user that listen on the e2e ports of the slot — the fake back, the fronts of the paths (at slot 0, 4110 and 3100 to 3139) —, each found by its port in `/proc` and stopped by its PID: `SIGTERM`, then `SIGKILL` after five seconds; it says what it stops, and nothing when nothing listens |
 | `make slots`        | writes N, then each slot taken on the workstation, whatever the repository, with its worktree and the moment it was taken                                                                                                                                                                                               |
 
-The register of the workstation is `$XDG_RUNTIME_DIR/waterfall-slots/` — `/tmp/waterfall-slots/`
-without `XDG_RUNTIME_DIR`, like the locks of the heavy runs: a file `<i>` per slot taken, which
+**The directory of the locks of the workstation** holds the register of the slots, the locks of
+the heavy runs, those of the test services and those of the tracking table: `/run/user/<uid>` if it
+exists, `/tmp` otherwise (WSL, a runner); a single function of `tools/src/wftools/heavyturns.py`
+(`runtime_directory`) gives it to `slots.py` and to `tracking.py` (US-2460). `XDG_RUNTIME_DIR` is
+not read: a session without it — a scheduled task, `su`, the terminal of an editor — locked under
+`/tmp` while the others locked under `/run/user/<uid>`, and two runs each believed themselves alone
+on the workstation (PLC-13). In an ordinary session, `XDG_RUNTIME_DIR` is `/run/user/<uid>`: the
+directory is the one of before, and the tools of a branch without US-2460 still exclude each other
+with those that have it. `WATERFALL_RUNTIME_DIR`, which only the tests set, replaces it: no test
+touches the locks of the workstation.
+
+The register of the workstation is `waterfall-slots/` of this directory, like the locks of the
+heavy runs: a file `<i>` per slot taken, which
 holds the path of the worktree (`git rev-parse --show-toplevel`) and the moment it was taken,
 written under an exclusive lock of the register (`tools/src/wftools/slots.py claim`, `release`,
 `list`). A slot whose worktree no longer exists is free; whoever takes a slot first removes what a
@@ -3532,9 +3544,9 @@ the services whose variable `WATERFALL_TEST_DATABASE_URL`, `WATERFALL_TEST_REDIS
 already gives wins, its service is not started, and the job of the chain, which sets all three, is
 not changed. `make slot-release` removes them with the service platform. Two runs started together
 in a worktree make only one `make test-services` at a time, under a lock of the slot
-(`$XDG_RUNTIME_DIR/waterfall-test-services.<slot>.lock`): the second waits, saying so, then finds
-the services started. In a linked worktree without a slot, these targets and `make e2e-down` fail,
-saying `make slot`.
+(`waterfall-test-services.<slot>.lock` of the directory of the locks of the workstation): the
+second waits, saying so, then finds the services started. In a linked worktree without a slot,
+these targets and `make e2e-down` fail, saying `make slot`.
 
 **The e2e servers.** `make e2e`, `make e2e-service` and `make check-front` start a fake back and
 fronts (`next-server`) that a brutal stop can leave listening, a core busy, for hours.
