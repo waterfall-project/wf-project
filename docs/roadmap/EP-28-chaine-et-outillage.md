@@ -364,7 +364,9 @@ Le relevé reste **lu dans les fichiers de test, sans les lancer** — c'est le 
   gardent leur identifiant : leurs noms sont figés dans une liste, et un test tient que tout exemple
   hors de cette liste porte l'identifiant dérivé.
 - **`mockdata.py` (US-2520).** La part des volumes — `volumes()` et ses aides, environ 170 lignes —
-  passe dans un module voisin.
+  passe dans `mockvolumes.py` ; les catégories, les taux et leur grille, que `volumes()` lit et que
+  `named()` écrit, passent dans `mockrates.py`, pour que `volumes()` et `named()` ne s'importent
+  pas l'un l'autre (import circulaire).
 
 ### Tables et migrations
 
@@ -374,7 +376,8 @@ Aucune.
 
 - `tools/src/wftools/` : `coverage`, `guard` et son module extrait, `launch` (nouveau), `slots`,
   `heavyturns`, `tracking`, `mergequeue`, `sources`, `roadmap`, `mirror`, `gate`, `e2eparts`,
-  `mockdata` et son module extrait, `mockrefusals` ; `tools/paths.toml` ; les tests des outils ;
+  `mockdata` et ses modules extraits (`mockvolumes`, `mockrates`), `mockrefusals` ;
+  `tools/paths.toml` ; les tests des outils ;
 - le Makefile ; `.github/workflows/` (`ci.yml`, `service.yml`, `e2e.yml`, `front-cache.yml`),
   `.github/dependabot.yml`, `.github/rulesets/merge-queue.json` ;
 - `.claude/settings.json`, `.claude/agents/epic-deliverer.md`, le skill `pilote` ;
@@ -770,7 +773,7 @@ n'échoue sans régression ni ne laisse croire à une preuve qu'il ne fait pas (
 
 ## US-2520 — Les exemples du contrat : identifiants de corrélation et taille de `mockdata.py`
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3687

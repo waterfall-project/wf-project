@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from wftools import heavyturns, mockdata
+from wftools import heavyturns, mockdata, mockvolumes
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -65,7 +65,7 @@ def user_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 @pytest.fixture(scope="session")
 def universe_computed() -> tuple[dict[str, Any], dict[str, Any]]:
     """Return the volumes and the named examples of the universe, computed once a session."""
-    return mockdata.volumes(), mockdata.named()
+    return mockvolumes.volumes(), mockdata.named()
 
 
 @pytest.fixture
@@ -78,7 +78,7 @@ def computed_once(
     must compute its own universe: it does not ask for this fixture.
     """
     volumes, named = universe_computed
-    monkeypatch.setattr(mockdata, "volumes", lambda: volumes)
+    monkeypatch.setattr(mockvolumes, "volumes", lambda: volumes)
     monkeypatch.setattr(mockdata, "named", lambda: named)
 
 

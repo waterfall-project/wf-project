@@ -12,7 +12,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockdata, mockreference
+from wftools import mockreference, mockvolumes
 from wftools.mockids import universe
 from wftools.mockwitness import fixture
 
@@ -99,7 +99,7 @@ REACTIVATE: list[Entry] = [
 
 @pytest.fixture(scope="module")
 def volumes() -> dict[str, Any]:
-    return {name: example["value"] for name, example in mockdata.volumes().items()}
+    return {name: example["value"] for name, example in mockvolumes.volumes().items()}
 
 
 @pytest.fixture(scope="module")
