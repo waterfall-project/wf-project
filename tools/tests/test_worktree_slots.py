@@ -11,9 +11,11 @@ commands, nothing is started.
 """
 
 import fcntl
+import importlib
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -513,8 +515,69 @@ def test_a_slot_file_of_two_lines_holds_no_lot(tmp_path: Path) -> None:
     tree = tmp_path / "lot"
     with pytest.raises(slots.RegisterError, match="none for lot US-1/L1"):
         slots.claim(register, tree, 1, lambda _slot: None, "US-1/L1")
-    assert slots.claim(register, elsewhere, 1, lambda _slot: None, "US-1/L1") == (1, False)
+    assert slots.claim(register, elsewhere, 1, lambda _slot: None, "US-1/L1") == (1, False, "")
     assert slots.holders(register)[1].lot == "US-1/L1", "the lot is written to the slot held"
+
+
+def two_held_slots(tmp_path: Path) -> tuple[Path, Path, Path]:
+    """Write 2 slots held for US-1/L1 and US-2/L1; return it, the stopped tree, a new."""
+    register = tmp_path / "waterfall-slots"
+    register.mkdir()
+    for slot, (name, lot) in enumerate((("stopped", "US-1/L1"), ("other", "US-2/L1")), 1):
+        (tmp_path / name / ".git").mkdir(parents=True)
+        holder = slots.Holder(str(tmp_path / name), "2026-11-18T08:00:00+00:00", lot)
+        slots.write(register, slot, holder)
+    return register, tmp_path / "stopped", tmp_path / "lot"
+
+
+def test_a_failed_removal_says_no_takeover(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """[US-2460] PLC-04: claim prints nothing; a takeover is returned, and said once it is done."""
+    register, stopped, tree = two_held_slots(tmp_path)
+
+    def fail(_slot: int) -> None:
+        message = "docker compose down failed"
+        raise slots.RegisterError(message)
+
+    with pytest.raises(slots.RegisterError, match="slot 1 is not taken"):
+        slots.claim(register, tree, 2, fail, "US-1/L1")
+    assert "taken over" not in capsys.readouterr().out
+    assert slots.holders(register)[1].worktree == str(stopped), "the slot is still the old one's"
+    assert slots.claim(register, tree, 2, lambda _slot: None, "US-1/L1") == (1, True, str(stopped))
+    assert capsys.readouterr().out == ""
+
+
+def test_a_takeover_stops_the_servers_of_the_slot_by_pid_and_no_other(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[US-2460] PLC-04, US-1080: the takeover stops what listens on the ports of the slot only."""
+    fake_table = importlib.import_module("test_slots").fake_table  # it imports this module
+
+    register, stopped, tree = two_held_slots(tmp_path)
+    ours = subprocess.Popen(["sleep", "120"])
+    theirs = subprocess.Popen(["sleep", "120"])
+    # 20140 is the first front of slot 1, the slot taken over; 20240, that of slot 2.
+    table = fake_table(tmp_path, {ours.pid: {20140: 4245}, theirs.pid: {20240: 4246}})
+    sent: list[tuple[int, int]] = []
+
+    def record(pid: int, number: int) -> None:
+        """Say the signal, and end the listening in the table: no real signal is sent."""
+        sent.append((pid, number))
+        shutil.rmtree(table / str(pid))
+
+    monkeypatch.setattr(slots, "send", record)
+    monkeypatch.setattr(slots, "POLL_SECONDS", 0.01)
+    environment = {"WATERFALL_SLOTS_PROC": str(table)}
+    try:
+        taken = slots.claim(register, tree, 2, slots.stopper(environment), "US-1/L1")
+    finally:
+        ours.kill()
+        theirs.kill()
+        ours.wait(timeout=30)
+        theirs.wait(timeout=30)
+    assert taken == (1, True, str(stopped))
+    assert sent == [(ours.pid, signal.SIGTERM)], "by its PID, and no other process"
 
 
 @pytest.mark.parametrize("lot", ["", "US-1/L1\nUS-2/L1", "../x", "a b"])
@@ -592,7 +655,7 @@ def test_the_register_is_locked_while_a_slot_is_emptied(tmp_path: Path) -> None:
     with pytest.raises(slots.RegisterError, match=r"slot 1 is not taken: .* down failed"):
         slots.claim(register, tree, 2, fail)
     assert slots.holders(register) == {}
-    assert slots.claim(register, tree, 2, remove) == (1, True)
+    assert slots.claim(register, tree, 2, remove) == (1, True, "")
     with pytest.raises(slots.RegisterError, match="down failed"):
         slots.release(register, tree, fail)
     assert slots.slot_of(slots.holders(register), tree) == 1

@@ -648,8 +648,11 @@ def write(directory: Path, slot: int, holder: Holder) -> None:
 
 def claim(
     directory: Path, worktree: Path, count: int, remove: Remove, lot: str = ""
-) -> tuple[int, bool]:
-    """Take a slot of 1 to N for the worktree, or find the one it holds; return it, and if new.
+) -> tuple[int, bool, str]:
+    """Take a slot of 1 to N for the worktree, or find the one it holds.
+
+    Return it, whether it is new, and the worktree it was taken over from ("" if none): the caller
+    says it, once the removal has succeeded.
 
     The slot taken is the smallest free one, a slot whose worktree no longer exists being free.
     None free, and a lot given, it is the smallest that another worktree holds for that very lot
@@ -665,7 +668,7 @@ def claim(
         if held is not None:
             if lot and taken[held].lot != lot:
                 write(directory, held, taken[held]._replace(lot=lot))
-            return held, False
+            return held, False, ""
         within = range(1, count + 1)
         free = [slot for slot in within if slot not in taken or taken[slot].abandoned()]
         same = [slot for slot in within if lot and slot in taken and taken[slot].lot == lot]
@@ -675,8 +678,7 @@ def claim(
             message = f"all {count} slot(s) are taken (WATERFALL_SLOTS){none}:\n  {listed}"
             raise RegisterError(message)
         slot = (free or same)[0]
-        if not free:
-            print(f"slot {slot} is taken over from {taken[slot].worktree}, of the same lot {lot}")
+        former = "" if free else taken[slot].worktree
         try:
             remove(slot)
         except RegisterError as error:
@@ -687,7 +689,7 @@ def claim(
             raise RegisterError(message) from error
         stamp = datetime.now(UTC).isoformat(timespec="seconds")
         write(directory, slot, Holder(str(worktree), stamp, lot))
-    return slot, True
+    return slot, True, former
 
 
 def release(directory: Path, worktree: Path, remove: Remove) -> int | None:
@@ -765,7 +767,7 @@ def take(environment: Mapping[str, str], lot: str = "") -> int:
         return 0
     count = slot_count(environment)
     directory = register(environment)
-    slot, new = claim(
+    slot, new, former = claim(
         directory,
         worktree.path,
         count,
@@ -773,6 +775,8 @@ def take(environment: Mapping[str, str], lot: str = "") -> int:
         lot,
     )
     first = block(slot)
+    if former:
+        print(f"slot {slot} is taken over from {former}, of the same lot {lot}")
     held = "taken" if new else "already held"
     print(f"slot {slot} {held}: {worktree.path} (ports {first} to {first + BLOCK_SIZE - 1})")
     return 0
