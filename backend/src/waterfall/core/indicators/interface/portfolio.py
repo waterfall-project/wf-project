@@ -64,6 +64,8 @@ def day_documents_of(
     ``revisions`` maps each project to the revision of its day, which the caller selected: the
     current revision, else the last marked (``RetainedProject.revision_id``, from
     ``last_marked_at_instant``). This function never selects it, so that the choice exists once.
+    The caller drops the projects with no retained revision (``RetainedProject.revision_id`` is
+    then null): they contribute to no sum.
     """
     msg = "day_documents_of is filled by US-2680/L1"
     raise NotImplementedError(msg)

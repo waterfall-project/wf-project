@@ -210,13 +210,14 @@ def test_the_projects_that_exist_receive_their_partitions_of_the_risks(
         assert connection.scalar(column) == 0
 
 
-@pytest.mark.requirement("WF-DAT-0020-A")
 def test_the_kinds_of_the_portfolio_are_admitted_and_one_kept_holds_the_descent_back(
     empty_engine: Engine,
 ) -> None:
-    # #3549, US-2670/L1: before 0037, the check of the kinds refuses a document of the portfolio;
-    # after it, one written by the transaction that marks its revision is kept, the trigger of 0032
-    # unchanged. The descent would refuse it again: it fails, nothing deleted, the base at 0037.
+    # Covers no requirement: the check of the kinds and the trigger of ``computed_at``, not a direct
+    # write on a marked revision. #3549, US-2670/L1: before 0037, the check of the kinds refuses a
+    # document of the portfolio; after it, one written by the transaction that marks its revision
+    # is kept, the trigger of 0032 unchanged.
+    # The descent would refuse it again: it fails, nothing deleted, the base at 0037.
     upgrade(empty_engine, "0036")
     project_id, revision_id = uuid4(), uuid4()
     with empty_engine.begin() as connection:

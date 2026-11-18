@@ -199,13 +199,14 @@ PORTFOLIO_KINDS = (
 )
 
 
-@pytest.mark.requirement("WF-DAT-0020-A")
 @pytest.mark.parametrize("kind", PORTFOLIO_KINDS)
 def test_a_document_of_the_portfolio_is_kept_by_the_marking_of_its_revision_alone(
     parents: Parents, owner: Engine, kind: str
 ) -> None:
-    # The check of the kinds admits it (#3549), of the scope ``project``; the trigger is unchanged:
-    # computed at another instant than the marking, it is refused as any other document.
+    # Covers no requirement: the trigger of ``computed_at`` and the check of the kinds, not a direct
+    # write on a marked revision. The check admits it (#3549), of the scope ``project``; the
+    # trigger is unchanged: computed at another instant than the marking, it is refused as any
+    # other document.
     with pytest.raises(DBAPIError, match=OUTSIDE):
         written(owner, row(parents, kind=kind), marking(parents, AT + timedelta(seconds=1)))
     written(owner, row(parents, kind=kind), marking(parents, AT))
