@@ -140,6 +140,17 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute :
   Relevé par la revue d'US-1660/L1 d'EP-10 (#2437) ; reporté ici le 2026-11-15 (2026-11-16 selon
   epic/EP-10), noté au cadrage du 2026-11-17, rattaché à US-1660/L1 (#2437) jusqu'à l'ouverture de
   l'issue d'EP-11.
+- #3355 — back : le rôle prédéfini « chef de projet » porte `portfolio_projects.read`, que
+  WF-INTF-0010 ne lui donne pas : le jour où la liste du portefeuille est servie, tout chef de
+  projet lirait le libellé, le code, l'état, le budget et les indices de tous les projets. Relevé
+  par la revue complète du 2026-11-14 (SPA-06) ; décision de l'auteur du 2026-11-18, au tri des
+  constats de spécification : le chef de projet ne lit pas le portefeuille, et le rôle amorcé perd
+  cette permission (US-2690).
+- #3351 — spécification : la santé du pilotage prenait son repère « depuis la dernière révision
+  marquée », après les actes qu'il doit constater, si bien que tout projet sain y figurait deux
+  fois. Relevé par la revue complète du 2026-11-14 (SPA-03) ; décision de l'auteur du 2026-11-18 :
+  les deux signaux se mesurent entre l'avant-dernière et la dernière révision marquée (spécification
+  1.0.7, WF-PTF-0110 ; US-2750).
 
 ## Préalables
 
@@ -234,6 +245,13 @@ Décisions de l'auteur du 2026-11-17, chacune avec l'option écartée :
 - **La case d'un risque et la zone d'un indice se classent à la lecture**, sur les bornes et les
   seuils courants du référentiel, pour un document conservé comme pour le jour courant (la règle
   d'EP-10 pour les zones). Écarté : conserver la case, qu'une borne déplacée rendrait fausse.
+- **Le chef de projet ne lit pas le portefeuille** (décision de l'auteur du 2026-11-18, #3355) :
+  le rôle prédéfini « chef de projet » perd `portfolio_projects.read`, à l'amorçage et, par une
+  migration, sur une plateforme déjà installée ; le portefeuille reste au manager (WF-INTF-0020).
+  WF-INTF-0010 ne nomme aucune vue du portefeuille parmi les usages du chef de projet, et la
+  spécification fait foi. Écarté : garder la permission, les projets qu'il n'ouvre pas ne figurant
+  que sous leur libellé et leur code (WF-PTF-0030) — ils y figureraient avec leur budget et leurs
+  indices.
 
 ### Tables et migrations
 
@@ -547,6 +565,9 @@ soit recalculé.
 - `WF-DAT-0040-A` — « La courbe de coût réel d'une révision marquée est identique avant et après
   l'exclusion d'une ligne de coût connue à son marquage. » : tenu par EP-10 (US-1690), non touché
   ici ;
+- écart : `WF-DAT-0040-A` — « Une lecture conservée d’un sous-projet créé après le marquage de la
+  révision est refusée, la révision ne conservant pas ses indicateurs. » : ajouté par la
+  spécification 1.0.7 (#3736) ; tenu par EP-10 (US-2430/L3, #3649) ;
 - propre à l'US : le marquage conserve de plus, pour le projet : la charge par rôle de ressource et
   par mois — sur le reste à engager d'un projet en cours, sur le devis d'une offre — ; les totaux
   par nature de coût du budget de référence, hors lignes de provision, et du reste à engager,
@@ -623,7 +644,12 @@ l'être et ce qui dérive.
 - propre à l'US : le réalisé est la somme des coûts réels des projets terminés dans la période ;
   la période par défaut est celle des douze mois qui finissent à la date de calcul ;
 - propre à l'US : la liste et la valeur sont gardées par la permission de la liste des projets du
-  portefeuille (FBS-2.1) ; chaque réponse est validée contre le contrat dans les tests du service.
+  portefeuille (FBS-2.1) ; chaque réponse est validée contre le contrat dans les tests du service ;
+- propre à l'US : le rôle prédéfini « chef de projet » ne porte plus `portfolio_projects.read`
+  (#3355) : l'amorçage ne la lui donne plus, une migration la lui retire sur une plateforme
+  installée, sans toucher aux autres rôles ni à un rôle que l'entreprise a créé ; un chef de projet
+  reçoit 404 sur la liste et sur la valeur, le manager les lit ; les exemples du contrat qui
+  montrent ce rôle suivent.
 
 **Notes de réalisation.** `docs/api/DECISIONS.md` : « Les exemples du portefeuille » (la période par
 défaut), « La liste des projets du portefeuille porte l'écart à la référence », « Les lignes du
@@ -900,9 +926,14 @@ de** savoir si je peux me fier aux autres vues.
 - `WF-REF-0180-A` — « Un projet dont la dernière révision marquée date de plus que ce délai est
   signalé ; il ne l'est plus après un marquage. » : le délai lu est celui du référentiel au moment
   de la lecture ; un délai modifié change les signaux à la lecture suivante ;
-- propre à l'US : `risks_not_reviewed` signale un projet dont un risque identifié n'a aucun réexamen
-  postérieur à sa dernière révision marquée ; `no_actual_cost_since_last_review`, un projet sans
-  import de coûts réels depuis elle ; les trois signaux autres que le jalon sont en zone `watch` ;
+- `WF-PTF-0110-A` — « Un projet dont la revue marquée ce jour a réexaminé chaque risque et importé
+  des coûts n’apparaît pour aucun de ces deux signaux ; un projet dont la dernière revue n’a importé
+  aucun coût apparaît. » : `risks_not_reviewed` signale un projet dont un risque identifié n'a aucun
+  réexamen entre l'avant-dernière et la dernière révision marquée — depuis le passage à En cours, à
+  défaut d'avant-dernière — ; `no_actual_cost_since_last_review`, un projet sans import de coûts
+  réels dans le même intervalle (spécification 1.0.7, #3351) ; la description des deux signaux au
+  contrat le dit, par une issue `contract` ouverte au lot ;
+- propre à l'US : les trois signaux autres que le jalon sont en zone `watch` ;
 - propre à l'US : seuls les projets en cours du périmètre sont examinés ; un autre état que
   `states` nomme — terminé compris — est sans effet, et la vue ne prend pas de période (#1714,
   éprouvé sur le service avec `states` valant `completed`) ;

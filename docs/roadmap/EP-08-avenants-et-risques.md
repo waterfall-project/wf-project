@@ -529,14 +529,10 @@ toucher à la principale, en préparer plusieurs à la fois, et abandonner celle
   et par le test du harnais d'EP-10 pour le 4,04 % (#2893), non touché ici ;
 - `WF-DEV-0050-A` — « Dans la structure principale, la création d'une ligne sous une tâche terminée,
   ou le déplacement d'une ligne vers elle, est refusé. » : tenu par EP-07 (`task_not_completed`),
-  non touché ici ;
-- `WF-DEV-0050-A` — « Dans un différentiel, la modification de la quantité d'une ligne d'une tâche
-  terminée aboutit, et la fusion lui donne ce montant budgété ; dans la structure principale, elle
-  est refusée. » : dans un différentiel, la création, la modification, le déplacement et la
-  suppression d'une ligne d'une tâche terminée aboutissent, et la lecture leur laisse leurs champs
-  saisissables (`editable_fields`, F-01) ; la fusion donne à la ligne le montant budgété que ses
-  grandeurs portent (US-2560) ; dans la principale, le refus est tenu par EP-07 ; #1767 se ferme ici
-  ;
+  non touché ici ; la phrase passe à WF-RAE-0040 par la spécification 1.0.7 (#3372) ;
+- écart : `WF-DEV-0050-A` — « Dans un différentiel, la modification de la quantité d’une ligne d’une
+  tâche terminée aboutit, et la fusion lui donne ce montant budgété. » : réécrit par la
+  spécification 1.0.7 (#3372) : le refus dans la structure principale se lit dans WF-RAE-0040 ;
 - `WF-DEV-0050-A` — « La grille de devis ne propose la saisie ni de la durée ni des prédécesseurs
   d'une tâche. » : tenu par EP-07, non touché ici ;
 - `WF-DEV-0050-A` — « Sur un projet En cours, la grille de devis de la structure principale ne
@@ -634,11 +630,11 @@ ni ce qui a été réestimé, ni ce qui a été fait.
 - `WF-REV-0050-A` — « Les tâches inchangées conservent leur identité et leur état. » : une tâche que
   le différentiel ne touche pas garde sa lignée, son état, son avancement et ses inscriptions ;
 - `WF-REV-0050-A` — « Une tâche démarrée désignée comme retirée par un différentiel est conservée,
-  son reste à engager est nul, et sa valeur acquise est inchangée après la fusion. » : la tâche est
-  conservée, le reste à engager de ses lignes est nul, elle est
-  terminée à la date de la fusion, et ses lignes gardent leur budgété : la valeur que la tâche porte
-  est inchangée, et elle l'acquiert en se terminant (décision de l'auteur du 2026-11-17 ; un constat
-  de spécification demande de préciser la phrase) ;
+  son reste à engager est nul, et le montant budgété de ses lignes est inchangé après la fusion :
+  terminée, elle l’acquiert. » : la tâche est conservée, le reste à engager de ses lignes est nul,
+  elle est terminée à la date de la fusion, et ses lignes gardent leur budgété : la valeur que la
+  tâche porte est inchangée, et elle l'acquiert en se terminant (décision de l'auteur du 2026-11-17
+  ; un constat de spécification demande de préciser la phrase) ;
 - `WF-REV-0050-A` — « Une ligne réestimée à 140 pour un montant budgété de 100, non désignée par le
   différentiel, porte toujours 100 et 140 après la fusion. » : la ligne porte 100 de budgété et 140
   de réestimé après la fusion ;
@@ -692,9 +688,11 @@ ni ce qui a été réestimé, ni ce qui a été fait.
 - `WF-PLA-0170-A` — « Une tâche rattachée au poste 2 dont un différentiel allonge la durée porte
   toujours ce rattachement après la fusion. » : la tâche garde son rattachement au poste 2 après la
   fusion ;
-- `WF-ADM-0100-A` — « Chaque fonction de second niveau de l'arborescence est représentée par ses
-  deux permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5 et FBS-2.1 à
-  FBS-2.7. » : tenu par EP-03, EP-18 et EP-25, non touché ici ;
+- écart : `WF-ADM-0100-A` — « Chaque fonction de second niveau de l’arborescence est représentée par
+  ses deux permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5, FBS-2.1 à
+  FBS-2.7, FBS-4.8 et FBS-4.9. » : réécrit par la spécification 1.0.7 (#3354) : FBS-4.8 et FBS-4.9
+  n'ont que la permission de consulter, quand le livré leur donne encore celle de modifier ; #3975
+  l'éprouve ;
 - `WF-ADM-0100-A` — « Un rôle disposant de la modification du chiffrage mais non du marquage permet
   de modifier un devis et refuse de marquer la révision ; un rôle disposant du marquage mais non de
   la fusion refuse de fusionner un différentiel. » : la première moitié est tenue par EP-04 et EP-07
@@ -717,13 +715,12 @@ ni ce qui a été réestimé, ni ce qui a été fait.
   lignes ajoutées ou retirées, de celles des tâches démarrées que la fusion termine et de celles
   dont l'année de consommation change ; une ligne dont seul le budgété change n'a aucun écart de
   réestimé ;
-- `WF-REV-0080-A` — « Entre deux révisions d'années de référence différentes, les montants réestimés
-  diffèrent en outre sur chaque ligne dont le taux a été mis à jour ou projeté jusqu'à la nouvelle
-  année de référence (WF-REV-0060), et sur chaque ligne de débours, dont le montant est projeté de
-  même (WF-DEV-0030) ; les tâches et les montants budgétés restent ceux du différentiel. » : éprouvé
-  sur une fusion sans révision en cours, l'année ayant changé : la révision créée est aux taux
-  projetés, le réestimé diffère de plus sur chaque ligne au taux projeté et sur chaque ligne de
-  débours, et les tâches et le budgété restent ceux du différentiel (E-02, #1754) ;
+- écart : `WF-REV-0080-A` — « Entre deux révisions d’années de référence différentes, les montants
+  réestimés diffèrent en outre sur chaque ligne dont le taux a été mis à jour ou projeté jusqu’à la
+  nouvelle année de référence (WF-REV-0060) ; une ligne de débours, dont le débours unitaire est
+  projeté de même, n’y présente aucun écart de montant réestimé ; les tâches et les montants
+  budgétés restent ceux du différentiel. » : réécrit par la spécification 1.0.7 (#3366) ; une ligne
+  de débours ne présente plus d'écart, son débours étant projeté ; #3983 l'éprouve ;
 - `WF-REV-0080-A` — « Une tâche déplacée sous une autre récapitulative est présentée modifiée. » :
   tenu par EP-07 et EP-27, non touché ici ;
 - `WF-REV-0080-A` — « La révision en cours se compare à la révision marquée dont elle est issue :
@@ -952,8 +949,12 @@ font peser sur le projet se lise là où il se lirait s'ils survenaient.
   ici ;
 - `WF-PRJ-0050-A` — « La création de deux sous-projets de même code dans un même projet est refusée.
   » : tenu par EP-04, non touché ici ;
-- `WF-PRJ-0050-A` — « La création d'un sous-projet de code « SP/01 », « Synthèse » ou de plus de
-  trente et un caractères est refusée. » : tenu par EP-04, non touché ici ;
+- écart : `WF-PRJ-0050-A` — « Un sous-projet de code « A.ABC.26001/10001 », « Synthèse » ou de
+  quarante caractères se crée, et le fichier de reste à engager lui donne un onglet qui porte son
+  code en tête. » : remplace, par la spécification 1.0.7 (#3370), le refus de « SP/01 », de «
+  Synthèse » et de plus de trente et un caractères, que le livré tient encore ; #3966 l'éprouve ;
+- écart : `WF-PRJ-0050-A` — « La création d’un sous-projet dont le code est celui du projet est
+  refusée. » : ajouté par la spécification 1.0.7 (#3370) ; #3966 l'éprouve ;
 - `WF-PRJ-0050-A` — « La suppression d'un sous-projet portant des coûts réels est refusée. » : tenu
   par EP-09, non touché ici ;
 - `WF-PRJ-0050-A` — « La suppression d'un sous-projet cité par une révision marquée est refusée. » :
@@ -1017,15 +1018,18 @@ font peser sur le projet se lise là où il se lirait s'ils survenaient.
   non touché ici ;
 - `WF-INTF-0120-A` — « Avec huit heures par jour, une ligne de main-d'œuvre dont le fichier porte
   trois jours a un reste de vingt-quatre heures. » : tenu par EP-09, non touché ici ;
-- `WF-INTF-0120-A` — « Une tâche démarrée dont toutes les lignes du fichier portent zéro est
-  terminée à la date de la revue ; une tâche non démarrée dont les lignes sont laissées telles
-  quelles reste non réestimée. » : tenu par EP-09, non touché ici ;
+- écart : `WF-INTF-0120-A` — « Une tâche démarrée dont toutes les lignes, celles absentes du fichier
+  comprises, sont à zéro après l’import, et dont le fichier en met au moins une à zéro, est terminée
+  à la date de la revue ; une tâche non démarrée dont les lignes sont laissées telles quelles reste
+  non réestimée. » : réécrit par la spécification 1.0.7 (#3362) ; #3978 le confronte au livré ;
 - `WF-INTF-0120-A` — « Un fichier qui recopie une ligne avec sa lignée voit les deux lignes
   rejetées, et la ligne existante inchangée. » : tenu par EP-09, non touché ici ;
 - `WF-INTF-0120-A` — « Un fichier sans date de revue applique les lignes qui ne terminent aucune
   tâche et rejette celles qui en termineraient une. » : tenu par EP-09, non touché ici ;
 - `WF-INTF-0120-A` — « Une cellule de reste effacée sur une ligne connue la met à zéro. » : tenu par
   EP-09, non touché ici ;
+- écart : `WF-INTF-0120-A` — « Un onglet renommé dans Excel garde son sous-projet. » : ajouté par la
+  spécification 1.0.7 (#3370) ; #3966 l'éprouve ;
 - propre à l'US : la ligne de provision est une ligne de la structure principale, de la catégorie que le
   risque désigne, dont le budgété est la provision qu'elle portait dans la référence et le montant est la gravité pondérée par la probabilité,
   au centime ; elle ne s'écrit que par le risque — sa déclaration, `updateRiskProvision`, ses
@@ -1241,9 +1245,11 @@ savoir si le projet consomme ses provisions sans que cela se voie dans son budge
   donne un écart de − 50. » : tenu par EP-09, non touché ici ;
 - `WF-RAE-0020-A` — « Un sous-projet dont le coût réel augmenté du reste à engager dépasse son
   budget est signalé par la couleur, les autres non. » : tenu par EP-09, non touché ici ;
-- `WF-RAE-0020-A` — « Sur un projet dont aucune révision n'a été marquée à l'état En cours avant
-  celle qui est lue, l'écart correspondant est absent plutôt que nul ; sur un projet sans révision
-  de référence, la marge sur le budget l'est aussi. » : tenu par EP-09, non touché ici ;
+- écart : `WF-RAE-0020-A` — « Sur un projet dont aucune révision n’a été marquée avant celle qui est
+  lue, l’écart correspondant est absent plutôt que nul, et sur la première révision qui suit
+  l’offre, il se mesure à l’offre ; sur un projet sans révision de référence, la marge sur le budget
+  l’est aussi. » : réécrit par la spécification 1.0.7 (#3929) : l'écart se mesure à l'offre sur la
+  première révision qui la suit ; tenu par EP-10 (#3930) ;
 - `WF-RAE-0020-A` — « La marge sur le budget du projet égale la somme des marges de ses
   sous-projets, ensemble hors sous-projet compris. » : tenu par EP-09 ; les provisions comptent dans
   la marge de la maille de leur sous-projet ;
@@ -1267,9 +1273,9 @@ savoir si le projet consomme ses provisions sans que cela se voie dans son budge
 - `WF-RAE-0010-A` — « Un projet portant un risque de provision 40 compte cette provision une fois. »
   : la provision compte par sa ligne, une seule fois ;
 - `WF-RAE-0010-A` — « Le reste à engager égale la somme des montants réestimés courants des lignes
-  des tâches non terminées, lignes de provision des risques identifiés comprises. » : la somme des
-  `reestimated_amount` des lignes des tâches non terminées, lignes de provision comprises, égale le
-  reste à engager ;
+  des tâches non terminées, hors lignes de provision, plus les provisions des risques identifiés,
+  quel que soit l’état de la tâche qui les porte. » : la somme des `reestimated_amount` des lignes
+  des tâches non terminées, lignes de provision comprises, égale le reste à engager ;
 - `WF-RAE-0010-A` — « Dans une révision créée en 2027 où le taux de 2027 d'une catégorie a été
   accepté, une tâche non démarrée dont une ligne relève de cette catégorie compte pour sa charge au
   taux de 2027, et non au taux de 2026 corrigé d'une année d'inflation. » : tenu par EP-09, non
@@ -1327,13 +1333,13 @@ autre — planifié, réestimé, terminé —, sans budget, et que ce qu'il coû
   budget sont les mêmes ; le reste à engager a monté de 200 moins la provision ; que leur
   terminaison n'acquière rien est éprouvé par US-2630 ;
 - `WF-RIS-0060-A` — « Les tâches fusionnées se trouvent sous la tâche qui portait la provision, aux
-  dates qu'elles avaient dans le devis propre ; le total du lot dont cette tâche relève augmente de
-  leur montant, moins la provision retirée ; une tâche fusionnée qui n'avait pas de prédécesseur est
-  en mode manuel. » : les tâches de premier niveau du devis propre sont, dans leur ordre, les
-  dernières sous la tâche qui portait la provision, avec leurs subordonnées, leurs liaisons
-  internes, leurs durées et leurs modes ; une tâche sans prédécesseur dans le devis propre est en
-  mode manuel aux dates qu'elle y avait ; le total du lot de la tâche porteuse monte de leur montant
-  moins la provision ;
+  dates qu’elles avaient dans le devis propre ; le total du lot dont cette tâche relève augmente de
+  leur montant, moins la provision retirée ; une tâche feuille fusionnée qui n’avait pas de
+  prédécesseur est en mode manuel. » : les tâches de premier niveau du devis propre sont, dans leur
+  ordre, les dernières sous la tâche qui portait la provision, avec leurs subordonnées, leurs
+  liaisons internes, leurs durées et leurs modes ; une tâche sans prédécesseur dans le devis propre
+  est en mode manuel aux dates qu'elle y avait ; le total du lot de la tâche porteuse monte de leur
+  montant moins la provision ;
 - `WF-RIS-0060-A` — « La survenance d'un risque dont la provision était portée par un jalon place
   ses tâches après ce jalon, qui reste un jalon sans sous-tâche. » : les tâches sont placées, dans
   leur ordre, immédiatement après le jalon, sous sa tâche parente ou au premier niveau ; le jalon
@@ -1414,11 +1420,11 @@ référence.
   porte la marche au point du mois de la fusion, égale à l'écart des deux budgets cumulés à cette
   date ; la série du budget lit, à chaque date, la référence alors en vigueur, et atteint 1 200 à la
   fin de la nouvelle ;
-- `WF-IND-0100-A` — « Avec un délai de paiement de 60 jours saisi sur toutes les lignes,
-  main-d'œuvre comprise, la courbe du budget de référence décalée est la courbe non décalée
-  translatée de 60 jours ; la projection l'est aussi, hormis les lignes de provision, qui restent à
-  leur date ; le coût réel n'est pas décalé. » : le décalage est tenu par EP-10 ; les lignes de
-  provision entrent dans la projection à leur date, sans délai de paiement ;
+- écart : `WF-IND-0100-A` — « Avec un délai de paiement de 60 jours saisi sur toutes les lignes,
+  main-d’œuvre comprise, chaque montant de la courbe du budget de référence est compté au mois de sa
+  date décalée de 60 jours ; ceux de la projection le sont aussi, hormis les lignes de provision,
+  qui restent à leur date ; le coût réel n’est pas décalé. » : réécrit par la spécification 1.0.7
+  (#3378) : la courbe est au pas du mois ; tenu par EP-10 (#3564) ;
 - `WF-IND-0100-A` — « La somme des décaissements à venir égale le reste à engager, provisions des
   risques identifiés comprises. » : la somme des `forecast` de `cash_out_by_month` égale
   `remaining`, provisions des risques identifiés comprises, au centime ;

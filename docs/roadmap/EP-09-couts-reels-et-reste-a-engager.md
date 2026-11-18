@@ -1025,9 +1025,10 @@ tâches démarrées sans attendre un fichier.
 - écart : `WF-RAE-0010-A` — « Un projet portant un risque de provision 40 compte cette provision
   une fois. » : EP-08, qui clôt ;
 - `WF-RAE-0010-A` — « Le reste à engager égale la somme des montants réestimés courants des lignes
-  des tâches non terminées, lignes de provision des risques identifiés comprises. » : la somme sur
-  les lignes des tâches non terminées, démarrées ou non, réestimées ou non ; les lignes de
-  provision sont d'EP-08, qui clôt, et il n'en existe aucune ici ;
+  des tâches non terminées, hors lignes de provision, plus les provisions des risques identifiés,
+  quel que soit l’état de la tâche qui les porte. » : la somme sur les lignes des tâches non
+  terminées, démarrées ou non, réestimées ou non ; les lignes de provision sont d'EP-08, qui clôt,
+  et il n'en existe aucune ici ;
 - `WF-RAE-0010-A` — « Dans une révision créée en 2027 où le taux de 2027 d’une catégorie a été
   accepté, une tâche non démarrée dont une ligne relève de cette catégorie compte pour sa charge au
   taux de 2027, et non au taux de 2026 corrigé d’une année d’inflation. » : constaté par EP-07
@@ -1071,9 +1072,12 @@ tâches démarrées sans attendre un fichier.
   `planned_value` d'EP-07 inchangés ; les grilles, par US-1640 ;
 - `WF-RAE-0040-A` — « Une ligne ajoutée après la référence peut y être portée à un sous-projet. » :
   `updateEstimateLine` écrit `subproject_id` sur une ligne à budgété nul ; la grille, par US-1640 ;
-- `WF-RAE-0040-A` — « Sur un projet qui n’est pas En cours, la grille ne propose ni création ni
-  suppression de tâche ou de ligne. » : `edit_remaining` manque `project_in_progress` hors de
-  l'état En cours (EP-04), et `setLineRemaining` le refuse par 409 ; la grille, par US-1640 ;
+- écart : `WF-RAE-0040-A` — « Sur un projet qui n’est pas En cours, la grille ne propose aucune
+  saisie. » : réécrit par la spécification 1.0.7 (#3372) ; le contrat ferme déjà toute saisie du
+  reste hors En cours ;
+- écart : `WF-RAE-0040-A` — « La création d’une ligne sous une tâche terminée, ou le déplacement
+  d’une ligne vers elle, est refusé. » : passé de WF-DEV-0050 à WF-RAE-0040 par la spécification
+  1.0.7 (#3372) ; tenu par le service (`planning/carrying.py`) ;
 - `WF-RAE-0050-A` — « Après ajout d’une tâche chiffrée en revue périodique, le reste à engager et la
   projection du chef de projet augmentent de son montant ; le budget de référence, la projection au
   budget, la projection au rythme constaté et l’indice de coût sont inchangés. » : le reste à engager
@@ -1193,6 +1197,9 @@ déclarer ce qui a commencé et clore mes phases depuis la vue qui les répartit
   valeur acquise est d'EP-10, qui clôt ;
 - `WF-RAE-0030-A` — « Une tâche feuille démarrée sans ligne de devis est terminée depuis le
   Kanban. » : sa carte liste `complete` disponible, et `setTaskProgress` l'applique ;
+- écart : `WF-RAE-0030-A` — « Sur un projet qui n’est pas En cours, le Kanban ne propose aucun
+  geste. » : ajouté par la spécification 1.0.7 (#3372) ; le contrat ferme déjà tout geste du Kanban
+  hors En cours ;
 - `WF-PLA-0040-A` — « Après déplacement d’une récapitulative portant deux niveaux de subordonnées,
   les tâches et les lignes déplacées sont inchangées, et le devis totalise le même montant. »
 - `WF-PLA-0040-A` — « Les dates et l’état d’une récapitulative ne sont pas saisissables. »
@@ -1302,10 +1309,11 @@ ne remonte au total.
 - `WF-RAE-0020-A` — « Un sous-projet dont le coût réel augmenté du reste à engager dépasse son
   budget est signalé par la couleur, les autres non. » : `by_subproject[].is_over_budget` et
   `zone` à `alert`, `nominal` pour les autres ; le serveur classe, le front ne déduit rien ;
-- `WF-RAE-0020-A` — « Sur un projet dont aucune révision n’a été marquée à l’état En cours avant
-  celle qui est lue, l’écart correspondant est absent plutôt que nul ; sur un projet sans révision
-  de référence, la marge sur le budget l’est aussi. » : `null`, et non zéro, dans les deux cas ;
-  une offre marquée en chiffrage n'est pas une revue ;
+- écart : `WF-RAE-0020-A` — « Sur un projet dont aucune révision n’a été marquée avant celle qui est
+  lue, l’écart correspondant est absent plutôt que nul, et sur la première révision qui suit
+  l’offre, il se mesure à l’offre ; sur un projet sans révision de référence, la marge sur le budget
+  l’est aussi. » : réécrit par la spécification 1.0.7 (#3929) : l'écart se mesure à l'offre sur la
+  première révision qui la suit, là où le livré d'EP-09 le rendait nul ; tenu par EP-10 (#3930) ;
 - `WF-RAE-0020-A` — « La marge sur le budget du projet égale la somme des marges de ses
   sous-projets, ensemble hors sous-projet compris. » : `unassigned` compte les lignes sans
   sous-projet et les lignes de coût imputées au seul projet ; la somme des `variance` égale
@@ -1395,28 +1403,19 @@ de mon budget sans compter deux fois la même pièce.
   absente de `passthrough` et de `meta.passthrough_columns` ;
 - `WF-CRE-0010-A` — « Une ligne de montant négatif est acceptée et diminue le coût réel. » : un
   avoir, `amount` négatif, et les totaux le comptent ;
-- `WF-CRE-0020-A` — « Une ligne dont l’élément d’OTP ne respecte pas la forme attendue — vide, ou
-  sans rien avant ou après la barre oblique — est signalée au compte rendu et n’est pas importée ;
-  une ligne qui ne porte que le code projet, sans sous-projet, est importée et imputée au seul
-  projet. » : `WBS_ELEMENT_INVALID`, `params.wbs_element`, de même pour un élément sans rien après
-  la barre oblique (`A.ABC.26001/`, #2721, spécification 1.0.4) ; `subproject_id` et
-  `subproject_code` nuls ;
-- `WF-CRE-0020-A` — « Une ligne d’un autre projet est rejetée et signalée. » :
-  `WBS_ELEMENT_OUTSIDE_PROJECT`, `params.project_code` le code lu, `lines_outside_project` parmi les
-  motifs de confirmation, même quand la ligne est doublée et rejetée `DUPLICATE_COST_LINE` (#2724),
-  et le journal la compte rejetée ;
-- `WF-CRE-0020-A` — « Sur le projet de code A.ABC.26001, une ligne d’élément A.ABC.26001/10001 est
-  imputée au sous-projet 10001, et une ligne d’élément A.ABC.26002/10001 est rejetée comme d’un
-  autre projet. » : le code projet peut contenir des points, seule la barre oblique sépare les deux
-  codes (C-373, #1340) ;
-- `WF-CRE-0020-A` — « Une ligne dont le sous-projet est inconnu est importée, imputée au projet, et
-  apparaît comme telle à la consultation avec son code. » : `subproject_id` nul, `subproject_code`
-  conservé, `unknown_subproject` parmi les motifs de confirmation ;
-- `WF-CRE-0020-A` — « Après création du sous-projet dont dix lignes portaient le code, ces dix
-  lignes lui sont imputées sans réimport, et l’ensemble hors sous-projet diminue d’autant. » :
-  `createSubproject` d'EP-04 appelle, dans sa transaction, la question que `core/costs` enregistre
-  dans `core/projects`, qui impute les lignes de ce code ; un recodage (`updateSubproject`) ne
-  change l'imputation d'aucune ligne (D-10) ;
+- écart : `WF-CRE-0020-A` — « Sur le projet de code A.ABC.26001, qui porte le sous-projet de code
+  A.ABC.26001/10001, une ligne d’élément A.ABC.26001 est importée et imputée au seul projet, et une
+  ligne d’élément A.ABC.26001/10001 est imputée à ce sous-projet. » : réécrit par la spécification
+  1.0.7 (#3370) : l'élément d'OTP se compare en entier ; le livré coupe encore à la barre oblique
+  (`WBS_ELEMENT_INVALID`, `WBS_ELEMENT_OUTSIDE_PROJECT`, `unknown_subproject`, l'imputation des
+  lignes en attente à la création du sous-projet) ; #3966 l'éprouve ;
+- écart : `WF-CRE-0020-A` — « Une ligne d’élément A.ABC.26001/10002, une ligne d’élément 10001, une
+  ligne d’élément A.ABC.26002 et une ligne d’élément vide sont rejetées, et le compte rendu nomme
+  chacun de ces éléments et le nombre de ses lignes. » : réécrit par la spécification 1.0.7 (#3370)
+  ; #3966 l'éprouve ;
+- écart : `WF-CRE-0020-A` — « Après création du sous-projet de code A.ABC.26001/10002, le réimport
+  du même fichier lui impute ses lignes. » : réécrit par la spécification 1.0.7 (#3370) ; #3966
+  l'éprouve ;
 - `WF-CRE-0020-A` — « Une ligne réimportée avec un autre élément d’OTP change d’imputation. » :
   l'écart `updated` sur `subproject`, `subproject_id` recalculé ;
 - `WF-CRE-0050-A` — « Après un import, le journal présente une entrée datée du jour avec ses
@@ -1514,8 +1513,12 @@ rapprochement avec l'ERP.
 - `WF-PRJ-0050-A` — « Un projet se chiffre sans aucun sous-projet. »
 - `WF-PRJ-0050-A` — « La création de deux sous-projets de même code dans un même projet est
   refusée. »
-- `WF-PRJ-0050-A` — « La création d’un sous-projet de code « SP/01 », « Synthèse » ou de plus de
-  trente et un caractères est refusée. » : les trois, constatées par EP-04 ;
+- écart : `WF-PRJ-0050-A` — « Un sous-projet de code « A.ABC.26001/10001 », « Synthèse » ou de
+  quarante caractères se crée, et le fichier de reste à engager lui donne un onglet qui porte son
+  code en tête. » : remplace, par la spécification 1.0.7 (#3370), le refus de « SP/01 », de «
+  Synthèse » et de plus de trente et un caractères, que le livré tient encore ; #3966 l'éprouve ;
+- écart : `WF-PRJ-0050-A` — « La création d’un sous-projet dont le code est celui du projet est
+  refusée. » : ajouté par la spécification 1.0.7 (#3370) ; #3966 l'éprouve ;
 - `WF-PRJ-0050-A` — « La suppression d’un sous-projet portant des coûts réels est refusée. » :
   `subproject_has_actual_costs` d'EP-04 rempli par la question de `core/costs` — une ligne de coût
   imputée, suivie ou exclue — ; 409 `subproject_without_actual_costs`, et `listSubprojects` le dit
@@ -1538,6 +1541,8 @@ rapprochement avec l'ERP.
   reste à engager sur un projet terminal, par 409 `project_not_terminal` ; la saisie et MS Project,
   constatés par EP-04 et EP-06 ; le traitement automatique, par la tâche d'application d'un import
   confirmé avant la sortie, qui revérifie et refuse (EP-06) ;
+- écart : `WF-CYC-0100-A` — « L’inscription d’un participant sur un projet terminal aboutit ; il le
+  consulte et n’y modifie rien. » : ajouté par la spécification 1.0.7 (#3363) ; #3990 l'éprouve ;
 - `WF-CYC-0110-A` — « Toutes les vues de consultation d’un projet clos s’affichent normalement, et
   ses exports aboutissent. Seules les modifications sont refusées. » : `listActualCosts`,
   `listCostImports`, `getRemainingIndicators` et `listStartableTasks` répondent sur un projet
@@ -1608,12 +1613,10 @@ périodique avec l'outil que mes interlocuteurs connaissent.
 - `WF-INTF-0120-A` — « Avec huit heures par jour, une ligne de main-d’œuvre dont le fichier porte
   trois jours a un reste de vingt-quatre heures. » : la constante d'heures par jour de
   l'installation (`getDurationUnits`, EP-05) ;
-- `WF-INTF-0120-A` — « Une tâche démarrée dont toutes les lignes du fichier portent zéro est
-  terminée à la date de la revue ; une tâche non démarrée dont les lignes sont laissées telles
-  quelles reste non réestimée. » : `completed_tasks` nomme la tâche dès l'analyse, `completed_on` la
-  date de la revue lue en « Synthèse » (B9, #2702) et jamais nulle, l'application la termine à cette
-  date — une tâche non démarrée qui n'est pas un jalon passe par l'état démarré, un jalon non, les
-  deux avec `started_on` égal à `completed_on` — ; une ligne laissée telle quelle n'est pas un écart ;
+- écart : `WF-INTF-0120-A` — « Une tâche démarrée dont toutes les lignes, celles absentes du fichier
+  comprises, sont à zéro après l’import, et dont le fichier en met au moins une à zéro, est terminée
+  à la date de la revue ; une tâche non démarrée dont les lignes sont laissées telles quelles reste
+  non réestimée. » : réécrit par la spécification 1.0.7 (#3362) ; #3978 le confronte au livré ;
 - `WF-INTF-0120-A` — « Un fichier qui recopie une ligne avec sa lignée voit les deux lignes
   rejetées, et la ligne existante inchangée. » : `DUPLICATE_LINEAGE`, `params.lines` nommant les
   autres (`{sheet, row}`), réalisé par US-1630/L5 (#2738) ; spécification 1.0.4, #2847 ;
@@ -1622,6 +1625,8 @@ périodique avec l'outil que mes interlocuteurs connaissent.
   spécification 1.0.4, #2829 ;
 - `WF-INTF-0120-A` — « Une cellule de reste effacée sur une ligne connue la met à zéro. » :
   réalisé par US-1630/L3 (#2410) ; spécification 1.0.4, #2829 ;
+- écart : `WF-INTF-0120-A` — « Un onglet renommé dans Excel garde son sous-projet. » : ajouté par la
+  spécification 1.0.7 (#3370) ; #3966 l'éprouve ;
 - `WF-INTF-0130-A` — « Même critère d’aller-retour que WF-INTF-0110. » : un reste à engager
   exporté puis réimporté sans modification dans la révision en cours ne présente ni écart ni rejet,
   `unchanged_count` égal à `read_count`, les lignes relues identiques ; un export de la révision en
@@ -1651,6 +1656,9 @@ périodique avec l'outil que mes interlocuteurs connaissent.
 - `WF-REV-0060-A` — « Une mise à jour refusée à la création d’une révision est acceptée ensuite
   depuis la révision en cours, qui est alors rechiffrée au taux de 2027 pour cette catégorie. » :
   constaté par EP-07 ;
+- écart : `WF-REV-0060-A` — « Avec une inflation de 3 %, une ligne de débours 8 000 consommée en
+  2028 vaut 8 487,20 dans la révision de 2026 comme dans celle créée en 2027, où son débours est de
+  8 240. » : ajouté par la spécification 1.0.7 (#3366) ; #3983 l'éprouve ;
 - `WF-IHM-0080-A` — « Le marquage d'une révision de dix mille objets laisse l'écran utilisable et
   présente son avancement. » : constaté par EP-04 ;
 - `WF-IHM-0080-A` — « Un utilisateur qui change d'écran pendant un import est informé de son
@@ -1740,9 +1748,12 @@ leurs gestes —, **afin de** mener ma revue sans faux back.
   identiques ; la valeur planifiée, par US-1580 ;
 - `WF-RAE-0040-A` — « Une ligne ajoutée après la référence peut y être portée à un sous-projet. » :
   le sous-menu « Sous-projet » d'EP-15 (US-0480), contre le service ;
-- `WF-RAE-0040-A` — « Sur un projet qui n’est pas En cours, la grille ne propose ni création ni
-  suppression de tâche ou de ligne. » : la grille suit `edit_remaining` de la structure principale,
-  que le service rend indisponible hors de l'état En cours ;
+- écart : `WF-RAE-0040-A` — « Sur un projet qui n’est pas En cours, la grille ne propose aucune
+  saisie. » : réécrit par la spécification 1.0.7 (#3372) ; le contrat ferme déjà toute saisie du
+  reste hors En cours ;
+- écart : `WF-RAE-0040-A` — « La création d’une ligne sous une tâche terminée, ou le déplacement
+  d’une ligne vers elle, est refusé. » : passé de WF-DEV-0050 à WF-RAE-0040 par la spécification
+  1.0.7 (#3372) ; tenu par le service (`planning/carrying.py`) ;
 - `WF-RAE-0030-A` — « Une tâche passée à l’état démarré voit ses lignes apparaître dans la grille
   de reste à engager. » : démarrée au Kanban, la tâche a ses lignes dans la grille relue, contre le
   service ;
@@ -1763,6 +1774,9 @@ leurs gestes —, **afin de** mener ma revue sans faux back.
   acquise est d'EP-10, qui clôt ;
 - `WF-RAE-0030-A` — « Une tâche feuille démarrée sans ligne de devis est terminée depuis le
   Kanban. » : par le menu de la carte, contre le service ;
+- écart : `WF-RAE-0030-A` — « Sur un projet qui n’est pas En cours, le Kanban ne propose aucun
+  geste. » : ajouté par la spécification 1.0.7 (#3372) ; le contrat ferme déjà tout geste du Kanban
+  hors En cours ;
 - `WF-REF-0010-A` — « Aucun écran ne propose de supprimer un objet du référentiel. »
 - `WF-REF-0010-A` — « Un objet désactivé n’apparaît plus dans les listes de choix, mais reste
   affiché sur les éléments qui l’emploient. »
@@ -1775,6 +1789,9 @@ leurs gestes —, **afin de** mener ma revue sans faux back.
 - `WF-REF-0010-A` — « La désactivation d’une nature désactive ses catégories. »
 - `WF-REF-0010-A` — « La réactivation d’une catégorie dont la nature est désactivée est refusée. » :
   les deux, constatées par EP-05 ;
+- écart : `WF-REF-0010-A` — « La désactivation d’une catégorie que porte un rôle de ressource actif
+  est refusée et nomme ce rôle ; elle aboutit une fois le rôle désactivé ou passé à une autre
+  catégorie. » : ajouté par la spécification 1.0.7 (#3359) ; #3985 l'éprouve ;
 - propre à l'US : la grille de reste à engager lit `listNodes` servi — le filtre `progress`, les
   colonnes du reste précédent et courant, `remaining_entry`, `finish_overdue`, `awaiting_own_lines`
   et la marque des lignes propres ouvertes, les totaux relus après chaque écriture —, écrit chaque
