@@ -307,8 +307,8 @@ from waterfall.core.estimate.interface.remaining_excel import (
     RemainingFormat as RemainingFormat,
 )
 
-# ``remaining_indicators`` (US-1580/L1; US-1600): the indicators of the remaining to commit, the
-# remaining of a revision EP-10 reads, and the coverage of the risks EP-08 answers.
+# ``remaining_indicators`` (US-1580/L1; US-1600; #3802): the indicators of the remaining to commit,
+# the remaining of a revision EP-10 reads, and the coverage of the risks EP-08 answers.
 from waterfall.core.estimate.interface.remaining_indicators import (
     NO_COVERAGE as NO_COVERAGE,
 )
@@ -332,6 +332,9 @@ from waterfall.core.estimate.interface.remaining_indicators import (
 )
 from waterfall.core.estimate.interface.remaining_indicators import (
     remaining_indicators as remaining_indicators,
+)
+from waterfall.core.estimate.interface.remaining_indicators import (
+    remaining_of_lines as remaining_of_lines,
 )
 from waterfall.core.estimate.interface.remaining_indicators import (
     remaining_of_revision as remaining_of_revision,
@@ -391,8 +394,12 @@ from waterfall.core.estimate.loading import (
     LineLoad as LineLoad,
 )
 
-# ``parting`` (US-2040/L2; US-1690/L4): the parts of a line by month, rounded to sum to its total,
-# which the plan of workload, its detail, the projection of spending (US-2050) and the curves sum.
+# ``parting`` (US-2040/L2; US-1690/L4; #3802): the parts of a line by month, rounded to sum to its
+# total, which the plan of workload, its detail, the projection of spending (US-2050) and the curves
+# sum, each task weighed once by a weighing.
+from waterfall.core.estimate.parting import (
+    Weighing as Weighing,
+)
 from waterfall.core.estimate.parting import (
     parts_of_cumulated as parts_of_cumulated,
 )
@@ -404,6 +411,9 @@ from waterfall.core.estimate.parting import (
 )
 from waterfall.core.estimate.parting import (
     summed_parts as summed_parts,
+)
+from waterfall.core.estimate.parting import (
+    weighing as weighing,
 )
 
 # ``pricing`` (US-1690/L1): the rounding to the cent, the only one of an amount, which EP-10 reads.

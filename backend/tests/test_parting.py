@@ -21,10 +21,12 @@ from waterfall.core.estimate.interface import (
     Placement,
     PlannedLine,
     parts_of_cumulated,
+    remaining_parts,
     rounded_parts,
     summed_parts,
+    weighing,
 )
-from waterfall.core.estimate.spreading import planned_value
+from waterfall.core.estimate.spreading import MonthWeights, planned_value
 from waterfall.core.planning.interface import WorkInstant, weekly_calendar
 
 EIGHT = Decimal(8)
@@ -166,3 +168,34 @@ def test_the_parts_of_a_cumulated_are_the_differences_of_its_roundings_in_the_or
         MARCH: Decimal("-6.00"),
         MAY: Decimal("16.00"),
     }
+
+
+@pytest.mark.requirement("WF-DEV-0090-A")
+@pytest.mark.requirement("WF-DEV-0080-A")
+def test_a_task_weighed_once_gives_each_of_its_lines_the_parts_it_has_alone() -> None:
+    # The weights of the months depend on the task, not on the amount (#3802): the lines of a task
+    # spread by one weighing, which weighs it once for a date of calculation, have the parts each
+    # has alone, on the whole task and after a date of calculation; and the planned value of lines
+    # of one task, each task counted once, is the sum of theirs.
+    weighed: list[tuple[Placement, date | None]] = []
+    kept = weighing()
+
+    def weigh(placement: Placement, as_of: date | None) -> MonthWeights:
+        weighed.append((placement, as_of))
+        return kept(placement, as_of)
+
+    amounts = (Decimal(100), Decimal("0.05"), Decimal("100.01"), Decimal(-7))
+    after = date(2026, 3, 10)
+    for amount in amounts:
+        alone = rounded_parts(SPRING, amount, MONEY)
+        assert rounded_parts(SPRING, amount, MONEY, weigh=weigh) == alone
+        alone = remaining_parts(SPRING, amount, HOURS, as_of=after)
+        assert remaining_parts(SPRING, amount, HOURS, as_of=after, weigh=weigh) == alone
+    assert len(weighed) == 2 * len(amounts)
+    assert kept(SPRING, None) is kept(SPRING, None)
+    assert kept(SPRING, after) is not kept(SPRING, None)
+    lines = [PlannedLine(amount, SPRING) for amount in amounts]
+    day = date(2026, 3, 17)
+    assert planned_value(lines, day) == sum(
+        (planned_value([line], day) for line in lines), Decimal(0)
+    )
