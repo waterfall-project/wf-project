@@ -19,7 +19,6 @@ from waterfall.core.planning.msproject import (
     MsProject,
     MsTask,
     PredecessorLink,
-    carried,
     constants_of,
     duration_of,
     lag_of,
@@ -48,9 +47,10 @@ def test_two_days_entered_at_seven_hours_a_day_keep_two_days_that_are_sixteen_ho
     example: Callable[[str], Example],
 ) -> None:
     # « ... importé en gardant les durées, une tâche de « 2 j » saisie à 7 h par jour vaut deux
-    # jours, soit seize heures avec les valeurs par défaut ; » The file carries 14 hours of work
-    # in days, at 7 hours a day: read at the constants of the file, the task keeps its two days,
-    # which the constants by default make sixteen hours.
+    # jours, soit seize heures avec les valeurs par défaut ; » Only the reading is replayed here,
+    # not the import that applies it (``test_msproject_calendar_gap.py``, on a database): the file
+    # carries 14 hours of work in days, at 7 hours a day; read at the constants of the file, the
+    # task keeps its two days, which the constants by default make sixteen hours.
     data = example("WF-PLA-0160-A#952783e2946d")
     held = cast("dict[str, int]", data["file_constants"])
     task = cast("dict[str, object]", data["task"])
@@ -82,23 +82,17 @@ def test_two_days_entered_at_seven_hours_a_day_keep_two_days_that_are_sixteen_ho
 def test_a_lag_of_one_week_is_exported_then_reimported_in_weeks(
     example: Callable[[str], Example],
 ) -> None:
-    # « Un décalage saisi « 1 sem » est exporté puis réimporté sans changer d'unité. » The lag is
-    # written as the export writes it, in tenths of a minute of the constants of the installation,
-    # in the format of weeks; the file read back gives it in weeks again, not in days or hours.
+    # « Un décalage saisi « 1 sem » est exporté puis réimporté sans changer d'unité. » The export
+    # itself is not replayed here (its writer of a link is private to ``planning.exporting``): the
+    # lag is taken as the example says the export writes it, 24 000 tenths of a minute, in the
+    # format of weeks, as the fixture holds it and not as a computation of this test; what is
+    # replayed is the file written from it and read back, which gives the lag in weeks again, not
+    # in days or hours.
     data = example("WF-PLA-0160-A#8e3b08233deb")
     held = cast("dict[str, int]", data["constants"])
     lag = cast("dict[str, object]", data["lag"])
     entered = Lag(Decimal(cast("str", lag["value"])), cast("LagUnit", lag["unit"]))
-    constants = carried(
-        UnitConstants(
-            Decimal(held["minutes_per_day"]) / 60,
-            Decimal(held["minutes_per_week"]) / 60,
-            Decimal(held["days_per_month"]),
-        )
-    )
-    hours = Duration(entered.value, cast("DurationUnit", entered.unit)).hours(constants)
-    written = int(hours * 600)
-    assert written == lag["written"]
+    written = cast("int", lag["written"])
     file = MsProject(
         START,
         minutes_per_day=held["minutes_per_day"],
