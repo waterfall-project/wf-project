@@ -19,7 +19,7 @@ from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from waterfall.api.authentication import Transaction
@@ -28,7 +28,7 @@ from waterfall.api.cost_types import page_of
 from waterfall.api.evaluation import Acting, RequiresProject
 from waterfall.api.projects import viewer_of
 from waterfall.api.queries import Search, read_list, refuse_query
-from waterfall.api.risks import described
+from waterfall.api.risks import authors_of, described
 from waterfall.core.cost_settings.interface import Page
 from waterfall.core.risks.interface import (
     Bounds,
@@ -76,8 +76,16 @@ class RegisterQuery(BaseModel):
     sort_order: SortOrder | None = None
 
 
+def _text(query: RegisterQuery, name: str) -> str | None:
+    """Give a parameter of the query as the model read it, the one source of their names."""
+    if name not in RegisterQuery.model_fields:
+        raise KeyError(name)
+    value = getattr(query, name)
+    return value if isinstance(value, str) else None
+
+
 def _number(
-    raw: dict[str, str], column: str, form: re.Pattern[str]
+    query: RegisterQuery, column: str, form: re.Pattern[str]
 ) -> tuple[Bounds[Decimal], list[FieldError]]:
     """Read the two bounds of a column of numbers; the upper one under the lower one is refused.
 
@@ -87,20 +95,20 @@ def _number(
     faults: list[FieldError] = []
     read: list[Decimal | None] = []
     for name in (f"{column}_min", f"{column}_max"):
-        text = raw.get(name)
+        text = _text(query, name)
         if text is not None and form.fullmatch(text) is None:
             faults.append(FieldError(f"/query/{name}", NUMBER_INVALID))
         read.append(Decimal(text) if text is not None and form.fullmatch(text) else None)
     least, most = read
     if least is not None and most is not None and most < least:
-        named = {"minimum": raw[f"{column}_min"]}
+        named = {"minimum": str(least)}
         faults.append(FieldError(f"/query/{column}_max", VALUE_OUT_OF_RANGE, named))
     return Bounds(least, most), faults
 
 
-def _day(raw: dict[str, str], name: str) -> tuple[date | None, list[FieldError]]:
+def _day(query: RegisterQuery, name: str) -> tuple[date | None, list[FieldError]]:
     """Read the bound of a period as a day; a day that is none is ``DATE_INVALID`` there."""
-    text = raw.get(name)
+    text = _text(query, name)
     if text is None:
         return None, []
     try:
@@ -111,13 +119,13 @@ def _day(raw: dict[str, str], name: str) -> tuple[date | None, list[FieldError]]
     return None, [FieldError(f"/query/{name}", DATE_INVALID)]
 
 
-def _period(raw: dict[str, str]) -> tuple[Bounds[date], list[FieldError]]:
+def _period(query: RegisterQuery) -> tuple[Bounds[date], list[FieldError]]:
     """Read the period of the last review, the end included; an end before the start is refused."""
-    since, faults = _day(raw, "last_review_on_from")
-    until, ended = _day(raw, "last_review_on_to")
+    since, faults = _day(query, "last_review_on_from")
+    until, ended = _day(query, "last_review_on_to")
     faults += ended
     if since is not None and until is not None and until < since:
-        named = {"minimum": raw["last_review_on_from"]}
+        named = {"minimum": since.isoformat()}
         faults.append(FieldError("/query/last_review_on_to", VALUE_OUT_OF_RANGE, named))
     return Bounds(since, until), faults
 
@@ -130,10 +138,9 @@ def _state(text: str) -> RiskState:
 
 
 def register_filters(
-    request: Request, query: Annotated[RegisterQuery, Query()], search: Search = None
+    query: Annotated[RegisterQuery, Query()], search: Search = None
 ) -> RiskFilters:
     """Read the filters of the register; every fault of a list, a bound or a period at once."""
-    raw = dict(request.query_params)
     faults: list[FieldError] = []
     states, wrong = read_list("states", query.states, _state)
     faults += wrong
@@ -147,9 +154,9 @@ def register_filters(
         ("occurrence_cost", MONEY),
         ("occurred_reestimated_amount", MONEY),
     ):
-        columns[column], wrong = _number(raw, column, form)
+        columns[column], wrong = _number(query, column, form)
         faults += wrong
-    period, wrong = _period(raw)
+    period, wrong = _period(query)
     faults += wrong
     refuse_query(faults)
     return RiskFilters(
@@ -195,11 +202,12 @@ def get_risks(
 ) -> dict[str, object]:
     """Give a page of the register of a project in a revision, and the totals of all it retains."""
     read = list_risks(session, project_id, query, viewer_of(actor))
+    authors = authors_of(session, read.risks)
     totals = read.totals
     page = query[2]
     return {
         "items": [
-            described(session, view).model_dump(mode="json", exclude_unset=True)
+            described(session, view, authors).model_dump(mode="json", exclude_unset=True)
             for view in read.risks
         ],
         "totals": {
