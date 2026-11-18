@@ -167,7 +167,7 @@ closes. Four rules, which each slice follows:
 | [EP-25](EP-25-refonte-ergonomique.md) | Ergonomic redesign | livré | EP-24 |
 | [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Reading and performance of the grids | livré | EP-25 |
 | [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparison in the grids | livré | EP-26 |
-| [EP-10](EP-10-indicateurs.md) | Project indicators | en cours | EP-25, EP-26 |
+| [EP-10](EP-10-indicateurs.md) | Project indicators | livré | EP-25, EP-26 |
 | [EP-08](EP-08-avenants-et-risques.md) | Amendments, risks and provisions | en cours | EP-10, EP-27 |
 | [EP-11](EP-11-portefeuille.md) | Portfolio | en cours | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | File exchanges (FLX-01 to FLX-06) | abandonné : each round trip is validated in its functional block | — |
