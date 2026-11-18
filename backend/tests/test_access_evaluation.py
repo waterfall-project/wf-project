@@ -559,6 +559,10 @@ PATH_OBJECTS = {"getBackgroundTask", "getBackgroundTaskResult", "getUserAvatar"}
 # The operations whose route asks for no permission because the command of a revision judges it:
 # the export refuses by a 403 naming the permission of its kind (WF-CYC-0110).
 BY_COMMAND = {"requestExport"}
+# The operations of an import whose route asks for the visibility of the project alone, the
+# exchanges judging the reading and the writing of its kind with the import (#2473): a 403 for the
+# writing or the quality of contributor, named here, operation by operation.
+BY_KIND = asked_imports.BY_KIND
 
 
 def asked(route: APIRoute) -> tuple[str, ...]:
@@ -647,6 +651,8 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
     assert {name: asked(route) for name, route in routes.items()} == ASKED
     held = {name: on_project(route) for name, route in routes.items()}
     assert {name: quality for name, quality in held.items() if quality} == ON_PROJECT
+    # An operation admitted by the kind of its import is one of a project that asks for nothing.
+    assert {name for name in BY_KIND if name in ON_PROJECT and not ASKED[name]} == BY_KIND
     # A guard on a project reads ``project_id`` of the path: a route without it would answer 404
     # to everyone, silently.
     for name, route in routes.items():
@@ -667,7 +673,7 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
             # field, its guard of each field (``BY_FIELD``).
             refusals = {"403", "404"}
             allowed_404: set[str] = {"404"} if name in PATH_OBJECTS | set(ON_PROJECT) else set()
-            guarded = name in INACTIVE or name in BY_FIELD or name in BY_COMMAND
+            guarded = name in INACTIVE or name in BY_FIELD or name in BY_COMMAND | BY_KIND
             allowed_403: set[str] = {"403"} if guarded else set()
             refused = refusals - allowed_404 - allowed_403
             assert not refused & responses, name
