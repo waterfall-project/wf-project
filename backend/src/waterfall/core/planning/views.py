@@ -38,7 +38,7 @@ from waterfall.core.planning.tree import TASK, NodeRow, TaskRow, tracking_of
 from waterfall.core.projects.interface import work_breakdown_items
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Mapping, Sequence
+    from collections.abc import Callable, Collection, Mapping, Sequence
     from datetime import date, datetime
     from decimal import Decimal
     from uuid import UUID
@@ -398,6 +398,42 @@ def awaits[N: NodeColumns, T: TaskColumns](
     )
 
 
+def derived_states[N: NodeColumns, T: TaskColumns](
+    tree: Tree[N, T], own: Callable[[UUID], tuple[bool, date | None]]
+) -> dict[UUID, State]:
+    """Give the state of each task of a tree: its own for a leaf, derived for a summary (0040).
+
+    The deepest first, each summary from its subordinates and from what ``own`` tells of its own
+    lines (``own_lines``, ``tallied_own_lines``): what a reading derives, and what the indicators
+    read of the tasks alone (#3902).
+    """
+    states: dict[UUID, State] = {}
+    for node_id in reversed(tree.order):
+        if node_id not in tree.tasks:
+            continue
+        below = tree.subtasks(node_id)
+        if below:
+            states[node_id] = _derived([states[child] for child in below], own(node_id))
+        else:
+            task = tree.tasks[node_id]
+            states[node_id] = State(task.progress, task.started_on, task.completed_on)
+    return states
+
+
+def tallied_own_lines[N: NodeColumns, T: TaskColumns](
+    tree: Tree[N, T], tallies: Mapping[UUID, Tally], node_id: UUID
+) -> tuple[bool, date | None]:
+    """Tell what the own lines of a summary tell its state, from its tallies (``own_lines``).
+
+    For a tree of the tasks alone, none of their lines read (US-2280).
+    """
+    tally = tallies.get(node_id)
+    task = tree.tasks[node_id]
+    own = tally is not None and tally.own
+    closed = task.completed_on if own and task.progress == COMPLETED else None
+    return node_id in tree.held, closed
+
+
 class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
     """What a reading derives of a structure, once for all its nodes.
 
@@ -459,7 +495,7 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
         # The physical progress of the summaries asked already, and those asked (``progress``).
         self._shares: dict[UUID, PhysicalShare] = {}
         self._asked: set[UUID] = set()
-        self.states: dict[UUID, State] = {}
+        self.states = derived_states(tree, self._own_lines)
         self.awaiting: set[UUID] = set()
         self.summaries: set[UUID] = set()
         self.sums: dict[UUID, Amounts] = {}
@@ -469,13 +505,8 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
             below = tree.subtasks(node_id)
             if below:
                 self.summaries.add(node_id)
-                states = [self.states[child] for child in below]
-                self.states[node_id] = _derived(states, self._own_lines(node_id))
-                if awaits(tree, node_id, states):
+                if awaits(tree, node_id, [self.states[child] for child in below]):
                     self.awaiting.add(node_id)
-            else:
-                task = tree.tasks[node_id]
-                self.states[node_id] = State(task.progress, task.started_on, task.completed_on)
             total = self._lines_total(node_id)
             for each in below:
                 total += self.sums[each]
@@ -857,11 +888,7 @@ class TasksReading(RowsReading):
 
     def _own_lines(self, node_id: UUID) -> tuple[bool, date | None]:
         """Tell what the own lines of a summary tell its state, from its tallies."""
-        tally = self.tallies.get(node_id)
-        task = self.tree.tasks[node_id]
-        own = tally is not None and tally.own
-        closed = task.completed_on if own and task.progress == COMPLETED else None
-        return node_id in self.tree.held, closed
+        return tallied_own_lines(self.tree, self.tallies, node_id)
 
     def _lines_total(self, node_id: UUID) -> Amounts:
         """Give the sum of the figures of the lines a task bears, as its tallies counted them."""

@@ -64,13 +64,10 @@ SECOND_LEVEL = (
     re.compile(r'^\s*\w+\["(FBS-\d+\.\d+)<br>', re.MULTILINE),
     re.compile(r"^#+ [\d.]+ (FBS-\d+\.\d+)\s*:", re.MULTILINE),
 )
-# The functions that have only the permission to consult, as WF-ADM-0100 names them.
+# The functions that have only the permission to consult, as the catalogue serves them. The
+# specification 1.0.7 adds FBS-4.8 and FBS-4.9 to them (WF-ADM-0100) ; the catalogue still gives
+# those two the permission to change, until #3975 removes it and adds them here.
 READ_ONLY = frozenset({"FBS-1.3", "FBS-1.5", *(f"FBS-2.{number}" for number in range(1, 8))})
-# Provisional exception: FBS-1.6 « Installation », with its two permissions (to consult and to
-# change), is decided by #3197 and not yet written in the tree of the specification. The revision
-# of the specification adds it there and removes this constant, and the test below fails until
-# then to say so.
-PENDING_IN_THE_SPECIFICATION = "FBS-1.6"
 
 
 @pytest.fixture
@@ -153,15 +150,12 @@ def test_each_function_of_the_second_level_has_its_two_permissions_or_the_one_to
     api: ContractClient, headers: dict[str, str]
 ) -> None:
     # « Chaque fonction de second niveau de l'arborescence est représentée par ses deux
-    # permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5 et FBS-2.1 à
-    # FBS-2.7. » : the tree is the one the specification draws, not a list written here.
+    # permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5, FBS-2.1 à
+    # FBS-2.7, FBS-4.8 et FBS-4.9. » : the tree is the one the specification draws, not a list
+    # written here ; FBS-4.8 and FBS-4.9 keep both permissions until #3975 (see READ_ONLY).
     tree = second_level(PROJECTION.read_text(encoding="utf-8"))
     # The reading found the tree: the functions the requirement names, and others beside them.
     assert tree > READ_ONLY
-    # The exception applies only while the specification lacks the function: once it draws it,
-    # this fails, and the exception is to be removed so that the test rests on the tree alone.
-    assert PENDING_IN_THE_SPECIFICATION not in tree
-    tree = tree | {PENDING_IN_THE_SPECIFICATION}
     expected = {
         code: ["function_read"] if code in READ_ONLY else ["function_read", "function_write"]
         for code in tree

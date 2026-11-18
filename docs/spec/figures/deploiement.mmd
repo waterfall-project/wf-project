@@ -4,6 +4,7 @@ flowchart LR
         Front["Front<br>Next.js"]
         API["Service d'API<br>FastAPI"]
         Worker["Worker<br>FastAPI"]
+        Restore["Service de restauration<br>FastAPI"]
         IdP["Fournisseur d'identité<br>Keycloak"]
         PG[("PostgreSQL")]
         Redis[("Redis")]
@@ -28,9 +29,14 @@ flowchart LR
     Worker --> Redis
     Worker --> IdP
     Worker --> S3
+    Restore --> PG
+    Restore --> Redis
+    Restore --> S3
+    Restore --> IdP
     IdP --> PG
     IdP --> Annuaire
     IdP --> SMTP
+    IdP --> Front
     Planif --> PG
     Planif --> Redis
     API --> Prometheus

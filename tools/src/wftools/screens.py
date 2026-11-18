@@ -23,10 +23,9 @@ The check fails, naming the leaf or the route:
 - on a leaf with a screen of its own that the page of its function does not name by
   ``leafOf("FBS-…")``, the one way the front finds a leaf it links to, and so cannot lead to.
 
-Two functions are accepted before the specification draws them: ``PENDING_IN_THE_SPECIFICATION``,
-FBS-1.6, decided by #3197 and realised by US-2120 ahead of the revision, and FBS-4.4.5, the
-projection of spending of the project, decided on 2026-11-16 (#3643, option C) and realised by
-US-2050. The check takes each for a child of its parent in the tree and no other unknown code; it
+A function may be accepted before the specification draws it: ``PENDING_IN_THE_SPECIFICATION``,
+as FBS-1.6 (#3197, US-2120) and FBS-4.4.5 (#3643, US-2050) were until the specification 1.0.7 drew
+them. The check takes each for a child of its parent in the tree and no other unknown code; it
 fails as soon as the projection has one, for its declaration to be removed. A pending leaf is not
 required to have a route yet: the table may address it, and then it must be a leaf under its
 function.
@@ -57,14 +56,11 @@ WITHOUT_SCREEN: dict[str, str] = {}
 """The leaves of the FBS that no screen addresses yet, each with its reason and the issue that
 follows it."""
 
-PENDING_IN_THE_SPECIFICATION: dict[str, str] = {
-    "FBS-1.6": "Installation",
-    "FBS-4.4.5": "Projection de dépenses du projet",
-}
-"""Provisional exceptions, each with the label the specification will give it: FBS-1.6, a function
-of FBS-1 decided by #3197, and FBS-4.4.5, a leaf of FBS-4.4 decided by #3643, neither yet in the
-tree of the specification. The revision of the specification adds them there and removes them
-from this table, and the check fails until then to say so."""
+PENDING_IN_THE_SPECIFICATION: dict[str, str] = {}
+"""Provisional exceptions, each with the label the specification will give it: a function decided
+and realised ahead of the revision of the specification that draws it. The revision adds it to the
+tree and removes it from this table, and the check fails until then to say so. None today: FBS-1.6
+(#3197) and FBS-4.4.5 (#3643) are in the tree since the specification 1.0.7."""
 
 _PAGE = "page.tsx"
 # A segment in brackets names a group of routes, which adds nothing to the address.

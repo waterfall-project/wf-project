@@ -1775,14 +1775,14 @@ plus -93 900, `remaining_indicators_over_budget` 94 100, la réestimation du jou
 que la décision ne vise pas, garde son sens et le contrat le dit : le reste à engager courant moins
 celui de la révision marquée précédente, à son marquage, négatif quand la revue l'a réduit — ce que
 la revue a changé (WF-RAE-0020), qui n'est pas une marge : un reste à engager diminue aussi de ce
-qui s'est dépensé ; nul (`null`) sans revue précédente, et non zéro, l'écran l'omettant alors. Deux
-mots, deux sens — décision de l'auteur à la revue : le reste à engager parle de **marge**
-(`delta_to_reference`, `SubprojectBalance.variance`, que le front nomme « marge », par sous-projet
-comme pour le projet), et la couverture des risques garde son « écart de couverture » de la
-spécification, dans le même sens ; le portefeuille et les projections parlent d'**écart**, positif
-au-delà du budget : l'écart de la liste des projets (`PortfolioProject.delta_to_reference`), que le
-Vérif de WF-PTF-0040 fixe ainsi (« un écart de 50 » pour 1 050 face à 1 000), et les écarts des
-projections (`Projections.variance_*`, la projection moins le budget de référence, WF-IND-0050),
+qui s'est dépensé ; nul (`null`) sans révision marquée précédente, et non zéro, l'écran l'omettant
+alors. Deux mots, deux sens — décision de l'auteur à la revue : le reste à engager parle de
+**marge** (`delta_to_reference`, `SubprojectBalance.variance`, que le front nomme « marge », par
+sous-projet comme pour le projet), et la couverture des risques garde son « écart de couverture » de
+la spécification, dans le même sens ; le portefeuille et les projections parlent d'**écart**,
+positif au-delà du budget : l'écart de la liste des projets (`PortfolioProject.delta_to_reference`),
+que le Vérif de WF-PTF-0040 fixe ainsi (« un écart de 50 » pour 1 050 face à 1 000), et les écarts
+des projections (`Projections.variance_*`, la projection moins le budget de référence, WF-IND-0050),
 dont le front garde le libellé « Écart au budget ». Les écarts du devis
 (`EstimateIndicators.delta_to_*`) sont le devis courant moins le devis comparé. L'écart de coût et
 l'écart de délai (`cost_variance`, `schedule_variance` des indicateurs du projet et du portefeuille)
@@ -1805,6 +1805,10 @@ l'avancement d'une récapitulative », dans « Le contrat figé »).*
 
 *Remplacé en partie par US-0701/L1 (#1601, E-02, recadrage du 2026-10-28) : `amount_deltas[].delta`
 devient `budgeted_delta` et `reestimated_delta`, dans le même sens.*
+
+*Remplacé en partie par #3928 (décision du 2026-11-17, #3663) : l'offre est la revue précédente d'une
+révision dont elle est la seule devancière marquée, pour le reste à engager comme pour le devis ;
+l'écart n'est nul que sans révision marquée avant celle qui est lue.*
 
 **`listNodes` filtre sur la récapitulative, le niveau et la chronologie** (#463 ; WF-PLA-0110,
 WF-PLA-0140). Trois filtres sur une tâche, qui se combinent aux autres : `summaries_only`, les
@@ -8160,6 +8164,9 @@ sert qu'aux fichiers exportés.
 
 ### Le client d'un projet et le code borné d'un sous-projet (US-0610, #1316)
 
+> Révisée par la décision de l'auteur du 2026-11-18 (« Le tri des constats de spécification », #3370) :
+> le code d'un sous-projet est libre, et ne nomme plus son onglet.
+
 WF-PRJ-0080 fait porter au projet le nom de son client, facultatif, que présente un devis exporté ;
 WF-PRJ-0050 veut que le code d'un sous-projet nomme son onglet dans le fichier de reste à engager
 (ANNEXE B), ce qu'Excel borne. Le contrat ne lisait pas le client et bornait le code à 50
@@ -9212,6 +9219,9 @@ passages d'EP-02/L24 (M-06), #466 (M-09), EP-02/L23 et EP-02/L24 (M-10), #245 (M
   aucun exemple ne change. `EstimateLineFacet.previous_*`, « nulles avant la première revue »,
   n'est pas touché : `revisions.yaml` est aux lots US-0701/L2 et L3, et WF-RAE-0040 ne dit pas que
   le reste à engager précédent de la grille soit celui d'une révision marquée En cours.
+  *Remplacé en partie par #3928 (décision du 2026-11-17, #3663) : le générateur ne filtre plus sur
+  l'état au marquage ; l'offre, seule devancière marquée, est la revue précédente, et l'écart n'est
+  nul que sans révision marquée avant celle qui est lue.*
 - **Le diagramme temps/temps** (M-10, WF-IND-0090). « Les révisions marquées avant l'état En cours
   ne donnent aucun point » ; la courbe d'un jalon s'arrête par un point à sa terminaison, en
   abscisse comme en ordonnée ; le dernier point est celui du jour courant, par la révision en cours
@@ -9861,7 +9871,9 @@ Complétées, plus haut : « Le projet terminal n'a pas de révision en cours »
   sont pas. `project_participant` le montre pour Inès Roux ; `project_reader` reste vide, le
   Manager n'ayant aucune permission d'écriture du projet. `task_not_milestone` (J-18) reste sans
   exemple : il tient à `setTaskProgress`, hors des fichiers du lot.
-- **Le code projet borné** (D-07 ; WF-PRJ-0010, WF-CRE-0020). `ProjectCode`, partagé par
+- **Le code projet borné** (D-07 ; WF-PRJ-0010, WF-CRE-0020). Révisé par la décision de l'auteur du
+  2026-11-18 (« Le tri des constats de spécification », #3370) : la barre oblique n'est plus
+  interdite, `PROJECT_CODE_INVALID` tombe. `ProjectCode`, partagé par
   `Project`, `ProjectSummary`, `ProjectCreate` et `ProjectUpdate` : de 1 à 50 caractères, jamais
   blanc, sans barre oblique. Vide, `VALUE_REQUIRED` ; blanc, `VALIDATION_FAILED`, comme tout libellé
   (#837) ; une barre oblique, `PROJECT_CODE_INVALID`, nouveau au catalogue comme
@@ -10446,6 +10458,9 @@ s'appliquait après la restauration.
 Le service, qui réalisera la planification avec EP-13, le suit par #1743.
 
 ### Les objets actifs du référentiel se lisent par toute session, hors la grille des taux (US-0704, #1735, C-01, #1745)
+
+> Retirée par la décision de l'auteur du 2026-11-18 (« Le tri des constats de spécification », #3349),
+> hors ce qu'elle dit de la grille des taux, des taux d'une catégorie et de la correspondance.
 
 Décision de l'auteur du 2026-11-01, sur la question qu'US-0702/L2 laissait ouverte (« qui lit les
 objets actifs »). Six lectures du référentiel déclaraient un 404 : deux sans cause possible, trois
@@ -12401,6 +12416,42 @@ Les refus ont leurs exemples, engendrés par `wftools.mockdifferentials` et tenu
 (`structure_delete_main_refused`), l'avenant 2 de la référence marquée
 (`structure_delete_revision_marked`), l'avenant 2 courant au compteur périmé
 (`structure_delete_stale`). Aucun exemple de succès : le 204 n'a pas de corps.
+
+### Le tri des constats de spécification : le référentiel sous permission, l'élément d'OTP comparé en entier (#3349, #3370)
+
+Décisions de l'auteur du 2026-11-18, au tri des constats de la revue du 2026-11-14. Elles retirent
+ou révisent trois entrées de ce fichier ; le contrat ne change pas ici, il suit par les issues
+citées, qui diront les formes et la version.
+
+- **La lecture des objets actifs du référentiel par toute session est retirée** (#3349 ; entrée
+  « Les objets actifs du référentiel se lisent par toute session », #1745). La spécification fait
+  foi : sans rôle, un compte n'a aucune permission (WF-ADM-0020, WF-ADM-0070, WF-ADM-0090,
+  WF-ADM-0180). Les lectures des cinq listes de vocabulaire repassent sous la permission de
+  consulter leur fonction, et celles de `getReferenceSettings` et de `getDurationUnits` avec
+  elles ; la grille des taux, les taux d'une catégorie et la correspondance restent sous
+  `cost_settings.read`, inchangés. La raison de l'option alors écartée demeure — les formulaires
+  des projets nomment ce qu'ils citent du référentiel — et se règle autrement que par une lecture
+  ouverte : #3961 le tranche. Le contrat et le service suivent par #3960 et
+  #3962.
+- **L'élément d'OTP d'une ligne de coût se compare en entier** (#3370 ; spécification 1.0.7,
+  WF-CRE-0020, WF-CRE-0010, WF-PRJ-0050, WF-INTF-0120, annexe B). Il est le code du projet ou
+  celui de l'un de ses sous-projets ; la barre oblique n'est plus un séparateur, et préfixer un
+  sous-projet du code de son projet est une convention de l'entreprise. Une ligne dont l'élément
+  n'est ni l'un ni l'autre est rejetée, et le compte rendu nomme chaque élément inconnu et le
+  nombre de ses lignes : plus de ligne importée sous un code de sous-projet inconnu, ni
+  d'imputation à la création du sous-projet — le fichier se réimporte. Révisées : « Le code projet
+  borné » (D-07), dont l'interdiction de la barre oblique et `PROJECT_CODE_INVALID` tombent, la
+  borne de 1 à 50 caractères restant ; « Les descriptions d'un import de coûts réels » (#2721),
+  pour l'élément sans rien après la barre oblique.
+- **Le code d'un sous-projet est libre, et n'est pas celui de son projet** (#3370 ; WF-PRJ-0050).
+  Révisée : « Le client d'un projet et le code borné d'un sous-projet » (US-0610, #1316), dont
+  tombent la borne de 31 caractères, les caractères interdits et les noms réservés. L'onglet d'un
+  sous-projet dans le fichier de reste à engager porte un nom tiré du code — caractères qu'Excel
+  refuse remplacés, coupé à 31 caractères, numéroté en cas de collision — et le code en tête ;
+  l'import désigne le sous-projet par ce code, jamais par le nom de l'onglet (WF-INTF-0120).
+
+Le contrat, le service, le front, le témoin et la reprise des codes déjà saisis suivent par
+#3966.
 
 ## Collage et annulation
 

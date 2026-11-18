@@ -152,9 +152,14 @@
       "sentence": "Une mise à jour refusée à la création d'une révision est acceptée ensuite depuis la révision en cours, qui est alors rechiffrée au taux de 2027 pour cette catégorie."
     },
     {
-      "key": "WF-PRJ-0050-A#0959bb1f339c",
+      "key": "WF-REV-0060-A#413d589bd41d",
+      "requirement": "WF-REV-0060-A",
+      "sentence": "Avec une inflation de 3 %, une ligne de débours 8 000 consommée en 2028 vaut 8 487,20 dans la révision de 2026 comme dans celle créée en 2027, où son débours est de 8 240."
+    },
+    {
+      "key": "WF-PRJ-0050-A#38958d887e9a",
       "requirement": "WF-PRJ-0050-A",
-      "sentence": "La création d'un sous-projet de code « SP/01 », « Synthèse » ou de plus de trente et un caractères est refusée."
+      "sentence": "Un sous-projet de code « A.ABC.26001/10001 », « Synthèse » ou de quarante caractères se crée, et le fichier de reste à engager lui donne un onglet qui porte son code en tête."
     },
     {
       "key": "WF-PRJ-0090-A#0600dd236bf1",
@@ -352,9 +357,19 @@
       "sentence": "Après déclaration de survenance d'un risque dont le devis propre porte deux lignes de 120 et 80, ces lignes figurent dans la structure principale de la révision en cours avec des montants budgétés nuls et des montants réestimés de 120 et 80 ; la ligne de provision a disparu ; le budget de référence et la révision de référence sont inchangés ; le reste à engager a augmenté de 200 moins la provision retirée ; la terminaison de ces tâches n'acquiert aucune valeur."
     },
     {
-      "key": "WF-CRE-0020-A#05375b7a17e8",
+      "key": "WF-CRE-0020-A#327d63bf4748",
       "requirement": "WF-CRE-0020-A",
-      "sentence": "Sur le projet de code A.ABC.26001, une ligne d'élément A.ABC.26001/10001 est imputée au sous-projet 10001, et une ligne d'élément A.ABC.26002/10001 est rejetée comme d'un autre projet."
+      "sentence": "Sur le projet de code A.ABC.26001, qui porte le sous-projet de code A.ABC.26001/10001, une ligne d'élément A.ABC.26001 est importée et imputée au seul projet, et une ligne d'élément A.ABC.26001/10001 est imputée à ce sous-projet."
+    },
+    {
+      "key": "WF-CRE-0020-A#80d94ea6d2fe",
+      "requirement": "WF-CRE-0020-A",
+      "sentence": "Une ligne d'élément A.ABC.26001/10002, une ligne d'élément 10001, une ligne d'élément A.ABC.26002 et une ligne d'élément vide sont rejetées, et le compte rendu nomme chacun de ces éléments et le nombre de ses lignes."
+    },
+    {
+      "key": "WF-CRE-0020-A#8ccc97711b47",
+      "requirement": "WF-CRE-0020-A",
+      "sentence": "Après création du sous-projet de code A.ABC.26001/10002, le réimport du même fichier lui impute ses lignes."
     },
     {
       "key": "WF-IND-0030-A#c3aebc79b97d",
@@ -427,9 +442,9 @@
       "sentence": "Après contractualisation d'un avenant qui porte le budget de 1 000 à 1 200, la courbe du budget présente, au point du mois de l'avenant, une marche égale à l'écart des deux cumulés à cette date, et atteint 1 200 à la date de fin de la nouvelle référence."
     },
     {
-      "key": "WF-IND-0100-A#fe59cdb8f930",
+      "key": "WF-IND-0100-A#e82fb54dd583",
       "requirement": "WF-IND-0100-A",
-      "sentence": "Avec un délai de paiement de 60 jours saisi sur toutes les lignes, main-d'œuvre comprise, la courbe du budget de référence décalée est la courbe non décalée translatée de 60 jours ; la projection l'est aussi, hormis les lignes de provision, qui restent à leur date ; le coût réel n'est pas décalé."
+      "sentence": "Avec un délai de paiement de 60 jours saisi sur toutes les lignes, main-d'œuvre comprise, chaque montant de la courbe du budget de référence est compté au mois de sa date décalée de 60 jours ; ceux de la projection le sont aussi, hormis les lignes de provision, qui restent à leur date ; le coût réel n'est pas décalé."
     },
     {
       "key": "WF-IHM-0160-A#3c0e1839abfb",
@@ -455,6 +470,16 @@
       "key": "WF-DAT-0100-A#2ce6d54b40a4",
       "requirement": "WF-DAT-0100-A",
       "sentence": "Un montant de 0,10 additionné dix fois donne exactement 1,00."
+    },
+    {
+      "key": "WF-DAT-0100-A#a2d83cfac195",
+      "requirement": "WF-DAT-0100-A",
+      "sentence": "Un montant calculé de 75,705 est présenté 75,71."
+    },
+    {
+      "key": "WF-DAT-0100-A#f38afb8d9c16",
+      "requirement": "WF-DAT-0100-A",
+      "sentence": "Sur une installation au fuseau de Paris, une saisie datée faite à 0 h 30, heure de Paris, propose le jour de Paris."
     },
     {
       "key": "WF-DAT-0140-A#0d1c5ff97ae7",
@@ -490,6 +515,11 @@
       "key": "WF-CMP-0010-A#f11d4089327f",
       "requirement": "WF-CMP-0010-A",
       "sentence": "Les vues d'indicateurs se lisent sur un écran de 360 points de large et n'y proposent aucune saisie."
+    },
+    {
+      "key": "WF-CMP-0020-A#1377e4bac603",
+      "requirement": "WF-CMP-0020-A",
+      "sentence": "Le démarrage échoue en le disant si le serveur PostgreSQL est d'une autre version majeure que la 18, ou réglé pour moins de 1 024 verrous par transaction."
     }
   ]
 }

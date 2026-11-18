@@ -11,10 +11,12 @@ revision is read as its marking froze it; a revision without a main structure ha
 """
 
 from dataclasses import dataclass
+from functools import partial
 from typing import TYPE_CHECKING
 
-from waterfall.core.planning.filters import NodeFilters
-from waterfall.core.planning.interface.nodes import list_nodes
+from waterfall.core.planning.reading import tasks_tallied
+from waterfall.core.planning.scheduling import WorkInstant
+from waterfall.core.planning.views import derived_states, tallied_own_lines
 from waterfall.core.planning.writing import Place
 from waterfall.core.revisions.interface import aimed_structure
 
@@ -24,10 +26,6 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.orm import Session
-
-    from waterfall.core.planning.scheduling.calendar import WorkInstant
-
-TASK = "task"
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,28 +54,36 @@ class IndicatorTask:
 def tasks_for_indicators(
     session: Session, project_id: UUID, revision_id: UUID
 ) -> tuple[IndicatorTask, ...]:
-    """Give the tasks of the main structure of a revision, depth first; none without one."""
+    """Give the tasks of the main structure of a revision, depth first; none without one.
+
+    The tasks alone, with what their lines count (``tasks_tallied``): the state of a summary is
+    derived as ``listNodes`` derives it, without the links, the tracking, the physical progress or
+    the views a reading of the grid adds, which the indicators do not read (#3902).
+    """
     structure_id = aimed_structure(session, project_id, revision_id, None)
     if structure_id is None:
         return ()
-    place = Place(project_id, revision_id, structure_id)
-    read = list_nodes(session, place, NodeFilters(kinds=(TASK,)))
-    return tuple(
-        IndicatorTask(
-            node_id=node.node_id,
-            lineage_id=node.lineage_id,
-            label=task.label,
-            parent_id=node.parent_id,
-            is_summary=task.is_summary,
-            is_milestone=task.is_milestone,
-            progress=task.progress,
-            started_on=task.started_on,
-            completed_on=task.completed_on,
-            start=task.start,
-            finish=task.finish,
-            calendar_hours=task.calendar_hours,
-            origin_risk_id=node.origin_risk_id,
+    tallied = tasks_tallied(session, Place(project_id, revision_id, structure_id))
+    tree = tallied.tree
+    states = derived_states(tree, partial(tallied_own_lines, tree, tallied.tallies))
+    found: list[IndicatorTask] = []
+    for node_id in tree.order:
+        node, task, state = tree.nodes[node_id], tree.tasks[node_id], states[node_id]
+        found.append(
+            IndicatorTask(
+                node_id=node_id,
+                lineage_id=node.lineage_id,
+                label=task.label,
+                parent_id=node.parent_id,
+                is_summary=tree.is_summary(node_id),
+                is_milestone=tree.is_milestone(node_id),
+                progress=state.progress,
+                started_on=state.started_on,
+                completed_on=state.completed_on,
+                start=WorkInstant(task.start_date, task.start_hours),
+                finish=WorkInstant(task.finish_date, task.finish_hours),
+                calendar_hours=tallied.calendars[node_id].calendar.week,
+                origin_risk_id=node.origin_risk_id,
+            )
         )
-        for node in read.items
-        if (task := node.task) is not None
-    )
+    return tuple(found)

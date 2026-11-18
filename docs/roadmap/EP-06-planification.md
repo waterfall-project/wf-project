@@ -1245,6 +1245,12 @@ comme dans MS Project, **afin de** lire un planning juste sans le dater à la ma
   manuelle saisie un samedi est refusée, et le refus nomme le lundi suivant ; la même date
   importée d’un fichier MS Project est gardée et signalée au compte rendu. » : la saisie, par
   US-1380 (`NON_WORKING_DAY`, `next_working_day`) ; l'import, par US-1430 (`ImportReport.signals`) ;
+- écart : `WF-PLA-0020-A` — « Le successeur d’une tâche d’un jour, lié fin à début avec une avance
+  de cinq jours, commence avant la date de début de planning. » : ajouté par la spécification 1.0.7
+  (#3375) ; le moteur l'admet déjà ;
+- écart : `WF-PLA-0020-A` — « Un prédécesseur lié fin à début à une récapitulative, dont une
+  subordonnée manuelle est datée avant sa fin, est signalé avec cette subordonnée. » : ajouté par la
+  spécification 1.0.7 (#3368) ; #3984 l'éprouve ;
 - `WF-PLA-0030-A` — « Les quatre types et un décalage négatif sont importés, saisis et exportés
   sans perte. » : saisis par `setPredecessors`, conservés avec leur type, leur valeur et leur
   unité ; importés et exportés, par US-1430 ;
@@ -1257,6 +1263,9 @@ comme dans MS Project, **afin de** lire un planning juste sans le dater à la ma
   importé et exporté sans conversion. » : conservé ; importé et exporté, par US-1430 ;
 - `WF-PLA-0030-A` — « Un décalage de 50 % sur un prédécesseur de dix jours vaut cinq jours de
   travail. » : un test sans base du moteur ;
+- écart : `WF-PLA-0030-A` — « Une liaison fin à début vers une récapitulative fait commencer chacune
+  de ses subordonnées automatiques sans prédécesseur après la fin du prédécesseur. » : ajouté par la
+  spécification 1.0.7 (#3368) ; le moteur l'applique déjà ;
 - `WF-PLA-0100-A` — « Sur un planning à deux branches parallèles de durées différentes, la
   branche la plus longue est critique et l’autre porte une marge égale à leur écart. »
 - `WF-PLA-0100-A` — « Allonger une tâche de la branche courte au-delà de sa marge la rend critique

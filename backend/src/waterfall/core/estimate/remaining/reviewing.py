@@ -47,6 +47,7 @@ if TYPE_CHECKING:
 
     from waterfall.core.estimate.entries import LineEntry
     from waterfall.core.estimate.placing import Placed
+    from waterfall.core.estimate.reading import LineColumns
     from waterfall.core.planning.interface import FacetWrite
 
 BASIS = "/reestimated_amount_basis"
@@ -83,8 +84,8 @@ def reestimate(write: FacetWrite, figures: LineEntry, reason: str | None) -> Non
     write.session.flush()
 
 
-def provisions_of(session: Session, rows: Collection[EstimateLine]) -> frozenset[UUID]:
-    """Give, of the lines read, the provision lines: their category is of the provision kind."""
+def provisions_of(session: Session, rows: Collection[LineColumns]) -> frozenset[UUID]:
+    """Give, of the lines read, objects or rows, the provision lines: of a provision category."""
     categories = category_labels(session, {row.cost_category_id for row in rows})
     return frozenset(
         row.node_id
