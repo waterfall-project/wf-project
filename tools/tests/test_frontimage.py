@@ -411,6 +411,7 @@ def test_the_chain_builds_the_front_once_and_every_part_plays_that_build() -> No
     assert not [s for s in service["steps"] if "build-front" in s.get("run", "")]
 
 
+@pytest.mark.story("US-2480")
 def test_a_change_of_what_makes_the_image_wakes_its_check() -> None:
     declaration = paths.read()
     for changed in (
@@ -423,6 +424,9 @@ def test_a_change_of_what_makes_the_image_wakes_its_check() -> None:
         "frontend/src/api/server.ts",
     ):
         assert "front-image" in {family.name for family in declaration.touched([changed])}
+    # The code of a page does not: the image is built where the image itself changes (#850).
+    page = declaration.touched(["frontend/src/app/(home)/page.tsx"])
+    assert "front-image" not in {family.name for family in page}
 
 
 def test_the_chain_runs_the_check_and_the_gate_judges_it() -> None:
