@@ -760,8 +760,12 @@ deux réponses contradictoires pour un même compte, ni une erreur interne sans 
 - `WF-ADM-0120-A` — « La désactivation du dernier compte administrateur est refusée, de même que le retrait de son rôle. » : constaté par EP-03
   (US-0380), inchangé ; les trois tests qui éprouvent les deux phrases suivantes
   (`test_access_roles.py`, `test_access_roles_guard.py`) citent désormais l'exigence.
-- `WF-ADM-0120-A` — « Elle est acceptée dès qu’un second compte actif porte la permission. » : idem.
-- `WF-ADM-0120-A` — « La modification d’un rôle qui retirerait l’une de ces permissions au dernier compte qui les porte est refusée. » : idem, sous concurrence comprise.
+- écart : `WF-ADM-0120-A` — « Elle est acceptée dès qu’un second compte actif, qui s’est déjà
+  connecté, porte ces permissions. » : réécrit par la spécification 1.0.7 (#3357) ; #3987 l'éprouve.
+- `WF-ADM-0120-A` — « La modification d’un rôle qui retirerait l’une de ces permissions au dernier compte qui les porte est refusée. » : idem, sous concurrence comprise ;
+- écart : `WF-ADM-0120-A` — « Un administrateur qui a donné son rôle à un compte qui ne s’est jamais
+  connecté ne peut pas désactiver le sien. » : ajouté par la spécification 1.0.7 (#3357) ; #3987
+  l'éprouve.
 - propre à l'US : `updateUser`, `anonymizeUser`, `createPasswordSetupLink`, `resendInvitation` et
   `createUser` prennent le verrou de la règle du dernier administrateur avant toute ligne de compte,
   dans l'ordre de la lecture des comptes du fournisseur (`identity_sync`) ; à deux connexions, une

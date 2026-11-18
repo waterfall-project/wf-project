@@ -807,6 +807,8 @@ attendre l'administrateur.
 - `WF-PRJ-0010-A` — « La saisie d'un code déjà porté par un autre projet est refusée. » : 409,
   `ALREADY_EXISTS` sur `/code`, `conflicting_object_id` et `conflicting_object_label`, à la
   création comme à la modification ; l'unicité est une contrainte de la base ;
+- écart : `WF-PRJ-0010-A` — « L’effacement du code d’un projet En cours est refusé. » : ajouté par
+  la spécification 1.0.7 (#3353) ; #3989 l'éprouve ;
 - `WF-PRJ-0090-A` — « La modification de la probabilité est refusée à partir de l'état En
   cours. » : 409, `STATE_FORBIDS_OPERATION`, `project_before_in_progress`, que la commande
   `update_win_probability` dit d'avance ; l'état En cours se pose autour du service dans les tests
@@ -891,6 +893,11 @@ saisisse ce qu'il doit, et qu'un projet garde toujours un chef.
   `LAST_PROJECT_MANAGER`, sans paramètre, sous un verrou de la liste ;
 - écart : `WF-PRJ-0060-A` — « Un participant porteur de la permission d’exclure une ligne de coût ne
   l’exclut pas. » : ajouté par la spécification 1.0.7 (#3350) ; #3973 l'éprouve ;
+- écart : `WF-PRJ-0060-A` — « L’inscription d’un chef de projet figure au journal d’audit. » :
+  ajouté par la spécification 1.0.7 (#3356) ; #3988 l'éprouve ;
+- écart : `WF-PRJ-0060-A` — « Un non-contributeur qui inscrit un chef de projet sur un projet dont
+  le dernier est désactivé ne peut retirer aucun participant. » : ajouté par la spécification 1.0.7
+  (#3356) ; #3988 l'éprouve ;
 - `WF-ADM-0070-A` — « Une personne retirée de l'annuaire voit son compte désactivé à la
   synchronisation suivante, et ses actes restent consultables. » : un contributeur dont le compte
   est désactivé depuis son inscription reste listé, `is_active` faux, et les lignes qu'il a
@@ -907,6 +914,8 @@ saisisse ce qu'il doit, et qu'un projet garde toujours un chef.
 - écart : `WF-ADM-0070-A` — « Un compte anonymisé dont la personne figure encore dans l'annuaire
   reste anonymisé après synchronisation, et aucun compte n'est créé à son nom. » : constaté par
   EP-03 ;
+- écart : `WF-ADM-0070-A` — « Un compte que l’annuaire désactive est désactivé à la synchronisation
+  suivante. » : ajouté par la spécification 1.0.7 (#3358) ; #3986 l'éprouve ;
 - propre à l'US : `setContributors` écrit la liste entière avec son compteur propre
   (`ContributorList.lock_version`, 412 s'il est périmé, 422 s'il est nul) ; un compte que
   l'installation n'a pas est refusé par `UNKNOWN_USER`, un compte désactivé inscrit ou changé de
@@ -1186,6 +1195,9 @@ quel que soit le chemin, **afin que** l'histoire du projet soit sûre.
   ici ; le total du devis est d'EP-07, sa conservation d'EP-10, EP-11 clôt ;
 - écart : `WF-DAT-0040-A` — « La courbe de coût réel d'une révision marquée est identique avant et
   après l'exclusion d'une ligne de coût connue à son marquage. » : EP-10 ;
+- écart : `WF-DAT-0040-A` — « Une lecture conservée d’un sous-projet créé après le marquage de la
+  révision est refusée, la révision ne conservant pas ses indicateurs. » : ajouté par la
+  spécification 1.0.7 (#3736) ; tenu par EP-10 (US-2430/L3, #3649) ;
 - écart : `WF-DAT-0030-A` — « Une tâche renommée et déplacée dans la révision en cours est
   rapprochée de la tâche d'origine par la comparaison avec la révision marquée précédente. » :
   les tâches sont d'EP-06, EP-10 clôt ; ici, `cost_structure` porte `lineage_id`, que la copie
@@ -1320,6 +1332,8 @@ case à cocher.
   la saisie, par un import Excel ou MS Project, ou par un traitement automatique. » : par la
   saisie, chaque écriture de cet EPIC répond 409 `STATE_FORBIDS_OPERATION` avec
   `project_not_terminal` (#2172) ; les imports sont d'EP-06 à EP-09, qui clôt ;
+- écart : `WF-CYC-0100-A` — « L’inscription d’un participant sur un projet terminal aboutit ; il le
+  consulte et n’y modifie rien. » : ajouté par la spécification 1.0.7 (#3363) ; #3990 l'éprouve ;
 - `WF-CYC-0110-A` — « Toutes les vues de consultation d'un projet clos s'affichent normalement, et
   ses exports aboutissent. » : les lectures de cet EPIC répondent 200 sur un projet clos ; les
   exports sont d'EP-06 à EP-09, qui clôt ;

@@ -70,7 +70,8 @@ technique, sans lot (décision de l'auteur du 2026-11-14, au cadrage).
 
 ## Exigences réalisées
 
-L'EPIC ne clôt aucune exigence. Il poursuit WF-IHM-0130, que clôt EP-11, et réalise les phrases que
+L'EPIC clôt WF-ADM-0200, que la spécification 1.0.7 écrit sur la décision que portait #3197 et
+qu'US-2120 avait réalisée d'avance. Il poursuit WF-IHM-0130, que clôt EP-11, et réalise les phrases que
 la spécification 1.0.6 ajoute à des exigences closes par des EPICs livrés — WF-IHM-0070 et
 WF-ADM-0040 —, notées en écart dans les US qui les citaient (US-0160, US-0730, US-0740).
 
@@ -85,6 +86,7 @@ portée reste celle des EPIC qui les ouvrent et les closent : `WF-IHM-0070-A` (E
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
 | `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | début — close en EP-11, amorcée aussi en EP-02, EP-03, EP-15 | US-2080, US-2160 |
+| `WF-ADM-0200-A` | Réglages de l'installation | entière | US-2120 |
 
 ## Opérations du contrat
 
@@ -756,7 +758,7 @@ de référence, **afin de** régler le référentiel sans chercher une commande 
 ## US-2120 — L'écran « Installation » : le nom de l'entreprise, modifiable, et ce que l'amorçage a fixé
 
 - **statut** : fini
-- **exigences** : `WF-EXP-0020-A`, `WF-ADM-0100-A`
+- **exigences** : `WF-ADM-0200-A`, `WF-EXP-0020-A`, `WF-ADM-0100-A`
 - **opérations** : `getInstallation`, `getReferenceSettings`, `updateReferenceSettings`,
   `listPermissions`, `getMe`
 - **issue** : #3239
@@ -767,6 +769,14 @@ sur l'écran des coûts, auquel il n'a pas trait.
 
 **Critères d'acceptation.**
 
+- `WF-ADM-0200-A` — « Le nom de l’entreprise se modifie depuis cet écran et figure sur le devis
+  exporté ensuite. » : modifié depuis l'écran « Installation », sous `installation.write` ;
+- `WF-ADM-0200-A` — « L’écran présente la devise, la langue par défaut et le fuseau horaire, et
+  n’offre aucune commande pour les changer. » : trois valeurs en lecture seule, lues de
+  `getReferenceSettings` et de `getInstallation` ;
+- `WF-ADM-0200-A` — « Un utilisateur sans la permission de modifier la fonction lit l’écran sans
+  commande ; sans celle de la consulter, il ne le voit pas. » : `installation.read` et
+  `installation.write`, sous FBS-1.6 ;
 - `WF-EXP-0020-A` — « Le nom de l'entreprise saisi à l'installation figure sur un devis exporté ;
   modifié, il figure sur le suivant. » : modifié depuis l'écran « Installation » ;
 - écart : `WF-EXP-0020-A` — « Après installation, un administrateur fixe son mot de passe par le

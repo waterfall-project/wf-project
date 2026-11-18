@@ -1178,6 +1178,9 @@ restent ce qu'elles étaient le jour où je les ai tenues.
 - `WF-DAT-0040-A` — « La courbe de coût réel d’une révision marquée est identique avant et après
   l’exclusion d’une ligne de coût connue à son marquage. » : les courbes conservées, par US-1690 ;
   ici, le document conservé des indicateurs ne change pas après `setActualCostTrackedScope` ;
+- écart : `WF-DAT-0040-A` — « Une lecture conservée d’un sous-projet créé après le marquage de la
+  révision est refusée, la révision ne conservant pas ses indicateurs. » : ajouté par la
+  spécification 1.0.7 (#3736) ; tenu par EP-10 (US-2430/L3, #3649) ;
 - `WF-IND-0010-A` — « Les indicateurs d’une révision marquée ne changent pas après son marquage,
   même après l’import d’une ligne de coût datée avant le marquage, qui n’entre ni dans son coût
   réel ni dans ses courbes. » : le coût réel conservé est la somme des lignes suivies connues au

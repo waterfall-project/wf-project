@@ -1441,8 +1441,8 @@ la main (#1787, #1763).
   valeur. » : du service ; EP-08 clôt.
 - écart : `WF-RIS-0060-A` — « Les tâches fusionnées se trouvent sous la tâche qui portait la
   provision, aux dates qu’elles avaient dans le devis propre ; le total du lot dont cette tâche
-  relève augmente de leur montant, moins la provision retirée ; une tâche fusionnée qui n’avait pas
-  de prédécesseur est en mode manuel. » : idem ; EP-08 clôt.
+  relève augmente de leur montant, moins la provision retirée ; une tâche feuille fusionnée qui
+  n’avait pas de prédécesseur est en mode manuel. » : idem ; EP-08 clôt.
 - écart : `WF-RIS-0060-A` — « La survenance d’un risque dont la provision était portée par un jalon
   place ses tâches après ce jalon, qui reste un jalon sans sous-tâche. » : idem ; EP-08 clôt.
 - `WF-RIS-0060-A` — « Une ligne fusionnée par la survenance d’un risque est encore désignée comme

@@ -630,11 +630,11 @@ ni ce qui a été réestimé, ni ce qui a été fait.
 - `WF-REV-0050-A` — « Les tâches inchangées conservent leur identité et leur état. » : une tâche que
   le différentiel ne touche pas garde sa lignée, son état, son avancement et ses inscriptions ;
 - `WF-REV-0050-A` — « Une tâche démarrée désignée comme retirée par un différentiel est conservée,
-  son reste à engager est nul, et sa valeur acquise est inchangée après la fusion. » : la tâche est
-  conservée, le reste à engager de ses lignes est nul, elle est
-  terminée à la date de la fusion, et ses lignes gardent leur budgété : la valeur que la tâche porte
-  est inchangée, et elle l'acquiert en se terminant (décision de l'auteur du 2026-11-17 ; un constat
-  de spécification demande de préciser la phrase) ;
+  son reste à engager est nul, et le montant budgété de ses lignes est inchangé après la fusion :
+  terminée, elle l’acquiert. » : la tâche est conservée, le reste à engager de ses lignes est nul,
+  elle est terminée à la date de la fusion, et ses lignes gardent leur budgété : la valeur que la
+  tâche porte est inchangée, et elle l'acquiert en se terminant (décision de l'auteur du 2026-11-17
+  ; un constat de spécification demande de préciser la phrase) ;
 - `WF-REV-0050-A` — « Une ligne réestimée à 140 pour un montant budgété de 100, non désignée par le
   différentiel, porte toujours 100 et 140 après la fusion. » : la ligne porte 100 de budgété et 140
   de réestimé après la fusion ;
@@ -715,13 +715,12 @@ ni ce qui a été réestimé, ni ce qui a été fait.
   lignes ajoutées ou retirées, de celles des tâches démarrées que la fusion termine et de celles
   dont l'année de consommation change ; une ligne dont seul le budgété change n'a aucun écart de
   réestimé ;
-- `WF-REV-0080-A` — « Entre deux révisions d'années de référence différentes, les montants réestimés
-  diffèrent en outre sur chaque ligne dont le taux a été mis à jour ou projeté jusqu'à la nouvelle
-  année de référence (WF-REV-0060), et sur chaque ligne de débours, dont le montant est projeté de
-  même (WF-DEV-0030) ; les tâches et les montants budgétés restent ceux du différentiel. » : éprouvé
-  sur une fusion sans révision en cours, l'année ayant changé : la révision créée est aux taux
-  projetés, le réestimé diffère de plus sur chaque ligne au taux projeté et sur chaque ligne de
-  débours, et les tâches et le budgété restent ceux du différentiel (E-02, #1754) ;
+- écart : `WF-REV-0080-A` — « Entre deux révisions d’années de référence différentes, les montants
+  réestimés diffèrent en outre sur chaque ligne dont le taux a été mis à jour ou projeté jusqu’à la
+  nouvelle année de référence (WF-REV-0060) ; une ligne de débours, dont le débours unitaire est
+  projeté de même, n’y présente aucun écart de montant réestimé ; les tâches et les montants
+  budgétés restent ceux du différentiel. » : réécrit par la spécification 1.0.7 (#3366) ; une ligne
+  de débours ne présente plus d'écart, son débours étant projeté ; #3983 l'éprouve ;
 - `WF-REV-0080-A` — « Une tâche déplacée sous une autre récapitulative est présentée modifiée. » :
   tenu par EP-07 et EP-27, non touché ici ;
 - `WF-REV-0080-A` — « La révision en cours se compare à la révision marquée dont elle est issue :
@@ -1274,9 +1273,9 @@ savoir si le projet consomme ses provisions sans que cela se voie dans son budge
 - `WF-RAE-0010-A` — « Un projet portant un risque de provision 40 compte cette provision une fois. »
   : la provision compte par sa ligne, une seule fois ;
 - `WF-RAE-0010-A` — « Le reste à engager égale la somme des montants réestimés courants des lignes
-  des tâches non terminées, lignes de provision des risques identifiés comprises. » : la somme des
-  `reestimated_amount` des lignes des tâches non terminées, lignes de provision comprises, égale le
-  reste à engager ;
+  des tâches non terminées, hors lignes de provision, plus les provisions des risques identifiés,
+  quel que soit l’état de la tâche qui les porte. » : la somme des `reestimated_amount` des lignes
+  des tâches non terminées, lignes de provision comprises, égale le reste à engager ;
 - `WF-RAE-0010-A` — « Dans une révision créée en 2027 où le taux de 2027 d'une catégorie a été
   accepté, une tâche non démarrée dont une ligne relève de cette catégorie compte pour sa charge au
   taux de 2027, et non au taux de 2026 corrigé d'une année d'inflation. » : tenu par EP-09, non
@@ -1334,13 +1333,13 @@ autre — planifié, réestimé, terminé —, sans budget, et que ce qu'il coû
   budget sont les mêmes ; le reste à engager a monté de 200 moins la provision ; que leur
   terminaison n'acquière rien est éprouvé par US-2630 ;
 - `WF-RIS-0060-A` — « Les tâches fusionnées se trouvent sous la tâche qui portait la provision, aux
-  dates qu'elles avaient dans le devis propre ; le total du lot dont cette tâche relève augmente de
-  leur montant, moins la provision retirée ; une tâche fusionnée qui n'avait pas de prédécesseur est
-  en mode manuel. » : les tâches de premier niveau du devis propre sont, dans leur ordre, les
-  dernières sous la tâche qui portait la provision, avec leurs subordonnées, leurs liaisons
-  internes, leurs durées et leurs modes ; une tâche sans prédécesseur dans le devis propre est en
-  mode manuel aux dates qu'elle y avait ; le total du lot de la tâche porteuse monte de leur montant
-  moins la provision ;
+  dates qu’elles avaient dans le devis propre ; le total du lot dont cette tâche relève augmente de
+  leur montant, moins la provision retirée ; une tâche feuille fusionnée qui n’avait pas de
+  prédécesseur est en mode manuel. » : les tâches de premier niveau du devis propre sont, dans leur
+  ordre, les dernières sous la tâche qui portait la provision, avec leurs subordonnées, leurs
+  liaisons internes, leurs durées et leurs modes ; une tâche sans prédécesseur dans le devis propre
+  est en mode manuel aux dates qu'elle y avait ; le total du lot de la tâche porteuse monte de leur
+  montant moins la provision ;
 - `WF-RIS-0060-A` — « La survenance d'un risque dont la provision était portée par un jalon place
   ses tâches après ce jalon, qui reste un jalon sans sous-tâche. » : les tâches sont placées, dans
   leur ordre, immédiatement après le jalon, sous sa tâche parente ou au premier niveau ; le jalon

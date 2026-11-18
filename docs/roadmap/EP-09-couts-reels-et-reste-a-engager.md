@@ -1025,9 +1025,10 @@ tâches démarrées sans attendre un fichier.
 - écart : `WF-RAE-0010-A` — « Un projet portant un risque de provision 40 compte cette provision
   une fois. » : EP-08, qui clôt ;
 - `WF-RAE-0010-A` — « Le reste à engager égale la somme des montants réestimés courants des lignes
-  des tâches non terminées, lignes de provision des risques identifiés comprises. » : la somme sur
-  les lignes des tâches non terminées, démarrées ou non, réestimées ou non ; les lignes de
-  provision sont d'EP-08, qui clôt, et il n'en existe aucune ici ;
+  des tâches non terminées, hors lignes de provision, plus les provisions des risques identifiés,
+  quel que soit l’état de la tâche qui les porte. » : la somme sur les lignes des tâches non
+  terminées, démarrées ou non, réestimées ou non ; les lignes de provision sont d'EP-08, qui clôt,
+  et il n'en existe aucune ici ;
 - `WF-RAE-0010-A` — « Dans une révision créée en 2027 où le taux de 2027 d’une catégorie a été
   accepté, une tâche non démarrée dont une ligne relève de cette catégorie compte pour sa charge au
   taux de 2027, et non au taux de 2026 corrigé d’une année d’inflation. » : constaté par EP-07
@@ -1540,6 +1541,8 @@ rapprochement avec l'ERP.
   reste à engager sur un projet terminal, par 409 `project_not_terminal` ; la saisie et MS Project,
   constatés par EP-04 et EP-06 ; le traitement automatique, par la tâche d'application d'un import
   confirmé avant la sortie, qui revérifie et refuse (EP-06) ;
+- écart : `WF-CYC-0100-A` — « L’inscription d’un participant sur un projet terminal aboutit ; il le
+  consulte et n’y modifie rien. » : ajouté par la spécification 1.0.7 (#3363) ; #3990 l'éprouve ;
 - `WF-CYC-0110-A` — « Toutes les vues de consultation d’un projet clos s’affichent normalement, et
   ses exports aboutissent. Seules les modifications sont refusées. » : `listActualCosts`,
   `listCostImports`, `getRemainingIndicators` et `listStartableTasks` répondent sur un projet
@@ -1653,6 +1656,9 @@ périodique avec l'outil que mes interlocuteurs connaissent.
 - `WF-REV-0060-A` — « Une mise à jour refusée à la création d’une révision est acceptée ensuite
   depuis la révision en cours, qui est alors rechiffrée au taux de 2027 pour cette catégorie. » :
   constaté par EP-07 ;
+- écart : `WF-REV-0060-A` — « Avec une inflation de 3 %, une ligne de débours 8 000 consommée en
+  2028 vaut 8 487,20 dans la révision de 2026 comme dans celle créée en 2027, où son débours est de
+  8 240. » : ajouté par la spécification 1.0.7 (#3366) ; #3983 l'éprouve ;
 - `WF-IHM-0080-A` — « Le marquage d'une révision de dix mille objets laisse l'écran utilisable et
   présente son avancement. » : constaté par EP-04 ;
 - `WF-IHM-0080-A` — « Un utilisateur qui change d'écran pendant un import est informé de son
@@ -1783,6 +1789,9 @@ leurs gestes —, **afin de** mener ma revue sans faux back.
 - `WF-REF-0010-A` — « La désactivation d’une nature désactive ses catégories. »
 - `WF-REF-0010-A` — « La réactivation d’une catégorie dont la nature est désactivée est refusée. » :
   les deux, constatées par EP-05 ;
+- écart : `WF-REF-0010-A` — « La désactivation d’une catégorie que porte un rôle de ressource actif
+  est refusée et nomme ce rôle ; elle aboutit une fois le rôle désactivé ou passé à une autre
+  catégorie. » : ajouté par la spécification 1.0.7 (#3359) ; #3985 l'éprouve ;
 - propre à l'US : la grille de reste à engager lit `listNodes` servi — le filtre `progress`, les
   colonnes du reste précédent et courant, `remaining_entry`, `finish_overdue`, `awaiting_own_lines`
   et la marque des lignes propres ouvertes, les totaux relus après chaque écriture —, écrit chaque

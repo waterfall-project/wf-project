@@ -1475,7 +1475,9 @@ qu'elle se soit connectée.
   retire `access_role_ids` de `UserCreate` (#1731), et le service suit en EP-18 (US-1050, #1732).
 - `WF-ADM-0070-A` — « Un compte anonymisé dont la personne figure encore dans l’annuaire reste anonymisé après synchronisation, et aucun compte n’est créé à son nom. »
 - `WF-ADM-0070-A` — « Une personne ajoutée à l’annuaire a un compte dans Waterfall au terme de la périodicité choisie, sans intervention. » : la périodicité est celle de la
-  tâche planifiée de lecture, quotidienne par défaut.
+  tâche planifiée de lecture, quotidienne par défaut ;
+- écart : `WF-ADM-0070-A` — « Un compte que l’annuaire désactive est désactivé à la synchronisation
+  suivante. » : ajouté par la spécification 1.0.7 (#3358) ; #3986 l'éprouve.
 - écart : `WF-ARC-0090-A` — « Le marquage d’une révision de dix mille objets n’immobilise aucune requête au-delà de la création de la tâche, et l’utilisateur en voit l’aboutissement. » : le marquage arrive en EP-04 ; ici, la lecture
   des comptes ne tient aucune requête au-delà de la création de la tâche, et l'utilisateur en
   voit l'aboutissement.
@@ -1527,8 +1529,11 @@ droits selon son organisation, et non selon celle que le logiciel imagine.
 - écart : `WF-ADM-0100-A` — « Un utilisateur sans la permission de créer un projet n’en crée pas. » : la création d'un projet arrive en EP-04.
 - `WF-ADM-0100-A` — « Aucun écran ne permet de créer une permission. »
 - `WF-ADM-0120-A` — « La désactivation du dernier compte administrateur est refusée, de même que le retrait de son rôle. »
-- `WF-ADM-0120-A` — « Elle est acceptée dès qu’un second compte actif porte la permission. »
-- `WF-ADM-0120-A` — « La modification d’un rôle qui retirerait l’une de ces permissions au dernier compte qui les porte est refusée. » : refusée par US-0380/L1b (#740, #749).
+- `WF-ADM-0120-A` — « Elle est acceptée dès qu’un second compte actif, qui s’est déjà connecté, porte ces permissions. »
+- `WF-ADM-0120-A` — « La modification d’un rôle qui retirerait l’une de ces permissions au dernier compte qui les porte est refusée. » : refusée par US-0380/L1b (#740, #749) ;
+- écart : `WF-ADM-0120-A` — « Un administrateur qui a donné son rôle à un compte qui ne s’est jamais
+  connecté ne peut pas désactiver le sien. » : ajouté par la spécification 1.0.7 (#3357) ; #3987
+  l'éprouve.
 - écart : `WF-INTF-0030-A` — « Un utilisateur porteur du rôle prédéfini « administrateur » crée un compte, lui affecte un rôle d’habilitation (FBS-1.1, FBS-1.2), ouvre l’écran d’état du système (FBS-1.3), ouvre le journal d’audit et y applique un filtre (FBS-1.5), et déclenche une sauvegarde (FBS-1.4). » : la création d'un compte et l'affectation d'un
   rôle sont ici, le journal d'audit (US-0410) et le déclenchement d'une sauvegarde (US-0440) ;
   l'écran d'état arrive en EP-13, qui clôt l'exigence.

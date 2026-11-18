@@ -240,7 +240,9 @@ comptes ne donne jamais, par un appel direct, le rôle d'administrateur (#1732, 
 - écart : `WF-ADM-0070-A` — « Une personne retirée de l’annuaire voit son compte désactivé à la synchronisation suivante, et ses actes restent consultables. » : idem.
 - écart : `WF-ADM-0070-A` — « Le dernier compte administrateur, retiré de l’annuaire, reste actif et la synchronisation le signale. » : idem.
 - écart : `WF-ADM-0070-A` — « Une personne ajoutée à l’annuaire a un compte dans Waterfall au terme de la périodicité choisie, sans intervention. » : idem.
-- écart : `WF-ADM-0070-A` — « Un compte anonymisé dont la personne figure encore dans l’annuaire reste anonymisé après synchronisation, et aucun compte n’est créé à son nom. » : idem.
+- écart : `WF-ADM-0070-A` — « Un compte anonymisé dont la personne figure encore dans l’annuaire reste anonymisé après synchronisation, et aucun compte n’est créé à son nom. » : idem ;
+- écart : `WF-ADM-0070-A` — « Un compte que l’annuaire désactive est désactivé à la synchronisation
+  suivante. » : ajouté par la spécification 1.0.7 (#3358) ; #3986 l'éprouve.
 - écart : `WF-ADM-0090-A` — « Un utilisateur portant deux rôles dispose des permissions des deux. » : constaté par EP-03 (US-0380), inchangé.
 - écart : `WF-ADM-0090-A` — « Le retrait d’une permission à un rôle en prive tous ses porteurs sans qu’ils aient à se reconnecter. » : idem.
 - écart : `WF-ADM-0090-A` — « La suppression d’un rôle est refusée tant qu’un compte le porte. » : US-1060.

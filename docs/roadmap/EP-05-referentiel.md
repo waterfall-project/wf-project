@@ -1165,6 +1165,9 @@ réactiver, **afin que** l'histoire des projets reste lisible et qu'une erreur s
   US-0820 ;
 - `WF-REF-0010-A` — « La réactivation d'une catégorie dont la nature est désactivée est
   refusée. » : constaté par US-0820 ;
+- écart : `WF-REF-0010-A` — « La désactivation d’une catégorie que porte un rôle de ressource actif
+  est refusée et nomme ce rôle ; elle aboutit une fois le rôle désactivé ou passé à une autre
+  catégorie. » : ajouté par la spécification 1.0.7 (#3359) ; #3985 l'éprouve ;
 - `WF-REF-0150-A` — « Un objet désactivé n'apparaît pas dans la liste par défaut, apparaît lorsque
   l'affichage des objets désactivés est demandé, et peut y être réactivé. » : contre le service,
   pour chacune des cinq listes — nœuds, rôles, calendriers, natures, catégories — et la grille des

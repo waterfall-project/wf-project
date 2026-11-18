@@ -711,7 +711,13 @@ la grille ni la souris.
   saisie un samedi est refusée, et le refus nomme le lundi suivant ; la même date importée d’un
   fichier MS Project est gardée et signalée au compte rendu. » : saisie — le refus est dit à la
   cellule et nomme le jour travaillé suivant, sur l'exemple du faux back (US-0470/L3, #1285, #1289)
-  ; importée — EP-06.
+  ; importée — EP-06 ;
+- écart : `WF-PLA-0020-A` — « Le successeur d’une tâche d’un jour, lié fin à début avec une avance
+  de cinq jours, commence avant la date de début de planning. » : ajouté par la spécification 1.0.7
+  (#3375) ; le moteur l'admet déjà ;
+- écart : `WF-PLA-0020-A` — « Un prédécesseur lié fin à début à une récapitulative, dont une
+  subordonnée manuelle est datée avant sa fin, est signalé avec cette subordonnée. » : ajouté par la
+  spécification 1.0.7 (#3368) ; #3984 l'éprouve.
 - `WF-PLA-0030-A` — « Les quatre types et un décalage négatif sont importés, saisis et exportés
   sans perte. » : saisis — la colonne des prédécesseurs accepte « 3FD+2 j ; 5DD », les quatre types
   et un décalage négatif ou en pourcentage, analysés dans la langue de l'interface ; importés et
@@ -723,7 +729,10 @@ la grille ni la souris.
 - écart : `WF-PLA-0030-A` — « Un décalage saisi en semaines ou en mois est conservé dans son
   unité, importé et exporté sans conversion. » : EP-06.
 - écart : `WF-PLA-0030-A` — « Un décalage de 50 % sur un prédécesseur de dix jours vaut cinq jours
-  de travail. » : le calcul est du service — EP-06.
+  de travail. » : le calcul est du service — EP-06 ;
+- écart : `WF-PLA-0030-A` — « Une liaison fin à début vers une récapitulative fait commencer chacune
+  de ses subordonnées automatiques sans prédécesseur après la fin du prédécesseur. » : ajouté par la
+  spécification 1.0.7 (#3368) ; le moteur l'applique déjà.
 - `WF-PLA-0160-A` — « « 1 m » est lu comme un mois et « 1 min » comme une minute, dans chacune des
   langues de l’interface. » : l'analyse des suffixes au front, dans les deux langues.
 - écart : `WF-PLA-0160-A` — « Avec les valeurs par défaut, une durée saisie « 2 j » vaut seize
@@ -902,7 +911,10 @@ montre tout le cycle, de la création à la réalisation.
 - écart : `WF-REV-0060-A` — « Une mise à jour refusée à la création d’une révision est acceptée
   ensuite depuis la révision en cours, qui est alors rechiffrée au taux de 2027 pour cette
   catégorie. » : la commande est offerte depuis la révision en cours ; le rechiffrage est du
-  service — EP-07.
+  service — EP-07 ;
+- écart : `WF-REV-0060-A` — « Avec une inflation de 3 %, une ligne de débours 8 000 consommée en
+  2028 vaut 8 487,20 dans la révision de 2026 comme dans celle créée en 2027, où son débours est de
+  8 240. » : ajouté par la spécification 1.0.7 (#3366) ; #3983 l'éprouve.
 - propre à l'US : la page du projet porte l'encart « Démarrer le projet » tant que la structure
   principale de la révision en cours n'a aucune tâche, pour qui peut modifier le planning — et
   aussi dès la création du projet, sur un projet sans révision, où « Engendrer le planning » ouvre
@@ -969,9 +981,10 @@ travaille, sans table à plat.
   montant budgété ne présente aucun écart de montant réestimé. » : EP-07.
 - écart : `WF-REV-0080-A` — « Entre deux révisions d’années de référence différentes, les montants
   réestimés diffèrent en outre sur chaque ligne dont le taux a été mis à jour ou projeté jusqu’à la
-  nouvelle année de référence (WF-REV-0060), et sur chaque ligne de débours, dont le montant est
-  projeté de même (WF-DEV-0030) ; les tâches et les montants budgétés restent ceux du
-  différentiel. » : EP-07 ;
+  nouvelle année de référence (WF-REV-0060) ; une ligne de débours, dont le débours unitaire est
+  projeté de même, n’y présente aucun écart de montant réestimé ; les tâches et les montants
+  budgétés restent ceux du différentiel. » : réécrit par la spécification 1.0.7 (#3366) ; une ligne
+  de débours ne présente plus d'écart, son débours étant projeté ; #3983 l'éprouve ;
 - écart : `WF-REV-0080-A` — « La révision en cours se compare à la révision marquée dont elle est
   issue : une tâche dont la fin y est repoussée de cinq jours est présentée modifiée, avec la date
   de fin de la base ; la date ramenée à celle de la base, la tâche n'est plus présentée modifiée. »
@@ -1047,8 +1060,8 @@ référence se déplace, et qu'EP-08 serve ce parcours tel qu'il est validé.
 - écart : `WF-REV-0050-A` — « Les tâches inchangées conservent leur identité et leur état. » :
   EP-08.
 - écart : `WF-REV-0050-A` — « Une tâche démarrée désignée comme retirée par un différentiel est
-  conservée, son reste à engager est nul, et sa valeur acquise est inchangée après la fusion. » :
-  EP-08.
+  conservée, son reste à engager est nul, et le montant budgété de ses lignes est inchangé après la
+  fusion : terminée, elle l’acquiert. » : EP-08.
 - écart : `WF-REV-0050-A` — « Une ligne réestimée à 140 pour un montant budgété de 100, non désignée
   par le différentiel, porte toujours 100 et 140 après la fusion. » : EP-08.
 - écart : `WF-REV-0050-A` — « Une ligne ajoutée en revue périodique, non désignée par le

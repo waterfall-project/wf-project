@@ -1063,6 +1063,9 @@ sans construire un second arbre.
 - `WF-DEV-0040-A` — « La somme des parts égale le montant total de la ligne avant inflation. » :
   les trois, des tests sans base du module d'étalement, sur les dates de la tâche et les heures des
   calendriers donnés ; `consumption_year` est l'année de la part la plus lourde ;
+- écart : `WF-DEV-0040-A` — « Une ligne portée par une tâche manuelle du samedi au dimanche, sur un
+  calendrier du lundi au vendredi, est chiffrée entière sur l’année de sa fin. » : ajouté par la
+  spécification 1.0.7 (#3374) ; le service compte déjà la ligne entière à la fin de sa tâche ;
 - `WF-DEV-0010-A` — « Le refus énumère les catégories de coût sans taux horaire pour l’année de
   référence. » : `createNode` et `updateEstimateLine` refusent par 422 `HOURLY_RATE_MISSING`,
   `params.missing_rates` nommant chaque catégorie et son année, une ligne dont la catégorie n'a ni
@@ -1301,6 +1304,9 @@ ne réécrive une offre remise.
   révision (412), une liste vide ou une catégorie que la proposition ne présente pas refusées par
   422 (#1756), une révision marquée par 409 `revision_draft`, aucune catégorie proposée par
   `rate_update_available` ; la révision avance d'une version et ses montants suivent ;
+- écart : `WF-REV-0060-A` — « Avec une inflation de 3 %, une ligne de débours 8 000 consommée en
+  2028 vaut 8 487,20 dans la révision de 2026 comme dans celle créée en 2027, où son débours est de
+  8 240. » : ajouté par la spécification 1.0.7 (#3366) ; #3983 l'éprouve ;
 - `WF-REV-0010-A` — « La création d’une seconde révision en cours est refusée tant que la première
   n’est pas marquée. » : constaté par EP-04 ;
 - `WF-REV-0010-A` — « Une révision créée à partir d’une révision marquée porte les mêmes tâches et
@@ -1369,6 +1375,9 @@ ne réécrive une offre remise.
 - `WF-REF-0010-A` — « La désactivation d’une nature désactive ses catégories. »
 - `WF-REF-0010-A` — « La réactivation d’une catégorie dont la nature est désactivée est refusée. » :
   les deux, constatées par EP-05 ;
+- écart : `WF-REF-0010-A` — « La désactivation d’une catégorie que porte un rôle de ressource actif
+  est refusée et nomme ce rôle ; elle aboutit une fois le rôle désactivé ou passé à une autre
+  catégorie. » : ajouté par la spécification 1.0.7 (#3359) ; #3985 l'éprouve ;
 - `WF-PRJ-0040-A` — « La modification du taux d’inflation laisse inchangés les montants des
   révisions marquées. » : `updateProject` écrit le taux, les révisions marquées gardent le leur ;
 - écart : `WF-PRJ-0040-A` — « Dans la révision en cours, les lignes de main-d’œuvre et hors
@@ -1554,10 +1563,10 @@ changé d'une offre à la suivante.
   `reestimated_delta` ne vient que des lignes dont le réestimé change ;
 - écart : `WF-REV-0080-A` — « Entre deux révisions d’années de référence différentes, les montants
   réestimés diffèrent en outre sur chaque ligne dont le taux a été mis à jour ou projeté jusqu’à la
-  nouvelle année de référence (WF-REV-0060), et sur chaque ligne de débours, dont le montant est
-  projeté de même (WF-DEV-0030) ; les tâches et les montants budgétés restent ceux du
-  différentiel. » : les taux mis à jour ou projetés, ici, sur deux révisions marquées d'années
-  différentes sans différentiel ; le différentiel est d'EP-08, qui clôt ;
+  nouvelle année de référence (WF-REV-0060) ; une ligne de débours, dont le débours unitaire est
+  projeté de même, n’y présente aucun écart de montant réestimé ; les tâches et les montants
+  budgétés restent ceux du différentiel. » : réécrit par la spécification 1.0.7 (#3366) ; une ligne
+  de débours ne présente plus d'écart, son débours étant projeté ; #3983 l'éprouve ;
 - `WF-REV-0080-A` — « Une tâche déplacée sous une autre récapitulative est présentée modifiée. » :
   `difference` à `modified`, `parent` dans `changes`, l'ancienne et la nouvelle récapitulative
   modifiées par leur contenu ;
@@ -1645,6 +1654,8 @@ l'exécution avec l'équipe que le chiffrage appelle.
   en Chiffrage et `getProjectNextState` nomme le code ;
 - `WF-PRJ-0010-A` — « La saisie d’un code déjà porté par un autre projet est refusée. » : constaté
   par EP-04 ;
+- écart : `WF-PRJ-0010-A` — « L’effacement du code d’un projet En cours est refusé. » : ajouté par
+  la spécification 1.0.7 (#3353) ; #3989 l'éprouve ;
 - `WF-PRJ-0060-A` — « La liste d’un projet nouvellement créé comporte son créateur, chef de projet,
   qui peut y inscrire d’autres utilisateurs. »
 - `WF-PRJ-0060-A` — « Un utilisateur habilité à consulter les projets, non contributeur d’un projet
@@ -1659,6 +1670,11 @@ l'exécution avec l'équipe que le chiffrage appelle.
   par EP-04 ;
 - écart : `WF-PRJ-0060-A` — « Un participant porteur de la permission d’exclure une ligne de coût ne
   l’exclut pas. » : ajouté par la spécification 1.0.7 (#3350) ; #3973 l'éprouve ;
+- écart : `WF-PRJ-0060-A` — « L’inscription d’un chef de projet figure au journal d’audit. » :
+  ajouté par la spécification 1.0.7 (#3356) ; #3988 l'éprouve ;
+- écart : `WF-PRJ-0060-A` — « Un non-contributeur qui inscrit un chef de projet sur un projet dont
+  le dernier est désactivé ne peut retirer aucun participant. » : ajouté par la spécification 1.0.7
+  (#3356) ; #3988 l'éprouve ;
 - `WF-PRJ-0070-A` — « Après création d’une ligne de main-d’œuvre portant un rôle relevant d’un
   service dont aucun utilisateur n’est contributeur, Waterfall propose les utilisateurs de ce
   service. » : `listContributorSuggestions` rend les comptes actifs rattachés aux nœuds
