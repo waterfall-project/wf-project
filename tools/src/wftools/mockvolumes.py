@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The volumes of §4.6.2, as the examples of the contract their files hold (EP-02/L2).
+"""The volumes of §4.6.2, as the examples of the contract hold them.
 
 Split from ``wftools.mockdata``, which writes and checks them, to keep it under the nine hundred
 lines (US-2520): it reads the volumes here, and the categories and rates from
