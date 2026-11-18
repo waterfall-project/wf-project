@@ -5,7 +5,7 @@
   "[service] › service/contract.spec.ts": 0.2,
   "[service] › service/grid-reset.spec.ts": 10.5,
   "[service] › service/identity-sync.spec.ts": 10.3,
-  "[service] › service/login-theme.spec.ts": 4.2,
+  "[service] › service/login-theme.spec.ts": 4.8,
   "[service] › service/password.spec.ts": 18.8,
   "[service] › service/planning-readers.spec.ts": 17.6,
   "[service] › service/project-readers.spec.ts": 16.0,

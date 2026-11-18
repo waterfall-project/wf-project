@@ -24,7 +24,7 @@ import { WORKING } from "./hydration";
 export const isServerAction = (request: Request): boolean =>
   request.method() === "POST" && request.headers()["next-action"] !== undefined;
 
-/** How long a try waits for the action after a click Playwright accepted: React may be slow to send. */
+/** How long a try waits for the action after a click Playwright accepted: React may be slow. */
 const TAKEN = 4_000;
 /** How long it waits after a click that failed: the next try presses again. */
 const REFUSED = 1_000;
@@ -67,7 +67,7 @@ export async function pressOnce(
           wait = TAKEN;
         }
       } catch (error) {
-        // Refused by Playwright: no action can have left from this press, the next try presses again.
+        // Refused by Playwright: no action can have left from this press; the next try presses.
         if (error instanceof Error) {
           refused = error;
         }
@@ -116,7 +116,7 @@ export function failedPress(refused: Error | undefined, occupiedNotPressed = fal
     : `${said}; the last click refused: ${refused.message}${busy}`;
 }
 
-/** Whether the body of an action is `setActivation(target, state)`: `[{"kind":…,"id":…,…},state]`. */
+/** Whether the body of an action is `setActivation(target, state)`: `[{"kind":…,…},state]`. */
 function asksActivation(request: Pick<Request, "postData">, state: boolean): boolean {
   return new RegExp(`^\\[\\{[^\\]]*"kind":"[a-z_]+"[^\\]]*\\},${String(state)}\\]$`).test(
     request.postData() ?? "",
