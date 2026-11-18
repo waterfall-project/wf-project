@@ -21,7 +21,6 @@ from waterfall.core.revisions.interface.rates import rate_update_available
 from waterfall.core.revisions.interface.reference import (
     main_structure_has_task,
     reference_correctable,
-    revision_has_tasks,
     revision_has_tasks_and_lines,
 )
 from waterfall.core.revisions.tables import Revision
@@ -66,7 +65,6 @@ def state_of(
         no_task_running=no_task_running,
         has_tasks_and_lines=revision_has_tasks_and_lines(session, revision_id),
         reference_correctable=correctable,
-        has_tasks=revision_has_tasks(session, revision_id),
         has_main_task=main_structure_has_task(session, project_id, revision_id),
         rate_update_available=status == "draft"
         and rate_update_available(session, project_id, revision_id),

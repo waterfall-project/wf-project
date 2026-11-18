@@ -112,13 +112,15 @@ def restore(
 class UndoDone:
     """What an undoing or a redoing did: the kind and the nodes of the entry, what it wrote.
 
-    ``remaining_depth`` is what remains to undo — to redo, for a redoing — after this one.
+    ``remaining_depth`` is what remains to undo — to redo, for a redoing — after this one;
+    ``structure_id`` the structure the entry was written in, which numbers ``written``.
     """
 
     kind: UndoneKind
     node_ids: tuple[UUID, ...]
     written: NodesWritten
     remaining_depth: int
+    structure_id: UUID
 
 
 def _writes_task(task: dict[str, JsonValue] | None, *, existed: bool) -> bool:
@@ -198,7 +200,13 @@ def _turned(
             raise ForbiddenError(PERMISSION_MISSING, {"missing_permission": asking[0]})
         place, facts = held[0]
         written = restore(session, place, facts, restoring, writer)
-    return UndoDone(restoring.kind, restoring.node_ids, written, restoring.remaining_depth)
+    return UndoDone(
+        restoring.kind,
+        restoring.node_ids,
+        written,
+        restoring.remaining_depth,
+        place.structure_id,
+    )
 
 
 def undo_last_change(

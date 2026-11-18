@@ -66,6 +66,10 @@ REVISION_RULES: tuple[Rule, ...] = (
     # alone: a marked revision is immutable, and carries neither (WF-DAT-0020).
     Rule("edit_risks", "risks.write"),
     Rule("declare_risk", "risks.write"),
+    # The opening of a differential (WF-REV-0100): a write of the revision, guarded as its rate
+    # update and its creation are, by the management of the revisions, and lacking the conditions
+    # of the state of the revision alone (``createCostStructure``).
+    Rule("create_structure", "revisions.write"),
     # A write of the revision, guarded by the permission to manage the revisions, that of
     # ``createRevision``, which applies it at the creation (WF-REV-0060; US-1500).
     Rule("apply_rate_update", "revisions.write"),
@@ -107,7 +111,6 @@ class RevisionState:
     no_task_running: bool
     has_tasks_and_lines: bool
     reference_correctable: bool
-    has_tasks: bool = False
     has_main_task: bool = False
     rate_update_available: bool = False
     provision_category_active: bool = True
@@ -151,7 +154,7 @@ def revision_conditions(command: str, revision: RevisionState) -> list[str]:
             *([] if revision.provision_category_active else [ACTIVE_PROVISION_CATEGORY]),
         ]
     # The skeleton asks a main structure without tasks first, its own condition (WF-PRJ-0030).
-    skeleton = command == "generate_skeleton" and revision.has_tasks
+    skeleton = command == "generate_skeleton" and revision.has_main_task
     missing = [MAIN_STRUCTURE_WITHOUT_TASKS] if skeleton else []
     if command == "apply_rate_update" and not revision.rate_update_available:
         missing.append(RATE_UPDATE_AVAILABLE)

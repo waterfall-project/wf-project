@@ -756,13 +756,26 @@ def resolve_row_number(session: Session, place: Place, row_number: int) -> RowRe
     """Give the node of a number of row of a structure (``resolveRowNumber``).
 
     In the numbering of the whole structure, whatever a grid retains; beyond its last row, not
-    found (404), as an unknown structure is.
+    found (404), as an unknown structure is. A differential is numbered with the nodes it removes
+    in their place, which its tree lacks: ``describe_row`` names the node of such a row.
     """
     facts_of(session, place, lock=False)
     tree = read_tree(session, place.project_id, place.structure_id)
     if not 1 <= row_number <= len(tree.order):
         raise NotFoundError(NOT_FOUND)
     node_id = tree.order[row_number - 1]
+    label = _labels(session, place.project_id, tree, [node_id])[node_id]
+    return RowResolution(node_id, row_number, label, tree.nodes[node_id].kind)
+
+
+def describe_row(session: Session, place: Place, node_id: UUID, row_number: int) -> RowResolution:
+    """Give a node of a structure as the row ``row_number`` designates, in the caller's numbering.
+
+    The tree of ``place`` does not give it for a differential, which counts the nodes it removes.
+    """
+    tree = read_tree(session, place.project_id, place.structure_id)
+    if node_id not in tree.nodes:
+        raise NotFoundError(NOT_FOUND)
     label = _labels(session, place.project_id, tree, [node_id])[node_id]
     return RowResolution(node_id, row_number, label, tree.nodes[node_id].kind)
 

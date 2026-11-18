@@ -22,16 +22,19 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
 from waterfall.api.authentication import Transaction
 from waterfall.api.contract.models import PasteApply, PastePreview
 from waterfall.api.evaluation import Acting, RequiresProject
-from waterfall.api.nodes import STRUCTURE, Placed, Writing, written_of
+from waterfall.api.nodes import STRUCTURE, Placed, Writing, node_body, written_in
+from waterfall.api.numbering import removed_in, rows_of
 from waterfall.core.planning.interface import (
     ENTRIES,
     PasteBlock,
     PasteConfirmation,
     PasteRefusal,
+    Place,
     UndoDone,
     apply_paste,
     preview_paste,
@@ -55,15 +58,21 @@ def _refused(each: PasteRefusal) -> dict[str, Any]:
     return refusal
 
 
-def _undone(done: UndoDone) -> dict[str, Any]:
-    """Write what an undoing or a redoing did as the contract does (``UndoResult``)."""
+def _undone(
+    session: Session, project_id: UUID, revision_id: UUID, done: UndoDone
+) -> dict[str, Any]:
+    """Write what an undoing or a redoing did as the contract does (``UndoResult``).
+
+    ``written`` is numbered as the structure of the entry is read (``written_in``).
+    """
+    place = Place(project_id, revision_id, done.structure_id)
     return {
         "undone": {
             "kind": done.kind,
             "node_ids": [str(each) for each in done.node_ids],
             "risk_ids": [],
         },
-        "written": written_of(done.written),
+        "written": written_in(session, place, done.written),
         "remaining_depth": done.remaining_depth,
     }
 
@@ -82,6 +91,7 @@ def post_paste_preview(
         target_node_id=body.target_node_id.root,
         target_column=body.target_column.value,
         rows=tuple(tuple(cells) for cells in body.rows),
+        removed=removed_in(rows_of(session, place, node_body)),
     )
     planned = preview_paste(session, place, block, writer, actor.permissions)
     return {
@@ -105,7 +115,7 @@ def post_paste(
     confirmation = PasteConfirmation(body.paste_id.root, body.lock_version.root)
     applied = apply_paste(session, place, confirmation, writer, actor.permissions)
     return {
-        **written_of(applied.written),
+        **written_in(session, place, applied.written),
         "rejected": [_refused(each) for each in applied.rejected],
     }
 
@@ -121,7 +131,7 @@ def post_undo(
 ) -> dict[str, Any]:
     """Undo the last change of the caller in a revision, one by one, in reverse order."""
     done = undo_last_change(session, project_id, revision_id, writer, actor.permissions)
-    return _undone(done)
+    return _undone(session, project_id, revision_id, done)
 
 
 @router.post(
@@ -135,4 +145,4 @@ def post_redo(
 ) -> dict[str, Any]:
     """Redo the last undoing of the caller in a revision, in the order of the changes."""
     done = redo_last_undo(session, project_id, revision_id, writer, actor.permissions)
-    return _undone(done)
+    return _undone(session, project_id, revision_id, done)

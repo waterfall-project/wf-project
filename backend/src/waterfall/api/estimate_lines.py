@@ -25,7 +25,7 @@ from waterfall.api.nodes import (
     place_of,
     unknown_fields,
     writer_of,
-    written_of,
+    written_in,
 )
 from waterfall.core.estimate.interface import LineEntry, update_line
 from waterfall.core.planning.interface import Place, Writer
@@ -61,4 +61,4 @@ def patch_line(
     session: Transaction,
 ) -> dict[str, Any]:
     """Write what is sent of a line at the counter read; nothing else changes."""
-    return written_of(update_line(session, place, node_id, entry, writer))
+    return written_in(session, place, update_line(session, place, node_id, entry, writer))

@@ -1,11 +1,13 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Whether the revision a project would open carries a task: what the planning tells the project.
+"""Whether the main structure of the revision a project would open carries a task.
 
 A registry of this module (EP-06, "Les points d'extension"), filled by the planning at the import of
 its interface. The project that has no current revision lists the generation of the planning
-skeleton (``ProjectCommand.generate_skeleton``, WF-PRJ-0030, US-1460): it judges it on the revision
-its opening would create, a copy of the last marked revision, whose tasks the planning alone knows.
+skeleton (``ProjectCommand.generate_skeleton``, WF-PRJ-0030, US-1460) and the declaration of a risk
+(WF-RIS-0010): it judges them on the revision its opening would create, a copy of the last marked
+revision, whose tasks the planning alone knows. Both judge its main structure alone, whichever
+tasks a differential bears (#2541).
 """
 
 from typing import TYPE_CHECKING
@@ -18,33 +20,10 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-# What each module tells of the revision a project would open, in their order.
-_OPENING: Registry[Callable[[Session, Collection[UUID]], frozenset[UUID]]] = Registry(
-    "projects.opening"
-)
 # What each module tells of the main structure of the revision a project would open.
 _OPENING_MAIN: Registry[Callable[[Session, Collection[UUID]], frozenset[UUID]]] = Registry(
     "projects.opening_main"
 )
-
-
-def register_opening_question(
-    question: Callable[[Session, Collection[UUID]], frozenset[UUID]],
-) -> Callable[[], None]:
-    """Add a question on the revisions projects would open: which carry a task? Give its withdrawal.
-
-    It answers for the projects it is given at once, so that a list of projects reads them in one
-    statement and not one each.
-    """
-    return _OPENING.register(question)
-
-
-def opening_with_tasks(session: Session, project_ids: Collection[UUID]) -> frozenset[UUID]:
-    """Tell which of the projects would open a revision that carries a task, by any module."""
-    found: set[UUID] = set()
-    for question in _OPENING.entries():
-        found |= question(session, project_ids)
-    return frozenset(found)
 
 
 def register_opening_main_question(
@@ -52,8 +31,8 @@ def register_opening_main_question(
 ) -> Callable[[], None]:
     """Add a question on the revisions projects would open: which main structure carries a task.
 
-    The declaration of a risk judges that one, ``opening_with_tasks`` the whole revision being the
-    skeleton's (WF-RIS-0010). Give its withdrawal.
+    It answers for the projects it is given at once, so that a list of projects reads them in one
+    statement and not one each. Give its withdrawal.
     """
     return _OPENING_MAIN.register(question)
 

@@ -130,11 +130,13 @@ if TYPE_CHECKING:
     from waterfall.core.planning.interface.nodes import CreationJudged
     from waterfall.core.planning.writing import Place, Write, Writer
     from waterfall.core.projects.interface import WorkBreakdownItem
+    from waterfall.core.revisions.interface import StructureFacts
     from waterfall.platform.audit import Act
 
 COMPUTED_VALUE = "COMPUTED_VALUE"
 FIELD_NOT_ACCEPTED = "FIELD_NOT_ACCEPTED"
 PASTE_TOO_WIDE = "PASTE_TOO_WIDE"
+PASTE_TARGET_REMOVED = "PASTE_TARGET_REMOVED"
 NUMBER_INVALID = "NUMBER_INVALID"
 DATE_INVALID = "DATE_INVALID"
 VALUE_TOO_LONG = "VALUE_TOO_LONG"
@@ -204,11 +206,16 @@ DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 @dataclass(frozen=True, slots=True)
 class PasteBlock:
-    """A block pasted: the node and the column it starts from, the cells of its rows."""
+    """A block pasted: the node and the column it starts from, the cells of its rows.
+
+    ``removed`` the nodes a differential removes, which its tree does not hold and which its read
+    returns in their place; none for any other structure.
+    """
 
     target_node_id: UUID
     target_column: NodeColumn
     rows: tuple[tuple[str, ...], ...]
+    removed: Collection[UUID] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -720,8 +727,17 @@ def preview_paste(
     block that writes the columns of a task is refused first to whoever does not hold
     ``permissions`` ``planning.write`` — ``remaining.write`` for the columns of its execution
     (403, #2775, #2805).
+
+    A block aimed at a node ``block.removed`` names, one a differential removes and returns in its
+    place, is refused whole (``PASTE_TARGET_REMOVED``, one
+    refusal, row 0, no row judged), its plan kept all the same — confirmed, it writes nothing and
+    states the refusal again — and the anchor is not carried over to the next node (#1361). A block
+    that covers one without being aimed at it never meets it: the tree it is written on does not
+    hold it (#1278).
     """
     facts = facts_of(session, place, lock=False)
+    if block.target_node_id in block.removed:
+        return _refused_whole(session, place, block, writer, facts)
     tree = read_tree(session, place.project_id, place.structure_id)
     if block.target_node_id not in tree.nodes:
         raise NotFoundError(NOT_FOUND)
@@ -772,6 +788,29 @@ def preview_paste(
     kept = keep_plan(session, plan, writer.act.at)
     created = sum(each.creates for each in accepted)
     return PastePlanned(kept.plan_id, len(accepted), created, tuple(rejected))
+
+
+def _refused_whole(
+    session: Session,
+    place: Place,
+    block: PasteBlock,
+    writer: Writer,
+    facts: StructureFacts,
+) -> PastePlanned:
+    """Keep the plan of a block aimed at a removed node, refused whole, and give it (#1361)."""
+    refusal = PasteRefusal(0, block.target_column, PASTE_TARGET_REMOVED, {})
+    plan = PlanToKeep(
+        project_id=place.project_id,
+        revision_id=facts.revision_id,
+        structure_id=place.structure_id,
+        user_account_id=_author(writer),
+        target_node_id=block.target_node_id,
+        target_column=block.target_column,
+        rows=_encoded([], [refusal]),
+        structure_lock_version=facts.lock_version,
+    )
+    kept = keep_plan(session, plan, writer.act.at)
+    return PastePlanned(kept.plan_id, 0, 0, (refusal,))
 
 
 def _stale(current: int, kept: KeptPlan, confirmation: PasteConfirmation) -> None:
