@@ -18,9 +18,7 @@ from wftools import REPOSITORY
 
 GITHUB = REPOSITORY / ".github"
 WORKFLOWS = GITHUB / "workflows"
-PIN = re.compile(
-    r"^\s*(?:-\s+)?uses:\s*(?P<action>[\w.-]+/[\w./-]+)@(?P<sha>[0-9a-f]{40})\b", re.MULTILINE
-)
+PIN = re.compile(r"^(?P<action>[\w.-]+/[\w./-]+)@(?P<sha>[0-9a-f]{40})$")
 
 
 def configuration() -> list[dict[str, Any]]:
@@ -33,17 +31,58 @@ def directories(ecosystem: str) -> list[str]:
     return list(entry.get("directories") or [entry["directory"]])
 
 
+def uses(node: object) -> list[str]:
+    """Give every `uses` of a workflow or of a local action: steps and reusable jobs alike."""
+    if isinstance(node, dict):
+        mapping = cast("dict[str, object]", node)
+        own = mapping.get("uses")
+        found = [own] if isinstance(own, str) else []
+        return found + [use for value in mapping.values() for use in uses(value)]
+    if isinstance(node, list):
+        return [use for value in cast("list[object]", node) for use in uses(value)]
+    return []
+
+
+def pinned(document: object) -> dict[str, set[str]]:
+    """Give the commits the `uses` of a document pin, by repository."""
+    found: dict[str, set[str]] = {}
+    for use in uses(document):
+        if match := PIN.match(use):
+            # An action with a path (`actions/cache/restore`) is pinned like its repository.
+            repository = "/".join(match["action"].split("/")[:2])
+            found.setdefault(repository, set()).add(match["sha"])
+    return found
+
+
 def pins() -> dict[str, dict[str, set[str]]]:
     """Give the commits each action is pinned at, by action, then by file."""
     found: dict[str, dict[str, set[str]]] = {}
-    files = [*WORKFLOWS.glob("*.yml"), *GITHUB.glob("actions/*/action.yml")]
+    files = [
+        *(path for ext in ("yml", "yaml") for path in WORKFLOWS.glob(f"*.{ext}")),
+        *(path for ext in ("yml", "yaml") for path in GITHUB.glob(f"actions/*/action.{ext}")),
+    ]
     for path in sorted(files):
-        for match in PIN.finditer(path.read_text(encoding="utf-8")):
-            # An action with a path (`actions/cache/restore`) is pinned like its repository.
-            repository = "/".join(match["action"].split("/")[:2])
-            name = str(path.relative_to(GITHUB))
-            found.setdefault(repository, {}).setdefault(name, set()).add(match["sha"])
+        document = yaml.safe_load(path.read_text(encoding="utf-8"))
+        for repository, shas in pinned(document).items():
+            found.setdefault(repository, {})[str(path.relative_to(GITHUB))] = shas
     return found
+
+
+@pytest.mark.story("US-2490")
+def test_the_pins_are_read_quoted_and_in_reusable_jobs() -> None:
+    sha = "a" * 40
+    document = yaml.safe_load(
+        f"""
+jobs:
+  call:
+    uses: "x/y/.github/workflows/z.yml@{sha}"
+  build:
+    steps:
+      - uses: 'x/w@{sha}'
+      - uses: ./local
+"""
+    )
+    assert pinned(document) == {"x/y": {sha}, "x/w": {sha}}
 
 
 def commits(files: dict[str, set[str]]) -> set[str]:
@@ -89,9 +128,13 @@ def test_the_pins_are_read_in_the_workflows_and_in_the_local_actions() -> None:
 @pytest.mark.story("US-2490")
 def test_a_pin_is_read_by_action_and_by_commit() -> None:
     sha_a, sha_b = "a" * 40, "b" * 40
-    texts = [f"- uses: actions/cache@{sha_a} # v1", f"  uses: actions/cache/save@{sha_b} # v2"]
-    found = [(m["action"], m["sha"]) for text in texts for m in PIN.finditer(text)]
-    assert found == [("actions/cache", sha_a), ("actions/cache/save", sha_b)]
+    document = {
+        "steps": [
+            {"uses": f"actions/cache@{sha_a}"},
+            {"uses": f"actions/cache/save@{sha_b}"},
+        ]
+    }
+    assert pinned(document) == {"actions/cache": {sha_a, sha_b}}
 
 
 def workflow(name: str) -> dict[Any, Any]:
@@ -103,6 +146,10 @@ def test_front_cache_runs_when_a_lockfile_of_uv_changes_alone() -> None:
     # PyYAML reads the key `on` as True.
     paths = workflow("front-cache.yml")[True]["push"]["paths"]
     assert {"backend/uv.lock", "tools/uv.lock"} <= set(paths)
+    # The cache of uv is keyed on exactly these two lockfiles.
+    matrix = workflow("front-cache.yml")["jobs"]["uv"]["strategy"]["matrix"]["include"]
+    keyed = {lock for entry in matrix for lock in entry["locks"].split()}
+    assert keyed == {"backend/uv.lock", "tools/uv.lock"}
 
 
 @pytest.mark.story("US-2490")

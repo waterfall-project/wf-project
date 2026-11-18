@@ -3790,10 +3790,16 @@ Rules of the workflows:
 - Dependabot does not follow, and the author bumps by hand, at Dependabot's monthly pull
   request: an action or an image pinned in a directory that no entry of
   `.github/dependabot.yml` names (a test of the tools holds that those of the actions and of
-  `deploy/e2e` are, and that an action has the same digest everywhere), the front's `packageManager`, the uv and the PostgreSQL client of the `waterfall`
+  `deploy/e2e` are, and that an action has the same digest everywhere), the front's
+  `packageManager`, the uv and the PostgreSQL client of the `waterfall`
   image (and its key, `backend/pgdg.asc`), the runners and the pandoc of the chain, and
   `maven.compiler.release` of the extension's `pom.xml`, which stays at 21 on purpose (the
   Java of the Keycloak image, not the build JDK): it is bumped when that image changes Java.
+
+- A path of a part or of the service that fails uploads what Playwright kept
+  (`frontend/test-results/`: traces, screenshots, `error-context.md`) as an artifact, on
+  failure only, for seven days, under the name `test-results-e2e-<n>` or
+  `test-results-service-<n>` (`<n>` is the index of the part).
 
 _Check_: `make lint-workflows` (actionlint); the pinning and the permissions, the review.
 
