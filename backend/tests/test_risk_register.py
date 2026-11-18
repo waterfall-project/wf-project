@@ -21,9 +21,13 @@ from nodes_support import mark, put_risk
 from projects_support import PROJECTS, Scene, create, designate
 from projects_support import scene as make_scene
 from risks_support import Costed, Risks, costed, share_row
-from sqlalchemy import delete, insert, update
+from sqlalchemy import delete, event, insert, select, update
 
+from waterfall.core.cost_settings.interface import read_reference_settings
 from waterfall.core.estimate.interface import Coverage, register_coverage
+from waterfall.core.estimate.tables import EstimateLine
+from waterfall.core.planning.tables import Node
+from waterfall.core.risk_settings.interface import zone_of
 from waterfall.core.risks.tables import RiskEvaluation, RiskReferenceShare, RiskReview
 
 if TYPE_CHECKING:
@@ -114,6 +118,30 @@ def _write_reviews(project: Costed, days: dict[UUID, date]) -> None:
             connection.execute(
                 update(RiskReview).where(RiskReview.risk_id == risk_id).values(reviewed_on=day)
             )
+
+
+def _reestimate(project: Costed, task_id: UUID, amount: Decimal) -> None:
+    """Set the reestimated amount of the lines a task bears, apart from their budgeted amount."""
+    with project.stage.owner.begin() as connection:
+        lines = select(Node.id).where(Node.parent_id == task_id)
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.node_id.in_(lines))
+            .values(reestimated_amount=amount)
+        )
+
+
+def _occur(project: Costed, risk: dict[str, Any], cost: Decimal, task: str | None) -> None:
+    """Make a risk occurred at a cost, and a task of the estimate the one that came from it."""
+    risk_id = UUID(risk["risk_id"])
+    if task is not None:
+        put_risk(project.stage, str(project.tasks[task]), risk_id)
+    with project.stage.owner.begin() as connection:
+        connection.execute(
+            update(RiskEvaluation)
+            .where(RiskEvaluation.risk_id == risk_id)
+            .values(state="occurred", provision_node_id=None, occurrence_cost=cost)
+        )
 
 
 @pytest.fixture
@@ -228,6 +256,11 @@ def test_an_occurred_risk_shows_the_reestimated_amount_of_the_lines_that_came_fr
     path = f"{PROJECTS}/{project.project_id}/risks"
     item = api.get(path, headers=project.stage.manager.headers).json()["items"][0]
     assert (item["occurred_reestimated_amount"], item["provision_amount"]) == ("400.00", "0.00")
+    # The line reestimated at another amount than it was budgeted at: the column follows the
+    # reestimated amount, not the budgeted one.
+    _reestimate(project, project.tasks["Réalisation"], Decimal("430.00"))
+    item = api.get(path, headers=project.stage.manager.headers).json()["items"][0]
+    assert item["occurred_reestimated_amount"] == "430.00"
     assert item == risks.risk(risk)
 
 
@@ -292,6 +325,66 @@ def test_the_risks_with_no_cost_at_occurrence_sort_after_the_others_and_before_w
     assert register.labels("?sort_by=occurred_reestimated_amount")[0] == CRANE[0]
 
 
+@pytest.mark.requirement("WF-RIS-0040-A")
+def test_the_sort_on_the_cost_at_occurrence_and_the_reestimated_amount_ranks_the_occurred(
+    api: ContractClient, project: Costed
+) -> None:
+    # Two risks occurred at other costs, whose tasks hold other reestimated amounts (the study 600
+    # reestimated at 650, the realisation 400 at 430), and one identified, which has neither.
+    risks = Risks(api, project)
+    names = ("Rupture de stock", "Défaillance du sous-traitant", "Crue")
+    made = [risks.declared("0.30", label) for label in names]
+    for risk in made:
+        risks.costed_at(risk, project.revision_id, "100.00")
+    _occur(project, made[0], Decimal("120.00"), "Réalisation")
+    _occur(project, made[1], Decimal("340.00"), "Étude")
+    _reestimate(project, project.tasks["Réalisation"], Decimal("430.00"))
+    _reestimate(project, project.tasks["Étude"], Decimal("650.00"))
+    path = f"{PROJECTS}/{project.project_id}/risks"
+    headers = project.stage.manager.headers
+
+    def labels(query: str) -> list[str]:
+        answer = api.get(f"{path}?{query}", headers=headers)
+        assert answer.status_code == 200, answer.text
+        return [item["label"] for item in answer.json()["items"]]
+
+    cost, reestimated = "sort_by=occurrence_cost", "sort_by=occurred_reestimated_amount"
+    first, second, none = names
+    assert labels(cost) == [first, second, none]
+    assert labels(f"{cost}&sort_order=desc") == [none, second, first]
+    # The reestimated amounts, 430 then 650, rank the two the other way round than the costs.
+    assert labels(reestimated) == [first, second, none]
+    assert labels(f"{reestimated}&sort_order=desc") == [none, second, first]
+    listed = {
+        item["label"]: item["occurred_reestimated_amount"]
+        for item in api.get(path, headers=headers).json()["items"]
+    }
+    assert listed == {first: "430.00", second: "650.00", none: None}
+
+
+@pytest.mark.requirement("WF-RIS-0040-A")
+def test_a_risk_never_reviewed_sorts_after_the_others_and_before_them_when_descending(
+    api: ContractClient, project: Costed
+) -> None:
+    risks = Risks(api, project)
+    reviewed = risks.declared("0.30", "Risque revu")
+    never = risks.declared("0.30", "Risque jamais revu")
+    for risk in (reviewed, never):
+        risks.costed_at(risk, project.revision_id, "100.00")
+    with project.stage.owner.begin() as connection:
+        connection.execute(delete(RiskReview).where(RiskReview.risk_id == UUID(never["risk_id"])))
+    _write_reviews(project, {UUID(reviewed["risk_id"]): date(2026, 1, 10)})
+    path = f"{PROJECTS}/{project.project_id}/risks?sort_by=last_review_on"
+    headers = project.stage.manager.headers
+    for query, wanted in (
+        ("", [reviewed["label"], never["label"]]),
+        ("&sort_order=desc", [never["label"], reviewed["label"]]),
+    ):
+        body = api.get(f"{path}{query}", headers=headers).json()
+        assert [item["label"] for item in body["items"]] == wanted
+    assert body["items"][0]["last_review_on"] is None
+
+
 # --- The totals -----------------------------------------------------------------------------------
 
 
@@ -312,7 +405,10 @@ def test_the_three_totals_are_distinct_and_the_reserve_is_beside_them(
 
 
 @pytest.mark.requirement("WF-RIS-0040-A")
-def test_the_totals_are_those_of_the_risks_retained_not_of_the_page(register: Registered) -> None:
+def test_the_totals_are_those_of_the_risks_retained_not_of_the_page(
+    register: Registered, reserve: None
+) -> None:
+    del reserve
     body = register.page("?limit=1&offset=1")
     assert [item["label"] for item in body["items"]] == [STUDY[0]]
     assert body["meta"] == {"limit": 1, "offset": 1, "total": 5}
@@ -324,7 +420,7 @@ def test_the_totals_are_those_of_the_risks_retained_not_of_the_page(register: Re
         "occurred": "0.00",
         "dismissed": "0.00",
         "total": "270.00",
-        "reserve": "0.00",
+        "reserve": "850.00",
     }
 
 
@@ -379,14 +475,23 @@ def test_the_register_is_filtered_on_each_column_alone_and_combined(
 
 @pytest.mark.requirement("WF-IHM-0130-A")
 def test_the_zone_filter_keeps_the_risks_whose_cell_is_in_one_of_the_zones(
-    register: Registered,
+    register: Registered, stage: Scene
 ) -> None:
-    items = register.page()["items"]
-    zones = {item["matrix_cell"]["zone"] for item in items}
-    for zone in zones:
-        expected = {item["label"] for item in items if item["matrix_cell"]["zone"] == zone}
-        assert set(register.labels(f"?zones={zone}")) == expected
-    everything = ",".join(sorted(zones))
+    # The zone each risk falls in, laid down from the matrix of the reference settings and the base
+    # of the project (1 000, the budget of the reference): the severity as a share of it, the
+    # probability as it is.
+    with stage.database.transaction() as session:
+        matrix = read_reference_settings(session).risk_matrix
+    ratio = {label: Decimal(severity) / 1000 for label, _, severity, _ in ALL}
+    chance = {label: Decimal(probability) for label, probability, _, _ in ALL}
+    zone = {
+        label: zone_of(matrix, chance[label], ratio[label]) for label in (each[0] for each in ALL)
+    }
+    assert len(set(zone.values())) > 1
+    for each in set(zone.values()):
+        expected = {label for label, found in zone.items() if found == each}
+        assert set(register.labels(f"?zones={each}")) == expected
+    everything = ",".join(sorted(set(zone.values())))
     assert register.page(f"?zones={everything}")["meta"]["total"] == 5
 
 
@@ -478,6 +583,89 @@ def test_a_filter_at_fault_is_refused_naming_every_parameter(
     body = answer.json()
     assert body["code"] == "VALIDATION_FAILED"
     assert body["fields"] == fields
+
+
+NUMBER_COLUMNS = (
+    "probability",
+    "severity",
+    "provision_amount",
+    "occurrence_cost",
+    "occurred_reestimated_amount",
+)
+
+
+@pytest.mark.requirement("WF-IHM-0130-A")
+@pytest.mark.parametrize("column", NUMBER_COLUMNS)
+def test_each_column_of_numbers_refuses_a_bound_that_is_none_and_an_inverted_pair(
+    register: Registered, column: str
+) -> None:
+    answer = register.read(f"?{column}_min=abc&{column}_max=x")
+    assert answer.status_code == 422, answer.text
+    assert answer.json()["fields"] == [
+        {"pointer": f"/query/{column}_min", "code": "NUMBER_INVALID"},
+        {"pointer": f"/query/{column}_max", "code": "NUMBER_INVALID"},
+    ]
+    inverted = register.read(f"?{column}_min=5&{column}_max=1")
+    assert inverted.status_code == 422, inverted.text
+    assert inverted.json()["fields"] == [
+        {
+            "pointer": f"/query/{column}_max",
+            "code": "VALUE_OUT_OF_RANGE",
+            "params": {"minimum": "5"},
+        }
+    ]
+
+
+@pytest.mark.requirement("WF-IHM-0130-A")
+def test_a_parameter_repeated_answers_the_same_whichever_way_it_is_read(
+    register: Registered,
+) -> None:
+    # The query is read once, as the service types it: a repeated bound keeps one value, the last,
+    # for the filter and for the refusal alike.
+    twice = register.page("?severity_min=1&severity_min=300")
+    assert twice == register.page("?severity_min=300")
+    assert register.read("?severity_min=300&severity_min=abc").status_code == 422
+    assert register.read("?severity_min=abc&severity_min=300").status_code == 200
+
+
+@pytest.mark.requirement("WF-RIS-0040-A")
+def test_the_register_costs_the_same_statements_whatever_the_number_of_its_risks(
+    api: ContractClient, project: Costed
+) -> None:
+    # The context is read once for all the risks: five risks or fifteen, the same statements.
+    risks = Risks(api, project)
+    path = f"{PROJECTS}/{project.project_id}/risks"
+    engine = project.stage.database.engine
+    counts: list[int] = []
+
+    def declare(count: int, offset: int) -> None:
+        for index in range(count):
+            risk = risks.declared("0.30", f"Risque {offset + index:02d}")
+            risks.costed_at(risk, project.revision_id, "100.00")
+            if (offset + index) % 5 == 0:
+                _occur(project, risk, Decimal("50.00"), None)
+
+    def measure() -> int:
+        sent: list[str] = []
+
+        def heard(*arguments: Any) -> None:
+            sent.append(str(arguments[2]))
+
+        event.listen(engine, "before_cursor_execute", heard)
+        try:
+            answer = api.get(path, headers=project.stage.manager.headers)
+        finally:
+            event.remove(engine, "before_cursor_execute", heard)
+        assert answer.status_code == 200, answer.text
+        counts.append(answer.json()["meta"]["total"])
+        return len(sent)
+
+    declare(5, 0)
+    few = measure()
+    declare(10, 5)
+    many = measure()
+    assert counts == [5, 15]
+    assert many == few
 
 
 # --- The revision read ----------------------------------------------------------------------------
