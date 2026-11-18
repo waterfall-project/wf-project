@@ -152,6 +152,11 @@
       "sentence": "Une mise à jour refusée à la création d'une révision est acceptée ensuite depuis la révision en cours, qui est alors rechiffrée au taux de 2027 pour cette catégorie."
     },
     {
+      "key": "WF-REV-0060-A#413d589bd41d",
+      "requirement": "WF-REV-0060-A",
+      "sentence": "Avec une inflation de 3 %, une ligne de débours 8 000 consommée en 2028 vaut 8 487,20 dans la révision de 2026 comme dans celle créée en 2027, où son débours est de 8 240."
+    },
+    {
       "key": "WF-PRJ-0050-A#38958d887e9a",
       "requirement": "WF-PRJ-0050-A",
       "sentence": "Un sous-projet de code « A.ABC.26001/10001 », « Synthèse » ou de quarante caractères se crée, et le fichier de reste à engager lui donne un onglet qui porte son code en tête."
