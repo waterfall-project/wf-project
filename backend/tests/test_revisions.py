@@ -36,6 +36,7 @@ from waterfall.core.revisions.interface import (
 )
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.audit import Act, AuditEntry
+from waterfall.platform.database import utc_now
 from waterfall.platform.errors import ConflictError, NotFoundError
 from waterfall.platform.logs import logging_context
 from waterfall.platform.registry import Registry
