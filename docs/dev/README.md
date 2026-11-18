@@ -3125,6 +3125,8 @@ its side; a failure of the chain is therefore reproduced by the same command.
 | `make check-front-image`                                                | the `front-image` family: builds the `production` stage of the front (`frontend/Dockerfile`), starts it, and asserts that `/` answers with the settings of the `front` service of the production Compose, that the front stops without each of the variables it cannot do without, naming it (#825), that `WATERFALL_AUTH=mock` without `WATERFALL_E2E` is refused, and that `next build` prerendered only `/_global-error` and `/icon.svg` (`wftools.frontimage`, « The chain »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `make production-trial`                                                 | starts the production platform (`deploy/compose/compose.prod.yaml`, US-0430) on the images of the tag `WATERFALL_IMAGE_TAG` — the commit of the repository by default —, under a local name (`WATERFALL_DOMAIN`, `waterfall.localhost` by default, with `compose.prod.local.yaml`), bootstraps it, asserts the liveness probe of the API, that the owner of the tables, `waterfall`, is not a superuser, the redirect from HTTP to the same page on the published address, port included, Caddy's headers in HTTPS, HSTS first, that Keycloak's console and the `master` realm answer 404, and that the first administrator sets their password through the link, signs in through the front and Keycloak and that the front names them; with `WATERFALL_TRIAL_RESTORATION=1`, a backup then its restoration requested through the API, the restoration followed through the liveness probe until `ok` (`wftools.restoration_trial`, US-0440, #948), which the chain requests (`production.yml`, `images.yml`); then removes it with its volumes (`wftools.production`); its secrets come from the environment, as `deploy/compose/production.env.example` names them; its Compose project is `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
 | `make check-production`                                                 | the `production` family, at the full tier only: `make images`, without a push, then `make production-trial` on the built images                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `make mirror`                                                           | checks that ghcr.io holds, by their digest, the images of Docker Hub the files name behind the mirror; `PUSH=yes` copies those that are missing (`wftools.mirror`, « The chain »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `make mirror-sync`                                                      | copies the manifest of the images of Docker Hub, `deploy/images/Dockerfile`, which Dependabot follows, into the `Dockerfile`s, the Compose files and the workflows, tag and digest, without touching the prefix of the mirror, YAML anchors included; run again, it changes nothing; fails naming what the copy does not settle (an image absent from the manifest, a manifest line nothing uses or malformed; `wftools.mirror sync`, « The chain »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 The service platform refuses to start without its secrets, which no file carries:
 
@@ -3614,10 +3616,19 @@ a pull of Docker Hub ("failed to fetch oauth token", `toomanyrequests`) failed f
 queue before their first test (US-1900). The files read the prefix of the mirror in
 `WATERFALL_MIRROR` (`${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:…` in Compose, `ARG
 WATERFALL_MIRROR=` before the `FROM` of a `Dockerfile`, which `--build-arg WATERFALL_MIRROR` or
-`args: [WATERFALL_MIRROR]` fills from the environment); empty, it is Docker Hub. Dependabot may no longer read these parameterised references
-(`${WATERFALL_MIRROR:-}…`, `FROM ${WATERFALL_MIRROR}…`): raising the version of an image needs the
-mirror to hold the new digest (`make mirror PUSH=yes`, by a person if the token of the pull request
-cannot write). The workflows that
+`args: [WATERFALL_MIRROR]` fills from the environment); empty, it is Docker Hub. Dependabot does
+not read a prefixed reference (`${WATERFALL_MIRROR:-}…`, `FROM ${WATERFALL_MIRROR}…`): its watch of
+the images found nothing any more from the mirror on (#3025). It follows instead the **manifest of
+the images**, `deploy/images/Dockerfile`, which no build reads: one line
+`FROM <image>:<tag>@sha256:…` without prefix per image of Docker Hub the repository pins
+(US-2490): one image, one version in the repository, the manifest refuses a path named twice. A test of the tools (`tools/tests/test_mirror_manifest.py`) fails when a reference of the
+`Dockerfile`s, the Compose files or the workflows, prefixed or not, is not the manifest's, tag and
+digest, or when the manifest carries an image nothing uses. A raise by Dependabot changes only the
+manifest, and its chain fails on that test until the two gestures of a person, pushed to the branch
+of its pull request: `make mirror-sync`, which copies the manifest into the references without
+touching the prefix, YAML anchors included, then `make mirror PUSH=yes`, which copies the new digest
+to the mirror. The fallback to Docker Hub when the mirror does not hold every digest (#3025) is not
+done: the pull request of a raise waits for these gestures. The workflows that
 build or run Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`, `production.yml`,
 `images.yml`)
 set `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` and log in to it; the services of
@@ -3625,14 +3636,18 @@ set `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` and log in to it; the 
 (`wftools.mirror`): it reads those references, asks ghcr.io whether the digest is there — held,
 nothing else is read, Docker Hub neither —, and copies those that are missing from Docker Hub, by
 digest (`docker buildx imagetools create` writes the manifest as it is, the digest is checked
-after), under a tag that carries the start of the digest: one tag of Docker Hub has two digests in
-our files (Caddy). The job `mirror` of `ci.yml`, which every job that pulls an image waits for,
+after), under a tag that carries the start of the digest: one tag of Docker Hub could have two
+digests in our files (Caddy, before the manifest). A copy ghcr.io refuses (`denied`) is tried again
+once before it fails: it once refused the creation of a package it accepted on the next run (#3028).
+When it refuses to answer, the message names its two causes: the login to ghcr.io, or a package not
+copied yet (`make mirror PUSH=yes`). The job `mirror` of `ci.yml`, which every job that pulls an image waits for,
 does it at each run, in the fast tier as in the full one: `images.yml` runs after a merge, so after
 the first run that needs an image added or a digest raised (`images.yml` does it again before
 building, a lookup). Each request is tried again four times at most (`wftools.registry`, #2530); an
 image neither the mirror nor Docker Hub gives fails that job, naming Docker Hub, and skips the jobs
-that depend on it, which the gate counts. To change a third-party image: change its reference and
-its digest in the files, behind `${WATERFALL_MIRROR:-}`; the first run copies the new one. The jobs
+that depend on it, which the gate counts. To change a third-party image: change its line of the
+manifest, then `make mirror-sync`; the first run copies the new digest. A new image takes its line
+in the manifest, and its reference in the files behind `${WATERFALL_MIRROR:-}`. The jobs
 that pull from the mirror ask for `packages: read` and log in to it (`docker/login-action`, or the
 `credentials:` of a service): a package GitHub creates is private, and nothing outside the chain
 reads it. The job `mirror`, for its part, keeps `packages: write`, in the fast tier too: it needs it
@@ -3796,8 +3811,8 @@ Rules of the workflows:
 - Dependabot proposes every month, one pull request per ecosystem, the updates of what it
   follows: the Actions — those of the workflows and those of the local actions,
   `.github/actions/*` —, uv (`/backend`, `/tools`), npm (`/frontend`), Maven (the Keycloak
-  extension) and the images of the Dockerfiles — `deploy/e2e`, the work image of the paths,
-  included — and Compose files; the minor and patch updates
+  extension) and the images of Docker Hub by their manifest, `deploy/images` (above) — with
+  `deploy/e2e`, the work image of the paths, which has no prefix —; the minor and patch updates
   of an ecosystem come grouped, each major in its own, under the prefix `Chaîne :`. The
   `org.keycloak` and `jakarta.ws.rs-api` dependencies of the extension are ignored: they
   follow the Keycloak image. The TypeScript major has no ignore rule: the author closes its

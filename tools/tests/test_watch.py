@@ -104,6 +104,16 @@ def test_dependabot_follows_the_image_of_the_paths() -> None:
 
 
 @pytest.mark.story("US-2490")
+def test_dependabot_follows_the_images_by_their_manifest_and_no_compose_file() -> None:
+    # It does not read a reference behind the prefix of the mirror (#3025): the manifest of the
+    # images of Docker Hub, and the image of the paths, which has no prefix, are all it follows.
+    assert (REPOSITORY / "deploy" / "images" / "Dockerfile").is_file()
+    assert directories("docker") == ["/deploy/images", "/deploy/e2e"]
+    ecosystems = [update["package-ecosystem"] for update in configuration()]
+    assert "docker-compose" not in ecosystems
+
+
+@pytest.mark.story("US-2490")
 def test_every_directory_dependabot_follows_exists() -> None:
     for update in configuration():
         for directory in directories(update["package-ecosystem"]):

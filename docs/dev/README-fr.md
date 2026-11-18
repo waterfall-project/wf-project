@@ -3137,6 +3137,8 @@ commande.
 | `make check-front-image`                                                | la famille `front-image` : construit l'étape `production` du front (`frontend/Dockerfile`), la démarre, et affirme que `/` répond avec les réglages du service `front` du Compose de production, que le front s'arrête sans chacune des variables dont il ne se passe pas en la nommant (#825), que `WATERFALL_AUTH=mock` sans `WATERFALL_E2E` est refusé, et que `next build` n'a prérendu que `/_global-error` et `/icon.svg` (`wftools.frontimage`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `make production-trial`                                                 | démarre la plateforme de production (`deploy/compose/compose.prod.yaml`, US-0430) sur les images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut —, sous un nom local (`WATERFALL_DOMAIN`, `waterfall.localhost` par défaut, avec `compose.prod.local.yaml`), l'amorce, affirme la sonde de vie de l'API, que le propriétaire des tables, `waterfall`, n'est pas superutilisateur, le renvoi de HTTP à la même page sur l'adresse publiée, port compris, les en-têtes de Caddy en HTTPS, HSTS d'abord, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se connecte par le front et Keycloak et que le front le nomme ; avec `WATERFALL_TRIAL_RESTORATION=1`, une sauvegarde puis sa restauration demandées par l'API, la restauration suivie par la sonde de vie jusqu'à `ok` (`wftools.restoration_trial`, US-0440, #948), que la chaîne demande (`production.yml`, `images.yml`) ; puis la retire avec ses volumes (`wftools.production`) ; ses secrets viennent de l'environnement, comme `deploy/compose/production.env.example` les nomme ; son projet Compose est `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
 | `make check-production`                                                 | la famille `production`, au palier complet seulement : `make images`, sans poussée, puis `make production-trial` sur les images construites                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `make mirror`                                                           | vérifie que ghcr.io tient, par leur empreinte, les images de Docker Hub que les fichiers nomment derrière le miroir ; `PUSH=yes` copie celles qui manquent (`wftools.mirror`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `make mirror-sync`                                                      | recopie le manifeste des images de Docker Hub, `deploy/images/Dockerfile`, que Dependabot suit, dans les `Dockerfile`, les fichiers Compose et les workflows, étiquette et empreinte, sans toucher au préfixe du miroir, ancres YAML comprises ; relancée, elle ne change rien ; échoue en nommant ce que la recopie ne règle pas (image absente du manifeste, ligne du manifeste inutilisée ou mal formée ; `wftools.mirror sync`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
 
@@ -3637,10 +3639,19 @@ un pull de Docker Hub (« failed to fetch oauth token », `toomanyrequests`) a f
 passages de la file avant leur premier test (US-1900). Les fichiers lisent le préfixe du miroir dans
 `WATERFALL_MIRROR` (`${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:…` en Compose, `ARG
 WATERFALL_MIRROR=` avant le `FROM` dans un `Dockerfile`, que `--build-arg WATERFALL_MIRROR` ou
-`args: [WATERFALL_MIRROR]` remplit depuis l'environnement) ; vide, c'est Docker Hub. Dependabot ne lit peut-être plus ces
-références paramétrées (`${WATERFALL_MIRROR:-}…`, `FROM ${WATERFALL_MIRROR}…`) : une montée de version
-d'image demande que le miroir tienne la nouvelle empreinte (`make mirror PUSH=yes`, par une personne
-si le jeton de la pull request ne peut pas écrire). Les workflows
+`args: [WATERFALL_MIRROR]` remplit depuis l'environnement) ; vide, c'est Docker Hub. Dependabot ne lit
+pas une référence préfixée (`${WATERFALL_MIRROR:-}…`, `FROM ${WATERFALL_MIRROR}…`) : sa veille des
+images ne trouvait plus rien depuis le miroir (#3025). Il suit à la place le **manifeste des images**,
+`deploy/images/Dockerfile`, qu'aucune construction ne lit : une ligne `FROM <image>:<étiquette>@sha256:…`
+sans préfixe par image de Docker Hub que le dépôt épingle (US-2490) : une image, une version dans le dépôt, le manifeste refuse un chemin nommé deux fois. Un test des outils
+(`tools/tests/test_mirror_manifest.py`) échoue quand une référence des `Dockerfile`, des fichiers
+Compose ou des workflows, préfixée ou non, n'est pas celle du manifeste, étiquette et empreinte, ou
+quand le manifeste porte une image que rien n'emploie. Une montée de Dependabot ne change que le
+manifeste, et sa chaîne échoue sur ce test jusqu'aux deux gestes d'une personne, poussés sur la branche
+de sa pull request : `make mirror-sync`, qui recopie le manifeste dans les références sans toucher au
+préfixe, ancres YAML comprises, puis `make mirror PUSH=yes`, qui copie la nouvelle empreinte dans le
+miroir. Le repli sur Docker Hub quand le miroir ne tient pas toutes les empreintes (#3025) n'est pas
+fait : la pull request d'une montée attend ces gestes. Les workflows
 qui construisent ou lancent Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`,
 `production.yml`, `images.yml`) posent `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` et s'y connectent ; les
 services de `back.yml` et de `front.yml` nomment le miroir en toutes lettres. Le miroir est tenu par
@@ -3648,15 +3659,20 @@ services de `back.yml` et de `front.yml` nomment le miroir en toutes lettres. Le
 y est — présente, rien d'autre n'est lu, Docker Hub non plus —, et copie celles qui manquent de
 Docker Hub, par empreinte (`docker buildx imagetools create` écrit le manifeste tel quel,
 l'empreinte est vérifiée après), sous une étiquette qui porte le début de l'empreinte : une même
-étiquette de Docker Hub a deux empreintes dans nos fichiers (Caddy). Le travail `mirror` de
+étiquette de Docker Hub a pu avoir deux empreintes dans nos fichiers (Caddy, avant le manifeste). Une
+copie que ghcr.io refuse (`denied`) est refaite une fois avant d'échouer : il a refusé une fois la
+création d'un paquet qu'il a acceptée au passage suivant (#3028). Quand il refuse de répondre, le
+message nomme ses deux causes : la connexion à ghcr.io, ou un paquet pas encore copié (`make mirror
+PUSH=yes`). Le travail `mirror` de
 `ci.yml`, que tout travail qui tire une image attend, le fait à chaque passage, au palier rapide
 comme au complet : `images.yml` passe après la fusion, donc après le premier passage qui a besoin
 d'une image ajoutée ou d'une empreinte relevée (`images.yml` le refait avant de construire, une
 consultation). Chaque demande est refaite quatre fois au plus (`wftools.registry`, #2530) ; une
 image que ni le miroir ni Docker Hub ne donnent fait échouer ce travail en nommant Docker Hub, et
 saute les travaux qui en dépendent, ce que la porte compte. Pour changer une image tierce : changer
-sa référence et son empreinte dans les fichiers, derrière `${WATERFALL_MIRROR:-}` ; le premier
-passage copie la nouvelle. Les travaux qui tirent du miroir demandent `packages: read` et s'y
+sa ligne du manifeste, puis `make mirror-sync` ; le premier passage copie la nouvelle empreinte. Une
+image nouvelle prend sa ligne dans le manifeste, et sa référence dans les fichiers derrière
+`${WATERFALL_MIRROR:-}`. Les travaux qui tirent du miroir demandent `packages: read` et s'y
 connectent (`docker/login-action`, ou `credentials:` d'un service) : un paquet que GitHub crée est
 privé, et rien hors de la chaîne ne le lit. Le travail `mirror`, lui, garde `packages: write`, au
 palier rapide aussi : il lui faut pour remplir le miroir avant la fusion, puisque le premier passage
@@ -3825,8 +3841,8 @@ Règles des workflows :
 - Dependabot propose chaque mois, par une pull request par écosystème, les mises à jour de
   ce qu'il suit : les Actions — celles des workflows et celles des actions locales,
   `.github/actions/*` —, uv (`/backend`, `/tools`), npm (`/frontend`), Maven (l'extension de
-  Keycloak) et les images des Dockerfiles — `deploy/e2e`, l'image de travail des parcours,
-  compris — et des fichiers Compose ; les mineures et les
+  Keycloak) et les images de Docker Hub par leur manifeste, `deploy/images` (plus haut) — avec
+  `deploy/e2e`, l'image de travail des parcours, qui n'a pas de préfixe — ; les mineures et les
   correctifs d'un écosystème arrivent groupés, chaque majeure dans la sienne, sous le préfixe
   `Chaîne :`. Les dépendances `org.keycloak` et `jakarta.ws.rs-api` de l'extension sont
   ignorées : elles suivent l'image de Keycloak. La majeure de TypeScript n'a pas de règle
