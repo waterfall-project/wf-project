@@ -253,8 +253,7 @@ def test_the_estimate_today_sums_the_lines_of_the_whole_structure(today: dict[st
 
 def test_a_lot_no_task_bears_is_presented_without_a_total() -> None:
     # WF-DEV-0060 : « un lot sans tâche rattachée est présenté sans total » ; Vérif : « les totaux
-    # par lot sont absents plutôt que nuls » (#586, #771, EP-14/L42s, C-350). Each lot of the
-    # work breakdown, in its order: one that no task bears has neither amount nor share computed.
+    # par lot sont absents plutôt que nuls » (#586, #771, EP-14/L42s, C-350).
     reading = mockindicators.today()
     other = mockwitness.WorkPackage(universe(749), "Lot 2")
     borne, without = mockindicators.by_work_package(
@@ -350,7 +349,8 @@ def test_the_rate_update_proposes_the_rates_of_the_grid_for_2026(today: dict[str
     # labour category of the offer the rate the grid gives for 2026. Beside it, the rate it keeps:
     # created by an entry of a risk, it applied the rates of 2025 projected to 2026 (WF-REV-0060),
     # « le taux de 2026 corrigé d'une année d'inflation » of the Vérif one year earlier, as the
-    # `previous_amount` (EP-07, « L'instantané et les taux »): 78.50 and 73.50 x 1.03, to the cent.
+    # `previous_amount` (EP-07, « L'instantané et les taux »): 78.50 x 1.03 = 80.855 and
+    # 73.50 x 1.03 = 75.705, to the cent.
     grid: Any = mockrates.hourly_rate_grid()
     cells = {
         row["cost_category_id"]: dict(zip(grid["years"], row["cells"], strict=True))

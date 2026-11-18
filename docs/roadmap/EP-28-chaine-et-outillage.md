@@ -376,7 +376,8 @@ Aucune.
 
 - `tools/src/wftools/` : `coverage`, `guard` et son module extrait, `launch` (nouveau), `slots`,
   `heavyturns`, `tracking`, `mergequeue`, `sources`, `roadmap`, `mirror`, `gate`, `e2eparts`,
-  `mockdata` et ses modules extraits (`mockvolumes`, `mockrates`), `mockrefusals` ; `tools/paths.toml` ; les tests des outils ;
+  `mockdata` et ses modules extraits (`mockvolumes`, `mockrates`), `mockrefusals` ;
+  `tools/paths.toml` ; les tests des outils ;
 - le Makefile ; `.github/workflows/` (`ci.yml`, `service.yml`, `e2e.yml`, `front-cache.yml`),
   `.github/dependabot.yml`, `.github/rulesets/merge-queue.json` ;
 - `.claude/settings.json`, `.claude/agents/epic-deliverer.md`, le skill `pilote` ;
