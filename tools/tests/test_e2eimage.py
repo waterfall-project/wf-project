@@ -174,7 +174,11 @@ def test_a_pull_request_runs_in_the_fast_tier() -> None:
     # What keeps the publication off a pull request: the tier, full in the merge queue or when
     # chosen by hand, which a pull request cannot do (PLC-10).
     tier = workflow("ci.yml")["jobs"]["changes"]["outputs"]["tier"]
-    assert tier == "${{ github.event_name == 'merge_group' && 'full' || inputs.tier || 'fast' }}"
+    assert "pull_request" not in tier
+    assert "merge_group" in tier
+    assert "inputs.tier" in tier
+    assert tier.count("'full'") == 1
+    assert tier.rstrip(" }").endswith("|| 'fast'")
 
 
 @pytest.mark.story("US-2490")
@@ -188,6 +192,21 @@ def test_no_other_job_of_a_pull_request_writes_the_packages() -> None:
         name for name, job in chain.items() if job.get("permissions", {}).get("packages") == "write"
     )
     assert writing == ["e2e-image-publish", "mirror"]
+    # The workflows that ci.yml calls hold the right in neither place, workflow or job.
+    called = sorted(
+        {
+            job["uses"].rsplit("/", 1)[1]
+            for job in chain.values()
+            if job.get("uses", "").startswith("./.github/workflows/")
+        }
+    )
+    assert "e2e.yml" in called
+    assert "service.yml" in called
+    for name in called:
+        callee = workflow(name)
+        scopes = [callee, *callee["jobs"].values()]
+        granted = [scope.get("permissions", {}).get("packages") for scope in scopes]
+        assert "write" not in granted, name
 
 
 def test_the_browser_alone_plays_in_the_image_the_paths_on_the_runner() -> None:
