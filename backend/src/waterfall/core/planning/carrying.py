@@ -128,9 +128,12 @@ def judge_provisions(write: Write, removed: Iterable[UUID]) -> dict[UUID, UUID]:
     The parent of the node deleted, the first task of the first level left for a task of the first
     level — the removal of the last task of a main structure that bears a provision is refused
     instead (409 ``at_least_one_task``, ``params.risks`` naming each risk whose provision it would
-    carry, WF-RIS-0010). Nothing is written.
+    carry, WF-RIS-0010). Only the main structure bears provisions: the others give none. Nothing is
+    written.
     """
     tree, where = write.tree, write.place
+    if not write.facts.is_main:
+        return {}
     gone = list(removed)
     moves = provision_moves(tree, gone, first_left(tree, gone))
     stranded = [line for line, task in moves.items() if task is None]

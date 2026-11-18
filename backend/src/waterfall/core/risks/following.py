@@ -8,8 +8,9 @@ Registered at the import of the interface of the risks (EP-08, "Modules"):
   own estimate of a risk — a cell, a paste, a move, a creation, a deletion, an import, an undoing —
   advances the counter of its risk with the structure's (#1453), and, the risk identified in that
   revision, writes its provision line again at the severity, the new total of the structure,
-  weighted by its probability, to the cent (WF-RIS-0010). The locks come in one order: the own
-  estimate, held by the write, then the risk, then the main structure that bears the line;
+  weighted by its probability, to the cent (WF-RIS-0010). The locks come in the order of
+  ``update_provision``: the own estimate, held by the write, then the main structure that bears the
+  line, then the risk;
 - **the copy of a revision** (``register_copy``): each evaluation of the source is taken up, its own
   estimate and its provision line by their copies, after the structures and the nodes whose copies
   it names; the reviews and the shares are not (EP-08, "Tables et migrations"). The own estimate of
@@ -37,7 +38,7 @@ from sqlalchemy import delete, select, update
 
 from waterfall.core.estimate.interface import round_to_cent, set_provision, structure_amount
 from waterfall.core.planning.interface import Place, ProvisionOwner
-from waterfall.core.revisions.interface import aimed_structure
+from waterfall.core.revisions.interface import aimed_structure, structure_facts
 from waterfall.core.risks.commands import IDENTIFIED
 from waterfall.core.risks.reading import evaluation_of
 from waterfall.core.risks.tables import Risk, RiskEvaluation, RiskReview
@@ -69,12 +70,15 @@ def advance_risks(session: Session, project_id: UUID, risk_ids: Collection[UUID]
 def follow_own_estimate(counted: OwnEstimateCounted) -> None:
     """Advance the counter of the risk of an own estimate written; write its provision again."""
     session, project_id = counted.session, counted.project_id
+    main = aimed_structure(session, project_id, counted.revision_id, None)
+    if main is not None:
+        # The main structure before the risk: the order of ``update_provision``, which says why.
+        structure_facts(session, project_id, main, lock=True)
     advance_risks(session, project_id, [counted.risk_id])
     evaluation = evaluation_of(session, project_id, counted.risk_id, counted.revision_id)
     if evaluation is None or evaluation.state != IDENTIFIED:
         return
     line = evaluation.provision_node_id
-    main = aimed_structure(session, project_id, counted.revision_id, None)
     if line is None or main is None:
         return
     severity = structure_amount(session, project_id, counted.structure_id)

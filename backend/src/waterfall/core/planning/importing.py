@@ -335,10 +335,13 @@ def _carry_provisions(session: Session, plan: Plan) -> None:
 
     The nearest ancestor that stays, else the first task of the first level the import leaves
     (WF-PLA-0070, WF-RIS-0010): the structure the file leaves holds its tasks, and the total of
-    the estimate does not change.
+    the estimate does not change. Only the main structure bears provisions. A file that leaves no
+    task of the first level carries nothing: no refusal of the contract of the import names it
+    (``ImportReport.refusals`` lists its own), and the application fails on the line the risk holds
+    (#4011).
     """
     tree = plan.aimed.tree
-    if not plan.removed or not tree.provisions:
+    if not plan.aimed.is_main or not plan.removed or not tree.provisions:
         return
     first = next((each for each in plan.children.get(None, []) if each not in plan.removed), None)
     moves = provision_moves(tree, plan.removed, first)

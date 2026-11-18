@@ -12,6 +12,9 @@ subproject received actual costs (WF-PRJ-0050). Every answer is checked against 
 (``ContractClient``).
 """
 
+import threading
+import time
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -23,8 +26,19 @@ from estimate_support import Costing, costing
 from nodes_support import mark, refusal, set_progress
 from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
-from risks_support import MAKING, RISK_LABEL, STUDY, Costed, Risks, costed
-from sqlalchemy import delete, func, select, update
+from planning_support import insert_task
+from risks_support import (
+    MAKING,
+    RISK_LABEL,
+    STUDY,
+    Costed,
+    Risks,
+    costed,
+    differential,
+    material_line,
+)
+from sqlalchemy import delete, func, select, text, update
+from sqlalchemy.exc import DBAPIError
 
 from waterfall.core.access_roles.predefined import PROJECT_MANAGER
 from waterfall.core.cost_settings.interface import (
@@ -37,8 +51,8 @@ from waterfall.core.cost_settings.interface import (
 from waterfall.core.cost_settings.tables import CostCategory
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.tables import Node
-from waterfall.core.revisions.tables import Revision
-from waterfall.core.risks.tables import RiskEvaluation
+from waterfall.core.revisions.tables import CostStructure, Revision
+from waterfall.core.risks.tables import Risk, RiskEvaluation
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 
@@ -426,15 +440,15 @@ def test_the_provision_creates_the_revision_and_its_abandonment_brings_the_risk_
 
 
 @pytest.mark.requirement("WF-RIS-0010-A")
-def test_the_deletion_of_the_task_bearing_a_provision_of_60_passes_it_to_the_parent_task(
+def test_the_deletion_of_the_task_bearing_a_provision_of_40_passes_it_to_the_parent_task(
     risks: Risks, project: Costed
 ) -> None:
     # « La suppression de la tâche qui porte une provision de 40 laisse le devis inchangé, la
-    # provision étant passée sur la tâche parente. » 200 at 30 % is 60, under a subtask of the
+    # provision étant passée sur la tâche parente. » 200 at 20 % is 40, under a subtask of the
     # study: the deletion of the subtask moves the line to the study, says so, and the total stays.
     tree = project.tree
     sub = tree.made("Sous-étude", parent_id=str(project.tasks[STUDY]))
-    risk = risks.declared(provision_task_id=sub["node_id"])
+    risk = risks.declared(probability="0.2", provision_task_id=sub["node_id"])
     assert risk["provision_task"]["label"] == "Sous-étude"
     total = provisions_total(project)
     answer = risks.delete(tree.node(sub["node_id"]))
@@ -447,7 +461,7 @@ def test_the_deletion_of_the_task_bearing_a_provision_of_60_passes_it_to_the_par
     assert provisions_total(project) == total
     read = risks.risk(risk)
     assert read["provision_task"] == {"node_id": str(project.tasks[STUDY]), "label": STUDY}
-    assert (read["provision_amount"], read["lock_version"]) == ("60.00", risk["lock_version"] + 1)
+    assert (read["provision_amount"], read["lock_version"]) == ("40.00", risk["lock_version"] + 1)
     assert tree.node(risk["provision_node_id"])["lock_version"] > 1
 
 
@@ -503,3 +517,176 @@ def test_a_task_bearing_no_provision_is_deleted_as_before_and_gives_no_node(
     assert answer.status_code == 200, answer.text
     assert answer.json()["nodes"] == []
     assert provisions_total(project) == Decimal("660.00")
+
+
+# --- The order of the locks, the counter judged under it ------------------------------------------
+
+
+def concurrently(call: Callable[[], Any]) -> tuple[threading.Thread, list[Any]]:
+    """Start a call in a thread; give the thread and the list its answer, or its failure, joins."""
+    answers: list[Any] = []
+
+    def run() -> None:
+        try:
+            answers.append(call())
+        except BaseException as error:  # noqa: BLE001 - handed back to the test that joins
+            answers.append(error)
+
+    thread = threading.Thread(target=run)
+    thread.start()
+    return thread, answers
+
+
+def waiting_for_a_lock(stage: Scene) -> None:
+    """Wait until a transaction of the database waits for a lock another holds."""
+    for _ in range(150):
+        with stage.owner.connect() as connection:
+            waiting = connection.scalar(
+                text(
+                    "SELECT count(*) FROM pg_stat_activity"
+                    " WHERE wait_event_type = 'Lock' AND datname = current_database()"
+                )
+            )
+        if waiting:
+            return
+        time.sleep(0.1)
+    pytest.fail("no transaction waits for a lock")
+
+
+def lock_held(stage: Scene, structure_id: UUID) -> bool:
+    """Tell whether another transaction holds the lock of a structure (``FOR UPDATE NOWAIT``)."""
+    with stage.owner.connect() as connection:
+        try:
+            connection.execute(
+                select(CostStructure.id)
+                .where(CostStructure.id == structure_id)
+                .with_for_update(nowait=True)
+            )
+        except DBAPIError:
+            return True
+        return False
+
+
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_a_write_of_the_own_estimate_takes_the_main_structure_before_the_risk(
+    risks: Risks, project: Costed
+) -> None:
+    # The order of ``update_provision``: the main structure, then the risk. A write of the own
+    # estimate that waits for the risk, held by another, holds the main structure already: were
+    # it the other way round, it would hold the risk of ``updateRiskProvision`` on its structure
+    # (an interlock, 40P01). The risk held here by the owner, the write stands still on it.
+    risk = risks.declared()
+    stage = project.stage
+    with stage.owner.connect() as holder:
+        holder.execute(select(Risk.id).where(Risk.id == UUID(risk["risk_id"])).with_for_update())
+        thread, answers = concurrently(lambda: risks.costed_at(risk, "300.00"))
+        waiting_for_a_lock(stage)
+        assert lock_held(stage, project.structure_id)
+        holder.rollback()
+    thread.join(timeout=30)
+    assert answers == [None]
+    assert risks.risk(risk)["lock_version"] > risk["lock_version"]
+
+
+def counted(project: Costed, table: type[Revision] | type[Node]) -> int:
+    """Count the rows of a table of the project: what a provision refused must not have written."""
+    with project.stage.database.transaction() as session:
+        return session.scalar(
+            select(func.count()).select_from(table).where(table.project_id == project.project_id)
+        ) or 0
+
+
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_the_counter_of_a_provision_that_would_create_the_revision_is_judged_under_the_lock(
+    risks: Risks, project: Costed
+) -> None:
+    # « updateRiskProvision … 412 »: the risk locked by another that advances its counter while
+    # the entry waits, the counter it carries is stale when it gets the lock — it is refused,
+    # the revision not created, instead of judged on the counter read before the lock.
+    risk = risks.declared()
+    stage = project.stage
+    mark(stage, {"revision_id": str(project.revision_id)})
+    with stage.owner.connect() as holder:
+        holder.execute(select(Risk.id).where(Risk.id == UUID(risk["risk_id"])).with_for_update())
+        thread, answers = concurrently(lambda: risks.provision(risk, provision_task_id=None))
+        waiting_for_a_lock(stage)
+        holder.execute(
+            update(Risk)
+            .where(Risk.id == UUID(risk["risk_id"]))
+            .values(lock_version=Risk.lock_version + 1)
+        )
+        holder.commit()
+    thread.join(timeout=30)
+    assert len(answers) == 1
+    assert refusal(answers[0]) == (
+        412,
+        "STALE_LOCK_VERSION",
+        {"expected_lock_version": risk["lock_version"] + 1},
+    )
+    assert counted(project, Revision) == 1
+
+
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_a_designation_refused_creates_no_revision_and_writes_nothing(
+    risks: Risks, project: Costed
+) -> None:
+    # « … refusé sur son champ (422) … rien n'est écrit » — also when the entry would have created
+    # the revision: it is not created, the risk and its line are as they were.
+    risk = risks.declared()
+    mark(project.stage, {"revision_id": str(project.revision_id)})
+    read = risks.risk(risk)
+    revisions, nodes = counted(project, Revision), counted(project, Node)
+    refused = risks.provision(read, provision_task_id=str(project.revision_id))
+    assert refused.status_code == 422, refused.text
+    assert [(each["pointer"], each["code"]) for each in refused.json()["fields"]] == [
+        ("/provision_task_id", "UNKNOWN_TASK")
+    ]
+    assert (counted(project, Revision), counted(project, Node)) == (revisions, nodes)
+    with project.stage.database.transaction() as session:
+        drafts = session.scalar(
+            select(func.count()).where(
+                Revision.project_id == project.project_id, Revision.status == "draft"
+            )
+        )
+    assert drafts == 0
+    assert risks.risk(risk) == read
+
+
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_a_differential_with_a_provision_line_category_loses_its_last_task_as_any_other(
+    risks: Risks, project: Costed
+) -> None:
+    # « … une structure principale qui porte une ligne de provision » alone is refused
+    # (at_least_one_task): a differential holds lines of that category, and no provision of a risk.
+    structure_id = differential(project)
+    with project.stage.owner.begin() as connection:
+        task = insert_task(
+            connection, project.project_id, project.revision_id, structure_id, label="Avenant"
+        )
+        material_line(
+            connection,
+            (project.project_id, project.revision_id, structure_id, task),
+            project.costs.provision,
+            Decimal("50.00"),
+        )
+        held = connection.scalar(select(Node.lock_version).where(Node.id == task))
+    path = (
+        f"{PROJECTS}/{project.project_id}/revisions/{project.revision_id}"
+        f"/structures/{structure_id}/nodes/{task}"
+    )
+    answer = risks.api.delete(path, headers=risks.headers, params={"lock_version": held})
+    assert answer.status_code == 200, answer.text
+    assert answer.json()["nodes"] == []
+
+
+@pytest.mark.requirement("WF-RAE-0010-A")
+def test_the_remaining_counts_the_provision_of_a_risk_under_a_completed_task(
+    risks: Risks, project: Costed
+) -> None:
+    # « … plus les provisions des risques identifiés, quel que soit l'état de la tâche qui les
+    # porte » : the task of the making completed, its 400 leave the remaining, the provision of 60
+    # it bears stays in it.
+    risks.declared(provision_task_id=str(project.tasks[MAKING]))
+    assert risks.remaining()["total"] == "1060.00"
+    set_progress(project.stage, str(project.tasks[MAKING]), "completed", date(2026, 6, 3))
+    assert risks.remaining()["total"] == "660.00"

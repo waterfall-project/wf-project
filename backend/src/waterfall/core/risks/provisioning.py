@@ -12,12 +12,7 @@ category changed, a subproject, a task, refused on its field (422): the 409 come
 sent for a risk that is not identified being refused with ``risk_identified`` (#747). Nothing is
 written then.
 
-It shares the lock of the natures of cost first, as every write of the tree does (#2615), then
-creates the current revision if the project has none, a copy of the last marked one, which
-copies the evaluation of the risk and its line; locks the main structure that bears the line, then
-the risk — the order of the write of a deletion, which advances the counter of the risk under the
-lock of the structure it holds — and judges the counter and the state of the risk again under
-them. It then writes the category and the subproject on the line, whatever the state of its task
+It then writes the category and the subproject on the line, whatever the state of its task
 and the costs its subproject received (WF-PRJ-0050), moves the line under the task designated, the
 total of the estimate unchanged (WF-RIS-0010), and the evaluation of the risk in the revision: its
 category, its subproject and the lineage of the task it designates, none for the first task of the
@@ -42,6 +37,7 @@ from waterfall.core.projects.interface import (
     NO_BACKGROUND_TASK_RUNNING,
     PROJECT_NOT_TERMINAL,
     no_background_task_running,
+    lock_project,
     project_facts,
     subproject_labels,
 )
@@ -96,15 +92,12 @@ def _read_before(
 
     The risk unknown or held by no revision (404), the counter read (412), a risk that is not
     identified (``risk_identified``), the creation of the revision a permission of its own
-    (``may_create_revision``).
+    (``may_create_revision``). The risk is locked first, and held until the commit, so that the
+    counter judged is the one the opening of the revision starts from.
     """
+    found_risk(session, project_id, change.risk_id, lock=True)
     found = read_found(session, project_id, change.risk_id, None)
-    if found.risk.lock_version != change.lock_version:
-        raise PreconditionFailedError(
-            STALE_LOCK_VERSION, {"expected_lock_version": found.risk.lock_version}
-        )
-    if found.evaluation.state != IDENTIFIED:
-        raise refuse(RISK_IDENTIFIED)
+    _judge_held(change, found.risk, found.evaluation)
     if REVISIONS_WRITE not in viewer.permissions:
         raise refuse(MAY_CREATE_REVISION)
 
@@ -177,7 +170,17 @@ def _designated(
 def update_provision(
     session: Session, project_id: UUID, change: RiskProvisionChange, writer: Writer, viewer: Viewer
 ) -> UUID:
-    """Change the provision of an identified risk in the current revision; give the revision."""
+    """Change the provision of an identified risk in the current revision; give the revision.
+
+    The order of the locks, which every write that touches a risk and its line follows (a deletion,
+    an import, a write of the own estimate; see ``follow_own_estimate``): the lock of the natures
+    of cost first, as every write of the tree does (#2615); the main structure that bears the
+    line; then the risk, whose counter advances under it. The opening of a revision by this entry is
+    the one exception: the project, then the risk, then the main structure of the revision opened,
+    which no other transaction sees before the commit. The current revision is created, if the
+    project has none, a copy of the last marked one that copies the evaluation of the risk and its
+    line; the counter and the state of the risk are judged under its lock, in both cases.
+    """
     act = writer.act
     share_natures(session)
     facts = project_facts(session, project_id)
@@ -188,6 +191,15 @@ def update_provision(
         revision_draft(session, revision_id)
     if not no_background_task_running(session, project_id, writer.running):
         raise refuse(NO_BACKGROUND_TASK_RUNNING)
+    if revision_id is None:
+        # The project locked first, as the opening of a revision does: another opening waits for it
+        # before it advances this risk, and the revision it opened is the one we write in.
+        facts = lock_project(session, project_id)
+        if is_terminal(facts.state):
+            raise refuse(PROJECT_NOT_TERMINAL)
+        revision_id = facts.current_revision_id
+        if revision_id is not None:
+            revision_draft(session, revision_id)
     created = revision_id is None
     if revision_id is None:
         _read_before(session, project_id, change, viewer)
@@ -202,7 +214,8 @@ def update_provision(
     if evaluation is None:
         raise NotFoundError(NOT_FOUND)
     if not created:
-        # A revision we created advanced the counter at its opening, which was judged before it.
+        # A revision we created advanced the counter at its opening, which was judged before it,
+        # under the lock of the risk held since.
         _judge_held(change, risk, evaluation)
     line = evaluation.provision_node_id
     if line is None:
