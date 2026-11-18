@@ -3552,7 +3552,12 @@ to the registry, and no build receives an argument or a secret (WF-SEC-0010):
   branch, which carries the same version, never sets it; the label
   `org.opencontainers.image.version` of an image that does not take the version tag says so
   (`0.1.0+epic-EP-03` outside `main`, `0.1.0+main` on `main` once the version is published). Each
-  image also carries its own `title` and its `url`, which replace those of its base image.
+  image also carries its own `title` and its `url`, which replace those of its base image. This
+  immutability is held by the tool, not by the registry: ghcr.io does not guarantee it, and lets a
+  tag be rewritten by any token that can write the packages of the repository — that of
+  `images.yml`, but also that of the job `mirror` of a pull request (below) —, by code that would
+  not call the tool (PLC-10). Pinning production by digest, which would no longer depend on the
+  tag, is deferred to EP-13.
 - **What refuses a push.** A branch other than `main` or `epic/…`; a repository whose
   commit is not the one `IMAGE_COMMIT` names, or which is not clean in the contexts of the
   images (`git status --porcelain -- frontend backend deploy/keycloak`); a built image
@@ -3630,7 +3635,14 @@ that depend on it, which the gate counts. To change a third-party image: change 
 its digest in the files, behind `${WATERFALL_MIRROR:-}`; the first run copies the new one. The jobs
 that pull from the mirror ask for `packages: read` and log in to it (`docker/login-action`, or the
 `credentials:` of a service): a package GitHub creates is private, and nothing outside the chain
-reads it.
+reads it. The job `mirror`, for its part, keeps `packages: write`, in the fast tier too: it needs it
+to fill the mirror before the merge, since the first run that needs an image added or a digest
+raised is that of the pull request that changes it, and neither the queue nor `images.yml` comes
+before. It is the only job of a pull request that keeps it, and it runs the code of the pull request
+— the tools and their dependencies of `tools/uv.lock` — with a token that can write every package of
+the repository, published images included (PLC-10); the token of a pull request from a fork can
+only read. The publication of the work image of the paths, for its part, happens in the full tier
+alone (below).
 
 Four other network sources of the chain, which the original inventory of US-1900 did not name
 (#2981, #3015), are each dealt with in its own way:
@@ -3670,25 +3682,28 @@ The full tier aims at under eight minutes in the queue for its longest job
   Chromium and its system packages are there, nothing comes from the Ubuntu mirror, whose throughput
   and answers are not ours (#472, #2913). It is built for amd64 alone, the architecture of the
   runners and of the workstations. It is published on `ghcr.io/waterfall-project/e2e`, tagged by
-  the hash of its directory: the job `e2e-image` of `ci.yml`, which runs whenever `e2e` or
-  `service` could run, beside `front-build`, asks the registry for it (`make e2e-image`). Present,
-  it gives its reference by the digest the registry knows it by, which the shards (`container:` of
-  `e2e.yml`) and `service.yml` pull. Missing, it builds it; in the full tier (`PUSH=yes`), it
-  publishes it, once, at the first run that needs it — that of the queue, or of the full tier run by
-  hand on a branch —, hence its `packages: write`; in the fast tier, it builds it without
-  publishing it, so that a build that fails stops the pull request before the queue. `images.yml`
-  does not publish it: it runs after the merge, so after the first run of the queue that needs it.
+  the hash of its directory, and asked of the registry (`make e2e-image`), whenever `e2e` or
+  `service` could run, beside `front-build`, by one of two jobs of `ci.yml`, one per tier
+  (US-2490). In the fast tier, `e2e-image` has `packages: read` alone: present, it finds it;
+  missing, it builds it without publishing it, so that a build that fails stops the pull request
+  before the queue. In the full tier — the queue, or the full tier run by hand on a branch, never a
+  pull request —, `e2e-image-publish` gives its reference by the digest the registry knows it by,
+  which the shards (`container:` of `e2e.yml`) and `service.yml` pull; missing, it builds it and
+  publishes it (`PUSH=yes`), once, at the first run that needs it, hence its `packages: write`.
+  `e2e` and `service`, both of the full tier, name it alone. `images.yml` does not publish it: it
+  runs after the merge, so after the first run of the queue that needs it.
 
   Each request to the registry, the build and the publication are made again four times at most,
   twenty seconds apart (#2530); a build made again starts from the layers already built. A registry
-  that still does not answer fails that job, naming it, and skips the paths, which the gate counts;
+  that still does not answer fails either job, naming it, and skips the paths, which the gate counts;
   an image that cannot be pulled fails the initialisation of the shard, naming the registry, before
   any step. Two runs of the queue that do not find the tag may each publish it: the build is not
   reproducible to the byte, but each pulls the image it published, by its digest, and the content
   the tag names is the same.
 
-  `tools/tests/test_e2eimage.py` holds the versions of the image, its pinned sources, and the
-  absence of any Ubuntu package in `ci.yml`, `e2e.yml` and `service.yml`.
+  `tools/tests/test_e2eimage.py` holds the versions of the image, its pinned sources, the absence
+  of any Ubuntu package in `ci.yml`, `e2e.yml` and `service.yml`, and the rights of the two jobs;
+  `tools/tests/test_gate.py`, that the gate waits for every job of `ci.yml`.
 
   The job calls `make e2e`, which finds the browser of the image
   (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), and not `make check-front-e2e`, which would install
@@ -3795,7 +3810,6 @@ Rules of the workflows:
   image (and its key, `backend/pgdg.asc`), the runners and the pandoc of the chain, and
   `maven.compiler.release` of the extension's `pom.xml`, which stays at 21 on purpose (the
   Java of the Keycloak image, not the build JDK): it is bumped when that image changes Java.
-
 - A path of a part or of the service that fails uploads what Playwright kept
   (`frontend/test-results/`: traces, screenshots, `error-context.md`) as an artifact, on
   failure only, for seven days, under the name `test-results-e2e-<n>` or
