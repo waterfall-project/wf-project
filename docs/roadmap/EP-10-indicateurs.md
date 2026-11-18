@@ -1230,6 +1230,10 @@ restent ce qu'elles étaient le jour où je les ai tenues.
   `revision_id` d'une révision marquée rendent le document conservé, `is_stored` vrai, les parts et
   la couverture telles qu'elles étaient au marquage ; sur la révision en cours, le calcul à la
   lecture d'EP-07 et d'EP-09, `is_stored` faux, inchangé ;
+- propre à l'US : la révision précédente d'une révision dont la seule devancière est l'offre est
+  l'offre, pour les indicateurs de devis comme pour ceux du reste à engager : le service du reste à
+  engager s'aligne sur celui du devis, et le `delta_to_previous_revision` conservé de la 101 est son
+  écart à l'offre, non `null` (décision de l'auteur du 2026-11-17, #3663) ;
 - propre à l'US : le worker porte l'extension — il importe l'interface de `core/indicators`, après
   US-1610/L2 #2404 d'EP-09, dernier lot à écrire `worker/main.py` — et le test des points d'entrée
   (#2180) dit que l'API et le chargeur l'attendent dès le socle, le worker à partir de ce lot ;
@@ -1292,8 +1296,9 @@ ont acquise —, **afin de** voir l'avancement de chaque phase sans rien saisir.
   récapitulative ne sont pas saisissables. » : constaté par EP-06 (US-1380) ;
 - `WF-PLA-0130-A` — « La marge totale, la criticité et l’avancement physique s’affichent et ne sont
   pas saisissables. » : la marge et la criticité, constatées par EP-06 (US-1390, US-1470) ; ici,
-  `physical_progress` est rendu par `listNodes`, absent de `TaskFacetWrite`, et la cellule de la
-  grille est calculée (`computed_fields`) ;
+  `physical_progress` est rendu par `listNodes`, absent de `TaskFacetWrite`, et le front lui-même
+  déclare calculée la cellule de la grille : `ComputedField` ne change pas, le contrat figé non plus
+  (il ne porte pas `task.physical_progress`) ;
 - `WF-PLA-0130-A` — « Une terminaison datée avant le démarrage de la tâche est refusée. » : constaté
   par EP-06 (US-1380/L4, #2519) ;
 - propre à l'US : `core/planning` déclare un registre nouveau, dans un fichier propre de son
@@ -1679,8 +1684,8 @@ service, **afin que** les tests déjà écrits prouvent le service sur le plus g
   `project_indicators_offer`, `index_history`, `index_history_subproject`, `milestone_tracking`,
   `cost_curve`, `cost_curve_payment_delays`, `cost_curve_subproject`, `earned_value_curves`,
   `estimate_indicators` et `remaining_indicators` sur la révision 101 — sont comparées aux exemples,
-  à la référence, aux provisions, aux risques et aux montants qui en dépendent près, listés dans le
-  test : la référence du témoin chargé reste l'offre 100 jusqu'à la fusion de l'avenant 1 (EP-08),
+  à la référence, aux provisions, aux risques, au travail depuis le marquage et aux montants qui en
+  dépendent près, listés dans le test : la référence du témoin chargé reste l'offre 100 jusqu'à la fusion de l'avenant 1 (EP-08),
   quand les exemples lisent la 101 ; se comparent tels quels les contextes, `is_stored`, le coût
   réel, le reste à engager, les dates des jalons, les formes et les pas des séries, et se prouvent
   sur le témoin les invariants — les sommes des mailles, la projection du chef de projet, l'offre
