@@ -1,7 +1,7 @@
 ---
 id: EP-27
 titre: Comparer la révision lue à une révision marquée dans les grilles où l'on travaille
-statut: en cours
+statut: livré
 depend_de: EP-26
 famille: front, back
 issue: 3482
