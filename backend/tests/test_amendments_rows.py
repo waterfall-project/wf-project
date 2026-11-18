@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from amendments_support import on, opened_amendment
 from estimate_support import Costing, Lines, costing
-from history_support import counter, delete, link
+from history_support import counter, delete, link, redone, undone
+from nodes_support import signed_in
 from paste_support import apply, planned, preview
 from projects_support import Scene
 from projects_support import scene as make_scene
@@ -171,6 +172,28 @@ def test_the_row_number_of_a_predecessor_counts_the_removed_nodes_in_a_write_and
     [read] = tree.node(later["node_id"])["predecessors"]
     assert read["predecessor_row_number"] == 5
     assert written["row_number"] == tree.node(later["node_id"])["row_number"] == 7
+
+
+@pytest.mark.requirement("WF-REV-0080-A")
+def test_an_undoing_and_a_redoing_number_the_nodes_they_write_as_the_read_that_follows(
+    api: ContractClient, project: Costed, realm: TestRealm
+) -> None:
+    # The task added sits behind the removed row: undone then redone, its change is numbered with
+    # the removed node counted, as listNodes does (row_number, level, position, predecessor).
+    tree = removing(api, project)
+    who = signed_in(project.stage, realm)
+    tests = node_of(tree, "Essais")
+    assert link(tree, tests, who, node_of(tree, STUDY)).status_code == 200
+    changed = tree.change(node_of(tree, "Essais"), who, label="Essais de recette")
+    assert changed.status_code == 200, changed.text
+    for turn in (undone, redone):
+        [written] = turn(tree, who)["written"]["nodes"]
+        read = tree.node(written["node_id"])
+        assert written["row_number"] == read["row_number"] == 5
+        assert (written["level"], written["position"]) == (read["level"], read["position"])
+        assert [each["predecessor_row_number"] for each in written["predecessors"]] == [
+            each["predecessor_row_number"] for each in read["predecessors"]
+        ]
 
 
 # --- previewPaste, applyPaste --------------------------------------------------------------------
