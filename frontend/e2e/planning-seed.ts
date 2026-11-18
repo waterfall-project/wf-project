@@ -82,10 +82,13 @@ interface Created {
   nodes: { node_id: string }[];
 }
 
+/** The duration in days of the second task of the plan, which the planning tests write back. */
+export const SECOND_TASK_DAYS = "5";
+
 /** The tasks, each by its place: the row of its parent (0, none), and its duration in days. */
 const TASKS: readonly (readonly [parent: number, label: string, days: string])[] = [
   [0, SEEDED[1], "1"],
-  [1, SEEDED[2], "5"],
+  [1, SEEDED[2], SECOND_TASK_DAYS],
   [1, SEEDED[3], "3"],
   [1, SEEDED[4], "0"],
   [0, SEEDED[5], "10"],

@@ -84,11 +84,14 @@ class AmountOverflowError(RepricedBeyondColumnError):
 
     Refused at the field of the request that provokes it (``docs/api/DECISIONS.md``, #3093).
     ``reprice`` (``writing.py``) raises it without a field, as no line of the request is named.
-    The write of a line gives it the quantity (``_priced_draft``); ``repricing._refused_at`` gives
-    it, for the rate of a category and for the inflation, the field that carries the change
-    (``/amount``, ``/inflation_rate``); the write of the tree whose entry redates the task, the
-    fields that date it (``Write.redate``, #3094). The opening of a revision (``copy_rates``),
-    whose request sends no field it follows from, leaves it without one (#3303).
+    The write of a line gives it the quantity (``_priced_draft``); the planning's ``refused_at``
+    gives it the field that carries the change: for the rate of a category, the inflation and the
+    update of the rates (``/amount``, ``/inflation_rate``, ``/cost_category_ids``, #3401), for the
+    write of the tree whose entry redates the task, the fields that date it (``Write.redate``,
+    #3094), for a move, its parent, for a change of the units or of the default calendar, the
+    constants or the days changed (US-2400). The opening of a revision (``copy_rates``), a paste
+    and the designation of the default calendar, whose requests send no field it follows from,
+    leave it without one (#3303, US-2400).
     """
 
 

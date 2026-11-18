@@ -631,7 +631,9 @@ def test_a_recalculation_registered_runs_once_what_dates_the_plannings_is_writte
         install_duration_units(session, act)
         calendar = create_calendar(session, ATELIER, act)
     with ExitStack() as registered:
-        registered.callback(register_recalculation(lambda _session, _at: ran.append("redated")))
+        registered.callback(
+            register_recalculation(lambda _session, _at, _entered: ran.append("redated"))
+        )
         # The same constants sent again are written, and redate nothing; others redate.
         for units in (DEFAULT_UNITS, SEVEN_HOURS):
             with database.transaction() as session:

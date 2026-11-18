@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The measure of the journey of the grids against the service (US-2210, `make measure`): the
- * journey of `steps.ts` played by one, four and eight users at once, each with an account of its
+ * journey of `steps.ts` — the grids, then the same grids compared to the reference (EP-27,
+ * US-2390: `STEPS` carries the steps compared too, reported at each level) — played by one, four
+ * and eight users at once, each with an account of its
  * own, five passes each, on the front built for production, which reaches the API directly — no
  * proxy of the contract between them, whose checking of each answer is the harness's cost, not the
  * users' —, on a platform whose witness was loaded afresh.

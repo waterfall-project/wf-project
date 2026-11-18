@@ -3170,7 +3170,7 @@ class Revision(ContractModel):
     snapshot: Annotated[
         RevisionSnapshot | None,
         Field(
-            description="The reference data values that the revision keeps (WF-REV-0030). Returned by `getRevision` for a marked revision, which froze them at its marking; omitted for the current revision, whose values follow the reference data as long as it is not marked, apart from the rates it keeps (WF-REV-0060), and in `listRevisions` as in the response of a write, which do not read it."
+            description="The reference data values that the revision keeps (WF-REV-0030). Returned by `getRevision` for a marked revision, which froze them at its marking; omitted for the current revision, whose values follow the reference data as long as it is not marked, apart from the rates it keeps (WF-REV-0060), for whoever does not hold `revisions.read` — a reader of one of the three grids, whose banner reads the revision, and to whom the values kept are guarded elsewhere (EP-27, US-2320) —, and in `listRevisions` as in the response of a write, which do not read it."
         ),
     ] = None
     available_commands: Annotated[
@@ -3796,6 +3796,110 @@ class NodeChange(StrEnum):
     subproject = "subproject"
     cost_category = "cost_category"
     parent = "parent"
+    other = "other"
+
+
+class ComparedNodeBase(ContractModel):
+    parent_id: Annotated[
+        Uuid | None,
+        Field(
+            description="The parent in the base, named by the node the comparison returns for it: a task moved under another summary (`NodeChange.parent`)."
+        ),
+    ] = None
+    predecessors: Annotated[
+        list[Predecessor] | None,
+        Field(
+            description="The predecessors in the base, each named by the node the comparison returns for it and at its row there; compared by lineage, their link type and their lag, never by their row, which the nodes around them move."
+        ),
+    ] = None
+    origin_risk_id: Annotated[
+        Uuid | None,
+        Field(
+            description="The risk whose occurrence merged the node, in the base (`Node.origin_risk_id`)."
+        ),
+    ] = None
+    task: Annotated[
+        ComparedTaskFacet | None,
+        Field(
+            description="What the time facet carried in the base and differs. Absent for a line."
+        ),
+    ] = None
+    estimate_line: Annotated[
+        ComparedEstimateLineFacet | None,
+        Field(
+            description="What the estimate facet carried in the base and differs. Absent for a task."
+        ),
+    ] = None
+
+
+class TaskDeltas(ContractModel):
+    start: Annotated[
+        int | None,
+        Field(
+            description="The calendar days from the start of the base to the start read, its date alone: a task that starts five days later reads 5 (WF-DAT-0100)."
+        ),
+    ] = None
+    finish: Annotated[
+        int | None,
+        Field(
+            description="The calendar days from the finish of the base to the finish read: a finish pushed back by five days reads 5 (WF-REV-0080)."
+        ),
+    ] = None
+    started_on: Annotated[
+        int | None, Field(description="The calendar days between the two start dates entered.")
+    ] = None
+    completed_on: Annotated[
+        int | None, Field(description="The calendar days between the two finish dates entered.")
+    ] = None
+    duration: Annotated[
+        Duration | None,
+        Field(
+            description="The duration read minus that of the base, in working time, in the unit of the duration read (WF-PLA-0160); signed, negative for a shorter task."
+        ),
+    ] = None
+    total_float: Annotated[
+        Duration | None,
+        Field(description="The total float read minus that of the base, in working days, signed."),
+    ] = None
+    base_amount: Annotated[
+        Money | None,
+        Field(
+            description="The amount at the rates of the reference year read minus that of the base; never null, the facet always carrying both."
+        ),
+    ] = None
+    budgeted_amount: Annotated[
+        Money | None,
+        Field(description="The budgeted amount read minus that of the base; never null."),
+    ] = None
+    reestimated_amount: Annotated[
+        Money | None,
+        Field(description="The re-estimated amount read minus that of the base; never null."),
+    ] = None
+
+
+class EstimateLineDeltas(ContractModel):
+    unit_disbursement: Money | None = None
+    base_amount: Annotated[
+        Money | None,
+        Field(
+            description="The amount at the rates of the reference year read minus that of the base; never null, the facet always carrying both."
+        ),
+    ] = None
+    budgeted_amount: Annotated[
+        Money | None,
+        Field(description="The budgeted amount read minus that of the base; never null."),
+    ] = None
+    reestimated_amount: Annotated[
+        Money | None,
+        Field(description="The re-estimated amount read minus that of the base; never null."),
+    ] = None
+    previous_unit_disbursement: Money | None = None
+    previous_reestimated_amount: Money | None = None
+
+
+class NodeDeltas(ContractModel):
+    task: TaskDeltas | None = None
+    estimate_line: EstimateLineDeltas | None = None
 
 
 class ComparedNodeRead(ContractModel):
@@ -3849,7 +3953,7 @@ class ComparedNodeRead(ContractModel):
     difference: Annotated[
         NodeDifference,
         Field(
-            description="The node's difference from the base revision (`from_revision_id`), which the server returns and the front does not compute (WF-REV-0080, C-361): always returned, whether `fields` names it or not, never null."
+            description="The node's difference from the base revision (`from_revision_id`), which the server returns and the front does not compute (WF-REV-0080, C-361): always returned, whether `fields` names it or not, never null. It does not depend on `fields` either: a node is `modified` as soon as a value it carries differs, entered or computed, of either facet, whether the read returns it or not (`NodeChange`, EP-27) — a task said modified on the estimate is said so on the planning."
         ),
     ]
     changes: Annotated[
@@ -3858,11 +3962,32 @@ class ComparedNodeRead(ContractModel):
             description="What changes of the node itself, in the order of `NodeChange`, returned with `difference`: empty for a node added, removed or unchanged, and for a task marked modified by its content alone — a line or a subordinate added, removed, modified or moved."
         ),
     ]
+    base: Annotated[
+        ComparedNodeBase | None,
+        Field(
+            description="The values the base revision carried, for a `modified` node: under the names of the node — `parent_id`, `predecessors`, `task.…`, `estimate_line.…` —, only those that the read returns (`fields`, all of them without it) and whose value differs from the revision read; empty when none of them does, a task modified by its content alone or a value that `fields` leaves out. Always returned, like `difference`. Null for a node added, unchanged or removed — a removed node is already returned on its base values. A cell is marked when `base` carries its field, with the value of the base: the grid compares nothing (WF-REV-0080, WF-IHM-0150, WF-ARC-0020). A parent and a predecessor are those of the base, matched by lineage and named by the node the comparison returns, a predecessor at the row it is returned at."
+        ),
+    ]
+    deltas: Annotated[
+        NodeDeltas | None,
+        Field(
+            description="The differences of a `modified` node, the revision read minus the base, for the fields of `base` alone that are a date, a duration or an amount (`NodeDeltas`): the grid displays them in its columns of difference without computing them (WF-IHM-0150, WF-ARC-0020). Always returned, like `base`. Null for any other node: a line added or removed weighs in the totals (`totals_delta`), not in a column of difference."
+        ),
+    ]
 
 
 class NodeTotals(ContractModel):
     task_count: Annotated[int, Field(ge=0)]
     estimate_line_count: Annotated[int, Field(ge=0)]
+    hours: Hours
+    base_amount: Money
+    budgeted_amount: Money
+    reestimated_amount: Money
+
+
+class NodeTotalsDelta(ContractModel):
+    task_count: int
+    estimate_line_count: int
     hours: Hours
     base_amount: Money
     budgeted_amount: Money
@@ -3924,13 +4049,25 @@ class RevisionComparison(ContractModel):
     items: Annotated[
         list[ComparedNodeRead],
         Field(
-            description="The nodes of the compared revision (`to_revision_id`) that the read retains, depth-first in outline order, without pagination, as `listNodes` returns them: each node with its difference from the base revision (`difference`, `changes`) and the fields that `fields` names, the removed nodes at the place they had in the base revision, read-only. An identical pair returns each node unchanged (WF-REV-0080, C-361)."
+            description="The nodes of the compared revision (`to_revision_id`) that the read retains, depth-first in outline order, without pagination, as `listNodes` returns them: each node with its difference from the base revision (`difference`, `changes`), the values the base carried and their differences (`base`, `deltas`) and the fields that `fields` names, the removed nodes at the place they had in the base revision, read-only. An identical pair returns each node unchanged (WF-REV-0080, C-361)."
         ),
     ]
     totals: Annotated[
         NodeTotals,
         Field(
             description="The totals of the compared revision, as `listNodes` returns them: those of the retained lines, without the removed nodes, which are no longer in its structure; `difference` does not restrict them (`NodeTotals`)."
+        ),
+    ]
+    base_totals: Annotated[
+        NodeTotals,
+        Field(
+            description="The totals of the base revision (`from_revision_id`) on the nodes the read retains, as the base carries them: the removed nodes included, which are of the base, the added ones left out, which are not; a line counts where the read retains it, by its parent in the revision read, as `amount_deltas` counts it. `difference` does not restrict them, as it does not restrict `totals`; the lines in difference that `include_differences` adds to a progress filter count in them as in `totals` (WF-REV-0080, WF-IHM-0160). An identical pair returns them equal to `totals`."
+        ),
+    ]
+    totals_delta: Annotated[
+        NodeTotalsDelta,
+        Field(
+            description="The signed difference of `totals` and `base_totals`, the revision read minus the base, field by field (WF-IHM-0160): the grid displays it without computing it (WF-ARC-0020)."
         ),
     ]
     meta: Annotated[

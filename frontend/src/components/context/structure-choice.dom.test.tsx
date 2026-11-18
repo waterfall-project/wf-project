@@ -182,6 +182,21 @@ describe("the choice of the structure", () => {
     });
   });
 
+  it("lifts the comparison when another structure is chosen [WF-IHM-0020-A]", async () => {
+    // Sur une autre structure que la principale, le bandeau n'offre pas de base, et choisir une autre
+    // structure lève la comparaison (US-2330).
+    const base = "01926f3a-7c00-7000-8000-000000000101";
+    banner(choices("structures", MAIN), `base_revision_id=${base}&search=Revue`);
+    const menu = await openChoice("Structure principale");
+    await userEvent.click(
+      within(menu).getByRole("menuitemradio", { name: "Avenant 2 — reprise des essais" }),
+    );
+    expect(router.push).toHaveBeenLastCalledWith(
+      `${PLANNING}?search=Revue&structure=${AMENDMENT}`,
+      { scroll: false },
+    );
+  });
+
   it("takes the parameter off the address for the main structure, which reads by default", async () => {
     banner(choices("structures", AMENDMENT), `structure=${AMENDMENT}&search=Revue`);
     const menu = await openChoice("Avenant 2 — reprise des essais");

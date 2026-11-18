@@ -172,6 +172,7 @@ const EXAMPLE_BY_END = {
   "/subprojects": ["GET /projects/{project_id}/subprojects", "subprojects"],
   "/work-breakdown": ["GET /projects/{project_id}/work-breakdown", "work_breakdown"],
   "/risks": ["GET /projects/{project_id}/risks", "risks"],
+  "/revisions": ["GET /projects/{project_id}/revisions", "revisions"],
 } as const satisfies Readonly<Record<string, CitedRead>>;
 const READ_REVISION = [
   "GET /projects/{project_id}/revisions/{revision_id}",
@@ -855,7 +856,7 @@ describe("the banner of the reading context on the witness path", () => {
     );
     expect(html.startsWith(BANNER)).toBe(true);
     expect(text(html)).toMatch(
-      /^Project Modernisation du poste de commande Revision Current revision Draft Copy of “Référence” Structure Structure principale Subproject: No subproject Costing and estimate /,
+      /^Project Modernisation du poste de commande Revision Current revision Draft Copy of “Référence” Structure Structure principale Comparison base Subproject: No subproject Costing and estimate /,
     );
     expect(html).toContain('aria-label="Remove the filter “Subproject: No subproject”"');
   });

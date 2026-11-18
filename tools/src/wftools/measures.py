@@ -35,9 +35,13 @@ contract that carry it (EP-26, US-2300):
 - ``open-grid``: open a grid of a thousand tasks, ``listNodes``;
 - ``recompute-after-entry``: recompute after an entry in a grid, ``updateTaskFacet`` and
   ``updateEstimateLine``;
+- ``open-compared-grid``: open a grid of planning, of estimate or of remaining to commit compared
+  with a marked revision, ``compareRevisions`` (EP-27, US-2390);
 - ``filter-sort-search``: filter, sort or search in such a grid, ``listNodes``;
 - ``indicators``: show the indicators of the current revision, ``getProjectIndicators`` (EP-10,
   US-2420);
+- ``recompute-compared``: recompute after an entry in a compared grid, until its marks are read
+  anew, ``updateTaskFacet`` or ``updateEstimateLine`` then ``compareRevisions`` (EP-27, US-2390);
 - ``workload-or-projection``: show the workload or the projection of expenses,
   ``getProjectWorkload`` and ``getProjectSpending`` (EP-10, US-2420): the durations of the two
   screens are the samples of one operation;
@@ -47,9 +51,9 @@ contract that carry it (EP-26, US-2300):
 - ``export-planning``: generate the export of a planning of a thousand tasks, ``requestExport`` and
   ``getBackgroundTask``.
 
-``portfolio-view`` (EP-11), ``open-compared-grid`` and ``recompute-compared`` (the compared grid,
-EP-27) have no operation yet: they are unserved. Until EP-10 delivered them, ``indicators`` and the
-projection of expenses were too.
+``portfolio-view`` (EP-11) has no operation yet: it is unserved. Until EP-10 delivered them,
+``indicators`` and the projection of expenses were too, and until EP-27 delivered it, the compared
+grid (``open-compared-grid`` and ``recompute-compared``).
 
 The operation ``indicators``, once served, also says what the entries of the cache of the
 indicators of the day cost (US-2420, #3628): a ``cache`` object, taken by ``make measure-core

@@ -20,6 +20,10 @@
  * the answer of a reading so narrowed holds the rows it retains and the rows above them, and each
  * of those under which it holds others unfolds — once for each search or filter, which the user
  * may fold again.
+ *
+ * While a comparison is read, « Écarts seulement » folds away the rows without difference
+ * (WF-IHM-0170, US-2360): a state kept with the folds, under the same key — nothing asked of the
+ * server, nothing in the address —, on and the rows of the runs unfolded since (`difference-fold.ts`).
  */
 "use client";
 
@@ -45,22 +49,48 @@ import { onMac } from "@/components/commands/shortcut";
 import { ContextMenuItem } from "@/components/ui/context-menu";
 import { cn } from "@/components/ui/utils";
 
-import type { GridTree } from "./columns";
+import type { GridTree, RowDifference } from "./columns";
+import {
+  type DifferenceFold,
+  type FoldedRun,
+  foldedDifferences,
+  NOT_FOLDED,
+} from "./difference-fold";
 import { type CellPosition, type Cursor, HEADER_ROW, positionOf } from "./grid-keyboard";
 import type { GridOutline } from "./grid-toolbar";
 
 /** The prefix of the keys of the storage of the tab under which a grid keeps its folds. */
 export const FOLD_STORAGE_PREFIX = "wf_fold:";
 
-/** What a grid keeps of its tree: the rows folded, and the narrowing last unfolded for. */
+/**
+ * What a grid keeps of its tree: the rows folded, the narrowing last unfolded for, and the rows
+ * without difference of a comparison, folded away or not.
+ */
 interface FoldState {
   readonly collapsed: ReadonlySet<string>;
   /** The search and the filters whose rows were last unfolded; empty for a reading not narrowed. */
   readonly revealed: string;
+  readonly differences: DifferenceFold;
 }
 
 /** Nothing folded: the tree as the server renders it. */
-const UNFOLDED: FoldState = { collapsed: new Set(), revealed: "" };
+const UNFOLDED: FoldState = { collapsed: new Set(), revealed: "", differences: NOT_FOLDED };
+
+/**
+ * The folding of the rows without difference read back, when it has the shape written; none
+ * otherwise — a state kept before it had any among them.
+ */
+function parsedDifferences(value: unknown): DifferenceFold {
+  if (typeof value !== "object" || value === null) {
+    return NOT_FOLDED;
+  }
+  const { on, opened } = value as { on?: unknown; opened?: unknown };
+  return typeof on === "boolean" &&
+    Array.isArray(opened) &&
+    opened.every((key) => typeof key === "string")
+    ? { on, opened: new Set(opened) }
+    : NOT_FOLDED;
+}
 
 /** What is kept in memory alone, by key, when the browser refuses its storage. */
 const memory = new Map<string, string>();
@@ -94,11 +124,15 @@ function parsed(raw: string | null): FoldState {
     if (typeof value !== "object" || value === null) {
       return UNFOLDED;
     }
-    const { collapsed, revealed } = value as { collapsed?: unknown; revealed?: unknown };
+    const { collapsed, revealed, differences } = value as {
+      collapsed?: unknown;
+      revealed?: unknown;
+      differences?: unknown;
+    };
     return Array.isArray(collapsed) &&
       collapsed.every((key) => typeof key === "string") &&
       typeof revealed === "string"
-      ? { collapsed: new Set(collapsed), revealed }
+      ? { collapsed: new Set(collapsed), revealed, differences: parsedDifferences(differences) }
       : UNFOLDED;
   } catch {
     return UNFOLDED;
@@ -119,7 +153,12 @@ function foldState(key: string): FoldState {
 
 /** Keep what a grid folded, and tell those who listen. */
 function keep(key: string, state: FoldState): void {
-  const raw = JSON.stringify({ collapsed: [...state.collapsed], revealed: state.revealed });
+  const { on, opened } = state.differences;
+  const raw = JSON.stringify({
+    collapsed: [...state.collapsed],
+    revealed: state.revealed,
+    differences: { on, opened: [...opened] },
+  });
   try {
     window.sessionStorage.setItem(FOLD_STORAGE_PREFIX + key, raw);
     memory.delete(key);
@@ -268,6 +307,11 @@ export interface GridFoldOptions<Row> {
    * as it was sent; none, or nothing in it, for a reading not narrowed.
    */
   readonly narrowing: Readonly<Record<string, unknown>> | undefined;
+  /**
+   * The difference the server marks on a row, given while the grid reads a comparison, whose rows
+   * without difference « Écarts seulement » folds away (US-2360); none otherwise.
+   */
+  readonly difference?: ((row: Row) => RowDifference | null | undefined) | undefined;
 }
 
 /** The tree of a grid, as it is folded, and how to fold it. */
@@ -276,12 +320,27 @@ export interface GridFold<Row> {
   readonly enabled: boolean;
   /** The rows that stay, in the order of the answer. */
   readonly shown: readonly Row[];
+  /**
+   * The runs of rows without difference folded away, by the index among the rows that stay of the
+   * row each is just before — the last one after them all —; none where nothing is folded so.
+   */
+  readonly runs: readonly (FoldedRun | undefined)[];
   readonly index: TreeIndex;
   readonly collapsed: ReadonlySet<string>;
-  /** The rows that would stay, folded otherwise. */
-  readonly shownWith: (collapsed: ReadonlySet<string>) => readonly Row[];
-  /** Fold the tree otherwise, and keep it. */
-  readonly set: (collapsed: ReadonlySet<string>) => void;
+  /** The folding of the rows without difference, while a comparison is read; none otherwise. */
+  readonly differences: DifferenceFold | undefined;
+  /** The rows that would stay, folded otherwise — the rows without difference as they are, unsaid. */
+  readonly shownWith: (
+    collapsed: ReadonlySet<string>,
+    differences?: DifferenceFold,
+  ) => readonly Row[];
+  /** Fold the tree otherwise — the rows without difference as they are, unsaid —, and keep it. */
+  readonly set: (collapsed: ReadonlySet<string>, differences?: DifferenceFold) => void;
+  /**
+   * Keep rows the grid wrote among those shown while the rows without difference are folded away:
+   * a row written that a reading anew marks unchanged stays under the cursor, as a run unfolded.
+   */
+  readonly keepShown: (keys: readonly string[]) => void;
   /**
    * Unfold the rows above a row, from what the session keeps now, and keep it: the rows folded then;
    * none for a row the answer does not hold.
@@ -313,14 +372,16 @@ export function useGridFold<Row>({
   grid,
   scope,
   narrowing: by,
+  difference,
 }: GridFoldOptions<Row>): GridFold<Row> {
   const storageKey = `${grid}:${scope ?? ""}`;
   const enabled = tree?.parent !== undefined;
+  const kept = enabled || difference !== undefined;
   const narrowing = narrowingKey(by);
   const index = useMemo(() => treeIndex(rows, rowKey, tree), [rows, rowKey, tree]);
   const stored = useSyncExternalStore(
     subscribe,
-    () => (enabled ? foldState(storageKey) : UNFOLDED),
+    () => (kept ? foldState(storageKey) : UNFOLDED),
     () => UNFOLDED,
   );
   // A narrowing not unfolded for yet shows the rows it retains at once, before it is kept.
@@ -333,22 +394,57 @@ export function useGridFold<Row>({
       return;
     }
     keep(storageKey, {
+      ...now,
       collapsed: narrowing === "" ? now.collapsed : revealed(now.collapsed, index),
       revealed: narrowing,
     });
   }, [enabled, storageKey, narrowing, index]);
-  const shown = useMemo(
-    () => unfoldedRows(rows, rowKey, index, collapsed),
-    [rows, rowKey, index, collapsed],
+  // Read while a comparison is, and only then: kept all the same for the next one.
+  const differences = difference === undefined ? undefined : stored.differences;
+  const folded = useMemo(
+    () =>
+      foldedDifferences(
+        unfoldedRows(rows, rowKey, index, collapsed),
+        { rows, rowKey, index, difference },
+        differences,
+      ),
+    [rows, rowKey, index, collapsed, difference, differences],
   );
   return {
     enabled,
-    shown,
+    shown: folded.shown,
+    runs: folded.runs,
     index,
     collapsed,
-    shownWith: (next) => unfoldedRows(rows, rowKey, index, next),
-    set: (next) => {
-      keep(storageKey, { collapsed: next, revealed: narrowing });
+    differences,
+    shownWith: (next, by = differences) =>
+      foldedDifferences(
+        unfoldedRows(rows, rowKey, index, next),
+        { rows, rowKey, index, difference },
+        by,
+      ).shown,
+    set: (next, by) => {
+      keep(storageKey, {
+        collapsed: next,
+        revealed: narrowing,
+        differences: by ?? foldState(storageKey).differences,
+      });
+    },
+    keepShown: (keys) => {
+      const now = foldState(storageKey);
+      // Nothing unless the folding is on for the reading in hand: a comparison read, and « Écarts
+      // seulement » on — the choice outlives a comparison, which a grid without one never reads.
+      if (
+        differences === undefined ||
+        !now.differences.on ||
+        keys.every((key) => now.differences.opened.has(key))
+      ) {
+        return;
+      }
+      keep(storageKey, {
+        ...now,
+        differences: { on: true, opened: new Set([...now.differences.opened, ...keys]) },
+      });
     },
     reveal: (key) => {
       if (!index.places.has(key)) {
@@ -367,7 +463,7 @@ export function useGridFold<Row>({
       ) {
         next.delete(above);
       }
-      keep(storageKey, { collapsed: next, revealed: now.revealed });
+      keep(storageKey, { ...now, collapsed: next });
       return next;
     },
   };
@@ -511,6 +607,18 @@ export const FOLD_KEYS: Readonly<Record<FoldReach, string | undefined>> = {
   row: "Alt+- Alt+Plus",
   none: undefined,
 };
+
+/** The keys that unfold, as `aria-keyshortcuts` names them, as far as they reach. */
+export function unfoldKeys(reach: FoldReach): string[] {
+  return (FOLD_KEYS[reach] ?? "").split(" ").filter((key) => key !== "" && key !== "Alt+-");
+}
+
+/** The folding a key asks for, in the layout of the keyboard the browser told, if it did. */
+export function foldShortcutHere(
+  event: Parameters<typeof foldShortcut>[0],
+): FoldCommand | undefined {
+  return foldShortcut(event, layout);
+}
 
 /** What folds the tree of a grid: its fold, its active cell, the element that scrolls it. */
 export interface FoldCommandsOptions<Row> {

@@ -15,6 +15,15 @@
  * no filter, when the API refuses it — unless the screen needs it otherwise
  * (`needsBreakdown`). A project or a revision the API does not find is not found, as at the
  * other screens of a project; so is a structure the address names that the revision does not list.
+ *
+ * A grid that compares — the planning, the estimate, the remaining to commit — reads the comparison of
+ * its revision to the base its address names (`base_revision_id`, `compareRevisions`) in place of its
+ * structure, when it reads the main one, with the same filters, the same sort, the same search and the
+ * same fields: its rows bear the mark of a differential (US-2330) — and, for the remaining to commit,
+ * every node in difference its progress filter leaves out besides (`include_differences`, US-2340);
+ * on another structure, it reads its structure, compared to nothing. A base that is no marked revision of the project is refused by the
+ * API, and said as any refusal of a read: a revision of another project is not found, a revision under
+ * way is an unexpected answer (`readOrFail`), never a grid half read.
  */
 import "server-only";
 
@@ -33,6 +42,7 @@ import {
 import { serverClient } from "@/api/server";
 import type { ChartProvenance } from "@/components/chart/chart";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
+import { type BaseChoices, baseOptions } from "@/components/context/revision";
 import {
   listedStructure,
   STRUCTURE_PARAMETER,
@@ -80,6 +90,7 @@ import {
   pageSearch,
   type ProjectContext,
   readContext,
+  readsBase,
   type SearchParameters,
 } from "@/navigation/context";
 import { requestSession } from "@/session/request";
@@ -132,6 +143,13 @@ export interface GridReading<N extends NodeField, T extends TaskField, L extends
    * started unless the address asks more (WF-RAE-0040) —; every task when none is given.
    */
   readonly progress?: NonNullable<NodeFilters["progress"]>;
+  /**
+   * Whether a comparison read for the grid retains besides, under `progress`, every node in
+   * difference that it leaves out (`include_differences`) — the remaining to commit, where a line in
+   * difference of a task not started is shown unasked (WF-IHM-0150) —; not, when none is given, nor
+   * out of a comparison.
+   */
+  readonly exposesDifferences?: boolean;
   /**
    * What the server is to select of the tasks for a view that is not a grid — the summaries down
    * to a level for the task tree, the tasks of a timeline (#463) —, the view selecting nothing.
@@ -199,6 +217,11 @@ export interface GridScreen<Row> {
    * grid that reads the main structure alone (`GridReading.chooses`).
    */
   readonly structures: StructureChoices | undefined;
+  /**
+   * The base the grid is compared to and those the banner offers, on a grid that compares read on the
+   * main structure (US-2330); none on any other, where the banner offers no base.
+   */
+  readonly base: BaseChoices | undefined;
   /**
    * The commands of entry the structure read lists available to the caller: what the grid offers —
    * the entry of its cells, the gestures of the structure, the paste —, whatever the phase of the
@@ -302,6 +325,7 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
     narrowed,
     chooses = false,
     byDifference = false,
+    exposesDifferences = false,
   }: GridReading<N, T, L>,
   breakdown: BreakdownFilter | undefined,
   requested: Promise<OriginFilter | undefined>,
@@ -333,17 +357,30 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
     ...originQuery(by),
     ...differenceQuery(difference),
   });
+  // Compared on the main structure alone, which a base is a revision of.
+  const base = read.kind === "main" ? context.base : undefined;
+  const asks = (filters: NodeFilters) => ({
+    fields: nodeFieldNames(fields),
+    ...(sort === undefined ? {} : { sort_by: sort.column, sort_order: sort.order }),
+    ...filters,
+  });
   const listNodes = (filters: NodeFilters) =>
-    client.GET("/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes", {
-      params: {
-        path: structure,
-        query: {
-          fields: nodeFieldNames(fields),
-          ...(sort === undefined ? {} : { sort_by: sort.column, sort_order: sort.order }),
-          ...filters,
-        },
-      },
-    });
+    base === undefined
+      ? client.GET(
+          "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes",
+          { params: { path: structure, query: asks(filters) } },
+        )
+      : client.GET("/projects/{project_id}/revisions/comparison", {
+          params: {
+            path: { project_id: revision.projectId },
+            query: {
+              from_revision_id: base,
+              to_revision_id: revision.revisionId,
+              ...asks(filters),
+              ...(exposesDifferences ? { include_differences: true } : {}),
+            },
+          },
+        });
   let shown = origin;
   let answered = await listNodes(filtersOf(origin));
   if (origin?.kind === "risk" && refusesRisk(answered)) {
@@ -353,7 +390,9 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
     answered = await listNodes(filtersOf(undefined));
   }
   const filters = filtersOf(shown);
-  const answer = await readOrFail("listNodes", () => Promise.resolve(answered));
+  const answer = await readOrFail(base === undefined ? "listNodes" : "compareRevisions", () =>
+    Promise.resolve(answered),
+  );
   return {
     label: read.label,
     kind: read.kind,
@@ -492,7 +531,31 @@ export async function readGridScreen<N extends NodeField, T extends TaskField, L
   const breakdown = items === undefined ? undefined : { items, filter: breakdownFilter };
   const { origin: filter, ...nodes } = structure;
   const origin = grid.byOrigin === true ? { risks: risks ?? [], filter } : undefined;
-  return { reading, ...nodes, query, preferences, breakdown, breakdownFilter, origin };
+  return {
+    reading,
+    ...nodes,
+    base: baseChoices(at, nodes.kind, reading),
+    query,
+    preferences,
+    breakdown,
+    breakdownFilter,
+    origin,
+  };
+}
+
+/**
+ * The bases a grid that compares offers in the banner, read on the main structure, and the one its
+ * address names; none for a grid that compares nothing, nor on another structure (US-2330).
+ */
+function baseChoices(
+  { pathname, context }: GridAddress,
+  kind: StructureKind,
+  { revision, revisions }: ProjectReading,
+): BaseChoices | undefined {
+  if (!readsBase(pathname) || kind !== "main" || revision === undefined) {
+    return undefined;
+  }
+  return { chosen: context.base, offered: baseOptions(revisions ?? [], revision) };
 }
 
 /**

@@ -93,13 +93,12 @@ export async function bringInProgress(
     .filter({ hasText: "Marquage d’une révision « v1.0 »" });
   await expect(task.getByText("Réussie")).toBeVisible({ timeout: MARKING });
   await task.getByRole("button", { name: "Recharger l’écran" }).click();
-  const designation = main.getByRole("region", { name: "Désignation de la référence" });
-  const offer = designation.getByRole("listitem").filter({ hasText: "v1.0" });
+  const history = main.getByRole("table", { name: "Historique des révisions" });
+  const offer = history.getByRole("row").filter({ hasText: "v1.0" });
   const designate = offer.getByRole("button", { name: "Désigner comme référence" });
   await expect(designate).not.toHaveAttribute("aria-disabled", "true", { timeout: WORKING });
   await designate.click();
-  await designation.getByRole("button", { name: "Confirmer la désignation" }).click();
-  const history = main.getByRole("table", { name: "Historique des révisions" });
+  await history.getByRole("button", { name: "Confirmer la désignation" }).click();
   await expect(history.getByRole("row").nth(1)).toContainText("Référence", { timeout: WORKING });
 
   await between.afterDesignation?.();

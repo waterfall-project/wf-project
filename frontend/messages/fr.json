@@ -227,6 +227,18 @@
       "description": "Description",
       "physicalProgress": "Avancement physique",
       "gantt": "Gantt",
+      "deltaStartDate": "Écart du début",
+      "deltaFinishDate": "Écart de la fin",
+      "deltaStartedOn": "Écart du démarrage",
+      "deltaCompletedOn": "Écart de l’achèvement",
+      "deltaDuration": "Écart de la durée",
+      "deltaTotalFloat": "Écart de la marge",
+      "deltaUnitDisbursement": "Écart du débours unit.",
+      "deltaBudgetedAmount": "Écart du budgété",
+      "deltaReferenceAmount": "Écart du montant de réf.",
+      "deltaReestimatedAmount": "Écart du réestimé",
+      "deltaPreviousUnitDisbursement": "Écart du débours unit. précédent",
+      "deltaPreviousReestimatedAmount": "Écart du réestimé précédent",
       "updatedAt": "Modifié le",
       "createdAt": "Créé le",
       "createdBy": "Créé par",
@@ -252,6 +264,26 @@
       "total": "Total"
     },
     "computed": "Calculé",
+    "compared": {
+      "base": "Base :",
+      "delta": "Écart :",
+      "totalsBase": "Base : {caption}",
+      "totalsDelta": "Écart : {caption}",
+      "empty": "aucune valeur",
+      "days": "{days} j",
+      "amountDeltas": {
+        "command": "Écarts de montants",
+        "title": "Écarts de montants à la base",
+        "description": "Les montants budgétés et réestimés de la révision lue moins ceux de la base, par nature de coût et par sous-projet, sur les lignes que la grille retient.",
+        "empty": "Aucun écart de montant.",
+        "dimension": "Axe",
+        "key": "Élément",
+        "budgeted": "Écart budgété",
+        "reestimated": "Écart réestimé",
+        "unnamed": "Sans nom",
+        "close": "Fermer"
+      }
+    },
     "entry": {
       "none": "Aucun",
       "codedChoice": "{code} — {label}",
@@ -275,6 +307,10 @@
     "differenceFilter": {
       "label": "Écarts seulement",
       "help": "Ne garder que les lignes ajoutées, supprimées ou modifiées par l’avenant."
+    },
+    "differenceFold": {
+      "run": "{count, plural, one {# ligne sans écart repliée} other {# lignes sans écart repliées}}",
+      "help": "Replier les lignes sans écart avec la base ; chaque suite repliée se déplie à sa place. Rien n’est retiré des totaux."
     },
     "breakdownFilter": {
       "label": "Lot ou poste",
@@ -964,9 +1000,16 @@
     "differences": "Écarts : {values}",
     "computedOn": "Révision du calcul",
     "structure": "Structure",
+    "chooseRevision": "Changer de révision, « {revision} » lue",
+    "referenceOption": "{name} (référence)",
     "chooseStructure": "Changer de structure, « {structure} » lue",
     "mergedStructure": "{label} (fusionnée)",
     "unnamedRevision": "sans nom",
+    "base": "Base de comparaison",
+    "comparedTo": "Comparée à « {base} »",
+    "chooseBase": "Choisir une base de comparaison",
+    "changeBase": "Changer de base, « {base} » comparée",
+    "liftBase": "Lever la comparaison avec « {base} »",
     "removeFilter": "Lever le filtre « {filter} »",
     "restricts": {
       "grid": "{filter}, sur la grille seulement",
@@ -1968,11 +2011,6 @@
         "help": "Colonne de l’extraction que la correspondance déclare conservée, restituée telle quelle : elle n’entre dans aucun calcul."
       }
     },
-    "comparison": {
-      "changes": {
-        "help": "Ce qui change du nœud lui-même d’une révision à l’autre, tel que le serveur le nomme : les dates, la durée, l’avancement ou le rattachement d’une tâche ; les montants budgété et réestimé, le délai de paiement ou le rattachement d’une ligne. Vide pour un nœud ajouté, retiré ou inchangé, et pour une tâche modifiée par son seul contenu — une ligne ou une subordonnée qui change."
-      }
-    },
     "workloadDetail": {
       "label": {
         "help": "Le rôle de ressource, puis, sous lui, chacune des tâches qui portent une de ses lignes de main-d’œuvre, rangées par date de début, puis dans l’ordre du planning. Le libellé d’une tâche mène à sa ligne dans la grille de planning de la révision que la base lit."
@@ -2125,11 +2163,10 @@
     "rateUpdate": {
       "label": "Appliquer la mise à jour des taux",
       "statement": "Les taux de la révision en cours sont remplacés par les taux proposés, pour les catégories retenues ; les montants de ses lignes et de ses totaux sont rechiffrés. Une révision marquée garde les taux qu’elle a calculés.",
-      "categories": "Catégories mises à jour",
-      "change": "{category} : {previous} → {proposed}",
       "noneRetained": "Retenez au moins une catégorie.",
       "submit": "Confirmer la mise à jour",
-      "done": "{count, plural, one {Les taux d’# catégorie sont mis à jour.} other {Les taux de # catégories sont mis à jour.}}"
+      "done": "{count, plural, one {Les taux d’# catégorie sont mis à jour.} other {Les taux de # catégories sont mis à jour.}}",
+      "reading": "Lecture de la proposition…"
     }
   },
   "projectList": {
@@ -2334,32 +2371,10 @@
       "reference": "Référence",
       "notMarked": "Non marquée",
       "open": "Ouvrir",
-      "openRevision": "Ouvrir la révision « {name} »"
-    },
-    "designation": {
-      "title": "Désignation de la référence"
-    },
-    "comparison": {
-      "title": "Comparaison de deux révisions",
-      "needsTwo": "La comparaison demande deux révisions marquées.",
-      "from": "De la révision",
-      "to": "À la révision",
-      "compare": "Comparer",
-      "deltas": "Écarts de montants",
-      "noDeltas": "Aucun écart de montant.",
-      "dimension": "Axe",
-      "key": "Poste",
-      "budgetedDelta": "Écart budgété",
-      "reestimatedDelta": "Écart réestimé",
-      "unnamed": "Sans nom"
-    },
-    "structures": {
-      "title": "Structures de coûts",
-      "none": "Cette révision n’a aucune structure de coûts.",
-      "kind": "Nature",
-      "label": "Libellé",
-      "state": "État",
-      "merged": "Fusionnée"
+      "openRevision": "Ouvrir la révision « {name} »",
+      "compare": "Comparer à la révision lue",
+      "compareRevision": "Comparer à la révision lue : « {name} »",
+      "commands": "Commandes"
     },
     "rateUpdate": {
       "title": "Mise à jour des taux proposée",
@@ -2369,7 +2384,8 @@
       "category": "Catégorie",
       "previous": "Taux précédent",
       "proposed": "Taux proposé",
-      "source": "Origine"
+      "source": "Origine",
+      "retained": "Retenue"
     }
   },
   "exitProject": {
@@ -3698,7 +3714,8 @@
       "payment_delay_days": "Délai de paiement",
       "parent": "Rattachement",
       "subproject": "Sous-projet",
-      "cost_category": "Catégorie de coût"
+      "cost_category": "Catégorie de coût",
+      "other": "Autre valeur"
     },
     "NodeDifference": {
       "added": "Ajouté",

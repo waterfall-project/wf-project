@@ -62,6 +62,7 @@ const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 const SCREEN = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
 const NODES = "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
 const INDICATORS = "GET /projects/{project_id}/remaining-indicators";
+const COMPARISON = "GET /projects/{project_id}/revisions/comparison";
 const REVISION_READ = "GET /projects/{project_id}/revisions/{revision_id}";
 const STRUCTURES = "GET /projects/{project_id}/revisions/{revision_id}/structures";
 // The lot of the witness and its post, as its work breakdown names them.
@@ -124,6 +125,13 @@ function cellTag(page: string, row: number, column: string): string {
   return found;
 }
 
+/** What the cell of a row, by its index among the rows, and of a column says to a reader. */
+function cellText(page: string, row: number, column: string): string {
+  const tag = cellTag(page, row, column);
+  const start = page.indexOf(tag);
+  return text(page.slice(start, page.indexOf("</td>", start)));
+}
+
 /** The section a page names, from its opening tag to its end. */
 function section(page: string, name: string): string {
   // The cards of figures, from the first one, which carries the name, to the grid that follows.
@@ -142,6 +150,7 @@ beforeEach(() => {
     "GET /reference/settings": "reference_settings",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/subprojects": "subprojects",
+    "GET /projects/{project_id}/revisions": "revisions",
     [REVISION_READ]: "revision",
     [STRUCTURES]: "structures",
     [NODES]: "nodes_estimate",
@@ -454,6 +463,59 @@ describe("the screen of the remaining to commit", () => {
     const page = await remainingAt();
     expect(page).not.toContain("Work package or order item");
     expect(queryOf(NODES)?.order_item_id).toBeUndefined();
+  });
+
+  it("is compared to the base its address names, which the banner names and offers to lift [WF-IHM-0010-A]", async () => {
+    // Une comparaison active sur le planning l'est encore sur le devis puis sur le reste à engager,
+    // avec la même base : arrived with the base, the remaining to commit reads the comparison of
+    // its tasks started.
+    const reference = "01926f3a-7c00-7000-8000-000000000101";
+    server.answers = { ...server.answers, [COMPARISON]: "comparison_current" };
+    const page = await remainingAt({ base_revision_id: reference });
+    expect(queryOf(NODES)).toBeUndefined();
+    const { fields, ...query } = queryOf(COMPARISON) ?? {};
+    expect(query).toEqual({
+      from_revision_id: reference,
+      to_revision_id: REVISION,
+      progress: "started",
+      include_differences: "true",
+    });
+    expect(fields?.split(",").sort()).toEqual(nodeFieldNames(REMAINING_FIELDS).sort());
+    const banner = text(page.slice(0, page.indexOf("</section>")));
+    expect(banner).toContain("Compared to “Référence”");
+    expect(page).toContain('aria-label="Lift the comparison with “Référence”"');
+    expect(page).toContain('aria-label="Change the base, “Référence” compared"');
+  });
+
+  it("shows unasked, compared, a line in difference of a task not started, and the values at the previous remaining to commit as the revision read carries them, whatever the base [WF-IHM-0150-A]", async () => {
+    // Dans la grille de reste à engager, une ligne en écart d'une tâche non démarrée apparaît sans
+    // être demandée, et les valeurs au reste à engager précédent ne changent pas avec la base.
+    // Ce test ne prouve que la demande et l'affichage : la sélection des lignes en écart est tenue
+    // par le service, éprouvée par les tests du back d'US-2340/L1.
+    const reference = "01926f3a-7c00-7000-8000-000000000101";
+    server.answers = { ...server.answers, [COMPARISON]: "comparison_current" };
+    const page = await remainingAt({ base_revision_id: reference });
+    // The tasks started alone are asked, and the lines in difference besides, which the server
+    // retains whatever their task (`include_differences`): the fake back serves the comparison of the
+    // mounting on site, none of whose tasks is started.
+    const query = queryOf(COMPARISON);
+    expect(query?.progress).toBe("started");
+    expect(query?.include_differences).toBe("true");
+    const nodes = handed.at(-1)?.nodes.items ?? [];
+    const wiring = nodes.findIndex((node) => node.estimate_line?.label === "Câblage sur site");
+    const task = nodes.find((node) => node.node_id === nodes[wiring]?.parent_id);
+    expect(task?.task?.progress).toBe("not_started");
+    expect(nodes[wiring]?.difference).toBe("modified");
+    expect(cellText(page, wiring, "label")).toContain("Câblage sur site");
+    // Its figures at the previous remaining to commit are those of the revision read — the review
+    // written since —, the base, which held none, given beside them on demand alone.
+    expect(cellText(page, wiring, "previous_hours")).toBe("Δ 120 Base: no value");
+    expect(cellText(page, wiring, "previous_quantity")).toBe("Δ 1 Base: no value");
+  });
+
+  it("asks no line in difference besides out of a comparison, nor of the base", async () => {
+    await remainingAt();
+    expect(queryOf(NODES)?.include_differences).toBeUndefined();
   });
 
   it("reads the main structure alone, whatever structure the address names, and offers no other", async () => {

@@ -27,9 +27,12 @@ of the tasks alone asks instead of reading them (``tally``, ``Tally``; EP-26, "L
 and by US-2250 with the fields of a node of the kind whose write can move no date nor change an
 amount, which take the short path of a write (``inert``; EP-26, "Les écritures"), and by US-1680
 with the budgeted amounts a tally counts the provisions left out (``Tally.earnable``), which the
-physical progress of a summary weighs (EP-10, "L'avancement physique").
+physical progress of a summary weighs (EP-10, "L'avancement physique"). US-2400/L1 gives every
+write that prices lines again the refusal at the fields that carry its change (``refused_at``,
+#3401).
 """
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -39,11 +42,11 @@ from waterfall.core.planning.calendars import (
     applicable_of,
     default_calendar,
 )
-from waterfall.platform.errors import UnprocessableError
+from waterfall.platform.errors import FieldError, UnprocessableError
 from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Mapping
+    from collections.abc import Callable, Collection, Generator, Mapping
     from uuid import UUID
 
     from sqlalchemy import Subquery
@@ -232,9 +235,27 @@ class RepricedBeyondColumnError(UnprocessableError):
 
     The hook raises it without a field: it knows the task redated, not the request. The write
     whose entry redated the task names the fields that carry the entry (``Write.redate``,
-    ``entered``); a write that sends none leaves it without (``docs/api/DECISIONS.md``, #3093,
-    #3094).
+    ``entered``), as does every write that prices lines again (``refused_at``); a write that sends
+    none leaves it without (``docs/api/DECISIONS.md``, #3093, #3094, #3401).
     """
+
+
+@contextmanager
+def refused_at(entered: tuple[str, ...]) -> Generator[None]:
+    """Refuse a node priced past a column at ``entered``, the fields that carry the change.
+
+    ``entered`` are the pointers of the fields of the request. A refusal that names a field
+    already keeps it; without a field entered, it is left without one: the rule never names a field
+    the request does not carry (``docs/api/DECISIONS.md``, #3093, #3401). The class of the refusal
+    is kept, its code and its parameters too.
+    """
+    try:
+        yield
+    except RepricedBeyondColumnError as refused:
+        if refused.fields or not entered:
+            raise
+        fields = tuple(FieldError(pointer, refused.code) for pointer in entered)
+        raise type(refused)(refused.code, refused.params, fields) from None
 
 
 @dataclass(frozen=True, slots=True)

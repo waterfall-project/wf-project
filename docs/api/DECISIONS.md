@@ -11265,7 +11265,10 @@ décision de l'auteur du 2026-11-07). `compareRevisions` refuse la révision en 
 révisions marquées », et une révision en cours change sous son lecteur ; la vue « en cours contre
 référence » est écartée. Une révision d'un autre projet est un 404, comme une révision inexistante.
 `from_revision_id` et `to_revision_id` sont décrits. Exemple engendré `comparison_revision_draft`
-(`wftools.mockrevisionminors`).
+(`wftools.mockrevisionminors`). *Depuis EP-27 (US-2320/L1, #3492), la révision lue
+(`to_revision_id`) peut être en cours, et la vue « en cours contre référence » est celle des
+grilles : le 409 ne vaut plus que pour la base, et l'exemple est réengendré sur une base en
+cours.*
 
 **Un objet naît à la version 1, et la révision n'avance que par ses propres écritures** (revue du
 2026-10-31, E-09 et V-03 ; décision de l'auteur du 2026-11-07). `LockVersion` le dit, y compris pour
@@ -12143,29 +12146,196 @@ rien n'est écrit. Les pointeurs servis :
 - la redatation d'une tâche, qui déplace ses lignes d'une année à l'autre (#3094) : par
   `updateTaskFacet`, chacun des champs envoyés qui la datent, dans l'ordre `/scheduling_mode`,
   `/duration`, `/start`, `/finish` — la grille en envoie un seul, une cellule à la fois
-  (WF-IHM-0040) ; par `setPredecessors`, `/predecessors`.
+  (WF-IHM-0040) ; par `setPredecessors`, `/predecessors` ;
+- la mise à jour des taux d'une révision en cours (`applyRateUpdate`), qui rechiffre les lignes des
+  catégories acceptées au taux du référentiel : `/cost_category_ids`, la liste — les catégories
+  sont rechiffrées ensemble, et le refus ne dit pas laquelle déborde (#3401) ;
+- un déplacement (`moveNodes`), qui consomme une ligne déplacée sur les dates de sa nouvelle
+  tâche : `/parent_id`, le champ qui la lui donne ; `/node_ids` dit ce qui est déplacé, non où ;
+- un changement des heures du calendrier par défaut (`updateCalendar`), qui redate les structures
+  des révisions en cours : chaque jour dont les heures changent, `/weekly_hours/<jour>`, dans
+  l'ordre de la semaine ; un jour renvoyé tel qu'il était n'est pas nommé, et un autre calendrier
+  ne redate rien ;
+- un changement des unités de durée (`setDurationUnits`), qui redate de même : chaque constante qui
+  change, dans l'ordre `/hours_per_day`, `/hours_per_week`, `/days_per_month` ; une constante
+  renvoyée telle qu'elle était n'est pas nommée — le corps les porte toujours toutes trois.
 
 La règle ne nomme jamais un champ que la requête ne porte pas. Une cause dont aucun champ n'est
 l'origine reste refusée par le même 422 `VALIDATION_FAILED`, sans `fields` : une annulation ou un
-rétablissement (`undoLastChange`, `redoLastUndo`), qui n'ont pas de corps et donc aucun champ à
-nommer, et l'ouverture d'une révision
-(`createRevision`), dont la copie des taux projette ceux de la révision source sur l'année de
-l'horloge, au taux d'inflation du projet — son corps ne porte que `description` et
+rétablissement (`undoLastChange`, `redoLastUndo`), qui n'ont pas de corps ; l'ouverture d'une
+révision (`createRevision`), dont la copie des taux projette ceux de la révision source sur l'année
+de l'horloge, au taux d'inflation du projet — son corps ne porte que `description` et
 `apply_rate_update`, l'année vient de l'horloge, l'inflation du projet, les montants de la révision
-source. Décision de l'auteur du 2026-11-15 (option (a) de #3303) : cette ouverture reste refusée
-sans `fields`, et le critère « un pointeur par cause » d'US-2260 se lit « par cause qui a un
-champ ». Écartées : `/apply_rate_update` (option (b)), qui ne serait juste que si le débordement
-venait du taux de référence appliqué, et faux sans mise à jour ; un code propre au niveau du
-problème, les lignes débordées en `params` (option (c)), une forme nouvelle du contrat que la
-conception d'EP-26 exclut. Les autres écritures qui rechiffrent des lignes écrites — la mise à jour
-des taux (`applyRateUpdate`), un déplacement (`moveNodes`), un collage (`applyPaste`), un
-changement d'un calendrier ou des unités de durée — restent aussi, à ce jour, sans `fields`, même
-quand un champ de la requête en serait l'origine (`/cost_category_ids` pour `applyRateUpdate`,
-#3401) : leur pointeur est reporté → EP-27, par la même décision. `info.version` reste `1.0.0` :
-aucune forme ne change, aucune opération n'est touchée.
-Écartées : décrire chaque refus dans le 422 de son opération, avec un exemple (option (a)), et
-`VALUE_OUT_OF_RANGE` avec `params.maximum` au champ, qui dirait une borne du champ saisi alors que
-c'est le montant calculé qui déborde ; laisser tel quel (option (c)).
+source ; la confirmation d'un collage (`applyPaste`), dont le corps ne porte que le plan, sa
+confirmation et le compteur — les cellules sont dans le plan que l'aperçu a gardé ; la désignation
+du calendrier par défaut (`setDefaultCalendar`), dont le corps ne porte que le compteur. Décision de
+l'auteur du 2026-11-15 (option (a) de #3303) : l'ouverture d'une révision reste refusée sans
+`fields`, et le critère « un pointeur par cause » d'US-2260 se lit « par cause qui a un champ ».
+Écartées : `/apply_rate_update` (option (b)), qui ne serait juste que si le débordement venait du
+taux de référence appliqué, et faux sans mise à jour ; un code propre au niveau du problème, les
+lignes débordées en `params` (option (c)), une forme nouvelle du contrat que la conception d'EP-26
+exclut. Les écritures que cette décision reportait à EP-27 (#3401) ont chacune un scénario mesuré
+qui les fait déborder (US-2400/L1, `test_rate_update.py` et `test_decimal_precision.py`) : la mise à
+jour des taux, le déplacement et les changements du calendrier par défaut ou des unités nomment le
+champ ci-dessus ; le collage et la désignation du calendrier par défaut, sans champ qui en soit
+l'origine, restent sans `fields`, comme l'ouverture. `info.version` reste `1.0.0` : aucune forme ne
+change, aucune opération n'est touchée. Écartées pour la règle elle-même (#3093) : décrire chaque
+refus dans le 422 de son opération, avec un exemple (option (a)), et `VALUE_OUT_OF_RANGE` avec
+`params.maximum` au champ, qui dirait une borne du champ saisi alors que c'est le montant calculé
+qui déborde ; laisser tel quel (option (c)).
+
+### La comparaison d'une révision en cours, la valeur de base et les totaux de la base (US-2320/L1, #3492, #3176)
+
+La spécification 1.0.6 fait de la comparaison une dimension du contexte de lecture des grilles : une
+révision lue, en cours ou marquée, comparée à une base marquée, chaque valeur modifiée rendue avec
+celle de la base (WF-REV-0080, WF-IHM-0150 à WF-IHM-0170). Décisions de l'auteur du 2026-11-15, au
+cadrage d'EP-27 (conception, « Le contrat ») : **`compareRevisions` est étendu**, et non la
+comparaison lue par `listNodes`, qui laissait `compareRevisions` sans écran et touchait le chemin de
+lecture qu'EP-26 a figé. Ce qui change :
+
+- **Les deux révisions.** `to_revision_id` est la révision lue, en cours ou marquée ;
+  `from_revision_id` la base, marquée. Le 409 `STATE_FORBIDS_OPERATION` (`revision_marked`) ne vaut
+  plus que pour la base, et revient sur la décision du 2026-11-07 (annexe E, E-07), qui écartait la
+  vue « en cours contre référence » ; l'exemple `comparison_revision_draft` est réengendré sur une
+  base en cours. Les noms des paramètres ne changent pas. Une révision en cours se lit dans son état
+  du moment, comme `listNodes` la lit : rien n'est gardé d'une lecture à l'autre.
+- **`ComparedNodeRead.base`** (`ComparedNodeBase`) : les valeurs que la base portait, sous les noms
+  du nœud, pour les seuls champs que la lecture rend (`fields`) et dont la valeur diffère ; vide
+  pour un nœud modifié dont rien de lu ne diffère, nul pour un nœud ajouté, inchangé ou retiré. Un
+  parent et un prédécesseur sont nommés par le nœud que la comparaison rend, rapprochés par la
+  lignée.
+- **Les identifiants que portent les valeurs.** Un nœud qu'une valeur nomme se rapproche par sa
+  lignée, comme le parent : la tâche porteuse d'une ligne (`estimate_line.bearing_task_node_id`),
+  dont l'identifiant change d'une révision à l'autre pour le même nœud, se compare et se rend dans
+  `base` par le nœud que la comparaison rend. `origin_risk_id` se compare tel quel : un risque
+  appartient au projet et garde son identifiant dans chaque révision (WF-RIS-0020), il ne change
+  qu'avec l'origine du nœud. Un libellé résolu à la lecture — du sous-projet, de la catégorie, du
+  rôle, de la tâche porteuse — se compare avec l'identifiant qu'il suit, jamais seul : l'objet
+  renommé n'est pas une valeur du nœud. Un sous-projet ou une catégorie renommé, l'identifiant
+  gardé, ne marque donc rien — ni `modified`, ni `subproject`, ni `other` — ; l'identifiant
+  changé, `base` porte le libellé avec lui et `changes` dit `subproject` ou `cost_category`.
+- **`ComparedNodeRead.deltas`** (`NodeDeltas`, `TaskDeltas`, `EstimateLineDeltas`) : de même forme,
+  pour les seuls champs de `base` qui sont une date (en jours calendaires, la date seule d'un
+  `WorkInstant`), une durée (dans l'unité de la durée lue) ou un montant ; la révision lue moins la
+  base ; absent pour un champ qui ne diffère pas. Nul quand l'une des deux valeurs l'est, pour les
+  seuls champs qui peuvent l'être — une date de début réelle, un débours unitaire — ; les montants
+  qu'une facette porte toujours (`base_amount`, `budgeted_amount`, `reestimated_amount`) ont un
+  écart jamais nul, que le contrat déclare non nullable.
+- **`NodeChange.other`.** Un nœud est modifié dès qu'une valeur qu'il porte diffère, saisie ou
+  calculée, des deux facettes, que `fields` la nomme ou non : `other` dit une valeur que
+  WF-REV-0080 n'énumère pas — un libellé, une description, un prédécesseur, le montant aux taux de
+  l'année de référence, les montants d'une tâche, le reste à engager précédent d'une ligne. Les
+  libellés résolus du sous-projet et de la catégorie suivent leur identifiant, sans `other`. Ne
+  sont pas comparés, parce qu'ils changent d'une révision à l'autre sans que rien du nœud ne
+  change : les identifiants, le compteur, le numéro de ligne, le rang et le niveau, les listes des
+  champs calculés et modifiables, `remaining_entry` et `finish_overdue`, drapeau du jour de calcul.
+  Cette liste étend celle de la conception d'EP-27 (« les identifiants, les compteurs, le numéro
+  de ligne, le rang, les champs modifiables ») de `level`, de `computed_fields`, de
+  `remaining_entry` et de `finish_overdue`, qui sont de la même espèce : le niveau suit le rang,
+  et les trois autres disent ce que le serveur calcule ou accepte, ou le jour de la lecture.
+  La lecture d'un différentiel ne change pas : ni `other`, ni `base`, ni `deltas`. Conséquence
+  dans les exemples : de l'offre à la référence, 5 962 nœuds modifiés par leurs valeurs au lieu de
+  4 997, les tâches par leurs montants, et aucune par son seul contenu (`comparison_volume`).
+- **`RevisionComparison.base_totals` et `totals_delta`** (`NodeTotalsDelta`) : les totaux de la
+  base sur les nœuds que la lecture retient, retirés compris et ajoutés exclus, une ligne comptée
+  par son parent dans la révision lue comme pour `amount_deltas` ; et leur écart signé. `totals` et
+  `amount_deltas` ne changent pas.
+- **`include_differences`** (`ComparisonIncludeDifferences`) : sous un filtre d'état, retient en
+  outre les nœuds en écart qu'il écarte, comptés dans les totaux ; la grille du reste à engager
+  l'envoie, elle seule. Le paramètre est de `compareRevisions` seul : `listNodes` ne compare rien
+  et ne le déclare pas. `difference` reste un paramètre, que les grilles n'envoient plus : le
+  repli se fait dans le navigateur.
+
+**Exigées en deux temps.** Les propriétés nouvelles sont déclarées sans être exigées : le service ne
+les rend pas encore, et chaque réponse est validée contre le contrat. Le lot du service qui en sert
+une la passe en exigée — `base` avec la comparaison d'une révision en cours (US-2320/L3),
+`deltas` avec les écarts (US-2340), `base_totals` et `totals_delta` avec les totaux de la base
+(US-2350).
+
+**Les exemples**, engendrés par `wftools.mockcomparisons` et `wftools.mockdiff` (`marked` lu avec
+`compared`, `read_with_fields`), portent `base`, `deltas`, `base_totals` et `totals_delta` ; un
+exemple de plus, `comparison_current`, rend la révision en cours du témoin comparée à la référence
+dont elle est issue, sur le sous-arbre de l'installation sur site. La borne de l'exemple de volume
+(#1204) passe de 1,5 à 2 Mo : chaque nœud y rend sa base et ses écarts réduits aux champs lus, et
+l'exemple pèse 1,55 Mo. Aucune exigence ne fixe 1,5 Mo — #1204 estimait l'exemple à 1,3 Mo, et la
+borne ne garde que contre des nœuds rendus entiers, 7,4 Mo — : 2 Mo laissent une marge d'un quart,
+qu'un libellé de plus ne consomme pas, et refusent encore une lecture qui ne réduirait pas `fields`.
+`info.version` reste `1.0.0` : des propriétés facultatives, un paramètre facultatif et une valeur
+d'énumération de plus.
+
+**Le service** (US-2320/L3, #3494) compare une révision lue en cours, rend `base` et `other`, et
+`base` devient exigée ; `deltas` reste déclarée sans être exigée, et vient avec US-2340, comme
+`base_totals` et `totals_delta` avec US-2350 (l'US-2320 les met hors de son périmètre). La base se
+lit dans sa lecture gardée, la révision lue en cours par ses colonnes (US-2220), rien n'en étant
+gardé. L'union (`core/estimate/uniting.py`) compare chaque nœud tel que l'API l'écrit entier, et la
+liste des valeurs non comparées y est écrite une fois (`NOT_COMPARED`, `FACET_NOT_COMPARED`) : celle
+du contrat, ci-dessus, sans rien de plus ; `parent_id` et `predecessors` s'y comparent par la lignée,
+le lien et le décalage, jamais par le rang. Deux conséquences d'une valeur calculée comparée, que
+le contrat veut : une tâche dont le successeur est retiré, ou que l'allongement d'une autre décale
+dans le chemin critique, est modifiée par sa marge (`total_float`, `is_critical`), et une révision
+ouverte d'une source marquée une fois le projet En cours porte le reste à engager d'avant la revue
+de chaque ligne (`previous_*`, EP-09) : elle se compare modifiée à sa source par ces valeurs
+(`other`), et inchangée, nœud par nœud, à la source d'un projet qui n'est pas encore En cours —
+son budgété, repris de la référence, différant aussi d'une source qui n'est pas la référence.
+
+**Les écarts et les totaux de la base** (US-2340/L1, #3501) : le service rend `deltas`,
+`base_totals` et `totals_delta`, et les trois deviennent exigées. L'écart se calcule dans l'union, à
+côté de `base`, pour les seules valeurs qui diffèrent, et se réduit comme elle aux champs lus. Deux
+durées de même unité s'écartent de la différence de leurs valeurs ; de deux unités, chacune est
+convertie en heures comme son unité le dit, aux constantes de l'installation (WF-PLA-0160), et
+l'écart est rendu dans l'unité de la durée lue — une heure écoulée y compte pour une heure, comme le
+filtre de durée compte une durée écoulée en jours de travail. Les totaux de la base se comptent sur
+les nœuds que la lecture retient sans `difference` — ceux-là mêmes dont `amount_deltas` compte les
+lignes quand `difference` est absent —, tels que la base les porte : une ligne de la révision lue
+retenue par un filtre y compte pour ce que la base en portait, une ligne que le filtre retient dans
+la base seulement, et qui est encore dans la révision lue, n'y compte pas. Sous un filtre d'état,
+`include_differences` lit les deux révisions sans ce filtre et retient un nœud dont la tâche est
+d'un état demandé, ou qui est en écart ; `totals` est alors celui des nœuds retenus, compté comme
+une lecture le compte.
+
+### Les lectures d'une grille ouvertes à qui la consulte (US-2320, conception d'EP-27, « Les gardes »)
+
+Décision de l'auteur du 2026-11-15, au cadrage d'EP-27 : un compte qui consulte le planning sans
+consulter les révisions y active une comparaison (WF-REV-0080, 1.0.6). Aucune forme ne change ; les
+gardes deviennent :
+
+| Opération | Avant | Après |
+|---|---|---|
+| `compareRevisions` | `estimate.read` | l'une de `planning.read`, `estimate.read`, `remaining.read` |
+| `getRevision`, `listCostStructures`, `listRevisions` | `revisions.read` | `revisions.read`, ou l'une des trois ci-dessus |
+
+`listNodes` ne demande déjà que `planning.read` pour les trois grilles : la comparaison rend ce que
+`listNodes` rend, à qui le lit déjà, et le bandeau lit `getRevision`, `listCostStructures` et
+`listRevisions`. La fonction « Gestion des révisions » reste gardée par `revisions.read` dans la
+navigation, et ses commandes par leurs permissions. Le refus d'un compte qui ne porte aucune de ces
+permissions ne change pas. Réalisé par US-2320/L2 et L3. Écartée : `compareRevisions` seul
+ouvert, qui laissait le Vérif de WF-REV-0080 non constaté sur l'écran.
+
+### Les révisions lues par qui consulte une grille, l'image figée par qui consulte les révisions (US-2320/L2, #3493)
+
+WF-REV-0080-A veut qu'« un utilisateur qui consulte le planning sans consulter les révisions y
+active une comparaison » : le bandeau d'une grille lit l'historique, la révision ouverte et ses
+structures pour ouvrir la grille et choisir sa base, trois lectures que seule `revisions.read`
+ouvrait. Conception d'EP-27 (« Les gardes ») : **`listRevisions`, `getRevision` et
+`listCostStructures` demandent `revisions.read`, ou l'une de `planning.read`, `estimate.read`,
+`remaining.read`** ; qui n'en porte aucune est refusé comme avant, par le 404 de `revisions.read`,
+et la qualité sur le projet se juge comme avant. Les écritures et les commandes d'une révision ne
+changent pas : `createRevision`, `markRevision` et `abandonRevision` demandent toujours
+`revisions.read` d'abord, puis leur permission, et la fonction « Gestion des révisions » reste
+gardée par `revisions.read` dans la navigation. `available_commands` suit les permissions de son
+lecteur comme avant : un lecteur d'une grille seule n'y trouve que les exports que sa permission
+garde (`export_planning` et `export_task_tree_image` pour `planning.read`, `export_estimate`,
+`export_remaining`), que `requestExport` juge sans `revisions.read`. Décision de l'auteur du
+2026-11-17 (option 1 de #3493) : **l'image figée d'une révision marquée (`Revision.snapshot`) n'est
+rendue par `getRevision` qu'à qui porte `revisions.read`** ; un lecteur d'une grille seule lit la
+révision marquée sans elle. Elle porte les taux horaires, les rôles, les calendriers et les
+catégories de coût, leur code comptable compris, que `cost_settings.read` et ses pareilles gardent
+ailleurs : ce chemin ne les ouvre pas, et la grille n'en a pas besoin pour s'ouvrir ni choisir sa
+base. Aucune forme ne change : `snapshot` n'est pas exigé, et son omission vaut ici comme pour la
+révision en cours. Les gardes de `compareRevisions` (l'une des trois permissions des grilles, au
+lieu de `estimate.read`) viennent avec US-2320/L3. `info.version` reste `1.0.0`. Écartée : l'image
+figée à tout lecteur d'une grille (option 2), qui ouvrait les taux à un compte sans
+`cost_settings.read`.
 
 ## Collage et annulation
 

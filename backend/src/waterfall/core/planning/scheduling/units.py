@@ -134,6 +134,20 @@ class Duration:
         """Return the duration as the engine places it: its hours, and whether they are elapsed."""
         return Span(self.hours(constants), self.is_elapsed)
 
+    def less(self, other: Duration, constants: UnitConstants) -> Duration:
+        """Return this duration less another, signed, in this one's unit (EP-27, US-2340).
+
+        Of the same unit, the difference of their values, exact; of two units, that of their
+        hours, each converted as its unit says (``hours``), given in this one's unit as the engine
+        renders a value. Elapsed hours count as hours there, as ``days_of`` counts them in days
+        of work: the only conversion WF-PLA-0160 gives an elapsed unit.
+        """
+        if other.unit == self.unit:
+            return Duration(self.value - other.value, self.unit)
+        hours = self.hours(constants) - other.hours(constants)
+        per_unit = Duration(Decimal(1), self.unit).hours(constants)
+        return Duration(decimal_of(hours / per_unit), self.unit)
+
 
 @dataclass(frozen=True, slots=True)
 class Lag:

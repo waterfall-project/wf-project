@@ -63,6 +63,7 @@ import {
 import { useNoteMessage } from "@/components/notices/message-history";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
 
+import { withDifference } from "./compared";
 import { DenseGrid } from "./dense-grid";
 import { RowNumbers } from "./link-conflicts";
 import { nodeDependencies } from "./node-dependencies";
@@ -76,7 +77,6 @@ import {
   nodesWritten,
   pasteSpan,
   type StructurePath,
-  withDifference,
 } from "./nodes";
 import {
   PLANNING_FIELDS,
@@ -154,6 +154,12 @@ export interface PlanningGridProps {
    * the grid then has its column of marks (US-0500).
    */
   readonly differential?: boolean | undefined;
+  /**
+   * Whether the grid reads a comparison to a base: its rows then bear the mark of a difference, its
+   * cells that differ the value of the base, and the choice of the columns offers those of the
+   * differences (WF-IHM-0150).
+   */
+  readonly comparing?: boolean | undefined;
   /**
    * The labels of the risks occurred, by their identifier, which the mark of a row a risk merged
    * names it by (`OriginMark`); none, and the mark says a risk without its name.
@@ -333,6 +339,7 @@ export function PlanningGrid({
   timelines,
   timelineCreation,
   differential,
+  comparing,
   origins,
   treeFilters,
   gantt,
@@ -483,7 +490,10 @@ export function PlanningGrid({
     timelines,
     names,
   ]);
-  const config = useMemo(() => withDifference(read, differential), [read, differential]);
+  const config = useMemo(
+    () => withDifference(read, differential, comparing),
+    [read, differential, comparing],
+  );
   // The skeleton moves the structure on as any write of the grid does: counted in the account, the
   // gestures wait for it (#1224). The command calls it in its transition, which would hold the count
   // back until the answer: the write is sent, and counted, once out of it.
@@ -583,6 +593,7 @@ export function PlanningGrid({
             config={config}
             rows={shown.items}
             totals={shown.totals}
+            comparison={shown.comparison}
             totalsCaption={(totals) => t("totals", { tasks: totals.task_count })}
             query={query}
             preferences={preferences}

@@ -283,62 +283,60 @@ export default async function SettingsPage(props: ProjectPageProps) {
     readGeneration(read, search.get("start") === "skeleton"),
   ]);
   return (
-    <>
+    // The banner, the searches, the sorts and the filters of the grids compose their changes.
+    <PendingAddress>
       <ContextBanner reading={read} />
       <Screen density={FUNCTION_DENSITY.project_settings}>
-        {/* The searches, the sorts and the filters of the grids compose their changes. */}
-        <PendingAddress>
-          <SettingsHeader project={read.project} />
-          {/* Keyed by the project: an answer of the server never outlives its project. */}
-          <ProjectIdentity key={read.project.project_id} project={read.project} />
-          <WorkBreakdownList
-            breakdown={breakdown}
-            project={address.projectId}
-            kinds={breakdownKinds}
-            shown={{
-              query: breakdownQuery,
-              preferences: grids?.[BREAKDOWN_GRID_KEY] ?? undefined,
-            }}
-            editing={{
-              project: address.projectId,
-              offer: offers.breakdown,
-              counter: breakdown.lock_version,
-              whole: wholeBreakdown,
-            }}
-          />
-          {generation}
-          <SubprojectList
-            subprojects={subprojects}
-            actualCosts={actualCosts}
-            editing={{
-              project: address.projectId,
-              offer: update,
-              estimated: estimatedRevision(read.project, session),
-            }}
-            shown={{
-              query: subprojectQuery,
-              preferences: grids?.[SUBPROJECT_GRID_KEY] ?? undefined,
-            }}
-          />
-          <ContributorList
-            contributors={contributors.items}
-            kinds={kinds}
-            active={active}
-            editing={{
-              project: address.projectId,
-              label: read.project.label,
-              offer: manage,
-              counter: contributors.lock_version,
-              whole,
-              suggestions,
-            }}
-            shown={{
-              query: contributorQuery,
-              preferences: grids?.[CONTRIBUTOR_GRID_KEY] ?? undefined,
-            }}
-          />
-        </PendingAddress>
+        <SettingsHeader project={read.project} />
+        {/* Keyed by the project: an answer of the server never outlives its project. */}
+        <ProjectIdentity key={read.project.project_id} project={read.project} />
+        <WorkBreakdownList
+          breakdown={breakdown}
+          project={address.projectId}
+          kinds={breakdownKinds}
+          shown={{
+            query: breakdownQuery,
+            preferences: grids?.[BREAKDOWN_GRID_KEY] ?? undefined,
+          }}
+          editing={{
+            project: address.projectId,
+            offer: offers.breakdown,
+            counter: breakdown.lock_version,
+            whole: wholeBreakdown,
+          }}
+        />
+        {generation}
+        <SubprojectList
+          subprojects={subprojects}
+          actualCosts={actualCosts}
+          editing={{
+            project: address.projectId,
+            offer: update,
+            estimated: estimatedRevision(read.project, session),
+          }}
+          shown={{
+            query: subprojectQuery,
+            preferences: grids?.[SUBPROJECT_GRID_KEY] ?? undefined,
+          }}
+        />
+        <ContributorList
+          contributors={contributors.items}
+          kinds={kinds}
+          active={active}
+          editing={{
+            project: address.projectId,
+            label: read.project.label,
+            offer: manage,
+            counter: contributors.lock_version,
+            whole,
+            suggestions,
+          }}
+          shown={{
+            query: contributorQuery,
+            preferences: grids?.[CONTRIBUTOR_GRID_KEY] ?? undefined,
+          }}
+        />
       </Screen>
-    </>
+    </PendingAddress>
   );
 }

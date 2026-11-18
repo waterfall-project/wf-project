@@ -29,9 +29,14 @@ import {
   localAccount,
   type LocalPerson,
   signIn,
+  withdrawRoles,
 } from "./realm";
 
 heldToTheContract();
+
+// The role of the path of the reader without the revisions: a label of its own, made and deleted by
+// the path, so that no other path or replay meets it.
+const PLANNING_ONLY = "Lecteur de planning sans révisions (parcours)";
 
 const ROLES = [
   ["Manager", []],
@@ -182,4 +187,53 @@ test("an account that reads every project and is no contributor reads the planni
     data: { kind: "task", parent_id: null, task: { label: "Acceptée" } },
   });
   expect(created.status(), "POST nodes once inscribed").toBe(201);
+});
+
+test("an account that reads the planning without reading the revisions opens the grid and its banner [WF-REV-0080-A]", async ({
+  page,
+  browser,
+}) => {
+  test.slow();
+  // « planning.read » reads the planning; « project_settings.read » the project and its subprojects
+  // the context of the screen asks. No « revisions.read »: the banner reads the revision by
+  // getRevision, which the planning reader may (US-2320/L2).
+  const planner = await localAccount(browser, administrator);
+  try {
+    await administrator.giveAlso(planner.id, [
+      [PLANNING_ONLY, ["planning.read", "project_settings.read"]],
+    ]);
+    await signIn(page, creator, "/account");
+    const seeded = await seedPlanning(page, browser, calls, creator, "Sans révisions");
+    await inscribe(browser, calls, creator, planner, seeded.own);
+
+    const context = await browser.newContext({ ignoreHTTPSErrors: true });
+    try {
+      const screen = await context.newPage();
+      await signIn(screen, planner, "/account");
+      await openHydrated(screen, seeded.planning);
+      const grid = screen.getByRole("treegrid", { name: "Grille de planning" });
+      await expect(grid.getByRole("row", { name: new RegExp(`^2 .*${SEEDED[2]}`) })).toBeVisible({
+        timeout: WORKING,
+      });
+      // The banner shows the revision read, which the planning reader may read by getRevision: its
+      // name (the one under way has none) and its status.
+      const banner = screen.getByRole("region", { name: "Contexte de lecture" });
+      await expect(banner).toContainText(seeded.own.label);
+      await expect(banner).toContainText("Révision en cours");
+      await expect(banner).toContainText("En cours d’élaboration");
+      // The function of the revisions stays out of her navigation.
+      await expect(screen.getByRole("link", { name: "Gestion des révisions" })).toHaveCount(0);
+    } finally {
+      await context.close();
+    }
+  } finally {
+    // The role withdrawn, then deleted: a cleanup that fails is told, never thrown, so as not to hide
+    // the error of the path.
+    try {
+      withdrawRoles(planner.email);
+      await administrator.remove(PLANNING_ONLY);
+    } catch (failure) {
+      console.error("The cleanup of the planning reader path failed:", failure);
+    }
+  }
 });

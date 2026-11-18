@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { momentOf } from "./report";
+import { STEPS } from "./steps";
 import {
   type Cache,
   cacheOf,
@@ -135,11 +136,7 @@ describe("versionReport", () => {
   it("names an operation the service does not serve with its epic, and no duration [WF-QUA-0060-A]", () => {
     const report = versionReport("0.4.0", new Date(), CONDITIONS, SAMPLES, CACHE);
     const unserved = report.operations.filter((operation) => "unserved" in operation);
-    expect(unserved).toEqual([
-      { id: "portfolio-view", objective_s: 2, unserved: "EP-11" },
-      { id: "open-compared-grid", objective_s: 2, unserved: "EP-27" },
-      { id: "recompute-compared", objective_s: 2, unserved: "EP-27" },
-    ]);
+    expect(unserved).toEqual([{ id: "portfolio-view", objective_s: 2, unserved: "EP-11" }]);
   });
 
   it("carries the cost of the cache on the indicators, which the service serves, and on no other [WF-QUA-0060-A]", () => {
@@ -216,8 +213,10 @@ describe("the steps of the browser", () => {
     expect([...measured].toSorted()).toEqual([
       "filter-sort-search",
       "indicators",
+      "open-compared-grid",
       "open-grid",
       "recompute-after-entry",
+      "recompute-compared",
       "workload-or-projection",
     ]);
     expect(Object.keys(OPERATION_OF_STEP)).not.toContain("planning.label");
@@ -229,6 +228,24 @@ describe("the steps of the browser", () => {
       "spending.from-workload": "workload-or-projection",
       "indicators.from-spending": "indicators",
     });
+  });
+
+  it("measure the grids compared to a marked revision: the four openings, and the entry until its marks are read anew [WF-QUA-0060-A]", () => {
+    const of = (operation: string) => STEPS.filter((step) => OPERATION_OF_STEP[step] === operation);
+    expect(of("open-compared-grid")).toEqual([
+      "planning.compared",
+      "estimate.compared-from-planning",
+      "remaining.compared-from-estimate",
+      "planning.compared-from-remaining",
+    ]);
+    expect(of("recompute-compared")).toEqual(["planning.compared-duration"]);
+  });
+
+  it("give every step of the journey an operation of table 15, but the label, which recomputes nothing [WF-QUA-0060-A]", () => {
+    const ids = new Set(TABLE.map(({ id }) => id));
+    for (const step of STEPS.filter((one) => one !== "planning.label")) {
+      expect(ids.has(OPERATION_OF_STEP[step] ?? "")).toBe(true);
+    }
   });
 });
 

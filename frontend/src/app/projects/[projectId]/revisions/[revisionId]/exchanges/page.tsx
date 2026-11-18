@@ -160,7 +160,9 @@ export default async function ExchangesPage({
   const start = startOf(at, offset);
   const { projectId } = revision;
   return (
-    <>
+    // The banner and the pages of the list compose the changes they make to the address: a filter
+    // lifted, a page turned, then a revision chosen goes on from the address last asked.
+    <PendingAddress>
       <ContextBanner reading={reading} />
       <Screen density={LEAF_DENSITY["FBS-4.3.4"]}>
         <ExchangesHeader />
@@ -169,24 +171,22 @@ export default async function ExchangesPage({
         )}
         <ImportPart projectId={projectId} offers={offers} start={start} gap={gap} />
         {/* The pages of the list keep the import shown, and turn from the address last asked. */}
-        <PendingAddress>
-          <ImportList
-            imports={imports.items}
-            total={imports.meta.total}
-            current={shown?.import_id}
-            start={start}
-          >
-            <ListPages
-              list={EXCHANGES_LIST}
-              texts="actualCosts.pages.exchanges"
-              page={imports.meta}
-              shown={imports.items.length}
-            />
-            <KeptListSize gridKey={IMPORT_GRID_KEY} address={CONTRACT_ADDRESS} preferences={kept} />
-          </ImportList>
-        </PendingAddress>
+        <ImportList
+          imports={imports.items}
+          total={imports.meta.total}
+          current={shown?.import_id}
+          start={start}
+        >
+          <ListPages
+            list={EXCHANGES_LIST}
+            texts="actualCosts.pages.exchanges"
+            page={imports.meta}
+            shown={imports.items.length}
+          />
+          <KeptListSize gridKey={IMPORT_GRID_KEY} address={CONTRACT_ADDRESS} preferences={kept} />
+        </ImportList>
         <ExportPart revision={revision} offers={exportOffers(reading.revision)} />
       </Screen>
-    </>
+    </PendingAddress>
   );
 }

@@ -9,15 +9,13 @@ Opening a project does not go through this screen: the page of the project leads
 From top to bottom:
 
 - the **Report** of the import the address names, when there is one;
-- the **Revision history**: for each one, its version, its state, its date of marking, its description, the link that opens it, and the mark of the reference;
-- the **Designation of the reference**, on the marked revisions;
-- the **Comparison of two revisions** marked;
-- the **Cost structures** of the revision read — the main structure, the differentials of amendment, the own estimates of the risks — with their state;
-- for the current revision, the **Proposed rate update**, when the reference data has changed since it was costed.
+- the **Revision history**, the one card of the screen: for each one, its version, its state, its date of marking, its description, the link that opens it, and the mark of the reference.
+
+The comparison of two revisions is no longer read here: it is read in the grids of the planning, of the estimate and of the remaining to commit, from the **Compare to the revision read** command of the history. The cost structures of the revision read are chosen in the banner of the grids, not on this screen.
 
 ## Its commands
 
-Each section is a card. At the top of the screen, the commands of the revision read, each available or naming the condition it lacks; **Open a current revision**, the one filled command, is at the right of the title of the history card:
+At the top of the screen, the commands of the revision read, each available or naming the condition it lacks; **Open a current revision**, the one filled command, is at the right of the title of the history card:
 
 - **Open a current revision** creates the draft revision, a copy of the last marked revision. Unavailable when the project already has one (“no draft revision”) or when it is closed.
 - **Mark the revision** asks for a version name, required, and a description; the marking, handed to the background processing, freezes the revision and keeps its indicators. Unavailable on a revision already marked (“draft revision”) or during a background process.
@@ -28,18 +26,17 @@ Each section is a card. At the top of the screen, the commands of the revision r
 In the sections:
 
 - **Open**, in the history, opens the revision: the screens of the project then read it.
-- **Designate as reference**, on a marked revision, once confirmed: it sets the reference budget and the planned value; the project that bears its project code passes to the state In progress. Unavailable on a revision that bears no task or no estimate line, and when the reference is no longer corrected — the project has received an actual cost, or a revision has been marked since the last designation.
-- **Compare**, between two marked revisions chosen by **From the revision** and **To the revision**: the grid of the nodes compared marks each task and each line added (**+**), removed (**-**) or modified (**M**), and the amount deviations follow. Two marked revisions are needed.
-- **Apply the rate update**, for the categories retained, once confirmed: the rates of the current revision are replaced by the rates proposed, and its amounts costed again. A proposal, never imposed; offered where the revision is entered in the estimate.
+- **Designate as reference**, a command of each marked revision of the history, once confirmed: it sets the reference budget and the planned value; the project that bears its project code passes to the state In progress. Unavailable on a revision that bears no task or no estimate line, and when the reference is no longer corrected — the project has received an actual cost, or a revision has been marked since the last designation.
+- **Compare to the revision read**, a command of each marked revision of the history, but the revision read: a menu of the grids of the planning, of the estimate and of the remaining to commit that you may read, which leads to the grid chosen, that revision as the base of the comparison.
+- **Apply the rate update**, a command of the current revision at the right of the title: it opens the proposal, category by category, in a window; for the categories retained, once confirmed, the rates of the current revision are replaced by the rates proposed, and its amounts costed again. A proposal, never imposed; offered where the revision is entered in the estimate.
 
 ## Its columns and computed values
 
-The history and the comparison are read as the server renders them: the comparison names what changes of each node, the order is that of the plan, and nothing is sorted there. The amount deviations are calculated by the server, by axis.
+The history is read as the server renders it, in its order.
 
 ## Keyboard gestures
 
-- `Tab` goes through the commands, the links of the history and the fields of the comparison; an unavailable command stays reachable, and its condition is read in its description.
-- The grid of the comparison is a single tab stop, which the arrows go through.
+- `Tab` goes through the commands and the links of the history; an unavailable command stays reachable, and its condition is read in its description.
 - `F1` opens this help.
 
 ## See also

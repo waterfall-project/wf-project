@@ -335,7 +335,9 @@ test("reads the cards of the remaining to commit as the service answers, the rem
   await expect(balances).toBeVisible();
   await expect(balances.getByRole("img", { name: "Alerte" })).toHaveCount(0);
   await page.getByRole("main").getByRole("link", { name: "Plan de charge" }).click();
-  await expect(page.getByLabel("Base")).toHaveValue("current_remaining", { timeout: WORKING });
+  await expect(page.getByLabel("Base", { exact: true })).toHaveValue("current_remaining", {
+    timeout: WORKING,
+  });
   expect(new URL(page.url()).searchParams.get("basis")).toBe("current_remaining");
 });
 
@@ -360,7 +362,9 @@ test("leads from the remaining to commit to the workload of the project, on the 
     `${IN_REVISION}/workload?subproject_id=${SUBPROJECT}&basis=current_remaining`,
     { timeout: WORKING },
   );
-  await expect(page.getByLabel("Base")).toHaveValue("current_remaining", { timeout: WORKING });
+  await expect(page.getByLabel("Base", { exact: true })).toHaveValue("current_remaining", {
+    timeout: WORKING,
+  });
 });
 
 test("carries a line to a sub-project from the menu of its cell, and takes it out of any, the column being shown @shared [WF-PRJ-0050-A] [WF-RAE-0040-A]", async ({
