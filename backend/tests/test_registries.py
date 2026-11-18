@@ -473,7 +473,8 @@ PORTFOLIO = "waterfall.core.portfolio.interface"
 
 @pytest.mark.parametrize("entry_point", sorted(ENTRY_POINTS))
 def test_each_entry_point_imports_the_interface_of_the_portfolio(entry_point: str) -> None:
-    # The portfolio fills no registry before US-2680/L2, which registers at ``register_indicators``
+    # A tool of the registries, which covers no requirement. The portfolio fills no registry before
+    # US-2680/L2, which registers at ``register_indicators``
     # what a marking keeps for it: the comparison above cannot tell yet whether an entry point
     # imports it. Each that marks a revision — the API, the worker, the loader — does from the
     # socle on (EP-11, "Modules"), so that none marks without its part once it registers.

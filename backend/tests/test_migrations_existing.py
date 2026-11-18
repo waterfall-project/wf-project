@@ -210,6 +210,7 @@ def test_the_projects_that_exist_receive_their_partitions_of_the_risks(
         assert connection.scalar(column) == 0
 
 
+@pytest.mark.requirement("WF-DAT-0020-A")
 def test_the_kinds_of_the_portfolio_are_admitted_and_one_kept_holds_the_descent_back(
     empty_engine: Engine,
 ) -> None:

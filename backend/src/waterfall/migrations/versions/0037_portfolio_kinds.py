@@ -8,7 +8,9 @@ sums: ``portfolio_workload``, ``portfolio_cost_structure``, ``portfolio_risks``,
 alone widens, on the table and, by it, on each partition. The trigger that refuses a row whose
 ``computed_at`` is not the ``marked_at`` of its revision does not change: these documents are
 computed at the ``Act`` of the marking, as those of EP-10. The rights of the service are those of
-the table. No row is to take up: a revision marked before EP-11 receives nothing (EP-11, "Ce que le
+the table. The check is created validated at once, not ``NOT VALID``: the table is young (EP-10)
+and bounded, the migration holds no data, and the descent must fail while a row of these kinds
+exists. No row is to take up: a revision marked before EP-11 receives nothing (EP-11, "Ce que le
 cadrage décide").
 
 The descent gives the check of EP-10 back, and fails while a row of these kinds exists: the check,

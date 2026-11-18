@@ -199,6 +199,7 @@ PORTFOLIO_KINDS = (
 )
 
 
+@pytest.mark.requirement("WF-DAT-0020-A")
 @pytest.mark.parametrize("kind", PORTFOLIO_KINDS)
 def test_a_document_of_the_portfolio_is_kept_by_the_marking_of_its_revision_alone(
     parents: Parents, owner: Engine, kind: str

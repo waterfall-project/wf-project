@@ -13,10 +13,10 @@ gives its curves of the month (``offer_curves``), by the series of its estimate.
 Declared by US-2670/L1, the socle of EP-11; filled by US-2680/L1.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Mapping
+    from collections.abc import Collection, Mapping
     from datetime import datetime
     from uuid import UUID
 
@@ -25,9 +25,19 @@ if TYPE_CHECKING:
     from waterfall.core.indicators.interface.documents import Document, IndicatorKind
     from waterfall.platform.audit import Act
 
-# What computes the documents of the portfolio of a project on the current day, its revision of the
-# day given: the computation of ``core/portfolio``, the same as at the marking.
-type Contribute = Callable[[Session, UUID, UUID, datetime], Mapping[IndicatorKind, Document]]
+
+class Contribute(Protocol):
+    """What computes the documents of the portfolio of a project on the current day.
+
+    The revision of the day is given, never chosen here: the computation of ``core/portfolio``, the
+    same as at the marking. Named parameters, so that a project and a revision cannot be swapped.
+    """
+
+    def __call__(
+        self, session: Session, *, project_id: UUID, revision_id: UUID, at: datetime
+    ) -> Mapping[IndicatorKind, Document]:
+        """Give the documents of the portfolio of ``revision_id``, a revision of ``project_id``."""
+        ...
 
 
 def keep_document(
@@ -47,9 +57,14 @@ def kept_documents_of(
 
 
 def day_documents_of(
-    session: Session, project_ids: Collection[UUID], at: datetime, contribute: Contribute
+    session: Session, revisions: Mapping[UUID, UUID], at: datetime, contribute: Contribute
 ) -> dict[UUID, dict[IndicatorKind, Document]]:
-    """Give the documents of the day of projects, by project, from the cache or computed."""
+    """Give the documents of the day of projects, by project, from the cache or computed.
+
+    ``revisions`` maps each project to the revision of its day, which the caller selected: the
+    current revision, else the last marked (``RetainedProject.revision_id``, from
+    ``last_marked_at_instant``). This function never selects it, so that the choice exists once.
+    """
     msg = "day_documents_of is filled by US-2680/L1"
     raise NotImplementedError(msg)
 
