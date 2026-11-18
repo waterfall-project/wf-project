@@ -122,3 +122,9 @@ def test_a_path_that_fails_leaves_its_traces_for_seven_days(name: str) -> None:
     assert "strategy.job-index" in upload["with"]["name"]
     # The same commit as the other uploads of the chain.
     assert len(commits(pins()["actions/upload-artifact"])) == 1
+
+
+@pytest.mark.story("US-2490")
+def test_the_e2e_job_of_the_chain_runs_the_workflow_that_leaves_the_traces() -> None:
+    # The job `e2e` of ci.yml is a call: its parts, and so their traces, are those of e2e.yml.
+    assert workflow("ci.yml")["jobs"]["e2e"]["uses"] == "./.github/workflows/e2e.yml"
