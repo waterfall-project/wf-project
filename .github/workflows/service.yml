@@ -113,8 +113,8 @@ jobs:
           cache-local-path: /tmp/setup-uv-cache
           cache-dependency-glob: tools/uv.lock
       # The work image of the paths, pulled first, four times at most, twenty seconds apart, as
-      # e2e-image asks the registry (#2530): a registry that still does not answer fails the job here,
-      # naming it, before the platform is built and started.
+      # e2e-image-publish asks the registry (#2530): a registry that still does not answer fails the
+      # job here, naming it, before the platform is built and started.
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io

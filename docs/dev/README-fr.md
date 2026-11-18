@@ -3575,7 +3575,11 @@ connexion au registre, et aucune construction ne reçoit d'argument ni de secret
   version, ne la pose jamais ; le label `org.opencontainers.image.version` d'une image qui ne
   prend pas l'étiquette de version le dit (`0.1.0+epic-EP-03` hors de `main`, `0.1.0+main` sur
   `main` une fois la version publiée). Chaque image porte aussi son propre `title` et son `url`,
-  qui remplacent ceux de son image de base.
+  qui remplacent ceux de son image de base. Cette immuabilité est tenue par l'outil, non par le
+  registre : ghcr.io ne la garantit pas, et laisse réécrire une étiquette à tout jeton qui peut
+  écrire les paquets du dépôt — celui d'`images.yml`, mais aussi celui du travail `mirror` d'une
+  pull request (plus bas) —, par un code qui n'appellerait pas l'outil (PLC-10). L'épinglage de la
+  production par empreinte, qui ne dépendrait plus de l'étiquette, est reporté à EP-13.
 - **Ce qui refuse une poussée.** Une branche autre que `main` ou `epic/…` ; un dépôt dont le
   commit n'est pas celui que nomme `IMAGE_COMMIT`, ou qui n'est pas propre dans les contextes des
   images (`git status --porcelain -- frontend backend deploy/keycloak`) ; une image construite
@@ -3654,7 +3658,14 @@ saute les travaux qui en dépendent, ce que la porte compte. Pour changer une im
 sa référence et son empreinte dans les fichiers, derrière `${WATERFALL_MIRROR:-}` ; le premier
 passage copie la nouvelle. Les travaux qui tirent du miroir demandent `packages: read` et s'y
 connectent (`docker/login-action`, ou `credentials:` d'un service) : un paquet que GitHub crée est
-privé, et rien hors de la chaîne ne le lit.
+privé, et rien hors de la chaîne ne le lit. Le travail `mirror`, lui, garde `packages: write`, au
+palier rapide aussi : il lui faut pour remplir le miroir avant la fusion, puisque le premier passage
+qui a besoin d'une image ajoutée ou d'une empreinte relevée est celui de la pull request qui la
+change, et que ni la file ni `images.yml` ne viennent avant. C'est le seul travail d'une pull request
+qui le garde, et il exécute le code de la pull request — les outils et leurs dépendances de
+`tools/uv.lock` — avec un jeton qui peut écrire tous les paquets du dépôt, images publiées
+comprises (PLC-10) ; le jeton d'une pull request venue d'un fork n'a que la lecture. La publication
+de l'image de travail des parcours, elle, ne se fait qu'au palier complet (plus bas).
 
 Quatre autres sources réseau de la chaîne, que l'inventaire d'origine d'US-1900 ne nommait pas
 (#2981, #3015), sont traitées chacune à sa mesure :
@@ -3693,27 +3704,30 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   Docker : Chromium et ses paquets système y sont, rien ne vient du miroir d'Ubuntu, dont le débit
   et la réponse ne sont pas les nôtres (#472, #2913). Elle est construite pour amd64 seulement,
   l'architecture des runners et des postes. Elle est publiée sur `ghcr.io/waterfall-project/e2e`,
-  étiquetée par l'empreinte de son répertoire : le travail `e2e-image` de `ci.yml`, qui tourne dès
-  qu'`e2e` ou `service` peuvent tourner, à côté de `front-build`, la demande au registre
-  (`make e2e-image`). Présente, il en donne la référence par l'empreinte que le registre lui
-  connaît, que les morceaux (`container:` d'`e2e.yml`) et `service.yml` tirent. Absente, il la
-  construit ; au palier complet (`PUSH=yes`), il la publie, une fois, au premier passage qui en a
-  besoin — celui de la file, ou du palier complet lancé à la main sur une branche —, d'où ses
-  `packages: write` ; au palier rapide, il la construit sans la publier, pour qu'une construction
-  qui échoue arrête la pull request avant la file. `images.yml` ne la publie pas : il passe après
-  la fusion, donc après le premier passage de la file qui en a besoin.
+  étiquetée par l'empreinte de son répertoire, et demandée au registre (`make e2e-image`), dès
+  qu'`e2e` ou `service` peuvent tourner, à côté de `front-build`, par l'un de deux travaux de
+  `ci.yml`, un par palier (US-2490). Au palier rapide, `e2e-image` n'a que `packages: read` :
+  présente, il la trouve ; absente, il la construit sans la publier, pour qu'une construction qui
+  échoue arrête la pull request avant la file. Au palier complet — la file, ou le palier complet
+  lancé à la main sur une branche, jamais une pull request —, `e2e-image-publish` en donne la
+  référence par l'empreinte que le registre lui connaît, que les morceaux (`container:` d'`e2e.yml`)
+  et `service.yml` tirent ; absente, il la construit et la publie (`PUSH=yes`), une fois, au premier
+  passage qui en a besoin, d'où ses `packages: write`. `e2e` et `service`, tous deux du palier
+  complet, ne nomment que lui. `images.yml` ne la publie pas : il passe après la fusion, donc après
+  le premier passage de la file qui en a besoin.
 
   Chaque demande au registre, la construction et la publication se refont quatre fois au plus,
   à vingt secondes d'intervalle (#2530) ; une construction refaite repart des couches déjà
-  construites. Un registre qui ne répond toujours pas fait échouer ce travail en le nommant, et
-  saute les parcours, ce que la porte compte ; une image qui ne se tire pas fait échouer
+  construites. Un registre qui ne répond toujours pas fait échouer l'un ou l'autre travail en le
+  nommant, et saute les parcours, ce que la porte compte ; une image qui ne se tire pas fait échouer
   l'initialisation du morceau, en nommant le registre, avant toute étape. Deux passages de la
   file qui ne trouvent pas l'étiquette peuvent la publier chacun : la construction n'est pas
   reproductible à l'octet, mais chacun tire l'image qu'il a publiée, par son empreinte, et le
   contenu que nomme l'étiquette est le même.
 
-  `tools/tests/test_e2eimage.py` tient les versions de l'image, ses sources épinglées, et
-  l'absence de paquet d'Ubuntu dans `ci.yml`, `e2e.yml` et `service.yml`.
+  `tools/tests/test_e2eimage.py` tient les versions de l'image, ses sources épinglées,
+  l'absence de paquet d'Ubuntu dans `ci.yml`, `e2e.yml` et `service.yml`, et les droits des deux
+  travaux ; `tools/tests/test_gate.py`, que la porte attend chaque travail de `ci.yml`.
 
   Le travail appelle `make e2e`, qui trouve le navigateur de
   l'image (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), et non `make check-front-e2e`, qui en
@@ -3826,7 +3840,6 @@ Règles des workflows :
   `maven.compiler.release` du `pom.xml` de l'extension,
   qui reste à 21 exprès (le Java de l'image de Keycloak, pas le JDK de construction) : il se
   relève quand cette image change de Java.
-
 - Un parcours de bout en bout ou de service qui échoue verse ce que Playwright a gardé
   (`frontend/test-results/` : traces, captures, `error-context.md`) en artefact, sur échec
   seulement, pour sept jours, sous le nom `test-results-e2e-<n>` ou `test-results-service-<n>`
