@@ -8160,6 +8160,9 @@ sert qu'aux fichiers exportés.
 
 ### Le client d'un projet et le code borné d'un sous-projet (US-0610, #1316)
 
+> Révisée par la décision de l'auteur du 2026-11-18 (« Le tri des constats de spécification », #3370) :
+> le code d'un sous-projet est libre, et ne nomme plus son onglet.
+
 WF-PRJ-0080 fait porter au projet le nom de son client, facultatif, que présente un devis exporté ;
 WF-PRJ-0050 veut que le code d'un sous-projet nomme son onglet dans le fichier de reste à engager
 (ANNEXE B), ce qu'Excel borne. Le contrat ne lisait pas le client et bornait le code à 50
@@ -9861,7 +9864,9 @@ Complétées, plus haut : « Le projet terminal n'a pas de révision en cours »
   sont pas. `project_participant` le montre pour Inès Roux ; `project_reader` reste vide, le
   Manager n'ayant aucune permission d'écriture du projet. `task_not_milestone` (J-18) reste sans
   exemple : il tient à `setTaskProgress`, hors des fichiers du lot.
-- **Le code projet borné** (D-07 ; WF-PRJ-0010, WF-CRE-0020). `ProjectCode`, partagé par
+- **Le code projet borné** (D-07 ; WF-PRJ-0010, WF-CRE-0020). Révisé par la décision de l'auteur du
+  2026-11-18 (« Le tri des constats de spécification », #3370) : la barre oblique n'est plus
+  interdite, `PROJECT_CODE_INVALID` tombe. `ProjectCode`, partagé par
   `Project`, `ProjectSummary`, `ProjectCreate` et `ProjectUpdate` : de 1 à 50 caractères, jamais
   blanc, sans barre oblique. Vide, `VALUE_REQUIRED` ; blanc, `VALIDATION_FAILED`, comme tout libellé
   (#837) ; une barre oblique, `PROJECT_CODE_INVALID`, nouveau au catalogue comme
@@ -10446,6 +10451,9 @@ s'appliquait après la restauration.
 Le service, qui réalisera la planification avec EP-13, le suit par #1743.
 
 ### Les objets actifs du référentiel se lisent par toute session, hors la grille des taux (US-0704, #1735, C-01, #1745)
+
+> Retirée par la décision de l'auteur du 2026-11-18 (« Le tri des constats de spécification », #3349),
+> hors ce qu'elle dit de la grille des taux, des taux d'une catégorie et de la correspondance.
 
 Décision de l'auteur du 2026-11-01, sur la question qu'US-0702/L2 laissait ouverte (« qui lit les
 objets actifs »). Six lectures du référentiel déclaraient un 404 : deux sans cause possible, trois
@@ -12336,6 +12344,42 @@ révision en cours. Les gardes de `compareRevisions` (l'une des trois permission
 lieu de `estimate.read`) viennent avec US-2320/L3. `info.version` reste `1.0.0`. Écartée : l'image
 figée à tout lecteur d'une grille (option 2), qui ouvrait les taux à un compte sans
 `cost_settings.read`.
+
+### Le tri des constats de spécification : le référentiel sous permission, l'élément d'OTP comparé en entier (#3349, #3370)
+
+Décisions de l'auteur du 2026-11-18, au tri des constats de la revue du 2026-11-14. Elles retirent
+ou révisent trois entrées de ce fichier ; le contrat ne change pas ici, il suit par les issues
+citées, qui diront les formes et la version.
+
+- **La lecture des objets actifs du référentiel par toute session est retirée** (#3349 ; entrée
+  « Les objets actifs du référentiel se lisent par toute session », #1745). La spécification fait
+  foi : sans rôle, un compte n'a aucune permission (WF-ADM-0020, WF-ADM-0070, WF-ADM-0090,
+  WF-ADM-0180). Les lectures des cinq listes de vocabulaire repassent sous la permission de
+  consulter leur fonction, et celles de `getReferenceSettings` et de `getDurationUnits` avec
+  elles ; la grille des taux, les taux d'une catégorie et la correspondance restent sous
+  `cost_settings.read`, inchangés. La raison de l'option alors écartée demeure — les formulaires
+  des projets nomment ce qu'ils citent du référentiel — et se règle autrement que par une lecture
+  ouverte : #3961 le tranche. Le contrat et le service suivent par #3960 et
+  #3962.
+- **L'élément d'OTP d'une ligne de coût se compare en entier** (#3370 ; spécification 1.0.7,
+  WF-CRE-0020, WF-CRE-0010, WF-PRJ-0050, WF-INTF-0120, annexe B). Il est le code du projet ou
+  celui de l'un de ses sous-projets ; la barre oblique n'est plus un séparateur, et préfixer un
+  sous-projet du code de son projet est une convention de l'entreprise. Une ligne dont l'élément
+  n'est ni l'un ni l'autre est rejetée, et le compte rendu nomme chaque élément inconnu et le
+  nombre de ses lignes : plus de ligne importée sous un code de sous-projet inconnu, ni
+  d'imputation à la création du sous-projet — le fichier se réimporte. Révisées : « Le code projet
+  borné » (D-07), dont l'interdiction de la barre oblique et `PROJECT_CODE_INVALID` tombent, la
+  borne de 1 à 50 caractères restant ; « Les descriptions d'un import de coûts réels » (#2721),
+  pour l'élément sans rien après la barre oblique.
+- **Le code d'un sous-projet est libre, et n'est pas celui de son projet** (#3370 ; WF-PRJ-0050).
+  Révisée : « Le client d'un projet et le code borné d'un sous-projet » (US-0610, #1316), dont
+  tombent la borne de 31 caractères, les caractères interdits et les noms réservés. L'onglet d'un
+  sous-projet dans le fichier de reste à engager porte un nom tiré du code — caractères qu'Excel
+  refuse remplacés, coupé à 31 caractères, numéroté en cas de collision — et le code en tête ;
+  l'import désigne le sous-projet par ce code, jamais par le nom de l'onglet (WF-INTF-0120).
+
+Le contrat, le service, le front, le témoin et la reprise des codes déjà saisis suivent par
+#3966.
 
 ## Collage et annulation
 

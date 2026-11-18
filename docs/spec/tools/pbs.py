@@ -37,9 +37,9 @@ EXTRA: dict[str, list[str]] = {
     "WF-INTF-0180": ["PBS-2.2"],
     # FBS-1.3 System status monitoring
     "WF-ADM-0130": ["PBS-4.1", "PBS-4.3"],
-    # FBS-1.4 Backup and restore (row: PBS-2.2, PBS-3.3, PBS-5.3)
+    # FBS-1.4 Backup and restore (row: PBS-2.2, PBS-2.6, PBS-3.3, PBS-5.3)
     "WF-ADM-0150": ["PBS-2.2", "PBS-3.3"],
-    "WF-ADM-0160": ["PBS-2.2", "PBS-3.3"],
+    "WF-ADM-0160": ["PBS-2.2", "PBS-2.6", "PBS-3.3"],
     "WF-ADM-0170": ["PBS-2.2", "PBS-3.3", "PBS-5.3"],
     # FBS-4.1 Revision management (row: PBS-2.2, PBS-3.2)
     "WF-REV-0030": [],
