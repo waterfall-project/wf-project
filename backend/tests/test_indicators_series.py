@@ -466,7 +466,6 @@ def test_the_path_of_a_delayed_line_with_no_delay_gives_the_parts_of_the_estimat
     assert spread_delayed(spread, as_of=as_of) == line_shares(spread, as_of=as_of)
 
 
-@pytest.mark.requirement("WF-IND-0100-A")
 def test_a_spreader_spreads_each_line_once_for_every_sum_and_sums_as_each_alone(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -41,8 +41,11 @@ class Rounding:
         numerator, denominator = top * quantum_bottom, bottom * quantum_top
         floor, rest = divmod(numerator, denominator)
         if 2 * rest == denominator:
-            # The only case the mode decides: ``floor + 0.5`` is exact as a decimal.
-            whole = int((Decimal(floor) + Decimal("0.5")).quantize(Decimal(1), rounding=self.mode))
+            # The only case the mode decides, in integers: a decimal context rounds a big floor.
+            if self.mode == ROUND_HALF_UP:
+                whole = floor + 1 if floor >= 0 else floor
+            else:
+                whole = floor if floor % 2 == 0 else floor + 1
         else:
             whole = floor + int(2 * rest > denominator)
         return Decimal(whole) * self.quantum

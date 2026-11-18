@@ -9,7 +9,8 @@ line are those of the estimate (``rounded_parts``, ``remaining_parts``): each th
 two roundings to the cent, a half away from nought, of the exact cumulated of the line, so that the
 curves, the projection of spending and the plan of workload sum the same parts (US-1690/L4, #3564;
 ``docs/api/DECISIONS.md``, US-2040/L1). The lines of a sum share one weighing (``weighing``): each
-task is weighed once, whatever the number of its lines (#3802). Pure: no database, no clock (the
+task is weighed once, whatever the number of its lines (#3802), and the parts of a computation are
+kept by a ``Spreader`` (#3902). Pure: no database, no clock (the
 date of calculation is an argument).
 """
 
@@ -159,4 +160,5 @@ def spread_lines(
     weighs the task by itself: the weighing is kept for the lines without delay. ``spreader`` is
     that of the computation, whose lines are spread once for all its sums; a new one without.
     """
-    return (spreader or Spreader()).spread(lines, as_of=as_of, delayed=delayed)
+    spreading = spreader if spreader is not None else Spreader()
+    return spreading.spread(lines, as_of=as_of, delayed=delayed)

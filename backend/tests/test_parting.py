@@ -9,7 +9,7 @@ from Monday to Friday; in 2026, February holds 20 working days, March and April 
 """
 
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal
 from fractions import Fraction
 
 import pytest
@@ -21,6 +21,7 @@ from waterfall.core.estimate.interface import (
     Month,
     Placement,
     PlannedLine,
+    Rounding,
     parts_of_cumulated,
     remaining_parts,
     rounded_parts,
@@ -251,11 +252,11 @@ def by_fraction(value: Decimal | Fraction, quantum: Decimal, *, half_up: bool) -
     return Decimal(floor if floor % 2 == 0 else floor + 1) * quantum
 
 
-@pytest.mark.requirement("WF-DEV-0090-A")
 def test_a_value_rounds_in_integers_as_its_exact_fraction_does() -> None:
-    # A detail of the realisation (#3902), which reprises no Vérif of its own: the rounding counts
-    # in integers, and rounds every value as the fraction did — a half away from nought for an
-    # amount, to the even for hours, the other values to the nearest, of either sign.
+    # A detail of the realisation (#3902), which reprises no Vérif of its own (the rule is that of
+    # WF-DEV-0090-A): the rounding counts in integers, and rounds every value as the fraction did —
+    # a half away from nought for an amount, to the even for hours, the other values to the
+    # nearest, of either sign.
     assert MONEY.of(Decimal("0.005")) == Decimal("0.01")
     assert MONEY.of(Decimal("-0.005")) == Decimal("-0.01")
     assert HOURS.of(Decimal("0.005")) == Decimal("0.00")
@@ -271,3 +272,30 @@ def test_a_value_rounds_in_integers_as_its_exact_fraction_does() -> None:
     for value in values:
         assert MONEY.of(value) == by_fraction(value, cent, half_up=True), value
         assert HOURS.of(value) == by_fraction(value, cent, half_up=False), value
+    # Big values, long decimals and exact halves of both signs, at the quanta 1 and 0.001 too.
+    big = "1000000000000000000000000000000"
+    wide: list[Decimal | Fraction] = [
+        Decimal(f"{sign}{text}")
+        for sign in ("", "-")
+        for text in (
+            f"{big}.005",
+            f"{big}.015",
+            f"{big}.5",
+            f"{big}.4999999999",
+            "123456789012345678901234567.5",
+            "0.1234567890123456789012345",
+            "2.5000000000000000000000001",
+            "0.0005",
+            "1.5",
+            "2.5",
+            "0.4999999999999999999999999",
+        )
+    ]
+    wide += [Fraction(sign * (10**30 * 2 + 1), 2) for sign in (1, -1)]
+    for quantum in (Decimal(1), Decimal("0.001"), cent):
+        for value in wide:
+            for half_up in (True, False):
+                mode = ROUND_HALF_UP if half_up else ROUND_HALF_EVEN
+                assert Rounding(quantum, mode).of(value) == by_fraction(
+                    value, quantum, half_up=half_up
+                ), (quantum, value, half_up)
