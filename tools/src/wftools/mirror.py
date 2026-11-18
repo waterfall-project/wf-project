@@ -320,6 +320,8 @@ def main(
     parser.add_argument("--push", action="store_true", help="copy what the mirror does not hold")
     options = parser.parse_args(arguments)
     if options.action == "sync":
+        if options.push:
+            parser.error("--push does not go with sync")
         return _synced(root)
     images = referenced(root)
     if not images:

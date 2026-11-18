@@ -195,3 +195,11 @@ def test_main_sync_says_the_files_it_changed_and_fails_on_what_remains(
     write(tmp_path, "deploy/compose/compose.test.yaml", f"    image: mailpit:1@{OLD}\n")
     assert mirror.main(["sync"], root=tmp_path) == 1
     assert f"mailpit:1@{OLD} is not in {mirror.MANIFEST}" in capsys.readouterr().err
+
+
+def test_sync_refuses_push(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    repository(tmp_path)
+    with pytest.raises(SystemExit) as stop:
+        mirror.main(["sync", "--push"], root=tmp_path)
+    assert stop.value.code == 2
+    assert "--push does not go with sync" in capsys.readouterr().err
