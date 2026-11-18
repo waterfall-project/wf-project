@@ -8,15 +8,13 @@ Ouvrir un projet ne passe pas par cet écran : la page du projet mène à sa ré
 
 De haut en bas :
 
-- l’**Historique des révisions** : pour chacune, sa version, son état, sa date de marquage, sa description, le lien qui l’ouvre, et la marque de la référence ;
-- la **Désignation de la référence**, sur les révisions marquées ;
-- la **Comparaison de deux révisions** marquées ;
-- les **Structures de coûts** de la révision lue — la structure principale, les différentiels d’avenant, les devis propres des risques — avec leur état ;
-- pour la révision en cours, la **Mise à jour des taux proposée**, quand le référentiel a changé depuis qu’elle a été chiffrée.
+- l’**Historique des révisions**, seule carte de l’écran : pour chacune, sa version, son état, sa date de marquage, sa description, le lien qui l’ouvre, et la marque de la référence.
+
+La comparaison de deux révisions ne se lit plus ici : elle se lit dans les grilles de planning, de devis et de reste à engager, depuis la commande **Comparer à la révision lue** de l’historique. Les structures de coûts de la révision lue se choisissent dans le bandeau des grilles, non sur cet écran.
 
 ## Ses commandes
 
-Chaque section est une carte. En tête de l’écran, les commandes de la révision lue, chacune disponible ou nommant la condition qui lui manque ; **Ouvrir une révision en cours**, la seule commande pleine, est à droite du titre de la carte de l’historique :
+En tête de l’écran, les commandes de la révision lue, chacune disponible ou nommant la condition qui lui manque ; **Ouvrir une révision en cours**, la seule commande pleine, est à droite du titre de la carte de l’historique :
 
 - **Ouvrir une révision en cours** crée la révision en cours d’élaboration, copie de la dernière révision marquée. Indisponible quand le projet en a déjà une (« aucune révision en cours d’élaboration ») ou qu’il est clos.
 - **Marquer la révision** demande un nom de version, obligatoire, et une description ; le marquage, confié au traitement de fond, fige la révision et conserve ses indicateurs. Indisponible sur une révision déjà marquée (« révision en cours d’élaboration ») ou pendant un traitement de fond.
@@ -27,18 +25,17 @@ Chaque section est une carte. En tête de l’écran, les commandes de la révis
 Dans les sections :
 
 - **Ouvrir**, dans l’historique, ouvre la révision : les écrans du projet la lisent alors.
-- **Désigner comme référence**, sur une révision marquée, après confirmation : elle fixe le budget de référence et la valeur planifiée ; le projet qui porte son code projet passe à l’état En cours. Indisponible sur une révision qui ne porte aucune tâche ou aucune ligne de devis, et quand la référence ne se corrige plus — le projet a reçu un coût réel, ou une révision a été marquée depuis la dernière désignation.
-- **Comparer**, entre deux révisions marquées choisies par **De la révision** et **À la révision** : la grille des nœuds comparés marque chaque tâche et chaque ligne ajoutée (**+**), retirée (**-**) ou modifiée (**M**), et les écarts de montants suivent. Il faut deux révisions marquées.
-- **Appliquer la mise à jour des taux**, pour les catégories retenues, après confirmation : les taux de la révision en cours sont remplacés par les taux proposés, et ses montants rechiffrés. Une proposition, jamais imposée ; offerte là où la révision se saisit au devis.
+- **Désigner comme référence**, commande de chaque révision marquée de l’historique, après confirmation : elle fixe le budget de référence et la valeur planifiée ; le projet qui porte son code projet passe à l’état En cours. Indisponible sur une révision qui ne porte aucune tâche ou aucune ligne de devis, et quand la référence ne se corrige plus — le projet a reçu un coût réel, ou une révision a été marquée depuis la dernière désignation.
+- **Comparer à la révision lue**, commande de chaque révision marquée de l’historique, hors la révision lue : un menu des grilles de planning, de devis et de reste à engager que vous pouvez consulter, qui mène à la grille choisie, cette révision pour base de la comparaison.
+- **Appliquer la mise à jour des taux**, commande de la révision en cours, à droite du titre : elle ouvre la proposition, catégorie par catégorie, dans une fenêtre ; pour les catégories retenues, après confirmation, les taux de la révision en cours sont remplacés par les taux proposés, et ses montants rechiffrés. Une proposition, jamais imposée ; offerte là où la révision se saisit au devis.
 
 ## Ses colonnes et ses valeurs calculées
 
-L’historique et la comparaison se lisent tels que le serveur les rend : la comparaison nomme ce qui change de chaque nœud, l’ordre est celui du plan, et rien ne s’y trie. Les écarts de montants sont calculés par le serveur, par axe.
+L’historique se lit tel que le serveur le rend, dans son ordre.
 
 ## Les gestes au clavier
 
-- `Tab` parcourt les commandes, les liens de l’historique et les champs de la comparaison ; une commande indisponible reste atteignable, et sa condition se lit dans sa description.
-- La grille de la comparaison est un seul arrêt de tabulation, que les flèches parcourent.
+- `Tab` parcourt les commandes et les liens de l’historique ; une commande indisponible reste atteignable, et sa condition se lit dans sa description.
 - `F1` ouvre cette aide.
 
 ## Voir aussi

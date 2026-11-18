@@ -21,6 +21,8 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { readNodeTotals, setLineRemaining } from "@/api/actions/nodes";
 
 import { CompletionDate } from "./completion-date";
+import { withDifference } from "./compared";
+import { AmountDeltasCommand } from "./amount-deltas";
 import { DenseGrid } from "./dense-grid";
 import { OwnLinesOpen } from "./remaining-cells";
 import { nodeDependencies } from "./node-dependencies";
@@ -97,6 +99,12 @@ export interface RemainingGridProps {
   readonly subprojects?: readonly ChoiceOption[] | undefined;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
+  /**
+   * Whether the grid reads a comparison to a base: its rows then bear the mark of a difference, its
+   * cells that differ the value of the base, and the choice of the columns offers those of the
+   * differences (WF-IHM-0150).
+   */
+  readonly comparing?: boolean | undefined;
 }
 
 /**
@@ -150,6 +158,7 @@ export function RemainingGrid({
   subprojects,
   query,
   preferences,
+  comparing,
   treeFilters,
 }: RemainingGridProps) {
   const t = useTranslations("estimateGrid");
@@ -213,10 +222,11 @@ export function RemainingGrid({
     },
     [],
   );
-  const config = useMemo(
+  const read = useMemo(
     () => remainingGrid(editable ? structureWrites(structure, filters, reach, askDate) : undefined),
     [editable, structure, filters, reach, askDate],
   );
+  const config = useMemo(() => withDifference(read, undefined, comparing), [read, comparing]);
   const [first] = asking;
   return (
     <>
@@ -233,6 +243,7 @@ export function RemainingGrid({
         config={config}
         rows={nodes.items}
         totals={nodes.totals}
+        comparison={nodes.comparison}
         totalsCaption={(totals) =>
           t("totals", { tasks: totals.task_count, lines: totals.estimate_line_count })
         }
@@ -244,6 +255,11 @@ export function RemainingGrid({
         undoable={editable}
         commands={gestures}
         treeFilters={treeFilters}
+        ending={
+          nodes.comparison === undefined ? undefined : (
+            <AmountDeltasCommand deltas={nodes.comparison.amounts} />
+          )
+        }
         around={(rows, grid) => <OwnLinesOpen rows={rows}>{grid}</OwnLinesOpen>}
       />
     </>

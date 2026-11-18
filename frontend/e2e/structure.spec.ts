@@ -554,6 +554,56 @@ test("reads in the planning a task created in the estimate grid, automatic, of o
   ).toHaveAttribute("aria-level", "2", { timeout: WORKING });
 });
 
+// The converse of the carry-over above (#2590): the gestures are made in the planning grid, and the
+// structure is read in the estimate grid, which shows the same tasks at the same levels.
+test("reads in the estimate grid a task created in the planning grid and the group indented from it, the structure being shared @shared [WF-DEV-0050-A] [WF-PLA-0080-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(!inService, SERVICE_ONLY);
+  test.slow();
+  const seeded = await seedPlanning(page, browser, request, manager, "Report inverse");
+  await openHydrated(page, seeded.planning);
+  const planning = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(planning, { label: "Libellé" });
+
+  // A task created below the last one, from the menu of its cell.
+  await planning
+    .getByRole("row", { name: new RegExp(`^6 .*${SEEDED[6]}`) })
+    .getByRole("gridcell")
+    .nth(at.label)
+    .click({ button: "right" });
+  await page
+    .getByRole("menu", { name: "Menu de la cellule" })
+    .getByRole("menuitem", { name: "Insérer au-dessous" })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Insérer au-dessous" });
+  await dialog.getByRole("textbox", { name: "Libellé" }).fill("Tâche du planning");
+  await dialog.getByRole("button", { name: "Créer" }).click();
+  await saidAndRead(page, planning, "« Tâche du planning » créée.");
+
+  // Indented under « Mise en service » from the keys: the task becomes its subordinate.
+  await planning.getByRole("gridcell", { name: "7 — poignée de la ligne", exact: true }).click();
+  await page.keyboard.press("Alt+Shift+ArrowRight");
+  await saidAndRead(page, planning, "« Tâche du planning » indentée.");
+
+  // Read in the estimate grid: the same rows, the task created under the one that became its summary,
+  // and the tasks above it unmoved.
+  await openHydrated(page, `${seeded.revision}/estimate`);
+  const estimate = page.getByRole("treegrid", { name: "Grille de devis" });
+  const created = estimate.getByRole("row", { name: /^7 .*Tâche du planning/ });
+  await expect(created).toBeVisible({ timeout: WORKING });
+  await expect(created).toHaveAttribute("aria-level", "2");
+  await expect(
+    estimate.getByRole("row", { name: new RegExp(`^6 .*${SEEDED[6]}`) }),
+  ).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    estimate.getByRole("row", { name: new RegExp(`^5 .*${SEEDED[5]}`) }),
+  ).toHaveAttribute("aria-level", "1");
+});
+
 // WF-DEV-0020-A: a line of labour is created from a role, its category computed by the server, and a
 // line of expense from a category of expense — the labour and provision categories are not offered.
 test("creates from the estimate grid a line of labour by a role and a line of expense by a category, and reads them in the grid @shared [WF-DEV-0020-A]", async ({

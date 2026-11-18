@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { momentOf } from "./report";
+import { STEPS } from "./steps";
 import {
   type Conditions,
   type Measured,
@@ -86,8 +87,6 @@ describe("versionReport", () => {
     expect(unserved).toEqual([
       { id: "indicators", objective_s: 1, unserved: "EP-10" },
       { id: "portfolio-view", objective_s: 2, unserved: "EP-11" },
-      { id: "open-compared-grid", objective_s: 2, unserved: "EP-27" },
-      { id: "recompute-compared", objective_s: 2, unserved: "EP-27" },
     ]);
   });
 
@@ -110,11 +109,31 @@ describe("the steps of the browser", () => {
     const measured = new Set(Object.values(OPERATION_OF_STEP));
     expect([...measured].toSorted()).toEqual([
       "filter-sort-search",
+      "open-compared-grid",
       "open-grid",
       "recompute-after-entry",
+      "recompute-compared",
       "workload-or-projection",
     ]);
     expect(Object.keys(OPERATION_OF_STEP)).not.toContain("planning.label");
+  });
+
+  it("measure the grids compared to a marked revision: the four openings, and the entry until its marks are read anew [WF-QUA-0060-A]", () => {
+    const of = (operation: string) => STEPS.filter((step) => OPERATION_OF_STEP[step] === operation);
+    expect(of("open-compared-grid")).toEqual([
+      "planning.compared",
+      "estimate.compared-from-planning",
+      "remaining.compared-from-estimate",
+      "planning.compared-from-remaining",
+    ]);
+    expect(of("recompute-compared")).toEqual(["planning.compared-duration"]);
+  });
+
+  it("give every step of the journey an operation of table 15, but the label, which recomputes nothing [WF-QUA-0060-A]", () => {
+    const ids = new Set(TABLE.map(({ id }) => id));
+    for (const step of STEPS.filter((one) => one !== "planning.label")) {
+      expect(ids.has(OPERATION_OF_STEP[step] ?? "")).toBe(true);
+    }
   });
 });
 

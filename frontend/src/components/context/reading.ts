@@ -11,14 +11,19 @@
  * those filters alone (#302): the address carries `as_of` and `subproject_id` on to every screen
  * of the project, but a workload, a lifecycle, a list of imports read neither, and a chip would say
  * a figure filtered or dated that is not.
+ *
+ * A screen that reads in a revision reads the revisions of its project too, every page of them
+ * (`listRevisions`), which the banner offers to read instead (US-2330): once per request, beside the
+ * project and the revision, and shared with the screens that list them (`readRevisions`).
  */
 import "server-only";
 
 import { cache } from "react";
 
 import { Unreachable } from "@/api/client";
+import { readEveryPageUnlessRefused } from "@/api/every-page";
 import type { components } from "@/api/generated/schema";
-import { isGatewayFailure, reach, refusalOf } from "@/api/problem";
+import { type ExpectedRefusal, isGatewayFailure, reach, refusalOf } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import {
   type ContextParameter,
@@ -28,7 +33,10 @@ import {
   UNASSIGNED,
 } from "@/navigation/context";
 
+import { startReading } from "@/components/start-reading";
+
 import { availableEdits, type EditCommand, isReadOnly, type Revision } from "./read-only";
+import { type ListedRevision, listedRevision } from "./revision";
 
 /** A project, as the API reads it. */
 export type Project = components["schemas"]["Project"];
@@ -57,6 +65,11 @@ export interface ProjectReading {
   readonly project: Project;
   /** The revision the screen reads in; none on a function of the project without one. */
   readonly revision: Revision | undefined;
+  /**
+   * The revisions of the project, as the server lists them — the most recent first —, which the
+   * banner offers to read instead of the revision read; none without a revision.
+   */
+  readonly revisions?: readonly ListedRevision[] | undefined;
   /**
    * The commands of modification of the revision the caller may exercise now. A grid does not
    * read its entry from them but from the main structure it reads (`GridScreen.commands`), never
@@ -117,6 +130,24 @@ export const readRevision = cache(async (projectId: string, revisionId: string) 
   ),
 );
 
+/** The refusal of the revisions of a project the contract declares: not found, or not readable. */
+const REVISIONS_REFUSED = [{ status: 404 }] as const satisfies readonly ExpectedRefusal[];
+
+/**
+ * Read every revision of a project, once per request (`listRevisions`, every page), or `undefined`
+ * when the API refuses them (404): the banner offers them, and does without them — a session that may
+ * read a revision and not their list keeps its screen, without the choice —; the screens that list
+ * them — the page of the project, the revisions — read the same answer, and are not found without
+ * it.
+ */
+export const readRevisions = cache((projectId: string) =>
+  readEveryPageUnlessRefused("listRevisions", REVISIONS_REFUSED, (page) =>
+    serverClient().GET("/projects/{project_id}/revisions", {
+      params: { path: { project_id: projectId }, query: page },
+    }),
+  ),
+);
+
 /**
  * Ask the sub-projects of a project, once per request (`listSubprojects`): the banner names the
  * one a filter restricts to, and a screen that filters on them offers them — each reading the one
@@ -166,6 +197,20 @@ async function readFilters(
 }
 
 /**
+ * Start reading the revisions the banner offers, when the screen reads in a revision; none else. The
+ * read goes beside the others, and is awaited only once they found the project and the revision: a
+ * project not found is not found, whatever its revisions answered.
+ */
+function startRevisions(
+  projectId: string,
+  revisionId: string | undefined,
+): Promise<readonly ListedRevision[] | undefined> {
+  return revisionId === undefined
+    ? Promise.resolve(undefined)
+    : startReading(readRevisions(projectId).then((all) => all?.map(listedRevision)));
+}
+
+/**
  * Read what a screen of a project reads in — `reads` naming the parameters of the context its
  * reads take, whose filters alone the banner shows —, and say what the page is to do with it:
  *
@@ -187,6 +232,7 @@ export async function readProjectContext(
   reads: readonly ContextParameter[],
 ): Promise<ProjectReading | "not_found"> {
   const { projectId, revisionId } = context;
+  const listed = startRevisions(projectId, revisionId);
   const [project, revision, filters] = await Promise.all([
     readProject(projectId),
     revisionId === undefined ? undefined : readRevision(projectId, revisionId),
@@ -202,11 +248,13 @@ export async function readProjectContext(
     throw new Unreachable();
   }
   const read = revision?.data;
+  const revisions = await listed;
   return {
     pathname,
     context,
     project: project.data,
     revision: read,
+    revisions,
     edits: read === undefined ? new Set() : availableEdits(read),
     readOnly: read !== undefined && isReadOnly(read),
     filters,

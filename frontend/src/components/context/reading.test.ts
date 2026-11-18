@@ -46,9 +46,11 @@ const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 
 const ANSWERS: FakeAnswers = {
   "GET /projects/{project_id}": "project",
+  "GET /projects/{project_id}/revisions": "revisions",
   "GET /projects/{project_id}/revisions/{revision_id}": "revision",
   "GET /projects/{project_id}/subprojects": "subprojects",
 };
+const REVISIONS = "GET /projects/{project_id}/revisions";
 
 let fake: FakeClient;
 
@@ -231,5 +233,48 @@ describe("what a screen of a project reads in", () => {
     await Promise.all([read(REMAINING), readProject(PROJECT), read(LIFECYCLE)]);
     const projects = fake.calls.filter((call) => call.route === "GET /projects/{project_id}");
     expect(projects).toHaveLength(1);
+  });
+});
+
+describe("the revisions a screen offers to read instead", () => {
+  it("are every revision of the project, in the order of the server, read once for the request [WF-IHM-0020-A]", async () => {
+    // Depuis la même grille, il ouvre une autre révision du projet sans passer par l'historique:
+    // the banner offers them, read once however many screens ask (`listRevisions`, every page).
+    const [reading] = await Promise.all([read(REMAINING), read(`${REMAINING}?as_of=2026-05-31`)]);
+    expect(reading).toMatchObject({
+      revisions: [
+        { revision_id: REVISION, version_name: null, is_reference: false },
+        { version_name: "Référence", is_reference: true },
+        { version_name: "Offre v1.0", is_reference: false },
+      ],
+    });
+    // Nothing more of a revision than what the banner names crosses to the browser.
+    expect(typeof reading === "object" && Object.keys(reading.revisions?.[0] ?? {})).toEqual([
+      "revision_id",
+      "version_name",
+      "status",
+      "is_reference",
+    ]);
+    const listed = fake.calls.filter((call) => call.route === REVISIONS);
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.query.toString()).toBe("limit=500&offset=0");
+  });
+
+  it("are none on a function of the project that carries no revision, which reads none", async () => {
+    expect(await read(LIFECYCLE)).toMatchObject({ revisions: undefined });
+    expect(fake.calls.some((call) => call.route === REVISIONS)).toBe(false);
+  });
+
+  it("are none when the API refuses them, the screen kept", async () => {
+    request({ [REVISIONS]: NOT_FOUND });
+    expect(await read(REMAINING)).toMatchObject({
+      revision: { revision_id: REVISION },
+      revisions: undefined,
+    });
+  });
+
+  it("leave a project not found not found, whatever they answered", async () => {
+    request({ "GET /projects/{project_id}": NOT_FOUND, [REVISIONS]: NOT_FOUND });
+    expect(await read(REMAINING)).toBe("not_found");
   });
 });

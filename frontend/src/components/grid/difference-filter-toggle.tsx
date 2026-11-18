@@ -40,21 +40,46 @@ export function DifferenceFilterToggle({
   const { request } = usePendingAddress();
   const [shown, show] = useOptimistic(pressed);
   const [, startTransition] = useTransition();
-  const Icon = shown ? CircleCheck : Circle;
+  return (
+    <DifferencesButton
+      label={label}
+      help={help}
+      pressed={shown}
+      onPress={() => {
+        startTransition(() => {
+          show(!shown);
+          request((query) => differencesOnlyHref(pathname, query, !shown));
+        });
+      }}
+    />
+  );
+}
+
+/**
+ * The button « Écarts seulement » as it shows, whatever it does: the filter of a differential, or the
+ * folding of the rows without difference of a comparison (`folded-runs.tsx`, US-2360).
+ */
+export function DifferencesButton({
+  label,
+  help,
+  pressed,
+  onPress,
+}: {
+  readonly label: string;
+  readonly help: string;
+  readonly pressed: boolean;
+  readonly onPress: () => void;
+}) {
+  const Icon = pressed ? CircleCheck : Circle;
   return (
     <div className="flex min-w-24 shrink basis-36 items-center">
       <CommandTooltip label={label} help={help}>
         <Button
           size="sm"
-          variant={shown ? "default" : "outline"}
-          aria-pressed={shown}
+          variant={pressed ? "default" : "outline"}
+          aria-pressed={pressed}
           className="h-7 min-w-0 flex-1 gap-1 text-xs"
-          onClick={() => {
-            startTransition(() => {
-              show(!shown);
-              request((query) => differencesOnlyHref(pathname, query, !shown));
-            });
-          }}
+          onClick={onPress}
         >
           <Icon aria-hidden="true" className="size-3.5 shrink-0" />
           <span className="truncate">{label}</span>

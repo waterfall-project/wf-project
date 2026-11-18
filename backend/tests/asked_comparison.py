@@ -7,9 +7,10 @@ quality on its project each asks for besides.
 """
 
 # The permissions each operation asks for, in the order they are evaluated: two revisions are
-# compared under the permission to consult the estimate (US-1530).
+# compared under the permission to consult one of the three grids at least, which read the
+# comparison (US-2320; US-1530 asked for the estimate's alone).
 ASKED: dict[str, tuple[str, ...]] = {
-    "compareRevisions": ("estimate.read",),
+    "compareRevisions": ("planning.read", "estimate.read", "remaining.read"),
 }
 # The quality on its project each operation that names one asks for, evaluated by
 # ``RequiresProject``: ``consultation``, ``contributor`` or ``project_manager`` (WF-ADM-0110).

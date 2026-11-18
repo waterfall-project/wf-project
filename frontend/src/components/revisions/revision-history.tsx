@@ -7,8 +7,13 @@
  * revision it is a copy of, the inflation rate and the win probability it keeps — those of its
  * marking when it is marked (WF-REV-0070) —, and its description (WF-REV-0090). Its name shows it on the screen of the revisions — its commands, its structures,
  * its proposal of rates —, the one shown marked as current; a link opens it, its planning and its
- * estimate as they were (WF-REV-0070). Under it, the designation of the reference among the marked
- * revisions (`ReferenceDesignation`).
+ * estimate as they were (WF-REV-0070). Each marked revision that lists `designate_reference` offers
+ * the designation of the reference as a command of its row (WF-REV-0040, US-2370): available, or
+ * unavailable and naming in its tooltip the conditions it lacks — the refusal of a correction no
+ * longer permitted, of a revision without task or line of estimate (WF-CYC-0030). Each marked
+ * revision but the one read offers « Comparer à la révision lue » (US-2370): a menu of the grids of
+ * the planning, of the estimate and of the remaining to commit the user may read, which leads to the
+ * one chosen, the revision of the row as its base.
  */
 import { ArrowUpRight, GitBranch, Star } from "lucide-react";
 import Link from "next/link";
@@ -24,6 +29,16 @@ import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatPercent } from "@/i18n/format";
 import { contextQuery, type ProjectContext } from "@/navigation/context";
+import {
+  functionHref,
+  functionOf,
+  type NavigationFunction,
+  readableGroups,
+} from "@/navigation/functions";
+
+import { type ComparisonGrid, CompareCommand } from "./compare-command";
+
+type PermissionCode = components["schemas"]["PermissionCode"];
 
 /** What names a revision: its version name, and its status when it has none. */
 export type NamedRevision = Pick<
@@ -31,10 +46,11 @@ export type NamedRevision = Pick<
   "revision_id" | "version_name" | "status"
 >;
 
-/** A revision of the history. */
+/** A revision of the history, with the commands it lists. */
 export type HistoryRevision = NamedRevision &
   Pick<
     components["schemas"]["Revision"],
+    | "available_commands"
     | "is_reference"
     | "marked_at"
     | "reference_year"
@@ -63,6 +79,10 @@ export interface RevisionHistoryProps {
   readonly revisions: readonly HistoryRevision[];
   /** The context of the screen: the revision it shows, and the filters its links carry on. */
   readonly context: ProjectContext;
+  /** The counter of the project as the page read it, which the designation of the reference carries. */
+  readonly projectLockVersion: number;
+  /** The permissions of the session, which the grids « Comparer à la révision lue » offers follow. */
+  readonly permissions: readonly PermissionCode[];
   /**
    * The opening of the current revision, as the project lists it, which the card offers as its
    * principal command; none, and the card offers none (the caller may not exercise it).
@@ -95,13 +115,40 @@ function revisionLinks(context: ProjectContext, revisionId: string) {
   };
 }
 
+/** The grids that compare, in the order of the FBS: the planning, the estimate, the remaining. */
+const COMPARING = ["planning", "estimate", "remaining"] as const;
+
+/**
+ * The grids a session may read that compare, each at the address of the revision read with a
+ * revision as its base (US-2330); none when no revision is read, which no grid can be opened in.
+ */
+function comparisonGrids(
+  context: ProjectContext,
+  base: string,
+  permissions: readonly PermissionCode[],
+  name: (label: NavigationFunction["label"]) => string,
+): ComparisonGrid[] {
+  const readable = new Set(
+    readableGroups(permissions).flatMap((group) => group.functions.map((fn) => fn.permission)),
+  );
+  return COMPARING.filter((permission) => readable.has(permission)).flatMap((permission) => {
+    const fn = functionOf(permission);
+    const href = functionHref(fn, { ...context, base });
+    return href === undefined ? [] : [{ key: permission, label: name(fn.label), href }];
+  });
+}
+
 /** A row of the history. */
 function HistoryRow({
   revision,
   context,
+  projectLockVersion,
+  permissions,
 }: {
   readonly revision: HistoryRevision;
   readonly context: ProjectContext;
+  readonly projectLockVersion: number;
+  readonly permissions: readonly PermissionCode[];
 }) {
   const t = useTranslations("revisionScreen.history");
   const status = useTranslations("enums.RevisionStatus");
@@ -109,6 +156,13 @@ function HistoryRow({
   const name = useRevisionName()(revision);
   const links = revisionLinks(context, revision.revision_id);
   const current = revision.revision_id === context.revisionId;
+  const designation = findOffer(revision.available_commands, "designate_reference");
+  const global = useTranslations();
+  // A marked revision other than the one read, which a grid the user may read can be compared to.
+  const grids =
+    revision.status === "marked" && !current
+      ? comparisonGrids(context, revision.revision_id, permissions, (label) => global(label))
+      : [];
   return (
     <TableRow>
       <TableCell className={CELL}>
@@ -154,67 +208,39 @@ function HistoryRow({
           {t("open")}
         </Link>
       </TableCell>
+      <TableCell className={`${CELL} whitespace-normal`}>
+        {grids.length === 0 ? null : (
+          <CompareCommand
+            label={t("compare")}
+            name={t("compareRevision", { name })}
+            grids={grids}
+          />
+        )}
+        {revision.status === "marked" && designation !== undefined ? (
+          <DesignateCommand
+            offer={designation}
+            revision={{
+              projectId: context.projectId,
+              revisionId: revision.revision_id,
+              name,
+            }}
+            projectLockVersion={projectLockVersion}
+            names={{ [revision.revision_id]: name }}
+          />
+        ) : null}
+      </TableCell>
     </TableRow>
   );
 }
 
-/** A revision of the history with the commands it lists. */
-export type DesignatedRevision = HistoryRevision &
-  Pick<components["schemas"]["Revision"], "available_commands">;
-
-/**
- * The designation of the reference (WF-REV-0040): on each marked revision that lists
- * `designate_reference`, the command, available or naming what it lacks — the refusal of a
- * correction no longer permitted, of a revision without task or line of estimate (WF-CYC-0030).
- * Nothing when no marked revision lists it, the caller not being allowed it.
- */
-export function ReferenceDesignation({
-  revisions,
-  projectId,
-  projectLockVersion,
-}: {
-  readonly revisions: readonly DesignatedRevision[];
-  readonly projectId: string;
-  /** The counter of the project as the page read it, which the designation carries. */
-  readonly projectLockVersion: number;
-}) {
-  const t = useTranslations("revisionScreen.designation");
-  const name = useRevisionName();
-  const designable = revisions.flatMap((revision) => {
-    const offer = findOffer(revision.available_commands, "designate_reference");
-    return revision.status === "marked" && offer !== undefined ? [{ revision, offer }] : [];
-  });
-  if (designable.length === 0) {
-    return null;
-  }
-  return (
-    <ListCard title={t("title")} icon={Star} empty={undefined}>
-      <ul className="space-y-2">
-        {designable.map(({ revision, offer }) => {
-          const named = name(revision);
-          return (
-            <li
-              key={revision.revision_id}
-              aria-label={named}
-              className="flex flex-wrap items-start gap-3 text-sm"
-            >
-              <span className="py-1">{named}</span>
-              <DesignateCommand
-                offer={offer}
-                revision={{ projectId, revisionId: revision.revision_id, name: named }}
-                projectLockVersion={projectLockVersion}
-                names={{ [revision.revision_id]: named }}
-              />
-            </li>
-          );
-        })}
-      </ul>
-    </ListCard>
-  );
-}
-
 /** Render the history of the revisions of a project, or that it has none. */
-export function RevisionHistory({ revisions, context, creation }: RevisionHistoryProps) {
+export function RevisionHistory({
+  revisions,
+  context,
+  projectLockVersion,
+  permissions,
+  creation,
+}: RevisionHistoryProps) {
   const t = useTranslations("revisionScreen.history");
   return (
     <ListCard
@@ -249,10 +275,17 @@ export function RevisionHistory({ revisions, context, creation }: RevisionHistor
           t("winProbability"),
           t("description"),
           t("consult"),
+          t("commands"),
         ]}
       >
         {revisions.map((revision) => (
-          <HistoryRow key={revision.revision_id} revision={revision} context={context} />
+          <HistoryRow
+            key={revision.revision_id}
+            revision={revision}
+            context={context}
+            projectLockVersion={projectLockVersion}
+            permissions={permissions}
+          />
         ))}
       </ListTable>
     </ListCard>

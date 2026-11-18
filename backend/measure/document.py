@@ -24,7 +24,7 @@ from measure.figures import ratio, summarise
 from measure.report import Measure
 from measure.target import MeasureError
 from waterfall.api.comparison import comparison_body, kept_comparison
-from waterfall.api.nodes import kept_body, nodes_body, read_body, whole_nodes
+from waterfall.api.nodes import kept_body, node_body, nodes_body, read_body, whole_nodes
 from waterfall.core.estimate.interface import ComparisonAsked, compare_revisions
 from waterfall.core.planning.interface import NodeFilters, Place, list_records
 from waterfall.core.planning.tables import StructureReading
@@ -266,7 +266,7 @@ def measure_comparison(database: Database, target: Target, runs: int) -> tuple[M
         try:
 
             def rows() -> bytes:
-                found = compare_revisions(session, project_id, asked)
+                found = compare_revisions(session, project_id, asked, node_body)
                 return bytes(read_body(comparison_body(found, None)).body)
 
             def kept() -> bytes | None:

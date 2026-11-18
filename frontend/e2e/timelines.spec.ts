@@ -137,8 +137,8 @@ test("offers the time/time tracking of a milestone beside its timelines, checked
 // commissioning, which overlap nowhere, in the first lane; the two receptions, milestones, across.
 // The fake back keeps no preference: it plays neither the lanes nor their reading again, the
 // journey proves against the service the moves on the screen, the lanes recorded and read again
-// after a reload. A move refused for an overlap is proven by `timeline-chart.dom.test.tsx`: no timeline of
-// the witness holds two rectangles that overlap.
+// after a reload. A move refused for an overlap is proven by `timeline-chart.dom.test.tsx`: no
+// timeline of the witness holds two rectangles that overlap.
 const ON_FAKE_BACK =
   "the fake back draws every node (#463) and keeps no preference: it plays neither the lanes nor their reading again";
 const MOVED = "01926f3a-7c00-7000-8000-000000000565";
@@ -170,45 +170,65 @@ test("lays out the frieze of a timeline by the keyboard and the mouse, and recor
     page.getByRole("img", { name: "Réception des études, jalon le 24/04/2026" }),
   ).toBeAttached();
 
+  // The mouse: the rectangle dragged a lane up, back beside the studies; its answer is awaited, so
+  // that the record is made before the next test reads it.
+  const dragUp = async () => {
+    const restored = page.waitForResponse((response) => isLanes(response.request()));
+    const box = await commissioning(2).boundingBox();
+    expect(box).not.toBeNull();
+    const x = (box?.x ?? 0) + Math.min((box?.width ?? 0) / 2, 8);
+    const y = (box?.y ?? 0) + (box?.height ?? 0) / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x, y - 32, { steps: 4 });
+    await page.mouse.up();
+    expect((await restored).ok()).toBe(true);
+  };
+
   // The keyboard: the last rectangle, a lane down — the lanes shown recorded after a pause.
   const isLanes = (request: Request) =>
     isServerAction(request) && (request.postData() ?? "").includes("lanes");
   const recorded = page.waitForResponse((response) => isLanes(response.request()));
+  // Awaited or not, a wait left pending when the journey fails first must not end as an unhandled
+  // rejection: the first error is the one reported.
+  recorded.catch(() => undefined);
   await frieze.focus();
   await page.keyboard.press("End");
-  await page.keyboard.press("Alt+ArrowDown");
-  await expect(commissioning(2)).toBeVisible();
-  const said = page.getByRole("status").filter({ hasText: "Mise en service" });
-  await expect(said).toHaveText("« Mise en service » est dans le couloir 2.");
-  // The PATCH is deferred after a pause: its answer is awaited before the page is read again.
-  const answer = await recorded;
-  expect(answer.request().postData() ?? "").toContain(`"${MOVED}":1`);
-  expect(answer.ok()).toBe(true);
-  // Alone in the last lane, it goes no lower: said, and nothing moves.
-  await page.keyboard.press("Alt+ArrowDown");
-  await expect(said).toHaveText("« Mise en service » est seule dans le dernier couloir.");
-  await expect(commissioning(2)).toBeVisible();
+  try {
+    await page.keyboard.press("Alt+ArrowDown");
+    await expect(commissioning(2)).toBeVisible();
+    const said = page.getByRole("status").filter({ hasText: "Mise en service" });
+    await expect(said).toHaveText("« Mise en service » est dans le couloir 2.");
+    // The PATCH is deferred after a pause: its answer is awaited before the page is read again.
+    const answer = await recorded;
+    expect(answer.request().postData() ?? "").toContain(`"${MOVED}":1`);
+    expect(answer.ok()).toBe(true);
+    // Alone in the last lane, it goes no lower: said, and nothing moves.
+    await page.keyboard.press("Alt+ArrowDown");
+    await expect(said).toHaveText("« Mise en service » est seule dans le dernier couloir.");
+    await expect(commissioning(2)).toBeVisible();
 
-  // The lanes are found again from one session to the next: read again after a reload.
-  await page.reload();
-  await openHydrated(page, `${IN_REVISION}/timelines`);
-  await expect(frieze).toBeVisible({ timeout: WORKING });
-  await expect(commissioning(2)).toBeVisible({ timeout: WORKING });
+    // The lanes are found again from one session to the next: read again on a page opened anew.
+    await openHydrated(page, `${IN_REVISION}/timelines`);
+    await expect(frieze).toBeVisible({ timeout: WORKING });
+    await expect(commissioning(2)).toBeVisible({ timeout: WORKING });
 
-  // The mouse: dragged a lane up, back beside the studies.
-  const restored = page.waitForResponse((response) => isLanes(response.request()));
-  const box = await commissioning(2).boundingBox();
-  expect(box).not.toBeNull();
-  const x = (box?.x ?? 0) + Math.min((box?.width ?? 0) / 2, 8);
-  const y = (box?.y ?? 0) + (box?.height ?? 0) / 2;
-  await page.mouse.move(x, y);
-  await page.mouse.down();
-  await page.mouse.move(x, y - 32, { steps: 4 });
-  await page.mouse.up();
-  await expect(commissioning(1)).toBeVisible();
-  await expect(said).toHaveText("« Mise en service » est dans le couloir 1.");
-  // Left as it was found, for the next test: the answer of the last record is awaited.
-  expect((await restored).ok()).toBe(true);
+    await dragUp();
+    await expect(commissioning(1)).toBeVisible();
+    await expect(said).toHaveText("« Mise en service » est dans le couloir 1.");
+  } finally {
+    // Left as it was found whatever happened, for the next test: a rectangle still in the second
+    // lane is dragged back.
+    // The clean-up never replaces the error of the journey: a page closed by a timeout makes it
+    // throw too, and that second error is dropped.
+    try {
+      if (await commissioning(2).isVisible()) {
+        await dragUp();
+      }
+    } catch {
+      // The page is gone or the gesture failed: the error of the journey stands.
+    }
+  }
 });
 
 test("keeps the rectangle the keyboard reaches in view on a zoomed axis, and cuts a name the rectangle cannot hold @shared [WF-IHM-0100-A]", async ({
@@ -391,7 +411,10 @@ test("shows two timelines of a project with distinct selections, found again by 
   // back keeps no session, and the visits above are what it plays.
   if (inService) {
     if (manager === undefined) {
-      throw new Error("the run on the service names no manager account to sign in anew");
+      throw new Error(
+        "the run on the service names no manager account to sign in anew: the `manager` fixture of " +
+          "`e2e/mode.ts` makes it, and is empty unless WATERFALL_API_ADDRESS is set, as `make e2e-service` does",
+      );
     }
     const context = await browser.newContext();
     try {

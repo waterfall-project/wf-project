@@ -21,8 +21,6 @@ import { FolderOpen } from "lucide-react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { readEveryPage } from "@/api/every-page";
-import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { readRevision } from "@/components/context/reading";
 import { ImportPart } from "@/components/exchanges/import-part";
@@ -46,6 +44,7 @@ import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../title";
 import {
+  listProjectRevisions,
   type ProjectPageProps,
   type ProjectParams,
   projectAddress,
@@ -105,11 +104,8 @@ function withImport(address: string, shown: Awaited<ReturnType<typeof readShownI
 export default async function ProjectPage(props: ProjectPageProps) {
   const [address, search] = await Promise.all([projectAddress(props), props.searchParams]);
   const [revisions, read, session, shown] = await Promise.all([
-    readEveryPage("listRevisions", (page) =>
-      serverClient().GET("/projects/{project_id}/revisions", {
-        params: { path: { project_id: address.projectId }, query: page },
-      }),
-    ),
+    // The same read as the banner's, once per request.
+    listProjectRevisions(address.projectId),
     readProjectScreen(address),
     requestSession(),
     readShownImport(address.projectId, pageSearch(search)),

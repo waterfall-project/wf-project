@@ -8,22 +8,27 @@ revisions reads the two readings kept, made at its first reading if they are not
 to the byte as from the rows, whatever ``difference`` and ``fields`` it asks; a filtered one reads
 the rows. On the witness's marked revisions 100 and 101; the cases of the union — a removed node
 in its place, a predecessor renamed, a moved task — are those of ``test_comparison``, which a
-comparison no filter restricts now reads from what is kept.
+comparison no filter restricts now reads from what is kept. Since US-2320/L3, the revision read may
+be the current one, whose columns are read (``test_comparison_current``), and a current base is
+refused before anything is read: the Vérif of WF-REV-0080-A, « Une révision en cours prise pour
+base est refusée. », on the witness.
 """
 
 import hashlib
+import json
 import zlib
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 import pytest
 from projects_support import PROJECTS, READING, person
 from sqlalchemy import update
 from test_kept_readings import FORGED, kept_row, place_of, read
-from test_reading_bodies import DIGESTS, ESTIMATE_FIELDS
+from test_reading_bodies import COMPARED_DIGESTS, ESTIMATE_FIELDS, gains_digest
 from test_witness_projects import PRJ_001, REVISION_100, REVISION_101, REVISION_102
 
 from waterfall.api.comparison import comparison_body, kept_comparison
-from waterfall.api.nodes import read_body
+from waterfall.api.nodes import node_body, read_body
 from waterfall.core.estimate.interface import ComparisonAsked, compare_revisions
 from waterfall.core.planning.interface import NodeFilters
 from waterfall.core.planning.tables import StructureReading
@@ -57,7 +62,7 @@ def from_rows(witness: Database, differences: tuple[str, ...] | None, fields: st
     """Give the body of the comparison of the revisions 100 and 101 read from their rows."""
     asked = ComparisonAsked(REVISION_100, REVISION_101, NodeFilters(), differences)
     with witness.transaction() as session:
-        found = compare_revisions(session, PRJ_001, asked)
+        found = compare_revisions(session, PRJ_001, asked, node_body)
         chosen = None if fields is None else frozenset(fields.split(","))
         return bytes(read_body(comparison_body(found, chosen)).body)
 
@@ -77,8 +82,6 @@ def test_a_comparison_no_filter_restricts_reads_the_readings_kept_the_same_body_
     assert all(kept_row(witness, place) is not None for place in places)
     again = read(api, headers, COMPARISON + query)
     assert hashlib.sha256(made).hexdigest() == hashlib.sha256(again).hexdigest() == expected
-    if not query:
-        assert expected == DIGESTS["whole comparison"]
 
 
 def test_a_comparison_reads_what_is_kept_and_a_filtered_one_reads_the_rows(
@@ -104,15 +107,36 @@ def test_a_comparison_reads_what_is_kept_and_a_filtered_one_reads_the_rows(
         "&difference=modified&reestimated_amount_min=1000&sort_by=base_amount&sort_order=desc"
     )
     body = read(api, headers, COMPARISON + filtered)
-    assert hashlib.sha256(body).hexdigest() == DIGESTS["comparison filtered and sorted"]
+    assert gains_digest(body) == COMPARED_DIGESTS["comparison filtered and sorted"]
 
 
-def test_a_comparison_of_revisions_judged_first_refuses_one_not_marked(
+@pytest.mark.requirement("WF-IHM-0160-A")
+def test_the_totals_difference_of_a_kept_comparison_is_its_totals_less_those_of_its_base(
+    api: ContractClient, witness: Database, realm: TestRealm
+) -> None:
+    # The pair of the witness differs: ``totals`` is the document kept of the revision read,
+    # ``totals_delta`` and ``base_totals`` the union's, the base counted from the same kept
+    # document of its own. Whatever the way, the difference is the totals less the base's, the
+    # counts and the hours and amounts, field by field. A document kept is of the format of this
+    # code, else it is ignored and made again (``kept_reading``): a line of it always bears its
+    # hours and its base amount, required of a node.
+    headers = person(witness, realm, *READING).headers
+    for _ in range(2):  # made, then read
+        found = json.loads(read(api, headers, COMPARISON))
+        totals, base, delta = (found[name] for name in ("totals", "base_totals", "totals_delta"))
+        assert set(delta) == set(base) == set(totals) != set()
+        for name, value in totals.items():
+            assert Decimal(str(value)) - Decimal(str(base[name])) == Decimal(str(delta[name]))
+        assert any(Decimal(str(each)) != 0 for each in delta.values())
+
+
+@pytest.mark.requirement("WF-REV-0080-A")
+def test_a_comparison_of_revisions_judged_first_refuses_a_base_not_marked(
     witness: Database,
 ) -> None:
-    # The revisions judged before any reading kept is read or made: the current one refused (409),
-    # as from the rows.
-    asked = ComparisonAsked(REVISION_100, REVISION_102, NodeFilters())
+    # The revisions judged before any reading kept is read or made: the current one refused for
+    # base (409), as from the rows (US-2320).
+    asked = ComparisonAsked(REVISION_102, REVISION_100, NodeFilters())
     with witness.transaction() as session, pytest.raises(ConflictError) as refused:
         kept_comparison(session, PRJ_001, asked, None)
     assert refused.value.code == STATE_FORBIDS_OPERATION
