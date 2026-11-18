@@ -69,6 +69,7 @@ from waterfall.core.projects.tables import (
 )
 from waterfall.core.resource_settings.tables import Calendar, DurationUnit, OrgNode, ResourceRole
 from waterfall.core.revisions.tables import CostStructure, Revision
+from waterfall.core.risks.tables import Risk, RiskEvaluation, RiskReferenceShare, RiskReview
 from waterfall.core.users.tables import IdentitySyncReport, UserAccount
 from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
 from waterfall.platform.audit import AuditEntry
@@ -285,6 +286,10 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         CostLine.__tablename__,
         CostImport.__tablename__,
         RevisionIndicator.__tablename__,
+        Risk.__tablename__,
+        RiskEvaluation.__tablename__,
+        RiskReview.__tablename__,
+        RiskReferenceShare.__tablename__,
     }
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
@@ -428,6 +433,15 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     # The indicators (EP-10): a document written once, by the marking of its revision, and never
     # changed nor deleted, its revision marked for good (migration 0032).
     "revision_indicator": {"SELECT", "INSERT"},
+    # The risks (EP-08, migration 0035): a risk declared, changed and deleted, with no evaluation
+    # left after an abandonment; its evaluation in a revision written, changed, copied and deleted
+    # with its revision; a review written, never changed, taken away by an abandonment or an
+    # undoing; a share written when a revision becomes the reference, deleted when a designation
+    # is corrected.
+    "risk": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "risk_evaluation": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "risk_review": {"SELECT", "INSERT", "DELETE"},
+    "risk_reference_share": {"SELECT", "INSERT", "DELETE"},
 }
 
 
@@ -509,15 +523,18 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
         ("revision_rate_refuse_marked_change", False, own),
         ("revision_refuse_marked_change", False, own),
         ("revision_role_refuse_marked_change", False, own),
+        ("risk_evaluation_refuse_marked_change", False, own),
+        ("risk_review_refuse_marked_change", False, own),
         ("task_link_refuse_marked_change", False, own),
         ("task_refuse_marked_change", False, own),
     ]
 
 
-# The revised tables of the revisions and the planning (EP-04, EP-06), of the estimate (EP-07),
-# and of the indicators (EP-10).
+# The revised tables of the revisions and the planning (EP-04, EP-06), of the estimate (EP-07), of
+# the indicators (EP-10) and of the risks (EP-08).
 PLANNING_REVISED = ("cost_structure", "node", "structure_reading", "task", "task_link")
 INDICATORS_REVISED = ("revision_indicator",)
+RISKS_REVISED = ("risk_evaluation", "risk_review", "risk_reference_share")
 ESTIMATE_REVISED = (
     "estimate_line",
     "revision_rate",
@@ -553,7 +570,9 @@ def test_the_function_called_by_the_owner_creates_the_partition_of_the_project_a
             (parent, name, values, truncate) for parent, name, _, values, _, truncate in partitions
         ] == [
             (table, f"{table}_p_{project_id.hex}", bound, [f"{table}_refuse_truncate"])
-            for table in sorted((*PLANNING_REVISED, *ESTIMATE_REVISED, *INDICATORS_REVISED))
+            for table in sorted(
+                (*PLANNING_REVISED, *ESTIMATE_REVISED, *INDICATORS_REVISED, *RISKS_REVISED)
+            )
         ]
         assert partition_of(project_id) == f"cost_structure_p_{project_id.hex}"
         assert all(row[2] == row[4] for row in partitions)

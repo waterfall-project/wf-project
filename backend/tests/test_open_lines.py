@@ -16,12 +16,12 @@ is checked against the contract.
 from annotationlib import Format, get_annotations
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any, Literal, TypeAliasType, get_args, get_origin
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from estimate_support import Costing, Lines, costing
 from history_support import delete, redone, undone
-from nodes_support import Tree, entries, faults, refusal, signed_in
+from nodes_support import Tree, entries, faults, put_risk, refusal, signed_in
 from planning_support import DAY
 from projects_support import Scene
 from projects_support import scene as make_scene
@@ -301,6 +301,28 @@ def test_a_summary_whose_only_own_line_is_a_provision_is_completed_and_not_signa
     [hazards] = moved(tree, "Essai", "completed", TUESDAY)["ancestors"]
     assert state(hazards) == ("completed", DAY.isoformat(), TUESDAY.isoformat(), False)
     assert line_named(tree, "Provision")["estimate_line"]["reestimated_amount"] == "40.00"
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_a_summary_whose_own_line_came_from_a_risk_is_held_open_by_it(review: Review) -> None:
+    # A line an occurrence merged is work, not a provision (EP-08, "Ce qui reconnaît une ligne de
+    # provision", US-2550/L1): the estimate tells a provision by its category, the planning no
+    # longer by the risk the line came from. The steering line of the phase came from a risk; its
+    # 500 hold the phase open once its study is done, signalled, as a line of no risk does — in the
+    # ancestors the completion gives back, at the reading of the whole structure and of its tasks
+    # alone, and on the card of the Kanban.
+    tree = review.tree
+    put_risk(tree.stage, line_named(tree, "Pilotage")["node_id"], uuid4())
+    moved(tree, "Étude", "started", DAY)
+    [phase] = moved(tree, "Étude", "completed", TUESDAY)["ancestors"]
+    assert state(phase) == ("started", DAY.isoformat(), None, True)
+    assert state(task_named(tree, "Phase")) == ("started", DAY.isoformat(), None, True)
+    alone = {each["task"]["label"]: each for each in tree.items("?kinds=task")}
+    assert state(alone["Phase"]) == ("started", DAY.isoformat(), None, True)
+    assert card(tree, "Phase", bears_lines=True) == [
+        ("complete", "completed", ["task_without_lines"]),
+        ("enter_remaining", None, []),
+    ]
 
 
 @pytest.mark.requirement("WF-PLA-0040-A")

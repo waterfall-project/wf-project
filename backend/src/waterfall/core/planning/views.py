@@ -344,7 +344,7 @@ def own_lines[N: NodeColumns, T: TaskColumns](
     that bears no line besides the provisions has none.
     """
     task = tree.tasks[node_id]
-    lines = any(tree.nodes[each].origin_risk_id is None for each in tree.lines(node_id))
+    lines = bool(tree.own_lines(node_id))
     closed = task.completed_on if lines and task.progress == COMPLETED else None
     return node_id in tree.held, closed
 

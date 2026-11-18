@@ -6,8 +6,9 @@ A reading of the tasks alone — the planning, ``listNodes`` with ``kinds=task``
 lines: it asks, by task, what they count (``FacetHooks.tally``; EP-26, "L'agrégat d'abord"). One
 statement, grouped by task, over the nodes of the structure the planning names: their figures
 summed as ``totals_of`` reads each — the budgeted amount as ``budgeted_of`` reads it —, their
-number, whether one is not a risk's, the categories of the own lines that keep a remaining to
-commit, which hold the task open unless a provision (``open_tasks``, WF-PLA-0040), the roles of
+number, whether one is not a provision — by its category, a line an occurrence merged being work
+(EP-08, "Ce qui reconnaît une ligne de provision") —, whether an own line keeps a
+remaining to commit, which holds the task open (``open_tasks``, WF-PLA-0040), the roles of
 the lines, whose calendars the task's follows (``line_calendars``, WF-PLA-0010), and the budgeted
 amounts of the lines not of a provision, which the physical progress of a summary weighs
 (``Tally.earnable``, WF-IND-0060; US-1680): the categories of the provision kind are read first,
@@ -61,10 +62,10 @@ def line_tallies(session: Session, project_id: UUID, nodes: Subquery) -> dict[UU
     """Give, by task, what the lines it bears count, from the nodes named, in one statement.
 
     ``nodes`` the lines of a structure, as the planning names them: ``node_id``, the ``task_id``
-    bearing each, whether it is ``from_risk``.
+    bearing each. A line is own when its category is not of the provision kind.
     """
-    own = nodes.c.from_risk.is_(False)
     provisions = categories_of_kind(session, PROVISION)
+    own = EstimateLine.cost_category_id.not_in(list(provisions))
     budgeted = func.coalesce(EstimateLine.budgeted_amount, EstimateLine.reestimated_amount)
     rows = session.execute(
         select(
@@ -75,16 +76,11 @@ def line_tallies(session: Session, project_id: UUID, nodes: Subquery) -> dict[UU
             func.coalesce(func.sum(EstimateLine.base_amount), NOUGHT),
             func.coalesce(func.sum(budgeted), NOUGHT),
             func.coalesce(func.sum(EstimateLine.reestimated_amount), NOUGHT),
-            func.array_agg(distinct(EstimateLine.cost_category_id)).filter(
-                own, EstimateLine.reestimated_amount != 0
-            ),
+            func.bool_or(and_(own, EstimateLine.reestimated_amount != 0)),
             func.array_agg(distinct(EstimateLine.resource_role_id)).filter(
                 EstimateLine.resource_role_id.is_not(None)
             ),
-            func.coalesce(
-                func.sum(budgeted).filter(EstimateLine.cost_category_id.not_in(list(provisions))),
-                NOUGHT,
-            ),
+            func.coalesce(func.sum(budgeted).filter(own), NOUGHT),
         )
         .select_from(
             nodes.outerjoin(
@@ -107,7 +103,7 @@ def line_tallies(session: Session, project_id: UUID, nodes: Subquery) -> dict[UU
             Amounts(Decimal(0) if hours is None else hours, base, summed, reestimated),
             count,
             bool(owned),
-            any(each not in provisions for each in held or ()),
+            bool(held),
             frozenset(
                 calendars[role] for role in roles or () if role is not None and role in calendars
             ),

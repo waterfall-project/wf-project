@@ -162,3 +162,46 @@ def test_the_permissions_of_the_installation_arrive_by_a_migration_to_whoever_ad
     # And up again: the catalogue and the grants of the first rise (0029, the head, 0029, the head).
     upgrade(empty_engine)
     assert catalogue_and_grants(empty_engine) == (catalogue, grants)
+
+
+@pytest.mark.requirement("WF-DAT-0050-A")
+def test_the_projects_that_exist_receive_their_partitions_of_the_risks(
+    empty_engine: Engine,
+) -> None:
+    # US-2550/L1: 0035 gives a project that exists its partitions of the three revised tables of
+    # the risks, and to its structures and its nodes the column, the checks, the keys and the
+    # indexes it adds, as the function gives them to a project created after it; its main structure
+    # stays valid, without a risk. The descent drops them again, and the column with them.
+    upgrade(empty_engine, "0034")
+    existing, created, revision_id, structure_id = uuid4(), uuid4(), uuid4(), uuid4()
+    with empty_engine.begin() as connection:
+        connection.execute(insert_project(id=existing))
+        connection.execute(select(func.create_project_partitions(existing)))
+        connection.execute(insert_revision(existing, id=revision_id))
+        connection.execute(insert_structure(existing, revision_id, id=structure_id))
+    upgrade(empty_engine, "0035")
+    with empty_engine.begin() as connection:
+        connection.execute(insert_project(id=created))
+        connection.execute(select(func.create_project_partitions(created)))
+    found = text("SELECT to_regclass(:name)")
+    partitions = [
+        f"{table}_p_{existing.hex}"
+        for table in ("risk_evaluation", "risk_review", "risk_reference_share")
+    ]
+    risk = text("SELECT kind, risk_id FROM cost_structure WHERE id = :id")
+    with empty_engine.connect() as connection:
+        assert partition_parts(connection, existing) == partition_parts(connection, created)
+        assert all(connection.scalar(found, {"name": each}) for each in partitions)
+        assert tuple(connection.execute(risk, {"id": structure_id}).one()) == ("main", None)
+    for truncated in ("risk_evaluation", partitions[1]):
+        with pytest.raises(DBAPIError, match="never truncated"), empty_engine.begin() as connection:
+            connection.execute(text(f'TRUNCATE TABLE "{truncated}" CASCADE'))
+    downgrade(empty_engine, "0034")
+    column = text(
+        "SELECT count(*) FROM information_schema.columns "
+        "WHERE table_name = 'cost_structure' AND column_name = 'risk_id'"
+    )
+    with empty_engine.connect() as connection:
+        assert [connection.scalar(found, {"name": each}) for each in partitions] == [None] * 3
+        assert connection.scalar(found, {"name": "risk"}) is None
+        assert connection.scalar(column) == 0

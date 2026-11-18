@@ -14,10 +14,11 @@ from uuid import UUID, uuid4
 
 from access_rows import role
 from planning_support import DAY
-from project_rows import STAMP
+from project_rows import STAMP, risk_row
 from projects_support import MANAGING, PROJECTS, Person, Scene, contribute
 from realm import KEY
 from sqlalchemy import insert, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 from support import bearer, raw_account
 
@@ -27,6 +28,7 @@ from waterfall.core.planning.tables import Node, Task
 from waterfall.core.projects.tables import OrderItem, WorkPackage
 from waterfall.core.revisions.interface import mark_revision
 from waterfall.core.revisions.tables import CostStructure
+from waterfall.core.risks.tables import Risk
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -203,8 +205,18 @@ def put_facts(stage: Scene, node_id: str, **facts: object) -> None:
 
 
 def put_risk(stage: Scene, node_id: str, risk_id: UUID) -> None:
-    """Make a task come from a risk, around the service, as EP-08 will."""
+    """Make a node come from the occurrence of a risk, around the service, as US-2620 will.
+
+    The risk is written in the project of the stage first if it is not there yet: the node names
+    it by its key (EP-08).
+    """
+    project_id = UUID(stage.project["project_id"])
     with stage.owner.begin() as connection:
+        connection.execute(
+            pg_insert(Risk)
+            .values(**risk_row(project_id, id=risk_id))
+            .on_conflict_do_nothing(index_elements=[Risk.id])
+        )
         connection.execute(
             update(Node).where(Node.id == UUID(node_id)).values(origin_risk_id=risk_id)
         )
