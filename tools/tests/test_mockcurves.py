@@ -285,16 +285,15 @@ def test_the_indicators_of_a_subproject_name_it_as_the_scope_of_their_context(
 
 
 @pytest.mark.requirement("WF-RAE-0020-A")
-def test_the_gap_to_the_previous_review_is_absent_after_an_offer_marked_while_pricing() -> None:
-    # « Sur un projet dont aucune révision n'a été marquée à l'état En cours avant celle qui est
-    # lue, l'écart correspondant est absent plutôt que nul » : the offer, marked while pricing,
-    # is no review; the reference, marked In progress, is one.
+def test_the_gap_to_the_previous_review_is_to_the_offer_when_it_is_the_only_one_marked() -> None:
+    # The previous revision of a revision whose only marked forerunner is the offer is the offer,
+    # for the remaining to commit as for the estimate (#3663, #3928): the gap is its own, not null.
     witness = mocktoday.witness()
     now, base = witness.today, witness.reference
     after_offer = mockindicators.remaining_indicators(now, base, witness.offer, witness.costs)
-    assert after_offer["delta_to_previous_revision"] is None
-    after_reference = mockindicators.remaining_indicators(now, base, base, witness.costs)
-    assert after_reference["delta_to_previous_revision"] is not None
+    assert after_offer["delta_to_previous_revision"] is not None
+    without = mockindicators.remaining_indicators(now, base, None, witness.costs)
+    assert without["delta_to_previous_revision"] is None
 
 
 @pytest.mark.requirement("WF-IND-0090-A")

@@ -736,11 +736,9 @@ def remaining_indicators(
     to the reference budget — the budget less the actual cost and the remaining, positive while
     a margin is left, in the one sense of the balances of the subprojects (#466) —, and to the
     remaining of the previous marked revision at its marking — the remaining less that one —,
-    absent without one, or when it was not marked In progress: an offer marked while pricing is
-    no review (WF-RAE-0020); the coverage of the risks (WF-RIS-0050).
+    absent without one; the offer is the previous one of a revision whose only marked forerunner
+    it is, as for the estimate (WF-RAE-0020, #3928); the coverage of the risks (WF-RIS-0050).
     """
-    if previous is not None and state_at(previous.at) != IN_PROGRESS:
-        previous = None
     total = remaining(reading)
     by_nature = [
         (group, sum((remaining_of(reading, line) for line in group.lines), Decimal(0)))

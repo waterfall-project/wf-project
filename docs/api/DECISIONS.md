@@ -1775,7 +1775,9 @@ plus -93 900, `remaining_indicators_over_budget` 94 100, la réestimation du jou
 que la décision ne vise pas, garde son sens et le contrat le dit : le reste à engager courant moins
 celui de la révision marquée précédente, à son marquage, négatif quand la revue l'a réduit — ce que
 la revue a changé (WF-RAE-0020), qui n'est pas une marge : un reste à engager diminue aussi de ce
-qui s'est dépensé ; nul (`null`) sans revue précédente, et non zéro, l'écran l'omettant alors. Deux
+qui s'est dépensé ; nul (`null`) sans révision marquée précédente, et non zéro, l'écran l'omettant
+alors (la seule devancière marquée étant l'offre, la précédente est l'offre : décision du
+2026-11-17, #3663, #3928). Deux
 mots, deux sens — décision de l'auteur à la revue : le reste à engager parle de **marge**
 (`delta_to_reference`, `SubprojectBalance.variance`, que le front nomme « marge », par sous-projet
 comme pour le projet), et la couverture des risques garde son « écart de couverture » de la
@@ -1802,6 +1804,10 @@ octobre 2026, recadrage du 2026-10-28) : la revue précédente de `delta_to_prev
 révision marquée précédente qui l'a été à l'état En cours ; l'écart est nul quand aucune ne l'a été
 avant celle qui est lue (« Les décaissements, la revue précédente, le diagramme temps/temps et
 l'avancement d'une récapitulative », dans « Le contrat figé »).*
+
+*Remplacé en partie par #3928 (décision du 2026-11-17, #3663) : l'offre est la revue précédente d'une
+révision dont elle est la seule devancière marquée, pour le reste à engager comme pour le devis ;
+l'écart n'est nul que sans révision marquée avant celle qui est lue.*
 
 *Remplacé en partie par US-0701/L1 (#1601, E-02, recadrage du 2026-10-28) : `amount_deltas[].delta`
 devient `budgeted_delta` et `reestimated_delta`, dans le même sens.*
