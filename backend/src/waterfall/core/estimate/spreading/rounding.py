@@ -11,11 +11,12 @@ planned value of a line at a day (``planned``) round the same cumulated the same
 
 from dataclasses import dataclass
 from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal
-from fractions import Fraction
+from typing import TYPE_CHECKING
 
 from waterfall.core.estimate.pricing import CENT
 
-HALF = Fraction(1, 2)
+if TYPE_CHECKING:
+    from fractions import Fraction
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,15 +30,24 @@ class Rounding:
     mode: str
 
     def of(self, value: Decimal | Fraction) -> Decimal:
-        """Round an exact value to the nearest quantum, a half in the mode."""
-        steps = Fraction(value) / Fraction(self.quantum)
-        floor = steps.numerator // steps.denominator
-        rest = steps - floor
-        if rest == HALF:
-            # The only case the mode decides: ``floor + 0.5`` is exact as a decimal.
-            whole = int((Decimal(floor) + Decimal("0.5")).quantize(Decimal(1), rounding=self.mode))
+        """Round an exact value to the nearest quantum, a half in the mode.
+
+        In integers, the value and the quantum as their ratios: the value is in quanta
+        ``numerator / denominator``, its floor and the rest of it compared to a half exactly, as
+        fractions would, without making any (#3902: the curves round tens of thousands of parts).
+        """
+        top, bottom = value.as_integer_ratio()
+        quantum_top, quantum_bottom = self.quantum.as_integer_ratio()
+        numerator, denominator = top * quantum_bottom, bottom * quantum_top
+        floor, rest = divmod(numerator, denominator)
+        if 2 * rest == denominator:
+            # The only case the mode decides, in integers: a decimal context rounds a big floor.
+            if self.mode == ROUND_HALF_UP:
+                whole = floor + 1 if floor >= 0 else floor
+            else:
+                whole = floor if floor % 2 == 0 else floor + 1
         else:
-            whole = floor + int(rest > HALF)
+            whole = floor + int(2 * rest > denominator)
         return Decimal(whole) * self.quantum
 
 

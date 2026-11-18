@@ -41,12 +41,15 @@ from waterfall.core.planning.views import RowsReading, TasksReading
 from waterfall.core.planning.writing import StructureTotals, facts_of
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from datetime import datetime
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.planning.calendars import Applicable
     from waterfall.core.planning.filters import NodeFilters, Retained
+    from waterfall.core.planning.interface.facets import Tally
     from waterfall.core.planning.tree import LinkRow, NodeRow, TaskRow, Tree
     from waterfall.core.planning.views import NodeRecord, NodeView, Reading
     from waterfall.core.planning.writing import Place
@@ -127,12 +130,26 @@ def _tasks_alone(filters: NodeFilters) -> bool:
     )
 
 
-def tasks_reading(session: Session, place: Place, scheduled: tuple[datetime, bool]) -> TasksReading:
+@dataclass(frozen=True, slots=True)
+class TasksTallied:
+    """The tasks of a structure alone, what their lines count, and the calendar of each.
+
+    ``tree`` the tasks numbered and held open as a reading of the tasks alone has them,
+    ``tallies`` what the nodes each bears count, ``calendars`` the calendar applicable to each.
+    """
+
+    tree: Tree[NodeRow, TaskRow]
+    tallies: Mapping[UUID, Tally]
+    calendars: dict[UUID, Applicable]
+
+
+def tasks_tallied(session: Session, place: Place) -> TasksTallied:
     """Read the tasks of a structure alone, and what their lines count, none of these read.
 
     The tree of the tasks numbered from how many nodes each bears; the summaries completed below
     held open as their tallies tell (``Tree.held``); the calendar of each task from those its
-    tallies name (WF-PLA-0010).
+    tallies name (WF-PLA-0010). What ``tasks_reading`` reads, and the indicators of the tasks
+    alone, without the links, the tracking or the views a reading adds (#3902).
     """
     tree = read_task_rows(session, place.project_id, place.structure_id)
     # The session of a reading is not frozen (a ``READ COMMITTED`` transaction): the tree, the
@@ -153,10 +170,16 @@ def tasks_reading(session: Session, place: Place, scheduled: tuple[datetime, boo
         task_id: tallies[task_id].calendars if task_id in tallies else none
         for task_id in tree.tasks
     }
-    calendars = applicable_calendars(session, named)
+    return TasksTallied(tree, tallies, applicable_calendars(session, named))
+
+
+def tasks_reading(session: Session, place: Place, scheduled: tuple[datetime, bool]) -> TasksReading:
+    """Read the tasks of a structure alone, and what their lines count (``tasks_tallied``)."""
+    tallied = tasks_tallied(session, place)
+    tree = tallied.tree
     structure = (place, *scheduled)
-    read = (tree, _links(session, place, tree), tallies)
-    return TasksReading(session, structure, read, calendars)
+    read = (tree, _links(session, place, tree), tallied.tallies)
+    return TasksReading(session, structure, read, tallied.calendars)
 
 
 def structure_totals(reading: Reading[NodeRow, TaskRow], found: Retained) -> StructureTotals:

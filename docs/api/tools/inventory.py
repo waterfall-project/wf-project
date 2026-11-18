@@ -49,6 +49,9 @@ FAMILIES: list[tuple[str, str]] = [
 
 # Why a whole requirement domain legitimately has no surface in the contract.
 REASONS: dict[str, str] = {
+    "ADM": "Les réglages de l'installation (WF-ADM-0200), ajoutés par la spécification "
+    "1.0.7 : `getInstallation` et `getReferenceSettings` les servent déjà, et leur "
+    "citation au contrat reste à écrire (#3993).",
     "ARC": "Choix d'architecture interne : noyau unique, rôles des composants de données, "
     "empaquetage, autorité du serveur, absence d'état. Ils se vérifient sur le dépôt "
     "et le déploiement.",

@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.estimate.imaging import kept_reference
 from waterfall.core.estimate.placing import role_weeks
-from waterfall.core.estimate.reading import budgeted_of, rows_of
+from waterfall.core.estimate.reading import budgeted_of, line_rows
 from waterfall.core.estimate.remaining.reviewing import provisions_of
 from waterfall.core.estimate.spreading import Placement, PlannedLine, planned_value
 from waterfall.core.planning.interface import lines_of, tasks_for_indicators, weekly_calendar
@@ -73,25 +73,27 @@ def lines_for_indicators(
         tasks = tasks_for_indicators(session, project_id, revision_id)
     by_node = {task.node_id: task for task in tasks}
     bearing = lines_of(session, project_id, list(by_node))
-    rows = {row.node_id: row for row in rows_of(session, project_id, _held(bearing))}
+    # As columns, not objects of the session: a reading writes nothing, and an object costs several
+    # times its columns (#3048, #3902).
+    rows = {row.node_id: row for row in line_rows(session, project_id, _held(bearing))}
     provisions = provisions_of(session, list(rows.values()))
     roles = {row.resource_role_id for row in rows.values() if row.resource_role_id is not None}
     marked = revision_marked_at(session, revision_id) is not None
     kept = kept_reference(session, project_id, revision_id) if marked else None
     weeks = role_weeks(session, roles, kept)
     found: list[IndicatorLine] = []
+    # The calendar of the tasks, made once by week for their lines without a role (#3802, #3902).
+    calendars: dict[tuple[Decimal, ...], Calendar] = {}
     for task_id, held in bearing.items():
         task = by_node[task_id]
-        # The calendar of the task, made once for its lines without a role (#3802).
-        own: Calendar | None = None
         for node in held:
             row = rows.get(node)
             if row is None or node in provisions:
                 continue
             role = row.resource_role_id
             if role is None:
-                own = own or weekly_calendar(task.calendar_hours)
-                week = own
+                hours = task.calendar_hours
+                week = calendars.get(hours) or calendars.setdefault(hours, weekly_calendar(hours))
             else:
                 week = weeks[role]
             found.append(

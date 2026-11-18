@@ -240,12 +240,18 @@ comptes ne donne jamais, par un appel direct, le rôle d'administrateur (#1732, 
 - écart : `WF-ADM-0070-A` — « Une personne retirée de l’annuaire voit son compte désactivé à la synchronisation suivante, et ses actes restent consultables. » : idem.
 - écart : `WF-ADM-0070-A` — « Le dernier compte administrateur, retiré de l’annuaire, reste actif et la synchronisation le signale. » : idem.
 - écart : `WF-ADM-0070-A` — « Une personne ajoutée à l’annuaire a un compte dans Waterfall au terme de la périodicité choisie, sans intervention. » : idem.
-- écart : `WF-ADM-0070-A` — « Un compte anonymisé dont la personne figure encore dans l’annuaire reste anonymisé après synchronisation, et aucun compte n’est créé à son nom. » : idem.
+- écart : `WF-ADM-0070-A` — « Un compte anonymisé dont la personne figure encore dans l’annuaire reste anonymisé après synchronisation, et aucun compte n’est créé à son nom. » : idem ;
+- écart : `WF-ADM-0070-A` — « Un compte que l’annuaire désactive est désactivé à la synchronisation
+  suivante. » : ajouté par la spécification 1.0.7 (#3358) ; #3986 l'éprouve.
 - écart : `WF-ADM-0090-A` — « Un utilisateur portant deux rôles dispose des permissions des deux. » : constaté par EP-03 (US-0380), inchangé.
 - écart : `WF-ADM-0090-A` — « Le retrait d’une permission à un rôle en prive tous ses porteurs sans qu’ils aient à se reconnecter. » : idem.
 - écart : `WF-ADM-0090-A` — « La suppression d’un rôle est refusée tant qu’un compte le porte. » : US-1060.
 - écart : `WF-ADM-0090-A` — « Un rôle supprimé n’apparaît plus dans la liste des rôles ni dans les choix d’attribution ; l’inscription du journal d’audit qui l’attribuait à un compte le nomme toujours. » : constaté par EP-03 (US-0380), inchangé.
-- écart : `WF-ADM-0100-A` — « Chaque fonction de second niveau de l’arborescence est représentée par ses deux permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5 et FBS-2.1 à FBS-2.7. » : constaté par EP-03 (US-0380), inchangé.
+- écart : `WF-ADM-0100-A` — « Chaque fonction de second niveau de l’arborescence est représentée par
+  ses deux permissions, ou par la seule permission de consulter pour FBS-1.3, FBS-1.5, FBS-2.1 à
+  FBS-2.7, FBS-4.8 et FBS-4.9. » : réécrit par la spécification 1.0.7 (#3354) : FBS-4.8 et FBS-4.9
+  n'ont que la permission de consulter, quand le livré leur donne encore celle de modifier ; #3975
+  l'éprouve.
 - écart : `WF-ADM-0100-A` — « Un rôle disposant de la modification du chiffrage mais non du marquage permet de modifier un devis et refuse de marquer la révision ; un rôle disposant du marquage mais non de la fusion refuse de fusionner un différentiel. » : EP-04 et EP-08.
 - écart : `WF-ADM-0100-A` — « Un utilisateur sans la permission de créer un projet n’en crée pas. » : EP-04.
 - écart : `WF-ADM-0100-A` — « Aucun écran ne permet de créer une permission. » : constaté par EP-03 (US-0380), inchangé.

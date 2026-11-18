@@ -7,7 +7,7 @@ les réponses en citent d'autres, comptées dans la couverture ci-dessous mais p
 dans le tableau.
 
 **172 opérations sur 133 chemins, dans 13 familles.**
-Le contrat cite **195 des 218 exigences** de la spécification.
+Le contrat cite **195 des 219 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
@@ -274,11 +274,12 @@ Le contrat cite **195 des 218 exigences** de la spécification.
 
 ## Exigences que le contrat ne cite pas
 
-23 sur 218. Aucune n'est un oubli : ce sont celles qui n'ont pas de
+24 sur 219. Aucune n'est un oubli : ce sont celles qui n'ont pas de
 surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 
 | Domaine | Exigences | Pourquoi aucune surface d'API |
 |---|---|---|
+| ADM | WF-ADM-0200 | Les réglages de l'installation (WF-ADM-0200), ajoutés par la spécification 1.0.7 : `getInstallation` et `getReferenceSettings` les servent déjà, et leur citation au contrat reste à écrire (#3993). |
 | ARC | WF-ARC-0010, WF-ARC-0070, WF-ARC-0080 | Choix d'architecture interne : noyau unique, rôles des composants de données, empaquetage, autorité du serveur, absence d'état. Ils se vérifient sur le dépôt et le déploiement. |
 | CMP | WF-CMP-0010 | Compatibilité des navigateurs et largeurs d'affichage : propriété du front. |
 | DAT | WF-DAT-0050, WF-DAT-0140, WF-DAT-0150 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |

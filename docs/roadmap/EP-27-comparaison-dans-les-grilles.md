@@ -379,10 +379,10 @@ une révision marquée de mon projet, et lire pour chaque valeur modifiée celle
   montant budgété ne présente aucun écart de montant réestimé. » : EP-08, qui clôt ;
 - écart : `WF-REV-0080-A` — « Entre deux révisions d’années de référence différentes, les montants
   réestimés diffèrent en outre sur chaque ligne dont le taux a été mis à jour ou projeté jusqu’à la
-  nouvelle année de référence (WF-REV-0060), et sur chaque ligne de débours, dont le montant est
-  projeté de même (WF-DEV-0030) ; les tâches et les montants budgétés restent ceux du
-  différentiel. » : tenu sans différentiel par US-1530 (EP-07) ; le différentiel est d'EP-08, qui
-  clôt ;
+  nouvelle année de référence (WF-REV-0060) ; une ligne de débours, dont le débours unitaire est
+  projeté de même, n’y présente aucun écart de montant réestimé ; les tâches et les montants
+  budgétés restent ceux du différentiel. » : réécrit par la spécification 1.0.7 (#3366) ; une ligne
+  de débours ne présente plus d'écart, son débours étant projeté ; #3983 l'éprouve ;
 - `WF-REV-0080-A` — « Une tâche déplacée sous une autre récapitulative est présentée modifiée. » :
   tenu par US-1530 entre deux révisions marquées ; ici, de même quand la révision lue est en
   cours, avec la récapitulative qui la portait dans la base ;

@@ -1162,7 +1162,12 @@ seul champ de langue.
   EP-07 ;
 - écart : `WF-DAT-0100-A` — « Un nombre ou un montant calculé qui dépasse ce que sa colonne tient
   est refusé, au champ qui le provoque, sans rien écrire. » : ajouté par la spécification 1.0.6
-  (#3100) ; EP-24 l'éprouve (US-1980).
+  (#3100) ; EP-24 l'éprouve (US-1980) ;
+- écart : `WF-DAT-0100-A` — « Un montant calculé de 75,705 est présenté 75,71. » : ajouté par la
+  spécification 1.0.7 (#3369) ; le service arrondit ainsi depuis #2618 (`round_to_cent`) ;
+- écart : `WF-DAT-0100-A` — « Sur une installation au fuseau de Paris, une saisie datée faite à 0 h
+  30, heure de Paris, propose le jour de Paris. » : ajouté par la spécification 1.0.7 (#3382) ; tenu
+  depuis EP-25 (US-2200, #2527).
 - écart : `WF-INTF-0180-A` — « Un devis exporté par un utilisateur en français et réimporté
   par un utilisateur en anglais donne un devis identique, sans avertissement de format. » et
   « Le fichier Excel exporté porte les mêmes en-têtes quelle que soit la langue de celui qui
