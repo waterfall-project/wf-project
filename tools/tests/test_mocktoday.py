@@ -23,6 +23,7 @@ from wftools import (
     mockhistory,
     mockindicators,
     mockportfolio,
+    mockrates,
     mockstructure,
     mocktext,
     mocktoday,
@@ -346,15 +347,14 @@ def test_a_rate_missing_leaves_out_what_its_lines_touch(today: dict[str, Any]) -
 @pytest.mark.requirement("WF-REV-0060-A")
 def test_the_rate_update_proposes_the_rates_of_the_grid_for_2026(today: dict[str, Any]) -> None:
     # #232, C15: the revision 101, created in 2026 from the offer of 2025, is proposed for each
-    # labour category of the offer the rate the grid of the rates gives for 2026. Beside it, the
-    # rate it keeps: created by an entry of a risk, it applied the rates of 2025 projected to 2026
-    # (WF-REV-0060), « le taux de 2026 corrigé d'une année d'inflation » of the Vérif one year
-    # earlier — `previous_amount` the projected rate, as the design of EP-07 says (« L'instantané
-    # et les taux »), 78.50 x 1.03 = 80.855 and 73.50 x 1.03 = 75.705, to the cent.
-    grid: Any = mockdata.hourly_rate_grid()
+    # labour category of the offer the rate the grid gives for 2026. Beside it, the rate it keeps:
+    # created by an entry of a risk, it applied the rates of 2025 projected to 2026 (WF-REV-0060),
+    # « le taux de 2026 corrigé d'une année d'inflation » of the Vérif one year earlier —
+    # `previous_amount` the projected rate (EP-07), 78.50 x 1.03 = 80.855, 73.50 x 1.03 = 75.705.
+    grid: Any = mockrates.hourly_rate_grid()
     cells = {
-        row["cost_category_id"]: dict(zip(grid["years"], row["cells"], strict=True))
-        for row in grid["rows"]
+        r["cost_category_id"]: dict(zip(grid["years"], r["cells"], strict=True))
+        for r in grid["rows"]
     }
     proposal = today["rate_update"]
     assert proposal["target_year"] == 2026

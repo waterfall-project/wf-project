@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from wftools import mockdata
+from wftools import mockdata, mockvolumes
 
 # A test that skips without declaring it by the mark ``unexecuted`` fails (US-2440); Pytester runs
 # the plugin on tests written for its own tests.
@@ -34,7 +34,7 @@ def no_process_table(
 @pytest.fixture(scope="session")
 def universe_computed() -> tuple[dict[str, Any], dict[str, Any]]:
     """Return the volumes and the named examples of the universe, computed once a session."""
-    return mockdata.volumes(), mockdata.named()
+    return mockvolumes.volumes(), mockdata.named()
 
 
 @pytest.fixture
@@ -47,7 +47,7 @@ def computed_once(
     must compute its own universe: it does not ask for this fixture.
     """
     volumes, named = universe_computed
-    monkeypatch.setattr(mockdata, "volumes", lambda: volumes)
+    monkeypatch.setattr(mockvolumes, "volumes", lambda: volumes)
     monkeypatch.setattr(mockdata, "named", lambda: named)
 
 
