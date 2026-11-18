@@ -7,10 +7,11 @@ module of the revisions (migration 0020); ``node``, ``task`` and ``task_link``, 
 module of the planning of the same form (migration 0022); what a review writes on a line of
 estimate (migration 0027), by the guard of the estimate (migration 0025), whose other writes
 ``test_database_constraints_estimate.py`` tries; the documents of indicators a marking keeps, by a
-guard of the same form (migration 0032), whose refusal of a document written outside a marking
-``test_database_constraints_indicators.py`` tries. The rows are written around the service,
-by the owner of the tables, whom the triggers refuse as they refuse the service. A revision is
-opened through the service, and marked by the transaction of the worker (``mark_revision``).
+guard of the same form (migration 0032), those of the portfolio included (migration 0037), whose
+refusal of a document written outside a marking ``test_database_constraints_indicators.py`` tries.
+The rows are written around the service, by the owner of the tables, whom the triggers refuse as
+they refuse the service. A revision is opened through the service, and marked by the transaction of
+the worker (``mark_revision``).
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -539,6 +540,44 @@ def test_the_indicators_a_marking_kept_are_never_written_again(
         with pytest.raises(DBAPIError, match="never truncated"), owner.begin() as connection:
             connection.execute(statement)
     assert documents_of(owner, revision_id) == before
+
+
+# The kinds a marking keeps for the portfolio (EP-11, migration 0037).
+PORTFOLIO_KINDS = (
+    "portfolio_workload",
+    "portfolio_cost_structure",
+    "portfolio_risks",
+    "portfolio_milestones",
+    "portfolio_offer_curves",
+)
+
+
+@pytest.mark.requirement("WF-DAT-0020-A")
+@pytest.mark.parametrize("kind", PORTFOLIO_KINDS)
+def test_a_document_of_the_portfolio_a_marking_kept_is_never_written_again(
+    api: ContractClient, stage: Scene, owner: Engine, kind: str
+) -> None:
+    # « La base de données refuse toute modification et toute suppression d'une ligne appartenant
+    # à une révision marquée, quel que soit le client qui la tente. » : a document of a kind of the
+    # portfolio, written by the transaction that marks its revision at the instant of the marking —
+    # what ``keep_document`` does from US-2680/L1 on —, is neither changed, deleted nor joined by
+    # another of its kind, its owner refused, as the documents of EP-10 are.
+    revision_id = open_revision(api, stage)
+    project_id = UUID(stage.project["project_id"])
+    at = utc_now()
+    kept = indicator_row(project_id, revision_id, kind=kind, computed_at=at, created_at=at)
+    with logging_context(correlation_id="marking"), Session(owner) as session, session.begin():
+        session.execute(insert(RevisionIndicator).values(**kept))
+        mark_revision(session, revision_id, "v1.0", None, Act(None, at))
+    of_it = (RevisionIndicator.revision_id == revision_id) & (RevisionIndicator.kind == kind)
+    before = [row[:3] for row in documents_of(owner, revision_id) if row[0] == kind]
+    assert before == [(kind, "project", at)]
+    changed = update(RevisionIndicator).where(of_it).values(document={"changed": True})
+    refused_by_owner(owner, changed, ROW_REFUSED)
+    refused_by_owner(owner, delete(RevisionIndicator).where(of_it), ROW_REFUSED)
+    another = indicator_row(project_id, revision_id, kind=kind, scope="unassigned", computed_at=at)
+    refused_by_owner(owner, insert(RevisionIndicator).values(**another), ROW_REFUSED)
+    assert [row[:3] for row in documents_of(owner, revision_id) if row[0] == kind] == before
 
 
 @pytest.mark.requirement("WF-DAT-0020-A")

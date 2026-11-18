@@ -66,6 +66,7 @@ from waterfall.platform.errors import (
     UnprocessableError,
 )
 from waterfall.platform.identifiers import new_id
+from waterfall.platform.permissions import ALL_PROJECTS_READ
 from waterfall.platform.tasks import projects_with_task_pending
 
 if TYPE_CHECKING:
@@ -104,9 +105,6 @@ MODIFIABLE = (
     "order_received_on",
 )
 
-
-# The permission that opens to consultation the projects its holder does not contribute to.
-ALL_PROJECTS_READ = "all_projects_read"
 # The states a list keeps unless it names some: the projects in progress alone.
 DEFAULT_STATES: frozenset[str] = frozenset({"in_progress"})
 

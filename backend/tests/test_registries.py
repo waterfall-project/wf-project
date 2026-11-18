@@ -12,7 +12,8 @@ worker those of the estimate included, which it imports from US-1500/L2 on (EP-0
 those of the actual costs, which it imports from US-1610/L2 on (EP-09, "Le worker"), and those of
 the indicators, which it imports from US-1670/L1 on (EP-10, "Le worker"). What the socles of
 EP-06, EP-07, EP-09 and EP-10 register is named, so that the comparison is never between two empty
-lists.
+lists. The portfolio registers nothing before US-2680/L2: each entry point imports its interface
+from its socle on (US-2670/L1), which is checked apart.
 
 Then how each registry acts, details of the realization which reprise no Vérif: the closing of a
 revision, what its marking keeps and what follows the designation of a reference (EP-07), the guard
@@ -464,6 +465,23 @@ def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
     assert f"actual_costs:{COSTS}.actual_costs.ActualCostsFormat" in held["exchanges.formats"]
     assert held["revisions.indicators"] == REGISTERED_BY_EP10["revisions.indicators"]
     assert held["planning.physical_progress"] == REGISTERED_BY_EP10["planning.physical_progress"]
+
+
+# The interface of the portfolio, which registers its part of a marking from US-2680/L2 on.
+PORTFOLIO = "waterfall.core.portfolio.interface"
+
+
+@pytest.mark.parametrize("entry_point", sorted(ENTRY_POINTS))
+def test_each_entry_point_imports_the_interface_of_the_portfolio(entry_point: str) -> None:
+    # The portfolio fills no registry before US-2680/L2, which registers at ``register_indicators``
+    # what a marking keeps for it: the comparison above cannot tell yet whether an entry point
+    # imports it. Each that marks a revision — the API, the worker, the loader — does from the
+    # socle on (EP-11, "Modules"), so that none marks without its part once it registers.
+    statement = f"import sys, {ENTRY_POINTS[entry_point]}; print({PORTFOLIO!r} in sys.modules)"
+    result = subprocess.run(
+        [sys.executable, "-c", statement], capture_output=True, text=True, timeout=120, check=True
+    )
+    assert result.stdout.strip() == "True"
 
 
 @pytest.fixture

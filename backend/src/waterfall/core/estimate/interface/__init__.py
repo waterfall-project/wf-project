@@ -277,6 +277,15 @@ from waterfall.core.estimate.interface.lines import (
     update_line as update_line,
 )
 
+# ``portfolio`` (US-2670/L1; US-2680/L2): the totals by nature and the labour by role the
+# portfolio sums (EP-11).
+from waterfall.core.estimate.interface.portfolio import (
+    PortfolioTotals as PortfolioTotals,
+)
+from waterfall.core.estimate.interface.portfolio import (
+    portfolio_totals as portfolio_totals,
+)
+
 # ``rates`` (US-1490/L1; US-1500): the rates of a revision and what it keeps of the reference.
 from waterfall.core.estimate.interface.rates import (
     apply_rate_update as apply_rate_update,

@@ -1,19 +1,22 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The migrations of what exists: the partitions, the readings and the permissions they give."""
+"""The migrations of what exists: the partitions, the readings, the permissions, the kinds kept."""
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+from indicators_support import indicator_row
 from migrations_support import partition_parts
-from project_rows import insert_project, insert_revision, insert_structure
-from sqlalchemy import func, insert, select, text
-from sqlalchemy.exc import DBAPIError
+from project_rows import AT, insert_project, insert_revision, insert_structure
+from sqlalchemy import func, insert, select, text, update
+from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from waterfall.core.access_roles.tables import AccessRole, AccessRolePermission, Permission
+from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.planning.tables import StructureReading
+from waterfall.core.revisions.tables import Revision
 from waterfall.migrations.runner import downgrade, upgrade
 
 if TYPE_CHECKING:
@@ -205,3 +208,37 @@ def test_the_projects_that_exist_receive_their_partitions_of_the_risks(
         assert [connection.scalar(found, {"name": each}) for each in partitions] == [None] * 3
         assert connection.scalar(found, {"name": "risk"}) is None
         assert connection.scalar(column) == 0
+
+
+def test_the_kinds_of_the_portfolio_are_admitted_and_one_kept_holds_the_descent_back(
+    empty_engine: Engine,
+) -> None:
+    # #3549, US-2670/L1: before 0037, the check of the kinds refuses a document of the portfolio;
+    # after it, one written by the transaction that marks its revision is kept, the trigger of 0032
+    # unchanged. The descent would refuse it again: it fails, nothing deleted, the base at 0037.
+    upgrade(empty_engine, "0036")
+    project_id, revision_id = uuid4(), uuid4()
+    with empty_engine.begin() as connection:
+        connection.execute(insert_project(id=project_id))
+        connection.execute(select(func.create_project_partitions(project_id)))
+        connection.execute(insert_revision(project_id, id=revision_id))
+    document = insert(RevisionIndicator).values(
+        **indicator_row(project_id, revision_id, kind="portfolio_risks")
+    )
+    marking = (
+        update(Revision)
+        .where(Revision.id == revision_id)
+        .values(status="marked", version_name="v1.0", marked_at=AT)
+    )
+    with pytest.raises(IntegrityError, match="kind_known"), empty_engine.begin() as connection:
+        connection.execute(document)
+    upgrade(empty_engine, "0037")
+    with empty_engine.begin() as connection:
+        connection.execute(document)
+        connection.execute(marking)
+    with pytest.raises(DBAPIError, match="kind_known"):
+        downgrade(empty_engine, "0036")
+    with empty_engine.connect() as connection:
+        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0037"
+        kept = connection.scalars(text("SELECT kind FROM revision_indicator")).all()
+    assert kept == ["portfolio_risks"]

@@ -67,6 +67,11 @@ from waterfall.core.costs.interface.indicator_costs import (
     costs_stamp as costs_stamp,
 )
 
+# ``portfolio`` (US-2670/L1; US-2750): the last import of each project, which the portfolio reads.
+from waterfall.core.costs.interface.portfolio import (
+    last_imports as last_imports,
+)
+
 # ``subprojects`` (US-1580/L1; US-1610/L3): what the projects ask the actual costs of a subproject.
 from waterfall.core.costs.interface.subprojects import (
     impute_waiting_lines as impute_waiting_lines,
