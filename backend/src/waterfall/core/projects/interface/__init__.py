@@ -88,6 +88,7 @@ from waterfall.core.projects.interface.lifecycle import (
 # ``portfolio`` (US-2670/L1; US-2670/L3): what the portfolio reads of several projects at once.
 from waterfall.core.projects.interface.portfolio import (
     ClosedOffer,
+    ProjectAtDate,
     offers_closed_between,
     openable,
     projects_in_states_on,
@@ -214,6 +215,7 @@ __all__ = [
     "NextState",
     "OrderItemEntry",
     "OrderItemView",
+    "ProjectAtDate",
     "ProjectChange",
     "ProjectColumn",
     "ProjectDraft",

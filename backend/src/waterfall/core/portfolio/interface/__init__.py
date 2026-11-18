@@ -65,6 +65,12 @@ from waterfall.core.portfolio.interface.scope import (
     PortfolioScope as PortfolioScope,
 )
 from waterfall.core.portfolio.interface.scope import (
+    ResolvedScope as ResolvedScope,
+)
+from waterfall.core.portfolio.interface.scope import (
+    RetainedProject as RetainedProject,
+)
+from waterfall.core.portfolio.interface.scope import (
     resolve_scope as resolve_scope,
 )
 
