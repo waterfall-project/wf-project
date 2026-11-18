@@ -19,7 +19,13 @@ from estimate_support import Costing, Lines, costing
 from nodes_support import Tree, mark
 from projects_support import PROJECTS, Scene, create, designate
 from projects_support import scene as make_scene
-from risks_support import Costed, Risks, costed
+from risks_support import (
+    MOST_STATEMENTS_OF_DETAIL,
+    MOST_STATEMENTS_OF_MATRIX,
+    Costed,
+    Risks,
+    costed,
+)
 from sqlalchemy import delete, event, update
 
 from waterfall.core.cost_settings.tables import ReferenceSetting
@@ -37,8 +43,6 @@ if TYPE_CHECKING:
 # 1 %, 5 %, 10 % of the base on the severity axis.
 THIRD = 3
 SECOND = 2
-# The statements of a reading, at most, whatever the number of risks: the context read once.
-MOST_STATEMENTS = 40
 
 
 @pytest.fixture
@@ -184,11 +188,53 @@ def test_a_severity_of_60_is_the_third_level_on_1000_and_the_second_on_2000(
 @pytest.mark.requirement("WF-REF-0160-A")
 def test_a_severity_equal_to_a_bound_is_of_the_level_the_bound_opens(matrixed: Matrixed) -> None:
     # 50 on a base of 1 000 is 5 %, the second bound: the third level. The provision the risk
-    # carries in the estimate is left out of the base (1 000, not 1 015).
+    # carries in the estimate is left out of the base (1 000, not 1 025).
     matrixed.declare("0.5", "Grue", "50.00")
     body = matrixed.matrix()
     assert point(body, "Grue")["severity_ratio"]["value"] == "0.05"
     assert counted(body) == {(3, THIRD): 1}
+
+
+@pytest.mark.requirement("WF-REF-0160-A")
+def test_a_severity_just_under_a_bound_is_shown_at_the_bound_and_stays_under_its_level(
+    matrixed: Matrixed,
+) -> None:
+    # 49.96 on 1 000 is 4.996 %: the share is rounded to four places, "0.05", the bound itself, yet
+    # the cell is placed by the exact ratio, under the bound: the second level, not the third.
+    matrixed.declare("0.3", "Grue", "49.96")
+    body = matrixed.matrix()
+    assert point(body, "Grue")["severity_ratio"]["value"] == "0.05"
+    assert counted(body) == {(2, SECOND): 1}
+
+
+@pytest.mark.requirement("WF-REF-0160-A")
+def test_a_marked_revision_is_related_to_its_own_total_until_another_is_the_reference(
+    matrixed: Matrixed,
+) -> None:
+    # H-06: before a reference, the base is the total, provisions left out, of the revision read;
+    # once one is designated, its budget, whatever the revision read. A is marked at 1 000, the
+    # current revision then grows to 2 000 and is marked B: A read is 6 % of its own total, the
+    # current revision 3 % of its own, and A read 3 % of the budget of B once B is the reference.
+    matrixed.declare("0.3", "Grue", "60.00")
+    stage = matrixed.project.stage
+    mark(stage, {"revision_id": str(matrixed.project.revision_id)})
+    current = matrixed.risks.revision()
+    later = Tree(matrixed.api, stage, current)
+    extra = later.made("Extension")
+    sent = {
+        "label": "Extension",
+        "quantity": "1",
+        "cost_category_id": str(matrixed.project.costs.material),
+        "unit_disbursement": "1000.00",
+    }
+    Lines(later).made(extra, **sent)
+    reading = f"?revision_id={matrixed.project.revision_id}"
+    assert point(matrixed.matrix(reading), "Grue")["severity_ratio"]["value"] == "0.06"
+    assert point(matrixed.matrix(), "Grue")["severity_ratio"]["value"] == "0.03"
+    mark(stage, {"revision_id": str(current["revision_id"])}, "v2.0")
+    path = f"{PROJECTS}/{matrixed.project.project_id}/revisions/{current['revision_id']}"
+    designate(matrixed.api, stage, matrixed.api.get(path, headers=matrixed.risks.headers).json())
+    assert point(matrixed.matrix(reading), "Grue")["severity_ratio"]["value"] == "0.03"
 
 
 @pytest.mark.requirement("WF-REF-0160-A")
@@ -316,6 +362,7 @@ def test_a_probability_that_crosses_a_bound_changes_the_cell_and_the_zone(
     # 2 % of the base: the second severity level. A probability from 45 % to 55 % crosses the
     # bound of 50 %: from the second probability level, nominal, to the third, to watch — in the
     # register, the detail and the matrix; the revision named gives the evaluation it froze.
+    # The probability is written in the evaluation directly: ``reviewRisk`` is served by US-2590/L1.
     risk = matrixed.declare("0.45", "Grue", "20.00")
     zones = ["nominal"] * 8 + ["watch"] * 4 + ["alert"] * 4
     with matrixed.project.stage.owner.begin() as connection:
@@ -356,7 +403,7 @@ def test_a_probability_that_crosses_a_bound_changes_the_cell_and_the_zone(
 # --- The revision read, the settings, the cost ---------------------------------------------------
 
 
-@pytest.mark.requirement("WF-RIS-0030-A")
+@pytest.mark.requirement("WF-RIS-0040-A")
 def test_a_revision_of_another_project_or_unknown_is_not_found(
     matrixed: Matrixed, api: ContractClient, stage: Scene
 ) -> None:
@@ -421,5 +468,6 @@ def test_the_matrix_and_the_detail_cost_the_same_statements_whatever_the_number_
     for index in range(1, 11):
         matrixed.declare("0.3", f"Risque {index:02d}", "100.00")
     many = statements(matrixed.api, matrixed.project, path())
-    assert 0 < few <= MOST_STATEMENTS
+    most = MOST_STATEMENTS_OF_MATRIX if reading == "matrix" else MOST_STATEMENTS_OF_DETAIL
+    assert 0 < few <= most
     assert many == few
