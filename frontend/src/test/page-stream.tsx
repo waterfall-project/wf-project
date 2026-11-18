@@ -15,7 +15,7 @@ export interface PageStream {
 }
 
 /** The markup without its comments: each one is cut by a scan, not by a pattern. */
-export function withoutComments(markup: string): string {
+function withoutComments(markup: string): string {
   let out = "";
   let from = 0;
   for (;;) {
