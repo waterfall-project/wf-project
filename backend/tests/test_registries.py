@@ -55,7 +55,12 @@ from waterfall.core.exchanges.interface import (
     register_exporter,
     register_format,
 )
-from waterfall.core.history.interface import close_history
+from waterfall.core.history.interface import (
+    Undoable,
+    close_history,
+    register_undoable,
+    undoables,
+)
 from waterfall.core.planning.interface import (
     MS_PROJECT_EXPORTER,
     MS_PROJECT_FORMAT,
@@ -89,15 +94,19 @@ from waterfall.core.resource_settings.interface import (
 )
 from waterfall.core.revisions.interface import (
     CLOSING_STAGES,
+    MergePart,
     ReferenceDesignated,
     RevisionClosing,
     RevisionMarking,
+    StructureMerging,
     closers,
     mark_revision,
+    merge_parts,
     register_closing,
     register_designation,
     register_indicators,
     register_marking,
+    register_merge,
 )
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act
@@ -107,12 +116,13 @@ from waterfall.platform.logs import logging_context
 from waterfall.witness.revisions import OpenedRevision, register_revision_filler
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
     from realm import TestRealm
     from sqlalchemy import Engine
     from support import ContractClient
 
+    from waterfall.core.history.interface import Restoring, Snapshot
     from waterfall.core.revisions.interface import RevisionCopy
     from waterfall.platform.database import Database
     from waterfall.witness.description import Witness
@@ -159,7 +169,7 @@ CLOSING = "revisions.closing"
 # found by their kind, which has one at most — the actual costs, which the planning neither imports
 # nor is imported by, register theirs before or after the planning's, as a process imports them.
 BY_KIND = {"exchanges.formats", "exchanges.exporters"}
-# Every registry of the core and of the witness EP-04, EP-06, EP-07, EP-09 and EP-10 declare.
+# Every registry of the core and of the witness EP-04, EP-06, EP-07, EP-08, EP-09 and EP-10 declare.
 DECLARED = {
     "revisions.copy",
     "revisions.tasks_and_lines",
@@ -183,6 +193,9 @@ DECLARED = {
     "exchanges.exporters",
     "witness.revision_fillers",
     "estimate.coverage",
+    # EP-08 (US-2550/L1): the parts of a merge, the kinds of entry another module undoes.
+    "revisions.merge",
+    "history.undoable",
 }
 PLANNING = "waterfall.core.planning.interface"
 # What EP-06 registers (US-1380/L1, US-1390/L2), the copy of the nodes after the structures', and
@@ -749,6 +762,68 @@ def test_the_coverage_of_the_risks_is_zero_until_the_risks_answer_it_once(
             register_coverage(cover)
     assert risk_coverage(session, project_id, revision_id) == NO_COVERAGE
     assert asked == [(project_id, revision_id)]
+
+
+def test_the_parts_of_a_merge_are_those_of_each_module_registered_in_their_order(
+    session: Session,
+) -> None:
+    # What the planning and the estimate find of a merge (EP-08, US-2560): nothing before either
+    # registers; then their differences, their completed tasks and their refusals, the planning's
+    # before the estimate's; nothing once withdrawn.
+    merging = StructureMerging(
+        session, uuid4(), uuid4(), uuid4(), uuid4(), Act(None, utc_now()), applying=False
+    )
+    asked: list[tuple[str, StructureMerging]] = []
+
+    def part(name: str, *, refused: bool) -> Callable[[StructureMerging], MergePart]:
+        def found(given: StructureMerging) -> MergePart:
+            asked.append((name, given))
+            refusals = ({"code": "LINK_CYCLE", "params": {"by": name}},) if refused else ()
+            return MergePart(
+                differences=({"change": "added", "target": name},),
+                completed_tasks=({"lineage_id": name},) if name == "task" else (),
+                refusals=refusals,
+            )
+
+        return found
+
+    assert merge_parts(merging) == MergePart()
+    with ExitStack() as registered:
+        registered.callback(register_merge(part("task", refused=False)))
+        registered.callback(register_merge(part("estimate_line", refused=True)))
+        assert merge_parts(merging) == MergePart(
+            differences=(
+                {"change": "added", "target": "task"},
+                {"change": "added", "target": "estimate_line"},
+            ),
+            completed_tasks=({"lineage_id": "task"},),
+            refusals=({"code": "LINK_CYCLE", "params": {"by": "estimate_line"}},),
+        )
+    assert merge_parts(merging) == MergePart()
+    assert asked == [("task", merging), ("estimate_line", merging)]
+
+
+def test_a_kind_of_entry_is_undone_by_one_module_at_most() -> None:
+    # How the risks undo their four kinds (EP-08, US-2590/L2): none before they register, the
+    # planning's then; a second module for the same kind refused; none once withdrawn.
+    def lock(_session: Session, _project: UUID, _states: Snapshot) -> None:
+        return None
+
+    def read(_session: Session, _project: UUID, _ids: tuple[UUID, ...]) -> Snapshot:
+        return ()
+
+    def restore(_session: Session, _project: UUID, _restoring: Restoring) -> None:
+        return None
+
+    undoable = Undoable(lock, read, restore)
+    assert undoables() == {}
+    with ExitStack() as registered:
+        registered.callback(register_undoable("risk_create", undoable))
+        registered.callback(register_undoable("risk_review", undoable))
+        assert undoables() == {"risk_create": undoable, "risk_review": undoable}
+        with pytest.raises(ValueError, match="undone by a module already"):
+            register_undoable("risk_create", undoable)
+    assert undoables() == {}
 
 
 @pytest.fixture

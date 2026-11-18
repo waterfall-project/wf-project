@@ -606,14 +606,14 @@ def grow(held: Review, costs: Costing, first: int, count: int) -> None:
 
 
 @pytest.mark.requirement("WF-RAE-0030-A")
-def test_a_line_is_a_provision_for_the_card_by_its_risk_not_by_its_category(
+def test_a_line_is_a_provision_for_the_card_by_its_category_not_by_its_risk(
     api: ContractClient, stage: Scene, costs: Costing
 ) -> None:
     # « Une tâche feuille démarrée sans ligne de devis est terminée depuis le Kanban. » : the card
-    # and the refusal of ``setTaskProgress`` judge a line a provision by ``origin_risk_id``
-    # (``open_lines`` judges by the category, and meets them once EP-08 gives each its risk): a
-    # line of the category of provisions without a risk holds its task, the line of a risk of an
-    # ordinary category does not.
+    # and the refusal of ``setTaskProgress`` judge a line a provision by its category, as the
+    # estimate tells, never by the risk it came from (EP-08, "Ce qui reconnaît une ligne de
+    # provision", US-2550/L1): a line of the category of provisions does not hold its task, the
+    # line an occurrence merged, of an ordinary category, does.
     def build(tree: Tree, lines: Lines) -> None:
         lines.made(tree.made("Départ"), **material(costs, "Ligne de départ", "10"))
 
@@ -630,8 +630,8 @@ def test_a_line_is_a_provision_for_the_card_by_its_risk_not_by_its_category(
         )
     put_risk(stage, line_named(held.tree, "Ligne Risque seul")["node_id"], UUID(int=3))
     columns = board(held.tree)
-    assert gestures(card_of(columns, "Catégorie seule"))[-1] == ("enter_remaining", None, True, [])
-    assert gestures(card_of(columns, "Risque seul")) == [
+    assert gestures(card_of(columns, "Risque seul"))[-1] == ("enter_remaining", None, True, [])
+    assert gestures(card_of(columns, "Catégorie seule")) == [
         ("start", "started", True, []),
         ("complete", "completed", False, ["task_is_milestone"]),
     ]

@@ -23,7 +23,7 @@ from imports_trial import AT_ONCE, read
 from nodes_support import set_progress
 from openpyxl import load_workbook
 from planning_support import DAY, insert_task
-from project_rows import delete_structure, lifted_kind_check, structure_row
+from project_rows import delete_structure, structure_row
 from projects_support import PROJECTS, Scene, put_in_state
 from projects_support import scene as make_scene
 from remaining_support import Review, in_progress, line_named, task_named
@@ -411,27 +411,26 @@ def test_the_export_of_a_structure_that_is_not_the_main_one_keeps_the_tasks_comp
     # line.
     project_id = UUID(stage.project["project_id"])
     revision_id = UUID(scene.tree.revision["revision_id"])
-    row = structure_row(project_id, revision_id, kind="differential", label="Avenant")
+    row = structure_row(project_id, revision_id, kind="amendment", label="Avenant")
     structure_id = row["id"]
     assert isinstance(structure_id, UUID)
-    with lifted_kind_check(stage.owner):
-        try:
-            with stage.owner.begin() as connection:
-                connection.execute(insert(CostStructure).values(**row))
-                bearer = insert_task(
-                    connection,
-                    project_id,
-                    revision_id,
-                    structure_id,
-                    progress="completed",
-                    started_on=DAY,
-                    completed_on=DAY,
-                )
-                give_a_line(connection, bearer)
-            content = exported(api, stage, worker, str(revision_id), structure_id=str(structure_id))
-            assert len(lines_of(content, OUTSIDE)) == 1
-        finally:
-            delete_structure(stage.owner, structure_id)
+    try:
+        with stage.owner.begin() as connection:
+            connection.execute(insert(CostStructure).values(**row))
+            bearer = insert_task(
+                connection,
+                project_id,
+                revision_id,
+                structure_id,
+                progress="completed",
+                started_on=DAY,
+                completed_on=DAY,
+            )
+            give_a_line(connection, bearer)
+        content = exported(api, stage, worker, str(revision_id), structure_id=str(structure_id))
+        assert len(lines_of(content, OUTSIDE)) == 1
+    finally:
+        delete_structure(stage.owner, structure_id)
 
 
 # --- The command of the revision, the project that ended ------------------------------------------

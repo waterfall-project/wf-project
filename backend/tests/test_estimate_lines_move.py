@@ -23,7 +23,7 @@ import pytest
 from estimate_support import YEAR, Costing, Lines, add_role, costing, give_a_line
 from nodes_support import Tree, faults, mark, opened, refusal, set_progress
 from planning_support import insert_link, insert_task
-from project_rows import delete_structure, lifted_kind_check, structure_row
+from project_rows import delete_structure, structure_row
 from projects_support import PROJECTS, Scene, person
 from projects_support import scene as make_scene
 from sqlalchemy import func, insert, select, update
@@ -500,29 +500,28 @@ def test_the_lines_a_refusal_names_come_main_structure_first_then_by_structure_l
     task = tree.made("Câblage")
     written = lines.made(task, **material(costs, label="Borniers", subproject_id=named))
     project_id, revision_id = UUID(stage.project["project_id"]), UUID(tree.revision["revision_id"])
-    row = structure_row(project_id, revision_id, kind="differential", label="Alpha")
+    row = structure_row(project_id, revision_id, kind="amendment", label="Alpha")
     structure_id = row["id"]
     assert isinstance(structure_id, UUID)
-    with lifted_kind_check(owner):
-        try:
-            with owner.begin() as connection:
-                connection.execute(insert(CostStructure).values(**row))
-                bearer = insert_task(connection, project_id, revision_id, structure_id)
-                node_id = give_a_line(connection, bearer)
-                connection.execute(
-                    update(EstimateLine)
-                    .where(EstimateLine.node_id == node_id)
-                    .values(label="Alpha 1", subproject_id=UUID(named))
-                )
-            refused = delete_subproject(api, stage, named)
-            found = refusal(refused)[2]["estimate_lines"]
-            assert [(line["structure_label"], line["label"]) for line in found] == [
-                ("Structure principale", "Borniers"),
-                ("Alpha", "Alpha 1"),
-            ]
-            assert found[0]["node_id"] == written["nodes"][0]["node_id"]
-        finally:
-            delete_structure(owner, structure_id)
+    try:
+        with owner.begin() as connection:
+            connection.execute(insert(CostStructure).values(**row))
+            bearer = insert_task(connection, project_id, revision_id, structure_id)
+            node_id = give_a_line(connection, bearer)
+            connection.execute(
+                update(EstimateLine)
+                .where(EstimateLine.node_id == node_id)
+                .values(label="Alpha 1", subproject_id=UUID(named))
+            )
+        refused = delete_subproject(api, stage, named)
+        found = refusal(refused)[2]["estimate_lines"]
+        assert [(line["structure_label"], line["label"]) for line in found] == [
+            ("Structure principale", "Borniers"),
+            ("Alpha", "Alpha 1"),
+        ]
+        assert found[0]["node_id"] == written["nodes"][0]["node_id"]
+    finally:
+        delete_structure(owner, structure_id)
 
 
 @pytest.mark.requirement("WF-DAT-0080-A")

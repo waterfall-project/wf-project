@@ -28,7 +28,7 @@ from uuid import UUID, uuid4
 import pytest
 from nodes_support import Tree, opened, work_breakdown
 from planning_support import insert_task
-from project_rows import STAMP, delete_structure, lifted_kind_check, structure_row
+from project_rows import STAMP, delete_structure, structure_row
 from projects_support import scene as make_scene
 from sqlalchemy import event, func, insert, select, update
 from sqlalchemy.exc import OperationalError
@@ -245,35 +245,30 @@ def test_the_withdrawal_of_an_element_holds_a_structure_its_tasks_did_not_bear_i
     _, item = work_breakdown(stage)
     task = tree.made("Câblage", task={"order_item_id": str(item)})
     project_id, revision_id = UUID(stage.project["project_id"]), UUID(tree.revision["revision_id"])
-    # No differential is written before EP-08, and the kind of a structure is checked: lifted for
-    # this test alone, and restored.
-    row = structure_row(project_id, revision_id, kind="differential", label="Alpha")
+    row = structure_row(project_id, revision_id, kind="amendment", label="Alpha")
     second = row["id"]
     assert isinstance(second, UUID)
-    with lifted_kind_check(owner):
-        try:
-            with owner.begin() as connection:
-                connection.execute(insert(CostStructure).values(**row))
-            before = _counter(stage, second)
-            assert before is not None
-            with ThreadPoolExecutor(max_workers=1) as pool, stage.owner.begin() as connection:
-                connection.execute(
-                    select(CostStructure.id).where(CostStructure.id == second).with_for_update()
-                )
-                holder = connection.scalar(select(func.pg_backend_pid()))
-                waiting = pool.submit(without_item, api, stage, str(item))
-                assert blocked_by(stage, holder, waiting)
-                attached = insert_task(
-                    connection, project_id, revision_id, second, order_item_id=item
-                )
-            waiting.result(timeout=30)
-            assert _counter(stage, second) == before + 1
-            with stage.database.transaction() as session:
-                left = session.scalar(select(Task.order_item_id).where(Task.node_id == attached))
-            assert left is None
-            assert attachment(tree.node(task["node_id"])) == (None, None, None)
-        finally:
-            delete_structure(owner, second)
+    try:
+        with owner.begin() as connection:
+            connection.execute(insert(CostStructure).values(**row))
+        before = _counter(stage, second)
+        assert before is not None
+        with ThreadPoolExecutor(max_workers=1) as pool, stage.owner.begin() as connection:
+            connection.execute(
+                select(CostStructure.id).where(CostStructure.id == second).with_for_update()
+            )
+            holder = connection.scalar(select(func.pg_backend_pid()))
+            waiting = pool.submit(without_item, api, stage, str(item))
+            assert blocked_by(stage, holder, waiting)
+            attached = insert_task(connection, project_id, revision_id, second, order_item_id=item)
+        waiting.result(timeout=30)
+        assert _counter(stage, second) == before + 1
+        with stage.database.transaction() as session:
+            left = session.scalar(select(Task.order_item_id).where(Task.node_id == attached))
+        assert left is None
+        assert attachment(tree.node(task["node_id"])) == (None, None, None)
+    finally:
+        delete_structure(owner, second)
 
 
 def _structure_counter(session: Session, read: Read) -> int:
@@ -406,53 +401,50 @@ def test_a_massive_withdrawal_locks_each_structure_once_whatever_the_number_of_e
     package, _ = work_breakdown(stage)
     project_id, revision_id = UUID(stage.project["project_id"]), UUID(tree.revision["revision_id"])
     items = [uuid4() for _ in range(6)]
-    # No differential is written before EP-08, and the kind of a structure is checked: lifted for
-    # this test alone, and restored.
     rows = [
-        structure_row(project_id, revision_id, kind="differential", label=label)
+        structure_row(project_id, revision_id, kind="amendment", label=label)
         for label in ("Alpha", "Bêta")
     ]
     bearing = rows[0]["id"]
     assert isinstance(bearing, UUID)
-    with lifted_kind_check(owner):
-        try:
-            with owner.begin() as connection:
-                connection.execute(insert(CostStructure), rows)
-                for rank, item in enumerate(items, start=1):
-                    connection.execute(
-                        insert(OrderItem).values(
-                            id=item,
-                            project_id=project_id,
-                            work_package_id=package,
-                            label=f"Poste {rank}",
-                            position=rank,
-                            **STAMP,
-                        )
+    try:
+        with owner.begin() as connection:
+            connection.execute(insert(CostStructure), rows)
+            for rank, item in enumerate(items, start=1):
+                connection.execute(
+                    insert(OrderItem).values(
+                        id=item,
+                        project_id=project_id,
+                        work_package_id=package,
+                        label=f"Poste {rank}",
+                        position=rank,
+                        **STAMP,
                     )
-                    insert_task(
-                        connection, project_id, revision_id, bearing, rank=rank, order_item_id=item
-                    )
-            with listened() as sent, Session(stage.database.engine) as session:
-                try:
-                    hold_work_breakdown_items(session, project_id, items)
-                    held = [each.text for each in sent]
-                    withdrawals: list[list[str]] = []
-                    for item in items:
-                        sent.clear()
-                        detach_work_breakdown_item(session, project_id, item)
-                        withdrawals.append([each.text for each in sent])
-                    left = session.scalar(
-                        select(func.count())
-                        .select_from(Task)
-                        .where(Task.project_id == project_id, Task.order_item_id.in_(items))
-                    )
-                finally:
-                    session.rollback()
-        finally:
-            for row in rows:
-                structure_id = row["id"]
-                assert isinstance(structure_id, UUID)
-                delete_structure(owner, structure_id)
+                )
+                insert_task(
+                    connection, project_id, revision_id, bearing, rank=rank, order_item_id=item
+                )
+        with listened() as sent, Session(stage.database.engine) as session:
+            try:
+                hold_work_breakdown_items(session, project_id, items)
+                held = [each.text for each in sent]
+                withdrawals: list[list[str]] = []
+                for item in items:
+                    sent.clear()
+                    detach_work_breakdown_item(session, project_id, item)
+                    withdrawals.append([each.text for each in sent])
+                left = session.scalar(
+                    select(func.count())
+                    .select_from(Task)
+                    .where(Task.project_id == project_id, Task.order_item_id.in_(items))
+                )
+            finally:
+                session.rollback()
+    finally:
+        for row in rows:
+            structure_id = row["id"]
+            assert isinstance(structure_id, UUID)
+            delete_structure(owner, structure_id)
     assert left == 0
     assert sum(1 for text in held if _STRUCTURE_LOCKED.search(text)) == 3
     assert not any(_STRUCTURE_LOCKED.search(text) for each in withdrawals for text in each)

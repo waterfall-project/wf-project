@@ -123,7 +123,8 @@ class Node(Stamped):
     package or an order item on a single task of a structure (``task``) —, and its structure is
     named with its revision, so that a node never binds a revision to the structure of another.
     ``lineage_id`` is kept by the copy of the revision (WF-DAT-0030); ``origin_risk_id`` is the risk
-    a provision line comes from, null here (EP-08).
+    whose occurrence merged the node into the main structure, null for any other (EP-08,
+    WF-RIS-0060): it never tells a provision line, which its category alone tells (``estimate``).
     """
 
     __tablename__ = "node"
@@ -148,8 +149,14 @@ class Node(Stamped):
             deferrable=True,
             initially="IMMEDIATE",
         ),
+        # The risk whose occurrence merged the node, with its project; it refuses (EP-08). Its
+        # index holds the nodes that name one alone: what the key reads when a risk is deleted.
+        ForeignKeyConstraint(
+            ["project_id", "origin_risk_id"], ["risk.project_id", "risk.id"], ondelete="RESTRICT"
+        ),
         Index(None, "revision_id"),
         Index(None, "parent_id"),
+        Index(None, "origin_risk_id", postgresql_where=text("origin_risk_id IS NOT NULL")),
         counted(),
         {"postgresql_partition_by": BY_PROJECT},
     )

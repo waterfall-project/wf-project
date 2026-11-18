@@ -9,13 +9,15 @@ few the design leaves silent. A name a story adds besides joins the import of it
 comment that names it, in the order Ruff keeps. Another module imports them from here, never from
 the file.
 
-The later epics extend the revisions through seven ordered registries, without this module
+The later epics extend the revisions through eight ordered registries, without this module
 importing theirs: ``register_copy`` the copy of a revision opened from a marked one (EP-06 the
 tasks and their links, EP-07 the lines and the rates, EP-08 the structures it adds),
 ``register_tasks_and_lines`` the questions the designation asks, the tasks (EP-06) and the lines
 (EP-07), ``register_marking`` what a module keeps of a revision being marked (EP-07, the images
 and the rates), ``register_indicators`` the indicators kept at the marking (EP-10),
 ``register_designation`` what follows the designation of a reference (EP-07, the budgeted amounts),
+``register_merge`` the part of the planning and of the estimate in the merge of an amendment
+(EP-08),
 ``register_rate_update`` whether the proposal of the rates of a revision presents a category
 (EP-07), and ``register_closing`` what a module does before a revision is marked or abandoned,
 under its stage (EP-06). Each registers its own by a call in the ``__init__`` of its module's
@@ -51,6 +53,14 @@ from waterfall.core.revisions.interface.marking import (
     register_marking,
     run_marking,
     submit_marking,
+)
+
+# ``merging`` (US-2550/L1; US-2560): the parts of the modules in the merge of an amendment.
+from waterfall.core.revisions.interface.merging import (
+    MergePart,
+    StructureMerging,
+    merge_parts,
+    register_merge,
 )
 
 # ``rates`` (US-1500/L1): the update of the rates of a revision, as the revision frames it.
@@ -140,6 +150,7 @@ __all__ = [
     "ClosingStage",
     "CurrentStructure",
     "MarkingRequest",
+    "MergePart",
     "RatesToUpdate",
     "ReferenceDesignated",
     "ReferenceToDesignate",
@@ -157,6 +168,7 @@ __all__ = [
     "RevisionToAbandon",
     "RevisionView",
     "StructureFacts",
+    "StructureMerging",
     "StructureView",
     "abandon_revision",
     "aimed_structure",
@@ -179,6 +191,7 @@ __all__ = [
     "mark_revision",
     "marked_revisions",
     "marked_revisions_at",
+    "merge_parts",
     "open_revision_by_task",
     "rate_update_available",
     "read_revision",
@@ -190,6 +203,7 @@ __all__ = [
     "register_designation",
     "register_indicators",
     "register_marking",
+    "register_merge",
     "register_rate_update",
     "register_tasks_and_lines",
     "revision_draft",

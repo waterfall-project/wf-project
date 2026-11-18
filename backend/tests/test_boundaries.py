@@ -107,11 +107,13 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "shared",
         "closing",
         "rates",
+        # The parts of the modules in the merge of an amendment (US-2550/L1).
+        "merging",
     },
 }
-# The modules of the planning, the history and the exchanges (EP-06), and of the indicators (EP-10),
-# one file per story or subject, laid by their socle (US-1380/L1, US-1660/L1) so that no later story
-# opens their ``__init__``.
+# The modules of the planning, the history and the exchanges (EP-06), of the indicators (EP-10) and
+# of the risks (EP-08), one file per story or subject, laid by their socle (US-1380/L1, US-1660/L1,
+# US-2550/L1) so that no later story opens their ``__init__``.
 PLANNING_INTERFACES: dict[str, set[str]] = {
     "planning": {
         "closing",
@@ -141,7 +143,7 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "tracking",
         "work_breakdown",
     },
-    "history": {"closing", "plans", "purge", "recording", "undo"},
+    "history": {"closing", "plans", "purge", "recording", "undo", "undoable"},
     "exchanges": {"damages", "exports", "imports", "loading", "purge", "xml"},
     "indicators": {
         "curves",
@@ -154,6 +156,16 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "reading",
         "stored_documents",
         "storing",
+    },
+    "risks": {
+        "coverage",
+        "deletion",
+        "matrix",
+        "occurrence",
+        "provisions",
+        "register",
+        "reviews",
+        "risks",
     },
 }
 # What the design names of each (EP-04, "Modules"), declared from US-0910/L1 on, which the other
@@ -263,6 +275,23 @@ DESIGNED: dict[str, set[str]] = {
         "store_indicators",
         "physical_progress",
         "stored_document",
+    },
+    # EP-08, "Modules": one function by operation of the contract, which the API and the worker
+    # call before the story that fills each.
+    "risks": {
+        "create_risk",
+        "read_risk",
+        "update_risk",
+        "update_risk_provision",
+        "review_risk",
+        "list_risk_reviews",
+        "delete_risk",
+        "list_risks",
+        "risk_matrix",
+        "risk_coverage_of",
+        "occurrence_report",
+        "submit_occurrence",
+        "run_occurrence",
     },
 }
 

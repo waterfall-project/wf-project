@@ -227,7 +227,7 @@ def progress_commands(
 def _missing_gesture(tree: Tree, node_id: UUID, target: str) -> str | None:
     """Name the first condition a gesture on a leaf lacks, as the card of the Kanban states it."""
     # A provision is written for information (WF-PLA-0050): it holds a task back from nothing.
-    bears = any(tree.nodes[each].origin_risk_id is None for each in tree.lines(node_id))
+    bears = bool(tree.own_lines(node_id))
     # ``ProgressEntry.progress`` is the contract's ``TaskProgress``, validated at the edge.
     found = _lacking(
         tree.tasks[node_id].progress,

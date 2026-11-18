@@ -24,7 +24,7 @@ from estimate_support import YEAR, Costing, Lines, costing, give_a_line
 from history_support import undo
 from nodes_support import Tree, entries, faults, mark, opened, refusal, set_progress, signed_in
 from planning_support import DAY, insert_task
-from project_rows import delete_structure, lifted_kind_check, structure_row
+from project_rows import delete_structure, structure_row
 from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
 from remaining_support import Review, in_progress, line_named, review_marked, task_named
@@ -612,35 +612,34 @@ def test_the_last_line_set_to_nought_of_a_completed_task_of_a_differential_compl
     # for no date, and the task, completed already, is neither stamped nor written.
     tree = review.tree
     project_id, revision_id = UUID(stage.project["project_id"]), UUID(tree.revision["revision_id"])
-    row = structure_row(project_id, revision_id, kind="differential", label="Avenant")
+    row = structure_row(project_id, revision_id, kind="amendment", label="Avenant")
     structure_id = row["id"]
     assert isinstance(structure_id, UUID)
-    with lifted_kind_check(owner):
-        try:
-            with owner.begin() as connection:
-                connection.execute(insert(CostStructure).values(**row))
-                bearer = insert_task(
-                    connection,
-                    project_id,
-                    revision_id,
-                    structure_id,
-                    progress="completed",
-                    started_on=DAY,
-                    completed_on=DAY,
-                )
-                node_id = give_a_line(connection, bearer)
-                counters = select(Node.lock_version)
-                counter = connection.execute(counters.where(Node.id == node_id)).scalar_one()
-                task_counter = connection.execute(counters.where(Node.id == bearer)).scalar_one()
-            path = f"{PROJECTS}/{project_id}/revisions/{revision_id}/structures/{structure_id}"
-            sent = {BASIS: {"quantity": "0"}, "lock_version": counter}
-            answer = tree.api.put(
-                f"{path}/nodes/{node_id}/remaining", headers=stage.manager.headers, json=sent
+    try:
+        with owner.begin() as connection:
+            connection.execute(insert(CostStructure).values(**row))
+            bearer = insert_task(
+                connection,
+                project_id,
+                revision_id,
+                structure_id,
+                progress="completed",
+                started_on=DAY,
+                completed_on=DAY,
             )
-            assert answer.status_code == 200, answer.text
-            assert [node["kind"] for node in answer.json()["nodes"]] == ["estimate_line"]
-            with owner.begin() as connection:
-                after = connection.execute(select(Node.lock_version).where(Node.id == bearer))
-                assert after.scalar_one() == task_counter
-        finally:
-            delete_structure(owner, structure_id)
+            node_id = give_a_line(connection, bearer)
+            counters = select(Node.lock_version)
+            counter = connection.execute(counters.where(Node.id == node_id)).scalar_one()
+            task_counter = connection.execute(counters.where(Node.id == bearer)).scalar_one()
+        path = f"{PROJECTS}/{project_id}/revisions/{revision_id}/structures/{structure_id}"
+        sent = {BASIS: {"quantity": "0"}, "lock_version": counter}
+        answer = tree.api.put(
+            f"{path}/nodes/{node_id}/remaining", headers=stage.manager.headers, json=sent
+        )
+        assert answer.status_code == 200, answer.text
+        assert [node["kind"] for node in answer.json()["nodes"]] == ["estimate_line"]
+        with owner.begin() as connection:
+            after = connection.execute(select(Node.lock_version).where(Node.id == bearer))
+            assert after.scalar_one() == task_counter
+    finally:
+        delete_structure(owner, structure_id)
