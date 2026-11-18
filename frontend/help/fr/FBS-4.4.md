@@ -13,6 +13,7 @@ Le devis se saisit tant que le projet est en chiffrage : sur la structure princ
 En tête de l’écran :
 
 - **Plan de charge** mène à la répartition mensuelle des charges de la révision, par rôle ;
+- **Projection de dépenses** mène à la dépense de la révision, par mois et par nature de coût ;
 - **Imports et exports** mène à l’écran où un devis s’importe d’un fichier, quand le projet offre cet import.
 
 Au-dessus de la grille :
@@ -46,5 +47,5 @@ L’en-tête de la colonne « Montant réestimé » nomme, dans son infobulle, l
 ## Voir aussi
 
 - [Les indicateurs du devis](FBS-4.4.1.md), [la grille de devis](FBS-4.4.2.md), [le montant à l’année de référence](FBS-4.4.3.md) ;
-- [le plan de charge](FBS-4.4.4.md), [la planification](FBS-4.3.md), [le reste à engager](FBS-4.5.md) ;
+- [le plan de charge](FBS-4.4.4.md), [la projection de dépenses](FBS-4.4.5.md), [la planification](FBS-4.3.md), [le reste à engager](FBS-4.5.md) ;
 - les notions : [le budget de référence](notions/budget-de-reference.md), [les révisions](notions/revisions.md), [la provision et la réserve](notions/provision-et-reserve.md), [le reste à engager et le devis actualisé](notions/reste-a-engager.md).

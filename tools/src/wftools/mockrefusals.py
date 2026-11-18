@@ -264,7 +264,7 @@ def summary_date_refused(number: int, correlation: str) -> JsonObject:
     }
 
 
-def rate_missing() -> JsonObject:
+def rate_missing(correlation: str = RATE_CORRELATION) -> JsonObject:
     """Return the refusal of an entry of a line whose category has no rate for the reference year.
 
     The electrical engineering without a rate for 2026, as ``missing_rates`` supposes it: named
@@ -279,7 +279,7 @@ def rate_missing() -> JsonObject:
         "code": "HOURLY_RATE_MISSING",
         "status": 422,
         "params": {"missing_rates": [missing]},
-        "correlation_id": RATE_CORRELATION,
+        "correlation_id": correlation,
     }
 
 

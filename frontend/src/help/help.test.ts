@@ -613,6 +613,7 @@ describe("the reading of the help", () => {
     ["/projects/p/revisions/r/exchanges", "FBS-4.3.4", "Imports et exports"],
     ["/projects/p/revisions/r/task-tree", "FBS-4.3.5", "Arborescence de tâches"],
     ["/projects/p/revisions/r/workload", "FBS-4.4.4", "Plan de charge du projet"],
+    ["/projects/p/revisions/r/spending", "FBS-4.4.5", "Projection de dépenses du projet"],
     ["/projects/p/revisions/r/kanban", "FBS-4.5.3", "Kanban — démarrage des tâches"],
     ["/projects/p/revisions/r/actual-costs", "FBS-4.7", "Coûts réels"],
     ["/projects/p/revisions/r/indicators", "FBS-4.8", "Indicateurs projets"],

@@ -26,7 +26,6 @@ import re
 from dataclasses import replace
 from datetime import date
 from decimal import Decimal
-from enum import StrEnum
 from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
@@ -39,6 +38,7 @@ from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import (
     ComputedValueDependencies,
     ComputedValueField,
+    ErrorCode,
     EstimateLineFacet,
     EstimateLineUpdate,
     EstimateLineWrite,
@@ -59,6 +59,7 @@ from waterfall.api.contract.models import (
 )
 from waterfall.api.evaluation import Acting, RequiresProject
 from waterfall.api.queries import read_list, refuse_query
+from waterfall.api.wire import instant_of, text_of
 from waterfall.core.access_roles.interface import PERMISSION_MISSING
 from waterfall.core.estimate.interface import LineEntry, LineFilters, LineView
 from waterfall.core.planning.interface import (
@@ -76,6 +77,7 @@ from waterfall.core.planning.interface import (
     NodeRecords,
     NodesWritten,
     NodeView,
+    PhysicalShare,
     Place,
     StructureTotals,
     TaskEntry,
@@ -93,7 +95,7 @@ from waterfall.core.planning.interface import (
     resolve_row_number,
     update_task_facet,
 )
-from waterfall.core.planning.interface import WorkInstant as Instant
+from waterfall.core.projects.interface import subproject_labels
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import (
@@ -102,6 +104,7 @@ from waterfall.platform.errors import (
     ForbiddenError,
     UnprocessableError,
 )
+from waterfall.platform.identifiers import read_identifier
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -156,14 +159,9 @@ ALWAYS = ("node_id", "row_number", "level", "lock_version")
 TASK = NodeKind.task.value
 # The format of the body of a structure read whole, as this code writes it: a reading kept of
 # another is ignored and made again (US-2270). A field added to a node changes it, and a value
-# written otherwise: ``FORMAT_SHAPES`` and ``FORMAT_BODIES`` of the tests fail until it does.
-FORMAT = 1
-
-
-class Unassigned(StrEnum):
-    """What the filter of the subproject names besides a subproject: none (WF-IND-0020)."""
-
-    unassigned = UNASSIGNED
+# written otherwise: ``FORMAT_SHAPES`` and ``FORMAT_BODIES`` of the tests fail until it does. 2: the
+# physical progress of the summaries computed (US-1680), not computable before.
+FORMAT = 2
 
 
 class NodeQuery(BaseModel):
@@ -186,7 +184,7 @@ class NodeQuery(BaseModel):
     is_from_risk: bool | None = None
     origin_risk_ids: str | None = None
     uses_inactive_object: bool | None = None
-    subproject_id: Unassigned | UUID | None = None
+    subproject_id: str | None = None
     cost_type_id: UUID | None = None
     cost_category_id: UUID | None = None
     resource_role_id: UUID | None = None
@@ -235,8 +233,27 @@ def _known(name: str) -> bool:
     return name in Node.model_fields
 
 
+def _subproject_asked(
+    session: Session, project_id: UUID, asked: str | None
+) -> tuple[UUID | None, list[FieldError]]:
+    """Read the filter of the subproject strictly, as the indicators do; its fault, the parameter.
+
+    ``unassigned`` or the hyphenated identifier of a subproject of the project; any other text, and
+    a subproject the project does not have, is ``UNKNOWN_SUBPROJECT`` (WF-IND-0020).
+    """
+    if asked is None or asked == UNASSIGNED:
+        return None, []
+    found = read_identifier(asked)
+    if found is None or not subproject_labels(session, project_id, [found]):
+        return None, [FieldError("/query/subproject_id", ErrorCode.UNKNOWN_SUBPROJECT)]
+    return found, []
+
+
 def node_reading(
-    request: Request, query: Annotated[NodeQuery, Query()]
+    request: Request,
+    query: Annotated[NodeQuery, Query()],
+    project_id: UUID,
+    session: Transaction,
 ) -> tuple[NodeFilters, frozenset[str] | None]:
     """Read what ``listNodes`` asks: its filters, and the properties it names (``fields``).
 
@@ -263,6 +280,8 @@ def node_reading(
         for column in columns:
             bounds[column], wrong = _pair(raw, column, form)
             faults += wrong
+    subproject, wrong = _subproject_asked(session, project_id, query.subproject_id)
+    faults += wrong
     refuse_query(faults)
     fields = None if query.fields is None else frozenset(query.fields.split(","))
     if fields is not None and not all(_known(name) for name in fields):
@@ -291,7 +310,7 @@ def node_reading(
         finish_overdue=query.finish_overdue,
         is_from_risk=query.is_from_risk,
         origin_risk_ids=risks,
-        lines=_line_filters(query, bounds),
+        lines=_line_filters(query, bounds, subproject),
         sort=None if query.sort_by is None else LineSort(query.sort_by.value, _descending(query)),
     )
     return filters, fields
@@ -302,12 +321,13 @@ def _descending(query: NodeQuery) -> bool:
     return query.sort_order is not None and query.sort_order.value == "desc"
 
 
-def _line_filters(query: NodeQuery, bounds: dict[str, tuple[Any, Any]]) -> LineFilters | None:
+def _line_filters(
+    query: NodeQuery, bounds: dict[str, tuple[Any, Any]], subproject: UUID | None
+) -> LineFilters | None:
     """Give what a reading asks of the lines, none when it asks nothing of them."""
-    subproject = query.subproject_id
     asked = LineFilters(
-        subproject_id=subproject if isinstance(subproject, UUID) else None,
-        unassigned=query.subproject_id is Unassigned.unassigned,
+        subproject_id=subproject,
+        unassigned=query.subproject_id == UNASSIGNED,
         cost_type_id=query.cost_type_id,
         cost_category_id=query.cost_category_id,
         resource_role_id=query.resource_role_id,
@@ -333,22 +353,13 @@ def _line_filters(query: NodeQuery, bounds: dict[str, tuple[Any, Any]]) -> LineF
     return None if asked == LineFilters(previous=((None, None),) * 4) else asked
 
 
-def _text(value: Decimal) -> str:
-    """Give a decimal as the contract writes it: without exponent nor trailing zeros."""
-    return format(value.normalize(), "f")
-
-
 def _money(value: Decimal) -> str:
     """Give an amount as the contract writes it: to the cent."""
     return format(value.quantize(CENT), "f")
 
 
 def _day_and_hours(day: date, hours: Decimal) -> dict[str, Any]:
-    return {"date": day.isoformat(), "hours": _text(hours)}
-
-
-def _instant(instant: Instant) -> dict[str, Any]:
-    return _day_and_hours(instant.day, instant.hours)
+    return {"date": day.isoformat(), "hours": text_of(hours)}
 
 
 def _conflicts(conflicts: tuple[ConflictView, ...]) -> list[dict[str, Any]]:
@@ -363,7 +374,7 @@ def _conflicts(conflicts: tuple[ConflictView, ...]) -> list[dict[str, Any]]:
 
 
 def _float(value: Decimal | None) -> dict[str, Any] | None:
-    return None if value is None else {"value": _text(value), "unit": "d"}
+    return None if value is None else {"value": text_of(value), "unit": "d"}
 
 
 def _id(value: UUID | None) -> str | None:
@@ -374,20 +385,26 @@ def _day(value: date | None) -> str | None:
     return None if value is None else value.isoformat()
 
 
+def _share(share: PhysicalShare | None) -> dict[str, Any] | None:
+    """Write the physical progress of a summary as the contract does (``Computable``); none else."""
+    if share is None:
+        return None
+    value = share.value
+    return {
+        "is_computable": value is not None,
+        "value": None if value is None else text_of(value),
+        "reason": share.reason,
+    }
+
+
 def _task(record: TaskRecord) -> dict[str, Any]:
     """Write a facet task as the contract does; its amounts, those of its lines and subordinates."""
-    # A summary's physical progress follows the budgets of its subtree, none without a line.
-    progress = (
-        {"is_computable": False, "value": None, "reason": "no_budgeted_amount"}
-        if record.is_summary
-        else None
-    )
     amounts = record.amounts
     return {
         "label": record.label,
         "description": record.description,
         "scheduling_mode": record.scheduling_mode,
-        "duration": {"value": _text(record.duration_value), "unit": record.duration_unit},
+        "duration": {"value": text_of(record.duration_value), "unit": record.duration_unit},
         "start": _day_and_hours(record.start_date, record.start_hours),
         "finish": _day_and_hours(record.finish_date, record.finish_hours),
         "progress": record.progress,
@@ -399,12 +416,12 @@ def _task(record: TaskRecord) -> dict[str, Any]:
         "is_milestone": record.is_milestone,
         "calendar_id": _id(record.calendar_id),
         "calendar_hours": {
-            day: _text(hours) for day, hours in zip(DAYS, record.calendar_hours, strict=True)
+            day: text_of(hours) for day, hours in zip(DAYS, record.calendar_hours, strict=True)
         },
         "total_float": _float(record.total_float),
         "is_critical": record.is_critical,
         "link_conflicts": _conflicts(record.link_conflicts),
-        "physical_progress": progress,
+        "physical_progress": _share(record.physical_progress),
         "base_amount": _money(amounts.base),
         "budgeted_amount": _money(amounts.budgeted),
         "reestimated_amount": _money(amounts.reestimated),
@@ -433,8 +450,8 @@ def _line(view: LineView) -> dict[str, Any]:
         "cost_category_label": view.cost_category_label,
         "resource_role_id": _id(view.resource_role_id),
         "resource_role_label": view.resource_role_label,
-        "quantity": _text(view.quantity),
-        "hours": _optional(view.hours, _text),
+        "quantity": text_of(view.quantity),
+        "hours": _optional(view.hours, text_of),
         "unit_disbursement": _optional(view.unit_disbursement, _money),
         "payment_delay_days": view.payment_delay_days,
         "subproject_id": _id(view.subproject_id),
@@ -442,8 +459,8 @@ def _line(view: LineView) -> dict[str, Any]:
         "base_amount": _money(view.base_amount),
         "budgeted_amount": _money(view.budgeted_amount),
         "reestimated_amount": _money(view.reestimated_amount),
-        "previous_quantity": _optional(view.previous_quantity, _text),
-        "previous_hours": _optional(view.previous_hours, _text),
+        "previous_quantity": _optional(view.previous_quantity, text_of),
+        "previous_hours": _optional(view.previous_hours, text_of),
         "previous_unit_disbursement": _optional(view.previous_unit_disbursement, _money),
         "previous_reestimated_amount": _optional(view.previous_reestimated_amount, _money),
         "remaining_reason": view.remaining_reason,
@@ -493,7 +510,7 @@ def _whole(record: NodeRecord) -> dict[str, Any]:
                 "predecessor_node_id": str(each.predecessor_id),
                 "predecessor_row_number": each.row_number,
                 "link_type": each.link_type,
-                "lag": {"value": _text(each.lag_value), "unit": each.lag_unit},
+                "lag": {"value": text_of(each.lag_value), "unit": each.lag_unit},
             }
             for each in record.predecessors
         ],
@@ -620,6 +637,14 @@ def joined(document: bytes, inscriptions: Mapping[UUID, tuple[TrackingView, ...]
     return b"".join(parts)
 
 
+def _gives_progress(fields: frozenset[str] | None) -> bool:
+    """Tell whether a reading gives the physical progress of the summaries (``listNodes``).
+
+    Whole, or when ``fields`` names it, or names the facet of a task that holds it.
+    """
+    return fields is None or bool(fields & {"task", "task.physical_progress"})
+
+
 def whole_nodes(session: Session, place: Place, fields: frozenset[str] | None) -> Response:
     """Give a structure read whole, projected by ``fields`` or not (``listNodes``, US-2270).
 
@@ -631,7 +656,8 @@ def whole_nodes(session: Session, place: Place, fields: frozenset[str] | None) -
     if fields is not None:
         read = kept_body(session, place)
         if read is None:
-            return read_body(nodes_body(list_records(session, place, NodeFilters()), fields))
+            records = list_records(session, place, NodeFilters(), progress=_gives_progress(fields))
+            return read_body(nodes_body(records, fields))
         read["items"] = [projected(item, fields) for item in read["items"]]
         return read_body(read)
     found = kept_document(session, place)
@@ -647,7 +673,7 @@ def totals_body(task_count: int, totals: StructureTotals | None) -> dict[str, An
     return {
         "task_count": task_count,
         "estimate_line_count": 0 if totals is None else totals.line_count,
-        "hours": _text(amounts.hours),
+        "hours": text_of(amounts.hours),
         "base_amount": _money(amounts.base),
         "budgeted_amount": _money(amounts.budgeted),
         "reestimated_amount": _money(amounts.reestimated),
@@ -662,8 +688,8 @@ def written_of(result: NodesWritten) -> dict[str, Any]:
         "rescheduled": [
             {
                 "node_id": str(each.node_id),
-                "start": _instant(each.start),
-                "finish": _instant(each.finish),
+                "start": instant_of(each.start),
+                "finish": instant_of(each.finish),
                 "total_float": _float(each.total_float),
                 "is_critical": each.is_critical,
                 "link_conflicts": _conflicts(each.link_conflicts),
@@ -810,7 +836,8 @@ def get_nodes(
     filters, fields = asked
     if filters == NodeFilters():
         return whole_nodes(session, place, fields)
-    return read_body(nodes_body(list_records(session, place, filters), fields))
+    read = list_records(session, place, filters, progress=_gives_progress(fields))
+    return read_body(nodes_body(read, fields))
 
 
 @router.post(

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
-import { renderToReadableStream, renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createApiClient, Unreachable } from "@/api/client";
@@ -33,6 +33,7 @@ import {
   type FakeTiming,
   held,
 } from "@/test/fixtures";
+import { streamed } from "@/test/page-stream";
 
 import ProjectPage, { generateMetadata as projectMetadata } from "./[projectId]/page";
 import EstimatePage, {
@@ -703,27 +704,6 @@ describe("the grid of the planning", () => {
   });
 });
 
-/**
- * The markup of a screen whose summary streams apart from its grid, read once every boundary is
- * settled — each written in its place, whatever its size —, and a failure of what a boundary reads
- * thrown, as the shell would say it.
- */
-async function streamed(page: ReactNode): Promise<string> {
-  const failures: unknown[] = [];
-  const stream = await renderToReadableStream(page, {
-    progressiveChunkSize: Infinity,
-    onError: (failure) => {
-      failures.push(failure);
-    },
-  });
-  await stream.allReady;
-  const markup = await new Response(stream).text();
-  if (failures.length > 0) {
-    throw failures[0];
-  }
-  return markup.replace(/<!--.*?-->/g, "").replace(/&#x27;/g, "'");
-}
-
 describe("the indicators and the missing rates of the estimate", () => {
   const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
 
@@ -731,13 +711,18 @@ describe("the indicators and the missing rates of the estimate", () => {
     const html = await streamed(inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })));
     // « Help »: the button the address of the mock, a project's page, puts in each header (#1439).
     expect(text(html)).toMatch(
-      /Costing and estimate Help Structure principale · 6 tasks, 1 line Workload Imports and exports Key figures Estimate indicators Computed on Estimate total €68,950,649.05 .*No\. Label/,
+      /Costing and estimate Help Structure principale · 6 tasks, 1 line Workload Spending projection Imports and exports Key figures Estimate indicators Computed on Estimate total €68,950,649.05 .*No\. Label/,
     );
     // Its head leads to the workload of the project, a leaf of the estimate, in the same context,
     // on the reference budget of a project in progress (#1069).
     expect(html).toMatch(
       new RegExp(
         `<a [^>]*href="/projects/${PROJECT}/revisions/${REVISION}/workload\\?basis=reference_budget"[^>]*>.*?Workload</a>`,
+      ),
+    );
+    expect(html).toMatch(
+      new RegExp(
+        `<a [^>]*href="/projects/${PROJECT}/revisions/${REVISION}/spending\\?basis=reference_budget"[^>]*>.*?Spending projection</a>`,
       ),
     );
     expect(html).toContain('<time dateTime="2026-06-03T14:05:00Z"');

@@ -173,6 +173,11 @@ export interface PlanningGridProps {
    * exported.
    */
   readonly gantt?: PlanningGantt | undefined;
+  /**
+   * The task the address targets (`planning-target.ts`): once hydrated, the grid unfolds the rows
+   * above it and sets its active cell on it (WF-DEV-0090). None, and it opens on its first row.
+   */
+  readonly target?: string | undefined;
 }
 
 /** What the Gantt of the planning reads besides its rows. */
@@ -338,6 +343,7 @@ export function PlanningGrid({
   origins,
   treeFilters,
   gantt,
+  target,
 }: PlanningGridProps) {
   const t = useTranslations("planningGrid");
   const kinds = useTranslations("enums.WorkBreakdownKind");
@@ -594,6 +600,7 @@ export function PlanningGrid({
             dependencies={dependencies}
             foldScope={structure.revision_id}
             narrowing={nodeNarrowing(filters)}
+            target={target}
             undoable={undoable}
             undo={undo}
             commands={zoomed}

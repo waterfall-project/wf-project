@@ -14,9 +14,46 @@ export interface PageStream {
   readonly rest: () => Promise<string>;
 }
 
+/** The markup without its comments: each one is cut by a scan, not by a pattern. */
+function withoutComments(markup: string): string {
+  let out = "";
+  let from = 0;
+  for (;;) {
+    const open = markup.indexOf("<!--", from);
+    if (open < 0) {
+      return out + markup.slice(from);
+    }
+    out += markup.slice(from, open);
+    const close = markup.indexOf("-->", open + 4);
+    if (close < 0) {
+      return out;
+    }
+    from = close + 3;
+  }
+}
+
+/** The text of the markup, its tags and comments cut and replaced by one space each. */
+export function textOfMarkup(markup: string): string {
+  let out = "";
+  let inTag = false;
+  for (const char of withoutComments(markup)) {
+    if (inTag) {
+      if (char === ">") {
+        inTag = false;
+        out += " ";
+      }
+    } else if (char === "<") {
+      inTag = true;
+    } else {
+      out += char;
+    }
+  }
+  return out.replaceAll("&#x27;", "'");
+}
+
 /** What a page says, the comments of React and the escapes of its quotes left out. */
 export function plain(markup: string): string {
-  return markup.replace(/<!--.*?-->/g, "").replace(/&#x27;/g, "'");
+  return withoutComments(markup).replaceAll("&#x27;", "'");
 }
 
 /**
@@ -45,4 +82,25 @@ export async function streamUntil(element: ReactNode, mark: string): Promise<Pag
       return plain(rest);
     },
   };
+}
+
+/**
+ * The markup of a screen whose summary streams apart from its grid, read once every boundary is
+ * settled — each written in its place, whatever its size —, and a failure of what a boundary reads
+ * thrown, as the shell would say it.
+ */
+export async function streamed(page: ReactNode): Promise<string> {
+  const failures: unknown[] = [];
+  const stream = await renderToReadableStream(page, {
+    progressiveChunkSize: Infinity,
+    onError: (failure) => {
+      failures.push(failure);
+    },
+  });
+  await stream.allReady;
+  const markup = await new Response(stream).text();
+  if (failures.length > 0) {
+    throw failures[0];
+  }
+  return plain(markup);
 }

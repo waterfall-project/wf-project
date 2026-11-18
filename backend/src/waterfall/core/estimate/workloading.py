@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The workload of a project, by role and by month, private to the module (WF-DEV-0070, US-1520).
+"""The workload of a project, by role, by task and by month, private to the module (US-1520).
 
 The hours of the labour lines of a revision — a line's quantity times its hours — are spread over
 the months of the task that bears them in proportion to the hours worked on the calendar of the
@@ -13,22 +13,30 @@ date once the task is over.
 
 The roles listed are the active ones, with the roles the revision employs, deactivated or not,
 restricted to the node asked and its descendants; each with its capacity in the reference. A month
-whose hours exceed the capacity of its role is in alert (``WorkloadZone``). The hours of a role
-and a month are rounded once, to the hundredth, from the exact sum of the parts of its lines.
+whose hours exceed the capacity of its role is in alert (``WorkloadZone``), WF-DEV-0070.
+
+Each line counts by its parts, rounded to the hundredth so that they sum to its hours (``parting``,
+US-2040/L2): the hours of a task, of a role and a month, and the monthly totals are sums of parts
+already rounded, so that the detail of a role sums, each month, to its load (WF-DEV-0090). Each role
+details the tasks that bear its lines, two lines of a task counting as one, in the order of their
+start, then of the plan (decision of the author of 2026-11-14, #3181); a task, as a role, has only
+the months it loads (#3096). On a remaining, a completed task is not in the detail.
 
 The roles, the calendars and the capacities of a marked revision are read on its images, which a
-revision marked before US-1500 lacks: it reads the reference as it stands (#2627).
+revision marked before US-1500 lacks: it reads the reference as it stands (#2627). Its plan and its
+detail are computed when read, never kept by the marking (#3181).
 """
 
 from dataclasses import dataclass, replace
-from decimal import ROUND_HALF_EVEN, Decimal
+from decimal import Decimal
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from waterfall.core.cost_settings.interface import category_label_of
 from waterfall.core.estimate.imaging import KeptReference, KeptRole, kept_reference
+from waterfall.core.estimate.parting import remaining_parts, rounded_parts, summed_parts
 from waterfall.core.estimate.placing import Placed, placed_lines, placement_of, role_weeks
-from waterfall.core.estimate.spreading import Month, Placement, spread_by_month
+from waterfall.core.estimate.spreading import HOURS, Month, Placement
 from waterfall.core.projects.interface import project_facts
 from waterfall.core.resource_settings.interface import (
     Capacity,
@@ -56,6 +64,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.planning.interface import WorkInstant
     from waterfall.core.projects.interface import Viewer
 
 UNKNOWN_ORG_NODE = "UNKNOWN_ORG_NODE"
@@ -65,7 +74,6 @@ ORG_NODE_POINTER = "/query/org_node_id"
 MARKED = "marked"
 DRAFT = "draft"
 NOUGHT = Decimal(0)
-HUNDREDTH = Decimal("0.01")
 MONTHS_PER_YEAR = 12
 # Every role the reference holds: a page no installation fills.
 EVERY_ROLE = RoleWindow(limit=10**9, offset=0)
@@ -104,14 +112,31 @@ class RoleMonth:
 
 
 @dataclass(frozen=True, slots=True)
+class TaskLoad:
+    """A task of the detail of a role (``WorkloadTask``): its hours, and its months loaded in order.
+
+    ``node_id`` is the node of the task, ``row_number`` its row in the whole structure.
+    """
+
+    node_id: UUID
+    row_number: int
+    label: str
+    start: WorkInstant
+    finish: WorkInstant
+    hours: Decimal
+    months: tuple[tuple[str, Decimal], ...]
+
+
+@dataclass(frozen=True, slots=True)
 class RoleLoad:
-    """A role with its capacity a month in the reference, and its months loaded in order."""
+    """A role with its capacity a month in the reference, its months loaded in order, its tasks."""
 
     resource_role_id: UUID
     label: str
     org_node_id: UUID
     capacity_monthly_hours: Decimal
     months: tuple[RoleMonth, ...]
+    tasks: tuple[TaskLoad, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,9 +156,13 @@ class WorkloadView:
 
 @dataclass(frozen=True, slots=True)
 class Load:
-    """The hours of a labour line to spread: its role and its task as the line is worked on."""
+    """The hours of a labour line to spread: its role, its task, the task as the line is worked on.
+
+    ``task_id`` is the node of the task that bears the line.
+    """
 
     role_id: UUID
+    task_id: UUID
     hours: Decimal
     placement: Placement
 
@@ -150,19 +179,30 @@ class Reading:
     as_of: date | None
 
 
-def spread_loads(loads: Iterable[Load], as_of: date | None) -> dict[UUID, dict[Month, Decimal]]:
-    """Share the hours of each load among the months of its task; add them up by role.
+def _parts_of(load: Load, as_of: date | None) -> dict[Month, Decimal]:
+    """Give the parts of a load: whole, or the remaining to commit after the day of calculation."""
+    if as_of is None:
+        return rounded_parts(load.placement, load.hours, HOURS)
+    return remaining_parts(load.placement, load.hours, HOURS, as_of=as_of)
 
-    Pure. The sums are exact, to a ten-billionth of an hour: the caller rounds once.
+
+def spread_loads(
+    loads: Iterable[Load], as_of: date | None
+) -> dict[UUID, dict[UUID, dict[Month, Decimal]]]:
+    """Give the hours of the loads by role, then by task, month by month.
+
+    Pure. Each load by its parts rounded to the hundredth (``rounded_parts``), the loads of a task
+    summed; the tasks of a role in the order of the loads, a task without hours with no month.
     """
-    found: dict[UUID, dict[Month, Decimal]] = {}
+    found: dict[UUID, dict[UUID, list[dict[Month, Decimal]]]] = {}
     for load in loads:
-        if load.hours <= 0:
-            continue
-        months = found.setdefault(load.role_id, {})
-        for month, hours in spread_by_month(load.placement, load.hours, as_of=as_of).items():
-            months[month] = months.get(month, NOUGHT) + hours
-    return found
+        positive = load.hours > 0
+        parts = _parts_of(load, as_of) if positive else {}
+        found.setdefault(load.role_id, {}).setdefault(load.task_id, []).append(parts)
+    return {
+        role_id: {task_id: summed_parts(each) for task_id, each in tasks.items()}
+        for role_id, tasks in found.items()
+    }
 
 
 def label_of(month: Month) -> str:
@@ -179,25 +219,24 @@ def month_after(month: Month) -> Month:
 
 def monthly_totals(
     months_by_role: Iterable[Mapping[Month, Decimal]],
+    nought: Decimal = NOUGHT,
 ) -> list[tuple[Month, Decimal]]:
-    """Add up the hours of each month, from the first month loaded to the last, none left out."""
+    """Add up the hours of each month, from the first month loaded to the last, none left out.
+
+    ``nought`` is the zero of a month that loads nothing, written as the amounts are (``0.00``).
+    """
     sums: dict[Month, Decimal] = {}
     for months in months_by_role:
         for month, hours in months.items():
-            sums[month] = sums.get(month, NOUGHT) + hours
+            sums[month] = sums.get(month, nought) + hours
     if not sums:
         return []
     found: list[tuple[Month, Decimal]] = []
     month, last = min(sums), max(sums)
     while month <= last:
-        found.append((month, sums.get(month, NOUGHT)))
+        found.append((month, sums.get(month, nought)))
         month = month_after(month)
     return found
-
-
-def rounded(hours: Decimal) -> Decimal:
-    """Round hours once, to the hundredth, to the nearest even."""
-    return hours.quantize(HUNDREDTH, rounding=ROUND_HALF_EVEN)
 
 
 def _marked_reading(session: Session, project_id: UUID, asked: WorkloadAsked) -> Reading | None:
@@ -263,7 +302,8 @@ def loads_of(
         if reference:
             quantity = quantity if line.reference_quantity is None else line.reference_quantity
             hours = hours if line.reference_hours is None else line.reference_hours
-        loads.append(Load(line.resource_role_id, quantity * hours, placements[line.node_id]))
+        placement = placements[line.node_id]
+        loads.append(Load(line.resource_role_id, each.task_id, quantity * hours, placement))
     return loads
 
 
@@ -292,14 +332,37 @@ def _as_kept(role: RoleView, image: KeptRole | None) -> RoleView:
     return replace(role, label=image.label, capacity=capacity)
 
 
-def _load_of(role: RoleView, months: Mapping[Month, Decimal]) -> RoleLoad:
-    """Give a role with its months, in order, each in alert past the capacity of the role."""
+def _task_of(bearer: Placed, months: Mapping[Month, Decimal]) -> TaskLoad:
+    """Give a task of the detail of a role: what it is, its hours and its months in order."""
+    task = bearer.task
+    held = tuple((label_of(month), hours) for month, hours in sorted(months.items()))
+    hours = sum(months.values(), NOUGHT)
+    return TaskLoad(
+        bearer.task_id, bearer.row_number, task.label, task.start, task.finish, hours, held
+    )
+
+
+def _started(task: TaskLoad) -> tuple[WorkInstant, int]:
+    """Give what orders the tasks of a role: their start, then their row in the plan."""
+    return task.start, task.row_number
+
+
+def _load_of(
+    role: RoleView,
+    months: Mapping[Month, Decimal],
+    tasks: Mapping[UUID, Mapping[Month, Decimal]],
+    bearers: Mapping[UUID, Placed],
+) -> RoleLoad:
+    """Give a role with its months, in order, each in alert past its capacity, and its tasks."""
     capacity = role.capacity.monthly_hours
     held = tuple(
         RoleMonth(label_of(month), hours, hours > capacity)
         for month, hours in sorted(months.items())
     )
-    return RoleLoad(role.resource_role_id, role.label, role.org_node_id, capacity, held)
+    detail = sorted((_task_of(bearers[key], each) for key, each in tasks.items()), key=_started)
+    return RoleLoad(
+        role.resource_role_id, role.label, role.org_node_id, capacity, held, tuple(detail)
+    )
 
 
 def read_workload(session: Session, project_id: UUID, asked: WorkloadAsked) -> WorkloadView:
@@ -332,12 +395,18 @@ def read_workload(session: Session, project_id: UUID, asked: WorkloadAsked) -> W
     loads = loads_of(placed, placements, reference=not remaining, remaining=remaining)
     kept = {role.resource_role_id for role in roles}
     spread = spread_loads((load for load in loads if load.role_id in kept), reading.as_of)
-    # One rounding, of the exact sum of a role and a month; the totals add what is rounded.
-    hours = {
-        role_id: {month: rounded(each) for month, each in months.items()}
-        for role_id, months in spread.items()
-    }
-    shown = [_load_of(role, hours.get(role.resource_role_id, {})) for role in roles]
+    # The months of a role sum those of its tasks, the totals those of the roles: parts rounded.
+    hours = {role_id: summed_parts(tasks.values()) for role_id, tasks in spread.items()}
+    bearers = {each.task_id: each for each in placed}
+    shown = [
+        _load_of(
+            role,
+            hours.get(role.resource_role_id, {}),
+            spread.get(role.resource_role_id, {}),
+            bearers,
+        )
+        for role in roles
+    ]
     totals = [(label_of(month), sum_) for month, sum_ in monthly_totals(hours.values())]
     return WorkloadView(
         reading.revision_id,

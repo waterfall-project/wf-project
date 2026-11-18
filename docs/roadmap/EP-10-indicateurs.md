@@ -447,7 +447,7 @@ rien à emporter.
 
 | Table | Contenu | Contraintes |
 |---|---|---|
-| `revision_indicator` | `project_id` (clé de partition), `id`, `revision_id`, `kind` (`estimate`, `remaining`, `project`, `cost_curve`, `cost_curve_payment_delays`, `earned_value_curves` ; EP-11 ajoute les siennes), `scope` (`project`, `unassigned`, ou l'identifiant du sous-projet en texte, comme le contrat l'écrit), `document` (`jsonb`, la réponse du contrat de cette nature pour cette maille, `context` compris, `zone` nulle sur chaque indice), `computed_at` (l'instant du marquage), `created_at`, `created_by` | clé primaire (`project_id`, `id`) ; unique (`project_id`, `revision_id`, `kind`, `scope`) ; clé composite (`project_id`, `revision_id`) vers `revision` en refus ; `kind` dans les six natures, `scope` de 1 à 36 non blanc ; `document` objet ; index sur (`project_id`, `revision_id`) ; déclencheur d'immuabilité comme `cost_structure`, et un déclencheur qui refuse l'écriture d'une ligne dont la révision n'est pas en cours de marquage — la révision verrouillée `FOR UPDATE` par le marquage, encore `draft` à l'instant de l'écriture |
+| `revision_indicator` | `project_id` (clé de partition), `id`, `revision_id`, `kind` (`estimate`, `remaining`, `project`, `cost_curve`, `cost_curve_payment_delays`, `earned_value_curves` ; EP-11 ajoute les siennes), `scope` (`project`, `unassigned`, ou l'identifiant du sous-projet en texte, comme le contrat l'écrit), `document` (`jsonb`, la réponse du contrat de cette nature pour cette maille, `context` compris, `zone` nulle sur chaque indice), `computed_at` (l'instant du marquage), `created_at`, `created_by` | clé primaire (`project_id`, `id`) ; unique (`project_id`, `revision_id`, `kind`, `scope`) ; clé composite (`project_id`, `revision_id`) vers `revision` en refus ; `kind` dans les six natures, `scope` de 1 à 36 non blanc ; `document` objet ; aucun index de plus : (`project_id`, `revision_id`) est le préfixe de l’unicité, qui sert la lecture, et un second index doublerait le coût d’écriture sans gain (décision de l’auteur du 2026-11-16, #3553) ; déclencheur d'immuabilité comme `cost_structure`, et un déclencheur qui refuse l'écriture d'une ligne dont la révision n'est pas en cours de marquage — la révision verrouillée `FOR UPDATE` par le marquage, encore `draft` à l'instant de l'écriture |
 
 - **Une migration dans le socle** (US-1660/L1) : la table, sa partition
   (`revision_indicator_p_<uuid>`) créée à chaque projet nouveau par `create_project_partitions`, qui
@@ -456,6 +456,12 @@ rien à emporter.
   attachées comme la fonction le fait, avec la fonction `revision_indicator_refuse_truncate` que la
   fonction attend, les déclencheurs, les droits du rôle du service — `SELECT`, `INSERT` : rien ne se met à
   jour ni ne se supprime — déclarés dans `SERVICE_RIGHTS`. Aucune migration de données.
+- **Une migration pour le compteur des lignes de coût** (`0033_cost_line_lock_version`, US-1720/L3) :
+  elle ajoute `cost_line.lock_version`, entier non nul, zéro pour chaque ligne qui existe ; il avance
+  à chaque écriture d'une valeur que les indicateurs lisent, sous le verrou du projet, et
+  `costs_stamp` en rend la somme (décision de l'auteur du 2026-11-16, #3629). Une ligne qu'un
+  ré-import trouve inchangée ne reçoit que `last_import_id` : la clé change alors par le nombre des
+  imports.
 - **Une migration pour la capacité** (US-2410) : `resource_role.monthly_hours` et sa contrainte
   sont retirées, l'effectif gardé tel quel ; les heures d'un rôle se calculent à la lecture. Les
   images des révisions marquées ne sont pas touchées. Sa descente rend la colonne, remplie des
@@ -505,8 +511,10 @@ rien à emporter.
     de ses nœuds, tâches et liaisons ; `physical_progress.py`, `register_physical_progress`, le
     crochet (« Les points d'extension ») ;
   - `core/costs/interface/indicator_costs.py` (après US-1610/L2 #2404 et US-1610/L3 #2405) :
-    `costs_stamp(project_id)`, le nombre et le dernier `imported_at` de `cost_import`, le nombre et
-    la somme des `lock_version` de `cost_line` (US-1720/L3), avec le dernier `updated_at` ; `actual_costs_until` et `actual_cost_by_subproject` (EP-09)
+    `costs_stamp(project_id)`, le dernier `imported_at` de `cost_import`, le dernier
+    `updated_at` de `cost_line` et la somme des `lock_version` de `cost_line` (le compteur, avancé à
+    chaque écriture d'une ligne sous le verrou du projet ; décision de l'auteur du 2026-11-16,
+    #3629) ; `actual_costs_until` et `actual_cost_by_subproject` (EP-09)
     servent tels quels ;
   - `core/revisions` et `core/projects` servent par leurs lectures existantes : `found_revision`,
     `current_revision`, `list_revisions`, `read_revision` (`marked_at`, `is_reference`, le statut) ;
@@ -588,8 +596,10 @@ importe l'interface (US-1670/L1).
 - `store_indicators(session, revision_id, act)` lit l'état du projet (verrouillé par `run_marking`
   avant `mark_revision` ; le chargeur, en une transaction, le lit sans verrou) et la référence, puis
   écrit, pour le projet, chaque sous-projet et `unassigned` : `estimate` (le document
-  d'`estimate_indicators` d'EP-07 pour la révision et la maille), `remaining` (celui de
-  `remaining_indicators` d'EP-09, la couverture à zéro jusqu'à EP-08), et, si le projet est
+  d'`estimate_indicators` d'EP-07 pour la révision et la maille), et, une seule fois, sur la maille
+  `project`, `remaining` (celui de `remaining_indicators` d'EP-09, la couverture à zéro jusqu'à
+  EP-08 ; son document porte déjà le solde de chaque sous-projet et de « hors sous-projet », et
+  `getRemainingIndicators` n'a pas de `scope`), et, si le projet est
   `in_progress`, `project` (le calcul ci-dessus à la date du marquage) et les trois natures de
   courbes (« Les courbes ») ; `context` de chaque document porte `revision_status` `marked`,
   `computed_at` = `act.at`, `is_stored` vrai ; `created_by` l'auteur de l'`Act`.
@@ -674,10 +684,12 @@ Réécrite au recadrage du 2026-11-15 : EP-26 a refait la lecture d'une structur
 
 ### Le cache
 
-- **La clé** : `waterfall:indicators:<project_id>:<empreinte>`, l'empreinte étant le haché
-  (SHA-256, tronqué) d'un texte canonique formé de : l'état, la révision en cours, la référence et le
+- **La clé** : `waterfall:indicators:<project_id>:<empreinte>:<maille>` — la maille, `project`,
+  l'identifiant d'un sous-projet ou `unassigned`, depuis US-2420 (« L'entrée ») —, l'empreinte
+  étant le haché (SHA-256, tronqué) d'un texte canonique formé de : l'état, la révision en cours, la référence et le
   compteur du projet (`project_facts`, `read_project`, `stored_lock_version`) ; la révision calculée
-  R et sa référence Ref ; `revision_content_stamp(R)` et `lines_stamp(R)` ; `costs_stamp(project)` ;
+  R et sa référence Ref ; `revision_content_stamp(R)` et `lines_stamp(R)` ; `costs_stamp(project)`, qui rend aussi
+  la somme des `lock_version` de `cost_line` (décision de l'auteur du 2026-11-16, #3629) ;
   le compteur de la structure principale de R ; le nombre de sous-projets ; le jour D du fuseau de
   l'installation (recadrage du 2026-11-15). Toute écriture dont une entrée dépend
   change l'empreinte : une saisie de nœud, de ligne ou d'état (les `updated_at` et les comptes), un
@@ -700,12 +712,26 @@ Réécrite au recadrage du 2026-11-15 : EP-26 a refait la lecture d'une structur
   entrée n'est jamais servie pour une clé qui n'est plus celle du projet ». **Pour EP-08** : la clé
   lit le compteur de la seule structure principale de la révision ; quand EP-08 donne aux autres
   structures leur compteur, elle lira celui de toutes.
-- **L'entrée** : un seul document JSON par projet et par jour — les `ProjectIndicators` et les trois
-  `CurveSeries` de chaque maille, zones nulles —, écrit après un calcul complet avec la durée de
-  validité ; `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves` au jour courant et le
-  dernier point de `getIndexHistory` le lisent ; aucune lecture d'une révision marquée ne passe par
-  le cache. Deux lectures parallèles d'une entrée absente calculent toutes deux et écrivent la même
-  valeur : aucun verrou.
+- **L'entrée** : un document JSON par maille et par jour — les `ProjectIndicators` et les trois
+  `CurveSeries` de la maille, zones nulles —, sous la clé du projet suivie de la maille, écrit avec
+  la durée de validité (US-2420, décision de l'auteur du 2026-11-16, #3628). Le document unique par
+  projet, qui portait toutes les mailles, manquait l'objectif d'une seconde : sur PRJ-001 du témoin
+  (2 sous-projets, 4 mailles, `make measure-core ONLY=indicators`, 5 passages), 48 008 octets, lu à
+  froid en 1,499 s, une maille seule 1,080 s ; 1,1 Mo et 15,2 s à froid extrapolés à 100
+  sous-projets. Une lecture lit en un échange les entrées des mailles qu'elle demande, calcule en
+  une passe celles qui manquent, et n'écrit qu'elles : `getProjectIndicators`, `getCostCurve` et
+  `getEarnedValueCurves` au jour courant lisent une maille ; le dernier point de `getIndexHistory`,
+  la sienne ou, sans maille, toutes, chacune à l'instant de son calcul. L'empreinte, celle du projet,
+  est partagée par ses mailles : une écriture qui la change les quitte toutes à la fois. Mesuré
+  après le changement : une maille, 15 328 octets, lue à froid en 1,134 s (de 1,011 à 1,146 s sur
+  trois mesures : l'objectif reste manqué de peu), à chaud en 26 ms, quel que soit le nombre de
+  sous-projets ; toutes les mailles du témoin, 47 891 octets, 1,678 s à froid, 22 ms à chaud,
+  1,1 Mo et 19,4 s à froid extrapolés à 100 sous-projets. Aucune lecture d'une
+  révision marquée ne passe par le cache. Deux lectures parallèles d'une entrée absente calculent
+  toutes deux et écrivent la même valeur : aucun verrou. Une maille froide coûtant
+  environ 1,1 s et le front pouvant lancer `indicators`, `cost-curve` et `earned-value-curves` en
+  parallèle sur la même maille, elle peut être calculée trois fois : conséquence connue et
+  acceptée, à mesurer si le rapport de version la montre.
 - **L'indisponibilité** : `IndicatorsCache` attrape `redis.exceptions.RedisError` et les délais
   (`socket_timeout` d'une seconde, comme `DEPOSIT_TIMEOUT`), rend `None` à la lecture, ignore à
   l'écriture, et journalise `indicators.cache_unavailable` une fois par cause ; le calcul est rendu.
@@ -943,7 +969,7 @@ sera livrée ; la vérification d'ensemble (US-1740/L2) attend tous les lots.
 
 ## US-1660 — Les indicateurs de valeur acquise au jour courant : la date et le périmètre, les avancements, les indices et leurs zones, les projections
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IND-0010-A`, `WF-IND-0020-A`, `WF-IND-0030-A`, `WF-IND-0040-A`,
   `WF-IND-0050-A`, `WF-IND-0060-A`, `WF-IND-0070-A`, `WF-IND-0080-A`, `WF-RAE-0050-A`,
   `WF-REF-0170-A`
@@ -1110,7 +1136,7 @@ survenu et le budget devant un avenant (EP-08) ; le portefeuille (EP-11).
 
 ## US-1670 — Le calcul au marquage et la conservation des indicateurs d'une révision marquée
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DAT-0040-A`, `WF-IND-0010-A`, `WF-CYC-0090-A`, `WF-REF-0130-A`
 - **opérations** : `markRevision`, `exitProject` (la transaction du marquage) ;
   `getProjectIndicators` (`revision_id`, `as_of`), `getEstimateIndicators`,
@@ -1204,6 +1230,10 @@ restent ce qu'elles étaient le jour où je les ai tenues.
   `revision_id` d'une révision marquée rendent le document conservé, `is_stored` vrai, les parts et
   la couverture telles qu'elles étaient au marquage ; sur la révision en cours, le calcul à la
   lecture d'EP-07 et d'EP-09, `is_stored` faux, inchangé ;
+- propre à l'US : la révision précédente d'une révision dont la seule devancière est l'offre est
+  l'offre, pour les indicateurs de devis comme pour ceux du reste à engager : le service du reste à
+  engager s'aligne sur celui du devis, et le `delta_to_previous_revision` conservé de la 101 est son
+  écart à l'offre, non `null` (décision de l'auteur du 2026-11-17, #3663) ;
 - propre à l'US : le worker porte l'extension — il importe l'interface de `core/indicators`, après
   US-1610/L2 #2404 d'EP-09, dernier lot à écrire `worker/main.py` — et le test des points d'entrée
   (#2180) dit que l'API et le chargeur l'attendent dès le socle, le worker à partir de ce lot ;
@@ -1229,7 +1259,7 @@ risques conservés pour le portefeuille (EP-11, EP-08).
 
 ## US-1680 — L'avancement physique des récapitulatives dans la grille de planning
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IND-0060-A`, `WF-PLA-0130-A`
 - **opérations** : `listNodes` (`TaskFacet.physical_progress`), `setTaskProgress`
 - **issue** : 2430
@@ -1266,8 +1296,9 @@ ont acquise —, **afin de** voir l'avancement de chaque phase sans rien saisir.
   récapitulative ne sont pas saisissables. » : constaté par EP-06 (US-1380) ;
 - `WF-PLA-0130-A` — « La marge totale, la criticité et l’avancement physique s’affichent et ne sont
   pas saisissables. » : la marge et la criticité, constatées par EP-06 (US-1390, US-1470) ; ici,
-  `physical_progress` est rendu par `listNodes`, absent de `TaskFacetWrite`, et la cellule de la
-  grille est calculée (`computed_fields`) ;
+  `physical_progress` est rendu par `listNodes`, absent de `TaskFacetWrite`, et le front lui-même
+  déclare calculée la cellule de la grille : `ComputedField` ne change pas, le contrat figé non plus
+  (il ne porte pas `task.physical_progress`) ;
 - `WF-PLA-0130-A` — « Une terminaison datée avant le démarrage de la tâche est refusée. » : constaté
   par EP-06 (US-1380/L4, #2519) ;
 - propre à l'US : `core/planning` déclare un registre nouveau, dans un fichier propre de son
@@ -1293,7 +1324,7 @@ elle-même (EP-06) ; les lignes de provision et les tâches issues d'un risque s
 
 ## US-1690 — Les courbes : coûts cumulés, décaissements, valeur acquise, conservées au marquage
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IND-0100-A`, `WF-IND-0110-A`
 - **opérations** : `getCostCurve`, `getEarnedValueCurves` ; `markRevision` (les courbes conservées)
 - **issue** : 2431
@@ -1382,7 +1413,7 @@ la conservation (US-1670). Le pas du mois et les points de la date de calcul sui
 
 ## US-1700 — L'évolution des indices
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IND-0130-A`
 - **opérations** : `getIndexHistory` ; `getReferenceSettings` (les seuils tracés)
 - **issue** : 2432
@@ -1422,7 +1453,7 @@ US-1710.
 
 ## US-1710 — Le diagramme temps/temps
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IND-0090-A`, `WF-PLA-0060-A`, `WF-DAT-0030-A`, `WF-RAE-0030-A`
 - **opérations** : `getMilestoneTracking` ; `setNodeTracking`, `setTaskProgress` (ce qu'ils y
   changent)
@@ -1500,7 +1531,7 @@ l'inscription elle-même (EP-06).
 
 ## US-1720 — Le cache des indicateurs au jour courant
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DAT-0130-A`
 - **opérations** : `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves`,
   `getIndexHistory` (le dernier point) ; `updateEstimateLine`, `setActualCostTrackedScope`,
@@ -1571,7 +1602,7 @@ dernier lot à l'écrire.
 
 ## US-1730 — L'écran des indicateurs branché sur le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ARC-0070-A`
 - **opérations** : `getProjectIndicators`, `getIndexHistory`, `getMilestoneTracking`,
   `getCostCurve`, `getEarnedValueCurves` ; `getRevision`, `listSubprojects`, `listRevisions` que
@@ -1615,7 +1646,7 @@ et les autres parcours (US-1740).
 
 ## US-1740 — Le témoin : les indicateurs conservés et au jour courant de PRJ-001, et les parcours rejoués
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0010-A`
 - **opérations** : aucune en propre ; les lectures de l'EPIC sur le témoin chargé
 - **issue** : 2436
@@ -1653,8 +1684,8 @@ service, **afin que** les tests déjà écrits prouvent le service sur le plus g
   `project_indicators_offer`, `index_history`, `index_history_subproject`, `milestone_tracking`,
   `cost_curve`, `cost_curve_payment_delays`, `cost_curve_subproject`, `earned_value_curves`,
   `estimate_indicators` et `remaining_indicators` sur la révision 101 — sont comparées aux exemples,
-  à la référence, aux provisions, aux risques et aux montants qui en dépendent près, listés dans le
-  test : la référence du témoin chargé reste l'offre 100 jusqu'à la fusion de l'avenant 1 (EP-08),
+  à la référence, aux provisions, aux risques, au travail depuis le marquage et aux montants qui en
+  dépendent près, listés dans le test : la référence du témoin chargé reste l'offre 100 jusqu'à la fusion de l'avenant 1 (EP-08),
   quand les exemples lisent la 101 ; se comparent tels quels les contextes, `is_stored`, le coût
   réel, le reste à engager, les dates des jalons, les formes et les pas des séries, et se prouvent
   sur le témoin les invariants — les sommes des mailles, la projection du chef de projet, l'offre
@@ -1696,7 +1727,7 @@ marquées de plus et les trois cents projets (EP-13) ; le portefeuille (EP-11).
 
 ## US-2040 — Le détail du plan de charge par rôle et par tâche
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DEV-0090-A`
 - **opérations** : `getProjectWorkload`
 - **issue** : #3506
@@ -1737,7 +1768,7 @@ est d'EP-02 ; EP-24 a corrigé l'empilement de son histogramme (US-2030).
 
 ## US-2050 — La projection de dépenses du projet
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DEV-0100-A`
 - **opérations** : `getProjectSpending` (nouvelle), `listSubprojects`
 - **issue** : #3507
@@ -1794,7 +1825,7 @@ rien n'introduit ; l'équivalent au portefeuille (décisions de l'auteur du 2026
 
 ## US-2410 — La capacité d'un rôle se déduit de son effectif et de son calendrier
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0100-A`
 - **opérations** : `createResourceRole`, `updateResourceRole`, `listResourceRoles`,
   `getProjectWorkload`
@@ -1834,7 +1865,7 @@ d'EP-05 le note en écart d'US-0850.
 
 ## US-2420 — Les indicateurs, le plan de charge et la projection de dépenses sont mesurés
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — l'outil de WF-QUA-0060, que clôt US-2300 (EP-26)
 - **opérations** : `getProjectIndicators`, `getProjectWorkload`, `getProjectSpending`
 - **issue** : #3510
@@ -1863,7 +1894,7 @@ de mesures, **afin de** savoir s'ils tiennent leurs objectifs avant de publier l
 
 ## US-2430 — Les constats reçus sont soldés
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-07 et EP-09
 - **opérations** : `getProjectIndicators` ; `listActualCosts`, `listNodes` (le filtre `subproject_id`, US-2430/L2) ;
   `compareRevisions`, `getCostCurve`, `getEarnedValueCurves`, `updateMyPreferences` (le contrat, US-2430/L3)

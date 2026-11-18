@@ -232,6 +232,8 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
    * in it, for a reading not narrowed.
    */
   readonly narrowing?: Readonly<Record<string, unknown>> | undefined;
+  /** The row the address targets, unfolded down to and aimed at once hydrated (`useFoldCommands`). */
+  readonly target?: string | undefined;
   /** The commands the screen gives the rows of the grid; none for a grid it writes nothing from. */
   readonly commands?: RowCommands<Row> | undefined;
   /**
@@ -321,6 +323,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   treeFilters,
   foldScope,
   narrowing,
+  target,
   commands,
   stacked,
   selecting,
@@ -609,6 +612,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     cursor,
     scroller,
     focusAt: keyboard.focusAt,
+    target,
     labelOf: (row) => {
       const label = config.columns[0];
       return label === undefined

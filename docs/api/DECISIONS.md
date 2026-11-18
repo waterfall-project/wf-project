@@ -10754,6 +10754,18 @@ Décision de l'auteur du 2026-11-01 : le contrat suit WF-IND-0010, WF-DAT-0040 e
 
 Le service le suit par #1779 (EP-10).
 
+### Un `as_of` qui ne désigne aucun indicateur projet conservé : le 409 de l'offre (US-1670/L2, #2449)
+
+Décision de l'auteur du 2026-11-15, constat « contrat » d'EP-10, dans la règle d'après le gel
+(« La règle d'après le gel ») : un `as_of` auquel aucune révision marquée En cours ne répond — aucune
+n'est marquée à cette date ou avant, ou aucune de celles-là n'a conservé les indicateurs du projet
+(marquées en Chiffrage) — est refusé par le même 409 `STATE_FORBIDS_OPERATION`, sans `params`, que
+`revision_id` d'une offre marquée. `getProjectIndicators`, `getCostCurve` et `getEarnedValueCurves`
+le disent dans la description de leur 409, et `AsOf` dans la sienne ; aucune forme ni exemple
+nouveau (`project_indicators_offer` sert). Écartés : un 422 sur `/query/as_of`, que le front
+traiterait comme une faute de saisie quand la date est valide ; un 200 sur le calcul du jour, qui
+répondrait à une autre date que celle demandée.
+
 ### Les champs toujours rendus sont exigés : le résidu (US-0704, #1735, G-03, #1780)
 
 Décision de l'auteur du 2026-11-01, qui étend la règle de G-02 du 2026-10-28 : un champ que
@@ -11909,6 +11921,207 @@ exemple (`actual_cost_mapping_kept_columns_too_many`, `/kept_columns`) : le fron
 `actual_cost_mapping_labels_too_many`**, la correspondance du témoin envoyée avec vingt et un
 intitulés pour l'élément d'OTP, refusée au pointeur `/columns/0/labels`, `params.max_length` 20.
 Aucune forme ne change ; le test du front qui le lit vient avec le formulaire.
+
+### Le détail du plan de charge et la projection de dépenses (US-2040/L1, #3511)
+
+La spécification 1.0.6 ajoute le détail du plan de charge par tâche (WF-DEV-0090, #3181) et la
+projection de dépenses du projet (WF-DEV-0100, #3182) ; le front empilait mal un rôle chargé sur
+moins de mois que les autres (#3096). Décisions de l'auteur du 2026-11-14 et du 2026-11-15
+(recadrage d'EP-10, « Opérations du contrat » et « Le plan de charge détaillé et la projection de
+dépenses ») :
+
+- **`getProjectWorkload` rend le détail par tâche** : chaque rôle de `WorkloadPlan` porte `tasks`,
+  exigé, des `WorkloadTask` — le nœud, le numéro de ligne, le libellé, le début et la fin
+  (`WorkInstant`, la convention de la tâche), le total des heures du rôle et `months` —, sur la base,
+  par la répartition et sous le filtre du plan, dans l'ordre du début (sa date, puis ses heures),
+  puis du planning (`row_number`). Deux lignes d'un même rôle sous une même tâche y sont sommées ;
+  sur la base du reste à engager, une tâche terminée n'y est pas. Le détail est calculé à la lecture,
+  sur une révision marquée aussi, jamais conservé par son marquage. Écartée : une opération à part,
+  qui étalerait deux fois les mêmes lignes.
+- **`months` ne porte que les mois chargés** (#3096), pour un rôle comme pour une tâche, une nature
+  ou une catégorie de la projection : un mois sans charge est absent, non rendu à zéro ;
+  `monthly_totals` porte, lui, chaque mois de l'horizon sans trou, l'axe du graphique. La
+  description de `getProjectWorkload` et celles des `months` le disent ; l'exemple `workload` le
+  montre, le monteur câbleur chargé sur 8 des 39 mois du plan. Écarté : tous les mois de
+  l'horizon, à zéro.
+- **Les parts d'une ligne s'arrondissent de façon que leur somme soit son total** : chaque part est
+  la différence de deux arrondis du cumul de la ligne à la fin de son mois et à la fin du mois
+  d'avant, le cumul du dernier mois étant la ligne entière : une part n'est jamais négative, et la
+  somme des parts est le total de la ligne arrondi. Le mode d'arrondi est celui de chaque grandeur
+  dans le noyau : les heures au centième, la moitié vers le pair le plus proche
+  (`ROUND_HALF_EVEN`, comme le plan de charge, `spreading.HOURS`) ; les montants (`Money`) au
+  centime, la moitié loin de zéro (`ROUND_HALF_UP`, comme `pricing.amounts` et `keeping`,
+  `spreading.MONEY`). Le service d'US-2040/L2 écrit la règle à l'identique, mode compris
+  (`core/estimate/parting.py`), sur le cumul exact de la ligne, arrondi une fois : celui d'un
+  montant à la fin d'un mois est la valeur planifiée de la ligne à ce jour, qu'EP-07
+  (`planned_value`) et les indicateurs d'EP-10 calculent désormais de la même façon, la part de
+  chaque ligne arrondie au centime, sur les calendriers que le marquage de la référence a
+  conservés (#3566). Tout total — d'un mois, d'une tâche, d'un rôle, d'une catégorie,
+  d'une nature, de la projection — est la somme de parts déjà arrondies, ce qui tient au centième
+  les égalités des Vérif de WF-DEV-0090 et de WF-DEV-0100. Le plan de charge existant passe par
+  là : ses mois bougent d'un centième, et ses exemples, réengendrés, avec eux le plan de charge
+  agrégé du portefeuille, qui somme celui du témoin.
+- **`getProjectSpending`, opération nouvelle**, `GET /projects/{project_id}/spending`, sous
+  `estimate.read`, sur le modèle de `getProjectWorkload` : la base (`WorkloadBasis`, dont la
+  description s'étend aux montants) et `revision_id`, avec ses refus — 409
+  `STATE_FORBIDS_OPERATION` d'une base absente, 422 sur `/query/revision_id` — ;
+  `payment_delays`, comme `getCostCurve` ; `subproject_id` (`SubprojectFilter`, `unassigned`
+  compris), refusé comme le filtre des coûts réels, 422 `UNKNOWN_SUBPROJECT` sur
+  `/query/subproject_id`. Sa réponse, `SpendingProjection` : le contexte de calcul
+  (`context.is_stored` toujours faux, `context.scope` le périmètre), la base, `payment_delays`, le
+  total, le total de chaque mois (`monthly_totals`, sans trou), et les natures de coût qui portent
+  un montant (`SpendingCostType`), chacune avec son total, ses mois et ses catégories
+  (`SpendingCategory`), dans l'ordre du référentiel — celui de `listCostTypes` et de
+  `listCostCategories` sans tri, le code, puis l'identifiant —, jamais la nature des provisions,
+  dont les lignes n'entrent pas. Cet ordre, par code, diffère de celui de
+  `EstimateIndicators.by_cost_type` et de `RemainingIndicators.by_cost_type`, rangés par
+  identifiant : les natures de la projection suivent le référentiel que l'écran affiche, ces
+  ventilations sont celles d'indicateurs déjà publiés, qu'on ne reclasse pas. L'écran n'attribue
+  donc pas une couleur de nature par rang, mais par identifiant de nature. Les montants sont les
+  montants enregistrés des lignes, comme ceux de la courbe de coûts cumulés : une `Money`, sans
+  enveloppe `Computable`. Le front n'y somme rien (WF-ARC-0020). Écartés : les natures et les
+  catégories sans montant, à zéro ; le total de la projection laissé au front.
+- **Les exemples sont engendrés sur le témoin** (`wftools.mockcurves`, `wftools.mockspending`) :
+  ceux du plan de charge, réengendrés avec leurs tâches — un rôle porte jusqu'à 800 tâches, une par
+  ligne du fichier, `make mock-data` disposant désormais sur plusieurs lignes l'élément d'une liste
+  qui porte lui-même une longue liste — ; `spending` (le reste à engager de la révision en cours),
+  `spending_reference_budget` (le budget de la référence, mois antérieurs à la date de calcul
+  compris), `spending_marked_remaining`, `spending_payment_delays` et `spending_subproject` ; les
+  refus `spending_no_reference`, `spending_revision_refused` et `spending_subproject_unknown`,
+  écrits à la main comme ceux du plan de charge. Le catalogue du front reçoit les trois valeurs de
+  `SpendingProjection.basis`.
+- **Le taux horaire manquant refuse la projection** (décision de l'auteur du 2026-11-16, #3565, au
+  lot US-2050/L1). Une ligne de main-d'œuvre dont la catégorie n'a pas de taux pour l'année de
+  référence de la révision lue rend 422 `HOURLY_RATE_MISSING`, sans `fields`, `params.missing_rates`
+  nommant les catégories (`MissingRate`), comme le refus d'une saisie de ligne (J-06) ; exemple
+  `spending_rate_missing`, engendré par `wftools.mockspendingrefusals` sur le témoin, comme
+  `estimate_line_rate_missing`. Écartés : des montants `Computable` par catégorie et par
+  mois, trop lourds pour un histogramme ; la ligne sans taux omise avec un drapeau, qui rend une
+  projection fausse sans qu'elle le soit visiblement (WF-DEV-0010).
+
+`info.version` reste `1.0.0` : une opération et des champs rendus de plus. Le service du détail est
+d'US-2040/L2, celui de la projection d'US-2050.
+
+### La courbe de coûts sur les parts arrondies communes (US-1690/L4, #3564)
+
+Décision de l'auteur du 2026-11-16 (#3564) : la courbe de coûts cumulés et les courbes de valeur
+acquise étalent leurs lignes en parts arrondies comme ci-dessus — chaque part la différence de deux
+arrondis au centime, la moitié loin de zéro, du cumul exact de la ligne —, avec et sans
+`payment_delays` ; le décalage d'une ligne s'applique à son cumul exact avant l'arrondi. Leur série
+lisait l'étalement sans l'arrondir, et ses décaissements à venir différaient de deux centimes de la
+projection de dépenses sur le témoin, en juin 2026. Désormais, mois par mois, la croissance de la
+projection du chef de projet et les décaissements à venir sont ceux de `getProjectSpending` sur le
+reste à engager, au centime, hormis les provisions des risques identifiés, que la courbe garde et
+que la projection de dépenses exclut : 675 512,56 en juin 2026 dans `cost_curve_payment_delays`,
+175 512,56 dans `spending_payment_delays`, les 500 000 d'une provision. La description de
+`getCostCurve` le dit. La valeur planifiée des indicateurs et des courbes du faux back somme, elle
+aussi, les parts de chaque ligne arrondies (#3590) : les exemples des courbes, des indicateurs et du
+portefeuille qui en dépendent bougent de quelques centimes. Écarté : dire au contrat l'écart d'un
+centime possible, qui laissait deux lectures d'un même montant.
+
+### La capacité d'un rôle : l'effectif seul saisi, les heures calculées (US-2410/L1, #3516)
+
+La spécification 1.0.4 réécrit WF-REF-0100 (#2836) : un rôle porte une capacité unique, son
+effectif, éventuellement fractionnaire, d'où se déduisent ses heures disponibles par mois. Décision
+de l'auteur du 2026-11-15, au recadrage d'EP-10 (conception, « La capacité d'un rôle ») : le
+contrat change avant le code.
+
+- **La lecture ne change pas de forme.** `RoleCapacity` garde `monthly_hours` et `headcount`, que
+  rendent `listResourceRoles`, les réponses des écritures et l'image d'un rôle
+  (`ResourceRoleImage`) ; les bornes `monthly_hours_min`, `monthly_hours_max` et le tri
+  `monthly_hours` restent, sur les heures calculées. `monthly_hours` est l'effectif multiplié par
+  les heures hebdomadaires du calendrier du rôle — la somme de ses sept jours —, par 52, divisé par 12,
+  arrondi au centième, la moitié au pair comme les heures du plan de charge : 2 × 35 × 52 / 12,
+  environ 303,33 h ; 0,5 sur le même calendrier, 75,83. L'arrondi porte sur le produit entier, non
+  sur les heures d'une personne multipliées par l'effectif, comme le faisaient les exemples
+  (« L'univers témoin », plus haut) : l'ingénieur électricien passe de 658 654,00 à 658 666,67 h, le
+  technicien de mise en service de 485 324,00 à 485 333,33, le monteur câbleur de 216 662,50 à
+  216 666,67, le programmeur d'automates de 519,99 à 520,00 ; l'automaticien garde 338,00. Les
+  exemples des rôles écrits à la main portent ces heures, et `make mock-data` réengendre ceux qui
+  les lisent : les rôles lus par un lecteur et bornés, les nœuds désactivés, les images des
+  révisions marquées, les plans de charge du projet et du portefeuille. Le test d'invariants
+  (`tools/tests/test_mockuniverse.py`) tient chaque rôle à la règle. Les heures suivent le
+  calendrier : en changer, ou changer ses heures, change la capacité à la lecture suivante. Une
+  révision marquée garde, dans son image, les heures de son marquage (WF-REF-0130).
+- **L'écriture ne porte que l'effectif.** `createResourceRole` et `updateResourceRole` écrivent
+  `RoleCapacityWrite`, `headcount` seul. Le contrat ne refusait jusqu'ici aucune propriété inconnue
+  d'un corps : ses objets sont ouverts, et le service ignore ce qu'ils ne déclarent pas. Pour que
+  `monthly_hours` envoyé soit refusé, et non ignoré en silence — un formulaire qui renverrait le
+  rôle lu croirait avoir écrit des heures —, la capacité écrite est **fermée**
+  (`additionalProperties: false`, `extra="forbid"` dans les modèles du service) : toute propriété
+  qu'elle ne déclare pas, `monthly_hours` comme une autre, est refusée par 422
+  `VALIDATION_FAILED`, `fields` la désignant, `/capacity/monthly_hours`, avec
+  `VALIDATION_FAILED` — le code générique d'un champ refusé, le gestionnaire du service le donnant à
+  toute faute sans code propre. Un exemple le montre, engendré par `wftools.mockadminrefusals`
+  (`resource_role_hours_refused`). Un effectif négatif reste refusé par `VALUE_OUT_OF_RANGE` sur
+  `/capacity/headcount`, `params.minimum` à `0`.
+- **Le plan de charge ne change pas de forme** : `capacity_monthly_hours` est la capacité de la vue
+  du rôle, que sa description dit désormais calculée.
+
+Écartés : ouvrir la capacité écrite et ignorer `monthly_hours` envoyé — la conception veut un
+refus ; `COMPUTED_VALUE` — il dit une valeur calculée d'un nœud, que la saisie déclare et dont
+`getComputedValueDependencies` rend les dépendances, quand la capacité écrite ne déclare plus la
+propriété, comme la conception le veut (« refusé comme toute propriété inconnue ») ;
+`FIELD_READ_ONLY` — il dit une propriété déclarée qu'une modification ne change pas ; fermer tout
+le corps de l'écriture d'un rôle — hors du périmètre, et `org_node_id` y reste accepté renvoyé tel
+quel. Le calcul dans le service, la
+migration qui abandonne les heures saisies (US-2410/L2) et l'écran qui ne saisit plus que
+l'effectif (US-2410/L3) suivent.
+
+### Le filtre de sous-projet des nœuds, la maille créée après le marquage, les préférences d'une grille (US-2430/L3, #3597, #3604, #3589)
+
+Décisions de l'auteur du 2026-11-16, en un lot de contrat d'EP-10 (conception, « Le contrat que
+US-2430/L3 change ») :
+
+- **Le 422 de `listNodes` et de `compareRevisions` nomme `UNKNOWN_SUBPROJECT`** sur
+  `/query/subproject_id` (#3597). Depuis US-2430/L2 (#3567), les deux routes lisent le filtre
+  strictement, comme `listActualCosts` et `getProjectIndicators` : un sous-projet que le projet
+  n'a pas, ou un identifiant écrit autrement qu'à tirets — accolades, `urn:uuid:`, sans tirets —,
+  est refusé ainsi, à la place du 422 de validation. Leur 422 le dit, `SubprojectFilter` aussi,
+  pour les quatre opérations qui le lisent, et l'exemple `nodes_subproject_unknown`, que les deux
+  opérations citent comme leurs autres refus de nœuds, le montre ; il s'écrit à la main, comme
+  `actual_costs_subproject_unknown` et `spending_subproject_unknown`. Écarté : laisser le contrat
+  tel quel, la route rendant alors un code qu'il ne publie pas et que le client engendré ignore.
+- **Une lecture conservée d'une maille créée après le marquage est refusée par 409
+  `STATE_FORBIDS_OPERATION`, sans `params`** (#3604) : `revision_id` ou `as_of` désignant une
+  révision marquée, `scope` un sous-projet créé depuis, que le projet a aujourd'hui — il n'est donc
+  pas refusé par 422 `UNKNOWN_SUBPROJECT`. La révision a conservé le document du projet, pas celui
+  de cette maille : le même refus qu'une révision marquée avant En cours, que le front distingue
+  d'un projet antérieur à En cours par l'absence de `params.state` (#247). Le 409 de
+  `getProjectIndicators`, de `getCostCurve` et de `getEarnedValueCurves` le dit, et `Problem.params`
+  le compte parmi les refus sans paramètre. Écartés : un 422 `UNKNOWN_SUBPROJECT`, qui dirait au
+  client que le sous-projet n'existe pas quand il existe ; des séries vides ou des indicateurs nuls,
+  qui répondraient par un zéro à ce qui n'a jamais été calculé.
+- **Les préférences d'une grille portent 256 réglages par liste**, au lieu de 64 (#3589) :
+  `maxItems` de `known_columns` et de `hidden_columns`, `maxProperties` de `column_widths`. La
+  grille du détail du plan de charge a une colonne par mois, près de cent quatre-vingt-cinq pour un
+  plan de quinze ans : au-delà de 64, un réglage retombait à son défaut à la visite suivante, sans
+  refus. Le refus d'une liste trop longue reste `VALUE_TOO_LONG`, `params.max_length` à 256.
+  `TimelinePreferences.lanes` reste borné à 64 tâches placées, que rien n'a mis en cause. Écarté :
+  garder 64 et laisser ces réglages se perdre.
+
+### Une révision marquée avant EP-10, sans document conservé, est calculée à la lecture (US-1670/L2, #3612)
+
+Décision de l'auteur du 2026-11-17, qui garde le comportement provisoire d'US-1670/L2 (#2441,
+PR #3616). La migration de `revision_indicator` n'a rien à reprendre, et une base qui porte des
+révisions marquées avant EP-10 les garde sans aucun document conservé :
+
+- **`getEstimateIndicators` et `getRemainingIndicators` calculent à la lecture une révision marquée
+  qui ne porte aucun document de la nature demandée** (`estimate`, `remaining`), `is_stored` faux,
+  `revision_status` `marked`, comme avant EP-10 : la réponse ne change pas pour ces révisions, et
+  `is_stored` dit au front qu'elle n'a pas été conservée.
+- **Dès que la révision porte un document de la nature, plus aucun recalcul** : une maille que le
+  marquage n'a pas conservée — un sous-projet créé depuis — reçoit le 422 `UNKNOWN_SUBPROJECT`.
+  Cela ne vaut que pour `getEstimateIndicators` : `getRemainingIndicators` lit toujours la maille
+  `project`, et n'a pas de maille à refuser.
+- **`getProjectIndicators` refuse une telle révision par 409 `STATE_FORBIDS_OPERATION`, sans
+  `params`**, comme une offre : le front ne la distingue d'un projet antérieur à En cours que par
+  l'absence de `params.state`.
+
+Le contrat ne change pas. Écartés : une reprise au déploiement, qui aurait calculé ces révisions à
+leur date de marquage sur les lignes de coût d'aujourd'hui, non sur celles de leur marquage, et
+donné pour conservé un document que le marquage n'a pas produit ; le 409 sans reprise, qui
+refuserait ce que ces routes rendaient jusqu'ici.
 
 ### Un montant dérivé qui déborde sa colonne est refusé au champ qui le provoque (US-2260/L3, #3093, #3094)
 

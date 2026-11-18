@@ -176,6 +176,12 @@ const WORKLOAD = leafOf("FBS-4.4.4");
 /** The icon of the workload, which its own screen shows too. */
 const WorkloadIcon = LEAF_ICONS["FBS-4.4.4"];
 
+/** The spending projection of the project (FBS-4.4.5), on the same remaining to commit. */
+const SPENDING = leafOf("FBS-4.4.5");
+
+/** The icon of the spending projection, which its own screen shows too. */
+const SpendingIcon = LEAF_ICONS["FBS-4.4.5"];
+
 /**
  * The title of the grid, and what it holds: the structure, its tasks and lines retained; the link
  * that shows the tasks not started too, or the tasks started alone; the links to the Kanban and to
@@ -189,6 +195,7 @@ function RemainingHeader({
   progress,
   kanban,
   workload,
+  spending,
   exchanges,
 }: {
   readonly label: string;
@@ -197,6 +204,7 @@ function RemainingHeader({
   readonly progress: string;
   readonly kanban: string | undefined;
   readonly workload: string | undefined;
+  readonly spending: string | undefined;
   readonly exchanges: ReactNode;
 }) {
   const t = useTranslations();
@@ -238,6 +246,17 @@ function RemainingHeader({
                 className={buttonVariants({ variant: "outline", size: "icon" })}
               >
                 <WorkloadIcon aria-hidden="true" />
+              </Link>
+            </CommandTooltip>
+          )}
+          {spending === undefined ? null : (
+            <CommandTooltip label={t(SPENDING.label)} help={t("commands.spending.help")}>
+              <Link
+                href={spending}
+                aria-label={t(SPENDING.label)}
+                className={buttonVariants({ variant: "outline", size: "icon" })}
+              >
+                <SpendingIcon aria-hidden="true" />
               </Link>
             </CommandTooltip>
           )}
@@ -300,6 +319,7 @@ export default async function RemainingPage({
           progress={progressHref(at.pathname, searchQuery(search), !notStarted)}
           kanban={functionHref(KANBAN, at.context)}
           workload={onBasis(functionHref(WORKLOAD, at.context), "current_remaining")}
+          spending={onBasis(functionHref(SPENDING, at.context), "current_remaining")}
           exchanges={
             <ExchangesLink project={screen.reading.project} kind="remaining" context={at.context} />
           }

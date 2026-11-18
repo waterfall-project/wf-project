@@ -133,10 +133,13 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute :
 - #3341 — back : `ALL_PROJECTS_READ` défini deux fois, dans `access_roles` et dans l'interface des
   projets. Relevé par la revue d'US-2210/L1 d'EP-26 ; reporté ici par l'auteur le 2026-11-15 :
   l'EPIC qui lit l'ensemble des projets sur un périmètre.
-- #3549 — back : `revision_indicator` engage EP-11 — un document conservé au marquage se calcule à
-  l'instant du marquage (`computed_at` égal au `marked_at`), et le contrôle `kind_known` demande une
-  migration pour admettre des natures nouvelles. Relevé par la revue d'US-1660/L1 d'EP-10 (#2437) ;
-  reporté ici le 2026-11-15, noté au cadrage du 2026-11-17.
+- #3549 — back : la table `revision_indicator` d'EP-10 engage EP-11 : son déclencheur différé
+  refuse une ligne dont `computed_at` n'est pas le `marked_at` de sa révision (un document conservé
+  au marquage se calcule à l'instant du marquage, `act.at`), et son contrôle `kind_known` borne
+  `kind` aux natures d'EP-10, qu'une migration devra élargir pour admettre des natures nouvelles.
+  Relevé par la revue d'US-1660/L1 d'EP-10 (#2437) ; reporté ici le 2026-11-15 (2026-11-16 selon
+  epic/EP-10), noté au cadrage du 2026-11-17, rattaché à US-1660/L1 (#2437) jusqu'à l'ouverture de
+  l'issue d'EP-11.
 
 ## Préalables
 

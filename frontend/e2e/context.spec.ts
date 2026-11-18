@@ -12,11 +12,10 @@ import { rowAt } from "./scroll";
 
 // The reading context of the screens of a project, against the fake back and, tagged `@shared`,
 // against the service. The service plays the banner on the screens it serves: those of a project
-// created, its settings, its revisions, its planning (EP-06, US-1470), its estimate (EP-07, US-1560)
-// and its remaining to commit (EP-09). The screens of the risks and of the indicators wait for their
-// EPIC, each lifting its own entry.
+// created, its settings, its revisions, its planning (EP-06, US-1470), its estimate (EP-07, US-1560),
+// its remaining to commit (EP-09) and its indicators (EP-10, US-1730). The screen of the risks waits
+// for its EPIC, which lifts its own entry.
 const BEFORE_THE_RISKS = "EP-08 serves the risks";
-const BEFORE_THE_INDICATORS = "EP-10 serves the indicators the banner filters";
 const BEFORE_THE_DIFFERENTIALS = "EP-08 serves the differential structures of a revision";
 
 // The fake back serves the first example of each operation: the project in progress, its
@@ -78,7 +77,6 @@ test("each screen of the data of a project names the project and the revision sh
 test("an active filter is visible without opening the panel of filters @shared [WF-IHM-0020-A]", async ({
   page,
 }) => {
-  test.skip(inService, BEFORE_THE_INDICATORS);
   // The indicators read both the sub-project and the date: their banner shows both (#302).
   await page.goto(`${IN_REVISION}/indicators?subproject_id=${SUBPROJECT}&as_of=2026-05-31`);
   const chips = banner(page).getByRole("list", { name: "Filtres actifs" }).getByRole("listitem");

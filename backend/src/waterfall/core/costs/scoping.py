@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The exclusion of a line from the scope tracked, and its reinstatement, private to the module.
 
-An update of the line alone, idempotent and without a counter (WF-CRE-0030): the state aimed at and
-the reason are written, the reason none when the line is reinstated; a request that asks the state
-the line has, with the reason it has, writes and inscribes nothing. It is decided under the lock of
-the project, as the application of an import is, so that an exclusion neither crosses an import nor
-another exclusion of the same line. Each change is inscribed in the journal of audit, the line
-named by its document and its item; it never enters the history that can be undone (WF-SEC-0030).
+An update of the line alone, idempotent (WF-CRE-0030): the state aimed at and the reason are
+written, the reason none when the line is reinstated, and the counter of the line advances (#3629);
+a request that asks the state the line has, with the reason it has, writes and inscribes nothing.
+It is decided under the lock of the project, as the application of an import is, so that an
+exclusion neither crosses an import nor another exclusion of the same line. Each change is
+inscribed in the journal of audit, the line named by its document and its item; it never enters
+the history that can be undone (WF-SEC-0030).
 """
 
 from dataclasses import dataclass
@@ -90,6 +91,7 @@ def set_scope(
         line.excluded_reason = reason
         line.updated_at = act.at
         line.updated_by = act.author
+        line.lock_version = CostLine.lock_version + 1
         session.flush()
         _inscribe(session, line, act)
     return views_of(session, project_id, [line])[0]

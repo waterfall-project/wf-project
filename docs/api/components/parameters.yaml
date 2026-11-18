@@ -39,7 +39,12 @@ SortOrder:
 SubprojectFilter:
   name: subproject_id
   in: query
-  description: '`unassigned` for what falls under no subproject (WF-IND-0020, WF-CRE-0020).'
+  description: >-
+    `unassigned` for what falls under no subproject (WF-IND-0020, WF-CRE-0020). A subproject that
+    the project does not have, or an identifier written otherwise than in its hyphenated form —
+    between braces, as `urn:uuid:`, without hyphens —, is refused with 422 `VALIDATION_FAILED`,
+    `fields[]` designating `/query/subproject_id` with `UNKNOWN_SUBPROJECT`, as `scope` is (`Scope`):
+    no empty list stands in for a refusal (#3567, #3597).
   schema:
     anyOf:
       - type: string
@@ -928,7 +933,9 @@ AsOf:
     revision, or, when the project has none, those of its last marked revision calculated with
     the actual cost of the day, `is_stored` false (WF-IND-0010); present, those of the last
     marked revision on or before it, as they were kept at its marking
-    (WF-IND-0010, WF-DAT-0040, WF-PTF-0010).
+    (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). A date that designates no revision marked In
+    progress — none marked on or before it, or none of them kept the indicators of the project —
+    is refused by 409 `STATE_FORBIDS_OPERATION` without `params`, as an offer is (#2449).
   schema: { $ref: common.yaml#/PlanningDate }
 
 Scope:
@@ -951,9 +958,10 @@ WorkloadBasis:
   in: query
   required: true
   description: >-
-    Basis of the workload, where the effort of the labour lines is taken: the reference
-    revision, a marked revision for its re-estimated effort — named by `revision_id` —, or the
-    current revision (WF-DEV-0070). The last two are the basis of the remaining to commit.
+    Basis of the workload, where the effort of the labour lines is taken, and of the spending
+    projection, where the amounts of the lines are: the reference revision, a marked revision
+    for its re-estimated effort and amounts — named by `revision_id` —, or the current revision
+    (WF-DEV-0070, WF-DEV-0100). The last two are the basis of the remaining to commit.
   schema: { type: string, enum: [reference_budget, marked_remaining, current_remaining] }
 
 ProjectStates:

@@ -47,12 +47,14 @@ import {
   CLICKED,
   followRequests,
   REACHED,
+  type Reached,
   type Requests,
   settle,
   usableAt,
   watchGrids,
 } from "../usable";
 import { failedRequest, type FrontRequest, type Interval, screenOf } from "./report";
+import { MEASURE_WINDOW } from "./window";
 
 export const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 export const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -231,7 +233,7 @@ export async function signedIn(
 ): Promise<Player[]> {
   const players: Player[] = [];
   for (const user of users) {
-    const context = await browser.newContext();
+    const context = await browser.newContext({ viewport: MEASURE_WINDOW });
     const page = await context.newPage();
     const one = await player(page, origin);
     await signIn(page, user, "/account");
@@ -440,17 +442,33 @@ function otherDuration(shown: string): string {
 
 /** What the grids of the page say of themselves, for the log of a step not reached. */
 async function gridsShown(page: Page): Promise<string> {
-  const shown = await page.evaluate(() =>
-    [...document.querySelectorAll('[role="treegrid"][aria-label]')].map((grid) => {
+  const shown = await page.evaluate((reachedName) => {
+    const seen = (element: Element | null) => {
+      if (element === null) {
+        return "absent";
+      }
+      const { top, bottom, left, right } = element.getBoundingClientRect();
+      return [top, bottom, left, right].map(Math.round).join("/");
+    };
+    const reached = (window as unknown as Record<string, Reached | undefined>)[reachedName];
+    return [...document.querySelectorAll('[role="treegrid"][aria-label]')].map((grid) => {
+      const label = grid.getAttribute("aria-label") ?? "";
       const first = grid.querySelector('tbody tr[aria-rowindex="2"]') === null ? "none" : "shown";
       return [
-        grid.getAttribute("aria-label") ?? "",
+        label,
         `rows ${grid.getAttribute("aria-rowcount") ?? "?"}`,
         `busy ${grid.getAttribute("aria-busy") ?? "?"}`,
         `first row ${first}`,
+        `window ${innerWidth.toString()}x${innerHeight.toString()} scrolled ${scrollY.toString()}`,
+        `boxes top/bottom/left/right: header ${seen(grid.querySelector("thead th"))}, totals ${seen(grid.querySelector("tfoot td"))}, row 2 ${seen(grid.querySelector('tbody tr[aria-rowindex="2"] td'))}`,
+        `drawn ${String(reached?.drawn(grid))}, hydrated ${String(reached?.hydrated(grid))}`,
+        `marks ${performance
+          .getEntriesByType("mark")
+          .map((mark) => mark.name)
+          .join(" | ")}`,
       ].join(", ");
-    }),
-  );
+    });
+  }, REACHED);
   return shown.length === 0 ? "no grid" : shown.join("; ");
 }
 

@@ -107,7 +107,6 @@ def complete_reference(database: Database) -> None:
                 org_node_id=node.node_id,
                 cost_category_id=category,
                 calendar_id=calendar_id,
-                monthly_hours=Decimal(140),
                 headcount=Decimal(2),
                 is_active=True,
                 created_at=act.at,
@@ -139,6 +138,15 @@ def put_in_state(owner: Engine, project_id: str, state: str, **columns: object) 
         connection.execute(
             update(Project).where(Project.id == UUID(project_id)).values(state=state, **columns)
         )
+
+
+def designate(api: ContractClient, stage: Scene, revision: dict[str, Any]) -> None:
+    """Designate a marked revision the reference, as the manager does, confirmed."""
+    path = f"{PROJECTS}/{stage.project['project_id']}"
+    held = api.get(path, headers=stage.manager.headers).json()["lock_version"]
+    sent = {"revision_id": revision["revision_id"], "confirmed": True, "lock_version": held}
+    answer = api.put(f"{path}/reference-revision", headers=stage.manager.headers, json=sent)
+    assert answer.status_code == 200, answer.text
 
 
 def scene(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:

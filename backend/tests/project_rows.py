@@ -114,9 +114,10 @@ def partition_of(project_id: UUID) -> str:
 
 
 # The revised tables, each before the tables its keys name: the partition of a table that another
-# names is dropped after the other's. The rates and the images of the estimate name a revision
-# alone, which is no partitioned table.
+# names is dropped after the other's. The rates and the images of the estimate, and the indicators,
+# name a revision alone, which is no partitioned table.
 REVISED = (
+    "revision_indicator",
     "structure_reading",
     "estimate_line",
     "revision_rate",

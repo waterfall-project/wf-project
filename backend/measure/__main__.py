@@ -16,6 +16,7 @@ from measure.document import (
     measure_kept,
     measure_marking,
 )
+from measure.indicators import measure_cache
 from measure.reading import (
     measure_processes,
     measure_profile,
@@ -27,23 +28,27 @@ from measure.target import (
     PROJECT_CODE,
     MeasureError,
     address_from_environment,
+    cache_from_environment,
     database_of,
     locate,
 )
 from measure.writing import measure_opening, measure_writes
 from waterfall.platform.correlation import correlation_id_from
+from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.logs import PLATFORM, logging_context
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from measure.target import Target
+    from waterfall.core.planning.interface import Place
+    from waterfall.platform.database import Database
 
 DEFAULT_RUNS = 5
 """Identical runs of the whole reading, a cell entered and a revision opened: the spread of five is
 what a gain must exceed. The profile and the waves of reads make one pass."""
 
-PARTS = ("read", "profile", "parallel", "write", "revision", "kept", "current")
+PARTS = ("read", "profile", "parallel", "write", "revision", "kept", "current", "indicators")
 
 
 def _at_least_one(text: str) -> int:
@@ -78,6 +83,17 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _indicators(database: Database, place: Place, runs: int) -> tuple[Measure, ...]:
+    # The day of the key is that of the time zone of the installation, which the service reads from
+    # this database at its start.
+    TIME_ZONE.read_from(stored_in(database))
+    cache = cache_from_environment()
+    try:
+        return measure_cache(database, place.project_id, cache, runs)
+    finally:
+        cache.close()
+
+
 def _passage(address: str, target: Target, runs: int, parts: Sequence[str]) -> tuple[Measure, ...]:
     database = database_of(address)
     place = target.place
@@ -93,6 +109,7 @@ def _passage(address: str, target: Target, runs: int, parts: Sequence[str]) -> t
         ),
         "write": lambda: measure_writes(database, place, runs),
         "revision": lambda: (measure_opening(database, target, runs),),
+        "indicators": lambda: _indicators(database, place, runs),
         "kept": lambda: (
             *measure_kept(database, target, runs),
             measure_marking(database, target, runs),

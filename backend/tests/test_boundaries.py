@@ -109,21 +109,27 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "rates",
     },
 }
-# The modules of the planning, the history and the exchanges (EP-06), one file per story or
-# subject, laid by the socle (US-1380/L1) so that no later story opens their ``__init__``.
+# The modules of the planning, the history and the exchanges (EP-06), and of the indicators (EP-10),
+# one file per story or subject, laid by their socle (US-1380/L1, US-1660/L1) so that no later story
+# opens their ``__init__``.
 PLANNING_INTERFACES: dict[str, set[str]] = {
     "planning": {
         "closing",
         # The copy of the nodes of a revision, moved out of ``nodes`` (US-2240/L2).
         "copying",
         "facets",
+        # What the indicators read of the planning, laid by US-1660/L3 (EP-10, "Modules").
+        "indicator_stamps",
+        "indicator_tasks",
         "kept_readings",
         "lines",
         "loading",
+        "milestone_dates",
         "msproject",
         "nodes",
         "open_lines",
         "paste",
+        "physical_progress",
         "predecessors",
         "progress",
         "reference",
@@ -137,6 +143,18 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
     },
     "history": {"closing", "plans", "purge", "recording", "undo"},
     "exchanges": {"damages", "exports", "imports", "loading", "purge", "xml"},
+    "indicators": {
+        "curves",
+        "documents",
+        "estimate_documents",
+        "index_history",
+        "milestone_tracking",
+        "physical_progress",
+        "project_indicators",
+        "reading",
+        "stored_documents",
+        "storing",
+    },
 }
 # What the design names of each (EP-04, "Modules"), declared from US-0910/L1 on, which the other
 # stories call before theirs fill them.
@@ -233,6 +251,18 @@ DESIGNED: dict[str, set[str]] = {
         "remove_purged",
         "stored_before",
         "hardened_parser",
+    },
+    # EP-10, "Modules": what the API, the marking, the planning and the readings of EP-07 and EP-09
+    # call before the story that fills each.
+    "indicators": {
+        "project_indicators",
+        "cost_curve",
+        "earned_value_curves",
+        "index_history",
+        "milestone_tracking",
+        "store_indicators",
+        "physical_progress",
+        "stored_document",
     },
 }
 

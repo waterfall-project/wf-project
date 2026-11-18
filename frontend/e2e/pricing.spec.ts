@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Page } from "@playwright/test";
+import { expect } from "@playwright/test";
 
-import { MARKING, WORKING } from "./bounds";
+import { WORKING } from "./bounds";
 import { columnsOf } from "./columns";
 import { idle, PHASE, seedEstimate } from "./estimate-seed";
 import { openHydrated } from "./hydration";
+import { mark } from "./in-progress";
 import { inService, test } from "./mode";
 import { rowAt } from "./scroll";
 
@@ -17,25 +18,6 @@ import { rowAt } from "./scroll";
 // designated as the reference, the code of the project entered. The fifty entries undone and
 // redone are `undo.spec.ts`'s, the estimate exported and imported back without a difference
 // `exchanges.spec.ts`'s: this path is the course that leads to En cours.
-
-/** Mark the revision shown on the screen of the revisions, and wait for the worker to finish. */
-async function mark(page: Page, version: string): Promise<void> {
-  const main = page.getByRole("main");
-  const commands = main.getByRole("region", { name: "Commandes" });
-  await commands.getByRole("button", { name: "Marquer la révision" }).click();
-  const marking = commands.getByRole("form");
-  await marking.getByRole("textbox", { name: "Nom de version" }).fill(version);
-  await marking.getByRole("button", { name: "Marquer", exact: true }).click();
-  await expect(commands.getByRole("form")).toHaveCount(0);
-  await page.getByRole("button", { name: /^Tâches et messages\s: 1 tâche suivie/ }).click();
-  const task = page
-    .getByRole("dialog", { name: "Tâches et messages" })
-    .getByRole("region", { name: "Tâches de fond" })
-    .getByRole("listitem")
-    .filter({ hasText: `Marquage d’une révision « ${version} »` });
-  await expect(task.getByText("Réussie")).toBeVisible({ timeout: MARKING });
-  await task.getByRole("button", { name: "Recharger l’écran" }).click();
-}
 
 test("the project manager of the run prices a project — a quantity entered, its amount computed by the service — and takes it In progress: the revision marked, designated as the reference, the code entered @shared [WF-INTF-0010-A] [WF-CYC-0020-A]", async ({
   page,

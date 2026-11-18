@@ -8,6 +8,8 @@ The **Load by role and by month**: a bar per month, stacked by resource role, th
 
 Under the choice, the basis and the revision the server says it read. The service computes the whole plan — the load of each role and month, the capacity of each role, the totals without gaps and the zone — from the estimate of the revision; the screen only shows it. A task already finished carries no load on the remaining of a revision.
 
+Under the chart, the **Detail by role and by task**: a grid from the role to the task, read only, a column for each month of the plan. Under each role, each of the tasks that bear one of its labour lines, ordered by start date, then in the order of the planning; two lines of the role under the same task make one row there. The detail has no setting of its own: it is computed on the basis and under the organisation node chosen for the chart. The label of a task leads to its row in the planning grid of the revision the basis reads — the current revision, the reference or the marked revision chosen —, which unfolds its summaries and sets the cursor on it. Without the right to read the planning, the task is named without a link.
+
 ## Its commands
 
 At the top of the plan, then **Show**:
@@ -23,18 +25,23 @@ On the chart:
 - **Values of the chart**, under the chart, unfolds the table of its values;
 - **Export as PNG** saves the chart, with the project, the revision, the basis, the node and the date of calculation.
 
+In the detail, the bar of the grid offers **Columns** and **Tree**, which folds or unfolds the roles; the button of the label of a role folds or unfolds its tasks.
+
 ## Its columns and computed values
 
 Every figure is the server’s: the hours of each role and the total of each month. The table of the values gives, for each role and each month, the **Load (h)**, the **Capacity (h per month)** of the role and the **Zone** of the month: on alert when the load exceeds the capacity, nominal otherwise, said by its signal and never by the colour alone. A role without load appears there too. The plan of a project presents no load rate — the capacity is that of the whole installation — and does not draw the capacity: the load rate is that of the aggregated plan.
+
+The detail sums nothing: the load of a month of a role is the chart’s, that of a task the part the server gives it, and a month without load stays blank. The hours of a task are the sum the server computes; those of a role are not repeated. At the foot, the total of each month is the plan’s.
 
 ## Keyboard gestures
 
 - `Tab` goes through the choice of the basis, of the revision and of the node, **Show**, then the commands of the chart; `Enter` on **Values of the chart** unfolds or folds the table.
 - The table of the values, when it overflows its box, scrolls with the arrows once reached.
+- The grid of the detail is a single `Tab` stop: the arrows move the active cell, `Enter` on the label of a task follows its link to the planning grid; `Alt` and `-` folds a role, `Alt` and `+` unfolds it.
 - `F1` opens this help.
 
 ## See also
 
-- [Costing and estimate](FBS-4.4.md), whose labour lines make the load, and [the remaining to commit](FBS-4.5.md);
+- [Costing and estimate](FBS-4.4.md), whose labour lines make the load, [the planning](FBS-4.3.md), where a task of the detail leads, and [the remaining to commit](FBS-4.5.md);
 - [the aggregated workload](FBS-2.2.md) and [the resource roles](FBS-3.2.2.md), which bear the capacity;
 - the notions: [the reference budget](notions/budget-de-reference.md), [the remaining to commit](notions/reste-a-engager.md).

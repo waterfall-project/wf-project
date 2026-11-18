@@ -893,6 +893,21 @@ zéro, et une série sans point parmi d'autres qui en ont le dit sous le graphiq
 référence d'une maille qu'aucune référence ne budgète — ; une courbe vide non décalée n'offre pas de
 la décaler, et, décalée, garde la commande qui retire le décalage.
 
+Contre le service (US-1730, WF-ARC-0070-A), `e2e/indicators.spec.ts`, étiqueté `@shared`, tient
+l'écran à ce que l'API répond pour PRJ-001 : le parcours lit par l'API, sous le jeton du compte de la
+course (`e2e/indicator-answers.ts`), les opérations que l'écran lit — pour la révision en cours, la
+révision 101 marquée, un sous-projet, « hors sous-projet », une date `as_of`, les délais de paiement —
+et compare chaque chiffre des cartes (montants, parts, indices, zones, projections), les points des
+tableaux de l'évolution des indices, des coûts cumulés et de la valeur acquise à la réponse, dans
+chacune de ces lectures — la révision en cours (projet entier, sous-projet, hors sous-projet), la
+révision 101, la date `as_of` (l'évolution des indices est celle du projet, quelle que soit la date),
+les délais de paiement, dont les décaissements par mois doivent exister — et ceux du temps/temps, du
+projet entier quel que soit le périmètre ; chaque comparaison exige d'abord que la réponse porte au
+moins un point, pour qu'un tableau vide face à une réponse vide ne passe jamais. Les chiffres sont
+écrits par `src/i18n/format.ts` sans somme ni arrondi du parcours. L'offre 100 et une date
+avant tout marquage, refusées 409, sont dites ; les trois exports PNG nomment le projet. Le faux
+back sert un exemple quelle que soit l'adresse : ces parcours n'y jouent pas (`inService`).
+
 ### Les chiffres clés en cartes
 
 Les chiffres clés d'un écran se présentent par `FiguresCard` (`src/components/figures-card.tsx`),
@@ -1320,10 +1335,10 @@ bout en bout » : les parcours de `planning.spec.ts` qui écrivent sur le témoi
 la saisie d'une cellule, la durée et les prédécesseurs, la date de début — ont chacun leur jumeau
 dans `planning-service.spec.ts`, sur un projet de la course ; les lignes, les montants et le devis
 se jouent contre le service sur un projet de la course (EP-07, US-1560), ceux qui lisent le témoin
-attendant ses lignes (US-1570) ; le reste à engager relève d'EP-09, les risques d'EP-08, les
-indicateurs d'EP-10 et les structures différentielles d'EP-08, si bien que le parcours de
-`context.spec.ts` qui ouvre l'avenant, celui de l'écran des risques et celui des indicateurs
-restent sur le faux back. La mesure d'une validation de cellule (#196) et celle du déplacement de
+attendant ses lignes (US-1570) ; le reste à engager relève d'EP-09, les risques et les structures
+différentielles d'EP-08, si bien que le parcours de `context.spec.ts` qui ouvre l'avenant et celui
+de l'écran des risques restent sur le faux back ; les indicateurs, d'EP-10, se jouent contre le
+service (US-1730, `indicators.spec.ts`). La mesure d'une validation de cellule (#196) et celle du déplacement de
 la cellule active sur mille tâches (#620) sont au relevé de livraison d'US-1470.
 
 ### L'écran des risques
@@ -2563,7 +2578,13 @@ colonne masquée. Le menu « Arbre » de
 la barre plie tout, déplie tout, ou plie jusqu'à un niveau. Une recherche ou un filtre qui retient
 une ligne pliée déplie ses ancêtres, une fois pour cette recherche. L'état plié se garde dans le
 stockage de session de l'onglet (`sessionStorage`), par grille et par révision, sans rien envoyer
-au serveur : le serveur rend l'arbre déplié, que le navigateur replie une fois hydraté.
+au serveur : le serveur rend l'arbre déplié, que le navigateur replie une fois hydraté. Une adresse
+du planning qui nomme une tâche (`task`, son `node_id`, `planning-target.ts`) — là où mène une
+tâche du détail du plan de charge (US-2040) — déplie, une fois hydratée, les lignes au-dessus d'elle
+depuis les plis que garde la session, et y pose la cellule active et le focus, une fois pour la
+grille montée : un tri ou une relecture de la même adresse ne vise plus rien. Un paramètre de
+l'écran, comme `structure` ou `depth`, jamais envoyé à l'API ; une tâche que la lecture ne tient pas
+ne vise rien.
 
 Quand la grille lit une comparaison, « Écarts seulement », dans sa barre, replie les lignes sans
 écart (WF-IHM-0170, US-2360, `difference-fold.ts`, `folded-runs.tsx`) : un état de `fold.tsx`, gardé
@@ -3005,15 +3026,17 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   proposée (`wftools.mockcycle`), ses révisions marquées lues avec leur instantané
   (`wftools.mocksnapshot`), ses révisions comparées (`wftools.mockcomparisons`) et ses risques, et
   les réponses des saisies d'un risque, avec le devis propre du risque 751 et le compte rendu
-  préalable de sa survenance (`wftools.mockriskwrites`) ; ses indicateurs, ses courbes et son plan
-  de charge aujourd'hui, sur toute la structure de mille tâches (`wftools.mocktoday`,
-  `wftools.mockindicators`, `wftools.mockcurves`) ; ses coûts réels — ceux que le témoin décrit et
-  les factures de ses tâches tirées terminées — et le journal de leurs imports (`wftools.mockcosts`)
-  ; et les vues du portefeuille dans le temps — plan de charge agrégé, courbe en S et sa variante au
-  31 décembre 2025, santé du pilotage —, qui somment le témoin à ses propres lectures et les autres
-  projets par des formules simples (`wftools.mockportfoliotime`) ; et le journal d'audit de
-  l'installation, tiré de la chronologie du témoin et des exemples qui datent ses comptes, ses rôles
-  et ses sauvegardes (`wftools.mockaudit`, tenu par `tools/tests/test_mockaudit.py`) ; et les
+  préalable de sa survenance (`wftools.mockriskwrites`) ; ses indicateurs, ses courbes, son plan
+  de charge détaillé par tâche et sa projection de dépenses aujourd'hui, sur toute la structure de
+  mille tâches, chaque ligne étalée par ses parts arrondies (`wftools.mocktoday`,
+  `wftools.mockindicators`, `wftools.mockcurves`, `wftools.mockspending`) ; ses coûts réels — ceux
+  que le témoin décrit et les factures de ses tâches tirées terminées — et le journal de leurs
+  imports (`wftools.mockcosts`) ; et les vues du portefeuille dans le temps — plan de charge
+  agrégé, courbe en S et sa variante au 31 décembre 2025, santé du pilotage —, qui somment le témoin
+  à ses propres lectures et les autres projets par des formules simples
+  (`wftools.mockportfoliotime`) ; et le journal d'audit de l'installation, tiré de la chronologie du
+  témoin et des exemples qui datent ses comptes, ses rôles et ses sauvegardes (`wftools.mockaudit`,
+  tenu par `tools/tests/test_mockaudit.py`) ; et les
   lectures des listes écrites à la main — les projets de l'accueil, les sous-projets et les
   contributeurs du témoin, les comptes et les rôles d'habilitation, les sauvegardes — et du
   lotissement du témoin, triées, cherchées et filtrées comme leurs écrans les demandent, avec la
@@ -3150,7 +3173,7 @@ commande.
 | `make service-install`                                                  | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et son référentiel minimal (EP-05) : les paramètres communs, avec la devise `WATERFALL_CURRENCY` (`EUR` par défaut) et le nom de l'entreprise `WATERFALL_COMPANY_NAME` (`Delmas Automatismes` par défaut, ceux du témoin), et le fuseau horaire `WATERFALL_TIME_ZONE` (`UTC` si la variable est vide, à la première écriture seulement, un nom de la base IANA, refusé s'il est inconnu, dans lequel s'entend le jour courant, US-2200), les unités de durée, la correspondance des coûts réels, vide, le calendrier par défaut, la nature et la catégorie de provision pour risques ; écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, dit ignorés une autre devise, un autre nom ou un autre fuseau — relancée sans fuseau, rien n'est dit —, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite                                                                                                                                                                                              |
 | `make service-witness`                                                  | charge le témoin sur la plateforme de service démarrée et amorcée (`waterfall-api load-witness`, service `witness`, EP-05) : les exemples du contrat, `fixtures/api/`, montés en lecture seule, écrits par le rôle du service ; relancée, elle n'écrit rien ; une tranche par objet, dans l'ordre des dépendances, en une transaction (« Le back et les frontières du noyau »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make service-purge`                                                    | lance à la main la purge de ce qui a expiré sur la plateforme de service démarrée (`waterfall-worker purge`, dans le conteneur du service `scheduler`, qui l'appelle à l'intervalle de `WATERFALL_PURGE_INTERVAL`, 600 s par défaut) : comptes rendus d'import échus, dépôts échus, exports de plus de vingt-quatre heures, historique des sessions de plus de `WATERFALL_UNDO_RETENTION_HOURS` heures (12 par défaut), et les objets que plus aucune ligne ne désigne sous `uploads/` et `exports/` ; deux purges ne tournent jamais ensemble (verrou consultatif)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `make measure-core`                                                     | lance la mesure du cœur dans le processus (`backend/measure/`, US-2210, EP-26), sans HTTP ni Keycloak, sur la base de la plateforme de service du créneau, qu'elle remet d'abord à zéro — arrêtée, ses données supprimées (`service-down WATERFALL_RESET_DATA=yes`), puis démarrée, amorcée et le témoin chargé (`service-up`, `service-install`, `service-witness`), les secrets de `service-up` attendus dans l'environnement — : une lecture entière de PRJ-001 seule, puis avec `kinds=task` ; la même sous profil, par étape (lecture, corps, sérialisation), avec la part de PostgreSQL ; par plusieurs fils et par plusieurs processus ; le rapport d'une saisie — un libellé, une durée qui redate — à une lecture ; l'ouverture d'une révision ; la dernière révision marquée lue entière depuis ses lignes, puis gardée et lue depuis ce qui est gardé, entière et projetée, la taille gardée et le volume qu'en garderait une plateforme aux volumes du §4.6.2, et le marquage de la révision en cours suivi de la garde de sa structure principale (US-2270) ; la comparaison de la révision en cours à la révision marquée qu'elle copie — ce qu'elle vérifie —, entière depuis les lignes des deux structures (avant l'option 1 de #3168, la quantité sur laquelle se lit son seuil), entière depuis la lecture gardée de la base (après l'option 1, comme la grille du devis la demande) et sur ses tâches depuis les lignes (`kinds=task`, comme la grille du planning la demande), découpée en la part de ses deux lectures, de l'union — par soustraction, les deux chronométrées dans un ordre qui alterne, leurs dispersions données et une union sous zéro signalée — et du corps, et le compte des nœuds qui diffèrent, par nature et par marque, sur ceux de l'union (US-2390, l'option 3 de #3168). Les identifiants des structures se lisent dans la base ; chaque écriture est annulée, la mesure suivante part du même témoin. Le rapport s'écrit lisible, et en JSON avec `JSON=<fichier>` ; `RUNS=<n>` règle les passages identiques de la lecture entière, de la saisie et de l'ouverture de révision (cinq : leur dispersion dit ce qu'un écart doit dépasser pour être un gain), chacun après un passage d'échauffement qu'on ne compte pas ; le profil et les vagues de lectures par fils et par processus n'ont qu'un passage, ce que le rapport dit, et les vagues échauffent chaque fil et chaque processus et assurent une lecture à chacun ; `ONLY="read profile parallel write revision kept current"` n'en joue qu'une part. Les saisies annulées laissent des tuples morts dans les tables du témoin, ce qu'une longue série peut montrer : la mesure suivante repart d'un témoin rechargé. Elle prend le poste pour elle seule (`$(exclusive)`, « Le poste pour une mesure seule ») : toutes les exécutions lourdes des autres livreurs attendent sa fin. Elle n'échoue jamais sur une durée et la chaîne ne la joue pas. Le paquet est typé et analysé comme `src/waterfall` (Ruff, Pyright), absent de l'image du back et de la couverture |
+| `make measure-core`                                                     | lance la mesure du cœur dans le processus (`backend/measure/`, US-2210, EP-26), sans HTTP ni Keycloak, sur la base de la plateforme de service du créneau, qu'elle remet d'abord à zéro — arrêtée, ses données supprimées (`service-down WATERFALL_RESET_DATA=yes`), puis démarrée, amorcée et le témoin chargé (`service-up`, `service-install`, `service-witness`), les secrets de `service-up` attendus dans l'environnement — : une lecture entière de PRJ-001 seule, puis avec `kinds=task` ; la même sous profil, par étape (lecture, corps, sérialisation), avec la part de PostgreSQL ; par plusieurs fils et par plusieurs processus ; le rapport d'une saisie — un libellé, une durée qui redate — à une lecture ; l'ouverture d'une révision ; la dernière révision marquée lue entière depuis ses lignes, puis gardée et lue depuis ce qui est gardé, entière et projetée, la taille gardée et le volume qu'en garderait une plateforme aux volumes du §4.6.2, et le marquage de la révision en cours suivi de la garde de sa structure principale (US-2270) ; la comparaison de la révision en cours à la révision marquée qu'elle copie — ce qu'elle vérifie —, entière depuis les lignes des deux structures (avant l'option 1 de #3168, la quantité sur laquelle se lit son seuil), entière depuis la lecture gardée de la base (après l'option 1, comme la grille du devis la demande) et sur ses tâches depuis les lignes (`kinds=task`, comme la grille du planning la demande), découpée en la part de ses deux lectures, de l'union — par soustraction, les deux chronométrées dans un ordre qui alterne, leurs dispersions données et une union sous zéro signalée — et du corps, et le compte des nœuds qui diffèrent, par nature et par marque, sur ceux de l'union (US-2390, l'option 3 de #3168) ; ce que coûtent les entrées du cache des indicateurs du jour, une par maille, dans le Redis du créneau (`WATERFALL_REDIS_PASSWORD`, `WATERFALL_REDIS_PORT`) — leur taille, la lecture de la maille du projet contre celle de toutes les mailles, à froid et à chaud, celle de toutes extrapolée linéairement à 10, 50 et 100 sous-projets (US-2420, #3628). Les identifiants des structures se lisent dans la base ; chaque écriture est annulée, la mesure suivante part du même témoin. Le rapport s'écrit lisible, et en JSON avec `JSON=<fichier>` ; `RUNS=<n>` règle les passages identiques de la lecture entière, de la saisie et de l'ouverture de révision (cinq : leur dispersion dit ce qu'un écart doit dépasser pour être un gain), chacun après un passage d'échauffement qu'on ne compte pas ; le profil et les vagues de lectures par fils et par processus n'ont qu'un passage, ce que le rapport dit, et les vagues échauffent chaque fil et chaque processus et assurent une lecture à chacun ; `ONLY="read profile parallel write revision kept current indicators"` n'en joue qu'une part. Les saisies annulées laissent des tuples morts dans les tables du témoin, ce qu'une longue série peut montrer : la mesure suivante repart d'un témoin rechargé. Elle prend le poste pour elle seule (`$(exclusive)`, « Le poste pour une mesure seule ») : toutes les exécutions lourdes des autres livreurs attendent sa fin. Elle n'échoue jamais sur une durée et la chaîne ne la joue pas. Le paquet est typé et analysé comme `src/waterfall` (Ruff, Pyright), absent de l'image du back et de la couverture |
 | `make measure-reference`                                                | assemble `docs/measures/reference.json` depuis le JSON de `make measure-core` (`CORE=<fichier>`) et celui de `make measure` (`JOURNEY=<fichier>`), sans toucher une durée, avec la cible de l'API pour ouvrir une grille, le commit mesuré et la date de prise (« La référence, et le gain d'un lot ») ; refuse l'absence de `CORE` ou de `JOURNEY` |
 | `make service-up`, `make service-down`                                  | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, le service de la restauration, Keycloak derrière son frontal HTTPS et son royaume, appliqué de nouveau à chaque démarrage par `keycloak-realm`, qui reste démarré pour le réappliquer après une restauration, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal ; `service-up` refuse un volume PostgreSQL d'une autre majeure que 18, en affichant le refus de `postgres-volume`, qui dit ce remède (US-1130)                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make keycloak-authority`                                               | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -3288,9 +3311,11 @@ saisie écrit le libellé de sa tâche, ou une durée qui la redate, au compteur
 écran (session, projet, navigation) ne sont pas rejouées. k6 parle à l'API et renouvelle chaque
 jeton par son jeton de rafraîchissement, une minute avant son expiration, sur le canal arrière de
 Keycloak, dans le réseau de la plateforme. Sous cette charge, le navigateur joue le parcours des
-grilles de `make measure` (`steps.ts`) puis ouvre le plan de charge par la navigation
-(`workload.ts`, utilisable quand sa section est hydratée et que son graphique est dessiné, le haut
-dans la fenêtre), un passage non mesuré puis `MEASURE_PASSES` (cinq) ; puis, `MEASURE_TASK_PASSES`
+grilles de `make measure` (`steps.ts`) puis ouvre par la navigation le plan de
+charge, la projection de dépenses et les indicateurs de la révision en cours (`project-screens.ts`,
+chaque écran utilisable quand ses sections sont là, ses graphiques hydratés et dessinés, le haut de
+la première dans la fenêtre ; le plan de charge et la projection sont les échantillons d'une seule
+opération du tableau 15, `workload-or-projection`, dont la `note` ne dit rien de cela : elle n'est posée que sur une médiane au-dessus de l'objectif), un passage non mesuré puis `MEASURE_PASSES` (cinq) ; puis, `MEASURE_TASK_PASSES`
 fois (trois), l'export du planning, l'analyse et l'application d'un import de dix-huit mille lignes
 de coût réel, aux pièces propres à chaque passage, et le marquage de la révision en cours, rouverte
 (`createRevision`, hors de la mesure) avant chaque passage après le premier, chacun lu à sa tâche de
@@ -3323,7 +3348,16 @@ réservé aux essais — `make measure-version exclusive= E2E_LOAD_USERS=3 MEASU
 MEASURE_TASK_PASSES=2` —, et un rapport de version se prend à cinquante : le rapport consigne
 `users`. Mêmes secrets que `make
 service-up`, et le navigateur de `make e2e-browsers` ; le projet Playwright `measure-version`, que
-pose `E2E_PART=measure-version`, n'est joué par aucune cible de la chaîne.
+pose `E2E_PART=measure-version`, n'est joué par aucune cible de la chaîne. L'entrée du cache des indicateurs ne se mesure pas ici :
+`make measure-core ONLY=indicators JSON=frontend/.e2e/measure-core-indicators.json` la mesure à part,
+sur son propre témoin, et `make measure-version` en lit le JSON (`MEASURE_CACHE`, sa valeur par défaut
+est ce fichier, que la cible exporte en `E2E_MEASURE_CACHE`) pour porter l'objet `cache` sur
+l'opération `indicators` ; les deux repartent d'un témoin neuf et prennent le poste seules, elles se
+suivent et ne s'imbriquent pas, et la seconde refuse de partir sans le fichier de la première, avant
+toute installation ou construction. Un objectif dépassé s'écrit dans une note, sans que la mesure
+échoue : la médiane d'une opération dans la `note` de l'opération ; la maille lue seule à froid,
+dans la `note` de l'objet `cache` de `indicators` (elle cite #3802, où se décide son calcul) ; une issue
+à trancher s'ensuit (US-2420).
 
 `make tracking ISSUE=<n>` change une ligne du tableau de suivi du corps de l'issue de l'EPIC, par
 `gh`, et ne touche à rien d'autre : `LOT=<identifiant>` (`US-1080` pour une US d'un seul lot,
@@ -4242,6 +4276,15 @@ plusieurs processus, chacun prend la base qui suit celle de la variable selon so
 sienne, `gw7` la septième après) : le flux de toute installation n'est jamais vidé sous les pieds
 d'un autre. Aucun test ne vide le serveur.
 
+Le cache des indicateurs du jour (US-1720) se teste de même, contre ce Redis. Il est dans la base de
+la file, sous le préfixe `waterfall:indicators:`, une entrée par projet sous une clé qui porte
+l'empreinte de ce dont les indicateurs dépendent (`core/indicators/caching.py`) : un test qui écrit
+change la clé, et ne vide rien. La fixture `cache` de `backend/tests/test_indicators_day_cache.py`
+supprime après le test les entrées du préfixe dans la base du processus. Le test du vidage complet,
+seul à lancer `FLUSHDB`, le fait sur une base propre à lui, la huitième après celle du processus,
+qu'aucun processus de tests ne prend (huit au plus, `--maxprocesses 8`) ; un Redis indisponible se
+simule par une adresse où rien n'écoute (`redis://127.0.0.1:1/0`), jamais en arrêtant le service.
+
 - **Dans la chaîne**, `front.yml` et `back.yml` démarrent Redis en service du travail et posent la
   variable.
 - **Sur un poste**, le Makefile démarre Redis comme PostgreSQL (« Un test contre PostgreSQL ») :
@@ -4620,11 +4663,16 @@ viennent d'EP-06. Le générateur des exemples répartit une ligne de devis à c
 comme le service (WF-DEV-0040, #2838) : le calculé est l'attendu, et les chiffres des exemples sont
 ceux du service. Ce que la tranche n'a pas : ni provision, ni avenant, ni risque (**EP-08**, dont la
 fusion de l'avenant 1 fait de la 101 la référence : jusqu'alors la référence est l'offre 100), ni
-indicateur (**EP-10**), ni les volumes entiers (**EP-13**, qui clôt : les trois cents projets et les
-dix-huit mille lignes de coût du §4.6.2). En service, la structure de PRJ-001 compte 5 966 nœuds, non
-les 5 999 du volume que le faux back sert. Ce que lisent PRJ-001
-En cours, sa référence et ses lignes se joue donc contre le service, aux attendus des exemples près
-que la liste ci-dessous nomme. Les assertions d'écriture affirment ce qui a été écrit, relu, par
+les volumes entiers (**EP-13**, qui clôt : les trois cents projets et les dix-huit mille lignes de
+coût du §4.6.2). Les indicateurs n'ont pas de tranche : le marquage rejoué par le chargeur
+(`load_marking`, EP-10, US-1670) conserve ceux de la révision 101 de PRJ-001 — le projet, ses deux
+sous-projets et « hors sous-projet » — à son instant, le 1er février 2026 à 9 h, l'offre 100 ne
+gardant aucun indicateur projet, et le service calcule ceux du jour sur la 102 (US-1740) ; **EP-08**
+y ajoute les provisions et les risques, qui changent la référence, **EP-11** le portefeuille,
+**EP-13** les révisions marquées suivantes et les volumes entiers. En service, la structure de
+PRJ-001 compte 5 966 nœuds, non les 5 999 du volume que le faux back sert. Ce que lisent PRJ-001 En
+cours, sa référence et ses lignes se joue donc contre le service, aux attendus des exemples près que
+la liste ci-dessous nomme. Les assertions d'écriture affirment ce qui a été écrit, relu, par
 `inService`.
 
 La liste consolidée de ce qu'un parcours ne rejoue pas encore contre le service tient ici : il se
@@ -4664,12 +4712,16 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   `import_planning` (US-1430) et sert les structures et `generatePlanningSkeleton`. Le lotissement
   d'un projet créé, écrit puis relu, se joue dès US-0950 (parcours jumeau, `SERVICE_ONLY`), le fond
   mémoire ne gardant rien du lotissement qu'on lui donne (`FAKE_BACK_FORGETS`) (#2543).
-- `context.spec.ts` — le bandeau du contexte sur les risques, sur les indicateurs et sur une structure
-  différentielle (`BEFORE_THE_RISKS`, `BEFORE_THE_INDICATORS`, `BEFORE_THE_DIFFERENTIALS`) : levée
-  écran par écran par **EP-08** (les risques et les structures différentielles) et **EP-10** (les
-  indicateurs). Le parcours qui traverse le reste à engager puis les risques reste gardé par les
+- `context.spec.ts` — le bandeau du contexte sur les risques et sur une structure différentielle
+  (`BEFORE_THE_RISKS`, `BEFORE_THE_DIFFERENTIALS`) : levée par **EP-08** (les risques et les
+  structures différentielles) ; celle des indicateurs (`BEFORE_THE_INDICATORS`) l'est depuis
+  US-1730. Le parcours qui traverse le reste à engager puis les risques reste gardé par les
   risques. Le bandeau du planning (EP-06), du devis (US-1560, EP-07), des écrans d'un projet créé, de
   ses paramètres et de ses révisions se joue contre le service.
+- `review.spec.ts` — les chiffres des indicateurs (le reste à engager, le budget de référence, la
+  valeur planifiée, l'écart et les indices de délai et de coût, la date du calcul) sont ceux de la
+  révision 101 des exemples ; la référence du témoin chargé reste l'offre 100 ; gardés par
+  `inService` ; **EP-08** (fusion de l'avenant 1) retire la garde.
 - `planning.spec.ts`, `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts` — les parcours
   qui écrivent sur le témoin de PRJ-001, dont le compte de la course n'est pas contributeur (#2193) :
   chacun a son jumeau contre le service sur un projet de la course (`planning-service.spec.ts`,
@@ -4763,9 +4815,11 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
 La définition de fini d'EP-07 se constate par des parcours contre le service, joués par le compte
 « chef de projet » de la course : un projet chiffré par la grille puis passé En cours — la quantité
 d'une ligne saisie, son montant calculé par le service, la révision marquée par le worker, désignée
-pour référence, le code saisi (`pricing.spec.ts`, WF-INTF-0010-A, FBS-4.4) ; un devis exporté en
-Excel, réimporté sans écart et confirmé (`exchanges.spec.ts`, FLX-03 et FLX-04) ; cinquante saisies
-d'une ligne annulées une à une puis rétablies dans l'ordre (`undo.spec.ts`, WF-IHM-0110-A).
+pour référence, le code saisi (`pricing.spec.ts`, WF-INTF-0010-A, FBS-4.4), puis la lecture des
+indicateurs de la révision marquée (`service/project-manager-indicators.spec.ts`, WF-INTF-0010-A,
+FBS-4.8) ; un devis exporté en Excel, réimporté sans écart et confirmé (`exchanges.spec.ts`, FLX-03
+et FLX-04) ; cinquante saisies d'une ligne annulées une à une puis rétablies dans l'ordre
+(`undo.spec.ts`, WF-IHM-0110-A).
 
 Les deux lecteurs d'un projet (`service/project-readers.spec.ts`, WF-ADM-0040-A) se jouent contre le
 service seul : deux comptes locaux qui portent « Manager » et « Chef de projet », l'un lisant en
@@ -4773,7 +4827,7 @@ français et gardant toutes les colonnes, l'autre en anglais avec une colonne ma
 projet, ses contributeurs et ses révisions ; le premier le crée et ouvre une révision par les
 écrans, et inscrit l'autre par l'API sous son jeton.
 
-**La liste des entrées non rejouées**, telle qu'EP-09 la laisse (US-1650/L3), par l'EPIC qui retire
+**La liste des entrées non rejouées**, telle qu'EP-10 la laisse (US-1740/L2), par l'EPIC qui retire
 la garde et l'entrée ci-dessus :
 
 - **EP-08** — les provisions et les risques, gardés par `inService` jusqu'à lui : la couverture des
@@ -4781,8 +4835,9 @@ la garde et l'entrée ci-dessus :
   d'un risque (`entry.spec.ts`, `paste.spec.ts`, `BEFORE_EP08`), la provision de la douzième ligne du
   devis (`grid.spec.ts`), le bandeau sur les risques et sur une structure différentielle
   (`context.spec.ts`), les risques de `risks.spec.ts`, le retour au projet précédent de
-  `navigation.spec.ts` ; le service ne charge ni provision ni risque, et sert à zéro ce qui en dépend.
-- **EP-10** — les indicateurs que filtre le bandeau (`BEFORE_THE_INDICATORS`) et ceux du projet.
+  `navigation.spec.ts`, et les chiffres des indicateurs de `review.spec.ts` — ceux de la référence 101,
+  quand celle du témoin chargé reste l'offre 100 jusqu'à la fusion de l'avenant 1 ; le service ne
+  charge ni provision ni risque, et sert à zéro ce qui en dépend.
 - **EP-11** — l'ouverture, depuis `/`, du portefeuille de `navigation.spec.ts`.
 - **EP-13** — les volumes : le projet de 5 999 nœuds et ses marques (`NO_VOLUME_IN_SERVICE` de
   `revisions.spec.ts` et de `remaining.spec.ts`, l'ouverture et le défilement de la grille, ses fenêtres

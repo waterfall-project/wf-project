@@ -8,9 +8,10 @@ designates a reference without asking for them, in silence. Each entry point —
 (``create_app``), the worker (``handlers``), the loader of the witness (``load_witness``) — is
 imported in a process of its own, and its registries compared with those of a process that imports
 every module of the core and of the witness: none lacks an extension that a module registers — the
-worker those of the estimate included, which it imports from US-1500/L2 on (EP-07, "Le worker"), and
-those of the actual costs, which it imports from US-1610/L2 on (EP-09, "Le worker"). What the socles
-of EP-06, EP-07 and EP-09 register is named, so that the comparison is never between two empty
+worker those of the estimate included, which it imports from US-1500/L2 on (EP-07, "Le worker"),
+those of the actual costs, which it imports from US-1610/L2 on (EP-09, "Le worker"), and those of
+the indicators, which it imports from US-1670/L1 on (EP-10, "Le worker"). What the socles of
+EP-06, EP-07, EP-09 and EP-10 register is named, so that the comparison is never between two empty
 lists.
 
 Then how each registry acts, details of the realization which reprise no Vérif: the closing of a
@@ -158,7 +159,7 @@ CLOSING = "revisions.closing"
 # found by their kind, which has one at most — the actual costs, which the planning neither imports
 # nor is imported by, register theirs before or after the planning's, as a process imports them.
 BY_KIND = {"exchanges.formats", "exchanges.exporters"}
-# Every registry of the core and of the witness EP-04, EP-06, EP-07 and EP-09 declare.
+# Every registry of the core and of the witness EP-04, EP-06, EP-07, EP-09 and EP-10 declare.
 DECLARED = {
     "revisions.copy",
     "revisions.tasks_and_lines",
@@ -177,6 +178,7 @@ DECLARED = {
     "planning.facets",
     "planning.open_lines",
     "planning.zeroed_at",
+    "planning.physical_progress",
     "exchanges.formats",
     "exchanges.exporters",
     "witness.revision_fillers",
@@ -236,6 +238,7 @@ LINE_HOOKS = (
     "waterfall.core.cost_settings.records.share_natures",
     f"{CORE}.reading.line_columns",
     f"{CORE}.tallying.line_tallies",
+    f"{CORE}.tallying.line_provisions",
     # The inert fields of a line (US-2250), a tuple, its names joined.
     "estimate_line.label:estimate_line.payment_delay_days:estimate_line.subproject_id",
 )
@@ -291,6 +294,13 @@ REGISTERED_BY_EP09 = {
     "exchanges.exporters": [f"remaining:{ESTIMATE}.remaining_excel.RemainingExporter"],
     "planning.open_lines": [f"{ESTIMATE}.kanban.open_lines"],
     "planning.zeroed_at": [f"{ESTIMATE}.kanban.zeroed_lines"],
+}
+INDICATORS = "waterfall.core.indicators.interface"
+# What the socle of EP-10 registers (US-1660/L1): what a marking keeps of the indicators, which
+# US-1670/L1 fills; and the physical progress of the summaries a reading gives (US-1680).
+REGISTERED_BY_EP10 = {
+    "revisions.indicators": [f"{INDICATORS}.storing.store_indicators"],
+    "planning.physical_progress": [f"{INDICATORS}.physical_progress.physical_progress"],
 }
 
 
@@ -374,14 +384,27 @@ def test_every_registry_holds_what_the_socle_of_ep09_registers_after_the_estimat
     assert everything["estimate.coverage"] == []
 
 
+def test_every_registry_holds_what_the_socle_of_ep10_registers_after_the_others(
+    everything: dict[str, list[str]],
+) -> None:
+    # The indicators keep their part of a marking, beside the socles before them: nothing else
+    # computes indicators at the marking before EP-11. They alone answer the physical progress of
+    # the summaries (US-1680).
+    others = before(REGISTERED, REGISTERED_BY_EP07, REGISTERED_BY_EP09)
+    for name, entries in REGISTERED_BY_EP10.items():
+        held = [entry for entry in everything[name] if entry not in others.get(name, set())]
+        assert held == entries, name
+
+
 @pytest.mark.parametrize("entry_point", sorted(ENTRY_POINTS))
 def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
     entry_point: str, everything: dict[str, list[str]]
 ) -> None:
     # The API and the worker read no registry of the witness; the loader reads them all. The worker
     # imports the interface of the estimate (US-1500/L2): nothing lacks, its marking keeps images;
-    # and that of the actual costs (US-1610/L2): it analyses and applies an extraction, and the
-    # import of an estimate it applies asks whether a subproject bears costs.
+    # that of the actual costs (US-1610/L2): it analyses and applies an extraction, and the import
+    # of an estimate it applies asks whether a subproject bears costs; and that of the indicators
+    # (US-1670/L1): its markings keep the indicators, as the API's and the loader's.
     held = registered_in(ENTRY_POINTS[entry_point])
     read = {
         name: entries
@@ -391,6 +414,8 @@ def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
     assert {name: held.get(name) for name in read} == read
     assert held["projects.cost_facts"] == REGISTERED_BY_EP09["projects.cost_facts"]
     assert f"actual_costs:{COSTS}.actual_costs.ActualCostsFormat" in held["exchanges.formats"]
+    assert held["revisions.indicators"] == REGISTERED_BY_EP10["revisions.indicators"]
+    assert held["planning.physical_progress"] == REGISTERED_BY_EP10["planning.physical_progress"]
 
 
 @pytest.fixture
@@ -480,7 +505,9 @@ def test_a_marking_registered_keeps_its_part_before_the_indicators_of_the_revisi
         assert (marking.project_id, marking.at) == (UUID(stage.project["project_id"]), at)
         ran.append(("kept", marking.revision_id, str(status)))
 
-    def compute(_session: Session, revision_id: UUID) -> None:
+    def compute(_session: Session, revision_id: UUID, act: Act) -> None:
+        # The act of the marking: its instant, which the indicators are computed at (EP-10).
+        assert act.at == at
         ran.append(("computed", revision_id, "draft"))
 
     at = utc_now()

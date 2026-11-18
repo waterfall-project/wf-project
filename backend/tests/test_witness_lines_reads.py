@@ -23,7 +23,7 @@ named with its cause where the test stands:
 import copy
 from bisect import bisect_left
 from collections import Counter, defaultdict
-from datetime import UTC, date, datetime
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
@@ -32,16 +32,9 @@ import pytest
 from projects_support import PROJECTS
 from sqlalchemy import select
 from test_witness_lines import CABLER, INSTALLATION, OPENED, PROVISION, RATES_UPDATED, line_rows
-from test_witness_projects import (
-    PRJ_001,
-    REVISION_100,
-    REVISION_101,
-    REVISION_102,
-    example,
-    instant,
-    read,
-)
+from test_witness_projects import REVISION_100, REVISION_101, REVISION_102, instant
 from test_witness_tasks import REVISIONS, difference, structure_of
+from witness_support import PRJ_001, READ_AT, example, read
 
 from waterfall.core.estimate.interface import roles_employed
 from waterfall.core.estimate.tables import RevisionCategory
@@ -57,8 +50,6 @@ pytestmark = pytest.mark.requirement("WF-QUA-0040-A")
 # The requirement of the amount deltas of the comparison (US-1530): a test of them cites it too.
 COMPARISON_REQUIREMENT = "WF-REV-0080-A"
 
-# The day of the reading of the examples: the 3 June 2026, 14:05.
-READ_AT = datetime(2026, 6, 3, 14, 5, tzinfo=UTC)
 # The recapitulative "Poste de commande", whose estimate the examples read.
 CORE = "01926f3a-7c00-7000-8000-000000000551"
 # What a line of the examples carries that the witness does not (EP-09): the previous figures.
@@ -338,6 +329,57 @@ def by_role(plan: dict[str, Any]) -> dict[str, Any]:
     return {**plan, "roles": sorted(plan["roles"], key=lambda each: each["resource_role_id"])}
 
 
+def summed_tasks(role: dict[str, Any]) -> dict[str, str]:
+    """Give the hours of the tasks of a role summed month by month, as the contract writes them."""
+    sums: dict[str, Decimal] = defaultdict(Decimal)
+    for task in role["tasks"]:
+        for month in task["months"]:
+            sums[month["month"]] += Decimal(month["hours"])
+    return {month: str(sums[month]) for month in sorted(sums)}
+
+
+# The rows of the tasks of the detail of a plan, which the nodes the witness lacks shift (one at the
+# 102, three at the 101; EP-08, #3584): compared apart, by ``rows_in_order``.
+ROWS = {"row_number"}
+
+
+def rows_in_order(body: dict[str, Any], expected: dict[str, Any], lacking: int = 1) -> bool:
+    """Tell whether the rows of the tasks of a plan are the example's, less the nodes it lacks.
+
+    Each row the example's or at most ``lacking`` less, and in the same order: the witness lacks
+    that many nodes (one at the 102, three at the 101), never holds one more, and the tasks keep
+    their places.
+    """
+    pairs = sorted(
+        (theirs["row_number"], ours["row_number"])
+        for mine, yours in zip(by_role(body)["roles"], by_role(expected)["roles"], strict=True)
+        for ours, theirs in zip(mine["tasks"], yours["tasks"], strict=True)
+    )
+    rows = [ours for _, ours in pairs]
+    return rows == sorted(rows) and all(0 <= theirs - ours <= lacking for theirs, ours in pairs)
+
+
+def tasks_are_their_nodes(
+    api: ContractClient, witness: Database, realm: TestRealm, body: dict[str, Any], revision: UUID
+) -> None:
+    """Check that each task of a plan has the row and the label of the node it names.
+
+    The nodes are those of the main structure of the revision, read as ``listNodes`` gives them: a
+    row of another task, or one row for all, is not the row of the node.
+    """
+    with witness.transaction() as session:
+        structure = structure_of(session, revision)
+    url = f"{PROJECTS}/{PRJ_001}/revisions/{revision}/structures/{structure}/nodes"
+    nodes = keyed(read(api, witness, realm, url)["items"])
+    tasks = [task for role in body["roles"] for task in role["tasks"]]
+    assert tasks
+    for task in tasks:
+        node = nodes[task["node_id"]]
+        assert node["kind"] == "task"
+        assert (task["row_number"], task["label"]) == (node["row_number"], node["task"]["label"])
+
+
+@pytest.mark.requirement("WF-DEV-0090-A")
 def test_the_workload_of_the_remaining_is_the_example_within_a_rounding_of_a_hundredth(
     api: ContractClient, witness: Database, realm: TestRealm, the_day: None
 ) -> None:
@@ -346,7 +388,11 @@ def test_the_workload_of_the_remaining_is_the_example_within_a_rounding_of_a_hun
     del the_day
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/workload?basis=current_remaining")
     expected = example("workload")
-    assert deviations(by_role(body), by_role(expected), Decimal("0.02")) == set()
+    # The detail of each role too, its tasks the same nodes in the same order (WF-DEV-0090).
+    ours, theirs = by_role(without(body, ROWS)), by_role(without(expected, ROWS))
+    assert deviations(ours, theirs, Decimal("0.02")) == set()
+    assert rows_in_order(body, expected)
+    tasks_are_their_nodes(api, witness, realm, body, REVISION_102)
     assert [each["resource_role_id"][-3:] for each in body["roles"]] != [
         each["resource_role_id"][-3:] for each in expected["roles"]
     ]
@@ -355,6 +401,7 @@ def test_the_workload_of_the_remaining_is_the_example_within_a_rounding_of_a_hun
     assert total == sum(Decimal(m["hours"]) for r in body["roles"] for m in r["months"])
 
 
+@pytest.mark.requirement("WF-DEV-0090-A")
 def test_the_workload_of_the_reference_budget_is_that_of_the_offer_where_the_example_reads_the_101(
     api: ContractClient, witness: Database, realm: TestRealm, the_day: None
 ) -> None:
@@ -363,8 +410,38 @@ def test_the_workload_of_the_reference_budget_is_that_of_the_offer_where_the_exa
     expected = example("workload_reference_budget")
     assert body["context"]["revision_id"] == str(REVISION_100)
     assert expected["context"]["revision_id"] == str(REVISION_101)
-    found = deviations(by_role(body), by_role(expected), Decimal("0.02"))
+    # The tasks of the 100 are other nodes than those of the 101, a task fewer, their dates and
+    # their hours the offer's: the detail sums to the plan, each task is the node of the 100 it
+    # names, and the tasks the two share, matched by label, have their label, their dates and
+    # their hours (WF-DEV-0090).
+    found = deviations(
+        by_role(without(body, {"tasks"})), by_role(without(expected, {"tasks"})), Decimal("0.02")
+    )
     assert found == {"/context/revision_id", "/monthly_totals[]/hours", "/roles[]/months[]/hours"}
+    for role in body["roles"]:
+        assert summed_tasks(role) == {each["month"]: each["hours"] for each in role["months"]}
+    tasks_are_their_nodes(api, witness, realm, body, REVISION_100)
+    # The tasks the 100 and the 101 share, matched by label: the same dates, the same hours but for
+    # the one the offer gives fewer; the task of the 101 the offer lacks is the assembly on site.
+    lacking: set[tuple[str, str]] = set()
+    differing: set[tuple[str, str]] = set()
+    held = {
+        (role["resource_role_id"], task["label"]): task
+        for role in body["roles"]
+        for task in role["tasks"]
+    }
+    for role in expected["roles"]:
+        for task in role["tasks"]:
+            key = (role["resource_role_id"], task["label"])
+            name = (role["resource_role_id"][-3:], task["label"])
+            if key not in held:
+                lacking.add(name)
+            elif {k: held[key][k] for k in ("start", "finish")} != {
+                k: task[k] for k in ("start", "finish")
+            } or Decimal(held[key]["hours"]) != Decimal(task["hours"]):
+                differing.add(name)
+    assert lacking == {("452", "Montage des armoires sur site")}
+    assert differing == {("451", "Câblage des armoires")}
 
 
 def test_the_contributors_the_lines_employ_are_proposed_as_the_example_does(

@@ -363,10 +363,15 @@ def test_a_value_the_contract_refuses_is_refused_on_its_field_and_nothing_is_wri
 
 # The bounds of the preferences (#874), each passed by one: where the fault is pointed at.
 LONG = "x" * 65
+# The columns a grid keeps in each of its lists — hidden, known, widened —: 256, the detail of the
+# workload having a column per month, some 185 for a plan of fifteen years (#3589).
+COLUMNS_BOUND = 256
+# The keys of one column more than a grid keeps in a list.
+PAST_COLUMNS = [f"c{rank}" for rank in range(COLUMNS_BOUND + 1)]
 BOUNDS_PASSED: list[tuple[dict[str, Any], tuple[str, str]]] = [
     ({"grids": {f"g{rank}": None for rank in range(101)}}, ("/grids", "VALUE_TOO_LONG")),
     (
-        {"grids": {"users": {"hidden_columns": [f"c{rank}" for rank in range(65)]}}},
+        {"grids": {"users": {"hidden_columns": PAST_COLUMNS}}},
         ("/grids/users/hidden_columns", "VALUE_TOO_LONG"),
     ),
     (
@@ -374,7 +379,7 @@ BOUNDS_PASSED: list[tuple[dict[str, Any], tuple[str, str]]] = [
         ("/grids/users/hidden_columns/0", "VALUE_TOO_LONG"),
     ),
     (
-        {"grids": {"users": {"known_columns": [f"c{rank}" for rank in range(65)]}}},
+        {"grids": {"users": {"known_columns": PAST_COLUMNS}}},
         ("/grids/users/known_columns", "VALUE_TOO_LONG"),
     ),
     (
@@ -382,7 +387,7 @@ BOUNDS_PASSED: list[tuple[dict[str, Any], tuple[str, str]]] = [
         ("/grids/users/known_columns/1", "VALUE_TOO_LONG"),
     ),
     (
-        {"grids": {"users": {"column_widths": {f"c{rank}": 40 for rank in range(65)}}}},
+        {"grids": {"users": {"column_widths": dict.fromkeys(PAST_COLUMNS, 40)}}},
         ("/grids/users/column_widths", "VALUE_TOO_LONG"),
     ),
     (
@@ -434,7 +439,9 @@ def test_preferences_that_pass_a_bound_are_refused_and_nothing_is_written(
     ("sent", "bound"),
     [
         ({"grids": {f"g{rank}": None for rank in range(101)}}, 100),
-        ({"grids": {"users": {"hidden_columns": [f"c{rank}" for rank in range(65)]}}}, 64),
+        ({"grids": {"users": {"hidden_columns": PAST_COLUMNS}}}, COLUMNS_BOUND),
+        ({"grids": {"users": {"column_widths": dict.fromkeys(PAST_COLUMNS, 40)}}}, COLUMNS_BOUND),
+        ({"timelines": {"t1": {"lanes": {f"n{rank}": 0 for rank in range(65)}}}}, 64),
         ({"grids": {"users": {"filters": {"search": "x" * 501}}}}, 500),
         ({"grids": {LONG: None}}, 64),
     ],
@@ -527,15 +534,18 @@ def test_a_name_longer_than_its_bound_is_refused_at_its_object_and_nothing_is_wr
     assert preferences_of(database, user_id) == {"theme": "dark"}
 
 
+@pytest.mark.requirement("WF-IHM-0060-A")
 def test_preferences_at_their_bounds_are_written(
     api: ContractClient, database: Database, realm: TestRealm
 ) -> None:
+    # « Les colonnes masquées et les largeurs choisies sont retrouvées à la réouverture » : a grid
+    # keeps 256 columns in each list (#3589), a timeline still 64 placed tasks.
     user_id, headers = person(database, realm)
     name = "x" * 64
     grid = {
-        "hidden_columns": [f"{rank:064d}" for rank in range(64)],
-        "known_columns": [f"{rank:064d}" for rank in range(64)],
-        "column_widths": {f"{rank:064d}": 40 for rank in range(64)},
+        "hidden_columns": [f"{rank:064d}" for rank in range(COLUMNS_BOUND)],
+        "known_columns": [f"{rank:064d}" for rank in range(COLUMNS_BOUND)],
+        "column_widths": {f"{rank:064d}": 40 for rank in range(COLUMNS_BOUND)},
         "sort": {"column": name, "order": "asc"},
         "filters": {f"{rank:064d}": "y" * 500 for rank in range(20)},
     }

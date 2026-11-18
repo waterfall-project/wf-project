@@ -105,6 +105,8 @@ from waterfall.core.revisions.interface.revisions import (
     register_copy,
     revision_draft,
     revision_marked_at,
+    revision_project,
+    revision_version_names,
     revisions_present,
 )
 
@@ -194,8 +196,10 @@ __all__ = [
     "revision_has_tasks",
     "revision_has_tasks_and_lines",
     "revision_marked_at",
+    "revision_project",
     "revision_rating",
     "revision_structures",
+    "revision_version_names",
     "revisions_present",
     "run_marking",
     "structure_commands",

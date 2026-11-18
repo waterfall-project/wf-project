@@ -328,7 +328,7 @@ class Write:
         session, place = self.session, self.place
         shown = {each for node_id in self.touched for each in (node_id, *tree.ancestors(node_id))}
         calendars = calendars_of(session, place.project_id, shown & tree.tasks.keys())
-        structure = (place.project_id, self.facts.scheduled_at, self.facts.is_main)
+        structure = (place, self.facts.scheduled_at, self.facts.is_main)
         reading = Reading(session, structure, tree, self.links, calendars)
         return Redated(reading, frozenset(), counter)
 
@@ -353,9 +353,7 @@ def redated_structure(
     to what it made of it rather than read again (``reshaped``, US-2250).
     """
     done = replayed(session, place.project_id, place.structure_id, act.at, held)
-    reading = Reading(
-        session, (place.project_id, act.at, done.is_main), done.tree, done.links, done.calendars
-    )
+    reading = Reading(session, (place, act.at, done.is_main), done.tree, done.links, done.calendars)
     return Redated(reading, done.moved, done.counter, done.reinflated)
 
 

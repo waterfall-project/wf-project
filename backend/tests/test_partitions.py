@@ -194,12 +194,13 @@ WAITING_FOR_PARTITIONS = text(
     "AND database = (SELECT oid FROM pg_database WHERE datname = current_database()) "
     "AND (classid::bigint << 32) | objid::bigint = :key"
 )
-TEN = [
+ELEVEN = [
     "cost_structure",
     "estimate_line",
     "node",
     "revision_calendar",
     "revision_category",
+    "revision_indicator",
     "revision_rate",
     "revision_role",
     "structure_reading",
@@ -264,16 +265,17 @@ def created_alone(database: Database, project_id: UUID) -> None:
         create_project_partitions(session, project_id)
 
 
-def test_the_revised_tables_the_catalogue_partitions_by_project_are_the_ten_expected(
+def test_the_revised_tables_the_catalogue_partitions_by_project_are_the_eleven_expected(
     owner: Engine,
 ) -> None:
     # What the function reads at each call: a table partitioned by another column, or by range,
-    # would not be one; a table an epic adds enters by itself, and this list with it. The keys of
-    # the ten bind thirteen tables, which it locks besides; a key an epic adds enters too.
+    # would not be one; a table an epic adds enters by itself, and this list with it — the
+    # indicators of EP-10 among them. The keys of the eleven bind thirteen tables, which it locks
+    # besides; a key an epic adds enters too.
     with owner.connect() as connection:
-        assert connection.scalars(REVISED_TABLES).all() == TEN
-        assert connection.scalars(BOUND_TABLES, {"revised": TEN}).all() == THIRTEEN
-        assert locked_tables(connection) == sorted({*TEN, *THIRTEEN})
+        assert connection.scalars(REVISED_TABLES).all() == ELEVEN
+        assert connection.scalars(BOUND_TABLES, {"revised": ELEVEN}).all() == THIRTEEN
+        assert locked_tables(connection) == sorted({*ELEVEN, *THIRTEEN})
 
 
 def test_the_creation_takes_the_advisory_lock_of_the_revisions_distinct_from_the_others(

@@ -60,7 +60,16 @@ export interface Extras {
   readonly links?: boolean;
   /** A work package « Lot A » with the order items « Poste A1 » and « Poste A2 ». */
   readonly breakdown?: boolean;
+  /**
+   * The planning started on a fixed Monday of the past (`PAST_START`) instead of the day the project
+   * is created, which is any day, a weekend's included: the planned value of the current day is then
+   * positive whatever the day of the run (WF-IND-0010).
+   */
+  readonly pastStart?: boolean;
 }
+
+/** The planning start of `Extras.pastStart`: a Monday, long before any run. */
+const PAST_START = "2020-01-06";
 
 /** The label of the 7th task, in conflict with its predecessor (`Extras.links`). */
 export const EARLY = "Livraison anticipée";
@@ -234,13 +243,20 @@ export async function seedPlanning(
     { headers },
   );
   expect(structures.status(), "GET structures").toBe(200);
-  const main = ((await structures.json()) as { structure_id: string; kind: string }[]).find(
-    ({ kind }) => kind === "main",
-  );
+  const main = (
+    (await structures.json()) as { structure_id: string; kind: string; lock_version: number }[]
+  ).find(({ kind }) => kind === "main");
   if (main === undefined) {
     throw new Error("a revision opened has a main structure");
   }
   const structure = main.structure_id;
+  if (extras.pastStart === true) {
+    const started = await calls.patch(
+      `${API}/projects/${ids.project}/revisions/${ids.revision}/structures/${structure}`,
+      { headers, data: { planning_start_on: PAST_START, lock_version: main.lock_version } },
+    );
+    expect(started.status(), "PATCH structure start").toBe(200);
+  }
   const nodes: Record<number, string> = {};
   let row = 0;
   // The summary comes before its subordinates in the plan, which the order of TASKS keeps; a task

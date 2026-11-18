@@ -7,7 +7,9 @@ a weekday given to a daily read of the accounts, a time of the backups that is n
 the accounts do not have, a date of the tasks that is not one, a preference beyond its bound, an
 avatar that is no image (`putMyAvatar`); and the platform waiting on a component — the identity
 provider for an invitation or an anonymisation, the database before the bootstrap of the
-installation (WF-EXP-0020, WF-EXP-0040).
+installation (WF-EXP-0020, WF-EXP-0040). And, of the resource settings (WF-ADM-0100), a role
+created with its hours per month, which the service calculates from its headcount and its
+calendar: refused as any property its capacity does not declare (WF-REF-0100, US-2410).
 
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
@@ -32,6 +34,9 @@ if TYPE_CHECKING:
     DATABASE_CORRELATION,
 ) = (universe(number) for number in range(1900, 1908))
 """The correlations of these refusals, each its own."""
+
+HOURS_CORRELATION = universe(1727)
+"""The correlation of the hours per month sent with a role (US-2410)."""
 
 GRIDS_BOUND = 100
 """The number of grids the preferences keep at most (`DisplayPreferences`, #874, #1235)."""
@@ -105,5 +110,11 @@ def examples() -> dict[str, JsonObject]:
             "l'installation, qui crée la ligne de ses réglages : refusé, la base de données "
             "nommée (WF-EXP-0020, WF-EXP-0040).",
             unavailable("database", DATABASE_CORRELATION),
+        ),
+        "resource_role_hours_refused.json": mocktext.example(
+            "Un rôle créé ou modifié avec ses heures par mois, que Waterfall calcule de son "
+            "effectif et de son calendrier : refusées comme toute propriété que la capacité "
+            "ne déclare pas, sur /capacity/monthly_hours ; rien n'est écrit (WF-REF-0100).",
+            field_refused("/capacity/monthly_hours", "VALIDATION_FAILED", HOURS_CORRELATION),
         ),
     }

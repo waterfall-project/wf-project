@@ -116,6 +116,42 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   }
 });
 
+test("shows the physical progress of a summary as a percentage the service computes, never an input, and none for a task @shared [WF-PLA-0130-A] [WF-IND-0060-A]", async ({
+  page,
+}) => {
+  // « Études » is a summary whose tasks are all completed: 100 %, a value the service computes
+  // from its subtree (on Prism, the first example of the contract). A task or a milestone under
+  // it bears none: its cell stays empty.
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(grid, { progress: "Calculé Avancement physique" });
+  const summary = grid
+    .getByRole("row", { name: /Tâche récapitulative Études Automatique/ })
+    .and(grid.locator("[aria-expanded]"));
+  const cell = summary.getByRole("gridcell").nth(at.progress);
+  await expect(cell).toContainText(/100\s*%/);
+  await expect(cell).toHaveAccessibleName(/^Calculé /);
+  await expect(cell.getByRole("img", { name: "Calculé" })).toBeVisible();
+  // Computed, never entered: a digit typed on the cell opens no field, the try is refused
+  // beside it, naming the column.
+  await cell.focus();
+  await page.keyboard.press("7");
+  const refused = page.getByRole("dialog", { name: "Valeur calculée" });
+  await expect(refused).toContainText("Avancement physique ne se saisit pas");
+  await expect(refused.getByRole("status")).toHaveAttribute("aria-busy", "false");
+  await expect(page.getByRole("textbox")).toHaveCount(0);
+  await expect(page.getByRole("spinbutton")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(refused).toHaveCount(0);
+  await expect(cell).toBeFocused();
+  await expect(cell).toContainText(/100\s*%/);
+  for (const name of [/^\d+ .*Dossier de conception/, /^\d+ .*Réception des études/]) {
+    const row = grid.getByRole("row", { name });
+    await expect(row).toBeVisible();
+    await expect(row.getByRole("gridcell").nth(at.progress)).not.toContainText(/\d/);
+  }
+});
+
 /** The number a row bears in the first cell of the grid, as the grid shows it. */
 async function numberOf(grid: Locator, name: RegExp): Promise<string> {
   return numberOfRow(grid.getByRole("row", { name }));

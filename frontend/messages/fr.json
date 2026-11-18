@@ -129,7 +129,9 @@
       "remaining": "Grille de reste à engager",
       "comparison": "Nœuds comparés",
       "projects": "Liste des projets",
-      "backups": "Sauvegardes"
+      "backups": "Sauvegardes",
+      "workloadDetail": "Détail du plan de charge par rôle et par tâche",
+      "spendingDetail": "Projection de dépenses par nature de coût et par catégorie"
     },
     "columns": {
       "rowNumber": "N°",
@@ -257,7 +259,9 @@
       "download": "Téléchargement",
       "restore": "Restauration",
       "resendInvitation": "Renvoi du courriel",
-      "passwordLink": "Lien de fixation"
+      "passwordLink": "Lien de fixation",
+      "month": "Mois",
+      "total": "Total"
     },
     "computed": "Calculé",
     "compared": {
@@ -1183,7 +1187,9 @@
       "invalid": "Le plan de charge n’est pas disponible : l’API refuse ce qui est demandé."
     },
     "exportDetail": "Base : {basis} · Nœud d’organisation et ses descendants : {node}",
-    "file": "plan-de-charge"
+    "file": "plan-de-charge",
+    "detailTitle": "Détail par rôle et par tâche",
+    "detailTotals": "Total du plan"
   },
   "commands": {
     "label": "Commandes",
@@ -1509,6 +1515,9 @@
     },
     "help": {
       "help": "Ouvre, à côté de l’écran, l’aide qui le décrit : ce qu’il montre, ses commandes, ses colonnes, ses gestes au clavier et les notions de la méthode."
+    },
+    "spending": {
+      "help": "Ouvre la projection de dépenses de la révision, par nature de coût et par mois."
     }
   },
   "columns": {
@@ -1891,7 +1900,7 @@
         "help": "Calendrier du rôle, qui donne ses heures travaillées de chaque jour."
       },
       "monthlyHours": {
-        "help": "Heures disponibles par mois, seules comparées au plan de charge."
+        "help": "Heures disponibles par mois, calculées de l’effectif et du calendrier, seules comparées au plan de charge."
       },
       "headcount": {
         "help": "Effectif auquel correspondent les heures par mois."
@@ -2000,6 +2009,37 @@
       },
       "passthrough": {
         "help": "Colonne de l’extraction que la correspondance déclare conservée, restituée telle quelle : elle n’entre dans aucun calcul."
+      }
+    },
+    "workloadDetail": {
+      "label": {
+        "help": "Le rôle de ressource, puis, sous lui, chacune des tâches qui portent une de ses lignes de main-d’œuvre, rangées par date de début, puis dans l’ordre du planning. Le libellé d’une tâche mène à sa ligne dans la grille de planning de la révision que la base lit."
+      },
+      "rowNumber": {
+        "help": "Le numéro de la ligne de la tâche dans la grille de planning, dans la numérotation de toute la structure."
+      },
+      "start": {
+        "help": "La date de début de la tâche."
+      },
+      "finish": {
+        "help": "La date de fin de la tâche."
+      },
+      "hours": {
+        "help": "La charge du rôle sur la tâche, en heures : la somme de ses lignes de main-d’œuvre de ce rôle, deux lignes sous la même tâche comptant pour une seule, calculée par le serveur sur la base choisie. Vide pour un rôle."
+      },
+      "month": {
+        "help": "La part de la charge que le serveur répartit sur le mois, en heures, sur la base et sous le filtre du plan : pour un rôle, la charge que l’histogramme présente ; pour une tâche, sa part. Vide pour un mois sans charge. Le total du mois, en pied, est celui du plan."
+      }
+    },
+    "spendingDetail": {
+      "label": {
+        "help": "La nature de coût, puis, sous elle, chacune de ses catégories qui porte un montant, dans l’ordre du référentiel."
+      },
+      "total": {
+        "help": "Le total de la ligne, dans la devise de l’installation, calculé par le serveur sur tous les mois de la projection. En pied, le total de la projection."
+      },
+      "month": {
+        "help": "La part de la dépense que le serveur répartit sur le mois, sur la base et sous le filtre de la projection. Vide pour un mois sans montant. Le total du mois, en pied, est celui de la projection."
       }
     }
   },
@@ -2493,8 +2533,9 @@
     },
     "roleForm": {
       "create": "Nouveau rôle de ressource",
-      "createHint": "Le code, unique, le libellé, le nœud, une catégorie de main-d’œuvre, le calendrier et la capacité — heures par mois et effectif — sont requis. Le nœud ne changera plus : un rôle se recrée sous un autre nœud.",
-      "modifyHint": "Le code, unique, le libellé, une catégorie de main-d’œuvre, le calendrier et la capacité sont requis. Le rôle reste sous « {node} » : il se recrée sous un autre nœud plutôt que de s’y déplacer."
+      "createHint": "Le code, unique, le libellé, le nœud, une catégorie de main-d’œuvre, le calendrier et l’effectif sont requis ; les heures par mois se calculent. Le nœud ne changera plus : un rôle se recrée sous un autre nœud.",
+      "hoursNote": "Calculées : effectif × heures hebdomadaires du calendrier × 52 ÷ 12, arrondi au centième. Elles ne se saisissent pas ; la valeur affichée est celle enregistrée, recalculée à l’enregistrement.",
+      "modifyHint": "Le code, unique, le libellé, une catégorie de main-d’œuvre, le calendrier et l’effectif sont requis. Le rôle reste sous « {node} » : il se recrée sous un autre nœud plutôt que de s’y déplacer."
     },
     "calendarForm": {
       "create": "Nouveau calendrier",
@@ -3052,7 +3093,8 @@
     "exchanges": "Imports et exports",
     "kanban": "Kanban — démarrage des tâches",
     "timelines": "Chronologies",
-    "taskTree": "Arborescence de tâches"
+    "taskTree": "Arborescence de tâches",
+    "spending": "Projection de dépenses"
   },
   "errors": {
     "MALFORMED_REQUEST": "La requête est mal formée.",
@@ -3898,6 +3940,13 @@
         "current_remaining": "Reste à engager de la révision en cours"
       }
     },
+    "SpendingProjection": {
+      "basis": {
+        "reference_budget": "Budget de la révision de référence",
+        "marked_remaining": "Reste à engager d’une révision marquée",
+        "current_remaining": "Reste à engager de la révision en cours"
+      }
+    },
     "WorkloadZone": {
       "nominal": "Nominal",
       "alert": "Alerte"
@@ -4274,5 +4323,40 @@
     "object": "Objet : {object}.",
     "screenInProject": "{screen} — {project}",
     "unknownScreen": "Écran d’origine"
+  },
+  "spending": {
+    "title": "Projection de dépenses",
+    "chartTitle": "Dépenses par nature de coût et par mois",
+    "description": "Barres empilées de la dépense de chaque nature de coût par mois ; les valeurs sont dans le tableau des valeurs, avec le total de chaque mois.",
+    "totalSeries": "Total",
+    "basis": "Base",
+    "markedRevision": "Révision marquée",
+    "unnamedRevision": "Révision marquée sans nom",
+    "date": "Date",
+    "consumption": "Date de consommation",
+    "payment": "Date de paiement",
+    "subproject": "Sous-projet",
+    "allSubprojects": "Tout le projet",
+    "noSubproject": "Hors sous-projet",
+    "subprojectChoice": "{code} · {label}",
+    "unknownSubproject": "sous-projet inconnu",
+    "show": "Afficher",
+    "reading": "Base : {basis} — révision « {revision} » — {date}",
+    "month": "Mois",
+    "costType": "Nature de coût",
+    "costCategory": "Catégorie de coût",
+    "amount": "Montant",
+    "none": "Aucune nature de coût ne porte de montant sur cette base.",
+    "refused": {
+      "noReference": "La projection n’est pas disponible sur la base du budget de référence : le projet n’a pas de révision de référence.",
+      "noCurrent": "La projection n’est pas disponible sur la base du reste à engager de la révision en cours : le projet n’a pas de révision en cours.",
+      "markedRevision": "La projection n’est pas disponible sur cette base : la révision marquée demandée manque, ou n’est pas marquée.",
+      "subproject": "La projection n’est pas disponible : le sous-projet demandé n’existe pas.",
+      "invalid": "La projection n’est pas disponible : l’API refuse ce qui est demandé."
+    },
+    "exportDetail": "Base : {basis} · {date} · Sous-projet : {subproject}",
+    "file": "projection-de-depenses",
+    "gridTitle": "Dépenses par nature de coût et par catégorie",
+    "gridTotals": "Total de la projection"
   }
 }

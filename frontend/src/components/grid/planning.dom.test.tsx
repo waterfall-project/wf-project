@@ -507,7 +507,7 @@ describe("the grid of the planning", () => {
     expect(marked("Revue de conception")).toEqual([`Liaison en conflit${NBSP}: 5FD`]);
   });
 
-  it("says the physical progress of a summary not computable, and why, in the cell itself", () => {
+  it("says the physical progress of a summary not computable, and why, in the cell itself [WF-PLA-0130-A] [WF-IND-0060-A]", () => {
     // What the API would answer of the studies without any amount budgeted in their subtree.
     renderPlanning({
       ...planning,

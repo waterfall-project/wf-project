@@ -21,11 +21,12 @@ from uuid import UUID
 
 import pytest
 from installed_reference import install
-from projects_support import PROJECTS, READING, person
+from projects_support import PROJECTS
 from pydantic import SecretStr
 from sqlalchemy import func, select, text
 from support import WITNESS, captured_logs
 from test_witness import load, wipe
+from witness_support import PRJ_001, example, read
 
 from waterfall.core.cost_settings.tables import CostCategory
 from waterfall.core.projects.tables import (
@@ -57,7 +58,6 @@ if TYPE_CHECKING:
 
     from waterfall.platform.database import Database
 
-PRJ_001 = UUID("01926f3a-7c00-7000-8000-000000000001")
 PRJ_002 = UUID("01926f3a-7c00-7000-8000-000000000002")
 REVISION_100 = UUID("01926f3a-7c00-7000-8000-000000000100")
 REVISION_101 = UUID("01926f3a-7c00-7000-8000-000000000101")
@@ -102,11 +102,6 @@ UNREACHED = {
 }
 
 
-def example(name: str) -> Any:
-    """Read the value of an example of the contract."""
-    return json.loads((WITNESS / f"{name}.json").read_text(encoding="utf-8"))["value"]
-
-
 def chronology() -> Chronology:
     """Read the chronology the witness is loaded with."""
     return Chronology.model_validate(example("project_state_transitions"))
@@ -130,13 +125,6 @@ def without(value: Any, names: set[str]) -> Any:
         mapped = cast("dict[str, object]", value)
         return {key: without(each, names) for key, each in mapped.items() if key not in names}
     return value
-
-
-def read(api: ContractClient, witness: Database, realm: TestRealm, url: str) -> Any:
-    """Read a route of the service as a reader of all the projects; refuse anything but 200."""
-    answer = api.get(url, headers=person(witness, realm, *READING).headers)
-    assert answer.status_code == 200, answer.text
-    return answer.json()
 
 
 def counts(database: Database) -> dict[str, int]:

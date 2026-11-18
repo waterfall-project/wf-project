@@ -5,7 +5,7 @@ import { expect } from "@playwright/test";
 import { WORKING } from "./bounds";
 import { compile } from "./compile";
 import { pngSize } from "./download";
-import { openHydrated } from "./hydration";
+import { openHydrated, openMenu } from "./hydration";
 import { test } from "./mode";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -13,6 +13,11 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
 const SCREEN = `/projects/${PROJECT}/revisions/${REVISION}/workload`;
 const ORG_NODE = "01926f3a-7c00-7000-8000-000000000471";
+const PLANNING = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
+// A task of the first role of the detail of the witness, at the third level of its planning, under
+// « Approvisionnements — Ligne d'essais », under « Approvisionnements ».
+const TASK = "Revue 1.2.11";
+const TASK_NODE = "01926f3a-7c00-7000-8000-000100000311";
 
 test.use({ colorScheme: "light" });
 
@@ -117,4 +122,59 @@ test("offers the revision under way and only the other bases the project admits,
   // budget first.
   expect(bases).toEqual(["reference_budget", "marked_remaining", "current_remaining"]);
   await expect(region.getByLabel("Révision marquée")).toHaveCount(1);
+});
+
+test("presents the detail of the plan under its chart, a tree grid from the role to the task with a column for each month, read only @shared [WF-DEV-0090-A]", async ({
+  page,
+}) => {
+  // Propre à l'US : l'écran du plan de charge présente ce détail sous l'histogramme, en grille
+  // arborescente du rôle à la tâche, une colonne par mois, en lecture seule, sans réglage propre.
+  // Against the service, before US-2040/L2 (#3512), each role details no task: the roles alone.
+  await openHydrated(page, SCREEN);
+  const chart = page.getByRole("figure", { name: "Charge par rôle et par mois" });
+  const region = page.getByRole("region", { name: "Détail par rôle et par tâche" });
+  const detail = region.getByRole("treegrid", {
+    name: "Détail du plan de charge par rôle et par tâche",
+  });
+  await expect(detail).toBeVisible({ timeout: WORKING });
+  const [above, below] = await Promise.all([chart.boundingBox(), detail.boundingBox()]);
+  expect(below?.y ?? 0).toBeGreaterThan((above?.y ?? 0) + (above?.height ?? 0));
+  // A role at the first level of the tree, a column for each month after those of the task.
+  await expect(detail.getByRole("row").nth(1)).toHaveAttribute("aria-level", "1");
+  expect(await detail.getByRole("columnheader").count()).toBeGreaterThan(5);
+  // No choice of its own: the basis and the node are those of the chart, above it.
+  await expect(region.getByRole("combobox")).toHaveCount(0);
+  await expect(region.getByRole("searchbox")).toHaveCount(0);
+});
+
+test("leads from a task of the detail to its row in the planning grid of the revision read, unfolded down to it and aimed at @shared [WF-DEV-0090-A]", async ({
+  page,
+}) => {
+  // Depuis une tâche du détail, l'utilisateur atteint cette tâche dans la grille de planning, la
+  // révision conservée. Three bounds of a screen of grid: the planning, the workload, the planning.
+  test.slow();
+  await compile(page.request, SCREEN);
+  // The tree of the planning folded whole in the session, as the menu « Arbre » leaves it.
+  await openHydrated(page, PLANNING);
+  const menu = page.getByRole("menu");
+  await openMenu(page.getByRole("button", { name: "Arbre" }), menu);
+  await menu.getByRole("menuitem", { name: "Tout plier" }).click();
+  const planning = page.getByRole("treegrid", { name: "Grille de planning" });
+  const target = planning.getByRole("gridcell").filter({ hasText: new RegExp(`^${TASK}$`) });
+  await expect(target).toHaveCount(0);
+
+  await openHydrated(page, `${SCREEN}?as_of=2026-03-16`);
+  const detail = page
+    .getByRole("region", { name: "Détail par rôle et par tâche" })
+    .getByRole("treegrid");
+  await detail.getByRole("link", { name: TASK }).first().click();
+  // The revision the basis reads, the context kept, the task named.
+  await expect(page).toHaveURL(`${PLANNING}?as_of=2026-03-16&task=${TASK_NODE}`, {
+    timeout: WORKING,
+  });
+  // Shown — its summaries unfolded — and aimed at: the active cell, the focus on it, in view.
+  await expect(target).toBeFocused({ timeout: WORKING });
+  await expect(target).toBeInViewport();
+  const label = page.getByRole("gridcell").filter({ hasText: new RegExp(`^${TASK}$`) });
+  await expect(planning.getByRole("row").filter({ has: label })).toHaveAttribute("aria-level", "3");
 });

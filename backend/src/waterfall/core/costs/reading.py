@@ -12,7 +12,6 @@ empty list (422).
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 from sqlalchemy import ColumnElement, case, collate, func, select
 
@@ -21,10 +20,12 @@ from waterfall.core.projects.interface import subproject_labels
 from waterfall.core.users.interface import read_authors
 from waterfall.platform.database import CODE_POINTS
 from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
+from waterfall.platform.identifiers import read_identifier
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from datetime import date, datetime
+    from uuid import UUID
 
     from sqlalchemy.orm import Session
 
@@ -145,10 +146,7 @@ def _refuse_filters(session: Session, project_id: UUID, filters: CostLineFilters
     subproject_id = None
     asked = filters.subproject
     if asked is not None and asked != UNASSIGNED:
-        try:
-            subproject_id = UUID(asked)
-        except ValueError:
-            subproject_id = None
+        subproject_id = read_identifier(asked)
         if subproject_id is None or not subproject_labels(session, project_id, [subproject_id]):
             faults.append(FieldError("/query/subproject_id", UNKNOWN_SUBPROJECT))
     if faults:

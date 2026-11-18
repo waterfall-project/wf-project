@@ -667,7 +667,10 @@
           `/query/<column>_to`, `params.minimum` the start given (WF-IHM-0130); `fields` on
           the parameter. An unknown property of `fields`, and a risk of `origin_risk_ids` that
           is not an occurred risk of the project, as `listNodes` refuses them (`NodeFields`,
-          `fields_unknown`, `NodeOriginRiskFilter`).
+          `fields_unknown`, `NodeOriginRiskFilter`). A subproject that the project does not
+          have, or an identifier written otherwise than in its hyphenated form, in
+          `subproject_id`, as `listNodes` refuses it: `/query/subproject_id` with
+          `UNKNOWN_SUBPROJECT` (`SubprojectFilter`, `subproject_unknown`, WF-IND-0020, #3597).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -676,6 +679,7 @@
               bounds_inverted: { $ref: ../../../fixtures/api/nodes_bounds_inverted.json }
               fields_unknown: { $ref: ../../../fixtures/api/nodes_fields_unknown.json }
               origin_risk_unknown: { $ref: ../../../fixtures/api/nodes_origin_risk_unknown.json }
+              subproject_unknown: { $ref: ../../../fixtures/api/nodes_subproject_unknown.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1245,7 +1249,10 @@
           `FIELD_NOT_ACCEPTED`, like any refused query parameter (`NodeFields`,
           `fields_unknown`, WF-ARC-0110). A risk of `origin_risk_ids` that is not an occurred
           risk of the project, `/query/origin_risk_ids/<n>` with `UNKNOWN_RISK`
-          (`NodeOriginRiskFilter`, #1761).
+          (`NodeOriginRiskFilter`, #1761). A subproject that the project does not have, or an
+          identifier written otherwise than in its hyphenated form, in `subproject_id`,
+          `/query/subproject_id` with `UNKNOWN_SUBPROJECT` (`SubprojectFilter`,
+          `subproject_unknown`, WF-IND-0020, #3597): no empty list stands in for a refusal.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1254,6 +1261,7 @@
               bounds_inverted: { $ref: ../../../fixtures/api/nodes_bounds_inverted.json }
               fields_unknown: { $ref: ../../../fixtures/api/nodes_fields_unknown.json }
               origin_risk_unknown: { $ref: ../../../fixtures/api/nodes_origin_risk_unknown.json }
+              subproject_unknown: { $ref: ../../../fixtures/api/nodes_subproject_unknown.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:

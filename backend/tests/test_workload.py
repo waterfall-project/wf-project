@@ -10,7 +10,6 @@ calendars work 21 and 23 days, 168 and 184 hours; in March and April 2026, 22 da
 is set: the day of the service, and the day the worker marks on.
 """
 
-from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -19,8 +18,7 @@ from uuid import UUID, uuid4
 import pytest
 from estimate_support import add_role
 from nodes_support import faults, mark, refusal, set_progress
-from project_rows import STAMP
-from sqlalchemy import insert, select, update
+from sqlalchemy import update
 
 from waterfall.core.resource_settings.tables import OrgNode, ResourceRole
 
@@ -37,9 +35,11 @@ from workload_support import (
     STATE_FORBIDS,
     VALIDATION_FAILED,
     WORKED_DAYS,
+    Below,
     Clock,
     Site,
     day_setter,
+    make_below,
     make_site,
 )
 
@@ -54,6 +54,12 @@ def site(api: ContractClient, owner: Engine, database: Database, realm: TestReal
 def clock(monkeypatch: pytest.MonkeyPatch) -> Clock:
     """Give the means to set the day the service reads as today, and the worker marks on."""
     return day_setter(monkeypatch)
+
+
+@pytest.fixture
+def below(site: Site) -> Below:
+    """Give a node under the one the roles of the scene belong to, and a role that belongs to it."""
+    return make_below(site)
 
 
 def role_of(read: dict[str, Any], role_id: UUID) -> dict[str, Any]:
@@ -153,24 +159,20 @@ def test_a_plan_without_a_labour_line_has_no_total(site: Site) -> None:
 @pytest.mark.requirement("WF-DEV-0070-A")
 def test_each_role_shows_its_capacity_and_a_month_over_it_is_in_alert(site: Site) -> None:
     # « La capacité de chaque rôle est affichée. » : the capacity of the reference, for the roles
-    # the lines employ and for the active roles they do not; a month is in alert past it.
+    # the lines employ and for the active roles they do not; a month is in alert past it. The
+    # capacity is the one the role's view calculates (US-2410): 1 * 40 * 52 / 12 for the worker,
+    # 2 * 40 * 52 / 12 for the engineer.
     site.labour(site.task("Câblage"), "352")
-    with site.stage.owner.begin() as connection:
-        connection.execute(
-            update(ResourceRole)
-            .where(ResourceRole.id == site.worker)
-            .values(monthly_hours=Decimal(175))
-        )
     site.referenced()
     read = site.plan("reference_budget")
     role = role_of(read, site.worker)
-    assert Decimal(role["capacity_monthly_hours"]) == Decimal(175)
+    assert Decimal(role["capacity_monthly_hours"]) == Decimal("173.33")
     assert [(each["month"], each["zone"]) for each in role["months"]] == [
         ("2026-11", "nominal"),
         ("2026-12", "alert"),
     ]
     idle = next(each for each in read["roles"] if each["label"] == "Ingénieur")
-    assert (Decimal(idle["capacity_monthly_hours"]), idle["months"]) == (Decimal(140), [])
+    assert (Decimal(idle["capacity_monthly_hours"]), idle["months"]) == (Decimal("346.67"), [])
 
 
 @pytest.mark.requirement("WF-DEV-0070-A")
@@ -190,54 +192,10 @@ def test_a_role_deactivated_appears_only_if_the_lines_employ_it(site: Site) -> N
     listed = {each["resource_role_id"] for each in read["roles"]}
     assert str(site.worker) in listed
     assert str(unused) not in listed
-    assert Decimal(role_of(read, site.worker)["capacity_monthly_hours"]) == Decimal(140)
+    assert Decimal(role_of(read, site.worker)["capacity_monthly_hours"]) == Decimal("173.33")
 
 
 # --- The filter by organisation node -------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class Below:
-    """The node of the roles of the scene, a node under it, and a role attached to that one."""
-
-    parent: UUID
-    child: UUID
-    fitter: UUID
-
-
-@pytest.fixture
-def below(site: Site) -> Below:
-    """Give a node under the one the roles of the scene belong to, and a role that belongs to it."""
-    child, fitter = uuid4(), uuid4()
-    with site.stage.owner.begin() as connection:
-        held = connection.execute(
-            select(
-                ResourceRole.org_node_id, ResourceRole.cost_category_id, ResourceRole.calendar_id
-            ).where(ResourceRole.code == "ING")
-        ).one()
-        connection.execute(
-            insert(OrgNode).values(
-                id=child, code="SUB", label="Atelier", parent_id=held[0], is_active=True, **STAMP
-            )
-        )
-        connection.execute(
-            insert(ResourceRole).values(
-                id=fitter,
-                code="SUB",
-                label="Monteur",
-                org_node_id=child,
-                cost_category_id=held[1],
-                calendar_id=held[2],
-                monthly_hours=Decimal(100),
-                headcount=Decimal(1),
-                is_active=True,
-                **STAMP,
-            )
-        )
-        connection.execute(
-            update(ResourceRole).where(ResourceRole.id == site.worker).values(org_node_id=held[0])
-        )
-    return Below(held[0], child, fitter)
 
 
 @pytest.mark.requirement("WF-DEV-0070-A")
@@ -266,7 +224,7 @@ def test_the_filter_by_node_keeps_the_roles_of_the_node_and_of_its_descendants(
     assert from_child["org_node_label"] == "Atelier"
     assert [each["resource_role_id"] for each in from_child["roles"]] == [str(below.fitter)]
     assert hours_of(from_child) == Decimal(184)
-    assert Decimal(role_of(from_child, below.fitter)["capacity_monthly_hours"]) == Decimal(100)
+    assert Decimal(role_of(from_child, below.fitter)["capacity_monthly_hours"]) == Decimal("86.67")
 
 
 @pytest.mark.requirement("WF-DEV-0070-A")
@@ -381,8 +339,9 @@ def test_a_task_not_started_carries_its_whole_load_on_the_months_that_follow_the
     clock(date(2026, 11, 16))
     read = site.plan("current_remaining")
     assert read["context"]["computed_at"] == "2026-11-16T09:00:00Z"
-    # 88 and 184 hours remain to work: the 352 hours of the line are shared between them.
-    november = (Decimal(352) * 88 / 272).quantize(CENT)
+    # 80 and 184 hours remain to work after the end of Monday 16 (#3615): the 352 hours of the line
+    # are shared between them.
+    november = (Decimal(352) * 80 / 264).quantize(CENT)
     assert months_of(role_of(read, site.worker)) == [
         ("2026-11", str(november)),
         ("2026-12", str(352 - november)),
@@ -422,7 +381,7 @@ def test_on_a_marked_revision_the_date_of_calculation_is_its_marking_date(
     clock(date(2031, 6, 1))
     read = site.plan("marked_remaining", revision_id=site.tree.revision["revision_id"])
     assert read["context"]["computed_at"] == "2026-11-16T09:00:00Z"
-    november = (Decimal(352) * 88 / 272).quantize(CENT)
+    november = (Decimal(352) * 80 / 264).quantize(CENT)
     assert totals_of(read) == [("2026-11", str(november)), ("2026-12", str(352 - november))]
 
 

@@ -319,7 +319,9 @@ test(
       await choose(roleForm.getByRole("combobox", { name: "Nœud d’organisation" }), node.code);
       await choose(roleForm.getByRole("combobox", { name: "Catégorie de coût" }), "MO-001");
       await choose(roleForm.getByRole("combobox", { name: "Calendrier" }), calendar);
-      await roleForm.getByRole("textbox", { name: "Heures par mois" }).fill("520");
+      // The hours per month are calculated: the headcount alone is typed (WF-IHM-0030-A).
+      await expect(roleForm.getByRole("textbox", { name: "Effectif" })).toBeVisible();
+      await expect(roleForm.getByRole("textbox", { name: "Heures par mois" })).toHaveCount(0);
       await roleForm.getByRole("textbox", { name: "Effectif" }).fill("3");
       made.push("role");
       await roleForm.getByRole("button", { name: "Créer" }).click();
@@ -545,7 +547,7 @@ test("a role that holds all of « Manager » but the modification of the resourc
         org_node_id: WITNESS.node,
         cost_category_id: WITNESS.category,
         calendar_id: WITNESS.calendar,
-        capacity: { monthly_hours: "520.00", headcount: "3" },
+        capacity: { headcount: "3" },
       },
     });
     expect(created.status(), "POST /reference/resource-roles").toBe(403);

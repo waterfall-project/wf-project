@@ -16,8 +16,9 @@ from uuid import UUID, uuid4
 import pytest
 from estimate_support import YEAR, Costing, Lines, costing
 from nodes_support import Tree, faults, mark, opened, put_facts, refusal, work_breakdown
-from projects_support import PROJECTS, Scene
+from projects_support import PROJECTS, Scene, designate
 from projects_support import scene as make_scene
+from remaining_support import review_marked
 from sqlalchemy import delete, select, update
 
 from waterfall.core.cost_settings.interface import (
@@ -120,15 +121,6 @@ def subproject(api: ContractClient, stage: Scene, code: str, label: str) -> str:
     )
     assert answer.status_code == 201, answer.text
     return answer.json()["subproject_id"]
-
-
-def designate(api: ContractClient, stage: Scene, revision: dict[str, Any]) -> None:
-    """Designate a marked revision the reference, as the manager does, confirmed."""
-    path_ = f"{PROJECTS}/{stage.project['project_id']}"
-    counter = api.get(path_, headers=stage.manager.headers).json()["lock_version"]
-    sent = {"revision_id": revision["revision_id"], "confirmed": True, "lock_version": counter}
-    answer = api.put(f"{path_}/reference-revision", headers=stage.manager.headers, json=sent)
-    assert answer.status_code == 200, answer.text
 
 
 def unrate(stage: Scene, category: UUID) -> None:
@@ -396,7 +388,8 @@ def test_the_differences_are_the_estimate_read_minus_the_reference_and_the_marke
     # « L'écart avec la révision de référence … » (WF-DEV-0060) : null without a reference and
     # without a marked revision before; then the estimate read minus theirs, positive when it
     # exceeds, the reference itself at nought; the revision named, else the current, else the last
-    # one marked, `is_stored` false and the status in the context.
+    # one marked, `is_stored` false and the status in the context; a marked revision is read as its
+    # marking kept it (US-1670/L2), the reference designated since not entering its differences.
     task = tree.made("Câblage")
     lines.made(task, **labour(costs))
     current = read(api, stage)
@@ -412,8 +405,16 @@ def test_the_differences_are_the_estimate_read_minus_the_reference_and_the_marke
     last = read(api, stage)
     assert last["context"]["revision_id"] == tree.revision["revision_id"]
     assert last["context"]["revision_status"] == "marked"
-    assert last["delta_to_reference"] == {"is_computable": True, "value": "0.00", "reason": None}
-    assert last["delta_to_previous_revision"] is None
+    assert last["context"]["is_stored"] is True
+    assert (last["delta_to_reference"], last["delta_to_previous_revision"]) == (None, None)
+    # A revision marked as it was opened, after the designation, keeps both differences at nought:
+    # the reference itself, and the one marked before.
+    unchanged = opened(api, stage)
+    review_marked(stage, unchanged, "v1.1")
+    still = read(api, stage, f"?revision_id={unchanged['revision_id']}")
+    assert still["context"]["is_stored"] is True
+    assert value(still["delta_to_reference"]) == "0.00"
+    assert value(still["delta_to_previous_revision"]) == "0.00"
     following = Tree(api, stage, opened(api, stage))
     added = Lines(following)
     bearer = next(item for item in following.items() if item["kind"] == "task")
@@ -426,7 +427,15 @@ def test_the_differences_are_the_estimate_read_minus_the_reference_and_the_marke
     named = read(api, stage, f"?revision_id={tree.revision['revision_id']}")
     assert value(named["total"]) == "650.00"
     assert named["context"]["revision_id"] == tree.revision["revision_id"]
-    assert value(named["delta_to_reference"]) == "0.00"
+    assert named == last
+    # Marked once the reference is designated, the following revision keeps its differences: they
+    # are those the reading computed above, 350 to the reference and to the marked one before.
+    review_marked(stage, following.revision, "v2.0")
+    kept = read(api, stage, f"?revision_id={following.revision['revision_id']}")
+    assert kept["context"]["is_stored"] is True
+    assert value(kept["total"]) == "1000.00"
+    assert value(kept["delta_to_reference"]) == "350.00"
+    assert value(kept["delta_to_previous_revision"]) == "350.00"
 
 
 @pytest.mark.requirement("WF-IND-0020-A")

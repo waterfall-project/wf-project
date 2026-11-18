@@ -29,8 +29,10 @@
  * hidden until shown, and are the boxes of the submenu « Chronologies » of the menu of their cells
  * (US-0480). The Gantt reads the hours of a day of the installation (`getDurationUnits`), which
  * graduate its finest level, and is exported with the date its dates were calculated at
- * (`meta.scheduled_at`). The screen is served (US-1470): it shows what the service renders — dates,
- * margins, critical path and conflicts — and writes it back, with no note of the mock-up.
+ * (`meta.scheduled_at`). A task the address names (`task`, `planning-target.ts`) — the detail of
+ * the workload leads there — is unfolded down to and aimed at once the grid is hydrated. The
+ * screen is served (US-1470): it shows what the service renders — dates, margins, critical path and
+ * conflicts — and writes it back, with no note of the mock-up.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -56,6 +58,7 @@ import {
 import type { ProjectReading } from "@/components/context/reading";
 import { hoursOfDay } from "@/components/gantt/scale";
 import { PlanningGrid, type PlanningGridProps } from "@/components/grid/planning-grid";
+import { targetTask } from "@/components/grid/planning-target";
 import type { ChoiceOption } from "@/components/grid/row-choices";
 import { MergeAmendmentCommand } from "@/components/revisions/merge-amendment-command";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
@@ -291,6 +294,8 @@ export default async function PlanningPage({
                 screen.reading.project.available_commands,
                 "manage_timelines",
               ),
+              // The task a link leads to — from the detail of the workload —, shown and aimed at.
+              target: targetTask(at.address),
             }}
           />
         </GridCard>

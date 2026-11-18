@@ -341,6 +341,11 @@ export interface GridFold<Row> {
    * a row written that a reading anew marks unchanged stays under the cursor, as a run unfolded.
    */
   readonly keepShown: (keys: readonly string[]) => void;
+  /**
+   * Unfold the rows above a row, from what the session keeps now, and keep it: the rows folded then;
+   * none for a row the answer does not hold.
+   */
+  readonly reveal: (key: string) => ReadonlySet<string> | undefined;
 }
 
 /** The key of what a reading is narrowed by: its entries said, in the order of their names. */
@@ -440,6 +445,26 @@ export function useGridFold<Row>({
         ...now,
         differences: { on: true, opened: new Set([...now.differences.opened, ...keys]) },
       });
+    },
+    reveal: (key) => {
+      if (!index.places.has(key)) {
+        return undefined;
+      }
+      if (!enabled) {
+        return collapsed;
+      }
+      // What the storage holds now, never what the render read: hydrated, it read nothing.
+      const now = foldState(storageKey);
+      const next = new Set(now.collapsed);
+      for (
+        let above = index.parentOf.get(key);
+        above !== undefined;
+        above = index.parentOf.get(above)
+      ) {
+        next.delete(above);
+      }
+      keep(storageKey, { ...now, collapsed: next });
+      return next;
     },
   };
 }
@@ -605,6 +630,12 @@ export interface FoldCommandsOptions<Row> {
   readonly focusAt: (at: CellPosition) => void;
   /** The label of a row, which the menu names the row it folds by. */
   readonly labelOf: (row: Row) => string;
+  /**
+   * The row the address targets (`planning-target.ts`): once the page is hydrated, the rows above it
+   * unfold and the active cell goes to it, the focus with it — once for each target the grid is
+   * mounted with. None, and nothing is aimed at.
+   */
+  readonly target?: string | undefined;
 }
 
 /** How a grid folds its tree: what its cells read, its keys, its bar; nothing for a grid no tree. */
@@ -647,6 +678,7 @@ export function useFoldCommands<Row>({
   scroller,
   focusAt,
   labelOf,
+  target,
 }: FoldCommandsOptions<Row>): FoldCommands {
   useEffect(() => {
     readLayout();
@@ -657,6 +689,23 @@ export function useFoldCommands<Row>({
     if (at !== undefined) {
       refocus.current = undefined;
       focusAt(at);
+    }
+  });
+  // The row the address targets, aimed at once hydrated — after the folds the session keeps are
+  // read —, and once: a sort or a reading anew of the same address leaves the cursor where it is.
+  const aimed = useRef<string>(undefined);
+  useEffect(() => {
+    if (target === undefined || aimed.current === target) {
+      return;
+    }
+    aimed.current = target;
+    const next = fold.reveal(target);
+    const row =
+      next === undefined ? -1 : fold.shownWith(next).findIndex((each) => rowKey(each) === target);
+    if (row >= 0) {
+      const at = { row, column: cursor.active.column };
+      cursor.set(at);
+      refocus.current = at;
     }
   });
   const { shown, index, collapsed } = fold;

@@ -8,8 +8,9 @@ of ``reestimated_amount_basis`` written, the re-estimated amount recomputed, the
 and the remaining before the review left as they are, the mark and the reason kept; the last open
 line of a task set to nought completes it, by the planning, at the date sent; the conditions named
 in their order, the counter, the rights, the entry of the history, two re-estimates at once; and
-the remaining to commit of a revision, at the state of its tasks (``remaining_of_revision``). Every
-answer is checked against the contract.
+the remaining to commit of a revision, at the state of its tasks (``remaining_of_revision``), and
+the same drawn from its tasks and lines read already (``remaining_of_lines``, #3802). Every answer
+is checked against the contract.
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -31,8 +32,13 @@ from sqlalchemy import delete, insert, select, update
 
 from waterfall.core.cost_settings.interface import set_hourly_rate
 from waterfall.core.cost_settings.tables import HourlyRate
-from waterfall.core.estimate.interface import remaining_of_revision
+from waterfall.core.estimate.interface import (
+    lines_for_indicators,
+    remaining_of_lines,
+    remaining_of_revision,
+)
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
+from waterfall.core.planning.interface import tasks_for_indicators
 from waterfall.core.planning.tables import Node
 from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.tables import CostStructure
@@ -504,6 +510,43 @@ def test_the_remaining_sums_the_started_task_reestimated_and_the_one_not_started
     # A marked revision is read at the state of its tasks: the reference, all not started.
     total, by_line = remaining_of(stage, review.reference)
     assert (total, len(by_line)) == (Decimal("6660.00"), 4)
+
+
+@pytest.mark.requirement("WF-RAE-0010-A")
+def test_the_remaining_of_the_tasks_and_lines_read_is_that_of_the_revision_read_again(
+    review: Review, stage: Scene, costs: Costing
+) -> None:
+    # The indicators draw the remaining from the tree they read once (#3569, #3802): « la somme des
+    # deux dernières, la démarrée pour son montant réestimé et l'autre pour son montant de
+    # référence projeté », the same total and the same lines, in the same order, as the reading of
+    # the revision gives — a task completed, one started, one not started, a milestone; and the
+    # reference, marked, all not started; a line of provision, the risks' own, among them.
+    tree = review.tree
+    wiring, acceptance = task_named(tree, "Câblage"), task_named(tree, "Réception")
+    set_progress(stage, wiring["node_id"], "started", DAY)
+    set_progress(stage, acceptance["node_id"], "completed", DAY)
+    reestimated(tree, line_named(tree, "Raccordement"), **{BASIS: {"hours": "80"}})
+    provision = review.lines.made(wiring, **material(costs, "Aléa", "30"))["nodes"][0]
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.node_id == UUID(provision["node_id"]))
+            .values(cost_category_id=costs.provision)
+        )
+    project = UUID(stage.project["project_id"])
+    found: list[Decimal] = []
+    for revision in (tree.revision, review.reference):
+        revision_id = UUID(revision["revision_id"])
+        with stage.database.transaction() as session:
+            again = remaining_of_revision(session, project, revision_id)
+            tasks = tasks_for_indicators(session, project, revision_id)
+            drawn = remaining_of_lines(
+                tasks, lines_for_indicators(session, project, revision_id, tasks)
+            )
+        assert list(drawn.by_line.items()) == list(again.by_line.items())
+        assert drawn.total == again.total
+        found.append(drawn.total)
+    assert found == [Decimal("5350.00"), Decimal("6660.00")]
 
 
 @pytest.mark.requirement("WF-RAE-0050-A")

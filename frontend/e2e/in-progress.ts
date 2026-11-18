@@ -15,6 +15,25 @@ import { API } from "./service/realm";
 import type { components } from "../src/api/generated/schema";
 import { workbook } from "./workbook";
 
+/** Mark the revision shown on the screen of the revisions, and wait for the worker to finish. */
+export async function mark(page: Page, version: string): Promise<void> {
+  const main = page.getByRole("main");
+  const commands = main.getByRole("region", { name: "Commandes" });
+  await commands.getByRole("button", { name: "Marquer la révision" }).click();
+  const marking = commands.getByRole("form");
+  await marking.getByRole("textbox", { name: "Nom de version" }).fill(version);
+  await marking.getByRole("button", { name: "Marquer", exact: true }).click();
+  await expect(commands.getByRole("form")).toHaveCount(0);
+  await page.getByRole("button", { name: /^Tâches et messages\s: 1 tâche suivie/ }).click();
+  const task = page
+    .getByRole("dialog", { name: "Tâches et messages" })
+    .getByRole("region", { name: "Tâches de fond" })
+    .getByRole("listitem")
+    .filter({ hasText: `Marquage d’une révision « ${version} »` });
+  await expect(task.getByText("Réussie")).toBeVisible({ timeout: MARKING });
+  await task.getByRole("button", { name: "Recharger l’écran" }).click();
+}
+
 type Schemas = components["schemas"];
 
 type Headers = Readonly<Record<string, string>>;

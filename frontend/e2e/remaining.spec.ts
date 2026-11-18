@@ -8,6 +8,8 @@ import {
   type Page,
 } from "@playwright/test";
 
+import type { components } from "../src/api/generated/schema";
+import { today } from "../src/components/remaining/address";
 import { WORKING } from "./bounds";
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
@@ -16,7 +18,7 @@ import { inService, test } from "./mode";
 import { bringInProgress } from "./in-progress";
 import { createOwnProject, openRevision } from "./own-project";
 import { seedPlanning, type Seeded } from "./planning-seed";
-import type { LocalPerson } from "./service/realm";
+import { API, type LocalPerson } from "./service/realm";
 import { scrollToPosition, withinBox } from "./scroll";
 import { isServerAction } from "./server-action";
 
@@ -547,9 +549,7 @@ const EXPENSE = "Sous-traitance";
 
 /**
  * What the screens say of the reference of a project in progress: its row of the history of the
- * revisions, and the revision it designates. The reference budget and the planned value are not
- * read: the service does not serve `getProjectIndicators` yet (EP-10), and the fake back answers
- * the same figures whatever is written.
+ * revisions, and the revision it designates.
  */
 async function referenceOf(page: Page, seeded: Seeded) {
   await openHydrated(page, `${seeded.own.path}/revisions`);
@@ -557,10 +557,64 @@ async function referenceOf(page: Page, seeded: Seeded) {
   // Case-sensitive: the header « Année de référence » is not the row of the reference.
   const row = history.getByRole("row").filter({ hasText: /Référence/ });
   await expect(row).toHaveCount(1, { timeout: WORKING });
-  const designated = await row.innerText();
   const href = (await row.getByRole("link").first().getAttribute("href")) ?? "";
   const reference = new URL(href, "http://localhost").searchParams.get("revision_id") ?? "";
-  return { reference, designated };
+  return { reference };
+}
+
+/**
+ * The figures the service serves for the project in progress (`getProjectIndicators`, WF-IND-0010),
+ * read by the API under the token of its creator: the reference budget, and the planned value of the
+ * current day, with the day the service computed it (`context.computed_at`, taken in the time zone of
+ * the installation, the one the service counts its calendar days in: US-2200). `as_of` pins neither:
+ * the project has no revision marked In progress (the one it has was marked before the passage, and
+ * kept no indicator: 409), and a reading kept at the marking would be immune to the gesture, so it
+ * could not see a drift the gesture caused.
+ */
+async function figuresOf(calls: APIRequestContext, seeded: Seeded) {
+  const read = await calls.get(`${API}/projects/${seeded.ids.project}/indicators`, {
+    headers: seeded.headers,
+  });
+  expect(read.status()).toBe(200);
+  const body = (await read.json()) as components["schemas"]["ProjectIndicators"];
+  const installation = await calls.get(`${API}/installation`);
+  expect(installation.status()).toBe(200);
+  const { time_zone: timeZone } =
+    (await installation.json()) as components["schemas"]["Installation"];
+  return {
+    budget: body.reference_budget,
+    planned: body.planned_value,
+    day: today(timeZone, new Date(body.context.computed_at)),
+  };
+}
+
+/**
+ * The figures before the gesture: both asserted non-zero, since a service that answered « 0.00 »
+ * everywhere would leave every comparison between two readings true. The planned value is positive
+ * because the planning starts on a fixed day of the past (`Extras.pastStart`).
+ */
+async function figuresBefore(calls: APIRequestContext, seeded: Seeded) {
+  const before = await figuresOf(calls, seeded);
+  expect(Number(before.budget)).toBeGreaterThan(0);
+  expect(Number(before.planned)).toBeGreaterThan(0);
+  return before;
+}
+
+/**
+ * The figures read again after the gesture are those of before (WF-RAE-0040-A): the reference budget
+ * always, the planned value when the two readings were computed the same day (a run over midnight
+ * moves it, and says nothing of the gesture).
+ */
+async function expectFiguresKept(
+  calls: APIRequestContext,
+  seeded: Seeded,
+  before: Awaited<ReturnType<typeof figuresOf>>,
+) {
+  const after = await figuresOf(calls, seeded);
+  expect(after.budget).toBe(before.budget);
+  if (after.day === before.day) {
+    expect(after.planned).toBe(before.planned);
+  }
 }
 
 /**
@@ -576,7 +630,7 @@ async function openOwnRemaining(
   manager: LocalPerson | undefined,
   name: string,
 ) {
-  const seeded = await seedPlanning(page, browser, calls, manager, name);
+  const seeded = await seedPlanning(page, browser, calls, manager, name, { pastStart: true });
   await bringInProgress(page, calls, seeded);
   // The reference as the project in progress has it, read before the grid is opened (the read
   // leaves the page).
@@ -617,6 +671,7 @@ test("adds a task from the remaining to commit of a project in progress the run 
       manager,
       "Reste ajouté",
     );
+    const before = await figuresBefore(calls, seeded);
     await page.keyboard.press("Insert");
     const dialog = page.getByRole("dialog", { name: "Insérer au-dessous" });
     await dialog.getByRole("textbox", { name: "Libellé" }).fill("Reprise des borniers");
@@ -645,7 +700,8 @@ test("adds a task from the remaining to commit of a project in progress the run 
     // ... while the reference is the same revision, without the task.
     const kept = await referenceOf(page, seeded);
     expect(kept.reference).toBe(reference.reference);
-    expect(kept.designated).toMatch(/Référence/);
+    // ... and the reference budget does not move (WF-RAE-0040-A).
+    await expectFiguresKept(calls, seeded, before);
     await openHydrated(page, `${seeded.own.path}/revisions/${reference.reference}/planning`);
     const referenced = page.getByRole("treegrid", { name: "Grille de planning" });
     await expect(referenced.getByRole("row", { name: /Mise en service/ })).toBeVisible({
@@ -669,7 +725,14 @@ test("inserts a line in the remaining to commit of a project in progress the run
   test.slow();
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
-    const { grid, cell } = await openOwnRemaining(page, browser, calls, manager, "Reste inséré");
+    const { seeded, grid, cell } = await openOwnRemaining(
+      page,
+      browser,
+      calls,
+      manager,
+      "Reste inséré",
+    );
+    const before = await figuresBefore(calls, seeded);
     await cell.click({ button: "right" });
     await page
       .getByRole("menu", { name: "Menu de la cellule" })
@@ -695,6 +758,9 @@ test("inserts a line in the remaining to commit of a project in progress the run
     // The grid does not name the category: it marks the line as a line of expense (a role would
     // make a line of labour), and the quantity is the one entered.
     await expect(created.getByRole("img", { name: "Ligne de débours" })).toBeVisible();
+    // The line is added to the revision in progress, which the reference ignores: the reference
+    // budget does not move (WF-RAE-0040-A).
+    await expectFiguresKept(calls, seeded, before);
   } finally {
     await calls.dispose();
   }

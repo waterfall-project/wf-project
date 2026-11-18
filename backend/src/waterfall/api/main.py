@@ -14,7 +14,8 @@ requests is the same in every process, or lives in PostgreSQL or Redis (WF-ARC-0
 - the time zone of the installation (``platform.installation``), fixed by the bootstrap;
 - the registries of the modules (``platform.registry``), filled at the import of their interface;
 - what the image holds, read once: the font of the images of a tree, the names of the time zones;
-- the maintenance of a restoration lives in Redis, read at each request (``platform.maintenance``).
+- the maintenance of a restoration lives in Redis, read at each request (``platform.maintenance``);
+- the indicators of the day are cached in Redis, not in the process (``platform.cache``).
 """
 
 import sys
@@ -26,6 +27,7 @@ import uvicorn
 from waterfall import __version__
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.platform.cache import IndicatorsCache
 from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.keycloak import Keycloak
@@ -131,6 +133,11 @@ def open_services(settings: ServiceSettings) -> tuple[Services, ExitStack]:
         opened.callback(queue.close)
         backups = Bucket.of_backups(settings)
         opened.callback(backups.client.close)
+        # The cache of the indicators of the day, in the Redis of the queue, its entries valid for
+        # the time the settings read (WATERFALL_INDICATORS_CACHE_TTL); its pool is its own
+        # (US-1720/L2).
+        cache = IndicatorsCache.of(queue, settings.indicators_cache_ttl)
+        opened.callback(cache.close)
         services = Services(
             database,
             keycloak,
@@ -138,6 +145,7 @@ def open_services(settings: ServiceSettings) -> tuple[Services, ExitStack]:
             queue,
             backups,
             Maintenance.of(queue),
+            cache,
         )
         TIME_ZONE.read_from(stored_in(database))
         return services, opened.pop_all()

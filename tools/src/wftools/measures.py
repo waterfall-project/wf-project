@@ -38,20 +38,45 @@ contract that carry it (EP-26, US-2300):
 - ``open-compared-grid``: open a grid of planning, of estimate or of remaining to commit compared
   with a marked revision, ``compareRevisions`` (EP-27, US-2390);
 - ``filter-sort-search``: filter, sort or search in such a grid, ``listNodes``;
+- ``indicators``: show the indicators of the current revision, ``getProjectIndicators`` (EP-10,
+  US-2420);
 - ``recompute-compared``: recompute after an entry in a compared grid, until its marks are read
   anew, ``updateTaskFacet`` or ``updateEstimateLine`` then ``compareRevisions`` (EP-27, US-2390);
 - ``workload-or-projection``: show the workload or the projection of expenses,
-  ``getProjectWorkload`` (the projection of expenses is EP-10);
+  ``getProjectWorkload`` and ``getProjectSpending`` (EP-10, US-2420): the durations of the two
+  screens are the samples of one operation;
 - ``mark-revision``: mark a revision of ten thousand objects, ``markRevision``;
 - ``import-costs``: analyse then apply an import of eighteen thousand cost lines, ``openImport``,
   ``applyImport`` and ``getBackgroundTask``;
 - ``export-planning``: generate the export of a planning of a thousand tasks, ``requestExport`` and
   ``getBackgroundTask``.
 
-``indicators`` (indicators of the current revision, EP-10) and ``portfolio-view`` (EP-11) have no
-operation yet: they are unserved.
+``portfolio-view`` (EP-11) has no operation yet: it is unserved. Until EP-10 delivered them,
+``indicators`` and the projection of expenses were too, and until EP-27 delivered it, the compared
+grid (``open-compared-grid`` and ``recompute-compared``).
+
+The operation ``indicators``, once served, also says what the entries of the cache of the
+indicators of the day cost (US-2420, #3628): a ``cache`` object, taken by ``make measure-core
+ONLY=indicators`` on the same witness (the ``facts`` and the ``rows`` of its measure "indicators
+cache")::
+
+    "cache": {"subprojects": 2, "scopes": 4, "cell_bytes": 15000, "all_bytes": 48000,
+              "cold_cell_s": 1.1, "hot_cell_s": 0.02, "cold_all_s": 1.5, "hot_all_s": 0.03,
+              "extrapolation": [{"subprojects": 100, "cell_bytes": 15000, "cold_cell_s": 1.1,
+                                 "hot_cell_s": 0.02, "all_bytes": 1100000, "cold_all_s": 15.0,
+                                 "hot_all_s": 0.4}]}
+
+The entry is one by scope (#3628). ``cell_bytes``, ``cold_cell_s`` and ``hot_cell_s`` are those of
+the entry of the scope of the project, which ``getProjectIndicators`` reads; ``all_bytes``,
+``cold_all_s`` and ``hot_all_s`` those of the entries of every scope, which the evolution of the
+indices without a scope reads. The extrapolation is linear for every scope, never taken on a larger
+set; a scope alone does not depend on the number of subprojects, its figures repeated. One scope
+read cold over the objective of the operation is a finding, as a median over it; it is documented
+by the ``note`` of the ``cache`` object alone, and the ``note`` of the operation documents only the
+median over the objective and the degradation.
 """
 
+import itertools
 import json
 import math
 import re
@@ -96,6 +121,37 @@ TABLE = (
 )
 
 
+CACHED = "indicators"
+"""The operation that carries the cost of the entry of the cache of the indicators."""
+CACHE_COUNTS = ("subprojects", "scopes")
+CACHE_FIGURES = (
+    "cell_bytes",
+    "all_bytes",
+    "cold_cell_s",
+    "hot_cell_s",
+    "cold_all_s",
+    "hot_all_s",
+)
+CACHE_ROW = ("subprojects", *CACHE_FIGURES)
+FIXED_SCOPES = 2
+"""The scopes a project has beside its subprojects: itself, and its lines without a subproject.
+
+Also defined, for the same count, in ``backend/measure/indicators.py``: keep the two equal.
+"""
+
+
+@dataclass(frozen=True, slots=True)
+class Cache:
+    """What the entries of the cache of the indicators cost, as far as it is confronted."""
+
+    cold_cell_s: float
+    scopes: int
+    cell_bytes: float
+    all_bytes: float
+    extrapolated: int
+    note: str = ""
+
+
 @dataclass(frozen=True, slots=True)
 class Measured:
     """An operation of a report: served, with its durations, or named for the epic to serve it."""
@@ -105,6 +161,7 @@ class Measured:
     dispersion_s: float | None
     note: str
     unserved: str | None
+    cache: Cache | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,6 +202,55 @@ def _number(entry: dict[str, object], key: str, where: str) -> float:
     return float(value)
 
 
+def _cache(entry: dict[str, object], where: str) -> Cache:
+    body = entry.get("cache")
+    if not isinstance(body, dict):
+        message = f"{where}: the cost of the entry of the cache is an object, cache"
+        raise TypeError(message)
+    given = cast("dict[str, object]", body)
+    here = f"{where}, cache"
+    figures = {key: _number(given, key, here) for key in (*CACHE_COUNTS, *CACHE_FIGURES)}
+    rows = given.get("extrapolation")
+    if not isinstance(rows, list) or not rows:
+        message = f"{here}: extrapolation is a list of sizes extrapolated, one at least"
+        raise TypeError(message)
+    listed = cast("list[object]", rows)
+    sizes: list[float] = []
+    for row in listed:
+        if not isinstance(row, dict):
+            message = f"{here}: a row of extrapolation is an object, not {row!r}"
+            raise TypeError(message)
+        figures_of_row = {
+            key: _number(cast("dict[str, object]", row), key, f"{here}, extrapolation")
+            for key in CACHE_ROW
+        }
+        sizes.append(figures_of_row["subprojects"])
+    if any(before >= after for before, after in itertools.pairwise(sizes)):
+        message = (
+            f"{here}: the rows of extrapolation are sorted by subprojects, strictly ascending,"
+            " one row per size"
+        )
+        raise ValueError(message)
+    note = given.get("note", "")
+    if not isinstance(note, str):
+        message = f"{here}: note must be a text"
+        raise TypeError(message)
+    if figures["scopes"] != figures["subprojects"] + FIXED_SCOPES:
+        message = f"{here}: scopes are the subprojects, the project and its own lines"
+        raise ValueError(message)
+    if figures["all_bytes"] < figures["cell_bytes"]:
+        message = f"{here}: the entries of every scope weigh at least the one of the project"
+        raise ValueError(message)
+    return Cache(
+        figures["cold_cell_s"],
+        int(figures["scopes"]),
+        figures["cell_bytes"],
+        figures["all_bytes"],
+        len(listed),
+        note.strip(),
+    )
+
+
 def _operation(entry: dict[str, object], where: str, objective: float) -> Measured:
     if _number(entry, "objective_s", where) != objective:
         message = f"{where}: the objective of table 15 is {objective:g} s"
@@ -159,11 +265,17 @@ def _operation(entry: dict[str, object], where: str, objective: float) -> Measur
         if worst < median:
             message = f"{where}: the worst duration is below the median"
             raise ValueError(message)
-        return Measured(median, worst, dispersion, note.strip(), None)
+        cache = None
+        if entry.get("id") == CACHED:
+            cache = _cache(entry, where)
+        elif "cache" in entry:
+            message = f"{where}: only {CACHED} carries the cost of the cache"
+            raise ValueError(message)
+        return Measured(median, worst, dispersion, note.strip(), None, cache)
     if not isinstance(unserved, str) or not EPIC.fullmatch(unserved):
         message = f"{where}: unserved must name an epic, as EP-10, not {unserved!r}"
         raise ValueError(message)
-    if any(key in entry for key in DURATIONS):
+    if any(key in entry for key in (*DURATIONS, "cache")):
         message = f"{where}: an operation the service does not serve has no duration"
         raise ValueError(message)
     return Measured(None, None, None, note.strip(), unserved)
@@ -219,7 +331,12 @@ def read(directory: Path) -> list[Report]:
 
 
 def confront(latest: Report, previous: Report | None) -> list[Finding]:
-    """Return what the latest report exceeds or degrades, and whether its notes document it."""
+    """Return what the latest report exceeds or degrades, and whether its notes document it.
+
+    Each kind of finding has its own note: the median over its objective, and a degradation, the
+    ``note`` of the operation; one scope read cold over the objective, the ``note`` of its
+    ``cache``.
+    """
     findings: list[Finding] = []
     for line in TABLE:
         measured = latest.operations[line.id]
@@ -234,6 +351,13 @@ def confront(latest: Report, previous: Report | None) -> list[Finding]:
         if median > line.objective_s:
             text = f"{line.label}: {median:g} s, above its objective of {line.objective_s:g} s"
             findings.append(Finding(line.id, text, documented))
+        cache = measured.cache
+        if cache is not None and cache.cold_cell_s > line.objective_s:
+            text = (
+                f"{line.label}: the entry of one scope read cold, {cache.cold_cell_s:g} s, is "
+                f"above the objective of {line.objective_s:g} s"
+            )
+            findings.append(Finding(line.id, text, bool(cache.note)))
         if previous is None or before is None:
             continue
         if median > before * DEGRADATION:
@@ -253,6 +377,13 @@ def compare(latest: Report, previous: Report | None) -> list[str]:
         before = None if previous is None else previous.operations[line.id].median_s
         against = "no previous measure" if before is None else f"{before:g} s before"
         lines.append(f"{line.id}: {median:g} s, {against} (objective {line.objective_s:g} s)")
+        cache = latest.operations[line.id].cache
+        if cache is not None:
+            lines.append(
+                f"{line.id}: entry of the cache {cache.cell_bytes:g} bytes a scope, "
+                f"{cache.all_bytes:g} for {cache.scopes} scopes, one scope read cold "
+                f"{cache.cold_cell_s:g} s, {cache.extrapolated} extrapolations"
+            )
     return lines
 
 

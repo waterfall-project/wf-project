@@ -1,0 +1,13 @@
+{
+  "summary": "Une ligne de main-d'oeuvre de quantité 1 budgétée à 100 heures, au taux de 50, consommée dans l'année de référence : la saisie de 80 heures donne un montant réestimé de 80 fois le taux, 4 000,00, et laisse le montant budgété, 5 000,00, inchangé (WF-DEV-0020).",
+  "examples": ["WF-DEV-0020-A#378d44187659"],
+  "quantity": "1",
+  "budgeted_effort": "100",
+  "effort": "80",
+  "hourly_rate": "50",
+  "inflation_rate": "0.03",
+  "reference_year": 2026,
+  "consumption_year": 2026,
+  "budgeted_amount": "5000.00",
+  "reestimated_amount": "4000.00"
+}

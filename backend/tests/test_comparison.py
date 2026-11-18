@@ -26,8 +26,8 @@ import pytest
 from estimate_support import YEAR, Costing, Lines, costing
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from nodes_support import Tree, opened, refusal, set_progress
-from projects_support import PROJECTS, Scene, create
+from nodes_support import Tree, faults, opened, refusal, set_progress
+from projects_support import PROJECTS, Scene, create, designate
 from projects_support import scene as make_scene
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
@@ -792,6 +792,25 @@ def test_kinds_search_fields_and_a_column_filter_read_the_comparison_as_list_nod
     assert inverted.json()["fields"][0]["pointer"] == "/query/reestimated_amount_max"
 
 
+@pytest.mark.requirement("WF-IND-0020-A")
+def test_the_filter_of_the_subproject_is_read_as_the_hyphenated_identifier_only(
+    api: ContractClient, stage: Scene, pair: Pair
+) -> None:
+    # US-2430/L2: the comparison reads the filter as ``listNodes`` does (``node_reading``): the
+    # hyphenated identifier, in either case, and ``unassigned``; braces, ``urn:uuid:``, no hyphen
+    # and a subproject the project does not have are ``UNKNOWN_SUBPROJECT`` on
+    # ``/query/subproject_id``.
+    key = pair.subproject_id
+    for text in (key, key.upper(), "unassigned"):
+        read = comparison(api, stage, revisions(pair), f"&subproject_id={text}")
+        assert read.status_code == 200, (text, read.text)
+    for text in (key.replace("-", ""), "{" + key + "}", "urn:uuid:" + key, str(uuid4())):
+        refused = comparison(api, stage, revisions(pair), f"&subproject_id={text}")
+        assert [(p, c) for p, c, _ in faults(refused)] == [
+            ("/query/subproject_id", "UNKNOWN_SUBPROJECT")
+        ], text
+
+
 @pytest.mark.requirement(REQUIREMENT)
 def test_the_sort_orders_the_lines_under_each_task_a_removed_one_among_them(
     api: ContractClient, stage: Scene, costs: Costing
@@ -979,12 +998,3 @@ def test_a_current_base_is_refused_and_a_revision_of_another_project_is_not_foun
     foreign = answer.json()
     for pair in ((offer, foreign), (foreign, offer), (offer, {"revision_id": str(uuid4())})):
         assert refusal(comparison(api, stage, pair))[:2] == (404, "NOT_FOUND")
-
-
-def designate(api: ContractClient, stage: Scene, revision: dict[str, Any]) -> None:
-    """Designate a marked revision the reference, as the manager does, confirmed."""
-    path = f"{PROJECTS}/{stage.project['project_id']}"
-    held = api.get(path, headers=stage.manager.headers).json()["lock_version"]
-    sent = {"revision_id": revision["revision_id"], "confirmed": True, "lock_version": held}
-    answer = api.put(f"{path}/reference-revision", headers=stage.manager.headers, json=sent)
-    assert answer.status_code == 200, answer.text

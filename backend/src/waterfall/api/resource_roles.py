@@ -32,7 +32,7 @@ from waterfall.api.contract.models import (
     ResourceRole,
     ResourceRoleUpdate,
     ResourceRoleWrite,
-    RoleCapacity,
+    RoleCapacityWrite,
     SortOrder,
 )
 from waterfall.api.evaluation import Acting, Requires, RequiresForInactive
@@ -43,7 +43,6 @@ from waterfall.api.resource_role_admission import (
 )
 from waterfall.core.cost_settings.interface import category_label_of, category_labels
 from waterfall.core.resource_settings.interface import (
-    Capacity,
     RoleChange,
     RoleColumn,
     RoleDraft,
@@ -130,9 +129,9 @@ def _plain(value: Decimal) -> str:
     return format(value, "f")
 
 
-def capacity_of(capacity: RoleCapacity) -> Capacity:
-    """Read the capacity a body sends, two decimals as the contract writes them."""
-    return Capacity(Decimal(capacity.monthly_hours.root.root), Decimal(capacity.headcount.root))
+def headcount_of(capacity: RoleCapacityWrite) -> Decimal:
+    """Read the capacity a body sends, its headcount alone: the service calculates the hours."""
+    return Decimal(capacity.headcount.root)
 
 
 def described(session: Session, views: Sequence[RoleView]) -> list[ResourceRole]:
@@ -325,7 +324,7 @@ def post_resource_role(body: CreationBody, account: Caller, session: Transaction
         category_id,
         category_admission(session, category_id),
         body.calendar_id.root,
-        capacity_of(body.capacity),
+        headcount_of(body.capacity),
     )
     created = create_role(session, draft, Act(account.user_id, utc_now()))
     return described(session, [created])[0]
@@ -352,7 +351,7 @@ def patch_resource_role(
             session, resource_role_id, category_id, body.lock_version.root
         ),
         body.calendar_id.root,
-        capacity_of(body.capacity),
+        headcount_of(body.capacity),
     )
     act = Act(account.user_id, utc_now())
     changed = update_role(session, resource_role_id, change, body.lock_version.root, act)

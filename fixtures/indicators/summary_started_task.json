@@ -1,0 +1,7 @@
+{
+  "summary": "Une récapitulative dont le sous-arbre porte 1 000 de budgété : 400 sur une subordonnée terminée, 600 sur une démarrée à 90 % de son temps, qui ne contribue pas ; l'avancement physique vaut 40 % (WF-IND-0060).",
+  "examples": ["WF-IND-0060-A#61c43a87da0a"],
+  "completed": "400.00",
+  "started": "600.00",
+  "physical_progress": "0.4000"
+}

@@ -5,8 +5,11 @@
 ``remaining_of_revision`` sums the reestimated amounts of the lines, not provisions, of the tasks
 not completed of the main structure of a revision, at the state of its tasks, and gives each line's
 — what the indicators read, and EP-10 for the projection of the project manager and the index of
-cost. ``remaining_indicators`` reads the indicators of a revision (``getRemainingIndicators``),
-their coverage of the risks by ``risk_coverage`` (EP-09, "Les indicateurs du reste à engager").
+cost. ``remaining_of_lines`` gives the same from the tasks and the lines of the revision the
+indicators have read already (``tasks_for_indicators``, ``lines_for_indicators``), without reading
+the tree again (#3569, #3802). ``remaining_indicators`` reads the indicators of a revision
+(``getRemainingIndicators``), their coverage of the risks by ``risk_coverage`` (EP-09, "Les
+indicateurs du reste à engager").
 
 The coverage is a registry the estimate declares and the risks fill (``register_coverage``, EP-08):
 until then none is registered, and the coverage is zero — no reserve, no provision left, no cost of
@@ -26,7 +29,7 @@ from uuid import UUID
 from waterfall.core.costs.interface import UNASSIGNED, actual_cost_by_subproject
 from waterfall.core.estimate.indicating import natures_of
 from waterfall.core.estimate.placing import placed_lines
-from waterfall.core.estimate.reading import rows_of
+from waterfall.core.estimate.reading import COMPLETED, rows_of
 from waterfall.core.estimate.remaining.balancing import (
     balances,
     delta_to_previous,
@@ -34,7 +37,6 @@ from waterfall.core.estimate.remaining.balancing import (
     distributed,
 )
 from waterfall.core.estimate.remaining.comparing import (
-    previous_review,
     reference_budgets,
     summed_by_subproject,
 )
@@ -43,13 +45,13 @@ from waterfall.core.estimate.remaining.reviewing import (
     remaining_of_placed,
     revision_remaining,
 )
-from waterfall.core.estimate.remaining.summing import NOUGHT
+from waterfall.core.estimate.remaining.summing import NOUGHT, LineAmount, remaining_sum
 from waterfall.core.projects.interface import subproject_labels
 from waterfall.core.revisions.interface import read_revision_for
 from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Iterable, Mapping, Sequence
     from datetime import datetime
     from decimal import Decimal
 
@@ -57,7 +59,9 @@ if TYPE_CHECKING:
 
     from waterfall.core.costs.interface import CostScope
     from waterfall.core.estimate.indicating import AmountByKey
+    from waterfall.core.estimate.lining import IndicatorLine
     from waterfall.core.estimate.placing import Placed
+    from waterfall.core.planning.interface import IndicatorTask
     from waterfall.core.revisions.interface import RevisionRead
 
 
@@ -171,6 +175,24 @@ def remaining_of_revision(
     return RevisionRemaining(total, by_line)
 
 
+def remaining_of_lines(
+    tasks: Iterable[IndicatorTask], lines: Iterable[IndicatorLine]
+) -> RevisionRemaining:
+    """Give the remaining to commit of a revision from its tasks and its lines, read already.
+
+    ``tasks`` are those of the main structure of the revision (``tasks_for_indicators``), ``lines``
+    its lines on them, provisions left out (``lines_for_indicators``): the re-estimated amount of
+    each line whose task is not completed, in their order — what ``remaining_of_revision`` gives on
+    the same revision, without reading it.
+    """
+    completed = {task.node_id for task in tasks if task.progress == COMPLETED}
+    total, by_line = remaining_sum(
+        LineAmount(line.node_id, line.reestimated_amount, line.task_id in completed)
+        for line in lines
+    )
+    return RevisionRemaining(total, by_line)
+
+
 def _ventilated(
     session: Session,
     project_id: UUID,
@@ -207,8 +229,9 @@ def remaining_indicators(
     Computed at ``at``, never stored. The total and its ventilation by nature are the remaining of
     the revision; each subproject — the lines out of any, and the cost imputed to the project
     alone, as ``unassigned`` — compares its budget in the reference with its actual cost and its
-    remaining; the margin on the reference is none without one, the difference with the review
-    before none without a revision marked In progress before this one. A revision unknown is 404.
+    remaining; the margin on the reference is none without one, the difference with the revision
+    marked before this one — the offer, when it is the only one — none without one, as the estimate
+    reads it. A revision unknown is 404.
     """
     read = read_revision_for(session, project_id, revision_id)
     # The lines on their tasks, the costliest read: once for the remaining and its ventilation.
@@ -228,7 +251,6 @@ def remaining_indicators(
     labels = subproject_labels(
         session, project_id, [UUID(each.key) for each in found if each.key != UNASSIGNED]
     )
-    earlier = previous_review(session, project_id, read.revision_id)
     return RemainingIndicators(
         context=CalculationContext(
             read.revision_id, "marked" if read.marked else "draft", at, "project", is_stored=False
@@ -252,6 +274,8 @@ def remaining_indicators(
         delta_to_reference=delta_to_reference(budgets, actual_costs, remainings),
         delta_to_previous_revision=delta_to_previous(
             held.total,
-            None if earlier is None else remaining_of_revision(session, project_id, earlier).total,
+            None
+            if read.previous_marked_id is None
+            else remaining_of_revision(session, project_id, read.previous_marked_id).total,
         ),
     )

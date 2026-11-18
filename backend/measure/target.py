@@ -9,6 +9,7 @@ from functools import cache
 from typing import TYPE_CHECKING, get_args
 from uuid import uuid4
 
+from redis import Redis
 from sqlalchemy.engine import URL
 
 from waterfall.core.planning.interface import Place
@@ -25,6 +26,7 @@ from waterfall.core.projects.interface import (
     list_projects,
 )
 from waterfall.core.revisions.interface import MAIN, list_cost_structures, read_revision
+from waterfall.platform.cache import IndicatorsCache
 from waterfall.platform.database import Database, create_database_engine
 
 if TYPE_CHECKING:
@@ -40,6 +42,9 @@ PROJECT_CODE = "PRJ-001"
 _ROLE = "waterfall_service"
 _HOST = "127.0.0.1"
 _DEFAULT_PORT = 5432
+_REDIS_PORT = 6379
+_CACHE_TTL = 600
+_CACHE_TIMEOUT = 1.0
 
 _ALL_STATES = frozenset(get_args(ProjectState.__value__))
 _PAGE = ProjectPage(limit=50, offset=0)
@@ -82,6 +87,32 @@ def address_from_environment() -> str:
         "postgresql", username=_ROLE, password=password, host=_HOST, port=port, database="waterfall"
     )
     return url.render_as_string(hide_password=False)
+
+
+def cache_from_environment() -> IndicatorsCache:
+    """Give the cache of the indicators, in the Redis of the slot's platform, from the environment.
+
+    The port is the slot's (``WATERFALL_REDIS_PORT``), the password that of the platform
+    (``WATERFALL_REDIS_PASSWORD``); the cache is the service's own class, with a delay of a second.
+    """
+    password = os.environ.get("WATERFALL_REDIS_PASSWORD")
+    if not password:
+        message = "WATERFALL_REDIS_PASSWORD is not set: the guide, 'Commandes'"
+        raise MeasureError(message)
+    raw_port = os.environ.get("WATERFALL_REDIS_PORT", str(_REDIS_PORT))
+    try:
+        port = int(raw_port)
+    except ValueError:
+        message = f"WATERFALL_REDIS_PORT is not a port number: {raw_port!r}"
+        raise MeasureError(message) from None
+    client = Redis(
+        host=_HOST,
+        port=port,
+        password=password,
+        socket_timeout=_CACHE_TIMEOUT,
+        socket_connect_timeout=_CACHE_TIMEOUT,
+    )
+    return IndicatorsCache(client, _CACHE_TTL)
 
 
 @cache

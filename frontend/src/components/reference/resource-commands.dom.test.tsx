@@ -630,10 +630,7 @@ describe("the resource roles", () => {
       within(form).getByRole("textbox", { name: "Libellé" }),
       "Dessinateur électricien",
     );
-    await userEvent.type(
-      within(form).getByRole("textbox", { name: "Heures par mois" }),
-      "beaucoup",
-    );
+    await userEvent.type(within(form).getByRole("textbox", { name: "Effectif" }), "beaucoup");
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     // La création d'un rôle auquel manque l'un des trois rattachements est refusée.
     const node = within(form).getByRole("combobox", { name: "Nœud d’organisation" });
@@ -644,9 +641,9 @@ describe("the resource roles", () => {
         "Une valeur est requise.",
       );
     }
-    expect(
-      within(form).getByRole("textbox", { name: "Heures par mois" }),
-    ).toHaveAccessibleDescription("Ce n’est pas un nombre valide.");
+    expect(within(form).getByRole("textbox", { name: "Effectif" })).toHaveAccessibleDescription(
+      "Ce n’est pas un nombre valide.",
+    );
     expect(client.calls).toEqual([]);
   });
 
@@ -675,7 +672,7 @@ describe("the resource roles", () => {
     await expectAccessible(form);
   });
 
-  it("creates a role with its attachments and its single capacity, the numbers written as the contract writes them [WF-REF-0100-A]", async () => {
+  it("creates a role with its attachments and its headcount alone, the hours per month being calculated and not offered [WF-REF-0100-A] [WF-IHM-0030-A]", async () => {
     const client = serve();
     render(roleList());
     const form = await opened("Nouveau rôle", "Nouveau rôle de ressource");
@@ -698,7 +695,7 @@ describe("the resource roles", () => {
       "Semaine standard",
     );
     // Un rôle ne porte qu'une capacité, sans date de validité.
-    await userEvent.type(within(form).getByRole("textbox", { name: "Heures par mois" }), "1 520,5");
+    expect(within(form).queryByRole("textbox", { name: "Heures par mois" })).toBeNull();
     await userEvent.type(within(form).getByRole("textbox", { name: "Effectif" }), "3");
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     await vi.waitFor(() => {
@@ -714,7 +711,7 @@ describe("the resource roles", () => {
           org_node_id: nodeOf("BE-ELEC").org_node_id,
           cost_category_id: category?.id,
           calendar_id: "01926f3a-7c00-7000-8000-000000000481",
-          capacity: { monthly_hours: "1520.5", headcount: "3" },
+          capacity: { headcount: "3" },
         },
       },
     ]);
@@ -742,7 +739,6 @@ describe("the resource roles", () => {
       within(form).getByRole("combobox", { name: "Calendrier" }),
       "Semaine standard",
     );
-    await userEvent.type(within(form).getByRole("textbox", { name: "Heures par mois" }), "520");
     await userEvent.type(within(form).getByRole("textbox", { name: "Effectif" }), "3");
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     // La création d'un rôle dont le code existe déjà est refusée : said at the code, the role that
@@ -775,7 +771,6 @@ describe("the resource roles", () => {
       within(form).getByRole("combobox", { name: "Calendrier" }),
       "Semaine standard",
     );
-    await userEvent.type(within(form).getByRole("textbox", { name: "Heures par mois" }), "520");
     await userEvent.type(within(form).getByRole("textbox", { name: "Effectif" }), "3");
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     await vi.waitFor(() => {
@@ -803,7 +798,6 @@ describe("the resource roles", () => {
     await userEvent.selectOptions(category, LABOUR[0]?.id ?? "");
     const calendar = within(form).getByRole("combobox", { name: "Calendrier" });
     await userEvent.selectOptions(calendar, "Semaine standard");
-    await userEvent.type(within(form).getByRole("textbox", { name: "Heures par mois" }), "520");
     await userEvent.type(within(form).getByRole("textbox", { name: "Effectif" }), "3");
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     // La création d'un rôle […] est refusée, de même que son rattachement à une catégorie hors
@@ -843,7 +837,7 @@ describe("the resource roles", () => {
     );
   });
 
-  it("modifies a role but its node, which its form names, from the version read, its capacity shown in the language of the reader", async () => {
+  it("modifies a role but its node, which its form names, from the version read, its capacity shown in the language of the reader [WF-IHM-0030-A]", async () => {
     const client = serve();
     render(roleList());
     const technician = roles.items.find((role) => role.label === "Technicien de mise en service");
@@ -854,9 +848,15 @@ describe("the resource roles", () => {
     // The node is set at the creation: a role is recreated under another rather than moved.
     expect(within(form).queryByRole("combobox", { name: "Nœud d’organisation" })).toBeNull();
     expect(form).toHaveAccessibleDescription(
-      "Le code, unique, le libellé, une catégorie de main-d’œuvre, le calendrier et la capacité sont requis. Le rôle reste sous «\u00A0Bureau d'études électricité\u00A0»\u00A0: il se recrée sous un autre nœud plutôt que de s’y déplacer.",
+      "Le code, unique, le libellé, une catégorie de main-d’œuvre, le calendrier et l’effectif sont requis. Le rôle reste sous «\u00A0Bureau d'études électricité\u00A0»\u00A0: il se recrée sous un autre nœud plutôt que de s’y déplacer.",
     );
-    expect(within(form).getByRole("textbox", { name: "Heures par mois" })).toHaveValue("485324,00");
+    // Les heures par mois, calculées, se lisent sans se saisir (WF-IHM-0030-A).
+    const hours = within(form).getByRole("textbox", { name: "Heures par mois" });
+    expect(hours).toHaveValue("485333,33");
+    expect(hours).toHaveAttribute("readonly");
+    expect(hours).toHaveAccessibleDescription(
+      "Calculées\u00a0: effectif × heures hebdomadaires du calendrier × 52 ÷ 12, arrondi au centième. Elles ne se saisissent pas ; la valeur affichée est celle enregistrée, recalculée à l’enregistrement.",
+    );
     expect(within(form).getByRole("combobox", { name: "Calendrier" })).toHaveValue(
       technician?.calendar_id,
     );
@@ -876,7 +876,7 @@ describe("the resource roles", () => {
         label: "Technicien de mise en service",
         cost_category_id: technician?.cost_category_id,
         calendar_id: technician?.calendar_id,
-        capacity: { monthly_hours: "485324.00", headcount: "2800" },
+        capacity: { headcount: "2800" },
         lock_version: 1,
       },
     });

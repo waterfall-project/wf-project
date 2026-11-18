@@ -44,6 +44,13 @@ vi.mock("next/navigation", async (original) => ({
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
 }));
+// The grid of the detail, rendered on the server as the page sends it.
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
+  usePathname: () => `/projects/${PROJECT}/revisions/${REVISION}/workload`,
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -299,6 +306,74 @@ describe("the screen of the workload of a project", () => {
     await expect(WorkloadPage(at())).rejects.toMatchObject({
       digest: "NEXT_HTTP_ERROR_FALLBACK;404",
     });
+  });
+});
+
+describe("the detail of the workload by role and by task", () => {
+  /** The addresses the links of the page lead to the planning grid by. */
+  function planningLinks(page: string): string[] {
+    return [...page.matchAll(/href="([^"]*\/planning\?[^"]*)"/g)].map((m) =>
+      (m[1] ?? "").replaceAll("&amp;", "&"),
+    );
+  }
+
+  it("presents the detail under the chart, the grid of the same plan, with no choice of its own [WF-DEV-0090-A]", async () => {
+    // Propre à l'US : l'écran du plan de charge présente ce détail sous l'histogramme ; la base et le
+    // filtre par nœud d'organisation sont ceux de l'histogramme.
+    const page = html(await WorkloadPage(at({ org_node_id: ORG_NODE })));
+    const chart = page.indexOf("Load by role and by month");
+    const detail = page.indexOf('aria-label="Detail by role and by task"');
+    expect(chart).toBeGreaterThan(0);
+    expect(detail).toBeGreaterThan(chart);
+    // One reading of the plan, on the node the choice of the chart asked: the detail asks nothing.
+    const calls = server.clients.flatMap((client) => client.calls);
+    expect(calls.filter((call) => call.route === WORKLOAD_ROUTE)).toHaveLength(1);
+    expect(page).toContain('aria-label="Workload detail by role and by task"');
+    expect(page.slice(detail)).not.toContain("<select");
+  });
+
+  it("leads from a task to the planning grid of the revision under way the basis reads, the context kept [WF-DEV-0090-A]", async () => {
+    const plan = example("workload") as { roles: { tasks: { node_id: string }[] }[] };
+    const task = plan.roles[0]?.tasks[0]?.node_id ?? "";
+    const links = planningLinks(html(await WorkloadPage(at({ as_of: "2026-03-16" }))));
+    expect(links[0]).toBe(
+      `/projects/${PROJECT}/revisions/${REVISION}/planning?as_of=2026-03-16&task=${task}`,
+    );
+  });
+
+  it.each([
+    ["reference_budget", "workload_reference_budget"],
+    ["marked_remaining", "workload_marked_remaining"],
+  ] as const)(
+    "leads, on the basis %s, to the planning grid of the revision the API says it read, not the one of the address [WF-DEV-0090-A]",
+    async (basis, answer) => {
+      // Depuis une tâche du détail, l'utilisateur atteint cette tâche dans la grille de planning, la
+      // révision conservée : the revision the basis reads (`context.revision_id`).
+      server.answers = { ...server.answers, [WORKLOAD_ROUTE]: answer };
+      const links = planningLinks(html(await WorkloadPage(at({ basis }))));
+      expect(links.length).toBeGreaterThan(0);
+      for (const link of links) {
+        expect(link).toMatch(
+          new RegExp(`^/projects/${PROJECT}/revisions/${MARKED}/planning\\?task=`),
+        );
+      }
+    },
+  );
+
+  it("names the tasks without a link for a session that does not read the planning", async () => {
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
+    const page = html(await WorkloadPage(at()));
+    expect(planningLinks(page)).toEqual([]);
+    expect(page).toContain("Câblage des armoires");
+  });
+
+  it("presents no detail when the API refuses the basis", async () => {
+    server.answers = {
+      ...server.answers,
+      [WORKLOAD_ROUTE]: { problem: example("workload_no_reference") as Problem & { status: 409 } },
+    };
+    const page = html(await WorkloadPage(at({ basis: "reference_budget" })));
+    expect(page).not.toContain("Detail by role and by task");
   });
 });
 

@@ -17,6 +17,13 @@ adds the deltas of each node and the totals of the base: both comparisons are th
 what it adds (``without_gains``).
 The bodies are read straight from the application, unchecked against the contract: their form is
 the other tests' (``test_witness_lines_reads``), their bytes this one's.
+
+US-1680 computes the physical progress of the summaries, not computable before in every body: the
+SHA-256 of the bodies that give a summary's are taken again after it, the body of the fields of the
+estimate grid, which does not ask it, keeping its own. Read before and after, field by field, the
+bodies differ only by ``task.physical_progress`` of the summaries that bear a budgeted amount — 39
+of the 40 of the current revision, the 39 of the marked one —, from "not computable" to a value, a
+leaf's null in both (EP-10, "L'avancement physique").
 """
 
 import hashlib
@@ -74,7 +81,7 @@ NODES = {
     ),
 }
 # The readings of the tasks alone added by US-2280/L1, and their SHA-256 taken before it (commit
-# 7a43a670c of epic/EP-26).
+# 7a43a670c of epic/EP-26), then again after US-1680, their summaries' physical progress computed.
 TASKS = {
     "kinds=task, filtered by a task": "?kinds=task&search=revue&progress=not_started,started",
     "kinds=task, by level, sorted by a line": (
@@ -83,13 +90,13 @@ TASKS = {
 }
 TASKS_DIGESTS = {
     "kinds=task, filtered by a task": (
-        "27426087badf17a3dc8e8577f886f1f718d23bf64ba989ee7405c9fdb317baf8"
+        "bc8abb4fc4e0499b47b81bd619adf3cc99fcdc3aa9791c3900fb8a0216127557"
     ),
     "kinds=task, by level, sorted by a line": (
-        "056334a6ccf96fd37b9085d82066a283de0e581ee00a71fd65e8c1caf363a594"
+        "c13f2162c31378310b50bd07366cc88b9f4d33c94b645a512c74b322f128ff8a"
     ),
     "kinds=task of a marked revision": (
-        "d4bc9de494d853535c226b866f15973338ea67ed3b364656f3f4c4ea6604c601"
+        "a5a54050ee30477cac09b5d00462809b2c5c5bd09ed185d57a834816f83eab26"
     ),
 }
 COMPARISONS = {
@@ -99,27 +106,30 @@ COMPARISONS = {
     ),
 }
 
-# The SHA-256 of each body, taken before US-2220/L1 (commit 587127f0c of epic/EP-26).
+# The SHA-256 of each body, taken before US-2220/L1 (commit 587127f0c of epic/EP-26), then again
+# after US-1680 but the fields of the estimate grid, which ask no physical progress.
 DIGESTS = {
-    "whole": "c0d1f910a1b38dbb10ba0225be04e80e41a9825eea270d06a930e51f3d94b4e5",
-    "kinds=task": "5c2fdea32bcb6f7d5d79430581afc9f1f370551c6937f8ffa81ca8c81ffe58da",
+    "whole": "c354cb22a3180302a4d6810dd3b1cdeb07d024f987bb9a21eb120db0fd5ff502",
+    "kinds=task": "42c5452c592bfea4e4988ef98fe4ba4a6c6d1d5deb4e56d0185c5225ff26a6cd",
     "fields": "0f8680e6fe285210e034e71ffcef1736a4f19c9e8c788022bf5373dea06ced19",
-    "filtered by a task": "0c1b40347c5356ed44382a02106fd5e0b56f6c9adcc657a4e2b8fad6c1802ba5",
+    "filtered by a task": "b472c386ce4c8cd48318c501bfb65e396bf3e20b2101e561915f860cc2cc23f5",
     "filtered by a line, sorted": (
-        "8ce9e40c194093e648537f8b4ce30239281bacc6d94f8915b419cdaf6ded1028"
+        "425a759da25aad539bc4488bb6c11fadb00efc4da1176f7e98f4ad0d5819e098"
     ),
-    "whole comparison": "d5ba4c6bc35b8bdc412d1a2b0c8a9f6ef981aaaba505d2151331853bc126d34f",
+    "whole comparison": "d635d9e709ea15dbebe14249aedf2bd48c8d97b1412fac3e251f255f31fc1247",
     "comparison filtered and sorted": (
-        "92f786349644c9d42758e484d27e56dac904d24f527703fbf3cc8f5a45e6c7a5"
+        "908485770a32aeba12ade836c31fd12d034ff77e4446d27b7297a3e8f40b0c03"
     ),
 }
 
 
 # The SHA-256 of the comparison filtered by its marks, taken at US-2320/L3, which judges a node on
-# every value it carries: ``difference=modified`` retains more nodes than before.
+# every value it carries: ``difference=modified`` retains more nodes than before. Taken again when
+# epic/EP-10 took back main, after US-1680: its 39 summaries put back "not computable", the body
+# read then gives the SHA-256 of US-2320/L3, bd5415c9…; nothing else differs, no mark included.
 COMPARED_DIGESTS = {
     "comparison filtered and sorted": (
-        "bd5415c9697694221d26ae76d3dd200edd2bb04e19696c2929bfbc2f794c2324"
+        "a72f125f4f4a89b25f85b2968c0a34ab0ba8888f9f334e9fecf4a8b555ddcff4"
     ),
 }
 
@@ -143,8 +153,9 @@ def gains_digest(body: bytes) -> str:
 
 
 # The SHA-256 of ``listNodes`` of the marked revision REVISION_100, whole: its labels are read
-# through the revisions of the tasks bearing the lines. Taken at 587127f0c, as the others.
-MARKED_DIGEST = "eaadbe84e77482ac75b037e5a3269ab44183badd3154112f6d9818a503967dae"
+# through the revisions of the tasks bearing the lines. Taken at 587127f0c, as the others, and
+# again after US-1680.
+MARKED_DIGEST = "29cbdfd16bd179c92aed66a6684a5bb5d7086c7a6fe4e679bd0669980dea3f75"
 
 
 def digest(api: ContractClient, witness: Database, realm: TestRealm, url: str) -> str:

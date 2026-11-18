@@ -28,7 +28,9 @@ registered (``register_revision_filler``, EP-06): the tasks (``witness.tasks``),
 (``witness.estimate_lines``), each reconciling what the copy gave the revision with what the witness
 describes of it, before its marking comes. The actual costs come after the lines, at the instants of
 their events (``witness.costs``, EP-09): the imports applied, the line excluded and the extraction
-expired, by the project manager, the account an import is requested by.
+expired, by the project manager, the account an import is requested by. A marking keeps the
+indicators of its revision as the worker's does (EP-10): the loader imports their interface
+(``loader.EXTENDING``).
 """
 
 from dataclasses import dataclass

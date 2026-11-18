@@ -287,13 +287,7 @@ export function ResourceRoleDialog({
     required: true,
     choices,
   });
-  const number = (name: string, label: string): FormField => ({
-    name,
-    label,
-    control: "number",
-    required: true,
-  });
-  const attachments = [
+  const attachments: FormField[] = [
     choice(
       "cost_category_id",
       columns("costCategory"),
@@ -317,18 +311,27 @@ export function ResourceRoleDialog({
         ),
       ),
     ),
-    number("capacity/monthly_hours", columns("monthlyHours")),
-    number("capacity/headcount", columns("headcount")),
+    // The hours per month are calculated, never typed (WF-IHM-0030): shown read-only once the role
+    // exists, absent from the creation, which has none yet.
+    ...(role === undefined
+      ? []
+      : [
+          {
+            name: "capacity/monthly_hours",
+            label: columns("monthlyHours"),
+            control: "fixed" as const,
+            note: t("roleForm.hoursNote"),
+          },
+        ]),
+    { name: "capacity/headcount", label: columns("headcount"), control: "number", required: true },
   ];
   const written = (values: Draft) => ({
     code: values.code ?? "",
     label: values.label ?? "",
     cost_category_id: values.cost_category_id ?? "",
     calendar_id: values.calendar_id ?? "",
-    capacity: {
-      monthly_hours: values["capacity/monthly_hours"] ?? "",
-      headcount: values["capacity/headcount"] ?? "",
-    },
+    // The headcount alone is written, the hours per month being calculated (WF-REF-0100).
+    capacity: { headcount: values["capacity/headcount"] ?? "" },
   });
   return (
     <ReferenceForm

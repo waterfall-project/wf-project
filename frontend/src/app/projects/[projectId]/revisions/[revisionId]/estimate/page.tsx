@@ -238,20 +238,28 @@ const WORKLOAD = leafOf("FBS-4.4.4");
 /** The icon of the workload, which its own screen shows too. */
 const WorkloadIcon = LEAF_ICONS["FBS-4.4.4"];
 
+/** The spending projection of the project, the other leaf of the estimate (FBS-4.4.5). */
+const SPENDING = leafOf("FBS-4.4.5");
+
+/** The icon of the spending projection, which its own screen shows too. */
+const SpendingIcon = LEAF_ICONS["FBS-4.4.5"];
+
 /**
  * The title of the grid, and what it holds: the structure, its tasks and lines retained; and the
- * links to the workload of the project and, when the project lists the import of an estimate, to the
+ * links to the workload and the spending projection of the project and, when the project lists the import of an estimate, to the
  * imports and exports (#521), in the same context.
  */
 function EstimateHeader({
   label,
   totals,
   workload,
+  spending,
   exchanges,
 }: {
   readonly label: string;
   readonly totals: NodeTotals;
   readonly workload: string | undefined;
+  readonly spending: string | undefined;
   readonly exchanges: ReactNode;
 }) {
   const t = useTranslations();
@@ -272,6 +280,14 @@ function EstimateHeader({
               <Link href={workload} className={buttonVariants({ variant: "outline", size: "sm" })}>
                 <WorkloadIcon aria-hidden="true" />
                 {t(WORKLOAD.label)}
+              </Link>
+            </CommandTooltip>
+          )}
+          {spending === undefined ? null : (
+            <CommandTooltip label={t(SPENDING.label)} help={t("commands.spending.help")}>
+              <Link href={spending} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                <SpendingIcon aria-hidden="true" />
+                {t(SPENDING.label)}
               </Link>
             </CommandTooltip>
           )}
@@ -338,6 +354,10 @@ export default async function EstimatePage({
           totals={screen.nodes.totals}
           workload={onBasis(
             functionHref(WORKLOAD, at.context),
+            estimateBasis(screen.reading.project),
+          )}
+          spending={onBasis(
+            functionHref(SPENDING, at.context),
             estimateBasis(screen.reading.project),
           )}
           exchanges={

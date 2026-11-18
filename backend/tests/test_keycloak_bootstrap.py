@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import pytest
+from migrations_support import scratch_database
 from pydantic import SecretStr
 from sqlalchemy import Engine, delete, func, insert, select, text, update
 from support import CONTRACT, ContractClient, Logs, captured_logs
@@ -48,7 +49,7 @@ from test_keycloak_platform import (
     set_by_link,
 )
 from test_keycloak_sign_in import realm_set
-from test_migrations import HEAD, scratch_database
+from test_migrations import HEAD
 
 from waterfall import bootstrap
 from waterfall.core.access_roles.tables import AccessRole, Permission

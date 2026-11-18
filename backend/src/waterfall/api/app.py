@@ -31,11 +31,15 @@ from waterfall.api import (
     hourly_rates,
     identity_syncs,
     imports,
+    index_history,
+    indicator_curves,
     lifecycle,
     me,
+    milestone_tracking,
     nodes,
     org_nodes,
     progress,
+    project_indicators,
     projects,
     rate_update,
     reference,
@@ -47,6 +51,7 @@ from waterfall.api import (
     revisions,
     scheduling,
     skeleton,
+    spending,
     startable_tasks,
     subprojects,
     system,
@@ -64,6 +69,7 @@ from waterfall.core.costs import interface as costs_interface
 from waterfall.core.estimate import interface as estimate_interface
 from waterfall.core.exchanges import interface as exchanges_interface
 from waterfall.core.history import interface as history_interface
+from waterfall.core.indicators import interface as indicators_interface
 from waterfall.core.planning import interface as planning_interface
 
 if TYPE_CHECKING:
@@ -79,12 +85,13 @@ if TYPE_CHECKING:
 PREFIX = "/api/v1"
 # The modules that fill the registries of the others at the import of their interface (#2180):
 # imported here whether or not a route reads them yet, so that no revision is copied, closed or
-# designated, no reference changed and no import opened, without their part.
+# designated, no reference changed, no import opened and no revision marked, without their part.
 EXTENDING = (
     costs_interface,
     estimate_interface,
     exchanges_interface,
     history_interface,
+    indicators_interface,
     planning_interface,
 )
 
@@ -168,6 +175,7 @@ def create_app(services: Services, lifespan: Lifespan | None = None) -> FastAPI:
         rate_update.router,
         estimate_indicators.router,
         workload.router,
+        spending.router,
     ):
         app.include_router(estimate_router, prefix=PREFIX)
     # The remaining to commit and the actual costs (EP-09): a router per story, each registered here
@@ -180,4 +188,12 @@ def create_app(services: Services, lifespan: Lifespan | None = None) -> FastAPI:
         actual_costs.router,
     ):
         app.include_router(costs_router, prefix=PREFIX)
+    # The indicators (EP-10): a router per story, each registered here from the start.
+    for indicators_router in (
+        project_indicators.router,
+        indicator_curves.router,
+        index_history.router,
+        milestone_tracking.router,
+    ):
+        app.include_router(indicators_router, prefix=PREFIX)
     return app

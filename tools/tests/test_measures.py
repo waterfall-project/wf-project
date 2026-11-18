@@ -15,7 +15,32 @@ if TYPE_CHECKING:
 
     from wftools.measures import Report
 
-UNSERVED = {"indicators": "EP-10", "portfolio-view": "EP-11"}
+UNSERVED = {"portfolio-view": "EP-11"}
+
+
+def cache(cold_cell_s: float = 0.3) -> dict[str, object]:
+    """Return the cost of the entries of the cache of the indicators, as the core measure says."""
+    return {
+        "subprojects": 3,
+        "scopes": 5,
+        "cell_bytes": 11000,
+        "all_bytes": 52000,
+        "cold_cell_s": cold_cell_s,
+        "hot_cell_s": 0.002,
+        "cold_all_s": 0.5,
+        "hot_all_s": 0.004,
+        "extrapolation": [
+            {
+                "subprojects": 100,
+                "cell_bytes": 11000,
+                "cold_cell_s": cold_cell_s,
+                "hot_cell_s": 0.002,
+                "all_bytes": 1_100_000,
+                "cold_all_s": 9.0,
+                "hot_all_s": 0.05,
+            }
+        ],
+    }
 
 
 def report(
@@ -32,6 +57,8 @@ def report(
         else:
             median = (medians or {}).get(line.id, line.objective_s / 2)
             entry |= {"median_s": median, "worst_s": median * 2, "dispersion_s": median / 10}
+            if line.id == measures.CACHED:
+                entry["cache"] = cache()
         if notes and line.id in notes:
             entry["note"] = notes[line.id]
         operations.append(entry)
@@ -375,3 +402,105 @@ def test_the_figures_of_the_compose_readme_are_the_ones_of_the_processes_report(
     assert f"({french(runs[1]['memory']['processes'][0]['rss_mb'] / 1000, 1, 'Go')} quand" in text
     assert f"À un processus, le serveur accepte {runs[1]['max_connections']} connexions" in text
     assert f"à quatre, {runs[4]['max_connections']}" in text
+
+
+def _indicators(body: dict[str, object]) -> dict[str, object]:
+    return next(
+        each
+        for each in cast("list[dict[str, object]]", body["operations"])
+        if each["id"] == "indicators"
+    )
+
+
+@pytest.mark.requirement("WF-QUA-0060-A")
+def test_the_indicators_served_carry_the_cost_of_the_entry_of_the_cache() -> None:
+    result = parsed(report("0.5.0"))
+
+    cached = result.operations["indicators"].cache
+    assert cached is not None
+    assert (cached.scopes, cached.cell_bytes, cached.all_bytes) == (5, 11000, 52000)
+    assert cached.extrapolated == 1
+    assert any(
+        "entry of the cache 11000 bytes a scope, 52000 for 5 scopes" in line
+        for line in measures.compare(result, None)
+    )
+
+
+@pytest.mark.requirement("WF-QUA-0060-A")
+def test_one_scope_read_cold_over_the_objective_is_signalled_and_fails_unless_documented(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    slow = report("0.5.0")
+    _indicators(slow)["cache"] = cache(1.5)
+    write(tmp_path, slow)
+    code, out = run(tmp_path, capsys)
+    assert code == 1
+    assert "the entry of one scope read cold, 1.5 s" in out
+    _indicators(slow)["note"] = "a note of the operation, which does not speak of the cache"
+    write(tmp_path, slow)
+    code, _ = run(tmp_path, capsys)
+    assert code == 1
+    cast("dict[str, Any]", _indicators(slow)["cache"])["note"] = "an issue to settle"
+    write(tmp_path, slow)
+    code, _ = run(tmp_path, capsys)
+    assert code == 0
+
+
+@pytest.mark.requirement("WF-QUA-0060-A")
+@pytest.mark.parametrize(
+    "change",
+    [
+        "missing",
+        "scopes",
+        "no-rows",
+        "negative",
+        "lighter",
+        "row",
+        "elsewhere",
+        "unsorted",
+        "duplicate",
+        "note",
+    ],
+)
+def test_a_cost_of_the_cache_that_does_not_hold_is_refused(change: str) -> None:
+    body = report("0.5.0")
+    entry = _indicators(body)
+    given = cast("dict[str, Any]", entry["cache"])
+    if change == "missing":
+        del entry["cache"]
+    elif change == "scopes":
+        given["scopes"] = 9
+    elif change == "no-rows":
+        given["extrapolation"] = []
+    elif change == "negative":
+        given["hot_cell_s"] = -1
+    elif change == "lighter":
+        given["all_bytes"] = 10
+    elif change == "row":
+        del given["extrapolation"][0]["cold_cell_s"]
+    elif change == "unsorted":
+        given["extrapolation"].append({**given["extrapolation"][0], "subprojects": 50})
+    elif change == "duplicate":
+        given["extrapolation"].append(dict(given["extrapolation"][-1]))
+    elif change == "note":
+        given["note"] = 3
+    else:
+        other = next(
+            each
+            for each in cast("list[dict[str, object]]", body["operations"])
+            if each["id"] == "open-grid"
+        )
+        other["cache"] = cache()
+    with pytest.raises((ValueError, TypeError)):
+        parsed(body)
+
+
+@pytest.mark.requirement("WF-QUA-0060-A")
+def test_an_operation_unserved_has_no_cost_of_the_cache() -> None:
+    body = report("0.5.0")
+    entry = _indicators(body)
+    for key in measures.DURATIONS:
+        del entry[key]
+    entry["unserved"] = "EP-10"
+    with pytest.raises(ValueError, match="no duration"):
+        parsed(body)

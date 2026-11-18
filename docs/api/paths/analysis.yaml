@@ -98,7 +98,13 @@
       `revision_id` or on a revision that is not marked (422, `VALIDATION_FAILED`) — on a
       project without any marked revision, only the current revision is therefore a basis.
       On a marked revision, the calculation date is its marking date (`context.computed_at`).
-      The plan names the organisation node it retains (`org_node_id`, `org_node_label`).
+      The plan names the organisation node it retains (`org_node_id`, `org_node_label`). Each role
+      details its effort by task (`roles[].tasks`, WF-DEV-0090): every task that bears a labour
+      line of the role, on the same basis, by the same spreading and under the same filter, in
+      the order of its start, then of the plan; computed when read, on a marked revision too,
+      never stored by its marking. `months` carries, for a role as for a task, only the months in
+      which it is loaded: a role loaded on fewer months than the others has fewer entries, and the
+      months it lacks are read at zero (`monthly_totals` spans them all; #3096).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/WorkloadBasis
@@ -146,6 +152,91 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               revision_refused: { $ref: ../../../fixtures/api/workload_revision_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/projects/{project_id}/spending:
+  get:
+    operationId: getProjectSpending
+    tags: [estimate]
+    summary: Project spending projection
+    description: >-
+      By cost type and by month, the amounts of the labour and non-labour lines, the provision
+      lines excluded, taken, as for the workload, from the reference revision, from a marked
+      revision for its re-estimated amounts, named by `revision_id`, or from the current revision
+      (WF-DEV-0100): the same three bases, refused the same way as by `getProjectWorkload`. The
+      amount of a line is spread over the duration of its task in proportion to the hours worked
+      (WF-DEV-0040). The amount of a line that is spread is, inflation included, at its consumption
+      year (WF-DEV-0020), its budgeted amount on the reference budget and, on a basis of remaining
+      to commit, its remaining to commit (WF-RAE-0010), nothing for a line of a task completed.
+      The remaining to commit is spread over only the part of the duration of its task after the
+      calculation date, and carried to the month of that date when the finish of the task has
+      passed (WF-IND-0100): no month precedes that of the calculation date, and the total equals
+      the remaining to commit of the project without its provisions (WF-RAE-0010). On request
+      (`payment_delays`), each amount is shifted by the payment delay of its line: the projection
+      then presents the cash-out. Restricted to a subproject, or to what falls under none
+      (`subproject_id`), the lines of that scope alone (WF-IND-0020). Computed when read, on a
+      marked revision too, from what its marking froze: nothing is stored nor cached. Under the
+      permission to read the estimate (`estimate.read`).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/WorkloadBasis
+      - name: revision_id
+        in: query
+        description: The marked revision whose re-estimated amounts form the basis; required with `marked_remaining`, ignored otherwise.
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: payment_delays
+        in: query
+        description: >-
+          True, each amount is shifted by the payment delay of its line: that is the cash-out
+          (WF-DEV-0100), as for `getCostCurve`.
+        schema: { type: boolean, default: false }
+      - $ref: ../components/parameters.yaml#/SubprojectFilter
+    responses:
+      '200':
+        description: Spending projection.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/indicators.yaml#/SpendingProjection }
+            examples:
+              witness: { $ref: ../../../fixtures/api/spending.json }
+              reference_budget: { $ref: ../../../fixtures/api/spending_reference_budget.json }
+              marked_remaining: { $ref: ../../../fixtures/api/spending_marked_remaining.json }
+              payment_delays: { $ref: ../../../fixtures/api/spending_payment_delays.json }
+              subproject: { $ref: ../../../fixtures/api/spending_subproject.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          `reference_budget` on a project without a reference revision, or `current_remaining`
+          on a project without a current revision: the basis is absent (WF-DEV-0100, as
+          WF-DEV-0070). `STATE_FORBIDS_OPERATION`, `params.state` the state of the project,
+          `params.state_enum` set to `ProjectState`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              no_reference: { $ref: ../../../fixtures/api/spending_no_reference.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`: `marked_remaining` without a marked revision — `revision_id`
+          absent, unknown or not marked —, `fields` designating `/query/revision_id`; or a
+          subproject that the project does not have, or a malformed identifier, in
+          `subproject_id`, `fields` designating `/query/subproject_id` by `UNKNOWN_SUBPROJECT`
+          (WF-IND-0020). No empty projection stands in for a refusal. Or, on any basis,
+          `HOURLY_RATE_MISSING`, without `fields`, `params.missing_rates` naming the labour
+          categories that the revision read employs without an hourly rate for its reference
+          year, one by one (WF-DEV-0010): the projection has meaning only complete, and neither
+          leaves out the line without a rate nor draws it at nought (#3565); every line of the
+          revision is looked at, even outside the subproject filter or with nothing left to
+          commit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              revision_refused: { $ref: ../../../fixtures/api/spending_revision_refused.json }
+              subproject_unknown: { $ref: ../../../fixtures/api/spending_subproject_unknown.json }
+              rate_missing: { $ref: ../../../fixtures/api/spending_rate_missing.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -268,6 +359,14 @@
           the state of the project, and the project is in progress — the front tells this refusal
           from the first by the absence of `params.state` (#247). In both cases, only the
           estimate indicators exist (WF-IND-0010, WF-DAT-0040).
+          The same refusal, without `params`, for an `as_of` that designates no revision marked
+          In progress: none is marked on or before the date, or none of them kept the indicators
+          of the project (#2449). The same again, without `params`, for a kept reading — a
+          marked revision named by `revision_id` or designated by `as_of` — of a `scope` that
+          revision did not keep: a subproject created after its marking, which the project has
+          today and which is therefore not refused with 422; the revision kept the indicators of
+          the project, not those of that subproject, and nothing is computed in their place
+          (#3604).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -345,7 +444,14 @@
       identified risks, which carry none, staying at the date of the task that carries them,
       and the actual cost is not shifted: the curve then presents the cash-out, past and
       to come, and also returns it by month (`cash_out_by_month`); the sum of the
-      cash-out to come equals the remaining to commit (WF-IND-0100). At a monthly step,
+      cash-out to come equals the remaining to commit (WF-IND-0100). Each line is spread in
+      parts rounded to the cent, each the difference of two roundings of its cumulative amount,
+      a half away from zero, as `getProjectSpending` and `getProjectWorkload` spread it: month
+      by month, the projection to come and the cash-out to come are those of
+      `getProjectSpending` on the remaining to commit, to the cent, but for the provisions of
+      the identified risks, which the curve keeps and the spending projection leaves out — on
+      the witness, in June 2026, 675,512.56 to come in `payment_delays` against 175,512.56 in
+      the example `spending_payment_delays`, the 500,000 of a provision. At a monthly step,
       each point carrying the cumulative total at the end of the month (`CurveSeries`,
       WF-IND-0100). For a named marked revision (`revision_id`), the curve that its marking
       kept with its indicators, on the actual cost lines known at its marking as they were
@@ -389,6 +495,12 @@
           `params.state_enum` as for `getProjectIndicators`, or a revision named by
           `revision_id` marked before it, without `params` (#247) — only the estimate indicators
           exist (WF-IND-0010, WF-DAT-0040).
+          The same refusal, without `params`, for an `as_of` that designates no revision marked
+          In progress: none is marked on or before the date, or none of them kept the indicators
+          of the project (#2449). The same again, without `params`, as for
+          `getProjectIndicators`, for a kept reading of a `scope` the revision did not keep: a
+          subproject created after its marking, which the project has today; the curves of that
+          subproject were never kept, and none is computed in their place (#3604).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -419,6 +531,10 @@
       (WF-IND-0110). For a named marked revision (`revision_id`), the curves that its marking
       kept with its indicators, on the actual cost lines known at its marking as they were
       then, `context.is_stored` true (WF-IND-0010, WF-DAT-0040).
+      The planned value sums, month by month, the parts rounded to the cent of each line, each the
+      difference of two roundings of its cumulative amount, a half away from zero, as
+      `getCostCurve` spreads its reference budget: at a month-end it is the planned value of
+      `getProjectIndicators` at that day (WF-IND-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/IndicatorsRevision
@@ -440,6 +556,12 @@
           `params.state_enum` as for `getProjectIndicators`, or a revision named by
           `revision_id` marked before it, without `params` (#247) — only the estimate indicators
           exist (WF-IND-0010, WF-DAT-0040).
+          The same refusal, without `params`, for an `as_of` that designates no revision marked
+          In progress: none is marked on or before the date, or none of them kept the indicators
+          of the project (#2449). The same again, without `params`, as for
+          `getProjectIndicators`, for a kept reading of a `scope` the revision did not keep: a
+          subproject created after its marking, which the project has today; the curves of that
+          subproject were never kept, and none is computed in their place (#3604).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

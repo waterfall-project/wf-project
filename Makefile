@@ -326,9 +326,9 @@ service-purge: ## Purge what expired on the service platform, started: imports, 
 # changes nothing of the next. It never fails on a duration and the chain does not run it. RUNS
 # identical runs of the whole read, the cell entered and the revision opened (5; the profile and the
 # waves of reads make one pass), ONLY=<part> one of read, profile, parallel, write, revision, kept,
-# current (several by repeating: ONLY="read write"), JSON=<file> the report also written as JSON. A
-# lot that corrects the back measures before and after it in one pass: ONLY and RUNS the same, two
-# commands in one.
+# current, indicators (several by repeating: ONLY="read write"), JSON=<file> the report also written
+# as JSON. A lot that corrects the back measures before and after it in one pass: ONLY and RUNS the
+# same, two commands in one.
 .PHONY: measure-core measure-core-run measure-fresh-witness measure-secrets
 # The secrets of service-up, asked before the workstation is taken: the Compose file refuses to
 # render without them and names the one missing (the same check as lint-compose).
@@ -336,7 +336,7 @@ $(call slot-export,measure-secrets,$(SLOT_SERVICE))
 measure-secrets:
 	@$(COMPOSE_SERVICE) --profile install --profile witness config --quiet
 
-measure-core: measure-secrets ## Measure the core in process, the workstation for itself alone, on a witness freshly loaded of the service platform (needs the secrets of service-up): whole reads of PRJ-001, profile, threads and processes, a cell entered, a revision opened, a marked revision read as kept, the marking, the comparison of two marked ones and the filtered readings against the document (US-2270), the comparison of the current revision in its parts and its nodes differing (US-2390); RUNS, ONLY="read profile parallel write revision kept current", JSON=<file>
+measure-core: measure-secrets ## Measure the core in process, the workstation for itself alone, on a witness freshly loaded of the service platform (needs the secrets of service-up): whole reads of PRJ-001, profile, threads and processes, a cell entered, a revision opened, a marked revision read as kept, the marking, the comparison of two marked ones and the filtered readings against the document (US-2270), the comparison of the current revision in its parts and its nodes differing (US-2390), the entry of the cache of the indicators of the day (US-2420); RUNS, ONLY="read profile parallel write revision kept current indicators", JSON=<file>
 	@$(exclusive) $(MAKE) --no-print-directory measure-core-run
 
 $(call slot-export,measure-core-run,$(SLOT_SERVICE))
@@ -851,6 +851,16 @@ LOAD_CONTAINER = $(WATERFALL_SERVICE_PROJECT)-load
 MEASURE_VERSION ?= $(shell sed -n 's/^  "version": "\([^"]*\)".*/\1/p' $(FRONT)/package.json)
 MEASURE_VERSION_REPORT ?= $(FRONT)/.e2e/measures/$(MEASURE_VERSION).json
 MEASURE_TASK_PASSES ?= 3
+# The cost of the entry of the cache of the indicators (US-2420) is not measured here: make measure-core
+# ONLY=indicators JSON=<file> measures it, on a witness of its own, and the report of the version takes
+# it from MEASURE_CACHE. The two both start from a witness freshly loaded and take the workstation alone:
+# they follow each other, they never nest.
+MEASURE_CACHE ?= $(FRONT)/.e2e/measure-core-indicators.json
+# The file of the cost of the cache is checked first, before the install and the build: its absence costs
+# no minute. (Prerequisites run in order; the measure is never played with -j.)
+.PHONY: measure-cache-present
+measure-cache-present:
+	@test -f $(MEASURE_CACHE) || { echo 'The cost of the cache of the indicators is missing: run make measure-core ONLY=indicators JSON=$(MEASURE_CACHE) first.' >&2; exit 1; }
 .PHONY: measure-version
 $(call slot-export,measure-version,$(SLOT_SERVICE) $(SLOT_PATHS))
 measure-version: export WATERFALL_FRONT_ADDRESS = http://127.0.0.1:$(E2E_FRONT_PORT)
@@ -866,8 +876,9 @@ measure-version: export E2E_MEASURE_PASSES = $(MEASURE_PASSES)
 measure-version: export E2E_MEASURE_TASK_PASSES = $(MEASURE_TASK_PASSES)
 measure-version: export E2E_MEASURE_VERSION = $(MEASURE_VERSION)
 measure-version: export E2E_MEASURE_VERSION_REPORT = $(abspath $(MEASURE_VERSION_REPORT))
+measure-version: export E2E_MEASURE_CACHE = $(abspath $(MEASURE_CACHE))
 measure-version: export PRISM_VERSION := $(PRISM_VERSION)
-measure-version: measure-secrets install-front $(call e2e-build) ## The report of the measures of a version (US-2300): on the witness loaded afresh, each operation of table 15 the service serves, measured by a browser under the load of fifty users played by k6, then the export, the import of 18,000 lines of actual costs and the marking, read at their tasks; takes the workstation alone; MEASURE_VERSION (that of frontend/package.json), MEASURE_PASSES=5, MEASURE_TASK_PASSES=3, MEASURE_VERSION_REPORT=<file> (frontend/.e2e/measures/<version>.json); needs the secrets of service-up and a browser
+measure-version: measure-cache-present measure-secrets install-front $(call e2e-build) ## The report of the measures of a version (US-2300): on the witness loaded afresh, each operation of table 15 the service serves, measured by a browser under the load of fifty users played by k6, then the export, the import of 18,000 lines of actual costs and the marking, read at their tasks; takes the workstation alone; MEASURE_VERSION (that of frontend/package.json), MEASURE_PASSES=5, MEASURE_TASK_PASSES=3, MEASURE_VERSION_REPORT=<file> (frontend/.e2e/measures/<version>.json); the cost of the entry of the cache of the indicators is read in MEASURE_CACHE (frontend/.e2e/measure-core-indicators.json), which make measure-core ONLY=indicators JSON=<that file> writes first; needs the secrets of service-up and a browser
 	@$(MAKE) --no-print-directory service-down WATERFALL_RESET_DATA=yes
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) build --quiet install witness

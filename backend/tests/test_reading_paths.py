@@ -10,7 +10,8 @@ views, the depth of the summaries, the totals of the lines. ``listNodes`` writes
 records rather than views (US-2220/L2): the records of the rows are the views of the objects made
 records (``record_of``), which every other route writes its nodes from. A reading of the tasks
 alone reads none of the lines, but what they count under each task (US-2280): the whole reading of
-the same filters is its oracle.
+the same filters is its oracle. Each path asks the physical progress of its summaries once, and
+gives the same (US-1680).
 """
 
 import itertools
@@ -26,7 +27,13 @@ from test_witness_tasks import structure_of
 
 import waterfall.core.planning.reading as reading_module
 from waterfall.core.estimate.tables import EstimateLine
+from waterfall.core.indicators.interface import physical_progress as indicators_progress
 from waterfall.core.planning.filters import NodeFilters
+from waterfall.core.planning.interface import (
+    PhysicalShare,
+    SummariesAsked,
+    register_physical_progress,
+)
 from waterfall.core.planning.interface.facets import (
     Amounts,
     LineSort,
@@ -46,6 +53,7 @@ from waterfall.core.planning.tables import Node
 from waterfall.core.planning.tree import read_links, read_rows, read_tree
 from waterfall.core.planning.views import (
     FacetRecord,
+    NodeRecord,
     NodeView,
     Reading,
     TaskRecord,
@@ -55,7 +63,7 @@ from waterfall.core.planning.views import (
 from waterfall.core.planning.writing import Place, facts_of
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Sequence
     from uuid import UUID
 
     from sqlalchemy import Subquery
@@ -78,7 +86,7 @@ def by_objects(session: Session, place: Place) -> Read:
         if {link.predecessor_id, link.successor_id} <= tree.tasks.keys()
     ]
     calendars = calendars_of(session, place.project_id, tree.tasks)
-    structure = (place.project_id, facts.scheduled_at, facts.is_main)
+    structure = (place, facts.scheduled_at, facts.is_main)
     reading = Reading(session, structure, tree, links, calendars)
     reading.prefetch(tree.order)
     lines = [each for each in tree.order if each not in tree.tasks]
@@ -319,7 +327,7 @@ def second_kind(task_id: UUID, calendar: UUID, *, own: bool, held_open: bool) ->
 
     def tally(_s: Session, _p: UUID, _n: Subquery) -> dict[UUID, Tally]:
         """Count two nodes under the task: the sums of ``SECOND``, the flags said."""
-        return {task_id: Tally(SECOND, 2, own, held_open, frozenset({calendar}))}
+        return {task_id: Tally(SECOND, 2, own, held_open, frozenset({calendar}), SECOND.budgeted)}
 
     return replace(facets()["estimate_line"], tally=tally)
 
@@ -332,7 +340,8 @@ def test_the_tallies_of_several_kinds_under_a_task_are_added(
     witness: Database, flags: tuple[bool, bool]
 ) -> None:
     # Two kinds count under a task: the sums and the numbers add, a task is held open or own by
-    # either kind, the calendars of both are named; the other tasks are left as they were.
+    # either kind, the calendars of both are named, their budgeted amounts out of a provision add
+    # (US-1680); the other tasks are left as they were.
     calendar = uuid4()
     with witness.transaction() as session:
         place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
@@ -351,6 +360,7 @@ def test_the_tallies_of_several_kinds_under_a_task_are_added(
         first.own or flags[0],
         first.held_open or flags[1],
         first.calendars | {calendar},
+        first.earnable + SECOND.budgeted,
     )
     assert {each: tally for each, tally in merged.items() if each != task_id} == {
         each: tally for each, tally in real.items() if each != task_id
@@ -378,3 +388,53 @@ def test_the_nodes_the_planning_names_to_the_hook_of_a_tally_hold_three_columns(
         finally:
             withdraw()
     assert seen == [("node_id", "task_id", "from_risk")]
+
+
+def shares_of(items: Sequence[NodeView | NodeRecord]) -> dict[UUID, PhysicalShare | None]:
+    """Give the physical progress of each summary among nodes read, as views or as records."""
+    found: dict[UUID, PhysicalShare | None] = {}
+    for each in items:
+        if isinstance(each, NodeView):
+            if each.task is not None and each.task.is_summary:
+                found[each.node_id] = each.task.physical_progress
+        elif isinstance(each, TaskRecord) and each.is_summary:
+            found[each.node_id] = each.physical_progress
+    return found
+
+
+@pytest.mark.requirement("WF-IND-0060-A")
+@pytest.mark.parametrize("revision", [REVISION_100, REVISION_102])
+def test_every_path_asks_the_physical_progress_once_and_gives_the_same(
+    witness: Database, revision: UUID
+) -> None:
+    # The physical progress of the summaries (US-1680) is asked once a reading — the objects of a
+    # write, the rows, the tasks alone —, never once a task, for every summary it gives; the tasks
+    # read alone hand on the tallies they read. Each path gives the summaries the same shares, the
+    # indicators' answer to what the first reading asked, and computed: none is left null.
+    asked: list[SummariesAsked] = []
+
+    def watch(_session: Session, summaries: SummariesAsked) -> dict[UUID, PhysicalShare]:
+        """Note what a reading asks; answer nothing."""
+        asked.append(summaries)
+        return {}
+
+    withdraw = register_physical_progress(watch)
+    try:
+        with witness.transaction() as session:
+            place = Place(PRJ_001, revision, structure_of(session, revision))
+            objects, _, _ = by_objects(session, place)
+            rows, _, _ = by_rows(session, place)
+            whole = list_records(session, place, NodeFilters()).items
+            alone = list_records(session, place, NodeFilters(kinds=("task",))).items
+            answered = indicators_progress(session, asked[0])
+    finally:
+        withdraw()
+    assert len(asked) == 4
+    assert [each.tallies is None for each in asked] == [True, True, True, False]
+    shares = shares_of(objects)
+    assert set(shares) == asked[0].summaries == asked[3].summaries
+    assert len(shares) > 10
+    assert None not in shares.values()
+    assert shares == answered == shares_of(rows) == shares_of(whole) == shares_of(alone)
+    if revision == REVISION_102:
+        assert any(each is not None and each.value for each in shares.values())

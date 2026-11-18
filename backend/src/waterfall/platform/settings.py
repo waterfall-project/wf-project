@@ -74,9 +74,14 @@ class PlatformSettings(BaseSettings):
 
 
 class Settings(PlatformSettings):
-    """What a service of the platform reads besides: Redis, and where the API listens."""
+    """What a service of the platform reads besides: Redis, and where the API listens.
+
+    ``indicators_cache_ttl`` is how long an entry of the cache of the indicators stays valid, in
+    seconds: ten minutes by default (WF-DAT-0130-A).
+    """
 
     redis_url: SecretStr = Field(min_length=1)
+    indicators_cache_ttl: int = Field(default=600, ge=1)
     host: str = "127.0.0.1"
     port: int = Field(default=8000, ge=1, le=65535)
 

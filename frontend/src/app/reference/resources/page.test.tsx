@@ -249,10 +249,10 @@ describe("the settings of the resources", () => {
     expect(rows(page, "Rôles de ressources")).toEqual([
       "Libellé Code Nœud d’organisation Catégorie de coût Calendrier Heures par mois Effectif État Modifier",
       "Automaticien AUTOM Bureau d'études électricité Ingénierie électrique Semaine de trente-neuf heures 338,00 2 Désactivé Réactiver Modifier",
-      "Ingénieur électricien ING-ELEC Bureau d'études électricité Ingénierie électrique Semaine standard 658 654,00 3 800 Actif Désactiver Modifier",
-      "Monteur câbleur MONT-CAB Atelier de câblage Ingénierie électrique Semaine de quatre jours 216 662,50 1 250 Actif Désactiver Modifier",
-      "Programmeur d'automates PROG-AUTO Bureau d'études automatismes Ingénierie électrique Semaine standard 519,99 3 Désactivé Réactiver Condition non remplie : nœud d’organisation actif. Modifier",
-      "Technicien de mise en service TECH-MES Bureau d'études électricité Mise en service Semaine standard 485 324,00 2 800 Actif Désactiver Modifier",
+      "Ingénieur électricien ING-ELEC Bureau d'études électricité Ingénierie électrique Semaine standard 658 666,67 3 800 Actif Désactiver Modifier",
+      "Monteur câbleur MONT-CAB Atelier de câblage Ingénierie électrique Semaine de quatre jours 216 666,67 1 250 Actif Désactiver Modifier",
+      "Programmeur d'automates PROG-AUTO Bureau d'études automatismes Ingénierie électrique Semaine standard 520,00 3 Désactivé Réactiver Condition non remplie : nœud d’organisation actif. Modifier",
+      "Technicien de mise en service TECH-MES Bureau d'études électricité Mise en service Semaine standard 485 333,33 2 800 Actif Désactiver Modifier",
       "5 rôles",
     ]);
     // The calendar of the deactivated role is not among those the page read: its name is the
@@ -414,16 +414,16 @@ describe("the settings of the resources", () => {
     };
     const page = await resourcesAt({
       role_is_active: "all",
-      role_monthly_hours_min: "485324.00",
+      role_monthly_hours_min: "485333.33",
     });
     expect(queriesOf("GET /reference/resource-roles")).toEqual([
-      { include_inactive: "true", monthly_hours_min: "485324.00" },
+      { include_inactive: "true", monthly_hours_min: "485333.33" },
     ]);
     const shown = rows(page, "Rôles de ressources");
     expect(shown).toHaveLength(4);
     expect(shown.at(-1)).toBe("2 rôles");
     // The bound shown as French writes a number to enter it.
-    expect(page).toContain('value="485324,00"');
+    expect(page).toContain('value="485333,33"');
   });
 
   it("say at its field the upper bound the server refuses for preceding the lower one, the roles unread and the rest of the screen read", async () => {

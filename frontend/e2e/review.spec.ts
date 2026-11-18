@@ -11,7 +11,7 @@
  * language shows them — the marks `test_the_marks_the_review_journey_reads` holds in the
  * generator (tools/tests/test_mocktoday.py): a change of the example that moves them fails there.
  */
-import { type Browser, expect, type Locator, type Page, test } from "@playwright/test";
+import { type Browser, expect, type Locator, type Page } from "@playwright/test";
 
 import catalogue from "../messages/fr.json" with { type: "json" };
 import { WORKING } from "./bounds";
@@ -19,6 +19,7 @@ import type { Locale } from "../src/i18n/locale";
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
 import { setExpanded } from "./hydration";
+import { inService, test } from "./mode";
 import { rowAt } from "./scroll";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -106,8 +107,8 @@ const FRENCH: Language = {
   figures: [
     ["Reste à engager", "67\u202f497\u202f090,97\u00a0€"],
     ["Budget de référence", "70\u202f316\u202f396,56\u00a0€"],
-    ["Valeur planifiée", "1\u202f721\u202f585,56\u00a0€"],
-    ["Écart de délai", "-228\u202f231,37\u00a0€"],
+    ["Valeur planifiée", "1\u202f721\u202f585,59\u00a0€"],
+    ["Écart de délai", "-228\u202f231,40\u00a0€"],
     ["Indice de délai", "0,8674"],
     ["Indice de coût", "1,0569"],
   ],
@@ -145,8 +146,8 @@ const ENGLISH: Language = {
   figures: [
     ["Remaining to commit", "€67,497,090.97"],
     ["Reference budget", "€70,316,396.56"],
-    ["Planned value", "€1,721,585.56"],
-    ["Schedule variance", "-€228,231.37"],
+    ["Planned value", "€1,721,585.59"],
+    ["Schedule variance", "-€228,231.40"],
     ["Schedule index", "0.8674"],
     ["Cost index", "1.0569"],
   ],
@@ -284,11 +285,15 @@ for (const language of [FRENCH, ENGLISH]) {
       await expect(chips).toHaveText([names.indicatorsChip]);
 
       // The amounts, the indices and the date of calculation are the API's, formatted in the
-      // language, the date in the time zone of the workstation (WF-ARC-0020).
-      for (const [term, shown] of language.figures) {
-        await expect(definitionOf(page, term).getByRole("definition").first()).toHaveText(shown);
+      // language, the date in the time zone of the workstation (WF-ARC-0020). They are those of
+      // the reference 101 of the example, which the witness loaded in the service lacks while its
+      // reference stays the offer 100: kept by `inService`, as the guide lists it (« review.spec.ts »).
+      if (!inService) {
+        for (const [term, shown] of language.figures) {
+          await expect(definitionOf(page, term).getByRole("definition").first()).toHaveText(shown);
+        }
+        await expect(page.getByRole("main")).toContainText(language.computedOn);
       }
-      await expect(page.getByRole("main")).toContainText(language.computedOn);
 
       // Out of the project, to its portfolio; back to the project, in the same context.
       await follow(page, language, names.portfolioProjects, { block: names.portfolio });

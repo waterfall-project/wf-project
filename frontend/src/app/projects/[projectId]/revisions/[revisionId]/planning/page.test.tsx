@@ -131,6 +131,17 @@ describe("the screen of the planning", () => {
     expect(page).not.toContain(CATALOGUES.en.mockup.notKept);
   });
 
+  it("hands the grid the task the address names, which it shows and aims at, and asks the server nothing of it [WF-DEV-0090-A]", async () => {
+    const task = "01926f3a-7c00-7000-8000-000000000552";
+    await planning({ task });
+    expect(grid.given.at(-1)?.target).toBe(task);
+    // A parameter of the screen: the server reads the whole tree, the grid finds the row in it.
+    expect(callsOf(NODES)[0]?.query.has("task")).toBe(false);
+    grid.given = [];
+    await planning({ task: "not-an-identifier" });
+    expect(grid.given.at(-1)?.target).toBeUndefined();
+  });
+
   it("enters the attachment from the work breakdown read whole, and offers no skeleton beside the tasks", async () => {
     const page = await planning();
     expect(page).toMatch(/<th(?:(?!<\/th>).)*>Attached to</);

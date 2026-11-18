@@ -188,7 +188,7 @@ describe("the screen of the indicators of a project", () => {
       "At budget €70,236,012.57 -€80,383.99 Project manager’s €68,910,061.17 -€1,406,335.39",
     );
     expect(page).toContain(
-      "Schedule variance -€228,231.37 Earned value €1,493,354.19 Planned value €1,721,585.56",
+      "Schedule variance -€228,231.40 Earned value €1,493,354.19 Planned value €1,721,585.59",
     );
   });
 

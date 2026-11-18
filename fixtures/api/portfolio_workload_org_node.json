@@ -4,7 +4,7 @@
   "value": {
     "scope": {"states":["in_progress","pricing"],"as_of":"2026-06-03","from":null,"to":null,"org_node_id":"01926f3a-7c00-7000-8000-000000000470","org_node_label":"Direction technique","project_count":300},
     "under_load_threshold": "0.5",
-    "capacity_monthly_hours": "1360640.5",
+    "capacity_monthly_hours": "1360666.67",
     "months": [
       "2026-06",
       "2026-07",
@@ -15,16 +15,16 @@
     ],
     "monthly_totals": [
       {"month":"2026-06","hours":"985866.36"},
-      {"month":"2026-07","hours":"1135130.19"},
-      {"month":"2026-08","hours":"1024059.05"},
-      {"month":"2026-09","hours":"851531.84"},
-      {"month":"2026-10","hours":"773532.15"},
-      {"month":"2026-11","hours":"687320.59"}
+      {"month":"2026-07","hours":"1135130.22"},
+      {"month":"2026-08","hours":"1024059.03"},
+      {"month":"2026-09","hours":"851531.86"},
+      {"month":"2026-10","hours":"773532.12"},
+      {"month":"2026-11","hours":"687320.58"}
     ],
     "roles": [
-      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000451","label":"Ingénieur électricien","capacity_monthly_hours":"658654","months":[{"month":"2026-06","hours":"636241.09","load_ratio":{"is_computable":true,"value":"0.966","reason":null},"zone":"nominal"},{"month":"2026-07","hours":"733321.89","load_ratio":{"is_computable":true,"value":"1.1134","reason":null},"zone":"alert"},{"month":"2026-08","hours":"665805.56","load_ratio":{"is_computable":true,"value":"1.0109","reason":null},"zone":"alert"},{"month":"2026-09","hours":"557283.28","load_ratio":{"is_computable":true,"value":"0.8461","reason":null},"zone":"nominal"},{"month":"2026-10","hours":"506462.93","load_ratio":{"is_computable":true,"value":"0.7689","reason":null},"zone":"nominal"},{"month":"2026-11","hours":"449603.49","load_ratio":{"is_computable":true,"value":"0.6826","reason":null},"zone":"nominal"}]},
-      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000452","label":"Technicien de mise en service","capacity_monthly_hours":"485324","months":[{"month":"2026-06","hours":"349625.27","load_ratio":{"is_computable":true,"value":"0.7204","reason":null},"zone":"nominal"},{"month":"2026-07","hours":"401808.3","load_ratio":{"is_computable":true,"value":"0.8279","reason":null},"zone":"nominal"},{"month":"2026-08","hours":"358253.49","load_ratio":{"is_computable":true,"value":"0.7382","reason":null},"zone":"nominal"},{"month":"2026-09","hours":"294248.56","load_ratio":{"is_computable":true,"value":"0.6063","reason":null},"zone":"nominal"},{"month":"2026-10","hours":"267069.22","load_ratio":{"is_computable":true,"value":"0.5503","reason":null},"zone":"nominal"},{"month":"2026-11","hours":"237717.1","load_ratio":{"is_computable":true,"value":"0.4898","reason":null},"zone":"watch"}]},
-      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000454","label":"Monteur câbleur","capacity_monthly_hours":"216662.5","months":[{"month":"2026-06","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-07","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-08","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-09","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-10","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-11","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"}]}
+      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000451","label":"Ingénieur électricien","capacity_monthly_hours":"658666.67","months":[{"month":"2026-06","hours":"636241.09","load_ratio":{"is_computable":true,"value":"0.966","reason":null},"zone":"nominal"},{"month":"2026-07","hours":"733321.92","load_ratio":{"is_computable":true,"value":"1.1133","reason":null},"zone":"alert"},{"month":"2026-08","hours":"665805.54","load_ratio":{"is_computable":true,"value":"1.0108","reason":null},"zone":"alert"},{"month":"2026-09","hours":"557283.29","load_ratio":{"is_computable":true,"value":"0.8461","reason":null},"zone":"nominal"},{"month":"2026-10","hours":"506462.91","load_ratio":{"is_computable":true,"value":"0.7689","reason":null},"zone":"nominal"},{"month":"2026-11","hours":"449603.48","load_ratio":{"is_computable":true,"value":"0.6826","reason":null},"zone":"nominal"}]},
+      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000452","label":"Technicien de mise en service","capacity_monthly_hours":"485333.33","months":[{"month":"2026-06","hours":"349625.27","load_ratio":{"is_computable":true,"value":"0.7204","reason":null},"zone":"nominal"},{"month":"2026-07","hours":"401808.3","load_ratio":{"is_computable":true,"value":"0.8279","reason":null},"zone":"nominal"},{"month":"2026-08","hours":"358253.49","load_ratio":{"is_computable":true,"value":"0.7382","reason":null},"zone":"nominal"},{"month":"2026-09","hours":"294248.57","load_ratio":{"is_computable":true,"value":"0.6063","reason":null},"zone":"nominal"},{"month":"2026-10","hours":"267069.21","load_ratio":{"is_computable":true,"value":"0.5503","reason":null},"zone":"nominal"},{"month":"2026-11","hours":"237717.1","load_ratio":{"is_computable":true,"value":"0.4898","reason":null},"zone":"watch"}]},
+      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000454","label":"Monteur câbleur","capacity_monthly_hours":"216666.67","months":[{"month":"2026-06","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-07","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-08","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-09","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-10","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-11","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"}]}
     ]
   }
 }

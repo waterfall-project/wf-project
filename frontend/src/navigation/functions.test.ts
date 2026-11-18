@@ -114,13 +114,14 @@ describe("the table of the functions", () => {
 describe("the leaves of the table", () => {
   const leaves = FUNCTIONS.flatMap((fn) => (fn.leaves ?? []).map((leaf) => ({ fn, leaf })));
 
-  it("hold the correspondence of the actual costs of the cost settings (FBS-3.1.3), the timelines, the imports and exports and the task tree of the planning (FBS-4.3.1, FBS-4.3.4, FBS-4.3.5), the workload of the project, a leaf of the estimate (FBS-4.4.4), and the Kanban of the remaining to commit (FBS-4.5.3)", () => {
+  it("hold the correspondence of the actual costs of the cost settings (FBS-3.1.3), the timelines, the imports and exports and the task tree of the planning (FBS-4.3.1, FBS-4.3.4, FBS-4.3.5), the workload and the spending projection of the project, leaves of the estimate (FBS-4.4.4, FBS-4.4.5), and the Kanban of the remaining to commit (FBS-4.5.3)", () => {
     expect(leaves.map(({ fn, leaf }) => [fn.code, leaf.code])).toEqual([
       ["FBS-3.1", "FBS-3.1.3"],
       ["FBS-4.3", "FBS-4.3.1"],
       ["FBS-4.3", "FBS-4.3.4"],
       ["FBS-4.3", "FBS-4.3.5"],
       ["FBS-4.4", "FBS-4.4.4"],
+      ["FBS-4.4", "FBS-4.4.5"],
       ["FBS-4.5", "FBS-4.5.3"],
     ]);
     expect(leafOf("FBS-3.1.3").route).toBe("/reference/costs/actual-cost-mapping");
@@ -129,6 +130,7 @@ describe("the leaves of the table", () => {
       "/projects/[projectId]/revisions/[revisionId]/exchanges",
     );
     expect(leafOf("FBS-4.4.4").route).toBe("/projects/[projectId]/revisions/[revisionId]/workload");
+    expect(leafOf("FBS-4.4.5").route).toBe("/projects/[projectId]/revisions/[revisionId]/spending");
     expect(leafOf("FBS-4.3.1").route).toBe(
       "/projects/[projectId]/revisions/[revisionId]/timelines",
     );
@@ -407,6 +409,7 @@ describe("the function an address leads to", () => {
     [["projects", PROJECT, "lifecycle"], "FBS-4.9", PROJECT, undefined],
     [["projects", PROJECT, "revisions"], "FBS-4.1", PROJECT, undefined],
     [["projects", PROJECT, "revisions", REVISION, "workload"], "FBS-4.4.4", PROJECT, REVISION],
+    [["projects", PROJECT, "revisions", REVISION, "spending"], "FBS-4.4.5", PROJECT, REVISION],
     [["projects", PROJECT, "revisions", REVISION, "exchanges"], "FBS-4.3.4", PROJECT, REVISION],
   ])("is found from %j", (segments, code, projectId, revisionId?: string) => {
     const screen = findScreen(segments);

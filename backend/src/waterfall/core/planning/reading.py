@@ -16,23 +16,19 @@ A reading of the tasks alone — ``kinds=task``, no filter of the line — reads
 tasks bear (``tasks_reading``, US-2280): the tasks, and what the hooks of each kind count under each
 task in one statement grouped by task (``FacetHooks.tally``), from which their numbers, their sums,
 their calendars and the summaries an own line holds open are derived, the same as a whole reading
-derives them (EP-26, "L'agrégat d'abord").
+derives them (EP-26, "L'agrégat d'abord"); the tallies are read by ``tallying`` (US-1680), which
+the physical progress of the summaries reads too, and the reading hands them on to it.
 """
 
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
-
 from waterfall.core.planning.calendars import applicable_calendars
 from waterfall.core.planning.dating import constants_of
 from waterfall.core.planning.filters import retained
-from waterfall.core.planning.interface.facets import (
-    Tally,
-    calendars_of,
-    facets,
-)
-from waterfall.core.planning.tables import NODE_KINDS, Node
+from waterfall.core.planning.interface.facets import calendars_of, facets
+from waterfall.core.planning.tables import NODE_KINDS
+from waterfall.core.planning.tallying import tallies_of
 from waterfall.core.planning.tree import (
     TASK,
     completed_below,
@@ -100,7 +96,7 @@ def reading_of(
     """
     links = _links(session, place, tree)
     calendars = calendars_of(session, place.project_id, tree.tasks)
-    structure = (place.project_id, *scheduled)
+    structure = (place, *scheduled)
     return RowsReading(session, structure, tree, links, calendars)
 
 
@@ -131,44 +127,6 @@ def _tasks_alone(filters: NodeFilters) -> bool:
     )
 
 
-def tallies_of(session: Session, place: Place) -> dict[UUID, Tally]:
-    """Give, by task, what the nodes of the other kinds it bears count, a statement by kind.
-
-    Each kind's hooks count its nodes of the structure, which the planning names to them as a
-    subquery — the node, the task bearing it, whether a risk provides for it —, grouped by task;
-    the tallies of several kinds under a task are added.
-    """
-    found: dict[UUID, Tally] = {}
-    for kind, hooks in facets().items():
-        nodes = (
-            select(
-                Node.id.label("node_id"),
-                Node.parent_id.label("task_id"),
-                Node.origin_risk_id.is_not(None).label("from_risk"),
-            )
-            .where(
-                Node.project_id == place.project_id,
-                Node.structure_id == place.structure_id,
-                Node.kind == kind,
-            )
-            .subquery()
-        )
-        for task_id, tally in hooks.tally(session, place.project_id, nodes).items():
-            held = found.get(task_id)
-            found[task_id] = (
-                tally
-                if held is None
-                else Tally(
-                    held.amounts + tally.amounts,
-                    held.count + tally.count,
-                    held.own or tally.own,
-                    held.held_open or tally.held_open,
-                    held.calendars | tally.calendars,
-                )
-            )
-    return found
-
-
 def tasks_reading(session: Session, place: Place, scheduled: tuple[datetime, bool]) -> TasksReading:
     """Read the tasks of a structure alone, and what their lines count, none of these read.
 
@@ -196,7 +154,7 @@ def tasks_reading(session: Session, place: Place, scheduled: tuple[datetime, boo
         for task_id in tree.tasks
     }
     calendars = applicable_calendars(session, named)
-    structure = (place.project_id, *scheduled)
+    structure = (place, *scheduled)
     read = (tree, _links(session, place, tree), tallies)
     return TasksReading(session, structure, read, calendars)
 
@@ -232,15 +190,18 @@ def retained_reading(
     return reading, found, facts.scheduled_at
 
 
-def list_records(session: Session, place: Place, filters: NodeFilters) -> NodeRecords:
+def list_records(
+    session: Session, place: Place, filters: NodeFilters, *, progress: bool = True
+) -> NodeRecords:
     """Read the nodes of a structure as ``list_nodes`` does, as records (``listNodes``, US-2220).
 
     The same nodes, numbers, meta and totals, each node a record rather than a view: the API
-    writes the body from them.
+    writes the body from them. ``progress`` is whether the summaries are given their physical
+    progress: a projection that names none leaves it out (a bound on it asks it all the same).
     """
     reading, found, scheduled_at = retained_reading(session, place, filters)
     return NodeRecords(
-        tuple(reading.records(found.order)),
+        tuple(reading.records(found.order, progress=progress)),
         found.task_count,
         reading.summary_depth(),
         scheduled_at,

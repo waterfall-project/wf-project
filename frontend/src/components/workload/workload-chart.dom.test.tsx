@@ -185,7 +185,7 @@ describe("the workload of a project", () => {
     // June after the calculation, then the wiring on site and the tasks that follow.
     expect(series[0]?.data?.slice(0, 2)).toEqual([
       ["2026-06-01T00:00:00Z", "1465.75"],
-      ["2026-07-01T00:00:00Z", "2622.38"],
+      ["2026-07-01T00:00:00Z", "2622.41"],
     ]);
     // The bars and the totals alone: the capacity of each role, that of the whole installation, is
     // in the table, in regard of its load, never drawn — a line that would crush the bars (#375,
@@ -277,13 +277,13 @@ describe("the workload of a project", () => {
     const rows = screen.getAllByRole("row").slice(1);
     const listed = rows.map((row) => row.textContent);
     expect(listed.slice(0, 2)).toEqual([
-      "Ingénieur électricienJune 20261,465.75658,654Nominal",
-      "Ingénieur électricienJuly 20262,622.38658,654Nominal",
+      "Ingénieur électricienJune 20261,465.75658,666.67Nominal",
+      "Ingénieur électricienJuly 20262,622.41658,666.67Nominal",
     ]);
-    expect(listed).toContain("Technicien de mise en serviceDecember 20261,183.32485,324Nominal");
+    expect(listed).toContain("Technicien de mise en serviceDecember 20261,183.32485,333.33Nominal");
     expect(listed.slice(-2)).toEqual([
-      "Monteur câbleurMarch 2028560.98216,662.5Nominal",
-      "Monteur câbleurApril 20289.14216,662.5Nominal",
+      "Monteur câbleurMarch 2028560.98216,666.67Nominal",
+      "Monteur câbleurApril 20289.14216,666.67Nominal",
     ]);
     expect(listed.join("")).not.toContain("%");
     expect(listed).toHaveLength(38 + 38 + 8);

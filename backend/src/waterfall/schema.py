@@ -20,6 +20,7 @@ from waterfall.core.costs import tables as costs_tables
 from waterfall.core.estimate import tables as estimate_tables
 from waterfall.core.exchanges import tables as exchanges_tables
 from waterfall.core.history import tables as history_tables
+from waterfall.core.indicators import tables as indicators_tables
 from waterfall.core.planning import tables as planning_tables
 from waterfall.core.projects import tables as projects_tables
 from waterfall.core.resource_settings import tables as resource_settings_tables
@@ -39,6 +40,7 @@ __all__ = [
     "estimate_tables",
     "exchanges_tables",
     "history_tables",
+    "indicators_tables",
     "planning_tables",
     "projects_tables",
     "resource_settings_tables",

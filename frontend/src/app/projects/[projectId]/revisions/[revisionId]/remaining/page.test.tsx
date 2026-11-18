@@ -9,7 +9,7 @@ import { nodeFieldNames } from "@/components/grid/nodes";
 import { REMAINING_FIELDS } from "@/components/grid/remaining";
 import type { RemainingGridProps } from "@/components/grid/remaining-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { streamUntil } from "@/test/page-stream";
+import { streamUntil, textOfMarkup } from "@/test/page-stream";
 import { filtersOf, menuText } from "@/test/filter-menu";
 import { type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 
@@ -72,12 +72,7 @@ const ITEM = "01926f3a-7c00-7000-8000-000000000712";
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
   // The streamed markup keeps the comments that part the texts of a node, and escapes quotes.
-  return markup
-    .replace(/<!--.*?-->/g, "")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&#x27;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
+  return textOfMarkup(markup).replace(/\s+/g, " ").trim();
 }
 
 /**
@@ -327,6 +322,14 @@ describe("the screen of the remaining to commit", () => {
       `href="/projects/${PROJECT}/revisions/${REVISION}/workload?subproject_id=${SUBPROJECT}&amp;basis=current_remaining"`,
     );
     expect(page).toContain('aria-label="Workload"');
+  });
+
+  it("leads to the spending projection of the project on the remaining of the revision under way, in the same context [WF-DEV-0100-A]", async () => {
+    const page = await remainingAt({ subproject_id: SUBPROJECT });
+    expect(page).toContain(
+      `href="/projects/${PROJECT}/revisions/${REVISION}/spending?subproject_id=${SUBPROJECT}&amp;basis=current_remaining"`,
+    );
+    expect(page).toContain('aria-label="Spending projection"');
   });
 
   it("places undo and redo in the remaining to commit of a revision in progress, and none in that of a marked one, whose marking nothing undoes [WF-IHM-0110-A]", async () => {

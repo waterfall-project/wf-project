@@ -29,6 +29,8 @@ import { RATE_HEADINGS } from "@/components/reference/rate-columns";
 import { rateGrid } from "@/components/reference/rate-grid";
 import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "@/components/reference/resource-grids";
 import { RISK_GRID } from "@/components/risks/risk-grid";
+import { spendingGrid } from "@/components/spending/spending-columns";
+import { detailGrid } from "@/components/workload/detail-columns";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { estimateReference } from "@/test/reference";
 
@@ -91,6 +93,8 @@ describe("the definitions of the columns", () => {
     ["sub-projects, editable", subprojectGrid(true).columns],
     ["contributors", CONTRIBUTOR_GRID.columns],
     ["actual costs, with columns kept", ACTUAL_COSTS],
+    ["detail of the workload", detailGrid(["2026-06", "2026-07"], (month) => month).columns],
+    ["spending projection", spendingGrid(["2026-06", "2026-07"], (month) => month).columns],
   ] as const)(
     "gives every column of the table of the %s a definition, in both catalogues [WF-IHM-0140-A]",
     (_table, columns: readonly AnyColumn[]) => {

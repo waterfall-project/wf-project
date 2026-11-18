@@ -1,0 +1,10 @@
+{
+  "summary": "La projection de dépenses demandée sur le reste à engager de la révision en cours quand l'ingénierie électrique, la catégorie du rôle d'une ligne de main-d'œuvre, n'a pas de taux horaire pour 2026, l'année de référence de la révision : la projection n'a de sens que complète, le refus nomme la catégorie, sans champ ; rien n'est projeté (WF-DEV-0010, WF-DEV-0100).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "HOURLY_RATE_MISSING",
+    "status": 422,
+    "params": {"missing_rates":[{"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","label":"Ingénierie électrique","year":2026}]},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001874"
+  }
+}

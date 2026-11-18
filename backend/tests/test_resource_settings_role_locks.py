@@ -29,7 +29,6 @@ from waterfall.core.cost_settings.interface import (
 )
 from waterfall.core.cost_settings.records import NATURES_LOCK
 from waterfall.core.resource_settings.interface import (
-    Capacity,
     RoleDraft,
     category_has_roles,
     create_role,
@@ -204,7 +203,7 @@ def interim(session: Session, category_id: UUID, admission: CategoryAdmission | 
         category_id,
         admission,
         UUID(STANDARD),
-        Capacity(Decimal("140.00"), Decimal(1)),
+        Decimal(1),
     )
     return create_role(session, draft, Act(None, utc_now()))
 
@@ -337,8 +336,10 @@ def test_a_role_changed_without_its_category_does_not_wait_for_the_natures_but_a
     found = api.get(f"{roles}?include_inactive=true&code=TECH-MES", headers=headers)
     read = found.json()["items"][0]
     kept = {
-        key: read[key]
-        for key in ("code", "label", "cost_category_id", "calendar_id", "capacity", "lock_version")
+        **{key: read[key] for key in ("code", "label", "cost_category_id", "calendar_id")},
+        # The headcount alone is written, the hours per month being calculated (WF-REF-0100).
+        "capacity": {"headcount": read["capacity"]["headcount"]},
+        "lock_version": read["lock_version"],
     }
     url = f"{roles}/{read['resource_role_id']}"
     connection, transaction = hold_the_lock(witness, NATURES_LOCK)

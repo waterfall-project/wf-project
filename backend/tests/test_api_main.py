@@ -7,7 +7,8 @@ the factory, which opens the services of the process and closes them when it sto
 """
 
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -15,6 +16,7 @@ from fastapi.testclient import TestClient
 import waterfall
 from waterfall import bootstrap
 from waterfall.api import main as api_main
+from waterfall.platform.cache import PREFIX, IndicatorsCache
 from waterfall.platform.database import Database
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.queue import TaskQueue
@@ -23,6 +25,7 @@ from waterfall.platform.storage import Bucket
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from waterfall.api.authentication import Services
     from waterfall.platform.settings import ServiceSettings
 
 
@@ -108,6 +111,7 @@ def closings(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     monkeypatch.setattr(Database, "dispose", closing("database"))
     monkeypatch.setattr(Keycloak, "close", closing("keycloak"))
     monkeypatch.setattr(TaskQueue, "close", closing("redis"))
+    monkeypatch.setattr(IndicatorsCache, "close", closing("cache"))
     of_backups = Bucket.of_backups
 
     def backups(settings: ServiceSettings) -> Bucket:
@@ -129,7 +133,7 @@ def test_each_process_closes_the_services_it_opened_when_it_stops(
         assert client.get("/api/v1/health").status_code == 200
         assert closed == []
     # The last opened first: nothing closed is still used by what was opened after it.
-    assert closed == ["storage", "redis", "keycloak", "database"]
+    assert closed == ["cache", "storage", "redis", "keycloak", "database"]
     events = [json.loads(line)["event"] for line in capsys.readouterr().err.splitlines()]
     assert events[-1] == "service.stopped"
 
@@ -187,3 +191,52 @@ def test_the_bootstrap_without_its_settings_returns_failure_and_names_them(
     assert captured.out == ""
     for variable in missing:
         assert f"{variable}: is missing" in captured.err
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+@pytest.mark.usefixtures("platform_environment", "logs")
+def test_the_validity_the_environment_sets_is_that_of_an_entry_and_the_cache_closes_at_the_end(
+    monkeypatch: pytest.MonkeyPatch, redis_url: str
+) -> None:
+    # Propre à l'US : la durée de validité est `WATERFALL_INDICATORS_CACHE_TTL`, lue par les
+    # réglages de l'API : from the variable to the `ex` of the entry the cache of the process
+    # writes; its pool, its own, is released when the process stops (#3547).
+    monkeypatch.setenv("WATERFALL_REDIS_URL", redis_url)
+    monkeypatch.setenv("WATERFALL_INDICATORS_CACHE_TTL", "137")
+    key = f"{uuid4()}:{uuid4().hex}"
+    closed: list[IndicatorsCache] = []
+    close = IndicatorsCache.close
+
+    def closing(cache: IndicatorsCache) -> None:
+        closed.append(cache)
+        close(cache)
+
+    monkeypatch.setattr(IndicatorsCache, "close", closing)
+    app = api_main.application()
+    with TestClient(app):
+        cache = cast("Services", app.state.services).indicators_cache
+        assert cache is not None
+        cache.write(key, "{}")
+        seconds = int(str(cache.client.ttl(PREFIX + key)))
+        cache.client.delete(PREFIX + key)
+        assert closed == []
+    assert 130 < seconds <= 137
+    assert closed == [cache]
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+@pytest.mark.usefixtures("platform_environment")
+@pytest.mark.parametrize("value", ["0", "-5", "dix"])
+def test_a_validity_that_is_not_a_whole_number_above_zero_stops_the_start(
+    value: str, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The validity of an entry is a whole number of seconds above zero: anything else is refused
+    # at the start, the variable named, before anything is reached (#3547).
+    monkeypatch.setenv("WATERFALL_INDICATORS_CACHE_TTL", value)
+
+    def serve(*_: Any, **__: Any) -> None:
+        pytest.fail("the service started")
+
+    monkeypatch.setattr(api_main.uvicorn, "run", serve)
+    assert api_main.main([]) == 2
+    assert "WATERFALL_INDICATORS_CACHE_TTL" in capsys.readouterr().err

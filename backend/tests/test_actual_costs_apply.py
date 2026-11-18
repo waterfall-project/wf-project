@@ -39,7 +39,12 @@ from support import ContractClient, wait_for_a_lock
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.costs import writing
-from waterfall.core.costs.interface import ACTUAL_COSTS_FORMAT, PROJECT, actual_costs_until
+from waterfall.core.costs.interface import (
+    ACTUAL_COSTS_FORMAT,
+    PROJECT,
+    actual_costs_until,
+    costs_stamp,
+)
 from waterfall.core.costs.tables import CostImport, CostLine
 from waterfall.core.exchanges.interface import ImportTarget
 from waterfall.core.history.tables import UndoEntry
@@ -245,6 +250,26 @@ def test_two_imports_of_the_same_file_give_the_same_total_and_keep_an_exclusion(
         (row.updated_at, row.updated_by) for row in first
     ]
     assert all(row.updated_at == row.created_at for row in again)
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+@pytest.mark.usefixtures("lot")
+def test_a_re_import_without_a_change_moves_the_stamp_by_the_imports_alone(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # Propre à l'US (#3629) : une ligne inchangée d'un ré-import ne reçoit que `last_import_id`, et
+    # son compteur n'avance pas ; la clé du cache, qui lit l'empreinte, change par le nombre des
+    # imports seul.
+    imported(api, stage, worker, APRIL)
+
+    def stamp() -> tuple[int, int]:
+        with stage.database.transaction() as session:
+            held = costs_stamp(session, project_of(stage))
+            return held.versions, held.imports
+
+    versions, imports = stamp()
+    imported(api, stage, worker, APRIL)
+    assert stamp() == (versions, imports + 1)
 
 
 @pytest.mark.requirement("WF-INTF-0140-A")

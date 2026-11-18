@@ -7,7 +7,8 @@ tasks, by role and by month, through the subpackage ``spreading``, and sets the 
 role beside them (``getProjectWorkload``, WF-DEV-0070): on the budgeted load of the reference, or
 on the remaining to commit of a marked revision or of the current one. ``planned_value`` gives the
 planned value of the reference at a date, from the lines of the reference revision outside the
-provisions (WF-DEV-0080): no operation of the contract serves it before EP-10, which reads it.
+provisions (WF-DEV-0080), the share of each line rounded to the cent on its own and the calendars
+those its marking kept: no operation of the contract serves it before EP-10, which reads it.
 Neither writes anything.
 """
 
