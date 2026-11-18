@@ -697,7 +697,7 @@ L'épinglage de la production par empreinte : EP-13.
 
 ## US-2500 — Les gardes du Makefile sur `SHARD` et `WATERFALL_PROCESSORS`
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3686

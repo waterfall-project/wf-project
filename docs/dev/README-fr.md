@@ -3934,6 +3934,8 @@ la commande, non ce que le shell en calcule. Ses limites connues, qu'il ne code 
 - le texte lu par un autre interpréteur, ou encodé : `source /dev/stdin`, `. /dev/stdin`,
   `while read l; do eval "$l"`, `python <<EOF` qui appelle `os.system`, `uvx` et `uv tool run`,
   les shells hors de la liste (`fish`…), le texte obscurci (`printf '\x70kill'`, `base64 | bash`) ;
+- `bash /dev/stdin` et `bash /dev/fd/0` : l'opérande est pris pour un script, et l'entrée fournie
+  n'est pas jugée (`echo 'pkill x' | bash /dev/stdin` passe) (US-2500) ;
 - les écritures destructrices autres que `rm`, `mv`, `truncate` et `find` : `shred`,
   `rsync --delete`, `cp /dev/null .git/index`, `: > .git/index`, `ln -sf x .git` ;
 - un événement qu'il ne sait pas lire — JSON illisible, entrée vide, sans `command` — sort en

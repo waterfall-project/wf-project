@@ -84,6 +84,25 @@ def test_a_share_that_is_no_integer_is_refused_before_any_command(tmp_path: Path
     assert done.stdout == ""
 
 
+@pytest.mark.story("US-2500")
+@pytest.mark.parametrize("target", ["check-service", "check-all"])
+def test_a_share_that_is_no_integer_is_refused_by_the_full_tier_of_the_families(
+    tmp_path: Path, target: str
+) -> None:
+    """[US-2500] #3104: TIER=full of check-service and check-all refuses a share of abc."""
+    done = subprocess.run(
+        ["make", "-n", "--no-print-directory", target, "TIER=full", "WATERFALL_PROCESSORS=abc"],
+        cwd=REPOSITORY,
+        env=bare(tmp_path),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert done.returncode != 0
+    assert "WATERFALL_PROCESSORS must be a positive integer, got 'abc'" in done.stderr
+    assert done.stdout == ""
+
+
 def test_an_empty_workers_on_the_command_line_does_not_count(tmp_path: Path) -> None:
     """#3011: E2E_WORKERS= falls back to the default, and a number given wins."""
     assert workers(play(tmp_path, "WATERFALL_PROCESSORS=8", "E2E_WORKERS=")) == "6"
@@ -166,6 +185,7 @@ def fake_python(tmp_path: Path, script: str) -> Path:
     return directory
 
 
+@pytest.mark.story("US-2450")
 def test_a_warning_of_the_tool_does_not_spoil_its_share(tmp_path: Path) -> None:
     """The share is read on the standard output alone: a warning on the error output is kept out."""
     warning = fake_python(tmp_path, "echo 'warning: x' >&2\necho 3\n")
@@ -199,3 +219,25 @@ def test_a_slot_count_the_tool_refuses_is_named_by_the_plan(tmp_path: Path) -> N
     assert done.returncode != 0
     assert "WATERFALL_SLOTS must be an integer from 1 to 9, not 'x'" in done.stderr
     assert "did not run" not in done.stderr
+
+
+@pytest.mark.story("US-2500")
+def test_the_reason_of_the_tool_keeps_its_own_point_once(tmp_path: Path) -> None:
+    """[US-2500] #3784: a reason that ends by a point does not get a second one from make."""
+    failing = fake_python(tmp_path, "echo 'refused because.' >&2\nexit 2\n")
+    done = plan_back(tmp_path, failing)
+    assert done.returncode != 0
+    assert "the tool of the slots: refused because." in done.stderr
+    assert "because.." not in done.stderr
+
+
+@pytest.mark.story("US-2500")
+def test_what_the_tool_says_on_its_standard_output_instead_of_a_share_is_relayed(
+    tmp_path: Path,
+) -> None:
+    """[US-2500] #3784: an output that is no share is not lost behind "it said nothing"."""
+    odd = fake_python(tmp_path, "echo 'three'\n")
+    done = plan_back(tmp_path, odd)
+    assert done.returncode != 0
+    assert "the tool of the slots: three" in done.stderr
+    assert "it said nothing" not in done.stderr

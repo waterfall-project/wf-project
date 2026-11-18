@@ -3903,6 +3903,8 @@ the command, not what the shell computes from it. Its known limits, which it doe
 - text read by another interpreter, or encoded: `source /dev/stdin`, `. /dev/stdin`,
   `while read l; do eval "$l"`, `python <<EOF` that calls `os.system`, `uvx` and `uv tool run`,
   shells outside the list (`fish`…), obscured text (`printf '\x70kill'`, `base64 | bash`);
+- `bash /dev/stdin` and `bash /dev/fd/0`: the operand is taken for a script, and the input that
+  was fed is not judged (`echo 'pkill x' | bash /dev/stdin` passes) (US-2500);
 - the destructive writes other than `rm`, `mv`, `truncate` and `find`: `shred`,
   `rsync --delete`, `cp /dev/null .git/index`, `: > .git/index`, `ln -sf x .git`;
 - an event it cannot read — unreadable JSON, empty input, no `command` — exits with code 0, and
