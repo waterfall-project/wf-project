@@ -383,8 +383,9 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
   // revision; exported, then imported back without a change into the revision in progress, the
   // report says no difference, and the lines are the same. The report comes before any
   // confirmation, and the application confirmed is followed in the shell; the lines a report
-  // rejects and the abandonment, which WF-INTF-0080-A verifies, stay with the fake back (« imports
-  // a file in two steps », above), the exported workbook having no line to reject. The workbook
+  // rejects and the abandonment of an import without a gap, which WF-INTF-0080-A verifies, stay
+  // with the fake back (« imports a file in two steps », above), the exported workbook having no
+  // line to reject; the abandonment after a gap is the `@shared` path below. The workbook
   // goes to the browser and back to the API byte for byte: the proxy of the contract carries the
   // bytes of a body that is not JSON past Prism (`bench/contract-proxy.ts`, #2687).
   test.skip(
@@ -538,8 +539,8 @@ test("imports a planning typed at seven hours a day: the calendar gap is on the 
   const address = `${base}/imports/${opened}`;
   const report = page.getByRole("region", { name: `Compte rendu de l’import « ${filename} »` });
   const keep = {
-    durations: report.getByRole("radio", { name: new RegExp(`^${rules.keep_durations}`) }),
-    dates: report.getByRole("radio", { name: new RegExp(`^${rules.keep_dates}`) }),
+    durations: report.getByRole("radio", { name: rules.keep_durations }),
+    dates: report.getByRole("radio", { name: rules.keep_dates }),
   };
   const reportRead = async () => {
     // The analysis is a task of the background: the report comes when the screen is read anew.
@@ -559,7 +560,7 @@ test("imports a planning typed at seven hours a day: the calendar gap is on the 
   const days = report.getByRole("table", {
     name: gap.daysTable,
   });
-  const monday = days.getByRole("row", { name: /^Lundi/ });
+  const monday = days.getByRole("row", { name: gap.days.monday });
   await expect(monday.getByRole("cell", { name: "7", exact: true })).toBeVisible();
   await expect(monday.getByRole("cell", { name: "8", exact: true })).toBeVisible();
   await expect(report.getByText(gap.ignored)).toBeVisible();

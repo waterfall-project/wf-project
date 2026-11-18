@@ -38,12 +38,13 @@ from remaining_import_support import (
     workbook,
 )
 from remaining_support import Review, in_progress, line_named, review_marked, task_named
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from support import ContractClient
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.cost_settings.interface import set_hourly_rate
+from waterfall.core.cost_settings.tables import HourlyRate
 from waterfall.core.estimate.remaining.analysing import same_cell
 from waterfall.core.estimate.remaining.excel.layout import tab_subprojects
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
@@ -222,6 +223,38 @@ def test_a_remaining_reimported_updates_the_lines_of_its_lineage_and_creates_non
     left = row_of(stage, bench["node_id"])
     assert (left.reestimated_amount, left.reestimated_at) == (held.reestimated_amount, None)
     assert row_of(stage, line_named(tree, "Fournitures")["node_id"]).reestimated_at is None
+
+
+@pytest.mark.requirement("WF-DEV-0010-A")
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_labour_line_without_a_rate_is_rejected_when_changed_and_left_alone_when_not(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # #3827: the category of the labour has no rate. The line left as exported is not priced, so
+    # not rejected, while the supplies changed beside it are applied; the same line changed is
+    # rejected at its row, HOURLY_RATE_MISSING, the category named, the application not failing.
+    with stage.owner.begin() as connection:
+        draft = select(Revision.id).where(Revision.status == "draft")
+        connection.execute(delete(RevisionRate).where(RevisionRate.revision_id.in_(draft)))
+        connection.execute(delete(HourlyRate))
+    rows = scene.exported()
+    rows[1][4] = 150
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    found = report(api, stage, import_id)
+    assert (found["rejected"], [each["label"] for each in found["differences"]]) == (
+        [],
+        ["Fournitures"],
+    )
+    applied(api, stage, worker, import_id)
+    rows = scene.exported()
+    rows[0][3] = 3
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    found = report(api, stage, import_id)
+    assert [
+        (each["code"], each["params"]["missing_rates"][0]["cost_category_id"])
+        for each in found["rejected"]
+    ] == [("HOURLY_RATE_MISSING", str(scene.costs.labour))]
+    applied(api, stage, worker, import_id)
 
 
 @pytest.mark.requirement("WF-INTF-0120-A")

@@ -841,8 +841,17 @@ ImportRejection:
     a field, by the reason of that field (`VALUE_REQUIRED`, `VALUE_TOO_LONG`,
     `VALUE_OUT_OF_RANGE`, `FIELD_NOT_ACCEPTED`, `RESOURCE_ROLE_REQUIRED`,
     `INACTIVE_REFERENCE_OBJECT`), its parameters and `params.header` the header of the column
-    that carries the field. For a remaining to commit, the lines that the file sets to nought
-    on a task that it would complete at the date of the review (« Synthèse », cell B9), when that
+    that carries the field. A line whose figures each fit their column, yet whose product, or
+    whose reestimated amount, crosses the digits of the amount it is kept in, is rejected as its
+    entry is: `VALIDATION_FAILED` at the « Quantité » column (`params.header`), whichever of the
+    amounts overflows, the application writing it no longer failing (WF-DEV-0020, WF-DAT-0100;
+    #3095). A labour line whose category has no hourly rate for the year of reference is
+    rejected with `HOURLY_RATE_MISSING`, `params.missing_rates` naming the category and
+    `params.header` the header of the column that designates its role or its category
+    (WF-DEV-0010; #3827). Both apply to the lines the import writes, created or changed, of an
+    estimate and of a remaining to commit: a line left as it is is not priced, so a category
+    without a rate does not reject it. For a remaining to commit, the lines that the file sets to
+    nought on a task that it would complete at the date of the review (« Synthèse », cell B9), when that
     date forbids it (WF-RAE-0040, WF-INTF-0120): each of these lines is rejected, `params.tasks`
     naming the task by its lineage and its label (`lineage_id`, `label`), with
     `COMPLETION_DATE_REQUIRED` when the file carries no date of review; `DATE_INVALID`,

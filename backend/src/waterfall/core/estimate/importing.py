@@ -16,8 +16,10 @@ it replaces, and a new line then is rejected (``UNKNOWN_RESOURCE_ROLE``), as an 
 known code is; its subproject by its code (``UNKNOWN_SUBPROJECT``). Each line
 is then judged as its entry is (``entries.judged_line``): its refusals on a field reject it, by the
 code of the field and the header of its column (``params.header``), a provision category among them
-(``PROVISION_CATEGORY_RESERVED``), and the rule of a subproject that received actual costs, which
-rejects nothing before EP-09 (``SUBPROJECT_HAS_ACTUAL_COSTS``). On the main structure, a new line
+(``PROVISION_CATEGORY_RESERVED``), and a product or a reestimated amount that overflows its
+column, priced on the task as it stands (``VALIDATION_FAILED`` at the quantity, #3095); and the
+rule of a subproject that received actual costs, which rejects nothing before EP-09
+(``SUBPROJECT_HAS_ACTUAL_COSTS``). On the main structure, a new line
 under a completed task, or a line changed or moved under or from one, is rejected as its entry is
 refused (``STATE_FORBIDS_OPERATION``, ``task_not_completed``, #1767). A labour line whose role would
 leave its task without an hour in its week, the roles of the lines its task keeps intersected day
@@ -49,12 +51,18 @@ from waterfall.core.cost_settings.interface import (
     category_label_of,
     list_cost_categories,
 )
-from waterfall.core.estimate.costing import TASK_WITHOUT_WORKING_HOURS, calendar_hours
+from waterfall.core.estimate.costing import (
+    HOURLY_RATE_MISSING,
+    TASK_WITHOUT_WORKING_HOURS,
+    calendar_hours,
+)
 from waterfall.core.estimate.entries import LineEntry, judged_line
 from waterfall.core.estimate.excel import reader
 from waterfall.core.estimate.excel.writer import FORMAT_VERSION
 from waterfall.core.estimate.reading import COMPLETED, NOT_STARTED, TASK_NOT_COMPLETED, rows_of
+from waterfall.core.estimate.recalling import remembering
 from waterfall.core.estimate.tables import LABEL_LENGTH
+from waterfall.core.estimate.writing import judged_amounts
 from waterfall.core.planning.interface import (
     BearingTask,
     NodeFilters,
@@ -464,20 +472,28 @@ def judged(
     task_id, entry, current = sent
     headers = judging.headers
     try:
-        return judged_line(
-            session,
-            (held.project_id, held.bearer(task_id)),
-            entry,
-            current,
-            locking=judging.locking,
+        bearer = held.bearer(task_id)
+        draft = judged_line(
+            session, (held.project_id, bearer), entry, current, locking=judging.locking
         )
+        # Its amounts priced as its application prices them: a line that overflows is rejected here.
+        # A line left as it is, or only moved under another task, is not written, so not priced:
+        # the application moves it without writing its amounts, no rejection can reach it.
+        if current is None or changed_columns(draft, current, moved=False):
+            held_line = None if current is None else current.node_id
+            judged_amounts(session, (held.project_id, bearer, held_line), draft)
     except UnprocessableError as refusal:
         found: list[dict[str, Any]] = []
+        if refusal.code == HOURLY_RATE_MISSING:
+            # The category of the line has no rate: the column that designates it is the reason.
+            header = reader.ROLE_OR_CATEGORY_HEADER
+            return [rejection(line, HOURLY_RATE_MISSING, {**refusal.params, "header": header})]
         for fault in refusal.fields:
             header = headers.get(fault.pointer.rsplit("/", 1)[-1])
             named = {} if header is None else {"header": header}
             found.append(rejection(line, fault.code, {**fault.params, **named}))
         return found
+    return draft
 
 
 def _completed(held: Aimed, tasks: Iterable[UUID]) -> UUID | None:
@@ -507,13 +523,17 @@ def analyse(
     alone, doubled, twice = alone_on_lineage(read.lines)
     found.rejected += doubled
     taken |= twice & held.lines.keys()
-    for line in alone:
-        lineage = lineage_of(line.lineage)
-        current = held.lines.get(lineage) if lineage is not None and lineage not in taken else None
-        if current is not None and lineage is not None:
-            taken.add(lineage)
-        judging = Judging(locking=confirmed is not None)
-        plan(session, (line, current), held, (reference, named), (found, judging))
+    # Nothing is written here, so what the pricing of each line reads is read once for all of them.
+    with remembering(session):
+        for line in alone:
+            lineage = lineage_of(line.lineage)
+            current = (
+                held.lines.get(lineage) if lineage is not None and lineage not in taken else None
+            )
+            if current is not None and lineage is not None:
+                taken.add(lineage)
+            judging = Judging(locking=confirmed is not None)
+            plan(session, (line, current), held, (reference, named), (found, judging))
     found.left = [line.node_id for lineage, line in held.lines.items() if lineage not in taken]
     lineages = {line.node_id: str(lineage) for lineage, line in held.lines.items()}
     found.removed = [

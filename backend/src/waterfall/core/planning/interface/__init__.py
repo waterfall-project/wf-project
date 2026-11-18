@@ -223,6 +223,12 @@ from waterfall.core.planning.interface.loading import (
     LinkLoad as LinkLoad,
 )
 from waterfall.core.planning.interface.loading import (
+    ParentAbsentError as ParentAbsentError,
+)
+from waterfall.core.planning.interface.loading import (
+    ParentageLoopError as ParentageLoopError,
+)
+from waterfall.core.planning.interface.loading import (
     TaskLoad as TaskLoad,
 )
 from waterfall.core.planning.interface.loading import (
