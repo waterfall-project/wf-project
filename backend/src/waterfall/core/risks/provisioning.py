@@ -41,6 +41,7 @@ from waterfall.core.projects.interface import (
     project_facts,
     subproject_labels,
 )
+from waterfall.core.resource_settings.interface import share_reference
 from waterfall.core.revisions.interface import (
     aimed_structure,
     create_revision,
@@ -176,8 +177,9 @@ def update_provision(
     an import, a write of the own estimate; see ``follow_own_estimate``): the lock of the natures
     of cost first, as every write of the tree does (#2615); the main structure that bears the
     line; then the risk, whose counter advances under it. The opening of a revision by this entry is
-    the one exception: the project, then the risk, then the main structure of the revision opened,
-    which no other transaction sees before the commit. The current revision is created, if the
+    the one exception: the reference, shared, then the project, as every opening does, then the
+    risk, then the main structure of the revision opened, which no other transaction sees before
+    the commit. The current revision is created, if the
     project has none, a copy of the last marked one that copies the evaluation of the risk and its
     line; the counter and the state of the risk are judged under its lock, in both cases.
     """
@@ -192,8 +194,11 @@ def update_provision(
     if not no_background_task_running(session, project_id, writer.running):
         raise refuse(NO_BACKGROUND_TASK_RUNNING)
     if revision_id is None:
-        # The project locked first, as the opening of a revision does: another opening waits for it
-        # before it advances this risk, and the revision it opened is the one we write in.
+        # The reference shared, then the project, as the opening of a revision does (``_open``
+        # shares it again, to no effect): another opening waits for the project before it advances
+        # this risk, and the revision it opened is the one we write in. The project first would
+        # close an interlock with a writer of the reference that waits behind an opening.
+        share_reference(session)
         facts = lock_project(session, project_id)
         if is_terminal(facts.state):
             raise refuse(PROJECT_NOT_TERMINAL)

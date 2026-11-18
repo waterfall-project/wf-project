@@ -50,6 +50,8 @@ from waterfall.core.cost_settings.interface import (
 from waterfall.core.cost_settings.tables import CostCategory
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.tables import Node
+from waterfall.core.projects.tables import Project
+from waterfall.core.resource_settings.interface.readiness import REFERENCE_LOCK
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.core.risks.tables import Risk, RiskEvaluation
 from waterfall.platform.audit import Act
@@ -579,6 +581,39 @@ def test_a_write_of_the_own_estimate_takes_the_main_structure_before_the_risk(
         holder.rollback()
     assert writing.result(timeout=30) is None
     assert risks.risk(risk)["lock_version"] > risk["lock_version"]
+
+
+def project_lock_held(stage: Scene, project_id: UUID) -> bool:
+    """Tell whether another transaction holds the lock of a project (``FOR UPDATE NOWAIT``)."""
+    with stage.owner.connect() as connection:
+        try:
+            connection.execute(
+                select(Project.id).where(Project.id == project_id).with_for_update(nowait=True)
+            )
+        except DBAPIError:
+            return True
+        return False
+
+
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_a_provision_that_would_create_the_revision_waits_for_the_reference_before_the_project(
+    risks: Risks, project: Costed
+) -> None:
+    # The order of every opening: the reference shared, then the project. The reference held by a
+    # writer, the entry waits for it without holding the project: were it the other way round, it
+    # would close an interlock (40P01) with an opening that holds the reference and waits for the
+    # project, the writer waiting behind that opening.
+    risk = risks.declared()
+    stage = project.stage
+    mark(stage, {"revision_id": str(project.revision_id)})
+    with stage.owner.connect() as holder:
+        holder.execute(select(func.pg_advisory_xact_lock(REFERENCE_LOCK)))
+        asking = concurrently(lambda: risks.provision(risk, provision_task_id=None))
+        waiting_for_a_lock(stage)
+        assert not project_lock_held(stage, project.project_id)
+        holder.rollback()
+    assert asking.result(timeout=30).status_code == 200
+    assert counted(project, Revision) == 2
 
 
 def counted(project: Costed, table: type[Revision | Node]) -> int:
