@@ -1229,7 +1229,9 @@ chaque EPIC suivant écrive ses tables et ses journaux sans décider à nouveau 
   EP-06 ; l'affichage est déjà celui d'EP-02 ;
 - écart : `WF-DAT-0100-A` — « Un nombre ou un montant calculé qui dépasse ce que sa colonne tient
   est refusé, au champ qui le provoque, sans rien écrire. » : ajouté par la spécification 1.0.6
-  (#3100) ; EP-24 l'éprouve (US-1980).
+  (#3100) ; EP-24 l'éprouve (US-1980) ;
+- écart : `WF-DAT-0100-A` — « Un montant calculé de 75,705 est présenté 75,71. » : ajouté par la
+  spécification 1.0.7 (#3369) ; le service arrondit ainsi depuis #2618 (`round_to_cent`).
 - propre à l'US : les horodatages d'audit sont conservés en temps universel (WF-DAT-0100).
 - écart : `WF-DAT-0140-A` — « Une installation en version N passe en version N+1 sans perte de données, et le code de la version N s’exécute sur le schéma migré. » : la mise à jour sans interruption relève du
   déploiement — EP-13.
@@ -1473,7 +1475,10 @@ qu'elle se soit connectée.
   voit l'aboutissement.
 - `WF-ARC-0090-A` — « L’arrêt du worker pendant une tâche laisse la base inchangée, et la tâche est reprise après redémarrage. » : constaté sur la lecture des comptes.
 - `WF-ARC-0090-A` — « Aucun de ces traitements n’est joignable par un endpoint qui répondrait après l’avoir exécuté. » : pour la lecture des comptes ; EP-13 le constate pour
-  tous les traitements.
+  tous les traitements ;
+- écart : `WF-ARC-0090-A` — « Le vidage de Redis pendant une restauration ne lève pas la maintenance
+  : l’API refuse toute requête jusqu’à la fin de la restauration. » : ajouté par la spécification
+  1.0.7 (#3380) ; EP-13 l'éprouve (#956).
 - propre à l'US : la lecture se dépose en file à l'intervalle que fixe la configuration de
   l'installation, et le worker la prend comme celle qu'un administrateur demande (PBS-5.3).
 

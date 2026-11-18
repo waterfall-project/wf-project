@@ -1115,6 +1115,8 @@ sans construire un second arbre.
 - écart : `WF-DAT-0100-A` — « Un nombre ou un montant calculé qui dépasse ce que sa colonne tient
   est refusé, au champ qui le provoque, sans rien écrire. » : ajouté par la spécification 1.0.6
   (#3100) ; EP-24 l'éprouve (US-1980) ;
+- écart : `WF-DAT-0100-A` — « Un montant calculé de 75,705 est présenté 75,71. » : ajouté par la
+  spécification 1.0.7 (#3369) ; le service arrondit ainsi depuis #2618 (`round_to_cent`) ;
 - `WF-DAT-0010-A` — « Après marquage d’une révision puis création de la suivante, le nombre de
   lignes de chaque table portant l’identifiant de la nouvelle révision égale celui de la révision
   marquée, hors les lignes des structures différentielles fusionnées et des structures propres des

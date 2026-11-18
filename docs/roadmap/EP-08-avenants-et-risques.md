@@ -952,8 +952,12 @@ font peser sur le projet se lise là où il se lirait s'ils survenaient.
   ici ;
 - `WF-PRJ-0050-A` — « La création de deux sous-projets de même code dans un même projet est refusée.
   » : tenu par EP-04, non touché ici ;
-- `WF-PRJ-0050-A` — « La création d'un sous-projet de code « SP/01 », « Synthèse » ou de plus de
-  trente et un caractères est refusée. » : tenu par EP-04, non touché ici ;
+- écart : `WF-PRJ-0050-A` — « Un sous-projet de code « A.ABC.26001/10001 », « Synthèse » ou de
+  quarante caractères se crée, et le fichier de reste à engager lui donne un onglet qui porte son
+  code en tête. » : remplace, par la spécification 1.0.7 (#3370), le refus de « SP/01 », de «
+  Synthèse » et de plus de trente et un caractères, que le livré tient encore ; #3966 l'éprouve ;
+- écart : `WF-PRJ-0050-A` — « La création d’un sous-projet dont le code est celui du projet est
+  refusée. » : ajouté par la spécification 1.0.7 (#3370) ; #3966 l'éprouve ;
 - `WF-PRJ-0050-A` — « La suppression d'un sous-projet portant des coûts réels est refusée. » : tenu
   par EP-09, non touché ici ;
 - `WF-PRJ-0050-A` — « La suppression d'un sous-projet cité par une révision marquée est refusée. » :
@@ -1026,6 +1030,8 @@ font peser sur le projet se lise là où il se lirait s'ils survenaient.
   tâche et rejette celles qui en termineraient une. » : tenu par EP-09, non touché ici ;
 - `WF-INTF-0120-A` — « Une cellule de reste effacée sur une ligne connue la met à zéro. » : tenu par
   EP-09, non touché ici ;
+- écart : `WF-INTF-0120-A` — « Un onglet renommé dans Excel garde son sous-projet. » : ajouté par la
+  spécification 1.0.7 (#3370) ; #3966 l'éprouve ;
 - propre à l'US : la ligne de provision est une ligne de la structure principale, de la catégorie que le
   risque désigne, dont le budgété est la provision qu'elle portait dans la référence et le montant est la gravité pondérée par la probabilité,
   au centime ; elle ne s'écrit que par le risque — sa déclaration, `updateRiskProvision`, ses
@@ -1241,9 +1247,11 @@ savoir si le projet consomme ses provisions sans que cela se voie dans son budge
   donne un écart de − 50. » : tenu par EP-09, non touché ici ;
 - `WF-RAE-0020-A` — « Un sous-projet dont le coût réel augmenté du reste à engager dépasse son
   budget est signalé par la couleur, les autres non. » : tenu par EP-09, non touché ici ;
-- `WF-RAE-0020-A` — « Sur un projet dont aucune révision n'a été marquée à l'état En cours avant
-  celle qui est lue, l'écart correspondant est absent plutôt que nul ; sur un projet sans révision
-  de référence, la marge sur le budget l'est aussi. » : tenu par EP-09, non touché ici ;
+- écart : `WF-RAE-0020-A` — « Sur un projet dont aucune révision n’a été marquée avant celle qui est
+  lue, l’écart correspondant est absent plutôt que nul, et sur la première révision qui suit
+  l’offre, il se mesure à l’offre ; sur un projet sans révision de référence, la marge sur le budget
+  l’est aussi. » : réécrit par la spécification 1.0.7 (#3929) : l'écart se mesure à l'offre sur la
+  première révision qui la suit ; tenu par EP-10 (#3930) ;
 - `WF-RAE-0020-A` — « La marge sur le budget du projet égale la somme des marges de ses
   sous-projets, ensemble hors sous-projet compris. » : tenu par EP-09 ; les provisions comptent dans
   la marge de la maille de leur sous-projet ;

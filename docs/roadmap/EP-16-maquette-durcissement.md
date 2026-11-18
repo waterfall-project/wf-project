@@ -1533,11 +1533,12 @@ le fichier de reste à engager range chaque sous-projet dans son onglet.
   EP-09 clôt ;
 - écart : `WF-PRJ-0050-A` — « La création de deux sous-projets de même code dans un même projet est
   refusée. » : le service — EP-04 ;
-- écart : `WF-PRJ-0050-A` — « La création d'un sous-projet de code « SP/01 », « Synthèse » ou de
-  plus de trente et un caractères est refusée. » :
-  - EP-16 en écrit au contrat la borne, le motif et le refus, et le formulaire le dit
-    (ci-dessous) ;
-  - le refus par le service : EP-04 ;
+- écart : `WF-PRJ-0050-A` — « Un sous-projet de code « A.ABC.26001/10001 », « Synthèse » ou de
+  quarante caractères se crée, et le fichier de reste à engager lui donne un onglet qui porte son
+  code en tête. » : remplace, par la spécification 1.0.7 (#3370), le refus de « SP/01 », de «
+  Synthèse » et de plus de trente et un caractères, que le livré tient encore ; #3966 l'éprouve ;
+- écart : `WF-PRJ-0050-A` — « La création d’un sous-projet dont le code est celui du projet est
+  refusée. » : ajouté par la spécification 1.0.7 (#3370) ; #3966 l'éprouve ;
 - écart : `WF-PRJ-0050-A` — « La suppression d'un sous-projet portant des coûts réels est refusée. » :
   constaté par EP-14 contre le faux back ; EP-09 clôt ;
 - écart : `WF-PRJ-0050-A` — « La suppression d'un sous-projet cité par une révision marquée est

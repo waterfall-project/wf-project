@@ -1302,10 +1302,11 @@ ne remonte au total.
 - `WF-RAE-0020-A` — « Un sous-projet dont le coût réel augmenté du reste à engager dépasse son
   budget est signalé par la couleur, les autres non. » : `by_subproject[].is_over_budget` et
   `zone` à `alert`, `nominal` pour les autres ; le serveur classe, le front ne déduit rien ;
-- `WF-RAE-0020-A` — « Sur un projet dont aucune révision n’a été marquée à l’état En cours avant
-  celle qui est lue, l’écart correspondant est absent plutôt que nul ; sur un projet sans révision
-  de référence, la marge sur le budget l’est aussi. » : `null`, et non zéro, dans les deux cas ;
-  une offre marquée en chiffrage n'est pas une revue ;
+- écart : `WF-RAE-0020-A` — « Sur un projet dont aucune révision n’a été marquée avant celle qui est
+  lue, l’écart correspondant est absent plutôt que nul, et sur la première révision qui suit
+  l’offre, il se mesure à l’offre ; sur un projet sans révision de référence, la marge sur le budget
+  l’est aussi. » : réécrit par la spécification 1.0.7 (#3929) : l'écart se mesure à l'offre sur la
+  première révision qui la suit, là où le livré d'EP-09 le rendait nul ; tenu par EP-10 (#3930) ;
 - `WF-RAE-0020-A` — « La marge sur le budget du projet égale la somme des marges de ses
   sous-projets, ensemble hors sous-projet compris. » : `unassigned` compte les lignes sans
   sous-projet et les lignes de coût imputées au seul projet ; la somme des `variance` égale
@@ -1395,28 +1396,19 @@ de mon budget sans compter deux fois la même pièce.
   absente de `passthrough` et de `meta.passthrough_columns` ;
 - `WF-CRE-0010-A` — « Une ligne de montant négatif est acceptée et diminue le coût réel. » : un
   avoir, `amount` négatif, et les totaux le comptent ;
-- `WF-CRE-0020-A` — « Une ligne dont l’élément d’OTP ne respecte pas la forme attendue — vide, ou
-  sans rien avant ou après la barre oblique — est signalée au compte rendu et n’est pas importée ;
-  une ligne qui ne porte que le code projet, sans sous-projet, est importée et imputée au seul
-  projet. » : `WBS_ELEMENT_INVALID`, `params.wbs_element`, de même pour un élément sans rien après
-  la barre oblique (`A.ABC.26001/`, #2721, spécification 1.0.4) ; `subproject_id` et
-  `subproject_code` nuls ;
-- `WF-CRE-0020-A` — « Une ligne d’un autre projet est rejetée et signalée. » :
-  `WBS_ELEMENT_OUTSIDE_PROJECT`, `params.project_code` le code lu, `lines_outside_project` parmi les
-  motifs de confirmation, même quand la ligne est doublée et rejetée `DUPLICATE_COST_LINE` (#2724),
-  et le journal la compte rejetée ;
-- `WF-CRE-0020-A` — « Sur le projet de code A.ABC.26001, une ligne d’élément A.ABC.26001/10001 est
-  imputée au sous-projet 10001, et une ligne d’élément A.ABC.26002/10001 est rejetée comme d’un
-  autre projet. » : le code projet peut contenir des points, seule la barre oblique sépare les deux
-  codes (C-373, #1340) ;
-- `WF-CRE-0020-A` — « Une ligne dont le sous-projet est inconnu est importée, imputée au projet, et
-  apparaît comme telle à la consultation avec son code. » : `subproject_id` nul, `subproject_code`
-  conservé, `unknown_subproject` parmi les motifs de confirmation ;
-- `WF-CRE-0020-A` — « Après création du sous-projet dont dix lignes portaient le code, ces dix
-  lignes lui sont imputées sans réimport, et l’ensemble hors sous-projet diminue d’autant. » :
-  `createSubproject` d'EP-04 appelle, dans sa transaction, la question que `core/costs` enregistre
-  dans `core/projects`, qui impute les lignes de ce code ; un recodage (`updateSubproject`) ne
-  change l'imputation d'aucune ligne (D-10) ;
+- écart : `WF-CRE-0020-A` — « Sur le projet de code A.ABC.26001, qui porte le sous-projet de code
+  A.ABC.26001/10001, une ligne d’élément A.ABC.26001 est importée et imputée au seul projet, et une
+  ligne d’élément A.ABC.26001/10001 est imputée à ce sous-projet. » : réécrit par la spécification
+  1.0.7 (#3370) : l'élément d'OTP se compare en entier ; le livré coupe encore à la barre oblique
+  (`WBS_ELEMENT_INVALID`, `WBS_ELEMENT_OUTSIDE_PROJECT`, `unknown_subproject`, l'imputation des
+  lignes en attente à la création du sous-projet) ; #3966 l'éprouve ;
+- écart : `WF-CRE-0020-A` — « Une ligne d’élément A.ABC.26001/10002, une ligne d’élément 10001, une
+  ligne d’élément A.ABC.26002 et une ligne d’élément vide sont rejetées, et le compte rendu nomme
+  chacun de ces éléments et le nombre de ses lignes. » : réécrit par la spécification 1.0.7 (#3370)
+  ; #3966 l'éprouve ;
+- écart : `WF-CRE-0020-A` — « Après création du sous-projet de code A.ABC.26001/10002, le réimport
+  du même fichier lui impute ses lignes. » : réécrit par la spécification 1.0.7 (#3370) ; #3966
+  l'éprouve ;
 - `WF-CRE-0020-A` — « Une ligne réimportée avec un autre élément d’OTP change d’imputation. » :
   l'écart `updated` sur `subproject`, `subproject_id` recalculé ;
 - `WF-CRE-0050-A` — « Après un import, le journal présente une entrée datée du jour avec ses
@@ -1514,8 +1506,12 @@ rapprochement avec l'ERP.
 - `WF-PRJ-0050-A` — « Un projet se chiffre sans aucun sous-projet. »
 - `WF-PRJ-0050-A` — « La création de deux sous-projets de même code dans un même projet est
   refusée. »
-- `WF-PRJ-0050-A` — « La création d’un sous-projet de code « SP/01 », « Synthèse » ou de plus de
-  trente et un caractères est refusée. » : les trois, constatées par EP-04 ;
+- écart : `WF-PRJ-0050-A` — « Un sous-projet de code « A.ABC.26001/10001 », « Synthèse » ou de
+  quarante caractères se crée, et le fichier de reste à engager lui donne un onglet qui porte son
+  code en tête. » : remplace, par la spécification 1.0.7 (#3370), le refus de « SP/01 », de «
+  Synthèse » et de plus de trente et un caractères, que le livré tient encore ; #3966 l'éprouve ;
+- écart : `WF-PRJ-0050-A` — « La création d’un sous-projet dont le code est celui du projet est
+  refusée. » : ajouté par la spécification 1.0.7 (#3370) ; #3966 l'éprouve ;
 - `WF-PRJ-0050-A` — « La suppression d’un sous-projet portant des coûts réels est refusée. » :
   `subproject_has_actual_costs` d'EP-04 rempli par la question de `core/costs` — une ligne de coût
   imputée, suivie ou exclue — ; 409 `subproject_without_actual_costs`, et `listSubprojects` le dit
@@ -1622,6 +1618,8 @@ périodique avec l'outil que mes interlocuteurs connaissent.
   spécification 1.0.4, #2829 ;
 - `WF-INTF-0120-A` — « Une cellule de reste effacée sur une ligne connue la met à zéro. » :
   réalisé par US-1630/L3 (#2410) ; spécification 1.0.4, #2829 ;
+- écart : `WF-INTF-0120-A` — « Un onglet renommé dans Excel garde son sous-projet. » : ajouté par la
+  spécification 1.0.7 (#3370) ; #3966 l'éprouve ;
 - `WF-INTF-0130-A` — « Même critère d’aller-retour que WF-INTF-0110. » : un reste à engager
   exporté puis réimporté sans modification dans la révision en cours ne présente ni écart ni rejet,
   `unchanged_count` égal à `read_count`, les lignes relues identiques ; un export de la révision en

@@ -917,6 +917,8 @@ l'aller-retour ne change pas une ligne de catégorie en ligne de rôle (#2752, #
 - écart : `WF-INTF-0120-A` — « Un fichier qui recopie une ligne avec sa lignée voit les deux lignes rejetées, et la ligne existante inchangée. » : idem ;
 - écart : `WF-INTF-0120-A` — « Un fichier sans date de revue applique les lignes qui ne terminent aucune tâche et rejette celles qui en termineraient une. » : idem ;
 - écart : `WF-INTF-0120-A` — « Une cellule de reste effacée sur une ligne connue la met à zéro. » : idem ;
+- écart : `WF-INTF-0120-A` — « Un onglet renommé dans Excel garde son sous-projet. » : ajouté par la
+  spécification 1.0.7 (#3370) ; #3966 l'éprouve ;
 - la liste des exceptions d'un classeur abîmé n'a qu'un propriétaire, dans `core/exchanges`, que
   lisent le lecteur de devis et celui des coûts réels (`core/costs/extraction.py`, `_DAMAGES`) ; un
   test l'éprouve une fois pour les deux (décision de l'auteur du 2026-11-12).

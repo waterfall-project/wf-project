@@ -801,9 +801,12 @@ et ma ventilation par sous-projet sans quitter la grille.
 - écart : `WF-PRJ-0050-A` — « La suppression d’un sous-projet que porte une ligne de devis de la
   révision en cours est refusée ; elle aboutit une fois cette ligne passée à un autre
   sous-projet. » : la seconde moitié demande le service — EP-04.
-- écart : `WF-PRJ-0050-A` — « La création d’un sous-projet de code « SP/01 », « Synthèse » ou de
-  plus de trente et un caractères est refusée. » : la borne du code est au contrat et au service —
-  #1304.
+- écart : `WF-PRJ-0050-A` — « Un sous-projet de code « A.ABC.26001/10001 », « Synthèse » ou de
+  quarante caractères se crée, et le fichier de reste à engager lui donne un onglet qui porte son
+  code en tête. » : remplace, par la spécification 1.0.7 (#3370), le refus de « SP/01 », de «
+  Synthèse » et de plus de trente et un caractères, que le livré tient encore ; #3966 l'éprouve ;
+- écart : `WF-PRJ-0050-A` — « La création d’un sous-projet dont le code est celui du projet est
+  refusée. » : ajouté par la spécification 1.0.7 (#3370) ; #3966 l'éprouve.
 - propre à l'US : le sous-menu « Sous-projet » est exclusif (boutons radio) : « Aucun sous-projet »
   et chaque sous-projet du projet, celui de la ligne coché ; il n'est offert que si la ligne nomme
   `estimate_line.subproject_id` dans `editable_fields` — une ligne de provision ne l'offre pas ;

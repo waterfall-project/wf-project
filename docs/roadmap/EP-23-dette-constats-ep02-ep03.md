@@ -1007,7 +1007,9 @@ valeur hors de ces règles soit refusée à son champ, plutôt qu'enregistrée a
   huit heures, commencent et finissent le même jour. » : constaté par EP-06, inchangé ; EP-07 clôt ;
 - écart : `WF-DAT-0100-A` — « Un nombre ou un montant calculé qui dépasse ce que sa colonne tient
   est refusé, au champ qui le provoque, sans rien écrire. » : ajouté par la spécification 1.0.6
-  (#3100) ; EP-24 l'éprouve (US-1980).
+  (#3100) ; EP-24 l'éprouve (US-1980) ;
+- écart : `WF-DAT-0100-A` — « Un montant calculé de 75,705 est présenté 75,71. » : ajouté par la
+  spécification 1.0.7 (#3369) ; le service arrondit ainsi depuis #2618 (`round_to_cent`).
 - `WF-REF-0160-A` — « Les six bornes sont saisissables et ordonnées. » : sa forme pour leur
   précision : une borne de plus de dix décimales, ou de plus de dix chiffres avant le point — `"0."`
   suivi de vingt mille `9` —, est refusée par 422 `VALIDATION_FAILED` à `/risk_matrix/<axe>/<rang>`,

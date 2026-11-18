@@ -943,11 +943,12 @@ devis se rejoignent à la maille du sous-projet (#1337).
 - `WF-PRJ-0050-A` — « La création de deux sous-projets de même code dans un même projet est
   refusée. » : 409, `ALREADY_EXISTS` sur `/code`, `conflicting_object_id` et
   `conflicting_object_label` ; l'unicité par projet est une contrainte de la base ;
-- `WF-PRJ-0050-A` — « La création d'un sous-projet de code « SP/01 », « Synthèse » ou de plus de
-  trente et un caractères est refusée. » : 422, `SUBPROJECT_CODE_INVALID` avec
-  `forbidden_characters` ou `reserved_name`, `VALUE_TOO_LONG` avec `max_length` à 31, à la
-  création comme à la modification ; les noms réservés se comparent sans égard à la casse, après
-  normalisation des espaces et de l'Unicode (#1502) ;
+- écart : `WF-PRJ-0050-A` — « Un sous-projet de code « A.ABC.26001/10001 », « Synthèse » ou de
+  quarante caractères se crée, et le fichier de reste à engager lui donne un onglet qui porte son
+  code en tête. » : remplace, par la spécification 1.0.7 (#3370), le refus de « SP/01 », de «
+  Synthèse » et de plus de trente et un caractères, que le livré tient encore ; #3966 l'éprouve ;
+- écart : `WF-PRJ-0050-A` — « La création d’un sous-projet dont le code est celui du projet est
+  refusée. » : ajouté par la spécification 1.0.7 (#3370) ; #3966 l'éprouve ;
 - écart : `WF-PRJ-0050-A` — « Un projet se chiffre sans aucun sous-projet. » : le chiffrage est
   d'EP-07 ; ici, un projet se crée et vit sans sous-projet ;
 - écart : `WF-PRJ-0050-A` — « La suppression d'un sous-projet portant des coûts réels est
