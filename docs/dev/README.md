@@ -3510,6 +3510,14 @@ Docker fails, the slot is not taken, and the next `make slot` does the removal a
 removal, both stop the e2e servers the slot left (`make e2e-down`). `slots.py which` says the slot
 of the current worktree.
 
+A free slot is taken first: the takeover happens only if the N are taken, so a slot held for a lot
+does not add to the free slots the pilot counts. The one the stopped deliverer held, when a free
+one was taken, stays taken, in the name of its old worktree, until that worktree is removed. Known
+limits: the key of the takeover is the identifier of the lot alone, while the register is shared by
+all the repositories of the workstation — two repositories with the same lot identifier could take
+a slot over from each other —; and the takeover does not check whether the old worktree still has a
+living deliverer: it assumes, as the pilot guarantees, one living deliverer per lot.
+
 At slot i from 1 to 9, the ports are those of the block `20000 + 100·i`, below the range of the
 ephemeral ports of Linux; at slot 0, those of before:
 

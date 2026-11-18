@@ -3525,6 +3525,14 @@ entre-temps attend, en le disant, et si Docker échoue, le créneau n'est pas pr
 suivant refait le retrait. Avant ce retrait, l'un et l'autre arrêtent les serveurs de l'e2e que le
 créneau a laissés (`make e2e-down`). `slots.py which` dit le créneau du worktree courant.
 
+Un créneau libre se prend avant tout : la reprise n'a lieu que si les N sont pris, et un créneau
+tenu pour un lot ne s'ajoute donc pas aux créneaux libres que le pilote compte. Celui que l'arrêté
+tenait, quand un libre a été pris, reste pris, au nom de son ancien worktree, jusqu'au retrait de
+ce worktree. Limites connues : la clé de la reprise n'est que l'identifiant du lot, alors que le
+registre est commun à tous les dépôts du poste — deux dépôts qui portent un même identifiant de lot
+pourraient se reprendre un créneau — ; et la reprise ne regarde pas si l'ancien worktree a encore
+un livreur vivant : elle suppose, comme le pilote le garantit, un seul livreur vivant par lot.
+
 Au créneau i de 1 à 9, les ports sont ceux du bloc `20000 + 100·i`, sous la plage des ports
 éphémères de Linux ; au créneau 0, ceux d'avant :
 
