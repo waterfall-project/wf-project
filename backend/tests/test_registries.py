@@ -767,9 +767,10 @@ def test_the_coverage_of_the_risks_is_zero_until_the_risks_answer_it_once(
 def test_the_parts_of_a_merge_are_those_of_each_module_registered_in_their_order(
     session: Session,
 ) -> None:
-    # What the planning and the estimate find of a merge (EP-08, US-2560): nothing before either
-    # registers; then their differences, their completed tasks and their refusals, the planning's
-    # before the estimate's; nothing once withdrawn.
+    # A tool of the registries, which covers no requirement: what the planning and the estimate
+    # find of a merge (EP-08, US-2560) — nothing before either registers; then their differences,
+    # their completed tasks and their refusals, the planning's before the estimate's; nothing once
+    # withdrawn.
     merging = StructureMerging(
         session, uuid4(), uuid4(), uuid4(), uuid4(), Act(None, utc_now()), applying=False
     )
@@ -804,8 +805,9 @@ def test_the_parts_of_a_merge_are_those_of_each_module_registered_in_their_order
 
 
 def test_a_kind_of_entry_is_undone_by_one_module_at_most() -> None:
-    # How the risks undo their four kinds (EP-08, US-2590/L2): none before they register, the
-    # planning's then; a second module for the same kind refused; none once withdrawn.
+    # A tool of the registries, which covers no requirement: how the risks undo their four kinds
+    # (EP-08, US-2590/L2) — none before they register, the planning's then; a second module for the
+    # same kind refused; none once withdrawn.
     def lock(_session: Session, _project: UUID, _states: Snapshot) -> None:
         return None
 

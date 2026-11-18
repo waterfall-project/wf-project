@@ -128,23 +128,33 @@ class Risk(Stamped):
 class RiskEvaluation(Stamped):
     """The evaluation of a risk in a revision: what the revision freezes of it (WF-RIS-0030).
 
-    Its own structure is of its revision (``structure_id``); its provision line is a node of its
-    project, there while it is identified alone (WF-RIS-0010); its cost at occurrence there while
+    Its own structure is of its revision and of its risk (``structure_id``, a structure of kind
+    risk); its provision line is a node of its revision, there while it is identified alone
+    (WF-RIS-0010); its cost at occurrence there while
     it is occurred alone (WF-RIS-0060). The category of its provision is always there; its
     subproject and the lineage of the task that bears its line, null without a designation.
     """
 
     __tablename__ = "risk_evaluation"
     __table_args__ = (
-        _of_risk(),
-        # The structure with its revision, which names its revision in turn, as a node does.
+        # The structure with its revision and its risk: an own estimate of the revision of the
+        # evaluation, of this risk — a risk names a structure of kind risk alone. The structure
+        # names its risk in turn, which refuses: no key of the evaluation to the risk repeats it.
         ForeignKeyConstraint(
-            ["project_id", "structure_id", "revision_id"],
-            ["cost_structure.project_id", "cost_structure.id", "cost_structure.revision_id"],
+            ["project_id", "structure_id", "revision_id", "risk_id"],
+            [
+                "cost_structure.project_id",
+                "cost_structure.id",
+                "cost_structure.revision_id",
+                "cost_structure.risk_id",
+            ],
             ondelete="RESTRICT",
         ),
+        # The provision line with its revision: a node of the revision of the evaluation.
         ForeignKeyConstraint(
-            ["project_id", "provision_node_id"], ["node.project_id", "node.id"], ondelete="RESTRICT"
+            ["project_id", "provision_node_id", "revision_id"],
+            ["node.project_id", "node.id", "node.revision_id"],
+            ondelete="RESTRICT",
         ),
         ForeignKeyConstraint(
             ["project_id", "provision_subproject_id"],
@@ -169,6 +179,9 @@ class RiskEvaluation(Stamped):
         Index(None, "provision_cost_category_id"),
         Index(None, "provision_subproject_id"),
         Index(None, "risk_id"),
+        # The evaluations of a revision — the register, the matrix, the reserve, the copy read
+        # them so —, which the key, the risk first, does not serve.
+        Index(None, "revision_id"),
         {"postgresql_partition_by": BY_PROJECT},
     )
 

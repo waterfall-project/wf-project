@@ -167,7 +167,15 @@ class Tree[N: NodeColumns = Node, T: TaskColumns = Task]:
     provisions: frozenset[UUID] = frozenset()
 
     def with_nodes(self, nodes: dict[UUID, N], tasks: dict[UUID, T]) -> Tree[N, T]:
-        """Give the tree of other nodes and tasks, which holds what this one's lines tell."""
+        """Give the tree of other nodes and tasks, which holds what this one's lines tell.
+
+        What its lines tell is not read again: a line it holds that this one does not is no
+        provision to it, and an own line. The traced grounds of a preview add a task
+        (``traced_creation``) or a line a paste creates (``_traced_line``), which is never of a
+        category of provision — the paste refuses it (``PROVISION_CATEGORY_RESERVED``). A path that
+        would add one must read the tree again (``reheld``). A ``Tree`` built without ``reheld`` has
+        no provision, and no summary held open, either.
+        """
         return Tree(nodes, tasks, held=self.held, provisions=self.provisions)
 
     def __post_init__(self) -> None:

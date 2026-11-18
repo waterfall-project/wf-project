@@ -5,8 +5,11 @@
 ``cost_structure`` admits the kinds ``amendment`` and ``risk``, and receives ``risk_id``, the risk
 whose own estimate the structure is: there if and only if the kind is ``risk``, a key to the risk
 with its project, one own estimate at most by risk and by revision (a partial unique index). The
-uniqueness of the main structure is unchanged. ``node.origin_risk_id`` (``0022``) receives its key
-to the risk, with an index of the nodes that name one, what the key reads when a risk is deleted.
+uniqueness of the main structure is unchanged. What an evaluation names is unique: its own estimate
+with its revision and its risk (``cost_structure``), its provision line with its revision
+(``node``) — so that it names a structure of kind risk, of its risk, and a line of its revision.
+``node.origin_risk_id`` (``0022``) receives its key to the risk, with an index of the nodes that
+name one, what the key reads when a risk is deleted.
 Added to the partitioned tables, the column, the checks, the keys and the indexes go to each
 partition; the column is born null, every existing row a main structure.
 
@@ -241,6 +244,10 @@ def _structures() -> None:
         unique=True,
         postgresql_where=sa.text("kind = 'risk'"),
     )
+    op.create_unique_constraint(
+        None, "cost_structure", ["risk_id", "id", "revision_id", "project_id"]
+    )
+    op.create_unique_constraint(None, "node", ["revision_id", "id", "project_id"])
     op.create_foreign_key(
         None,
         "node",
@@ -271,15 +278,19 @@ def _evaluations() -> None:
         *stamped(),
         sa.PrimaryKeyConstraint("project_id", "risk_id", "revision_id"),
         sa.ForeignKeyConstraint(
-            ["project_id", "risk_id"], ["risk.project_id", "risk.id"], ondelete="RESTRICT"
-        ),
-        sa.ForeignKeyConstraint(
-            ["project_id", "structure_id", "revision_id"],
-            ["cost_structure.project_id", "cost_structure.id", "cost_structure.revision_id"],
+            ["project_id", "structure_id", "revision_id", "risk_id"],
+            [
+                "cost_structure.project_id",
+                "cost_structure.id",
+                "cost_structure.revision_id",
+                "cost_structure.risk_id",
+            ],
             ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
-            ["project_id", "provision_node_id"], ["node.project_id", "node.id"], ondelete="RESTRICT"
+            ["project_id", "provision_node_id", "revision_id"],
+            ["node.project_id", "node.id", "node.revision_id"],
+            ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
             ["provision_cost_category_id"], ["cost_category.id"], ondelete="RESTRICT"
@@ -304,7 +315,12 @@ def _evaluations() -> None:
         sa.UniqueConstraint("provision_node_id", "project_id"),
         postgresql_partition_by=BY_PROJECT,
     )
-    for column in ("provision_cost_category_id", "provision_subproject_id", "risk_id"):
+    for column in (
+        "provision_cost_category_id",
+        "provision_subproject_id",
+        "risk_id",
+        "revision_id",
+    ):
         op.create_index(None, "risk_evaluation", [column])
 
 
@@ -376,8 +392,10 @@ def downgrade() -> None:
         op.execute(f"DROP FUNCTION {table}_refuse_truncate()")
     for table in GUARDED:
         op.execute(f"DROP FUNCTION {table}_refuse_marked_change()")
+    op.drop_constraint(op.f("uq_node_revision_id"), "node", type_="unique")
     op.drop_index(op.f("ix_node_origin_risk_id"), table_name="node")
     op.drop_constraint(op.f("fk_node_project_id_risk"), "node", type_="foreignkey")
+    op.drop_constraint(op.f("uq_cost_structure_risk_id"), "cost_structure", type_="unique")
     op.drop_index("uq_cost_structure_risk", table_name="cost_structure")
     op.drop_constraint(op.f("fk_cost_structure_project_id_risk"), "cost_structure", "foreignkey")
     op.drop_constraint(op.f("ck_cost_structure_risk_of_its_kind"), "cost_structure", "check")

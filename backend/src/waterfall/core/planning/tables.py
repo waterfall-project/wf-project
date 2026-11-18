@@ -121,7 +121,8 @@ class Node(Stamped):
     facet of another kind; its facet, its children and the links of its task name it with its
     structure (``uq_node_id``), so that none binds two structures — the facet task keeping a work
     package or an order item on a single task of a structure (``task``) —, and its structure is
-    named with its revision, so that a node never binds a revision to the structure of another.
+    named with its revision, so that a node never binds a revision to the structure of another;
+    the evaluation of a risk names its provision line with its revision (``uq_node_revision_id``).
     ``lineage_id`` is kept by the copy of the revision (WF-DAT-0030); ``origin_risk_id`` is the risk
     whose occurrence merged the node into the main structure, null for any other (EP-08,
     WF-RIS-0060): it never tells a provision line, which its category alone tells (``estimate``).
@@ -137,6 +138,8 @@ class Node(Stamped):
         # node with its structure.
         UniqueConstraint("project_id", "id", "kind"),
         UniqueConstraint("id", "project_id", "structure_id"),
+        # What the evaluation of a risk names: its provision line, with its revision (EP-08).
+        UniqueConstraint("revision_id", "id", "project_id"),
         # The order among the siblings of a kind, the roots included, checked at the end of the
         # statement: a renumbering moves every sibling at once.
         UniqueConstraint(

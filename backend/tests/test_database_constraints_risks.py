@@ -37,6 +37,7 @@ from waterfall.platform.database import Base, Database
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from sqlalchemy import Connection
     from sqlalchemy.sql import Executable
 
 pytestmark = pytest.mark.requirement("WF-DAT-0090-A")
@@ -51,15 +52,28 @@ class Parents:
     """What a row of a test names: a project, its current revision, its structures, a risk.
 
     The revision holds its main structure, a task of it bearing a node, and the own structure of
-    the risk; the reference a category.
+    the risk; the reference a category. A marked revision before it holds a node too, which no
+    evaluation of the current one names (``former_node``).
     """
 
     project: UUID
     revision: UUID
     risk: UUID
     structure: UUID
+    main: UUID
     node: UUID
+    former_node: UUID
     category: UUID
+
+
+def line_of(connection: Connection, project: UUID, revision: UUID, main: UUID) -> UUID:
+    """Write a task of a structure bearing a line, its node; give the node."""
+    task = insert_task(connection, project, revision, main)
+    node = node_row(project, revision, main, parent_id=task, kind="estimate_line")
+    connection.execute(insert(Node).values(**node))
+    node_id = node["id"]
+    assert isinstance(node_id, UUID)
+    return node_id
 
 
 @pytest.fixture
@@ -67,22 +81,25 @@ def parents(database: Database, owner: Engine) -> Iterator[Parents]:
     """Write the parents of the rows a test tries, around the service."""
     del database
     with projects_with_partitions(owner) as (project,):
-        revision, risk, own = (uuid4() for _ in range(3))
+        former, revision, risk, own, main, former_main = (uuid4() for _ in range(6))
         with owner.begin() as connection:
             category = write_reference(connection).category
+            connection.execute(insert_revision(project, id=former))
+            connection.execute(insert_structure(project, former, id=former_main))
+            former_node = line_of(connection, project, former, former_main)
+            connection.execute(
+                update(Revision)
+                .where(Revision.id == former)
+                .values(**{**MARKED, "version_name": "v0.9"})
+            )
             connection.execute(insert_revision(project, id=revision))
-            main = uuid4()
             connection.execute(insert_structure(project, revision, id=main))
-            task = insert_task(connection, project, revision, main)
-            node = node_row(project, revision, main, parent_id=task, kind="estimate_line")
-            connection.execute(insert(Node).values(**node))
+            node = line_of(connection, project, revision, main)
             connection.execute(insert(Risk).values(**risk_row(project, id=risk)))
             connection.execute(
                 insert_structure(project, revision, id=own, kind="risk", risk_id=risk)
             )
-        node_id = node["id"]
-        assert isinstance(node_id, UUID)
-        yield Parents(project, revision, risk, own, node_id, category)
+        yield Parents(project, revision, risk, own, main, node, former_node, category)
 
 
 def constraint_of(owner: Engine, error: IntegrityError) -> str:
@@ -129,8 +146,9 @@ def row(table: type[Base], parents: Parents, **overrides: object) -> Executable:
     return insert(table).values(**{**valid(table, parents), **overrides})
 
 
-# A value the parents hold, resolved when the test runs: the node of a line.
-NODE = "NODE"
+# A value the parents hold, resolved when the test runs: the node of a line, the node of a line of
+# the marked revision, the main structure.
+NODE, FORMER_NODE, MAIN = "NODE", "FORMER_NODE", "MAIN"
 
 type Refusal = tuple[type[Base], dict[str, object], str]
 
@@ -149,13 +167,21 @@ REFUSALS: list[Refusal] = [
     (Risk, {"label": " \t"}, "ck_risk_label_not_blank"),
     (Risk, {"lock_version": -1}, "ck_risk_lock_version_not_negative"),
     *stamped(Risk, changed=True),
-    (RiskEvaluation, {"risk_id": uuid4()}, "fk_risk_evaluation_project_id_risk"),
-    # The structure with its revision: an unknown one, or one of another revision, is refused.
+    # The structure with its revision and its risk: an unknown one, one of another revision, one
+    # of another risk — an unknown risk —, or one of another kind than risk, is refused.
+    (RiskEvaluation, {"risk_id": uuid4()}, "fk_risk_evaluation_project_id_cost_structure"),
     (RiskEvaluation, {"structure_id": uuid4()}, "fk_risk_evaluation_project_id_cost_structure"),
     (RiskEvaluation, {"revision_id": uuid4()}, "fk_risk_evaluation_project_id_cost_structure"),
+    (RiskEvaluation, {"structure_id": MAIN}, "fk_risk_evaluation_project_id_cost_structure"),
+    # The provision line with its revision: an unknown node, or one of another revision.
     (
         RiskEvaluation,
         {"state": "identified", "provision_node_id": uuid4()},
+        "fk_risk_evaluation_project_id_node",
+    ),
+    (
+        RiskEvaluation,
+        {"state": "identified", "provision_node_id": FORMER_NODE},
         "fk_risk_evaluation_project_id_node",
     ),
     (
@@ -208,7 +234,7 @@ REFUSALS: list[Refusal] = [
 
 def resolved(parents: Parents, overrides: dict[str, object]) -> dict[str, object]:
     """Give the changes of a refusal, the values the parents hold put in place."""
-    held = {NODE: parents.node}
+    held = {NODE: parents.node, FORMER_NODE: parents.former_node, MAIN: parents.main}
     return {
         column: held.get(value, value) if isinstance(value, str) else value
         for column, value in overrides.items()

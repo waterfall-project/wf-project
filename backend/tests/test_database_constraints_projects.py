@@ -392,8 +392,9 @@ def test_the_database_refuses_a_second_own_estimate_of_a_risk_in_a_revision(
 @pytest.mark.requirement("WF-DAT-0090-A")
 def test_every_named_constraint_of_the_projects_and_revisions_has_its_refusal_tried() -> None:
     # The unique indexes count, as the constraints do; what a key names — a revision with its
-    # project, a structure with its revision (EP-06), a subproject with its project (EP-07) — is
-    # unique as its key is, and is never broken without it.
+    # project, a structure with its revision (EP-06), a subproject with its project (EP-07), an
+    # own estimate with its revision and its risk (EP-08) — is unique as its key is, and is never
+    # broken without it.
     tables = [Base.metadata.tables[table.__tablename__] for table in TABLES]
     named = {
         str(constraint.name)
@@ -402,7 +403,12 @@ def test_every_named_constraint_of_the_projects_and_revisions_has_its_refusal_tr
         if constraint.name is not None and not str(constraint.name).startswith("pk_")
     } | {str(index.name) for table in tables for index in table.indexes if index.unique}
     tried = {MAIN, RISK} | {constraint for _, _, constraint in (*REFUSALS, *audit_refusals())}
-    named_by_a_key = {"uq_revision_project_id", "uq_cost_structure_project_id", "uq_subproject_id"}
+    named_by_a_key = {
+        "uq_revision_project_id",
+        "uq_cost_structure_project_id",
+        "uq_cost_structure_risk_id",
+        "uq_subproject_id",
+    }
     assert named - named_by_a_key == tried
 
 

@@ -334,8 +334,9 @@ REFUSALS: list[Refusal] = [
     (PastePlan, {"revision_id": uuid4()}, "fk_paste_plan_project_id_revision"),
     (PastePlan, {"user_account_id": uuid4()}, "fk_paste_plan_user_account_id_user_account"),
 ]
-# The constraints a key holds already, never broken without it: what a facet and a task name.
-UNBROKEN = {"uq_node_project_id", "uq_node_id"}
+# The constraints a key holds already, never broken without it: what a facet and a task name, and
+# what the evaluation of a risk names (EP-08).
+UNBROKEN = {"uq_node_project_id", "uq_node_id", "uq_node_revision_id"}
 UPLOAD = uuid4()
 
 
