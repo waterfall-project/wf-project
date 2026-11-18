@@ -477,9 +477,9 @@ def judged(
             session, (held.project_id, bearer), entry, current, locking=judging.locking
         )
         # Its amounts priced as its application prices them: a line that overflows is rejected here.
-        # A line left as it is is not written, so it is not priced: no rejection can reach it.
-        moved = current is not None and held.bearers[current.node_id] != task_id
-        if current is None or changed_columns(draft, current, moved=moved):
+        # A line left as it is, or only moved under another task, is not written, so not priced:
+        # the application moves it without writing its amounts, no rejection can reach it.
+        if current is None or changed_columns(draft, current, moved=False):
             held_line = None if current is None else current.node_id
             judged_amounts(session, (held.project_id, bearer, held_line), draft)
     except UnprocessableError as refusal:

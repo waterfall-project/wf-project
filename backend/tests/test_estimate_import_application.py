@@ -873,3 +873,22 @@ def test_a_labour_line_left_as_it_is_without_a_rate_is_not_rejected_with_a_line_
     applied_now(api, stage, worker, import_id)
     after = estimate_lines(tree.items())
     assert after[held["material"]["lineage_id"]][1]["quantity"] == "3"
+
+
+@pytest.mark.requirement("WF-DEV-0010-A")
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_labour_line_only_moved_without_a_rate_is_not_rejected_and_the_application_moves_it(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
+) -> None:
+    # #3827: the application moves a line only moved under its task without writing its amounts,
+    # so it is not priced at the analysis: its category having no rate, it is not rejected.
+    without_rates(stage)
+    rows = as_exported(held)
+    rows[0][0] = "2 Essais"
+    import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
+    found = read(api, stage, import_id)["report"]
+    assert found["rejected"] == []
+    assert [each["fields"] for each in found["differences"]] == [["parent"]]
+    applied_now(api, stage, worker, import_id)
+    task = estimate_lines(tree.items())[held["labour"]["lineage_id"]][0]
+    assert task == held["second"]["lineage_id"]
