@@ -91,6 +91,19 @@ generated from the contract, never written by hand — a hand-written mock drift
 longer validates anything. Their data sets are the numeric examples of the Vérif fields of the
 specification (WF-QUA-0020), at the volumes of §4.6.2.
 
+An example of an error — one whose value is the error envelope — receives the correlation
+identifier its name gives, without choosing it: its name is that of its file under
+`fixtures/api/`, without `.json`, and its identifier the prefix of the witness universe,
+`01926f3a-7c00-7000-8000-`, followed by the first twelve hexadecimal digits of the SHA-256 digest
+of that name (`correlation` of `tools/src/wftools/mockcorrelations.py`). Two lots drawn from the
+same epic branch therefore do not take the same one without giving two examples the same name,
+which a directory refuses; the next free number of a range, seen from the base of each branch, was
+taken twice and renumbered when the epic took them in (#1007). The examples of errors numbered by
+hand before the rule keep their identifier: their names are frozen in `NUMBERED`, in the same
+module, and none is added to it. A name whose identifier would fall in a family of identifiers of
+`tools/src/wftools/mockids.py` is changed. `tools/tests/test_mockcorrelations.py` holds the rule,
+and that no correlation identifier is carried by two examples.
+
 ## What the contract does not carry
 
 Part of the requirements have no API surface, and it is better that they have none:
