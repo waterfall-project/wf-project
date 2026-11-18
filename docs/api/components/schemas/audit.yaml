@@ -7,9 +7,10 @@ AuditAction:
     that WF-SEC-0030 lists, in its order — the creation of a project, the marking of a
     revision, the abandonment of a revision in progress (#1577), the designation of the
     reference revision, the merge of a differential (`structure_merge`, WF-REV-0050), the
-    abandonment of a differential that is not merged (`structure_abandon`, `deleteCostStructure`,
-    WF-REV-0100; conception of EP-08), the declaration of an occurred risk, the exit of a project from the life cycle, the exclusion
-    and the reinstatement of a cost line, the application of an import, the creation and the
+    abandonment of a differential that is not merged (`structure_abandon`,
+    `deleteCostStructure`, WF-REV-0100; conception of EP-08), the declaration of an occurred
+    risk, the exit of a project from the life cycle, the exclusion and the reinstatement of a
+    cost line, the application of an import, the creation and the
     modification of accounts — including their deactivation and their reactivation, their
     anonymisation (`user_anonymize`, WF-ADM-0060), and the link that sets a password, obtained
     or resent by email, without its token (`password_link_create`, `createPasswordSetupLink`
@@ -53,11 +54,10 @@ AuditObjectKind:
   description: >-
     The kind of the object an entry concerns: the project created or exited from the life
     cycle, the revision marked, abandoned or designated, the differential structure merged or
-    abandoned, the
-    occurred risk, the cost line excluded or reinstated, the import applied, the account, the
-    role, the backup taken or restored, and the upload of a backup copied outside the platform
-    that a restore puts back in place (`external_backup_upload`, the identifier of the upload,
-    `RestoreRequest.external_backup_upload_id`; WF-SEC-0030, WF-ADM-0160).
+    abandoned, the occurred risk, the cost line excluded or reinstated, the import applied, the
+    account, the role, the backup taken or restored, and the upload of a backup copied outside
+    the platform that a restore puts back in place (`external_backup_upload`, the identifier of
+    the upload, `RestoreRequest.external_backup_upload_id`; WF-SEC-0030, WF-ADM-0160).
   enum:
     - project
     - revision

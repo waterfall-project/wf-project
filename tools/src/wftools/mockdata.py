@@ -74,7 +74,6 @@ named example missing or outdated fails too.
 """
 
 import argparse
-import json
 import sys
 from collections import Counter
 from dataclasses import replace
@@ -110,6 +109,7 @@ from wftools import (
     mockproject,
     mockreference,
     mockrefusals,
+    mockrender,
     mockreview,
     mockrevisionminors,
     mockriskwrites,
@@ -307,7 +307,8 @@ def hourly_rate_grid() -> JsonObject:
 # --- The readings of the witness ------------------------------------------------------------
 
 _WIRING, _ACCEPTANCE, _LABOUR, _PROVISION = N.WIRING, N.FACTORY_ACCEPTANCE, N.LABOUR, N.PROVISION
-_DESKS, _RISK_OCCURRED = N.DESKS, N.MERGED
+_DESKS = N.DESKS
+_RISK_OCCURRED = N.MERGED
 _MILESTONE = "Réception usine"
 """The nodes of the core the readings and the dependencies are about (``mockwitness``)."""
 
@@ -715,7 +716,7 @@ def volumes() -> dict[str, JsonObject]:
             f"chiffrage, le projet témoin et l'offre en tête ; indices classés par les seuils "
             f"de {_amount(WATCH_THRESHOLD, 1)} et {_amount(ALERT_THRESHOLD, 1)}. La liste est "
             f"lue par un contributeur sans « consulter tous les projets » : chaque "
-            f"{_ORDINALS[UNOPENABLE_EVERY]} projet engendré, qu'il ne peut pas ouvrir, figure sous "
+            f"{_ordinal(UNOPENABLE_EVERY)} projet engendré, qu'il ne peut pas ouvrir, figure sous "
             f"son libellé et son code, sans lien (can_open faux), et compte dans les totaux "
             f"(WF-PTF-0030, WF-ADM-0110). La ligne du témoin est celle de ses indicateurs, toute "
             f"sa structure sommée.",
@@ -835,41 +836,15 @@ def _structure_summary(answer: JsonObject) -> str:
 
 
 _ORDINALS = {7: "septième", 9: "neuvième"}
-"""The ordinals the summaries write in words, by their number."""
 
 
-# The envelope of an example and its value are laid out; below them, one line per item.
-_EXPANDED_DEPTH = 2
-# Below them, an object that holds a list longer than this is laid out too, the list one line per
-# item, even within an item: a point of the portfolio matrix, a task of a role (#1053, #3181).
-_LONG_LIST = 50
+def _ordinal(value: int) -> str:
+    return _ORDINALS[value]
 
 
 def render(example: JsonObject) -> str:
-    """Return the text of an example: one line for each item of its lists, for readable diffs."""
-    return _render(example, 0) + "\n"
-
-
-def _render(value: JsonValue, depth: int) -> str:
-    indent = "  " * depth
-    inner = indent + "  "
-    if isinstance(value, list) and value:
-        items = ",\n".join(inner + _render(item, depth + 1) for item in value)
-        return f"[\n{items}\n{indent}]"
-    if isinstance(value, dict) and (depth < _EXPANDED_DEPTH or _holds_long_list(value)):
-        fields = ",\n".join(
-            f"{inner}{_compact(key)}: {_render(item, depth + 1)}" for key, item in value.items()
-        )
-        return f"{{\n{fields}\n{indent}}}"
-    return _compact(value)
-
-
-def _holds_long_list(value: JsonObject) -> bool:
-    return any(isinstance(item, list) and len(item) > _LONG_LIST for item in value.values())
-
-
-def _compact(value: JsonValue) -> str:
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    """Return the text of an example: one line for each item of its lists (``mockrender``)."""
+    return mockrender.render(example)
 
 
 def write(fixtures: Path) -> list[Path]:

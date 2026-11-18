@@ -80,6 +80,9 @@ def test_the_reestimate_of_the_occurred_is_beside_their_cost_and_out_of_the_vari
     }
     today, rows = mockcore.current(), mockhistory.reference_rows()
     assert variant == mockhistory.coverage(mockhistory.reestimated(today), rows)
+
+
+def test_the_reestimated_variant_is_declared_after_the_witness_it_varies() -> None:
     paths = cast("Entry", yaml.safe_load((CONTRACT / "paths" / "risks.yaml").read_text("utf-8")))
     answer = paths["/projects/{project_id}/risks/coverage"]["get"]["responses"]["200"]
     # The witness first, which the fake back serves; the variant declared after it.
