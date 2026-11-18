@@ -65,6 +65,7 @@ class EstimateFormat:
     header_length = HEADER_LENGTH
     judged_first = False
     scope: ImportScope = "structure"
+    reading = "estimate.read"
     permission = "estimate.write"
 
     def read_header(self, session: Session, head: bytes) -> None:

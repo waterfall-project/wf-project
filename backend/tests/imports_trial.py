@@ -66,6 +66,7 @@ class TrialFormat:
     """
 
     scope: ImportScope = "structure"
+    reading: str = "remaining.read"
     permission: str = "remaining.write"
     header_length: int = len(HEAD)
     judged_first: bool = False
