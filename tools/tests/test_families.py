@@ -92,6 +92,12 @@ def reached(targets: list[str]) -> tuple[set[str], set[str]]:
         f"tools/src/wftools/{tool}.py"
         for tool in re.findall(r"launch\.py (\w+)", expand(_recipes(rules, seen), variables))
     }
+    # A target given its variables by `slot-export` asks the register of the slots for them
+    # (`launch.py slots which --variables`), which is no line of a recipe.
+    text = re.sub(r"\\\n", " ", (REPOSITORY / "Makefile").read_text(encoding="utf-8"))
+    for names in re.findall(r"^\$\(call slot-export,([^,]+),", text, flags=re.MULTILINE):
+        if seen & set(names.split()):
+            launched |= {"tools/src/wftools/launch.py", "tools/src/wftools/slots.py"}
     return modules, scripts | launched
 
 
@@ -175,7 +181,7 @@ def mounted() -> list[str]:
     """Return what compose.service.yaml mounts read-only from the repository."""
     compose = REPOSITORY / "deploy" / "compose"
     text = (compose / "compose.service.yaml").read_text(encoding="utf-8")
-    found = re.findall(r"^\s*- (\.{1,2}/[^:\s]+):[^:\s]+:ro\s*$", text, flags=re.MULTILINE)
+    found = re.findall(r"^\s*- (\.{1,2}/[^:\s]+):[^:\s]+:ro\b[^\n]*$", text, flags=re.MULTILINE)
     return sorted(
         (compose / name).resolve().relative_to(REPOSITORY.resolve()).as_posix() for name in found
     )
@@ -198,6 +204,7 @@ def test_what_the_service_platform_mounts_wakes_a_family_that_starts_it() -> Non
     assert missing == []
 
 
+@pytest.mark.story("US-2480")
 def test_each_family_wakes_on_its_workflows_and_the_local_actions_they_take() -> None:
     declaration = paths.read()
     missing: list[str] = []
@@ -230,6 +237,8 @@ def test_the_reading_sees_what_it_must() -> None:
     # The scripts run by `python3 $(CURDIR)/…`, and the tools the launcher runs.
     launched = reached(["check-back"])[1]
     assert {"tools/src/wftools/launch.py", "tools/src/wftools/slots.py"} <= launched
+    for target in ("check-service", "check-keycloak", "check-front-image"):
+        assert {"tools/src/wftools/launch.py", "tools/src/wftools/slots.py"} <= reached([target])[1]
     assert {
         "deploy/compose/garage.toml",
         "deploy/compose/storage-buckets.sh",

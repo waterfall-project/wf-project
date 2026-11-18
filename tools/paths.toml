@@ -188,6 +188,9 @@ paths = [
     ".github/workflows/keycloak.yml",
     ".github/actions/**",
     "tools/src/wftools/codecoverage.py",
+    # The launcher and the slots that give build-keycloak its variables.
+    "tools/src/wftools/launch.py",
+    "tools/src/wftools/slots.py",
     # The plugin that fails a test which skips undeclared, which both conftest.py load (US-2440).
     "tools/src/wftools/unexecuted.py",
     "tools/src/wftools/marks.py",
@@ -251,7 +254,7 @@ paths = [
     "deploy/compose/service-database-role.sql",
     "deploy/compose/backup-database-role.sql",
     "deploy/compose/waterfall-database.sql",
-    # The launcher the Makefile starts the slots by, and the slots that run the trial (PLC-06).
+    # The launcher the Makefile starts the slots by, and the slot guard of production-trial (PLC-06).
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",
     "tools/src/wftools/production.py",
@@ -321,6 +324,9 @@ paths = [
     ".github/actions/**",
     "tools/src/wftools/frontimage.py",
     "tools/src/wftools/images.py",
+    # The launcher and the slots that give check-front-image its variables.
+    "tools/src/wftools/launch.py",
+    "tools/src/wftools/slots.py",
 ]
 target = "check-front-image"
 
