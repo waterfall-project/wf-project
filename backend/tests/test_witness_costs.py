@@ -319,7 +319,8 @@ REMAINING_APART = {
     "/by_subproject[]/is_over_budget",
     "/by_subproject[]/zone",
     "/delta_to_reference",
-    # The provisions of the revision in progress and of the review before (EP-08).
+    # The provisions of the revision in progress and of the revision marked before, the offer
+    # when it is alone (EP-08).
     "/delta_to_previous_revision",
     # The coverage of the risks, at nought without a risk (EP-08).
     "/coverage/reserve",

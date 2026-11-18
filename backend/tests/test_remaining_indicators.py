@@ -5,9 +5,10 @@
 ``getRemainingIndicators`` on a project In progress (``remaining_support``): a reference of three
 sets — the cabling, the tests and what no subproject bears — budgeted 1 000, 500 of actual cost
 imported, a review marked In progress at 600 and a current revision at 550. The total and its
-ventilation, the margin on the reference and the difference with the review before, the margin and
-the zone of each subproject, the absent deltas, the revision read, the coverage at nought. The
-margins of the module run without a base. Every answer is checked against the contract.
+ventilation, the margin on the reference and the difference with the revision marked before (the
+offer when it is alone), the margin and the zone of each subproject, the absent deltas, the
+revision read, the coverage at nought. The margins of the module run without a base. Every answer
+is checked against the contract.
 
 The socle (US-1580/L1) fixed the results EP-10 reads, which the first test keeps.
 """
@@ -304,8 +305,8 @@ def test_budget_1000_cost_500_remaining_550_give_a_margin_of_minus_50_and_a_diff
     api: ContractClient, stage: Scene, reviewed: Tree
 ) -> None:
     # « Sur un projet de budget 1 000, de coût réel 500 et de reste à engager 550, la marge sur le
-    # budget vaut - 50 ; un reste à engager passé de 600 à 550 depuis la revue précédente donne un
-    # écart de - 50. » The review before is the revision marked In progress at 600.
+    # budget vaut - 50 ; un reste à engager passé de 600 à 550 depuis la révision marquée
+    # précédente donne un écart de - 50. » The revision marked before is the one In progress at 600.
     body = indicators(api, stage)
     assert (body["total"], body["delta_to_reference"]) == ("550.00", "-50.00")
     assert body["delta_to_previous_revision"] == "-50.00"
@@ -393,7 +394,6 @@ def test_the_revision_before_one_whose_only_predecessor_is_the_offer_is_the_offe
     body = indicators(api, stage)
     assert body["delta_to_previous_revision"] == "0.00"
     assert body["delta_to_reference"] == "-500.00"
-    assert body["delta_to_reference"] == "-500.00"
     assert body["total"] == "1000.00"
 
 
@@ -418,10 +418,10 @@ def test_the_estimate_and_the_remaining_name_the_offer_as_the_revision_before_th
         indicators(api, stage, offer)["total"]
     )
     assert body["delta_to_previous_revision"] == "-100.00"
+    assert estimates["current"]["delta_to_previous_revision"] is not None
     assert D(estimates["current"]["delta_to_previous_revision"]["value"]) == D(
         estimates["current"]["total"]["value"]
     ) - D(estimates["offer"]["total"]["value"])
-    assert estimates["current"]["delta_to_previous_revision"] is not None
 
 
 @pytest.mark.requirement("WF-RAE-0020-A")
