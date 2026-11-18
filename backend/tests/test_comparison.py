@@ -1,10 +1,11 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The comparison of two revisions of a project (US-1530).
+"""The comparison of two revisions of a project (US-1530; US-2320).
 
-``compareRevisions`` reads two marked revisions matched by lineage, as ``listNodes`` reads a
-structure: the tree of the compared one in the order of the plan, each node marked, the removed
-ones at the place they had, read-only; the totals and the meta of the compared one; and the
+``compareRevisions`` reads two revisions matched by lineage, as ``listNodes`` reads a structure:
+the tree of the compared one in the order of the plan, each node marked on every value it carries
+(``other`` for one WF-REV-0080 does not name, US-2320), the removed ones at the place they had,
+read-only; the totals and the meta of the compared one; and the
 differences of the amounts by nature and by subproject, each line under the key it carries in each
 revision (#1751). A first revision — two summary tasks, three tasks under them and one beside, a
 line under each — is marked; the next one, copied from it, changes a line's subproject, another's
@@ -26,7 +27,7 @@ from estimate_support import YEAR, Costing, Lines, costing
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from nodes_support import Tree, faults, opened, refusal, set_progress
-from projects_support import PROJECTS, Scene, create
+from projects_support import PROJECTS, Scene, create, designate
 from projects_support import scene as make_scene
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
@@ -246,15 +247,20 @@ def test_the_tree_of_the_compared_revision_is_marked_node_by_node_the_removed_on
     # The tree of the compared revision in the order of the plan, each node marked by lineage: a
     # line by its amounts, its subproject or its category; a task added with its line; the task
     # deleted and its line at the place they had, last, read-only; the summaries whose content
-    # changes modified, their own values unchanged.
+    # changes modified, by their amounts (``other``, US-2320) or by their content alone.
     found = compared(api, stage, revisions(pair))
     assert marks(found) == [
-        ("Études", 1, "modified", []),
+        ("Études", 1, "modified", ["other"]),
         ("Conception", 2, "modified", []),
         ("Conception — Ingénieur", 3, "modified", ["subproject"]),
-        ("Installation", 1, "modified", []),
-        ("Montage", 2, "modified", []),
-        ("Montage — Ingénieur", 3, "modified", ["budgeted_amount", "reestimated_amount"]),
+        ("Installation", 1, "modified", ["other"]),
+        ("Montage", 2, "modified", ["other"]),
+        (
+            "Montage — Ingénieur",
+            3,
+            "modified",
+            ["budgeted_amount", "reestimated_amount", "other"],
+        ),
         ("Plans", 2, "modified", ["parent"]),
         ("Tirages", 3, "modified", ["cost_category"]),
         ("Câblage", 2, "added", []),
@@ -293,7 +299,7 @@ def test_a_task_is_modified_by_its_dates_its_duration_and_its_state(
     api: ContractClient, stage: Scene, costs: Costing
 ) -> None:
     # « pour une tâche, ses dates, sa durée, son état et son parent » : a task lengthened and
-    # started between the two revisions, the other untouched.
+    # started between the two revisions, the other untouched; the base of what differs (US-2320).
     offer = opened(api, stage)
     tree = Tree(api, stage, offer)
     longer = tree.made("Câblage")
@@ -307,8 +313,21 @@ def test_a_task_is_modified_by_its_dates_its_duration_and_its_state(
     set_progress(stage, nodes["Câblage"]["node_id"], "started", date(2026, 11, 2))
     mark(stage, amendment, "v2.0")
     found = by_label(compared(api, stage, (offer, amendment))["items"])
-    assert found["Câblage"]["changes"] == ["dates", "duration", "progress"]
-    assert (found["Essais"]["difference"], found["Essais"]["changes"]) == ("unchanged", [])
+    # Its date of start entered is no value WF-REV-0080 names: ``other`` (US-2320).
+    assert found["Câblage"]["changes"] == ["dates", "duration", "progress", "other"]
+    assert found["Câblage"]["base"] == {
+        "task": {
+            "duration": {"value": "1", "unit": "d"},
+            "finish": {"date": "2026-11-02", "hours": "8"},
+            "progress": "not_started",
+            "started_on": None,
+        }
+    }
+    # The other, untouched, gains the float the longer task gives the project: a value it carries.
+    assert (found["Essais"]["changes"], found["Essais"]["base"]) == (
+        ["other"],
+        {"task": {"total_float": {"value": "0", "unit": "d"}, "is_critical": True}},
+    )
     # Its line, at the same amounts, its hours spread over the same year: unchanged.
     assert (
         found["Câblage — Ingénieur"]["difference"],
@@ -357,8 +376,12 @@ def test_the_predecessors_are_numbered_in_the_union_a_removed_task_naming_the_co
     mark(stage, amendment, "v2.0")
     found = compared(api, stage, (offer, amendment))
     nodes = by_label(found["items"])
+    # Its successor removed, « Préparation » loses its float: a value it carries (US-2320).
+    assert nodes["Préparation"]["base"] == {
+        "task": {"total_float": {"value": "0", "unit": "d"}, "is_critical": True}
+    }
     assert [(label_of(each), each["difference"]) for each in found["items"]] == [
-        ("Préparation", "unchanged"),
+        ("Préparation", "modified"),
         ("Essais", "removed"),
         ("Recette", "unchanged"),
         ("Clôture", "unchanged"),
@@ -504,8 +527,8 @@ def test_a_key_whose_two_differences_are_nought_is_left_out(
     found = compared(api, stage, (offer, amendment))
     assert found["amount_deltas"] == []
     assert marks(found) == [
-        ("Câblage", 1, "modified", []),
-        ("Essais", 1, "modified", []),
+        ("Câblage", 1, "modified", ["other"]),
+        ("Essais", 1, "modified", ["other"]),
         ("Câbles", 2, "modified", ["parent"]),
     ]
 
@@ -579,8 +602,10 @@ def test_between_two_reference_years_only_the_re_estimated_amounts_differ_by_the
     line = by_label(found["items"])["Câblage — Ingénieur"]
     assert before["budgeted_amount"] == after["budgeted_amount"]
     assert before["reestimated_amount"] != after["reestimated_amount"]
-    assert (line["difference"], line["changes"]) == ("modified", ["reestimated_amount"])
-    assert by_label(found["items"])["Câblage"]["changes"] == []
+    # Labour: its amount at the rates of the reference year moves with the rate (``other``).
+    assert (line["difference"], line["changes"]) == ("modified", ["reestimated_amount", "other"])
+    assert set(line["base"]["estimate_line"]) == {"base_amount", "reestimated_amount"}
+    assert by_label(found["items"])["Câblage"]["changes"] == ["other"]
     moved = Decimal(after["reestimated_amount"]) - Decimal(before["reestimated_amount"])
     assert deltas(found) == {
         ("cost_type", "Main-d'œuvre"): ("0.00", str(moved)),
@@ -657,7 +682,7 @@ def test_difference_keeps_the_marks_named_their_ancestors_and_their_amounts_alon
     # ancestors; the differences of amounts of the lines it retains alone.
     found = compared(api, stage, revisions(pair), "&difference=added,removed")
     assert marks(found) == [
-        ("Installation", 1, "modified", []),
+        ("Installation", 1, "modified", ["other"]),
         ("Câblage", 2, "added", []),
         ("Câbles", 3, "added", []),
         ("Réception", 1, "removed", []),
@@ -754,8 +779,12 @@ def test_kinds_search_fields_and_a_column_filter_read_the_comparison_as_list_nod
         "task",
         "difference",
         "changes",
+        "base",
+        "deltas",
     }
     assert first["task"] == {"label": "Études"}
+    # Its base and their differences, its amounts, reduced to the fields read: none (US-2320).
+    assert (first["changes"], first["base"], first["deltas"]) == (["other"], {}, {})
     inverted = comparison(
         api, stage, revisions(pair), "&reestimated_amount_min=10&reestimated_amount_max=5"
     )
@@ -933,7 +962,7 @@ def test_a_subtree_read_with_difference_added_keeps_its_ancestors_as_they_are_ma
     site = nodes["Installation"]["node_id"]
     added = compared(api, stage, revisions(pair), f"&subtree_of={site}&difference=added")
     assert marks(added) == [
-        ("Installation", 1, "modified", []),
+        ("Installation", 1, "modified", ["other"]),
         ("Câblage", 2, "added", []),
         ("Câbles", 3, "added", []),
     ]
@@ -943,24 +972,24 @@ def test_a_subtree_read_with_difference_added_keeps_its_ancestors_as_they_are_ma
 
 
 @pytest.mark.requirement(REQUIREMENT)
-def test_the_current_revision_is_refused_and_one_of_another_project_is_not_found(
+def test_a_current_base_is_refused_and_a_revision_of_another_project_is_not_found(
     api: ContractClient, stage: Scene, costs: Costing
 ) -> None:
-    # Two marked revisions only: the current one, which still changes under its reader, refused
-    # by its missing condition, on either side (409); a revision of another project, or unknown,
-    # not found (404).
+    # « Une révision en cours prise pour base est refusée. » : the current revision, which still
+    # changes under its reader, refused for base by its missing condition (409), nothing read; read
+    # against a marked base, compared (US-2320). A revision of another project, or unknown, not
+    # found (404).
     offer = opened(api, stage)
     tree = Tree(api, stage, offer)
     Lines(tree).made(tree.made("Câblage"), **labour(costs, "Câblage — Ingénieur"))
     mark(stage, offer, "v1.0")
     current = opened(api, stage)
-    for pair in ((offer, current), (current, offer)):
-        status, code, params = refusal(comparison(api, stage, pair))
-        assert (status, code, params) == (
-            409,
-            "STATE_FORBIDS_OPERATION",
-            {"missing_condition": "revision_marked"},
-        )
+    assert refusal(comparison(api, stage, (current, offer))) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "revision_marked"},
+    )
+    assert comparison(api, stage, (offer, current)).status_code == 200
     other = create(api, stage.manager, label="Extension")
     answer = api.post(
         f"{PROJECTS}/{other['project_id']}/revisions", headers=stage.manager.headers, json={}
@@ -969,27 +998,3 @@ def test_the_current_revision_is_refused_and_one_of_another_project_is_not_found
     foreign = answer.json()
     for pair in ((offer, foreign), (foreign, offer), (offer, {"revision_id": str(uuid4())})):
         assert refusal(comparison(api, stage, pair))[:2] == (404, "NOT_FOUND")
-
-
-@pytest.mark.requirement(REQUIREMENT)
-def test_the_comparison_is_read_under_the_permission_to_consult_the_estimate(
-    api: ContractClient, stage: Scene, pair: Pair
-) -> None:
-    # A contributor of the project compares; an account that is none of its contributors does not
-    # see the project (404).
-    query = (
-        f"?from_revision_id={pair.offer['revision_id']}"
-        f"&to_revision_id={pair.amendment['revision_id']}"
-    )
-    path = f"{PROJECTS}/{stage.project['project_id']}/revisions/comparison{query}"
-    assert api.get(path, headers=stage.participant.headers).status_code == 200
-    assert api.get(path, headers=stage.outsider.headers).status_code == 404
-
-
-def designate(api: ContractClient, stage: Scene, revision: dict[str, Any]) -> None:
-    """Designate a marked revision the reference, as the manager does, confirmed."""
-    path = f"{PROJECTS}/{stage.project['project_id']}"
-    held = api.get(path, headers=stage.manager.headers).json()["lock_version"]
-    sent = {"revision_id": revision["revision_id"], "confirmed": True, "lock_version": held}
-    answer = api.put(f"{path}/reference-revision", headers=stage.manager.headers, json=sent)
-    assert answer.status_code == 200, answer.text

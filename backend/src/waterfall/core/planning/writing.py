@@ -45,9 +45,9 @@ from waterfall.core.history import interface as history
 from waterfall.core.history.interface import RecordedChange, Recording, UndoStack
 from waterfall.core.planning.dating import conflicts_of
 from waterfall.core.planning.interface.facets import (
-    RepricedBeyondColumnError,
     calendars_of,
     facets,
+    refused_at,
 )
 from waterfall.core.planning.rescheduling import Blamed, Holding, Named, replayed
 from waterfall.core.planning.snapshotting import taken
@@ -74,7 +74,6 @@ from waterfall.platform.errors import (
     NOT_FOUND,
     STATE_FORBIDS_OPERATION,
     ConflictError,
-    FieldError,
     NotFoundError,
 )
 
@@ -301,13 +300,8 @@ class Write:
         )
         priced = (*repriced, *self.touched)
         held = Holding(self.facts, named, self.conflicts, priced, self.tree)
-        try:
+        with refused_at(entered):
             redated = redated_structure(self.session, self.place, self.writer.act, held)
-        except RepricedBeyondColumnError as refused:
-            if refused.fields or not entered:
-                raise
-            fields = tuple(FieldError(pointer, refused.code) for pointer in entered)
-            raise RepricedBeyondColumnError(refused.code, refused.params, fields) from None
         self._tree = redated.reading.tree
         return redated
 

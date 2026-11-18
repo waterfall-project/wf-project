@@ -12,12 +12,18 @@
  * openings of the journey — the planning by its address, then the estimate, the remaining to commit
  * and the planning again by the navigation —; to filter, sort or search, the three gestures on the
  * estimate; to recompute after an entry, the duration that redates its task — the label entered
- * before it recomputes nothing —; the workload, the projection of expenses and the indicators of
- * the current revision (`project-screens.ts`), each screen opened by the navigation. The three
- * background tasks are read at their task, from its submission to its end. Each pass gives a value
- * per operation, the median of its samples within the pass; the median and the worst are those of
- * every sample, and the dispersion the standard deviation of the sample (n - 1) of the values of the
- * passes, which `measures.py` names so: what a difference must exceed to be a gain.
+ * before it recomputes nothing —; to open a grid compared to a marked revision (EP-27), the four
+ * openings of the grids compared to the reference — the planning by the base chosen in the banner,
+ * then the estimate, the remaining to commit and the planning again by the navigation —; to
+ * recompute in a grid compared, the duration entered anew there, until its marks are read anew;
+ * the estimate compared is opened sorted, as the account keeps the sort of the step before
+ * (`steps.ts`);
+ * the workload, the projection of expenses and the indicators of the current revision
+ * (`project-screens.ts`), each screen opened by the navigation. The three background tasks are read
+ * at their task, from its submission to its end. Each pass gives a value per operation, the median
+ * of its samples within the pass; the median and the worst are those of every sample, and the
+ * dispersion the standard deviation of the sample (n - 1) of the values of the passes, which
+ * `measures.py` names so: what a difference must exceed to be a gain.
  */
 import type { Refusal } from "./load-check";
 import { median } from "./report";
@@ -36,9 +42,9 @@ export const TABLE: readonly Line[] = [
   { id: "recompute-after-entry", objective: 1 },
   { id: "indicators", objective: 1 },
   { id: "portfolio-view", objective: 2, unserved: "EP-11" },
-  { id: "open-compared-grid", objective: 2, unserved: "EP-27" },
+  { id: "open-compared-grid", objective: 2 },
   { id: "filter-sort-search", objective: 2 },
-  { id: "recompute-compared", objective: 2, unserved: "EP-27" },
+  { id: "recompute-compared", objective: 2 },
   { id: "workload-or-projection", objective: 2 },
   { id: "mark-revision", objective: 60 },
   { id: "import-costs", objective: 300 },
@@ -55,6 +61,11 @@ export const OPERATION_OF_STEP: Readonly<Record<string, string>> = {
   "estimate.sort": "filter-sort-search",
   "estimate.search": "filter-sort-search",
   "planning.duration": "recompute-after-entry",
+  "planning.compared": "open-compared-grid",
+  "estimate.compared-from-planning": "open-compared-grid",
+  "remaining.compared-from-estimate": "open-compared-grid",
+  "planning.compared-from-remaining": "open-compared-grid",
+  "planning.compared-duration": "recompute-compared",
   "workload.from-planning": "workload-or-projection",
   "spending.from-workload": "workload-or-projection",
   "indicators.from-spending": "indicators",

@@ -458,65 +458,59 @@ export default async function RisksPage({
   const folded = kept?.display_preferences?.charts?.risk_matrix?.folded ?? true;
   const drawing = startReading(matrixOf({ coverage, reading: read, matrix, folded }));
   return (
-    <>
+    // The banner, the filter, the grid and the links compose the changes they make to the address.
+    <PendingAddress>
       <ContextBanner reading={read} />
-      {/* The filter, the grid and the links compose the changes they make to the address. */}
-      <PendingAddress>
-        <Screen density={FUNCTION_DENSITY.risks} fillWide>
-          <RisksHeader
-            count={risks.kind === "read" ? risks.page.total : 0}
-            actions={
-              <IdentifyRisk
-                projectId={at.revision.projectId}
-                offer={offer}
-                options={choices}
-                estimate={estimate}
-              />
-            }
-          />
-          <MockupNotice lists />
-          <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
-            <FiguresGrid className="min-w-0 grow basis-[40rem]">
-              {risks.kind === "read" ? <ProvisionSummary totals={risks.totals} /> : null}
-              <Suspense fallback={<RiskCoverageLoading />}>
-                <Streamed content={figures} />
-              </Suspense>
-            </FiguresGrid>
-          </div>
-          <Suspense fallback={<RiskMatrixLoading folded={folded} />}>
-            <Streamed content={drawing} />
-          </Suspense>
-          {/* The detail of a risk, beside the grid, keeps the height to read it in: the window too
+      <Screen density={FUNCTION_DENSITY.risks} fillWide>
+        <RisksHeader
+          count={risks.kind === "read" ? risks.page.total : 0}
+          actions={
+            <IdentifyRisk
+              projectId={at.revision.projectId}
+              offer={offer}
+              options={choices}
+              estimate={estimate}
+            />
+          }
+        />
+        <MockupNotice lists />
+        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+          <FiguresGrid className="min-w-0 grow basis-[40rem]">
+            {risks.kind === "read" ? <ProvisionSummary totals={risks.totals} /> : null}
+            <Suspense fallback={<RiskCoverageLoading />}>
+              <Streamed content={figures} />
+            </Suspense>
+          </FiguresGrid>
+        </div>
+        <Suspense fallback={<RiskMatrixLoading folded={folded} />}>
+          <Streamed content={drawing} />
+        </Suspense>
+        {/* The detail of a risk, beside the grid, keeps the height to read it in: the window too
               low for the chart, the grid and the detail scrolls the page. */}
-          <div
-            className={`flex flex-col gap-4 lg:flex-1 lg:flex-row ${detail === undefined ? "lg:min-h-0" : "lg:min-h-96"}`}
-          >
-            <div className="flex min-w-0 flex-col gap-2 lg:min-h-0 lg:flex-1">
-              <RisksBlock
-                risks={risks}
-                query={query}
-                preferences={preferences}
-                originGrid={occurredGrid}
-                states={states}
-                filters={filters}
-                lastMarkedOn={marked}
-                panel={
-                  <RiskFilterPanel
-                    states={states}
-                    filters={filters}
-                    fields={refusedFields(risks)}
-                  />
-                }
-              />
-            </div>
-            {detail === undefined ? null : (
-              <aside className="flex shrink-0 flex-col gap-4 lg:w-96 lg:overflow-y-auto">
-                <RiskDetail {...detail} projectId={at.revision.projectId} options={choices} />
-              </aside>
-            )}
+        <div
+          className={`flex flex-col gap-4 lg:flex-1 lg:flex-row ${detail === undefined ? "lg:min-h-0" : "lg:min-h-96"}`}
+        >
+          <div className="flex min-w-0 flex-col gap-2 lg:min-h-0 lg:flex-1">
+            <RisksBlock
+              risks={risks}
+              query={query}
+              preferences={preferences}
+              originGrid={occurredGrid}
+              states={states}
+              filters={filters}
+              lastMarkedOn={marked}
+              panel={
+                <RiskFilterPanel states={states} filters={filters} fields={refusedFields(risks)} />
+              }
+            />
           </div>
-        </Screen>
-      </PendingAddress>
-    </>
+          {detail === undefined ? null : (
+            <aside className="flex shrink-0 flex-col gap-4 lg:w-96 lg:overflow-y-auto">
+              <RiskDetail {...detail} projectId={at.revision.projectId} options={choices} />
+            </aside>
+          )}
+        </div>
+      </Screen>
+    </PendingAddress>
   );
 }

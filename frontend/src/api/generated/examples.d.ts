@@ -135,7 +135,7 @@ export interface Examples {
     200: "revisions" | "revisions_designation_open" | "revisions_empty" | "revisions_marked" | "revisions_project_created";
   };
   "GET /projects/{project_id}/revisions/comparison": {
-    200: "comparison" | "comparison_differences" | "comparison_identical" | "comparison_moved" | "volume/comparison_volume";
+    200: "comparison" | "comparison_current" | "comparison_differences" | "comparison_identical" | "comparison_moved" | "comparison_planning" | "volume/comparison_volume";
   };
   "GET /projects/{project_id}/revisions/{revision_id}": {
     200: "revision" | "revision_completed_project" | "revision_estimator" | "revision_importing" | "revision_marked" | "revision_marked_merge_offered" | "revision_marking" | "revision_offer" | "revision_rate_update_offered" | "revision_reader" | "revision_without_tasks";

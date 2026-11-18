@@ -106,10 +106,12 @@ describe("the task the address of the planning targets", () => {
     expect(labels()).toContain("Relance du fournisseur");
     expect(labelCell("Relance du fournisseur")).toHaveFocus();
     expect(labelCell("Relance du fournisseur")).toHaveAttribute("tabindex", "0");
-    // The unfolding is kept: the session finds the tree as the link left it.
+    // The unfolding is kept: the session finds the tree as the link left it, and the folding of
+    // the rows without difference (US-2360) as it was, off.
     expect(JSON.parse(window.sessionStorage.getItem(KEPT) ?? "{}")).toEqual({
       collapsed: [],
       revealed: "",
+      differences: { on: false, opened: [] },
     });
   });
 

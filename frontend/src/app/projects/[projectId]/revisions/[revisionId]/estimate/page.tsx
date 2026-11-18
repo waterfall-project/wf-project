@@ -344,6 +344,7 @@ export default async function EstimatePage({
         reading={screen.reading}
         restricts={RESTRICTS}
         structure={screen.structures}
+        base={screen.base}
         breakdown={breakdownChip(screen.breakdownFilter, screen.breakdown?.items)}
         difference={screen.difference}
       />
@@ -384,6 +385,7 @@ export default async function EstimatePage({
             query={screen.query}
             preferences={screen.preferences}
             differential={screen.kind === "amendment"}
+            comparing={screen.base?.chosen !== undefined}
             origins={originNames(screen.origin)}
             treeFilters={
               <TreeFilters

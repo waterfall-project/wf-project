@@ -227,6 +227,18 @@
       "description": "Description",
       "physicalProgress": "Physical progress",
       "gantt": "Gantt",
+      "deltaStartDate": "Start difference",
+      "deltaFinishDate": "Finish difference",
+      "deltaStartedOn": "Started-on difference",
+      "deltaCompletedOn": "Completed-on difference",
+      "deltaDuration": "Duration difference",
+      "deltaTotalFloat": "Float difference",
+      "deltaUnitDisbursement": "Unit disbursement difference",
+      "deltaBudgetedAmount": "Budgeted amount difference",
+      "deltaReferenceAmount": "Reference amount difference",
+      "deltaReestimatedAmount": "Re-estimated amount difference",
+      "deltaPreviousUnitDisbursement": "Previous unit disbursement difference",
+      "deltaPreviousReestimatedAmount": "Previous re-estimated difference",
       "updatedAt": "Last modified",
       "createdAt": "Created",
       "createdBy": "Created by",
@@ -252,6 +264,26 @@
       "total": "Total"
     },
     "computed": "Computed",
+    "compared": {
+      "base": "Base:",
+      "delta": "Difference:",
+      "totalsBase": "Base: {caption}",
+      "totalsDelta": "Difference: {caption}",
+      "empty": "no value",
+      "days": "{days} d",
+      "amountDeltas": {
+        "command": "Amount deviations",
+        "title": "Amount deviations to the base",
+        "description": "The budgeted and re-estimated amounts of the revision read minus those of the base, by cost type and by sub-project, on the lines the grid retains.",
+        "empty": "No amount deviation.",
+        "dimension": "Axis",
+        "key": "Item",
+        "budgeted": "Budgeted deviation",
+        "reestimated": "Re-estimated deviation",
+        "unnamed": "Unnamed",
+        "close": "Close"
+      }
+    },
     "entry": {
       "none": "None",
       "codedChoice": "{code} — {label}",
@@ -275,6 +307,10 @@
     "differenceFilter": {
       "label": "Differences only",
       "help": "Keep only the rows the amendment adds, removes or modifies."
+    },
+    "differenceFold": {
+      "run": "{count, plural, one {# row without difference folded} other {# rows without difference folded}}",
+      "help": "Fold the rows that do not differ from the base; each folded run unfolds in its place. Nothing is taken out of the totals."
     },
     "breakdownFilter": {
       "label": "Work package or order item",
@@ -964,9 +1000,16 @@
     "differences": "Differences: {values}",
     "computedOn": "Revision of the calculation",
     "structure": "Structure",
+    "chooseRevision": "Change the revision, “{revision}” read",
+    "referenceOption": "{name} (reference)",
     "chooseStructure": "Change the structure, “{structure}” read",
     "mergedStructure": "{label} (merged)",
     "unnamedRevision": "unnamed",
+    "base": "Comparison base",
+    "comparedTo": "Compared to “{base}”",
+    "chooseBase": "Choose a comparison base",
+    "changeBase": "Change the base, “{base}” compared",
+    "liftBase": "Lift the comparison with “{base}”",
     "removeFilter": "Remove the filter “{filter}”",
     "restricts": {
       "grid": "{filter}, on the grid only",
@@ -1968,11 +2011,6 @@
         "help": "Column of the extraction the mapping declares kept, given back as it is: it enters no calculation."
       }
     },
-    "comparison": {
-      "changes": {
-        "help": "What changes of the node itself from one revision to the other, as the server names it: the dates, the duration, the progress or the parent of a task; the budgeted and re-estimated amounts, the payment delay or the parent of a line. Empty for a node added, removed or unchanged, and for a task modified by its content alone — a line or a subordinate that changes."
-      }
-    },
     "workloadDetail": {
       "label": {
         "help": "The resource role, then, under it, each task bearing one of its labour lines, ordered by start date, then in the order of the planning. The label of a task leads to its row in the planning grid of the revision the basis reads."
@@ -2125,11 +2163,10 @@
     "rateUpdate": {
       "label": "Apply the rate update",
       "statement": "The rates of the current revision are replaced by the proposed rates, for the categories retained; the amounts of its lines and of its totals are calculated anew. A marked revision keeps the rates it calculated.",
-      "categories": "Categories updated",
-      "change": "{category}: {previous} → {proposed}",
       "noneRetained": "Retain at least one category.",
       "submit": "Confirm the update",
-      "done": "{count, plural, one {The rates of # category are updated.} other {The rates of # categories are updated.}}"
+      "done": "{count, plural, one {The rates of # category are updated.} other {The rates of # categories are updated.}}",
+      "reading": "Reading the proposal…"
     }
   },
   "projectList": {
@@ -2334,32 +2371,10 @@
       "reference": "Reference",
       "notMarked": "Not marked",
       "open": "Open",
-      "openRevision": "Open the revision “{name}”"
-    },
-    "designation": {
-      "title": "Designation of the reference"
-    },
-    "comparison": {
-      "title": "Comparison of two revisions",
-      "needsTwo": "A comparison takes two marked revisions.",
-      "from": "From the revision",
-      "to": "To the revision",
-      "compare": "Compare",
-      "deltas": "Amount deviations",
-      "noDeltas": "No amount deviation.",
-      "dimension": "Axis",
-      "key": "Item",
-      "budgetedDelta": "Budgeted deviation",
-      "reestimatedDelta": "Re-estimated deviation",
-      "unnamed": "Unnamed"
-    },
-    "structures": {
-      "title": "Cost structures",
-      "none": "This revision has no cost structure.",
-      "kind": "Kind",
-      "label": "Label",
-      "state": "Status",
-      "merged": "Merged"
+      "openRevision": "Open the revision “{name}”",
+      "compare": "Compare to the revision read",
+      "compareRevision": "Compare to the revision read: “{name}”",
+      "commands": "Commands"
     },
     "rateUpdate": {
       "title": "Proposed rate update",
@@ -2369,7 +2384,8 @@
       "category": "Category",
       "previous": "Previous rate",
       "proposed": "Proposed rate",
-      "source": "Source"
+      "source": "Source",
+      "retained": "Kept"
     }
   },
   "exitProject": {
@@ -3698,7 +3714,8 @@
       "payment_delay_days": "Payment delay",
       "parent": "Parent",
       "subproject": "Subproject",
-      "cost_category": "Cost category"
+      "cost_category": "Cost category",
+      "other": "Other value"
     },
     "NodeDifference": {
       "added": "Added",

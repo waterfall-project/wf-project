@@ -34,6 +34,13 @@ vi.mock("@/api/server", () => ({
     return client;
   },
 }));
+// The address the choice of the revision in the banner reads, outside the router of the browser.
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => ({ push: () => undefined }),
+  usePathname: () => "/projects/p/revisions/r/workload",
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
 }));
@@ -134,12 +141,19 @@ describe("the screen of the workload of a project", () => {
       revision_id: MARKED,
       org_node_id: ORG_NODE,
     });
-    // Every marked revision is offered, whatever the server pages: the largest page, read whole.
-    expect(queryOf("GET /projects/{project_id}/revisions")).toEqual({
-      status: "marked",
-      limit: "500",
-      offset: "0",
-    });
+    // Every marked revision is offered, whatever the server pages: the largest page, read whole —
+    // beside every revision of the project, which the banner offers to read instead (US-2330).
+    const listed = server.clients
+      .flatMap((client) => client.calls)
+      .filter((call) => call.route === "GET /projects/{project_id}/revisions")
+      .map((call) => Object.fromEntries(call.query));
+    expect(listed).toEqual(
+      expect.arrayContaining([
+        { status: "marked", limit: "500", offset: "0" },
+        { limit: "500", offset: "0" },
+      ]),
+    );
+    expect(listed).toHaveLength(2);
     // The revision the API says it read, named from the marked revisions the screen read.
     expect(page).toContain("Basis: Remaining of a marked revision — revision “Référence”");
   });

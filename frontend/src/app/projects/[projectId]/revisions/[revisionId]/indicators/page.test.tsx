@@ -129,6 +129,7 @@ beforeEach(() => {
     "GET /reference/settings": "reference_settings",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/subprojects": "subprojects",
+    "GET /projects/{project_id}/revisions": "revisions",
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
     "GET /projects/{project_id}/indicators": "project_indicators",
     "GET /projects/{project_id}/indicators/index-history": "index_history",

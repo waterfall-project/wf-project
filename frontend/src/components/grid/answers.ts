@@ -19,7 +19,19 @@
  * `refresh` after a write elsewhere on the screen — keeps what was answered of a row while it is
  * newer than the row read anew, by the counter of the object written where the grid can tell
  * (`GridConfig.fresher`, `RowPart.versioned`); where it cannot, while the reading anew reads the row
- * as the one before did, the server having said nothing newer of it.
+ * as the one before did, the server having said nothing newer of it. A reading asked once the writes
+ * answered — a grid compared to a base reads its comparison anew (`askedAnew`) — is newer than every
+ * answer taken before it was asked, whatever their counters say: it takes their place, the marks it
+ * carries with it, and only the answers given since stay laid over it.
+ *
+ * Which reading answers which demand is not told: the router may read once for two demands close
+ * together, and a demand that fails reads nothing. So the first reading anew answers every demand
+ * awaited, and takes the place of every answer taken before the latest of them was asked: a summary
+ * a second write recalculated, at its version, never keeps out the marks of a reading read once for
+ * both, and no demand left unread waits for a reading that has nothing to do with it. A reading read
+ * for the first demand alone, before the second write was done, takes the place of that write too —
+ * its counters say nothing on a fake back, which keeps nothing — until the reading of the second
+ * demand brings it back.
  *
  * Pure, and neither server nor client: the cells written keep one of these by address, and change
  * it in their callbacks alone — a render lays a copy over a reading anew (`copyAnswers`).
@@ -57,6 +69,11 @@ export interface Answers<Row, Totals> {
   latest: number;
   /** The rows of the reading by their key, made at the first answer that needs it. */
   index: ReadonlyMap<string, Row> | undefined;
+  /**
+   * The place of the latest answer taken when the reading was last asked anew once the writes
+   * answered, until a reading anew: that reading takes the place of the answers up to it.
+   */
+  asked: number;
 }
 
 /** No answer yet in a reading, and its totals. */
@@ -73,7 +90,16 @@ export function answersOf<Row, Totals>(
     totals: undefined,
     latest: Number.NEGATIVE_INFINITY,
     index: undefined,
+    asked: Number.NEGATIVE_INFINITY,
   };
+}
+
+/**
+ * Note that the reading is asked anew once the writes answered: the next reading anew, whichever
+ * demand it answers, takes the place of every answer taken so far (`reread`).
+ */
+export function askedAnew<Row, Totals>(answers: Answers<Row, Totals>): void {
+  answers.asked = answers.latest;
 }
 
 /** Whether an answer at a place comes after what was answered before, if anything was. */
@@ -249,14 +275,20 @@ export function copyAnswers<Row, Totals>(answers: Answers<Row, Totals>): Answers
  * wrote: `false` once one of them reads anew at least as new — the reading caught up with it —,
  * `true` while one is newer by its counter, `undefined` when the counters say nothing.
  */
-type Verdicts = ReadonlyMap<number, boolean | undefined>;
+interface Verdicts {
+  readonly get: (order: number) => boolean | undefined;
+}
 
-/** Judge each answer by the rows it wrote against those read anew. */
+/**
+ * Judge each answer by the rows it wrote against those read anew; an answer no later than the place
+ * a reading asked anew took (`outdated`) is caught up with, whatever its rows.
+ */
 function verdictsOf<Row, Totals>(
   answers: Answers<Row, Totals>,
   now: ReadonlyMap<string, Row>,
   rowKey: (row: Row) => string,
   fresher: Fresher<Row> | undefined,
+  outdated: number,
 ): Verdicts {
   const verdicts = new Map<number, boolean | undefined>();
   for (const [order, rows] of answers.writtenBy) {
@@ -266,7 +298,21 @@ function verdictsOf<Row, Totals>(
     });
     verdicts.set(order, said.includes(false) ? false : said.includes(true) ? true : undefined);
   }
-  return verdicts;
+  // A reading asked anew is the authority of the grid it was asked for: an answer taken since the
+  // demand, whose rows the counters do not judge — it came back before the reading did, while
+  // another write was under way and asked nothing itself —, gives way to it, its totals with it
+  // (#3804). What this drops is caught up with: the write done that gave the answer laid the flag
+  // of a screen to read anew, which stays until the write under way ends — answered, refused or
+  // failed alike (`settle`) —, and that reading brings the grid again. Without a demand, nothing is said.
+  const demanded = outdated !== Number.NEGATIVE_INFINITY;
+  return {
+    get: (order) => {
+      if (order <= outdated) {
+        return false;
+      }
+      return verdicts.get(order) ?? (demanded ? false : undefined);
+    },
+  };
 }
 
 /**
@@ -294,7 +340,7 @@ function rereadRow<Row, Totals>(
     answers.rows.delete(key);
   }
   const kept = parts.filter((part) =>
-    part.versioned
+    part.versioned && verdicts.get(part.order) !== false
       ? part.value(read) !== read
       : (verdicts.get(part.order) ?? (whole === undefined ? unchanged : keepWhole)),
   );
@@ -336,6 +382,13 @@ function forget<Row, Totals>(answers: Answers<Row, Totals>): void {
  * caught up, or the fake back, which keeps nothing. A part that judges by its own counter stays while
  * it changes the row read anew. A row the reading anew no longer holds is let go. A later answer
  * still prevails over an earlier one for the same row, as when they were taken.
+ *
+ * The first reading anew answers every demand awaited (`asked`): it takes the place of every answer
+ * taken before the latest demand, whatever the counters say — a summary recalculated keeps its
+ * version, and would keep out the marks of a comparison its answer does not carry. When the
+ * `router.refresh` of a demand never comes back, the threshold stays laid: the first reading to
+ * arrive, a sort with no relation to the writes included, then answers everything that precedes the
+ * demand.
  */
 export function reread<Row, Totals>(
   answers: Answers<Row, Totals>,
@@ -348,7 +401,11 @@ export function reread<Row, Totals>(
     return;
   }
   const now = new Map(reading.map((row) => [rowKey(row), row]));
-  const judge = { rowKey, fresher, verdicts: verdictsOf(answers, now, rowKey, fresher) };
+  // Every reading asked anew and awaited is answered by this one: the router may have read once for
+  // several, and a demand that failed reads nothing.
+  const outdated = answers.asked;
+  answers.asked = Number.NEGATIVE_INFINITY;
+  const judge = { rowKey, fresher, verdicts: verdictsOf(answers, now, rowKey, fresher, outdated) };
   for (const key of new Set([...answers.rows.keys(), ...answers.parts.keys()])) {
     rereadRow(answers, key, now.get(key), judge);
   }

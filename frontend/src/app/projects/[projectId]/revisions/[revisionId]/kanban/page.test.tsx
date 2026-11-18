@@ -85,6 +85,7 @@ beforeEach(() => {
   server.answers = {
     "GET /me": "me",
     "GET /projects/{project_id}": "project",
+    "GET /projects/{project_id}/revisions": "revisions",
     [REVISION_READ]: "revision",
     [STARTABLE]: "startable_tasks",
     [STRUCTURES]: "structures",

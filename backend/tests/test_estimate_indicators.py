@@ -16,7 +16,7 @@ from uuid import UUID, uuid4
 import pytest
 from estimate_support import YEAR, Costing, Lines, costing
 from nodes_support import Tree, faults, mark, opened, put_facts, refusal, work_breakdown
-from projects_support import PROJECTS, Scene
+from projects_support import PROJECTS, Scene, designate
 from projects_support import scene as make_scene
 from remaining_support import review_marked
 from sqlalchemy import delete, select, update
@@ -121,15 +121,6 @@ def subproject(api: ContractClient, stage: Scene, code: str, label: str) -> str:
     )
     assert answer.status_code == 201, answer.text
     return answer.json()["subproject_id"]
-
-
-def designate(api: ContractClient, stage: Scene, revision: dict[str, Any]) -> None:
-    """Designate a marked revision the reference, as the manager does, confirmed."""
-    path_ = f"{PROJECTS}/{stage.project['project_id']}"
-    counter = api.get(path_, headers=stage.manager.headers).json()["lock_version"]
-    sent = {"revision_id": revision["revision_id"], "confirmed": True, "lock_version": counter}
-    answer = api.put(f"{path_}/reference-revision", headers=stage.manager.headers, json=sent)
-    assert answer.status_code == 200, answer.text
 
 
 def unrate(stage: Scene, category: UUID) -> None:

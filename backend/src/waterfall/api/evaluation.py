@@ -74,8 +74,9 @@ class RequiresProject:
     decides on the state of the project under its own lock. ``manager`` reserves the operation to
     the project managers of the project (WF-PRJ-0060). ``one_of`` asks, after ``permissions``, for
     one at least of its own, a write of the tree that the three grids make alike
-    (``StructureCommand``, #2601): the first the caller holds is judged, the first of all named
-    when it holds none.
+    (``StructureCommand``, #2601), or a reading of the revisions that the three grids make besides
+    the function of the revisions (US-2320): the first the caller holds is judged, the first of all
+    named when it holds none.
     """
 
     __slots__ = ("manager", "one_of", "permissions")

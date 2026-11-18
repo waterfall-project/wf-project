@@ -251,6 +251,22 @@ NodeDifferenceFilter:
     items: { type: string, enum: [added, removed, modified] }
   explode: false
 
+ComparisonIncludeDifferences:
+  name: include_differences
+  in: query
+  description: >-
+    Of a comparison alone (`compareRevisions`): true, the read retains in addition the nodes in
+    difference — added, removed or modified — that the progress filter (`progress`) leaves out,
+    with their ancestors, so that the grid of the remaining to commit, which reads the tasks not
+    completed, shows the lines that differ from the base among the others; the grid of the
+    remaining to commit sends it, the others do not. These lines count in `totals`,
+    `base_totals`, `totals_delta` and `amount_deltas` as any line retained: the difference of
+    the totals answers the marks (WF-IHM-0150, WF-IHM-0160). False or omitted, and without a
+    progress filter, it changes nothing (EP-27).
+  schema:
+    type: boolean
+    default: false
+
 # The column filters of `listNodes` (US-0701/L3, F-06): each number column of its three
 # grids by its two bounds, each date column by its period (README of the contract).
 

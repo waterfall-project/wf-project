@@ -7,7 +7,7 @@ import { LEAF_ICONS } from "@/components/shell/function-display";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example } from "@/test/fixtures";
 
-import { readContext } from "./context";
+import { BASE_PARAMETER, readContext } from "./context";
 import {
   diagnosticGroups,
   findScreen,
@@ -338,6 +338,42 @@ describe("the address of a function", () => {
     expect(functionHref(planning, elsewhere)).toBe(`${IN_PROJECT}/planning`);
     const mistaken = readContext(`${IN_PROJECT}/planning`, new URLSearchParams({ structure: "x" }));
     expect(functionHref(estimate, mistaken)).toBe(`${IN_PROJECT}/estimate`);
+  });
+
+  it("carries an active comparison from the planning to the estimate then to the remaining to commit, with the same base [WF-IHM-0010-A]", () => {
+    // Une comparaison active sur le planning l'est encore sur le devis puis sur le reste à engager,
+    // avec la même base.
+    const base = "01926f3a-7c00-7000-8000-000000000101";
+    const compared = `${BASE_PARAMETER}=${base}`;
+    const estimate = find("FBS-4.4");
+    const remaining = find("FBS-4.5");
+    const onPlanning = readContext(`${IN_PROJECT}/planning`, new URLSearchParams(compared));
+    expect(functionHref(estimate, onPlanning)).toBe(`${IN_PROJECT}/estimate?${compared}`);
+    const onEstimate = readContext(`${IN_PROJECT}/estimate`, new URLSearchParams(compared));
+    expect(functionHref(remaining, onEstimate)).toBe(`${IN_PROJECT}/remaining?${compared}`);
+    const onRemaining = readContext(`${IN_PROJECT}/remaining`, new URLSearchParams(compared));
+    expect(functionHref(planning, onRemaining)).toBe(`${IN_PROJECT}/planning?${compared}`);
+  });
+
+  it("carries the base to the three grids alone: no other function, nor one of the project itself", () => {
+    // La base est portée par les liens entre ces trois grilles seulement (US-2330).
+    const base = "01926f3a-7c00-7000-8000-000000000101";
+    const onPlanning = readContext(
+      `${IN_PROJECT}/planning`,
+      new URLSearchParams({ [BASE_PARAMETER]: base, subproject_id: SUBPROJECT }),
+    );
+    expect(functionHref(find("FBS-4.6"), onPlanning)).toBe(
+      `${IN_PROJECT}/risks?subproject_id=${SUBPROJECT}`,
+    );
+    expect(functionHref(lifecycle, onPlanning)).toBe(
+      `/projects/${PROJECT}/lifecycle?revision_id=${REVISION}&subproject_id=${SUBPROJECT}`,
+    );
+    // A screen that compares nothing reads no base, and carries none back to a grid.
+    const elsewhere = readContext(
+      `${IN_PROJECT}/risks`,
+      new URLSearchParams({ [BASE_PARAMETER]: base }),
+    );
+    expect(functionHref(planning, elsewhere)).toBe(`${IN_PROJECT}/planning`);
   });
 
   it("offers the functions of the project itself in a project without a revision", () => {

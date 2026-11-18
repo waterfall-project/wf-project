@@ -7,8 +7,7 @@
  * portfolio, those of their commands included (US-0670/L2, #1434), in both catalogues; and each
  * column of the tables of the reference data (US-0670/L3, #1434), and of the tables of the screens
  * of the project — the list of the projects, the settings of a project, its actual costs, each
- * column kept from the file alike (US-0670/L4, #1434), and of the comparison of two revisions
- * (US-0670/L5, #1434).
+ * column kept from the file alike (US-0670/L4, #1434).
  */
 import { describe, expect, it } from "vitest";
 
@@ -29,7 +28,6 @@ import { costCategoryGrid, costTypeGrid } from "@/components/reference/cost-grid
 import { RATE_HEADINGS } from "@/components/reference/rate-columns";
 import { rateGrid } from "@/components/reference/rate-grid";
 import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "@/components/reference/resource-grids";
-import { COMPARISON_GRID } from "@/components/revisions/comparison-columns";
 import { RISK_GRID } from "@/components/risks/risk-grid";
 import { spendingGrid } from "@/components/spending/spending-columns";
 import { detailGrid } from "@/components/workload/detail-columns";
@@ -95,7 +93,6 @@ describe("the definitions of the columns", () => {
     ["sub-projects, editable", subprojectGrid(true).columns],
     ["contributors", CONTRIBUTOR_GRID.columns],
     ["actual costs, with columns kept", ACTUAL_COSTS],
-    ["comparison of two revisions", COMPARISON_GRID.columns],
     ["detail of the workload", detailGrid(["2026-06", "2026-07"], (month) => month).columns],
     ["spending projection", spendingGrid(["2026-06", "2026-07"], (month) => month).columns],
   ] as const)(

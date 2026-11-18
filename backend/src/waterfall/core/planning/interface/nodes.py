@@ -913,9 +913,10 @@ def move_nodes(session: Session, place: Place, moving: NodeMoving, writer: Write
     summary that loses its last subordinate a leaf in its state. The engine refuses a link the
     move would make between a summary and its subordinate, or a loop it would close through the
     parent (``LINK_FORBIDDEN``, ``LINK_CYCLE``, #1169), and a project beyond fifteen years, the
-    first task moved named, or the task that receives the lines (WF-PLA-0150); nothing is written
-    then. The moved nodes are given back
-    with their former and new ancestors.
+    first task moved named, or the task that receives the lines (WF-PLA-0150); a line priced again
+    past its column, at the parent, which gives it the dates it is priced on (``/parent_id``,
+    #3401); nothing is written then. The moved nodes are given back with their former and new
+    ancestors.
     """
     node_ids = tuple(dict.fromkeys(moving.node_ids))
     with writing(session, place, writer, ("node_move", node_ids)) as write:
@@ -977,6 +978,6 @@ def _moved(write: Write, placing: Placing) -> NodesWritten:
     first = tasks_moved[0] if tasks_moved else parent
     blamed = None if first is None else (first, tree.tasks[first].label)
     origin = None if parent is None or not tasks_moved else Move(tuple(tasks_moved), parent)
-    redated = write.redate(blamed, origin)
+    redated = write.redate(blamed, origin, entered=("/parent_id",))
     write.after(touched)
     return redated.written(node_ids, former)

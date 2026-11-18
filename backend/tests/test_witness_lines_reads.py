@@ -543,6 +543,27 @@ LACKING = {
 }
 
 
+def base_of(item: dict[str, Any]) -> Any:
+    """Give the base of a node of a comparison as the witness and the example can share it.
+
+    Without the budgeted amount, the reference's in the example (the 101's own), the offer's in the
+    witness; each predecessor by its link alone, not the node it names nor its row, which the
+    identifiers of each and the provision lines the witness lacks move (``test_comparison`` holds
+    the node it names).
+    """
+    base = item["base"]
+    if not base:
+        return base
+    shared: dict[str, Any] = {
+        key: {name: value for name, value in held.items() if name != "budgeted_amount"}
+        for key, held in base.items()
+        if key in {"task", "estimate_line"}
+    }
+    if "predecessors" in base:
+        shared["predecessors"] = [(each["link_type"], each["lag"]) for each in base["predecessors"]]
+    return {**base, **shared}
+
+
 def label_of(item: dict[str, Any]) -> tuple[str, str]:
     """Give the kind and the label of a node of a comparison."""
     held: dict[str, Any] = item.get("task") or item.get("estimate_line") or {}
@@ -554,8 +575,8 @@ def test_the_comparison_of_two_revisions_is_the_example_but_for_the_provisions_a
     api: ContractClient, witness: Database, realm: TestRealm, name: str
 ) -> None:
     # From the offer 100 to the 101, by lineage: the same nodes, each as added, removed or modified
-    # by the same fields, the same figures; the identifiers are those of each revision (derived for
-    # a marked one), so the nodes are matched by lineage.
+    # by the same fields, the same figures, the same base (US-2320); the identifiers are those of
+    # each revision (derived for a marked one), so the nodes are matched by lineage.
     with witness.transaction() as session:
         installation = session.scalar(
             select(Node.id).where(Node.revision_id == REVISION_101, Node.lineage_id == INSTALLATION)
@@ -573,8 +594,10 @@ def test_the_comparison_of_two_revisions_is_the_example_but_for_the_provisions_a
     assert list(got) == [key for key in wanted if key in got]
     for key, item in got.items():
         theirs = wanted[key]
-        for field in ("kind", "difference", "changes", "level"):
+        for field in ("kind", "difference", "level"):
             assert item[field] == theirs[field], (label_of(item), field)
+        assert item["changes"] == theirs["changes"], label_of(item)
+        assert base_of(item) == base_of(theirs), label_of(item)
         if item["kind"] == "estimate_line":
             ours = {each: item["estimate_line"][each] for each in FIGURES}
             assert (

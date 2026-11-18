@@ -20,7 +20,6 @@ import {
 import { costCategoryGrid, costTypeGrid } from "../reference/cost-grids";
 import { rateGrid } from "../reference/rate-grid";
 import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "../reference/resource-grids";
-import { COMPARISON_GRID } from "../revisions/comparison-columns";
 import { RISK_GRID } from "../risks/risk-grid";
 import { spendingGrid } from "@/components/spending/spending-columns";
 import { detailGrid } from "../workload/detail-columns";
@@ -310,7 +309,6 @@ describe("the columns a grid records as known", () => {
     accessRoles: accessRoleGrid(true),
     backups: backupGrid({ marks: true, downloads: true, restores: true }),
     audit: auditGrid({ functions: [], revision: true }),
-    comparison: COMPARISON_GRID,
     // A plan of fifteen years: a column for each of its 180 months.
     workloadDetail: detailGrid(FIFTEEN_YEARS, (month) => month),
     spendingDetail: spendingGrid(FIFTEEN_YEARS, (month) => month),

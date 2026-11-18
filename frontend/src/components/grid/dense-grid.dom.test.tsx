@@ -26,7 +26,8 @@ import {
   type FakeTiming,
   held,
 } from "@/test/fixtures";
-import { allShown, PREFERENCES, recordedAside } from "@/test/grid-preferences";
+import { ESTIMATE_SHOWN, recordedEstimate, UNSEEN } from "@/test/estimate-offered";
+import { PREFERENCES } from "@/test/grid-preferences";
 import { estimateReference } from "@/test/reference";
 
 import type { GridConfig } from "./columns";
@@ -91,8 +92,8 @@ function serve(
 }
 
 // The grid knows every column of the estimate, and records them as known (US-0650): set aside.
-const SHOWN = allShown(ESTIMATE_GRID.columns);
-const recorded = (client: FakeClient) => recordedAside(client, ESTIMATE_GRID.columns);
+const SHOWN = ESTIMATE_SHOWN;
+const recorded = recordedEstimate;
 
 /** Render the grid of the estimate on an answer, in a language. */
 function renderGrid(
@@ -624,7 +625,7 @@ describe("the columns and their widths, a display preference of the account", ()
         {
           grids: {
             // Its width and its sort as they came; the sub-project, which it did not know, hidden.
-            estimate: { ...settings, hidden_columns: ["subproject", "hours"] },
+            estimate: { ...settings, hidden_columns: [...UNSEEN, "hours"] },
           },
         },
       ]);
@@ -646,7 +647,7 @@ describe("the columns and their widths, a display preference of the account", ()
           grids: {
             estimate: {
               sort: { column: "base_amount", order: "desc" },
-              hidden_columns: ["subproject"],
+              hidden_columns: UNSEEN,
               column_widths: { label: 336 },
             },
           },

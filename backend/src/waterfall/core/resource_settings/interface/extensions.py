@@ -16,10 +16,12 @@ d'extension"), filled by the planning at the import of its interface:
   the designation of the default redate, in their transaction, the structures of the current
   revisions (``reschedule_current_structures``), their dates' instant moved on to that of the
   change. The reference is locked first — the object written and the advisory lock of its rule —,
-  the structures after it, by the recalculation, in the order of (``project_id``, ``id``).
+  the structures after it, by the recalculation, in the order of (``project_id``, ``id``). A line
+  priced again past its column is refused at the fields of the change that carry it, which the
+  change names (``entered``: the days or the constants changed, none for a designation; #3401).
 
 Declared by US-1380/L1; US-1390/L2 fills what the planning registers, and gives the recalculation
-the instant of the change.
+the instant of the change; US-2400/L1 gives it the fields that carry the change.
 """
 
 from dataclasses import dataclass
@@ -68,7 +70,7 @@ _GUARDS: Registry[Callable[[Session, CalendarChange], tuple[IdleProject, ...]]] 
     "resource_settings.idle_task_guard"
 )
 # What redates the structures of the current revisions once the reference changed, in order.
-_RECALCULATIONS: Registry[Callable[[Session, datetime], None]] = Registry(
+_RECALCULATIONS: Registry[Callable[[Session, datetime, tuple[str, ...]], None]] = Registry(
     "resource_settings.recalculation"
 )
 
@@ -81,11 +83,12 @@ def register_idle_task_guard(
 
 
 def register_recalculation(
-    recalculate: Callable[[Session, datetime], None],
+    recalculate: Callable[[Session, datetime, tuple[str, ...]], None],
 ) -> Callable[[], None]:
     """Add what redates the current structures after the reference changed; give its withdrawal.
 
-    It is given the transaction of the change and its instant.
+    It is given the transaction of the change, its instant, and the pointers of the fields of the
+    request that carry the change.
     """
     return _RECALCULATIONS.register(recalculate)
 
@@ -95,10 +98,12 @@ def projects_left_idle(session: Session, change: CalendarChange) -> tuple[IdlePr
     return tuple(project for guard in _GUARDS.entries() for project in guard(session, change))
 
 
-def recalculate(session: Session, at: datetime) -> None:
+def recalculate(session: Session, at: datetime, entered: tuple[str, ...] = ()) -> None:
     """Redate the structures of the current revisions at ``at``, by every recalculation registered.
 
-    To be called once the reference is written, in its transaction and under its locks.
+    To be called once the reference is written, in its transaction and under its locks. A line
+    priced again past its column is refused at ``entered``, the pointers of the fields of the
+    request that carry the change; without them, without a field (#3401).
     """
     for recalculation in _RECALCULATIONS.entries():
-        recalculation(session, at)
+        recalculation(session, at, entered)

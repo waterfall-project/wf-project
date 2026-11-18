@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
     from wftools.measures import Report
 
-UNSERVED = {"portfolio-view": "EP-11", "open-compared-grid": "EP-27"}
+UNSERVED = {"portfolio-view": "EP-11"}
 
 
 def cache(cold_cell_s: float = 0.3) -> dict[str, object]:
@@ -141,6 +141,28 @@ def test_an_improvement_and_an_operation_unserved_twice_signal_nothing() -> None
     latest = parsed(report("0.5.0", {"mark-revision": 20}))
     assert latest.operations["portfolio-view"].unserved == "EP-11"
     assert measures.confront(latest, before) == []
+
+
+@pytest.mark.requirement("WF-QUA-0060-A")
+def test_an_operation_unserved_then_served_is_held_to_its_objective_alone(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The grids compared, unserved by a report taken before EP-27 and served by the next (US-2390).
+    earlier = report("0.4.0")
+    for entry in cast("list[dict[str, object]]", earlier["operations"]):
+        if entry["id"] in {"open-compared-grid", "recompute-compared"}:
+            for key in measures.DURATIONS:
+                del entry[key]
+            entry["unserved"] = "EP-27"
+    write(tmp_path, earlier)
+    write(tmp_path, report("0.5.0", {"open-compared-grid": 1.5, "recompute-compared": 1.8}))
+    code, out = run(tmp_path, capsys)
+    assert (code, "::warning::" in out) == (0, False)
+    assert "open-compared-grid: 1.5 s, no previous measure (objective 2 s)" in out
+    write(tmp_path, report("0.5.0", {"recompute-compared": 2.4}))
+    code, out = run(tmp_path, capsys)
+    assert code == 1
+    assert "2.4 s, above its objective of 2 s" in out
 
 
 @pytest.mark.requirement("WF-QUA-0060-A")

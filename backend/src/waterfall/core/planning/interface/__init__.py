@@ -30,6 +30,12 @@ from waterfall.core.exchanges.interface import register_exporter, register_forma
 from waterfall.core.planning.calendars import (
     Applicable as Applicable,
 )
+
+# Beside the interface (US-2340/L1): the constants of the units of the installation, which the
+# difference of two durations of a comparison is counted by (``Duration.less``).
+from waterfall.core.planning.dating import (
+    constants_of as constants_of,
+)
 from waterfall.core.planning.entries import (
     ENTRIES as ENTRIES,
 )
@@ -46,8 +52,8 @@ from waterfall.core.planning.interface.copying import (
     copy_nodes as copy_nodes,
 )
 
-# ``facets`` (US-1380/L1; read by US-1380/L2; completed by US-1490/L3, US-2260/L3, US-2280/L1): the
-# facets of a node other than the task (EP-07).
+# ``facets`` (US-1380/L1; read by US-1380/L2; completed by US-1490/L3, US-2260/L3, US-2280/L1,
+# US-2400/L1): the facets of a node other than the task (EP-07).
 from waterfall.core.planning.interface.facets import (
     Amounts as Amounts,
 )
@@ -101,6 +107,9 @@ from waterfall.core.planning.interface.facets import (
 )
 from waterfall.core.planning.interface.facets import (
     named_calendars as named_calendars,
+)
+from waterfall.core.planning.interface.facets import (
+    refused_at as refused_at,
 )
 from waterfall.core.planning.interface.facets import (
     register_facet as register_facet,
@@ -574,6 +583,12 @@ from waterfall.core.planning.scheduling import (
 )
 from waterfall.core.planning.scheduling import (
     Duration as Duration,
+)
+from waterfall.core.planning.scheduling import (
+    DurationUnit as DurationUnit,
+)
+from waterfall.core.planning.scheduling import (
+    UnitConstants as UnitConstants,
 )
 from waterfall.core.planning.scheduling import (
     WorkInstant as WorkInstant,
