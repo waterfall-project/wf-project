@@ -795,7 +795,7 @@ docstring pour passer le plafond (#1007, #2457).
 
 ## US-2530 — Les gardes de sources et les parcours du front
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3688
