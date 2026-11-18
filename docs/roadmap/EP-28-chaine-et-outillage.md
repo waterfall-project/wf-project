@@ -768,7 +768,7 @@ n'échoue sans régression ni ne laisse croire à une preuve qu'il ne fait pas (
 
 ## US-2520 — Les exemples du contrat : identifiants de corrélation et taille de `mockdata.py`
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3687
