@@ -124,10 +124,12 @@ DIGESTS = {
 
 
 # The SHA-256 of the comparison filtered by its marks, taken at US-2320/L3, which judges a node on
-# every value it carries: ``difference=modified`` retains more nodes than before.
+# every value it carries: ``difference=modified`` retains more nodes than before. Taken again when
+# epic/EP-10 took back main, after US-1680: its 39 summaries put back "not computable", the body
+# read then gives the SHA-256 of US-2320/L3, bd5415c9…; nothing else differs, no mark included.
 COMPARED_DIGESTS = {
     "comparison filtered and sorted": (
-        "bd5415c9697694221d26ae76d3dd200edd2bb04e19696c2929bfbc2f794c2324"
+        "a72f125f4f4a89b25f85b2968c0a34ab0ba8888f9f334e9fecf4a8b555ddcff4"
     ),
 }
 

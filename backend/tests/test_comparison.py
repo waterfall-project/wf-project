@@ -27,7 +27,7 @@ from estimate_support import YEAR, Costing, Lines, costing
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from nodes_support import Tree, faults, opened, refusal, set_progress
-from projects_support import PROJECTS, Scene, create
+from projects_support import PROJECTS, Scene, create, designate
 from projects_support import scene as make_scene
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
@@ -998,12 +998,3 @@ def test_a_current_base_is_refused_and_a_revision_of_another_project_is_not_foun
     foreign = answer.json()
     for pair in ((offer, foreign), (foreign, offer), (offer, {"revision_id": str(uuid4())})):
         assert refusal(comparison(api, stage, pair))[:2] == (404, "NOT_FOUND")
-
-
-def designate(api: ContractClient, stage: Scene, revision: dict[str, Any]) -> None:
-    """Designate a marked revision the reference, as the manager does, confirmed."""
-    path = f"{PROJECTS}/{stage.project['project_id']}"
-    held = api.get(path, headers=stage.manager.headers).json()["lock_version"]
-    sent = {"revision_id": revision["revision_id"], "confirmed": True, "lock_version": held}
-    answer = api.put(f"{path}/reference-revision", headers=stage.manager.headers, json=sent)
-    assert answer.status_code == 200, answer.text

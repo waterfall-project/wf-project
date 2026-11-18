@@ -47,6 +47,7 @@ import {
   CLICKED,
   followRequests,
   REACHED,
+  type Reached,
   type Requests,
   settle,
   usableAt,

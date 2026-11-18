@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
     from wftools.measures import Report
 
-UNSERVED = {"indicators": "EP-10", "portfolio-view": "EP-11"}
+UNSERVED = {"portfolio-view": "EP-11"}
 
 
 def cache(cold_cell_s: float = 0.3) -> dict[str, object]:
