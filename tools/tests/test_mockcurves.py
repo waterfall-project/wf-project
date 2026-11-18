@@ -284,8 +284,10 @@ def test_the_indicators_of_a_subproject_name_it_as_the_scope_of_their_context(
     assert today["project_indicators"]["context"]["scope"] == "project"
 
 
-@pytest.mark.requirement("WF-RAE-0020-A")
 def test_the_gap_to_the_previous_review_is_to_the_offer_when_it_is_the_only_one_marked() -> None:
+    # No requirement marker: this test follows the decision of #3663 / #3928, against the current
+    # Vérif of WF-RAE-0020 (the gap is absent when no revision was marked In progress before the
+    # one read), which #3929 will correct; the marker comes back then.
     # The previous revision of a revision whose only marked forerunner is the offer is the offer,
     # for the remaining to commit as for the estimate (#3663, #3928): the gap is its own, not null.
     witness = mocktoday.witness()

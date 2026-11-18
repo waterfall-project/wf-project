@@ -5558,7 +5558,7 @@ class RemainingIndicators(ContractModel):
     delta_to_previous_revision: Annotated[
         Money | None,
         Field(
-            description="The difference with the remaining to commit of the previous marked revision, at its marking — the offer when it is the only one marked before the one read, as for the estimate (`EstimateIndicators.delta_to_previous_revision`) —: what changed since, the current remaining to commit minus its own, negative when it has decreased; null (`null`), and not zero, when no revision was marked before the one read: the screen then omits it (WF-RAE-0020)."
+            description="The difference with the remaining to commit of the previous marked revision, at its marking (the offer when it is the only one marked before the one read, as for the estimate, `EstimateIndicators.delta_to_previous_revision`): what changed since, the current remaining to commit minus its own, negative when it has decreased; null (`null`), and not zero, when no revision was marked before the one read: the screen then omits it (WF-RAE-0020)."
         ),
     ]
 

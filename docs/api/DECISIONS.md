@@ -1776,15 +1776,13 @@ que la décision ne vise pas, garde son sens et le contrat le dit : le reste à 
 celui de la révision marquée précédente, à son marquage, négatif quand la revue l'a réduit — ce que
 la revue a changé (WF-RAE-0020), qui n'est pas une marge : un reste à engager diminue aussi de ce
 qui s'est dépensé ; nul (`null`) sans révision marquée précédente, et non zéro, l'écran l'omettant
-alors (la seule devancière marquée étant l'offre, la précédente est l'offre : décision du
-2026-11-17, #3663, #3928). Deux
-mots, deux sens — décision de l'auteur à la revue : le reste à engager parle de **marge**
-(`delta_to_reference`, `SubprojectBalance.variance`, que le front nomme « marge », par sous-projet
-comme pour le projet), et la couverture des risques garde son « écart de couverture » de la
-spécification, dans le même sens ; le portefeuille et les projections parlent d'**écart**, positif
-au-delà du budget : l'écart de la liste des projets (`PortfolioProject.delta_to_reference`), que le
-Vérif de WF-PTF-0040 fixe ainsi (« un écart de 50 » pour 1 050 face à 1 000), et les écarts des
-projections (`Projections.variance_*`, la projection moins le budget de référence, WF-IND-0050),
+alors. Deux mots, deux sens — décision de l'auteur à la revue : le reste à engager parle de
+**marge** (`delta_to_reference`, `SubprojectBalance.variance`, que le front nomme « marge », par
+sous-projet comme pour le projet), et la couverture des risques garde son « écart de couverture » de
+la spécification, dans le même sens ; le portefeuille et les projections parlent d'**écart**,
+positif au-delà du budget : l'écart de la liste des projets (`PortfolioProject.delta_to_reference`),
+que le Vérif de WF-PTF-0040 fixe ainsi (« un écart de 50 » pour 1 050 face à 1 000), et les écarts
+des projections (`Projections.variance_*`, la projection moins le budget de référence, WF-IND-0050),
 dont le front garde le libellé « Écart au budget ». Les écarts du devis
 (`EstimateIndicators.delta_to_*`) sont le devis courant moins le devis comparé. L'écart de coût et
 l'écart de délai (`cost_variance`, `schedule_variance` des indicateurs du projet et du portefeuille)
@@ -1805,12 +1803,12 @@ révision marquée précédente qui l'a été à l'état En cours ; l'écart est
 avant celle qui est lue (« Les décaissements, la revue précédente, le diagramme temps/temps et
 l'avancement d'une récapitulative », dans « Le contrat figé »).*
 
+*Remplacé en partie par US-0701/L1 (#1601, E-02, recadrage du 2026-10-28) : `amount_deltas[].delta`
+devient `budgeted_delta` et `reestimated_delta`, dans le même sens.*
+
 *Remplacé en partie par #3928 (décision du 2026-11-17, #3663) : l'offre est la revue précédente d'une
 révision dont elle est la seule devancière marquée, pour le reste à engager comme pour le devis ;
 l'écart n'est nul que sans révision marquée avant celle qui est lue.*
-
-*Remplacé en partie par US-0701/L1 (#1601, E-02, recadrage du 2026-10-28) : `amount_deltas[].delta`
-devient `budgeted_delta` et `reestimated_delta`, dans le même sens.*
 
 **`listNodes` filtre sur la récapitulative, le niveau et la chronologie** (#463 ; WF-PLA-0110,
 WF-PLA-0140). Trois filtres sur une tâche, qui se combinent aux autres : `summaries_only`, les
@@ -9218,6 +9216,9 @@ passages d'EP-02/L24 (M-06), #466 (M-09), EP-02/L23 et EP-02/L24 (M-10), #245 (M
   aucun exemple ne change. `EstimateLineFacet.previous_*`, « nulles avant la première revue »,
   n'est pas touché : `revisions.yaml` est aux lots US-0701/L2 et L3, et WF-RAE-0040 ne dit pas que
   le reste à engager précédent de la grille soit celui d'une révision marquée En cours.
+  *Remplacé en partie par #3928 (décision du 2026-11-17, #3663) : le générateur ne filtre plus sur
+  l'état au marquage ; l'offre, seule devancière marquée, est la revue précédente, et l'écart n'est
+  nul que sans révision marquée avant celle qui est lue.*
 - **Le diagramme temps/temps** (M-10, WF-IND-0090). « Les révisions marquées avant l'état En cours
   ne donnent aucun point » ; la courbe d'un jalon s'arrête par un point à sa terminaison, en
   abscisse comme en ordonnée ; le dernier point est celui du jour courant, par la révision en cours
