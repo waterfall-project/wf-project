@@ -1,0 +1,6 @@
+{
+  "summary": "Un décalage saisi 1 sem, sur les constantes par défaut de 8 heures par jour et 40 par semaine, est exporté — 24 000 dixièmes de minute, au format semaines — puis réimporté sans changer d'unité (WF-PLA-0160).",
+  "examples": ["WF-PLA-0160-A#8e3b08233deb"],
+  "constants": {"minutes_per_day": 480, "minutes_per_week": 2400, "days_per_month": 20},
+  "lag": {"value": "1", "unit": "w", "written": 24000}
+}
