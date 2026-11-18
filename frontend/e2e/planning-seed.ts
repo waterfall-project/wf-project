@@ -69,7 +69,7 @@ export interface Extras {
 }
 
 /** The planning start of `Extras.pastStart`: a Monday, long before any run. */
-export const PAST_START = "2020-01-06";
+const PAST_START = "2020-01-06";
 
 /** The label of the 7th task, in conflict with its predecessor (`Extras.links`). */
 export const EARLY = "Livraison anticipée";

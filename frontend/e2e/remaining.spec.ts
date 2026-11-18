@@ -9,6 +9,7 @@ import {
 } from "@playwright/test";
 
 import type { components } from "../src/api/generated/schema";
+import { today } from "../src/components/remaining/address";
 import { WORKING } from "./bounds";
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
@@ -560,7 +561,8 @@ async function referenceOf(page: Page, seeded: Seeded) {
 /**
  * The figures the service serves for the project in progress (`getProjectIndicators`, WF-IND-0010),
  * read by the API under the token of its creator: the reference budget, and the planned value of the
- * current day, with the day the service computed it (`context.computed_at`). `as_of` pins neither:
+ * current day, with the day the service computed it (`context.computed_at`, taken in the time zone of
+ * the installation, the one the service counts its calendar days in: US-2200). `as_of` pins neither:
  * the project has no revision marked In progress (the one it has was marked before the passage, and
  * kept no indicator: 409), and a reading kept at the marking would be immune to the gesture, so it
  * could not see a drift the gesture caused.
@@ -571,10 +573,13 @@ async function figuresOf(calls: APIRequestContext, seeded: Seeded) {
   });
   expect(read.status()).toBe(200);
   const body = (await read.json()) as components["schemas"]["ProjectIndicators"];
+  const installation = await calls.get(`${API}/installation`);
+  expect(installation.status()).toBe(200);
+  const { time_zone: timeZone } = (await installation.json()) as { time_zone: string };
   return {
     budget: body.reference_budget,
     planned: body.planned_value,
-    day: body.context.computed_at.slice(0, 10),
+    day: today(timeZone, new Date(body.context.computed_at)),
   };
 }
 
