@@ -12,6 +12,7 @@ and its analysis are ``test_estimate_import``'s.
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
+from unittest.mock import ANY
 from uuid import UUID, uuid4
 
 import pytest
@@ -41,7 +42,7 @@ from imports_trial import (
 from nodes_support import Tree, entries, mark, opened, set_progress
 from projects_support import PROJECTS, Scene, put_in_state
 from projects_support import scene as make_scene
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from support import ContractClient
 from test_inert_writes import listened, trees_read, unkept
 from test_msproject_import import imported as planning_imported
@@ -49,6 +50,7 @@ from test_msproject_import import planning, task
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.cost_settings.tables import HourlyRate
 from waterfall.core.estimate.entries import LineEntry
 from waterfall.core.estimate.interface.excel import EstimateFormat
 from waterfall.core.estimate.tables import RevisionRate
@@ -837,8 +839,37 @@ def test_a_labour_line_whose_category_has_no_rate_is_rejected_at_the_report_not_
     import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
     rejected = read(api, stage, import_id)["report"]["rejected"]
     assert [(each["code"], each["params"]) for each in rejected] == [
-        ("HOURLY_RATE_MISSING", {"header": "Rôle ou catégorie"})
+        ("HOURLY_RATE_MISSING", {"header": "Rôle ou catégorie", "missing_rates": ANY})
     ]
+    named = rejected[0]["params"]["missing_rates"]
+    assert [each["cost_category_id"] for each in named] == [str(held["costs"].material)]
     before = tree.items()
     applied_now(api, stage, worker, import_id)
     assert tree.items() == before
+
+
+def without_rates(stage: Scene) -> None:
+    """Take the hourly rates of every revision away: no category has a rate for the year."""
+    with stage.owner.begin() as connection:
+        connection.execute(delete(RevisionRate))
+        connection.execute(delete(HourlyRate))
+
+
+@pytest.mark.requirement("WF-DEV-0010-A")
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_labour_line_left_as_it_is_without_a_rate_is_not_rejected_with_a_line_changed_elsewhere(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
+) -> None:
+    # #3827: only a line the application writes is priced; the labour line re-imported as it is
+    # exported, its category having no rate, is left as it is and not rejected, while the line of
+    # material changed beside it is applied.
+    without_rates(stage)
+    rows = as_exported(held)
+    rows[1][rows[1].index(1)] = 3
+    import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
+    found = read(api, stage, import_id)["report"]
+    assert found["rejected"] == []
+    assert [each["lineage_id"] for each in found["differences"]] == [held["material"]["lineage_id"]]
+    applied_now(api, stage, worker, import_id)
+    after = estimate_lines(tree.items())
+    assert after[held["material"]["lineage_id"]][1]["quantity"] == "3"

@@ -477,14 +477,17 @@ def judged(
             session, (held.project_id, bearer), entry, current, locking=judging.locking
         )
         # Its amounts priced as its application prices them: a line that overflows is rejected here.
-        held_line = None if current is None else current.node_id
-        judged_amounts(session, (held.project_id, bearer, held_line), draft)
+        # A line left as it is is not written, so it is not priced: no rejection can reach it.
+        moved = current is not None and held.bearers[current.node_id] != task_id
+        if current is None or changed_columns(draft, current, moved=moved):
+            held_line = None if current is None else current.node_id
+            judged_amounts(session, (held.project_id, bearer, held_line), draft)
     except UnprocessableError as refusal:
         found: list[dict[str, Any]] = []
         if refusal.code == HOURLY_RATE_MISSING:
             # The category of the line has no rate: the column that designates it is the reason.
             header = reader.ROLE_OR_CATEGORY_HEADER
-            return [rejection(line, HOURLY_RATE_MISSING, {"header": header})]
+            return [rejection(line, HOURLY_RATE_MISSING, {**refusal.params, "header": header})]
         for fault in refusal.fields:
             header = headers.get(fault.pointer.rsplit("/", 1)[-1])
             named = {} if header is None else {"header": header}
