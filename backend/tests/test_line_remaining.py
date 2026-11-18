@@ -514,18 +514,25 @@ def test_the_remaining_sums_the_started_task_reestimated_and_the_one_not_started
 
 @pytest.mark.requirement("WF-RAE-0010-A")
 def test_the_remaining_of_the_tasks_and_lines_read_is_that_of_the_revision_read_again(
-    review: Review, stage: Scene
+    review: Review, stage: Scene, costs: Costing
 ) -> None:
     # The indicators draw the remaining from the tree they read once (#3569, #3802): « la somme des
     # deux dernières, la démarrée pour son montant réestimé et l'autre pour son montant de
     # référence projeté », the same total and the same lines, in the same order, as the reading of
     # the revision gives — a task completed, one started, one not started, a milestone; and the
-    # reference, marked, all not started.
+    # reference, marked, all not started; a line of provision, the risks' own, among them.
     tree = review.tree
     wiring, acceptance = task_named(tree, "Câblage"), task_named(tree, "Réception")
     set_progress(stage, wiring["node_id"], "started", DAY)
     set_progress(stage, acceptance["node_id"], "completed", DAY)
     reestimated(tree, line_named(tree, "Raccordement"), **{BASIS: {"hours": "80"}})
+    provision = review.lines.made(wiring, **material(costs, "Aléa", "30"))["nodes"][0]
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.node_id == UUID(provision["node_id"]))
+            .values(cost_category_id=costs.provision)
+        )
     project = UUID(stage.project["project_id"])
     found: list[Decimal] = []
     for revision in (tree.revision, review.reference):

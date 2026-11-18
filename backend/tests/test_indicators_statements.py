@@ -70,10 +70,12 @@ def test_a_scope_more_costs_one_statement_and_the_actual_cost_is_summed_once(
     alone = statements(stage, [lot])
     every = statements(stage, [PROJECT, lot, UNASSIGNED])
     assert len(every) == len(alone) + 2, (alone, every)
-    for sent in (alone, every):
-        summed = [each for each in sent if "GROUP BY cost_line.subproject_id" in each]
-        assert len(summed) == 1, sent
+    # The actual cost is read from its table once for the sum of every scope, and once by scope
+    # for the days it falls on.
+    for sent, scopes in ((alone, 1), (every, 3)):
+        read = [each for each in sent if "FROM cost_line" in each]
+        assert len(read) == 1 + scopes, sent
     # The lines of a revision are read once by revision: the remaining does not read them again.
-    rows = [each for each in alone if each.startswith("SELECT estimate_line.project_id")]
+    rows = [each for each in alone if "FROM estimate_line" in each]
     revisions = {found.reference_id, UUID(found.tree.revision["revision_id"])}
     assert len(rows) == len(revisions), alone

@@ -50,12 +50,15 @@ def _spread_after(
     the planned value is read at its end —, so what is to come is what follows it
     (WF-IND-0100, WF-RAE-0040): the share starts at the first hour of the next day, and a task
     that ends before falls whole on the month of ``as_of``, not on that of the next day. ``weigh``
-    is the weighing of the tasks of a sum, a new one by default.
+    is the weighing of the tasks of a sum, the task weighed each time without it.
     """
-    weighed = weighing() if weigh is None else weigh
+    if weigh is None:
+        if as_of is None:
+            return rounded_parts(placement, amount, MONEY)
+        return remaining_parts(placement, amount, MONEY, as_of=as_of)
     if as_of is None:
-        return rounded_parts(placement, amount, MONEY, weigh=weighed)
-    return remaining_parts(placement, amount, MONEY, as_of=as_of, weigh=weighed)
+        return rounded_parts(placement, amount, MONEY, weigh=weigh)
+    return remaining_parts(placement, amount, MONEY, as_of=as_of, weigh=weigh)
 
 
 def shifted(
@@ -107,7 +110,11 @@ def line_shares(
 def spread_lines(
     lines: Iterable[SpreadLine], *, as_of: date | None = None, delayed: bool = False
 ) -> dict[Month, Decimal]:
-    """Add up, month by month, the parts of the lines, each task weighed once."""
+    """Add up, month by month, the parts of the lines, each task weighed once.
+
+    A line with a payment delay is spread by the path of the estimate (``amount_parts``), which
+    weighs the task by itself: the weighing is kept for the lines without delay.
+    """
     weigh = weighing()
     total: dict[Month, Decimal] = {}
     for line in lines:
