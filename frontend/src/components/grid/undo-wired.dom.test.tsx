@@ -18,6 +18,7 @@ import {
   type Problem,
 } from "@/test/fixtures";
 import { holdReading, Reading, releaseReading } from "@/test/held-reading";
+import { undoLastChange } from "@/api/actions/history";
 
 import type { NodeList, NodeSortColumn } from "./nodes";
 import { PLANNING_GRID } from "./planning";
@@ -33,6 +34,11 @@ const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: un
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+// The server action of the undo as it is, save where a test makes its connection lost once sent.
+vi.mock("@/api/actions/history", async (original) => {
+  const actual = await original<typeof import("@/api/actions/history")>();
+  return { ...actual, undoLastChange: vi.fn(actual.undoLastChange) };
+});
 // A change undone reads the page anew from the server action (`history.ts`).
 vi.mock("next/cache", () => ({ refresh: vi.fn() }));
 vi.mock("next/navigation", async (original) => ({
@@ -404,5 +410,29 @@ describe("a block pasted on the grid of the planning, judged by the server", () 
     await waitFor(() => {
       expect(screen.getByRole("treegrid")).not.toHaveAttribute("aria-busy", "true");
     });
+  });
+
+  it("holds Undo and Redo, aria-disabled, until the structure has been read anew after a command whose connection was lost once sent (US-2240)", async () => {
+    serve({});
+    router.refresh.mockClear();
+    holdReading(router.refresh);
+    vi.mocked(undoLastChange).mockResolvedValueOnce({ kind: "unreachable", sent: true });
+    render(grid(), { wrapper: Reading });
+    const undo = screen.getByRole("button", { name: "Annuler" });
+    const redo = screen.getByRole("button", { name: "Rétablir" });
+    await userEvent.click(undo);
+    expect(await screen.findByRole("alert")).toHaveTextContent("a pu aboutir");
+    expect(undo).toHaveAttribute("aria-disabled", "true");
+    expect(redo).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("treegrid")).toHaveAttribute("aria-busy", "true");
+    await userEvent.click(undo);
+    expect(undoLastChange).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      releaseReading();
+      await Promise.resolve();
+    });
+    expect(undo).not.toHaveAttribute("aria-disabled");
+    expect(redo).not.toHaveAttribute("aria-disabled");
   });
 });

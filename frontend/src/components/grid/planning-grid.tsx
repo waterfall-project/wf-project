@@ -51,7 +51,7 @@ import {
 } from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
 import { Command } from "@/components/commands/command";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedRead } from "@/components/commands/rejection";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
 import {
@@ -63,6 +63,7 @@ import {
 import { useNoteMessage } from "@/components/notices/message-history";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
 
+import { withDifference } from "./compared";
 import { DenseGrid } from "./dense-grid";
 import { RowNumbers } from "./link-conflicts";
 import { nodeDependencies } from "./node-dependencies";
@@ -76,7 +77,6 @@ import {
   nodesWritten,
   pasteSpan,
   type StructurePath,
-  withDifference,
 } from "./nodes";
 import {
   PLANNING_FIELDS,
@@ -155,6 +155,12 @@ export interface PlanningGridProps {
    */
   readonly differential?: boolean | undefined;
   /**
+   * Whether the grid reads a comparison to a base: its rows then bear the mark of a difference, its
+   * cells that differ the value of the base, and the choice of the columns offers those of the
+   * differences (WF-IHM-0150).
+   */
+  readonly comparing?: boolean | undefined;
+  /**
    * The labels of the risks occurred, by their identifier, which the mark of a row a risk merged
    * names it by (`OriginMark`); none, and the mark says a risk without its name.
    */
@@ -167,6 +173,11 @@ export interface PlanningGridProps {
    * exported.
    */
   readonly gantt?: PlanningGantt | undefined;
+  /**
+   * The task the address targets (`planning-target.ts`): once hydrated, the grid unfolds the rows
+   * above it and sets its active cell on it (WF-DEV-0090). None, and it opens on its first row.
+   */
+  readonly target?: string | undefined;
 }
 
 /** What the Gantt of the planning reads besides its rows. */
@@ -294,7 +305,7 @@ function useRowNames(
         const into = asked.current;
         await Promise.all(
           numbers.map(async (number) => {
-            const outcome = await resolveRowNumber(structure, number).catch(rejected);
+            const outcome = await resolveRowNumber(structure, number).catch(rejectedRead);
             if (outcome.kind === "done") {
               into.set(number, outcome.data.kind === "task" ? outcome.data.node_id : null);
             } else if (outcome.kind !== "unreachable" && outcome.problem.status === 404) {
@@ -328,9 +339,11 @@ export function PlanningGrid({
   timelines,
   timelineCreation,
   differential,
+  comparing,
   origins,
   treeFilters,
   gantt,
+  target,
 }: PlanningGridProps) {
   const t = useTranslations("planningGrid");
   const kinds = useTranslations("enums.WorkBreakdownKind");
@@ -477,7 +490,10 @@ export function PlanningGrid({
     timelines,
     names,
   ]);
-  const config = useMemo(() => withDifference(read, differential), [read, differential]);
+  const config = useMemo(
+    () => withDifference(read, differential, comparing),
+    [read, differential, comparing],
+  );
   // The skeleton moves the structure on as any write of the grid does: counted in the account, the
   // gestures wait for it (#1224). The command calls it in its transition, which would hold the count
   // back until the answer: the write is sent, and counted, once out of it.
@@ -577,12 +593,14 @@ export function PlanningGrid({
             config={config}
             rows={shown.items}
             totals={shown.totals}
+            comparison={shown.comparison}
             totalsCaption={(totals) => t("totals", { tasks: totals.task_count })}
             query={query}
             preferences={preferences}
             dependencies={dependencies}
             foldScope={structure.revision_id}
             narrowing={nodeNarrowing(filters)}
+            target={target}
             undoable={undoable}
             undo={undo}
             commands={zoomed}

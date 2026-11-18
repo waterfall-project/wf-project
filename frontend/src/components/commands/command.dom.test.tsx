@@ -4,7 +4,7 @@ import { act, fireEvent, render, renderHook, screen, within } from "@testing-lib
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { type ReactNode, useTransition } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { decode, type Outcome } from "@/api/problem";
 import type { Revision } from "@/components/context/read-only";
@@ -13,8 +13,10 @@ import { useNavigationHold } from "@/components/shell/navigation-hold";
 import { SESSION_LOST_DIGEST } from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 import { atCommit } from "@/test/committed";
 import { example, fakeClient, held, type Problem } from "@/test/fixtures";
+import { browserOffline, browserOnline } from "@/test/offline";
 
 import { Command } from "./command";
 import { commandIcon, PROJECT_COMMAND_ICONS, REVISION_COMMAND_ICONS } from "./icons";
@@ -101,8 +103,11 @@ function refusal(kind: "conflict" | "stale", problem: Problem): Outcome<unknown>
 }
 
 beforeEach(() => {
-  router.refresh.mockClear();
+  // Reset, not cleared: a test makes it read the page anew (US-2240).
+  router.refresh.mockReset();
 });
+
+beforeEach(browserOffline);
 
 describe("a command of a screen", () => {
   it("on a project in pricing, presents completion unavailable, naming the condition it lacks, which its tooltip opens on the focus of the keyboard [WF-IHM-0090-A]", async () => {
@@ -143,7 +148,12 @@ describe("a command of a screen", () => {
       within(region)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Préparer un avenant", "Marquer la révision", "Abandonner la révision en cours"]);
+    ).toEqual([
+      "Préparer un avenant",
+      "Appliquer la mise à jour des taux",
+      "Marquer la révision",
+      "Abandonner la révision en cours",
+    ]);
   });
 
   it("gives each command the icon of its kind, hidden from a screen reader beside its name", () => {
@@ -524,6 +534,29 @@ describe("the outcome of a command", () => {
     expect((await screen.findByRole("alert")).textContent).toBe(CATALOGUES.fr.outcome.unreachable);
   });
 
+  it("says the write may have been done, and holds the command until the screen is read anew, when the browser lost its server action while online [WF-REV-0010-A]", async () => {
+    onTestFinished(browserOnline());
+    holdReading(router.refresh);
+    const action = vi.fn(() => Promise.reject(new TypeError("Failed to fetch")));
+    french(<Reading>{available(action)}</Reading>);
+    const command = screen.getByRole("button", { name: "Terminer le projet" });
+    await userEvent.click(command);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("a pu aboutir");
+    expect(alert).not.toHaveTextContent("injoignable");
+    expect(router.refresh).toHaveBeenCalledOnce();
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(command);
+    expect(action).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      releaseReading();
+      await Promise.resolve();
+    });
+    expect(command).not.toHaveAttribute("aria-disabled");
+  });
+
   it("explains a conflict, naming the object in conflict", async () => {
     const conflict = refusal("conflict", {
       code: "STATE_FORBIDS_OPERATION",
@@ -590,6 +623,38 @@ describe("the outcome of a command", () => {
     expect((await screen.findByRole("alert")).textContent).toBe(
       "Le service est injoignable\u202F; réessayez dans un instant.",
     );
+  });
+
+  it("waits, pressed again, until the screen has been read anew after a write whose connection was lost once sent (US-2240)", async () => {
+    // The page as Next reads it anew: the refresh a transition that stays pending until the server
+    // answers — here until the test lets it go (`held-reading.tsx`).
+    holdReading(router.refresh);
+    const action = vi.fn(() =>
+      Promise.resolve<Outcome<unknown>>({ kind: "unreachable", sent: true }),
+    );
+    french(<Reading>{available(action)}</Reading>);
+    const command = screen.getByRole("button", { name: "Terminer le projet" });
+    await userEvent.click(command);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("l’opération a pu aboutir");
+    expect(router.refresh).toHaveBeenCalledOnce();
+    // The screen not yet read anew: the command waits, and a press runs nothing.
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(command).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("status")).toHaveTextContent("Relecture de l’écran…");
+    await userEvent.click(command);
+    expect(action).toHaveBeenCalledOnce();
+
+    // The screen read anew: the command is given back, and the reading said no more.
+    await act(async () => {
+      releaseReading();
+      await Promise.resolve();
+    });
+    expect(command).toHaveAttribute("aria-busy", "false");
+    expect(command).not.toHaveAttribute("aria-disabled");
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    await userEvent.click(command);
+    expect(action).toHaveBeenCalledTimes(2);
   });
 
   it("says nothing of a success", async () => {

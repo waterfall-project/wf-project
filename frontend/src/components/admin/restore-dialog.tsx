@@ -25,7 +25,7 @@ import { type SubmitEvent, useId, useState, useTransition } from "react";
 import { type RestoreSource, startRestore } from "@/api/actions/backups";
 import type { Outcome, Problem } from "@/api/problem";
 import { useHeldCommand } from "@/components/commands/held";
-import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useNoteRefusal, useReadAnew } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -94,13 +94,15 @@ export function RestoreDialog({
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [dateRefused, setDateRefused] = useState<Problem>();
   const [pending, startTransition] = useTransition();
+  // A restoration lost once sent: the dialog waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(outcome);
   // Shown in the browser alone, which knows its time zone: the dialog opens on a press.
   const date = formatTimestamp(subject.takenAt, locale);
   const confirmed = typed.trim().toLowerCase() === subject.identifier.toLowerCase();
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (pending || !confirmed) {
+    if (pending || reading || !confirmed) {
       return;
     }
     setOutcome(undefined);
@@ -179,6 +181,7 @@ export function RestoreDialog({
           </div>
           <OutcomeNotice
             outcome={outcome}
+            reading={reading}
             onClear={() => {
               setOutcome(undefined);
             }}
@@ -190,7 +193,7 @@ export function RestoreDialog({
               <X aria-hidden="true" />
               {t("cancel")}
             </Button>
-            <Button type="submit" disabled={!confirmed} aria-busy={pending}>
+            <Button type="submit" disabled={!confirmed || reading} aria-busy={pending || reading}>
               <History aria-hidden="true" />
               {t(pending ? "sending" : "submit")}
             </Button>

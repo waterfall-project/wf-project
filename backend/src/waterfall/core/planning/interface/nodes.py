@@ -1,26 +1,25 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The nodes of a structure: the tree read and written, what the revisions ask of it, its copy.
+"""The nodes of a structure: the tree read and written, what the revisions ask of it.
 
-The planning registers, at the import of its interface, the copy of the nodes of a revision opened
-from a marked one (``copy_nodes``, after the structures', whose copies it finds in
-``RevisionCopy.identifiers``) and the question the designation of the reference asks of its tasks
-(``revision_has_tasks``, WF-CYC-0030). The reading and the writes of the tree — ``listNodes``,
-``createNode``, ``updateTaskFacet``, ``getComputedValueDependencies``, ``resolveRowNumber`` — are
-US-1380/L2's, the deletion, the move and the attachment to the work breakdown (``deleteNode``,
-``moveNodes``, ``work_package_id`` and ``order_item_id`` of a creation and a modification)
-US-1380/L3's; each write judges its revision, opens its entry of the history, locks its structure,
-replays the engine on it and gives back what it wrote (``writing``). A marked revision reads as the
-current one. The copy leaves null the attachment to an element marked deleted (WF-PLA-0170).
-The creation of ``createNode``, judged then written (``judge_creation``, ``write_creation``), is
-also that of the rows of a paste past the last node, in the paste's one write (US-1450/L5).
-The tasks of the witness are written by ``loading`` (US-1480/L2).
+The planning registers, at the import of its interface, the question the designation of the
+reference asks of its tasks (``revision_has_tasks``, WF-CYC-0030); the copy of the nodes of a
+revision opened from a marked one is ``copying``'s (US-2240/L2). The reading and the writes of
+the tree — ``listNodes``, ``createNode``, ``updateTaskFacet``, ``getComputedValueDependencies``,
+``resolveRowNumber`` — are US-1380/L2's, the deletion, the move and the attachment to the work
+breakdown (``deleteNode``, ``moveNodes``, ``work_package_id`` and ``order_item_id`` of a creation
+and a modification) US-1380/L3's; each write judges its revision, opens its entry of the
+history, locks its structure, replays the engine on it and gives back what it wrote (``writing``).
+A marked revision reads as the current one. The creation of ``createNode``, judged then written
+(``judge_creation``, ``write_creation``), is also that of the rows of a paste past the last node,
+in the paste's one write (US-1450/L5). The tasks of the witness are written by ``loading``
+(US-1480/L2).
 """
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import exists, insert, inspect, select, update
+from sqlalchemy import exists, inspect, select, update
 
 from waterfall.core.planning.attachments import (
     ORDER_ITEM_ID,
@@ -32,6 +31,7 @@ from waterfall.core.planning.attachments import (
     stray_fault,
     strays,
 )
+from waterfall.core.planning.calendars import default_calendar
 from waterfall.core.planning.carrying import (
     judge_facets_moved,
     judge_lines_moved,
@@ -40,14 +40,15 @@ from waterfall.core.planning.carrying import (
 from waterfall.core.planning.dating import constants_of
 from waterfall.core.planning.entries import (
     AUTOMATIC,
+    INERT_TASK_FIELDS,
     MANUAL,
+    dating_pointers,
     judged_change,
     judged_creation,
 )
-from waterfall.core.planning.filters import NodeFilters, retained
 from waterfall.core.planning.interface.facets import calendar_of, facets
 from waterfall.core.planning.interface.lines import create_line_node
-from waterfall.core.planning.reading import reading_of
+from waterfall.core.planning.reading import retained_reading, structure_totals
 from waterfall.core.planning.scheduling import Move, WorkInstant
 from waterfall.core.planning.shaping import (
     Placing,
@@ -64,6 +65,7 @@ from waterfall.core.planning.shaping import (
 )
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tables import Node, Task, TaskLink
+from waterfall.core.planning.tallying import provisions_of
 from waterfall.core.planning.tree import TASK, Tree, read_tree
 from waterfall.core.planning.views import COMPLETED, NOT_STARTED, NodeView, state_of
 from waterfall.core.planning.writing import (
@@ -90,17 +92,19 @@ from waterfall.platform.errors import (
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
     from datetime import date, datetime
     from decimal import Decimal
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.planning.calendars import Applicable
     from waterfall.core.planning.entries import Facet
-    from waterfall.core.planning.scheduling import Duration
+    from waterfall.core.planning.filters import NodeFilters
+    from waterfall.core.planning.scheduling import Duration, UnitConstants
+    from waterfall.core.planning.tree import NodeColumns, TaskColumns
     from waterfall.core.planning.writing import Write
-    from waterfall.core.revisions.interface import RevisionCopy
     from waterfall.platform.audit import Act
 
 UNKNOWN_TASK = "UNKNOWN_TASK"
@@ -218,109 +222,6 @@ def _columns(row: Node | Task | TaskLink) -> dict[str, object]:
     return {column.key: getattr(row, column.key) for column in inspect(row).mapper.column_attrs}
 
 
-def _depth_first(nodes: list[Node]) -> list[Node]:
-    """Order nodes so that each parent comes before its children."""
-    held = {node.id for node in nodes}
-    depth: dict[UUID, int] = {}
-
-    def level(node: Node) -> int:
-        if node.id not in depth:
-            parent = node.parent_id
-            depth[node.id] = 0 if parent is None or parent not in held else 1 + level(by[parent])
-        return depth[node.id]
-
-    by = {node.id: node for node in nodes}
-    return sorted(nodes, key=lambda node: (level(node), node.id))
-
-
-def copy_nodes(copy: RevisionCopy) -> None:
-    """Copy the nodes of the source, their facet task and their links (WF-DAT-0010).
-
-    The nodes of each structure copied, under identifiers of their own and their lineage, at their
-    place, at their first version, their dates as computed, their attachment to the work breakdown
-    but to an element marked deleted, which the revision opened does not take up (WF-PLA-0170); the
-    facets the later modules register after them (``register_facet``). The inscriptions follow the
-    lineage, and stay.
-    """
-    session, ids = copy.session, copy.identifiers
-    nodes = [
-        node
-        for node in session.scalars(
-            select(Node).where(Node.project_id == copy.project_id, Node.revision_id == copy.source)
-        )
-        if node.structure_id in ids
-    ]
-    for node in nodes:
-        ids[node.id] = new_id()
-    stamp = {
-        "created_at": copy.at,
-        "created_by": copy.author,
-        "updated_at": copy.at,
-        "updated_by": copy.author,
-    }
-    rows = [
-        {
-            "project_id": copy.project_id,
-            "id": ids[node.id],
-            "revision_id": copy.target,
-            "structure_id": ids[node.structure_id],
-            "lineage_id": node.lineage_id,
-            "kind": node.kind,
-            "parent_id": None if node.parent_id is None else ids[node.parent_id],
-            "rank": node.rank,
-            "origin_risk_id": node.origin_risk_id,
-            "lock_version": 1,
-            **stamp,
-        }
-        for node in _depth_first(nodes)
-    ]
-    if not rows:
-        return
-    session.execute(insert(Node), rows)
-    tasks = session.scalars(
-        select(Task).where(Task.project_id == copy.project_id, Task.node_id.in_(list(ids)))
-    ).all()
-    gone = {
-        item.item_id
-        for item in work_breakdown_items(session, copy.project_id).values()
-        if item.deleted
-    }
-    session.execute(
-        insert(Task),
-        [
-            {
-                **_columns(task),
-                "node_id": ids[task.node_id],
-                "structure_id": ids[task.structure_id],
-                "work_package_id": None if task.work_package_id in gone else task.work_package_id,
-                "order_item_id": None if task.order_item_id in gone else task.order_item_id,
-            }
-            for task in tasks
-        ],
-    )
-    links = session.scalars(
-        select(TaskLink).where(
-            TaskLink.project_id == copy.project_id, TaskLink.revision_id == copy.source
-        )
-    ).all()
-    copied_links = [
-        {
-            **_columns(link),
-            "id": new_id(),
-            "revision_id": copy.target,
-            "structure_id": ids[link.structure_id],
-            "predecessor_id": ids[link.predecessor_id],
-            "successor_id": ids[link.successor_id],
-        }
-        for link in links
-        if link.structure_id in ids
-    ]
-    if copied_links:
-        session.execute(insert(TaskLink), copied_links)
-    for hooks in facets().values():
-        hooks.copy(copy)
-
-
 def list_nodes(session: Session, place: Place, filters: NodeFilters) -> NodeList:
     """Read the nodes of a structure, depth first, numbered and filtered (``listNodes``).
 
@@ -328,18 +229,14 @@ def list_nodes(session: Session, place: Place, filters: NodeFilters) -> NodeList
     are the structure's, whatever the filters (WF-PLA-0080, WF-PLA-0110). Refused if the project,
     the revision or the structure is unknown (404).
     """
-    facts = facts_of(session, place, lock=False)
-    tree = read_tree(session, place.project_id, place.structure_id)
-    reading = reading_of(session, place, tree, (facts.scheduled_at, facts.is_main))
-    structure = (place.project_id, place.structure_id)
-    found = retained(session, structure, reading, filters, constants_of(session))
+    reading, found, scheduled_at = retained_reading(session, place, filters)
     reading.prefetch(found.order)
     return NodeList(
         tuple(reading.node(each) for each in found.order),
         found.task_count,
         reading.summary_depth(),
-        facts.scheduled_at,
-        StructureTotals(len(found.lines), reading.totals(found.lines)),
+        scheduled_at,
+        structure_totals(reading, found),
     )
 
 
@@ -380,16 +277,34 @@ def _judge_parent(tree: Tree, parent: UUID | None) -> None:
 
 
 @dataclass(frozen=True, slots=True)
-class Ground:
+class Ground[N: NodeColumns = Node, T: TaskColumns = Task]:
     """What a cell is judged on: the tree of its structure as read, under its lock or not.
 
-    ``is_main`` tells whether the structure is the main one, the only to bear an attachment.
+    ``is_main`` tells whether the structure is the main one, the only to bear an attachment. Its
+    tree holds objects of the session, or rows for an entry whose columns are all inert
+    (``read_inert``).
     """
 
     session: Session
     project_id: UUID
-    tree: Tree
+    tree: Tree[N, T]
     is_main: bool
+
+
+@dataclass(frozen=True, slots=True)
+class Defaults:
+    """What a judgment reads of the installation: its default calendar and its unit constants.
+
+    A paste reads them once for all its rows (#2605), not at each of them.
+    """
+
+    calendar: Applicable
+    constants: UnitConstants
+
+
+def read_defaults(session: Session) -> Defaults:
+    """Read the default calendar and the constants of the units, as a judgment of a task needs."""
+    return Defaults(default_calendar(session), constants_of(session))
 
 
 @dataclass(frozen=True, slots=True)
@@ -444,22 +359,27 @@ def _entry(creation: NodeCreation) -> TaskEntry:
     return creation.task
 
 
-def judge_creation(ground: Ground, creation: NodeCreation, node_id: UUID) -> CreationJudged:
+def judge_creation(
+    ground: Ground, creation: NodeCreation, node_id: UUID, defaults: Defaults | None = None
+) -> CreationJudged:
     """Judge a task to create on the tree of a ground, as ``createNode`` does; nothing is written.
 
     Its parent (``MILESTONE_HAS_NO_SUBTASK``, WF-PLA-0050), its facet and attachment, all refusals
-    at once, then its place (``NODE_NOT_SIBLING``). A paste calls it for rows past the last node.
+    at once, then its place (``NODE_NOT_SIBLING``). A paste calls it for rows past the last node,
+    handing the ``defaults`` it read once: a task not yet created is on the default calendar, no
+    facet naming one under it.
     """
     session, tree = ground.session, ground.tree
     parent, entry = creation.parent_id, _entry(creation)
     _judge_parent(tree, parent)
-    applicable = calendar_of(session, ground.project_id, node_id).calendar
+    held_defaults = defaults or read_defaults(session)
+    applicable = held_defaults.calendar.calendar
     lineage = () if parent is None else (parent, *tree.ancestors(parent))
     bearer = Bearer(node_id, entry.label or "", lineage, created=True)
     held = (ground.project_id, tree, ground.is_main)
     sent = entry.attachment(creation=True)
     attached = judged_attachment(session, held, bearer, sent, "/task")
-    facet = _together(lambda: judged_creation(entry, applicable, constants_of(session)), attached)
+    facet = _together(lambda: judged_creation(entry, applicable, held_defaults.constants), attached)
     rank = _rank(tree, creation)
     shifted = tuple(each for each in tree.subtasks(parent) if tree.nodes[each].rank >= rank)
     made_summary = (
@@ -575,21 +495,35 @@ def create_node(
         return redated.written((node_id,))
 
 
-def judge_cell(ground: Ground, node_id: UUID, entry: TaskEntry) -> tuple[Facet, Attached]:
+def judge_cell[N: NodeColumns, T: TaskColumns](
+    ground: Ground[N, T],
+    node_id: UUID,
+    entry: TaskEntry,
+    defaults: Defaults | None = None,
+    *,
+    created: bool = False,
+) -> tuple[Facet, Attached]:
     """Judge what is sent of the facet of a task, and of its attachment, all refusals at once.
 
     The rules of the entry of a cell, which the paste of a block applies to each of its rows
-    (``UnprocessableError`` when the entry is refused); nothing is written.
+    (``UnprocessableError`` when the entry is refused); nothing is written. A paste hands the
+    ``defaults`` it read once, and says when the task is one it creates — on the default calendar,
+    no facet naming one under it —; a task written has the calendars its facets name read.
     """
     session, tree = ground.session, ground.tree
     task = tree.tasks[node_id]
-    applicable = calendar_of(session, ground.project_id, node_id).calendar
+    held_defaults = defaults or read_defaults(session)
+    if created:
+        applicable = held_defaults.calendar.calendar
+    else:
+        named = calendar_of(session, ground.project_id, node_id, default=held_defaults.calendar)
+        applicable = named.calendar
     carried = (task.work_package_id, task.order_item_id)
     bearer = Bearer(node_id, task.label, tuple(tree.ancestors(node_id)), carried)
     held = (ground.project_id, tree, ground.is_main)
     attached = judged_attachment(session, held, bearer, entry.attachment(creation=False), "")
     facet = _together(
-        lambda: judged_change(tree, task, entry, applicable, constants_of(session)), attached
+        lambda: judged_change(tree, node_id, entry, applicable, held_defaults.constants), attached
     )
     return facet, attached
 
@@ -667,28 +601,59 @@ def update_task_facet(
     Under the lock of the structure: refused if the node is no task of it (404), at another
     version (412), or for what it computes or does not accept (422, ``entries``), its attachment
     to the work breakdown with it (``attachments``, WF-PLA-0170). Beyond fifteen years, refused
-    naming the task (WF-PLA-0150); nothing is written.
+    naming the task (WF-PLA-0150), an amount past its column at the fields that date it (#3094).
+    A write whose fields are all inert takes the short path, the engine not replayed
+    (``INERT_TASK_FIELDS``, ``Write.count``, US-2250), its structure read as rows but the task
+    written (``read_inert``, US-2250/L2).
     """
-    with writing(session, place, writer, ("cell", (node_id,))) as write:
-        tree = write.tree
-        if node_id not in tree.tasks:
-            raise NotFoundError(NOT_FOUND)
-        node, task = tree.nodes[node_id], tree.tasks[node_id]
-        if node.lock_version != entry.lock_version:
-            raise PreconditionFailedError(
-                STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
-            )
-        ground = Ground(session, place.project_id, tree, write.facts.is_main)
-        judged = judge_cell(ground, node_id, entry)
-        write.before((node_id,))
-        write_cell(ground, node_id, entry, judged, writer.act)
-        redated = write.redate((node_id, task.label))
-        write.after((node_id,))
-        return redated.written((node_id,))
+    inert = {f"{TASK}.{name}" for name in entry.sent} <= INERT_TASK_FIELDS
+    written = (node_id,) if inert else ()
+    with writing(session, place, writer, ("cell", (node_id,)), written) as write:
+        held, is_main = write.inert, write.facts.is_main
+        if held is None:
+            tree = write.tree
+            ground = Ground(session, place.project_id, tree, is_main)
+            return _cell(write, ground, (tree.nodes, tree.tasks), node_id, entry)
+        ground = Ground(session, place.project_id, held.tree, is_main)
+        return _cell(write, ground, (held.nodes, held.tasks), node_id, entry)
+
+
+def _cell[N: NodeColumns, T: TaskColumns](
+    write: Write,
+    ground: Ground[N, T],
+    objects: tuple[Mapping[UUID, Node], Mapping[UUID, Task]],
+    node_id: UUID,
+    entry: TaskEntry,
+) -> NodesWritten:
+    """Write the cell of a task on the ground its write holds, through the ``objects``.
+
+    The objects of the session of the node and of its task, which the ground holds too — whole, or
+    those of a write whose fields are all inert, the others rows (``updateTaskFacet``).
+    """
+    if node_id not in ground.tree.tasks:
+        raise NotFoundError(NOT_FOUND)
+    nodes, tasks = objects
+    node, task = nodes[node_id], tasks[node_id]
+    if node.lock_version != entry.lock_version:
+        raise PreconditionFailedError(
+            STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
+        )
+    judged = judge_cell(ground, node_id, entry)
+    write.before((node_id,))
+    apply_cell(task, entry, judged)
+    stamp(node, write.writer.act)
+    redated = (
+        write.count()
+        if write.inert is not None
+        else write.redate((node_id, task.label), entered=dating_pointers(entry))
+    )
+    write.after((node_id,))
+    return redated.written((node_id,))
 
 
 # The rule a computed field of a summary follows (WF-IHM-0030, WF-PLA-0040, WF-PLA-0100): a field
 # absent is entered for it. The amounts of any task follow its lines and its subordinates.
+_PHYSICAL = "task.physical_progress"
 _SUMMARY_RULES = {
     "task.scheduling_mode": "subordinates",
     "task.duration": "subordinates",
@@ -696,22 +661,38 @@ _SUMMARY_RULES = {
     "task.finish": "subordinates",
     "task.progress": "subordinates",
     "task.total_float": "subordinates",
-    "task.physical_progress": "lines_and_subordinates",
+    _PHYSICAL: "lines_and_subordinates",
 }
 _AMOUNTS = ("task.base_amount", "task.budgeted_amount", "task.reestimated_amount")
 _DATES = ("task.start", "task.finish")
 
 
-def _rule(tree: Tree, node_id: UUID, field: str) -> tuple[str, list[UUID]] | None:
+def _summary_rule(
+    session: Session, place: Place, tree: Tree, node_id: UUID, field: str
+) -> tuple[str, list[UUID]] | None:
+    """Give the rule a computed field of a summary follows and its rows; none if entered."""
+    rule = _SUMMARY_RULES.get(field)
+    if rule is None:
+        return None
+    if field == _PHYSICAL:
+        # What the share weighs and counts: the lines and the tasks of the whole subtree, a
+        # provision line out (it weighs nothing today, and the kind alone says so), read in one
+        # statement by kind, whatever the amounts.
+        provisions = provisions_of(session, place)
+        below = [each for each in tree.subtree(node_id) if each != node_id]
+        return rule, tree.ordered([each for each in below if each not in provisions])
+    lines = tree.lines(node_id) if rule == "lines_and_subordinates" else []
+    return rule, [*lines, *tree.subtasks(node_id)]
+
+
+def _rule(
+    session: Session, place: Place, tree: Tree, node_id: UUID, field: str
+) -> tuple[str, list[UUID]] | None:
     """Give the rule a computed field of a task follows and the rows it reads; none if entered."""
     if field in _AMOUNTS:
         return "lines_and_subordinates", [*tree.lines(node_id), *tree.subtasks(node_id)]
     if tree.is_summary(node_id):
-        rule = _SUMMARY_RULES.get(field)
-        if rule is None:
-            return None
-        lines = tree.lines(node_id) if rule == "lines_and_subordinates" else []
-        return rule, [*lines, *tree.subtasks(node_id)]
+        return _summary_rule(session, place, tree, node_id, field)
     manual = tree.tasks[node_id].scheduling_mode == MANUAL
     if field == "task.total_float":
         return ("manual_mode" if manual else "float_dates"), []
@@ -726,8 +707,10 @@ def computed_value_dependencies(
     """Name what a computed value of a node depends on (``getComputedValueDependencies``).
 
     The rule, and the rows it reads — the direct subordinates of a summary, the lines and the
-    direct subordinates of a task — in the order of the plan, whatever a reading retains; for a
-    node of another kind, the rules its facet names (``FacetHooks.dependencies``), without a row.
+    direct subordinates of a task, the lines (a provision line out) and the tasks of the whole
+    subtree for the physical progress of a summary — in the order of the plan, whatever a reading
+    retains; for a node of another kind, the rules its facet names (``FacetHooks.dependencies``),
+    without a row.
     A field the server does not compute for the node is refused (422, ``params.field``); a node the
     structure does not hold is not found (404).
     """
@@ -743,7 +726,7 @@ def computed_value_dependencies(
         if named is None:
             raise UnprocessableError(VALIDATION_FAILED, {"field": field})
         return Dependencies(node_id, field, named, ())
-    found = _rule(tree, node_id, field)
+    found = _rule(session, place, tree, node_id, field)
     if found is None:
         raise UnprocessableError(VALIDATION_FAILED, {"field": field})
     rule, rows = found
@@ -930,9 +913,10 @@ def move_nodes(session: Session, place: Place, moving: NodeMoving, writer: Write
     summary that loses its last subordinate a leaf in its state. The engine refuses a link the
     move would make between a summary and its subordinate, or a loop it would close through the
     parent (``LINK_FORBIDDEN``, ``LINK_CYCLE``, #1169), and a project beyond fifteen years, the
-    first task moved named, or the task that receives the lines (WF-PLA-0150); nothing is written
-    then. The moved nodes are given back
-    with their former and new ancestors.
+    first task moved named, or the task that receives the lines (WF-PLA-0150); a line priced again
+    past its column, at the parent, which gives it the dates it is priced on (``/parent_id``,
+    #3401); nothing is written then. The moved nodes are given back with their former and new
+    ancestors.
     """
     node_ids = tuple(dict.fromkeys(moving.node_ids))
     with writing(session, place, writer, ("node_move", node_ids)) as write:
@@ -994,6 +978,6 @@ def _moved(write: Write, placing: Placing) -> NodesWritten:
     first = tasks_moved[0] if tasks_moved else parent
     blamed = None if first is None else (first, tree.tasks[first].label)
     origin = None if parent is None or not tasks_moved else Move(tuple(tasks_moved), parent)
-    redated = write.redate(blamed, origin)
+    redated = write.redate(blamed, origin, entered=("/parent_id",))
     write.after(touched)
     return redated.written(node_ids, former)

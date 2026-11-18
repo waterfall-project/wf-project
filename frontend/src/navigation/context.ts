@@ -37,6 +37,20 @@ export function readsStructure(route: string): boolean {
   return STRUCTURE_SCREENS.has(route.slice(route.lastIndexOf("/") + 1));
 }
 
+/** The parameter that carries the base of a comparison, a marked revision of the project. */
+export const BASE_PARAMETER = "base_revision_id";
+
+/**
+ * The screens that compare the revision read to a base, and so carry it from one to the other
+ * (US-2330, WF-IHM-0010): the planning, the estimate, the remaining to commit.
+ */
+const BASE_SCREENS: ReadonlySet<string> = new Set(["planning", "estimate", "remaining"]);
+
+/** Whether the screen a route leads to compares to the base the address names. */
+export function readsBase(route: string): boolean {
+  return BASE_SCREENS.has(route.slice(route.lastIndexOf("/") + 1));
+}
+
 /** The cookie of the front that keeps the address of the last project context. */
 export const LAST_CONTEXT_COOKIE = "wf_last_project";
 
@@ -95,6 +109,12 @@ export interface ProjectContext {
    * links to the other of the two carry it, those to any other screen do not (#1220).
    */
   readonly structure?: string | undefined;
+  /**
+   * The base of a comparison the address names, on a screen that compares (`readsBase`): the links
+   * to the two others carry it, those to any other screen do not, and the cookie does not keep it.
+   * Any value, as the address gives it: the API says whether it is a marked revision of the project.
+   */
+  readonly base?: string | undefined;
 }
 
 /** What the navigation reads of the address: its search parameters. */
@@ -132,6 +152,27 @@ function parameter(search: SearchParameters, name: string): string | undefined {
 }
 
 /**
+ * What the address names of what a screen reads besides its context: the structure on a screen that
+ * reads one, the base of a comparison on a screen that compares; nothing on any other screen.
+ */
+function screenParameters(
+  screen: string | undefined,
+  search: SearchParameters,
+): Pick<ProjectContext, "structure" | "base"> {
+  const structure = parameter(search, STRUCTURE);
+  const base = parameter(search, BASE_PARAMETER);
+  return {
+    ...(screen !== undefined &&
+    STRUCTURE_SCREENS.has(screen) &&
+    structure !== undefined &&
+    isUuid(structure)
+      ? { structure }
+      : {}),
+    ...(screen !== undefined && BASE_SCREENS.has(screen) && base !== undefined ? { base } : {}),
+  };
+}
+
+/**
  * The context of the project an address reads in, or `undefined` outside any project — the
  * list of projects included — or on an address that is no screen of a project.
  */
@@ -153,7 +194,6 @@ export function readContext(
     }
   }
   const carried = parameter(search, REVISION_PARAMETER);
-  const structure = parameter(search, STRUCTURE);
   return {
     projectId,
     revisionId:
@@ -161,23 +201,19 @@ export function readContext(
       (carried !== undefined && IDENTIFIER.test(carried) ? carried : undefined),
     revisionInPath: followed.revisionId !== undefined,
     parameters,
-    ...(followed.screen !== undefined &&
-    STRUCTURE_SCREENS.has(followed.screen) &&
-    structure !== undefined &&
-    isUuid(structure)
-      ? { structure }
-      : {}),
+    ...screenParameters(followed.screen, search),
   };
 }
 
 /**
  * The search part of an address that carries a context, or nothing: the revision first when
- * the path does not name it, then the filters.
+ * the path does not name it, then the filters, then the structure and the base when asked.
  */
 export function contextQuery(
   context: ProjectContext,
   carryRevision: boolean,
   carryStructure = false,
+  carryBase = false,
 ): string {
   const query = new URLSearchParams();
   if (carryRevision && context.revisionId !== undefined) {
@@ -189,11 +225,18 @@ export function contextQuery(
   if (carryStructure && context.structure !== undefined) {
     query.set(STRUCTURE, context.structure);
   }
+  if (carryBase && context.base !== undefined) {
+    query.set(BASE_PARAMETER, context.base);
+  }
   const text = query.toString();
   return text === "" ? "" : `?${text}`;
 }
 
-/** The address of the screen a context was read on: its path, and the context it carries. */
+/**
+ * The address of the screen a context was read on: its path, and the context it carries — but the
+ * base of a comparison, which neither the cookie of the last context nor a screen of the project
+ * that leads into a revision keeps (US-2330).
+ */
 export function contextAddress(pathname: string, context: ProjectContext): string {
   return pathname + contextQuery(context, !context.revisionInPath, true);
 }

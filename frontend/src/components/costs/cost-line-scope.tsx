@@ -20,7 +20,7 @@ import { setCostLineScope } from "@/api/actions/costs";
 import { Command } from "@/components/commands/command";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedWrite } from "@/components/commands/rejection";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -79,7 +79,7 @@ export function CostLineScope({ projectId, line, offer }: CostLineScopeProps) {
     setCostLineScope(projectId, line.cost_line_id, {
       is_in_tracked_scope: !tracked,
       reason: tracked && reason.trim() !== "" ? reason.trim() : null,
-    }).catch(rejected);
+    }).catch(rejectedWrite());
   return (
     <section aria-labelledby={heading} className="space-y-2 rounded-md border p-3 text-sm">
       <div className="flex items-center justify-between gap-2">

@@ -5,10 +5,10 @@
 Usage: ``python -m wftools.mirror [--push]``, ``python -m wftools.mirror sync``.
 
 The Compose files and the Dockerfiles name the third-party images of Docker Hub — PostgreSQL,
-Redis, Caddy, Mailpit, Garage, curl, Node, Python, Debian, Maven, Keycloak and its config CLI — by
-the digest they have there, behind ``${WATERFALL_MIRROR:-}`` (``ARG WATERFALL_MIRROR=`` in a
-Dockerfile): empty, they are Docker Hub's, on the workstation and in production; the chain poses
-``ghcr.io/waterfall-project/mirror/``, and ``mirror/postgres:18-trixie@sha256:…`` is
+Redis, Caddy, Mailpit, Garage, curl, k6, Node, Python, Debian, Maven, Keycloak and its config CLI —
+by the digest they have there, behind ``${WATERFALL_MIRROR:-}`` (``ARG WATERFALL_MIRROR=`` in a
+Dockerfile): empty, they are Docker Hub's, on the workstation, in production and for Dependabot; the
+chain poses ``ghcr.io/waterfall-project/mirror/``, and ``mirror/postgres:18-trixie@sha256:…`` is
 ``docker.io/library/postgres`` at that digest. The services of the workflows name the mirror itself.
 A pull of Docker Hub failed three runs of ``keycloak / check`` and one of ``production / trial``
 in a week (« failed to fetch oauth token »): the chain now reads Docker Hub

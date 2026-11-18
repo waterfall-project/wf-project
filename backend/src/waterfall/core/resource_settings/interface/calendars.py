@@ -26,7 +26,7 @@ from waterfall.core.resource_settings.interface.extensions import (
 )
 from waterfall.core.resource_settings.interface.readiness import lock_reference
 from waterfall.core.resource_settings.interface.resource_roles import idle_tasks_refused
-from waterfall.core.resource_settings.tables import DAYS, Calendar
+from waterfall.core.resource_settings.tables import DAYS, Calendar, ResourceRole
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
     NOT_FOUND,
@@ -423,6 +423,8 @@ def create_calendar(
             )
         )
     if default:
+        # No ``entered``: only the bootstrap and the loader of the witness pass ``default`` (the
+        # API never does), before any project exists: no line to price again, no field to name.
         recalculate(session, act.at)
     return read_calendar(session, calendar_id)
 
@@ -436,18 +438,20 @@ def update_calendar(
     leave a task without an hour is refused (422), which EP-06 judges. The structures of the current
     revisions are redated in the transaction, once the calendar is written (``recalculate``), when
     the hours of the default change: a label, or the hours of another calendar, which no task of
-    EP-06 is on, redate nothing.
+    EP-06 is on, redate nothing. A line the redating prices past its column is refused at each day
+    whose hours change, in the order of the week (``/weekly_hours/<day>``, #3401).
     """
     _refuse_hours(change.weekly_hours)
     lock_reference(session)
     calendar = _lock_calendar(session, calendar_id)
     _expect(calendar, lock_version)
     _refuse_idle_tasks(session, calendar_id, change.weekly_hours, default=calendar.is_default)
-    redating = calendar.is_default and _weekly(_hours_of(calendar)) != _weekly(change.weekly_hours)
+    before, after = _weekly(_hours_of(calendar)), _weekly(change.weekly_hours)
+    changed = tuple(json_pointer("weekly_hours", day) for day in DAYS if before[day] != after[day])
     with _unique_label(session, change.label):
-        _write(session, calendar, act, label=change.label, **_weekly(change.weekly_hours))
-    if redating:
-        recalculate(session, act.at)
+        _write(session, calendar, act, label=change.label, **after)
+    if calendar.is_default and changed:
+        recalculate(session, act.at, changed)
     return read_calendar(session, calendar_id)
 
 
@@ -459,7 +463,8 @@ def set_default_calendar(
     The version is judged first, as for any versioned write. A calendar that is the default
     already answers as it is, nothing written; a deactivated one is not designated (409), nor one
     that would leave a task without an hour (422). The structures of the current revisions are
-    redated in the transaction, once it is designated (``recalculate``).
+    redated in the transaction, once it is designated (``recalculate``); a line it prices past its
+    column is refused without a field, the request sending none that carries it (#3401).
     """
     lock_reference(session)
     _lock_designation(session)
@@ -549,3 +554,23 @@ def list_calendars(
         .execution_options(populate_existing=True)
     ).all()
     return CalendarPage(_views(rows), total)
+
+
+def calendar_settings(session: Session) -> tuple[tuple[str, ...], ...]:
+    """Give, as texts, what the hours of a task follow: the calendars, and the calendar of a role.
+
+    Each calendar with its hours and whether it is the default, then each role with its calendar,
+    in the order of their identifiers (WF-PLA-0010). What a reading kept of a marked revision
+    depends on outside it (EP-26, US-2270): a change of it makes the readings kept stale.
+    """
+    hours = [getattr(Calendar, day) for day in DAYS]
+    calendars = session.execute(
+        select(Calendar.id, *hours, Calendar.is_default).order_by(Calendar.id)
+    )
+    roles = session.execute(
+        select(ResourceRole.id, ResourceRole.calendar_id).order_by(ResourceRole.id)
+    )
+    return (
+        *(("calendar", *(str(value) for value in row)) for row in calendars),
+        *(("role", *(str(value) for value in row)) for row in roles),
+    )

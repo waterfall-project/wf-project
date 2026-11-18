@@ -8,10 +8,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, fakeClient } from "@/test/fixtures";
+import { ESTIMATE_OFFERED } from "@/test/estimate-offered";
 import { keysOf, PREFERENCES } from "@/test/grid-preferences";
 import { estimateReference } from "@/test/reference";
 
-import { ESTIMATE_GRID } from "./estimate";
 import { EstimateGrid } from "./estimate-grid";
 import type { NodeList } from "./nodes";
 import type { GridPreferences } from "./settings";
@@ -91,9 +91,15 @@ describe("a column hidden by default that a grid set by the account did not know
     });
     const [call] = client.calls;
     const recorded = (call?.body as { grids: { estimate: GridPreferences } }).grids.estimate;
-    expect(recorded.known_columns).toEqual(keysOf(ESTIMATE_GRID.columns));
+    expect(recorded.known_columns).toEqual(keysOf(ESTIMATE_OFFERED));
     expect(recorded.known_columns).toContain("subproject");
-    expect(recorded.hidden_columns).toEqual(kept.hidden_columns);
+    // The columns of difference to a base, which it did not know either, are hidden (US-2340).
+    expect(recorded.hidden_columns).toEqual([
+      ...(kept.hidden_columns ?? []),
+      "delta_unit_disbursement",
+      "delta_base_amount",
+      "delta_reestimated_amount",
+    ]);
     unmount();
 
     // The grid read again with what it recorded: the sub-project the account chose stays shown.

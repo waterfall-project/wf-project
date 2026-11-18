@@ -18,7 +18,8 @@
  *   `src/navigation/login.ts`);
  * - `unreachable`, the API did not answer at all — `fetch` rejected, or a gateway answered
  *   502, 503 or 504 without the envelope — a result of its own, never a `Problem` the API did
- *   not send, and never a blank screen.
+ *   not send, and never a blank screen; `sent` when a write had left and its connection was lost,
+ *   which the API may have done (US-2240).
  *
  * A code the catalogue does not know is decoded as `INTERNAL_ERROR`, the unexpected error of
  * the service, with the correlation identifier its envelope carries (WF-OBS-0020): the screen
@@ -51,7 +52,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { FALLBACK_LOCALE } from "@/i18n/locale";
 import { asksIdentifiers } from "@/navigation/login";
 
-import { Unreachable } from "./client";
+import { Dropped, Unreachable } from "./client";
 import {
   type AccountRefusalCode,
   accountRefusalOf,
@@ -77,7 +78,15 @@ export type Outcome<T> =
        */
       readonly conflictingObjectId: string | null;
     }
-  | { readonly kind: "unreachable" };
+  | {
+      readonly kind: "unreachable";
+      /**
+       * The request had left when its connection was lost — a write the API may have done
+       * (`Dropped`, `src/api/client.ts`): the screen says so, and reads anew what it shows before
+       * offering to do it again (US-2240). Absent for a request that did not leave.
+       */
+      readonly sent?: true;
+    };
 
 /** An answer of openapi-fetch, whatever the operation. */
 export interface Answer<T> {
@@ -93,12 +102,21 @@ export interface Answer<T> {
  * client's call without an answer among them.
  */
 export async function reach<T>(call: () => Promise<T>): Promise<T | undefined> {
+  const answer = await reached(call);
+  return answer instanceof Unreachable ? undefined : answer;
+}
+
+/**
+ * Call the API, or the `Unreachable` it threw when it cannot be reached — a `Dropped` for a write
+ * that had left —; any other error goes on, as for `reach`.
+ */
+async function reached<T>(call: () => Promise<T>): Promise<T | Unreachable> {
   try {
     return await call();
   } catch (error) {
     unstable_rethrow(error);
     if (error instanceof Unreachable) {
-      return undefined;
+      return error;
     }
     throw error;
   }
@@ -421,16 +439,19 @@ export interface Lost {
  * tell it apart from a refusal of the API, the sign-out.
  */
 export async function decodeOrLost<T>(call: () => Promise<Answer<T>>): Promise<Outcome<T> | Lost> {
-  let answer: Answer<T> | undefined;
+  let answer: Answer<T> | Unreachable;
   try {
-    answer = await reach(call);
+    answer = await reached(call);
   } catch (error) {
     if (isSessionLost(error)) {
       return { kind: "lost" };
     }
     throw error;
   }
-  return answer === undefined ? { kind: "unreachable" } : decodeAnswer(answer);
+  if (answer instanceof Dropped) {
+    return { kind: "unreachable", sent: true };
+  }
+  return answer instanceof Unreachable ? { kind: "unreachable" } : decodeAnswer(answer);
 }
 
 /**

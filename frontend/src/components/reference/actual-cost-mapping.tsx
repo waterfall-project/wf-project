@@ -36,7 +36,7 @@ import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useHeldCommand } from "@/components/commands/held";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
-import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useNoteRefusal, useReadAnew } from "@/components/commands/outcome-notice";
 import { SectionCard } from "@/components/shell/section-card";
 import { useSaid } from "@/components/notices/said";
 import { Button } from "@/components/ui/button";
@@ -531,6 +531,9 @@ function MappingForm({
   );
   // A command in the page, no transition (#1484): busy from the press to the answer, in one update.
   const [busy, setBusy] = useState(false);
+  // A write lost once sent: the form waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(outcome);
+  const waiting = busy || reading;
   // A reading newer than the version the draft rests on takes the place of the draft while the
   // draft has not changed since it was sent — a version stale, read anew —, without mounting the
   // form again by a `key`, which would lose the focus and what is typed meanwhile (#2266): adjusted
@@ -598,7 +601,7 @@ function MappingForm({
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (busy) {
+    if (waiting) {
       return;
     }
     // The control that holds the focus, which the fields held lose: it takes it back with the
@@ -647,14 +650,14 @@ function MappingForm({
     <form
       aria-label={t("form")}
       noValidate
-      aria-busy={busy}
+      aria-busy={waiting}
       onSubmit={submit}
       className="flex min-w-0 flex-col gap-7"
     >
       <SectionCard title={t("readColumns")} icon={Columns3}>
         <div className="grid gap-5">
           {draft.columns.map(({ column: each, required, rows }, scope) => (
-            <fieldset key={each} disabled={busy} className="grid min-w-0 gap-2">
+            <fieldset key={each} disabled={waiting} className="grid min-w-0 gap-2">
               <legend className="mb-1 text-sm font-semibold">
                 {column(each)}{" "}
                 <span className="font-normal text-muted-foreground">
@@ -673,7 +676,7 @@ function MappingForm({
         </div>
       </SectionCard>
       <SectionCard title={t("kept")} icon={TableProperties}>
-        <fieldset disabled={busy} className="grid min-w-0 gap-2">
+        <fieldset disabled={waiting} className="grid min-w-0 gap-2">
           <legend className="sr-only">{t("kept")}</legend>
           <p className="text-sm text-muted-foreground">{t("keptHint")}</p>
           <LabelList
@@ -687,6 +690,7 @@ function MappingForm({
       </SectionCard>
       <OutcomeNotice
         outcome={outcome}
+        reading={reading}
         onClear={() => {
           setOutcome(undefined);
         }}
@@ -694,14 +698,14 @@ function MappingForm({
       <div>
         <Button
           type="submit"
-          disabled={busy}
-          aria-busy={busy}
+          disabled={waiting}
+          aria-busy={waiting}
           ref={(element) => {
             register(SAVE, element);
           }}
         >
           <Save aria-hidden="true" />
-          {busy ? t("saving") : t("save")}
+          {waiting ? t("saving") : t("save")}
         </Button>
       </div>
     </form>

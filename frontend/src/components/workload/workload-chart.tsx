@@ -42,7 +42,7 @@ import { CalculationDate } from "@/components/context/indicator";
 import { Signal } from "@/components/signal/signal";
 import { formatDecimal, formatLocale, formatMonth } from "@/i18n/format";
 
-import { monthTooltip, monthTotals, stackedRoles } from "./stacked-load";
+import { alignedLoad, monthTooltip, monthTotals, stackedRoles } from "./stacked-load";
 
 /** The workload of a project, as the API computes it. */
 export type WorkloadPlan = components["schemas"]["WorkloadPlan"];
@@ -120,6 +120,9 @@ export function WorkloadChart({ workload, provenance }: WorkloadChartProps) {
     (palette: ChartPalette): ChartOption => {
       const tick = new Intl.NumberFormat(formatLocale(locale));
       const months = totals.map((each) => planningInstant(each.month));
+      // The stack reads a value where the contract names hours: the same strings, only aligned.
+      const stacked = alignedLoad(roles, "hours");
+      const monthly = totals.map(({ month, hours }) => ({ month, value: hours }));
       return {
         // Its axis of time is in UTC: its ticks too (`timeAxis`).
         useUTC: true,
@@ -137,8 +140,8 @@ export function WorkloadChart({ workload, provenance }: WorkloadChartProps) {
         },
         tooltip: monthTooltip(palette, locale, (hours) => t("workload.hoursUnit", { hours })),
         series: [
-          ...stackedRoles(palette, roles),
-          monthTotals(palette, totalSeries, totals, locale),
+          ...stackedRoles(palette, stacked),
+          monthTotals(palette, totalSeries, monthly, locale),
         ],
       };
     },

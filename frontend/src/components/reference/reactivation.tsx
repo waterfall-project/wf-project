@@ -28,6 +28,7 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -38,11 +39,12 @@ import type { Outcome } from "@/api/problem";
 import { useUnmet } from "@/components/commands/command";
 import { useHeldCommand } from "@/components/commands/held";
 import type { CommandOffer } from "@/components/commands/offer";
-import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
+import { type ObjectNames, OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
 import { cn } from "@/components/ui/utils";
 import { readingOf } from "@/navigation/pages";
 
 import { UnavailableCellCommand } from "./cell-command";
+import { ListReading } from "./list-reading";
 
 /** The outcome of a reactivation, and the reading of the list it was asked from. */
 interface Reported {
@@ -167,6 +169,43 @@ interface Kept extends Reported {
 }
 
 /**
+ * A refusal told above the list, which reads the list anew when it tells a write lost once sent
+ * (US-2240), and says so to the list while it does (`onReading`): the commands of the list wait.
+ */
+function KeptNotice({
+  each,
+  onReading,
+  onClear,
+  onDismissed,
+}: {
+  readonly each: Kept;
+  readonly onReading: (key: number, reading: boolean) => void;
+  readonly onClear: () => void;
+  readonly onDismissed: () => void;
+}) {
+  const reading = useReadAnew(each.outcome);
+  const { key } = each;
+  useEffect(() => {
+    onReading(key, reading);
+    return () => {
+      onReading(key, false);
+    };
+  }, [key, reading, onReading]);
+  return (
+    <OutcomeNotice
+      outcome={each.outcome}
+      names={each.names}
+      subject={each.subject}
+      lead={each.lead}
+      onClear={onClear}
+      onDismissed={onDismissed}
+      reading={reading}
+      dismissible
+    />
+  );
+}
+
+/**
  * A list whose objects may be reactivated, and the refusals of its commands, each told above it until
  * dismissed — one that arrives while another is told is added to it, never put in its place, save
  * the refusal of the same command on the same object, which replaces the one before —: a
@@ -212,6 +251,22 @@ export function Reactivations({
   const { generation, reported } = read;
   const list = useRef<HTMLDivElement>(null);
   const counted = useRef(0);
+  // The refusals told that have the list read anew, by key (`KeptNotice`).
+  const [readings, setReadings] = useState<ReadonlySet<number>>(new Set());
+  const onReading = useCallback((key: number, on: boolean) => {
+    setReadings((before) => {
+      if (before.has(key) === on) {
+        return before;
+      }
+      const after = new Set(before);
+      if (on) {
+        after.add(key);
+      } else {
+        after.delete(key);
+      }
+      return after;
+    });
+  }, []);
   // The list tells a refusal on the reading it was asked from alone: read otherwise, it releases
   // the clicks its commands hold, and one refused after is told by the bar of the shell — unless the
   // dialog that asked it, still open, tells it at its fields (#863).
@@ -278,12 +333,10 @@ export function Reactivations({
       {reported
         .filter((each) => each.scope === scope)
         .map((each) => (
-          <OutcomeNotice
+          <KeptNotice
             key={each.key}
-            outcome={each.outcome}
-            names={each.names}
-            subject={each.subject}
-            lead={each.lead}
+            each={each}
+            onReading={onReading}
             onClear={() => {
               setRead((before) => ({
                 ...before,
@@ -293,10 +346,11 @@ export function Reactivations({
             onDismissed={() => {
               refocus(each.back);
             }}
-            dismissible
           />
         ))}
-      <Report value={value}>{children}</Report>
+      <ListReading value={readings.size > 0}>
+        <Report value={value}>{children}</Report>
+      </ListReading>
     </div>
   );
 }

@@ -23,6 +23,10 @@ name: waterfall
 x-address: &address https://${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}${WATERFALL_HTTPS_PORT:+:${WATERFALL_HTTPS_PORT}}
 x-keycloak-address: &keycloak-address https://${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}${WATERFALL_HTTPS_PORT:+:${WATERFALL_HTTPS_PORT}}/auth
 
+# The number of the processes of the API (US-2230), one unless .env says otherwise: the API serves
+# on them, and PostgreSQL counts fifteen connections for each.
+x-api-processes: &api-processes ${WATERFALL_API_PROCESSES:-1}
+
 x-waterfall-image: &waterfall-image ghcr.io/waterfall-project/waterfall:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
 x-keycloak-image: &keycloak-image ghcr.io/waterfall-project/keycloak:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
 x-postgres-image: &postgres-image ${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
@@ -140,8 +144,16 @@ services:
     # One partition of each partitioned table per project: the restoration drops the schema, and
     # pg_restore makes it again, in one transaction that locks every one of them. The default of 64
     # locks per transaction refuses it ("out of shared memory") from a few hundred projects.
-    command: ["postgres", "-c", "max_locks_per_transaction=1024"]
+    # max_connections carries the connections of every process of the platform: fifteen for each
+    # process of the API, two hundred for the others, Keycloak's hundred included (README.md, « Les
+    # processus de l'API »). Computed from their number by the shell, which then hands over to the
+    # entry point of the image.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - case "$$WATERFALL_API_PROCESSES" in ''|*[!0-9]*|0*) echo "WATERFALL_API_PROCESSES must be a whole number above zero, without leading zero" >&2; exit 1;; esac; exec docker-entrypoint.sh postgres -c max_locks_per_transaction=1024 -c max_connections=$$((15 * WATERFALL_API_PROCESSES + 200))
     environment:
+      WATERFALL_API_PROCESSES: *api-processes
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${WATERFALL_POSTGRES_ADMIN_PASSWORD:?set WATERFALL_POSTGRES_ADMIN_PASSWORD in .env}
     volumes:
@@ -247,6 +259,8 @@ services:
     image: *waterfall-image
     environment:
       <<: [*back-environment, *keycloak-client-environment, *storage-environment]
+      WATERFALL_INDICATORS_CACHE_TTL: ${WATERFALL_INDICATORS_CACHE_TTL:-600}
+      WATERFALL_API_PROCESSES: *api-processes
     depends_on:
       service-database-role: *done
       redis: *healthy

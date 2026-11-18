@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.planning.tree import Tree
+    from waterfall.core.planning.tree import NodeColumns, TaskColumns, Tree
     from waterfall.core.projects.interface import WorkBreakdownItem
 
 WORK_PACKAGE_ID = "work_package_id"
@@ -63,8 +63,8 @@ class Attached:
     faults: tuple[FieldError, ...] = ()
 
 
-def _named(
-    tree: Tree, node_id: UUID, label: str | None = None, unborn: UUID | None = None
+def _named[N: NodeColumns, T: TaskColumns](
+    tree: Tree[N, T], node_id: UUID, label: str | None = None, unborn: UUID | None = None
 ) -> dict[str, str | None]:
     """Name a task by its node and its label; the task in creation (``unborn``) has no node."""
     if node_id == unborn:
@@ -72,7 +72,9 @@ def _named(
     return {"node_id": str(node_id), "label": label or tree.tasks[node_id].label}
 
 
-def carriers(tree: Tree, besides: UUID | None = None) -> dict[UUID, UUID]:
+def carriers[N: NodeColumns, T: TaskColumns](
+    tree: Tree[N, T], besides: UUID | None = None
+) -> dict[UUID, UUID]:
     """Give the task of the structure that bears each element, ``besides`` left out."""
     found: dict[UUID, UUID] = {}
     for node_id, task in tree.tasks.items():
@@ -105,8 +107,8 @@ def strays(
     return list(found.items())
 
 
-def stray_fault(
-    tree: Tree,
+def stray_fault[N: NodeColumns, T: TaskColumns](
+    tree: Tree[N, T],
     pointer: str,
     stray: tuple[UUID, list[UUID]],
     labels: Mapping[UUID, str],
@@ -122,9 +124,9 @@ def stray_fault(
     return FieldError(pointer, OUTSIDE, params)
 
 
-def judged_attachment(
+def judged_attachment[N: NodeColumns, T: TaskColumns](
     session: Session,
-    held: tuple[UUID, Tree, bool],
+    held: tuple[UUID, Tree[N, T], bool],
     bearer: Bearer,
     sent: Mapping[str, UUID | None],
     prefix: str,
@@ -174,8 +176,8 @@ def judged_attachment(
     return Attached(package, item, tuple(faults))
 
 
-def _outside(
-    tree: Tree,
+def _outside[N: NodeColumns, T: TaskColumns](
+    tree: Tree[N, T],
     items: Mapping[UUID, WorkBreakdownItem],
     bearer: Bearer,
     sent: tuple[Mapping[str, UUID], Mapping[str, UUID | None]],

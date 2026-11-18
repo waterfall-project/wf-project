@@ -19,9 +19,10 @@
  */
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import type { NavigationFunction, ScreenSection } from "../src/navigation/functions";
 import { compile } from "./compile";
-import { openHydrated, WORKING } from "./hydration";
+import { openHydrated } from "./hydration";
 import { FUNCTION_GROUPS, path, text } from "./routes";
 
 /** An address whose path is the one given, whatever its query: the context a link carries. */

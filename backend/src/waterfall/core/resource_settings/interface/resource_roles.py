@@ -7,7 +7,8 @@ questions the categories of cost ask (``category_has_roles``, ``roles_of_categor
 minimal reference (``active_role_exists``) and the planning (``role_calendars``, EP-06).
 
 A role hangs under a node fixed at its creation, is attached to a category of labour and to a
-calendar, and carries one capacity, hours a month and a headcount, without a date. Its code is
+calendar, and carries one capacity, without a date: its headcount, from which its hours a month
+follow, calculated as it is read (``_monthly_hours``, US-2410). Its code is
 unique among the roles, deactivated ones included. It is created active, under an active node,
 and reactivated only under one: its creation and its activation run under the lock of the tree,
 which the cascade of a node holds too (``org_nodes``), so that no role stays active under a node
@@ -26,7 +27,17 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Literal
 
-from sqlalchemy import ColumnElement, SQLColumnExpression, func, insert, or_, select, update
+from sqlalchemy import (
+    ColumnElement,
+    Numeric,
+    SQLColumnExpression,
+    case,
+    func,
+    insert,
+    or_,
+    select,
+    update,
+)
 from sqlalchemy.exc import IntegrityError
 
 from waterfall.core.resource_settings.interface.extensions import (
@@ -73,13 +84,20 @@ INACTIVE_REFERENCE_OBJECT = "INACTIVE_REFERENCE_OBJECT"
 TASK_WITHOUT_WORKING_HOURS = "TASK_WITHOUT_WORKING_HOURS"
 # What the reactivation of a role lacks while its node is deactivated (WF-REF-0080).
 NODE_ACTIVE_CONDITION = "org_node_active"
-# The least a capacity holds, hours a month as a headcount (WF-REF-0100).
+# The least a headcount holds (WF-REF-0100).
 LEAST_CAPACITY = Decimal(0)
+# The hours a month of a role are its weekly hours times 52, divided by 12 (WF-REF-0100), to the
+# hundredth.
+WEEKS_A_YEAR = 52
+MONTHS_A_YEAR = 12
+HUNDREDTHS = 100
 # The unique index of the code, named as the naming convention names it.
 CODE_INDEX = "uq_resource_role_code"
 # The first version of a role, as the examples of the contract have it.
 FIRST_VERSION = 1
 
+# ``monthly_hours`` stays a key of the sort, as the contract keeps it: it is no column any more, it
+# is calculated (``_monthly_hours``).
 type RoleColumn = Literal[
     "label",
     "code",
@@ -96,7 +114,11 @@ type LabelOf = Callable[[SQLColumnExpression[UUID]], SQLColumnExpression[str | N
 
 @dataclass(frozen=True, slots=True)
 class Capacity:
-    """The single capacity of a role, without a date: hours a month and a headcount."""
+    """The single capacity of a role, without a date, as it is read (WF-REF-0100).
+
+    Its headcount is the one value written; its hours a month are calculated from it and from the
+    calendar of the role (``_monthly_hours``).
+    """
 
     monthly_hours: Decimal
     headcount: Decimal
@@ -116,7 +138,7 @@ class CategoryAdmission:
 
 @dataclass(frozen=True, slots=True)
 class RoleDraft:
-    """What a role is created with: its three attachments and its capacity.
+    """What a role is created with: its three attachments and its capacity, its headcount.
 
     ``category`` is what the cost settings tell of the category given (``CategoryAdmission``).
     """
@@ -127,7 +149,7 @@ class RoleDraft:
     cost_category_id: UUID
     category: CategoryAdmission | None
     calendar_id: UUID
-    capacity: Capacity
+    headcount: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,7 +165,7 @@ class RoleChange:
     cost_category_id: UUID
     category: CategoryAdmission | None
     calendar_id: UUID
-    capacity: Capacity
+    headcount: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -242,8 +264,32 @@ def _command(*, is_active: bool, node_is_active: bool) -> RoleCommand:
     return RoleCommand("reactivate", () if node_is_active else (NODE_ACTIVE_CONDITION,))
 
 
-def _view(row: Row[ResourceRole, str, bool, str], *, may_change: bool) -> RoleView:
-    role, node_label, node_is_active, calendar_label = row
+def _monthly_hours() -> ColumnElement[Decimal]:
+    """Give the hours a month of a role, in SQL: what its view reads, its filters and its sort.
+
+    Its headcount times the weekly hours of its calendar — the sum of its seven days — times 52,
+    divided by 12, to the hundredth, a half to the even as the hours of the workload
+    (``docs/api/DECISIONS.md``, "La capacité d'un rôle"); the statement joins the calendar of the
+    role. Nothing else calculates them: the workload and the images of a marked revision read the
+    view. The division comes last, so that no fraction is cut short: ``scaled`` is the hours in
+    hundredths times 12, and its remainder by 12 tells whether the hundredth rounds down, up, or —
+    at a half, a remainder of 6 — to the even. The headcount and the hours are never negative.
+    """
+    weekly = sum((getattr(Calendar, day) for day in DAYS[1:]), getattr(Calendar, DAYS[0]))
+    scaled = ResourceRole.headcount * weekly * (WEEKS_A_YEAR * HUNDREDTHS)
+    remainder = func.mod(scaled, MONTHS_A_YEAR)
+    whole = (scaled - remainder) / MONTHS_A_YEAR
+    half = MONTHS_A_YEAR // 2
+    rounded = case(
+        (remainder > half, whole + 1),
+        (remainder < half, whole),
+        else_=whole + func.mod(whole, 2),
+    )
+    return func.round(rounded / HUNDREDTHS, 2, type_=Numeric(asdecimal=True))
+
+
+def _view(row: Row[ResourceRole, str, bool, str, Decimal], *, may_change: bool) -> RoleView:
+    role, node_label, node_is_active, calendar_label, hours = row
     commands = (
         (_command(is_active=role.is_active, node_is_active=node_is_active),) if may_change else ()
     )
@@ -256,7 +302,7 @@ def _view(row: Row[ResourceRole, str, bool, str], *, may_change: bool) -> RoleVi
         cost_category_id=role.cost_category_id,
         calendar_id=role.calendar_id,
         calendar_label=calendar_label,
-        capacity=Capacity(role.monthly_hours, role.headcount),
+        capacity=Capacity(hours, role.headcount),
         is_active=role.is_active,
         commands=commands,
         created_at=role.created_at,
@@ -267,10 +313,10 @@ def _view(row: Row[ResourceRole, str, bool, str], *, may_change: bool) -> RoleVi
     )
 
 
-def _described() -> Select[ResourceRole, str, bool, str]:
-    """Select a role with the label and the state of its node and the label of its calendar."""
+def _described() -> Select[ResourceRole, str, bool, str, Decimal]:
+    """Select a role with its node's label and state, its calendar's label and its hours a month."""
     return (
-        select(ResourceRole, OrgNode.label, OrgNode.is_active, Calendar.label)
+        select(ResourceRole, OrgNode.label, OrgNode.is_active, Calendar.label, _monthly_hours())
         .join(OrgNode, OrgNode.id == ResourceRole.org_node_id)
         .join(Calendar, Calendar.id == ResourceRole.calendar_id)
         .execution_options(populate_existing=True)
@@ -338,7 +384,7 @@ def _criteria(filters: RoleFilters) -> list[ColumnElement[bool]]:
     if filters.calendar_id is not None:
         criteria.append(ResourceRole.calendar_id == filters.calendar_id)
     bounds = (
-        (ResourceRole.monthly_hours, filters.monthly_hours_min, filters.monthly_hours_max),
+        (_monthly_hours(), filters.monthly_hours_min, filters.monthly_hours_max),
         (ResourceRole.headcount, filters.headcount_min, filters.headcount_max),
     )
     for column, low, high in bounds:
@@ -364,7 +410,7 @@ def list_roles(
         "org_node": OrgNode.label,
         "cost_category": sort.category_label(ResourceRole.cost_category_id),
         "calendar": Calendar.label,
-        "monthly_hours": ResourceRole.monthly_hours,
+        "monthly_hours": _monthly_hours(),
         "headcount": ResourceRole.headcount,
         # False sorts first: the active, then the deactivated, in the ascending order.
         "is_active": ~ResourceRole.is_active,
@@ -372,24 +418,24 @@ def list_roles(
     key = keys[sort.column]
     order = (key.desc() if sort.descending else key, ResourceRole.label, ResourceRole.id)
     criteria = _criteria(filters)
-    total = session.scalars(select(func.count()).select_from(ResourceRole).where(*criteria)).one()
+    # The calendar joined: the hours a month, which a filter may bound, are calculated from it.
+    counted = (
+        select(func.count())
+        .select_from(ResourceRole)
+        .join(Calendar, Calendar.id == ResourceRole.calendar_id)
+    )
+    total = session.scalars(counted.where(*criteria)).one()
     rows = session.execute(
         _described().where(*criteria).order_by(*order).limit(window.limit).offset(window.offset)
     )
     return RolePage([_view(row, may_change=may_change) for row in rows], total)
 
 
-def _capacity_faults(capacity: Capacity) -> list[FieldError]:
-    """Name each value of the capacity under the least admitted (WF-REF-0100)."""
-    least = {"minimum": str(LEAST_CAPACITY)}
-    return [
-        FieldError(f"/capacity/{name}", VALUE_OUT_OF_RANGE, least)
-        for name, value in (
-            ("monthly_hours", capacity.monthly_hours),
-            ("headcount", capacity.headcount),
-        )
-        if value < LEAST_CAPACITY
-    ]
+def _capacity_fault(headcount: Decimal) -> FieldError | None:
+    """Name a headcount under the least admitted (WF-REF-0100)."""
+    if headcount >= LEAST_CAPACITY:
+        return None
+    return FieldError("/capacity/headcount", VALUE_OUT_OF_RANGE, {"minimum": str(LEAST_CAPACITY)})
 
 
 def _node_fault(session: Session, node_id: UUID) -> FieldError | None:
@@ -481,7 +527,7 @@ def create_role(
             _node_fault(session, draft.org_node_id),
             _category_fault(draft.category),
             _calendar_fault(session, draft.calendar_id),
-            *_capacity_faults(draft.capacity),
+            _capacity_fault(draft.headcount),
         ]
     )
     role_id = new_id() if identifier is None else identifier
@@ -494,8 +540,7 @@ def create_role(
                 org_node_id=draft.org_node_id,
                 cost_category_id=draft.cost_category_id,
                 calendar_id=draft.calendar_id,
-                monthly_hours=draft.capacity.monthly_hours,
-                headcount=draft.capacity.headcount,
+                headcount=draft.headcount,
                 is_active=True,
                 lock_version=FIRST_VERSION,
                 created_at=act.at,
@@ -611,7 +656,7 @@ def update_role(
                 else None
             ),
             _calendar_fault(session, change.calendar_id) if recalendared else None,
-            *_capacity_faults(change.capacity),
+            _capacity_fault(change.headcount),
         ]
     )
     if recalendared:
@@ -627,8 +672,7 @@ def update_role(
             label=change.label,
             cost_category_id=change.cost_category_id,
             calendar_id=change.calendar_id,
-            monthly_hours=change.capacity.monthly_hours,
-            headcount=change.capacity.headcount,
+            headcount=change.headcount,
         )
     return read_role(session, role_id, may_change=True)
 

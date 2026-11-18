@@ -12,7 +12,12 @@ the tasks redated (``reinflate_lines``), their figures for the totals (``line_to
 filters and their sort (``line_filters``, ``line_sort``), what a computed value of a line depends
 on (``line_dependencies``), and the lines a move gives another task, whose roles must leave it an
 hour (``judge_moved_lines``, WF-PLA-0010; US-1490/L4), and the cells a paste gives a line, judged
-and written (``judge_line_cell``, ``write_line_cell``, ``pasting``; US-1560/L1).
+and written (``judge_line_cell``, ``write_line_cell``, ``pasting``; US-1560/L1), and the lines of
+a reading that writes nothing read once as rows, their figures and their facets (``line_columns``;
+US-2220/L1), and what the lines of each task count, read grouped, for a reading of the tasks alone
+(``line_tallies``, ``tallying``; US-2280/L1), which of them are of a provision (``line_provisions``;
+US-1680), and the fields of a line whose write can move no date
+nor change an amount (``LINE_INERT``; US-2250).
 
 The copy of a line keeps its figures and its amounts, and takes for its budgeted amount that of the
 line of the same lineage in the reference revision, nought without one; null on a project without a
@@ -25,30 +30,29 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 from uuid import UUID
 
-from sqlalchemy import delete, insert, inspect, select
+from sqlalchemy import delete, inspect, select
 
 from waterfall.core.cost_settings.interface import share_natures
+from waterfall.core.estimate.copying import copy_lines
 from waterfall.core.estimate.costing import judge_working_hours
 from waterfall.core.estimate.pasting import judge_line_cell, write_line_cell
 from waterfall.core.estimate.pricing import Amount, dependencies_of
 from waterfall.core.estimate.reading import (
-    budgeted_of,
     filter_lines,
+    line_columns,
     read_lines,
     rows_of,
     sort_lines,
     totals_of,
 )
 from waterfall.core.estimate.tables import EstimateLine
+from waterfall.core.estimate.tallying import line_provisions, line_tallies
 from waterfall.core.estimate.writing import create_line, reprice
 from waterfall.core.planning.interface import (
     FacetHooks,
     FacetState,
-    lineages_of,
     lines_of,
-    lines_of_revision,
 )
-from waterfall.core.projects.interface import project_facts
 from waterfall.core.resource_settings.interface import role_calendars
 from waterfall.platform.database import among
 
@@ -59,10 +63,8 @@ if TYPE_CHECKING:
 
     from waterfall.core.history.interface import JsonValue
     from waterfall.core.planning.interface import BearingTask
-    from waterfall.core.revisions.interface import RevisionCopy
     from waterfall.platform.audit import Act
 
-NOUGHT = Decimal("0.00")
 # The columns a restoration leaves to the line, and those it writes as the restoring does.
 KEPT = frozenset({"project_id", "node_id", "kind", "created_at", "created_by"})
 STAMPED = frozenset({"lock_version", "updated_at", "updated_by"})
@@ -77,46 +79,6 @@ AMOUNTS = {
 def _columns(row: EstimateLine) -> dict[str, object]:
     """Give the columns of a line, by name."""
     return {column.key: getattr(row, column.key) for column in inspect(row).mapper.column_attrs}
-
-
-def copy_lines(copy: RevisionCopy) -> None:
-    """Copy the lines of the nodes copied into the revision opened (WF-DAT-0010).
-
-    Under the nodes the planning copied (``copy.identifiers``), at their first version, with the
-    stamp of the opening; the budgeted amount by the lineage in the reference revision.
-    """
-    session, ids = copy.session, copy.identifiers
-    rows = [row for row in rows_of(session, copy.project_id, list(ids)) if row.node_id in ids]
-    if not rows:
-        return
-    reference = project_facts(session, copy.project_id).reference_revision_id
-    lineages = lineages_of(session, copy.project_id, [row.node_id for row in rows])
-    budgets: dict[UUID, Decimal] = {}
-    if reference is not None:
-        held = lines_of_revision(session, copy.project_id, reference)
-        by_node = {node: lineage for lineage, node in held.items()}
-        budgets = {
-            by_node[line.node_id]: budgeted_of(line)
-            for line in rows_of(session, copy.project_id, list(held.values()))
-        }
-    session.execute(
-        insert(EstimateLine),
-        [
-            {
-                **_columns(row),
-                "node_id": ids[row.node_id],
-                "budgeted_amount": (
-                    None if reference is None else budgets.get(lineages[row.node_id], NOUGHT)
-                ),
-                "lock_version": 1,
-                "created_at": copy.at,
-                "created_by": copy.author,
-                "updated_at": copy.at,
-                "updated_by": copy.author,
-            }
-            for row in rows
-        ],
-    )
 
 
 def delete_lines(session: Session, project_id: UUID, node_ids: Collection[UUID]) -> None:
@@ -281,6 +243,17 @@ line_filters = filter_lines
 line_sort = sort_lines
 line_totals = totals_of
 
+# The fields of a line whose write can move no date nor change an amount (US-2250), as its
+# ``editable_fields`` names them: the calendar of a task follows the roles of its lines
+# (``line_calendars``), and a line is priced on its quantity, its hours, its disbursement, the rate
+# of its category and the calendar of its role (``reprice``, ``costing.priced``); its label, its
+# payment delay and its subproject enter none of these.
+LINE_INERT = (
+    "estimate_line.label",
+    "estimate_line.payment_delay_days",
+    "estimate_line.subproject_id",
+)
+
 # The hooks of the kind ``estimate_line``, which the interface registers in the planning.
 LINE_FACET = FacetHooks(
     read=read_lines,
@@ -299,4 +272,8 @@ LINE_FACET = FacetHooks(
     judge_cell=judge_line_cell,
     write_cell=write_line_cell,
     before_lock=share_natures,
+    columns=line_columns,
+    tally=line_tallies,
+    provisions=line_provisions,
+    inert=LINE_INERT,
 )

@@ -117,6 +117,7 @@ def write_line(
             excluded_reason=None,
             created_at=act.at,
             created_by=act.author,
+            lock_version=0,
         )
         session.add(row)
     row.document_date = line.document_date
@@ -127,4 +128,6 @@ def write_line(
     row.last_import_id = placed.cost_import_id
     row.updated_at = act.at
     row.updated_by = act.author
+    if held is not None:
+        row.lock_version = CostLine.lock_version + 1
     return row

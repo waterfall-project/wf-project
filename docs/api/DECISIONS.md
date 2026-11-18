@@ -10754,6 +10754,18 @@ Décision de l'auteur du 2026-11-01 : le contrat suit WF-IND-0010, WF-DAT-0040 e
 
 Le service le suit par #1779 (EP-10).
 
+### Un `as_of` qui ne désigne aucun indicateur projet conservé : le 409 de l'offre (US-1670/L2, #2449)
+
+Décision de l'auteur du 2026-11-15, constat « contrat » d'EP-10, dans la règle d'après le gel
+(« La règle d'après le gel ») : un `as_of` auquel aucune révision marquée En cours ne répond — aucune
+n'est marquée à cette date ou avant, ou aucune de celles-là n'a conservé les indicateurs du projet
+(marquées en Chiffrage) — est refusé par le même 409 `STATE_FORBIDS_OPERATION`, sans `params`, que
+`revision_id` d'une offre marquée. `getProjectIndicators`, `getCostCurve` et `getEarnedValueCurves`
+le disent dans la description de leur 409, et `AsOf` dans la sienne ; aucune forme ni exemple
+nouveau (`project_indicators_offer` sert). Écartés : un 422 sur `/query/as_of`, que le front
+traiterait comme une faute de saisie quand la date est valide ; un 200 sur le calcul du jour, qui
+répondrait à une autre date que celle demandée.
+
 ### Les champs toujours rendus sont exigés : le résidu (US-0704, #1735, G-03, #1780)
 
 Décision de l'auteur du 2026-11-01, qui étend la règle de G-02 du 2026-10-28 : un champ que
@@ -11253,7 +11265,10 @@ décision de l'auteur du 2026-11-07). `compareRevisions` refuse la révision en 
 révisions marquées », et une révision en cours change sous son lecteur ; la vue « en cours contre
 référence » est écartée. Une révision d'un autre projet est un 404, comme une révision inexistante.
 `from_revision_id` et `to_revision_id` sont décrits. Exemple engendré `comparison_revision_draft`
-(`wftools.mockrevisionminors`).
+(`wftools.mockrevisionminors`). *Depuis EP-27 (US-2320/L1, #3492), la révision lue
+(`to_revision_id`) peut être en cours, et la vue « en cours contre référence » est celle des
+grilles : le 409 ne vaut plus que pour la base, et l'exemple est réengendré sur une base en
+cours.*
 
 **Un objet naît à la version 1, et la révision n'avance que par ses propres écritures** (revue du
 2026-10-31, E-09 et V-03 ; décision de l'auteur du 2026-11-07). `LockVersion` le dit, y compris pour
@@ -11907,6 +11922,421 @@ exemple (`actual_cost_mapping_kept_columns_too_many`, `/kept_columns`) : le fron
 intitulés pour l'élément d'OTP, refusée au pointeur `/columns/0/labels`, `params.max_length` 20.
 Aucune forme ne change ; le test du front qui le lit vient avec le formulaire.
 
+### Le détail du plan de charge et la projection de dépenses (US-2040/L1, #3511)
+
+La spécification 1.0.6 ajoute le détail du plan de charge par tâche (WF-DEV-0090, #3181) et la
+projection de dépenses du projet (WF-DEV-0100, #3182) ; le front empilait mal un rôle chargé sur
+moins de mois que les autres (#3096). Décisions de l'auteur du 2026-11-14 et du 2026-11-15
+(recadrage d'EP-10, « Opérations du contrat » et « Le plan de charge détaillé et la projection de
+dépenses ») :
+
+- **`getProjectWorkload` rend le détail par tâche** : chaque rôle de `WorkloadPlan` porte `tasks`,
+  exigé, des `WorkloadTask` — le nœud, le numéro de ligne, le libellé, le début et la fin
+  (`WorkInstant`, la convention de la tâche), le total des heures du rôle et `months` —, sur la base,
+  par la répartition et sous le filtre du plan, dans l'ordre du début (sa date, puis ses heures),
+  puis du planning (`row_number`). Deux lignes d'un même rôle sous une même tâche y sont sommées ;
+  sur la base du reste à engager, une tâche terminée n'y est pas. Le détail est calculé à la lecture,
+  sur une révision marquée aussi, jamais conservé par son marquage. Écartée : une opération à part,
+  qui étalerait deux fois les mêmes lignes.
+- **`months` ne porte que les mois chargés** (#3096), pour un rôle comme pour une tâche, une nature
+  ou une catégorie de la projection : un mois sans charge est absent, non rendu à zéro ;
+  `monthly_totals` porte, lui, chaque mois de l'horizon sans trou, l'axe du graphique. La
+  description de `getProjectWorkload` et celles des `months` le disent ; l'exemple `workload` le
+  montre, le monteur câbleur chargé sur 8 des 39 mois du plan. Écarté : tous les mois de
+  l'horizon, à zéro.
+- **Les parts d'une ligne s'arrondissent de façon que leur somme soit son total** : chaque part est
+  la différence de deux arrondis du cumul de la ligne à la fin de son mois et à la fin du mois
+  d'avant, le cumul du dernier mois étant la ligne entière : une part n'est jamais négative, et la
+  somme des parts est le total de la ligne arrondi. Le mode d'arrondi est celui de chaque grandeur
+  dans le noyau : les heures au centième, la moitié vers le pair le plus proche
+  (`ROUND_HALF_EVEN`, comme le plan de charge, `spreading.HOURS`) ; les montants (`Money`) au
+  centime, la moitié loin de zéro (`ROUND_HALF_UP`, comme `pricing.amounts` et `keeping`,
+  `spreading.MONEY`). Le service d'US-2040/L2 écrit la règle à l'identique, mode compris
+  (`core/estimate/parting.py`), sur le cumul exact de la ligne, arrondi une fois : celui d'un
+  montant à la fin d'un mois est la valeur planifiée de la ligne à ce jour, qu'EP-07
+  (`planned_value`) et les indicateurs d'EP-10 calculent désormais de la même façon, la part de
+  chaque ligne arrondie au centime, sur les calendriers que le marquage de la référence a
+  conservés (#3566). Tout total — d'un mois, d'une tâche, d'un rôle, d'une catégorie,
+  d'une nature, de la projection — est la somme de parts déjà arrondies, ce qui tient au centième
+  les égalités des Vérif de WF-DEV-0090 et de WF-DEV-0100. Le plan de charge existant passe par
+  là : ses mois bougent d'un centième, et ses exemples, réengendrés, avec eux le plan de charge
+  agrégé du portefeuille, qui somme celui du témoin.
+- **`getProjectSpending`, opération nouvelle**, `GET /projects/{project_id}/spending`, sous
+  `estimate.read`, sur le modèle de `getProjectWorkload` : la base (`WorkloadBasis`, dont la
+  description s'étend aux montants) et `revision_id`, avec ses refus — 409
+  `STATE_FORBIDS_OPERATION` d'une base absente, 422 sur `/query/revision_id` — ;
+  `payment_delays`, comme `getCostCurve` ; `subproject_id` (`SubprojectFilter`, `unassigned`
+  compris), refusé comme le filtre des coûts réels, 422 `UNKNOWN_SUBPROJECT` sur
+  `/query/subproject_id`. Sa réponse, `SpendingProjection` : le contexte de calcul
+  (`context.is_stored` toujours faux, `context.scope` le périmètre), la base, `payment_delays`, le
+  total, le total de chaque mois (`monthly_totals`, sans trou), et les natures de coût qui portent
+  un montant (`SpendingCostType`), chacune avec son total, ses mois et ses catégories
+  (`SpendingCategory`), dans l'ordre du référentiel — celui de `listCostTypes` et de
+  `listCostCategories` sans tri, le code, puis l'identifiant —, jamais la nature des provisions,
+  dont les lignes n'entrent pas. Cet ordre, par code, diffère de celui de
+  `EstimateIndicators.by_cost_type` et de `RemainingIndicators.by_cost_type`, rangés par
+  identifiant : les natures de la projection suivent le référentiel que l'écran affiche, ces
+  ventilations sont celles d'indicateurs déjà publiés, qu'on ne reclasse pas. L'écran n'attribue
+  donc pas une couleur de nature par rang, mais par identifiant de nature. Les montants sont les
+  montants enregistrés des lignes, comme ceux de la courbe de coûts cumulés : une `Money`, sans
+  enveloppe `Computable`. Le front n'y somme rien (WF-ARC-0020). Écartés : les natures et les
+  catégories sans montant, à zéro ; le total de la projection laissé au front.
+- **Les exemples sont engendrés sur le témoin** (`wftools.mockcurves`, `wftools.mockspending`) :
+  ceux du plan de charge, réengendrés avec leurs tâches — un rôle porte jusqu'à 800 tâches, une par
+  ligne du fichier, `make mock-data` disposant désormais sur plusieurs lignes l'élément d'une liste
+  qui porte lui-même une longue liste — ; `spending` (le reste à engager de la révision en cours),
+  `spending_reference_budget` (le budget de la référence, mois antérieurs à la date de calcul
+  compris), `spending_marked_remaining`, `spending_payment_delays` et `spending_subproject` ; les
+  refus `spending_no_reference`, `spending_revision_refused` et `spending_subproject_unknown`,
+  écrits à la main comme ceux du plan de charge. Le catalogue du front reçoit les trois valeurs de
+  `SpendingProjection.basis`.
+- **Le taux horaire manquant refuse la projection** (décision de l'auteur du 2026-11-16, #3565, au
+  lot US-2050/L1). Une ligne de main-d'œuvre dont la catégorie n'a pas de taux pour l'année de
+  référence de la révision lue rend 422 `HOURLY_RATE_MISSING`, sans `fields`, `params.missing_rates`
+  nommant les catégories (`MissingRate`), comme le refus d'une saisie de ligne (J-06) ; exemple
+  `spending_rate_missing`, engendré par `wftools.mockspendingrefusals` sur le témoin, comme
+  `estimate_line_rate_missing`. Écartés : des montants `Computable` par catégorie et par
+  mois, trop lourds pour un histogramme ; la ligne sans taux omise avec un drapeau, qui rend une
+  projection fausse sans qu'elle le soit visiblement (WF-DEV-0010).
+
+`info.version` reste `1.0.0` : une opération et des champs rendus de plus. Le service du détail est
+d'US-2040/L2, celui de la projection d'US-2050.
+
+### La courbe de coûts sur les parts arrondies communes (US-1690/L4, #3564)
+
+Décision de l'auteur du 2026-11-16 (#3564) : la courbe de coûts cumulés et les courbes de valeur
+acquise étalent leurs lignes en parts arrondies comme ci-dessus — chaque part la différence de deux
+arrondis au centime, la moitié loin de zéro, du cumul exact de la ligne —, avec et sans
+`payment_delays` ; le décalage d'une ligne s'applique à son cumul exact avant l'arrondi. Leur série
+lisait l'étalement sans l'arrondir, et ses décaissements à venir différaient de deux centimes de la
+projection de dépenses sur le témoin, en juin 2026. Désormais, mois par mois, la croissance de la
+projection du chef de projet et les décaissements à venir sont ceux de `getProjectSpending` sur le
+reste à engager, au centime, hormis les provisions des risques identifiés, que la courbe garde et
+que la projection de dépenses exclut : 675 512,56 en juin 2026 dans `cost_curve_payment_delays`,
+175 512,56 dans `spending_payment_delays`, les 500 000 d'une provision. La description de
+`getCostCurve` le dit. La valeur planifiée des indicateurs et des courbes du faux back somme, elle
+aussi, les parts de chaque ligne arrondies (#3590) : les exemples des courbes, des indicateurs et du
+portefeuille qui en dépendent bougent de quelques centimes. Écarté : dire au contrat l'écart d'un
+centime possible, qui laissait deux lectures d'un même montant.
+
+### La capacité d'un rôle : l'effectif seul saisi, les heures calculées (US-2410/L1, #3516)
+
+La spécification 1.0.4 réécrit WF-REF-0100 (#2836) : un rôle porte une capacité unique, son
+effectif, éventuellement fractionnaire, d'où se déduisent ses heures disponibles par mois. Décision
+de l'auteur du 2026-11-15, au recadrage d'EP-10 (conception, « La capacité d'un rôle ») : le
+contrat change avant le code.
+
+- **La lecture ne change pas de forme.** `RoleCapacity` garde `monthly_hours` et `headcount`, que
+  rendent `listResourceRoles`, les réponses des écritures et l'image d'un rôle
+  (`ResourceRoleImage`) ; les bornes `monthly_hours_min`, `monthly_hours_max` et le tri
+  `monthly_hours` restent, sur les heures calculées. `monthly_hours` est l'effectif multiplié par
+  les heures hebdomadaires du calendrier du rôle — la somme de ses sept jours —, par 52, divisé par 12,
+  arrondi au centième, la moitié au pair comme les heures du plan de charge : 2 × 35 × 52 / 12,
+  environ 303,33 h ; 0,5 sur le même calendrier, 75,83. L'arrondi porte sur le produit entier, non
+  sur les heures d'une personne multipliées par l'effectif, comme le faisaient les exemples
+  (« L'univers témoin », plus haut) : l'ingénieur électricien passe de 658 654,00 à 658 666,67 h, le
+  technicien de mise en service de 485 324,00 à 485 333,33, le monteur câbleur de 216 662,50 à
+  216 666,67, le programmeur d'automates de 519,99 à 520,00 ; l'automaticien garde 338,00. Les
+  exemples des rôles écrits à la main portent ces heures, et `make mock-data` réengendre ceux qui
+  les lisent : les rôles lus par un lecteur et bornés, les nœuds désactivés, les images des
+  révisions marquées, les plans de charge du projet et du portefeuille. Le test d'invariants
+  (`tools/tests/test_mockuniverse.py`) tient chaque rôle à la règle. Les heures suivent le
+  calendrier : en changer, ou changer ses heures, change la capacité à la lecture suivante. Une
+  révision marquée garde, dans son image, les heures de son marquage (WF-REF-0130).
+- **L'écriture ne porte que l'effectif.** `createResourceRole` et `updateResourceRole` écrivent
+  `RoleCapacityWrite`, `headcount` seul. Le contrat ne refusait jusqu'ici aucune propriété inconnue
+  d'un corps : ses objets sont ouverts, et le service ignore ce qu'ils ne déclarent pas. Pour que
+  `monthly_hours` envoyé soit refusé, et non ignoré en silence — un formulaire qui renverrait le
+  rôle lu croirait avoir écrit des heures —, la capacité écrite est **fermée**
+  (`additionalProperties: false`, `extra="forbid"` dans les modèles du service) : toute propriété
+  qu'elle ne déclare pas, `monthly_hours` comme une autre, est refusée par 422
+  `VALIDATION_FAILED`, `fields` la désignant, `/capacity/monthly_hours`, avec
+  `VALIDATION_FAILED` — le code générique d'un champ refusé, le gestionnaire du service le donnant à
+  toute faute sans code propre. Un exemple le montre, engendré par `wftools.mockadminrefusals`
+  (`resource_role_hours_refused`). Un effectif négatif reste refusé par `VALUE_OUT_OF_RANGE` sur
+  `/capacity/headcount`, `params.minimum` à `0`.
+- **Le plan de charge ne change pas de forme** : `capacity_monthly_hours` est la capacité de la vue
+  du rôle, que sa description dit désormais calculée.
+
+Écartés : ouvrir la capacité écrite et ignorer `monthly_hours` envoyé — la conception veut un
+refus ; `COMPUTED_VALUE` — il dit une valeur calculée d'un nœud, que la saisie déclare et dont
+`getComputedValueDependencies` rend les dépendances, quand la capacité écrite ne déclare plus la
+propriété, comme la conception le veut (« refusé comme toute propriété inconnue ») ;
+`FIELD_READ_ONLY` — il dit une propriété déclarée qu'une modification ne change pas ; fermer tout
+le corps de l'écriture d'un rôle — hors du périmètre, et `org_node_id` y reste accepté renvoyé tel
+quel. Le calcul dans le service, la
+migration qui abandonne les heures saisies (US-2410/L2) et l'écran qui ne saisit plus que
+l'effectif (US-2410/L3) suivent.
+
+### Le filtre de sous-projet des nœuds, la maille créée après le marquage, les préférences d'une grille (US-2430/L3, #3597, #3604, #3589)
+
+Décisions de l'auteur du 2026-11-16, en un lot de contrat d'EP-10 (conception, « Le contrat que
+US-2430/L3 change ») :
+
+- **Le 422 de `listNodes` et de `compareRevisions` nomme `UNKNOWN_SUBPROJECT`** sur
+  `/query/subproject_id` (#3597). Depuis US-2430/L2 (#3567), les deux routes lisent le filtre
+  strictement, comme `listActualCosts` et `getProjectIndicators` : un sous-projet que le projet
+  n'a pas, ou un identifiant écrit autrement qu'à tirets — accolades, `urn:uuid:`, sans tirets —,
+  est refusé ainsi, à la place du 422 de validation. Leur 422 le dit, `SubprojectFilter` aussi,
+  pour les quatre opérations qui le lisent, et l'exemple `nodes_subproject_unknown`, que les deux
+  opérations citent comme leurs autres refus de nœuds, le montre ; il s'écrit à la main, comme
+  `actual_costs_subproject_unknown` et `spending_subproject_unknown`. Écarté : laisser le contrat
+  tel quel, la route rendant alors un code qu'il ne publie pas et que le client engendré ignore.
+- **Une lecture conservée d'une maille créée après le marquage est refusée par 409
+  `STATE_FORBIDS_OPERATION`, sans `params`** (#3604) : `revision_id` ou `as_of` désignant une
+  révision marquée, `scope` un sous-projet créé depuis, que le projet a aujourd'hui — il n'est donc
+  pas refusé par 422 `UNKNOWN_SUBPROJECT`. La révision a conservé le document du projet, pas celui
+  de cette maille : le même refus qu'une révision marquée avant En cours, que le front distingue
+  d'un projet antérieur à En cours par l'absence de `params.state` (#247). Le 409 de
+  `getProjectIndicators`, de `getCostCurve` et de `getEarnedValueCurves` le dit, et `Problem.params`
+  le compte parmi les refus sans paramètre. Écartés : un 422 `UNKNOWN_SUBPROJECT`, qui dirait au
+  client que le sous-projet n'existe pas quand il existe ; des séries vides ou des indicateurs nuls,
+  qui répondraient par un zéro à ce qui n'a jamais été calculé.
+- **Les préférences d'une grille portent 256 réglages par liste**, au lieu de 64 (#3589) :
+  `maxItems` de `known_columns` et de `hidden_columns`, `maxProperties` de `column_widths`. La
+  grille du détail du plan de charge a une colonne par mois, près de cent quatre-vingt-cinq pour un
+  plan de quinze ans : au-delà de 64, un réglage retombait à son défaut à la visite suivante, sans
+  refus. Le refus d'une liste trop longue reste `VALUE_TOO_LONG`, `params.max_length` à 256.
+  `TimelinePreferences.lanes` reste borné à 64 tâches placées, que rien n'a mis en cause. Écarté :
+  garder 64 et laisser ces réglages se perdre.
+
+### Une révision marquée avant EP-10, sans document conservé, est calculée à la lecture (US-1670/L2, #3612)
+
+Décision de l'auteur du 2026-11-17, qui garde le comportement provisoire d'US-1670/L2 (#2441,
+PR #3616). La migration de `revision_indicator` n'a rien à reprendre, et une base qui porte des
+révisions marquées avant EP-10 les garde sans aucun document conservé :
+
+- **`getEstimateIndicators` et `getRemainingIndicators` calculent à la lecture une révision marquée
+  qui ne porte aucun document de la nature demandée** (`estimate`, `remaining`), `is_stored` faux,
+  `revision_status` `marked`, comme avant EP-10 : la réponse ne change pas pour ces révisions, et
+  `is_stored` dit au front qu'elle n'a pas été conservée.
+- **Dès que la révision porte un document de la nature, plus aucun recalcul** : une maille que le
+  marquage n'a pas conservée — un sous-projet créé depuis — reçoit le 422 `UNKNOWN_SUBPROJECT`.
+  Cela ne vaut que pour `getEstimateIndicators` : `getRemainingIndicators` lit toujours la maille
+  `project`, et n'a pas de maille à refuser.
+- **`getProjectIndicators` refuse une telle révision par 409 `STATE_FORBIDS_OPERATION`, sans
+  `params`**, comme une offre : le front ne la distingue d'un projet antérieur à En cours que par
+  l'absence de `params.state`.
+
+Le contrat ne change pas. Écartés : une reprise au déploiement, qui aurait calculé ces révisions à
+leur date de marquage sur les lignes de coût d'aujourd'hui, non sur celles de leur marquage, et
+donné pour conservé un document que le marquage n'a pas produit ; le 409 sans reprise, qui
+refuserait ce que ces routes rendaient jusqu'ici.
+
+### Un montant dérivé qui déborde sa colonne est refusé au champ qui le provoque (US-2260/L3, #3093, #3094)
+
+Les montants d'une ligne de devis, `base_amount` et `reestimated_amount`, sont calculés par le
+serveur et gardés à douze chiffres avant la virgule (999 999 999 999,99 au plus, WF-DAT-0100) :
+un produit, un taux ou une inflation peuvent les porter au-delà, chaque grandeur saisie restant
+dans sa propre colonne. US-1980 (#2996, #3035, #3039) a refusé ces débordements par un 422, sans que
+le contrat les décrive : le 422 du taux horaire ne nomme `/amount` que par `VALUE_OUT_OF_RANGE`,
+celui de `updateProject` que les bornes de `/inflation_rate` (#3093). Décision de l'auteur du
+2026-11-14 (option (b) de #3093) : **une règle générale, ici, plutôt qu'une description par
+opération**. Un montant dérivé qui déborde sa colonne est refusé par un 422 `VALIDATION_FAILED`,
+`fields` sur le champ de la requête qui le provoque, de code `VALIDATION_FAILED`, sans paramètre ;
+rien n'est écrit. Les pointeurs servis :
+
+- l'écriture d'une ligne (`createNode`, `updateEstimateLine`) : sa quantité, `/estimate_line/quantity`
+  à la création, `/quantity` à la modification, que le débordement vienne de la quantité, de la
+  charge, du débours, du rôle ou de l'année de consommation (#2996, #3035, #3039) ;
+- le taux horaire d'une catégorie (`setHourlyRate`), qui rechiffre les lignes des révisions en
+  cours : `/amount` (#3035) ;
+- le taux d'inflation d'un projet (`updateProject`), qui rechiffre sa révision en cours :
+  `/inflation_rate` (#3039) ;
+- la redatation d'une tâche, qui déplace ses lignes d'une année à l'autre (#3094) : par
+  `updateTaskFacet`, chacun des champs envoyés qui la datent, dans l'ordre `/scheduling_mode`,
+  `/duration`, `/start`, `/finish` — la grille en envoie un seul, une cellule à la fois
+  (WF-IHM-0040) ; par `setPredecessors`, `/predecessors` ;
+- la mise à jour des taux d'une révision en cours (`applyRateUpdate`), qui rechiffre les lignes des
+  catégories acceptées au taux du référentiel : `/cost_category_ids`, la liste — les catégories
+  sont rechiffrées ensemble, et le refus ne dit pas laquelle déborde (#3401) ;
+- un déplacement (`moveNodes`), qui consomme une ligne déplacée sur les dates de sa nouvelle
+  tâche : `/parent_id`, le champ qui la lui donne ; `/node_ids` dit ce qui est déplacé, non où ;
+- un changement des heures du calendrier par défaut (`updateCalendar`), qui redate les structures
+  des révisions en cours : chaque jour dont les heures changent, `/weekly_hours/<jour>`, dans
+  l'ordre de la semaine ; un jour renvoyé tel qu'il était n'est pas nommé, et un autre calendrier
+  ne redate rien ;
+- un changement des unités de durée (`setDurationUnits`), qui redate de même : chaque constante qui
+  change, dans l'ordre `/hours_per_day`, `/hours_per_week`, `/days_per_month` ; une constante
+  renvoyée telle qu'elle était n'est pas nommée — le corps les porte toujours toutes trois.
+
+La règle ne nomme jamais un champ que la requête ne porte pas. Une cause dont aucun champ n'est
+l'origine reste refusée par le même 422 `VALIDATION_FAILED`, sans `fields` : une annulation ou un
+rétablissement (`undoLastChange`, `redoLastUndo`), qui n'ont pas de corps ; l'ouverture d'une
+révision (`createRevision`), dont la copie des taux projette ceux de la révision source sur l'année
+de l'horloge, au taux d'inflation du projet — son corps ne porte que `description` et
+`apply_rate_update`, l'année vient de l'horloge, l'inflation du projet, les montants de la révision
+source ; la confirmation d'un collage (`applyPaste`), dont le corps ne porte que le plan, sa
+confirmation et le compteur — les cellules sont dans le plan que l'aperçu a gardé ; la désignation
+du calendrier par défaut (`setDefaultCalendar`), dont le corps ne porte que le compteur. Décision de
+l'auteur du 2026-11-15 (option (a) de #3303) : l'ouverture d'une révision reste refusée sans
+`fields`, et le critère « un pointeur par cause » d'US-2260 se lit « par cause qui a un champ ».
+Écartées : `/apply_rate_update` (option (b)), qui ne serait juste que si le débordement venait du
+taux de référence appliqué, et faux sans mise à jour ; un code propre au niveau du problème, les
+lignes débordées en `params` (option (c)), une forme nouvelle du contrat que la conception d'EP-26
+exclut. Les écritures que cette décision reportait à EP-27 (#3401) ont chacune un scénario mesuré
+qui les fait déborder (US-2400/L1, `test_rate_update.py` et `test_decimal_precision.py`) : la mise à
+jour des taux, le déplacement et les changements du calendrier par défaut ou des unités nomment le
+champ ci-dessus ; le collage et la désignation du calendrier par défaut, sans champ qui en soit
+l'origine, restent sans `fields`, comme l'ouverture. `info.version` reste `1.0.0` : aucune forme ne
+change, aucune opération n'est touchée. Écartées pour la règle elle-même (#3093) : décrire chaque
+refus dans le 422 de son opération, avec un exemple (option (a)), et `VALUE_OUT_OF_RANGE` avec
+`params.maximum` au champ, qui dirait une borne du champ saisi alors que c'est le montant calculé
+qui déborde ; laisser tel quel (option (c)).
+
+### La comparaison d'une révision en cours, la valeur de base et les totaux de la base (US-2320/L1, #3492, #3176)
+
+La spécification 1.0.6 fait de la comparaison une dimension du contexte de lecture des grilles : une
+révision lue, en cours ou marquée, comparée à une base marquée, chaque valeur modifiée rendue avec
+celle de la base (WF-REV-0080, WF-IHM-0150 à WF-IHM-0170). Décisions de l'auteur du 2026-11-15, au
+cadrage d'EP-27 (conception, « Le contrat ») : **`compareRevisions` est étendu**, et non la
+comparaison lue par `listNodes`, qui laissait `compareRevisions` sans écran et touchait le chemin de
+lecture qu'EP-26 a figé. Ce qui change :
+
+- **Les deux révisions.** `to_revision_id` est la révision lue, en cours ou marquée ;
+  `from_revision_id` la base, marquée. Le 409 `STATE_FORBIDS_OPERATION` (`revision_marked`) ne vaut
+  plus que pour la base, et revient sur la décision du 2026-11-07 (annexe E, E-07), qui écartait la
+  vue « en cours contre référence » ; l'exemple `comparison_revision_draft` est réengendré sur une
+  base en cours. Les noms des paramètres ne changent pas. Une révision en cours se lit dans son état
+  du moment, comme `listNodes` la lit : rien n'est gardé d'une lecture à l'autre.
+- **`ComparedNodeRead.base`** (`ComparedNodeBase`) : les valeurs que la base portait, sous les noms
+  du nœud, pour les seuls champs que la lecture rend (`fields`) et dont la valeur diffère ; vide
+  pour un nœud modifié dont rien de lu ne diffère, nul pour un nœud ajouté, inchangé ou retiré. Un
+  parent et un prédécesseur sont nommés par le nœud que la comparaison rend, rapprochés par la
+  lignée.
+- **Les identifiants que portent les valeurs.** Un nœud qu'une valeur nomme se rapproche par sa
+  lignée, comme le parent : la tâche porteuse d'une ligne (`estimate_line.bearing_task_node_id`),
+  dont l'identifiant change d'une révision à l'autre pour le même nœud, se compare et se rend dans
+  `base` par le nœud que la comparaison rend. `origin_risk_id` se compare tel quel : un risque
+  appartient au projet et garde son identifiant dans chaque révision (WF-RIS-0020), il ne change
+  qu'avec l'origine du nœud. Un libellé résolu à la lecture — du sous-projet, de la catégorie, du
+  rôle, de la tâche porteuse — se compare avec l'identifiant qu'il suit, jamais seul : l'objet
+  renommé n'est pas une valeur du nœud. Un sous-projet ou une catégorie renommé, l'identifiant
+  gardé, ne marque donc rien — ni `modified`, ni `subproject`, ni `other` — ; l'identifiant
+  changé, `base` porte le libellé avec lui et `changes` dit `subproject` ou `cost_category`.
+- **`ComparedNodeRead.deltas`** (`NodeDeltas`, `TaskDeltas`, `EstimateLineDeltas`) : de même forme,
+  pour les seuls champs de `base` qui sont une date (en jours calendaires, la date seule d'un
+  `WorkInstant`), une durée (dans l'unité de la durée lue) ou un montant ; la révision lue moins la
+  base ; absent pour un champ qui ne diffère pas. Nul quand l'une des deux valeurs l'est, pour les
+  seuls champs qui peuvent l'être — une date de début réelle, un débours unitaire — ; les montants
+  qu'une facette porte toujours (`base_amount`, `budgeted_amount`, `reestimated_amount`) ont un
+  écart jamais nul, que le contrat déclare non nullable.
+- **`NodeChange.other`.** Un nœud est modifié dès qu'une valeur qu'il porte diffère, saisie ou
+  calculée, des deux facettes, que `fields` la nomme ou non : `other` dit une valeur que
+  WF-REV-0080 n'énumère pas — un libellé, une description, un prédécesseur, le montant aux taux de
+  l'année de référence, les montants d'une tâche, le reste à engager précédent d'une ligne. Les
+  libellés résolus du sous-projet et de la catégorie suivent leur identifiant, sans `other`. Ne
+  sont pas comparés, parce qu'ils changent d'une révision à l'autre sans que rien du nœud ne
+  change : les identifiants, le compteur, le numéro de ligne, le rang et le niveau, les listes des
+  champs calculés et modifiables, `remaining_entry` et `finish_overdue`, drapeau du jour de calcul.
+  Cette liste étend celle de la conception d'EP-27 (« les identifiants, les compteurs, le numéro
+  de ligne, le rang, les champs modifiables ») de `level`, de `computed_fields`, de
+  `remaining_entry` et de `finish_overdue`, qui sont de la même espèce : le niveau suit le rang,
+  et les trois autres disent ce que le serveur calcule ou accepte, ou le jour de la lecture.
+  La lecture d'un différentiel ne change pas : ni `other`, ni `base`, ni `deltas`. Conséquence
+  dans les exemples : de l'offre à la référence, 5 962 nœuds modifiés par leurs valeurs au lieu de
+  4 997, les tâches par leurs montants, et aucune par son seul contenu (`comparison_volume`).
+- **`RevisionComparison.base_totals` et `totals_delta`** (`NodeTotalsDelta`) : les totaux de la
+  base sur les nœuds que la lecture retient, retirés compris et ajoutés exclus, une ligne comptée
+  par son parent dans la révision lue comme pour `amount_deltas` ; et leur écart signé. `totals` et
+  `amount_deltas` ne changent pas.
+- **`include_differences`** (`ComparisonIncludeDifferences`) : sous un filtre d'état, retient en
+  outre les nœuds en écart qu'il écarte, comptés dans les totaux ; la grille du reste à engager
+  l'envoie, elle seule. Le paramètre est de `compareRevisions` seul : `listNodes` ne compare rien
+  et ne le déclare pas. `difference` reste un paramètre, que les grilles n'envoient plus : le
+  repli se fait dans le navigateur.
+
+**Exigées en deux temps.** Les propriétés nouvelles sont déclarées sans être exigées : le service ne
+les rend pas encore, et chaque réponse est validée contre le contrat. Le lot du service qui en sert
+une la passe en exigée — `base` avec la comparaison d'une révision en cours (US-2320/L3),
+`deltas` avec les écarts (US-2340), `base_totals` et `totals_delta` avec les totaux de la base
+(US-2350).
+
+**Les exemples**, engendrés par `wftools.mockcomparisons` et `wftools.mockdiff` (`marked` lu avec
+`compared`, `read_with_fields`), portent `base`, `deltas`, `base_totals` et `totals_delta` ; un
+exemple de plus, `comparison_current`, rend la révision en cours du témoin comparée à la référence
+dont elle est issue, sur le sous-arbre de l'installation sur site. La borne de l'exemple de volume
+(#1204) passe de 1,5 à 2 Mo : chaque nœud y rend sa base et ses écarts réduits aux champs lus, et
+l'exemple pèse 1,55 Mo. Aucune exigence ne fixe 1,5 Mo — #1204 estimait l'exemple à 1,3 Mo, et la
+borne ne garde que contre des nœuds rendus entiers, 7,4 Mo — : 2 Mo laissent une marge d'un quart,
+qu'un libellé de plus ne consomme pas, et refusent encore une lecture qui ne réduirait pas `fields`.
+`info.version` reste `1.0.0` : des propriétés facultatives, un paramètre facultatif et une valeur
+d'énumération de plus.
+
+**Le service** (US-2320/L3, #3494) compare une révision lue en cours, rend `base` et `other`, et
+`base` devient exigée ; `deltas` reste déclarée sans être exigée, et vient avec US-2340, comme
+`base_totals` et `totals_delta` avec US-2350 (l'US-2320 les met hors de son périmètre). La base se
+lit dans sa lecture gardée, la révision lue en cours par ses colonnes (US-2220), rien n'en étant
+gardé. L'union (`core/estimate/uniting.py`) compare chaque nœud tel que l'API l'écrit entier, et la
+liste des valeurs non comparées y est écrite une fois (`NOT_COMPARED`, `FACET_NOT_COMPARED`) : celle
+du contrat, ci-dessus, sans rien de plus ; `parent_id` et `predecessors` s'y comparent par la lignée,
+le lien et le décalage, jamais par le rang. Deux conséquences d'une valeur calculée comparée, que
+le contrat veut : une tâche dont le successeur est retiré, ou que l'allongement d'une autre décale
+dans le chemin critique, est modifiée par sa marge (`total_float`, `is_critical`), et une révision
+ouverte d'une source marquée une fois le projet En cours porte le reste à engager d'avant la revue
+de chaque ligne (`previous_*`, EP-09) : elle se compare modifiée à sa source par ces valeurs
+(`other`), et inchangée, nœud par nœud, à la source d'un projet qui n'est pas encore En cours —
+son budgété, repris de la référence, différant aussi d'une source qui n'est pas la référence.
+
+**Les écarts et les totaux de la base** (US-2340/L1, #3501) : le service rend `deltas`,
+`base_totals` et `totals_delta`, et les trois deviennent exigées. L'écart se calcule dans l'union, à
+côté de `base`, pour les seules valeurs qui diffèrent, et se réduit comme elle aux champs lus. Deux
+durées de même unité s'écartent de la différence de leurs valeurs ; de deux unités, chacune est
+convertie en heures comme son unité le dit, aux constantes de l'installation (WF-PLA-0160), et
+l'écart est rendu dans l'unité de la durée lue — une heure écoulée y compte pour une heure, comme le
+filtre de durée compte une durée écoulée en jours de travail. Les totaux de la base se comptent sur
+les nœuds que la lecture retient sans `difference` — ceux-là mêmes dont `amount_deltas` compte les
+lignes quand `difference` est absent —, tels que la base les porte : une ligne de la révision lue
+retenue par un filtre y compte pour ce que la base en portait, une ligne que le filtre retient dans
+la base seulement, et qui est encore dans la révision lue, n'y compte pas. Sous un filtre d'état,
+`include_differences` lit les deux révisions sans ce filtre et retient un nœud dont la tâche est
+d'un état demandé, ou qui est en écart ; `totals` est alors celui des nœuds retenus, compté comme
+une lecture le compte.
+
+### Les lectures d'une grille ouvertes à qui la consulte (US-2320, conception d'EP-27, « Les gardes »)
+
+Décision de l'auteur du 2026-11-15, au cadrage d'EP-27 : un compte qui consulte le planning sans
+consulter les révisions y active une comparaison (WF-REV-0080, 1.0.6). Aucune forme ne change ; les
+gardes deviennent :
+
+| Opération | Avant | Après |
+|---|---|---|
+| `compareRevisions` | `estimate.read` | l'une de `planning.read`, `estimate.read`, `remaining.read` |
+| `getRevision`, `listCostStructures`, `listRevisions` | `revisions.read` | `revisions.read`, ou l'une des trois ci-dessus |
+
+`listNodes` ne demande déjà que `planning.read` pour les trois grilles : la comparaison rend ce que
+`listNodes` rend, à qui le lit déjà, et le bandeau lit `getRevision`, `listCostStructures` et
+`listRevisions`. La fonction « Gestion des révisions » reste gardée par `revisions.read` dans la
+navigation, et ses commandes par leurs permissions. Le refus d'un compte qui ne porte aucune de ces
+permissions ne change pas. Réalisé par US-2320/L2 et L3. Écartée : `compareRevisions` seul
+ouvert, qui laissait le Vérif de WF-REV-0080 non constaté sur l'écran.
+
+### Les révisions lues par qui consulte une grille, l'image figée par qui consulte les révisions (US-2320/L2, #3493)
+
+WF-REV-0080-A veut qu'« un utilisateur qui consulte le planning sans consulter les révisions y
+active une comparaison » : le bandeau d'une grille lit l'historique, la révision ouverte et ses
+structures pour ouvrir la grille et choisir sa base, trois lectures que seule `revisions.read`
+ouvrait. Conception d'EP-27 (« Les gardes ») : **`listRevisions`, `getRevision` et
+`listCostStructures` demandent `revisions.read`, ou l'une de `planning.read`, `estimate.read`,
+`remaining.read`** ; qui n'en porte aucune est refusé comme avant, par le 404 de `revisions.read`,
+et la qualité sur le projet se juge comme avant. Les écritures et les commandes d'une révision ne
+changent pas : `createRevision`, `markRevision` et `abandonRevision` demandent toujours
+`revisions.read` d'abord, puis leur permission, et la fonction « Gestion des révisions » reste
+gardée par `revisions.read` dans la navigation. `available_commands` suit les permissions de son
+lecteur comme avant : un lecteur d'une grille seule n'y trouve que les exports que sa permission
+garde (`export_planning` et `export_task_tree_image` pour `planning.read`, `export_estimate`,
+`export_remaining`), que `requestExport` juge sans `revisions.read`. Décision de l'auteur du
+2026-11-17 (option 1 de #3493) : **l'image figée d'une révision marquée (`Revision.snapshot`) n'est
+rendue par `getRevision` qu'à qui porte `revisions.read`** ; un lecteur d'une grille seule lit la
+révision marquée sans elle. Elle porte les taux horaires, les rôles, les calendriers et les
+catégories de coût, leur code comptable compris, que `cost_settings.read` et ses pareilles gardent
+ailleurs : ce chemin ne les ouvre pas, et la grille n'en a pas besoin pour s'ouvrir ni choisir sa
+base. Aucune forme ne change : `snapshot` n'est pas exigé, et son omission vaut ici comme pour la
+révision en cours. Les gardes de `compareRevisions` (l'une des trois permissions des grilles, au
+lieu de `estimate.read`) viennent avec US-2320/L3. `info.version` reste `1.0.0`. Écartée : l'image
+figée à tout lecteur d'une grille (option 2), qui ouvrait les taux à un compte sans
+`cost_settings.read`.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
@@ -11985,6 +12415,35 @@ le bloc si une ligne de création est refusée, contre WF-IHM-0050 (« les ligne
 clé de catalogue pour un refus que `VALIDATION_FAILED` dit déjà ; laisser le dialogue déduire le
 nombre de créations des lignes au-delà de la grille, qu'il ne connaît que par ce qu'il montre ; un
 champ `created` dans `PasteApplied`, que `nodes` dit déjà.
+
+### Le refus d'horizon d'un collage nomme la tâche par sa ligne dans le bloc (US-2260/L4, #3624)
+
+Depuis US-2260/L2 (#2606), le refus `PROJECT_HORIZON_EXCEEDED` d'un collage (`applyPaste`) nomme la
+tâche que le moteur trouve au-delà de l'horizon, par son nœud et son libellé (`params.task`). Une
+tâche que le collage crée n'a pas encore de nœud (`node_id` nul) : deux tâches créées de même
+libellé ne se distinguaient pas. Décision de l'auteur du 2026-11-16 (#3624) : le constat est corrigé
+dans EP-26, par US-2260/L4, qui en fixe la forme le même jour : **le refus d'un collage porte aussi
+la ligne du bloc**.
+
+- **`params.task.row`**, entier ≥ 0, la ligne du bloc collé comptée depuis zéro, comme
+  `PasteRejection.row` la compte : la même ligne que le dialogue du collage nomme déjà pour un refus
+  de ligne, sur laquelle le front n'a donc rien à recompter. C'est la première ligne du bloc qui
+  nomme la tâche : celle qui l'écrit ou la crée, ou celle d'une ligne de devis qu'elle porte.
+- **Absent, jamais nul**, hors d'un collage, et pour une tâche que le collage déplace sans l'écrire
+  — un successeur qu'il pousse, qu'aucune ligne du bloc ne nomme, désigné par son nœud seul :
+  les refus des autres opérations et leurs exemples ne changent pas, et la présence du champ dit
+  à elle seule qu'il s'agit d'une ligne du bloc.
+- **Un exemple** : `paste_apply_horizon_exceeded` (`applyPaste`, 422, `wftools.mockundoable`), deux
+  tâches « Garantie de parfait achèvement » créées au-delà du dernier nœud, la seconde, ligne `2`,
+  au-delà de l'horizon. Le 422 d'`applyPaste`, jusque-là la réponse commune, se décrit et porte cet
+  exemple.
+
+`ProblemParams` ne déclare pas `task` : ce paramètre reste ouvert, décrit par `Problem.params`,
+comme avant ; rien ne change sur le fil hors d'un collage, et `info.version` reste `1.0.0`.
+Écartés : une ligne comptée depuis un, qui aurait donné deux bases à deux champs `row` du même
+dialogue ; `row` nul hors d'un collage, qui l'aurait ajouté à tous les refus d'horizon et à leurs
+exemples pour ne rien dire ; nommer la tâche créée par un identifiant provisoire, qu'aucune lecture
+ne connaît.
 
 ## Organisation des fichiers
 

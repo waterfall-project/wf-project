@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { globSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -19,13 +20,25 @@ import {
 import { costCategoryGrid, costTypeGrid } from "../reference/cost-grids";
 import { rateGrid } from "../reference/rate-grid";
 import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "../reference/resource-grids";
-import { COMPARISON_GRID } from "../revisions/comparison-columns";
 import { RISK_GRID } from "../risks/risk-grid";
+import { spendingGrid } from "@/components/spending/spending-columns";
+import { detailGrid } from "../workload/detail-columns";
 import { MAX_WIDTH, MIN_WIDTH, WIDEST } from "./columns";
 import { ESTIMATE_GRID } from "./estimate";
 import { PLANNING_GRID } from "./planning";
 import { REMAINING_GRID } from "./remaining";
-import { gridShape, initialSettings, keptPageSize, recordedPreferences } from "./settings";
+import {
+  gridShape,
+  initialSettings,
+  keptPageSize,
+  KNOWN_BOUND,
+  recordedPreferences,
+} from "./settings";
+
+const ACCESS_SCHEMAS = join(
+  import.meta.dirname,
+  "../../../../docs/api/components/schemas/access.yaml",
+);
 
 describe("the settings a grid starts from", () => {
   it("are the columns the grid hides, and no width, without preferences", () => {
@@ -187,9 +200,88 @@ describe("the preferences a grid records", () => {
   });
 });
 
-// aucune exigence : propre à l'US (US-0650, `known_columns` borné par le contrat à 64 clés de 64
-// caractères, que gridShape écrit sans les tronquer).
+// The months of a plan of fifteen years, from January 2026.
+const FIFTEEN_YEARS = Array.from({ length: 180 }, (_, at) => {
+  const year = 2026 + Math.floor(at / 12);
+  return `${year.toString()}-${(1 + (at % 12)).toString().padStart(2, "0")}`;
+});
+
+// aucune exigence : propre à l'US (US-0650, US-2430 : `known_columns`, `hidden_columns` et
+// `column_widths` bornés par le contrat à 256 réglages, clés de 64 caractères ; une grille de plus
+// de colonnes garde d'abord celles qu'elle masque par défaut).
 describe("the columns a grid records as known", () => {
+  it("records every column of a grid within the bound, in its order", () => {
+    expect(gridShape(PLANNING_GRID.columns).known).toEqual(
+      PLANNING_GRID.columns.map((column) => column.key),
+    );
+  });
+
+  it("records first the columns hidden by default of a grid beyond the bound, then the others up to it", () => {
+    const columns = [
+      ...Array.from({ length: KNOWN_BOUND + 6 }, (_, at) => ({ key: `shown_${at.toString()}` })),
+      { key: "hidden", hidden: true },
+    ];
+    const { known } = gridShape(columns);
+    expect(known).toHaveLength(KNOWN_BOUND);
+    expect(known[0]).toBe("hidden");
+    expect(known[1]).toBe("shown_0");
+  });
+
+  // aucune exigence : propre à l'US (US-2430, #3589) : `KNOWN_BOUND` est la borne que le contrat
+  // pose aux trois réglages d'une grille.
+  it("holds the bound of the grid to the three bounds of GridPreferences in the contract", () => {
+    const lines = readFileSync(ACCESS_SCHEMAS, "utf-8").split("\n");
+    const indentOf = (line: string) => line.length - line.trimStart().length;
+    // The lines nested under a key, whatever the line it stands on and the indentation of the file.
+    const under = (within: readonly string[], key: string): readonly string[] => {
+      const at = within.findIndex((line) => line.trim() === `${key}:`);
+      const rest = at === -1 ? [] : within.slice(at + 1);
+      const end = rest.findIndex(
+        (line) => line.trim() !== "" && indentOf(line) <= indentOf(within[at] ?? ""),
+      );
+      return end === -1 ? rest : rest.slice(0, end);
+    };
+    const bound = (key: string, keyword: string): number => {
+      const list = under(under(under(lines, "GridPreferences"), "properties"), key);
+      const found = list.map((line) => new RegExp(`^\\s*${keyword}: (\\d+)$`).exec(line)?.[1]);
+      expect(list.length).toBeGreaterThan(0);
+      return Number(found.find(Boolean));
+    };
+    expect([
+      bound("known_columns", "maxItems"),
+      bound("hidden_columns", "maxItems"),
+      bound("column_widths", "maxProperties"),
+    ]).toEqual([KNOWN_BOUND, KNOWN_BOUND, KNOWN_BOUND]);
+  });
+
+  it("records at most the bound of the contract of hidden columns and widths, the first set", () => {
+    const columns = Array.from({ length: 300 }, (_, at) => ({ key: `c_${at.toString()}` }));
+    const settings = {
+      visibility: Object.fromEntries(columns.slice(5, 285).map((c) => [c.key, false])),
+      sizing: Object.fromEntries(columns.slice(0, 280).map((c) => [c.key, 120])),
+    };
+    const recorded = recordedPreferences(
+      undefined,
+      settings,
+      undefined,
+      undefined,
+      undefined,
+      gridShape(columns),
+    );
+    expect(recorded.known_columns).toHaveLength(KNOWN_BOUND);
+    expect(recorded.hidden_columns).toEqual(columns.slice(5, 5 + KNOWN_BOUND).map((c) => c.key));
+    expect(Object.keys(recorded.column_widths ?? {})).toEqual(
+      columns.slice(0, KNOWN_BOUND).map((c) => c.key),
+    );
+    // What the user finds on the next visit: the settings beyond the bound are gone, the others kept.
+    const back = initialSettings(recorded, columns);
+    expect(Object.keys(back.visibility)).toHaveLength(KNOWN_BOUND);
+    expect(back.visibility.c_261).toBeUndefined();
+    expect(Object.keys(back.sizing)).toHaveLength(KNOWN_BOUND);
+    expect(back.sizing.c_256).toBeUndefined();
+    expect(back.sizing.c_0).toBe(120);
+  });
+
   const grids = {
     estimate: ESTIMATE_GRID,
     planning: PLANNING_GRID,
@@ -217,7 +309,9 @@ describe("the columns a grid records as known", () => {
     accessRoles: accessRoleGrid(true),
     backups: backupGrid({ marks: true, downloads: true, restores: true }),
     audit: auditGrid({ functions: [], revision: true }),
-    comparison: COMPARISON_GRID,
+    // A plan of fifteen years: a column for each of its 180 months.
+    workloadDetail: detailGrid(FIFTEEN_YEARS, (month) => month),
+    spendingDetail: spendingGrid(FIFTEEN_YEARS, (month) => month),
   };
 
   // The grids declared by a wrapper of another, which show the same columns once the reading
@@ -226,7 +320,7 @@ describe("the columns a grid records as known", () => {
 
   it.each(Object.entries(grids))("of the grid %s fit the bounds of the contract", (_, grid) => {
     const { known } = gridShape(grid.columns);
-    expect(known.length).toBeLessThanOrEqual(64);
+    expect(known.length).toBeLessThanOrEqual(KNOWN_BOUND);
     expect(known.filter((key) => key.length > 64)).toEqual([]);
     expect(new Set(known).size).toBe(known.length);
   });

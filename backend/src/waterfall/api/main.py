@@ -1,8 +1,25 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Entry point of the API service."""
+"""Entry point of the API service, and the factory of its application, once per process.
+
+uvicorn serves the application on ``WATERFALL_API_PROCESSES`` processes (US-2230), one by default:
+each builds its own by ``application``, which opens its services — the database, Keycloak, Redis,
+the storage — and closes them when the process stops. What a process keeps in memory between two
+requests is the same in every process, or lives in PostgreSQL or Redis (WF-ARC-0080):
+
+- the keys of the realm (``platform.keycloak``), a copy of Keycloak's that each process reads
+  again on a key it does not hold and once they are as old as an access token;
+- the token of the service account (``platform.keycloak_admin``), each process's own, which the
+  realm gives to any of them;
+- the time zone of the installation (``platform.installation``), fixed by the bootstrap;
+- the registries of the modules (``platform.registry``), filled at the import of their interface;
+- what the image holds, read once: the font of the images of a tree, the names of the time zones;
+- the maintenance of a restoration lives in Redis, read at each request (``platform.maintenance``);
+- the indicators of the day are cached in Redis, not in the process (``platform.cache``).
+"""
 
 import sys
+from contextlib import ExitStack, asynccontextmanager
 from typing import TYPE_CHECKING
 
 import uvicorn
@@ -10,6 +27,7 @@ import uvicorn
 from waterfall import __version__
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.platform.cache import IndicatorsCache
 from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.keycloak import Keycloak
@@ -17,13 +35,21 @@ from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import configure_logging, get_logger
 from waterfall.platform.maintenance import Maintenance
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
-from waterfall.platform.settings import SettingsError, load_service_settings
+from waterfall.platform.settings import SettingsError, load_api_settings
 from waterfall.platform.storage import Bucket
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import AsyncGenerator, Sequence
+
+    from fastapi import FastAPI
+
+    from waterfall.platform.settings import ServiceSettings
 
 NAME = "waterfall-api"
+# Where uvicorn finds the factory, in each of its processes.
+FACTORY = "waterfall.api.main:application"
+
+logger = get_logger(__name__)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -31,7 +57,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     The service takes no argument but ``--version``: any other one is refused with status 2, but
     ``install``, which ``waterfall.bootstrap`` takes before it (US-0420), and ``load-witness``,
-    which ``waterfall.witness`` takes before them both (EP-05).
+    which ``waterfall.witness`` takes before them both (EP-05). The settings are read here before
+    any process starts, so that a missing one stops the service with status 2, naming it.
     """
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments == ["--version"]:
@@ -44,34 +71,84 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 2
     try:
-        settings = load_service_settings()
+        settings = load_api_settings()
     except SettingsError as error:
         sys.stderr.write(f"{NAME}: {error}\n")
         return 2
     configure_logging(settings.log_level, secrets=settings.secret_values())
-    get_logger(__name__).info(
-        "service.starting", version=__version__, host=settings.host, port=settings.port
+    logger.info(
+        "service.starting",
+        version=__version__,
+        host=settings.host,
+        port=settings.port,
+        processes=settings.api_processes,
     )
-    database = Database(create_database_engine(settings.database_url.get_secret_value()))
-    TIME_ZONE.read_from(stored_in(database))
-    keycloak = Keycloak(settings)
-    queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=DEPOSIT_TIMEOUT)
-    administration = KeycloakAdmin(keycloak, settings)
-    backups = Bucket.of_backups(settings)
-    services = Services(database, keycloak, administration, queue, backups, Maintenance.of(queue))
-    try:
-        uvicorn.run(
-            create_app(services),
-            host=settings.host,
-            port=settings.port,
-            log_config=None,
-            access_log=False,
-        )
-    finally:
-        queue.close()
-        keycloak.close()
-        database.dispose()
+    uvicorn.run(
+        FACTORY,
+        factory=True,
+        workers=settings.api_processes,
+        host=settings.host,
+        port=settings.port,
+        log_config=None,
+        access_log=False,
+    )
     return 0
+
+
+def application() -> FastAPI:
+    """Build the application of one process, on services of its own, closed when it stops.
+
+    Called by uvicorn in each of its processes: a process started apart reads its settings and
+    sets its logs again, as the first did.
+    """
+    settings = load_api_settings()
+    configure_logging(settings.log_level, secrets=settings.secret_values())
+    services, opened = open_services(settings)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
+        try:
+            yield
+        finally:
+            opened.close()
+            logger.info("service.stopped")
+
+    return create_app(services, lifespan)
+
+
+def open_services(settings: ServiceSettings) -> tuple[Services, ExitStack]:
+    """Open the services of a process, and give what closes them, the last opened first.
+
+    Nothing is reached yet: the database, Keycloak, Redis and the storage are asked when a request
+    needs them.
+    A service that cannot be opened closes those opened before it. The time zone of the
+    installation is read, the first time a request needs it, from this database (US-2200).
+    """
+    with ExitStack() as opened:
+        database = Database(create_database_engine(settings.database_url.get_secret_value()))
+        opened.callback(database.dispose)
+        keycloak = Keycloak(settings)
+        opened.callback(keycloak.close)
+        queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=DEPOSIT_TIMEOUT)
+        opened.callback(queue.close)
+        backups = Bucket.of_backups(settings)
+        opened.callback(backups.client.close)
+        # The cache of the indicators of the day, in the Redis of the queue, its entries valid for
+        # the time the settings read (WATERFALL_INDICATORS_CACHE_TTL); its pool is its own
+        # (US-1720/L2).
+        cache = IndicatorsCache.of(queue, settings.indicators_cache_ttl)
+        opened.callback(cache.close)
+        services = Services(
+            database,
+            keycloak,
+            KeycloakAdmin(keycloak, settings),
+            queue,
+            backups,
+            Maintenance.of(queue),
+            cache,
+        )
+        TIME_ZONE.read_from(stored_in(database))
+        return services, opened.pop_all()
 
 
 if __name__ == "__main__":

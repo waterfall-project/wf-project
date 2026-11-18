@@ -156,8 +156,22 @@ cause = "établie : 500 de `POST /projects`, blocage mutuel (`DeadlockDetected`)
 # US-1890/L2 (#3046) a traité ces parcours, et déplacé leurs lignes : les entrées visent donc le
 # titre du parcours, non sa ligne. La famille n'a pas été remesurée dans la file depuis, d'où les
 # causes encore en hypothèse. Le parcours des désactivés de `reference-costs.spec.ts` n'en était
-# pas : son aide `press` recliquait une commande dont l'action était en vol ; corrigé par #3135,
-# son entrée est retirée.
+# pas : il a sa propre famille, ci-dessous.
+
+# Parcours des désactivés (#3448) : son aide `press` recliquait une commande dont l'action était en
+# vol ; corrigé par #3135, son entrée est retirée — puis rouverte : `pressOnce` (#3398) réduit la
+# fenêtre du reclic sans la fermer, la correction côté test revenant à EP-25.
+
+[[known]]
+class = "known flakiness"
+family = "reclic d'une commande d'activation (parcours des désactivés)"
+issue = "#3448"
+job = '^service / paths(?: \(\d+/\d+\))?$'
+step = 'e2e-service'
+test = 'e2e/reference-costs\.spec\.ts:486\b.*shows the deactivated natures and categories asked for'
+message = "reference-costs\\.spec\\.ts:659|Nouveau rôle de ressource"
+frequency = "2 passages de la file d'epic/EP-26 du 2026-11-14 au 2026-11-15 : 43641088452 (:659, 28,6 s) et 43683251106 (:659, 22,7 s)"
+cause = "hypothèse : le reclic de `pressOnce` retombe sur le même nœud devenu la commande opposée quand l'action serveur dépasse 4 s (#3448, enquête de #3266) ; la réactivation de la catégorie n'est pas attendue, et `toHaveCount(1)` de l'option de la catégorie, dans le formulaire du rôle, échoue dix secondes plus tard (:659), `Received: 0`"
 
 [[known]]
 class = "known flakiness"

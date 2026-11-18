@@ -23,10 +23,13 @@ The check fails, naming the leaf or the route:
 - on a leaf with a screen of its own that the page of its function does not name by
   ``leafOf("FBS-…")``, the one way the front finds a leaf it links to, and so cannot lead to.
 
-One function is accepted before the specification draws it: ``PENDING_IN_THE_SPECIFICATION``,
-FBS-1.6, decided by #3197 and realised by US-2120 ahead of the revision. The check takes it for a
-function of FBS-1 and no other unknown code; it fails as soon as the projection has it, for the
-declaration to be removed.
+Two functions are accepted before the specification draws them: ``PENDING_IN_THE_SPECIFICATION``,
+FBS-1.6, decided by #3197 and realised by US-2120 ahead of the revision, and FBS-4.4.5, the
+projection of spending of the project, decided on 2026-11-16 (#3643, option C) and realised by
+US-2050. The check takes each for a child of its parent in the tree and no other unknown code; it
+fails as soon as the projection has one, for its declaration to be removed. A pending leaf is not
+required to have a route yet: the table may address it, and then it must be a leaf under its
+function.
 
 The navigation is drawn from the table, and offers each of its functions; that every route is
 indeed reached by a link is proven in a browser, by ``frontend/e2e/screens.spec.ts``.
@@ -54,10 +57,14 @@ WITHOUT_SCREEN: dict[str, str] = {}
 """The leaves of the FBS that no screen addresses yet, each with its reason and the issue that
 follows it."""
 
-PENDING_IN_THE_SPECIFICATION = "FBS-1.6"
-"""Provisional exception: a function of FBS-1, decided by #3197 and not yet in the tree of the
-specification. The revision of the specification adds it there and removes this constant, and the
-check fails until then to say so."""
+PENDING_IN_THE_SPECIFICATION: dict[str, str] = {
+    "FBS-1.6": "Installation",
+    "FBS-4.4.5": "Projection de dépenses du projet",
+}
+"""Provisional exceptions, each with the label the specification will give it: FBS-1.6, a function
+of FBS-1 decided by #3197, and FBS-4.4.5, a leaf of FBS-4.4 decided by #3643, neither yet in the
+tree of the specification. The revision of the specification adds them there and removes them
+from this table, and the check fails until then to say so."""
 
 _PAGE = "page.tsx"
 # A segment in brackets names a group of routes, which adds nothing to the address.
@@ -122,28 +129,32 @@ def confront(
     table: dict[str, object],
     app: dict[str, str],
     without_screen: dict[str, str],
-    pending: str | None = None,
+    pending: dict[str, str] | None = None,
 ) -> list[str]:
     """Return what the table and the pages of the application miss of the FBS, one line each.
 
-    ``pending`` is a function the specification does not draw yet: it is taken for a leaf of its
-    parent, FBS-1 for FBS-1.6, so long as the parent is in the tree and it is not.
+    ``pending`` maps to its label each function the specification does not draw yet: it is taken
+    for a child of its parent, FBS-1 for FBS-1.6, FBS-4.4 for FBS-4.4.5, so long as the parent is
+    in the tree and it is not.
     """
     findings: list[str] = []
     named = {fn.code: fn for fn in tree}
-    if pending is not None:
-        if pending in named:
-            findings.append(f"{pending}: declared pending in the specification, but it has it")
-        elif pending.rpartition(".")[0] in named:
-            # The label is the one the specification will give it, for the findings only.
-            named[pending] = Function(pending, "Installation")
     leaves = {fn.code: fn for fn in projection.leaves(tree)}
+    accepted: set[str] = set()
+    for code, label in (pending or {}).items():
+        if code in named:
+            findings.append(f"{code}: declared pending in the specification, but it has it")
+        elif code.rpartition(".")[0] in named:
+            # The label is the one the specification will give it, for the findings only.
+            accepted.add(code)
+            named[code] = leaves[code] = Function(code, label)
+            leaves.pop(code.rpartition(".")[0], None)
     seen: set[str] = set()
     for address in addresses(table):
         findings.extend(_address(address, named, leaves, seen))
         seen.add(address.code)
     for code, fn in leaves.items():
-        if code not in seen and code not in without_screen:
+        if code not in seen and code not in without_screen and code not in accepted:
             findings.append(f"{code} {fn.label}: a leaf of the FBS without a route in the table")
     for code in without_screen:
         if code not in leaves:

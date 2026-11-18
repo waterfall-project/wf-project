@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page, test } from "@playwright/test";
 
-import { openHydrated, WORKING } from "./hydration";
+import { WORKING } from "./bounds";
+import { openHydrated } from "./hydration";
 
 // The journey of an amendment (US-0510), against the fake back, which keeps nothing: it serves the
 // first example of each operation whatever was sent. The amendment is prepared from the current

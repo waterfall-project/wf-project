@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { WORKING } from "./bounds";
 import { menuButton, openAudit, openFilters, pick } from "./check-menu";
 import { expect, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
-import { setExpanded, sortUntilAddress, WORKING } from "./hydration";
+import { setExpanded, sortUntilAddress } from "./hydration";
 import { inService, test } from "./mode";
 import { grantRole } from "./service/realm";
 

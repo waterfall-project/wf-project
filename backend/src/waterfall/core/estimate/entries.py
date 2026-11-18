@@ -37,6 +37,7 @@ from waterfall.core.estimate.tables import (
     QUANTITY_PRECISION,
     QUANTITY_SCALE,
 )
+from waterfall.core.planning.interface import RepricedBeyondColumnError
 from waterfall.core.projects.interface import subproject_has_actual_costs, subproject_labels
 from waterfall.core.resource_settings.interface import read_roles
 from waterfall.platform.decimals import exceeds_precision
@@ -78,14 +79,19 @@ AMOUNT_DIGITS = AMOUNT_PRECISION - AMOUNT_SCALE
 CREATED_LINE = "/estimate_line"
 
 
-class AmountOverflowError(UnprocessableError):
+class AmountOverflowError(RepricedBeyondColumnError):
     """The amounts of a line, priced, cross the digits of their columns (#3035, #3039).
 
+    Refused at the field of the request that provokes it (``docs/api/DECISIONS.md``, #3093).
     ``reprice`` (``writing.py``) raises it without a field, as no line of the request is named.
-    The write of a line gives it the quantity (``refuse_overflow``); ``repricing._refused_at``
-    gives it, for the rate of a category and for the inflation, the field that carries the change
-    (``/amount``, ``/inflation_rate``). Elsewhere (the redating of a task, the copy of a revision,
-    ``copy_rates``) it still leaves without a field: a remainder to settle by its own issue.
+    The write of a line gives it the quantity (``_priced_draft``); the planning's ``refused_at``
+    gives it the field that carries the change: for the rate of a category, the inflation and the
+    update of the rates (``/amount``, ``/inflation_rate``, ``/cost_category_ids``, #3401), for the
+    write of the tree whose entry redates the task, the fields that date it (``Write.redate``,
+    #3094), for a move, its parent, for a change of the units or of the default calendar, the
+    constants or the days changed (US-2400). The opening of a revision (``copy_rates``), a paste
+    and the designation of the default calendar, whose requests send no field it follows from,
+    leave it without one (#3303, US-2400).
     """
 
 

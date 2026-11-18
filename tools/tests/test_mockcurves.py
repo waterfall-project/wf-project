@@ -13,9 +13,10 @@ calculation (WF-IND-0100); the gap to the previous review, a revision marked In 
 lines of provision (WF-IND-0060).
 """
 
+import itertools
 import json
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, cast
 
 import pytest
@@ -23,7 +24,8 @@ import pytest
 from wftools import mockcore, mockcurves, mockdata, mockhistory, mockindicators, mocktoday
 from wftools.mockcalendar import Instant
 from wftools.mockindicators import END_OF_DAY, Cost
-from wftools.mockwitness import PROVISIONS, SUBCONTRACTING, TODAY, Line, Task
+from wftools.mockstructure import CENT
+from wftools.mockwitness import PROVISIONS, SUBCONTRACTING, SUBPROJECT_CONTROL, TODAY, Line, Task
 
 type Node = dict[str, Any]
 
@@ -270,6 +272,18 @@ def test_the_earned_value_and_the_budget_of_a_subproject_leave_out_the_lines_of_
     assert any(mockhistory.is_provision(line) for line in base.lines)
 
 
+@pytest.mark.requirement("WF-IND-0020-A")
+def test_the_indicators_of_a_subproject_name_it_as_the_scope_of_their_context(
+    today: dict[str, Any],
+) -> None:
+    # « se calculent pour le projet et pour chacun de ses sous-projets » : the indicators of a
+    # subproject name it in their context, as its curves and its index history do (#3653).
+    subproject = today["project_indicators_subproject"]
+    assert subproject["context"]["scope"] == SUBPROJECT_CONTROL
+    assert today["cost_curve_subproject"]["context"]["scope"] == SUBPROJECT_CONTROL
+    assert today["project_indicators"]["context"]["scope"] == "project"
+
+
 @pytest.mark.requirement("WF-RAE-0020-A")
 def test_the_gap_to_the_previous_review_is_absent_after_an_offer_marked_while_pricing() -> None:
     # « Sur un projet dont aucune révision n'a été marquée à l'état En cours avant celle qui est
@@ -347,3 +361,75 @@ def test_the_physical_progress_of_a_summary_leaves_out_the_lines_of_provision(
         "value": expected,
         "reason": None,
     }
+
+
+def _months_of(rows: list[Node], key: str) -> dict[str, Decimal]:
+    """Return the months of some rows that carry an amount, by month."""
+    return {row["month"]: Decimal(row[key]) for row in rows if Decimal(row[key])}
+
+
+def _gained(points: list[Node]) -> dict[str, Decimal]:
+    """Return what a series gains in each month, from one point to the next."""
+    return {
+        after["date"][:7]: Decimal(after["amount"]) - Decimal(before["amount"])
+        for before, after in itertools.pairwise(points)
+        if Decimal(after["amount"]) != Decimal(before["amount"])
+    }
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_the_curve_to_come_is_the_projection_of_spending_to_the_cent_but_for_the_provision(
+    today: dict[str, Any],
+) -> None:
+    # Propre à US-1690 : « à chaque mois, ses décaissements sans les provisions et la projection de
+    # dépenses (getProjectSpending) ne diffèrent pas d'un centime » (#3564, #3590). The provision of
+    # the risk identified, 500 000, whose task ends on 30 June, falls in June, with the payment
+    # delays as without: the gap of the two examples there, 675 512.56 against 175 512.56; every
+    # other month is the same to the cent, the curve and the projection summing the same parts.
+    witness = mockindicators.today()
+    provisions = [
+        mockindicators.remaining_of(witness, line)
+        for line in witness.lines
+        if mockhistory.is_provision(line) and witness.bearer(line).finish.day <= date(2026, 6, 30)
+    ]
+    assert sum(provisions, Decimal(0)) == Decimal("500000.00")
+    to_come = {
+        "cost_curve_payment_delays": _months_of(
+            today["cost_curve_payment_delays"]["cash_out_by_month"], "forecast"
+        ),
+        "cost_curve": _gained(_points_of(today["cost_curve"], "project_manager_projection")),
+    }
+    for name, spending in (
+        ("cost_curve_payment_delays", "spending_payment_delays"),
+        ("cost_curve", "spending"),
+    ):
+        spent = _months_of(today[spending]["monthly_totals"], "amount")
+        curve = to_come[name]
+        assert set(curve) == set(spent), name
+        assert {month: curve[month] - spent[month] for month in curve} == {
+            month: Decimal("500000.00") if month == "2026-06" else Decimal(0) for month in curve
+        }, name
+    assert to_come["cost_curve_payment_delays"]["2026-06"] == Decimal("675512.56")
+
+
+@pytest.mark.requirement("WF-IND-0110-A")
+def test_the_planned_value_sums_the_parts_of_the_lines_each_rounded_away_from_nought() -> None:
+    # « La courbe de valeur planifiée atteint le budget de référence à la fin de la référence » :
+    # at each month-end, the planned value of the curve and of the indicators is the sum of the
+    # parts of the lines up to that month, each rounded to the cent, a half away from nought, as the
+    # service rounds them (#3590) — not the sum of the lines rounded once, to the even.
+    found = mocktoday.witness()
+    base = found.reference
+    flows = mockcurves.budget_flows(base)
+    parts = mockcurves.summed(mockcurves.parts(flow, CENT, ROUND_HALF_UP) for flow in flows)
+    curve = mockcurves.earned_value_curves(found.today, base, found.costs)
+    planned = {
+        point["date"]: Decimal(point["amount"]) for point in _points_of(curve, "planned_value")
+    }
+    running = Decimal(0)
+    for month, part in parts.items():
+        running += part
+        end = mockcurves.month_end(date.fromisoformat(f"{month}-01"))
+        assert planned[end.isoformat()] == running, month
+        assert mockindicators.planned(base, end) == running, month
+    assert running == mockindicators.budget(base)

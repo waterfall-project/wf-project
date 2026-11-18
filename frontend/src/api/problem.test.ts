@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { SessionLost } from "@/session/tokens";
-import { example, type FakeAnswer, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswer, fakeClient, refusedConnection } from "@/test/fixtures";
 
 import {
   ACCOUNT_DEACTIVATED_DIGEST,
@@ -165,9 +165,32 @@ describe("the decoder of an answer of the API", () => {
   });
 
   it("tells an API out of reach apart from any refusal", async () => {
-    const client = answering(() => Promise.reject(new TypeError("fetch failed")));
+    const client = answering(() => Promise.reject(refusedConnection()));
     const outcome = await decode(() => client.PATCH("/me/preferences", { body: {} }));
     expect(outcome).toEqual({ kind: "unreachable" });
+  });
+
+  it.each([
+    ["ECONNREFUSED", { kind: "unreachable" }],
+    ["ENOTFOUND", { kind: "unreachable" }],
+    ["UND_ERR_SOCKET", { kind: "unreachable", sent: true }],
+    ["ECONNRESET", { kind: "unreachable", sent: true }],
+  ] as const)(
+    "tells a write that did not leave apart from one whose connection was lost once sent, here %s (US-2240)",
+    async (code, expected) => {
+      const lost = new TypeError("fetch failed", {
+        cause: Object.assign(new Error(code), { code }),
+      });
+      const client = answering(() => Promise.reject(lost));
+      const outcome = await decode(() => client.PATCH("/me/preferences", { body: {} }));
+      expect(outcome).toEqual(expected);
+    },
+  );
+
+  it("tells a write rejected without a code as one that may have left: nothing says it did not (US-2240)", async () => {
+    const client = answering(() => Promise.reject(new TypeError("fetch failed")));
+    const outcome = await decode(() => client.PATCH("/me/preferences", { body: {} }));
+    expect(outcome).toEqual({ kind: "unreachable", sent: true });
   });
 
   it("takes an answer without the envelope for the unexpected error of the service", async () => {

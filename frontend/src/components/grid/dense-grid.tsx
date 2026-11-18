@@ -37,11 +37,15 @@
  * unfold the row of the active cell — the row above it, from a row under which nothing folds —, Alt
  * and * unfolds the whole tree, Shift or not, as in Microsoft Project; the bar folds the tree down to a
  * level. The active cell stays on its row, or goes to the row folded over it.
+ *
+ * A grid that reads a comparison folds away, at « Écarts seulement », its rows without difference
+ * (WF-IHM-0170, `folded-runs.tsx`): each run so folded is a row of its own among those it renders,
+ * which the arrows stop on and which unfolds it — no row of the answer, the totals the answer's.
  */
 "use client";
 
-import type { RowData, Row as TableRowModel } from "@tanstack/react-table";
-import { usePathname, useSearchParams } from "next/navigation";
+import type { RowData } from "@tanstack/react-table";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import {
   Fragment,
@@ -56,7 +60,11 @@ import {
   useTransition,
 } from "react";
 
-import { OutcomeNotice, refusalDescription } from "@/components/commands/outcome-notice";
+import {
+  OutcomeNotice,
+  refusalDescription,
+  useReadAnew,
+} from "@/components/commands/outcome-notice";
 import {
   Table,
   TableBody,
@@ -67,30 +75,17 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
 import { useCurrency } from "@/currency/context";
-import type { Locale } from "@/i18n/locale";
 
 import {
   type DependencyReader,
-  DIFF_MARK_KEY,
   formatCell,
-  type GridColumn,
   type GridConfig,
   headingOf,
-  ROW_NUMBER_KEY,
+  offeredColumns,
 } from "./columns";
-import {
-  BODY_ROW,
-  cellAttributes,
-  cellKeys,
-  cellStateOf,
-  invalidRing,
-  ROW_HOVER,
-} from "./cell-attributes";
 import { CellEditor, EntryProblemNotice } from "./cell-editor";
 import { useCellWrites } from "./cell-writes";
-import { ComputedCell, type ComputedColumn } from "./computed-cell";
-import { cellContent } from "./dense-grid-cell";
-import { DiffMark, differenceTint } from "./diff-mark";
+import { BodyRow } from "./dense-grid-rows";
 import {
   FOLD_KEYS,
   useFoldReach,
@@ -98,41 +93,33 @@ import {
   isNarrowed,
   useFoldCommands,
   useGridFold,
-  useTreeRow,
 } from "./fold";
+import {
+  comparedDifference,
+  FoldedRunRow,
+  useRunCommands,
+  useRunSlots,
+  withFoldToggle,
+} from "./folded-runs";
 import { useRoomBelow } from "./frame-width";
 import { EDGE_REM, floorOf, ROW_REM, withBar } from "./grid-floor";
-import {
-  type CellDraft,
-  type CellPosition,
-  type CellRefusal,
-  HEADER_ROW,
-  samePosition,
-  useCursor,
-  useGridKeyboard,
-} from "./grid-keyboard";
-import { configColumn, type GridFeatures, type GridTable, useGridTable } from "./grid-table";
+import { HEADER_ROW, samePosition, useCursor, useGridKeyboard } from "./grid-keyboard";
+import { configColumn, useGridTable } from "./grid-table";
 import { type Filtering, keptOpenOf, panelLayout } from "./filter-bar";
 import { GridToolbar, toggledColumns } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
 import { type KeptFilters, useKeptFilters } from "./kept-filters";
 import { useKeptPageSize } from "./kept-size";
-import { gridBusy, held, sharedName, Spacer } from "./dense-grid-parts";
+import { type CellStates, gridBusy, held, sharedName, Spacer } from "./dense-grid-parts";
 import { useGridPaste } from "./paste";
 import { PasteAppliedNotice, PasteDialog, UnshownNotice } from "./paste-dialog";
-import { alignClass, TotalsRow } from "./totals-row";
+import { type ComparedTotals, TotalsRow } from "./totals-row";
 import { PendingAddress, usePendingAddress } from "./pending-address";
 import { endPinnedWidth, pinnedWidth, pinningOf, useFrameRoom } from "./pinning";
 import { useRootFontSize, useRowWindow } from "./row-window";
 import { restOf, stretchedColumn, tableWidth } from "./table-width";
 import { type GridQuery, type GridSort, searchHref, sortHref } from "./query";
-import {
-  HandleCell,
-  type RowSelection,
-  SelectionNotes,
-  selectedRow,
-  useRowSelection,
-} from "./row-selection";
+import { SelectionNotes, useRowSelection } from "./row-selection";
 import {
   isBarOpen,
   useBarFocus,
@@ -166,6 +153,23 @@ import {
  */
 const FULL = "100%";
 
+/** The control of undo and redo, keeping shown the rows `keys` says before it asks the server. */
+function keepingUndo(
+  control: UndoControl | undefined,
+  keys: () => readonly string[],
+  keepShown: (keys: readonly string[]) => void,
+): UndoControl | undefined {
+  return control === undefined
+    ? undefined
+    : {
+        ...control,
+        press: (command) => {
+          keepShown(keys());
+          control.press(command);
+        },
+      };
+}
+
 /** The rows rendered beyond those in view, at each end. */
 const OVERSCAN = 12;
 
@@ -184,6 +188,11 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
   readonly totals: Totals;
   /** What the totals row says before its figures: what the totals shown count. */
   readonly totalsCaption: (totals: Totals) => string;
+  /**
+   * The totals of the base and their difference to those of the answer, when the grid reads a
+   * comparison (WF-IHM-0160): the totals row says the three, as the server gives them.
+   */
+  readonly comparison?: { readonly base: Totals; readonly delta: Totals } | undefined;
   /** What the address asked of the server. */
   readonly query: GridQuery<Sort>;
   /** The settings of the grid the session read, if any. */
@@ -223,6 +232,8 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
    * in it, for a reading not narrowed.
    */
   readonly narrowing?: Readonly<Record<string, unknown>> | undefined;
+  /** The row the address targets, unfolded down to and aimed at once hydrated (`useFoldCommands`). */
+  readonly target?: string | undefined;
   /** The commands the screen gives the rows of the grid; none for a grid it writes nothing from. */
   readonly commands?: RowCommands<Row> | undefined;
   /**
@@ -252,191 +263,6 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
   readonly ending?: ReactNode;
 }
 
-/** Whether the server computes the cell of a column in a row. */
-function computedIn<Row extends RowData, Sort extends string, Totals>(
-  column: GridColumn<Row, Sort, Totals> | undefined,
-  row: Row,
-): column is ComputedColumn<Row, Sort, Totals> {
-  return column?.computed?.in(row) === true;
-}
-
-/** What the cells of the body are doing: the active one, the one entered, the refusal shown. */
-interface CellStates<Row extends RowData, Sort extends string, Totals> {
-  readonly cursor: CellPosition;
-  readonly draft: CellDraft | undefined;
-  readonly refusal: CellRefusal;
-  /** What a cell under way shows, by the key of its row and its column, if it is. */
-  readonly pending: (row: string, column: string) => string | undefined;
-  /** The identifier of the refusal told of the write of a cell, by its row and column, if any. */
-  readonly writeRefusal: (row: string, column: string) => string | undefined;
-  /** The entry of the cell entered. */
-  readonly editor: (draft: CellDraft, column: GridColumn<Row, Sort, Totals>) => ReactNode;
-  /** Close the refusal from the keyboard, the focus back on its cell. */
-  readonly closeRefusal: () => void;
-  /** Close the refusal, the focus gone elsewhere. */
-  readonly dismissRefusal: () => void;
-  /** Whether the cells have a menu, which they announce. */
-  readonly menu: boolean;
-  /** The keys of the folding a row that folds tells, as far as they reach; none, none told. */
-  readonly foldKeys: string | undefined;
-  /** The selection of the rows, whose handles are the cells of the row numbers. */
-  readonly selection: RowSelection<unknown>;
-  /** The name of the handle of the row of a number, and the identifier of what describes it. */
-  readonly handle: {
-    readonly name: (number: number) => string;
-    readonly hint: string;
-  };
-}
-
-/**
- * A cell of a row: the active one in the order of tabulation, the others reached by the arrows;
- * its entry while entered; what was validated while the server has not answered. A cell the
- * server computes in this row is shaded and marked (WF-IHM-0030), and refuses an entry.
- */
-function BodyCell<Row extends RowData, Sort extends string, Totals>({
-  table,
-  config,
-  dependencies,
-  cells,
-  row,
-  folds,
-  position,
-  locale,
-}: {
-  readonly table: GridTable<Row>;
-  readonly config: GridConfig<Row, Sort, Totals>;
-  readonly dependencies: DependencyReader<Row> | undefined;
-  readonly cells: CellStates<Row, Sort, Totals>;
-  readonly row: Row;
-  /** Whether the row folds: its label tells the keys that fold it. */
-  readonly folds: boolean;
-  readonly position: CellPosition;
-  readonly locale: Locale;
-}) {
-  const currency = useCurrency();
-  const column = configColumn(config, position.column);
-  const computed = computedIn(column, row);
-  const pinning = pinningOf(table, position.column, "z-10");
-  const state = cellStateOf(cells, config.rowKey(row), position);
-  const marks = position.column === DIFF_MARK_KEY;
-  const content =
-    state.pending ??
-    (marks ? (
-      <DiffMark difference={config.difference?.(row)} />
-    ) : (
-      cellContent(config, column, row, locale, currency)
-    ));
-  let shown = content;
-  if (state.draft !== undefined && column !== undefined) {
-    shown = cells.editor(state.draft, column);
-  } else if (computed) {
-    shown = (
-      <ComputedCell
-        column={column}
-        row={row}
-        dependencies={dependencies}
-        open={state.refused}
-        opening={cells.refusal.opening}
-        onClose={cells.closeRefusal}
-        onDismiss={cells.dismissRefusal}
-      >
-        {content}
-      </ComputedCell>
-    );
-  }
-  return (
-    <TableCell
-      {...cellAttributes(
-        position,
-        state,
-        column?.entry?.in(row) === true,
-        computed,
-        cellKeys(cells.menu, { folds, keys: cells.foldKeys }, position.column, config.columns[0]),
-      )}
-      style={{ left: pinning.left, right: pinning.right }}
-      className={cn(
-        "overflow-hidden text-ellipsis outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-        pinning.className,
-        computed ? "bg-muted" : ROW_HOVER,
-        column === undefined || state.pending !== undefined ? "text-muted-foreground" : null,
-        state.draft === undefined ? null : "py-0",
-        invalidRing(state.invalid),
-        marks ? "text-center" : alignClass(column),
-      )}
-    >
-      {shown}
-    </TableCell>
-  );
-}
-
-/** A row of the answer, its visible cells, at its index among all the rows of the answer. */
-function BodyRow<Row extends RowData, Sort extends string, Totals>({
-  row,
-  index,
-  ...shared
-}: {
-  readonly table: GridTable<Row>;
-  readonly config: GridConfig<Row, Sort, Totals>;
-  /** How a computed cell asks the server what its value depends on. */
-  readonly dependencies: DependencyReader<Row> | undefined;
-  readonly cells: CellStates<Row, Sort, Totals>;
-  readonly row: TableRowModel<GridFeatures, Row>;
-  readonly index: number;
-  readonly locale: Locale;
-}) {
-  // In a tree, where the row stands, and whether it is unfolded.
-  const tree = useTreeRow(shared.config.rowKey(row.original));
-  const { selection } = shared.cells;
-  const { className, ...selected } = selectedRow(
-    selection.selected(index),
-    selection.dropAt(index),
-  );
-  return (
-    <TableRow
-      aria-rowindex={index + 2}
-      aria-level={tree?.level}
-      aria-posinset={tree?.position}
-      aria-setsize={tree?.siblings}
-      aria-expanded={tree?.expanded}
-      {...selected}
-      className={cn(
-        BODY_ROW,
-        "h-7",
-        className,
-        differenceTint(shared.config.difference?.(row.original)),
-      )}
-    >
-      {row
-        .getVisibleCells()
-        .map((cell) =>
-          cell.column.id === ROW_NUMBER_KEY && selection.offered ? (
-            <HandleCell
-              key={cell.id}
-              position={{ row: index, column: cell.column.id }}
-              state={cellStateOf(shared.cells, row.id, { row: index, column: cell.column.id })}
-              menu={shared.cells.menu}
-              pinning={pinningOf(shared.table, cell.column.id, "z-10")}
-              number={shared.config.rowNumber?.(row.original) ?? index + 1}
-              selected={selection.selected(index) === true}
-              name={shared.cells.handle.name}
-              hint={shared.cells.handle.hint}
-              draggable={selection.dragging}
-              pick={selection.pick}
-            />
-          ) : (
-            <BodyCell
-              key={cell.id}
-              {...shared}
-              row={row.original}
-              folds={tree?.expanded !== undefined}
-              position={{ row: index, column: cell.column.id }}
-            />
-          ),
-        )}
-    </TableRow>
-  );
-}
-
 /**
  * Render a dense grid, which shares the address last asked with its bar — and with its screen,
  * when the screen shares one (`PendingAddress`): a search typed on while the one sent is on its
@@ -452,12 +278,42 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>(
   );
 }
 
+/**
+ * How a grid reads its screen anew once its writes answered (`CellRules.reread`): compared to a
+ * base, whose marks no write answers (US-2340), by `router.refresh`; out of a comparison, never —
+ * the answers alone, as EP-02 has it.
+ */
+function useComparedReread(comparing: boolean | undefined): (() => void) | undefined {
+  const router = useRouter();
+  return comparing === true
+    ? () => {
+        router.refresh();
+      }
+    : undefined;
+}
+
+/**
+ * The totals of the base and their difference, as the totals row says them: none out of a
+ * comparison, and none once a write answered the totals — those the base and the difference were
+ * read with are no longer the totals shown, and the page read anew, which takes the place of the
+ * totals written (`askedAnew`, `reread`), brings the three together; until it does, the row says
+ * the figures of the answer alone.
+ */
+function comparedTotals<Totals>(
+  comparison: { readonly base: Totals; readonly delta: Totals } | undefined,
+  written: Totals | undefined,
+  caption: (totals: Totals) => string,
+): ComparedTotals<Totals> | undefined {
+  return comparison === undefined || written !== undefined ? undefined : { ...comparison, caption };
+}
+
 /** Render a dense grid, the address last asked shared. */
 function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   config: given,
   rows,
   totals,
   totalsCaption,
+  comparison,
   query,
   preferences,
   dependencies,
@@ -467,6 +323,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   treeFilters,
   foldScope,
   narrowing,
+  target,
   commands,
   stacked,
   selecting,
@@ -474,7 +331,10 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   ending,
 }: DenseGridProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
-  const { config, pick } = useSelectedConfig(given, selecting);
+  const { config: selected, pick } = useSelectedConfig(given, selecting);
+  // Its columns of difference are offered, and shown once chosen, while it reads a comparison; its
+  // settings are those of the columns it has, whatever it reads.
+  const config = useMemo(() => offeredColumns(selected), [selected]);
   const locale = useLocale();
   const currency = useCurrency();
   const pathname = usePathname();
@@ -487,8 +347,8 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   const keptSort = useRef(preferences?.sort);
   // The size of its pages the account keeps for the grid: the session's, then the last one chosen.
   const [keptSize, setKeptSize] = useState(keptPageSize(preferences));
-  const [settings, setSettings] = useState(() => initialSettings(preferences, config.columns));
-  const shape = useMemo(() => gridShape(config.columns), [config.columns]);
+  const [settings, setSettings] = useState(() => initialSettings(preferences, selected.columns));
+  const shape = useMemo(() => gridShape(selected.columns), [selected.columns]);
   // The settings as they are now, which a preference written later reads: kept at each change.
   const currentSettings = useRef(settings);
   const writer = useSettingsWriter(config.key);
@@ -604,7 +464,16 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   const address = `${pathname}?${useSearchParams().toString()}`;
   // Each write a cell or a paste sends is one the commands of the screen wait for (#1224).
   const writing = writingOf(commands);
-  const writes = useCellWrites<Row, Totals>({ address, rows, totals }, config, writing);
+  const reread = useComparedReread(config.comparing);
+  const writes = useCellWrites<Row, Totals>(
+    { address, rows, totals },
+    { rowKey: config.rowKey, retotal: config.retotal, fresher: config.fresher, reread },
+    writing,
+  );
+  // A write of a cell lost once sent: the grid is read anew, and takes no entry until it is back
+  // (US-2240). The settings written are read anew too, which no entry waits for.
+  const readingCells = useReadAnew(writes.outcome);
+  const readingSettings = useReadAnew(writer.outcome);
   // The totals the writes last answered, or those of the answer.
   const shownTotals = writes.totals ?? totals;
   // The rows the tree leaves unfolded, which the grid renders and moves through.
@@ -615,8 +484,26 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     grid: config.key,
     scope: foldScope,
     narrowing,
+    difference: comparedDifference(config),
   });
   const shownRows = fold.shown;
+  // A row the grid writes — typed, pasted — stays shown while the rows without difference are folded
+  // away, even once read back unchanged (WF-IHM-0170): the focus and the active cell stay on it. An
+  // undo is no write of the grid: it keeps the row of the active cell (`keptUndo`).
+  const keptWrites: typeof writes = {
+    ...writes,
+    write: (write) => {
+      fold.keepShown([config.rowKey(write.row)]);
+      writes.write(write);
+    },
+    applied: (written) => {
+      fold.keepShown(written.rows.map(config.rowKey));
+      writes.applied(written);
+    },
+  };
+  // The rows shown and the runs of rows without difference folded away between them (US-2360).
+  const runSlots = useRunSlots(fold);
+  const { slots, slotOf } = runSlots;
   const table = useGridTable({
     config,
     rows: shownRows,
@@ -643,16 +530,23 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   const rest = restOf(table, stretched, room);
   const cursor = useCursor(config, model.length, columns);
   // The row of the active cell stays rendered however far the grid scrolls: it holds the focus.
+  // So does the run whose row holds it.
   const { items, gaps, after, scrollToIndex } = useRowWindow({
-    rows: model,
+    rows: slots,
     scroller,
     rowHeight,
     edges: { start: edge, end: edge },
     overscan: OVERSCAN,
     initialRect: FIRST_SCREEN,
-    keyOf: (index) => model[index]?.id ?? index,
-    kept: cursor.active.row === HEADER_ROW ? undefined : cursor.active.row,
+    keyOf: (index) => {
+      const slot = slots[index];
+      return slot?.run === undefined
+        ? (model[slot?.row ?? -1]?.id ?? index)
+        : `run:${slot.run.key}`;
+    },
+    kept: runSlots.focused ?? slotOf[cursor.active.row],
   });
+  const placeOf = (row: number) => slotOf[row] ?? row;
   const shownColumns = columns.map((column) => column.id);
   const keyboard = useGridKeyboard({
     config,
@@ -660,15 +554,18 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     rows: shownRows,
     columns: shownColumns,
     scroller,
-    scrollToIndex,
+    scrollToIndex: (index) => {
+      scrollToIndex(placeOf(index));
+    },
     page: () =>
       Math.max(1, Math.floor(((scroller.current?.offsetHeight ?? 0) - 2 * edge) / rowHeight)),
     inView: (index) => {
       const element = scroller.current;
-      const top = edge + index * rowHeight - (element?.scrollTop ?? 0);
+      const top = edge + placeOf(index) * rowHeight - (element?.scrollTop ?? 0);
       return top + rowHeight > edge && top < (element?.offsetHeight ?? 0) - edge;
     },
-    writes,
+    writes: keptWrites,
+    reading: readingCells,
     locale,
     currency,
   });
@@ -676,15 +573,38 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     config,
     rows: shownRows,
     columns: shownColumns,
-    writes,
+    writes: keptWrites,
     scroller,
     answered: writes.rows,
     narrowed: isNarrowed(narrowing),
     writing,
     // The confirmation waits for any other write of the screen, as its gestures do (#1224).
-    busy: busyOf(commands),
+    busy: busyOf(commands, readingCells),
   });
-  const undo = useUndoShortcut(undoable, undoControl);
+  const runs = useRunCommands({
+    fold,
+    slots: runSlots,
+    rows: writes.rows,
+    rowKey: config.rowKey,
+    cursor,
+    columns: shownColumns,
+    page: () =>
+      Math.max(1, Math.floor(((scroller.current?.offsetHeight ?? 0) - 2 * edge) / rowHeight)),
+    scroller,
+    scrollToSlot: scrollToIndex,
+    focusAt: keyboard.focusAt,
+  });
+  // An undo reads the page anew, and answers no row key: the row of the active cell, which it may
+  // return to its state read unchanged, is kept shown before it is asked (WF-IHM-0170).
+  const keptUndo = keepingUndo(
+    undoControl,
+    () => {
+      const active = model[cursor.active.row]?.original;
+      return active === undefined ? [] : [config.rowKey(active)];
+    },
+    fold.keepShown,
+  );
+  const undo = useUndoShortcut(undoable, keptUndo);
   const foldReach = useFoldReach();
   const folding = useFoldCommands({
     fold,
@@ -692,6 +612,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     cursor,
     scroller,
     focusAt: keyboard.focusAt,
+    target,
     labelOf: (row) => {
       const label = config.columns[0];
       return label === undefined
@@ -719,7 +640,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     (index) => model[index]?.original,
     selection.acted,
     (written) => {
-      writes.applied({ ...written, totals: undefined });
+      keptWrites.applied({ ...written, totals: undefined });
     },
   );
   const cells: CellStates<Row, Sort, Totals> = {
@@ -763,7 +684,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       ),
   };
   // An empty answer still has a row, which says so, between the header and the totals.
-  const bodyRows = Math.max(model.length, 1);
+  const bodyRows = Math.max(slots.length, 1);
 
   const grid = (
     <div
@@ -778,10 +699,10 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         search={query.search}
         onSearch={config.searched ? search : undefined}
         undoable={undoable}
-        undo={undoControl}
+        undo={keptUndo}
         outline={folding.outline}
         commands={screenCommands.bar(cursor.active.row)}
-        treeFilters={treeFilters}
+        treeFilters={withFoldToggle(treeFilters, runs.toggle)}
         filters={filtering}
         open={filtersOpen}
         onOpen={openFilters}
@@ -804,7 +725,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       />
       <UndoAnnouncer
         offered={undoable}
-        control={undoControl}
+        control={keptUndo}
         told={undo.told}
         onDismissed={keyboard.refocus}
       />
@@ -816,6 +737,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       />
       <OutcomeNotice
         outcome={writer.outcome}
+        reading={readingSettings}
         onClear={writer.clear}
         onDismissed={keyboard.refocus}
         dismissible
@@ -823,12 +745,14 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       <OutcomeNotice
         id={refusalId}
         outcome={writes.outcome}
+        reading={readingCells}
         onClear={writes.clear}
         onDismissed={keyboard.refocus}
         dismissible
       />
       <OutcomeNotice
         outcome={paste.outcome}
+        reading={paste.reading}
         onClear={paste.clear}
         onDismissed={keyboard.refocus}
         dismissible
@@ -864,7 +788,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         aria-rowcount={bodyRows + 2}
         aria-colcount={columns.length}
         aria-multiselectable={selection.multiselectable}
-        aria-busy={gridBusy(pending, screenCommands, undoControl)}
+        aria-busy={gridBusy(pending, screenCommands, keptUndo, readingCells)}
         // The grid takes the height its screen leaves it (`Screen`, `fill`), shrinking from that
         // of its rows down to a floor; never taller than the window, so that the rows in view
         // stay a window's worth whatever holds it. The header and the totals stick to its edges,
@@ -876,7 +800,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
           ref: scroller,
           className: "w-full max-h-svh rounded-md border",
           style: {
-            minHeight: floorOf(model.length),
+            minHeight: floorOf(slots.length),
             maxHeight: roomBelow,
             scrollPaddingBlock: edge,
             scrollPaddingInlineStart: pinnedWidth(table),
@@ -895,7 +819,14 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
             />
           ))}
         </colgroup>
-        <TableHeader {...keyboard.header}>
+        <TableHeader
+          {...keyboard.header}
+          onKeyDown={(event) => {
+            if (!runs.onKeyDown(event)) {
+              keyboard.header.onKeyDown(event);
+            }
+          }}
+        >
           <TableRow aria-rowindex={1}>
             {table.getHeaderGroups()[0]?.headers.map((header) => {
               const pinning = pinningOf(table, header.column.id, "z-30");
@@ -918,7 +849,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         </TableHeader>
         <CellMenu
           offered={undoable}
-          control={undoControl}
+          control={keptUndo}
           commands={screenCommands.menu}
           folding={
             folding.menu === undefined
@@ -935,6 +866,9 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
               keyboard.body.onClick(event);
             }}
             onKeyDown={(event) => {
+              if (runs.onKeyDown(event)) {
+                return;
+              }
               if (
                 folding.onKeyDown(event) ||
                 screenCommands.keys(cursor.active.row, event) ||
@@ -947,24 +881,37 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
             }}
           >
             {items.map((item, position) => {
-              const row = model[item.index];
-              return row === undefined ? null : (
-                <Fragment key={row.id}>
+              const slot = slots[item.index];
+              const row = slot?.run === undefined ? model[slot?.row ?? -1] : undefined;
+              return (
+                <Fragment key={item.key}>
                   <Spacer height={gaps[position] ?? 0} span={columns.length} />
-                  <BodyRow
-                    table={table}
-                    config={config}
-                    dependencies={dependencies}
-                    cells={cells}
-                    row={row}
-                    index={item.index}
-                    locale={locale}
-                  />
+                  {slot?.run !== undefined ? (
+                    <FoldedRunRow
+                      run={slot.run}
+                      before={slot.before}
+                      index={item.index}
+                      span={columns.length}
+                      commands={runs}
+                    />
+                  ) : null}
+                  {row === undefined ? null : (
+                    <BodyRow
+                      table={table}
+                      config={config}
+                      dependencies={dependencies}
+                      cells={cells}
+                      row={row}
+                      index={row.index}
+                      place={item.index}
+                      locale={locale}
+                    />
+                  )}
                 </Fragment>
               );
             })}
             <Spacer height={after} span={columns.length} />
-            {model.length === 0 ? (
+            {slots.length === 0 ? (
               <TableRow aria-rowindex={2} className="h-7">
                 <TableCell colSpan={columns.length} className="text-muted-foreground">
                   {t("empty")}
@@ -979,6 +926,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
             config={config}
             totals={shownTotals}
             caption={totalsCaption(shownTotals)}
+            compared={comparedTotals(comparison, writes.totals, totalsCaption)}
             index={bodyRows + 2}
             locale={locale}
           />

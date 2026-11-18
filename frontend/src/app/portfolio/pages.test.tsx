@@ -289,8 +289,8 @@ describe("the screens of the portfolio", () => {
       horizon_months: "12",
       under_load_threshold: "0.5",
     });
-    expect(markup).toMatch(/733,321\.89 h.*?aria-label="Alert".*?111\.34%/);
-    expect(text(markup)).toContain("Ingénieur électricien 658,654 h");
+    expect(markup).toMatch(/733,321\.92 h.*?aria-label="Alert".*?111\.33%/);
+    expect(text(markup)).toContain("Ingénieur électricien 658,666.67 h");
   });
 
   it("leads an address that names none of the horizon, the threshold and the node to those the account kept, the perimeter carried over [WF-PTF-0060-A]", async () => {
@@ -412,7 +412,7 @@ describe("the screens of the portfolio", () => {
     expect(page).toContain("Cumulative costs of the portfolio");
     expect(page).toContain("Reference budget 31 Dec 2025 210,664,042.15");
     expect(page).toContain("Actual cost 3 Jun 2026 1,285,133,439.68");
-    expect(page).toContain("Project manager’s projection 30 Nov 2026 2,143,620,318.36");
+    expect(page).toContain("Project manager’s projection 30 Nov 2026 2,143,620,318.40");
     // Without the payment delays, the server details no cash-out: no second chart.
     expect(page).not.toContain("Cash-out by month");
     expect(markup).toContain(
@@ -434,7 +434,7 @@ describe("the screens of the portfolio", () => {
     const page = text(markup);
     expect(page).toContain("Cumulative cash-out of the portfolio");
     expect(page).toContain("Cash-out by month");
-    expect(page).toContain("June 2026 19,713,579.42 31,417,246.57");
+    expect(page).toContain("June 2026 19,713,579.42 31,417,246.59");
     expect(markup).toContain('href="/portfolio/cost-curve?horizon_months=24"');
     expect(page).toContain("Back to the cumulative costs");
   });

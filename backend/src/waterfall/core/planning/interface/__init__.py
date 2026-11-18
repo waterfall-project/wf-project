@@ -30,6 +30,12 @@ from waterfall.core.exchanges.interface import register_exporter, register_forma
 from waterfall.core.planning.calendars import (
     Applicable as Applicable,
 )
+
+# Beside the interface (US-2340/L1): the constants of the units of the installation, which the
+# difference of two durations of a comparison is counted by (``Duration.less``).
+from waterfall.core.planning.dating import (
+    constants_of as constants_of,
+)
 from waterfall.core.planning.entries import (
     ENTRIES as ENTRIES,
 )
@@ -40,8 +46,14 @@ from waterfall.core.planning.interface.closing import (
     delete_nodes as delete_nodes,
 )
 
-# ``facets`` (US-1380/L1; read by US-1380/L2; completed by US-1490/L3): the facets of a node
-# other than the task (EP-07).
+# ``copying`` (US-1380/L2; moved out of ``nodes`` and written as one statement a table by
+# US-2240/L2): the copy of the nodes of a revision opened from a marked one.
+from waterfall.core.planning.interface.copying import (
+    copy_nodes as copy_nodes,
+)
+
+# ``facets`` (US-1380/L1; read by US-1380/L2; completed by US-1490/L3, US-2260/L3, US-2280/L1,
+# US-2400/L1): the facets of a node other than the task (EP-07).
 from waterfall.core.planning.interface.facets import (
     Amounts as Amounts,
 )
@@ -56,6 +68,9 @@ from waterfall.core.planning.interface.facets import (
 )
 from waterfall.core.planning.interface.facets import (
     CellsPasted as CellsPasted,
+)
+from waterfall.core.planning.interface.facets import (
+    FacetColumns as FacetColumns,
 )
 from waterfall.core.planning.interface.facets import (
     FacetCreation as FacetCreation,
@@ -76,6 +91,12 @@ from waterfall.core.planning.interface.facets import (
     LineSort as LineSort,
 )
 from waterfall.core.planning.interface.facets import (
+    RepricedBeyondColumnError as RepricedBeyondColumnError,
+)
+from waterfall.core.planning.interface.facets import (
+    Tally as Tally,
+)
+from waterfall.core.planning.interface.facets import (
     calendar_of as calendar_of,
 )
 from waterfall.core.planning.interface.facets import (
@@ -88,7 +109,37 @@ from waterfall.core.planning.interface.facets import (
     named_calendars as named_calendars,
 )
 from waterfall.core.planning.interface.facets import (
+    refused_at as refused_at,
+)
+from waterfall.core.planning.interface.facets import (
     register_facet as register_facet,
+)
+
+# ``indicator_stamps`` (US-1660/L3; US-1720/L2): what the key of the cache of the indicators reads.
+from waterfall.core.planning.interface.indicator_stamps import (
+    ContentStamp as ContentStamp,
+)
+from waterfall.core.planning.interface.indicator_stamps import (
+    revision_content_stamp as revision_content_stamp,
+)
+
+# ``indicator_tasks`` (US-1660/L3): the tasks of a revision as the indicators read them.
+from waterfall.core.planning.interface.indicator_tasks import (
+    IndicatorTask as IndicatorTask,
+)
+from waterfall.core.planning.interface.indicator_tasks import (
+    tasks_for_indicators as tasks_for_indicators,
+)
+
+# ``kept_readings`` (US-2270/L1): the reading of a structure of a marked revision, kept.
+from waterfall.core.planning.interface.kept_readings import (
+    KeptReading as KeptReading,
+)
+from waterfall.core.planning.interface.kept_readings import (
+    keep_reading as keep_reading,
+)
+from waterfall.core.planning.interface.kept_readings import (
+    kept_reading as kept_reading,
 )
 
 # ``lines`` (US-1380/L1; US-1490/L3, L4; US-1550/L3): the lines of a task, their place, their
@@ -184,6 +235,14 @@ from waterfall.core.planning.interface.loading import (
     load_tasks as load_tasks,
 )
 
+# ``milestone_dates`` (US-1660/L3; US-1710): the dates of the milestones in the revisions.
+from waterfall.core.planning.interface.milestone_dates import (
+    milestone_forecasts as milestone_forecasts,
+)
+from waterfall.core.planning.interface.milestone_dates import (
+    tracked_milestones as tracked_milestones,
+)
+
 # ``msproject`` (US-1380/L1; US-1430/L3, L4): the format and the exporter of MS Project.
 from waterfall.core.planning.interface.msproject import (
     MS_PROJECT_EXPORTER as MS_PROJECT_EXPORTER,
@@ -230,9 +289,6 @@ from waterfall.core.planning.interface.nodes import (
     computed_value_dependencies as computed_value_dependencies,
 )
 from waterfall.core.planning.interface.nodes import (
-    copy_nodes as copy_nodes,
-)
-from waterfall.core.planning.interface.nodes import (
     create_node as create_node,
 )
 from waterfall.core.planning.interface.nodes import (
@@ -249,6 +305,9 @@ from waterfall.core.planning.interface.nodes import (
 )
 from waterfall.core.planning.interface.nodes import (
     move_nodes as move_nodes,
+)
+from waterfall.core.planning.interface.nodes import (
+    read_defaults as read_defaults,
 )
 from waterfall.core.planning.interface.nodes import (
     resolve_row_number as resolve_row_number,
@@ -314,6 +373,29 @@ from waterfall.core.planning.interface.paste import (
 )
 from waterfall.core.planning.interface.paste import (
     preview_paste as preview_paste,
+)
+
+# ``physical_progress`` (US-1660/L3; US-1680): the physical progress of the summary tasks.
+from waterfall.core.planning.interface.physical_progress import (
+    PhysicalProgress as PhysicalProgress,
+)
+from waterfall.core.planning.interface.physical_progress import (
+    PhysicalShare as PhysicalShare,
+)
+from waterfall.core.planning.interface.physical_progress import (
+    ProgressTask as ProgressTask,
+)
+from waterfall.core.planning.interface.physical_progress import (
+    SummariesAsked as SummariesAsked,
+)
+from waterfall.core.planning.interface.physical_progress import (
+    earnable_amounts as earnable_amounts,
+)
+from waterfall.core.planning.interface.physical_progress import (
+    physical_progress_of as physical_progress_of,
+)
+from waterfall.core.planning.interface.physical_progress import (
+    register_physical_progress as register_physical_progress,
 )
 
 # ``predecessors`` (US-1380/L1; US-1390/L2): the predecessors of a task.
@@ -461,15 +543,29 @@ from waterfall.core.planning.interface.work_breakdown import (
     detach_work_breakdown_item as detach_work_breakdown_item,
 )
 from waterfall.core.planning.interface.work_breakdown import (
+    hold_work_breakdown_items as hold_work_breakdown_items,
+)
+from waterfall.core.planning.interface.work_breakdown import (
+    share_work_breakdown_revision as share_work_breakdown_revision,
+)
+from waterfall.core.planning.interface.work_breakdown import (
     work_breakdown_item_cited as work_breakdown_item_cited,
 )
 from waterfall.core.planning.interface.work_breakdown import (
     work_package_lines as work_package_lines,
 )
 
-# Beside the interface (US-1530): a structure read whole, and what a reading's filters retain of it.
+# Beside the interface (US-1530; US-2220/L2): a structure read whole, and what a reading's filters
+# retain of it; a reading of a structure, its nodes as flat records, which the API writes the body
+# of ``listNodes`` from, and a node as it is read made a record (``record_of``, with the views).
+from waterfall.core.planning.reading import (
+    NodeRecords as NodeRecords,
+)
 from waterfall.core.planning.reading import (
     StructureRead as StructureRead,
+)
+from waterfall.core.planning.reading import (
+    list_records as list_records,
 )
 from waterfall.core.planning.reading import (
     read_structure as read_structure,
@@ -489,6 +585,12 @@ from waterfall.core.planning.scheduling import (
     Duration as Duration,
 )
 from waterfall.core.planning.scheduling import (
+    DurationUnit as DurationUnit,
+)
+from waterfall.core.planning.scheduling import (
+    UnitConstants as UnitConstants,
+)
+from waterfall.core.planning.scheduling import (
     WorkInstant as WorkInstant,
 )
 from waterfall.core.planning.scheduling import (
@@ -496,6 +598,12 @@ from waterfall.core.planning.scheduling import (
 )
 from waterfall.core.planning.views import (
     ConflictView as ConflictView,
+)
+from waterfall.core.planning.views import (
+    FacetRecord as FacetRecord,
+)
+from waterfall.core.planning.views import (
+    NodeRecord as NodeRecord,
 )
 from waterfall.core.planning.views import (
     NodeView as NodeView,
@@ -507,10 +615,16 @@ from waterfall.core.planning.views import (
     ScheduleView as ScheduleView,
 )
 from waterfall.core.planning.views import (
+    TaskRecord as TaskRecord,
+)
+from waterfall.core.planning.views import (
     TaskView as TaskView,
 )
 from waterfall.core.planning.views import (
     TrackingView as TrackingView,
+)
+from waterfall.core.planning.views import (
+    record_of as record_of,
 )
 from waterfall.core.planning.writing import (
     InflationView as InflationView,
@@ -551,7 +665,14 @@ register_tasks_and_lines("tasks", revision_has_tasks)
 register_closing("content", delete_nodes)
 register_idle_task_guard(tasks_left_idle)
 register_recalculation(reschedule_current_structures)
-register_attachments(Attachments(work_breakdown_item_cited, detach_work_breakdown_item))
+register_attachments(
+    Attachments(
+        work_breakdown_item_cited,
+        detach_work_breakdown_item,
+        hold_work_breakdown_items,
+        share_work_breakdown_revision,
+    )
+)
 register_opening_question(opening_with_tasks)
 register_format("ms_project_schedule", MS_PROJECT_FORMAT)
 register_exporter("ms_project_schedule", MS_PROJECT_EXPORTER)

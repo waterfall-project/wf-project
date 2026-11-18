@@ -141,8 +141,9 @@ def test_a_summary_deleted_takes_its_subtree_its_links_and_inscriptions_and_reda
     tree.made("Note de calcul", parent_id=detail["node_id"])
     works = tree.made("Travaux", parent_id=project["node_id"])
     link(tree, detail, works)
-    # A write after the link dates the works after the detailed studies.
-    tree.changed(tree.node(works["node_id"]), description="Lot unique")
+    # A write that dates, after the link, puts the works after the detailed studies: a description
+    # would not, its write replaying no engine (US-2250).
+    tree.changed(tree.node(works["node_id"]), duration={"value": "1", "unit": "d"})
     assert tree.node(works["node_id"])["task"]["start"]["date"] != DAY.isoformat()
     with stage.database.transaction() as session:
         session.execute(

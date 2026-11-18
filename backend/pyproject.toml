@@ -15,7 +15,7 @@ dependencies = [
     "lxml>=6.1.3",
     "openpyxl>=3.1.5",
     "pillow>=13.0.0",
-    "psycopg[binary]>=3.3.8",
+    "psycopg[binary]>=3.3.9",
     "pydantic-settings>=2.16.3",
     "pyjwt[crypto]>=2.15.1",
     "python-multipart>=0.0.33",
@@ -44,7 +44,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
-    "boto3-stubs-lite[s3]>=1.43.124",
+    "boto3-stubs-lite[s3]>=1.44.3",
     "datamodel-code-generator>=0.96.0",
     "grimp>=3.20",
     "import-linter>=2.16",
@@ -61,9 +61,10 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The measure of the core (``measure/``, US-2210) is no part of the package: its tests import it from here.
 # The plugin that fails a test which skips without the mark `unexecuted` (wftools.unexecuted, US-2440),
-# which the conftest loads: one implementation, shared with the tests of the tools.
-pythonpath = ["../tools/src"]
+# which the conftest loads, comes from the tools: one implementation, shared with their tests.
+pythonpath = [".", "../tools/src"]
 # The tests of Keycloak need its platform: `make test-keycloak` selects them, `-m keycloak`
 # overriding the selection below.
 addopts = ["--strict-markers", "--strict-config", "-m", "not keycloak"]
@@ -99,9 +100,10 @@ exclude_also = ["if __name__ == .__main__.:"]
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.14"
-include = ["src", "tests"]
-# The tests share what ``tests/conftest.py`` holds.
-extraPaths = ["src", "tests"]
+include = ["src", "tests", "measure"]
+# The tests share what ``tests/conftest.py`` holds; the measure (``measure/``, beside the package, US-2210)
+# is imported by its tests and by itself from the root of the back.
+extraPaths = ["src", "tests", "."]
 # The models engendered from the contract are written by a tool, not by us.
 exclude = ["src/waterfall/api/contract/models.py"]
 # `# type: ignore` is not honoured: a type error is fixed, never silenced (US-0050).
@@ -118,10 +120,10 @@ type = "layers"
 layers = ["waterfall.witness", "waterfall.bootstrap | waterfall.restore", "waterfall.api | waterfall.worker | waterfall.migrations", "waterfall.schema", "waterfall.core", "waterfall.platform"]
 
 [[tool.importlinter.contracts]]
-name = "The modules of the core are ordered: the one above imports the one below, never the reverse (the cycle of #2124); the estimate reads the actual costs and registers in the planning, the exchanges, the revisions, the projects, the cost settings and the resource settings; the actual costs register in the exchanges and neither import nor are imported by the planning; the planning registers in the exchanges, the history, the revisions, the projects and the resource settings; projects and revisions sit between them and cost_settings; resource_settings imports no other module of the core"
+name = "The modules of the core are ordered: the one above imports the one below, never the reverse (the cycle of #2124); the indicators read every module of the domain and the indicator settings, and register in the revisions; the estimate reads the actual costs and registers in the planning, the exchanges, the revisions, the projects, the cost settings and the resource settings; the actual costs register in the exchanges and neither import nor are imported by the planning; the planning registers in the exchanges, the history, the revisions, the projects and the resource settings; projects and revisions sit between them and cost_settings; resource_settings imports no other module of the core"
 type = "layers"
 containers = ["waterfall.core"]
-layers = ["access_roles | backups | indicator_settings | risk_settings", "estimate", "costs | planning", "exchanges | history", "revisions", "projects", "cost_settings", "users", "resource_settings"]
+layers = ["indicators", "access_roles | backups | indicator_settings | risk_settings", "estimate", "costs | planning", "exchanges | history", "revisions", "projects", "cost_settings", "users", "resource_settings"]
 
 [[tool.importlinter.contracts]]
 name = "A module of the core reaches another only through its public interface"

@@ -25,8 +25,10 @@ from waterfall.core.projects.commands import (
 from waterfall.core.projects.interface.attachments import (
     Attachments,
     detach_item,
+    hold_items,
     item_cited,
     register_attachments,
+    share_items,
 )
 
 # ``contributors`` (US-0930; the kind and the existence, US-0910/L2): a project's contributors.
@@ -85,6 +87,7 @@ from waterfall.core.projects.interface.lifecycle import (
 
 # ``projects`` (US-0920): the project, its commands, its names for the journal.
 from waterfall.core.projects.interface.projects import (
+    ALL_PROJECTS_READ,
     CommandAvailability,
     ProjectChange,
     ProjectColumn,
@@ -137,8 +140,10 @@ from waterfall.core.projects.interface.subprojects import (
     delete_subproject,
     list_subprojects,
     load_subprojects,
+    project_subproject_labels,
     register_cost_facts,
     subproject_has_actual_costs,
+    subproject_ids,
     subproject_labels,
     subprojects_coded,
     subprojects_named,
@@ -169,6 +174,7 @@ from waterfall.core.projects.interface.work_breakdown import (
 )
 
 __all__ = [
+    "ALL_PROJECTS_READ",
     "BEFORE_IN_PROGRESS",
     "BORN_LOCK_VERSION",
     "NO_BACKGROUND_TASK_RUNNING",
@@ -239,6 +245,7 @@ __all__ = [
     "detach_item",
     "exit_project",
     "first_project",
+    "hold_items",
     "item_cited",
     "judge_exit_unlocked",
     "list_contributor_suggestions",
@@ -261,6 +268,7 @@ __all__ = [
     "project_exists",
     "project_facts",
     "project_label",
+    "project_subproject_labels",
     "projects_named",
     "projects_present",
     "read_next_state",
@@ -275,8 +283,10 @@ __all__ = [
     "set_current_revision",
     "set_reference_revision",
     "set_work_breakdown",
+    "share_items",
     "stored_lock_version",
     "subproject_has_actual_costs",
+    "subproject_ids",
     "subproject_labels",
     "subprojects_coded",
     "subprojects_named",

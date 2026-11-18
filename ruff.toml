@@ -12,8 +12,9 @@ line-length = 100
 # the tool formats them, and a rule is not applied to what no one writes.
 extend-exclude = ["backend/src/waterfall/api/contract/models.py"]
 target-version = "py314"
-# Where the first-party packages live, so that imports sort the same way from anywhere.
-src = ["backend/src", "tools/src"]
+# Where the first-party packages live, so that imports sort the same way from anywhere (``backend``
+# for the measure of the core, which sits beside the package, US-2210).
+src = ["backend", "backend/src", "tools/src"]
 
 [lint]
 select = ["ALL"]
@@ -107,11 +108,15 @@ convention = "pep257"
 "backend/src/waterfall/api/hourly_rates.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/identity_syncs.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/imports.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/index_history.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/indicator_curves.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/lifecycle.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/me.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/milestone_tracking.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/nodes.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/org_nodes.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/progress.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/project_indicators.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/projects.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/rate_update.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/reference.py" = ["TC001", "TC002", "TC003"]
@@ -124,6 +129,7 @@ convention = "pep257"
 "backend/src/waterfall/api/revisions.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/scheduling.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/skeleton.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/spending.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/startable_tasks.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/subprojects.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/system.py" = ["TC001", "TC002", "TC003"]

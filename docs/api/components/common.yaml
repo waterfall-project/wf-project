@@ -202,9 +202,11 @@ Problem:
         that has not reached the In progress state, whose indicators are requested
         (WF-IND-0010), or without a reference revision, whose workload is requested on a basis
         it does not have (WF-DEV-0070); a new enumeration is a modification of the contract;
-        the indicators and curves of a revision marked before the In progress state are refused
-        without them, and without any other parameter, the project being in progress: the only
-        `STATE_FORBIDS_OPERATION` without parameters, `getProjectIndicators`, #247),
+        the indicators and curves of a revision marked before the In progress state, or of a
+        subproject created after its marking, are refused without them, and without any other
+        parameter, the project being in progress: the only `STATE_FORBIDS_OPERATION` without
+        parameters, `getProjectIndicators`, `getCostCurve` and `getEarnedValueCurves`, #247,
+        #3604),
         `max_columns` (paste too wide, WF-IHM-0050), `minimum` (the smallest allowed value of a
         value too small, `VALUE_OUT_OF_RANGE`; in `fields[].params` for a field, such as the
         retention of the external copy of backups, at least that of the platform, WF-EXP-0050,
@@ -293,7 +295,14 @@ Problem:
         date (`updateTaskFacet`, `setPredecessors`, `createNode`, `moveNodes`; EP-15/US-0460),
         the task the entry writes: the one whose duration, dates or predecessors are entered,
         the one the creation would add, named by the label sent and its node null, the moved
-        task or the one that receives the moved line; `cycle` for predecessors that would close
+        task or the one that receives the moved line — and, for a paste (`applyPaste`;
+        WF-PLA-0150-A, #2606, #3624), the task the engine finds beyond the horizon: a task that a
+        row of the block writes or creates, or that bears a line the block writes, named with
+        that row, the first that names it, counted from zero as `PasteRejection.row` counts it
+        (`row`, an integer), so that two tasks created with one label, their node null, are told
+        apart; a task the paste moves without writing it, a successor it pushes, named by its
+        node and its label alone; `row` is absent from the refusal of any other operation;
+        `cycle` for predecessors that would close
         a loop of links (`LINK_CYCLE`, `setPredecessors`, WF-PLA-0030): the tasks of the loop,
         each by its node and its label (`node_id`, `label`), from the one whose predecessors are
         being entered to the predecessor sent that already follows it, each preceding the next —

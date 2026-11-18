@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToReadableStream } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { nodeFieldNames } from "@/components/grid/nodes";
 import { REMAINING_FIELDS } from "@/components/grid/remaining";
 import type { RemainingGridProps } from "@/components/grid/remaining-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { streamUntil, textOfMarkup } from "@/test/page-stream";
 import { filtersOf, menuText } from "@/test/filter-menu";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 
 import RemainingPage, { generateMetadata } from "./page";
 
@@ -61,6 +62,7 @@ const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 const SCREEN = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
 const NODES = "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
 const INDICATORS = "GET /projects/{project_id}/remaining-indicators";
+const COMPARISON = "GET /projects/{project_id}/revisions/comparison";
 const REVISION_READ = "GET /projects/{project_id}/revisions/{revision_id}";
 const STRUCTURES = "GET /projects/{project_id}/revisions/{revision_id}/structures";
 // The lot of the witness and its post, as its work breakdown names them.
@@ -69,24 +71,29 @@ const ITEM = "01926f3a-7c00-7000-8000-000000000712";
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
-  return markup
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  // The streamed markup keeps the comments that part the texts of a node, and escapes quotes.
+  return textOfMarkup(markup).replace(/\s+/g, " ").trim();
 }
 
-/** Render in English, as the shell hands its texts to a screen. */
-function html(page: ReactNode): string {
-  return renderToStaticMarkup(
+/**
+ * The markup of a page once all of it is ready, its boundaries of suspense settled — the
+ * indicators stream apart from the grid —, as the shell hands its texts to a screen, in English.
+ */
+async function html(page: ReactNode): Promise<string> {
+  const stream = await renderToReadableStream(
     <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
       {page}
     </NextIntlClientProvider>,
+    // A boundary settled is written in its place, whatever its size: no fallback is left.
+    { progressiveChunkSize: Infinity },
   );
+  await stream.allReady;
+  return new Response(stream).text();
 }
 
 /** The screen of the remaining to commit at the query given. */
 async function remainingAt(search: Record<string, string> = {}) {
-  return html(
+  return await html(
     await RemainingPage({
       params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
       searchParams: Promise.resolve(search),
@@ -113,6 +120,13 @@ function cellTag(page: string, row: number, column: string): string {
   return found;
 }
 
+/** What the cell of a row, by its index among the rows, and of a column says to a reader. */
+function cellText(page: string, row: number, column: string): string {
+  const tag = cellTag(page, row, column);
+  const start = page.indexOf(tag);
+  return text(page.slice(start, page.indexOf("</td>", start)));
+}
+
 /** The section a page names, from its opening tag to its end. */
 function section(page: string, name: string): string {
   // The cards of figures, from the first one, which carries the name, to the grid that follows.
@@ -131,6 +145,7 @@ beforeEach(() => {
     "GET /reference/settings": "reference_settings",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/subprojects": "subprojects",
+    "GET /projects/{project_id}/revisions": "revisions",
     [REVISION_READ]: "revision",
     [STRUCTURES]: "structures",
     [NODES]: "nodes_estimate",
@@ -163,6 +178,34 @@ describe("the screen of the remaining to commit", () => {
     expect(text(banner)).toContain("Subproject: SP-CMD — Poste de commande, on the grid only");
     expect(text(banner)).not.toContain("Calculation date");
     expect(queryOf(INDICATORS)).toEqual({ revision_id: REVISION });
+  });
+
+  it("hands the grid without waiting for the indicators, which a filter of the grid does not change: the address of a filter arrives with the grid alone (US-2290, #3630)", async () => {
+    // The indicators are held at the API: the page resolves, and its first markup — what the
+    // address of a filter waits for — shows the grid and the card of the indicators loading.
+    const indicators = held();
+    server.clients = [
+      fakeClient(server.answers, {
+        hold: (route) => (route === INDICATORS ? indicators.until : undefined),
+      }),
+    ];
+    const rendered = await RemainingPage({
+      params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
+      searchParams: Promise.resolve({ work_package_id: LOT }),
+    });
+    const page = await streamUntil(
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
+        {rendered}
+      </NextIntlClientProvider>,
+      'aria-label="Remaining to commit grid"',
+    );
+    // The shell is written to the grid; the indicators, held, are not in it, their card is.
+    expect(page.shell).toContain("Remaining to commit grid");
+    expect(page.shell).not.toContain("Margin on the reference budget");
+    expect(page.shell).toContain("Remaining to commit indicators");
+    // The figures follow once the API has given them.
+    indicators.release();
+    expect(text(await page.rest())).toContain("Margin on the reference budget");
   });
 
   it("asks the tasks not started too when the address asks them, their lines then entered, and offers to show the started alone again [WF-RAE-0040-A]", async () => {
@@ -279,6 +322,14 @@ describe("the screen of the remaining to commit", () => {
       `href="/projects/${PROJECT}/revisions/${REVISION}/workload?subproject_id=${SUBPROJECT}&amp;basis=current_remaining"`,
     );
     expect(page).toContain('aria-label="Workload"');
+  });
+
+  it("leads to the spending projection of the project on the remaining of the revision under way, in the same context [WF-DEV-0100-A]", async () => {
+    const page = await remainingAt({ subproject_id: SUBPROJECT });
+    expect(page).toContain(
+      `href="/projects/${PROJECT}/revisions/${REVISION}/spending?subproject_id=${SUBPROJECT}&amp;basis=current_remaining"`,
+    );
+    expect(page).toContain('aria-label="Spending projection"');
   });
 
   it("places undo and redo in the remaining to commit of a revision in progress, and none in that of a marked one, whose marking nothing undoes [WF-IHM-0110-A]", async () => {
@@ -407,6 +458,59 @@ describe("the screen of the remaining to commit", () => {
     const page = await remainingAt();
     expect(page).not.toContain("Work package or order item");
     expect(queryOf(NODES)?.order_item_id).toBeUndefined();
+  });
+
+  it("is compared to the base its address names, which the banner names and offers to lift [WF-IHM-0010-A]", async () => {
+    // Une comparaison active sur le planning l'est encore sur le devis puis sur le reste à engager,
+    // avec la même base : arrived with the base, the remaining to commit reads the comparison of
+    // its tasks started.
+    const reference = "01926f3a-7c00-7000-8000-000000000101";
+    server.answers = { ...server.answers, [COMPARISON]: "comparison_current" };
+    const page = await remainingAt({ base_revision_id: reference });
+    expect(queryOf(NODES)).toBeUndefined();
+    const { fields, ...query } = queryOf(COMPARISON) ?? {};
+    expect(query).toEqual({
+      from_revision_id: reference,
+      to_revision_id: REVISION,
+      progress: "started",
+      include_differences: "true",
+    });
+    expect(fields?.split(",").sort()).toEqual(nodeFieldNames(REMAINING_FIELDS).sort());
+    const banner = text(page.slice(0, page.indexOf("</section>")));
+    expect(banner).toContain("Compared to “Référence”");
+    expect(page).toContain('aria-label="Lift the comparison with “Référence”"');
+    expect(page).toContain('aria-label="Change the base, “Référence” compared"');
+  });
+
+  it("shows unasked, compared, a line in difference of a task not started, and the values at the previous remaining to commit as the revision read carries them, whatever the base [WF-IHM-0150-A]", async () => {
+    // Dans la grille de reste à engager, une ligne en écart d'une tâche non démarrée apparaît sans
+    // être demandée, et les valeurs au reste à engager précédent ne changent pas avec la base.
+    // Ce test ne prouve que la demande et l'affichage : la sélection des lignes en écart est tenue
+    // par le service, éprouvée par les tests du back d'US-2340/L1.
+    const reference = "01926f3a-7c00-7000-8000-000000000101";
+    server.answers = { ...server.answers, [COMPARISON]: "comparison_current" };
+    const page = await remainingAt({ base_revision_id: reference });
+    // The tasks started alone are asked, and the lines in difference besides, which the server
+    // retains whatever their task (`include_differences`): the fake back serves the comparison of the
+    // mounting on site, none of whose tasks is started.
+    const query = queryOf(COMPARISON);
+    expect(query?.progress).toBe("started");
+    expect(query?.include_differences).toBe("true");
+    const nodes = handed.at(-1)?.nodes.items ?? [];
+    const wiring = nodes.findIndex((node) => node.estimate_line?.label === "Câblage sur site");
+    const task = nodes.find((node) => node.node_id === nodes[wiring]?.parent_id);
+    expect(task?.task?.progress).toBe("not_started");
+    expect(nodes[wiring]?.difference).toBe("modified");
+    expect(cellText(page, wiring, "label")).toContain("Câblage sur site");
+    // Its figures at the previous remaining to commit are those of the revision read — the review
+    // written since —, the base, which held none, given beside them on demand alone.
+    expect(cellText(page, wiring, "previous_hours")).toBe("Δ 120 Base: no value");
+    expect(cellText(page, wiring, "previous_quantity")).toBe("Δ 1 Base: no value");
+  });
+
+  it("asks no line in difference besides out of a comparison, nor of the base", async () => {
+    await remainingAt();
+    expect(queryOf(NODES)?.include_differences).toBeUndefined();
   });
 
   it("reads the main structure alone, whatever structure the address names, and offers no other", async () => {

@@ -21,9 +21,9 @@ import {
   type Page,
 } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import type { components } from "../src/api/generated/schema";
 import type { Answer } from "./answer";
-import { WORKING } from "./hydration";
 import { createOwnProject, openRevision, type OwnProject } from "./own-project";
 import { API, frontToken, type LocalPerson } from "./service/realm";
 

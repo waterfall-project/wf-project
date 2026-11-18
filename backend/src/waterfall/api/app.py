@@ -31,11 +31,15 @@ from waterfall.api import (
     hourly_rates,
     identity_syncs,
     imports,
+    index_history,
+    indicator_curves,
     lifecycle,
     me,
+    milestone_tracking,
     nodes,
     org_nodes,
     progress,
+    project_indicators,
     projects,
     rate_update,
     reference,
@@ -47,6 +51,7 @@ from waterfall.api import (
     revisions,
     scheduling,
     skeleton,
+    spending,
     startable_tasks,
     subprojects,
     system,
@@ -64,30 +69,39 @@ from waterfall.core.costs import interface as costs_interface
 from waterfall.core.estimate import interface as estimate_interface
 from waterfall.core.exchanges import interface as exchanges_interface
 from waterfall.core.history import interface as history_interface
+from waterfall.core.indicators import interface as indicators_interface
 from waterfall.core.planning import interface as planning_interface
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from contextlib import AbstractAsyncContextManager
+
     from waterfall.api.authentication import Services
+
+    # What runs around the serving of an application: its start, then its stop.
+    type Lifespan = Callable[[FastAPI], AbstractAsyncContextManager[None]]
 
 # The single prefix of version the contract declares in its ``servers``.
 PREFIX = "/api/v1"
 # The modules that fill the registries of the others at the import of their interface (#2180):
 # imported here whether or not a route reads them yet, so that no revision is copied, closed or
-# designated, no reference changed and no import opened, without their part.
+# designated, no reference changed, no import opened and no revision marked, without their part.
 EXTENDING = (
     costs_interface,
     estimate_interface,
     exchanges_interface,
     history_interface,
+    indicators_interface,
     planning_interface,
 )
 
 
-def create_app(services: Services) -> FastAPI:
+def create_app(services: Services, lifespan: Lifespan | None = None) -> FastAPI:
     """Build the application on its services: its routes, its correlation, its envelope of errors.
 
     Nothing is reached before a request needs it: a probe answers without the database or
-    Keycloak.
+    Keycloak. ``lifespan`` runs around the serving of the application: the process that opened
+    the services closes them by it (``api.main``).
     """
     schema.declared()
     app = FastAPI(
@@ -97,6 +111,7 @@ def create_app(services: Services) -> FastAPI:
         redoc_url=None,
         openapi_url=None,
         redirect_slashes=False,
+        lifespan=lifespan,
     )
     # Added first, run second: a refusal in maintenance carries the correlation of its request.
     app.add_middleware(MaintenanceMiddleware, maintenance=services.maintenance)
@@ -160,6 +175,7 @@ def create_app(services: Services) -> FastAPI:
         rate_update.router,
         estimate_indicators.router,
         workload.router,
+        spending.router,
     ):
         app.include_router(estimate_router, prefix=PREFIX)
     # The remaining to commit and the actual costs (EP-09): a router per story, each registered here
@@ -172,4 +188,12 @@ def create_app(services: Services) -> FastAPI:
         actual_costs.router,
     ):
         app.include_router(costs_router, prefix=PREFIX)
+    # The indicators (EP-10): a router per story, each registered here from the start.
+    for indicators_router in (
+        project_indicators.router,
+        indicator_curves.router,
+        index_history.router,
+        milestone_tracking.router,
+    ):
+        app.include_router(indicators_router, prefix=PREFIX)
     return app

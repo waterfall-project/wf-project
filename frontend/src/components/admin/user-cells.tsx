@@ -46,6 +46,7 @@ import { findOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { byField } from "@/components/grid/cell-writes";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { CellCommand } from "@/components/reference/cell-command";
+import { useListReading } from "@/components/reference/list-reading";
 import { useListReport } from "@/components/reference/reactivation";
 import { type NodeChoice } from "@/components/reference/reference-filters";
 import { treeLabel } from "@/components/reference/org-tree";
@@ -99,7 +100,7 @@ export function StateSwitch({ user }: { readonly user: User }) {
   const command = user.is_active ? "deactivate" : "reactivate";
   const offer = findOffer(user.available_commands, command);
   const asked = writes?.asked.get(user.user_id);
-  const busy = writes?.busy.has(user.user_id) === true;
+  const busy = useListReading() || writes?.busy.has(user.user_id) === true;
   // A link asked or shown holds the switch as a deactivation asked holds the link: no link is
   // given for an account being deactivated, nor an account deactivated while its link is on the
   // way (WF-ADM-0140, #949).
@@ -183,7 +184,7 @@ export function RolesCell({
   const group = useId();
   const offer = findOffer(user.available_commands, "set_access_roles");
   const asked = writes?.asked.get(user.user_id)?.access_role_ids;
-  const busy = writes?.busy.has(user.user_id) === true;
+  const busy = useListReading() || writes?.busy.has(user.user_id) === true;
   if (offer === undefined || writes === undefined || roles.length === 0) {
     return <HeldRoles labels={user.access_role_labels} />;
   }
@@ -324,7 +325,7 @@ export function AttachmentCell({
   const name = naming.person(user);
   const control = useRef<HTMLSelectElement>(null);
   const asked = writes?.asked.get(user.user_id);
-  const busy = writes?.busy.has(user.user_id) === true;
+  const busy = useListReading() || writes?.busy.has(user.user_id) === true;
   if (writes === undefined || user.anonymized_at !== null) {
     return <Attachment user={user} />;
   }

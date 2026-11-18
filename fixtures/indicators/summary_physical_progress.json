@@ -1,0 +1,7 @@
+{
+  "summary": "Une récapitulative sans ligne propre, trois subordonnées de montants budgétés 100, 100 et 200 : les deux premières terminées, 50 % ; la première et la troisième, 75 % (WF-IND-0060).",
+  "examples": ["WF-IND-0060-A#40f59fb2a26d"],
+  "subordinates": ["100.00", "100.00", "200.00"],
+  "first_two_completed": "0.5000",
+  "first_and_third_completed": "0.7500"
+}

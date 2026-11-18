@@ -12,11 +12,12 @@ amount is the one its risk computes (WF-RIS-0010), none before EP-08. A task non
 keeps one was set to nought at the latest mark of its lines (``zeroed_tasks``), which a summary
 completed again reads (WF-PLA-0130, #2803).
 
-The copy of a revision gives each line copied, after the copy of the lines, the figures and the
-re-estimated amount its source holds as its remaining to commit before the review (``previous_*``)
-when the source was marked once its project was In progress — the instant of the passage compared
-to that of the marking —, none otherwise: an offer marked in pricing is no review (EP-09, "Ce que
-le cadrage décide"). The mark and the reason are those of the line copied, as every column of it.
+The copy of a revision gives each line copied the figures and the re-estimated amount its source
+holds as its remaining to commit before the review (``previous_*``) when the source was marked once
+its project was In progress (``was_reviewed``) — the instant of the passage compared to that of the
+marking —, none otherwise: an offer marked in pricing is no review (EP-09, "Ce que le cadrage
+décide"). The copy of the lines writes them (``copying``), in its one statement, since US-2240/L2.
+The mark and the reason are those of the line copied, as every column of it.
 
 The remaining to commit of a revision sums the re-estimated amounts of the lines, provisions left
 out, of the tasks not completed of its main structure, at the state of its tasks (EP-09, "Les
@@ -25,11 +26,10 @@ indicateurs du reste à engager").
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 from waterfall.core.cost_settings.interface import category_labels
 from waterfall.core.estimate.placing import placed_lines
-from waterfall.core.estimate.reading import rows_of
 from waterfall.core.estimate.remaining.summing import LineAmount, remaining_sum
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.estimate.writing import change_line, read_line
@@ -47,8 +47,8 @@ if TYPE_CHECKING:
 
     from waterfall.core.estimate.entries import LineEntry
     from waterfall.core.estimate.placing import Placed
+    from waterfall.core.estimate.reading import LineColumns
     from waterfall.core.planning.interface import FacetWrite
-    from waterfall.core.revisions.interface import RevisionCopy
 
 BASIS = "/reestimated_amount_basis"
 FIGURES = frozenset({"/quantity", "/hours", "/unit_disbursement"})
@@ -84,8 +84,8 @@ def reestimate(write: FacetWrite, figures: LineEntry, reason: str | None) -> Non
     write.session.flush()
 
 
-def provisions_of(session: Session, rows: Collection[EstimateLine]) -> frozenset[UUID]:
-    """Give, of the lines read, the provision lines: their category is of the provision kind."""
+def provisions_of(session: Session, rows: Collection[LineColumns]) -> frozenset[UUID]:
+    """Give, of the lines read, objects or rows, the provision lines: of a provision category."""
     categories = category_labels(session, {row.cost_category_id for row in rows})
     return frozenset(
         row.node_id
@@ -175,29 +175,6 @@ def was_reviewed(session: Session, project_id: UUID, revision_id: UUID) -> bool:
     """Tell whether a revision was marked once its project was In progress (a review)."""
     return was_reviewed_at(
         first_passage(session, project_id), revision_marked_at(session, revision_id)
-    )
-
-
-def copy_previous(copy: RevisionCopy) -> None:
-    """Give the lines copied the remaining to commit of their source, if it was a review."""
-    session = copy.session
-    sources = rows_of(session, copy.project_id, list(copy.identifiers))
-    if not sources:
-        return
-    reviewed = was_reviewed(session, copy.project_id, copy.source)
-    session.execute(
-        update(EstimateLine),
-        [
-            {
-                "project_id": copy.project_id,
-                "node_id": copy.identifiers[row.node_id],
-                "previous_quantity": row.quantity if reviewed else None,
-                "previous_hours": row.hours if reviewed else None,
-                "previous_unit_disbursement": row.unit_disbursement if reviewed else None,
-                "previous_reestimated_amount": row.reestimated_amount if reviewed else None,
-            }
-            for row in sources
-        ],
     )
 
 

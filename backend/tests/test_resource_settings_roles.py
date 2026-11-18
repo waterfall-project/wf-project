@@ -10,6 +10,7 @@ are tried in ``test_resource_settings_role_locks.py``.
 """
 
 import json
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -115,19 +116,19 @@ def new_role(**changes: object) -> dict[str, object]:
         "org_node_id": BE_ELEC,
         "cost_category_id": INGENIERIE,
         "calendar_id": STANDARD,
-        "capacity": {"monthly_hours": "520.00", "headcount": "3"},
+        "capacity": {"headcount": "3"},
         **changes,
     }
 
 
 def change_of(read: dict[str, Any], **changes: object) -> dict[str, object]:
-    """Give the body that changes a role as it was read, with changes."""
+    """Give the body that changes a role as it was read, with changes: its headcount, no hours."""
     return {
         "code": read["code"],
         "label": read["label"],
         "cost_category_id": read["cost_category_id"],
         "calendar_id": read["calendar_id"],
-        "capacity": read["capacity"],
+        "capacity": {"headcount": read["capacity"]["headcount"]},
         "lock_version": read["lock_version"],
         **changes,
     }
@@ -261,7 +262,7 @@ def test_the_roles_are_searched_filtered_bounded_sorted_and_counted_by_the_serve
     assert codes(api, headers, f"cost_category_id={MISE_EN_SERVICE}") == ["TECH-MES"]
     assert codes(api, headers, f"{every}&calendar_id={THIRTY_NINE}") == ["AUTOM"]
     assert codes(api, headers, f"{every}&headcount_min=2&headcount_max=3") == ["AUTOM", "PROG-AUTO"]
-    bounded = listed(api, headers, f"{every}&monthly_hours_min=485324.00")
+    bounded = listed(api, headers, f"{every}&monthly_hours_min=485333.33")
     assert shape(bounded["items"]) == shape(example("resource_roles_bounded")["items"])
     assert bounded["meta"] == example("resource_roles_bounded")["meta"]
     page = listed(api, headers, f"{every}&limit=2&offset=1")
@@ -326,10 +327,12 @@ def test_a_role_is_created_with_its_three_attachments_and_its_single_capacity(
 ) -> None:
     created = api.post(ROLES, headers=sessions.changing, json=new_role())
     assert created.status_code == 201, created.text
-    # The example, but for the identifier the service gives and what the creation writes anew.
+    # The example, but for the identifier the service gives and what the creation writes anew; its
+    # hours per month calculated (US-2410): 3 * 40 * 52 / 12, 520.00.
     (read,) = shape([created.json()])
     (expected,) = shape([example("resource_role_created")])
     assert {**read, "resource_role_id": None} == {**expected, "resource_role_id": None}
+    assert created.json()["capacity"] == {"monthly_hours": "520.00", "headcount": "3"}
     # One capacity, without a date of validity.
     assert set(created.json()["capacity"]) == {"monthly_hours", "headcount"}
     assert created.json()["lock_version"] == 1
@@ -394,21 +397,42 @@ def test_an_attachment_unknown_out_of_labour_or_deactivated_is_refused_one_reaso
 def test_a_negative_capacity_is_refused_at_its_value_and_a_zero_one_is_accepted(
     api: ContractClient, sessions: PartSessions
 ) -> None:
-    negative = {"monthly_hours": "-0.01", "headcount": "-1"}
+    negative = {"headcount": "-1"}
     refused = api.post(ROLES, headers=sessions.changing, json=new_role(capacity=negative))
     assert refusal(refused) == (
         422,
         "VALIDATION_FAILED",
-        [
-            ("/capacity/monthly_hours", "VALUE_OUT_OF_RANGE"),
-            ("/capacity/headcount", "VALUE_OUT_OF_RANGE"),
-        ],
+        [("/capacity/headcount", "VALUE_OUT_OF_RANGE")],
     )
-    assert [each["params"] for each in refused.json()["fields"]] == [{"minimum": "0"}] * 2
-    zero = {"monthly_hours": "0", "headcount": "0"}
-    created = api.post(ROLES, headers=sessions.changing, json=new_role(capacity=zero))
+    assert [each["params"] for each in refused.json()["fields"]] == [{"minimum": "0"}]
+    created = api.post(ROLES, headers=sessions.changing, json=new_role(capacity={"headcount": "0"}))
     assert created.status_code == 201
-    assert created.json()["capacity"] == zero
+    capacity = created.json()["capacity"]
+    # No one, no hour: zero people by any calendar.
+    assert capacity["headcount"] == "0"
+    assert Decimal(capacity["monthly_hours"]) == 0
+
+
+@pytest.mark.requirement("WF-REF-0100-A")
+def test_the_hours_per_month_sent_with_a_role_are_refused_as_a_property_the_capacity_lacks(
+    api: ContractClient, sessions: PartSessions, database: Database
+) -> None:
+    # US-2410: the headcount alone is entered, the hours per month calculated; sent, on a creation
+    # as on a change, they are refused at their pointer, as any property the capacity does not
+    # declare, and nothing is written.
+    headers = sessions.changing
+    with_hours = {"monthly_hours": "520.00", "headcount": "3"}
+    created = api.post(ROLES, headers=headers, json=new_role(capacity=with_hours))
+    assert without_correlation(created) == without_correlation_of("resource_role_hours_refused")
+    read = role(api, headers, "TECH-MES")
+    changed = api.patch(
+        f"{ROLES}/{TECH_MES}", headers=headers, json=change_of(read, capacity=with_hours)
+    )
+    assert without_correlation(changed) == without_correlation_of("resource_role_hours_refused")
+    with database.transaction() as session:
+        assert session.scalar(select(func.count()).where(ResourceRole.code == "DESS-ELEC")) == 0
+        kept = session.get_one(ResourceRole, UUID(TECH_MES))
+        assert (kept.headcount, kept.lock_version) == (Decimal(2800), read["lock_version"])
 
 
 @pytest.mark.requirement("WF-REF-0090-A")
@@ -476,7 +500,7 @@ def test_a_change_towards_a_deactivated_calendar_is_refused_but_a_role_keeps_its
 ) -> None:
     headers = sessions.changing
     read = role(api, headers, "TECH-MES")
-    capacity = {"monthly_hours": read["capacity"]["monthly_hours"], "headcount": "-1"}
+    capacity = {"headcount": "-1"}
     refused = api.patch(
         f"{ROLES}/{TECH_MES}",
         headers=headers,

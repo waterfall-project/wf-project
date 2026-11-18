@@ -20,6 +20,8 @@ import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/utils";
 
+import { useListReading } from "./list-reading";
+
 /** What a command of a cell says of itself, in its tooltip (`CommandTooltip`). */
 export interface CellCommandSays {
   /** The accessible name of the command, which names the object it is about: the tooltip opens on it. */
@@ -48,6 +50,9 @@ export function CellCommand({
   ...props
 }: Omit<ComponentProps<typeof Button>, "type" | "variant" | "size" | "tabIndex" | "aria-label"> &
   CellCommandSays) {
+  // A write of the list lost once sent: the command waits until the list is read anew (US-2240).
+  const reading = useListReading();
+  const { onClick } = props;
   return (
     <CommandTooltip label={label} help={help} unavailable={unavailable}>
       <Button
@@ -57,9 +62,12 @@ export function CellCommand({
         tabIndex={-1}
         {...{ [CELL_COMMAND]: "" }}
         aria-label={label}
-        {...(waiting === true && unavailable === undefined ? { "aria-disabled": true } : {})}
+        {...((waiting === true || reading) && unavailable === undefined
+          ? { "aria-disabled": true }
+          : {})}
         className={cn("h-5 px-1.5 text-xs", className)}
         {...props}
+        onClick={reading && unavailable === undefined ? undefined : onClick}
       />
     </CommandTooltip>
   );

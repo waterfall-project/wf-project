@@ -3,10 +3,11 @@
 """The indicators of an estimate and the rates it lacks (WF-DEV-0060, WF-DEV-0010).
 
 ``getEstimateIndicators`` and ``getMissingRates`` (US-1510), read by whoever may consult the
-estimate (``estimate.read``): the revision named, else the current one, else the last one marked;
-the scope of the indicators, the project, a subproject or the set out of any subproject. An amount
-that a missing rate prevents from being computed is served in the envelope the contract reads
-(``ComputableMoney``, ``Computable``), the categories and the year named.
+estimate (``estimate.read``): the revision named, else the current one, else the last one marked —
+a marked one as its marking kept it (US-1670/L2); the scope of the indicators, the project, a
+subproject or the set out of any subproject. An amount that a missing rate prevents from being
+computed is served in the envelope the contract reads (``ComputableMoney``, ``Computable``), the
+categories and the year named.
 """
 
 from typing import Annotated, Any
@@ -16,80 +17,16 @@ from fastapi import APIRouter, Depends, Query
 
 from waterfall.api.authentication import Transaction
 from waterfall.api.evaluation import RequiresProject
-from waterfall.core.estimate.interface import (
-    AmountByKey,
-    EstimateIndicators,
-    Figure,
-    IndicatorsAsked,
-    MissingRate,
-    estimate_indicators,
-    missing_rates,
-)
-from waterfall.core.estimate.shares import shown
+from waterfall.api.scopes import kept_document, scope_of
+from waterfall.core.estimate.interface import IndicatorsAsked, estimate_indicators, missing_rates
+from waterfall.core.indicators.interface import estimate_document, missing_rate_document
+from waterfall.core.revisions.interface import read_revision_for
 from waterfall.platform.database import utc_now
 
 router = APIRouter(tags=["estimate"])
 
 CONSULT = "estimate.read"
 INDICATORS = "/projects/{project_id}/estimate-indicators"
-
-
-def _missing(missing: MissingRate) -> dict[str, Any]:
-    return {
-        "cost_category_id": str(missing.cost_category_id),
-        "label": missing.label,
-        "year": missing.year,
-    }
-
-
-def _computable(figure: Figure, *, share: bool = False) -> dict[str, Any]:
-    """Give a figure in the envelope of the contract: its value, or its reason and what it names."""
-    value = None
-    if figure.value is not None:
-        value = shown(figure.value) if share else format(figure.value, "f")
-    envelope: dict[str, Any] = {
-        "is_computable": figure.value is not None,
-        "value": value,
-        "reason": figure.reason,
-    }
-    if figure.missing:
-        envelope["params"] = {"missing_rates": [_missing(each) for each in figure.missing]}
-    return envelope
-
-
-def _by_key(each: AmountByKey) -> dict[str, Any]:
-    return {
-        "key": each.key,
-        "label": each.label,
-        "amount": _computable(each.amount),
-        "share": _computable(each.share, share=True),
-    }
-
-
-def indicators_body(found: EstimateIndicators) -> dict[str, Any]:
-    """Give the indicators of an estimate as the contract writes them."""
-    return {
-        "context": {
-            "revision_id": str(found.revision_id),
-            "revision_status": "marked" if found.marked else "draft",
-            "computed_at": found.computed_at,
-            "scope": found.scope,
-            "is_stored": False,
-        },
-        "total": _computable(found.total),
-        "by_cost_type": [_by_key(each) for each in found.by_cost_type],
-        "by_subproject": [_by_key(each) for each in found.by_subproject],
-        "by_work_package": [_by_key(each) for each in found.by_work_package],
-        "provisions_identified": format(found.provisions_identified, "f"),
-        "delta_to_reference": (
-            None if found.delta_to_reference is None else _computable(found.delta_to_reference)
-        ),
-        "delta_to_previous_revision": (
-            None
-            if found.delta_to_previous_revision is None
-            else _computable(found.delta_to_previous_revision)
-        ),
-    }
 
 
 @router.get(
@@ -104,9 +41,21 @@ def get_indicators(
     revision_id: Annotated[UUID | None, Query()] = None,
     scope: Annotated[str, Query()] = "project",
 ) -> dict[str, Any]:
-    """Give the total of an estimate, its ventilations and its differences, in one reading."""
+    """Give the total of an estimate, its ventilations and its differences, in one reading.
+
+    A marked revision answers the document its marking kept, ``is_stored`` true (WF-DAT-0040), never
+    computed again; the current one is computed at the reading. A scope the marking did not keep —
+    a subproject created since, one the project does not have — is unknown to the revision (422).
+    Only a revision marked before the indicators were kept, which holds no document at all, is
+    computed at the reading, ``is_stored`` false (EP-10, "La conservation au marquage").
+    """
+    read = read_revision_for(session, project_id, revision_id)
+    if read.marked:
+        kept = kept_document(session, read.revision_id, "estimate", scope_of(scope))
+        if kept is not None:
+            return kept
     asked = IndicatorsAsked(revision_id, scope, utc_now())
-    return indicators_body(estimate_indicators(session, project_id, asked))
+    return estimate_document(estimate_indicators(session, project_id, asked))
 
 
 @router.get(
@@ -119,4 +68,4 @@ def get_missing_rates(
     project_id: UUID, session: Transaction, revision_id: Annotated[UUID | None, Query()] = None
 ) -> list[dict[str, Any]]:
     """Give the categories of labour an estimate employs without a rate for its year."""
-    return [_missing(each) for each in missing_rates(session, project_id, revision_id)]
+    return [missing_rate_document(each) for each in missing_rates(session, project_id, revision_id)]

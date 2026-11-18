@@ -144,7 +144,8 @@
     description: >-
       Attributes of the revision and content of its snapshot (WF-REV-0090, WF-REV-0030): the
       reference data values that a marked revision has frozen (`snapshot`), omitted for the
-      current revision.
+      current revision, and for whoever does not hold `revisions.read` — a reader of one of the
+      three grids, whose banner reads the revision (EP-27, US-2320).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -477,10 +478,11 @@
   get:
     operationId: compareRevisions
     tags: [revisions]
-    summary: Compare two marked revisions
+    summary: Compare the revision read with a marked base revision
     description: >-
-      The tree of the compared revision, with the marks of a differential, and the amount
-      differences by cost type and by subproject, matched by the lineage identifier
+      The tree of the revision read, current or marked, with the marks of a differential, the
+      values its base revision carried and their differences, the totals of the base and the
+      amount differences by cost type and by subproject, matched by the lineage identifier
       (WF-REV-0080, WF-DAT-0030, C-361). The comparison is read like `listNodes` (#1193): the
       same parameters, shared — `kinds`, the search, the filters of each column, bounds,
       periods, marks and lists, the sorting of the lines and `fields` (WF-IHM-0130) —, the same
@@ -493,8 +495,13 @@
       (`from_revision_id`) — `difference` and `changes`, always returned —, and those that the
       base revision carried and that the compared one no longer has are returned in the place
       they had, read-only (`NodeDifference`): a task added, removed or modified — in its dates,
-      its duration, its state or its parent —, a line in its amounts or its parent, and a
-      summary task whose content changes, marked modified. The filters, the search and the
+      its duration, its state or its parent —, a line in its amounts or its parent, any node in
+      any other value it carries, entered or computed (`other`), and a summary task whose
+      content changes, marked modified. The mark does not depend on `fields`. A modified node
+      also carries the values the base carried of what differs and that the read returns
+      (`base`), and the difference of each date, duration and amount among them (`deltas`):
+      the grid marks a cell and fills a column of difference without comparing anything
+      (WF-IHM-0150). The filters, the search and the
       sorting apply to it as to the reading of a differential: a removed node is judged on its
       values in the base revision, like any other node on its own, and without sorting it
       stays in the place it had (#1205). `difference` retains only the differences named,
@@ -517,13 +524,24 @@
       is, those that `difference` alone retains under that filter: a read
       without a filter returns the differences of the whole structure, that of a subtree its own
       (`comparison`); a moved line counts in the window of its parent in the compared
-      revision, for its whole difference (`amount_deltas`). The grid of the comparison is that
-      of the structures, with the same marks as the reading of a differential. An identical
-      pair — the same revision twice — returns every node unchanged and no amount difference,
-      never a refusal. Between two revisions of different reference years, a line of which only
-      the rate changed is modified by its re-estimated amount alone, its budgeted amount
-      unchanged (`NodeChange`, `amount_deltas`; WF-REV-0060, #1754). Both revisions are marked
-      revisions of the project ("Two marked revisions", WF-REV-0080): the current revision,
+      revision, for its whole difference (`amount_deltas`). `base_totals` are the totals of the
+      base on the nodes the read retains, removed ones included and added ones left out, and
+      `totals_delta` their signed difference with `totals`, the revision read minus the base
+      (WF-IHM-0160). `include_differences` retains in addition, under a progress filter, the
+      nodes in difference that the filter leaves out: the grid of the remaining to commit sends
+      it; they count in the totals as any line retained. The grids read the comparison on the
+      main structure, with the same marks as the reading of a differential; they no longer send
+      `difference`, and fold the branches without difference in the browser (WF-IHM-0170). An
+      identical pair — the same revision twice — returns every node unchanged and no amount
+      difference, never a refusal. Between two revisions of different reference years, a line
+      of which only the rate changed is modified by its re-estimated amount — and, for labour,
+      by its amount at the rates of the reference year (`other`) —, its budgeted amount
+      unchanged (`NodeChange`, `amount_deltas`; WF-REV-0060, #1754). The revision read
+      (`to_revision_id`) is the current revision or a marked one, the base
+      (`from_revision_id`) a marked revision of the project (WF-REV-0080): a current revision
+      read is read in its state of the moment, as `listNodes` reads it, and nothing is kept
+      from one read to the next — a read after a write carries its marks —; it stays open to
+      entry, the comparison changing none of its commands. A current revision taken for base,
       which still changes under its reader, is refused with 409, and a revision of another
       project with 404.
     parameters:
@@ -533,14 +551,14 @@
         required: true
         description: >-
           The base revision, a marked revision of the project, against which the differences
-          are counted (WF-REV-0080).
+          are counted; the current revision is refused (409, WF-REV-0080).
         schema: { $ref: ../components/common.yaml#/Uuid }
       - name: to_revision_id
         in: query
         required: true
         description: >-
-          The compared revision, a marked revision of the project, whose tree is returned
-          (WF-REV-0080).
+          The revision read, the current revision or a marked one of the project, whose tree is
+          returned (WF-REV-0080).
         schema: { $ref: ../components/common.yaml#/Uuid }
       - $ref: ../components/parameters.yaml#/NodeKinds
       - $ref: ../components/parameters.yaml#/Search
@@ -552,6 +570,7 @@
       - $ref: ../components/parameters.yaml#/NodeCostCategoryFilter
       - $ref: ../components/parameters.yaml#/NodeResourceRoleFilter
       - $ref: ../components/parameters.yaml#/NodeProgressFilter
+      - $ref: ../components/parameters.yaml#/ComparisonIncludeDifferences
       - $ref: ../components/parameters.yaml#/NodeCriticalFilter
       - $ref: ../components/parameters.yaml#/NodeSummariesOnly
       - $ref: ../components/parameters.yaml#/NodeMaxLevel
@@ -614,9 +633,11 @@
             examples:
               witness: { $ref: ../../../fixtures/api/comparison.json }
               volume: { $ref: ../../../fixtures/api/volume/comparison_volume.json }
+              current: { $ref: ../../../fixtures/api/comparison_current.json }
               identical: { $ref: ../../../fixtures/api/comparison_identical.json }
               differences: { $ref: ../../../fixtures/api/comparison_differences.json }
               moved: { $ref: ../../../fixtures/api/comparison_moved.json }
+              planning: { $ref: ../../../fixtures/api/comparison_planning.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404':
         description: >-
@@ -628,9 +649,10 @@
             schema: { $ref: ../components/common.yaml#/Problem }
       '409':
         description: >-
-          Either revision is the current revision, not marked: `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` set to `revision_marked`. Only marked revisions are
-          compared (WF-REV-0080, WF-DAT-0020); nothing is read.
+          The base revision (`from_revision_id`) is the current revision, not marked:
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` set to `revision_marked`. A base
+          is a marked revision, which no longer changes (WF-REV-0080, WF-DAT-0020); nothing is
+          read. The current revision read (`to_revision_id`) is not refused.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -645,7 +667,10 @@
           `/query/<column>_to`, `params.minimum` the start given (WF-IHM-0130); `fields` on
           the parameter. An unknown property of `fields`, and a risk of `origin_risk_ids` that
           is not an occurred risk of the project, as `listNodes` refuses them (`NodeFields`,
-          `fields_unknown`, `NodeOriginRiskFilter`).
+          `fields_unknown`, `NodeOriginRiskFilter`). A subproject that the project does not
+          have, or an identifier written otherwise than in its hyphenated form, in
+          `subproject_id`, as `listNodes` refuses it: `/query/subproject_id` with
+          `UNKNOWN_SUBPROJECT` (`SubprojectFilter`, `subproject_unknown`, WF-IND-0020, #3597).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -654,6 +679,7 @@
               bounds_inverted: { $ref: ../../../fixtures/api/nodes_bounds_inverted.json }
               fields_unknown: { $ref: ../../../fixtures/api/nodes_fields_unknown.json }
               origin_risk_unknown: { $ref: ../../../fixtures/api/nodes_origin_risk_unknown.json }
+              subproject_unknown: { $ref: ../../../fixtures/api/nodes_subproject_unknown.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1223,7 +1249,10 @@
           `FIELD_NOT_ACCEPTED`, like any refused query parameter (`NodeFields`,
           `fields_unknown`, WF-ARC-0110). A risk of `origin_risk_ids` that is not an occurred
           risk of the project, `/query/origin_risk_ids/<n>` with `UNKNOWN_RISK`
-          (`NodeOriginRiskFilter`, #1761).
+          (`NodeOriginRiskFilter`, #1761). A subproject that the project does not have, or an
+          identifier written otherwise than in its hyphenated form, in `subproject_id`,
+          `/query/subproject_id` with `UNKNOWN_SUBPROJECT` (`SubprojectFilter`,
+          `subproject_unknown`, WF-IND-0020, #3597): no empty list stands in for a refusal.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1232,6 +1261,7 @@
               bounds_inverted: { $ref: ../../../fixtures/api/nodes_bounds_inverted.json }
               fields_unknown: { $ref: ../../../fixtures/api/nodes_fields_unknown.json }
               origin_risk_unknown: { $ref: ../../../fixtures/api/nodes_origin_risk_unknown.json }
+              subproject_unknown: { $ref: ../../../fixtures/api/nodes_subproject_unknown.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
@@ -2526,7 +2556,21 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               stale: { $ref: ../../../fixtures/api/paste_stale.json }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          The plan would take the duration of the project beyond fifteen years:
+          `PROJECT_HORIZON_EXCEEDED`, without `fields`, `params.task` naming the task the engine
+          finds beyond the horizon, by its node and its label, the node null for a task the
+          block creates, and, for a task a row of the block writes or creates, or that bears a
+          line it writes, that row, counted from zero like `PasteRejection.row` (`row`): two
+          tasks created with one label are told apart by it (`Problem.params`; WF-PLA-0150-A,
+          #2606, #3624); nothing is written, the counter of the structure as it was. Or another
+          rule refused, as the common response `UnprocessableEntity` says.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              horizon_exceeded: { $ref: ../../../fixtures/api/paste_apply_horizon_exceeded.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

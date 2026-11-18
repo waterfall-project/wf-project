@@ -10,6 +10,7 @@
 import { expect, test } from "@playwright/test";
 
 import type { components } from "../../src/api/generated/schema";
+import { ACCOUNT_RESET } from "../bounds";
 import { heldToTheContract } from "./contract";
 import {
   accountAdministrator,
@@ -25,7 +26,7 @@ test("gives the grids of an account their defaults back, whatever a path set, an
   browser,
   playwright,
 }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(ACCOUNT_RESET);
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
     const administrator = await accountAdministrator(browser, calls);

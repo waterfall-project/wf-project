@@ -51,7 +51,7 @@
         "calendar_id": "01926f3a-7c00-7000-8000-000000000481",
         "calendar_label": "Semaine standard",
         "capacity": {
-          "monthly_hours": "658654.00",
+          "monthly_hours": "658666.67",
           "headcount": "3800"
         },
         "is_active": true,
@@ -89,7 +89,7 @@
         "calendar_id": "01926f3a-7c00-7000-8000-000000000482",
         "calendar_label": "Semaine de quatre jours",
         "capacity": {
-          "monthly_hours": "216662.50",
+          "monthly_hours": "216666.67",
           "headcount": "1250"
         },
         "is_active": true,
@@ -127,7 +127,7 @@
         "calendar_id": "01926f3a-7c00-7000-8000-000000000481",
         "calendar_label": "Semaine standard",
         "capacity": {
-          "monthly_hours": "519.99",
+          "monthly_hours": "520.00",
           "headcount": "3"
         },
         "is_active": false,
@@ -167,7 +167,7 @@
         "calendar_id": "01926f3a-7c00-7000-8000-000000000481",
         "calendar_label": "Semaine standard",
         "capacity": {
-          "monthly_hours": "485324.00",
+          "monthly_hours": "485333.33",
           "headcount": "2800"
         },
         "is_active": true,

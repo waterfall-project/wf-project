@@ -1,0 +1,7 @@
+{
+  "summary": "Un budget de 1 000 dont 400 sont portés par des tâches terminées : l'avancement physique vaut 40 % (WF-IND-0060).",
+  "examples": ["WF-IND-0060-A#f88169816950"],
+  "budget": "1000.00",
+  "earned_value": "400.00",
+  "physical_progress": "0.4000"
+}

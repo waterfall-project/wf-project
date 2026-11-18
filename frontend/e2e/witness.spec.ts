@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import { compile } from "./compile";
-import { WORKING } from "./hydration";
 
 const PROJECT = "/projects/01926f3a-7c00-7000-8000-000000000001";
 // The revision in progress, which the screen of the project leads to (US-0720).

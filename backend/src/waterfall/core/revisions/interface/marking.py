@@ -90,8 +90,9 @@ EXIT_STATE = "exit_state"
 EXIT_REASON = "exit_reason"
 EXIT_LOCK_VERSION = "exit_lock_version"
 
-# What computes and keeps the indicators of a revision being marked, in their order: EP-10's.
-_INDICATORS: Registry[Callable[[Session, UUID], None]] = Registry("revisions.indicators")
+# What computes and keeps the indicators of a revision being marked, in their order, given the act
+# of the marking — its instant and its requester: EP-10's.
+_INDICATORS: Registry[Callable[[Session, UUID, Act], None]] = Registry("revisions.indicators")
 # What a module keeps of a revision being marked before its indicators, in their order: EP-07's.
 _MARKINGS: Registry[Callable[[RevisionMarking], None]] = Registry("revisions.marking")
 
@@ -269,7 +270,7 @@ def mark_revision(
         raise refuse(REVISION_DRAFT)
     _judge_name(session, revision, version_name)
     keep_marking(RevisionMarking(session, revision.project_id, revision_id, act.at, act.author))
-    compute_indicators(session, revision_id)
+    compute_indicators(session, revision_id, act)
     close_revision(session, revision.project_id, revision_id, "marked")
     revision.status = "marked"
     revision.version_name = version_name
@@ -314,18 +315,31 @@ def keep_project_ratios(marking: RevisionMarking) -> None:
     marking.session.flush()
 
 
-def register_indicators(compute: Callable[[Session, UUID], None]) -> Callable[[], None]:
-    """Add what computes and keeps indicators of a revision being marked; give its withdrawal."""
+def register_indicators(compute: Callable[[Session, UUID, Act], None]) -> Callable[[], None]:
+    """Add what computes and keeps indicators of a revision being marked; give its withdrawal.
+
+    Each receives the act of the marking: the instant the indicators are computed at, which the
+    revision is marked at, and the requester (EP-10, "Ce que le cadrage décide").
+    """
     return _INDICATORS.register(compute)
 
 
-def compute_indicators(session: Session, revision_id: UUID) -> None:
+def compute_indicators(session: Session, revision_id: UUID, act: Act) -> None:
     """Compute and keep the indicators of a revision being marked, by each computation registered.
 
-    Nothing, until EP-10 registers its own.
+    Called by ``mark_revision`` with the act of the marking, before the revision is written; the
+    indicators register theirs (EP-10, US-1670/L1): the documents the revision keeps.
+
+    Nothing is caught (WF-DAT-0040, #2180): a computation that raises — a refusal, a fault of the
+    data, any exception — stops the ones after it and rises to ``mark_revision``, which has written
+    nothing of the revision yet, then to the worker, which fails the task ``revision_mark`` with its
+    code (``BackgroundTask.problem``; the code of an internal error for an exception that bears
+    none) and rolls its transaction back, the documents written before it included. The revision
+    stays current; a new ``markRevision`` asks the marking again. No indicator is ever left out in
+    place of one that failed.
     """
     for compute in _INDICATORS.entries():
-        compute(session, revision_id)
+        compute(session, revision_id, act)
 
 
 def load_marking(

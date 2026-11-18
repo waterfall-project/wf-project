@@ -34,11 +34,12 @@ import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } f
 import { createUser } from "@/api/actions/users";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
-import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
+import { OutcomeNotice, useNoteRefusal, useReadAnew } from "@/components/commands/outcome-notice";
 import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { useAccountNaming } from "@/components/account/account-name";
 import { LocalTime } from "@/components/local-time";
+import { useListReading } from "@/components/reference/list-reading";
 import { useListReport } from "@/components/reference/reactivation";
 import {
   AlertDialog,
@@ -146,6 +147,10 @@ export function UserCreation({
   // The account created without an invitation, whose link the dialog offers.
   const [uninvited, setUninvited] = useState<UserCreated>();
   const [pending, startTransition] = useTransition();
+  // A creation lost once sent: the dialog waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(outcome);
+  const listReading = useListReading();
+  const holding = reading || listReading;
   // The list holds the navigations while the creation answers: the dialog closed meanwhile, its
   // click is held all the same (#688).
   const own = useHeldCommand();
@@ -188,7 +193,7 @@ export function UserCreation({
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (pending) {
+    if (pending || holding) {
       return;
     }
     setOutcome(undefined);
@@ -335,6 +340,7 @@ export function UserCreation({
           })}
           <OutcomeNotice
             outcome={outcome}
+            reading={reading}
             onClear={() => {
               setOutcome(undefined);
             }}
@@ -345,7 +351,11 @@ export function UserCreation({
               <X aria-hidden="true" />
               {form("cancel")}
             </Button>
-            <Button type="submit" aria-busy={pending}>
+            <Button
+              type="submit"
+              aria-busy={pending || holding}
+              aria-disabled={holding ? true : undefined}
+            >
               <Plus aria-hidden="true" />
               {form(pending ? "sending" : "create")}
             </Button>

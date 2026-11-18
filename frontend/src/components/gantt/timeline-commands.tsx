@@ -49,6 +49,7 @@ import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { useHeldCommand } from "@/components/commands/held";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { useSaid } from "@/components/notices/said";
+import { useListReading } from "@/components/reference/list-reading";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
 import { ReferenceForm, required } from "@/components/reference/reference-form";
 import { Button } from "@/components/ui/button";
@@ -243,6 +244,8 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
   // How many times a dialog was opened: what tells an opening from the next.
   const openings = useRef(0);
   const [pending, startTransition] = useTransition();
+  // A write of the list lost once sent: the list is read anew, and this waits until it is back (US-2240).
+  const reading = useListReading();
   const listed = useMemo(
     () => timelines.filter((timeline) => !deleted.has(timeline.timeline_id)),
     [timelines, deleted],
@@ -281,7 +284,7 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
     }
   };
   const confirm = (timeline: Timeline, opening: number) => {
-    if (pending) {
+    if (pending || reading) {
       return;
     }
     const generation = list?.generation ?? 0;
@@ -386,7 +389,8 @@ function Choice({ project, offer, timelines, shown, hrefs }: TimelineChoiceProps
               </Button>
               <Button
                 type="button"
-                aria-busy={pending}
+                aria-busy={pending || reading}
+                aria-disabled={reading ? true : undefined}
                 onClick={() => {
                   confirm(deleting, opened.opening);
                 }}

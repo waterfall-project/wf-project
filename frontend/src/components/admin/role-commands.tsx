@@ -23,9 +23,10 @@ import { deleteAccessRole } from "@/api/actions/access-roles";
 import type { components } from "@/api/generated/schema";
 import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE } from "@/components/commands/offer";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedWrite } from "@/components/commands/rejection";
 import { type Said, useSaid } from "@/components/notices/said";
 import { CellCommand } from "@/components/reference/cell-command";
+import { useListReading } from "@/components/reference/list-reading";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
 import type { PrincipalVariant } from "@/components/shell/section-card";
 import { useRaise } from "@/components/system/raise";
@@ -157,6 +158,8 @@ function Deletion({ children }: { readonly children: ReactNode }) {
   const [asked, setAsked] = useState<{ readonly role: AccessRole; readonly open: boolean }>();
   const answers = useRoleAnswers();
   const raise = useRaise();
+  // A write of the list lost once sent: the list is read anew, and this waits until it is back (US-2240).
+  const reading = useListReading();
   const ask = useCallback((role: AccessRole) => {
     setAsked({ role, open: true });
   }, []);
@@ -166,7 +169,7 @@ function Deletion({ children }: { readonly children: ReactNode }) {
     // opened, and one under way is answered first.
     const role = answers?.latest(shown) ?? shown;
     const id = role.access_role_id;
-    if (answers?.isWriting(id) === true) {
+    if (answers?.isWriting(id) === true || reading) {
       return;
     }
     // The reading the role is deleted from: its refusal is told on it alone.
@@ -176,7 +179,7 @@ function Deletion({ children }: { readonly children: ReactNode }) {
     // commands tell a rejected action; and what the telling itself throws is raised to the screen
     // of failure, never left unhandled (#3111).
     void held(deleteAccessRole(id, role.lock_version))
-      .catch(rejected)
+      .catch(rejectedWrite())
       .then((outcome) => {
         if (outcome.kind === "done") {
           say?.(t("deleted", { name: role.label }));
@@ -220,7 +223,7 @@ function Deletion({ children }: { readonly children: ReactNode }) {
             <AlertDialogAction
               // A write of the role under way is answered first: the confirmation stays open, and
               // its command busy, rather than closing on a press that sends nothing.
-              disabled={answers?.writing.has(asked?.role.access_role_id ?? "") === true}
+              disabled={reading || answers?.writing.has(asked?.role.access_role_id ?? "") === true}
               onClick={() => {
                 if (asked !== undefined) {
                   confirmed(asked.role);

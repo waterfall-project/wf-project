@@ -43,6 +43,7 @@ from projects_support import PROJECTS, Scene, put_in_state
 from projects_support import scene as make_scene
 from sqlalchemy import select, update
 from support import ContractClient
+from test_inert_writes import listened, trees_read, unkept
 from test_msproject_import import imported as planning_imported
 from test_msproject_import import planning, task
 
@@ -210,12 +211,17 @@ def test_two_imports_of_one_workbook_give_the_same_estimate_the_second_without_d
 
 @pytest.mark.requirement("WF-INTF-0100-A")
 def test_lines_of_labour_and_of_material_are_written_under_their_tasks_and_absent_ones_removed(
-    api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any]
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    held: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # « On importe un fichier qui comporte des lignes de main-d'œuvre et des lignes hors
     # main-d'œuvre. » ; « Chaque ligne se retrouve sous la tâche désignée, avec sa quantité, ses
     # heures ou son débours, son rôle et, le cas échéant, son sous-projet. » The import enters
-    # nothing in the undo history.
+    # nothing in the undo history. Each of its two writes — the line absent deleted, the lines
+    # written — reads the tree once, a criterion of US-2250.
     tree, costs = held["tree"], held["costs"]
     answer = api.post(
         f"{PROJECTS}/{stage.project['project_id']}/subprojects",
@@ -231,7 +237,14 @@ def test_lines_of_labour_and_of_material_are_written_under_their_tasks_and_absen
         row("2 Essais", held["role"], {"Quantité": 2, "Heures": 4, "Sous-projet": "SP-CMD"}),
         row("Essais", held["stuff"], material),
     ]
-    applied(api, stage, worker, workbook(rows, held["tasks"]))
+    import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
+    read = trees_read(monkeypatch)
+    with listened() as sent:
+        applied_now(api, stage, worker, import_id)
+    assert read.count == 2
+    # What the replay rests on holds on the application (``reshaped``, US-2250/L2, #3563).
+    assert any(each.text.startswith("INSERT INTO node ") for each in sent)
+    assert unkept(sent) == []
     lines = estimate_lines(tree.items())
     first, second = held["first"]["lineage_id"], held["second"]["lineage_id"]
     task, kept = lines.pop(held["labour"]["lineage_id"])

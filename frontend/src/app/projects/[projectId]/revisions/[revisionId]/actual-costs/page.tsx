@@ -270,9 +270,10 @@ export default async function ActualCostsPage({
   );
   return (
     <>
-      <ContextBanner reading={reading} />
-      {/* The filters, the grid and the pages compose the changes they make to the address. */}
+      {/* The banner, the filters, the grid and the pages compose the changes they make to the
+          address: a revision chosen keeps the sub-project filtered just before. */}
       <PendingAddress>
+        <ContextBanner reading={reading} />
         <Screen density={FUNCTION_DENSITY.actual_costs} fillWide>
           <CostsHeader exchanges={functionHref(EXCHANGES, at.context)} />
           {"refused" in costs ? null : (

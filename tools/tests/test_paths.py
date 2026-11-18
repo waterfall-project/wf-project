@@ -252,6 +252,7 @@ def test_a_path_against_the_service_is_a_test_of_its_own_family() -> None:
         ("deploy/compose/waterfall-database.sql", {"back"}),
         ("tools/src/wftools/launch.py", {"back", "front", "service", "production"}),
         ("tools/src/wftools/slots.py", {"back", "front", "service", "production"}),
+        ("tools/src/wftools/heavyturns.py", {"back", "front", "service", "production"}),
         ("deploy/compose/garage.toml", {"back", "keycloak", "service"}),
         ("deploy/compose/storage-buckets.sh", {"back", "keycloak", "service"}),
         # The witness of the roles, which the tests of the accounts hold to the realm (#898).

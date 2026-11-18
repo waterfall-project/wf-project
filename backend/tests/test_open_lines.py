@@ -769,6 +769,43 @@ def test_a_task_not_started_goes_straight_to_completed_by_its_remaining_set_to_n
     assert card(tree, "Étude", bears_lines=False) == [("complete", "completed", [])]
 
 
+@pytest.mark.requirement("WF-PLA-0040-A")
+@pytest.mark.requirement("WF-PLA-0130-A")
+def test_the_tasks_read_alone_derive_from_their_lines_what_the_whole_reading_derives(
+    review: Review,
+) -> None:
+    # US-2280: ``kinds=task`` reads none of the lines, but what they count under each task, and
+    # derives the state of a summary held open (WF-PLA-0040) and its date of completion
+    # (WF-PLA-0130) as the whole reading does. A summary its own line holds open (the batch), one
+    # its own line set to nought completed on Friday (the phase), one a provision does not hold
+    # (the hazards): their state, their signal, their sums and the places of their subtasks, after
+    # their lines, are those the whole reading derives.
+    tree = review.tree
+    moved(tree, "Jalon", "completed", DAY)
+    done(tree, "Essai")
+    done(tree, "Étude")
+    answer = zero(tree, "Pilotage", completed_on=FRIDAY.isoformat())
+    assert answer.status_code == 200, answer.text
+    stage = tree.stage
+    place = Place(
+        UUID(stage.project["project_id"]),
+        UUID(tree.revision["revision_id"]),
+        UUID(tree.structure_id),
+    )
+    with stage.database.transaction() as session:
+        alone = list_nodes(session, place, NodeFilters(kinds=("task",)))
+        whole = list_nodes(session, place, NodeFilters())
+    assert alone.items == tuple(each for each in whole.items if each.task is not None)
+    assert alone.totals == whole.totals
+    read = {each.task.label: each.task for each in alone.items if each.task is not None}
+    assert (read["Lot"].progress, read["Lot"].awaiting_own_lines) == ("started", True)
+    assert (read["Phase"].progress, read["Phase"].completed_on) == ("completed", FRIDAY)
+    assert (read["Aléas"].progress, read["Aléas"].awaiting_own_lines) == ("completed", False)
+    assert str(read["Lot"].amounts.reestimated) == "500.00"
+    places = {each.task.label: each.position for each in alone.items if each.task is not None}
+    assert places["Étude"] == places["Jalon"] == 2
+
+
 def literals(alias: Any) -> tuple[Any, ...]:
     """Give the values of a type alias of literals, through the aliases and unions it names."""
     if isinstance(alias, TypeAliasType):

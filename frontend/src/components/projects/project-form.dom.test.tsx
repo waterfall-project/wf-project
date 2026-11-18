@@ -4,7 +4,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
@@ -21,6 +21,7 @@ import {
   type FakeTiming,
   held,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import { CreateProject, ProjectIdentity } from "./project-form";
 
@@ -112,6 +113,8 @@ afterEach(() => {
   router.push.mockClear();
   router.refresh.mockClear();
 });
+
+beforeEach(browserOffline);
 
 describe("the creation of a project", () => {
   it("refuses a project without a label before asking anything, the label taking the focus [WF-PRJ-0080-A]", async () => {

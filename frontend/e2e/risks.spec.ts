@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { WORKING } from "./bounds";
 import { menuButton, openFilters, pick } from "./check-menu";
 import { type Download, expect, type Locator, test } from "@playwright/test";
 
 import { compile } from "./compile";
-import { openHydrated, WORKING } from "./hydration";
+import { openHydrated } from "./hydration";
 import { scrollPageToGrid, withinBox } from "./scroll";
 
 // The fake back serves the first example of each read of the risks — the register of three risks,

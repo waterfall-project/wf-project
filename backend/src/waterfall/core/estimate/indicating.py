@@ -302,6 +302,19 @@ def _by_subproject(
     return groups
 
 
+def work_package_amount(
+    rows: Sequence[Row], borne: Collection[UUID] | None, lacking: dict[UUID, MissingRate]
+) -> Figure:
+    """Give the total of a work package: the lines of the tasks that bear it, none without a task.
+
+    ``borne`` is the tasks of its subtree, ``None`` when no task bears the work package; its total
+    is then absent, with its reason, and not nought (WF-DEV-0060).
+    """
+    if borne is None:
+        return Figure(None, WORK_PACKAGE_WITHOUT_TASK)
+    return _amount([each for each in rows if each.node_id in borne], lacking)
+
+
 def _by_work_package(
     session: Session,
     revision: tuple[UUID, UUID],
@@ -327,12 +340,11 @@ def _by_work_package(
         named += [(each, items[each].label if each in items else "") for each in deleted]
     found: list[AmountByKey] = []
     for package_id, label in named:
+        amount = work_package_amount(rows, borne.get(package_id), lacking)
+        # Not ``amount.value is None``: a rate missing leaves it so too, and keeps its share.
         if package_id not in borne:
-            reason = Figure(None, WORK_PACKAGE_WITHOUT_TASK)
-            found.append(AmountByKey(str(package_id), label, reason, reason))
+            found.append(AmountByKey(str(package_id), label, amount, amount))
             continue
-        under = [each for each in rows if each.node_id in borne[package_id]]
-        amount = _amount(under, lacking)
         found.append(AmountByKey(str(package_id), label, amount, _part(amount, total)))
     return tuple(found)
 

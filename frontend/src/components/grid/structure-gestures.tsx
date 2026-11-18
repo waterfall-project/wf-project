@@ -78,7 +78,11 @@ import { type CommandHelp, CommandTooltip } from "@/components/commands/command-
 import { MenuCommand } from "@/components/commands/menu-command";
 import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE } from "@/components/commands/offer";
-import { OutcomeNotice, refusalDescription } from "@/components/commands/outcome-notice";
+import {
+  OutcomeNotice,
+  refusalDescription,
+  useReadAnew,
+} from "@/components/commands/outcome-notice";
 import { taskRemainingHref } from "@/components/remaining/address";
 import { type Said, useSaid } from "@/components/notices/said";
 import { Button } from "@/components/ui/button";
@@ -332,9 +336,12 @@ function GestureNotice<Row extends GridNode>({
   said,
   id,
   structure,
+  reading,
   onClear,
 }: {
   readonly told: Told<Row> | undefined;
+  /** Whether the grid is read anew after a gesture lost once sent (US-2240). */
+  readonly reading: boolean;
   readonly structure: { readonly project_id: string; readonly revision_id: string };
   readonly said: Said | undefined;
   readonly id: string;
@@ -363,6 +370,7 @@ function GestureNotice<Row extends GridNode>({
         follow={startedRefusal(refusal, structure, t("toRemaining"))}
         outcome={refusal?.outcome}
         subject={refusal?.subject}
+        reading={reading}
         lead={lead()}
         onClear={onClear}
         onDismissed={() => {
@@ -403,6 +411,8 @@ export function useStructureGestures<Row extends GridNode>(
   const [opened, setOpened] = useState<Opened<Row>>();
   const [writing, setWriting] = useState(false);
   const [told, setTold] = useState<Told<Row>>();
+  // A gesture lost once sent: the gestures wait until the screen has been read anew (US-2240).
+  const lostReading = useReadAnew(told?.refusal.outcome);
   const [moved, setMoved] = useState<Moved<Row>>();
   const [naming, setNaming] = useState<Naming<Row>>();
   const openings = useRef(0);
@@ -434,7 +444,7 @@ export function useStructureGestures<Row extends GridNode>(
   const structure = scope.structure.structure_id;
   // A gesture waits for any write of the structure shown — its own counted with the others' —, and
   // for the reading anew that follows a gesture's.
-  const busy = account.busy || reading;
+  const busy = account.busy || reading || lostReading;
   const shown = told?.structure === structure ? told : undefined;
   const names: Readonly<Record<Gesture, string>> = {
     first: t("insertFirst"),
@@ -761,6 +771,7 @@ export function useStructureGestures<Row extends GridNode>(
       <>
         <GestureNotice
           told={shown}
+          reading={lostReading}
           said={said}
           id={noticeId}
           structure={scope.structure}

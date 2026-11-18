@@ -18,7 +18,8 @@ it missing, the day of its own creation rather than vanish from its list.
 
 What the planning asks of a structure (EP-06, "Modules"): its facts, read or under its lock
 (``structure_facts``), which every write of its nodes takes, and the instant of its dates moved on
-with its counter (``structure_rescheduled``), at each write that redates it (US-1380/L2); the
+with its counter (``structure_rescheduled``), at each write that redates it (US-1380/L2), or its
+counter alone (``structure_counted``), at a write that can move no date (US-2250); the
 condition of the phase an entry lacks, by the rule its commands state
 (``structure_phase_conditions``, US-1380/L4); its start and its label written
 (``write_structure``, ``updateCostStructure``), and the structures of the current revisions,
@@ -178,7 +179,10 @@ def _structures(
 
 
 def revision_structures(session: Session, project_id: UUID, revision_id: UUID) -> tuple[UUID, ...]:
-    """Give the structures of a revision, in the order of their identifiers, which locks them."""
+    """Give the structures of a revision, in the order of their identifiers, unlocked.
+
+    The caller locks them (``structure_facts``, ``lock=True``), in that order.
+    """
     return tuple(
         session.scalars(
             select(CostStructure.id)
@@ -333,6 +337,25 @@ def structure_rescheduled(
         update(CostStructure)
         .where(CostStructure.project_id == project_id, CostStructure.id == structure_id)
         .values(scheduled_at=at, lock_version=CostStructure.lock_version + 1)
+        .returning(CostStructure.lock_version)
+        .execution_options(synchronize_session=False)
+    )
+    if counted is None:
+        raise NotFoundError(NOT_FOUND)
+    return counted
+
+
+def structure_counted(session: Session, project_id: UUID, structure_id: UUID) -> int:
+    """Advance the counter of a structure, the instant of its dates left as it is; give it.
+
+    To be called under the lock of the structure (``structure_facts``), by a write that can move
+    no date (US-2250): the front leans every write on the counter, and ``scheduled_at`` is the
+    instant of the last write that redated the structure, which this one does not.
+    """
+    counted = session.scalar(
+        update(CostStructure)
+        .where(CostStructure.project_id == project_id, CostStructure.id == structure_id)
+        .values(lock_version=CostStructure.lock_version + 1)
         .returning(CostStructure.lock_version)
         .execution_options(synchronize_session=False)
     )

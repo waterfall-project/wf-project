@@ -129,7 +129,9 @@
       "remaining": "Remaining to commit grid",
       "comparison": "Compared nodes",
       "projects": "List of projects",
-      "backups": "Backups"
+      "backups": "Backups",
+      "workloadDetail": "Workload detail by role and by task",
+      "spendingDetail": "Spending projection by cost type and by category"
     },
     "columns": {
       "rowNumber": "No.",
@@ -225,6 +227,18 @@
       "description": "Description",
       "physicalProgress": "Physical progress",
       "gantt": "Gantt",
+      "deltaStartDate": "Start difference",
+      "deltaFinishDate": "Finish difference",
+      "deltaStartedOn": "Started-on difference",
+      "deltaCompletedOn": "Completed-on difference",
+      "deltaDuration": "Duration difference",
+      "deltaTotalFloat": "Float difference",
+      "deltaUnitDisbursement": "Unit disbursement difference",
+      "deltaBudgetedAmount": "Budgeted amount difference",
+      "deltaReferenceAmount": "Reference amount difference",
+      "deltaReestimatedAmount": "Re-estimated amount difference",
+      "deltaPreviousUnitDisbursement": "Previous unit disbursement difference",
+      "deltaPreviousReestimatedAmount": "Previous re-estimated difference",
       "updatedAt": "Last modified",
       "createdAt": "Created",
       "createdBy": "Created by",
@@ -245,9 +259,31 @@
       "download": "Download",
       "restore": "Restoration",
       "resendInvitation": "Resend email",
-      "passwordLink": "Setup link"
+      "passwordLink": "Setup link",
+      "month": "Month",
+      "total": "Total"
     },
     "computed": "Computed",
+    "compared": {
+      "base": "Base:",
+      "delta": "Difference:",
+      "totalsBase": "Base: {caption}",
+      "totalsDelta": "Difference: {caption}",
+      "empty": "no value",
+      "days": "{days} d",
+      "amountDeltas": {
+        "command": "Amount deviations",
+        "title": "Amount deviations to the base",
+        "description": "The budgeted and re-estimated amounts of the revision read minus those of the base, by cost type and by sub-project, on the lines the grid retains.",
+        "empty": "No amount deviation.",
+        "dimension": "Axis",
+        "key": "Item",
+        "budgeted": "Budgeted deviation",
+        "reestimated": "Re-estimated deviation",
+        "unnamed": "Unnamed",
+        "close": "Close"
+      }
+    },
     "entry": {
       "none": "None",
       "codedChoice": "{code} — {label}",
@@ -271,6 +307,10 @@
     "differenceFilter": {
       "label": "Differences only",
       "help": "Keep only the rows the amendment adds, removes or modifies."
+    },
+    "differenceFold": {
+      "run": "{count, plural, one {# row without difference folded} other {# rows without difference folded}}",
+      "help": "Fold the rows that do not differ from the base; each folded run unfolds in its place. Nothing is taken out of the totals."
     },
     "breakdownFilter": {
       "label": "Work package or order item",
@@ -960,9 +1000,16 @@
     "differences": "Differences: {values}",
     "computedOn": "Revision of the calculation",
     "structure": "Structure",
+    "chooseRevision": "Change the revision, “{revision}” read",
+    "referenceOption": "{name} (reference)",
     "chooseStructure": "Change the structure, “{structure}” read",
     "mergedStructure": "{label} (merged)",
     "unnamedRevision": "unnamed",
+    "base": "Comparison base",
+    "comparedTo": "Compared to “{base}”",
+    "chooseBase": "Choose a comparison base",
+    "changeBase": "Change the base, “{base}” compared",
+    "liftBase": "Lift the comparison with “{base}”",
     "removeFilter": "Remove the filter “{filter}”",
     "restricts": {
       "grid": "{filter}, on the grid only",
@@ -1140,7 +1187,9 @@
       "invalid": "The workload is not available: the API refuses what is asked."
     },
     "exportDetail": "Basis: {basis} · Organisation node and its descendants: {node}",
-    "file": "workload"
+    "file": "workload",
+    "detailTitle": "Detail by role and by task",
+    "detailTotals": "Total of the plan"
   },
   "commands": {
     "label": "Commands",
@@ -1466,6 +1515,9 @@
     },
     "help": {
       "help": "Opens, beside the screen, the help that describes it: what it shows, its commands, its columns, its keyboard gestures and the notions of the method."
+    },
+    "spending": {
+      "help": "Opens the spending projection of the revision, by cost type and by month."
     }
   },
   "columns": {
@@ -1848,7 +1900,7 @@
         "help": "Calendar of the role, which gives its working hours of each day."
       },
       "monthlyHours": {
-        "help": "Hours available a month, alone compared with the workload plan."
+        "help": "Hours available a month, calculated from the headcount and the calendar, alone compared with the workload plan."
       },
       "headcount": {
         "help": "Headcount the hours a month stand for."
@@ -1959,9 +2011,35 @@
         "help": "Column of the extraction the mapping declares kept, given back as it is: it enters no calculation."
       }
     },
-    "comparison": {
-      "changes": {
-        "help": "What changes of the node itself from one revision to the other, as the server names it: the dates, the duration, the progress or the parent of a task; the budgeted and re-estimated amounts, the payment delay or the parent of a line. Empty for a node added, removed or unchanged, and for a task modified by its content alone — a line or a subordinate that changes."
+    "workloadDetail": {
+      "label": {
+        "help": "The resource role, then, under it, each task bearing one of its labour lines, ordered by start date, then in the order of the planning. The label of a task leads to its row in the planning grid of the revision the basis reads."
+      },
+      "rowNumber": {
+        "help": "The number of the row of the task in the planning grid, in the numbering of the whole structure."
+      },
+      "start": {
+        "help": "The start date of the task."
+      },
+      "finish": {
+        "help": "The finish date of the task."
+      },
+      "hours": {
+        "help": "The load of the role on the task, in hours: the sum of its labour lines of that role, two lines under the same task counting as one, computed by the server on the basis chosen. Blank for a role."
+      },
+      "month": {
+        "help": "The part of the load the server spreads over the month, in hours, on the basis and under the filter of the plan: for a role, the load the chart presents; for a task, its part. Blank for a month without load. The total of the month, at the foot, is the plan's."
+      }
+    },
+    "spendingDetail": {
+      "label": {
+        "help": "The cost type, then, under it, each of its categories that carries an amount, in the order of the reference data."
+      },
+      "total": {
+        "help": "The total of the row, in the currency of the installation, computed by the server over all the months of the projection. At the foot, the total of the projection."
+      },
+      "month": {
+        "help": "The part of the spending the server spreads over the month, on the basis and under the filter of the projection. Blank for a month without amount. The total of the month, at the foot, is the projection’s."
       }
     }
   },
@@ -1981,6 +2059,8 @@
   },
   "outcome": {
     "unreachable": "The service cannot be reached; try again in a moment.",
+    "dropped": "The connection to the service was lost once the request had left: the operation may have gone through. The screen is read anew; check it before doing it again.",
+    "readingAnew": "Reading the screen anew…",
     "conflictingObject": "Conflicting object: {name}.",
     "reload": "Reload",
     "signIn": "Sign in",
@@ -2083,11 +2163,10 @@
     "rateUpdate": {
       "label": "Apply the rate update",
       "statement": "The rates of the current revision are replaced by the proposed rates, for the categories retained; the amounts of its lines and of its totals are calculated anew. A marked revision keeps the rates it calculated.",
-      "categories": "Categories updated",
-      "change": "{category}: {previous} → {proposed}",
       "noneRetained": "Retain at least one category.",
       "submit": "Confirm the update",
-      "done": "{count, plural, one {The rates of # category are updated.} other {The rates of # categories are updated.}}"
+      "done": "{count, plural, one {The rates of # category are updated.} other {The rates of # categories are updated.}}",
+      "reading": "Reading the proposal…"
     }
   },
   "projectList": {
@@ -2292,32 +2371,10 @@
       "reference": "Reference",
       "notMarked": "Not marked",
       "open": "Open",
-      "openRevision": "Open the revision “{name}”"
-    },
-    "designation": {
-      "title": "Designation of the reference"
-    },
-    "comparison": {
-      "title": "Comparison of two revisions",
-      "needsTwo": "A comparison takes two marked revisions.",
-      "from": "From the revision",
-      "to": "To the revision",
-      "compare": "Compare",
-      "deltas": "Amount deviations",
-      "noDeltas": "No amount deviation.",
-      "dimension": "Axis",
-      "key": "Item",
-      "budgetedDelta": "Budgeted deviation",
-      "reestimatedDelta": "Re-estimated deviation",
-      "unnamed": "Unnamed"
-    },
-    "structures": {
-      "title": "Cost structures",
-      "none": "This revision has no cost structure.",
-      "kind": "Kind",
-      "label": "Label",
-      "state": "Status",
-      "merged": "Merged"
+      "openRevision": "Open the revision “{name}”",
+      "compare": "Compare to the revision read",
+      "compareRevision": "Compare to the revision read: “{name}”",
+      "commands": "Commands"
     },
     "rateUpdate": {
       "title": "Proposed rate update",
@@ -2327,7 +2384,8 @@
       "category": "Category",
       "previous": "Previous rate",
       "proposed": "Proposed rate",
-      "source": "Source"
+      "source": "Source",
+      "retained": "Kept"
     }
   },
   "exitProject": {
@@ -2475,8 +2533,9 @@
     },
     "roleForm": {
       "create": "New resource role",
-      "createHint": "The code, unique, the label, the node, a labour category, the calendar and the capacity — hours a month and headcount — are required. The node will no longer change: a role is recreated under another node.",
-      "modifyHint": "The code, unique, the label, a labour category, the calendar and the capacity are required. The role stays under “{node}”: it is recreated under another node rather than moved there."
+      "createHint": "The code, unique, the label, the node, a labour category, the calendar and the headcount are required; the hours a month are calculated. The node will no longer change: a role is recreated under another node.",
+      "hoursNote": "Calculated: headcount × weekly hours of the calendar × 52 ÷ 12, rounded to the hundredth. They cannot be typed; the value shown is the one recorded, calculated again on saving.",
+      "modifyHint": "The code, unique, the label, a labour category, the calendar and the headcount are required. The role stays under “{node}”: it is recreated under another node rather than moved there."
     },
     "calendarForm": {
       "create": "New calendar",
@@ -3034,7 +3093,8 @@
     "exchanges": "Imports and exports",
     "kanban": "Kanban — task start",
     "timelines": "Timelines",
-    "taskTree": "Task tree"
+    "taskTree": "Task tree",
+    "spending": "Spending projection"
   },
   "errors": {
     "MALFORMED_REQUEST": "The request is malformed.",
@@ -3168,6 +3228,7 @@
     "cycle": "Loop of links, in order: {tasks}.",
     "link": "Link concerned, the summary first: {tasks}.",
     "horizon_task": "Task concerned: {task}.",
+    "horizon_task_row": "Task concerned: {task}, row {row} of the pasted block.",
     "taskName": "“{label}”",
     "unknown_value": "Value read in the file: “{value}”.",
     "ambiguous_label": "Label read: “{label}”, shared by the tasks {tasks}.",
@@ -3653,7 +3714,8 @@
       "payment_delay_days": "Payment delay",
       "parent": "Parent",
       "subproject": "Subproject",
-      "cost_category": "Cost category"
+      "cost_category": "Cost category",
+      "other": "Other value"
     },
     "NodeDifference": {
       "added": "Added",
@@ -3872,6 +3934,13 @@
       "occurrence_estimate": "The cost at occurrence of a risk is the total of its own estimate when it was declared occurred."
     },
     "WorkloadPlan": {
+      "basis": {
+        "reference_budget": "Budget of the reference revision",
+        "marked_remaining": "Remaining of a marked revision",
+        "current_remaining": "Remaining of the current revision"
+      }
+    },
+    "SpendingProjection": {
       "basis": {
         "reference_budget": "Budget of the reference revision",
         "marked_remaining": "Remaining of a marked revision",
@@ -4254,5 +4323,40 @@
     "object": "Object: {object}.",
     "screenInProject": "{screen} — {project}",
     "unknownScreen": "Screen of origin"
+  },
+  "spending": {
+    "title": "Spending projection",
+    "chartTitle": "Spending by cost type and by month",
+    "description": "Stacked bars of the spending of each cost type by month; the values are in the table of the values, with the total of each month.",
+    "totalSeries": "Total",
+    "basis": "Basis",
+    "markedRevision": "Marked revision",
+    "unnamedRevision": "Unnamed marked revision",
+    "date": "Date",
+    "consumption": "Date of consumption",
+    "payment": "Date of payment",
+    "subproject": "Subproject",
+    "allSubprojects": "Whole project",
+    "noSubproject": "Outside any subproject",
+    "subprojectChoice": "{code} · {label}",
+    "unknownSubproject": "unknown subproject",
+    "show": "Show",
+    "reading": "Basis: {basis} — revision “{revision}” — {date}",
+    "month": "Month",
+    "costType": "Cost type",
+    "costCategory": "Cost category",
+    "amount": "Amount",
+    "none": "No cost type carries an amount on this basis.",
+    "refused": {
+      "noReference": "The projection is not available on the basis of the budget of the reference revision: the project has no reference revision.",
+      "noCurrent": "The projection is not available on the basis of the remaining of the current revision: the project has no current revision.",
+      "markedRevision": "The projection is not available on this basis: the marked revision asked for is missing, or is not marked.",
+      "subproject": "The projection is not available: the subproject asked for does not exist.",
+      "invalid": "The projection is not available: the API refuses what is asked."
+    },
+    "exportDetail": "Basis: {basis} · {date} · Subproject: {subproject}",
+    "file": "spending-projection",
+    "gridTitle": "Spending by cost type and by category",
+    "gridTotals": "Total of the projection"
   }
 }

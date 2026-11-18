@@ -26,6 +26,11 @@ vi.mock("@/api/server", () => ({
     return client;
   },
 }));
+// The forms read the screen anew when a write is lost once sent (`useReadAnew`, US-2240).
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh: () => undefined }),
+}));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "fr-FR" })),
 }));

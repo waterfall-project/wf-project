@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { WORKING } from "./bounds";
 import { closeMenu, menuButton, openFilters, openMenu, pick } from "./check-menu";
 import {
   type APIRequestContext,
@@ -11,7 +12,7 @@ import {
 } from "@playwright/test";
 
 import { compile } from "./compile";
-import { openHydrated, sortUntilAddress, untilHydrated, WORKING } from "./hydration";
+import { openHydrated, sortUntilAddress, untilHydrated } from "./hydration";
 import { inService, test } from "./mode";
 import {
   attachToService,

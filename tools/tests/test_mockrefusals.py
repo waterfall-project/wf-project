@@ -172,6 +172,27 @@ def test_an_unknown_property_of_fields_is_refused_by_422_as_any_parameter_of_a_q
     assert "(400)" not in parameters["NodeFields"]["description"]
 
 
+@pytest.mark.requirement("WF-IND-0020-A")
+def test_the_filter_of_the_subproject_of_the_nodes_publishes_the_code_its_refusal_gives() -> None:
+    # #3597: since US-2430/L2, listNodes and compareRevisions refuse a subproject the project does
+    # not have, or an identifier not hyphenated, by UNKNOWN_SUBPROJECT on /query/subproject_id: the
+    # contract says it at their 422 and at SubprojectFilter, and shows it as for listActualCosts,
+    # by an example written by hand, of the same form.
+    refused = fixture("nodes_subproject_unknown")
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    assert refused["fields"] == [{"pointer": "/query/subproject_id", "code": "UNKNOWN_SUBPROJECT"}]
+    costs = fixture("actual_costs_subproject_unknown")
+    assert {**refused, "correlation_id": None} == {**costs, "correlation_id": None}
+    assert refused["correlation_id"] != costs["correlation_id"]
+    named = "`/query/subproject_id` with `UNKNOWN_SUBPROJECT`"
+    for operation in ("listNodes", "compareRevisions"):
+        assert "nodes_subproject_unknown" in _cited(operation, "422"), operation
+        said = " ".join(_operations()[operation]["responses"]["422"]["description"].split())
+        assert named in said, operation
+    parameters = yaml.safe_load((API / "components" / "parameters.yaml").read_text("utf-8"))
+    assert named in " ".join(parameters["SubprojectFilter"]["description"].split())
+
+
 # --- The catalogue: every code rendered by an operation, with an example (J-03, J-06, J-11) ----
 
 
@@ -196,7 +217,10 @@ def test_the_codes_the_catalogue_named_without_an_example_are_carried_by_their_o
         "getMe": ("401", ["account_deactivated", "account_not_admitted"]),
         "putMyAvatar": ("400", ["avatar_malformed"]),
         "listAccessRoles": ("422", ["access_roles_number_invalid", "access_roles_date_invalid"]),
-        "createResourceRole": ("422", ["resource_role_calendar_unknown"]),
+        "createResourceRole": (
+            "422",
+            ["resource_role_calendar_unknown", "resource_role_hours_refused"],
+        ),
     }
     for operation, (status, names) in carried.items():
         assert set(names) <= set(_cited(operation, status)), operation
@@ -323,6 +347,39 @@ def test_an_entry_and_a_marking_without_a_rate_are_refused_by_naming_the_categor
     assert role["fields"] == [{"pointer": "/resource_role_id", "code": "RESOURCE_ROLE_REQUIRED"}]
     cited = _cited("updateEstimateLine", "422")
     assert {"estimate_line_rate_missing", "estimate_line_role_required"} <= set(cited)
+
+
+@pytest.mark.requirement("WF-DEV-0010-A")
+def test_the_projection_of_spending_without_a_rate_names_the_same_categories() -> None:
+    # Vérif : « Le refus énumère les catégories de coût sans taux horaire pour l'année de
+    # référence. » (#3565) `getProjectSpending` refuses as an entry does, on its own correlation.
+    refused = fixture("spending_rate_missing")
+    assert (refused["status"], refused["code"]) == (422, "HOURLY_RATE_MISSING")
+    assert refused["params"] == {"missing_rates": fixture("missing_rates")}
+    assert "fields" not in refused
+    assert refused["correlation_id"] != fixture("estimate_line_rate_missing")["correlation_id"]
+    assert "spending_rate_missing" in _cited("getProjectSpending", "422")
+
+
+@pytest.mark.requirement("WF-DEV-0100-A")
+def test_the_refusals_of_the_projection_of_spending_name_their_state_or_parameter() -> None:
+    # Vérif : le refus de `getProjectSpending` désigne l'état ou le paramètre refusé, sur sa
+    # propre corrélation (#3627, engendrés comme `spending_rate_missing`).
+    state = fixture("spending_no_reference")
+    assert (state["status"], state["code"]) == (409, "STATE_FORBIDS_OPERATION")
+    assert state["params"] == {"state": "pricing", "state_enum": "ProjectState"}
+    revision = fixture("spending_revision_refused")
+    assert revision["fields"] == [{"pointer": "/query/revision_id", "code": "VALIDATION_FAILED"}]
+    subproject = fixture("spending_subproject_unknown")
+    assert subproject["fields"] == [
+        {"pointer": "/query/subproject_id", "code": "UNKNOWN_SUBPROJECT"}
+    ]
+    cited = {*_cited("getProjectSpending", "422"), *_cited("getProjectSpending", "409")}
+    assert {
+        "spending_no_reference",
+        "spending_revision_refused",
+        "spending_subproject_unknown",
+    } <= cited
 
 
 # --- The refusals of the common tree declared without an example (F-17, #1648) ----------------

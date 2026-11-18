@@ -129,6 +129,7 @@ paths = [
     # (US-2450, PLC-06).
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",
+    "tools/src/wftools/heavyturns.py",
     "tools/src/wftools/marks.py",
 ]
 target = "check-back"
@@ -148,6 +149,16 @@ paths = [
     "docs/dev/*.md",
 ]
 target = "check-roadmap"
+
+[families.measures]
+# The reports of the versions are confronted with the objectives and with one another
+# (WF-QUA-0060-A); nothing else is measured by the chain.
+paths = [
+    "docs/measures/**",
+    "tools/src/wftools/measures.py",
+    ".github/workflows/measures.yml",
+]
+target = "check-measures"
 
 [families.keycloak]
 # The image of Keycloak, built and tried on the service platform at each change of what it is made
@@ -191,6 +202,7 @@ paths = [
     # The launcher and the slots that give build-keycloak its variables.
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",
+    "tools/src/wftools/heavyturns.py",
     # The plugin that fails a test which skips undeclared, which both conftest.py load (US-2440).
     "tools/src/wftools/unexecuted.py",
     "tools/src/wftools/marks.py",
@@ -232,6 +244,7 @@ paths = [
     # (US-2450, PLC-06).
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",
+    "tools/src/wftools/heavyturns.py",
     "tools/e2e-service-durations.json",
 ]
 target = "check-service"
@@ -257,6 +270,7 @@ paths = [
     # The launcher the Makefile starts the slots by, and the slot guard of production-trial (PLC-06).
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",
+    "tools/src/wftools/heavyturns.py",
     "tools/src/wftools/production.py",
     "tools/src/wftools/restoration_trial.py",
     "tools/src/wftools/images.py",
@@ -296,6 +310,7 @@ paths = [
     # (US-2450, PLC-06).
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",
+    "tools/src/wftools/heavyturns.py",
     "tools/e2e-durations.json",
 ]
 target = "check-front"
@@ -327,6 +342,7 @@ paths = [
     # The launcher and the slots that give check-front-image its variables.
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",
+    "tools/src/wftools/heavyturns.py",
 ]
 target = "check-front-image"
 
@@ -505,6 +521,7 @@ paths = [
     "fixtures/api/paste_plan_creating.json",
     "fixtures/api/paste_plan_creating_lines.json",
     "fixtures/api/paste_applied_creating.json",
+    "fixtures/api/paste_apply_horizon_exceeded.json",
     "fixtures/api/undo_task_renamed.json",
     "fixtures/api/redo_task_renamed.json",
     "fixtures/api/undo_task_renamed_one_left.json",
@@ -517,8 +534,10 @@ paths = [
     "fixtures/api/import_actual_costs_first.json",
     "fixtures/api/export_revision_not_found.json",
     "fixtures/api/comparison.json",
+    "fixtures/api/comparison_current.json",
     "fixtures/api/comparison_differences.json",
     "fixtures/api/comparison_moved.json",
+    "fixtures/api/comparison_planning.json",
     "fixtures/api/comparison_identical.json",
     "fixtures/api/revision_marked_merge_offered.json",
     "fixtures/api/revision_marked.json",
@@ -576,6 +595,11 @@ paths = [
     "fixtures/api/workload_reference_budget.json",
     "fixtures/api/workload_marked_remaining.json",
     "fixtures/api/workload_org_node.json",
+    "fixtures/api/spending.json",
+    "fixtures/api/spending_reference_budget.json",
+    "fixtures/api/spending_marked_remaining.json",
+    "fixtures/api/spending_payment_delays.json",
+    "fixtures/api/spending_subproject.json",
     "fixtures/api/actual_costs.json",
     "fixtures/api/actual_costs_page.json",
     "fixtures/api/actual_costs_subproject.json",
@@ -670,6 +694,10 @@ paths = [
     "fixtures/api/task_progress_summary_refused.json",
     "fixtures/api/task_summary_date_refused.json",
     "fixtures/api/estimate_line_rate_missing.json",
+    "fixtures/api/spending_rate_missing.json",
+    "fixtures/api/spending_no_reference.json",
+    "fixtures/api/spending_revision_refused.json",
+    "fixtures/api/spending_subproject_unknown.json",
     "fixtures/api/estimate_line_role_required.json",
     "fixtures/api/internal_error.json",
     "fixtures/api/nodes_fields_unknown.json",
@@ -698,6 +726,7 @@ paths = [
     "fixtures/api/access_roles_number_invalid.json",
     "fixtures/api/access_roles_date_invalid.json",
     "fixtures/api/resource_role_calendar_unknown.json",
+    "fixtures/api/resource_role_hours_refused.json",
     "fixtures/api/import_actual_costs_wbs_invalid.json",
     "fixtures/api/import_remaining_ambiguous_label.json",
     "fixtures/api/import_remaining_duplicate_lineage.json",

@@ -28,7 +28,13 @@ import { FUNCTION_ICONS } from "@/components/shell/function-display";
 import type { components, operations } from "@/api/generated/schema";
 import { platformOffer } from "@/components/commands/offer";
 import { ComputableValue } from "@/components/computable-value";
-import { FigureTerm, FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
+import {
+  FigureTerm,
+  FiguresCard,
+  FiguresGrid,
+  FiguresList,
+  FiguresLoading,
+} from "@/components/figures-card";
 import { FoldingFigures } from "@/components/folding-figures";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatMoney, formatShare } from "@/i18n/format";
@@ -282,5 +288,15 @@ export function EstimateSummary({
         </FoldingFigures>
       )}
     </div>
+  );
+}
+
+/** The card of the indicators while the API computes them, the grid below being shown already. */
+export function EstimateSummaryLoading() {
+  const t = useTranslations("estimateSummary");
+  return (
+    <FiguresGrid>
+      <FiguresLoading title={t("title")} />
+    </FiguresGrid>
   );
 }

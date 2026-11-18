@@ -7,7 +7,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type ApiClient, createApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import { requestLanguage } from "@/i18n/request";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  refusedConnection,
+} from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import { Shell } from "./shell";
 
@@ -111,6 +118,8 @@ beforeEach(() => {
   server.refresh = () => undefined;
 });
 
+beforeEach(browserOffline);
+
 describe("the language in the menu of the account", () => {
   it("offers the browser's language, French and English, in the language of the page", async () => {
     await open({ "GET /me": "me" });
@@ -208,7 +217,7 @@ describe("the language in the menu of the account", () => {
     await open({ "GET /me": "me" });
     server.client = createApiClient({
       address: "http://unreachable.invalid",
-      fetch: () => Promise.reject(new TypeError("fetch failed")),
+      fetch: () => Promise.reject(refusedConnection()),
     });
 
     await choose("English");

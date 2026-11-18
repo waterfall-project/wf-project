@@ -558,10 +558,45 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
     ("getEstimateIndicators", "query", "scope"): (
         "declared nothing, contract either=(enum={'project', 'unassigned'} | nothing)"
     ),
+    # The scope of the indicators of a project, read and judged as that of an estimate, after the
+    # state of the project, as the contract orders the refusals (``getProjectIndicators``,
+    # US-1660/L3).
+    ("getProjectIndicators", "query", "scope"): (
+        "declared nothing, contract either=(enum={'project', 'unassigned'} | nothing)"
+    ),
+    # The same scope, read by the two curves, which refuse as ``getProjectIndicators`` does
+    # (``getCostCurve``, ``getEarnedValueCurves``, US-1690/L2).
+    ("getCostCurve", "query", "scope"): (
+        "declared nothing, contract either=(enum={'project', 'unassigned'} | nothing)"
+    ),
+    ("getEarnedValueCurves", "query", "scope"): (
+        "declared nothing, contract either=(enum={'project', 'unassigned'} | nothing)"
+    ),
+    # The same scope, read by the evolution of the indices (``getIndexHistory``, US-1700).
+    ("getIndexHistory", "query", "scope"): (
+        "declared nothing, contract either=(enum={'project', 'unassigned'} | nothing)"
+    ),
     # The subproject asked of the actual costs: ``unassigned`` or an identifier, read as text and
     # judged by the route, whose refusal the contract names in 422, on the parameter
     # (``UNKNOWN_SUBPROJECT``, ``listActualCosts``, US-1620/L1).
     ("listActualCosts", "query", "subproject_id"): (
+        "declared nothing, contract either=(enum={'unassigned'} | nothing)"
+    ),
+    # The subproject asked of the projection of spending, as that of the actual costs: read as text
+    # and judged by the route, whose refusal the contract names in 422, on the parameter
+    # (``UNKNOWN_SUBPROJECT``, ``getProjectSpending``, US-2050/L1).
+    ("getProjectSpending", "query", "subproject_id"): (
+        "declared nothing, contract either=(enum={'unassigned'} | nothing)"
+    ),
+    # The subproject asked of the nodes, as that of the actual costs: read as text and judged by the
+    # route, strictly, on the parameter (``UNKNOWN_SUBPROJECT``), as EP-10 designs it, « Le filtre
+    # de sous-projet, lu strictement partout » (``listNodes``, ``compareRevisions``, US-2430/L2).
+    # The contract does not yet name that refusal in the 422 of these two routes
+    # (``docs/api/paths/revisions.yaml``): #3597, to be settled.
+    ("listNodes", "query", "subproject_id"): (
+        "declared nothing, contract either=(enum={'unassigned'} | nothing)"
+    ),
+    ("compareRevisions", "query", "subproject_id"): (
         "declared nothing, contract either=(enum={'unassigned'} | nothing)"
     ),
     # The sort of the actual costs is ``Text``, which refuses the NUL character: the schema no

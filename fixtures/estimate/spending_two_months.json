@@ -1,0 +1,16 @@
+{
+  "summary": "Une ligne de 1 200 portée par une tâche qui couvre exactement deux mois civils, février et mars 2026, sur un calendrier de huit heures du lundi au vendredi : février compte 20 jours travaillés, mars 22, les 1 200 se partagent au prorata de leurs heures, 20 sur 42 et 22 sur 42, soit 571,43 et 628,57 au centime, dont la somme est la ligne (WF-DEV-0100-A).",
+  "examples": ["WF-DEV-0100-A#72d0671c3c33"],
+  "weekly_hours": {
+    "monday": "8",
+    "tuesday": "8",
+    "wednesday": "8",
+    "thursday": "8",
+    "friday": "8",
+    "saturday": "0",
+    "sunday": "0"
+  },
+  "task": {"start": "2026-02-01", "finish": "2026-03-31", "finish_hours": "8"},
+  "line_amount": "1200",
+  "monthly_amounts": {"2026-02": "571.43", "2026-03": "628.57"}
+}

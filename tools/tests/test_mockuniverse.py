@@ -13,7 +13,7 @@ import json
 import re
 from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal
 from itertools import pairwise
 from typing import Any, cast
 
@@ -835,11 +835,13 @@ def test_the_hours_of_a_role_are_its_headcount_by_its_weekly_hours_by_fifty_two_
     # The semaine de trente-neuf heures, deactivated, is not listed: its hours are its label's.
     weeks.setdefault(universe(483), Decimal(39))
     for role in fixture("resource_roles")["items"]:
-        # The monthly hours are the role's, all its people counted (WF-REF-0100).
-        each = (weeks[role["calendar_id"]] * 52 / 12).quantize(Decimal("0.01"))
+        # The monthly hours are the role's, all its people counted, rounded once to the hundredth,
+        # a half to the even (WF-REF-0100, US-2410): never the rounded hours of one person
+        # multiplied by the headcount.
         capacity = role["capacity"]
         hours, headcount = Decimal(capacity["monthly_hours"]), Decimal(capacity["headcount"])
-        assert hours / headcount == each, role["label"]
+        calculated = headcount * weeks[role["calendar_id"]] * 52 / 12
+        assert hours == calculated.quantize(Decimal("0.01"), ROUND_HALF_EVEN), role["label"]
         assert role["audit"]["created_at"] == mockhistory.stamp(mockwitness.INSTALLED.instant)
 
 

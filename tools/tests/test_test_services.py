@@ -263,7 +263,7 @@ def test_a_failed_start_of_the_services_stops_before_the_tests(workstation: Work
 
 
 def test_run_refuses_an_unknown_service_and_a_run_that_asks_for_nothing(tmp_path: Path) -> None:
-    """US-1110: run --services names db, redis and storage; run needs --heavy or --services."""
+    """US-1110: run --services names db, redis and storage; run needs a mode or --services."""
     environment = {**os.environ, "XDG_RUNTIME_DIR": str(tmp_path)}
     unknown = subprocess.run(
         [sys.executable, str(SLOTS), "run", "--services", "db,mongo", "--", "true"],
@@ -282,7 +282,7 @@ def test_run_refuses_an_unknown_service_and_a_run_that_asks_for_nothing(tmp_path
         check=False,
     )
     assert nothing.returncode == 2
-    assert "needs --heavy, --services" in nothing.stderr
+    assert "needs --heavy, --exclusive or --services" in nothing.stderr
 
 
 def test_the_compose_file_has_the_images_the_platform_has_and_the_ports_of_slot_0() -> None:

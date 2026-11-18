@@ -46,7 +46,7 @@
         "calendar_id": "01926f3a-7c00-7000-8000-000000000482",
         "calendar_label": "Semaine de quatre jours",
         "capacity": {
-          "monthly_hours": "216662.50",
+          "monthly_hours": "216666.67",
           "headcount": "1250"
         },
         "is_active": false,

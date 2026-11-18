@@ -14,6 +14,7 @@ from estimate_support import pin_year
 from fastapi.testclient import TestClient
 from installations import Installation, Take, installed, taker
 from installed_reference import install
+from migrations_support import scratch_database
 from openapi_core import Config, OpenAPI
 from project_rows import drop_partitions, unguarded
 from pydantic import SecretStr
@@ -104,13 +105,16 @@ def pinned_year(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
-def installation_time_zone() -> None:
+def installation_time_zone() -> Iterator[None]:
     """Give each test a process whose installation is in universal time, read from no database.
 
     The entry points of the processes name the database their time zone is read from (US-2200); a
     test reaches the core without them, and may name another source (``TIME_ZONE.read_from``),
-    forgotten at the next test.
+    forgotten when it ends, whether it passed or failed: the time zone is restored after it too, so
+    that a test that stops before its end leaves nothing to the tests that follow (#3613).
     """
+    TIME_ZONE.read_from(lambda: DELIVERED_TIME_ZONE)
+    yield
     TIME_ZONE.read_from(lambda: DELIVERED_TIME_ZONE)
 
 
@@ -211,6 +215,13 @@ def client(contract: OpenAPI, services: Services) -> ContractClient:
 
 
 TEST_DATABASE_VARIABLE = "WATERFALL_TEST_DATABASE_URL"
+
+
+@pytest.fixture
+def empty_engine(database_url: str) -> Iterator[Engine]:
+    """Give an engine on a database of its own, without a table."""
+    with scratch_database(database_url) as engine:
+        yield engine
 
 
 @pytest.fixture(scope="session")
