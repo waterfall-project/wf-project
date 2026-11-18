@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
+from waterfall.core.cost_settings.interface import provision_category_active
 from waterfall.core.projects.interface import no_background_task_running
 from waterfall.core.revisions.commands import RevisionState
 from waterfall.core.revisions.interface.rates import rate_update_available
@@ -67,4 +68,5 @@ def state_of(
         has_tasks=revision_has_tasks(session, revision_id),
         rate_update_available=status == "draft"
         and rate_update_available(session, project_id, revision_id),
+        provision_category_active=status != "draft" or provision_category_active(session),
     )

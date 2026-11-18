@@ -168,6 +168,9 @@ def test_the_first_revision_is_born_current_with_its_main_structure_alone(
         "generate_skeleton": [],
         "edit_estimate": [],
         "edit_remaining": [],
+        "edit_risks": [],
+        # Without a task in its main structure, no risk is declared (WF-RIS-0010).
+        "declare_risk": ["at_least_one_task"],
         # A first revision keeps no rate: no update to propose (WF-REV-0060, US-1500).
         "apply_rate_update": ["rate_update_available"],
         "mark": [],

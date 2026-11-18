@@ -11,6 +11,7 @@ the copy of a revision takes the evaluations up, and its abandonment takes them 
 is checked against the contract (``ContractClient``).
 """
 
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -26,6 +27,7 @@ from sqlalchemy import func, select
 
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.core.risks.tables import RiskEvaluation
+from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -336,3 +338,109 @@ def test_the_abandonment_takes_the_evaluations_of_its_revision_away_and_advances
         ).all()
     assert evaluations == [project.revision_id]
     assert Decimal(after["probability"]) == Decimal("0.3")
+
+
+# --- The entries that advance the counter, and the provision that is never projected --------------
+
+
+def deleted_by(
+    risks: Risks, risk: dict[str, Any], revision_id: object, line: dict[str, Any], who: Person
+) -> None:
+    """Delete a node of the own estimate of a risk, as ``who`` does, at the counter read."""
+    path = f"{risks.own(risk, revision_id)}/{line['node_id']}?lock_version={line['lock_version']}"
+    answer = risks.api.delete(path, headers=who.headers)
+    assert answer.status_code == 200, answer.text
+
+
+@pytest.mark.requirement("WF-RIS-0030-A")
+def test_the_deletion_and_the_undoing_of_an_entry_of_the_own_estimate_advance_the_counter(
+    risks: Risks, project: Costed, realm: TestRealm
+) -> None:
+    # « …toute saisie dans le devis propre fait avancer `Risk.lock_version` » : la suppression de
+    # la ligne, puis son annulation, avancent le compteur du risque et suivent la provision.
+    writer = signed_in(project.stage, realm)
+    risk = risks.declared()
+    line = risks.costed_at(risk, project.revision_id, "200.00")
+    before = risks.risk(risk)
+    assert (before["severity"], before["provision_amount"]) == ("200.00", "60.00")
+    deleted_by(risks, risk, project.revision_id, line, writer)
+    deleted = risks.risk(risk)
+    assert (deleted["severity"], deleted["provision_amount"]) == ("0.00", "0.00")
+    assert deleted["lock_version"] > before["lock_version"]
+    assert main_line(project, risk["provision_node_id"])["reestimated_amount"] == "0.00"
+    undone(project.tree, writer)
+    restored = risks.risk(risk)
+    assert (restored["severity"], restored["provision_amount"]) == ("200.00", "60.00")
+    assert restored["lock_version"] > deleted["lock_version"]
+    assert main_line(project, risk["provision_node_id"])["reestimated_amount"] == "60.00"
+
+
+@pytest.mark.requirement("WF-RIS-0030-A")
+def test_the_undoing_of_a_creation_in_the_own_estimate_advances_the_counter(
+    risks: Risks, project: Costed, realm: TestRealm
+) -> None:
+    writer = signed_in(project.stage, realm)
+    risk = risks.declared()
+    path = risks.own(risk, project.revision_id)
+    answer = risks.api.post(
+        path,
+        headers=writer.headers,
+        json={"kind": "task", "parent_id": None, "task": {"label": "Grue"}},
+    )
+    assert answer.status_code == 201, answer.text
+    created = risks.risk(risk)
+    undone(project.tree, writer)
+    assert risks.risk(risk)["lock_version"] > created["lock_version"]
+
+
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_the_provision_line_is_never_projected_when_its_task_is_moved_in_the_main_structure(
+    api: ContractClient, risks: Risks, project: Costed
+) -> None:
+    # « …une ligne de provision n'est jamais projetée » : sous une inflation de 3 %, la tâche
+    # porteuse décalée de deux ans dans la structure principale redate la ligne, qui garde le
+    # montant de `provision_amount` — la gravité pondérée —, seule son année de consommation suit.
+    stage = project.stage
+    path = f"{PROJECTS}/{project.project_id}"
+    held = api.get(path, headers=stage.manager.headers).json()["lock_version"]
+    answer = api.patch(
+        path,
+        headers=stage.manager.headers,
+        json={"inflation_rate": "0.03", "lock_version": held},
+    )
+    assert answer.status_code == 200, answer.text
+    risk = risks.declared()
+    risks.costed_at(risk, project.revision_id, "200.00")
+    declared = risks.risk(risk)
+    carrier = project.tree.node(str(declared["provision_task"]["node_id"]))
+    year = utc_now().year + 2
+    monday = next(
+        day for day in (date(year, 11, each) for each in range(1, 8)) if day.weekday() == 0
+    )
+    moved = project.tree.change(
+        carrier,
+        scheduling_mode="manual",
+        start={"date": monday.isoformat()},
+        finish={"date": (monday + timedelta(days=1)).isoformat()},
+    )
+    assert moved.status_code == 200, moved.text
+    line = main_line(project, risk["provision_node_id"])
+    assert line["consumption_year"] == year
+    assert (line["base_amount"], line["reestimated_amount"]) == ("60.00", "60.00")
+    assert risks.risk(risk)["provision_amount"] == line["reestimated_amount"]
+
+
+@pytest.mark.requirement("WF-RIS-0030-A")
+def test_the_opening_of_a_revision_advances_the_counter_of_a_risk_whose_estimate_holds_a_node(
+    risks: Risks, project: Costed
+) -> None:
+    # The copy redates the own estimates that hold a node, which advances their risk; one that is
+    # empty is not redated, and its risk keeps its counter.
+    held = risks.declared()
+    empty = risks.declared()
+    risks.costed_at(held, project.revision_id, "200.00")
+    counters = (risks.risk(held)["lock_version"], risks.risk(empty)["lock_version"])
+    mark(project.stage, {"revision_id": str(project.revision_id)})
+    risks.revision()
+    assert risks.risk(held)["lock_version"] > counters[0]
+    assert risks.risk(empty)["lock_version"] == counters[1]

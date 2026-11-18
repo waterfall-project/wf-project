@@ -398,3 +398,131 @@ def test_a_risk_unknown_or_of_a_revision_that_does_not_hold_it_is_not_found(
     assert (
         read(api, stage, risk["risk_id"], f"?revision_id={project.revision_id}").status_code == 200
     )
+
+
+# --- The commands that announce the declaration ---------------------------------------------------
+
+
+def lacking(api: ContractClient, path: str, who: Any, command: str) -> list[str] | None:
+    """Read what a command lacks on the object at ``path``; none if it is not listed."""
+    answer = api.get(path, headers=who.headers)
+    assert answer.status_code == 200, answer.text
+    for each in answer.json()["available_commands"]:
+        if each["command"] == command:
+            return each["missing_conditions"]
+    return None
+
+
+def started_marking(api: ContractClient, stage: Scene, revision_id: object) -> None:
+    """Ask for the marking of a revision, which the worker does not run: a task is pending."""
+    path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{revision_id}"
+    held = api.get(path, headers=stage.manager.headers).json()
+    asked = api.post(
+        f"{path}/mark",
+        headers=stage.manager.headers,
+        json={"version_name": "v1.0", "lock_version": held["lock_version"]},
+    )
+    assert asked.status_code == 202, asked.text
+
+
+def judged_alike(
+    api: ContractClient, stage: Scene, path: str, expected: list[str], who: Any = None
+) -> None:
+    """Assert ``declare_risk`` at ``path`` lacks ``expected``, ``createRisk`` names its first."""
+    who = who or stage.manager
+    assert lacking(api, path, who, "declare_risk") == expected
+    refused_with(declare(api, stage, who), expected[0])
+
+
+@pytest.mark.requirement("WF-RIS-0020-A")
+def test_the_entry_of_the_risks_is_the_projects_until_a_revision_is_current_then_the_revisions(
+    api: ContractClient, project: Costed
+) -> None:
+    # « …`createRisk` est une saisie de la révision en cours, sous `edit_risks`, que la commande
+    # `declare_risk` annonce » : la révision en cours les liste, après le reste à engager ; le
+    # projet les porte tant qu'il n'en a pas ; une révision marquée n'en liste aucune.
+    stage = project.stage
+    base = f"{PROJECTS}/{stage.project['project_id']}"
+    revision = f"{base}/revisions/{project.revision_id}"
+    listed = api.get(revision, headers=stage.manager.headers).json()["available_commands"]
+    commands = [each["command"] for each in listed]
+    after = commands.index("edit_remaining") + 1
+    assert commands[after : after + 2] == ["edit_risks", "declare_risk"]
+    assert lacking(api, revision, stage.manager, "edit_risks") == []
+    assert lacking(api, revision, stage.manager, "declare_risk") == []
+    assert lacking(api, base, stage.manager, "edit_risks") is None
+    assert lacking(api, base, stage.manager, "declare_risk") is None
+    mark(stage, {"revision_id": str(project.revision_id)})
+    assert lacking(api, base, stage.manager, "edit_risks") == []
+    assert lacking(api, base, stage.manager, "declare_risk") == []
+    assert lacking(api, revision, stage.manager, "edit_risks") is None
+    assert lacking(api, revision, stage.manager, "declare_risk") is None
+
+
+@pytest.mark.requirement("WF-RIS-0020-A")
+def test_declare_risk_lacks_what_create_risk_refuses_in_the_same_order_on_a_revision(
+    api: ContractClient, stage: Scene
+) -> None:
+    # An empty revision, then the last category of provision deactivated, then its marking
+    # pending: « no_background_task_running, at_least_one_task, active_provision_category ».
+    revision = opened(api, stage)
+    path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{revision['revision_id']}"
+    judged_alike(api, stage, path, ["at_least_one_task"])
+    (delivered,) = provision_categories(stage)
+    deactivate(stage, delivered)
+    judged_alike(api, stage, path, ["at_least_one_task", "active_provision_category"])
+    started_marking(api, stage, revision["revision_id"])
+    expected = ["no_background_task_running", "at_least_one_task", "active_provision_category"]
+    judged_alike(api, stage, path, expected)
+    assert lacking(api, path, stage.manager, "edit_risks") == ["no_background_task_running"]
+
+
+@pytest.mark.requirement("WF-RIS-0020-A")
+def test_a_declaration_during_a_marking_is_refused_before_the_category_of_provision(
+    api: ContractClient, project: Costed
+) -> None:
+    stage = project.stage
+    path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{project.revision_id}"
+    started_marking(api, stage, project.revision_id)
+    before = counted(stage)
+    judged_alike(api, stage, path, ["no_background_task_running"])
+    (delivered,) = provision_categories(stage)
+    deactivate(stage, delivered)
+    judged_alike(api, stage, path, ["no_background_task_running", "active_provision_category"])
+    assert counted(stage) == before
+
+
+@pytest.mark.requirement("WF-RIS-0020-A")
+def test_declare_risk_lacks_what_create_risk_refuses_in_the_same_order_on_the_project(
+    api: ContractClient, stage: Scene, database: Database, realm: TestRealm
+) -> None:
+    # The project has no revision, so the declaration would open one, a copy of nothing: no task. A
+    # caller who may not create a revision is told so last, as the 409 does.
+    base = f"{PROJECTS}/{stage.project['project_id']}"
+    judged_alike(api, stage, base, ["at_least_one_task"])
+    (delivered,) = provision_categories(stage)
+    deactivate(stage, delivered)
+    judged_alike(api, stage, base, ["at_least_one_task", "active_provision_category"])
+    entering = person(
+        database,
+        realm,
+        *(each for each in PROJECT_MANAGER if each != "revisions.write"),
+        name="Léa",
+    )
+    contribute(database, stage.project["project_id"], entering, "contributor")
+    expected = ["at_least_one_task", "active_provision_category", "may_create_revision"]
+    judged_alike(api, stage, base, expected, entering)
+    assert lacking(api, base, entering, "edit_risks") == ["may_create_revision"]
+
+
+@pytest.mark.requirement("WF-RIS-0020-A")
+def test_declare_risk_of_the_project_judges_the_last_marked_revision_it_would_copy(
+    api: ContractClient, project: Costed
+) -> None:
+    stage = project.stage
+    base = f"{PROJECTS}/{stage.project['project_id']}"
+    mark(stage, {"revision_id": str(project.revision_id)})
+    assert lacking(api, base, stage.manager, "declare_risk") == []
+    (delivered,) = provision_categories(stage)
+    deactivate(stage, delivered)
+    judged_alike(api, stage, base, ["active_provision_category"])

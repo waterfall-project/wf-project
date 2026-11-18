@@ -27,6 +27,7 @@ from sqlalchemy.exc import IntegrityError
 
 from waterfall.core.cost_settings.interface import (
     missing_prerequisites,
+    provision_category_active,
     read_actual_cost_mapping,
 )
 from waterfall.core.projects.commands import (
@@ -84,6 +85,7 @@ ALREADY_EXISTS = "ALREADY_EXISTS"
 REFERENCE_INCOMPLETE = "REFERENCE_INCOMPLETE"
 # Who may import the actual costs of a project: its mapping is read for the command (WF-REF-0190).
 ACTUAL_COSTS_WRITE = "actual_costs.write"
+RISKS_WRITE = "risks.write"
 # The unique index of the code of a project (migration of the tables of the projects).
 CODE_INDEX = "uq_project_code"
 RATIOS = ("win_probability", "inflation_rate")
@@ -335,10 +337,11 @@ def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> lis
     rows = list(projects)
     kinds = _kinds(session, viewer.user_id, [row.id for row in rows])
     busy = projects_with_task_pending(session, [row.id for row in rows])
-    # Only a project without a current revision judges the skeleton on the revision it would open.
+    # Only a project without a current revision judges the skeleton, and the declaration of a risk,
+    # on the revision it would open.
     asking = (
         [row.id for row in rows if row.current_revision_id is None and row.state not in TERMINAL]
-        if "planning.write" in viewer.permissions
+        if "planning.write" in viewer.permissions or RISKS_WRITE in viewer.permissions
         else []
     )
     opening: frozenset[UUID] = opening_with_tasks(session, asking) if asking else frozenset()
@@ -348,6 +351,12 @@ def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> lis
         read_actual_cost_mapping(session).is_complete
         if ACTUAL_COSTS_WRITE in viewer.permissions
         and any(row.state not in TERMINAL for row in rows)
+        else True
+    )
+    # The category of provision the declaration of a risk asks, read once (WF-RIS-0010).
+    provision_active = (
+        provision_category_active(session)
+        if RISKS_WRITE in viewer.permissions and any(row.state not in TERMINAL for row in rows)
         else True
     )
     return [
@@ -374,6 +383,7 @@ def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> lis
                         no_task_running=row.id not in busy,
                         opening_has_tasks=row.id in opening,
                         mapping_complete=mapping_complete,
+                        provision_category_active=provision_active,
                     ),
                 )
             ),

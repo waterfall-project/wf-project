@@ -36,6 +36,8 @@ PROJECT_IN_PROGRESS = "project_in_progress"
 NO_CURRENT_REVISION = "no_current_revision"
 REVISION_DRAFT = "revision_draft"
 MAIN_STRUCTURE_WITHOUT_TASKS = "main_structure_without_tasks"
+AT_LEAST_ONE_TASK = "at_least_one_task"
+ACTIVE_PROVISION_CATEGORY = "active_provision_category"
 REVISION_MARKED = "revision_marked"
 REVISION_HAS_TASKS_AND_LINES = "revision_has_tasks_and_lines"
 REFERENCE_CORRECTABLE = "reference_correctable"
@@ -51,6 +53,8 @@ class Rule:
     manager: bool = False
 
 
+RISK_ENTRIES = ("edit_risks", "declare_risk")
+
 # In the order of ``RevisionCommand``. The marking, the designation and the abandonment have a
 # permission of their own, structuring actions reserved to the project managers (WF-ADM-0100).
 REVISION_RULES: tuple[Rule, ...] = (
@@ -58,6 +62,10 @@ REVISION_RULES: tuple[Rule, ...] = (
     Rule("generate_skeleton", "planning.write"),
     Rule("edit_estimate", "estimate.write"),
     Rule("edit_remaining", "remaining.write"),
+    # The entry of the risks and the declaration of one, listed on a revision in progress
+    # alone: a marked revision is immutable, and carries neither (WF-DAT-0020).
+    Rule("edit_risks", "risks.write"),
+    Rule("declare_risk", "risks.write"),
     # A write of the revision, guarded by the permission to manage the revisions, that of
     # ``createRevision``, which applies it at the creation (WF-REV-0060; US-1500).
     Rule("apply_rate_update", "revisions.write"),
@@ -90,7 +98,9 @@ class RevisionState:
     """What the conditions of a revision read: its status, its facts, its project's.
 
     ``rate_update_available`` whether its proposal of rates presents a category (US-1500), judged
-    on a current revision alone.
+    on a current revision alone; ``provision_category_active`` whether an active category of the
+    provision kind exists, which the declaration of a risk asks (WF-RIS-0010), read for a revision
+    in progress alone.
     """
 
     marked: bool
@@ -99,6 +109,7 @@ class RevisionState:
     reference_correctable: bool
     has_tasks: bool = False
     rate_update_available: bool = False
+    provision_category_active: bool = True
 
 
 def quality_conditions(kind: str | None, *, manager: bool) -> list[str]:
@@ -117,7 +128,9 @@ def revision_conditions(command: str, revision: RevisionState) -> list[str]:
     which asks it marked, lacks ``revision_marked`` on the current one, then what it asks of it:
     tasks and lines, a designation still correctable, no background task (WF-CYC-0030, WF-REV-0040).
     The skeleton lacks, on a draft, a main structure without tasks before the background task; the
-    update of the rates, a proposal that presents a category (WF-REV-0060, #1351).
+    update of the rates, a proposal that presents a category (WF-REV-0060, #1351). The declaration
+    of a risk lacks, in the order ``createRisk`` judges them, the background task, a main
+    structure without a task, then no active category of provision (WF-RIS-0010).
     """
     if command == "designate_reference":
         missing = [] if revision.marked else [REVISION_MARKED]
@@ -130,6 +143,12 @@ def revision_conditions(command: str, revision: RevisionState) -> list[str]:
         return missing
     if revision.marked:
         return [REVISION_DRAFT]
+    if command == "declare_risk":
+        return [
+            *([] if revision.no_task_running else [NO_BACKGROUND_TASK_RUNNING]),
+            *([] if revision.has_tasks else [AT_LEAST_ONE_TASK]),
+            *([] if revision.provision_category_active else [ACTIVE_PROVISION_CATEGORY]),
+        ]
     # The skeleton asks a main structure without tasks first, its own condition (WF-PRJ-0030).
     skeleton = command == "generate_skeleton" and revision.has_tasks
     missing = [MAIN_STRUCTURE_WITHOUT_TASKS] if skeleton else []
@@ -163,6 +182,7 @@ def revision_commands(
     ]
     if state in TERMINAL:
         return exports
+    # A marked revision carries no entry of the risks: only the current one does.
     return [
         *(
             (
@@ -174,6 +194,7 @@ def revision_commands(
             )
             for rule in REVISION_RULES
             if rule.permission in permissions
+            and not (rule.command in RISK_ENTRIES and revision.marked)
         ),
         *exports,
     ]

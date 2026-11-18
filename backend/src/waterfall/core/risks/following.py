@@ -14,7 +14,10 @@ Registered at the import of the interface of the risks (EP-08, "Modules"):
   estimate and its provision line by their copies, after the structures and the nodes whose copies
   it names; the reviews and the shares are not (EP-08, "Tables et migrations"). The own estimate of
   a risk that occurred is consumed by its occurrence, and not copied: US-2620 says what its
-  evaluation becomes;
+  evaluation becomes. ``copy_evaluations`` advances no counter itself: the counter of a risk
+  advances at the opening because the planning redates each copied structure that holds a node
+  (``redate_copy``), which counts it as any write of its tree — the own estimate of a risk that
+  holds none is not redated, and its risk keeps its counter;
 - **the closing of a revision abandoned** (``register_closing``, ``evaluations``): its reviews and
   its evaluations are deleted before its nodes and its structures, which they name, and the counter
   of each risk it evaluated advances, never going back (H-02, #1783). A risk the revision declared
