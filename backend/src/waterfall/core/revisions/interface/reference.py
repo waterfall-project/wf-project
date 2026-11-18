@@ -232,16 +232,6 @@ def revision_has_tasks_and_lines(session: Session, revision_id: UUID) -> bool:
     return all(question(session, revision_id) for _, question in questions)
 
 
-def revision_has_tasks(session: Session, revision_id: UUID) -> bool:
-    """Tell whether a revision bears a task, by the questions of its tasks (``tasks`` part).
-
-    What the generation of the planning skeleton asks of the main structure (WF-PRJ-0030); the
-    planning's question covers every structure of the revision until the differentials of EP-08.
-    """
-    questions = [question for part, question in _TASKS_AND_LINES.entries() if part == "tasks"]
-    return any(question(session, revision_id) for question in questions)
-
-
 def register_main_task_question(
     question: Callable[[Session, Select[UUID]], bool],
 ) -> Callable[[], None]:
@@ -255,9 +245,10 @@ def register_main_task_question(
 def main_structure_has_task(session: Session, project_id: UUID, revision_id: UUID) -> bool:
     """Tell whether the main structure of a revision bears a task, by the questions registered.
 
-    What the declaration of a risk asks of the revision it writes in (WF-RIS-0010), where
-    ``revision_has_tasks`` covers every structure of the revision; false while none is registered.
-    The structure is given to the questions as a selection, so that they read it in one statement.
+    What the declaration of a risk (WF-RIS-0010) and the generation of the planning skeleton
+    (WF-PRJ-0030, #2541) ask of the revision: a task of the main structure alone, whichever tasks
+    the differentials bear; false while no question is registered. The structure is given to the
+    questions as a selection, so that they read it in one statement.
     """
     questions = _MAIN_TASK.entries()
     main = select(CostStructure.id).where(

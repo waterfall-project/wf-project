@@ -436,7 +436,45 @@ def compare(
 
     ``written`` how the reader writes a node whole, whose values the union compares.
     """
-    reads, (base_place, compared_place) = compared_places(session, project_id, asked)
+    reads, places = compared_places(session, project_id, asked)
+    return _compare(session, project_id, asked, (reads, places), written)
+
+
+def compare_differential(
+    session: Session,
+    place: Place,
+    filters: NodeFilters,
+    differences: tuple[str, ...] | None,
+    written: Written,
+) -> Comparison:
+    """Read a differential as a diff with the main structure of its revision (``listNodes``).
+
+    As ``compare`` reads two revisions, the base being the main structure of the revision of the
+    differential, current and not marked, which the union matches by lineage (WF-REV-0100,
+    WF-DAT-0030): a node of the differential that the main structure lacks is added, a node of the
+    main structure that the differential lacks removed, at its place, read-only, and every other
+    node unchanged or modified (C-361). The totals are the differential's, the removed nodes left
+    out of them; ``differences`` the marks ``difference`` keeps, none to keep them all.
+    """
+    project_id, revision_id = place.project_id, place.revision_id
+    read = read_revision_for(session, project_id, revision_id)
+    main_id = aimed_structure(session, project_id, revision_id, None)
+    if main_id is None:
+        raise NotFoundError(NOT_FOUND)
+    asked = ComparisonAsked(revision_id, revision_id, filters, differences)
+    places = (Place(project_id, revision_id, main_id), place)
+    return _compare(session, project_id, asked, ((read, read), places), written)
+
+
+def _compare(
+    session: Session,
+    project_id: UUID,
+    asked: ComparisonAsked,
+    revisions: tuple[tuple[RevisionRead, RevisionRead], tuple[Place, Place]],
+    written: Written,
+) -> Comparison:
+    """Compare two structures read as ``listNodes`` reads them, the base one first."""
+    reads, (base_place, compared_place) = revisions
     filters = asked.filters
     widened = asked.include_differences and filters.progress is not None
     reading = replace(filters, progress=None) if widened else filters

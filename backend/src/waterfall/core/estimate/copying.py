@@ -85,9 +85,13 @@ def copy_lines(copy: RevisionCopy) -> None:
     Under the nodes the planning copied (``copy.identifiers``), at their first version, with the
     stamp of the opening; the budgeted amount by the lineage in the reference revision; and, from a
     source marked once its project was In progress, its figures and its re-estimated amount as the
-    remaining to commit before the review (``previous_*``), none otherwise (EP-09).
+    remaining to commit before the review (``previous_*``), none otherwise (EP-09). The copy of a
+    structure into another of the same revision (``copy.source`` is ``copy.target``, a differential
+    opened) keeps each line as it is: its budgeted amount and its remaining to commit before, not
+    the reference's again.
     """
     session, ids = copy.session, copy.identifiers
+    same = copy.source == copy.target
     sources = list(
         session.scalars(
             select(EstimateLine.node_id).where(
@@ -97,21 +101,22 @@ def copy_lines(copy: RevisionCopy) -> None:
     )
     if not sources:
         return
-    budgets, referenced = _budgeted(session, copy.project_id, sources)
+    budgets, referenced = ({}, False) if same else _budgeted(session, copy.project_id, sources)
     node = copies({each: ids[each] for each in sources}, "copied_line")
     at, author = literal(copy.at, UtcDateTime()), literal(copy.author, Uuid())
     replaced: dict[str, ColumnElement[Any]] = {
         "node_id": node.c.copy,
-        "budgeted_amount": null(),
         "lock_version": literal(1, Integer()),
         "created_at": at,
         "created_by": author,
         "updated_at": at,
         "updated_by": author,
     }
-    reviewed = was_reviewed(session, copy.project_id, copy.source)
-    for figure in PREVIOUS:
-        replaced[f"previous_{figure}"] = LINE.c[figure] if reviewed else null()
+    if not same:
+        replaced["budgeted_amount"] = null()
+        reviewed = was_reviewed(session, copy.project_id, copy.source)
+        for figure in PREVIOUS:
+            replaced[f"previous_{figure}"] = LINE.c[figure] if reviewed else null()
     rows = select().select_from(LINE).join(node, node.c.source == LINE.c.node_id)
     if referenced:
         budget = (

@@ -67,6 +67,8 @@ if TYPE_CHECKING:
     from waterfall.platform.audit import Act
 
 MAIN = "main"
+# The kind of a differential, the amendment a negotiation prepares (``StructureKind``).
+AMENDMENT = "amendment"
 # The kind of the own estimate of a risk (``StructureKind``).
 RISK = "risk"
 # The label of the main structure at its creation, as the examples of the contract name it.
@@ -193,6 +195,46 @@ def create_own_estimate(
             risk_id=risk_id,
             planning_start_on=current_day(act.at),
             scheduled_at=act.at,
+            lock_version=FIRST_VERSION,
+            created_at=act.at,
+            created_by=act.author,
+            updated_at=act.at,
+            updated_by=act.author,
+        )
+    )
+    session.flush()
+    return structure_id
+
+
+def create_differential(
+    session: Session,
+    revision: tuple[UUID, UUID],
+    main: StructureFacts,
+    label: str,
+    act: Act,
+) -> UUID:
+    """Create a differential in a revision, copy of its main structure by its start; give it.
+
+    ``revision`` is the project and the revision, ``main`` the facts of its main structure, read
+    under its lock. The differential starts its planning the day the main structure does and holds
+    its dates as it computed them (``scheduled_at``); its nodes are copied after it
+    (``open_differential``). The lineage of the structure is its own: the next revision copies it
+    under that lineage (WF-REV-0100, WF-DAT-0030). The label is not unique: several differentials
+    coexist.
+    """
+    project_id, revision_id = revision
+    structure_id = new_id()
+    session.add(
+        CostStructure(
+            project_id=project_id,
+            id=structure_id,
+            revision_id=revision_id,
+            kind=AMENDMENT,
+            label=label,
+            is_merged=False,
+            lineage_id=structure_id,
+            planning_start_on=main.planning_start_on,
+            scheduled_at=main.scheduled_at,
             lock_version=FIRST_VERSION,
             created_at=act.at,
             created_by=act.author,
@@ -372,14 +414,21 @@ def structure_in_revision(
     )
 
 
+def read_cost_structure(
+    session: Session, project_id: UUID, revision_id: UUID, structure_id: UUID, viewer: Viewer
+) -> StructureView:
+    """Read a structure of a revision as the list gives it, with its commands; or 404."""
+    for view in list_cost_structures(session, project_id, revision_id, viewer):
+        if view.structure_id == structure_id:
+            return view
+    raise NotFoundError(NOT_FOUND)
+
+
 def structure_commands(
     session: Session, project_id: UUID, revision_id: UUID, structure_id: UUID, viewer: Viewer
 ) -> tuple[CommandAvailability, ...]:
     """Give the commands of a structure of a revision and the conditions each lacks; or 404."""
-    for view in list_cost_structures(session, project_id, revision_id, viewer):
-        if view.structure_id == structure_id:
-            return view.commands
-    raise NotFoundError(NOT_FOUND)
+    return read_cost_structure(session, project_id, revision_id, structure_id, viewer).commands
 
 
 def structure_phase_conditions(command: str, state: str, *, main: bool) -> tuple[str, ...]:
@@ -398,7 +447,8 @@ class StructureFacts:
     """What the planning reads of a structure: its revision, its kind, its start, its instant.
 
     ``planning_start_on`` and ``scheduled_at`` are derived as the list reads them when the
-    migration left them null (#2170); ``lock_version`` is the counter of its writes.
+    migration left them null (#2170); ``lock_version`` is the counter of its writes, ``kind`` its
+    nature.
     """
 
     structure_id: UUID
@@ -408,6 +458,12 @@ class StructureFacts:
     scheduled_at: datetime
     lock_version: int
     label: str
+    kind: str = MAIN
+
+    @property
+    def is_differential(self) -> bool:
+        """Tell whether the structure is a differential, read against the main one (WF-REV-0100)."""
+        return self.kind == AMENDMENT
 
 
 def structure_facts(
@@ -435,7 +491,7 @@ def structure_facts(
         )
         start = (origin or row.created_at).date()
     return StructureFacts(
-        row.id, row.revision_id, row.kind == MAIN, start, at, row.lock_version, row.label
+        row.id, row.revision_id, row.kind == MAIN, start, at, row.lock_version, row.label, row.kind
     )
 
 

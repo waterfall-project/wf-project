@@ -117,12 +117,11 @@ from waterfall.core.projects.interface.projects import (
     update_project,
 )
 
-# ``skeleton`` (US-1460): whether the revision a project would open carries a task.
+# ``skeleton`` (US-1460, #2541): whether the main structure of the revision a project would open
+# carries a task.
 from waterfall.core.projects.interface.skeleton import (
     opening_main_with_tasks,
-    opening_with_tasks,
     register_opening_main_question,
-    register_opening_question,
 )
 
 # ``subprojects`` (US-0940; the facts of the actual costs, US-1610/L3): the subprojects of a
@@ -265,7 +264,6 @@ __all__ = [
     "next_state",
     "no_background_task_running",
     "opening_main_with_tasks",
-    "opening_with_tasks",
     "project_code",
     "project_commands",
     "project_exists",
@@ -281,7 +279,6 @@ __all__ = [
     "register_cost_facts",
     "register_estimate_facts",
     "register_opening_main_question",
-    "register_opening_question",
     "require_project_manager",
     "set_contributors",
     "set_current_revision",

@@ -296,8 +296,8 @@ def declared(costed: Costed, label: str = "Retard du fournisseur") -> Declared:
 def differential(costed: Costed, label: str = "Avenant 1") -> UUID:
     """Open an empty differential in the current revision of a project costed, around the service.
 
-    A structure of the kind ``amendment``; a test writes its nodes. Its copy of the main structure
-    is US-2550/L3's.
+    A structure of the kind ``amendment``; a test writes its nodes. The copy of the main structure
+    the service makes (``createCostStructure``, US-2550/L3) is ``amendments_support``'s.
     """
     row = structure_row(costed.project_id, costed.revision_id, kind="amendment", label=label)
     structure_id = row["id"]

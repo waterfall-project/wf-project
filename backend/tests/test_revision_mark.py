@@ -435,6 +435,7 @@ def test_while_the_marking_is_pending_the_writes_of_the_revision_name_the_task(
         "edit_remaining": running,
         "edit_risks": running,
         "declare_risk": [*running, "at_least_one_task"],
+        "create_structure": running,
         "apply_rate_update": ["rate_update_available", *running],
         "mark": running,
         "designate_reference": ["revision_marked", "revision_has_tasks_and_lines", *running],

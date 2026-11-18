@@ -111,6 +111,9 @@ from waterfall.core.estimate.interface.calendars import (
 from waterfall.core.estimate.interface.comparison import (
     compare_revisions as compare_revisions,
 )
+from waterfall.core.estimate.interface.comparison import (
+    read_differential as read_differential,
+)
 
 # ``contributors`` (US-1490/L1; US-1540): the roles the lines employ.
 from waterfall.core.estimate.interface.contributors import (

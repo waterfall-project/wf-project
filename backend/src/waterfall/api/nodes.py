@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The tree of the tasks of a structure (WF-PLA-0040, 0050, 0070, 0150, 0170).
 
-``listNodes``, ``createNode``, ``updateTaskFacet``, ``getComputedValueDependencies`` and
-``resolveRowNumber`` (US-1380/L2); ``deleteNode`` and ``moveNodes`` (US-1380/L3); the lines of
-estimate in them, their facet, their filters, their sort, their totals and the amounts of the tasks
-(US-1490/L3), which the planning reads by the hooks of the facet the estimate registers.
+``createNode``, ``updateTaskFacet``, ``getComputedValueDependencies`` and ``resolveRowNumber``
+(US-1380/L2), and ``listNodes``, which ``amendments`` serves since US-2550/L3, reading a
+differential as a diff with the main structure; ``deleteNode`` and ``moveNodes`` (US-1380/L3); the
+lines of estimate in them, their facet, their filters, their sort, their totals and the amounts of
+the tasks (US-1490/L3), which the planning reads by the hooks of the facet the estimate registers.
 
 A structure is read by whoever may consult the planning of its project; its tasks are written by
 the contributors of the project who may write the planning (``StructureCommand.edit_planning``).
@@ -637,7 +638,7 @@ def joined(document: bytes, inscriptions: Mapping[UUID, tuple[TrackingView, ...]
     return b"".join(parts)
 
 
-def _gives_progress(fields: frozenset[str] | None) -> bool:
+def gives_progress(fields: frozenset[str] | None) -> bool:
     """Tell whether a reading gives the physical progress of the summaries (``listNodes``).
 
     Whole, or when ``fields`` names it, or names the facet of a task that holds it.
@@ -656,7 +657,7 @@ def whole_nodes(session: Session, place: Place, fields: frozenset[str] | None) -
     if fields is not None:
         read = kept_body(session, place)
         if read is None:
-            records = list_records(session, place, NodeFilters(), progress=_gives_progress(fields))
+            records = list_records(session, place, NodeFilters(), progress=gives_progress(fields))
             return read_body(nodes_body(records, fields))
         read["items"] = [projected(item, fields) for item in read["items"]]
         return read_body(read)
@@ -819,25 +820,6 @@ def place_of(project_id: UUID, revision_id: UUID, structure_id: UUID) -> Place:
 
 Placed = Annotated[Place, Depends(place_of)]
 Writing = Annotated[Writer, Depends(writer_of)]
-
-
-@router.get(
-    f"{STRUCTURE}/nodes",
-    operation_id="listNodes",
-    dependencies=[Depends(RequiresProject(CONSULT))],
-    response_model=None,
-)
-def get_nodes(
-    place: Placed,
-    asked: Annotated[tuple[NodeFilters, frozenset[str] | None], Depends(node_reading)],
-    session: Transaction,
-) -> Response:
-    """Give the nodes of a structure retained, depth first, their totals and its meta."""
-    filters, fields = asked
-    if filters == NodeFilters():
-        return whole_nodes(session, place, fields)
-    read = list_records(session, place, filters, progress=_gives_progress(fields))
-    return read_body(nodes_body(read, fields))
 
 
 @router.post(
