@@ -3643,22 +3643,24 @@ WATERFALL_MIRROR=` avant le `FROM` dans un `Dockerfile`, que `--build-arg WATERF
 pas une référence préfixée (`${WATERFALL_MIRROR:-}…`, `FROM ${WATERFALL_MIRROR}…`) : sa veille des
 images ne trouvait plus rien depuis le miroir (#3025). Il suit à la place le **manifeste des images**,
 `deploy/images/Dockerfile`, qu'aucune construction ne lit : une ligne `FROM <image>:<étiquette>@sha256:…`
-sans préfixe par image de Docker Hub que le dépôt épingle (US-2490) : une image, une version dans le dépôt, le manifeste refuse un chemin nommé deux fois. Un test des outils
+sans préfixe par image de Docker Hub que le dépôt épingle (US-2490) : une image, une version dans le
+dépôt, le manifeste refuse un chemin nommé deux fois. Un test des outils
 (`tools/tests/test_mirror_manifest.py`) échoue quand une référence des `Dockerfile`, des fichiers
 Compose ou des workflows, préfixée ou non, n'est pas celle du manifeste, étiquette et empreinte, ou
 quand le manifeste porte une image que rien n'emploie. Une montée de Dependabot ne change que le
-manifeste, et sa chaîne échoue sur ce test jusqu'aux deux gestes d'une personne, poussés sur la branche
-de sa pull request : `make mirror-sync`, qui recopie le manifeste dans les références sans toucher au
-préfixe, ancres YAML comprises, puis `make mirror PUSH=yes`, qui copie la nouvelle empreinte dans le
-miroir. Le repli sur Docker Hub quand le miroir ne tient pas toutes les empreintes (#3025) n'est pas
-fait : la pull request d'une montée attend ces gestes. Les workflows
-qui construisent ou lancent Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`,
-`production.yml`, `images.yml`) posent `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` et s'y connectent ; les
-services de `back.yml` et de `front.yml` nomment le miroir en toutes lettres. Le miroir est tenu par
-`make mirror PUSH=yes` (`wftools.mirror`) : il lit ces références, demande à ghcr.io si l'empreinte
-y est — présente, rien d'autre n'est lu, Docker Hub non plus —, et copie celles qui manquent de
-Docker Hub, par empreinte (`docker buildx imagetools create` écrit le manifeste tel quel,
-l'empreinte est vérifiée après), sous une étiquette qui porte le début de l'empreinte : une même
+manifeste, et sa chaîne échoue sur ce test jusqu'aux deux gestes d'une personne, poussés sur la
+branche de sa pull request : `make mirror-sync`, qui recopie le manifeste dans les références sans
+toucher au préfixe, ancres YAML comprises, puis `make mirror PUSH=yes`, qui copie la nouvelle
+empreinte dans le miroir. Le repli sur Docker Hub quand le miroir ne tient pas toutes les empreintes
+(#3025) n'est pas fait : la pull request d'une montée attend ces gestes. Les workflows qui
+construisent ou lancent Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`,
+`production.yml`, `images.yml`) posent `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` et s'y
+connectent ; les services de `back.yml` et de `front.yml` nomment le miroir en toutes lettres.
+Le miroir est tenu par `make mirror PUSH=yes` (`wftools.mirror`) : il lit ces références, demande
+à ghcr.io si l'empreinte y
+est — présente, rien d'autre n'est lu, Docker Hub non plus —, et copie celles qui manquent de Docker
+Hub, par empreinte (`docker buildx imagetools create` écrit le manifeste tel quel, l'empreinte est
+vérifiée après), sous une étiquette qui porte le début de l'empreinte : une même
 étiquette de Docker Hub a pu avoir deux empreintes dans nos fichiers (Caddy, avant le manifeste). Une
 copie que ghcr.io refuse (`denied`) est refaite une fois avant d'échouer : il a refusé une fois la
 création d'un paquet qu'il a acceptée au passage suivant (#3028). Quand il refuse de répondre, le
@@ -4102,18 +4104,18 @@ un identifiant d'exigence inconnu.
 
 **Un test non exécuté** ne couvre rien, et le relevé le sait sans lancer les tests, à ce que le test
 déclare : en TypeScript, un `.skip`, `.fixme` ou `.todo`, ou un appel sous un `describe.skip` ou un
-`describe.fixme` ; en Python, la marque `@pytest.mark.unexecuted("<raison>")`, sur le test, sa classe
-(`pytestmark` compris) ou son module, qu'un test qui peut se sauter — faute du XSD MSPDI, d'un
-service — porte, et qu'un crochet des `conftest.py` rend obligatoire : un test qui se saute sans la
-porter échoue. Le relevé liste ses citations sous leur exigence, « non exécuté », sans les compter :
-une exigence que seuls des tests non exécutés citent est non couverte, et `make requirements-release`
-la nomme. Un `test.skip(` ou `test.fixme(` sans titre, appelé dans le corps d'un test (dans le
-groupe, à défaut), laisse le test exécuté quand son premier argument est `inService` ou `!inService`, et le
-sort « non exécuté » pour tout autre (`true`, `!inService || manager === undefined`…), comme un test
-qui porte les deux formes ; `it.skipIf(` et `it.runIf(` ne sont pas vus : le test compte comme
-exécuté. Une citation dans un commentaire n'est pas une citation : seuls les titres des
-`it(` et `test(` sont lus, et une forme d'appel que le relevé ne connaît pas le fait échouer en
-nommant le fichier et la ligne.
+`describe.fixme` ; en Python, la marque `@pytest.mark.unexecuted("<raison>")`, sur le test, sa
+classe (`pytestmark` compris) ou son module, qu'un test qui peut se sauter — faute du XSD MSPDI,
+d'un service — porte, et qu'un crochet des `conftest.py` rend obligatoire : un test qui se saute
+sans la porter échoue. Le relevé liste ses citations sous leur exigence, « non exécuté », sans les
+compter : une exigence que seuls des tests non exécutés citent est non couverte, et `make
+requirements-release` la nomme. Un `test.skip(` ou `test.fixme(` sans titre, appelé dans le corps
+d'un test (dans le groupe, à défaut), laisse le test exécuté quand son premier argument est
+`inService` ou `!inService`, et le sort « non exécuté » pour tout autre (`true`, `!inService ||
+manager === undefined`…), comme un test qui porte les deux formes ; `it.skipIf(` et `it.runIf(` ne
+sont pas vus : le test compte comme exécuté. Une citation dans un commentaire n'est pas une citation
+: seuls les titres des `it(` et `test(` sont lus, et une forme d'appel que le relevé ne connaît pas
+le fait échouer en nommant le fichier et la ligne.
 
 _Contrôles_ : `make requirements` lit les citations dans les fichiers de test, sans les lancer, et
 publie le relevé — chaque exigence F0 avec les tests qui la couvrent et leur famille, celle que
@@ -4158,8 +4160,9 @@ test défait.
   le retire aussi. Aucun `docker run` à la main. Une variable que l'environnement pose déjà
   l'emporte, et son service n'est pas démarré : la chaîne n'est pas changée.
 - **Le client PostgreSQL du poste** est celui de la majeure du serveur, 18 : `pg_dump` et
-  `pg_restore` dans `/usr/bin` (`postgresql-client-18`, celui d'Ubuntu 26.04), que les tests des
-  sauvegardes et des restaurations appellent ; `make check-tools` avertit d'un autre. Un client
+  `pg_restore` dans `/usr/bin` (`postgresql-client-18` : celui de l'archive d'Ubuntu 26.04 sur un
+  poste, celui du dépôt PGDG sur le runner, que l'image `ubuntu-26.04` porte déjà), que les tests
+  des sauvegardes et des restaurations appellent ; `make check-tools` avertit d'un autre. Un client
   plus récent que le serveur lui pose des réglages qu'il ne connaît pas, et aucune restauration
   n'aboutit (#982) ; un client plus ancien refuse de vider la base.
 - **Sans la variable**, un test qui a besoin de la base **échoue** en le disant, et ne passe pas

@@ -3621,16 +3621,16 @@ not read a prefixed reference (`${WATERFALL_MIRROR:-}…`, `FROM ${WATERFALL_MIR
 the images found nothing any more from the mirror on (#3025). It follows instead the **manifest of
 the images**, `deploy/images/Dockerfile`, which no build reads: one line
 `FROM <image>:<tag>@sha256:…` without prefix per image of Docker Hub the repository pins
-(US-2490): one image, one version in the repository, the manifest refuses a path named twice. A test of the tools (`tools/tests/test_mirror_manifest.py`) fails when a reference of the
-`Dockerfile`s, the Compose files or the workflows, prefixed or not, is not the manifest's, tag and
-digest, or when the manifest carries an image nothing uses. A raise by Dependabot changes only the
-manifest, and its chain fails on that test until the two gestures of a person, pushed to the branch
-of its pull request: `make mirror-sync`, which copies the manifest into the references without
-touching the prefix, YAML anchors included, then `make mirror PUSH=yes`, which copies the new digest
-to the mirror. The fallback to Docker Hub when the mirror does not hold every digest (#3025) is not
-done: the pull request of a raise waits for these gestures. The workflows that
-build or run Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`, `production.yml`,
-`images.yml`)
+(US-2490): one image, one version in the repository, the manifest refuses a path named twice. A test
+of the tools (`tools/tests/test_mirror_manifest.py`) fails when a reference of the `Dockerfile`s,
+the Compose files or the workflows, prefixed or not, is not the manifest's, tag and digest, or when
+the manifest carries an image nothing uses. A raise by Dependabot changes only the manifest, and its
+chain fails on that test until the two gestures of a person, pushed to the branch of its pull
+request: `make mirror-sync`, which copies the manifest into the references without touching the
+prefix, YAML anchors included, then `make mirror PUSH=yes`, which copies the new digest to the
+mirror. The fallback to Docker Hub when the mirror does not hold every digest (#3025) is not done:
+the pull request of a raise waits for these gestures. The workflows that build or run Compose
+(`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`, `production.yml`, `images.yml`)
 set `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` and log in to it; the services of
 `back.yml` and `front.yml` name the mirror in full. The mirror is kept by `make mirror PUSH=yes`
 (`wftools.mirror`): it reads those references, asks ghcr.io whether the digest is there — held,
@@ -4125,9 +4125,10 @@ table marks (`WRITTEN_BY_MIGRATION` in its `info`); `session` returns a session 
   removes it too. No `docker run` by hand. A variable the environment already sets wins, and its
   service is not started: the chain is not changed.
 - **The PostgreSQL client of the workstation** is the one of the major of the server, 18:
-  `pg_dump` and `pg_restore` in `/usr/bin` (`postgresql-client-18`, Ubuntu 26.04's), which the
-  tests of the backups and the restorations call; `make check-tools` warns of another. A client
-  newer than the server sets settings it does not know, and no restoration ends (#982); an older
+  `pg_dump` and `pg_restore` in `/usr/bin` (`postgresql-client-18`: Ubuntu 26.04's archive on a
+  workstation, the PGDG repository on the runner, whose `ubuntu-26.04` image already carries it),
+  which the tests of the backups and the restorations call; `make check-tools` warns of another. A
+  client newer than the server sets settings it does not know, and no restoration ends (#982); an older
   client refuses to dump the database.
 - **Without the variable**, a test that needs the database **fails** saying so, and does not pass
   silently. The tests of `examples/`, sockets closed, do not need it.
