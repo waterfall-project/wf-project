@@ -1031,6 +1031,7 @@ class CommandCondition(StrEnum):
     subproject_without_actual_costs = "subproject_without_actual_costs"
     subproject_without_estimate_lines = "subproject_without_estimate_lines"
     main_structure_without_tasks = "main_structure_without_tasks"
+    main_structure = "main_structure"
     import_awaiting_decision = "import_awaiting_decision"
     import_file_accepted = "import_file_accepted"
     import_not_applied = "import_not_applied"
@@ -1585,6 +1586,7 @@ class AuditAction(StrEnum):
     revision_abandon = "revision_abandon"
     reference_designate = "reference_designate"
     structure_merge = "structure_merge"
+    structure_abandon = "structure_abandon"
     risk_occurrence = "risk_occurrence"
     project_exit = "project_exit"
     cost_line_exclude = "cost_line_exclude"
@@ -4092,6 +4094,7 @@ class StructureCommand(StrEnum):
     edit_planning = "edit_planning"
     edit_estimate = "edit_estimate"
     edit_remaining = "edit_remaining"
+    delete = "delete"
 
 
 class StructureCommandAvailability(ContractModel):

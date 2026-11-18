@@ -80,6 +80,7 @@ const EVERY_ACTION: Readonly<Record<AuditAction, null>> = {
   revision_abandon: null,
   reference_designate: null,
   structure_merge: null,
+  structure_abandon: null,
   risk_occurrence: null,
   project_exit: null,
   cost_line_exclude: null,

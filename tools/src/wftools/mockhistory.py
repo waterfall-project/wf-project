@@ -20,7 +20,9 @@ examples say of them is read from those descriptions (their comparison is said b
 - the register of the risks, and a page of it, a risk alone, the matrix, the reviews of a risk and
   the coverage of the risks (``risks``, ``risks_page``, ``risk``, ``risk_occurred_detail``,
   ``risk_matrix``, ``risk_reviews``, ``risk_coverage``), from the risks of ``mockwitnessrisks``
-  and the whole structure read today, 751 and 753 at its scale (EP-14/L45b).
+  and the whole structure read today, 751 and 753 at its scale (EP-14/L45b); and the coverage in
+  a declared variant, the lines merged by the occurrence of 752 re-estimated, the re-estimate of
+  the occurred apart from their cost at occurrence (``risk_coverage_reestimated``, #2002).
 
 The formulas are simple and said here, to be replaced by the kernel of EP-07 and EP-08. Each
 marked revision is priced at the rates of its reference year and projected from it: the reference
@@ -636,6 +638,25 @@ def coverage(today: list[mockcore.Row], rows: list[mockcore.Row]) -> JsonObject:
     }
 
 
+REESTIMATE = Decimal("1.5")
+"""What the variant of the coverage multiplies the re-estimate of the merged lines by (#2002)."""
+
+
+def reestimated(today: list[mockcore.Row]) -> list[mockcore.Row]:
+    """Return the current revision, the lines an occurrence merged re-estimated half as much again.
+
+    A counterfactual variant: what a review that re-estimates the tasks of an occurred risk does
+    to its lines, their cost at occurrence unchanged (WF-RIS-0050; #2002).
+    """
+    merged = {row.number for row in merged_lines(today)}
+    return [
+        replace(row, amounts=replace(row.amounts, reestimated=row.amounts.reestimated * REESTIMATE))
+        if row.number in merged
+        else row
+        for row in today
+    ]
+
+
 # --- The examples -----------------------------------------------------------------------------
 
 _amount, _day = mocktext.amount, mocktext.day
@@ -745,6 +766,8 @@ def examples() -> dict[str, JsonObject]:
         "meta": {"limit": RISKS_PAGE, "offset": 0, "total": len(items)},
     }
     covered = read["risk_coverage"]
+    drifted = reestimated(today)
+    recovered = coverage(drifted, rows)
     merged = " et ".join(_amount(row.amounts.reestimated) for row in merged_lines(today))
     reserve_text = (
         f"la réserve pour risques de la référence, {_amount(reserve(rows))} — les provisions "
@@ -908,5 +931,20 @@ def examples() -> dict[str, JsonObject]:
             f"{_amount(Decimal(cast('str', covered['coverage_variance'])))} (WF-RIS-0050, "
             "WF-RAE-0020).",
             covered,
+        ),
+        "risk_coverage_reestimated.json": mocktext.example(
+            f"Variante contrefactuelle : la couverture des risques du témoin au "
+            f"{_day(TODAY.date())}, les lignes que la survenance de « {delay.label} » a "
+            f"fusionnées réestimées à "
+            + " et ".join(_amount(row.amounts.reestimated) for row in merged_lines(drifted))
+            + f" au lieu de {merged} : leur réestimé courant, "
+            f"{_amount(Decimal(cast('str', recovered['occurred_reestimated'])))}, se présente en "
+            f"regard de leur coût à la survenance, "
+            f"{_amount(Decimal(cast('str', recovered['occurred_cost'])))}, que la réestimation ne "
+            f"change pas, et l'écart de couverture reste "
+            f"{_amount(Decimal(cast('str', recovered['coverage_variance'])))} : la dérive d'un "
+            f"risque survenu n'y entre pas (WF-RIS-0050, #1761, #2002). Le témoin réestime ces "
+            f"lignes à leur coût à la survenance.",
+            recovered,
         ),
     }

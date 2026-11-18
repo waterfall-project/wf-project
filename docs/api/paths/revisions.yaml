@@ -727,6 +727,8 @@
       (WF-REV-0050). The own estimate of a
       risk is born with it (`createRisk`, WF-RIS-0030) and disappears with it; the main
       structure exists from the revision onwards: neither one nor the other is created here.
+      A differential that will not be signed is abandoned by `deleteCostStructure`, as long as
+      it is not merged; a merged differential is consumed by its merge (WF-REV-0050).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -847,6 +849,75 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               non_working_day: { $ref: ../../../fixtures/api/structure_start_non_working_day.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+  delete:
+    operationId: deleteCostStructure
+    tags: [revisions]
+    summary: Abandon a differential
+    description: >-
+      "Several can coexist, and each one is merged or abandoned independently" (WF-REV-0100):
+      the abandonment of a differential that is not merged, in the current revision, under its
+      command (`StructureCommand.delete`), guarded by the permission of the opening of a
+      differential (`RevisionCommand.create_structure`). Its tasks, its lines and their images
+      are deleted with it; the other structures of the revision — the main structure, the
+      other differentials, the own estimates of the risks — are unchanged, and the next
+      revision does not know it (`createRevision`). The main structure exists as long as its
+      revision, the own estimate of a risk disappears with its risk (`deleteRisk`), and a
+      merged differential is consumed by its merge (WF-REV-0050): none of them is deleted here.
+      The abandonment is irreversible, outside of undo, like that of a revision: it is not
+      recorded in the history that `undoLastChange` undoes, the structure and its nodes being
+      gone (WF-IHM-0110); the screen says so in its confirmation. It is recorded in the audit log
+      (`AuditAction.structure_abandon`, WF-SEC-0030). It carries the counter of the structure
+      as read: a structure written since it was read — a grid entry, a paste, a change of its
+      label or of its planning start date — is not abandoned (`CostStructure.lock_version`,
+      WF-IHM-0110).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RevisionId
+      - $ref: ../components/parameters.yaml#/StructureId
+      - name: lock_version
+        in: query
+        required: true
+        description: >-
+          The counter of the abandoned differential, as the screen read it
+          (`CostStructure.lock_version`): when stale, the abandonment is refused with 412 and
+          nothing is deleted (WF-IHM-0110).
+        schema: { $ref: ../components/common.yaml#/LockVersion }
+    responses:
+      '204':
+        description: Differential abandoned.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          The `delete` command of the structure is unavailable: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` the first condition it lacks, in the order in which it
+          names them — `project_not_terminal` on a terminal project (WF-CYC-0100), then
+          `revision_draft` on a marked revision, which can no longer be modified
+          (WF-DAT-0020), then `no_background_task_running` during a marking, a merge, the
+          processing of an occurrence or the application of an import, which write to the
+          revision or freeze it, then `unmerged_amendment_exists` for a structure that is not
+          a differential that is not merged — the main structure, the own estimate of a risk,
+          a merged differential (WF-REV-0100, WF-REV-0050). Nothing is deleted.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              main_refused: { $ref: ../../../fixtures/api/structure_delete_main_refused.json }
+              revision_marked: { $ref: ../../../fixtures/api/structure_delete_revision_marked.json }
+      '412':
+        description: >-
+          `STALE_LOCK_VERSION`: the differential has been written since it was read, and
+          nothing is abandoned; `params.expected_lock_version` is its current counter
+          (WF-IHM-0110).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/structure_delete_stale.json }
+      '422': { $ref: ../components/responses.yaml#/LockVersionInvalid }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -2163,7 +2234,8 @@
     description: >-
       A task is registered in a timeline, a milestone in time/time tracking; the contractual
       milestones are nothing other than registered milestones (WF-PLA-0060). A task of the
-      main structure states it in advance, `task.tracking` in its `editable_fields` (#1065).
+      main structure states it in advance, `task.tracking` in its `editable_fields` (#1065);
+      a task of another structure is refused (`main_structure`, #2497).
       Time/time tracking is that of milestones: a task that is not a milestone, sent with
       a `milestone_tracking` entry, is refused with 422 `VALIDATION_FAILED`, `fields` on the
       kind of that entry (`/entries/<n>/kind`, `n` its rank in `entries`, starting from 0),
@@ -2204,12 +2276,17 @@
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` the first condition it
           lacks — `revision_draft` on a marked revision (WF-DAT-0020), then
           `no_background_task_running` while a background task writes to the revision
-          or freezes it (F-11, US-0702/L2). Nothing is written.
+          or freezes it (F-11, US-0702/L2) —, then `main_structure` for a task of a structure
+          other than the main one — a differential, the own estimate of a risk —, whose
+          `editable_fields` do not name `task.tracking`: a registration is carried by the
+          lineage of a task of the main structure, the one executed and tracked (WF-PLA-0060,
+          WF-REV-0100; #2497). Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               revision_marked: { $ref: ../../../fixtures/api/node_tracking_marked_refused.json }
+              amendment_refused: { $ref: ../../../fixtures/api/node_tracking_amendment_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-

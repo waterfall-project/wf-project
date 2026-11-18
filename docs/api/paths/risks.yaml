@@ -742,6 +742,7 @@
             schema: { $ref: ../components/schemas/risks.yaml#/RiskCoverage }
             examples:
               witness: { $ref: ../../../fixtures/api/risk_coverage.json }
+              reestimated: { $ref: ../../../fixtures/api/risk_coverage_reestimated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }

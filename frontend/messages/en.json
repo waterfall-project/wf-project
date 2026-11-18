@@ -3500,6 +3500,7 @@
       "revision_abandon": "Revision in progress abandoned",
       "reference_designate": "Reference designated",
       "structure_merge": "Differential merged",
+      "structure_abandon": "Amendment abandoned",
       "risk_occurrence": "Risk occurred",
       "project_exit": "Exit from the lifecycle",
       "cost_line_exclude": "Cost line excluded",
@@ -3636,6 +3637,7 @@
       "subproject_not_cited": "subproject cited by no marked revision",
       "subproject_without_actual_costs": "no actual cost booked against the subproject",
       "subproject_without_estimate_lines": "no estimate line of the current revision bearing the subproject",
+      "main_structure": "operation allowed on the main structure only",
       "main_structure_without_tasks": "main structure without any task",
       "import_awaiting_decision": "import awaiting a decision",
       "import_file_accepted": "file accepted by the report",
@@ -3750,7 +3752,8 @@
     "StructureCommand": {
       "edit_planning": "Edit the planning",
       "edit_estimate": "Edit the estimate",
-      "edit_remaining": "Re-estimate the remaining to commit"
+      "edit_remaining": "Re-estimate the remaining to commit",
+      "delete": "Abandon the amendment"
     },
     "StructureCreate": {
       "kind": {

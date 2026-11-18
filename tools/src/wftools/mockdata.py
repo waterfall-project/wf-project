@@ -74,7 +74,6 @@ named example missing or outdated fails too.
 """
 
 import argparse
-import json
 import sys
 from collections import Counter
 from dataclasses import replace
@@ -97,6 +96,7 @@ from wftools import (
     mockcosts,
     mockcycle,
     mockdeclared,
+    mockdifferentials,
     mockexchanges,
     mockgestures,
     mockhistory,
@@ -109,6 +109,7 @@ from wftools import (
     mockproject,
     mockreference,
     mockrefusals,
+    mockrender,
     mockreview,
     mockrevisionminors,
     mockriskwrites,
@@ -324,9 +325,9 @@ def named() -> dict[str, JsonObject]:
     the subprojects and the contributors (``mocklists``), the contributors once an account is
     anonymised (``mockanonymized``); the exit of the witness (``mockproject``); the refusals of one
     form each (``mockrefusals``), those the contract declared without a code, a condition nor an
-    example (``mockdeclared``), those of the administration (``mockadminrefusals``), those served
-    undeclared (``mockservedrefusals``); the majors of the review (``mockreview``); the loaders'
-    (``mockwitness*``, ``mockchronology``).
+    example (``mockdeclared``), of the administration (``mockadminrefusals``), served undeclared
+    (``mockservedrefusals``), of the differentials (``mockdifferentials``); the majors of the
+    review (``mockreview``); the loaders' (``mockwitness*``, ``mockchronology``).
     """
     marked = mocksnapshot.revisions(categories())
     return {
@@ -357,6 +358,7 @@ def named() -> dict[str, JsonObject]:
         **mockdeclared.examples(),
         **mockreview.examples(),
         **mockrevisionminors.examples(),
+        **mockdifferentials.examples(),
         **mockservedrefusals.examples(),
         **mockspendingrefusals.examples(),
         **mockchronology.examples(),
@@ -840,38 +842,9 @@ def _ordinal(value: int) -> str:
     return _ORDINALS[value]
 
 
-# The envelope of an example and its value are laid out; below them, one line per item.
-_EXPANDED_DEPTH = 2
-# Below them, an object that holds a list longer than this is laid out too, the list one line per
-# item, even within an item: a point of the portfolio matrix, a task of a role (#1053, #3181).
-_LONG_LIST = 50
-
-
 def render(example: JsonObject) -> str:
-    """Return the text of an example: one line for each item of its lists, for readable diffs."""
-    return _render(example, 0) + "\n"
-
-
-def _render(value: JsonValue, depth: int) -> str:
-    indent = "  " * depth
-    inner = indent + "  "
-    if isinstance(value, list) and value:
-        items = ",\n".join(inner + _render(item, depth + 1) for item in value)
-        return f"[\n{items}\n{indent}]"
-    if isinstance(value, dict) and (depth < _EXPANDED_DEPTH or _holds_long_list(value)):
-        fields = ",\n".join(
-            f"{inner}{_compact(key)}: {_render(item, depth + 1)}" for key, item in value.items()
-        )
-        return f"{{\n{fields}\n{indent}}}"
-    return _compact(value)
-
-
-def _holds_long_list(value: JsonObject) -> bool:
-    return any(isinstance(item, list) and len(item) > _LONG_LIST for item in value.values())
-
-
-def _compact(value: JsonValue) -> str:
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    """Return the text of an example: one line for each item of its lists (``mockrender``)."""
+    return mockrender.render(example)
 
 
 def write(fixtures: Path) -> list[Path]:

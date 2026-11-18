@@ -162,7 +162,7 @@ export interface Examples {
     200: "risks" | "risks_empty" | "risks_filtered" | "risks_page";
   };
   "GET /projects/{project_id}/risks/coverage": {
-    200: "risk_coverage";
+    200: "risk_coverage" | "risk_coverage_reestimated";
   };
   "GET /projects/{project_id}/risks/matrix": {
     200: "risk_matrix" | "risk_matrix_no_basis";

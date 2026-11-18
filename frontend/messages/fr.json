@@ -3500,6 +3500,7 @@
       "revision_abandon": "Abandon d’une révision en cours",
       "reference_designate": "Désignation de la référence",
       "structure_merge": "Fusion d’un différentiel",
+      "structure_abandon": "Abandon d’un avenant",
       "risk_occurrence": "Survenance d’un risque",
       "project_exit": "Sortie du cycle de vie",
       "cost_line_exclude": "Exclusion d’une ligne de coût",
@@ -3636,6 +3637,7 @@
       "subproject_not_cited": "sous-projet cité par aucune révision marquée",
       "subproject_without_actual_costs": "aucun coût réel imputé au sous-projet",
       "subproject_without_estimate_lines": "aucune ligne de devis de la révision en cours portant le sous-projet",
+      "main_structure": "opération permise sur la structure principale seulement",
       "main_structure_without_tasks": "structure principale sans aucune tâche",
       "import_awaiting_decision": "import en attente de décision",
       "import_file_accepted": "fichier accepté par le compte rendu",
@@ -3750,7 +3752,8 @@
     "StructureCommand": {
       "edit_planning": "Modifier le planning",
       "edit_estimate": "Modifier le devis",
-      "edit_remaining": "Réestimer le reste à engager"
+      "edit_remaining": "Réestimer le reste à engager",
+      "delete": "Abandonner l’avenant"
     },
     "StructureCreate": {
       "kind": {

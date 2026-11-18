@@ -22,7 +22,8 @@ if TYPE_CHECKING:
 type Entry = dict[str, Any]
 
 EDIT = ("edit_planning", "edit_estimate", "edit_remaining")
-"""The commands of a structure, in the order of `StructureCommand`, one by grid that enters it."""
+"""The entry commands of a structure, in the order of `StructureCommand`, one by grid that enters
+it; the abandonment of a differential, `delete`, comes after them (US-2550/L2)."""
 
 PHASE = {"edit_estimate": "project_before_in_progress", "edit_remaining": "project_in_progress"}
 """The condition of phase of a command of the main structure, and the state it misses it in."""
@@ -72,6 +73,10 @@ def test_each_structure_says_its_commands_by_the_phase_and_the_state_of_its_revi
         for command in EDIT if main else EDIT[:2]:
             missing = (_phase(command, project["state"]) if main else []) + of_revision[command]
             expected.append((command, not missing, missing))
+        if structure["kind"] == "amendment" and not structure["is_merged"]:
+            # Abandoned under the conditions of the opening of a differential (US-2550/L2).
+            missing = of_revision["create_structure"]
+            expected.append(("delete", not missing, missing))
         assert _commands(structure) == expected, (name, structure["structure_id"])
 
 
@@ -90,7 +95,7 @@ def test_the_witness_enters_its_main_structure_in_the_remaining_to_commit_alone(
 
 def test_the_conditions_of_the_commands_of_a_structure_are_those_of_the_contract() -> None:
     schemas = REPOSITORY / "docs" / "api" / "components" / "schemas"
-    assert _enumeration(schemas / "revisions.yaml", "StructureCommand") == list(EDIT)
+    assert _enumeration(schemas / "revisions.yaml", "StructureCommand") == [*EDIT, "delete"]
     conditions = _enumeration(schemas / "projects.yaml", "CommandCondition")
     assert set(PHASE.values()) <= set(conditions)
 

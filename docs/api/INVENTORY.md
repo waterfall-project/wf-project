@@ -6,7 +6,7 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**171 opérations sur 133 chemins, dans 13 familles.**
+**172 opérations sur 133 chemins, dans 13 familles.**
 Le contrat cite **195 des 218 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
@@ -155,7 +155,7 @@ Le contrat cite **195 des 218 exigences** de la spécification.
 
 ## Révisions, structures et arbre commun
 
-`paths/revisions.yaml` — 31 opérations
+`paths/revisions.yaml` — 32 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -171,6 +171,7 @@ Le contrat cite **195 des 218 exigences** de la spécification.
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures` | Cost structures of the revision | WF-DEV-0050, WF-IHM-0090, WF-RAE-0040, WF-REV-0100 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures` | Open a differential | WF-REV-0050, WF-REV-0100, WF-RIS-0030 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}` | Modify the planning start date and the label of a structure | WF-PLA-0010, WF-PLA-0020, WF-REV-0100 |
+| DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}` | Abandon a differential | WF-IHM-0110, WF-REV-0050, WF-REV-0100, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Preliminary report of the merge of a differential | WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0050 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Merge a differential into the main structure | WF-ARC-0090, WF-DEV-0020, WF-IHM-0080, WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0020, WF-REV-0050, WF-REV-0060, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Common tree of the structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-IHM-0060, WF-IHM-0130, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110, WF-PLA-0140, WF-PLA-0170, WF-REV-0100, WF-RIS-0060 |
