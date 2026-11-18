@@ -116,12 +116,12 @@ WORKERS ?=
 # N heavy runs at a time on the workstation (WATERFALL_SLOTS, 1 by default): the whole tests of a
 # side, their coverage, the production build of the front, the end-to-end paths. Several agents
 # running them side by side ran out of memory (2026-10). tools/src/wftools/slots.py admits them
-# (a free slot among N lock files of XDG_RUNTIME_DIR, the first the one of before N existed),
-# keeps the slot until the run ends and sets WATERFALL_PROCESSORS, the share of the processors of
-# one run. A run of one file (TESTS) does not wait; on a runner of the chain, alone, a slot is
-# always free. `env` keeps the variables set before the command a command of their own. It runs
-# by tools/src/wftools/launch.py, which says the version it expects under a python3 older than the
-# one of the tools, instead of their SyntaxError (US-2450).
+# (a free slot among N lock files of the directory of the locks of the workstation, the first the
+# one of before N existed), keeps the slot until the run ends and sets WATERFALL_PROCESSORS, the
+# share of the processors of one run. A run of one file (TESTS) does not wait; on a runner of the
+# chain, alone, a slot is always free. `env` keeps the variables set before the command a command
+# of their own. It runs by tools/src/wftools/launch.py, which says the version it expects under a
+# python3 older than the one of the tools, instead of their SyntaxError (US-2450).
 SLOTS = python3 $(CURDIR)/tools/src/wftools/launch.py slots
 heavy = $(if $(TESTS),,$(SLOTS) run --heavy -- env)
 # A measure takes the workstation for itself alone (US-2210): every slot of the heavy runs, in a
@@ -927,7 +927,7 @@ measure-version: measure-cache-present measure-secrets install-front $(call e2e-
 		docker stop --time 60 $(LOAD_CONTAINER) > /dev/null 2>&1; exit $$status; }
 
 # The slot of the worktree, among the N of WATERFALL_SLOTS, in the register of the workstation
-# ($XDG_RUNTIME_DIR/waterfall-slots, /tmp/waterfall-slots without it), whatever the repository.
+# (waterfall-slots of /run/user/<uid>, of /tmp without it), whatever the repository and the session.
 slot: ## Take a slot of 1 to N for this worktree of a lot — its ports and its names —, or say the one it holds; fails, naming the holders, when all are taken
 	@$(SLOTS) claim
 

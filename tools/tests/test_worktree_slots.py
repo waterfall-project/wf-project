@@ -3,10 +3,10 @@
 """The slot of a worktree: its ports, its projects of Compose and the tags of its images (US-1100).
 
 The tool is run as the Makefile runs it, ``python3 slots.py claim``, in repositories of git made
-for the test — a main repository and worktrees of it —, with ``XDG_RUNTIME_DIR`` on a temporary
-directory: no test touches the register of the workstation. Docker, pnpm and uv are stand-ins on
-the ``PATH`` that write what they are asked and the variables they are given: the Makefile is
-tried by what it hands its commands, nothing is started.
+for the test — a main repository and worktrees of it —, with ``WATERFALL_RUNTIME_DIR`` on a
+temporary directory: no test touches the register of the workstation. Docker, pnpm and uv are
+stand-ins on the ``PATH`` that write what they are asked and the variables they are given: the
+Makefile is tried by what it hands its commands, nothing is started.
 """
 
 import fcntl
@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from wftools import REPOSITORY, slots
+from wftools import REPOSITORY, heavyturns, slots
 
 SLOTS = REPOSITORY / "tools" / "src" / "wftools" / "slots.py"
 MAKEFILE = REPOSITORY / "Makefile"
@@ -59,7 +59,7 @@ class Workstation:
         }
         self.environment = kept | {
             "PATH": f"{bin_directory}{os.pathsep}{os.environ['PATH']}",
-            "XDG_RUNTIME_DIR": str(root / "run"),
+            "WATERFALL_RUNTIME_DIR": str(root / "run"),
             "STAND_IN_LOG": str(self.log),
             # An empty process table: claim and release stop no server of the workstation (US-1300).
             "WATERFALL_SLOTS_PROC": str(self.empty_table()),
@@ -557,10 +557,14 @@ def test_a_slot_whose_projects_cannot_be_removed_stays_taken(workstation: Workst
     assert slots.holders(workstation.register)[1].worktree == str(tree)
 
 
-def test_the_register_falls_back_on_tmp_without_a_runtime_directory() -> None:
-    """US-1100: without XDG_RUNTIME_DIR, the register is in /tmp, as the heavy locks are."""
+def test_the_register_is_in_the_directory_of_the_locks(
+    user_runtime: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """US-1100, US-2460: waterfall-slots of the directory of the heavy locks, /tmp at the last."""
+    assert slots.register({"WATERFALL_RUNTIME_DIR": "/run/x"}) == Path("/run/x/waterfall-slots")
+    assert slots.register({}) == user_runtime / "waterfall-slots"
+    monkeypatch.setattr(heavyturns, "USER_RUNTIME_ROOT", user_runtime / "absent")
     assert slots.register({}) == Path(os.sep, "tmp", "waterfall-slots")
-    assert slots.register({"XDG_RUNTIME_DIR": "/run/user/7"}) == Path("/run/user/7/waterfall-slots")
 
 
 def test_a_target_of_a_worktree_without_a_slot_stops_saying_make_slot(
