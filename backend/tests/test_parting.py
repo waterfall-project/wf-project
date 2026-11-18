@@ -236,3 +236,38 @@ def test_the_lines_of_a_sum_weigh_each_task_once_for_a_date_of_calculation(
             (WINTER, weighed_at),
             (SPRING, weighed_at),
         ]
+
+
+def by_fraction(value: Decimal | Fraction, quantum: Decimal, *, half_up: bool) -> Decimal:
+    """Round as fractions do: the rule of ``Rounding.of`` before it counted in integers (#3902)."""
+    steps = Fraction(value) / Fraction(quantum)
+    floor = steps.numerator // steps.denominator
+    rest = steps - floor
+    if rest != Fraction(1, 2):
+        return Decimal(floor + int(rest > Fraction(1, 2))) * quantum
+    # A half: away from nought — up for a positive value, down for a negative one —, or to the even.
+    if half_up:
+        return Decimal(floor + 1 if floor >= 0 else floor) * quantum
+    return Decimal(floor if floor % 2 == 0 else floor + 1) * quantum
+
+
+@pytest.mark.requirement("WF-DEV-0090-A")
+def test_a_value_rounds_in_integers_as_its_exact_fraction_does() -> None:
+    # A detail of the realisation (#3902), which reprises no Vérif of its own: the rounding counts
+    # in integers, and rounds every value as the fraction did — a half away from nought for an
+    # amount, to the even for hours, the other values to the nearest, of either sign.
+    assert MONEY.of(Decimal("0.005")) == Decimal("0.01")
+    assert MONEY.of(Decimal("-0.005")) == Decimal("-0.01")
+    assert HOURS.of(Decimal("0.005")) == Decimal("0.00")
+    assert HOURS.of(Decimal("0.015")) == Decimal("0.02")
+    assert HOURS.of(Decimal("-0.015")) == Decimal("-0.02")
+    assert MONEY.of(Fraction(2, 3)) == Decimal("0.67")
+    assert MONEY.of(Fraction(-2, 3)) == Decimal("-0.67")
+    cent = Decimal("0.01")
+    values: list[Decimal | Fraction] = [
+        Fraction(top, bottom) for top in range(-1201, 1202, 7) for bottom in (1, 3, 8, 200, 400)
+    ]
+    values += [Decimal(top) / 1000 for top in range(-2000, 2001, 5)]
+    for value in values:
+        assert MONEY.of(value) == by_fraction(value, cent, half_up=True), value
+        assert HOURS.of(value) == by_fraction(value, cent, half_up=False), value

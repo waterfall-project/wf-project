@@ -9,12 +9,14 @@ is spread 2 000, 2 200 and 2 200.
 
 from datetime import date, timedelta
 from decimal import Decimal
+from typing import Any
 
 import pytest
 
 from waterfall.core.estimate.interface import MONEY, Month, Placement, rounded_parts
 from waterfall.core.indicators.series import (
     Point,
+    Spreader,
     SpreadLine,
     cash_out_by_month,
     cumulative,
@@ -28,6 +30,7 @@ from waterfall.core.indicators.series import (
     shifted,
     spread_lines,
 )
+from waterfall.core.indicators.series import shares as shares_module
 from waterfall.core.indicators.series.shares import spread_delayed
 from waterfall.core.planning.interface import WorkInstant, weekly_calendar
 
@@ -461,3 +464,45 @@ def test_the_path_of_a_delayed_line_with_no_delay_gives_the_parts_of_the_estimat
     # parts of the estimate, and the cumulated read at each month-end less the delay — agree.
     assert spread.payment_delay_days == 0
     assert spread_delayed(spread, as_of=as_of) == line_shares(spread, as_of=as_of)
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_a_spreader_spreads_each_line_once_for_every_sum_and_sums_as_each_alone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A detail of the realisation (#3902), which reprises no Vérif of its own: the curves of a
+    # computation share a spreader, each line spread once for a date of calculation — with and
+    # without the delays for a line that has none, in every scope —, the sums those of each alone.
+    spread: list[tuple[SpreadLine, date | None, bool]] = []
+    original = shares_module.line_shares
+
+    def counting(
+        each: SpreadLine, *, as_of: date | None = None, delayed: bool = False, **rest: Any
+    ) -> dict[Month, Decimal]:
+        spread.append((each, as_of, delayed))
+        return original(each, as_of=as_of, delayed=delayed, **rest)
+
+    plain, delayed, other = line("6400.07"), line("3300", 45), line("1000.01")
+    as_of = date(2026, 3, 16)
+    every = [plain, delayed, other]
+    asked = [(delay, day) for delay in (False, True) for day in (None, as_of)]
+    alone = {
+        each: (
+            spread_lines(every, as_of=each[1], delayed=each[0]),
+            spread_lines([plain], as_of=each[1], delayed=each[0]),
+        )
+        for each in asked
+    }
+    monkeypatch.setattr(shares_module, "line_shares", counting)
+    spreader = Spreader()
+    for delay, day in asked:
+        whole, scope = alone[delay, day]
+        assert spread_lines(every, as_of=day, delayed=delay, spreader=spreader) == whole
+        # A scope of fewer lines is drawn from the same parts.
+        assert spread_lines([plain], as_of=day, delayed=delay, spreader=spreader) == scope
+    # Each line once by date, the line with a delay delayed and not: none spread again.
+    assert len([each for each in spread if each[0] is plain]) == 2
+    assert len([each for each in spread if each[0] is other]) == 2
+    assert len([each for each in spread if each[0] is delayed]) == 2 * 2
+    assert spreader.shares(plain, as_of=as_of) is spreader.shares(plain, as_of=as_of, delayed=True)
+    assert len(spread) == 2 + 2 + 2 * 2

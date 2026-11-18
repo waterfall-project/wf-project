@@ -107,17 +107,56 @@ def line_shares(
     return _spread_after(line.placement, line.amount, as_of, weigh)
 
 
+class Spreader:
+    """Spread lines for one computation: each line spread once, whatever the sums it enters.
+
+    The parts of a line are a pure value of its task, its amount, the date of calculation and,
+    delayed, its payment delay — a line without delay is spread the same delayed or not
+    (``shifted``) —: kept as long as the spreader is, never longer, they are added again rather
+    than spread again. The cost curve with and without the delays, the curves of earned value, and
+    every scope of a computation draw from the same lines (#3902). One weighing serves them all
+    (``weighing``).
+    """
+
+    def __init__(self) -> None:
+        """Start with no line spread, and a weighing of its own."""
+        self._weigh = weighing()
+        self._held: dict[tuple[Placement, Decimal, date | None, int], dict[Month, Decimal]] = {}
+
+    def shares(
+        self, line: SpreadLine, *, as_of: date | None = None, delayed: bool = False
+    ) -> dict[Month, Decimal]:
+        """Give the parts of a line as ``line_shares`` does, spread once: never to be changed."""
+        delay = line.payment_delay_days if delayed else 0
+        key = (line.placement, line.amount, as_of, delay)
+        found = self._held.get(key)
+        if found is None:
+            found = line_shares(line, as_of=as_of, delayed=delayed, weigh=self._weigh)
+            self._held[key] = found
+        return found
+
+    def spread(
+        self, lines: Iterable[SpreadLine], *, as_of: date | None = None, delayed: bool = False
+    ) -> dict[Month, Decimal]:
+        """Add up, month by month, the parts of the lines (``spread_lines``)."""
+        total: dict[Month, Decimal] = {}
+        for line in lines:
+            for month, part in self.shares(line, as_of=as_of, delayed=delayed).items():
+                total[month] = total.get(month, Decimal(0)) + part
+        return total
+
+
 def spread_lines(
-    lines: Iterable[SpreadLine], *, as_of: date | None = None, delayed: bool = False
+    lines: Iterable[SpreadLine],
+    *,
+    as_of: date | None = None,
+    delayed: bool = False,
+    spreader: Spreader | None = None,
 ) -> dict[Month, Decimal]:
     """Add up, month by month, the parts of the lines, each task weighed once.
 
     A line with a payment delay is spread by the path of the estimate (``amount_parts``), which
-    weighs the task by itself: the weighing is kept for the lines without delay.
+    weighs the task by itself: the weighing is kept for the lines without delay. ``spreader`` is
+    that of the computation, whose lines are spread once for all its sums; a new one without.
     """
-    weigh = weighing()
-    total: dict[Month, Decimal] = {}
-    for line in lines:
-        for month, part in line_shares(line, as_of=as_of, delayed=delayed, weigh=weigh).items():
-            total[month] = total.get(month, Decimal(0)) + part
-    return total
+    return (spreader or Spreader()).spread(lines, as_of=as_of, delayed=delayed)

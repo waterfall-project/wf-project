@@ -21,7 +21,7 @@ by its own delay, the actual cost not; ``cash_out_by_month`` details it. A scope
 Ref or in R and without cost has nothing to draw: its series have no point.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -32,6 +32,7 @@ from waterfall.core.indicators.computing import Basis, completions, in_scope, re
 from waterfall.core.indicators.series import (
     CashOutMonth,
     Point,
+    Spreader,
     SpreadLine,
     cash_out_by_month,
     cumulative,
@@ -64,7 +65,8 @@ class CurveReading:
 
     ``reference`` are the lines of Ref of the scope, ``lines`` those of R with the remaining to
     commit of each, ``earned`` the budgeted amounts of the lines of Ref earned, by day of
-    completion, ``costs`` the tracked lines of the scope by day of document, up to the day.
+    completion, ``costs`` the tracked lines of the scope by day of document, up to the day;
+    ``spreader`` that of the computation, which spreads each line once for all its curves.
     """
 
     day: date
@@ -72,6 +74,7 @@ class CurveReading:
     lines: tuple[tuple[IndicatorLine, Decimal], ...]
     earned: Dated
     costs: Dated
+    spreader: Spreader = field(default_factory=Spreader, compare=False)
 
     @property
     def is_drawn(self) -> bool:
@@ -84,13 +87,15 @@ class CurveSources:
     """What the curves of every scope of a basis are drawn from, read once.
 
     The lines of Ref and of R, the remaining to commit of each line of R, the day of completion
-    of the tasks completed in R: what does not depend on the scope.
+    of the tasks completed in R: what does not depend on the scope; the spreader every scope
+    shares, each line spread once for all of them (#3902).
     """
 
     reference: tuple[IndicatorLine, ...]
     lines: tuple[IndicatorLine, ...]
     remaining: Mapping[UUID, Decimal]
     completed: Mapping[UUID, date]
+    spreader: Spreader = field(default_factory=Spreader, compare=False)
 
 
 def read_curve_sources(session: Session, basis: Basis) -> CurveSources:
@@ -124,6 +129,7 @@ def curves_of_scope(
         ),
         earned,
         actual_cost_dates(session, project_id, day, scope),
+        sources.spreader,
     )
 
 
@@ -143,7 +149,7 @@ def _budget(reading: CurveReading, *, delayed: bool) -> tuple[dict[Month, Decima
         SpreadLine(line.budgeted_amount, line.placement, line.payment_delay_days)
         for line in reading.reference
     ]
-    shares = spread_lines(spreads, delayed=delayed)
+    shares = spread_lines(spreads, delayed=delayed, spreader=reading.spreader)
     ends = [
         line.placement.finish.day + _delay(line.payment_delay_days, delayed=delayed)
         for line in reading.reference
@@ -211,6 +217,7 @@ def cost_curve_document(
         ),
         as_of=day,
         delayed=payment_delays,
+        spreader=reading.spreader,
     )
     projection = cumulative_from(to_come, day, _total(reading.costs)) if reading.is_drawn else []
     cash_out = None

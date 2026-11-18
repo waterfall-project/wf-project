@@ -57,6 +57,9 @@ from waterfall.core.indicators.series.months import (
 
 # ``shares``: the monthly parts of lines.
 from waterfall.core.indicators.series.shares import (
+    Spreader as Spreader,
+)
+from waterfall.core.indicators.series.shares import (
     SpreadLine as SpreadLine,
 )
 from waterfall.core.indicators.series.shares import (
