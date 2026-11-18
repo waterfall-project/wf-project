@@ -91,7 +91,12 @@ async function painted(page: Page, selectors: readonly string[]): Promise<Painte
 }
 
 /** The audit and the measures of one page of the theme, in the mode of the workstation. */
-async function judge(page: Page, name: string, expected: readonly string[] = []): Promise<void> {
+async function judge(
+  page: Page,
+  name: string,
+  expected: readonly string[] = [],
+  texts: readonly string[] = [],
+): Promise<void> {
   const card = await page
     .locator(".pf-v5-c-login__main")
     .evaluate((element) => getComputedStyle(element).backgroundColor);
@@ -110,11 +115,18 @@ async function judge(page: Page, name: string, expected: readonly string[] = [])
       `${name}: a ${selector} to measure`,
     ).toBe(true);
   }
-  for (const each of await painted(page, ERRORS)) {
+  const errors = await painted(page, ERRORS);
+  for (const each of errors) {
     expect(
       contrast(each.color, card),
       `${name}: the text of ${each.selector} on the card`,
     ).toBeGreaterThanOrEqual(TEXT);
+  }
+  for (const selector of texts) {
+    expect(
+      errors.some((each) => each.selector === selector),
+      `${name}: a ${selector} to measure`,
+    ).toBe(true);
   }
 }
 
@@ -183,7 +195,16 @@ for (const mode of ["light", "dark"] as const) {
         button.removeAttribute("disabled");
       });
       await alerts(page);
-      await judge(page, "the alerts of every severity");
+      await judge(
+        page,
+        "the alerts of every severity",
+        [],
+        [
+          ".pf-v5-c-alert.pf-m-info .pf-v5-c-alert__title",
+          ".pf-v5-c-alert.pf-m-success .pf-v5-c-alert__title",
+          ".pf-v5-c-alert.pf-m-warning .pf-v5-c-alert__title",
+        ],
+      );
 
       // A field in error: a wrong password.
       await page.goto("/login");
