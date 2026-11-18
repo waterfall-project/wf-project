@@ -459,38 +459,26 @@ def test_a_part_with_an_apostrophe_is_refused_without_running_anything(tmp_path:
 
 
 @pytest.mark.story("US-2500")
-def test_the_value_of_a_part_reaches_the_tool_by_the_environment_not_the_shell(
-    tmp_path: Path,
-) -> None:
-    """[US-2500] #3108: past SHARD_BAD, the value is read from the environment, never as shell."""
-    text = (REPOSITORY / "Makefile").read_text(encoding="utf-8")
-    assert "export WATERFALL_SHARD_ASKED = $(SHARD)" in text
-    assert '"$$WATERFALL_SHARD_ASKED"' in text
-    # the shell branch alone, with a hostile value the character filter is taken out of
+def test_a_hostile_part_of_e2e_is_refused_without_running_anything(tmp_path: Path) -> None:
+    """[US-2500] #3108: make -n e2e SHARD=<hostile> is refused, the command in it never runs."""
     marker = tmp_path / "ran"
-    probe = tmp_path / "Makefile"
-    probe.write_text(
-        'export V = $(SHARD)\nOUT := $(shell printf %s "$$V" > "$(MARK)")\nall: ;\n',
-        encoding="utf-8",
-    )
-    hostile = f"1/2'; touch {marker.with_name('ran.x')}; '"
-    done = subprocess.run(
-        ["make", "-f", str(probe), f"SHARD={hostile}", f"MARK={marker}"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert done.returncode == 0, done.stderr
-    assert marker.read_text(encoding="utf-8") == hostile
-    assert not marker.with_name("ran.x").exists()
+    done = make_dry("e2e", f"SHARD=1/2'; touch {marker}; '")
+    assert done.returncode != 0
+    assert "SHARD must be i/N" in done.stderr
+    assert not marker.exists()
 
 
 @pytest.mark.story("US-2500")
-def test_the_character_filter_alone_refuses_a_hostile_value() -> None:
-    """[US-2500] #3108: SHARD_BAD is the first guard: a value of other characters stops there."""
-    text = (REPOSITORY / "Makefile").read_text(encoding="utf-8")
-    assert "SHARD_BAD = $(or $(word 2,$(SHARD)),$(call nondigits,$(subst /,,$(SHARD))))" in text
-    assert "ifneq ($(or $(SHARD_BAD),$(shell" in text
+def test_the_value_of_a_part_reaches_the_tool_without_an_export_of_make() -> None:
+    """[US-2500] #3108: the tool judges the value make does not export (make 4.3 hands none)."""
+    assert "\nexport WATERFALL_SHARD_ASKED" not in (REPOSITORY / "Makefile").read_text("utf-8")
+    good = make_dry("e2e", "SHARD=1/5")
+    assert good.returncode == 0, good.stderr
+    # refused by the tool alone: the characters are those of a valid part
+    for value in ("0/5", "6/5", "1/1"):
+        bad = make_dry("e2e", f"SHARD={value}")
+        assert bad.returncode != 0, value
+        assert "SHARD must be i/N" in bad.stderr
 
 
 def test_a_part_of_the_paths_against_the_service_is_checked_then_planned() -> None:

@@ -193,14 +193,16 @@ WFTOOLS := uv run --frozen --project $(TOOLS) python -m wftools
 # (#3108): one guard for all of E2E_PATH_GOALS. Two things keep the value from a shell. SHARD_BAD
 # judges the characters first: a value that is not digits and one slash never gets further (an
 # apostrophe closed the quotes the value was between). What passes reaches the tool by the
-# environment, not in the text of the shell: WATERFALL_SHARD_ASKED is exported by make, and GNU
-# make 4.4 (the workstation, ubuntu-26.04 of the chain) hands the exported variables to $(shell).
+# shell variable the command sets itself, not in the quotes of its text: WATERFALL_SHARD_ASKED is set
+# and exported inside the $(shell) command, so nothing depends on make handing its exported
+# variables to $(shell) (GNU make 4.4 does, the 4.3 of the e2e image does not). Interpolating
+# $(SHARD) there is safe: $(or) does not expand its later arguments once one is non-empty, so a
+# value that reaches the $(shell) passed SHARD_BAD, and is digits and one slash alone.
 # `nondigits` is the one above. SHARD=lint is the part of check-front-tests and test-front alone:
 # check, check-front, check-all and e2e refuse it here.
 SHARD_BAD = $(or $(word 2,$(SHARD)),$(call nondigits,$(subst /,,$(SHARD))))
 ifneq ($(and $(SHARD),$(filter $(E2E_PATH_GOALS),$(MAKECMDGOALS))),)
-export WATERFALL_SHARD_ASKED = $(SHARD)
-ifneq ($(or $(SHARD_BAD),$(shell $(WFTOOLS).e2eparts service-part "$$WATERFALL_SHARD_ASKED" >/dev/null 2>&1 || echo refused)),)
+ifneq ($(or $(SHARD_BAD),$(shell WATERFALL_SHARD_ASKED=$(SHARD); export WATERFALL_SHARD_ASKED; $(WFTOOLS).e2eparts service-part "$$WATERFALL_SHARD_ASKED" >/dev/null 2>&1 || echo refused)),)
 $(error SHARD must be i/N with 1 <= i <= N and N >= 2 for the paths: $(SHARD))
 endif
 endif
