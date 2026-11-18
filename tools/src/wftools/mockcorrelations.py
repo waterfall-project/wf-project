@@ -10,8 +10,10 @@ files cannot have. The next number free in a range, seen from the base of each b
 twice by two lots in parallel, and renumbered when the epic took them in (#1007).
 
 The examples of errors numbered before the rule keep their numbers, in the ranges of the
-correlations of ``wftools.mockids``: their names are frozen here, and none is added to them
-(``tests/test_mockuniverse.py``).
+correlations of ``wftools.mockids``: their names are frozen here, those of ``main`` and of the
+branches of the epics in progress when the rule was written, some of which reach this branch only
+when it takes those in (``tests/test_mockcorrelations.py``). One numbered by hand since on a branch
+of an epic drawn before the rule joins them when it is taken in, with its number; no other does.
 """
 
 import hashlib
@@ -206,6 +208,7 @@ NUMBERED = frozenset(
         "nodes_move_without_hours",
         "nodes_origin_risk_unknown",
         "nodes_period_inverted",
+        "nodes_subproject_unknown",
         "org_node_activation_stale",
         "org_node_code_taken",
         "org_node_creation_refused",
@@ -218,6 +221,7 @@ NUMBERED = frozenset(
         "password_link_anonymized",
         "password_link_deactivated",
         "password_link_not_local",
+        "paste_apply_horizon_exceeded",
         "paste_apply_marked_refused",
         "paste_stale",
         "paste_too_wide",
@@ -285,6 +289,7 @@ NUMBERED = frozenset(
         "resource_role_calendar_unknown",
         "resource_role_code_taken",
         "resource_role_creation_refused",
+        "resource_role_hours_refused",
         "resource_role_reactivation_refused",
         "resource_role_update_refused",
         "resource_role_update_stale",
@@ -330,6 +335,10 @@ NUMBERED = frozenset(
         "session_revoked",
         "skeleton_marked_refused",
         "skeleton_structure_not_empty",
+        "spending_no_reference",
+        "spending_rate_missing",
+        "spending_revision_refused",
+        "spending_subproject_unknown",
         "stale_lock_version",
         "structure_create_revision_marked",
         "structure_start_non_working_day",

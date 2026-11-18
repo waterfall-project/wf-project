@@ -168,7 +168,7 @@ def test_the_probability_sent_as_a_percent_is_refused_with_the_bound_it_crosses(
     # Written by hand, like its sibling above: 120 sent for a ratio, refused at its maximum,
     # which the front says as a percent (WF-RIS-0010).
     # Its correlation is its own: test_each_correlation_is_told_by_one_example_alone
-    # (test_mockuniverse.py) reads every fixture, those written by hand included.
+    # (test_mockcorrelations.py) reads every fixture, those written by hand included.
     refused = fixture("risk_probability_out_of_range")
     assert set(refused) == {"code", "status", "fields", "correlation_id"}
     assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
