@@ -401,4 +401,4 @@ def test_the_makefile_gives_the_exclusive_mode_to_a_target(tmp_path: Path) -> No
     """US-2210: the variable exclusive of the Makefile runs a command in the exclusive mode."""
     rule = "probe-exclusive: ; $(exclusive) true"
     planned = plan(tmp_path, "--eval", rule, "probe-exclusive", "TESTS=tests/test_guard.py")
-    assert "slots.py run --exclusive -- env true" in planned.stdout
+    assert "launch.py slots run --exclusive -- env true" in planned.stdout
