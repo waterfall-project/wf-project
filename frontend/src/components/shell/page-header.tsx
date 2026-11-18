@@ -104,7 +104,7 @@ export function PageHeader({
 }: PageHeaderProps) {
   return (
     <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <div className="flex min-w-[min(100%,24rem)] flex-[0_1_auto] flex-col gap-1">
         {/* The help after the last word of the title, in the flow of its text, an icon alone no
             taller than one of its lines (`1lh`): among the commands it would narrow the whole
             title, and as an item of a row that wraps it would take a line of its own under a
@@ -137,7 +137,10 @@ export function PageHeader({
         )}
       </div>
       {actions === undefined ? null : (
-        <div data-slot="screen-commands" className="flex flex-wrap items-start gap-2">
+        <div
+          data-slot="screen-commands"
+          className="flex min-w-0 flex-1 flex-wrap items-start justify-end gap-2"
+        >
           {actions}
         </div>
       )}

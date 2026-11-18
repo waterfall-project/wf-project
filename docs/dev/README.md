@@ -2712,7 +2712,10 @@ of its header (`PageHeader`) — a single icon, named, at most the height of a l
 which follows its last word in the same text flow: on the right, among the commands, it would
 shrink the title; an element of a row that wraps, it would take a line of its own under a title on
 two lines, the one of the remaining to commit at 1280 × 720; in both cases, the header would grow
-and push the totals of a grid out of a low window (`grid-frame.spec.ts`, `remaining.spec.ts`). It
+and push the totals of a grid out of a low window (`grid-frame.spec.ts`, `remaining.spec.ts`). Its header keeps its title at least 24 rem wide and leaves the commands the
+width that remains, where they wrap among themselves, flush right: five commands that took their
+full width shrank the title of the remaining to commit to three lines and its subtitle to three
+more, 76 points more above the grid (#3895, `remaining.spec.ts`). It
 only wraps if the last line of the title is full, and it is then there without an indent: a space
 separates it from the title, not a margin —, or F1 anywhere on the screen, opens beside it a side
 panel (`shell/help-panel.tsx`, a `Sheet`) on the page of its FBS code — the one of the route the

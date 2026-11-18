@@ -72,6 +72,38 @@ async function expectCards(column: Locator, count: number, first: readonly RegEx
   }
 }
 
+test("keeps the whole grid of the remaining to commit in a window of 1280 × 720 under the cards of the deviations to the reference and to the previous review @shared [WF-CMP-0010-A]", async ({
+  page,
+}) => {
+  test.skip(inService, NO_VOLUME_IN_SERVICE);
+  test.slow();
+  await page.setViewportSize({ width: 1280, height: 720 });
+  // The filtered address, whose banner is the tallest: the sub-project chip takes a line of its own.
+  await openHydrated(page, `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
+  // The fake back's example of the indicators gives both deviations (`delta_to_reference`,
+  // `delta_to_previous_revision`): the card shows them, as the real indicators do.
+  const indicators = page.getByRole("region", { name: "Indicateurs du reste à engager" });
+  await expect(indicators).toContainText(/Marge sur le budget de référence/);
+  await expect(indicators).toContainText(/Écart à la revue précédente/);
+  // The header of the grid, its rows and its totals, whole in the window, none scrolled to.
+  const grid = page.getByRole("treegrid", { name: "Grille de reste à engager" });
+  const header = grid.getByRole("columnheader", { name: "Libellé", exact: true });
+  const totals = grid.getByRole("gridcell", { name: /^Total — 1\s000 tâches, 5\s000 lignes$/ });
+  await expect(header).toBeVisible();
+  await expect(totals).toBeVisible();
+  const window = page.viewportSize();
+  expect(window).toEqual({ width: 1280, height: 720 });
+  const [head, foot] = await Promise.all([header.boundingBox(), totals.boundingBox()]);
+  if (head === null || foot === null) {
+    throw new Error("the grid has no box");
+  }
+  expect(head.y).toBeGreaterThanOrEqual(0);
+  expect(foot.y + foot.height).toBeLessThanOrEqual(720);
+  expect(await withinBox(grid, totals)).toBe(true);
+  // The page does not scroll: nothing of the grid is under the fold.
+  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(720);
+});
+
 test("reads the remaining to commit of a revision: its indicators, its grid, the tasks not started on demand, and the Kanban of the three states without any percentage to enter @shared [WF-RAE-0030-A]", async ({
   page,
 }) => {
@@ -80,10 +112,6 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   test.slow();
   // The Kanban, a screen of its own reached by a click, compiled first (`e2e/compile.ts`).
   await compile(page.request, `${IN_REVISION}/kanban`);
-  // The currency now closes each amount of the cards, which wrap a line more (`FiguresGrid` sets
-  // them by the width, for every screen: a layout of the cards is a lot of its own, not this
-  // one's): the window is taller by that line, so that the totals of the grid stay in view.
-  await page.setViewportSize({ width: 1280, height: 800 });
   await openHydrated(page, `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
   await expect(page).toHaveTitle(
     "Estimation du reste à engager · Modernisation du poste de commande — Waterfall",

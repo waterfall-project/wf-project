@@ -2721,7 +2721,10 @@ titre, qui suit son dernier mot dans le même flux de texte : à droite, parmi l
 rétrécirait le titre ; élément d'une rangée qui passe à la ligne, il prendrait une ligne à lui sous
 un titre sur deux lignes, celui du reste à engager en 1280 × 720 ; dans les deux cas, l'en-tête
 grandirait et pousserait les totaux d'une grille hors d'une fenêtre basse (`grid-frame.spec.ts`,
-`remaining.spec.ts`). Il ne passe à la ligne que si la dernière ligne du titre est pleine, et il y
+`remaining.spec.ts`). Son en-tête garde à son titre 24 rem au moins et laisse aux commandes la
+largeur qui reste, où elles passent à la ligne entre elles, à droite : cinq commandes qui prenaient
+leur largeur entière réduisaient le titre du reste à engager à trois lignes, son sous-titre à trois
+autres, 76 points de plus au-dessus de la grille (#3895, `remaining.spec.ts`). Il ne passe à la ligne que si la dernière ligne du titre est pleine, et il y
 est alors sans retrait : une espace le sépare du titre, non une marge —, ou F1 partout sur l'écran,
 ouvre à côté de lui un panneau latéral (`shell/help-panel.tsx`, un `Sheet`) sur la page de son code
 de la FBS — celui de la route que suit l'adresse (`helpCodeAt`, `src/help/help.ts`) : une fonction,
