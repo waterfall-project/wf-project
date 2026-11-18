@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """What the tests of the amendments and the risks share (EP-08, "Les tests du back").
 
-The rows of the risks written around the service — a risk, its evaluation in a revision, a review,
-a share of the reserve —, each valid unless a test changes it, as ``project_rows`` writes those of
-the projects; and the three fabrics every lot of the back starts from, so that none builds its own
-(US-2550/L1): a project costed at 1 000 through the service (``costed``), a risk of severity 200 at
-30 % declared in it (``declared``), and a differential of its current revision (``differential``).
+The rows of the risks written around the service — the evaluation of a risk in a revision, a
+review, a share of the reserve, the risk itself being ``project_rows``' (``risk_row``), which the
+nodes name —, each valid unless a test changes it; and the three fabrics every lot of the back
+starts from, so that none builds its own (US-2550/L1): a project costed at 1 000 through the
+service (``costed``), a risk of severity 200 at 30 % declared in it (``declared``), and a
+differential of its current revision (``differential``).
 Until the stories that serve them, the risk and the differential are written around the service,
 by the owner of the tables, as the rows the service will write: the risk with its own estimate, a
 task bearing a line of 200, its evaluation identified, and its provision line of 60 in the main
