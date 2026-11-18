@@ -661,7 +661,7 @@ tombe avec cette section : la comparaison se lit dans les grilles. WF-REV-0060 v
 
 ## US-2380 — Le parcours de la comparaison de PRJ-001, réécrit sur les grilles et rejoué contre le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — le parcours éprouve US-2320 à US-2360 de bout en bout
 - **opérations** : `compareRevisions`, `listRevisions`, `updateTaskFacet`
 - **issue** : #3490

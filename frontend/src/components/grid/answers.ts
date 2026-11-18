@@ -298,8 +298,20 @@ function verdictsOf<Row, Totals>(
     });
     verdicts.set(order, said.includes(false) ? false : said.includes(true) ? true : undefined);
   }
+  // A reading asked anew is the authority of the grid it was asked for: an answer taken since the
+  // demand, whose rows the counters do not judge — it came back before the reading did, while
+  // another write was under way and asked nothing itself —, gives way to it, its totals with it
+  // (#3804). What this drops is caught up with: the write done that gave the answer laid the flag
+  // of a screen to read anew, which stays until the write under way ends — answered, refused or
+  // failed alike (`settle`) —, and that reading brings the grid again. Without a demand, nothing is said.
+  const demanded = outdated !== Number.NEGATIVE_INFINITY;
   return {
-    get: (order) => (order <= outdated ? false : verdicts.get(order)),
+    get: (order) => {
+      if (order <= outdated) {
+        return false;
+      }
+      return verdicts.get(order) ?? (demanded ? false : undefined);
+    },
   };
 }
 
