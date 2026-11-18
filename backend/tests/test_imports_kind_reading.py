@@ -42,13 +42,16 @@ from support import ContractClient
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.exchanges.interface import imports
 from waterfall.platform.keycloak_admin import KeycloakAdmin
+from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
 
+    from waterfall.core.exchanges.interface.imports import ExchangeKind, Format
     from waterfall.platform.database import Database
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
@@ -131,6 +134,9 @@ def planner(stage: Scene, realm: TestRealm) -> Person:
     return who
 
 
+# No requirement for this test: it closes the first criterion of US-2660 (#2473), which none of the
+# Vérif of WF-ADM-0110 or WF-INTF-0080 states (the first speaks of projects, not of the kinds of
+# their imports).
 @pytest.mark.usefixtures("kinds")
 def test_the_list_of_the_imports_gives_and_counts_the_kinds_its_caller_reads_alone(
     api: ContractClient, stage: Scene, realm: TestRealm
@@ -216,6 +222,50 @@ def test_an_import_whose_requester_no_longer_reads_its_kind_is_refused_its_file_
     assert found["status"] == "refused"
 
 
+@pytest.mark.requirement("WF-ARC-0100-A")
+@pytest.mark.usefixtures("kinds")
+def test_an_import_whose_requester_loses_its_kind_after_acceptance_is_refused_by_the_worker(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    database: Database,
+    backups_bucket: Bucket,
+) -> None:
+    # « Un import confirmé par un utilisateur dont la permission est retirée avant l'exécution
+    # n'est pas appliqué, le refus nomme la condition manquante et son fichier n'est plus sur le
+    # stockage objet. » US-2660/L1 (#2473): the reading is withdrawn after the acceptance (202),
+    # before the worker; the task judges it again as it does the writing.
+    import_id = analysed(api, stage, worker)["import_id"]
+    key = stored(database, import_id).object_key
+    assert apply(api, stage, import_id).status_code == 202
+    withdraw(database, stage.manager, "remaining.read")
+    run(worker)
+    row = stored(database, import_id)
+    assert (row.status, row.expires_at, row.applied_at) == ("refused", None, None)
+    assert backups_bucket.size(key) is None
+
+
+@pytest.mark.usefixtures("kinds")
+def test_an_import_of_a_kind_without_a_format_is_neither_listed_nor_counted_and_is_unknown(
+    api: ContractClient, stage: Scene, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # US-2660/L1 (#2473): a kind no module serves is read by no one, the manager included.
+    kept = opened_as(api, stage, stage.manager, "ms_project_schedule")
+    orphan = opened_as(api, stage, stage.manager, "remaining")
+    served: Registry[tuple[ExchangeKind, Format[Any]]] = Registry()
+    for kind, form in imports.formats().items():
+        if kind != "remaining":
+            served.register((kind, form))
+    monkeypatch.setattr(imports, "_FORMATS", served)
+    seen = listed(api, stage, stage.manager)
+    assert [each["import_id"] for each in seen["items"]] == [kept]
+    assert seen["meta"]["total"] == 1
+    assert refusal(api.get(path(stage, orphan), headers=stage.manager.headers))[:2] == (
+        404,
+        "NOT_FOUND",
+    )
+
+
 @pytest.mark.usefixtures("kinds")
 def test_an_opening_of_a_kind_its_caller_does_not_read_is_refused_as_unknown(
     api: ContractClient, stage: Scene, realm: TestRealm
@@ -229,6 +279,8 @@ def test_an_opening_of_a_kind_its_caller_does_not_read_is_refused_as_unknown(
     assert listed(api, stage, stage.manager)["items"] == []
 
 
+# No requirement for this test either: the criterion is the US's own (#2473); the Vérif of
+# WF-ADM-0110 and of WF-INTF-0080 name no function held apart from the planning's.
 def test_an_estimator_who_does_not_read_the_planning_opens_reads_and_applies_its_estimate(
     api: ContractClient, stage: Scene, worker: Worker, realm: TestRealm
 ) -> None:

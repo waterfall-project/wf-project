@@ -454,15 +454,15 @@ def open_import(
 
     Under the lock of the project, in the order of the contract: a kind no format serves (422), the
     reading of the kind (404, #2473), its permission and the quality of contributor (403), an
-    inverted period (422), a
-    terminal project (409 ``project_not_terminal``), a deposit unknown, expired, used already or
-    another's (404), made for a restoration (422 ``/upload_id``), a structure the revision does not
-    hold (404), the condition of a remaining to commit's phase (409 ``project_in_progress``,
-    ``Format.judged_first``; #2796), a task writing in the project, the permission to create the
-    revision the import would create (409), the conditions of the kind (409), then the head of the
-    file the format does not recognise (422 ``FILE_FORMAT_UNREADABLE``). The import is written
-    ``analysing``, the task of its analysis deposited in the transaction; it writes in the current
-    revision, or in none yet (``revision_id`` null), the application creating it (WF-INTF-0090).
+    inverted period (422), a terminal project (409 ``project_not_terminal``), a deposit unknown,
+    expired, used already or another's (404), made for a restoration (422 ``/upload_id``), a
+    structure the revision does not hold (404), the condition of a remaining to commit's phase
+    (409 ``project_in_progress``, ``Format.judged_first``; #2796), a task writing in the project,
+    the permission to create the revision the import would create (409), the conditions of the
+    kind (409), then the head of the file the format does not recognise (422
+    ``FILE_FORMAT_UNREADABLE``). The import is written ``analysing``, the task of its analysis
+    deposited in the transaction; it writes in the current revision, or in none yet
+    (``revision_id`` null), the application creating it (WF-INTF-0090).
     """
     act = confirmer.act
     form = _format_of(opening.kind)
@@ -680,13 +680,12 @@ def apply_import(
 
     Under the lock of the import, read under it, then the lock of the project: unknown (404); the
     reading of its kind (404, #2473), its permission and the quality of contributor (403); an
-    import no longer ``analysed``
-    — applied or being applied, abandoned, expired, failed, refused — (409
-    ``import_awaiting_decision``), the import unchanged; then a report that rejects the whole file
-    (409 ``import_file_accepted``), and the conditions of the opening judged again, those of the
-    exchanges then those of the kind (409), and the structure aimed at, which the current revision
-    may no longer hold (404). A condition that passes — a background task of the project, the
-    permission to create the revision the import would create (``PASSING``) — refuses it and
+    import no longer ``analysed`` — applied or being applied, abandoned, expired, failed, refused —
+    (409 ``import_awaiting_decision``), the import unchanged; then a report that rejects the whole
+    file (409 ``import_file_accepted``), and the conditions of the opening judged again, those of
+    the exchanges then those of the kind (409), and the structure aimed at, which the current
+    revision may no longer hold (404). A condition that passes — a background task of the project,
+    the permission to create the revision the import would create (``PASSING``) — refuses it and
     leaves it ``analysed``, its file kept: it is applied again once the condition holds, without a
     new deposit (WF-ARC-0100, #2475). Any other refuses it for good, as the permission or the
     quality its requester lost since the analysis does (403): another account's refusal leaves it
