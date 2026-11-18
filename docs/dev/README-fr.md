@@ -3510,15 +3510,15 @@ s'excluent pas tant que la branche n'a pas repris le lot. `WATERFALL_RUNTIME_DIR
 tests posent, le remplace : aucun test ne touche les verrous du poste.
 
 Le registre du poste est `waterfall-slots/` de ce répertoire, comme les verrous des exécutions
-lourdes : un fichier `<i>` par créneau pris, qui porte le chemin du worktree
-(`git rev-parse --show-toplevel`) et l'instant de la prise, écrit sous un verrou exclusif du registre (`tools/src/wftools/slots.py claim`, `release`, `list`). Un
-créneau dont le worktree n'existe plus est libre ; celui qui prend un créneau en retire d'abord
-ce qu'un porteur y a laissé (`docker compose -p <projet> down --volumes`, pour chacun de ses deux
-projets), le verrou du registre tenu jusqu'à ce que ce retrait ait réussi, comme le tient
-`make slot-release` : un `make slot` lancé entre-temps attend, en le disant, et si Docker échoue,
-le créneau n'est pas pris, et le `make slot` suivant refait le retrait. Avant ce retrait, l'un et
-l'autre arrêtent les serveurs de l'e2e que le créneau a laissés (`make e2e-down`). `slots.py which` dit le
-créneau du worktree courant.
+lourdes : un fichier `<i>` par créneau pris, qui porte le chemin du worktree (`git rev-parse
+--show-toplevel`) et l'instant de la prise, écrit sous un verrou exclusif du registre
+(`tools/src/wftools/slots.py claim`, `release`, `list`). Un créneau dont le worktree n'existe plus
+est libre ; celui qui prend un créneau en retire d'abord ce qu'un porteur y a laissé (`docker
+compose -p <projet> down --volumes`, pour chacun de ses deux projets), le verrou du registre tenu
+jusqu'à ce que ce retrait ait réussi, comme le tient `make slot-release` : un `make slot` lancé
+entre-temps attend, en le disant, et si Docker échoue, le créneau n'est pas pris, et le `make slot`
+suivant refait le retrait. Avant ce retrait, l'un et l'autre arrêtent les serveurs de l'e2e que le
+créneau a laissés (`make e2e-down`). `slots.py which` dit le créneau du worktree courant.
 
 Au créneau i de 1 à 9, les ports sont ceux du bloc `20000 + 100·i`, sous la plage des ports
 éphémères de Linux ; au créneau 0, ceux d'avant :

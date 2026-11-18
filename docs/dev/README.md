@@ -3494,15 +3494,16 @@ under `XDG_RUNTIME_DIR`, a tool that has it under `/run/user/<uid>` or `/tmp`: t
 each other until the branch has taken the lot. `WATERFALL_RUNTIME_DIR`, which only the tests set,
 replaces it: no test touches the locks of the workstation.
 
-The register of the workstation is `waterfall-slots/` of this directory, like the locks of the
-heavy runs: a file `<i>` per slot taken, which holds the path of the worktree
-(`git rev-parse --show-toplevel`) and the moment it was taken, written under an exclusive lock of the register (`tools/src/wftools/slots.py claim`, `release`,
-`list`). A slot whose worktree no longer exists is free; whoever takes a slot first removes what a
-holder left in it (`docker compose -p <project> down --volumes`, for each of its two projects),
-the lock of the register held until that removal has succeeded, as `make slot-release` holds it: a
-`make slot` started meanwhile waits, saying so, and if Docker fails, the slot is not taken, and the
-next `make slot` does the removal again. Before that removal, both stop the e2e servers the slot
-left (`make e2e-down`). `slots.py which` says the slot of the current worktree.
+The register of the workstation is `waterfall-slots/` of this directory, like the locks of the heavy
+runs: a file `<i>` per slot taken, which holds the path of the worktree (`git rev-parse
+--show-toplevel`) and the moment it was taken, written under an exclusive lock of the register
+(`tools/src/wftools/slots.py claim`, `release`, `list`). A slot whose worktree no longer exists is
+free; whoever takes a slot first removes what a holder left in it (`docker compose -p <project> down
+--volumes`, for each of its two projects), the lock of the register held until that removal has
+succeeded, as `make slot-release` holds it: a `make slot` started meanwhile waits, saying so, and if
+Docker fails, the slot is not taken, and the next `make slot` does the removal again. Before that
+removal, both stop the e2e servers the slot left (`make e2e-down`). `slots.py which` says the slot
+of the current worktree.
 
 At slot i from 1 to 9, the ports are those of the block `20000 + 100·i`, below the range of the
 ephemeral ports of Linux; at slot 0, those of before:
