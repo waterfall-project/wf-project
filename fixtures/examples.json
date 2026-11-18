@@ -152,9 +152,9 @@
       "sentence": "Une mise à jour refusée à la création d'une révision est acceptée ensuite depuis la révision en cours, qui est alors rechiffrée au taux de 2027 pour cette catégorie."
     },
     {
-      "key": "WF-PRJ-0050-A#0959bb1f339c",
+      "key": "WF-PRJ-0050-A#38958d887e9a",
       "requirement": "WF-PRJ-0050-A",
-      "sentence": "La création d'un sous-projet de code « SP/01 », « Synthèse » ou de plus de trente et un caractères est refusée."
+      "sentence": "Un sous-projet de code « A.ABC.26001/10001 », « Synthèse » ou de quarante caractères se crée, et le fichier de reste à engager lui donne un onglet qui porte son code en tête."
     },
     {
       "key": "WF-PRJ-0090-A#0600dd236bf1",
@@ -352,9 +352,19 @@
       "sentence": "Après déclaration de survenance d'un risque dont le devis propre porte deux lignes de 120 et 80, ces lignes figurent dans la structure principale de la révision en cours avec des montants budgétés nuls et des montants réestimés de 120 et 80 ; la ligne de provision a disparu ; le budget de référence et la révision de référence sont inchangés ; le reste à engager a augmenté de 200 moins la provision retirée ; la terminaison de ces tâches n'acquiert aucune valeur."
     },
     {
-      "key": "WF-CRE-0020-A#05375b7a17e8",
+      "key": "WF-CRE-0020-A#327d63bf4748",
       "requirement": "WF-CRE-0020-A",
-      "sentence": "Sur le projet de code A.ABC.26001, une ligne d'élément A.ABC.26001/10001 est imputée au sous-projet 10001, et une ligne d'élément A.ABC.26002/10001 est rejetée comme d'un autre projet."
+      "sentence": "Sur le projet de code A.ABC.26001, qui porte le sous-projet de code A.ABC.26001/10001, une ligne d'élément A.ABC.26001 est importée et imputée au seul projet, et une ligne d'élément A.ABC.26001/10001 est imputée à ce sous-projet."
+    },
+    {
+      "key": "WF-CRE-0020-A#80d94ea6d2fe",
+      "requirement": "WF-CRE-0020-A",
+      "sentence": "Une ligne d'élément A.ABC.26001/10002, une ligne d'élément 10001, une ligne d'élément A.ABC.26002 et une ligne d'élément vide sont rejetées, et le compte rendu nomme chacun de ces éléments et le nombre de ses lignes."
+    },
+    {
+      "key": "WF-CRE-0020-A#8ccc97711b47",
+      "requirement": "WF-CRE-0020-A",
+      "sentence": "Après création du sous-projet de code A.ABC.26001/10002, le réimport du même fichier lui impute ses lignes."
     },
     {
       "key": "WF-IND-0030-A#c3aebc79b97d",
@@ -457,6 +467,11 @@
       "sentence": "Un montant de 0,10 additionné dix fois donne exactement 1,00."
     },
     {
+      "key": "WF-DAT-0100-A#a2d83cfac195",
+      "requirement": "WF-DAT-0100-A",
+      "sentence": "Un montant calculé de 75,705 est présenté 75,71."
+    },
+    {
       "key": "WF-DAT-0140-A#0d1c5ff97ae7",
       "requirement": "WF-DAT-0140-A",
       "sentence": "Une installation en version N passe en version N+1 sans perte de données, et le code de la version N s'exécute sur le schéma migré."
@@ -490,6 +505,11 @@
       "key": "WF-CMP-0010-A#f11d4089327f",
       "requirement": "WF-CMP-0010-A",
       "sentence": "Les vues d'indicateurs se lisent sur un écran de 360 points de large et n'y proposent aucune saisie."
+    },
+    {
+      "key": "WF-CMP-0020-A#1377e4bac603",
+      "requirement": "WF-CMP-0020-A",
+      "sentence": "Le démarrage échoue en le disant si le serveur PostgreSQL est d'une autre version majeure que la 18, ou réglé pour moins de 1 024 verrous par transaction."
     }
   ]
 }
