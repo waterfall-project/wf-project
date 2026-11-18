@@ -931,11 +931,13 @@ def test_the_remaining_of_the_101_is_the_kept_indicators_of_the_project_less_the
     assert sum(D(each["remaining"]) for each in body["by_subproject"]) == total
     assert set(body["coverage"].values()) == {"0.00"}
     # Measured to the offer 100, each margin the budget less the actual cost and the remaining.
+    match = (RevisionIndicator.revision_id == REVISION_100, RevisionIndicator.kind == "remaining")
     with witness.transaction() as session:
         offer = sum(
             (facet.reestimated_amount for _, facet in line_rows(session, REVISION_100).values()),
             D(0),
         )
+        offered = session.scalars(select(RevisionIndicator.document).where(*match)).one()
     assert sum(D(each["budget"]) for each in body["by_subproject"]) == offer
     assert D(kept_project["reference_budget"]) == offer
     for each in body["by_subproject"]:
@@ -944,11 +946,9 @@ def test_the_remaining_of_the_101_is_the_kept_indicators_of_the_project_less_the
         assert (each["is_over_budget"], each["zone"]) == (
             (True, "alert") if margin < 0 else (False, "nominal")
         )
-    assert D(body["delta_to_reference"]) == sum(
-        D(each["variance"]) for each in body["by_subproject"]
-    )
-    # No revision was marked In progress before the 101: the offer is not a review.
-    assert body["delta_to_previous_revision"] is None
+    assert D(body["delta_to_reference"]) == sum(D(e["variance"]) for e in body["by_subproject"])
+    # The offer 100 alone was marked before the 101: its remaining less the offer's (US-1670).
+    assert D(body["delta_to_previous_revision"]) == total - D(offered["total"])
 
 
 @QUA

@@ -37,7 +37,6 @@ from waterfall.core.estimate.remaining.balancing import (
     distributed,
 )
 from waterfall.core.estimate.remaining.comparing import (
-    previous_review,
     reference_budgets,
     summed_by_subproject,
 )
@@ -230,8 +229,9 @@ def remaining_indicators(
     Computed at ``at``, never stored. The total and its ventilation by nature are the remaining of
     the revision; each subproject — the lines out of any, and the cost imputed to the project
     alone, as ``unassigned`` — compares its budget in the reference with its actual cost and its
-    remaining; the margin on the reference is none without one, the difference with the review
-    before none without a revision marked In progress before this one. A revision unknown is 404.
+    remaining; the margin on the reference is none without one, the difference with the revision
+    marked before this one — the offer, when it is the only one — none without one, as the estimate
+    reads it. A revision unknown is 404.
     """
     read = read_revision_for(session, project_id, revision_id)
     # The lines on their tasks, the costliest read: once for the remaining and its ventilation.
@@ -251,7 +251,6 @@ def remaining_indicators(
     labels = subproject_labels(
         session, project_id, [UUID(each.key) for each in found if each.key != UNASSIGNED]
     )
-    earlier = previous_review(session, project_id, read.revision_id)
     return RemainingIndicators(
         context=CalculationContext(
             read.revision_id, "marked" if read.marked else "draft", at, "project", is_stored=False
@@ -275,6 +274,8 @@ def remaining_indicators(
         delta_to_reference=delta_to_reference(budgets, actual_costs, remainings),
         delta_to_previous_revision=delta_to_previous(
             held.total,
-            None if earlier is None else remaining_of_revision(session, project_id, earlier).total,
+            None
+            if read.previous_marked_id is None
+            else remaining_of_revision(session, project_id, read.previous_marked_id).total,
         ),
     )
