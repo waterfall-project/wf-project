@@ -635,7 +635,7 @@ pull request qui le porte, et non celle du lot suivant ou de `main` après la fu
 
 ## US-2490 — La chaîne : caches, veille, droits, traces et miroir
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3685

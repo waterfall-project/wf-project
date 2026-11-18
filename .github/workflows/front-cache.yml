@@ -17,7 +17,9 @@ name: front-cache
 on:
   push:
     branches: [main, "epic/**"]
-    paths: ["frontend/**"]
+    # The lockfiles of uv too: a merge that changes only one of them still writes the cache of uv,
+    # keyed by their hash (PLC-08).
+    paths: ["frontend/**", "backend/uv.lock", "tools/uv.lock"]
   # A branch created: this event has no filter of branches, the job below chooses.
   create:
   # The caches of main, which a week without a read would let GitHub drop.

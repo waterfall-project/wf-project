@@ -6,7 +6,10 @@
 version: 2
 updates:
   - package-ecosystem: github-actions
-    directory: /
+    # The workflows, and the local actions that pin actions too (PLC-09).
+    directories:
+      - /
+      - /.github/actions/*
     schedule:
       interval: monthly
     commit-message:
@@ -61,6 +64,7 @@ updates:
       - /deploy/keycloak
       - /deploy/openldap
       - /deploy/compose
+      - /deploy/e2e
     schedule:
       interval: monthly
     commit-message:
