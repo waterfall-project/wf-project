@@ -46,7 +46,9 @@ a directory). ``command -v`` looks a name up and runs nothing: the name that fol
 A ``cd`` into a directory of git is followed along the line, into the scripts it runs
 (``guardgit.py``).
 
-Out of scope, known limits: the ``cd`` is followed in the order of writing, whatever the ``&&``
+Out of scope, known limits: ``bash /dev/stdin`` and ``bash /dev/fd/0`` read the input that was
+fed to them, which is not judged: ``echo 'pkill x' | bash /dev/stdin`` passes, the operand being
+taken for a script (US-2500); the ``cd`` is followed in the order of writing, whatever the ``&&``
 and ``||`` between the commands (``cd .git && true || cd ..; rm x.lock`` passes); and a ``cd ..``
 resets the state even from ``.git/refs/heads``, where the shell is still under ``.git``.
 """
@@ -502,11 +504,13 @@ def _simple(words: list[str], depth: int, context: _Context) -> tuple[str | None
         piped = piped or name == "xargs"
         package = package or prefix.versions
         options, index = prefix.parse(words, index + 1)
-        if prefix is guardoptions.UV_RUN:
-            words = [*words[:index], *_uv_python(options, words[index:])]
+        here = _moves(prefix, options, here=here)
+        uv = prefix is guardoptions.UV_RUN
+        if uv and (form := _uv_refusal(options, words[index:], depth, here=here, piped=piped)):
+            return form, moved
+        words = [*words[:index], *_uv_python(options, words[index:])[-1]] if uv else words
         operands = words[index : index + prefix.operands]
         index += prefix.operands
-        here = _moves(prefix, options, here=here)
         if name == "chroot" and operands:
             here = guardgit.into_git(operands[0], moved=here)
         scripts = [value for option, value in options if option in prefix.scripts]
@@ -539,18 +543,37 @@ def _command(command: guardgit.Command, *, moved: bool) -> tuple[str | None, boo
     return (None if check is None else check(command)), moved
 
 
-def _uv_python(options: list[tuple[str, str]], rest: list[str]) -> list[str]:
-    """Return what ``uv run`` runs past its options, the word ``python`` it leaves out restored.
+def _uv_python(options: list[tuple[str, str]], rest: list[str]) -> list[list[str]]:
+    """Return what ``uv run`` may run past its options, one list of words for each way of reading.
 
     ``uv run -m <module>``, ``uv run -s <script>``, or a command word that ends in ``.py``, run
     Python: ``uv run -m wftools.mergequeue create`` is ``python -m wftools.mergequeue create``.
+    uv keeps the last ``-m`` or ``-s`` of the line, and every one is returned, the last at the
+    end, so that each is judged (US-2500): the word ``python`` is restored in each.
     """
+    runs: list[list[str]] = []
     for option, value in options:
         if option in {"-m", "--module"}:
-            return ["python", "-m", value, *rest]
-        if option in {"-s", "--script"}:
-            return ["python", value, *rest]
-    return ["python", *rest] if rest[:1] and rest[0].endswith(".py") else rest
+            runs.append(["python", "-m", value, *rest])
+        elif option in {"-s", "--script"}:
+            runs.append(["python", value, *rest])
+    if runs:
+        return runs
+    return [["python", *rest]] if rest[:1] and rest[0].endswith(".py") else [rest]
+
+
+def _uv_refusal(
+    options: list[tuple[str, str]], rest: list[str], depth: int, *, here: bool, piped: bool
+) -> str | None:
+    """Judge the runs of ``uv run`` that uv does not keep, and return the form refused, if any.
+
+    ``uv run -m foo -m wftools.mergequeue create``: uv keeps the last, and each one is judged.
+    """
+    for variant in _uv_python(options, rest)[:-1]:
+        form = _line(shlex.join(variant), depth + 1, piped=piped, moved=here)
+        if form is not None:
+            return form
+    return None
 
 
 def _moves(prefix: guardoptions.Options, options: list[tuple[str, str]], *, here: bool) -> bool:

@@ -3903,6 +3903,8 @@ the command, not what the shell computes from it. Its known limits, which it doe
 - text read by another interpreter, or encoded: `source /dev/stdin`, `. /dev/stdin`,
   `while read l; do eval "$l"`, `python <<EOF` that calls `os.system`, `uvx` and `uv tool run`,
   shells outside the list (`fish`…), obscured text (`printf '\x70kill'`, `base64 | bash`);
+- `bash /dev/stdin` and `bash /dev/fd/0`: the operand is taken for a script, and the input that
+  was fed is not judged (`echo 'pkill x' | bash /dev/stdin` passes) (US-2500);
 - the destructive writes other than `rm`, `mv`, `truncate` and `find`: `shred`,
   `rsync --delete`, `cp /dev/null .git/index`, `: > .git/index`, `ln -sf x .git`;
 - an event it cannot read — unreadable JSON, empty input, no `command` — exits with code 0, and
@@ -4288,7 +4290,8 @@ a block; a port that is not an integer from 1 to 65535 is refused. `make e2e-bro
 browser. `make e2e SHARD=i/N` plays only the i-th of N shards of the paths, spread by measured
 duration (`tools/e2e-durations.json`, which `make e2e-durations` refreshes), like each of the
 chain's runners (« The chain »; `SHARD` does not combine with `TESTS=<file>`, which the recipe
-refuses: the file may lie in another shard), and `make e2e WORKERS=<n>` plays them on `n` workers
+refuses: the file may lie in another shard; `SHARD=lint` is for `make check-front-tests` and
+`make test-front` alone, and `check`, `check-front`, `check-all` and `e2e` refuse it), and `make e2e WORKERS=<n>` plays them on `n` workers
 (`E2E_WORKERS`, which `playwright.config.ts` reads; an integer from 1 to 40, nothing else: one front
 per worker, and a slot's block holds only forty), fewer than Playwright takes on its own — half the
 processors, capped at forty — on a loaded workstation, where paths fail by timeout (#736). `make

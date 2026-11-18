@@ -18,6 +18,18 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 SEPARATOR = e2eparts.SEPARATOR
+PATH_GOALS = ["check-service", "check-front-e2e", "check-front", "check-all", "check"]
+
+
+def configured_measures() -> str:
+    """Return the pattern of the files of the measures, read from ``playwright.config.ts``."""
+    configuration = (e2eparts.FRONT / "playwright.config.ts").read_text(encoding="utf-8")
+    found = re.search(r"^const MEASURES = /(?P<pattern>.+)/;$", configuration, re.MULTILINE)
+    assert found is not None, "playwright.config.ts no longer declares MEASURES as a pattern"
+    return found["pattern"]
+
+
+MEASURES = configured_measures()
 LISTING = """\
 Listing tests:
   [chromium] \u203a admin.spec.ts:41:1 \u203a reaches a screen
@@ -416,15 +428,57 @@ def test_a_part_with_a_file_is_refused_before_anything_is_built(target: str) -> 
     assert done.stdout == ""
 
 
-@pytest.mark.parametrize("shard", ["1/1", "x", "3/2", "0/4"])
-@pytest.mark.parametrize("target", ["e2e-service", "check-service"])
-def test_a_part_of_the_service_paths_of_a_wrong_shape_is_refused_before_anything_is_built(
+@pytest.mark.story("US-2500")
+@pytest.mark.parametrize("shard", ["1/1", "x", "3/2", "0/4", "1/2 3", "1/2'"])
+@pytest.mark.parametrize("target", ["e2e", "e2e-service", *PATH_GOALS])
+def test_a_part_of_the_paths_of_a_wrong_shape_is_refused_before_anything_is_built(
     target: str, shard: str
 ) -> None:
     done = make_dry(target, f"SHARD={shard}")
     assert done.returncode != 0
     assert "SHARD must be i/N" in done.stderr
     assert done.stdout == ""
+
+
+@pytest.mark.story("US-2500")
+def test_check_front_e2e_refuses_a_malformed_part_without_a_file() -> None:
+    """[US-2500] #3108: check-front-e2e SHARD=x, no TESTS, is refused as e2e-service is."""
+    done = make_dry("check-front-e2e", "SHARD=x")
+    assert done.returncode != 0
+    assert "SHARD must be i/N" in done.stderr
+
+
+@pytest.mark.story("US-2500")
+def test_a_part_with_an_apostrophe_is_refused_without_running_anything(tmp_path: Path) -> None:
+    """[US-2500] #3108: the value never reaches a shell: the command in it does not run."""
+    marker = tmp_path / "ran"
+    done = make_dry("check-service", f"SHARD=1/2'; touch {marker}; '")
+    assert done.returncode != 0
+    assert "SHARD must be i/N" in done.stderr
+    assert not marker.exists()
+
+
+@pytest.mark.story("US-2500")
+def test_a_hostile_part_of_e2e_is_refused_without_running_anything(tmp_path: Path) -> None:
+    """[US-2500] #3108: make -n e2e SHARD=<hostile> is refused, the command in it never runs."""
+    marker = tmp_path / "ran"
+    done = make_dry("e2e", f"SHARD=1/2'; touch {marker}; '")
+    assert done.returncode != 0
+    assert "SHARD must be i/N" in done.stderr
+    assert not marker.exists()
+
+
+@pytest.mark.story("US-2500")
+def test_the_value_of_a_part_reaches_the_tool_without_an_export_of_make() -> None:
+    """[US-2500] #3108: the tool judges the value make does not export (make 4.3 hands none)."""
+    assert "\nexport WATERFALL_SHARD_ASKED" not in (REPOSITORY / "Makefile").read_text("utf-8")
+    good = make_dry("e2e", "SHARD=1/5")
+    assert good.returncode == 0, good.stderr
+    # refused by the tool alone: the characters are those of a valid part
+    for value in ("0/5", "6/5", "1/1"):
+        bad = make_dry("e2e", f"SHARD={value}")
+        assert bad.returncode != 0, value
+        assert "SHARD must be i/N" in bad.stderr
 
 
 def test_a_part_of_the_paths_against_the_service_is_checked_then_planned() -> None:
@@ -438,6 +492,14 @@ def test_a_part_of_the_paths_against_the_service_is_checked_then_planned() -> No
     planned = next(line for line in lines if "e2eparts plan --service 2/4" in line)
     assert "export E2E_SERVICE_SERIAL=1" in planned
     assert lines.index(planned) < lines.index(played)
+
+
+@pytest.mark.story("US-2500")
+def test_the_measures_left_out_of_the_service_paths_are_those_of_the_configuration() -> None:
+    """[US-2500] #3108: the files left out below are those MEASURES of the configuration names."""
+    assert re.search(MEASURES, "e2e/opening.spec.ts")
+    assert re.search(MEASURES, "e2e/departure.spec.ts")
+    assert not re.search(MEASURES, "e2e/service/shared.spec.ts")
 
 
 def test_the_service_durations_follow_the_files_the_service_projects_play() -> None:
@@ -458,7 +520,7 @@ def test_the_service_durations_follow_the_files_the_service_projects_play() -> N
         text = path.read_text(encoding="utf-8")
         if file.startswith("service/"):
             played[("service", file)] = text
-        elif not re.search(r"(opening|departure)\.spec\.ts$", file) and "@shared" in text:
+        elif not re.search(MEASURES, file) and "@shared" in text:
             played[("shared", file)] = text
     assert sorted(named - played.keys()) == [], "run make e2e-durations: files gone from the paths"
     in_series = re.compile(r"@(?:serial|realm-wide|platform-wide)")

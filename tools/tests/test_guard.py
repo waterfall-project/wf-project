@@ -692,6 +692,12 @@ def test_a_cd_up_resets_the_state_even_from_below_git() -> None:
     assert not refused("cd .git/refs/heads; cd ..; rm main.lock")
 
 
+@pytest.mark.parametrize("operand", ["/dev/stdin", "/dev/fd/0"])
+def test_a_shell_reading_its_script_from_the_input_is_not_judged(operand: str) -> None:
+    """US-2500: known limit, `bash /dev/stdin` takes the operand for a script: the input passes."""
+    assert not refused(f"echo 'pkill x' | bash {operand}")
+
+
 @pytest.mark.parametrize(
     "command",
     [

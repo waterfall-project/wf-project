@@ -207,6 +207,24 @@ def test_the_merge_queue_created_by_python_is_refused_under_uv_run_or_not(comman
     assert "mergequeue create" in said
 
 
+@pytest.mark.story("US-2500")
+@pytest.mark.parametrize(
+    "command",
+    [
+        "uv run -m foo -m wftools.mergequeue create EP-28",
+        "uv run -m wftools.mergequeue create EP-28 -m foo",
+        "uv run -m foo --module wftools.mergequeue create EP-28",
+        "uv run -m foo -s tools/src/wftools/mergequeue.py create EP-28",
+        "uv run -s foo.py -m wftools.mergequeue create EP-28",
+    ],
+)
+def test_each_module_or_script_of_uv_run_is_judged_not_only_the_first(command: str) -> None:
+    """[US-2500] #3796: uv keeps the last `-m` or `-s`, and `uv run -m foo -m …` was let through."""
+    said = guard.refusal(command)
+    assert said is not None
+    assert "mergequeue create" in said
+
+
 @pytest.mark.story("US-2450")
 @pytest.mark.parametrize(
     "command",

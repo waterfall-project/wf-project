@@ -3934,6 +3934,8 @@ la commande, non ce que le shell en calcule. Ses limites connues, qu'il ne code 
 - le texte lu par un autre interpréteur, ou encodé : `source /dev/stdin`, `. /dev/stdin`,
   `while read l; do eval "$l"`, `python <<EOF` qui appelle `os.system`, `uvx` et `uv tool run`,
   les shells hors de la liste (`fish`…), le texte obscurci (`printf '\x70kill'`, `base64 | bash`) ;
+- `bash /dev/stdin` et `bash /dev/fd/0` : l'opérande est pris pour un script, et l'entrée fournie
+  n'est pas jugée (`echo 'pkill x' | bash /dev/stdin` passe) (US-2500) ;
 - les écritures destructrices autres que `rm`, `mv`, `truncate` et `find` : `shred`,
   `rsync --delete`, `cp /dev/null .git/index`, `: > .git/index`, `ln -sf x .git` ;
 - un événement qu'il ne sait pas lire — JSON illisible, entrée vide, sans `command` — sort en
@@ -4322,7 +4324,9 @@ parcours en prend autant qu'il a de workers, à partir de lui (ci-dessous), quar
 un bloc ; un port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
 navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, répartis par durée
 mesurée (`tools/e2e-durations.json`, que rafraîchit `make e2e-durations`) — `SHARD` ne se combine pas
-avec `TESTS=<fichier>`, que la recette refuse : le fichier peut être dans un autre morceau —, comme
+avec `TESTS=<fichier>`, que la recette refuse : le fichier peut être dans un autre morceau ;
+`SHARD=lint` ne vaut que pour `make check-front-tests` et `make test-front`, et `check`,
+`check-front`, `check-all` et `e2e` le refusent —, comme
 chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les joue sur `n` workers
 (`E2E_WORKERS`, que lit `playwright.config.ts` ; un entier de 1 à 40, rien d'autre : un front par
 worker, et le bloc d'un créneau n'en porte que quarante), moins que Playwright n'en prend de
