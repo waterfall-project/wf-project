@@ -236,6 +236,27 @@ def lines_of_structure(session: Session, project_id: UUID, structure_id: UUID) -
     )
 
 
+def lines_of_structures(
+    session: Session, project_id: UUID, structure_ids: Collection[UUID]
+) -> dict[UUID, tuple[UUID, ...]]:
+    """Give the estimate lines of each structure named, in node order, in one statement."""
+    held: dict[UUID, list[UUID]] = {each: [] for each in structure_ids}
+    if not held:
+        return {}
+    rows = session.execute(
+        select(Node.structure_id, Node.id)
+        .where(
+            Node.project_id == project_id,
+            Node.structure_id.in_(list(held)),
+            Node.kind == LINE,
+        )
+        .order_by(Node.id)
+    )
+    for structure_id, node_id in rows:
+        held[structure_id].append(node_id)
+    return {structure_id: tuple(nodes) for structure_id, nodes in held.items()}
+
+
 def revision_bears(session: Session, revision_id: UUID, kind: str) -> bool:
     """Tell whether a structure of a revision holds a node of a kind."""
     return bool(

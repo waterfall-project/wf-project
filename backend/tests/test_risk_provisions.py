@@ -125,7 +125,7 @@ def test_a_risk_without_a_designated_task_bears_its_provision_on_the_first_task_
     # « Un risque déclaré sans désignation de tâche porte sa provision sur la première tâche de
     # premier niveau ; la ligne peut être déplacée sur une autre tâche de la structure principale,
     # et le total du devis est inchangé. » 200 at 30 % : a provision of 60 under the study.
-    risk = risks.declared()
+    risk = risks.declared_costed()
     assert (risk["provision_amount"], risk["provision_task"]["label"]) == ("60.00", STUDY)
     total = provisions_total(project)
     assert total == Decimal("1060.00")
@@ -152,8 +152,8 @@ def test_the_lineage_of_the_task_a_risk_designates_is_kept_and_none_for_the_defa
     risks: Risks, project: Costed
 ) -> None:
     # The lineage of the task designated is kept by the risk (WF-DAT-0030); none for the default.
-    designated = risks.declared(provision_task_id=str(project.tasks[MAKING]))
-    default = risks.declared()
+    designated = risks.declared_costed(provision_task_id=str(project.tasks[MAKING]))
+    default = risks.declared_costed()
     with project.stage.database.transaction() as session:
         lineages = dict(
             session.execute(
@@ -188,7 +188,7 @@ def test_the_estimate_is_ventilated_under_the_nature_of_the_category_the_risk_ch
     # « …la ventilation du devis présente la provision sous la nature de la catégorie choisie ; avec
     # une seule, elle ne la demande pas. » A single category: retained, under the nature installed.
     stage = project.stage
-    alone = risks.declared()
+    alone = risks.declared_costed()
     delivered = alone["provision_cost_category_id"]
     assert natures_of(risks)["Provision pour risques"] == "60.00"
     # Two: the category is asked, and the provision follows the nature of the one chosen.
@@ -198,7 +198,7 @@ def test_the_estimate_is_ventilated_under_the_nature_of_the_category_the_risk_ch
     assert [(each["pointer"], each["code"]) for each in asked.json()["fields"]] == [
         ("/provision_cost_category_id", "VALUE_REQUIRED")
     ]
-    chosen = risks.declared("100.00", provision_cost_category_id=str(second))
+    chosen = risks.declared_costed("100.00", provision_cost_category_id=str(second))
     assert chosen["provision_cost_category_label"] == "Aléas fournisseurs"
     natures = natures_of(risks)
     assert (natures["Provision pour risques"], natures["Aléas"]) == ("60.00", "30.00")
@@ -220,7 +220,7 @@ def test_the_category_a_risk_keeps_is_accepted_deactivated_and_another_deactivat
     # Its category deactivated since is accepted as it is (INACTIVE_REFERENCE_OBJECT applies to a
     # value that changes it), a deactivated other refused on its field, nothing written.
     stage = project.stage
-    risk = risks.declared()
+    risk = risks.declared_costed()
     second = another_provision(stage)
     with stage.database.transaction() as session:
         held = session.scalar(select(CostCategory.lock_version).where(CostCategory.id == second))
@@ -247,7 +247,7 @@ def test_a_risk_declared_on_a_subproject_bears_its_provision_in_its_remaining_to
     # « Un risque déclaré sur le sous-projet S2 porte sa provision au reste à engager de S2 ; sans
     # sous-projet désigné, elle compte hors sous-projet. » 200 at 30 % : 60 under S2, then none.
     s2 = risks.subproject("S2")
-    risk = risks.declared(provision_subproject_id=s2)
+    risk = risks.declared_costed(provision_subproject_id=s2)
     assert risk["provision_subproject_label"] == "S2"
     by_key = {each["key"]: each["remaining"] for each in risks.remaining()["by_subproject"]}
     assert (by_key[s2], by_key["unassigned"]) == ("60.00", "1000.00")
@@ -270,7 +270,7 @@ def test_the_provision_of_a_started_task_passes_to_another_subproject_that_recei
     # its subproject (EP-09), the provision of a risk is not.
     stage = project.stage
     s1, s2 = risks.subproject("S1"), risks.subproject("S2")
-    risk = risks.declared(provision_subproject_id=s1)
+    risk = risks.declared_costed(provision_subproject_id=s1)
     set_progress(stage, str(project.tasks[STUDY]), "started", date(2026, 3, 2))
     load_import(stage, project.project_id, [cost("FA-1", "S1", "100.00")])
     moved = risks.provisioned(risk, provision_subproject_id=s2)
@@ -314,7 +314,7 @@ def test_a_background_task_that_writes_is_judged_before_the_state_of_the_risk(
 ) -> None:
     # no_background_task_running comes before risk_identified, and before the 422 of a category
     # refused, as at the declaration (``createRisk``): nothing is written.
-    risk = risks.declared()
+    risk = risks.declared_costed()
     dismiss(project, risk)
     read = risks.risk(risk)
     started_marking(api, project)
@@ -329,7 +329,7 @@ def test_the_provision_of_a_risk_that_is_not_identified_is_refused_whatever_is_s
 ) -> None:
     # « updateRiskProvision … risk_identified »: a category of labour, which would be a 422 of a
     # risk identified, is the 409 of a risk dismissed; the command says it unavailable beforehand.
-    risk = risks.declared()
+    risk = risks.declared_costed()
     dismiss(project, risk)
     read = risks.risk(risk)
     commands = {each["command"]: each for each in read["available_commands"]}
@@ -343,7 +343,7 @@ def test_the_provision_of_a_risk_that_is_not_identified_is_refused_whatever_is_s
 def test_the_provision_of_a_terminal_project_is_refused_before_everything(
     risks: Risks, project: Costed
 ) -> None:
-    risk = risks.declared()
+    risk = risks.declared_costed()
     put_in_state(project.stage.owner, str(project.project_id), "abandoned")
     refused_by(risks.provision(risk, provision_task_id=None), "project_not_terminal")
     stale = {**risk, "lock_version": 99}
@@ -354,7 +354,7 @@ def test_the_provision_of_a_terminal_project_is_refused_before_everything(
 def test_a_stale_counter_an_unknown_risk_and_the_designations_are_refused_nothing_written(
     risks: Risks, project: Costed
 ) -> None:
-    risk = risks.declared()
+    risk = risks.declared_costed()
     line = next(each for each in project.tree.items() if each["kind"] == "estimate_line")
     stale = risks.provision(
         {**risk, "lock_version": risk["lock_version"] - 1}, provision_task_id=None
@@ -386,7 +386,7 @@ def test_a_provision_that_would_create_the_revision_is_refused_to_who_may_not_cr
     risks: Risks, project: Costed, database: Database, realm: TestRealm
 ) -> None:
     stage = project.stage
-    risk = risks.declared()
+    risk = risks.declared_costed()
     mark(stage, {"revision_id": str(project.revision_id)})
     entering = person(
         database,
@@ -415,7 +415,7 @@ def test_the_provision_creates_the_revision_and_its_abandonment_brings_the_risk_
     # An entry of the revision, created by copy of the last marked one when the project has none,
     # that the abandonment of that revision reverts (WF-RIS-0020): the line is back under the study.
     stage = project.stage
-    risk = risks.declared()
+    risk = risks.declared_costed()
     mark(stage, {"revision_id": str(project.revision_id)})
     changed = risks.provisioned(risk, provision_task_id=str(project.tasks[MAKING]))
     assert changed["provision_task"]["label"] == MAKING
@@ -451,7 +451,7 @@ def test_the_deletion_of_the_task_bearing_a_provision_of_40_passes_it_to_the_par
     # study: the deletion of the subtask moves the line to the study, says so, and the total stays.
     tree = project.tree
     sub = tree.made("Sous-étude", parent_id=str(project.tasks[STUDY]))
-    risk = risks.declared(probability="0.2", provision_task_id=sub["node_id"])
+    risk = risks.declared_costed(probability="0.2", provision_task_id=sub["node_id"])
     assert risk["provision_task"]["label"] == "Sous-étude"
     total = provisions_total(project)
     answer = risks.delete(tree.node(sub["node_id"]))
@@ -474,7 +474,7 @@ def test_the_deletion_of_a_first_level_task_passes_its_provision_to_the_first_on
 ) -> None:
     # The first level has no parent: the line goes to the first task of the first level left, and
     # only the lines of the task deleted leave the estimate.
-    risk = risks.declared()
+    risk = risks.declared_costed()
     assert risk["provision_task"]["label"] == STUDY
     answer = risks.delete(project.tree.node(str(project.tasks[STUDY])))
     assert answer.status_code == 200, answer.text
@@ -494,7 +494,7 @@ def test_the_last_task_of_a_main_structure_that_bears_a_provision_is_not_deleted
 ) -> None:
     # La suppression de la dernière tâche d'une structure principale qui porte une provision est
     # refusée en nommant le risque : the line would have no task to be placed under.
-    risk = risks.declared()
+    risk = risks.declared_costed()
     tree = project.tree
     deleted = risks.delete(tree.node(str(project.tasks[MAKING])))
     assert deleted.status_code == 200, deleted.text
@@ -515,7 +515,7 @@ def test_the_last_task_of_a_main_structure_that_bears_a_provision_is_not_deleted
 def test_a_task_bearing_no_provision_is_deleted_as_before_and_gives_no_node(
     risks: Risks, project: Costed
 ) -> None:
-    risks.declared()
+    risks.declared_costed()
     answer = risks.delete(project.tree.node(str(project.tasks[MAKING])))
     assert answer.status_code == 200, answer.text
     assert answer.json()["nodes"] == []
@@ -571,11 +571,11 @@ def test_a_write_of_the_own_estimate_takes_the_main_structure_before_the_risk(
     # estimate that waits for the risk, held by another, holds the main structure already: were
     # it the other way round, it would hold the risk of ``updateRiskProvision`` on its structure
     # (an interlock, 40P01). The risk held here by the owner, the write stands still on it.
-    risk = risks.declared()
+    risk = risks.declared_costed()
     stage = project.stage
     with stage.owner.connect() as holder:
         holder.execute(select(Risk.id).where(Risk.id == UUID(risk["risk_id"])).with_for_update())
-        writing = concurrently(lambda: risks.costed_at(risk, "300.00"))
+        writing = concurrently(lambda: risks.costed_in(risk, "300.00"))
         waiting_for_a_lock(stage)
         assert lock_held(stage, project.structure_id)
         holder.rollback()
@@ -603,7 +603,7 @@ def test_a_provision_that_would_create_the_revision_waits_for_the_reference_befo
     # writer, the entry waits for it without holding the project: were it the other way round, it
     # would close an interlock (40P01) with an opening that holds the reference and waits for the
     # project, the writer waiting behind that opening.
-    risk = risks.declared()
+    risk = risks.declared_costed()
     stage = project.stage
     mark(stage, {"revision_id": str(project.revision_id)})
     with stage.owner.connect() as holder:
@@ -636,7 +636,7 @@ def test_the_counter_of_a_provision_that_would_create_the_revision_is_judged_und
     # « updateRiskProvision … 412 »: the risk locked by another that advances its counter while
     # the entry waits, the counter it carries is stale when it gets the lock — it is refused,
     # the revision not created, instead of judged on the counter read before the lock.
-    risk = risks.declared()
+    risk = risks.declared_costed()
     stage = project.stage
     mark(stage, {"revision_id": str(project.revision_id)})
     with stage.owner.connect() as holder:
@@ -663,7 +663,7 @@ def test_a_designation_refused_creates_no_revision_and_writes_nothing(
 ) -> None:
     # « … refusé sur son champ (422) … rien n'est écrit » — also when the entry would have created
     # the revision: it is not created, the risk and its line are as they were.
-    risk = risks.declared()
+    risk = risks.declared_costed()
     mark(project.stage, {"revision_id": str(project.revision_id)})
     read = risks.risk(risk)
     revisions, nodes = counted(project, Revision), counted(project, Node)
@@ -717,7 +717,7 @@ def test_the_remaining_counts_the_provision_of_a_risk_under_a_completed_task(
     # « … plus les provisions des risques identifiés, quel que soit l'état de la tâche qui les
     # porte » : the task of the making completed, its 400 leave the remaining, the provision of 60
     # it bears stays in it.
-    risks.declared(provision_task_id=str(project.tasks[MAKING]))
+    risks.declared_costed(provision_task_id=str(project.tasks[MAKING]))
     assert risks.remaining()["total"] == "1060.00"
     set_progress(project.stage, str(project.tasks[MAKING]), "completed", date(2026, 6, 3))
     assert risks.remaining()["total"] == "660.00"

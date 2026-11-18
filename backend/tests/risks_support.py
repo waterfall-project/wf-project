@@ -36,7 +36,7 @@ from waterfall.core.revisions.tables import CostStructure
 from waterfall.core.risks.tables import Risk, RiskEvaluation
 
 if TYPE_CHECKING:
-    from projects_support import Scene
+    from projects_support import Person, Scene
     from sqlalchemy.engine import Connection
     from support import ContractClient
 
@@ -311,13 +311,17 @@ def differential(costed: Costed, label: str = "Avenant 1") -> UUID:
     return structure_id
 
 
-# --- The risks through the service -------------------------------------------------------------
+# --- The risks, through the service --------------------------------------------------------------
+
+# The label of the risk declared by default.
+LABEL = "Retard du fournisseur"
 
 
 class Risks:
-    """The risks of a project costed: declared with their own estimate, provisioned, read.
+    """The risks of a project costed, declared, read, provisioned, written through the service.
 
-    Through the service, as its manager does; the helpers of the tests of the provision (US-2580).
+    Through the service, as its manager does; the helpers of the tests of the register (US-2600),
+    of the identity (US-2570) and of the provision (US-2580).
     """
 
     def __init__(self, api: ContractClient, project: Costed) -> None:
@@ -327,22 +331,89 @@ class Risks:
         self.base = f"{PROJECTS}/{project.project_id}"
         self.headers = self.stage.manager.headers
 
+    def declared(self, probability: str = "0.3", label: str = LABEL) -> dict[str, Any]:
+        """Declare a risk in the current revision; give it."""
+        sent = {"label": label, "probability": probability}
+        answer = self.api.post(f"{self.base}/risks", headers=self.headers, json=sent)
+        assert answer.status_code == 201, answer.text
+        return answer.json()
+
+    def read(self, risk: dict[str, Any], revision_id: object = None) -> Any:
+        """Read a risk, in the revision named, the current or the last marked otherwise."""
+        query = "" if revision_id is None else f"?revision_id={revision_id}"
+        return self.api.get(f"{self.base}/risks/{risk['risk_id']}{query}", headers=self.headers)
+
+    def risk(self, risk: dict[str, Any], revision_id: object = None) -> dict[str, Any]:
+        """Read a risk that must be read; give it."""
+        answer = self.read(risk, revision_id)
+        assert answer.status_code == 200, answer.text
+        return answer.json()
+
+    def update(self, risk: dict[str, Any], who: Person | None = None, **body: Any) -> Any:
+        """Change the identity of a risk at the counter read, as the manager by default."""
+        sent = {"label": risk["label"], "lock_version": risk["lock_version"], **body}
+        path = f"{self.base}/risks/{risk['risk_id']}"
+        headers = self.headers if who is None else who.headers
+        return self.api.patch(path, headers=headers, json=sent)
+
+    def own(self, risk: dict[str, Any], revision_id: object) -> str:
+        """Give the path of the nodes of the own estimate a risk holds in a revision."""
+        held = self.risk(risk, revision_id)["structure_id"]
+        return f"{self.base}/revisions/{revision_id}/structures/{held}/nodes"
+
+    def made(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
+        """Create a node in a structure, as the manager does; give the node created."""
+        answer = self.api.post(path, headers=self.headers, json=body)
+        assert answer.status_code == 201, answer.text
+        return answer.json()["nodes"][0]
+
+    def costed_at(self, risk: dict[str, Any], revision_id: object, amount: str) -> dict[str, Any]:
+        """Write a task bearing a line of material at an amount in an own estimate; give it."""
+        path = self.own(risk, revision_id)
+        task = self.made(path, {"kind": "task", "parent_id": None, "task": {"label": "Grue"}})
+        line = material(self.project.costs, "Location", amount)
+        sent = {"kind": "estimate_line", "parent_id": task["node_id"], "estimate_line": line}
+        return self.made(path, sent)
+
+    def repriced(
+        self, risk: dict[str, Any], revision_id: object, line: dict[str, Any], amount: str
+    ) -> dict[str, Any]:
+        """Change the amount of a line of the own estimate; give the line written."""
+        path = f"{self.own(risk, revision_id)}/{line['node_id']}/estimate-line"
+        sent = {"lock_version": line["lock_version"], "unit_disbursement": amount}
+        answer = self.api.patch(path, headers=self.headers, json=sent)
+        assert answer.status_code == 200, answer.text
+        return answer.json()["nodes"][0]
+
+    def revision(self) -> dict[str, Any]:
+        """Open the current revision of the project; give it."""
+        answer = self.api.post(f"{self.base}/revisions", headers=self.headers, json={})
+        assert answer.status_code == 201, answer.text
+        return answer.json()
+
+    def abandon(self, revision: dict[str, Any]) -> None:
+        """Abandon a current revision at the counter read."""
+        path = f"{self.base}/revisions/{revision['revision_id']}"
+        query = f"?lock_version={revision['lock_version']}"
+        answer = self.api.delete(f"{path}{query}", headers=self.headers)
+        assert answer.status_code == 204, answer.text
+
     def declare(self, **body: Any) -> Any:
         """Ask for a risk at 30 %; give the answer."""
         sent = {"label": RISK_LABEL, "probability": "0.3", **body}
         return self.api.post(f"{self.base}/risks", headers=self.headers, json=sent)
 
-    def declared(self, amount: str | None = "200.00", **body: Any) -> dict[str, Any]:
+    def declared_costed(self, amount: str | None = "200.00", **body: Any) -> dict[str, Any]:
         """Declare a risk that must be declared, its own estimate at an amount unless none."""
         answer = self.declare(**body)
         assert answer.status_code == 201, answer.text
         risk = answer.json()
         if amount is not None:
-            self.costed_at(risk, amount)
+            self.costed_in(risk, amount)
             return self.risk(risk)
         return risk
 
-    def costed_at(self, risk: dict[str, Any], amount: str) -> None:
+    def costed_in(self, risk: dict[str, Any], amount: str) -> None:
         """Write a task bearing a line of material at an amount in the own estimate of a risk."""
         path = f"{self.base}/revisions/{self.project.revision_id}/structures"
         path = f"{path}/{risk['structure_id']}/nodes"
@@ -360,13 +431,6 @@ class Risks:
         }
         written = self.api.post(path, headers=self.headers, json=sent)
         assert written.status_code == 201, written.text
-
-    def risk(self, risk: dict[str, Any], revision_id: object = None) -> dict[str, Any]:
-        """Read a risk that must be read, in the revision named or the current one."""
-        query = "" if revision_id is None else f"?revision_id={revision_id}"
-        answer = self.api.get(f"{self.base}/risks/{risk['risk_id']}{query}", headers=self.headers)
-        assert answer.status_code == 200, answer.text
-        return answer.json()
 
     def provision(self, risk: dict[str, Any], who: Any = None, **body: Any) -> Any:
         """Change the provision of a risk at the counter read, as the manager by default."""

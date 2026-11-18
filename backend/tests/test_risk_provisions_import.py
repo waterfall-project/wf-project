@@ -125,7 +125,7 @@ def test_an_import_that_drops_the_task_of_a_provision_passes_the_line_to_the_par
     # provision étant passée sur la tâche parente. » — the same, at the compte rendu, for the import
     # of a planning (EP-08, US-2580): the line is not removed with its task, the report says it.
     project = risks.project
-    risk = risks.declared(provision_task_id=str(project.tasks[SUB]))
+    risk = risks.declared_costed(provision_task_id=str(project.tasks[SUB]))
     assert risk["provision_task"]["label"] == SUB
     found = analysed(api, stage, worker, planning(task(1, STUDY), task(3, MAKING)))
     report = found["report"]
@@ -148,7 +148,7 @@ def test_an_import_that_drops_a_first_level_task_passes_its_line_to_the_first_on
     api: ContractClient, risks: Risks, stage: Scene, worker: Worker
 ) -> None:
     project = risks.project
-    risk = risks.declared(provision_task_id=str(project.tasks[MAKING]))
+    risk = risks.declared_costed(provision_task_id=str(project.tasks[MAKING]))
     found = analysed(api, stage, worker, planning(task(1, STUDY), task(2, SUB, level=2)))
     difference_of(found["report"], risk)
     applied(api, stage, worker, found)
