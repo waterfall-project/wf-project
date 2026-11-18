@@ -1578,7 +1578,7 @@ rejoue la fusion. `docs/api/DECISIONS.md`, « L'univers témoin », « Révision
 
 ## US-2660 — Les constats reçus sont soldés
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-06, EP-07 et
   EP-09
 - **opérations** : `openImport`, `listImports`, `getImport`, `applyImport`
