@@ -78,7 +78,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap e2e e2e-durations e2e-measure e2e-browsers e2e-image mirror lot-size tracking merge-queue merge-queue-check queue-report \
+	coverage-back coverage-front roadmap check-roadmap e2e e2e-durations e2e-measure e2e-browsers e2e-image mirror mirror-sync lot-size tracking merge-queue merge-queue-check queue-report \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -625,6 +625,11 @@ e2e-image: ## Find the work image of the end-to-end paths in the registry by the
 
 mirror: ## Check that ghcr.io holds the images of Docker Hub the files name under mirror/, by their digest — PUSH=yes copies those it does not hold (wftools.mirror, US-1900)
 	@$(WFTOOLS).mirror $(if $(filter yes,$(PUSH)),--push)
+
+# Dependabot follows the images of Docker Hub in their manifest, deploy/images/Dockerfile, which it
+# reads where it does not read the references behind the prefix of the mirror (US-2490).
+mirror-sync: ## Copy the manifest of the images of Docker Hub (deploy/images/Dockerfile) into the Dockerfiles, the Compose files and the workflows, their prefix kept (wftools.mirror, US-2490)
+	@$(WFTOOLS).mirror sync
 
 # E2E_IMAGE, the reference of that image, plays the browser of the paths against the service in it
 # (service.yml): Playwright's server (run-server) runs in the image, on the network of the host, and
