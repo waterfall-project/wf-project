@@ -17,7 +17,8 @@
  * Pressed, it waits for what it started — its server action, a write the command opened, the
  * background task it handed to the tracker — inert and saying so, the same way for every command
  * (`waiting.tsx`, #3103): a second press runs nothing, and an answer, a failure included, gives it
- * back.
+ * back — but a write whose connection was lost once sent, which gives it back once the screen has
+ * been read anew (`useReadAnew`, US-2240).
  */
 "use client";
 
@@ -33,7 +34,7 @@ import { formatLocale } from "@/i18n/format";
 import { CommandTooltip } from "./command-tooltip";
 import { useHeldCommand } from "./held";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "./offer";
-import { type ObjectNames, OutcomeNotice } from "./outcome-notice";
+import { type ObjectNames, OutcomeNotice, useReadAnew } from "./outcome-notice";
 import { WaitingIcon, waitingAttributes } from "./waiting";
 import { WritingNote } from "./writing-note";
 
@@ -212,6 +213,18 @@ export function useUnmet(): (offer: CommandOffer) => string {
   };
 }
 
+/**
+ * What describes a command: the note of the write under way (`why`), while it is, and the unmet
+ * condition, when it lacks one — both when both are said.
+ */
+function descriptionOf(
+  writing: boolean,
+  why: string,
+  unmet: string | undefined,
+): string | undefined {
+  return writing ? [why, unmet].filter((part) => part !== undefined).join(" ") : unmet;
+}
+
 /** Render a command as the screen offers it, and tell of the outcome of running it. */
 export function Command({
   offer,
@@ -235,14 +248,15 @@ export function Command({
   // An unavailable command pressed: it tells what it lacks, as the refusal it would have drawn.
   const [presses, setPresses] = useState(0);
   const held = useHeldCommand();
+  // A write lost once sent: the command waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(outcome);
   if (offer === undefined) {
     return null;
   }
   const unmet = unmetId(offer, id);
   const why = `${id}-writing`;
-  const waiting = busy || writing || running;
-  // Both the note of the write under way and the unmet condition describe the command, when both are said.
-  const describedBy = writing ? [why, unmet].filter((part) => part !== undefined).join(" ") : unmet;
+  const waiting = busy || writing || running || reading;
+  const describedBy = descriptionOf(writing, why, unmet);
   const run = () => {
     if (!offer.is_available) {
       setPresses((count) => count + 1);
@@ -299,6 +313,7 @@ export function Command({
           setOutcome(undefined);
         }}
         subject={subject}
+        reading={reading}
       />
     </div>
   );

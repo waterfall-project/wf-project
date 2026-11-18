@@ -12,7 +12,9 @@ retain, which alone it returns, and the task is then rendered for the tree alone
 tasks is nought, as ``NodeTotals`` says of the ancestors (#2699). The lines are sorted under each
 task by those hooks too (``FacetHooks.sort``), the tasks keeping the order of the tree
 (WF-IHM-0060). Each bound is inclusive; a task that bears no value — a manual task's float, a leaf's
-physical progress — is not retained by a bound on it.
+physical progress, a summary's not computed — is not retained by a bound on it. The physical
+progress of a summary is the one the reading gives (``Reading.progress``, US-1680), asked only
+under a bound on it.
 """
 
 from dataclasses import dataclass
@@ -35,6 +37,7 @@ if TYPE_CHECKING:
 
     from waterfall.core.planning.interface.facets import LineSort
     from waterfall.core.planning.scheduling import UnitConstants
+    from waterfall.core.planning.tree import NodeColumns, TaskColumns
     from waterfall.core.planning.views import Reading
 
 type Bounds[T] = tuple[T | None, T | None]
@@ -112,13 +115,15 @@ def _searched(
     return frozenset(session.scalars(found))
 
 
-def _subtree(reading: Reading, root: UUID) -> frozenset[UUID]:
+def _subtree[N: NodeColumns, T: TaskColumns](reading: Reading[N, T], root: UUID) -> frozenset[UUID]:
     """Give the subtree of a task of the structure, the task included; nothing for another."""
     tree = reading.tree
     return frozenset(tree.subtree(root)) if root in tree.tasks else frozenset()
 
 
-def _carrying(reading: Reading, column: str, item: UUID) -> frozenset[UUID]:
+def _carrying[N: NodeColumns, T: TaskColumns](
+    reading: Reading[N, T], column: str, item: UUID
+) -> frozenset[UUID]:
     """Give the subtree of the task that bears a work package or an order item (WF-PLA-0170)."""
     tree = reading.tree
     for node_id, task in tree.tasks.items():
@@ -127,8 +132,16 @@ def _carrying(reading: Reading, column: str, item: UUID) -> frozenset[UUID]:
     return frozenset()
 
 
-def _predicates(
-    reading: Reading, filters: NodeFilters, constants: UnitConstants
+def _progress_value[N: NodeColumns, T: TaskColumns](
+    reading: Reading[N, T], node_id: UUID
+) -> Decimal | None:
+    """Give the physical progress of a task as a bound judges it: none but a summary's computed."""
+    share = reading.physical_progress(node_id)
+    return None if share is None else share.value
+
+
+def _predicates[N: NodeColumns, T: TaskColumns](
+    reading: Reading[N, T], filters: NodeFilters, constants: UnitConstants
 ) -> list[Callable[[UUID], bool]]:
     """Give the tests of a task the filters ask for, each on the task alone."""
     tree = reading.tree
@@ -139,10 +152,14 @@ def _predicates(
         lambda each: _within(tasks[each].total_float_days, filters.total_float),
         lambda each: _within(reading.states[each].started_on, filters.started_on),
         lambda each: _within(reading.states[each].completed_on, filters.completed_on),
-        # A physical progress is EP-07's, from the budgets of the lines: none is computed here.
-        lambda _each: _within(None, filters.physical_progress),
         lambda each: _within(days_of(tasks[each], constants), filters.duration_days),
     ]
+    if filters.physical_progress != (None, None):
+        # The physical progress of every summary, asked once, before any is judged (US-1680).
+        reading.progress(reading.summaries)
+        tests.append(
+            lambda each: _within(_progress_value(reading, each), filters.physical_progress)
+        )
     if filters.progress is not None:
         tests.append(lambda each: reading.states[each].progress in (filters.progress or ()))
     if filters.is_critical is not None:
@@ -168,10 +185,10 @@ def _predicates(
     return tests
 
 
-def retained(
+def retained[N: NodeColumns, T: TaskColumns](
     session: Session,
     structure: tuple[UUID, UUID],
-    reading: Reading,
+    reading: Reading[N, T],
     filters: NodeFilters,
     constants: UnitConstants,
 ) -> Retained:
@@ -215,8 +232,12 @@ def retained(
     return Retained(order, counted, lines, frozenset(kept))
 
 
-def _lines(
-    session: Session, project_id: UUID, reading: Reading, kept: set[UUID], asked: object | None
+def _lines[N: NodeColumns, T: TaskColumns](
+    session: Session,
+    project_id: UUID,
+    reading: Reading[N, T],
+    kept: set[UUID],
+    asked: object | None,
 ) -> frozenset[UUID]:
     """Give the lines the tasks retained bear that the filters of their facets retain."""
     tree = reading.tree
@@ -231,8 +252,12 @@ def _lines(
     return frozenset(found)
 
 
-def _sorted(
-    session: Session, project_id: UUID, reading: Reading, order: list[UUID], sort: LineSort
+def _sorted[N: NodeColumns, T: TaskColumns](
+    session: Session,
+    project_id: UUID,
+    reading: Reading[N, T],
+    order: list[UUID],
+    sort: LineSort,
 ) -> list[UUID]:
     """Sort the lines under each task by the hooks of their facets; the tasks keep their place.
 

@@ -5,20 +5,22 @@
 The Makefile runs every heavy run — the whole tests of a side, their coverage, the production
 build of the front, the end-to-end paths — behind ``python3 tools/src/wftools/launch.py slots run
 --heavy -- <command>``, the launcher saying the version it expects under an older Python (US-2450).
-It depends on the standard library alone and imports no other module of ``wftools``: the
-``back`` job of the chain has not the environment of the tools.
+It depends on the standard library alone and imports no other module of ``wftools`` but
+``heavyturns``, beside it: the ``back`` job of the chain has not the environment of the tools.
 
 ``WATERFALL_SLOTS`` (1 by default, an integer from 1 to 9) says how many heavy runs pass at once,
-whatever the repository or the worktree. Each slot is a lock file of ``$XDG_RUNTIME_DIR`` (``/tmp``
-by default): ``waterfall-heavy.lock`` first — the lock of a repository whose Makefile predates
-this tool takes the first slot —, then ``waterfall-heavy.2.lock`` to ``waterfall-heavy.<N>.lock``.
-The tool takes the first free one by a ``flock`` that does not wait, holds it in its own process
-for the whole run, and starts the command as a child that does not inherit the descriptor: a
-server left behind by the command does not keep the slot. It relays the signals it receives and
-returns the code of the command.
+whatever the repository or the worktree. Each is a turn of ``heavyturns``, a lock file the tool
+holds in its own process for the whole run; it starts the command as a child that does not inherit
+the descriptor: a server left behind by the command does not keep the turn. It relays the signals
+it receives and returns the code of the command.
 
 It sets ``WATERFALL_PROCESSORS``, the processors divided by N and at least 1, for the workers of
 the command; ``processors`` prints the same number, for a Makefile that runs no heavy run.
+
+``run --exclusive`` (US-2210), for a measure, takes the workstation for the command alone — every
+turn, in the order ``heavyturns`` says — and keeps it until the command ends; an interruption frees
+everything as well, the descriptors closing with the process. ``WATERFALL_PROCESSORS`` is then the
+share of one run alone, the whole workstation. A run started by its command takes no turn.
 
 ``run --services db,redis,storage`` (US-1110) also gives the command the services of the tests it
 needs: once the heavy slot is taken, if any — never before, a service removed while the run waited
@@ -26,8 +28,8 @@ is started again —, for each service whose variable (``WATERFALL_TEST_DATABASE
 ``WATERFALL_TEST_REDIS_URL``, ``WATERFALL_TEST_STORAGE_URL``) the environment does not give, it
 runs ``make test-services`` once and sets the variable on the port of the slot. A variable the
 environment gives wins, and its service is not started: the chain, which starts its own, is not
-changed. ``--heavy`` and ``--services`` go together or alone: a run of one file waits for no slot
-and still has its services.
+changed. ``--heavy`` or ``--exclusive`` goes with ``--services`` or alone: a run of one file waits
+for no slot and still has its services.
 
 The same N bounds the worktrees of the lots, each of which takes a slot of 1 to N (``claim``,
 ``make slot``) that gives it its ports, its projects of Compose and the tags of its images; the
@@ -60,11 +62,13 @@ from collections.abc import Callable, Collection, Generator, Mapping, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
-LOCK_NAME = "waterfall-heavy"
-MAX_SLOTS = 9
-RETRY_SECONDS = 1.0
+if TYPE_CHECKING or __package__:
+    from wftools import heavyturns
+else:  # run as a script, by the Makefile and the chain: the module beside this one
+    import heavyturns
+
 REMOVE_SECONDS = 300
 """How long ``docker compose down`` may take, the lock of the register held, before it fails."""
 GRACE_SECONDS = 5.0
@@ -141,9 +145,9 @@ def slot_count(environment: Mapping[str, str]) -> int:
     raw = environment.get("WATERFALL_SLOTS")
     if raw is None:
         return 1
-    if raw.isascii() and raw.isdigit() and 1 <= int(raw) <= MAX_SLOTS:
+    if raw.isascii() and raw.isdigit() and 1 <= int(raw) <= heavyturns.MAX_SLOTS:
         return int(raw)
-    message = f"WATERFALL_SLOTS must be an integer from 1 to {MAX_SLOTS}, not {raw!r}."
+    message = f"WATERFALL_SLOTS must be an integer from 1 to {heavyturns.MAX_SLOTS}, not {raw!r}."
     raise SlotsError(message)
 
 
@@ -151,46 +155,6 @@ def processor_share(slots: int) -> int:
     """Return the N-th part of the processors this process may use, at least 1."""
     available = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
     return max(1, (available or 1) // slots)
-
-
-def runtime_directory(environment: Mapping[str, str]) -> Path:
-    """Return ``$XDG_RUNTIME_DIR``, or ``/tmp`` where it is not set (WSL, a runner)."""
-    return Path(environment.get("XDG_RUNTIME_DIR") or Path(os.sep, "tmp"))
-
-
-def lock_paths(environment: Mapping[str, str], slots: int) -> list[Path]:
-    """Return the lock files of the N slots, the one of before this tool first."""
-    directory = runtime_directory(environment)
-    names = [f"{LOCK_NAME}.lock"] + [f"{LOCK_NAME}.{index}.lock" for index in range(2, slots + 1)]
-    return [directory / name for name in names]
-
-
-def take_slot(paths: Sequence[Path]) -> int | None:
-    """Return the descriptor of the first free lock file, locked; None when all are taken."""
-    for path in paths:
-        descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o600)
-        try:
-            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            os.close(descriptor)
-            continue
-        return descriptor
-    return None
-
-
-def wait_for_slot(paths: Sequence[Path]) -> int:
-    """Take a slot, saying once that all are taken, then trying again every second."""
-    said = False
-    while (descriptor := take_slot(paths)) is None:
-        if not said:
-            print(
-                f"All {len(paths)} heavy slot(s) are taken; waiting for one to free.",
-                file=sys.stderr,
-                flush=True,
-            )
-            said = True
-        time.sleep(RETRY_SECONDS)
-    return descriptor
 
 
 def run_command(command: Sequence[str], environment: Mapping[str, str]) -> int:
@@ -234,22 +198,41 @@ def run_prepared(
     *,
     heavy: bool,
     services: Sequence[str],
+    exclusive: bool = False,
 ) -> int:
     """Run the command: in a free slot if heavy, then with its services, in that order (US-1110).
 
     The services start once the slot is taken, not before: a run that waited for its turn finds
-    them there, whatever was removed in the meantime.
+    them there, whatever was removed in the meantime. An exclusive run takes every slot instead,
+    and runs on the whole workstation (US-2210); under one, a run takes none.
     """
     slots = slot_count(environment)
-    descriptor = wait_for_slot(lock_paths(environment, slots)) if heavy else None
+    above = heavyturns.held_above(environment)
+    descriptors: list[int] = []
+    if above and (heavy or exclusive):
+        print(
+            "An exclusive run above this one holds the workstation; no turn to take.",
+            file=sys.stderr,
+            flush=True,
+        )
+    elif exclusive:
+        descriptors = heavyturns.take_workstation(environment)
+    elif heavy:
+        paths = heavyturns.lock_paths(environment, slots)
+        descriptors = [heavyturns.wait_for_slot(paths, heavyturns.gate_path(environment))]
     try:
-        child_environment = dict(environment)
-        if heavy:
-            child_environment["WATERFALL_PROCESSORS"] = str(processor_share(slots))
+        # The mark of an exclusive run goes to its command alone, and down while it holds the gate.
+        held = heavyturns.HELD_VARIABLE
+        child_environment = {name: value for name, value in environment.items() if name != held}
+        if above or exclusive:
+            child_environment[held] = heavyturns.HELD_EXCLUSIVE
+        if heavy or exclusive:
+            share = processor_share(1 if above or exclusive else slots)
+            child_environment["WATERFALL_PROCESSORS"] = str(share)
         child_environment |= start_test_services(services, child_environment)
         return run_command(command, child_environment)
     finally:
-        if descriptor is not None:
+        for descriptor in descriptors:
             os.close(descriptor)
 
 
@@ -300,7 +283,7 @@ def services_locked(environment: Mapping[str, str], slot: int) -> Generator[None
     Two runs of one worktree started together make one ``make test-services`` at a time: the
     second waits, then finds the services started. The descriptor is not inherited by the command.
     """
-    directory = runtime_directory(environment)
+    directory = heavyturns.runtime_directory(environment)
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     path = directory / f"waterfall-test-services.{slot}.lock"
     descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o600)
@@ -590,7 +573,7 @@ def current_worktree(directory: Path | None = None) -> Worktree | None:
 
 def register(environment: Mapping[str, str]) -> Path:
     """Return the register of the slots of the workstation."""
-    return runtime_directory(environment) / REGISTER_NAME
+    return heavyturns.runtime_directory(environment) / REGISTER_NAME
 
 
 @contextmanager
@@ -619,7 +602,7 @@ def holders(directory: Path) -> dict[int, Holder]:
     if not directory.is_dir():
         return taken
     for entry in directory.iterdir():
-        if entry.name not in {str(slot) for slot in range(1, MAX_SLOTS + 1)}:
+        if entry.name not in {str(slot) for slot in range(1, heavyturns.MAX_SLOTS + 1)}:
             continue
         try:
             lines = entry.read_text(encoding="utf-8").splitlines()
@@ -826,7 +809,13 @@ def parser() -> argparse.ArgumentParser:
     main = argparse.ArgumentParser(prog="slots.py", description=(__doc__ or "").splitlines()[0])
     commands = main.add_subparsers(dest="action", required=True)
     run = commands.add_parser("run", help="run a command once a slot is free, its services started")
-    run.add_argument("--heavy", action="store_true", help="a heavy run: wait for a free slot")
+    turn = run.add_mutually_exclusive_group()
+    turn.add_argument("--heavy", action="store_true", help="a heavy run: wait for a free slot")
+    turn.add_argument(
+        "--exclusive",
+        action="store_true",
+        help="a measure: wait for the heavy runs in progress, then hold back the next ones",
+    )
     run.add_argument(
         "--services",
         type=services_list,
@@ -862,13 +851,19 @@ def run_action(options: argparse.Namespace, environment: Mapping[str, str]) -> i
         print(processor_share(slot_count(environment)))
         return 0
     command = options.command[1:] if options.command[:1] == ["--"] else options.command
-    if not (options.heavy or options.services):
-        print("slots: run needs --heavy, --services, or both", file=sys.stderr)
+    if not (options.heavy or options.exclusive or options.services):
+        print("slots: run needs --heavy, --exclusive or --services", file=sys.stderr)
         return 2
     if not command:
         print("slots: run needs a command after --", file=sys.stderr)
         return 2
-    return run_prepared(command, environment, heavy=options.heavy, services=options.services)
+    return run_prepared(
+        command,
+        environment,
+        heavy=options.heavy,
+        services=options.services,
+        exclusive=options.exclusive,
+    )
 
 
 def main(
@@ -888,6 +883,9 @@ def main(
     except OSError as error:
         print(f"slots: the register or a command cannot be used: {error}", file=sys.stderr)
         return 1
+    except KeyboardInterrupt:
+        # Interrupted while it waited: what was taken is freed already; no trace for a Ctrl-C.
+        return 128 + signal.SIGINT
 
 
 if __name__ == "__main__":

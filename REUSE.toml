@@ -18,6 +18,7 @@ path = [
     "**/uv.lock",
     "frontend/package.json",
     "frontend/tsconfig.json",
+    "frontend/bench/tsconfig.json",
     "frontend/pnpm-lock.yaml",
     "frontend/.dockerignore",
     "frontend/.prettierrc.json",
@@ -35,6 +36,7 @@ path = [
     "tools/tests/queue/*.log",
     "tools/e2e-durations.json",
     "tools/e2e-service-durations.json",
+    "docs/measures/*.json",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 waterfall-project"

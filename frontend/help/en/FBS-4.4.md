@@ -13,6 +13,7 @@ The estimate is entered as long as the project is in pricing: on the main struct
 At the top of the screen:
 
 - **Workload** leads to the monthly breakdown of the loads of the revision, by role;
+- **Spending projection** leads to the spending of the revision by month and by cost type;
 - **Imports and exports** leads to the screen where an estimate is imported from a file, when the project offers this import.
 
 Above the grid:
@@ -46,5 +47,5 @@ The header of the column “Re-estimated amount” names, in its tooltip, the re
 ## See also
 
 - [The estimate indicators](FBS-4.4.1.md), [the estimate grid](FBS-4.4.2.md), [the amount at the reference year](FBS-4.4.3.md);
-- [the workload](FBS-4.4.4.md), [the planning](FBS-4.3.md), [the remaining to commit](FBS-4.5.md);
+- [the workload](FBS-4.4.4.md), [the spending projection](FBS-4.4.5.md), [the planning](FBS-4.3.md), [the remaining to commit](FBS-4.5.md);
 - the notions: [the reference budget](notions/budget-de-reference.md), [the revisions](notions/revisions.md), [the provision and the reserve](notions/provision-et-reserve.md), [the remaining to commit and the updated estimate](notions/reste-a-engager.md).

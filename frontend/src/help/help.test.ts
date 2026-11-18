@@ -481,7 +481,6 @@ describe("the reading of the help", () => {
     ["FBS-4.2.3"],
     ["FBS-4.2.4"],
     ["FBS-4.7"],
-    ["FBS-4.1"],
   ])(
     "names the columns of %s, each with a label and a definition key [WF-IHM-0140-A]",
     async (code) => {
@@ -614,6 +613,7 @@ describe("the reading of the help", () => {
     ["/projects/p/revisions/r/exchanges", "FBS-4.3.4", "Imports et exports"],
     ["/projects/p/revisions/r/task-tree", "FBS-4.3.5", "Arborescence de tâches"],
     ["/projects/p/revisions/r/workload", "FBS-4.4.4", "Plan de charge du projet"],
+    ["/projects/p/revisions/r/spending", "FBS-4.4.5", "Projection de dépenses du projet"],
     ["/projects/p/revisions/r/kanban", "FBS-4.5.3", "Kanban — démarrage des tâches"],
     ["/projects/p/revisions/r/actual-costs", "FBS-4.7", "Coûts réels"],
     ["/projects/p/revisions/r/indicators", "FBS-4.8", "Indicateurs projets"],
@@ -695,10 +695,9 @@ describe("the reading of the help", () => {
       "projects.updatedAt",
     ]);
     expect((await helps("FBS-4.7")).at(-1)).toBe("actualCosts.passthrough");
-    // The comparison of two revisions, the one grid of their management (US-0670/L5, #1434).
-    expect(await helps("FBS-4.1")).toEqual(["nodes.label", "comparison.changes"]);
-    // A leaf of a fact, or a screen without a table, defines no column.
-    for (const code of ["FBS-4.2.2", "FBS-4.2.5", "FBS-4.3.5", "FBS-4.8", "FBS-4.9"]) {
+    // A leaf of a fact, or a screen without a table — the revisions, whose history is no grid of
+    // the contract's — defines no column.
+    for (const code of ["FBS-4.1", "FBS-4.2.2", "FBS-4.2.5", "FBS-4.3.5", "FBS-4.8", "FBS-4.9"]) {
       expect(await helps(code), code).toEqual([]);
     }
   });

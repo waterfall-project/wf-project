@@ -9,7 +9,9 @@ this year alone — is marked; the next revision is opened by ``createRevision``
 service set to the next year, or the same year. It keeps the rates its source was priced at,
 projected by the inflation of the project, or replaced by those of its year when its creation
 accepts the update (``revision_rate``); ``getRateUpdateProposal`` presents them, and
-``applyRateUpdate`` accepts them later (#1756). Every answer is checked against the contract.
+``applyRateUpdate`` accepts them later (#1756). An opening whose rates projected carry a line past
+its column is refused, without a field (#3094); an update that does, at the categories accepted
+(#3401). Every answer is checked against the contract.
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -587,3 +589,68 @@ def test_the_proposal_and_the_update_of_an_unknown_revision_or_of_another_projec
         sent = api.post(path, headers=stage.manager.headers, json=body)
         assert (sent.status_code, sent.json()["code"]) == (404, "NOT_FOUND")
     assert (kept(stage, revision), counter(stage, revision)) == before
+
+
+# --- A copy that carries an amount past its column ----------------------------------------------
+
+
+@pytest.mark.requirement("WF-REV-0060-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_an_opening_whose_rates_projected_carry_a_line_past_its_column_is_refused_and_not_opened(
+    api: ContractClient, stage: Scene, costs: Costing, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #3094: 1000 x 15 000 000 hours x 65.00 = 975 000 000 000.00, within base_amount; the next
+    # year, at 3 %, the rate projected, 66.95, gives 1 004 250 000 000.00, past its twelve digits.
+    # The request sends no field the projection follows from — the year is the clock's, the rate
+    # of inflation the project's —: the refusal names none (docs/api/DECISIONS.md, #3303).
+    revision = opened(api, stage)
+    tree = Tree(api, stage, revision)
+    task = tree.made("Câblage")
+    Lines(tree).made(task, quantity="1000", hours="15000000", resource_role_id=str(costs.role))
+    mark(stage, revision)
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(Project)
+            .where(Project.id == UUID(stage.project["project_id"]))
+            .values(inflation_rate=Decimal("0.03"))
+        )
+    monkeypatch.setattr("waterfall.api.revisions.utc_now", lambda: LATER)
+    refused = api.post(base(stage), headers=stage.manager.headers, json={})
+    assert refusal(refused) == (422, "VALIDATION_FAILED", {})
+    assert refused.json().get("fields", []) == []
+    listed = api.get(base(stage), headers=stage.manager.headers).json()
+    assert [each["status"] for each in listed["items"]] == ["marked"]
+
+
+@pytest.mark.requirement("WF-REV-0060-A")
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_an_update_whose_rate_carries_a_line_past_its_column_is_refused_at_the_categories(
+    api: ContractClient, stage: Scene, costs: Costing, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #3401 (US-2400): 1000 x 14 000 000 hours x 65.00 = 910 000 000 000.00; the next year, at 3 %,
+    # the rate projected, 66.95, gives 937 300 000 000.00, within base_amount; the rate of the year
+    # accepted, 75.00, gives 1 050 000 000 000.00, past its twelve digits. The categories accepted
+    # carry the change: the refusal names them, and nothing is written.
+    revision = opened(api, stage)
+    tree = Tree(api, stage, revision)
+    task = tree.made("Câblage")
+    Lines(tree).made(task, quantity="1000", hours="14000000", resource_role_id=str(costs.role))
+    mark(stage, revision)
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(Project)
+            .where(Project.id == UUID(stage.project["project_id"]))
+            .values(inflation_rate=Decimal("0.03"))
+        )
+    rate_next_year(stage.database, costs.labour, "75.00")
+    monkeypatch.setattr("waterfall.api.revisions.utc_now", lambda: LATER)
+    monkeypatch.setattr("waterfall.api.rate_update.utc_now", lambda: LATER)
+    current = open_next(api, stage)
+    projected = amounts(stage, current)[costs.labour]
+    assert projected[0] == Decimal("937300000000.00")
+    before = (kept(stage, current), counter(stage, current))
+    refused = apply(api, stage, current, costs.labour)
+    assert faults(refused) == [("/cost_category_ids", "VALIDATION_FAILED", {})]
+    assert (kept(stage, current), counter(stage, current)) == before
+    assert kept(stage, current)[costs.labour] == (Decimal("66.95"), "projected")
+    assert amounts(stage, current)[costs.labour] == projected

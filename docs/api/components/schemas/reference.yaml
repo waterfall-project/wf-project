@@ -226,11 +226,34 @@ RoleCapacity:
   type: object
   required: [monthly_hours, headcount]
   description: >-
-    Single capacity, with no validity date (WF-REF-0100): hours per month and a headcount,
-    never negative. On write, a negative value is refused with 422, `VALUE_OUT_OF_RANGE` on
-    `/capacity/monthly_hours` or `/capacity/headcount`, `fields[].params.minimum` at `0`.
+    Single capacity, with no validity date (WF-REF-0100): the headcount of the role, possibly
+    fractional, entered (`RoleCapacityWrite`), and the hours per month it gives, calculated,
+    never entered. Neither is negative.
   properties:
-    monthly_hours: { $ref: ../common.yaml#/Hours }
+    monthly_hours:
+      allOf: [{ $ref: ../common.yaml#/Hours }]
+      description: >-
+        Calculated, never entered: the headcount multiplied by the weekly hours of the role's
+        calendar — the sum of its seven days —, by 52, divided by 12, rounded to the hundredth, a
+        half to the even (WF-REF-0100). Two people on a calendar of 35 hours a week have
+        2 × 35 × 52 / 12, about 303.33 hours a month; a headcount of 0.5 on the same calendar,
+        75.83. They follow the calendar the role carries: changing its calendar, or the weekly
+        hours of that calendar, changes them at the next read. The image of the role a marked
+        revision keeps (`EmployedReference`) keeps the hours of its marking (WF-REF-0130).
+    headcount: { $ref: ../common.yaml#/Decimal }
+
+RoleCapacityWrite:
+  type: object
+  additionalProperties: false
+  required: [headcount]
+  description: >-
+    The capacity a write of a role carries: its headcount alone, possibly fractional, the hours
+    per month being calculated from it and from the role's calendar (`RoleCapacity`,
+    WF-REF-0100). Closed: `monthly_hours` sent, like any property the capacity does not declare,
+    is refused with 422 `VALIDATION_FAILED`, `fields` designating it, `/capacity/monthly_hours`,
+    with `VALIDATION_FAILED`. A negative headcount is refused with 422, `VALUE_OUT_OF_RANGE` on
+    `/capacity/headcount`, `fields[].params.minimum` at `0`.
+  properties:
     headcount: { $ref: ../common.yaml#/Decimal }
 
 ResourceRoleWrite:
@@ -258,7 +281,7 @@ ResourceRoleWrite:
       description: >-
         An active calendar (WF-REF-0090): refused with 422 on `/calendar_id`, unknown,
         `UNKNOWN_CALENDAR`, deactivated, `INACTIVE_REFERENCE_OBJECT`.
-    capacity: { $ref: '#/RoleCapacity' }
+    capacity: { $ref: '#/RoleCapacityWrite' }
 
 ResourceRoleUpdate:
   type: object
@@ -269,7 +292,9 @@ ResourceRoleUpdate:
     A role does not move from one node to another: a reorganisation recreates it under the new
     node (§3.4.4.2.1, WF-REF-0080). Its category and its calendar can be changed to active
     objects, and to a labour category (WF-REF-0090), refused as on creation; a role that
-    keeps its own, deactivated since, can be modified.
+    keeps its own, deactivated since, can be modified. Its capacity is its headcount alone, as
+    on creation: the hours per month of the role read are calculated, and a form that sends
+    back the role it read leaves them out (`RoleCapacityWrite`, WF-REF-0100).
   properties:
     code: { type: string, minLength: 1, pattern: '\S', maxLength: 20 }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
@@ -282,7 +307,7 @@ ResourceRoleUpdate:
         `FIELD_READ_ONLY`: a role's node cannot be modified (WF-REF-0090).
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     calendar_id: { $ref: ../common.yaml#/Uuid }
-    capacity: { $ref: '#/RoleCapacity' }
+    capacity: { $ref: '#/RoleCapacityWrite' }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 Calendar:

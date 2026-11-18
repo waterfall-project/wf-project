@@ -36,8 +36,8 @@ import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { nextWeekday, WEEKDAYS } from "@/components/admin/schedule-days";
 import { UNAVAILABLE } from "@/components/commands/offer";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { OutcomeNotice, useReadAnew } from "@/components/commands/outcome-notice";
+import { rejectedRead } from "@/components/commands/rejection";
 import { WritingNote } from "@/components/commands/writing-note";
 import { useLocalTimestamp } from "@/components/local-time";
 import { useNoteMessage } from "@/components/notices/message-history";
@@ -290,6 +290,9 @@ function LocationTest({ location, path }: { readonly location: string; readonly 
   const [pending, startTransition] = useTransition();
   const asked = useRef(0);
   const test = () => {
+    if (reading) {
+      return;
+    }
     asked.current += 1;
     const count = asked.current;
     const folder = path.trim();
@@ -297,7 +300,7 @@ function LocationTest({ location, path }: { readonly location: string; readonly 
       const outcome = await testExternalBackupLocation(
         location,
         folder === "" ? undefined : folder,
-      ).catch(rejected);
+      ).catch(rejectedRead);
       if (count === asked.current) {
         setTested({ outcome: toldOf(outcome), folder, count });
       }
@@ -305,10 +308,19 @@ function LocationTest({ location, path }: { readonly location: string; readonly 
   };
   // What the folder typed now was tested for: nothing once it changed.
   const current = tested?.folder === path.trim() ? tested : undefined;
+  // A test lost once sent: the command waits until the screen has been read anew (US-2240).
+  const reading = useReadAnew(current?.outcome);
   const done = current?.outcome.kind === "done" ? current.outcome.data : undefined;
   return (
     <div className="grid justify-items-start gap-1">
-      <Button type="button" variant="outline" size="sm" aria-busy={pending} onClick={test}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        aria-busy={pending || reading}
+        aria-disabled={reading ? true : undefined}
+        onClick={test}
+      >
         <FlaskConical aria-hidden="true" />
         {t(pending ? "testing" : "test")}
       </Button>
@@ -321,6 +333,7 @@ function LocationTest({ location, path }: { readonly location: string; readonly 
       </p>
       <OutcomeNotice
         outcome={current?.outcome}
+        reading={reading}
         onClear={() => {
           setTested(undefined);
         }}

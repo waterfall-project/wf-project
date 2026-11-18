@@ -33,6 +33,8 @@ import {
 import type { Outcome } from "@/api/problem";
 import { formatPercent } from "@/i18n/format";
 
+import { withDifference } from "./compared";
+import { AmountDeltasCommand } from "./amount-deltas";
 import { DenseGrid } from "./dense-grid";
 import {
   ESTIMATE_FIELDS,
@@ -54,7 +56,6 @@ import {
   nodesWritten,
   pasteSpan,
   type StructurePath,
-  withDifference,
 } from "./nodes";
 import type { GridQuery } from "./query";
 import type { RowChoices } from "./row-choices";
@@ -100,6 +101,12 @@ export interface EstimateGridProps {
    * the grid then has its column of marks (US-0500).
    */
   readonly differential?: boolean | undefined;
+  /**
+   * Whether the grid reads a comparison to a base: its rows then bear the mark of a difference, its
+   * cells that differ the value of the base, and the choice of the columns offers those of the
+   * differences (WF-IHM-0150).
+   */
+  readonly comparing?: boolean | undefined;
   /**
    * The labels of the risks occurred, by their identifier, which the mark of a row a risk merged
    * names it by (`OriginMark`); none, and the mark says a risk without its name.
@@ -238,6 +245,7 @@ export function EstimateGrid({
   query,
   preferences,
   differential,
+  comparing,
   origins,
   treeFilters,
   inflation,
@@ -335,13 +343,17 @@ export function EstimateGrid({
     inflation,
     locale,
   ]);
-  const config = useMemo(() => withDifference(read, differential), [read, differential]);
+  const config = useMemo(
+    () => withDifference(read, differential, comparing),
+    [read, differential, comparing],
+  );
   return (
     <OriginRisksProvider names={origins}>
       <DenseGrid
         config={config}
         rows={nodes.items}
         totals={nodes.totals}
+        comparison={nodes.comparison}
         totalsCaption={(totals) =>
           t("totals", { tasks: totals.task_count, lines: totals.estimate_line_count })
         }
@@ -354,6 +366,11 @@ export function EstimateGrid({
         undo={undo}
         commands={gestures}
         treeFilters={treeFilters}
+        ending={
+          nodes.comparison === undefined ? undefined : (
+            <AmountDeltasCommand deltas={nodes.comparison.amounts} />
+          )
+        }
       />
     </OriginRisksProvider>
   );

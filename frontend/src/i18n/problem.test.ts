@@ -802,6 +802,52 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("names the task a refused paste gives by its label and its row in the block, said from one, which tells apart two created tasks of the same label [WF-PLA-0150-A]", () => {
+    // #3624: the second of two tasks « Garantie de parfait achèvement » the paste creates, no node.
+    const refusal = fromExample("paste_apply_horizon_exceeded", {
+      code: "PROJECT_HORIZON_EXCEEDED",
+      params: { task: { node_id: null, label: "Garantie de parfait achèvement", row: 2 } },
+    });
+    expect(say(refusal, "fr")).toBe(
+      "La durée du projet dépasserait quinze ans. Tâche en cause\u00A0: «\u00A0Garantie de parfait achèvement\u00A0», ligne 3 du bloc collé.",
+    );
+    expect(say(refusal, "en")).toBe(
+      "The duration of the project would exceed fifteen years. Task concerned: “Garantie de parfait achèvement”, row 3 of the pasted block.",
+    );
+  });
+
+  it("names the first row of the block as row 1, not as no row [WF-PLA-0150-A]", () => {
+    // The example of the contract is the third row; the first is the same refusal with its row at zero.
+    const third = fromExample("paste_apply_horizon_exceeded", {
+      code: "PROJECT_HORIZON_EXCEEDED",
+      params: { task: { node_id: null, label: "Garantie de parfait achèvement", row: 2 } },
+    });
+    const refusal = {
+      ...third,
+      params: { task: { node_id: null, label: "Lot", row: 0 } },
+    };
+    expect(say(refusal, "fr")).toBe(
+      "La durée du projet dépasserait quinze ans. Tâche en cause\u00A0: «\u00A0Lot\u00A0», ligne 1 du bloc collé.",
+    );
+    expect(say(refusal, "en")).toBe(
+      "The duration of the project would exceed fifteen years. Task concerned: “Lot”, row 1 of the pasted block.",
+    );
+  });
+
+  it("names the task by its label alone when its row is not an integer from zero [WF-PLA-0150-A]", () => {
+    for (const row of [-1, 1.5, "2", null]) {
+      expect(
+        say(
+          {
+            code: "PROJECT_HORIZON_EXCEEDED",
+            params: { task: { node_id: null, label: "Lot", row } },
+          },
+          "en",
+        ),
+      ).toBe("The duration of the project would exceed fifteen years. Task concerned: “Lot”.");
+    }
+  });
+
   it("says nothing of a link or a task without labels", () => {
     expect(say({ code: "LINK_FORBIDDEN", params: { link: [{ node_id: "n" }] } }, "en")).toBe(
       "This link is not allowed.",

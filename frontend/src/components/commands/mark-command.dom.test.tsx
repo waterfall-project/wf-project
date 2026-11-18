@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -15,7 +15,15 @@ import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tra
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { atCommit } from "@/test/committed";
-import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  held,
+  refusedConnection,
+} from "@/test/fixtures";
+import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 import { closeTasks, tasksRegion } from "@/test/task-panel";
 
 import { RevisionCommands } from "./object-commands";
@@ -60,7 +68,12 @@ function serve(answers: FakeAnswers): FakeClient {
  * what else the screen offers.
  */
 function open(name = "revision", beside?: ReactNode) {
-  return render(
+  return render(<Reading>{revisionCommands(name, beside)}</Reading>);
+}
+
+/** What `open` renders, within the reading the tests may hold (`held-reading.tsx`). */
+function revisionCommands(name: string, beside?: ReactNode) {
+  return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
       <TaskTracker>
         <TasksButton />
@@ -70,7 +83,7 @@ function open(name = "revision", beside?: ReactNode) {
           <RevisionCommands revision={example(name) as Revision} context={CONTEXT} />
         </main>
       </TaskTracker>
-    </NextIntlClientProvider>,
+    </NextIntlClientProvider>
   );
 }
 
@@ -345,7 +358,7 @@ describe("the marking of a revision", () => {
   it("says the API is out of reach, and keeps the name typed", async () => {
     server.client = createApiClient({
       address: "http://unreachable.invalid",
-      fetch: () => Promise.reject(new TypeError("fetch failed")),
+      fetch: () => Promise.reject(refusedConnection()),
     });
     open();
     await mark("V2");
@@ -353,6 +366,51 @@ describe("the marking of a revision", () => {
       "Le service est injoignable\u202F; réessayez dans un instant.",
     );
     expect(screen.getByRole("textbox", { name: "Nom de version" })).toHaveValue("V2");
+  });
+
+  it("holds its command too, until the page has been read anew after a marking whose connection was lost once sent, so that the entry closed cannot open again before (US-2240)", async () => {
+    const lost = new TypeError("fetch failed", {
+      cause: Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" }),
+    });
+    const send = vi.fn(() => Promise.reject(lost));
+    server.client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    holdReading(router.refresh);
+    open();
+    await mark("V2");
+    expect(await screen.findByRole("alert")).toHaveTextContent("l’opération a pu aboutir");
+    expect(router.refresh).toHaveBeenCalledOnce();
+    const submit = screen.getByRole("button", { name: /^Marquer$/ });
+    expect(submit).toHaveAttribute("aria-disabled", "true");
+    // The command waits as the entry does: pressed, it neither closes nor opens anything.
+    expect(markCommand()).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(markCommand());
+    expect(markCommand()).toHaveAttribute("aria-expanded", "true");
+
+    // The entry closed by Cancel while the page is read anew: the command stays held, opens
+    // nothing, and the notice that the marking may have been done stays told (#3443).
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
+      await Promise.resolve();
+    });
+    expect(screen.queryByRole("form")).toBeNull();
+    expect(markCommand()).toHaveAttribute("aria-expanded", "false");
+    expect(markCommand()).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent("l’opération a pu aboutir");
+    await userEvent.click(markCommand());
+    expect(screen.queryByRole("form")).toBeNull();
+    expect(markCommand()).toHaveAttribute("aria-expanded", "false");
+
+    await act(async () => {
+      releaseReading();
+      await Promise.resolve();
+    });
+    expect(markCommand()).not.toHaveAttribute("aria-disabled");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(send).toHaveBeenCalledOnce();
+    // Given back, the command opens the entry again.
+    await userEvent.click(markCommand());
+    expect(markCommand()).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("form")).toBeVisible();
   });
 
   it("opens nothing on a marked revision, where the marking is unavailable", async () => {

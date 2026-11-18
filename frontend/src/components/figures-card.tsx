@@ -121,3 +121,22 @@ export function FigureTerm({
     </div>
   );
 }
+
+/**
+ * One card of figures a screen shows while the API computes them, its grid shown already: the
+ * shape of three of its lines, which keeps most of the height the figures take so that they do not
+ * push what is below when they arrive, and stops pulsing when the workstation asks for less
+ * motion. The card is named by its title; the shape says nothing more, and is not announced
+ * apart: the screen reader reads the figures themselves when they arrive.
+ */
+export function FiguresLoading({ title }: { readonly title: string }) {
+  return (
+    <FiguresCard title={title}>
+      <div aria-hidden="true" aria-busy="true" className="space-y-2">
+        {[0, 1, 2].map((line) => (
+          <div key={line} className="h-5 w-2/3 rounded-md bg-muted motion-safe:animate-pulse" />
+        ))}
+      </div>
+    </FiguresCard>
+  );
+}

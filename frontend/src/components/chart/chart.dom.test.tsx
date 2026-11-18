@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, renderHook, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { getInstanceByDom } from "echarts/core";
+import { getInstanceByDom, init } from "echarts/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CATALOGUES } from "@/i18n/catalogues";
+import { formatTimestamp } from "@/i18n/format";
 import { expectAccessible } from "@/test/axe";
 import { roomForCharts } from "@/test/chart-room";
 
@@ -15,14 +16,22 @@ import {
   type ChartOption,
   type ChartPalette,
   curve,
+  exportPng,
   GAP,
   monthTicks,
   presented,
   timeAxis,
+  useProvenance,
   valueAxis,
   wrapLines,
 } from "./chart";
 import { ChartPatternsProvider } from "./patterns";
+
+// `init` stays ECharts', except where a test takes it over to read the option an export hands it.
+vi.mock("echarts/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("echarts/core")>();
+  return { ...actual, init: vi.fn(actual.init) };
+});
 
 /** A chart of one series of two points, its option recorded with each palette it is drawn in. */
 function drawn(option: (palette: ChartPalette) => ChartOption, note?: string) {
@@ -554,5 +563,68 @@ describe("the lines of the head of an exported image", () => {
     ]);
     expect(wrapLines("Modernisation", 50, measure)).toEqual(["Moder", "nisat", "ion"]);
     expect(wrapLines("Court", 100, measure)).toEqual(["Court"]);
+  });
+});
+
+describe("the option an exported image is drawn from (WF-IHM-0130)", () => {
+  const palette: ChartPalette = {
+    series: ["one", "two", "three", "four"],
+    text: "text",
+    mark: "mark",
+    axis: "axis",
+    grid: "grid",
+    background: "background",
+    card: "card",
+    zones: { nominal: "nominal", watch: "watch", alert: "alert" },
+    font: "font",
+    patterns: false,
+  };
+  const computedAt = "2026-02-01T09:00:00Z";
+
+  /** The option ECharts is handed when an image is exported under a provenance. */
+  function optionExported(detail?: string) {
+    const { result } = renderHook(
+      () =>
+        useProvenance(
+          {
+            project: "Projet témoin",
+            code: "PRJ-001",
+            revision: "Révision 102",
+            ...(detail === undefined ? {} : { detail }),
+          },
+          "Courbe en S",
+          computedAt,
+          "courbe-en-s",
+        ),
+      {
+        wrapper: ({ children }) => (
+          <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+            {children}
+          </NextIntlClientProvider>
+        ),
+      },
+    );
+    const setOption = vi.fn();
+    const chart = { setOption, getDataURL: () => "data:,", dispose: vi.fn() };
+    vi.mocked(init).mockImplementationOnce(() => chart as unknown as ReturnType<typeof init>);
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    exportPng(line(palette), palette, result.current());
+    expect(setOption).toHaveBeenCalledOnce();
+    return setOption.mock.calls[0]?.[0] as { title: { text: string; subtext: string } };
+  }
+
+  it("carries, as the title and the subtitle of the image, the project, the revision and the date of calculation [WF-IHM-0130-A]", () => {
+    const { title } = optionExported();
+    expect(title.text).toBe("Courbe en S — Projet témoin");
+    expect(title.subtext).toBe(
+      `Révision : Révision 102 · Calculé le ${formatTimestamp(computedAt, "fr")}`,
+    );
+  });
+
+  it("names, between the revision and the date, what else the chart is computed on [WF-IHM-0130-A]", () => {
+    const { title } = optionExported("Base : budget de référence");
+    expect(title.subtext).toBe(
+      `Révision : Révision 102 · Base : budget de référence · Calculé le ${formatTimestamp(computedAt, "fr")}`,
+    );
   });
 });

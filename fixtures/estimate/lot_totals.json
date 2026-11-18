@@ -1,0 +1,14 @@
+{
+  "summary": "Un planning importé dont aucune tâche n'est rattachée à un lot : les totaux par lot sont absents, non nuls. Une récapitulative rattachée au lot 1 porte deux feuilles de 1 000,00 et 250,50 : son total, 1 250,50, est celui de son sous-arbre ; une feuille rattachée au lot 2, de lignes de 300,00 et 75,25, a pour total le montant de ses lignes, 375,25 (WF-DEV-0060).",
+  "examples": ["WF-DEV-0060-A#89b7fa39b765"],
+  "work_packages": ["Lot 1", "Lot 2"],
+  "leaves": {
+    "a": ["1000.00"],
+    "b": ["250.50"],
+    "c": ["300.00", "75.25"]
+  },
+  "summary_of": ["a", "b"],
+  "unattached": {"Lot 1": null, "Lot 2": null},
+  "summary_attached_to_lot_1": {"Lot 1": "1250.50", "Lot 2": null},
+  "leaf_attached_to_lot_2": {"Lot 1": null, "Lot 2": "375.25"}
+}

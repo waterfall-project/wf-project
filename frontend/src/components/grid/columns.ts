@@ -116,6 +116,19 @@ export interface GridColumn<Row, Sort extends string, Totals> {
    */
   readonly hidden?: true;
   /**
+   * Whether it is a column of a comparison, the difference to the base of a date, a duration or an
+   * amount: the grid offers it, and shows it once chosen, only while it reads a comparison
+   * (`GridConfig.comparing`); its settings are kept all the same, as those of any column.
+   */
+  readonly compared?: true;
+  /**
+   * What the base of a comparison carried in the cell of a row, as the cell would have shown it: the
+   * cell then bears the mark of a value that differs, and gives this on demand (`BaseMark`). None for
+   * a cell whose value does not differ from the base: the grid compares nothing, the server says it
+   * (`ComparedNodeRead.base`, WF-ARC-0020).
+   */
+  readonly base?: (row: Row) => ReactNode;
+  /**
    * The column of the contract it shows, as the server names it: the one it sorts by, where the
    * grid sorts (`GridConfig.sorts`) and the column too (`sorts`), and the one a block pasted on its
    * cell lands on. None for a column the contract does not name — a drawing, a mark —, which
@@ -435,6 +448,12 @@ export interface GridConfig<Row, Sort extends string, Totals> {
    */
   readonly difference?: (row: Row) => RowDifference | null | undefined;
   /**
+   * Whether the grid reads a comparison to a base (WF-IHM-0150): it then offers its columns of
+   * difference (`GridColumn.compared`), which it leaves out of its table and of the choice of the
+   * columns otherwise; a comparison changes no other column. Not, by default.
+   */
+  readonly comparing?: boolean;
+  /**
    * Whether its headers sort its rows, each by the column of the contract it shows (WF-IHM-0060);
    * by default they do. A grid of a tree whose rows keep the order of the plan sorts none — the
    * planning (§3.4) —, and its address asks no sort. In a grid that sorts, a column may yet sort
@@ -590,4 +609,16 @@ export function sortedBy<Sort extends string>(
  */
 export function sortColumns<Sort extends string>(config: Sorting<Sort>): readonly Sort[] {
   return config.columns.flatMap((column) => sortedBy(config, column) ?? []);
+}
+
+/**
+ * A grid as it shows: its columns of difference (`GridColumn.compared`) only while it reads a
+ * comparison; every other column as it is, whatever is read.
+ */
+export function offeredColumns<Row, Sort extends string, Totals>(
+  config: GridConfig<Row, Sort, Totals>,
+): GridConfig<Row, Sort, Totals> {
+  return config.comparing === true || config.columns.every((column) => column.compared !== true)
+    ? config
+    : { ...config, columns: config.columns.filter((column) => column.compared !== true) };
 }

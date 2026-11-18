@@ -14,7 +14,8 @@
  */
 import { expect, type Locator, type Request } from "@playwright/test";
 
-import { sortUntilAddress, WORKING } from "./hydration";
+import { WORKING } from "./bounds";
+import { sortUntilAddress } from "./hydration";
 import { inService, test } from "./mode";
 import { answerOf, isDeactivation, isReactivation, pressOnce } from "./server-action";
 
@@ -152,7 +153,9 @@ test("creates a role in its form, moves a node under an active one, and designat
   await form
     .getByRole("combobox", { name: "Calendrier" })
     .selectOption({ label: "Semaine standard" });
-  await form.getByRole("textbox", { name: "Heures par mois" }).fill("520");
+  // The hours per month are calculated: the form types the headcount alone (WF-IHM-0030-A).
+  await expect(form.getByRole("textbox", { name: "Effectif" })).toBeVisible();
+  await expect(form.getByRole("textbox", { name: "Heures par mois" })).toHaveCount(0);
   await form.getByRole("textbox", { name: "Effectif" }).fill("3");
   const nodeForm = page.getByRole("dialog", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" });
   const calendars = page.getByRole("grid", { name: "Calendriers" });

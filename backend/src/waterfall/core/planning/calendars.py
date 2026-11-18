@@ -92,3 +92,22 @@ def applicable_among(
     return Applicable(
         only, applicable_calendar([weeks[each] for each in sorted(named)], default.calendar)
     )
+
+
+def applicable_calendars(
+    session: Session, named: Mapping[UUID, Collection[UUID]]
+) -> dict[UUID, Applicable]:
+    """Give the calendar applicable to each task, from the calendars its facets name (``named``).
+
+    The default and the hours of the calendars named read once; computed once for each set.
+    """
+    default = default_calendar(session)
+    weeks = weeks_of(session, [each for held in named.values() for each in held])
+    computed: dict[frozenset[UUID], Applicable] = {}
+    found: dict[UUID, Applicable] = {}
+    for task_id, calendars in named.items():
+        held = frozenset(calendars)
+        if held not in computed:
+            computed[held] = applicable_among(held, default, weeks)
+        found[task_id] = computed[held]
+    return found

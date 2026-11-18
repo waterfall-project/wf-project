@@ -55,7 +55,7 @@ import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useAccountNaming } from "@/components/account/account-name";
 import { useHeldCommand } from "@/components/commands/held";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedRead, rejectedWrite } from "@/components/commands/rejection";
 import { byField } from "@/components/grid/cell-writes";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
 import type { PrincipalVariant } from "@/components/shell/section-card";
@@ -287,7 +287,7 @@ function Writes({ children }: { readonly children: ReactNode }) {
           // The account was modified meanwhile: read it anew before the row is free again, so that
           // it shows its current values and the next write goes from its version. A reading that
           // fails says no more than the refusal: the row stays as it was.
-          const read = await readUser(id).catch(rejected);
+          const read = await readUser(id).catch(rejectedRead);
           if (read.kind === "done") {
             record(read.data);
           }
@@ -334,7 +334,10 @@ function Writes({ children }: { readonly children: ReactNode }) {
       // The reading the row is written on: its refusal is told on it alone.
       const generation = list?.generation ?? 0;
       void held(
-        reserve(shown, { send: (user) => write.send(user).catch(rejected), said: write.said }),
+        reserve(shown, {
+          send: (user) => write.send(user).catch(rejectedWrite()),
+          said: write.said,
+        }),
       ).then((outcome) => {
         setAsked((before) => {
           const after = new Map(before);
@@ -386,7 +389,7 @@ function Writes({ children }: { readonly children: ReactNode }) {
               sentFrom = user.lock_version;
               // A refusal by field says its reason — a node deactivated since, #3271 — as the cell of
               // the attachment tells it.
-              return send(user).then(byField).catch(rejected);
+              return send(user).then(byField).catch(rejectedWrite());
             },
           });
           if (outcome.kind === "done") {

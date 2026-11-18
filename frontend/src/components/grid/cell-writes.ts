@@ -10,7 +10,13 @@
  * nothing and dates nothing. Each answer has its place among the writes, and a row or totals a
  * later write answered are never taken back to an earlier one (`answers.ts`). A reading narrowed
  * by a search or a filter, whose totals the writes do not answer, reads them anew once its writes
- * all answered (`GridConfig.retotal`). Until the server answers, the cell
+ * all answered (`GridConfig.retotal`). A grid compared to a base is the one exception to the rule of
+ * EP-02 (US-2340, decision of 2026-11-15): no write answers the marks of a comparison — which rows
+ * differ from the base, the values of the base, the differences —, so once its writes all answered,
+ * and one at least was done, it reads its screen anew, once (`CellRules.reread`, `router.refresh`),
+ * as `retotal` reads the totals; the answers taken before it asked give way to that reading, those
+ * given since stay laid over it, and the cursor and the cells under way are kept, the state of the
+ * grid with them. Out of a comparison, nothing is read anew. Until the server answers, the cell
  * shows what was validated, as pending; a refusal leaves the row as it was, and is told as every
  * screen tells one (`OutcomeNotice`) — a session lost among them, which leads to the sign-in
  * page and back to the screen (WF-SEC-0020) —, the cell it refused named with it, which the grid
@@ -57,7 +63,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Outcome } from "@/api/problem";
 import { useHeldWrites } from "@/components/commands/held";
 import { useNoteRefusal } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedRead, rejectedWrite } from "@/components/commands/rejection";
 import { type MessageScreen, shownScreen } from "@/components/notices/message-history";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
 
@@ -65,6 +71,7 @@ import {
   alike,
   type Answers,
   answersOf,
+  askedAnew,
   copyAnswers,
   type Fresher,
   readRow,
@@ -94,11 +101,15 @@ export interface CellReading<Row, Totals> {
   readonly totals: Totals | undefined;
 }
 
-/** How a grid tells its rows apart, reads its totals anew and judges an answer against a row read. */
+/**
+ * How a grid tells its rows apart, reads its totals anew and judges an answer against a row read;
+ * and, for a grid compared to a base, how it reads its screen anew once its writes answered
+ * (`reread`), in place of its totals alone. None, and nothing is read anew but the totals.
+ */
 export type CellRules<Row, Totals> = Pick<
   GridConfig<Row, string, Totals>,
   "rowKey" | "retotal" | "fresher"
->;
+> & { readonly reread?: (() => void) | undefined };
 
 /**
  * What the cells written change of the readings of an address: the answers laid over its last
@@ -286,7 +297,7 @@ export interface CellWrites<Row, Totals> {
  */
 export function useCellWrites<Row, Totals>(
   reading: CellReading<Row, Totals>,
-  { rowKey, retotal, fresher }: CellRules<Row, Totals>,
+  { rowKey, retotal, fresher, reread: readAnew }: CellRules<Row, Totals>,
   writing?: (write: Promise<unknown>) => void,
 ): CellWrites<Row, Totals> {
   const [state, setState] = useState(() => fresh<Row, Totals>(reading));
@@ -394,11 +405,33 @@ export function useCellWrites<Row, Totals>(
       );
   };
   /**
+   * Once every write answered, and one at least was done, read the screen anew — for a grid
+   * compared to a base, whose marks no write answers —, unless another address came meanwhile: the
+   * answers taken so far give way to the reading it brings.
+   */
+  const rereadScreen = (at: Book<Row, Totals>, read: () => void) => {
+    if (underWay.current > 0 || !done.current) {
+      return;
+    }
+    done.current = false;
+    if (latest.current.epoch !== at.epoch) {
+      return;
+    }
+    askedAnew(at.answers);
+    current(at.epoch, showing(at));
+    read();
+  };
+  /**
    * Once every write answered, and one at least was done, read the totals anew — for a reading
    * whose totals the writes do not answer: an answer is taken only if no write left meanwhile,
-   * whose own answer reads them again; a refusal is told unless another is.
+   * whose own answer reads them again; a refusal is told unless another is. A grid that reads its
+   * screen anew reads its totals with it.
    */
   const settle = (at: Book<Row, Totals>, screen: MessageScreen) => {
+    if (readAnew !== undefined) {
+      rereadScreen(at, readAnew);
+      return;
+    }
     if (retotal === undefined || underWay.current > 0 || !done.current) {
       return;
     }
@@ -406,7 +439,7 @@ export function useCellWrites<Row, Totals>(
     retotals.current += 1;
     const asked = retotals.current;
     void retotal()
-      .catch(rejected)
+      .catch(rejectedRead)
       .then((answer) => {
         if (asked !== retotals.current) {
           return;
@@ -469,7 +502,7 @@ export function useCellWrites<Row, Totals>(
         settle(at, screen);
         return true;
       }
-      const answer = answering(key, byField(await entry.write(from, value).catch(rejected)));
+      const answer = answering(key, byField(await entry.write(from, value).catch(rejectedWrite())));
       const stale = answer.kind !== "done" && born !== (pasted.current.get(key) ?? 0);
       const data =
         answer.kind === "done" && newer(answer.data, key, first, readRow(memory, rowKey, key))

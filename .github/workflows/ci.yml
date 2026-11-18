@@ -52,6 +52,7 @@ jobs:
       front: ${{ steps.families.outputs.front }}
       front-image: ${{ steps.families.outputs.front-image }}
       roadmap: ${{ steps.families.outputs.roadmap }}
+      measures: ${{ steps.families.outputs.measures }}
       keycloak: ${{ steps.families.outputs.keycloak }}
       service: ${{ steps.families.outputs.service }}
       production: ${{ steps.families.outputs.production }}
@@ -313,6 +314,11 @@ jobs:
     if: needs.changes.outputs.roadmap == 'true'
     uses: ./.github/workflows/roadmap.yml
 
+  measures:
+    needs: changes
+    if: needs.changes.outputs.measures == 'true'
+    uses: ./.github/workflows/measures.yml
+
   keycloak:
     needs: [changes, mirror]
     permissions:
@@ -362,6 +368,7 @@ jobs:
       - e2e
       - front-image
       - roadmap
+      - measures
       - keycloak
       - service
       - production

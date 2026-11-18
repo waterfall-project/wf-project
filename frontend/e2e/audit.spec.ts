@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { WORKING } from "./bounds";
 import { openFilters, pick } from "./check-menu";
 import { expect, test } from "@playwright/test";
 
 import { axeViolations } from "./axe";
 import { compile } from "./compile";
-import { setExpanded, sortUntilAddress, WORKING } from "./hydration";
+import { setExpanded, sortUntilAddress } from "./hydration";
 import { withinBox } from "./scroll";
 
 // The fake back serves the first example of each read: the session, whose role grants the whole

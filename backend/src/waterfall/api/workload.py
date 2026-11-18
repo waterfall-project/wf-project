@@ -6,6 +6,7 @@
 named for its remaining to commit, or of the current revision, spread over the months of their
 tasks on the calendar of their roles, with the capacity of each role beside them, restricted to an
 organisation node and its descendants. Read under ``estimate.read`` by the readers of the project.
+Each role details the tasks that bear its lines, their hours by month (WF-DEV-0090, US-2040).
 """
 
 from typing import Annotated, Any
@@ -17,8 +18,10 @@ from pydantic import BaseModel
 from waterfall.api.authentication import Transaction
 from waterfall.api.contract.models import Basis, WorkloadPlan
 from waterfall.api.evaluation import Acting, RequiresProject
+from waterfall.api.wire import instant_of
 from waterfall.core.estimate.interface import (
     RoleLoad,
+    TaskLoad,
     WorkloadAsked,
     WorkloadBasis,
     WorkloadView,
@@ -30,6 +33,19 @@ from waterfall.platform.database import utc_now
 router = APIRouter(tags=["estimate"])
 
 CONSULT = "estimate.read"
+
+
+def task_of(task: TaskLoad) -> dict[str, Any]:
+    """Give a task of the detail of a role as the contract writes it (``WorkloadTask``)."""
+    return {
+        "node_id": task.node_id,
+        "row_number": task.row_number,
+        "label": task.label,
+        "start": instant_of(task.start),
+        "finish": instant_of(task.finish),
+        "hours": str(task.hours),
+        "months": [{"month": month, "hours": str(hours)} for month, hours in task.months],
+    }
 
 
 def role_of(role: RoleLoad) -> dict[str, Any]:
@@ -47,6 +63,7 @@ def role_of(role: RoleLoad) -> dict[str, Any]:
             }
             for each in role.months
         ],
+        "tasks": [task_of(each) for each in role.tasks],
     }
 
 

@@ -122,7 +122,8 @@ décrivent (`docs/api/DECISIONS.md`, « L'univers témoin » ; #1402, décision 
 2026-10-28). Il se charge par tranches : chaque EPIC du back nomme la sienne dans « Ce qui en fait
 partie » et la charge à son tour — le référentiel en EP-05, les projets et les révisions en EP-04,
 les tâches en EP-06, les lignes en EP-07, les coûts en EP-09, les avenants et les risques en EP-08,
-les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche suit :
+une dizaine de projets à côté du témoin en EP-11, pour que chaque vue du portefeuille ait de quoi
+sommer (décision de l'auteur du 2026-11-17), les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche suit :
 
 - **le saisi se charge, jamais par un `INSERT`** : par une commande du back qui passe par les
   interfaces des modules du noyau, avec les identifiants du témoin imposés par cette seule voie,
@@ -162,11 +163,11 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-23](EP-23-dette-constats-ep02-ep03.md) | Dette des constats d'EP-02 et d'EP-03 | livré | EP-02, EP-03, EP-06 |
 | [EP-24](EP-24-consolidation-apres-v0-3-0.md) | Consolidation après la v0.3.0 | livré | EP-09, EP-23 |
 | [EP-25](EP-25-refonte-ergonomique.md) | Refonte ergonomique | livré | EP-24 |
-| [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Lecture et performance des grilles | en cours | EP-25 |
+| [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Lecture et performance des grilles | livré | EP-25 |
 | [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparaison dans les grilles | en cours | EP-26 |
 | [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | en cours | EP-25, EP-26 |
-| [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10, EP-27 |
-| [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-08 |
+| [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | en cours | EP-10, EP-27 |
+| [EP-11](EP-11-portefeuille.md) | Portefeuille | en cours | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
 | [EP-13](EP-13-exploitation.md) | Exploitation et mise en production | à planifier | EP-04 |
 | [EP-28](EP-28-chaine-et-outillage.md) | Chaîne et outillage de développement | en cours | rien |
@@ -398,7 +399,11 @@ ses lots de back et ses outils de mesure ne touchant aucun fichier de la refonte
 comparaison sur les lectures gardées, sur laquelle la sienne s'appuie (décision du 2026-11-15). Depuis
 le recadrage d'EP-10 du 2026-11-15, `epic/EP-10` ne suit plus la série : EP-09 livré, elle se tire
 de `main` une fois EP-25 livré, sans attendre EP-26, dont elle dépend aussi : seuls US-1680 et US-2420
-attendent EP-26 dans `main` ; `epic/EP-08` garde son lot pivot.
+attendent EP-26 dans `main`. `epic/EP-08` ne garde pas son lot pivot : depuis qu'EP-08 dépend aussi
+d'EP-27, dont la branche est distincte, elle se tire de `main` une fois EP-10 et EP-27 livrés, selon
+la règle (décision du 2026-11-17, au cadrage d'EP-08). Cinquième : `epic/EP-11` tirée d'`epic/EP-08`
+dès la fusion de son socle, US-2550/L1 (#3822), qui lui donne la migration des risques et l'interface
+déclarée de `core/risks` (décision du 2026-11-17, au cadrage d'EP-11).
 
 La chaîne s'exécute sur toute pull request, vers une branche d'EPIC comme vers `main`, et
 aucune n'est fusionnée si elle échoue.

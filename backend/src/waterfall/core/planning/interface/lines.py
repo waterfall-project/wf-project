@@ -43,7 +43,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import exists, select, update
 
-from waterfall.core.planning.carrying import bearing, refuse_completed
+from waterfall.core.planning.carrying import bearing, refuse_completed, refuse_completed_on
 from waterfall.core.planning.interface.facets import (
     FacetCreation,
     FacetWrite,
@@ -74,7 +74,7 @@ if TYPE_CHECKING:
 
     from waterfall.core.planning.interface.facets import FacetHooks
     from waterfall.core.planning.interface.nodes import NodeCreation
-    from waterfall.core.planning.tree import Tree
+    from waterfall.core.planning.tree import NodeColumns, TaskColumns, Tree
     from waterfall.core.planning.writing import NodesWritten, Place, Write, Writer
     from waterfall.platform.audit import Act
 
@@ -84,11 +84,16 @@ NODE_NOT_SIBLING = "NODE_NOT_SIBLING"
 
 @dataclass(frozen=True, slots=True)
 class FacetChange:
-    """A write of the facet of a node: the node, the counter read, and what writes the facet."""
+    """A write of the facet of a node: the node, the counter read, and what writes the facet.
+
+    ``sent`` names the fields of the facet the write sends, as its body names them (``label``): a
+    write that sends none but the inert fields of its kind takes the short path (US-2250).
+    """
 
     node_id: UUID
     lock_version: int
     apply: Callable[[FacetWrite], None]
+    sent: frozenset[str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -286,7 +291,7 @@ def node_rows(
     return found
 
 
-def judge_bearer(tree: Tree, parent: UUID | None) -> UUID:
+def judge_bearer[N: NodeColumns, T: TaskColumns](tree: Tree[N, T], parent: UUID | None) -> UUID:
     """Refuse a bearer that is no task of the structure (422); give it."""
     if parent is None or parent not in tree.tasks:
         fault = FieldError("/parent_id", UNKNOWN_TASK)
@@ -438,28 +443,61 @@ def write_facet(
     version than the one read (412), under a completed task of the main structure (409
     ``task_not_completed``); then the facet writes what is sent (``change.apply``), refusing what
     it does not accept (422). The node is counted, the structure redated and the lines of its task
-    priced again.
+    priced again; or, when every field sent is inert for its kind (``FacetHooks.inert``), counted
+    by the short path, the engine not replayed (``Write.count``, US-2250). The kinds for which what
+    is sent is inert are known before the lock: for one at least, the structure is read as rows
+    but the node written (``read_inert``, US-2250/L2); a node of another kind takes the whole path.
     """
     node_id = change.node_id
-    with writing(session, place, writer, ("cell", (node_id,))) as write:
-        tree = write.tree
-        node = tree.nodes.get(node_id)
-        if node is None or node_id in tree.tasks or node.parent_id is None:
-            raise NotFoundError(NOT_FOUND)
-        if node.lock_version != change.lock_version:
-            raise PreconditionFailedError(
-                STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
-            )
-        parent = _judge_bearer(write, node.parent_id)
-        bearer = bearing(session, place.project_id, tree, parent, is_main=write.facts.is_main)
-        write.before((node_id,))
-        change.apply(
-            FacetWrite(session, place.project_id, place.revision_id, node_id, bearer, writer.act)
+    inert = frozenset(
+        kind
+        for kind, hooks in facets().items()
+        if {f"{kind}.{name}" for name in change.sent} <= set(hooks.inert)
+    )
+    written = (node_id,) if inert else ()
+    with writing(session, place, writer, ("cell", (node_id,)), written) as write:
+        held = write.inert
+        if held is None:
+            return _facet_written(write, write.tree, write.tree.nodes, change, inert)
+        return _facet_written(write, held.tree, held.nodes, change, inert)
+
+
+def _facet_written[N: NodeColumns, T: TaskColumns](
+    write: Write,
+    tree: Tree[N, T],
+    nodes: Mapping[UUID, Node],
+    change: FacetChange,
+    inert: frozenset[str],
+) -> NodesWritten:
+    """Write the facet of a node on the tree its write holds, through its object in ``nodes``.
+
+    ``inert`` the kinds for which what is sent is inert: a node of one of them is counted, another
+    redated (``write_facet``).
+    """
+    session, place, act = write.session, write.place, write.writer.act
+    node_id = change.node_id
+    node = nodes.get(node_id)
+    if node is None or node_id in tree.tasks or node.parent_id is None:
+        raise NotFoundError(NOT_FOUND)
+    if node.lock_version != change.lock_version:
+        raise PreconditionFailedError(
+            STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
         )
-        stamp(node, writer.act)
-        redated = write.redate((parent, tree.tasks[parent].label), None, (parent,))
-        write.after((node_id,))
-        return redated.written((node_id,))
+    is_main = write.facts.is_main
+    parent = judge_bearer(tree, node.parent_id)
+    if is_main:
+        refuse_completed_on(tree, (parent,))
+    bearer = bearing(session, place.project_id, tree, parent, is_main=is_main)
+    write.before((node_id,))
+    change.apply(FacetWrite(session, place.project_id, place.revision_id, node_id, bearer, act))
+    stamp(node, act)
+    redated = (
+        write.count()
+        if node.kind in inert
+        else write.redate((parent, tree.tasks[parent].label), None, (parent,))
+    )
+    write.after((node_id,))
+    return redated.written((node_id,))
 
 
 def write_lines(session: Session, place: Place, lines: LinesWrite, writer: Writer) -> NodesWritten:

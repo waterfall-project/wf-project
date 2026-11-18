@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { UnexpectedAnswer } from "@/api/problem";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
@@ -278,5 +279,28 @@ describe("the screen of a project that has a revision leads to it", () => {
     expect(page).toContain('aria-label="Start the project"');
     expect(page).toContain('aria-label="Import a file"');
     expect(page).not.toContain('aria-label="Revisions"');
+  });
+});
+
+describe("the screen of a project whose revisions are refused", () => {
+  // The page reads the revisions as the banner does (`listProjectRevisions`, the one read of the
+  // request), but cannot do without them: it is not found when the API does not find them, and
+  // fails on any other refusal, as it did when it read them alone (`readEveryPage`).
+  it("is not found when the API does not find them", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions": { problem: { code: "NOT_FOUND", status: 404 } },
+    };
+    await expect(projectAt()).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+  });
+
+  it("fails as any read does when the API answers an error", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions": {
+        problem: { code: "INTERNAL_ERROR", status: 500 },
+      },
+    };
+    await expect(projectAt()).rejects.toBeInstanceOf(UnexpectedAnswer);
   });
 });

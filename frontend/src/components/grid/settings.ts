@@ -23,7 +23,7 @@ import { startTransition, useCallback, useEffect, useRef, useState } from "react
 import { updateGridPreferences } from "@/api/actions/preferences";
 import type { components } from "@/api/generated/schema";
 import type { Settled } from "@/api/problem";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedWrite } from "@/components/commands/rejection";
 
 import { MAX_WIDTH, MIN_WIDTH, WIDEST } from "./columns";
 import { pageSizeOf } from "./query";
@@ -109,9 +109,27 @@ export interface GridShape {
   readonly known: readonly string[];
 }
 
-/** The shape of a grid, from its columns. */
+/**
+ * The most columns the contract lets a grid record in each of its lists: those known
+ * (`known_columns`, `maxItems`), those hidden (`hidden_columns`, `maxItems`) and those whose width
+ * is set (`column_widths`, `maxProperties`).
+ */
+export const KNOWN_BOUND = 256;
+
+/**
+ * The shape of a grid, from its columns. A grid of more columns than the contract records — one
+ * for each month of a plan of fifteen years (US-2040) — records first those it hides by default,
+ * the only ones the list decides on (`initialSettings`), then the others in their order, up to the
+ * bound: a column it does not hide is shown whether it is known or not.
+ */
 export function gridShape(columns: readonly SettledColumn[]): GridShape {
-  return { ended: endedColumns(columns), known: columns.map((column) => column.key) };
+  const keys = (hidden: boolean) =>
+    columns.filter((column) => (column.hidden === true) === hidden).map((column) => column.key);
+  const known =
+    columns.length <= KNOWN_BOUND
+      ? columns.map((column) => column.key)
+      : [...keys(true), ...keys(false)].slice(0, KNOWN_BOUND);
+  return { ended: endedColumns(columns), known };
 }
 
 /** The number of rows per page the account keeps for a grid; none, the default of the contract. */
@@ -145,14 +163,18 @@ export function recordedPreferences(
   const recorded: GridPreferences = {
     ...preferences,
     ...(shape === undefined ? {} : { known_columns: [...shape.known] }),
+    // Past the bound of the contract — a grid of a month a column, US-2040 —, the first columns
+    // set stay, in the order the settings hold them, and the others are not recorded: a column
+    // hidden shows again, a column widened has its width by default, on the next visit. The
+    // session itself keeps all its settings.
     hidden_columns: Object.entries(settings.visibility)
       .filter(([, visible]) => !visible)
-      .map(([key]) => key),
+      .map(([key]) => key)
+      .slice(0, KNOWN_BOUND),
     column_widths: Object.fromEntries(
-      Object.entries(settings.sizing).map(([key, width]) => [
-        key,
-        bounded(width, ended.has(key) ? WIDEST : MAX_WIDTH),
-      ]),
+      Object.entries(settings.sizing)
+        .slice(0, KNOWN_BOUND)
+        .map(([key, width]) => [key, bounded(width, ended.has(key) ? WIDEST : MAX_WIDTH)]),
     ),
   };
   const sized = pageSizeOf(size);
@@ -214,7 +236,7 @@ export function useKeptWriter<P>(
     async (sent: P) => {
       latest.current += 1;
       const order = latest.current;
-      const result = await write(grid, sent).catch(rejected);
+      const result = await write(grid, sent).catch(rejectedWrite());
       if (order === latest.current) {
         setOutcome(result.kind === "done" ? undefined : result);
       }

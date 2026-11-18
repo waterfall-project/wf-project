@@ -514,14 +514,25 @@ WorkloadPlan:
         (WF-DEV-0070).
       items:
         type: object
-        required: [resource_role_id, label, org_node_id, capacity_monthly_hours, months]
+        required: [resource_role_id, label, org_node_id, capacity_monthly_hours, months, tasks]
         properties:
           resource_role_id: { $ref: ../common.yaml#/Uuid }
           label: { type: string }
           org_node_id: { $ref: ../common.yaml#/Uuid }
-          capacity_monthly_hours: { $ref: ../common.yaml#/Hours }
+          capacity_monthly_hours:
+            allOf: [{ $ref: ../common.yaml#/Hours }]
+            description: >-
+              The hours per month of the role as the reference data reads them today, calculated
+              from its headcount and its calendar (`RoleCapacity.monthly_hours`, WF-REF-0100),
+              to which the plan compares the load of each month.
           months:
             type: array
+            description: >-
+              Only the months in which the role is loaded, ascending: a month without load is
+              absent, not returned at zero, so that a role loaded on fewer months than the others
+              has fewer entries; the axis of the plan is `monthly_totals` (#3096). Each month the
+              sum of the parts of its lines, rounded as `tasks` says: the hours of the tasks of the
+              role that month sum to it exactly (WF-DEV-0090).
             items:
               type: object
               required: [month, hours, zone]
@@ -529,6 +540,157 @@ WorkloadPlan:
                 month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
                 hours: { $ref: ../common.yaml#/Hours }
                 zone: { $ref: '#/WorkloadZone' }
+          tasks:
+            type: array
+            description: >-
+              The detail of the role by task (WF-DEV-0090): each task that bears a labour line of
+              the role, on the basis, by the spreading and under the filter of the plan — on a
+              basis of remaining to commit, a completed task is absent —, in the order of its start
+              (`start`, its date then its hours), then of the plan (`row_number`; the author's
+              decision of 2026-11-14, #3181). Empty for a role with no labour line. Computed when
+              read, on the revision read (`context.revision_id`): on `marked_remaining`, on what
+              its marking froze, never stored by it (#3181).
+            items: { $ref: '#/WorkloadTask' }
+
+WorkloadTask:
+  type: object
+  required: [node_id, row_number, label, start, finish, hours, months]
+  description: >-
+    A task of the detail of a role (WF-DEV-0090): its node in the main structure of the revision
+    read, which the planning grid of that revision shows and targets, its row there, its label, its
+    dates, and the hours of the role's labour lines it bears. Two lines of the same role under the
+    task count as one, the sum of their hours. The hours of each line are spread over the months
+    of its task: the part of a month is the difference of two roundings to the hundredth, half to
+    the nearest even, of the cumulated hours of the line at the end of that month and at the end
+    of the month before, the cumulated hours of the last month being the whole line. A part is
+    never negative and the parts sum to the hours of the line, rounded; the task, the month of a
+    role and every total sum parts already rounded (EP-10, recadrage of 2026-11-15).
+  properties:
+    node_id: { $ref: ../common.yaml#/Uuid }
+    row_number:
+      type: integer
+      minimum: 1
+      description: >-
+        The row of the task in the numbering of the whole structure, as `Node.row_number`, in
+        the structure of the revision the plan reads (`context.revision_id`): the plan of a
+        marked basis numbers its tasks as that marked revision does, not as the revision in
+        progress, whose rows may differ.
+    label: { type: string }
+    start: { $ref: ../common.yaml#/WorkInstant }
+    finish: { $ref: ../common.yaml#/WorkInstant }
+    hours:
+      allOf: [{ $ref: ../common.yaml#/Hours }]
+      description: The hours of the task for the role, the sum of its `months`.
+    months:
+      type: array
+      description: >-
+        Only the months in which the task is loaded for the role, ascending, as for a role (#3096);
+        empty when its hours are zero.
+      items:
+        type: object
+        required: [month, hours]
+        properties:
+          month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+          hours: { $ref: ../common.yaml#/Hours }
+
+SpendingProjection:
+  type: object
+  required: [context, basis, payment_delays, total, monthly_totals, cost_types]
+  description: >-
+    The spending projection of the project, by cost type and by month (WF-DEV-0100): the amount of
+    each labour and non-labour line, the provision lines excluded, spread over the duration of its
+    task in proportion to the hours worked (WF-DEV-0040). The amount spread is, inflation
+    included, at the consumption year of the line (WF-DEV-0020), its budgeted amount on the
+    reference budget and, on a basis of remaining to commit, its remaining to commit
+    (WF-RAE-0010), nothing for a line of a task completed; the remaining to commit is spread over
+    the part of its task after the calculation date (`context.computed_at`, the marking date for a
+    marked revision), carried to the month of that date when the finish of the task has passed
+    (WF-IND-0100). The part of a line in a month is the difference of two roundings to the cent,
+    half away from zero, of the cumulated amount of the line at the end of that month and at the
+    end of the month before, the cumulated amount of the last month being the whole line: a part
+    is never negative and the parts sum to the amount of the line, rounded. Every amount of the
+    projection — a category, a cost type, a month, the total — is a sum of parts already rounded,
+    summed by the service, which the front does not sum (WF-ARC-0020): the total of each month
+    equals the sum of the cost types that month, that of each cost type the sum of its categories.
+    Computed when read, never stored: `context.is_stored` is false, on a marked revision too
+    (#3182); `context.scope` names the scope (`subproject_id`).
+  properties:
+    context: { $ref: '#/CalculationContext' }
+    basis:
+      type: string
+      enum: [reference_budget, marked_remaining, current_remaining]
+      description: >-
+        The basis used: the budget of the reference revision, the re-estimated amounts of a marked
+        revision, or those of the current revision (WF-DEV-0100). `context.revision_id` names the
+        revision read.
+    payment_delays:
+      type: boolean
+      description: >-
+        True when each amount is shifted by the payment delay of its line: the cash-out
+        (WF-DEV-0100). False otherwise.
+    total:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        The total of the projection, the sum of its cost types; on a basis of remaining to commit,
+        the remaining to commit of the scope without its provisions (WF-RAE-0010).
+    monthly_totals:
+      type: array
+      description: >-
+        The total of each month, the sum of the cost types that month: from the first to the last
+        month that a cost type loads, ascending and without gaps, a month without amount included
+        at zero, as `WorkloadPlan.monthly_totals`; empty when no line carries an amount.
+      items: { $ref: '#/SpendingMonth' }
+    cost_types:
+      type: array
+      description: >-
+        The cost types that carry an amount, in the order of the reference data — that of
+        `listCostTypes` without a sort, by code, then by identifier —; never the provision type,
+        whose lines are excluded (WF-DEV-0100).
+      items: { $ref: '#/SpendingCostType' }
+
+SpendingCostType:
+  type: object
+  required: [cost_type_id, label, total, months, categories]
+  description: >-
+    A cost type of the projection: its total and its amount by month, the sums of its categories
+    (WF-DEV-0100).
+  properties:
+    cost_type_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string }
+    total: { $ref: ../common.yaml#/Money }
+    months:
+      type: array
+      description: Only the months in which the cost type carries an amount, ascending (#3096).
+      items: { $ref: '#/SpendingMonth' }
+    categories:
+      type: array
+      minItems: 1
+      description: >-
+        The categories of the cost type that carry an amount, in the order of the reference data —
+        that of `listCostCategories` without a sort, by code, then by identifier.
+      items: { $ref: '#/SpendingCategory' }
+
+SpendingCategory:
+  type: object
+  required: [cost_category_id, label, total, months]
+  description: >-
+    A cost category of the projection: the sum of the parts of its lines, by month and in total
+    (WF-DEV-0100).
+  properties:
+    cost_category_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string }
+    total: { $ref: ../common.yaml#/Money }
+    months:
+      type: array
+      description: Only the months in which the category carries an amount, ascending (#3096).
+      items: { $ref: '#/SpendingMonth' }
+
+SpendingMonth:
+  type: object
+  required: [month, amount]
+  properties:
+    month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+    amount: { $ref: ../common.yaml#/Money }
 
 WorkloadZone:
   type: string

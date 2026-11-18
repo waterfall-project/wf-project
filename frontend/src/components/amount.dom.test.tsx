@@ -10,11 +10,11 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { Amount } from "./amount";
 
 /** The amount in French, under the currency of the installation (none when unknown). */
-function shown(currency: string | undefined): string {
+function shown(currency: string | undefined, value = "1234.5", signed = false): string {
   const { container } = render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <CurrencyProvider currency={currency}>
-        <Amount value="1234.5" />
+        <Amount value={value} signed={signed} />
       </CurrencyProvider>
     </NextIntlClientProvider>,
   );
@@ -28,5 +28,14 @@ describe("an amount", () => {
 
   it("is shown bare when the currency of the installation is unknown [WF-REF-0140-A]", () => {
     expect(shown(undefined)).toMatch(/^1\s234,50$/);
+  });
+
+  it("writes a plus in front of a positive amount when it is signed, as the columns of difference do [WF-IHM-0150-A]", () => {
+    expect(shown("EUR", "1234.5", true)).toMatch(/^\+1\s234,50\s€$/);
+  });
+
+  it("writes nothing more in front of zero nor of a negative amount when it is signed [WF-IHM-0150-A]", () => {
+    expect(shown("EUR", "0", true)).toMatch(/^0,00\s€$/);
+    expect(shown("EUR", "-12.5", true)).toMatch(/^[-−]12,50\s€$/);
   });
 });

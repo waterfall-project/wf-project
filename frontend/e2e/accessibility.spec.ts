@@ -43,8 +43,9 @@ import path from "node:path";
 
 import { expect, type Page, type PlaywrightWorkerOptions, test } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import { type AxeAudit, type AxeBreach, axeAudit } from "./axe";
-import { untilHydrated, WORKING } from "./hydration";
+import { untilHydrated } from "./hydration";
 import { type AppScreen, DIFFERENTIAL_SCREENS, OTHER_SCREENS, tableScreens } from "./routes";
 import { checkOpened, openers } from "./opened";
 import { faults, lost, NO_FAULTS, type Walk, walkByTab } from "./tab-walk";

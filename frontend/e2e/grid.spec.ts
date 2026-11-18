@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator, type Page, type Request } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import {
   edgesBetween,
   rowAt,
@@ -14,7 +15,7 @@ import {
 import { closeMenu, menuButton, openMenu as openFilterMenu, pick } from "./check-menu";
 import { columnsOf } from "./columns";
 import { seedEstimate } from "./estimate-seed";
-import { holdRoute, openHydrated, openMenu, pause, WORKING } from "./hydration";
+import { holdRoute, openHydrated, openMenu, pause } from "./hydration";
 import { inService, test } from "./mode";
 import { seedPlanning } from "./planning-seed";
 

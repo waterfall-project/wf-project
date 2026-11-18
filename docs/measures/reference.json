@@ -1,0 +1,1329 @@
+{
+  "reference": "before the corrections of EP-26 (US-2210)",
+  "commit": "47295ed440011427e744de22dd62cd1fe8b3796e",
+  "taken_at": "2026-11-15T00:32:28.415Z",
+  "targets": {
+    "objective_ms": 1000.0,
+    "api_target_ms": {
+      "planning": 840.8,
+      "estimate": 849.6
+    },
+    "from": {
+      "planning": "journey, one user, step planning.by-address",
+      "estimate": "journey, one user, step estimate.from-planning"
+    }
+  },
+  "core": {
+    "subject": {
+      "project": "PRJ-001",
+      "runs": 5
+    },
+    "measures": [
+      {
+        "name": "read all",
+        "summary": {
+          "runs": 5,
+          "median_ms": 432.0,
+          "worst_ms": 449.6,
+          "spread_ms": 75.6
+        },
+        "facts": {
+          "nodes": 5999,
+          "body_mb": 7.83,
+          "read_ms": 353,
+          "bodies_ms": 38,
+          "dump_ms": 40
+        },
+        "rows": [],
+        "notes": []
+      },
+      {
+        "name": "read kinds=task",
+        "summary": {
+          "runs": 5,
+          "median_ms": 222.1,
+          "worst_ms": 270.0,
+          "spread_ms": 71.5
+        },
+        "facts": {
+          "nodes": 1000,
+          "body_mb": 1.51,
+          "read_ms": 205,
+          "bodies_ms": 9,
+          "dump_ms": 6
+        },
+        "rows": [],
+        "notes": []
+      },
+      {
+        "name": "read all, profiled",
+        "facts": {
+          "read_ms": 718,
+          "bodies_ms": 107,
+          "dump_ms": 40,
+          "statements": 23,
+          "postgresql_execute_ms": 101
+        },
+        "rows": [
+          {
+            "function": "reading.py:67(read_once)",
+            "calls": 1,
+            "cumulative_ms": 866,
+            "own_ms": 14
+          },
+          {
+            "function": "nodes.py:324(list_nodes)",
+            "calls": 1,
+            "cumulative_ms": 700,
+            "own_ms": 2
+          },
+          {
+            "function": "views.py:321(prefetch)",
+            "calls": 1,
+            "cumulative_ms": 224,
+            "own_ms": 5
+          },
+          {
+            "function": "loading.py:214(chunks)",
+            "calls": 46,
+            "cumulative_ms": 205,
+            "own_ms": 14
+          },
+          {
+            "function": "reading.py:287(read_lines)",
+            "calls": 1,
+            "cumulative_ms": 203,
+            "own_ms": 11
+          },
+          {
+            "function": "tree.py:114(read_tree)",
+            "calls": 1,
+            "cumulative_ms": 186,
+            "own_ms": 3
+          },
+          {
+            "function": "reading.py:53(reading_of)",
+            "calls": 1,
+            "cumulative_ms": 144,
+            "own_ms": 1
+          },
+          {
+            "function": "result.py:970(all)",
+            "calls": 5,
+            "cumulative_ms": 142,
+            "own_ms": 1
+          },
+          {
+            "function": "loading.py:1075(_instance)",
+            "calls": 18036,
+            "cumulative_ms": 141,
+            "own_ms": 16
+          },
+          {
+            "function": "result.py:1892(_fetchall_impl)",
+            "calls": 6,
+            "cumulative_ms": 141,
+            "own_ms": 1
+          },
+          {
+            "function": "reading.py:223(_views)",
+            "calls": 1,
+            "cumulative_ms": 111,
+            "own_ms": 19
+          },
+          {
+            "function": "session.py:2283(_execute_internal)",
+            "calls": 23,
+            "cumulative_ms": 109,
+            "own_ms": 0
+          },
+          {
+            "function": "context.py:312(orm_execute_statement)",
+            "calls": 23,
+            "cumulative_ms": 107,
+            "own_ms": 0
+          },
+          {
+            "function": "nodes.py:451(node_body)",
+            "calls": 5999,
+            "cumulative_ms": 106,
+            "own_ms": 27
+          },
+          {
+            "function": "base.py:1450(execute)",
+            "calls": 23,
+            "cumulative_ms": 106,
+            "own_ms": 0
+          },
+          {
+            "function": "elements.py:525(_execute_on_connection)",
+            "calls": 23,
+            "cumulative_ms": 106,
+            "own_ms": 0
+          },
+          {
+            "function": "base.py:1664(_execute_clauseelement)",
+            "calls": 23,
+            "cumulative_ms": 106,
+            "own_ms": 0
+          },
+          {
+            "function": "base.py:1813(_execute_context)",
+            "calls": 23,
+            "cumulative_ms": 104,
+            "own_ms": 0
+          },
+          {
+            "function": "base.py:1872(_exec_single_context)",
+            "calls": 23,
+            "cumulative_ms": 103,
+            "own_ms": 0
+          },
+          {
+            "function": "connection.py:479(wait)",
+            "calls": 28,
+            "cumulative_ms": 102,
+            "own_ms": 50
+          },
+          {
+            "function": "cursor.py:100(execute)",
+            "calls": 24,
+            "cumulative_ms": 101,
+            "own_ms": 0
+          },
+          {
+            "function": "default.py:1191(do_execute)",
+            "calls": 23,
+            "cumulative_ms": 101,
+            "own_ms": 0
+          },
+          {
+            "function": "nodes.py:338(<genexpr>)",
+            "calls": 6000,
+            "cumulative_ms": 85,
+            "own_ms": 1
+          },
+          {
+            "function": "views.py:441(node)",
+            "calls": 5999,
+            "cumulative_ms": 84,
+            "own_ms": 19
+          },
+          {
+            "function": "session.py:2488(execute)",
+            "calls": 9,
+            "cumulative_ms": 81,
+            "own_ms": 0
+          }
+        ],
+        "notes": [
+          "postgresql_execute_ms is the time of the statements' execution alone: fetching their rows and building the objects are counted in the read, not in it"
+        ]
+      },
+      {
+        "name": "read all, by threads of one process",
+        "facts": {},
+        "rows": [
+          {
+            "threads": 1,
+            "each_median_ms": 457,
+            "each_worst_ms": 457,
+            "all_done_ms": 457,
+            "reads_per_second": 2.19
+          },
+          {
+            "threads": 2,
+            "each_median_ms": 899,
+            "each_worst_ms": 990,
+            "all_done_ms": 990,
+            "reads_per_second": 2.02
+          },
+          {
+            "threads": 4,
+            "each_median_ms": 1466,
+            "each_worst_ms": 1879,
+            "all_done_ms": 1880,
+            "reads_per_second": 2.13
+          },
+          {
+            "threads": 6,
+            "each_median_ms": 2326,
+            "each_worst_ms": 2828,
+            "all_done_ms": 2829,
+            "reads_per_second": 2.12
+          }
+        ],
+        "notes": [
+          "each wave is one pass: a read per worker after one that warmed it, no repeat to take a median of; the spread between waves is not known"
+        ]
+      },
+      {
+        "name": "read all, by processes",
+        "facts": {},
+        "rows": [
+          {
+            "processes": 1,
+            "each_median_ms": 528,
+            "each_worst_ms": 528,
+            "all_done_ms": 528,
+            "reads_per_second": 1.89
+          },
+          {
+            "processes": 2,
+            "each_median_ms": 461,
+            "each_worst_ms": 461,
+            "all_done_ms": 461,
+            "reads_per_second": 4.34
+          },
+          {
+            "processes": 4,
+            "each_median_ms": 523,
+            "each_worst_ms": 527,
+            "all_done_ms": 527,
+            "reads_per_second": 7.59
+          },
+          {
+            "processes": 6,
+            "each_median_ms": 550,
+            "each_worst_ms": 557,
+            "all_done_ms": 557,
+            "reads_per_second": 10.77
+          }
+        ],
+        "notes": [
+          "each wave is one pass: a read per worker after one that warmed it, no repeat to take a median of; the spread between waves is not known"
+        ]
+      },
+      {
+        "name": "write a label",
+        "summary": {
+          "runs": 5,
+          "median_ms": 412.5,
+          "worst_ms": 506.3,
+          "spread_ms": 108.1
+        },
+        "facts": {
+          "write_over_read": 0.97,
+          "rescheduled": 0,
+          "ancestors": 1
+        },
+        "rows": [],
+        "notes": []
+      },
+      {
+        "name": "write a duration, redating",
+        "summary": {
+          "runs": 5,
+          "median_ms": 886.3,
+          "worst_ms": 1008.3,
+          "spread_ms": 177.6
+        },
+        "facts": {
+          "write_over_read": 2.08,
+          "rescheduled": 957,
+          "ancestors": 40
+        },
+        "rows": [],
+        "notes": []
+      },
+      {
+        "name": "open a revision",
+        "summary": {
+          "runs": 5,
+          "median_ms": 4640.5,
+          "worst_ms": 4803.4,
+          "spread_ms": 216.8
+        },
+        "facts": {},
+        "rows": [],
+        "notes": []
+      }
+    ]
+  },
+  "journey": {
+    "measure": "grids-against-the-service",
+    "version": 1,
+    "taken_at": "2026-11-15T00:32:28.415Z",
+    "project": "01926f3a-7c00-7000-8000-000000000001",
+    "revision": "01926f3a-7c00-7000-8000-000000000102",
+    "passes": 5,
+    "clock_offset_ms": 0.4,
+    "levels": [
+      {
+        "users": 1,
+        "steps": {
+          "planning.by-address": {
+            "samples": 5,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 898.5,
+              "worst": 945.2,
+              "spread": 265
+            },
+            "api_ms": {
+              "median": 736,
+              "worst": 813,
+              "spread": 291.3
+            },
+            "next_ms": {
+              "median": 83.7,
+              "worst": 85.9,
+              "spread": 3.8
+            },
+            "browser_ms": {
+              "median": 75.5,
+              "worst": 91.3,
+              "spread": 41.2
+            },
+            "bytes": {
+              "median": 131503,
+              "worst": 131506,
+              "spread": 129
+            },
+            "api_requests": {
+              "median": 33,
+              "worst": 33,
+              "spread": 0
+            }
+          },
+          "estimate.from-planning": {
+            "samples": 5,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 1740.8,
+              "worst": 1888.7,
+              "spread": 192.8
+            },
+            "api_ms": {
+              "median": 1595.6,
+              "worst": 1735,
+              "spread": 189.9
+            },
+            "next_ms": {
+              "median": 92.9,
+              "worst": 100.1,
+              "spread": 11.9
+            },
+            "browser_ms": {
+              "median": 57.5,
+              "worst": 60.8,
+              "spread": 5.2
+            },
+            "bytes": {
+              "median": 198588,
+              "worst": 198604,
+              "spread": 17
+            },
+            "api_requests": {
+              "median": 12,
+              "worst": 12,
+              "spread": 0
+            }
+          },
+          "estimate.filter": {
+            "samples": 5,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 1190.9,
+              "worst": 1351.9,
+              "spread": 208.9
+            },
+            "api_ms": {
+              "median": 1162.1,
+              "worst": 1318.6,
+              "spread": 208.9
+            },
+            "next_ms": {
+              "median": 10,
+              "worst": 14.7,
+              "spread": 6.3
+            },
+            "browser_ms": {
+              "median": 22.5,
+              "worst": 24.4,
+              "spread": 9.4
+            },
+            "bytes": {
+              "median": 8453,
+              "worst": 8457,
+              "spread": 8457
+            },
+            "api_requests": {
+              "median": 12,
+              "worst": 12,
+              "spread": 0
+            }
+          },
+          "estimate.sort": {
+            "samples": 5,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 998.8,
+              "worst": 1499.1,
+              "spread": 550.9
+            },
+            "api_ms": {
+              "median": 964.9,
+              "worst": 1467.6,
+              "spread": 553.9
+            },
+            "next_ms": {
+              "median": 12.1,
+              "worst": 13.5,
+              "spread": 3.5
+            },
+            "browser_ms": {
+              "median": 21.9,
+              "worst": 23.1,
+              "spread": 1.6
+            },
+            "bytes": {
+              "median": 8711,
+              "worst": 8712,
+              "spread": 3
+            },
+            "api_requests": {
+              "median": 13,
+              "worst": 13,
+              "spread": 1
+            }
+          },
+          "estimate.search": {
+            "samples": 5,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 1264.7,
+              "worst": 1335.9,
+              "spread": 397.3
+            },
+            "api_ms": {
+              "median": 1234.5,
+              "worst": 1298.4,
+              "spread": 384.5
+            },
+            "next_ms": {
+              "median": 10.6,
+              "worst": 13,
+              "spread": 4.2
+            },
+            "browser_ms": {
+              "median": 20.1,
+              "worst": 26.8,
+              "spread": 14
+            },
+            "bytes": {
+              "median": 7834,
+              "worst": 7837,
+              "spread": 7837
+            },
+            "api_requests": {
+              "median": 12,
+              "worst": 12,
+              "spread": 0
+            }
+          },
+          "remaining.from-estimate": {
+            "samples": 5,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 2100.2,
+              "worst": 2264.7,
+              "spread": 296.4
+            },
+            "api_ms": {
+              "median": 2045.2,
+              "worst": 2218.4,
+              "spread": 298.6
+            },
+            "next_ms": {
+              "median": 11.4,
+              "worst": 15.2,
+              "spread": 5.2
+            },
+            "browser_ms": {
+              "median": 37.8,
+              "worst": 41.7,
+              "spread": 6.9
+            },
+            "bytes": {
+              "median": 11221,
+              "worst": 11222,
+              "spread": 11222
+            },
+            "api_requests": {
+              "median": 11,
+              "worst": 11,
+              "spread": 0
+            }
+          },
+          "planning.from-remaining": {
+            "samples": 5,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 753.3,
+              "worst": 831.3,
+              "spread": 329.9
+            },
+            "api_ms": {
+              "median": 628.6,
+              "worst": 708,
+              "spread": 313.9
+            },
+            "next_ms": {
+              "median": 50.7,
+              "worst": 55.3,
+              "spread": 13.1
+            },
+            "browser_ms": {
+              "median": 68,
+              "worst": 72.1,
+              "spread": 10.7
+            },
+            "bytes": {
+              "median": 49795,
+              "worst": 49799,
+              "spread": 49799
+            },
+            "api_requests": {
+              "median": 8,
+              "worst": 8,
+              "spread": 0
+            }
+          },
+          "planning.label": {
+            "samples": 5,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 787.4,
+              "worst": 872.5,
+              "spread": 357.7
+            },
+            "api_ms": {
+              "median": 740.3,
+              "worst": 815.8,
+              "spread": 349.1
+            },
+            "next_ms": {
+              "median": 7.9,
+              "worst": 9.4,
+              "spread": 2.9
+            },
+            "browser_ms": {
+              "median": 40.5,
+              "worst": 48.8,
+              "spread": 9.3
+            },
+            "bytes": {
+              "median": 1100,
+              "worst": 1102,
+              "spread": 1102
+            },
+            "api_requests": {
+              "median": 1,
+              "worst": 1,
+              "spread": 0
+            }
+          },
+          "planning.duration": {
+            "samples": 5,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 1279.9,
+              "worst": 1314.5,
+              "spread": 66.6
+            },
+            "api_ms": {
+              "median": 1225.8,
+              "worst": 1255.6,
+              "spread": 66.9
+            },
+            "next_ms": {
+              "median": 12.2,
+              "worst": 13.5,
+              "spread": 2
+            },
+            "browser_ms": {
+              "median": 46.9,
+              "worst": 47.5,
+              "spread": 6.8
+            },
+            "bytes": {
+              "median": 15778,
+              "worst": 15809,
+              "spread": 15809
+            },
+            "api_requests": {
+              "median": 1,
+              "worst": 1,
+              "spread": 0
+            }
+          }
+        },
+        "get_me": {
+          "samples": 207,
+          "lost": 0,
+          "api_ms": {
+            "median": 19.3,
+            "worst": 468.7,
+            "spread": 15.9
+          },
+          "round_trip_ms": {
+            "median": 11.4,
+            "worst": 471.1,
+            "spread": 45.1
+          }
+        }
+      },
+      {
+        "users": 4,
+        "steps": {
+          "planning.by-address": {
+            "samples": 20,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 3427.4,
+              "worst": 3553.6,
+              "spread": 572.8
+            },
+            "api_ms": {
+              "median": 3169.3,
+              "worst": 3278.6,
+              "spread": 341.7
+            },
+            "next_ms": {
+              "median": 120.8,
+              "worst": 185.9,
+              "spread": 150.2
+            },
+            "browser_ms": {
+              "median": 90,
+              "worst": 142.2,
+              "spread": 105
+            },
+            "bytes": {
+              "median": 131557.5,
+              "worst": 131671,
+              "spread": 148
+            },
+            "api_requests": {
+              "median": 33,
+              "worst": 33,
+              "spread": 1
+            }
+          },
+          "estimate.from-planning": {
+            "samples": 20,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 7005,
+              "worst": 7645.9,
+              "spread": 448.6
+            },
+            "api_ms": {
+              "median": 6851.3,
+              "worst": 7435.6,
+              "spread": 453.2
+            },
+            "next_ms": {
+              "median": 107.2,
+              "worst": 355.4,
+              "spread": 223.2
+            },
+            "browser_ms": {
+              "median": 64.1,
+              "worst": 79.8,
+              "spread": 20.7
+            },
+            "bytes": {
+              "median": 198666,
+              "worst": 198668,
+              "spread": 99335.5
+            },
+            "api_requests": {
+              "median": 12,
+              "worst": 12,
+              "spread": 0
+            }
+          },
+          "estimate.filter": {
+            "samples": 20,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 4562,
+              "worst": 5198.6,
+              "spread": 659.2
+            },
+            "api_ms": {
+              "median": 4515.5,
+              "worst": 5126.6,
+              "spread": 649
+            },
+            "next_ms": {
+              "median": 37.2,
+              "worst": 219.4,
+              "spread": 76.4
+            },
+            "browser_ms": {
+              "median": 23.1,
+              "worst": 28.1,
+              "spread": 1.5
+            },
+            "bytes": {
+              "median": 8456,
+              "worst": 8460,
+              "spread": 4229
+            },
+            "api_requests": {
+              "median": 12,
+              "worst": 12,
+              "spread": 0
+            }
+          },
+          "estimate.sort": {
+            "samples": 20,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 4181.8,
+              "worst": 4782.3,
+              "spread": 566.4
+            },
+            "api_ms": {
+              "median": 4130.7,
+              "worst": 4746.2,
+              "spread": 492.1
+            },
+            "next_ms": {
+              "median": 32.7,
+              "worst": 226,
+              "spread": 54.9
+            },
+            "browser_ms": {
+              "median": 21,
+              "worst": 26.6,
+              "spread": 2.2
+            },
+            "bytes": {
+              "median": 8708.5,
+              "worst": 8715,
+              "spread": 4251
+            },
+            "api_requests": {
+              "median": 12,
+              "worst": 13,
+              "spread": 0
+            }
+          },
+          "estimate.search": {
+            "samples": 20,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 4409.2,
+              "worst": 5062.1,
+              "spread": 1341.2
+            },
+            "api_ms": {
+              "median": 4019,
+              "worst": 5032.3,
+              "spread": 1392.6
+            },
+            "next_ms": {
+              "median": 16.8,
+              "worst": 369.4,
+              "spread": 327.8
+            },
+            "browser_ms": {
+              "median": 20.3,
+              "worst": 29.3,
+              "spread": 9.6
+            },
+            "bytes": {
+              "median": 7836,
+              "worst": 7841,
+              "spread": 7839
+            },
+            "api_requests": {
+              "median": 12,
+              "worst": 12,
+              "spread": 0
+            }
+          },
+          "remaining.from-estimate": {
+            "samples": 20,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 9252.4,
+              "worst": 10317.4,
+              "spread": 1262.7
+            },
+            "api_ms": {
+              "median": 8881.8,
+              "worst": 10248.5,
+              "spread": 1369.7
+            },
+            "next_ms": {
+              "median": 47.1,
+              "worst": 415.7,
+              "spread": 362.4
+            },
+            "browser_ms": {
+              "median": 52.6,
+              "worst": 61.3,
+              "spread": 7.3
+            },
+            "bytes": {
+              "median": 11219.5,
+              "worst": 11225,
+              "spread": 5611
+            },
+            "api_requests": {
+              "median": 11,
+              "worst": 11,
+              "spread": 0
+            }
+          },
+          "planning.from-remaining": {
+            "samples": 20,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 2033.1,
+              "worst": 4358.7,
+              "spread": 1215.6
+            },
+            "api_ms": {
+              "median": 1875.3,
+              "worst": 4269.4,
+              "spread": 1285.6
+            },
+            "next_ms": {
+              "median": 60.8,
+              "worst": 272.4,
+              "spread": 97
+            },
+            "browser_ms": {
+              "median": 78.3,
+              "worst": 100.4,
+              "spread": 13.1
+            },
+            "bytes": {
+              "median": 0,
+              "worst": 49844,
+              "spread": 24910.5
+            },
+            "api_requests": {
+              "median": 8,
+              "worst": 8,
+              "spread": 0
+            }
+          },
+          "planning.label": {
+            "samples": 20,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 1392.2,
+              "worst": 2646.7,
+              "spread": 251.7
+            },
+            "api_ms": {
+              "median": 1205.2,
+              "worst": 2593,
+              "spread": 335.8
+            },
+            "next_ms": {
+              "median": 19.4,
+              "worst": 284.2,
+              "spread": 103.8
+            },
+            "browser_ms": {
+              "median": 46.6,
+              "worst": 62.2,
+              "spread": 4.8
+            },
+            "bytes": {
+              "median": 1109.5,
+              "worst": 1128,
+              "spread": 5
+            },
+            "api_requests": {
+              "median": 1,
+              "worst": 1,
+              "spread": 0
+            }
+          },
+          "planning.duration": {
+            "samples": 20,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 2286.5,
+              "worst": 3373.8,
+              "spread": 1050.4
+            },
+            "api_ms": {
+              "median": 2220.4,
+              "worst": 3271.1,
+              "spread": 1059.5
+            },
+            "next_ms": {
+              "median": 25.1,
+              "worst": 116.4,
+              "spread": 27.6
+            },
+            "browser_ms": {
+              "median": 46.8,
+              "worst": 56.5,
+              "spread": 4.1
+            },
+            "bytes": {
+              "median": 1275,
+              "worst": 15918,
+              "spread": 7899
+            },
+            "api_requests": {
+              "median": 1,
+              "worst": 1,
+              "spread": 0
+            }
+          }
+        },
+        "get_me": {
+          "samples": 663,
+          "lost": 0,
+          "api_ms": {
+            "median": 133.6,
+            "worst": 1327.5,
+            "spread": 68.3
+          },
+          "round_trip_ms": {
+            "median": 264.5,
+            "worst": 1345.7,
+            "spread": 119.5
+          }
+        }
+      },
+      {
+        "users": 8,
+        "steps": {
+          "planning.by-address": {
+            "samples": 40,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 5538.6,
+              "worst": 6962.8,
+              "spread": 884
+            },
+            "api_ms": {
+              "median": 5516,
+              "worst": 6926.8,
+              "spread": 851
+            },
+            "next_ms": {
+              "median": 34,
+              "worst": 168,
+              "spread": 55.7
+            },
+            "browser_ms": {
+              "median": 0.3,
+              "worst": 0.6,
+              "spread": 0.1
+            },
+            "bytes": {
+              "median": 131551.5,
+              "worst": 131783,
+              "spread": 118
+            },
+            "api_requests": {
+              "median": 22,
+              "worst": 33,
+              "spread": 3.5
+            }
+          },
+          "estimate.from-planning": {
+            "samples": 40,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 14901.3,
+              "worst": 17552.2,
+              "spread": 1851.5
+            },
+            "api_ms": {
+              "median": 14684.3,
+              "worst": 17162.5,
+              "spread": 1588.9
+            },
+            "next_ms": {
+              "median": 175.9,
+              "worst": 802.6,
+              "spread": 210.5
+            },
+            "browser_ms": {
+              "median": 82.5,
+              "worst": 94.5,
+              "spread": 9.1
+            },
+            "bytes": {
+              "median": 198724,
+              "worst": 198730,
+              "spread": 25.5
+            },
+            "api_requests": {
+              "median": 12,
+              "worst": 12,
+              "spread": 0
+            }
+          },
+          "estimate.filter": {
+            "samples": 40,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 9458.4,
+              "worst": 14118.3,
+              "spread": 1703.4
+            },
+            "api_ms": {
+              "median": 9109.6,
+              "worst": 13678.5,
+              "spread": 1918.1
+            },
+            "next_ms": {
+              "median": 156.3,
+              "worst": 855,
+              "spread": 535.9
+            },
+            "browser_ms": {
+              "median": 25.2,
+              "worst": 31.2,
+              "spread": 9.1
+            },
+            "bytes": {
+              "median": 8454,
+              "worst": 8458,
+              "spread": 4230
+            },
+            "api_requests": {
+              "median": 12,
+              "worst": 12,
+              "spread": 0
+            }
+          },
+          "estimate.sort": {
+            "samples": 40,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 8989.1,
+              "worst": 13867,
+              "spread": 350.3
+            },
+            "api_ms": {
+              "median": 8886.4,
+              "worst": 12954.1,
+              "spread": 359.7
+            },
+            "next_ms": {
+              "median": 93.8,
+              "worst": 889.3,
+              "spread": 93
+            },
+            "browser_ms": {
+              "median": 21.2,
+              "worst": 28.3,
+              "spread": 2.1
+            },
+            "bytes": {
+              "median": 8709.5,
+              "worst": 8716,
+              "spread": 4254.5
+            },
+            "api_requests": {
+              "median": 12,
+              "worst": 13,
+              "spread": 0
+            }
+          },
+          "estimate.search": {
+            "samples": 40,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 7562.3,
+              "worst": 10347.4,
+              "spread": 1573.8
+            },
+            "api_ms": {
+              "median": 7413.9,
+              "worst": 10297.2,
+              "spread": 1573.2
+            },
+            "next_ms": {
+              "median": 94.2,
+              "worst": 670.4,
+              "spread": 373.3
+            },
+            "browser_ms": {
+              "median": 21.4,
+              "worst": 32.2,
+              "spread": 10
+            },
+            "bytes": {
+              "median": 7831.5,
+              "worst": 7838,
+              "spread": 3920.5
+            },
+            "api_requests": {
+              "median": 12,
+              "worst": 12,
+              "spread": 0
+            }
+          },
+          "remaining.from-estimate": {
+            "samples": 40,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 22124.2,
+              "worst": 24123.8,
+              "spread": 1157.3
+            },
+            "api_ms": {
+              "median": 21950,
+              "worst": 23972,
+              "spread": 1101.1
+            },
+            "next_ms": {
+              "median": 68,
+              "worst": 648.2,
+              "spread": 219.8
+            },
+            "browser_ms": {
+              "median": 55.9,
+              "worst": 72.2,
+              "spread": 7.9
+            },
+            "bytes": {
+              "median": 11215.5,
+              "worst": 11221,
+              "spread": 5611
+            },
+            "api_requests": {
+              "median": 11,
+              "worst": 11,
+              "spread": 0
+            }
+          },
+          "planning.from-remaining": {
+            "samples": 40,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 3862.5,
+              "worst": 10085.8,
+              "spread": 1362.2
+            },
+            "api_ms": {
+              "median": 3541.1,
+              "worst": 9788.6,
+              "spread": 1389.1
+            },
+            "next_ms": {
+              "median": 136.2,
+              "worst": 905.2,
+              "spread": 124.8
+            },
+            "browser_ms": {
+              "median": 82.8,
+              "worst": 100,
+              "spread": 5
+            },
+            "bytes": {
+              "median": 0,
+              "worst": 49817,
+              "spread": 49797.5
+            },
+            "api_requests": {
+              "median": 8,
+              "worst": 8,
+              "spread": 0
+            }
+          },
+          "planning.label": {
+            "samples": 40,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 4372.1,
+              "worst": 6780.3,
+              "spread": 634.1
+            },
+            "api_ms": {
+              "median": 4277.4,
+              "worst": 6689.2,
+              "spread": 618.6
+            },
+            "next_ms": {
+              "median": 47.9,
+              "worst": 554.8,
+              "spread": 147
+            },
+            "browser_ms": {
+              "median": 48.2,
+              "worst": 55.1,
+              "spread": 4.5
+            },
+            "bytes": {
+              "median": 1119.5,
+              "worst": 1128,
+              "spread": 6
+            },
+            "api_requests": {
+              "median": 1,
+              "worst": 1,
+              "spread": 0
+            }
+          },
+          "planning.duration": {
+            "samples": 40,
+            "incomplete": 0,
+            "usable_ms": {
+              "median": 5052.5,
+              "worst": 8085.9,
+              "spread": 2261.3
+            },
+            "api_ms": {
+              "median": 4987.3,
+              "worst": 8011.7,
+              "spread": 2152.3
+            },
+            "next_ms": {
+              "median": 25.5,
+              "worst": 317.4,
+              "spread": 17.8
+            },
+            "browser_ms": {
+              "median": 48.5,
+              "worst": 58.9,
+              "spread": 3
+            },
+            "bytes": {
+              "median": 1276,
+              "worst": 15988,
+              "spread": 2801.5
+            },
+            "api_requests": {
+              "median": 1,
+              "worst": 1,
+              "spread": 0
+            }
+          }
+        },
+        "get_me": {
+          "samples": 1245,
+          "lost": 13,
+          "api_ms": {
+            "median": 437.5,
+            "worst": 4420.5,
+            "spread": 220.7
+          },
+          "round_trip_ms": {
+            "median": 732.3,
+            "worst": 3365.9,
+            "spread": 286.4
+          }
+        }
+      }
+    ]
+  }
+}

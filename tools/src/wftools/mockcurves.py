@@ -16,7 +16,7 @@ to be replaced by the kernel of EP-08 to EP-11.
 from bisect import bisect_right
 from dataclasses import dataclass
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, cast
 
 from wftools import mockhistory
@@ -124,6 +124,10 @@ class _Placed:
 class Spread:
     """Some flows summed at any day: what they have spent by the end of it, to the cent.
 
+    Each flow counts what it has spent rounded to the cent, a half away from nought, as each of its
+    parts is (``parts``): the curve at a month-end is the sum of the parts of its lines up to that
+    month, those the projection of spending sums by month (US-1690/L4, #3564, #3590).
+
     The flows in the order they begin and in the order they are spent whole, with the sum of the
     amounts spent whole by each of the latter: at a day, those spent whole are summed at once, and
     the few under way — the tasks of a structure of a thousand are a dozen at a time — are read one
@@ -153,7 +157,7 @@ class Spread:
         by_last = tuple(sorted(placed, key=lambda each: each.last))
         total, sums = Decimal(0), [Decimal(0)]
         for each in by_last:
-            total += each.flow.amount
+            total += to_cent(each.flow.amount)
             sums.append(total)
         return cls(
             by_first,
@@ -164,7 +168,7 @@ class Spread:
         )
 
     def by(self, day: date) -> Decimal:
-        """Return what the flows have spent by the end of a day, to the cent."""
+        """Return what the flows have spent by the end of a day, each rounded to the cent."""
         ended, begun = bisect_right(self.lasts, day), bisect_right(self.firsts, day)
         if begun <= len(self.by_last) - ended:
             under_way = [each for each in self.by_first[:begun] if each.last > day]
@@ -177,8 +181,13 @@ class Spread:
             if key not in elapsed:
                 shifted = Instant(day - timedelta(days=each.flow.delay), END_OF_DAY)
                 elapsed[key] = each.flow.calendar.elapsed(shifted)
-            total += each.by(elapsed[key])
-        return total.quantize(CENT)
+            total += to_cent(each.by(elapsed[key]))
+        return total
+
+
+def to_cent(amount: Decimal) -> Decimal:
+    """Round an amount to the cent, a half away from nought, as ``Money`` is (#2773)."""
+    return amount.quantize(CENT, rounding=ROUND_HALF_UP)
 
 
 def month_end(day: date) -> date:
@@ -390,6 +399,46 @@ def earned_value_curves(reading: Reading, base: Reading, costs: list[Cost]) -> J
     }
 
 
+# --- The parts of a line ------------------------------------------------------------------------
+
+
+def parts(
+    flow: Flow, quantum: Decimal = CENT, rounding: str = ROUND_HALF_EVEN
+) -> dict[str, Decimal]:
+    """Return the parts of a line in the months it loads, rounded so that they sum to its total.
+
+    Each month what the flow has spent by its end, cumulated and rounded to the quantum — the
+    hundredth of an hour, or the cent, a half away from nought, for an amount (``Money``) —,
+    less what the months before it already hold: a part is the difference of two roundings of a
+    cumulative amount that never falls, so it is never negative, and the last cumulative being the
+    whole line, the sum of the parts is the total of the line, rounded. Every total — of a month,
+    a task, a role, a category, a nature — is a sum of parts already rounded, which holds the
+    equalities of the Vérif of WF-DEV-0090 and WF-DEV-0100 to the hundredth (EP-10, « Les parts
+    d'une ligne s'arrondissent de façon que leur somme soit son total »). A month the rounding
+    leaves at nought is not one the line loads (#3096).
+    """
+    found: dict[str, Decimal] = {}
+    ends = month_ends(flow.first, flow.last)
+    before = Decimal(0)
+    for end in ends:
+        # The last month closes on the whole line, whatever the flow says at its end.
+        cumulated = flow.amount if end == ends[-1] else flow.by(end)
+        done = cumulated.quantize(quantum, rounding=rounding)
+        if part := done - before:
+            found[end.strftime("%Y-%m")] = part
+        before = done
+    return found
+
+
+def summed(each: Iterable[dict[str, Decimal]]) -> dict[str, Decimal]:
+    """Return some parts summed month by month, in the order of the months."""
+    found: dict[str, Decimal] = {}
+    for months in each:
+        for month, part in months.items():
+            found[month] = found.get(month, Decimal(0)) + part
+    return {month: found[month] for month in sorted(found) if found[month]}
+
+
 # --- The workload -------------------------------------------------------------------------------
 
 
@@ -406,6 +455,56 @@ REMAINING = frozenset({"marked_remaining", "current_remaining"})
 """The bases of the workload that are a remaining to commit (WF-DEV-0070)."""
 
 
+def _hours_of(reading: Reading, line: mockcore.Row, basis: str) -> dict[str, Decimal]:
+    """Return the hours of a labour line by month, on the basis asked (WF-DEV-0070).
+
+    On the remaining to commit, over the part of its task after the day of the calculation, whole
+    at that day when the task is past its finish; otherwise over the whole of its task.
+    """
+    if basis in REMAINING:
+        return parts(ahead(reading, line, line.hours))
+    return parts(over(reading.bearer(line), line.hours))
+
+
+def _task(reading: Reading, number: int, months: dict[str, Decimal]) -> JsonObject:
+    """Return a task of the detail of a role: its node, its row, its dates, its hours by month."""
+    row = reading.by_number[number]
+    facet = reading.task(number)
+    return {
+        "node_id": row.node["node_id"],
+        "row_number": row.node["row_number"],
+        "label": facet["label"],
+        "start": facet["start"],
+        "finish": facet["finish"],
+        "hours": decimal(sum(months.values(), Decimal(0))),
+        "months": [{"month": month, "hours": decimal(hours)} for month, hours in months.items()],
+    }
+
+
+def _started(task: JsonObject) -> tuple[str, Decimal, int]:
+    """Return what orders the tasks of a role: their start, then their row in the plan."""
+    start = cast("JsonObject", task["start"])
+    hours = Decimal(cast("str", start["hours"]))
+    return cast("str", start["date"]), hours, cast("int", task["row_number"])
+
+
+def tasks_of(
+    reading: Reading, lines: Sequence[mockcore.Row], basis: str
+) -> list[tuple[JsonObject, dict[str, Decimal]]]:
+    """Return the tasks that bear some labour lines of a role, with their hours by month.
+
+    The lines of a task summed (WF-DEV-0090), each by its parts rounded; on the remaining to
+    commit, the lines of a task completed are left out by the caller. In the order of their start,
+    then of the plan (decision of the author of 2026-11-14, #3181).
+    """
+    by_task: dict[int, list[dict[str, Decimal]]] = {}
+    for line in lines:
+        by_task.setdefault(cast("int", line.parent), []).append(_hours_of(reading, line, basis))
+    summed_by_task = {number: summed(each) for number, each in by_task.items()}
+    found = [(_task(reading, number, months), months) for number, months in summed_by_task.items()]
+    return sorted(found, key=lambda pair: _started(pair[0]))
+
+
 def workload(reading: Reading, basis: str, org: str | None = None) -> JsonObject:
     """Return the workload of the project by role and by month (`WorkloadPlan`, WF-DEV-0070).
 
@@ -417,7 +516,9 @@ def workload(reading: Reading, basis: str, org: str | None = None) -> JsonObject
     (WF-REF-0100); over its capacity, a month is in alert. No ratio of the load to the capacity:
     the plan of a project presents none, the capacity being that of the whole installation —
     the aggregated workload keeps it (decision of the author on #375, option b, WF-PTF-0060).
-    Filtered by a node of organisation, the roles under it alone.
+    Filtered by a node of organisation, the roles under it alone. Each role details its tasks,
+    their hours the parts of their lines, whose sum is the hours of the role in each month
+    (WF-DEV-0090); a role, as a task, has only the months it loads (#3096).
     """
     kept = None if org is None else org_subtree(org)
     roles: list[JsonValue] = []
@@ -428,33 +529,19 @@ def workload(reading: Reading, basis: str, org: str | None = None) -> JsonObject
             line
             for line in reading.lines
             if reading.facet(line)["resource_role_id"] == role["resource_role_id"]
+            # What is left to work: never a task completed (WF-DEV-0070, WF-DEV-0090).
+            and (basis not in REMAINING or reading.progress(line) != "completed")
         ]
-        if basis in REMAINING:
-            # What is left to work: never a month before the calculation (WF-DEV-0070).
-            flows = [
-                ahead(reading, line, line.hours)
-                for line in lines
-                if reading.progress(line) != "completed"
-            ]
-        else:
-            flows = [over(reading.bearer(line), line.hours) for line in lines]
+        tasks = tasks_of(reading, lines, basis)
         capacity = Decimal(role["capacity"]["monthly_hours"])
-        months: list[JsonValue] = []
-        if flows:
-            end, before = month_end(min(flow.first for flow in flows)), Decimal(0)
-            spread = Spread.of(flows)
-            while end <= month_end(max(flow.last for flow in flows)):
-                done = spread.by(end)
-                hours = done - before
-                if hours:
-                    months.append(
-                        {
-                            "month": end.strftime("%Y-%m"),
-                            "hours": decimal(hours),
-                            "zone": "alert" if hours > capacity else "nominal",
-                        }
-                    )
-                end, before = month_end(end + timedelta(days=1)), done
+        months: list[JsonValue] = [
+            {
+                "month": month,
+                "hours": decimal(hours),
+                "zone": "alert" if hours > capacity else "nominal",
+            }
+            for month, hours in summed(months for _, months in tasks).items()
+        ]
         roles.append(
             {
                 "resource_role_id": role["resource_role_id"],
@@ -462,6 +549,7 @@ def workload(reading: Reading, basis: str, org: str | None = None) -> JsonObject
                 "org_node_id": role["org_node_id"],
                 "capacity_monthly_hours": decimal(capacity.quantize(CENT)),
                 "months": months,
+                "tasks": [task for task, _ in tasks],
             }
         )
     named = {node["org_node_id"]: node["label"] for node in fixture("org_nodes")}
@@ -480,22 +568,24 @@ def workload(reading: Reading, basis: str, org: str | None = None) -> JsonObject
     }
 
 
-def monthly_totals(roles: list[JsonObject]) -> list[JsonValue]:
+def monthly_totals(roles: list[JsonObject], key: str = "hours") -> list[JsonValue]:
     """Return the hours of the roles retained, month by month (`WorkloadPlan.monthly_totals`).
 
     From the first month a role loads to the last, without a gap, a month without load at nought:
-    the label of the top of each bar, which the front does not sum (WF-DEV-0070, #1247).
+    the label of the top of each bar, which the front does not sum (WF-DEV-0070, #1247). The
+    amounts of the natures of a projection of spending, the same way (WF-DEV-0100).
     """
     totals: dict[str, Decimal] = {}
     for role in roles:
         for month in cast("list[JsonObject]", role["months"]):
-            key = cast("str", month["month"])
-            totals[key] = totals.get(key, Decimal(0)) + Decimal(cast("str", month["hours"]))
+            name = cast("str", month["month"])
+            totals[name] = totals.get(name, Decimal(0)) + Decimal(cast("str", month[key]))
     found: list[JsonValue] = []
     if not totals:
         return found
     end = month_end(date.fromisoformat(f"{min(totals)}-01"))
-    while (key := end.strftime("%Y-%m")) <= max(totals):
-        found.append({"month": key, "hours": decimal(totals.get(key, Decimal(0)))})
+    while (name := end.strftime("%Y-%m")) <= max(totals):
+        value = totals.get(name, Decimal(0))
+        found.append({"month": name, key: decimal(value) if key == "hours" else money(value)})
         end = month_end(end + timedelta(days=1))
     return found

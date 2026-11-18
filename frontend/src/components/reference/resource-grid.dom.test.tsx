@@ -248,7 +248,7 @@ describe("the grid of the resource roles", () => {
       const heading = label === undefined ? "" : CATALOGUES.fr.grid.columns[label];
       const header = () =>
         within(screen.getByRole("grid", { name: "Rôles de ressources" })).getByRole("button", {
-          name: heading,
+          name: new RegExp(`^(Calculé\\s*)?${heading}$`),
         });
       await userEvent.click(header());
       const ascending = `/reference/resources?role_sort_by=${column}&role_sort_order=asc`;
@@ -262,6 +262,17 @@ describe("the grid of the resource roles", () => {
       );
     },
   );
+
+  it("marks the hours a month of a role computed in their header, the headcount not [WF-IHM-0030-A]", () => {
+    serve();
+    render(roleGrid());
+    const grid = screen.getByRole("grid", { name: "Rôles de ressources" });
+    expect(
+      within(grid).getByRole("columnheader", { name: /^Calculé\s*Heures par mois/ }),
+    ).toBeVisible();
+    const headcount = within(grid).getByRole("columnheader", { name: /^Effectif/ });
+    expect(headcount).not.toHaveAccessibleName(/Calculé/);
+  });
 
   it("says in its totals how many roles the server retains, never a count of the page [WF-IHM-0130-A]", () => {
     serve();

@@ -52,6 +52,29 @@ from waterfall.core.estimate.comparing import (
     ComparisonAsked as ComparisonAsked,
 )
 
+# ``comparing`` (US-2340/L1): the totals of the base of a comparison, and their difference.
+from waterfall.core.estimate.comparing import (
+    CountedTotals as CountedTotals,
+)
+
+# ``comparing`` (US-2270): a comparison no filter restricts, of two readings kept.
+from waterfall.core.estimate.comparing import (
+    UnitedComparison as UnitedComparison,
+)
+
+# ``comparing`` (US-2320): how the reader of a comparison writes a node, whose values it compares.
+from waterfall.core.estimate.comparing import (
+    Written as Written,
+)
+
+# ``comparing`` (US-2270): the comparison no filter restricts, and the revisions it judges first.
+from waterfall.core.estimate.comparing import (
+    compare_united as compare_united,
+)
+from waterfall.core.estimate.comparing import (
+    compared_places as compared_places,
+)
+
 # ``calendars`` (US-1490/L1; US-1500): the calendars of the roles, which a change must not idle.
 # ``entries`` (US-1490/L3): what a write sends of a line.
 from waterfall.core.estimate.entries import (
@@ -178,6 +201,24 @@ from waterfall.core.estimate.interface.facet import (
     write_line_cell as write_line_cell,
 )
 
+# ``indicator_lines`` (US-1660/L3; US-1720/L2): the lines of a revision as the indicators read them,
+# their planned value, and what the key of their cache reads.
+from waterfall.core.estimate.interface.indicator_lines import (
+    IndicatorLine as IndicatorLine,
+)
+from waterfall.core.estimate.interface.indicator_lines import (
+    LinesStamp as LinesStamp,
+)
+from waterfall.core.estimate.interface.indicator_lines import (
+    lines_for_indicators as lines_for_indicators,
+)
+from waterfall.core.estimate.interface.indicator_lines import (
+    lines_stamp as lines_stamp,
+)
+from waterfall.core.estimate.interface.indicator_lines import (
+    planned_value_at as planned_value_at,
+)
+
 # ``indicators`` (US-1490/L1; US-1510): the indicators of an estimate and the rates it lacks.
 from waterfall.core.estimate.interface.indicators import (
     AmountByKey as AmountByKey,
@@ -199,6 +240,9 @@ from waterfall.core.estimate.interface.indicators import (
 )
 from waterfall.core.estimate.interface.indicators import (
     missing_rates as missing_rates,
+)
+from waterfall.core.estimate.interface.indicators import (
+    shown as shown,
 )
 
 # ``kanban`` (US-1580/L1; US-1590/L1, US-1590/L2): the lines that hold a task open, and the board
@@ -253,12 +297,9 @@ from waterfall.core.estimate.interface.rates import (
     reinflate_project as reinflate_project,
 )
 
-# ``remaining`` (US-1580/L1; US-1580/L2): a line reestimated, the remaining of the review before.
+# ``remaining`` (US-1580/L1; US-1580/L2): a line reestimated.
 from waterfall.core.estimate.interface.remaining import (
     LineRemaining as LineRemaining,
-)
-from waterfall.core.estimate.interface.remaining import (
-    copy_previous as copy_previous,
 )
 from waterfall.core.estimate.interface.remaining import (
     set_line_remaining as set_line_remaining,
@@ -278,8 +319,8 @@ from waterfall.core.estimate.interface.remaining_excel import (
     RemainingFormat as RemainingFormat,
 )
 
-# ``remaining_indicators`` (US-1580/L1; US-1600): the indicators of the remaining to commit, the
-# remaining of a revision EP-10 reads, and the coverage of the risks EP-08 answers.
+# ``remaining_indicators`` (US-1580/L1; US-1600; #3802): the indicators of the remaining to commit,
+# the remaining of a revision EP-10 reads, and the coverage of the risks EP-08 answers.
 from waterfall.core.estimate.interface.remaining_indicators import (
     NO_COVERAGE as NO_COVERAGE,
 )
@@ -305,10 +346,34 @@ from waterfall.core.estimate.interface.remaining_indicators import (
     remaining_indicators as remaining_indicators,
 )
 from waterfall.core.estimate.interface.remaining_indicators import (
+    remaining_of_lines as remaining_of_lines,
+)
+from waterfall.core.estimate.interface.remaining_indicators import (
     remaining_of_revision as remaining_of_revision,
 )
 from waterfall.core.estimate.interface.remaining_indicators import (
     risk_coverage as risk_coverage,
+)
+from waterfall.core.estimate.interface.spending import (
+    SpendingAsked as SpendingAsked,
+)
+from waterfall.core.estimate.interface.spending import (
+    SpendingCategory as SpendingCategory,
+)
+from waterfall.core.estimate.interface.spending import (
+    SpendingCostType as SpendingCostType,
+)
+from waterfall.core.estimate.interface.spending import (
+    SpendingView as SpendingView,
+)
+
+# ``spending`` (US-2050/L1): the projection of spending of a project, by nature, category and month,
+# and the parts of the amount of a line by month.
+from waterfall.core.estimate.interface.spending import (
+    amount_parts as amount_parts,
+)
+from waterfall.core.estimate.interface.spending import (
+    project_spending as project_spending,
 )
 
 # ``workload`` (US-1490/L1; US-1520): the workload of an estimate, the planned value.
@@ -341,6 +406,33 @@ from waterfall.core.estimate.loading import (
     LineLoad as LineLoad,
 )
 
+# ``parting`` (US-2040/L2; US-1690/L4; #3802): the parts of a line by month, rounded to sum to its
+# total, which the plan of workload, its detail, the projection of spending (US-2050) and the curves
+# sum, each task weighed once by a weighing.
+from waterfall.core.estimate.parting import (
+    Weighing as Weighing,
+)
+from waterfall.core.estimate.parting import (
+    parts_of_cumulated as parts_of_cumulated,
+)
+from waterfall.core.estimate.parting import (
+    remaining_parts as remaining_parts,
+)
+from waterfall.core.estimate.parting import (
+    rounded_parts as rounded_parts,
+)
+from waterfall.core.estimate.parting import (
+    summed_parts as summed_parts,
+)
+from waterfall.core.estimate.parting import (
+    weighing as weighing,
+)
+
+# ``pricing`` (US-1690/L1): the rounding to the cent, the only one of an amount, which EP-10 reads.
+from waterfall.core.estimate.pricing import (
+    round_to_cent as round_to_cent,
+)
+
 # ``reading`` (US-1490/L3): the lines as ``listNodes`` reads them, and what it filters.
 from waterfall.core.estimate.reading import (
     LineFilters as LineFilters,
@@ -354,17 +446,50 @@ from waterfall.core.estimate.repricing import (
     reprice_after_rate as reprice_after_rate,
 )
 
-# ``spreading`` (US-1520/L1): the line the planned value is computed on, which EP-10 reads.
+# ``spreading`` (US-1520/L1; US-2040/L2): the line the planned value is computed on, which EP-10
+# reads; the rounding of the hours and of the amounts, once, from the exact value.
+from waterfall.core.estimate.spreading import (
+    HOURS as HOURS,
+)
+from waterfall.core.estimate.spreading import (
+    MONEY as MONEY,
+)
+from waterfall.core.estimate.spreading import (
+    Month as Month,
+)
+from waterfall.core.estimate.spreading import (
+    Placement as Placement,
+)
 from waterfall.core.estimate.spreading import (
     PlannedLine as PlannedLine,
 )
+from waterfall.core.estimate.spreading import (
+    Rounding as Rounding,
+)
+from waterfall.core.estimate.spreading import (
+    spread_by_month as spread_by_month,
+)
 
-# ``workloading`` (US-1520): what a plan of workload is asked and gives.
+# ``uniting`` (US-2270; US-2320): what the union of a comparison reads of a node, and gives of it.
+from waterfall.core.estimate.uniting import (
+    LineAmounts as LineAmounts,
+)
+from waterfall.core.estimate.uniting import (
+    PlacedNode as PlacedNode,
+)
+from waterfall.core.estimate.uniting import (
+    UnitedNode as UnitedNode,
+)
+
+# ``workloading`` (US-1520; US-2040/L2): what a plan of workload is asked and gives, and its detail.
 from waterfall.core.estimate.workloading import (
     RoleLoad as RoleLoad,
 )
 from waterfall.core.estimate.workloading import (
     RoleMonth as RoleMonth,
+)
+from waterfall.core.estimate.workloading import (
+    TaskLoad as TaskLoad,
 )
 from waterfall.core.estimate.workloading import (
     WorkloadAsked as WorkloadAsked,
@@ -401,14 +526,14 @@ from waterfall.core.revisions.interface import (
 # rates of a revision presents a category (US-1500/L1); the categories and the subprojects the
 # lines employ, and the current revisions a rate of the reference written prices again; what a
 # revision keeps at its marking, and the budgeted amounts a designation refreshes (US-1500/L2). The
-# remaining to commit (EP-09): the remaining of the review before, copied after the rates, and the
-# format and the exporter of its workbook, each without effect until its story (US-1580/L1); the
-# own lines that hold a summary task open, which the planning asks at the reading (US-1590/L1), and
-# when they were set to nought, which a summary completed again reads (US-1650/L2, #2803).
+# remaining to commit (EP-09): the format and the exporter of its workbook (the remaining of the
+# review before is written by the copy of the lines since US-2240/L2), each without effect until
+# its story (US-1580/L1); the own lines that hold a summary task open, which the planning asks at
+# the reading (US-1590/L1), and when they were set to nought, which a summary completed again reads
+# (US-1650/L2, #2803).
 register_facet("estimate_line", LINE_FACET)
 register_tasks_and_lines("lines", revision_has_lines)
 register_copy(copy_rates)
-register_copy(copy_previous)
 register_rate_update(rate_update_offered)
 register_closing("content", close_rates)
 register_employment(category_is_employed, reprice_after_rate)

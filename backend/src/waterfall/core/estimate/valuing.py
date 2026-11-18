@@ -4,18 +4,16 @@
 
 The lines of the reference revision outside the provisions, at their budgeted amount, each spread
 over the task as the reference dates it — never the current revision's, whose delays leave the
-planned value alone —, in proportion to the hours worked on the calendar of the line; a line of a
-milestone counts whole on its date (``spreading``). EP-10 reads it for its curves and its indexes.
+planned value alone —, in proportion to the hours worked on the calendar of the line, as its marking
+kept it; a line of a milestone counts whole on its date (``spreading``). The lines and their value
+are those the indicators of EP-10 read (``indicator_lines``): one computation, the share of each
+line rounded to the cent, whichever reads it (#3566).
 """
 
 from typing import TYPE_CHECKING
 
-from waterfall.core.cost_settings.interface import category_labels
-from waterfall.core.estimate.entries import PROVISION, VALIDATION_FAILED
-from waterfall.core.estimate.placing import placed_lines, placement_of, role_weeks
-from waterfall.core.estimate.reading import budgeted_of
-from waterfall.core.estimate.spreading import PlannedLine
-from waterfall.core.estimate.spreading import planned_value as value_of
+from waterfall.core.estimate.entries import VALIDATION_FAILED
+from waterfall.core.estimate.lining import lines_for_indicators, planned_value_at
 from waterfall.core.projects.interface import project_facts
 from waterfall.platform.errors import FieldError, UnprocessableError
 
@@ -40,15 +38,4 @@ def value_of_reference(session: Session, project_id: UUID, reference: UUID, at: 
         raise UnprocessableError(
             VALIDATION_FAILED, fields=(FieldError(REFERENCE_POINTER, VALIDATION_FAILED),)
         )
-    placed = placed_lines(session, project_id, reference)
-    natures = category_labels(session, {each.line.cost_category_id for each in placed})
-    weeks = role_weeks(
-        session, {each.line.resource_role_id for each in placed if each.line.resource_role_id}
-    )
-    lines = [
-        PlannedLine(budgeted_of(each.line), placement_of(each, weeks))
-        for each in placed
-        if (nature := natures.get(each.line.cost_category_id)) is None
-        or nature.cost_type_kind != PROVISION
-    ]
-    return value_of(lines, at)
+    return planned_value_at(lines_for_indicators(session, project_id, reference), at)

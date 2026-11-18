@@ -10,7 +10,7 @@
 import type { ListNodesAnswer } from "@/api/client";
 import type { components, operations } from "@/api/generated/schema";
 
-import type { GridColumn, GridConfig, GridTree, RowPart, RowsWritten } from "./columns";
+import type { GridColumn, GridTree, RowPart, RowsWritten } from "./columns";
 import { OriginMark } from "./origin-mark";
 import { rowNature, RowNatureIcon } from "./row-nature";
 
@@ -182,6 +182,14 @@ type SparseNodeField = (typeof SPARSE_NODE_FIELDS)[number];
 type SparseNode<F extends keyof Node> = Omit<Pick<Node, F>, SparseNodeField> &
   Partial<Pick<Node, F & SparseNodeField>>;
 
+/** What a node of a comparison says besides the node: the values its base carried, their differences. */
+interface Compared {
+  /** The values the base carried, of the fields that differ and the read returns (`base`). */
+  readonly base?: components["schemas"]["ComparedNodeBase"] | null;
+  /** The differences of its dates, durations and amounts, the revision read minus the base. */
+  readonly deltas?: components["schemas"]["NodeDeltas"] | null;
+}
+
 /**
  * A node as a grid reads it: the fields every grid reads, and those `N` of the node, `T` of its
  * task and `L` of its line that its own columns read — a field of a line that says nothing may be
@@ -191,10 +199,11 @@ export type NodeRow<
   N extends NodeField = never,
   T extends keyof TaskFacet = never,
   L extends keyof EstimateLineFacet = never,
-> = SparseNode<(typeof COMMON_FIELDS.node)[number] | N> & {
-  readonly task?: Pick<TaskFacet, (typeof COMMON_FIELDS.task)[number] | T> | null;
-  readonly estimate_line?: SparseLine<(typeof COMMON_FIELDS.line)[number] | L> | null;
-};
+> = SparseNode<(typeof COMMON_FIELDS.node)[number] | N> &
+  Compared & {
+    readonly task?: Pick<TaskFacet, (typeof COMMON_FIELDS.task)[number] | T> | null;
+    readonly estimate_line?: SparseLine<(typeof COMMON_FIELDS.line)[number] | L> | null;
+  };
 
 /** A node as a grid reads it, by the fields its columns read. */
 export type RowOf<F extends AnyNodeFields> = NodeRow<
@@ -206,10 +215,53 @@ export type RowOf<F extends AnyNodeFields> = NodeRow<
 /** A node as every grid of a structure reads it: what the tree, the number and the label read. */
 export type GridNode = NodeRow;
 
-/** The rows a grid shows, and the totals of the answer they come from. */
+/** The signed difference of two totals of a comparison, field by field (`totals_delta`). */
+export type NodeTotalsDelta = components["schemas"]["NodeTotalsDelta"];
+
+/** The differences of amounts by nature of cost and by sub-project of a comparison. */
+export type AmountDelta = components["schemas"]["RevisionComparison"]["amount_deltas"][number];
+
+/**
+ * What a comparison to a base says besides the rows (WF-IHM-0160): the totals of the base, their
+ * difference to the totals of the revision read, and the differences of amounts by nature of cost
+ * and by sub-project, all as the server gives them, on the rows it retains: the grid sums nothing.
+ */
+export interface NodesComparison {
+  readonly base: NodeTotals;
+  readonly delta: NodeTotalsDelta;
+  readonly amounts: readonly AmountDelta[];
+}
+
+/** The rows a grid shows, the totals of the answer they come from, and those of its comparison. */
 export interface NodeRows<Row> {
   readonly items: readonly Row[];
   readonly totals: NodeTotals;
+  /** What the answer says of the base, when the grid reads a comparison. */
+  readonly comparison?: NodesComparison;
+}
+
+/** The answer of `listNodes`, or the comparison that has its shape and says more of the base. */
+type NodesAnswer = NodeList &
+  Partial<
+    Pick<
+      components["schemas"]["RevisionComparison"],
+      "base_totals" | "totals_delta" | "amount_deltas"
+    >
+  >;
+
+/**
+ * What an answer says of the base: all of it or nothing — an answer that gives some and not the rest
+ * is one the contract rules out, and fails rather than show a comparison half given.
+ */
+function comparisonOf(list: NodesAnswer): NodesComparison | undefined {
+  const { base_totals: base, totals_delta: delta, amount_deltas: amounts } = list;
+  if (base === undefined && delta === undefined && amounts === undefined) {
+    return undefined;
+  }
+  if (base === undefined || delta === undefined || amounts === undefined) {
+    throw new RangeError("A comparison without its base totals, their difference or its amounts");
+  }
+  return { base, delta, amounts };
 }
 
 /**
@@ -265,6 +317,7 @@ export function projectNode<
 >(node: Node, fields: NodeFields<N, T, L>): NodeRow<N, T, L> {
   const { task, estimate_line: line } = node;
   const sparse = new Set<string>(SPARSE_NODE_FIELDS);
+  const compared = node as Node & Compared;
   return {
     ...pick(
       node,
@@ -272,6 +325,9 @@ export function projectNode<
         (key) => !sparse.has(key) || node[key] !== null,
       ),
     ),
+    // What a comparison says of the node comes with it, whatever `fields` named (`base`, `deltas`).
+    ...(compared.base === undefined ? {} : { base: compared.base }),
+    ...(compared.deltas === undefined ? {} : { deltas: compared.deltas }),
     ...(task === undefined
       ? {}
       : { task: task === null ? null : pick(task, [...COMMON_FIELDS.task, ...fields.task]) }),
@@ -297,13 +353,18 @@ export function projectNodes<
   T extends keyof TaskFacet,
   L extends keyof EstimateLineFacet,
 >(
-  list: NodeList,
+  list: NodesAnswer,
   fields: NodeFields<N, T, L>,
   kinds?: readonly NodeKind[],
 ): NodeRows<NodeRow<N, T, L>> {
   const asked =
     kinds === undefined ? list.items : list.items.filter((node) => isOfKind(node, kinds));
-  return { items: asked.map((node) => projectNode(node, fields)), totals: list.totals };
+  const comparison = comparisonOf(list);
+  return {
+    items: asked.map((node) => projectNode(node, fields)),
+    totals: list.totals,
+    ...(comparison === undefined ? {} : { comparison }),
+  };
 }
 
 /** Whether a node is of one of the kinds a reading asked for, or says no kind. */
@@ -520,17 +581,6 @@ export const ORIGIN_TREE: GridTree<GridNode> = {
 /** The difference a node bears with the structure it is read against (`GridConfig.difference`). */
 export function nodeDifference(node: GridNode): GridNode["difference"] {
   return node.difference;
-}
-
-/**
- * A grid of a structure, with the column of the marks of a difference where the structure read is a
- * differential (`GridConfig.difference`); as it is otherwise.
- */
-export function withDifference<Row extends GridNode, Sort extends string, Totals>(
-  config: GridConfig<Row, Sort, Totals>,
-  differential: boolean | undefined,
-): GridConfig<Row, Sort, Totals> {
-  return differential === true ? { ...config, difference: nodeDifference } : config;
 }
 
 /** Whether a differential removes a node: it is read in its place, and nothing is done to it. */

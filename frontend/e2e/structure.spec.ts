@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import { closeMenu, menuButton, openMenu, pick } from "./check-menu";
 import { columnsOf } from "./columns";
-import { openHydrated, WORKING } from "./hydration";
+import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
 import { createOwnProject, openRevision } from "./own-project";
 import { SEEDED, seedPlanning } from "./planning-seed";
+import { ScreenSteps } from "./screen-steps";
 
 // The gestures that create and delete tasks and lines (US-0460), against the fake back. It serves
 // the first example of each read whatever the request: the witness project is in progress, so its
@@ -332,21 +334,20 @@ test("inserts a line in the remaining to commit of a project in progress, named,
   await expect(cell).toBeFocused();
 });
 
-// In quarantine against the service (decision of the author of 2026-11-14): the choice of the post
-// does not navigate within `WORKING` by moments in the queue (#3087). The fake back still plays the
-// path; EP-26 plays it again.
-const QUARANTINED_3087 =
-  "in quarantine against the service until EP-26 sets the bounds of the heavy paths (#3087)";
-
+// Played against the service again (US-2290, #3087): it failed twice in the queue at one process of
+// the API, the post chosen and the filtered nodes asked at once, but the address kept until the
+// server had rendered the screen anew, every read of the page awaited — its indicators answered
+// in 15.7 and 24.3 s (`bounds.ts`). Each wait is timed in the log of the run (`ScreenSteps`), so
+// that a passage of the queue says which read held it.
 test("filters the remaining to commit by the post « Poste 1.1 » chosen among the work breakdown, the filter shown active in the banner and lifted from it @shared", async ({
   page,
 }) => {
-  test.skip(inService, QUARANTINED_3087);
   test.slow();
   // Le lot ou le poste porté par une tâche rattachée : as the planning and the estimate. The fake
   // back serves the structure whole whatever the filter asks; what the page sends is proven by
   // `remaining/page.test.tsx`.
-  await openHydrated(page, `${IN_REVISION}/remaining`);
+  const steps = new ScreenSteps(page, "the remaining filtered by a post");
+  await steps.timed("opened", () => openHydrated(page, `${IN_REVISION}/remaining`));
   const filter = menuButton(page, "Lot ou poste");
   await expect((await openMenu(page, "Lot ou poste")).getByRole("radio")).toHaveText([
     "Tous les lots et postes",
@@ -354,18 +355,22 @@ test("filters the remaining to commit by the post « Poste 1.1 » chosen among t
     "Poste : Poste 1.1",
   ]);
   await closeMenu(page);
-  await pick(page, "Lot ou poste", "Poste\u00a0: Poste 1.1", "radio");
-  await expect(page).toHaveURL(
-    `${IN_REVISION}/remaining?order_item_id=01926f3a-7c00-7000-8000-000000000712`,
-    { timeout: WORKING },
-  );
+  await steps.timed("post chosen", async () => {
+    await pick(page, "Lot ou poste", "Poste\u00a0: Poste 1.1", "radio");
+    await expect(page).toHaveURL(
+      `${IN_REVISION}/remaining?order_item_id=01926f3a-7c00-7000-8000-000000000712`,
+      { timeout: WORKING },
+    );
+  });
   const chips = page
     .getByRole("region", { name: "Contexte de lecture" })
     .getByRole("list", { name: "Filtres actifs" })
     .getByRole("listitem");
   await expect(chips).toHaveText(["Poste : Poste 1.1, sur la grille seulement"]);
-  await chips.getByRole("link", { name: /^Lever le filtre/ }).click();
-  await expect(page).toHaveURL(`${IN_REVISION}/remaining`, { timeout: WORKING });
+  await steps.timed("filter lifted", async () => {
+    await chips.getByRole("link", { name: /^Lever le filtre/ }).click();
+    await expect(page).toHaveURL(`${IN_REVISION}/remaining`, { timeout: WORKING });
+  });
   await expect(filter).toContainText("Tous les lots et postes");
 });
 
@@ -547,6 +552,56 @@ test("reads in the planning a task created in the estimate grid, automatic, of o
       name: /^3 .*Sous-tâche du devis/,
     }),
   ).toHaveAttribute("aria-level", "2", { timeout: WORKING });
+});
+
+// The converse of the carry-over above (#2590): the gestures are made in the planning grid, and the
+// structure is read in the estimate grid, which shows the same tasks at the same levels.
+test("reads in the estimate grid a task created in the planning grid and the group indented from it, the structure being shared @shared [WF-DEV-0050-A] [WF-PLA-0080-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(!inService, SERVICE_ONLY);
+  test.slow();
+  const seeded = await seedPlanning(page, browser, request, manager, "Report inverse");
+  await openHydrated(page, seeded.planning);
+  const planning = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(planning, { label: "Libellé" });
+
+  // A task created below the last one, from the menu of its cell.
+  await planning
+    .getByRole("row", { name: new RegExp(`^6 .*${SEEDED[6]}`) })
+    .getByRole("gridcell")
+    .nth(at.label)
+    .click({ button: "right" });
+  await page
+    .getByRole("menu", { name: "Menu de la cellule" })
+    .getByRole("menuitem", { name: "Insérer au-dessous" })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Insérer au-dessous" });
+  await dialog.getByRole("textbox", { name: "Libellé" }).fill("Tâche du planning");
+  await dialog.getByRole("button", { name: "Créer" }).click();
+  await saidAndRead(page, planning, "« Tâche du planning » créée.");
+
+  // Indented under « Mise en service » from the keys: the task becomes its subordinate.
+  await planning.getByRole("gridcell", { name: "7 — poignée de la ligne", exact: true }).click();
+  await page.keyboard.press("Alt+Shift+ArrowRight");
+  await saidAndRead(page, planning, "« Tâche du planning » indentée.");
+
+  // Read in the estimate grid: the same rows, the task created under the one that became its summary,
+  // and the tasks above it unmoved.
+  await openHydrated(page, `${seeded.revision}/estimate`);
+  const estimate = page.getByRole("treegrid", { name: "Grille de devis" });
+  const created = estimate.getByRole("row", { name: /^7 .*Tâche du planning/ });
+  await expect(created).toBeVisible({ timeout: WORKING });
+  await expect(created).toHaveAttribute("aria-level", "2");
+  await expect(
+    estimate.getByRole("row", { name: new RegExp(`^6 .*${SEEDED[6]}`) }),
+  ).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    estimate.getByRole("row", { name: new RegExp(`^5 .*${SEEDED[5]}`) }),
+  ).toHaveAttribute("aria-level", "1");
 });
 
 // WF-DEV-0020-A: a line of labour is created from a role, its category computed by the server, and a

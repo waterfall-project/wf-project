@@ -22,7 +22,8 @@ refused that the end accepts (US-1550).
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import Numeric, SmallInteger, Uuid, column, select, update, values
+from sqlalchemy.orm.attributes import set_committed_value
 
 from waterfall.core.estimate.costing import (
     Basis,
@@ -45,12 +46,12 @@ from waterfall.core.estimate.entries import (
 )
 from waterfall.core.estimate.pricing import CENT
 from waterfall.core.estimate.recalling import recalled, remembers
-from waterfall.core.estimate.tables import EstimateLine
+from waterfall.core.estimate.tables import AMOUNT_PRECISION, AMOUNT_SCALE, EstimateLine
 from waterfall.core.resource_settings.interface import role_calendars
 from waterfall.platform.errors import VALIDATION_FAILED, FieldError
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -59,6 +60,11 @@ if TYPE_CHECKING:
     from waterfall.core.planning.interface import BearingTask, FacetCreation, FacetWrite
 
 NOUGHT = CENT * 0
+# The type of an amount written by set, that of the columns of the amounts of a line.
+AMOUNT = Numeric(AMOUNT_PRECISION, AMOUNT_SCALE)
+# The lines written by a statement, four parameters each: far under the 65 535 parameters a
+# statement of PostgreSQL takes, and a handful of statements for the thousands of lines of a copy.
+PRICED_BATCH = 2_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -266,7 +272,9 @@ def reprice(
     """Price again the lines named on the dates of their tasks; give those whose amounts moved.
 
     A rate gone since — the reference never takes one away — leaves the base amount as it was, from
-    which the shares are cut (EP-07, "Le calcul des montants").
+    which the shares are cut (EP-07, "Le calcul des montants"). The amounts are computed here, line
+    by line, and those that moved written by set (``_write_priced``): a revision opened a year
+    later moves most of its lines (#3535).
     """
     if not lines:
         return frozenset()
@@ -285,7 +293,7 @@ def reprice(
     weeks = calendar_hours(session, calendars.values())
     labour = {row.cost_category_id for row in rows if row.resource_role_id is not None}
     rates = rates_of(session, project_id, basis, labour)
-    changed: set[UUID] = set()
+    moved: list[tuple[EstimateLine, Priced]] = []
     for row in rows:
         role = row.resource_role_id
         calendar = None if role is None else calendars.get(role)
@@ -300,9 +308,50 @@ def reprice(
         if overflowing(amounts.base, amounts.reestimated):
             raise AmountOverflowError(VALIDATION_FAILED)
         before = (row.base_amount, row.reestimated_amount, row.consumption_year)
-        after = (amounts.base, amounts.reestimated, amounts.consumption_year)
-        if before != after:
-            row.base_amount, row.reestimated_amount, row.consumption_year = after
-            changed.add(row.node_id)
+        if before != (amounts.base, amounts.reestimated, amounts.consumption_year):
+            moved.append((row, amounts))
+    _write_priced(session, project_id, moved)
     session.flush()
-    return frozenset(changed)
+    return frozenset(row.node_id for row, _ in moved)
+
+
+def _write_priced(
+    session: Session, project_id: UUID, moved: Sequence[tuple[EstimateLine, Priced]]
+) -> None:
+    """Write the amounts computed of the lines that moved, by set, and keep them on their rows.
+
+    One ``UPDATE ... FROM (VALUES ...)`` by batch of ``PRICED_BATCH`` lines, instead of one by line
+    that a flush of the rows would send. The rows the session holds take the amounts written as
+    those of the base (``set_committed_value``): they are not dirty, and are not written again.
+    """
+    for start in range(0, len(moved), PRICED_BATCH):
+        batch = moved[start : start + PRICED_BATCH]
+        amounts = values(
+            column("node_id", Uuid),
+            column("base_amount", AMOUNT),
+            column("reestimated_amount", AMOUNT),
+            column("consumption_year", SmallInteger),
+            name="priced",
+        ).data(
+            [
+                (row.node_id, each.base, each.reestimated, each.consumption_year)
+                for row, each in batch
+            ]
+        )
+        session.execute(
+            update(EstimateLine)
+            .where(
+                EstimateLine.project_id == project_id,
+                EstimateLine.node_id == amounts.c.node_id,
+            )
+            .values(
+                base_amount=amounts.c.base_amount,
+                reestimated_amount=amounts.c.reestimated_amount,
+                consumption_year=amounts.c.consumption_year,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        for row, each in batch:
+            set_committed_value(row, "base_amount", each.base)
+            set_committed_value(row, "reestimated_amount", each.reestimated)
+            set_committed_value(row, "consumption_year", each.consumption_year)

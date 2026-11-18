@@ -30,7 +30,7 @@ file the same command writes.
 import functools
 from dataclasses import dataclass, replace
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, cast
 
 from wftools import mockcore, mockcosts, mockdating, mockhistory
@@ -369,13 +369,18 @@ def planned(base: Reading, day: date, scope: str = PROJECT) -> Decimal:
     """Return the planned value at a day: the budget spread on the dates of the reference.
 
     Each line counted in the reference budget, at its budgeted amount, pro rata of the hours its
-    task works up to the day as the reference dates it (WF-DEV-0080).
+    task works up to the day as the reference dates it (WF-DEV-0080), rounded to the cent, a half
+    away from nought, before the sum, as the service rounds it (``planned_value``, #3566, #3590).
     """
-    spread = sum(
-        (line.amounts.budgeted * worked(base.bearer(line), day) for line in budgeted(base, scope)),
+    return sum(
+        (
+            (line.amounts.budgeted * worked(base.bearer(line), day)).quantize(
+                CENT, rounding=ROUND_HALF_UP
+            )
+            for line in budgeted(base, scope)
+        ),
         Decimal(0),
     )
-    return spread.quantize(CENT)
 
 
 def earned(reading: Reading, day: date, scope: str = PROJECT) -> Decimal:
@@ -800,7 +805,7 @@ def project_indicators(
         at_rate = (fixed * spent / gained).quantize(CENT)
         observed, variance = computable(money(at_rate)), money(at_rate - fixed)
     return {
-        "context": context(reading, stored=reading.is_stored),
+        "context": context(reading, stored=reading.is_stored, scope=scope),
         "reference_budget": money(fixed),
         "planned_value": money(value),
         "earned_value": money(gained),

@@ -143,6 +143,16 @@ function isLabelled(value: unknown): value is { readonly label: string } {
   );
 }
 
+/**
+ * Whether a task a refusal names comes with its row in the block a paste wrote (`row`, an integer
+ * counted from zero, `PROJECT_HORIZON_EXCEEDED` of `applyPaste`, #3624); absent elsewhere.
+ */
+function isPastedRow(value: object): value is { readonly row: number } {
+  return (
+    "row" in value && typeof value.row === "number" && Number.isInteger(value.row) && value.row >= 0
+  );
+}
+
 /** Whether a value is an object a refusal names by its code and its label (`cost_categories`). */
 function isCoded(value: unknown): value is { readonly code: string; readonly label: string } {
   return isLabelled(value) && "code" in value && typeof value.code === "string";
@@ -358,11 +368,17 @@ const DETAILS: readonly Reader[] = [
   },
   // The task a write or a merge that would carry the project past the fifteen years it may last is
   // refused for, by its label (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150, #788): the contract says
-  // only « the task concerned », which is not always the one that ends the project.
-  ({ task }, _label, _locale, say) =>
-    isLabelled(task)
-      ? ["horizon_task", { task: say("taskName", { label: task.label }) }]
-      : undefined,
+  // only « the task concerned », which is not always the one that ends the project. A paste adds its
+  // row in the block: the contract counts it from zero, the reader reads it from one.
+  ({ task }, _label, _locale, say) => {
+    if (!isLabelled(task)) {
+      return undefined;
+    }
+    const named = say("taskName", { label: task.label });
+    return isPastedRow(task)
+      ? ["horizon_task_row", { task: named, row: task.row + 1 }]
+      : ["horizon_task", { task: named }];
+  },
   // The day a date entered falls on without an hour worked, and the working day that follows, both
   // given by the server and written in the language of the reader (`NON_WORKING_DAY`, WF-PLA-0020).
   // The planning start date of a structure (`/planning_start_on`) is judged on the default calendar,

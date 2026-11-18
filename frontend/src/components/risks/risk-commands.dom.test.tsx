@@ -20,6 +20,7 @@ import {
   held,
   type Problem,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import type { ProvisionOptions } from "./provision-choices";
 import { IdentifyRisk, RiskCommands } from "./risk-commands";
@@ -206,6 +207,8 @@ afterEach(() => {
   router.push.mockClear();
   router.refresh.mockClear();
 });
+
+beforeEach(browserOffline);
 
 describe("« Identifier un risque »", () => {
   it.each([

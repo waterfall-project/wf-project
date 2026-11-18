@@ -193,7 +193,12 @@ second a son issue, #3724 ; le premier est la réponse à #3025.
 - les mises à jour de sécurité du front échouent depuis le 2026-10-21 (`vite`, `happy-dom`, `next`,
   `undici`, `minimatch`) par `security_update_not_possible` : la version corrigée d'une dépendance
   transitive est hors de ce que son parent admet, et Dependabot abandonne. Rien dans le guide ne
-  dit quoi faire ; une alerte haute reste ouverte, sur `@faker-js/faker` (alerte 68).
+  dit quoi faire ; une alerte haute reste ouverte, sur `@faker-js/faker` (alerte 68). Un `override`
+  de pnpm vers faker 10 casserait Prism : la version vulnérable (5.5.3) vient de
+  `postman-collection` 4.5.0, sous `@stoplight/http-spec`, qui la charge en CommonJS
+  (`require('@faker-js/faker/locale/en')`) et appelle `faker.datatype.number`, que faker 10, ESM
+  seul, n'a plus. Prism est un outil de développement : l'auteur retient le 2026-11-16 d'attendre
+  sa montée, l'alerte reste ouverte et US-2490 ne la traite pas.
 
 ## Conception
 
@@ -336,10 +341,6 @@ Le relevé reste **lu dans les fichiers de test, sans les lancer** — c'est le 
   références. Une montée de Dependabot ne change donc que le manifeste, et sa chaîne échoue sur ce
   test en nommant les deux gestes : `make mirror-sync`, puis `make mirror PUSH=yes`, qu'une
   personne pousse sur la branche de la pull request.
-- **Les mises à jour de sécurité impossibles.** Le guide dit le geste : un `override` de pnpm dans
-  `frontend/package.json`, avec l'alerte en commentaire de la pull request, retiré quand le parent
-  admet la version corrigée. L'alerte de `@faker-js/faker` se traite ainsi, ou par la montée de son
-  parent si elle suffit.
 - **`e2e-image`** devient deux travaux de `ci.yml` : la recherche, au palier rapide, avec
   `packages: read` ; la construction et la publication, au seul palier complet, avec
   `packages: write`. Les travaux qui lisent l'image — tous du palier complet — nomment le second.
@@ -644,8 +645,8 @@ pull request qui le porte, et non celle du lot suivant ou de `main` après la fu
 change, que la veille suive tout ce que la chaîne épingle, qu'un travail de pull request n'ait pas
 plus de droits qu'il n'en faut, et qu'un parcours en échec laisse sa trace, **afin que** la chaîne
 ne retombe pas sur le réseau, ne garde pas une empreinte périmée, et qu'un échec de la file se lise
-au lieu de se déduire (#3025, #3028, #3447, PLC-08, PLC-09, PLC-10, et les deux constats du
-cadrage).
+au lieu de se déduire (#3025, #3028, #3447, PLC-08, PLC-09, PLC-10, et le constat du cadrage
+sur la veille des images).
 
 **Critères d'acceptation.**
 
@@ -677,9 +678,10 @@ cadrage).
 - écart : le repli sur Docker Hub quand le miroir ne tient pas toutes les empreintes (#3025,
   option 2) n'est pas réalisé — la pull request d'une montée attend le geste d'une personne, comme
   l'auteur l'a retenu le 2026-11-13 ;
-- propre à l'US : le guide dit quoi faire d'une mise à jour de sécurité que Dependabot dit
-  impossible (`security_update_not_possible`), et l'alerte ouverte sur `@faker-js/faker` est
-  fermée par ce geste ;
+- écart : les mises à jour de sécurité que Dependabot dit impossibles
+  (`security_update_not_possible`, #3724) ne sont pas traitées, et l'alerte 68 de `@faker-js/faker`
+  reste ouverte : un `override` de pnpm casserait Prism, dont l'auteur attend la montée (décision
+  du 2026-11-16, lot US-2490/L4 #3703 fermé sans livraison) ;
 - propre à l'US : la regex `BARE` de `tools/tests/test_mirror.py` attrape aussi une ancre YAML de
   tête (`x-postgres-image: &postgres-image postgres:18@sha256:…`), prouvé par ce cas (#3028,
   point 1) ;

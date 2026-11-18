@@ -416,7 +416,14 @@ describe("undo and redo, placed in the grids", () => {
 describe("undo and redo while a write is under way (#3272)", () => {
   /** A control of the commands, busy or not, whose presses are recorded. */
   function control(busy: boolean): UndoControl {
-    return { press: vi.fn(), busy, outcome: undefined, done: undefined, clear: vi.fn() };
+    return {
+      press: vi.fn(),
+      busy,
+      reading: false,
+      outcome: undefined,
+      done: undefined,
+      clear: vi.fn(),
+    };
   }
 
   it("marks Undo and Redo inactive while a write is under way, and a press asks nothing [WF-IHM-0110-A]", async () => {

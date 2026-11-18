@@ -81,6 +81,8 @@ export interface UndoControl {
   readonly press: (command: UndoCommand) => void;
   /** Whether a write of the structure, an undo included, is under way. */
   readonly busy: boolean;
+  /** Whether the structure is read anew after a command lost once sent (US-2240): `busy` says so too. */
+  readonly reading: boolean;
   /** The outcome of the last command, to tell when it was refused; none before any. */
   readonly outcome: Outcome<unknown> | undefined;
   /** The last command the server did, to announce; none before any, or once forgotten. */
@@ -176,6 +178,7 @@ export function UndoAnnouncer({
       <>
         <OutcomeNotice
           outcome={control.outcome}
+          reading={control.reading}
           onClear={control.clear}
           onDismissed={onDismissed}
           dismissible
@@ -440,8 +443,8 @@ export function writingOf<Row>(
  * Whether the commands of a grid's screen wait for a write — theirs or the grid's — or for the reading
  * anew that follows: the confirmation of a paste waits with them (#1224).
  */
-export function busyOf<Row>(commands: RowCommands<Row> | undefined): boolean {
-  return commands?.busy === true;
+export function busyOf<Row>(commands: RowCommands<Row> | undefined, lost = false): boolean {
+  return lost || commands?.busy === true;
 }
 
 /**

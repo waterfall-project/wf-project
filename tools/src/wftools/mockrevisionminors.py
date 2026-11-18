@@ -5,8 +5,9 @@
 The author decided on the 2026-11-07 to give each refusal of the revisions and of their structures
 that the contract declared without an example the example that shows it, drawn from the witness:
 
-- ``comparison_revision_draft.json``, the reference 101 compared with the current revision 102,
-  not marked: refused by ``revision_marked`` (``compareRevisions``, WF-REV-0080);
+- ``comparison_revision_draft.json``, the reference 101 compared with the current revision 102
+  taken for base, not marked: refused by ``revision_marked`` (``compareRevisions``, WF-REV-0080;
+  the current revision read is not refused since EP-27);
 - ``mark_restore_running.json``, the marking of the current revision 102 asked while a restore is
   queued: refused by ``no_restore_running`` (``markRevision``, WF-ADM-0160);
 - ``reference_designate_unconfirmed.json``, a designation of the reference sent without its
@@ -84,10 +85,12 @@ def examples() -> dict[str, JsonObject]:
     label, counter = str(amendment["label"]), cast("int", amendment["lock_version"])
     return {
         "comparison_revision_draft.json": mocktext.example(
-            f"La révision « {reference} », marquée, comparée à la révision courante du témoin, la "
-            f"102, en brouillon : seules deux révisions marquées se comparent, la révision "
-            f"courante changeant encore sous son lecteur ; refusée par la condition qui manque, "
-            f"revision_marked ; rien n'est lu (WF-REV-0080, WF-DAT-0020).",
+            f"La révision « {reference} », marquée, lue et comparée à la révision courante du "
+            f"témoin, la 102, en brouillon, prise pour base (from_revision_id) : une base est une "
+            f"révision marquée, la révision courante changeant encore sous son lecteur ; refusée "
+            f"par la condition qui manque, revision_marked ; rien n'est lu. La révision courante "
+            f"lue, comparée à une base marquée, n'est pas refusée (comparison_current ; "
+            f"WF-REV-0080, WF-DAT-0020).",
             state_refused("revision_marked", COMPARISON_CORRELATION),
         ),
         "mark_restore_running.json": mocktext.example(

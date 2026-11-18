@@ -9,7 +9,9 @@
  * structure of the revision, its tasks and their lines, asked and handed the fields it shows alone
  * (`grid-screen.ts`), the lines of the tasks started alone unless the address asks the tasks not
  * started too (`progress`), which a link of its head offers, and filtered by a lot or a post of the
- * work breakdown read whole, above it, as the estimate's (WF-RAE-0040). The grid is entered from
+ * work breakdown read whole, above it, as the estimate's (WF-RAE-0040). Compared to a base, it shows
+ * besides every line in difference, whatever its task, unasked (`include_differences`,
+ * WF-IHM-0150). The grid is entered from
  * the keyboard, its tasks and its lines created and deleted, and places undo and redo, when the
  * structure lists `edit_remaining` available to the caller (US-0140, WF-RAE-0040): before the
  * project is in progress it lists it unavailable, and the grid is read only. The categories and
@@ -23,7 +25,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 
 import { readEveryPageUnlessRefused } from "@/api/every-page";
 import { OPTIONAL_READ_REFUSALS, readUnlessRefused } from "@/api/problem";
@@ -42,9 +44,14 @@ import {
   REMAINING_GRID,
   REMAINING_SORT_COLUMNS,
 } from "@/components/grid/remaining";
+import { startReading } from "@/components/start-reading";
+import { Streamed } from "@/components/streamed";
 import { RemainingGrid } from "@/components/grid/remaining-grid";
 import { progressHref, readProgress } from "@/components/remaining/address";
-import { RemainingSummary } from "@/components/remaining/remaining-summary";
+import {
+  RemainingSummary,
+  RemainingSummaryLoading,
+} from "@/components/remaining/remaining-summary";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -81,6 +88,18 @@ async function readIndicators({ revision }: GridAddress) {
       },
     }),
   );
+}
+
+/**
+ * The indicators of the remaining to commit, read and rendered on their own: the grid does not
+ * wait for them, nor the address of a filter that changes the grid alone (#3630). `Streamed` shows
+ * them: a boundary of suspense revealed would retain the transition of a filter until they were
+ * read again. A refusal other than not found is thrown where they are shown, under the boundary,
+ * after the shell is sent: the screen of failure says it, by the digest of the error.
+ */
+async function indicatorsOf(at: GridAddress): Promise<ReactNode> {
+  const [indicators, currency] = await Promise.all([readIndicators(at), requestCurrency()]);
+  return <RemainingSummary indicators={indicators} currency={currency} />;
 }
 
 /**
@@ -157,6 +176,12 @@ const WORKLOAD = leafOf("FBS-4.4.4");
 /** The icon of the workload, which its own screen shows too. */
 const WorkloadIcon = LEAF_ICONS["FBS-4.4.4"];
 
+/** The spending projection of the project (FBS-4.4.5), on the same remaining to commit. */
+const SPENDING = leafOf("FBS-4.4.5");
+
+/** The icon of the spending projection, which its own screen shows too. */
+const SpendingIcon = LEAF_ICONS["FBS-4.4.5"];
+
 /**
  * The title of the grid, and what it holds: the structure, its tasks and lines retained; the link
  * that shows the tasks not started too, or the tasks started alone; the links to the Kanban and to
@@ -170,6 +195,7 @@ function RemainingHeader({
   progress,
   kanban,
   workload,
+  spending,
   exchanges,
 }: {
   readonly label: string;
@@ -178,6 +204,7 @@ function RemainingHeader({
   readonly progress: string;
   readonly kanban: string | undefined;
   readonly workload: string | undefined;
+  readonly spending: string | undefined;
   readonly exchanges: ReactNode;
 }) {
   const t = useTranslations();
@@ -222,6 +249,17 @@ function RemainingHeader({
               </Link>
             </CommandTooltip>
           )}
+          {spending === undefined ? null : (
+            <CommandTooltip label={t(SPENDING.label)} help={t("commands.spending.help")}>
+              <Link
+                href={spending}
+                aria-label={t(SPENDING.label)}
+                className={buttonVariants({ variant: "outline", size: "icon" })}
+              >
+                <SpendingIcon aria-hidden="true" />
+              </Link>
+            </CommandTooltip>
+          )}
           {exchanges}
         </>
       }
@@ -241,12 +279,15 @@ export default async function RemainingPage({
   const at = gridAddress(revision, search, "remaining");
   const progress = readProgress(at.address);
   // The categories are read where the grid is entered alone — it is where a line is created —, as
-  // soon as the structure says so, with the indicators still under way.
+  // soon as the structure says so. The indicators are not waited for: they stream in their own
+  // boundary, so that a filter of the grid, which they do not take, arrives with the grid alone.
+  const indicators = startReading(indicatorsOf(at));
   const grid = readGridScreen(at, {
     key: REMAINING_GRID.key,
     sortable: REMAINING_SORT_COLUMNS,
     fields: REMAINING_FIELDS,
     progress: [...progress],
+    exposesDifferences: true,
     byBreakdown: true,
   }).then(async (read) => {
     const entered = read.commands.has("edit_remaining");
@@ -257,19 +298,18 @@ export default async function RemainingPage({
     ]);
     return { screen: read, categories, roles, subprojects };
   });
-  const [{ screen, categories, roles, subprojects }, indicators, currency] = await Promise.all([
-    grid,
-    readIndicators(at),
-    requestCurrency(),
-  ]);
+  const { screen, categories, roles, subprojects } = await grid;
   const notStarted = progress.includes("not_started");
   const editable = screen.commands.has("edit_remaining");
   return (
-    <>
+    // The banner and the grid compose the changes they make to the address: a revision chosen keeps
+    // the sub-project filtered just before.
+    <PendingAddress>
       <ContextBanner
         reading={screen.reading}
         restricts={RESTRICTS}
         breakdown={breakdownChip(screen.breakdownFilter, screen.breakdown?.items)}
+        base={screen.base}
       />
       <Screen density={FUNCTION_DENSITY.remaining} fill>
         <RemainingHeader
@@ -279,29 +319,31 @@ export default async function RemainingPage({
           progress={progressHref(at.pathname, searchQuery(search), !notStarted)}
           kanban={functionHref(KANBAN, at.context)}
           workload={onBasis(functionHref(WORKLOAD, at.context), "current_remaining")}
+          spending={onBasis(functionHref(SPENDING, at.context), "current_remaining")}
           exchanges={
             <ExchangesLink project={screen.reading.project} kind="remaining" context={at.context} />
           }
         />
-        <RemainingSummary indicators={indicators} currency={currency} />
-        <PendingAddress>
-          <GridCard fill>
-            <RemainingGrid
-              nodes={screen.nodes}
-              structure={screen.structure}
-              structureVersion={screen.structureVersion}
-              filters={screen.filters}
-              editable={editable}
-              categories={categories}
-              roles={roles}
-              subprojects={subprojects}
-              query={screen.query}
-              preferences={screen.preferences}
-              treeFilters={<TreeFilters breakdown={screen.breakdown} />}
-            />
-          </GridCard>
-        </PendingAddress>
+        <Suspense fallback={<RemainingSummaryLoading />}>
+          <Streamed content={indicators} />
+        </Suspense>
+        <GridCard fill>
+          <RemainingGrid
+            nodes={screen.nodes}
+            structure={screen.structure}
+            structureVersion={screen.structureVersion}
+            filters={screen.filters}
+            editable={editable}
+            categories={categories}
+            roles={roles}
+            subprojects={subprojects}
+            query={screen.query}
+            preferences={screen.preferences}
+            comparing={screen.base?.chosen !== undefined}
+            treeFilters={<TreeFilters breakdown={screen.breakdown} />}
+          />
+        </GridCard>
       </Screen>
-    </>
+    </PendingAddress>
   );
 }

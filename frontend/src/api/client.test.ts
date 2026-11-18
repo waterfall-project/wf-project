@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { UNREACHABLE_DIGEST } from "@/components/system/failure";
 
-import { API_PREFIX, createApiClient, Unreachable } from "./client";
+import { API_PREFIX, createApiClient, Dropped, Unreachable } from "./client";
 
 /** A fetch that records the requests it receives, and answers an empty object. */
 function recorder(): {
@@ -189,10 +189,10 @@ describe("a connection the API drops before answering (#1145)", () => {
     const { send, sent } = failing(dropped, dropped, dropped, dropped);
     const client = createApiClient({ address: "http://localhost:4010", fetch: send });
     await expect(client.POST("/projects", { body: { label: "Poste" } })).rejects.toMatchObject({
-      name: "Unreachable",
+      name: "Dropped",
       cause: dropped,
     });
-    await expect(client.DELETE("/me/sessions")).rejects.toBeInstanceOf(Unreachable);
+    await expect(client.DELETE("/me/sessions")).rejects.toBeInstanceOf(Dropped);
     expect(sent.map((request) => request.method)).toEqual(["POST", "DELETE"]);
     expect(warn).not.toHaveBeenCalled();
   });
@@ -234,6 +234,137 @@ describe("a connection the API drops before answering (#1145)", () => {
       "close",
       null,
     ]);
+  });
+});
+
+describe("a write whose connection is lost once it has left (US-2240)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    "UND_ERR_SOCKET",
+    "ECONNRESET",
+    "EPIPE",
+    "UND_ERR_HEADERS_TIMEOUT",
+    "UND_ERR_BODY_TIMEOUT",
+  ])(
+    "marks a write lost by %s as dropped once sent, never sent again, told as the API out of reach to the screen of failure",
+    async (code) => {
+      const lost = rejection(code);
+      const { send, sent } = failing(lost);
+      const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+      const write = client.POST("/projects", { body: { label: "Poste" } });
+      await expect(write).rejects.toBeInstanceOf(Dropped);
+      // Still the API out of reach to whatever reads only that, the screen of failure included.
+      await expect(write).rejects.toMatchObject({ cause: lost, digest: UNREACHABLE_DIGEST });
+      expect(sent).toHaveLength(1);
+    },
+  );
+
+  it("marks a PUT, a PATCH and a DELETE lost once sent as dropped, as well as a POST", async () => {
+    const lost = () => rejection("UND_ERR_SOCKET");
+    const { send, sent } = failing(lost(), lost(), lost());
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    const path = { project_id: "p", risk_id: "r" };
+    await expect(
+      client.PUT("/reference/org-nodes/{org_node_id}/activation", {
+        params: { path: { org_node_id: "n" } },
+        body: { is_active: false, lock_version: 1 },
+      }),
+    ).rejects.toBeInstanceOf(Dropped);
+    await expect(
+      client.PATCH("/projects/{project_id}/risks/{risk_id}", {
+        params: { path },
+        body: { label: "Retard", lock_version: 1 },
+      }),
+    ).rejects.toBeInstanceOf(Dropped);
+    await expect(client.DELETE("/me/sessions")).rejects.toBeInstanceOf(Dropped);
+    expect(sent.map((request) => request.method)).toEqual(["PUT", "PATCH", "DELETE"]);
+  });
+
+  it.each([
+    "ECONNREFUSED",
+    "ENOTFOUND",
+    "EAI_AGAIN",
+    "ENETUNREACH",
+    "EHOSTUNREACH",
+    "ENETDOWN",
+    "EHOSTDOWN",
+    "UND_ERR_CONNECT_TIMEOUT",
+  ])(
+    "marks a write that did not leave, refused by %s, as the API out of reach, not as dropped [WF-REV-0010-A]",
+    async (code) => {
+      const { send } = failing(rejection(code));
+      const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+      const write = client.POST("/projects", { body: { label: "Poste" } });
+      await expect(write).rejects.toBeInstanceOf(Unreachable);
+      await expect(write).rejects.not.toBeInstanceOf(Dropped);
+    },
+  );
+
+  // Codes undici gives, or the network does, that do not say the write never left: told as a
+  // write that may have been done, never as one to do again.
+  it.each([
+    "UND_ERR_ABORTED",
+    "UND_ERR_CLOSED",
+    "UND_ERR_DESTROYED",
+    "UND_ERR_RES_CONTENT_LENGTH_MISMATCH",
+    "ETIMEDOUT",
+    "ECONNABORTED",
+  ])("marks a write rejected by %s, which does not say it never left, as dropped", async (code) => {
+    const { send, sent } = failing(rejection(code));
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    await expect(client.POST("/projects", { body: { label: "Poste" } })).rejects.toBeInstanceOf(
+      Dropped,
+    );
+    expect(sent).toHaveLength(1);
+  });
+
+  it("marks a write rejected without a code as dropped: nothing says it never left", async () => {
+    const down = createApiClient({
+      address: "http://localhost:4010",
+      fetch: () => Promise.reject(new TypeError("fetch failed")),
+    });
+    await expect(down.POST("/projects", { body: { label: "Poste" } })).rejects.toMatchObject({
+      name: "Dropped",
+      digest: UNREACHABLE_DIGEST,
+    });
+  });
+
+  it("leaves a TypeError thrown before the request leaves, with no cause, as it is: a defect, not a write lost (WF-REV-0010-A)", async () => {
+    const defect = new TypeError("Invalid URL");
+    const down = createApiClient({
+      address: "http://localhost:4010",
+      fetch: () => Promise.reject(defect),
+    });
+    await expect(down.POST("/projects", { body: { label: "Poste" } })).rejects.toBe(defect);
+  });
+
+  it("marks a read rejected without a code as the API out of reach, not as dropped", async () => {
+    const down = createApiClient({
+      address: "http://localhost:4010",
+      fetch: () => Promise.reject(new TypeError("fetch failed")),
+    });
+    await expect(down.GET("/health")).rejects.not.toBeInstanceOf(Dropped);
+  });
+
+  it('leaves a TypeError of a read, with no cause and not saying "fetch failed", as it is: a defect, not the API out of reach (WF-REV-0010-A)', async () => {
+    const defect = new TypeError("Invalid URL");
+    const down = createApiClient({
+      address: "http://localhost:4010",
+      fetch: () => Promise.reject(defect),
+    });
+    await expect(down.GET("/health")).rejects.toBe(defect);
+  });
+
+  it("never marks a read as dropped: dropped twice, it is the API out of reach", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { send } = failing(rejection("UND_ERR_SOCKET"), rejection("UND_ERR_SOCKET"));
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    const read = client.GET("/health");
+    await expect(read).rejects.toBeInstanceOf(Unreachable);
+    await expect(read).rejects.not.toBeInstanceOf(Dropped);
   });
 });
 

@@ -16,19 +16,21 @@ mode, duration, dates, attachment — being the planning's to write (``planning.
 The parameters of a reading are judged here, every bound at once (``NUMBER_INVALID``,
 ``DATE_INVALID``, ``VALUE_OUT_OF_RANGE``, WF-IHM-0130), those of the line too, which retain lines
 (``LineFilters``); ``fields`` names what is returned of each node, an unknown property refused
-(``FIELD_NOT_ACCEPTED``). A line is created from ``EstimateLineWrite``, refused without it.
+(``FIELD_NOT_ACCEPTED``). A line is created from ``EstimateLineWrite``, refused without it. A
+structure of a marked revision read whole, projected or not, is read from its reading kept, made and
+kept at its first whole reading, its inscriptions joined (``whole_nodes``, EP-26, US-2270).
 """
 
+import json
 import re
 from dataclasses import replace
 from datetime import date
 from decimal import Decimal
-from enum import StrEnum
 from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from waterfall.api.authentication import Caller, Transaction
@@ -36,6 +38,7 @@ from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import (
     ComputedValueDependencies,
     ComputedValueField,
+    ErrorCode,
     EstimateLineFacet,
     EstimateLineUpdate,
     EstimateLineWrite,
@@ -56,6 +59,7 @@ from waterfall.api.contract.models import (
 )
 from waterfall.api.evaluation import Acting, RequiresProject
 from waterfall.api.queries import read_list, refuse_query
+from waterfall.api.wire import instant_of, text_of
 from waterfall.core.access_roles.interface import PERMISSION_MISSING
 from waterfall.core.estimate.interface import LineEntry, LineFilters, LineView
 from waterfall.core.planning.interface import (
@@ -64,26 +68,34 @@ from waterfall.core.planning.interface import (
     ConflictView,
     Duration,
     InstantSent,
+    KeptReading,
     LineSort,
     NodeCreation,
     NodeFilters,
     NodeMoving,
+    NodeRecord,
+    NodeRecords,
     NodesWritten,
     NodeView,
+    PhysicalShare,
     Place,
     StructureTotals,
     TaskEntry,
-    TaskView,
+    TaskRecord,
+    TrackingView,
     Writer,
     computed_value_dependencies,
     create_node,
     delete_node,
-    list_nodes,
+    keep_reading,
+    kept_reading,
+    list_records,
     move_nodes,
+    record_of,
     resolve_row_number,
     update_task_facet,
 )
-from waterfall.core.planning.interface import WorkInstant as Instant
+from waterfall.core.projects.interface import subproject_labels
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import (
@@ -92,9 +104,12 @@ from waterfall.platform.errors import (
     ForbiddenError,
     UnprocessableError,
 )
+from waterfall.platform.identifiers import read_identifier
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
+
+    from sqlalchemy.orm import Session
 
 router = APIRouter(tags=["revisions"])
 
@@ -140,12 +155,13 @@ PERIODS = ("start", "finish", "started_on", "completed_on")
 FACETS = {"task": TaskFacet, "estimate_line": EstimateLineFacet}
 # What every node returns, whatever ``fields`` names.
 ALWAYS = ("node_id", "row_number", "level", "lock_version")
-
-
-class Unassigned(StrEnum):
-    """What the filter of the subproject names besides a subproject: none (WF-IND-0020)."""
-
-    unassigned = UNASSIGNED
+# The kind of a node that is a task, which its record does not repeat.
+TASK = NodeKind.task.value
+# The format of the body of a structure read whole, as this code writes it: a reading kept of
+# another is ignored and made again (US-2270). A field added to a node changes it, and a value
+# written otherwise: ``FORMAT_SHAPES`` and ``FORMAT_BODIES`` of the tests fail until it does. 2: the
+# physical progress of the summaries computed (US-1680), not computable before.
+FORMAT = 2
 
 
 class NodeQuery(BaseModel):
@@ -168,7 +184,7 @@ class NodeQuery(BaseModel):
     is_from_risk: bool | None = None
     origin_risk_ids: str | None = None
     uses_inactive_object: bool | None = None
-    subproject_id: Unassigned | UUID | None = None
+    subproject_id: str | None = None
     cost_type_id: UUID | None = None
     cost_category_id: UUID | None = None
     resource_role_id: UUID | None = None
@@ -217,8 +233,27 @@ def _known(name: str) -> bool:
     return name in Node.model_fields
 
 
+def _subproject_asked(
+    session: Session, project_id: UUID, asked: str | None
+) -> tuple[UUID | None, list[FieldError]]:
+    """Read the filter of the subproject strictly, as the indicators do; its fault, the parameter.
+
+    ``unassigned`` or the hyphenated identifier of a subproject of the project; any other text, and
+    a subproject the project does not have, is ``UNKNOWN_SUBPROJECT`` (WF-IND-0020).
+    """
+    if asked is None or asked == UNASSIGNED:
+        return None, []
+    found = read_identifier(asked)
+    if found is None or not subproject_labels(session, project_id, [found]):
+        return None, [FieldError("/query/subproject_id", ErrorCode.UNKNOWN_SUBPROJECT)]
+    return found, []
+
+
 def node_reading(
-    request: Request, query: Annotated[NodeQuery, Query()]
+    request: Request,
+    query: Annotated[NodeQuery, Query()],
+    project_id: UUID,
+    session: Transaction,
 ) -> tuple[NodeFilters, frozenset[str] | None]:
     """Read what ``listNodes`` asks: its filters, and the properties it names (``fields``).
 
@@ -245,6 +280,8 @@ def node_reading(
         for column in columns:
             bounds[column], wrong = _pair(raw, column, form)
             faults += wrong
+    subproject, wrong = _subproject_asked(session, project_id, query.subproject_id)
+    faults += wrong
     refuse_query(faults)
     fields = None if query.fields is None else frozenset(query.fields.split(","))
     if fields is not None and not all(_known(name) for name in fields):
@@ -273,7 +310,7 @@ def node_reading(
         finish_overdue=query.finish_overdue,
         is_from_risk=query.is_from_risk,
         origin_risk_ids=risks,
-        lines=_line_filters(query, bounds),
+        lines=_line_filters(query, bounds, subproject),
         sort=None if query.sort_by is None else LineSort(query.sort_by.value, _descending(query)),
     )
     return filters, fields
@@ -284,12 +321,13 @@ def _descending(query: NodeQuery) -> bool:
     return query.sort_order is not None and query.sort_order.value == "desc"
 
 
-def _line_filters(query: NodeQuery, bounds: dict[str, tuple[Any, Any]]) -> LineFilters | None:
+def _line_filters(
+    query: NodeQuery, bounds: dict[str, tuple[Any, Any]], subproject: UUID | None
+) -> LineFilters | None:
     """Give what a reading asks of the lines, none when it asks nothing of them."""
-    subproject = query.subproject_id
     asked = LineFilters(
-        subproject_id=subproject if isinstance(subproject, UUID) else None,
-        unassigned=query.subproject_id is Unassigned.unassigned,
+        subproject_id=subproject,
+        unassigned=query.subproject_id == UNASSIGNED,
         cost_type_id=query.cost_type_id,
         cost_category_id=query.cost_category_id,
         resource_role_id=query.resource_role_id,
@@ -315,18 +353,13 @@ def _line_filters(query: NodeQuery, bounds: dict[str, tuple[Any, Any]]) -> LineF
     return None if asked == LineFilters(previous=((None, None),) * 4) else asked
 
 
-def _text(value: Decimal) -> str:
-    """Give a decimal as the contract writes it: without exponent nor trailing zeros."""
-    return format(value.normalize(), "f")
-
-
 def _money(value: Decimal) -> str:
     """Give an amount as the contract writes it: to the cent."""
     return format(value.quantize(CENT), "f")
 
 
-def _instant(instant: Instant) -> dict[str, Any]:
-    return {"date": instant.day.isoformat(), "hours": _text(instant.hours)}
+def _day_and_hours(day: date, hours: Decimal) -> dict[str, Any]:
+    return {"date": day.isoformat(), "hours": text_of(hours)}
 
 
 def _conflicts(conflicts: tuple[ConflictView, ...]) -> list[dict[str, Any]]:
@@ -341,7 +374,7 @@ def _conflicts(conflicts: tuple[ConflictView, ...]) -> list[dict[str, Any]]:
 
 
 def _float(value: Decimal | None) -> dict[str, Any] | None:
-    return None if value is None else {"value": _text(value), "unit": "d"}
+    return None if value is None else {"value": text_of(value), "unit": "d"}
 
 
 def _id(value: UUID | None) -> str | None:
@@ -352,47 +385,57 @@ def _day(value: date | None) -> str | None:
     return None if value is None else value.isoformat()
 
 
-def _task(view: TaskView) -> dict[str, Any]:
-    """Write a facet task as the contract does; its amounts, those of its lines and subordinates."""
-    # A summary's physical progress follows the budgets of its subtree, none without a line.
-    progress = (
-        {"is_computable": False, "value": None, "reason": "no_budgeted_amount"}
-        if view.is_summary
-        else None
-    )
+def _share(share: PhysicalShare | None) -> dict[str, Any] | None:
+    """Write the physical progress of a summary as the contract does (``Computable``); none else."""
+    if share is None:
+        return None
+    value = share.value
     return {
-        "label": view.label,
-        "description": view.description,
-        "scheduling_mode": view.scheduling_mode,
-        "duration": {"value": _text(view.duration_value), "unit": view.duration_unit},
-        "start": _instant(view.start),
-        "finish": _instant(view.finish),
-        "progress": view.progress,
-        "finish_overdue": view.finish_overdue,
-        "awaiting_own_lines": view.awaiting_own_lines,
-        "started_on": _day(view.started_on),
-        "completed_on": _day(view.completed_on),
-        "is_summary": view.is_summary,
-        "is_milestone": view.is_milestone,
-        "calendar_id": _id(view.calendar_id),
-        "calendar_hours": {
-            day: _text(hours) for day, hours in zip(DAYS, view.calendar_hours, strict=True)
-        },
-        "total_float": _float(view.total_float),
-        "is_critical": view.is_critical,
-        "link_conflicts": _conflicts(view.link_conflicts),
-        "physical_progress": progress,
-        "base_amount": _money(view.amounts.base),
-        "budgeted_amount": _money(view.amounts.budgeted),
-        "reestimated_amount": _money(view.amounts.reestimated),
-        "tracking": [
-            {"kind": entry.kind, "timeline_id": _id(entry.timeline_id)} for entry in view.tracking
-        ],
-        "order_item_id": _id(view.order_item_id),
-        "work_package_id": _id(view.work_package_id),
-        "work_breakdown_label": view.work_breakdown_label,
-        "external_id": view.external_id,
+        "is_computable": value is not None,
+        "value": None if value is None else text_of(value),
+        "reason": share.reason,
     }
+
+
+def _task(record: TaskRecord) -> dict[str, Any]:
+    """Write a facet task as the contract does; its amounts, those of its lines and subordinates."""
+    amounts = record.amounts
+    return {
+        "label": record.label,
+        "description": record.description,
+        "scheduling_mode": record.scheduling_mode,
+        "duration": {"value": text_of(record.duration_value), "unit": record.duration_unit},
+        "start": _day_and_hours(record.start_date, record.start_hours),
+        "finish": _day_and_hours(record.finish_date, record.finish_hours),
+        "progress": record.progress,
+        "finish_overdue": record.finish_overdue,
+        "awaiting_own_lines": record.awaiting_own_lines,
+        "started_on": _day(record.started_on),
+        "completed_on": _day(record.completed_on),
+        "is_summary": record.is_summary,
+        "is_milestone": record.is_milestone,
+        "calendar_id": _id(record.calendar_id),
+        "calendar_hours": {
+            day: text_of(hours) for day, hours in zip(DAYS, record.calendar_hours, strict=True)
+        },
+        "total_float": _float(record.total_float),
+        "is_critical": record.is_critical,
+        "link_conflicts": _conflicts(record.link_conflicts),
+        "physical_progress": _share(record.physical_progress),
+        "base_amount": _money(amounts.base),
+        "budgeted_amount": _money(amounts.budgeted),
+        "reestimated_amount": _money(amounts.reestimated),
+        "tracking": tracking_body(record.tracking),
+        "order_item_id": _id(record.order_item_id),
+        "work_package_id": _id(record.work_package_id),
+        "work_breakdown_label": record.work_breakdown_label,
+        "external_id": record.external_id,
+    }
+
+
+def tracking_body(tracking: tuple[TrackingView, ...]) -> list[dict[str, Any]]:
+    """Write the inscriptions of a task as the contract does: their kind, and their timeline."""
+    return [{"kind": entry.kind, "timeline_id": _id(entry.timeline_id)} for entry in tracking]
 
 
 def _optional(value: Decimal | None, write: Callable[[Decimal], str]) -> str | None:
@@ -407,8 +450,8 @@ def _line(view: LineView) -> dict[str, Any]:
         "cost_category_label": view.cost_category_label,
         "resource_role_id": _id(view.resource_role_id),
         "resource_role_label": view.resource_role_label,
-        "quantity": _text(view.quantity),
-        "hours": _optional(view.hours, _text),
+        "quantity": text_of(view.quantity),
+        "hours": _optional(view.hours, text_of),
         "unit_disbursement": _optional(view.unit_disbursement, _money),
         "payment_delay_days": view.payment_delay_days,
         "subproject_id": _id(view.subproject_id),
@@ -416,8 +459,8 @@ def _line(view: LineView) -> dict[str, Any]:
         "base_amount": _money(view.base_amount),
         "budgeted_amount": _money(view.budgeted_amount),
         "reestimated_amount": _money(view.reestimated_amount),
-        "previous_quantity": _optional(view.previous_quantity, _text),
-        "previous_hours": _optional(view.previous_hours, _text),
+        "previous_quantity": _optional(view.previous_quantity, text_of),
+        "previous_hours": _optional(view.previous_hours, text_of),
         "previous_unit_disbursement": _optional(view.previous_unit_disbursement, _money),
         "previous_reestimated_amount": _optional(view.previous_reestimated_amount, _money),
         "remaining_reason": view.remaining_reason,
@@ -431,51 +474,59 @@ def _line(view: LineView) -> dict[str, Any]:
     }
 
 
-def _facet(view: NodeView) -> dict[str, Any] | None:
-    """Write the facet of a node of another kind than the task: an estimate line's."""
-    facet = None if view.facet is None else view.facet.view
-    return _line(facet) if isinstance(facet, LineView) else None
-
-
 def read_body(body: dict[str, Any]) -> JSONResponse:
     """Give a body written of JSON values alone as the response, rendered as FastAPI renders it.
 
     A dict a route returns, FastAPI encodes again value by value (``jsonable_encoder``) before
     rendering it: for the some 6,000 nodes of a whole structure, a sixth of a second of the one
-    process of the API, for nothing — ``node_body`` writes texts, numbers, booleans, lists and
+    process of the API, for nothing — ``record_body`` writes texts, numbers, booleans, lists and
     dicts alone —, under every other request it serves meanwhile (#3048).
     """
     return JSONResponse(body)
 
 
-def node_body(view: NodeView, fields: frozenset[str] | None = None) -> dict[str, Any]:
-    """Write a node as the contract does: whole, or what ``fields`` names and the four."""
-    whole: dict[str, Any] = {
-        "node_id": str(view.node_id),
-        "lineage_id": str(view.lineage_id),
-        "kind": view.kind,
-        "parent_id": _id(view.parent_id),
-        "position": view.position,
-        "row_number": view.row_number,
-        "level": view.level,
-        "origin_risk_id": _id(view.origin_risk_id),
-        "lock_version": view.lock_version,
-        "task": None if view.task is None else _task(view.task),
-        "estimate_line": _facet(view),
+def _whole(record: NodeRecord) -> dict[str, Any]:
+    """Write a node whole as the contract does, from its record: a task, or a node of a facet."""
+    if isinstance(record, TaskRecord):
+        kind, task, line = TASK, _task(record), None
+    else:
+        view = None if record.facet is None else record.facet.view
+        kind, task = record.kind, None
+        line = _line(view) if isinstance(view, LineView) else None
+    return {
+        "node_id": str(record.node_id),
+        "lineage_id": str(record.lineage_id),
+        "kind": kind,
+        "parent_id": _id(record.parent_id),
+        "position": record.position,
+        "row_number": record.row_number,
+        "level": record.level,
+        "origin_risk_id": _id(record.origin_risk_id),
+        "lock_version": record.lock_version,
+        "task": task,
+        "estimate_line": line,
         "predecessors": [
             {
                 "predecessor_node_id": str(each.predecessor_id),
                 "predecessor_row_number": each.row_number,
                 "link_type": each.link_type,
-                "lag": {"value": _text(each.lag_value), "unit": each.lag_unit},
+                "lag": {"value": text_of(each.lag_value), "unit": each.lag_unit},
             }
-            for each in view.predecessors
+            for each in record.predecessors
         ],
-        "computed_fields": list(view.computed_fields),
-        "editable_fields": list(view.editable_fields),
+        "computed_fields": list(record.computed_fields),
+        "editable_fields": list(record.editable_fields),
     }
-    if fields is None:
-        return whole
+
+
+def record_body(record: NodeRecord, fields: frozenset[str] | None = None) -> dict[str, Any]:
+    """Write a node as the contract does, from its record: whole, or what ``fields`` names."""
+    whole = _whole(record)
+    return whole if fields is None else projected(whole, fields)
+
+
+def projected(whole: dict[str, Any], fields: frozenset[str]) -> dict[str, Any]:
+    """Keep of a node written whole what ``fields`` names, and what every node returns."""
     chosen = {name: whole[name] for name in ALWAYS}
     for name in sorted(fields):
         facet, _, held = name.partition(".")
@@ -487,13 +538,142 @@ def node_body(view: NodeView, fields: frozenset[str] | None = None) -> dict[str,
     return chosen
 
 
+def node_body(view: NodeView, fields: frozenset[str] | None = None) -> dict[str, Any]:
+    """Write a node as it is read, whole, as the contract does: as its record (``record_of``).
+
+    What a write of the tree gives back, and what a comparison reads of each side.
+    """
+    return record_body(record_of(view), fields)
+
+
+def nodes_body(read: NodeRecords, fields: frozenset[str] | None = None) -> dict[str, Any]:
+    """Write a reading of a structure (``listNodes``): its nodes, their totals, its meta."""
+    meta = NodeListMeta.model_validate(
+        {"summary_depth": read.summary_depth, "scheduled_at": read.scheduled_at}
+    )
+    return {
+        "items": [record_body(each, fields) for each in read.items],
+        "totals": totals_body(read.task_count, read.totals),
+        "meta": meta.model_dump(mode="json"),
+    }
+
+
+def kept_document(session: Session, place: Place) -> tuple[bytes, KeptReading] | None:
+    """Give the reading kept of a structure of a marked revision, its inscriptions not joined.
+
+    Made and kept in this transaction if it is not (US-2270); none for a revision not marked. The
+    document writes the inscriptions of each task empty (``"tracking":[]``): they still change, and
+    are joined at each reading (``kept_body``, ``joined``).
+    """
+    kept = kept_reading(session, place, FORMAT)
+    if kept is None:
+        return None
+    document = kept.document
+    if document is None:
+        body = nodes_body(list_records(session, place, NodeFilters()))
+        for item in body["items"]:
+            if item["task"] is not None:
+                item["task"]["tracking"] = []
+        document = bytes(read_body(body).body)
+        keep_reading(session, place, FORMAT, kept, document)
+    return document, kept
+
+
+def kept_body(session: Session, place: Place) -> dict[str, Any] | None:
+    """Give the reading kept of a structure of a marked revision read, its inscriptions joined.
+
+    What ``listNodes`` gives of the structure read whole, as JSON values; none for a revision not
+    marked.
+    """
+    found = kept_document(session, place)
+    if found is None:
+        return None
+    document, kept = found
+    read = json.loads(document)
+    if not kept.inscriptions:
+        return read
+    inscriptions = {str(lineage): held for lineage, held in kept.inscriptions.items()}
+    for item in read["items"]:
+        held = inscriptions.get(item["lineage_id"])
+        if held is not None and item["task"] is not None:
+            item["task"]["tracking"] = tracking_body(held)
+    return read
+
+
+# The inscriptions of a task, and the keys that bound them, as a document kept writes them
+# (``read_body``): their keys can be nowhere else, a quote in a text being written ``\"``.
+_UNINSCRIBED = b'"tracking":[]'
+_NODE = b'"node_id":'
+
+
+def joined(document: bytes, inscriptions: Mapping[UUID, tuple[TrackingView, ...]]) -> bytes:
+    """Join the inscriptions of the tasks to a document kept, written in it, without reading it.
+
+    The document is not read again (#3481): each task inscribed has its inscriptions written in
+    place of its empty ones, found after its lineage and before the next node; the bytes are those
+    of the document read and written again (``kept_body``), as the test of the lot proves.
+    """
+    if not inscriptions:
+        return document
+    written = {
+        str(lineage).encode(): bytes(read_body({"tracking": tracking_body(held)}).body)[1:-1]
+        for lineage, held in inscriptions.items()
+    }
+    # Only the lineages inscribed are looked for, by the regular expression: the nodes without
+    # inscriptions are not visited one by one.
+    sought = re.compile(
+        rb'"lineage_id":"(' + b"|".join(re.escape(lineage) for lineage in written) + rb')"'
+    )
+    parts: list[bytes] = []
+    start = 0
+    for match in sought.finditer(document):
+        at = document.find(_UNINSCRIBED, match.end())
+        following = document.find(_NODE, match.end())
+        if at < 0 or 0 <= following < at:
+            continue
+        parts += (document[start:at], written[match.group(1)])
+        start = at + len(_UNINSCRIBED)
+    parts.append(document[start:])
+    return b"".join(parts)
+
+
+def _gives_progress(fields: frozenset[str] | None) -> bool:
+    """Tell whether a reading gives the physical progress of the summaries (``listNodes``).
+
+    Whole, or when ``fields`` names it, or names the facet of a task that holds it.
+    """
+    return fields is None or bool(fields & {"task", "task.physical_progress"})
+
+
+def whole_nodes(session: Session, place: Place, fields: frozenset[str] | None) -> Response:
+    """Give a structure read whole, projected by ``fields`` or not (``listNodes``, US-2270).
+
+    The reading kept of a structure of a marked revision, made and kept in this transaction if it
+    is not, its inscriptions joined: in the document as it is kept, read whole; in the document
+    read, projected. The reading of the rows for a structure of a revision not marked. The body is
+    the same, to the byte.
+    """
+    if fields is not None:
+        read = kept_body(session, place)
+        if read is None:
+            records = list_records(session, place, NodeFilters(), progress=_gives_progress(fields))
+            return read_body(nodes_body(records, fields))
+        read["items"] = [projected(item, fields) for item in read["items"]]
+        return read_body(read)
+    found = kept_document(session, place)
+    if found is None:
+        return read_body(nodes_body(list_records(session, place, NodeFilters())))
+    document, kept = found
+    return Response(joined(document, kept.inscriptions), media_type=JSONResponse.media_type)
+
+
 def totals_body(task_count: int, totals: StructureTotals | None) -> dict[str, Any]:
     """Write the totals of the tasks counted and of the lines retained, their hours and amounts."""
     amounts = Amounts() if totals is None else totals.amounts
     return {
         "task_count": task_count,
         "estimate_line_count": 0 if totals is None else totals.line_count,
-        "hours": _text(amounts.hours),
+        "hours": text_of(amounts.hours),
         "base_amount": _money(amounts.base),
         "budgeted_amount": _money(amounts.budgeted),
         "reestimated_amount": _money(amounts.reestimated),
@@ -508,8 +688,8 @@ def written_of(result: NodesWritten) -> dict[str, Any]:
         "rescheduled": [
             {
                 "node_id": str(each.node_id),
-                "start": _instant(each.start),
-                "finish": _instant(each.finish),
+                "start": instant_of(each.start),
+                "finish": instant_of(each.finish),
                 "total_float": _float(each.total_float),
                 "is_critical": each.is_critical,
                 "link_conflicts": _conflicts(each.link_conflicts),
@@ -651,20 +831,13 @@ def get_nodes(
     place: Placed,
     asked: Annotated[tuple[NodeFilters, frozenset[str] | None], Depends(node_reading)],
     session: Transaction,
-) -> JSONResponse:
+) -> Response:
     """Give the nodes of a structure retained, depth first, their totals and its meta."""
     filters, fields = asked
-    read = list_nodes(session, place, filters)
-    meta = NodeListMeta.model_validate(
-        {"summary_depth": read.summary_depth, "scheduled_at": read.scheduled_at}
-    )
-    return read_body(
-        {
-            "items": [node_body(each, fields) for each in read.items],
-            "totals": totals_body(read.task_count, read.totals),
-            "meta": meta.model_dump(mode="json"),
-        }
-    )
+    if filters == NodeFilters():
+        return whole_nodes(session, place, fields)
+    read = list_records(session, place, filters, progress=_gives_progress(fields))
+    return read_body(nodes_body(read, fields))
 
 
 @router.post(

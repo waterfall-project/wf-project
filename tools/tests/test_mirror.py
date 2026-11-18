@@ -159,6 +159,7 @@ def test_every_image_of_docker_hub_the_files_name_is_pinned_by_a_digest() -> Non
         "axllent/mailpit",
         "dxflrs/garage",
         "curlimages/curl",
+        "grafana/k6",
         "node",
         "python",
         "debian",

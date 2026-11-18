@@ -1,0 +1,33 @@
+{
+  "summary": "Une révision créée en 2027, dont la précédente portait 2026 : l'ingénierie (65,00 en 2026, 70,00 au référentiel de 2027) et la mise en service (60,00 en 2026, sans taux pour 2027), à 3 % d'inflation, chiffrées sur une ligne de 10 heures consommée en 2027. Les taux de 2026 projetés d'une année valent 66,95 et 61,80, soit 669,50 et 618,00 ; la mise à jour de l'ingénierie la rechiffre à 700,00, la mise en service reste à 618,00 (WF-REV-0060).",
+  "examples": [
+    "WF-REV-0060-A#e0a3eb570e51",
+    "WF-REV-0060-A#a31bf69eb132",
+    "WF-REV-0060-A#586554e118d8",
+    "WF-REV-0060-A#c49cb122efe3",
+    "WF-REV-0060-A#964cab0bdd82"
+  ],
+  "previous_year": 2026,
+  "reference_year": 2027,
+  "inflation_rate": "0.03",
+  "quantity": "1",
+  "effort": "10",
+  "categories": [
+    {
+      "label": "Ingénierie",
+      "previous_rate": "65.00",
+      "reference_rate": "70.00",
+      "projected_rate": "66.95",
+      "amount_projected": "669.50",
+      "amount_updated": "700.00"
+    },
+    {
+      "label": "Mise en service",
+      "previous_rate": "60.00",
+      "reference_rate": null,
+      "projected_rate": "61.80",
+      "amount_projected": "618.00",
+      "amount_updated": "618.00"
+    }
+  ]
+}

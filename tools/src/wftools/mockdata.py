@@ -115,6 +115,7 @@ from wftools import (
     mockservedrefusals,
     mocksnapshot,
     mocksort,
+    mockspendingrefusals,
     mocktext,
     mocktoday,
     mockwitness,
@@ -191,9 +192,7 @@ entry. The named examples of the witness are written beside it, file by file."""
 RATE_YEARS = range(2012, 2027)
 """Fifteen years of rates, up to the reference year of the witness estimate."""
 
-
 USER = "01926f3a-7c00-7000-8000-000000000301"
-
 
 _AUDIT: JsonObject = {
     "created_at": mockhistory.stamp(INSTALLED.instant),
@@ -359,6 +358,7 @@ def named() -> dict[str, JsonObject]:
         **mockreview.examples(),
         **mockrevisionminors.examples(),
         **mockservedrefusals.examples(),
+        **mockspendingrefusals.examples(),
         **mockchronology.examples(),
         **mockwitnesstasks.examples(),
         **mockwitnesslines.examples(),
@@ -843,7 +843,7 @@ def _ordinal(value: int) -> str:
 # The envelope of an example and its value are laid out; below them, one line per item.
 _EXPANDED_DEPTH = 2
 # Below them, an object that holds a list longer than this is laid out too, the list one line per
-# item: a point of the matrix of the portfolio changed is one line of the diff (#1053).
+# item, even within an item: a point of the portfolio matrix, a task of a role (#1053, #3181).
 _LONG_LIST = 50
 
 
@@ -856,7 +856,7 @@ def _render(value: JsonValue, depth: int) -> str:
     indent = "  " * depth
     inner = indent + "  "
     if isinstance(value, list) and value:
-        items = ",\n".join(inner + _compact(item) for item in value)
+        items = ",\n".join(inner + _render(item, depth + 1) for item in value)
         return f"[\n{items}\n{indent}]"
     if isinstance(value, dict) and (depth < _EXPANDED_DEPTH or _holds_long_list(value)):
         fields = ",\n".join(

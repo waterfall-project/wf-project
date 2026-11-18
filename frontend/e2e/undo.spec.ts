@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { FIFTY_ENTRIES_UNDONE, WORKING } from "./bounds";
 import { axeViolations } from "./axe";
 import { columnsOf } from "./columns";
 import { idle, seedEstimate } from "./estimate-seed";
-import { openHydrated, WORKING } from "./hydration";
+import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
 import { createOwnProject, openRevision } from "./own-project";
 import { rowAt } from "./scroll";
@@ -191,7 +192,7 @@ test("fifty entries of the planning are undone one by one by the grid, then redo
   test.skip(!inService, SERVICE_ONLY);
   // A task created and fifty entries of its label, each undone and redone: a screen of grid under
   // load takes its `WORKING` bound for each.
-  test.setTimeout(20 * 60_000);
+  test.setTimeout(FIFTY_ENTRIES_UNDONE);
   const own = await createOwnProject(page, "Annulation");
   await openRevision(page, own);
   const revision = new URL(page.url()).searchParams.get("revision_id");
@@ -264,7 +265,7 @@ test("fifty entries of a line of the estimate are undone one by one by the grid,
   test.skip(!inService, SERVICE_ONLY);
   // A line seeded and fifty entries of its label, each undone and redone: a screen of grid under
   // load takes its `WORKING` bound for each.
-  test.setTimeout(20 * 60_000);
+  test.setTimeout(FIFTY_ENTRIES_UNDONE);
   const seeded = await seedEstimate(page, browser, request, manager, "Annulation du devis");
   await openHydrated(page, seeded.estimate);
   const grid = page.getByRole("treegrid", { name: "Grille de devis" });

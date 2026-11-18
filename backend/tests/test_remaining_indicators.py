@@ -5,9 +5,10 @@
 ``getRemainingIndicators`` on a project In progress (``remaining_support``): a reference of three
 sets — the cabling, the tests and what no subproject bears — budgeted 1 000, 500 of actual cost
 imported, a review marked In progress at 600 and a current revision at 550. The total and its
-ventilation, the margin on the reference and the difference with the review before, the margin and
-the zone of each subproject, the absent deltas, the revision read, the coverage at nought. The
-margins of the module run without a base. Every answer is checked against the contract.
+ventilation, the margin on the reference and the difference with the revision marked before (the
+offer when it is alone), the margin and the zone of each subproject, the absent deltas, the
+revision read, the coverage at nought. The margins of the module run without a base. Every answer
+is checked against the contract.
 
 The socle (US-1580/L1) fixed the results EP-10 reads, which the first test keeps.
 """
@@ -309,8 +310,8 @@ def test_budget_1000_cost_500_remaining_550_give_a_margin_of_minus_50_and_a_diff
     api: ContractClient, stage: Scene, reviewed: Tree
 ) -> None:
     # « Sur un projet de budget 1 000, de coût réel 500 et de reste à engager 550, la marge sur le
-    # budget vaut - 50 ; un reste à engager passé de 600 à 550 depuis la revue précédente donne un
-    # écart de - 50. » The review before is the revision marked In progress at 600.
+    # budget vaut - 50 ; un reste à engager passé de 600 à 550 depuis la révision marquée
+    # précédente donne un écart de - 50. » The revision marked before is the one In progress at 600.
     body = indicators(api, stage)
     assert (body["total"], body["delta_to_reference"]) == ("550.00", "-50.00")
     assert body["delta_to_previous_revision"] == "-50.00"
@@ -388,17 +389,44 @@ def test_the_margin_of_the_project_is_the_sum_of_those_of_its_subprojects_the_un
 
 @pytest.mark.requirement("WF-RAE-0020-A")
 @pytest.mark.usefixtures("review")
-def test_without_a_review_before_the_difference_is_null_and_without_a_reference_so_is_the_margin(
+def test_the_revision_before_one_whose_only_predecessor_is_the_offer_is_the_offer(
     api: ContractClient, stage: Scene
 ) -> None:
-    # « Sur un projet dont aucune révision n'a été marquée à l'état En cours avant celle qui est
-    # lue, l'écart correspondant est absent plutôt que nul ; sur un projet sans révision de
-    # référence, la marge sur le budget l'est aussi. » The reference was marked in pricing: an
-    # offer is not a review; the current revision has a margin and no difference.
+    # « la révision précédente d'une révision dont la seule devancière est l'offre est l'offre,
+    # pour les indicateurs de devis comme pour ceux du reste à engager » (US-1670, #3663): the
+    # reference was marked in pricing and nothing since; the current revision, its successor, is
+    # measured to it, a difference of 0.00 and not null.
     body = indicators(api, stage)
-    assert body["delta_to_previous_revision"] is None
+    assert body["delta_to_previous_revision"] == "0.00"
     assert body["delta_to_reference"] == "-500.00"
     assert body["total"] == "1000.00"
+
+
+@pytest.mark.requirement("WF-RAE-0020-A")
+def test_the_estimate_and_the_remaining_name_the_offer_as_the_revision_before_the_one_after_it(
+    api: ContractClient, stage: Scene, review: Review
+) -> None:
+    # « le service du reste à engager s'aligne sur celui du devis » (US-1670, #3663): the current
+    # revision, brought to 900 from the offer's 1 000, is measured to the offer by both services;
+    # the offer's own totals are read apart, not from the fields under test.
+    reestimate(review.tree, "Fournitures", "300")
+    offer = review.reference["revision_id"]
+    path = f"{PROJECTS}/{stage.project['project_id']}/estimate-indicators"
+    estimates: dict[str, Any] = {}
+    for key, query in (("current", ""), ("offer", f"?revision_id={offer}")):
+        answer = api.get(path + query, headers=stage.manager.headers)
+        assert answer.status_code == 200, answer.text
+        estimates[key] = answer.json()
+    body = indicators(api, stage)
+    assert body["total"] == "900.00"
+    assert D(body["delta_to_previous_revision"]) == D(body["total"]) - D(
+        indicators(api, stage, offer)["total"]
+    )
+    assert body["delta_to_previous_revision"] == "-100.00"
+    assert estimates["current"]["delta_to_previous_revision"] is not None
+    assert D(estimates["current"]["delta_to_previous_revision"]["value"]) == D(
+        estimates["current"]["total"]["value"]
+    ) - D(estimates["offer"]["total"]["value"])
 
 
 @pytest.mark.requirement("WF-RAE-0020-A")
@@ -557,14 +585,22 @@ def test_the_revision_named_is_read_else_the_current_one_else_the_last_one_marke
     api: ContractClient, stage: Scene, reviewed: Tree, review: Review
 ) -> None:
     # « getRemainingIndicators lit la révision nommée, ou la révision en cours, ou la dernière
-    # marquée sans elle. » The reference, marked in pricing, is read at its 1 000 with no review
-    # before; the review marked In progress at 600, with the margin of its time.
+    # marquée sans elle. » The reference, marked in pricing, is read at its 1 000 with nothing
+    # before; the review marked In progress at 600, after the offer (US-1670, #3663). A marked
+    # revision is read as its marking kept it (US-1670/L2, ``is_stored``): the reference was
+    # designated after the marking of the first, and the review, marked at once, kept the margin
+    # of its time.
     named = indicators(api, stage, review.reference["revision_id"])
     assert (named["total"], named["context"]["revision_status"]) == ("1000.00", "marked")
-    assert (named["delta_to_previous_revision"], named["delta_to_reference"]) == (None, "-500.00")
+    assert named["context"]["is_stored"] is True
+    assert (named["delta_to_previous_revision"], named["delta_to_reference"]) == (None, None)
     marked = indicators(api, stage, review.tree.revision["revision_id"])
     assert (marked["total"], marked["context"]["revision_status"]) == ("600.00", "marked")
-    assert (marked["delta_to_previous_revision"], marked["delta_to_reference"]) == (None, "-100.00")
+    assert marked["context"]["is_stored"] is True
+    # The review was marked after the reference was designated: it kept a difference that is not 0,
+    # and, its only predecessor being the offer, its remaining less the offer's: 600 - 1 000.
+    kept = (marked["delta_to_previous_revision"], marked["delta_to_reference"])
+    assert kept == ("-400.00", "-100.00")
     # The current revision is marked in its turn: no revision is current, the last marked is read,
     # with the review before it.
     review_marked(stage, reviewed.revision, "v3.0")

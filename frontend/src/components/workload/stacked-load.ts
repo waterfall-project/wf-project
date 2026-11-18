@@ -4,9 +4,9 @@
  * What the two workload charts share (WF-DEV-0070, WF-PTF-0060): the load of each role in a stack
  * of bars, one bar per month divided by role, in the look of the charts (`bars`) — told apart
  * without its colour when the account asks for the patterns —, the tooltip of a month that names
- * the roles and their hours, and the total of a month that labels the top of its bar. The hours
- * are the strings of the API, which ECharts reads a position from, and the total of a month is
- * the server's (`monthly_totals`): nothing is summed here (WF-ARC-0020).
+ * the roles and their values — hours, or amounts —, and the total of a month that labels the top
+ * of its bar. The values are the strings of the API, which ECharts reads a position from, and the
+ * total of a month is the server's (`monthly_totals`): nothing is summed here (WF-ARC-0020).
  */
 "use client";
 
@@ -20,7 +20,24 @@ import type { Locale } from "@/i18n/locale";
 /** A role and its load by month, as the contract names them. */
 export interface LoadRole {
   readonly label: string;
-  readonly months: readonly { readonly month: string; readonly hours: string }[];
+  readonly months: readonly { readonly month: string; readonly value: string }[];
+}
+
+/**
+ * A load of the API aligned for the stack: the contract names its values `hours`, or `amount`, where
+ * the stack reads a `value` — the same strings, only renamed (WF-ARC-0020).
+ */
+export function alignedLoad<K extends string>(
+  series: readonly {
+    readonly label: string;
+    readonly months: readonly ({ readonly month: string } & Readonly<Record<K, string>>)[];
+  }[],
+  key: K,
+): LoadRole[] {
+  return series.map(({ label, months }) => ({
+    label,
+    months: months.map((each) => ({ month: each.month, value: each[key] })),
+  }));
 }
 
 /** The name of the stack all the roles share. */
@@ -41,12 +58,12 @@ export function stackedRoles(palette: ChartPalette, roles: readonly LoadRole[]) 
     ...new Set(roles.flatMap((role) => role.months.map((each) => each.month))),
   ].sort();
   return roles.map((role, rank) => {
-    const hours = new Map(role.months.map((each) => [each.month, each.hours]));
+    const values = new Map(role.months.map((each) => [each.month, each.value]));
     return {
       ...bars(palette, rank),
       name: role.label,
       stack: STACK,
-      data: months.map((month) => [planningInstant(month), hours.get(month) ?? EMPTY]),
+      data: months.map((month) => [planningInstant(month), values.get(month) ?? EMPTY]),
     };
   });
 }
@@ -59,8 +76,9 @@ export function stackedRoles(palette: ChartPalette, roles: readonly LoadRole[]) 
 export function monthTotals(
   palette: ChartPalette,
   name: string,
-  totals: readonly { readonly month: string; readonly hours: string }[],
+  totals: readonly { readonly month: string; readonly value: string }[],
   locale: Locale,
+  amount: (value: string) => string = (value) => formatDecimal(value, locale),
 ): LineSeriesOption {
   return {
     type: "line",
@@ -71,20 +89,20 @@ export function monthTotals(
     silent: true,
     // It stays as it is while a role under the pointer fades the others.
     blur: { label: { opacity: 1 } },
-    data: totals.map((total) => [planningInstant(total.month), total.hours]),
+    data: totals.map((total) => [planningInstant(total.month), total.value]),
     label: {
       show: true,
       position: "top",
       color: palette.text,
       formatter: (point) => {
-        const [, hours] = pointOf(point.value);
-        return typeof hours === "string" ? formatDecimal(hours, locale) : "";
+        const [, value] = pointOf(point.value);
+        return typeof value === "string" ? amount(value) : "";
       },
     },
   };
 }
 
-/** The `[instant, hours]` a point of a series holds, as ECharts hands it back; nothing otherwise. */
+/** The `[instant, value]` a point of a series holds, as ECharts hands it back; nothing otherwise. */
 function pointOf(value: unknown): readonly unknown[] {
   return Array.isArray(value) ? value : [];
 }
@@ -99,7 +117,8 @@ function pointOf(value: unknown): readonly unknown[] {
 export function monthTooltip(
   palette: ChartPalette,
   locale: Locale,
-  unit: (hours: string) => string,
+  unit: (value: string) => string,
+  amount: (value: string) => string = (value) => formatDecimal(value, locale),
 ): TooltipComponentOption {
   return {
     trigger: "axis",
@@ -112,9 +131,9 @@ export function monthTooltip(
       // A role without load that month holds an empty point: it is not listed.
       const loaded = rows.filter((row) => pointOf(row.value)[1] !== EMPTY);
       const lines = loaded.map((row) => {
-        const [, hours] = pointOf(row.value);
+        const [, value] = pointOf(row.value);
         const marker = typeof row.marker === "string" ? row.marker : "";
-        const shown = typeof hours === "string" ? formatDecimal(hours, locale) : "";
+        const shown = typeof value === "string" ? amount(value) : "";
         return `${marker}${escapeHtml(row.seriesName ?? "")} <b>${escapeHtml(unit(shown))}</b>`;
       });
       return [`<b>${escapeHtml(month)}</b>`, ...lines].join("<br/>");

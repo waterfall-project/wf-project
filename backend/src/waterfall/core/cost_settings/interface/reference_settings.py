@@ -77,6 +77,21 @@ class IndexThresholds:
     schedule_alert: Decimal
 
 
+def plain_decimal(value: Decimal) -> str:
+    """Write a decimal as the contract's examples do, without a useless zero: ``0.1``."""
+    return format(value.normalize(), "f")
+
+
+def thresholds_document(thresholds: IndexThresholds) -> dict[str, str]:
+    """Write the thresholds of the indices as the contract writes them (``IndexThresholds``)."""
+    return {
+        "cost_watch": plain_decimal(thresholds.cost_watch),
+        "cost_alert": plain_decimal(thresholds.cost_alert),
+        "schedule_watch": plain_decimal(thresholds.schedule_watch),
+        "schedule_alert": plain_decimal(thresholds.schedule_alert),
+    }
+
+
 @dataclass(frozen=True, slots=True)
 class SettingsChange:
     """What a writing changes: a field left ``None`` stays as it is."""

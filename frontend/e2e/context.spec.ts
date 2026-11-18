@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import { compile } from "./compile";
-import { openHydrated, WORKING } from "./hydration";
+import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
+import { checkOpened, type Opener } from "./opened";
 import { createOwnProject, openRevision } from "./own-project";
 import { rowAt } from "./scroll";
 
 // The reading context of the screens of a project, against the fake back and, tagged `@shared`,
 // against the service. The service plays the banner on the screens it serves: those of a project
-// created, its settings, its revisions, its planning (EP-06, US-1470), its estimate (EP-07, US-1560)
-// and its remaining to commit (EP-09). The screens of the risks and of the indicators wait for their
-// EPIC, each lifting its own entry.
+// created, its settings, its revisions, its planning (EP-06, US-1470), its estimate (EP-07, US-1560),
+// its remaining to commit (EP-09) and its indicators (EP-10, US-1730). The screen of the risks waits
+// for its EPIC, which lifts its own entry.
 const BEFORE_THE_RISKS = "EP-08 serves the risks";
-const BEFORE_THE_INDICATORS = "EP-10 serves the indicators the banner filters";
 const BEFORE_THE_DIFFERENTIALS = "EP-08 serves the differential structures of a revision";
 
 // The fake back serves the first example of each operation: the project in progress, its
@@ -43,12 +44,18 @@ test("each screen of the data of a project names the project and the revision sh
   // leads to, compiled first (`e2e/compile.ts`).
   await compile(page.request, `${IN_REVISION}/risks`, `${IN_REVISION}/planning`);
   await page.goto(`${IN_REVISION}/remaining`);
-  await expect(banner(page).getByRole("definition")).toHaveText([
+  // The definition of the button of the base is empty: the facts are the definitions with a text.
+  await expect(banner(page).getByRole("definition").filter({ hasText: /\S/ })).toHaveText([
     "Modernisation du poste de commande",
     "Révision en cours",
     "En cours d’élaboration",
     "Copie de « Référence »",
   ]);
+  // The choice of a base, a button alone while the grid compares nothing, named for a screen reader
+  // (US-2330).
+  await expect(
+    banner(page).getByRole("button", { name: "Choisir une base de comparaison" }),
+  ).toBeVisible();
 
   // From one function of the revision to the next, the banner names the same context.
   await page
@@ -70,7 +77,6 @@ test("each screen of the data of a project names the project and the revision sh
 test("an active filter is visible without opening the panel of filters @shared [WF-IHM-0020-A]", async ({
   page,
 }) => {
-  test.skip(inService, BEFORE_THE_INDICATORS);
   // The indicators read both the sub-project and the date: their banner shows both (#302).
   await page.goto(`${IN_REVISION}/indicators?subproject_id=${SUBPROJECT}&as_of=2026-05-31`);
   const chips = banner(page).getByRole("list", { name: "Filtres actifs" }).getByRole("listitem");
@@ -141,6 +147,37 @@ test("a grid opened on a differential structure names it, chosen in the banner, 
   await expect(facts.filter({ hasText: /^Avenant$/ })).toHaveCount(0);
 });
 
+test("from the same grid, another revision of the project opens without going through the history, the sub-project filtered kept [WF-IHM-0020-A]", async ({
+  page,
+}) => {
+  // Depuis la même grille, il ouvre une autre révision du projet sans passer par l'historique. The
+  // fake back lists the revisions of the witness (`revisions`), and answers any of them by its first
+  // example: the address says the revision opened, the same screen with the same sub-project.
+  const reference = "01926f3a-7c00-7000-8000-000000000101";
+  await openHydrated(page, `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
+  await banner(page)
+    .getByRole("button", { name: "Changer de révision, «\u00a0Révision en cours\u00a0» lue" })
+    .click();
+  const menu = page.getByRole("menu");
+  await expect(menu.getByRole("menuitemradio")).toHaveText([
+    "Révision en cours",
+    "Référence (référence)",
+    "Offre v1.0",
+  ]);
+  await expect(menu.getByRole("menuitemradio", { checked: true })).toHaveText("Révision en cours");
+  await menu.getByRole("menuitemradio", { name: "Référence (référence)" }).click();
+  await expect(page).toHaveURL(
+    `/projects/${PROJECT}/revisions/${reference}/remaining?subproject_id=${SUBPROJECT}`,
+    { timeout: WORKING },
+  );
+  await expect(page.getByRole("treegrid", { name: "Grille de reste à engager" })).toBeVisible({
+    timeout: WORKING,
+  });
+  await expect(banner(page).getByRole("list", { name: "Filtres actifs" })).toContainText(
+    "SP-CMD — Poste de commande",
+  );
+});
+
 test("the screens of a project created name the project, then the revision opened, in the reading context, as the service keeps them @shared [WF-IHM-0020-A]", async ({
   page,
 }) => {
@@ -191,3 +228,101 @@ test("the estimate of a project created names the project and the revision in pr
   });
   await expect(page.getByRole("main").getByRole("note")).toHaveCount(0);
 });
+
+// The base of a comparison, chosen in the banner of the three grids (US-2330). The fake back lists
+// the revisions of the witness (`revisions`) — the current one, a copy of the reference, the
+// reference and the offer v1.0 —, and answers any comparison by its first example (`comparison`).
+const REFERENCE = "01926f3a-7c00-7000-8000-000000000101";
+const COMPARED = `base_revision_id=${REFERENCE}`;
+const CHOOSE_BASE = "Choisir une base de comparaison";
+const CHANGE_BASE = "Changer de base, «\u00a0Référence\u00a0» comparée";
+const COMPARED_TO = "Comparée à «\u00a0Référence\u00a0»";
+
+test("from the estimate of the revision under way, a marked revision is chosen for base without leaving the screen, which names it, and the comparison is lifted without opening any panel [WF-IHM-0020-A]", async ({
+  page,
+}) => {
+  // Depuis la grille de devis de la révision en cours, l'utilisateur choisit une révision marquée
+  // pour base sans quitter l'écran ; l'écran la nomme, et la comparaison se lève sans ouvrir aucun
+  // panneau.
+  await openHydrated(page, `${IN_REVISION}/estimate`);
+  await banner(page).getByRole("button", { name: CHOOSE_BASE }).click();
+  const menu = page.getByRole("menu");
+  await expect(menu.getByRole("menuitemradio")).toHaveText(["Référence (référence)", "Offre v1.0"]);
+  await menu.getByRole("menuitemradio", { name: "Référence (référence)" }).click();
+  await expect(page).toHaveURL(`${IN_REVISION}/estimate?${COMPARED}`, { timeout: WORKING });
+  const compared = banner(page).getByRole("definition").filter({ hasText: COMPARED_TO });
+  await expect(compared).toBeVisible();
+  await expect(page.getByRole("treegrid", { name: "Grille de devis" })).toBeVisible({
+    timeout: WORKING,
+  });
+
+  // A link of the banner lifts the comparison: no menu, no panel.
+  await banner(page)
+    .getByRole("link", { name: "Lever la comparaison avec «\u00a0Référence\u00a0»" })
+    .click();
+  await expect(page).toHaveURL(`${IN_REVISION}/estimate`, { timeout: WORKING });
+  await expect(compared).toHaveCount(0);
+  await expect(banner(page).getByRole("button", { name: CHOOSE_BASE })).toBeVisible();
+});
+
+test("a comparison active on the planning is still active on the estimate, then on the remaining to commit, with the same base [WF-IHM-0010-A]", async ({
+  page,
+}) => {
+  // Une comparaison active sur le planning l'est encore sur le devis puis sur le reste à engager,
+  // avec la même base.
+  await openHydrated(page, `${IN_REVISION}/planning?${COMPARED}`);
+  const functions = page.getByRole("navigation", { name: "Fonctions" });
+  const compared = banner(page).getByRole("definition").filter({ hasText: COMPARED_TO });
+  await expect(compared).toBeVisible();
+  await functions.getByRole("link", { name: "Chiffrage et devis", exact: true }).click();
+  await expect(page).toHaveURL(`${IN_REVISION}/estimate?${COMPARED}`, { timeout: WORKING });
+  await expect(compared).toBeVisible();
+  await functions.getByRole("link", { name: "Estimation du reste à engager", exact: true }).click();
+  await expect(page).toHaveURL(`${IN_REVISION}/remaining?${COMPARED}`, { timeout: WORKING });
+  await expect(compared).toBeVisible();
+  await expect(page.getByRole("treegrid", { name: "Grille de reste à engager" })).toBeVisible({
+    timeout: WORKING,
+  });
+});
+
+// The windows and the modes of the harness of the screens (`accessibility.spec.ts`): 1366 points and
+// 911, what a zoom of 150 % leaves of it, in light and in dark mode.
+const WINDOWS = [
+  { width: 1366, height: 768 },
+  { width: 911, height: 512 },
+] as const;
+
+for (const mode of ["light", "dark"] as const) {
+  test.describe(`in ${mode} mode`, () => {
+    test.use({ colorScheme: mode });
+    testChoices();
+  });
+}
+
+function testChoices(): void {
+  test(`the two choices of the banner, the revision read and the base, open their menus at the keyboard, the focus in each, and pass axe's rules for WCAG A and AA at 1366 and at 911 points (#3759) [WF-IHM-0020-A]`, async ({
+    page,
+  }) => {
+    // Les deux choix se font au clavier comme au pointeur, et la révision lue comme la base se disent
+    // à un lecteur d'écran (US-2330). The banner is outside `main`: the harness of the screens plays
+    // its triggers on the screen of reference alone, which names no revision (`opened.ts`).
+    const address = `${IN_REVISION}/planning?${COMPARED}`;
+    for (const size of WINDOWS) {
+      const width = `${String(size.width)} points`;
+      const reopen = async (): Promise<void> => {
+        await page.setViewportSize(size);
+        await openHydrated(page, address);
+      };
+      await reopen();
+      for (const name of [
+        "Changer de révision, «\u00a0Révision en cours\u00a0» lue",
+        CHANGE_BASE,
+      ]) {
+        const at = banner(page).getByRole("button", { name });
+        await expect(at).toHaveAttribute("aria-haspopup", "menu");
+        const opener: Opener = { opens: "menu", said: `the menu « ${name} »`, at, shell: true };
+        await checkOpened(page, opener, width, reopen);
+      }
+    }
+  });
+}

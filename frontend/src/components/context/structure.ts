@@ -13,6 +13,7 @@
  */
 import type { components } from "@/api/generated/schema";
 import { filterHref } from "@/components/grid/filters";
+import { BASE_PARAMETER } from "@/navigation/context";
 
 /** The parameter of the address that names the structure a grid reads. */
 export const STRUCTURE_PARAMETER = "structure";
@@ -67,16 +68,18 @@ export function runsOfKind(
 /**
  * The address of the same screen on a structure, the rest of its query kept — the search, the
  * sort, the filters —: the main structure lifts the parameter, the address naming none reading it.
+ * Another structure lifts the base of a comparison besides, which the main one alone is compared to
+ * (US-2330).
  */
 export function structureHref(
   pathname: string,
   query: URLSearchParams,
   structure: Pick<ListedStructure, "structure_id" | "kind">,
 ): string {
-  return filterHref(
-    pathname,
-    query,
-    STRUCTURE_PARAMETER,
-    structure.kind === "main" ? undefined : structure.structure_id,
-  );
+  if (structure.kind === "main") {
+    return filterHref(pathname, query, STRUCTURE_PARAMETER, undefined);
+  }
+  const uncompared = new URLSearchParams(query);
+  uncompared.delete(BASE_PARAMETER);
+  return filterHref(pathname, uncompared, STRUCTURE_PARAMETER, structure.structure_id);
 }

@@ -58,6 +58,18 @@ DATA = {
     # What the workload of a project names: the label of a role and of the node asked, and the
     # scope of a calculation (``project``, ``unassigned`` or the identifier of a subproject).
     "WorkloadPlan.roles.label": "a label",
+    "WorkloadTask.label": "a label",
+    # What the projection of spending names: the label a person gave a nature and a category of
+    # cost, as the reference data read them (``getProjectSpending``, US-2050).
+    "SpendingCostType.label": "a label",
+    "SpendingCategory.label": "a label",
+    # The label of a milestone the diagram of the time/time tracking draws.
+    "MilestoneTracking.milestones.label": "a label",
+    # What the evolution of the indices names: the scope of a curve, a subproject by its label, and
+    # the version name a person gave to a marked revision.
+    "IndexHistoryScope.scope": "a scope",
+    "IndexHistoryScope.label": "a label",
+    "IndexHistoryPoint.version_name": "a name",
     "WorkloadPlan.org_node_label": "a label",
     "CalculationContext.scope": "a scope",
     # The label a person gave an element of the work breakdown, and that of the task that bears it.

@@ -7,7 +7,7 @@ import { LEAF_ICONS } from "@/components/shell/function-display";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example } from "@/test/fixtures";
 
-import { readContext } from "./context";
+import { BASE_PARAMETER, readContext } from "./context";
 import {
   diagnosticGroups,
   findScreen,
@@ -114,13 +114,14 @@ describe("the table of the functions", () => {
 describe("the leaves of the table", () => {
   const leaves = FUNCTIONS.flatMap((fn) => (fn.leaves ?? []).map((leaf) => ({ fn, leaf })));
 
-  it("hold the correspondence of the actual costs of the cost settings (FBS-3.1.3), the timelines, the imports and exports and the task tree of the planning (FBS-4.3.1, FBS-4.3.4, FBS-4.3.5), the workload of the project, a leaf of the estimate (FBS-4.4.4), and the Kanban of the remaining to commit (FBS-4.5.3)", () => {
+  it("hold the correspondence of the actual costs of the cost settings (FBS-3.1.3), the timelines, the imports and exports and the task tree of the planning (FBS-4.3.1, FBS-4.3.4, FBS-4.3.5), the workload and the spending projection of the project, leaves of the estimate (FBS-4.4.4, FBS-4.4.5), and the Kanban of the remaining to commit (FBS-4.5.3)", () => {
     expect(leaves.map(({ fn, leaf }) => [fn.code, leaf.code])).toEqual([
       ["FBS-3.1", "FBS-3.1.3"],
       ["FBS-4.3", "FBS-4.3.1"],
       ["FBS-4.3", "FBS-4.3.4"],
       ["FBS-4.3", "FBS-4.3.5"],
       ["FBS-4.4", "FBS-4.4.4"],
+      ["FBS-4.4", "FBS-4.4.5"],
       ["FBS-4.5", "FBS-4.5.3"],
     ]);
     expect(leafOf("FBS-3.1.3").route).toBe("/reference/costs/actual-cost-mapping");
@@ -129,6 +130,7 @@ describe("the leaves of the table", () => {
       "/projects/[projectId]/revisions/[revisionId]/exchanges",
     );
     expect(leafOf("FBS-4.4.4").route).toBe("/projects/[projectId]/revisions/[revisionId]/workload");
+    expect(leafOf("FBS-4.4.5").route).toBe("/projects/[projectId]/revisions/[revisionId]/spending");
     expect(leafOf("FBS-4.3.1").route).toBe(
       "/projects/[projectId]/revisions/[revisionId]/timelines",
     );
@@ -338,6 +340,42 @@ describe("the address of a function", () => {
     expect(functionHref(estimate, mistaken)).toBe(`${IN_PROJECT}/estimate`);
   });
 
+  it("carries an active comparison from the planning to the estimate then to the remaining to commit, with the same base [WF-IHM-0010-A]", () => {
+    // Une comparaison active sur le planning l'est encore sur le devis puis sur le reste à engager,
+    // avec la même base.
+    const base = "01926f3a-7c00-7000-8000-000000000101";
+    const compared = `${BASE_PARAMETER}=${base}`;
+    const estimate = find("FBS-4.4");
+    const remaining = find("FBS-4.5");
+    const onPlanning = readContext(`${IN_PROJECT}/planning`, new URLSearchParams(compared));
+    expect(functionHref(estimate, onPlanning)).toBe(`${IN_PROJECT}/estimate?${compared}`);
+    const onEstimate = readContext(`${IN_PROJECT}/estimate`, new URLSearchParams(compared));
+    expect(functionHref(remaining, onEstimate)).toBe(`${IN_PROJECT}/remaining?${compared}`);
+    const onRemaining = readContext(`${IN_PROJECT}/remaining`, new URLSearchParams(compared));
+    expect(functionHref(planning, onRemaining)).toBe(`${IN_PROJECT}/planning?${compared}`);
+  });
+
+  it("carries the base to the three grids alone: no other function, nor one of the project itself", () => {
+    // La base est portée par les liens entre ces trois grilles seulement (US-2330).
+    const base = "01926f3a-7c00-7000-8000-000000000101";
+    const onPlanning = readContext(
+      `${IN_PROJECT}/planning`,
+      new URLSearchParams({ [BASE_PARAMETER]: base, subproject_id: SUBPROJECT }),
+    );
+    expect(functionHref(find("FBS-4.6"), onPlanning)).toBe(
+      `${IN_PROJECT}/risks?subproject_id=${SUBPROJECT}`,
+    );
+    expect(functionHref(lifecycle, onPlanning)).toBe(
+      `/projects/${PROJECT}/lifecycle?revision_id=${REVISION}&subproject_id=${SUBPROJECT}`,
+    );
+    // A screen that compares nothing reads no base, and carries none back to a grid.
+    const elsewhere = readContext(
+      `${IN_PROJECT}/risks`,
+      new URLSearchParams({ [BASE_PARAMETER]: base }),
+    );
+    expect(functionHref(planning, elsewhere)).toBe(`${IN_PROJECT}/planning`);
+  });
+
   it("offers the functions of the project itself in a project without a revision", () => {
     const context = readContext(`/projects/${PROJECT}`, new URLSearchParams());
     expect(functionHref(revisions, context)).toBe(`/projects/${PROJECT}/revisions`);
@@ -371,6 +409,7 @@ describe("the function an address leads to", () => {
     [["projects", PROJECT, "lifecycle"], "FBS-4.9", PROJECT, undefined],
     [["projects", PROJECT, "revisions"], "FBS-4.1", PROJECT, undefined],
     [["projects", PROJECT, "revisions", REVISION, "workload"], "FBS-4.4.4", PROJECT, REVISION],
+    [["projects", PROJECT, "revisions", REVISION, "spending"], "FBS-4.4.5", PROJECT, REVISION],
     [["projects", PROJECT, "revisions", REVISION, "exchanges"], "FBS-4.3.4", PROJECT, REVISION],
   ])("is found from %j", (segments, code, projectId, revisionId?: string) => {
     const screen = findScreen(segments);

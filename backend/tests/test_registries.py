@@ -8,9 +8,10 @@ designates a reference without asking for them, in silence. Each entry point —
 (``create_app``), the worker (``handlers``), the loader of the witness (``load_witness``) — is
 imported in a process of its own, and its registries compared with those of a process that imports
 every module of the core and of the witness: none lacks an extension that a module registers — the
-worker those of the estimate included, which it imports from US-1500/L2 on (EP-07, "Le worker"), and
-those of the actual costs, which it imports from US-1610/L2 on (EP-09, "Le worker"). What the socles
-of EP-06, EP-07 and EP-09 register is named, so that the comparison is never between two empty
+worker those of the estimate included, which it imports from US-1500/L2 on (EP-07, "Le worker"),
+those of the actual costs, which it imports from US-1610/L2 on (EP-09, "Le worker"), and those of
+the indicators, which it imports from US-1670/L1 on (EP-10, "Le worker"). What the socles of
+EP-06, EP-07, EP-09 and EP-10 register is named, so that the comparison is never between two empty
 lists.
 
 Then how each registry acts, details of the realization which reprise no Vérif: the closing of a
@@ -32,6 +33,7 @@ from uuid import UUID, uuid4
 import pytest
 from estimate_support import give_a_line
 from planning_support import give_a_task
+from project_rows import insert_project
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from sqlalchemy import select
@@ -64,8 +66,10 @@ from waterfall.core.planning.interface import (
 from waterfall.core.projects.interface import (
     Attachments,
     detach_item,
+    hold_items,
     item_cited,
     register_attachments,
+    share_items,
 )
 from waterfall.core.resource_settings.interface import (
     DEFAULT_UNITS,
@@ -155,7 +159,7 @@ CLOSING = "revisions.closing"
 # found by their kind, which has one at most — the actual costs, which the planning neither imports
 # nor is imported by, register theirs before or after the planning's, as a process imports them.
 BY_KIND = {"exchanges.formats", "exchanges.exporters"}
-# Every registry of the core and of the witness EP-04, EP-06, EP-07 and EP-09 declare.
+# Every registry of the core and of the witness EP-04, EP-06, EP-07, EP-09 and EP-10 declare.
 DECLARED = {
     "revisions.copy",
     "revisions.tasks_and_lines",
@@ -174,6 +178,7 @@ DECLARED = {
     "planning.facets",
     "planning.open_lines",
     "planning.zeroed_at",
+    "planning.physical_progress",
     "exchanges.formats",
     "exchanges.exporters",
     "witness.revision_fillers",
@@ -185,7 +190,7 @@ PLANNING = "waterfall.core.planning.interface"
 REGISTERED = {
     "revisions.copy": [
         "waterfall.core.revisions.interface.structures.copy_structures",
-        f"{PLANNING}.nodes.copy_nodes",
+        f"{PLANNING}.copying.copy_nodes",
         f"{PLANNING}.reference.redate_copy",
     ],
     "revisions.tasks_and_lines": [f"tasks:{PLANNING}.nodes.revision_has_tasks"],
@@ -194,7 +199,9 @@ REGISTERED = {
     "projects.attachments": [
         (
             f"Attachments({PLANNING}.work_breakdown.work_breakdown_item_cited, "
-            f"{PLANNING}.work_breakdown.detach_work_breakdown_item)"
+            f"{PLANNING}.work_breakdown.detach_work_breakdown_item, "
+            f"{PLANNING}.work_breakdown.hold_work_breakdown_items, "
+            f"{PLANNING}.work_breakdown.share_work_breakdown_revision)"
         )
     ],
     "projects.opening": [f"{PLANNING}.skeleton.opening_with_tasks"],
@@ -214,7 +221,7 @@ CORE = "waterfall.core.estimate"
 # The hooks of the facet of the lines, in the order of ``FacetHooks`` (US-1490/L3).
 LINE_HOOKS = (
     f"{CORE}.reading.read_lines",
-    f"{ESTIMATE}.facet.copy_lines",
+    f"{CORE}.copying.copy_lines",
     f"{ESTIMATE}.facet.delete_lines",
     f"{ESTIMATE}.facet.line_calendars",
     f"{CORE}.writing.create_line",
@@ -229,6 +236,11 @@ LINE_HOOKS = (
     f"{CORE}.pasting.judge_line_cell",
     f"{CORE}.pasting.write_line_cell",
     "waterfall.core.cost_settings.records.share_natures",
+    f"{CORE}.reading.line_columns",
+    f"{CORE}.tallying.line_tallies",
+    f"{CORE}.tallying.line_provisions",
+    # The inert fields of a line (US-2250), a tuple, its names joined.
+    "estimate_line.label:estimate_line.payment_delay_days:estimate_line.subproject_id",
 )
 # What the estimate answers the projects of its lines (US-1490/L4), in the order of
 # ``EstimateFacts``.
@@ -263,14 +275,12 @@ REGISTERED_BY_EP07 = {
     "revisions.designation": [f"{ESTIMATE}.rates.refresh_budgeted"],
 }
 COSTS = "waterfall.core.costs.interface"
-# What the socle of EP-09 registers without effect (US-1580/L1), each in the order it acts: the copy
-# of the remaining to commit of the review before, after the lines and the rates; the formats and
-# the exporter of the remaining to commit and of the actual costs, by their kind; and what the
-# actual costs answer the projects of a subproject (US-1610/L3), in the order of ``CostFacts``; and
-# the own lines that hold a summary task open, which the estimate tells the planning (US-1590/L1),
-# and when they were set to nought (US-1650/L2, #2803).
+# What the socle of EP-09 registers without effect (US-1580/L1), each in the order it acts: the
+# formats and the exporter of the remaining to commit and of the actual costs, by their kind; and
+# what the actual costs answer the projects of a subproject (US-1610/L3), in the order of
+# ``CostFacts``; and the own lines that hold a summary task open, which the estimate tells the
+# planning (US-1590/L1), and when they were set to nought (US-1650/L2, #2803).
 REGISTERED_BY_EP09 = {
-    "revisions.copy": [f"{ESTIMATE}.remaining.copy_previous"],
     "projects.cost_facts": [
         (
             f"CostFacts({COSTS}.subprojects.subproject_has_actual_costs, "
@@ -284,6 +294,13 @@ REGISTERED_BY_EP09 = {
     "exchanges.exporters": [f"remaining:{ESTIMATE}.remaining_excel.RemainingExporter"],
     "planning.open_lines": [f"{ESTIMATE}.kanban.open_lines"],
     "planning.zeroed_at": [f"{ESTIMATE}.kanban.zeroed_lines"],
+}
+INDICATORS = "waterfall.core.indicators.interface"
+# What the socle of EP-10 registers (US-1660/L1): what a marking keeps of the indicators, which
+# US-1670/L1 fills; and the physical progress of the summaries a reading gives (US-1680).
+REGISTERED_BY_EP10 = {
+    "revisions.indicators": [f"{INDICATORS}.storing.store_indicators"],
+    "planning.physical_progress": [f"{INDICATORS}.physical_progress.physical_progress"],
 }
 
 
@@ -356,14 +373,27 @@ def test_every_registry_holds_what_the_socle_of_ep09_registers_after_the_estimat
     everything: dict[str, list[str]],
 ) -> None:
     # The extensions of the remaining to commit and of the actual costs, beside those of EP-06 and
-    # EP-07; the copy of the remaining of the review before comes last, after the lines and the
-    # rates it reads. Nothing answers the coverage of the risks before EP-08.
+    # EP-07; the remaining of the review before is no copy of its own: the copy of the lines writes
+    # it (US-2240/L2), and the copy of the rates comes last. Nothing answers the coverage of the
+    # risks before EP-08.
     others = before(REGISTERED, REGISTERED_BY_EP07)
     for name, entries in REGISTERED_BY_EP09.items():
         held = [entry for entry in everything[name] if entry not in others.get(name, set())]
         assert held == entries, name
-    assert everything["revisions.copy"][-1] == f"{ESTIMATE}.remaining.copy_previous"
+    assert everything["revisions.copy"][-1] == f"{CORE}.keeping.copy_rates"
     assert everything["estimate.coverage"] == []
+
+
+def test_every_registry_holds_what_the_socle_of_ep10_registers_after_the_others(
+    everything: dict[str, list[str]],
+) -> None:
+    # The indicators keep their part of a marking, beside the socles before them: nothing else
+    # computes indicators at the marking before EP-11. They alone answer the physical progress of
+    # the summaries (US-1680).
+    others = before(REGISTERED, REGISTERED_BY_EP07, REGISTERED_BY_EP09)
+    for name, entries in REGISTERED_BY_EP10.items():
+        held = [entry for entry in everything[name] if entry not in others.get(name, set())]
+        assert held == entries, name
 
 
 @pytest.mark.parametrize("entry_point", sorted(ENTRY_POINTS))
@@ -372,8 +402,9 @@ def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
 ) -> None:
     # The API and the worker read no registry of the witness; the loader reads them all. The worker
     # imports the interface of the estimate (US-1500/L2): nothing lacks, its marking keeps images;
-    # and that of the actual costs (US-1610/L2): it analyses and applies an extraction, and the
-    # import of an estimate it applies asks whether a subproject bears costs.
+    # that of the actual costs (US-1610/L2): it analyses and applies an extraction, and the import
+    # of an estimate it applies asks whether a subproject bears costs; and that of the indicators
+    # (US-1670/L1): its markings keep the indicators, as the API's and the loader's.
     held = registered_in(ENTRY_POINTS[entry_point])
     read = {
         name: entries
@@ -383,6 +414,8 @@ def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
     assert {name: held.get(name) for name in read} == read
     assert held["projects.cost_facts"] == REGISTERED_BY_EP09["projects.cost_facts"]
     assert f"actual_costs:{COSTS}.actual_costs.ActualCostsFormat" in held["exchanges.formats"]
+    assert held["revisions.indicators"] == REGISTERED_BY_EP10["revisions.indicators"]
+    assert held["planning.physical_progress"] == REGISTERED_BY_EP10["planning.physical_progress"]
 
 
 @pytest.fixture
@@ -472,7 +505,9 @@ def test_a_marking_registered_keeps_its_part_before_the_indicators_of_the_revisi
         assert (marking.project_id, marking.at) == (UUID(stage.project["project_id"]), at)
         ran.append(("kept", marking.revision_id, str(status)))
 
-    def compute(_session: Session, revision_id: UUID) -> None:
+    def compute(_session: Session, revision_id: UUID, act: Act) -> None:
+        # The act of the marking: its instant, which the indicators are computed at (EP-10).
+        assert act.at == at
         ran.append(("computed", revision_id, "draft"))
 
     at = utc_now()
@@ -596,7 +631,9 @@ def test_a_recalculation_registered_runs_once_what_dates_the_plannings_is_writte
         install_duration_units(session, act)
         calendar = create_calendar(session, ATELIER, act)
     with ExitStack() as registered:
-        registered.callback(register_recalculation(lambda _session, _at: ran.append("redated")))
+        registered.callback(
+            register_recalculation(lambda _session, _at, _entered: ran.append("redated"))
+        )
         # The same constants sent again are written, and redate nothing; others redate.
         for units in (DEFAULT_UNITS, SEVEN_HOURS):
             with database.transaction() as session:
@@ -624,11 +661,15 @@ def test_a_recalculation_registered_runs_once_what_dates_the_plannings_is_writte
         assert ran == ["redated"] * 3
 
 
-def test_the_attachments_registered_tell_and_detach_an_element_of_the_work_breakdown(
+def test_the_attachments_registered_tell_share_hold_and_detach_an_element_of_the_work_breakdown(
     session: Session,
 ) -> None:
     detached: list[tuple[UUID, UUID]] = []
+    held: list[tuple[UUID, tuple[UUID, ...]]] = []
+    shared: list[UUID] = []
     project_id, item_id = uuid4(), uuid4()
+    # A project without revision: the planning registered shares none, and refuses an unknown one.
+    session.execute(insert_project(id=project_id))
     assert not item_cited(session, item_id)
     with ExitStack() as registered:
         registered.callback(
@@ -636,11 +677,17 @@ def test_the_attachments_registered_tell_and_detach_an_element_of_the_work_break
                 Attachments(
                     lambda _session, item: item == item_id,
                     lambda _session, project, item: detached.append((project, item)),
+                    lambda _session, project, items: held.append((project, tuple(items))),
+                    lambda _session, project: shared.append(project),
                 )
             )
         )
         assert (item_cited(session, item_id), item_cited(session, uuid4())) == (True, False)
+        share_items(session, project_id)
+        hold_items(session, project_id, [item_id])
         detach_item(session, project_id, item_id)
+    assert shared == [project_id]
+    assert held == [(project_id, (item_id,))]
     assert detached == [(project_id, item_id)]
 
 

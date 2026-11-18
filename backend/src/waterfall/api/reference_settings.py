@@ -14,8 +14,6 @@ is. A writing that carries no field writes nothing, the counter included. The cu
 written (WF-REF-0140).
 """
 
-from decimal import Decimal
-
 from fastapi import APIRouter, Depends
 
 from waterfall.api.actors import actor_ref
@@ -26,7 +24,9 @@ from waterfall.api.reference_settings_write import SettingsWrite, change_of
 from waterfall.core.cost_settings.interface import (
     FIELD_PERMISSIONS,
     ReferenceSettingsView,
+    plain_decimal,
     read_reference_settings,
+    thresholds_document,
     write_reference_settings,
 )
 from waterfall.platform.audit import Act
@@ -40,11 +40,6 @@ OPEN = [Depends(Requires())]
 WRITE = [Depends(Requires()), Depends(RequiresByField(FIELD_PERMISSIONS))]
 
 
-def _plain(value: Decimal) -> str:
-    """Write a decimal as the contract's examples do, without a useless zero: ``0.1``."""
-    return format(value.normalize(), "f")
-
-
 def reference_settings(view: ReferenceSettingsView, language: str) -> ReferenceSettings:
     """Describe the settings as the contract does, the language that of the installation."""
     matrix, thresholds = view.risk_matrix, view.index_thresholds
@@ -54,16 +49,11 @@ def reference_settings(view: ReferenceSettingsView, language: str) -> ReferenceS
             "company_name": view.company_name,
             "default_language": language,
             "risk_matrix": {
-                "probability_bounds": [_plain(bound) for bound in matrix.probability_bounds],
-                "severity_bounds": [_plain(bound) for bound in matrix.severity_bounds],
+                "probability_bounds": [plain_decimal(bound) for bound in matrix.probability_bounds],
+                "severity_bounds": [plain_decimal(bound) for bound in matrix.severity_bounds],
                 "zones": list(matrix.zones),
             },
-            "index_thresholds": {
-                "cost_watch": _plain(thresholds.cost_watch),
-                "cost_alert": _plain(thresholds.cost_alert),
-                "schedule_watch": _plain(thresholds.schedule_watch),
-                "schedule_alert": _plain(thresholds.schedule_alert),
-            },
+            "index_thresholds": thresholds_document(thresholds),
             "max_weeks_between_reviews": view.max_weeks_between_reviews,
             "audit": {
                 "created_at": view.created_at,

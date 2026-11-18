@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect } from "@playwright/test";
 
-import { openHydrated, WORKING } from "./hydration";
-import { bringInProgress, MARKING } from "./in-progress";
+import { MARKING, WORKING } from "./bounds";
+import { openHydrated } from "./hydration";
+import { bringInProgress } from "./in-progress";
 import { inService, test } from "./mode";
 import { createOwnProject, openRevision } from "./own-project";
 import { seedPlanning } from "./planning-seed";
@@ -54,15 +55,17 @@ test("the opening of a second current revision and the designation beyond the co
     /^Condition non remplie\s: aucune révision en cours d’élaboration\.$/,
   );
 
-  const designation = main.getByRole("region", { name: "Désignation de la référence" });
-  const offer = designation.getByRole("listitem", { name: "Offre v1.0" });
+  // The reference row quotes « Offre v1.0 » in its own text: the row is the one that opens it.
+  const offer = history
+    .getByRole("row")
+    .filter({ has: page.getByLabel("Ouvrir la révision « Offre v1.0 »") });
   const designate = offer.getByRole("button", { name: "Désigner comme référence" });
   await expect(designate).toHaveAttribute("aria-disabled", "true");
   await expect(designate).toHaveAccessibleDescription(/référence encore corrigeable/);
   // Pressed from the keyboard, as the order of the keyboard keeps it, it does nothing.
   await designate.focus();
   await page.keyboard.press("Enter");
-  await expect(designation.getByRole("form")).toHaveCount(0);
+  await expect(history.getByRole("form")).toHaveCount(0);
 });
 
 test("abandoning the current revision asks for a confirmation that says the return and the irreversibility, then leaves the revision @shared [WF-REV-0010-A]", async ({
@@ -142,9 +145,8 @@ test("a project created, a revision opened, marked by the worker, the designatio
   // The designation of the marked revision is refused for the lack of tasks and lines, and says so
   // (WF-CYC-0030): pressed from the keyboard, it opens nothing. A reference that bears them is
   // designated by the next path.
-  const designation = main.getByRole("region", { name: "Désignation de la référence" });
-  const designate = designation
-    .getByRole("listitem")
+  const designate = history
+    .getByRole("row")
     .filter({ hasText: "v1.0" })
     .getByRole("button", { name: "Désigner comme référence" });
   await expect(designate).toHaveAttribute("aria-disabled", "true");
@@ -153,7 +155,7 @@ test("a project created, a revision opened, marked by the worker, the designatio
   );
   await designate.focus();
   await page.keyboard.press("Enter");
-  await expect(designation.getByRole("form")).toHaveCount(0);
+  await expect(history.getByRole("form")).toHaveCount(0);
 
   // Another opened, then abandoned, confirmed: the project is back to its last marked revision,
   // which stays marked (WF-REV-0010, WF-REV-0090).

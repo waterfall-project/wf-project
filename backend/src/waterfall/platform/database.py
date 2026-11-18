@@ -23,10 +23,12 @@ from sqlalchemy import (
     Engine,
     MetaData,
     SQLColumnExpression,
+    Table,
     Text,
     Uuid,
     any_,
     bindparam,
+    column,
     create_engine,
     func,
     literal,
@@ -36,10 +38,11 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.types import TypeDecorator
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterable
+    from collections.abc import Generator, Iterable, Mapping
     from uuid import UUID
 
     from sqlalchemy.exc import IntegrityError
+    from sqlalchemy.sql.selectable import TableValuedAlias
 
 # The name of every constraint and index, declared once: a migration that writes none gets
 # these, and the tables the code declares get them too, so the two cannot drift apart.
@@ -82,6 +85,35 @@ def among(column: SQLColumnExpression[UUID | None], values: Iterable[UUID]) -> C
     times over (#3048).
     """
     return column == any_(bindparam(None, list(values), type_=ARRAY(Uuid())))
+
+
+def copies(mapping: Mapping[UUID, UUID], name: str) -> TableValuedAlias:
+    """Give identifiers and those of their copies as a table named ``name``: ``source``, ``copy``.
+
+    Two array parameters, unnested side by side: a copy of thousands of rows is then one
+    ``INSERT … SELECT`` that joins it, the rows never leaving the database, where sending them one
+    by one cost the opening of a revision most of its ten seconds (US-2240, #3102).
+    """
+    return (
+        func.unnest(
+            bindparam(None, list(mapping), type_=ARRAY(Uuid())),
+            bindparam(None, list(mapping.values()), type_=ARRAY(Uuid())),
+        )
+        .table_valued(column("source", Uuid()), column("copy", Uuid()))
+        .render_derived(name=name)
+    )
+
+
+def copied_columns(
+    table: Table, replaced: Mapping[str, ColumnElement[Any]]
+) -> tuple[list[str], list[ColumnElement[Any]]]:
+    """Give the columns of a table, and what a copy of its rows writes in each, for ``from_select``.
+
+    Each column as it is, but those ``replaced`` names: a column added to the table later is copied
+    too, without a word here.
+    """
+    names = [each.name for each in table.columns]
+    return names, [replaced.get(name, table.c[name]) for name in names]
 
 
 def unique_violated(error: IntegrityError) -> str | None:
@@ -135,6 +167,14 @@ class UtcDateTime(TypeDecorator[datetime]):
         return None if value is None else value.astimezone(UTC)
 
 
+# The reserve of connections of an engine, those of SQLAlchemy written out: five kept, ten more
+# while they are all taken. The calculation of ``max_connections`` counts fifteen per process
+# (deploy/compose/README.md, « Les processus de l'API »).
+POOL_SIZE = 5
+POOL_OVERFLOW = 10
+CONNECTIONS_PER_ENGINE = POOL_SIZE + POOL_OVERFLOW
+
+
 def utc_now() -> datetime:
     """Read the clock, in universal time."""
     return datetime.now(UTC)
@@ -149,9 +189,18 @@ def engine_url(address: str) -> URL:
 
 
 def create_database_engine(address: str) -> Engine:
-    """Open the engine on the database, whose sessions keep time in universal time."""
+    """Open the engine on the database, whose sessions keep time in universal time.
+
+    Its reserve holds ``POOL_SIZE`` connections, and opens ``POOL_OVERFLOW`` more while they are
+    all taken: ``CONNECTIONS_PER_ENGINE`` at most, which ``max_connections`` of the server carries
+    for each process of the platform (US-2230).
+    """
     return create_engine(
-        engine_url(address), connect_args={"options": "-c timezone=UTC"}, pool_pre_ping=True
+        engine_url(address),
+        connect_args={"options": "-c timezone=UTC"},
+        pool_pre_ping=True,
+        pool_size=POOL_SIZE,
+        max_overflow=POOL_OVERFLOW,
     )
 
 

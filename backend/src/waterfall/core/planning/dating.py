@@ -51,7 +51,7 @@ if TYPE_CHECKING:
         ScheduledTask,
     )
     from waterfall.core.planning.tables import Task, TaskLink
-    from waterfall.core.planning.tree import Tree
+    from waterfall.core.planning.tree import LinkColumns, TaskColumns, Tree
 
 AUTOMATIC = "automatic"
 MANUAL = "manual"
@@ -75,12 +75,12 @@ def in_days(hours: Decimal | Fraction, constants: UnitConstants) -> Decimal:
     return decimal_of(Fraction(hours) / Fraction(constants.hours_per_day))
 
 
-def days_of(task: Task, constants: UnitConstants) -> Decimal:
+def days_of(task: TaskColumns, constants: UnitConstants) -> Decimal:
     """Give the duration of a task in days of work of the installation, elapsed units included."""
     return in_days(duration_of(task).hours(constants), constants)
 
 
-def duration_of(task: Task) -> Duration:
+def duration_of(task: TaskColumns) -> Duration:
     """Give the duration of a facet as the engine reads it, in the unit of its entry."""
     return Duration(task.duration_value, cast("DurationUnit", task.duration_unit))
 
@@ -96,9 +96,20 @@ class Replay:
     planning_start: date
 
 
-def horizon_exceeded(node_id: UUID | None, label: str) -> UnprocessableError:
-    """Give the refusal of a project that would end beyond fifteen years, the task named."""
-    named = {"node_id": None if node_id is None else str(node_id), "label": label}
+def horizon_exceeded(
+    node_id: UUID | None, label: str, row: int | None = None
+) -> UnprocessableError:
+    """Give the refusal of a project that would end beyond fifteen years, the task named.
+
+    ``row`` the row of the block of a paste that writes the task, absent from the refusal of any
+    other write (``Problem.params``, #3624).
+    """
+    named: dict[str, object] = {
+        "node_id": None if node_id is None else str(node_id),
+        "label": label,
+    }
+    if row is not None:
+        named["row"] = row
     return UnprocessableError(PROJECT_HORIZON_EXCEEDED, {"task": named})
 
 
@@ -158,8 +169,8 @@ def dated(replay: Replay, origin: Origin = None) -> Schedule:
         raise UnprocessableError(LINK_FORBIDDEN) from None
 
 
-def conflicts_of(links: Iterable[TaskLink]) -> frozenset[tuple[UUID, UUID]]:
-    """Give the links in conflict among these, each by its two tasks, predecessor first."""
+def conflicts_of(links: Iterable[LinkColumns]) -> frozenset[tuple[UUID, UUID]]:
+    """Give the links in conflict among these, objects or rows, each by its two tasks."""
     return frozenset((link.predecessor_id, link.successor_id) for link in links if link.in_conflict)
 
 

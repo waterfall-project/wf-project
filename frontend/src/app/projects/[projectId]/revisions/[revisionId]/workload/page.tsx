@@ -6,14 +6,17 @@
  * context (WF-IHM-0020); the workload by role and by month as the API computes it
  * (`getProjectWorkload`) on the basis, the marked revision and the node of organisation the
  * address asks — the server filters, the front computes nothing —, the capacity of each role
- * against it in the table of its values, never a ratio of the load to it (#375), and its export as a PNG image (WF-IHM-0130). The choice offers the bases the project
+ * against it in the table of its values, never a ratio of the load to it (#375), and its export as
+ * a PNG image (WF-IHM-0130); under it, the detail of the same plan by role and by task, each task
+ * leading, for a session that reads the planning, to its row in the planning grid of the revision
+ * the basis reads (WF-DEV-0090, `WorkloadDetailSection`). The choice offers the bases the project
  * admits, the marked revisions of the project — every one of them, whatever the server pages
  * (`listRevisions`, `status=marked`, `readEveryPage`, #303) — and the nodes of organisation
  * (`listOrgNodes`).
  *
  * A basis the API refuses — a project without a reference revision (409), a marked revision
- * missing or not marked (422) — is said unavailable, and why, the rest of the screen shown. Any
- * other answer follows the rule of the reads (`readOrFail`).
+ * missing or not marked (422) — is said unavailable, and why, the rest of the screen shown, the
+ * detail with the chart. Any other answer follows the rule of the reads (`readOrFail`).
  */
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -26,6 +29,8 @@ import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
 import { LEAF_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
+import { DETAIL_GRID_KEY } from "@/components/workload/detail-rows";
+import { planningOf, WorkloadDetailSection } from "@/components/workload/detail-section";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import {
   BASIS_REFUSED,
@@ -35,7 +40,8 @@ import {
   type WorkloadRead,
   WorkloadSection,
 } from "@/components/workload/workload-section";
-import type { PageSearchParams, SearchParameters } from "@/navigation/context";
+import type { PageSearchParams, ProjectContext, SearchParameters } from "@/navigation/context";
+import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../../../../title";
 import { type GridAddress, gridAddress } from "../grid-screen";
@@ -95,7 +101,7 @@ async function readWorkload({ revision }: GridAddress, asked: WorkloadAsked) {
       : {}),
     ...(asked.orgNode === undefined ? {} : { org_node_id: asked.orgNode }),
   };
-  const [workload, orgNodes, marked] = await Promise.all([
+  const [workload, orgNodes, marked, session] = await Promise.all([
     readOrRefused("getProjectWorkload", BASIS_REFUSED, () =>
       client.GET("/projects/{project_id}/workload", { params: { path, query } }),
     ),
@@ -105,8 +111,16 @@ async function readWorkload({ revision }: GridAddress, asked: WorkloadAsked) {
         params: { path, query: { status: ["marked"], ...page } },
       }),
     ),
+    requestSession(),
   ]);
-  return { workload: workload satisfies WorkloadRead, orgNodes, marked };
+  return {
+    workload: workload satisfies WorkloadRead,
+    orgNodes,
+    marked,
+    // Whether its tasks lead to the planning, and the settings of the grid of the detail.
+    permissions: session?.permissions,
+    preferences: session?.display_preferences?.grids?.[DETAIL_GRID_KEY] ?? undefined,
+  };
 }
 
 /**
@@ -130,17 +144,19 @@ function parametersOf(search: PageSearchParams): WorkloadAddress["parameters"] {
   });
 }
 
-/** The head of the screen and its workload. */
+/** The head of the screen, its workload, and the detail of the workload the API computed. */
 function WorkloadScreen({
   reading,
   read,
   asked,
   address,
+  context,
 }: {
   readonly reading: ProjectReading;
   readonly read: Awaited<ReturnType<typeof readWorkload>>;
   readonly asked: WorkloadAsked;
   readonly address: WorkloadAddress;
+  readonly context: ProjectContext;
 }) {
   const t = useTranslations();
   const { project } = reading;
@@ -161,6 +177,13 @@ function WorkloadScreen({
         project={{ label: project.label, code: project.code ?? project.project_id }}
         shown={reading.revision}
       />
+      {read.workload.kind === "refused" ? null : (
+        <WorkloadDetailSection
+          workload={read.workload.data}
+          planning={planningOf(read.workload.data, context, read.permissions)}
+          preferences={read.preferences}
+        />
+      )}
     </Screen>
   );
 }
@@ -193,6 +216,7 @@ export default async function WorkloadPage({
         read={read}
         asked={asked}
         address={{ pathname: at.pathname, parameters: parametersOf(search) }}
+        context={at.context}
       />
     </>
   );

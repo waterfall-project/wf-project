@@ -7,22 +7,39 @@
  */
 import { type APIRequestContext, expect, type Page } from "@playwright/test";
 
-import { openHydrated, WORKING } from "./hydration";
+import { MARKING, WORKING } from "./bounds";
+import { openHydrated } from "./hydration";
 import { employRole, wiringService } from "./own-project";
 import type { Seeded } from "./planning-seed";
 import { API } from "./service/realm";
 import type { components } from "../src/api/generated/schema";
 import { workbook } from "./workbook";
 
-/** How long the worker is given to mark a revision: a task taken from the queue, one transaction. */
-export const MARKING = 60_000;
+/** Mark the revision shown on the screen of the revisions, and wait for the worker to finish. */
+export async function mark(page: Page, version: string): Promise<void> {
+  const main = page.getByRole("main");
+  const commands = main.getByRole("region", { name: "Commandes" });
+  await commands.getByRole("button", { name: "Marquer la révision" }).click();
+  const marking = commands.getByRole("form");
+  await marking.getByRole("textbox", { name: "Nom de version" }).fill(version);
+  await marking.getByRole("button", { name: "Marquer", exact: true }).click();
+  await expect(commands.getByRole("form")).toHaveCount(0);
+  await page.getByRole("button", { name: /^Tâches et messages\s: 1 tâche suivie/ }).click();
+  const task = page
+    .getByRole("dialog", { name: "Tâches et messages" })
+    .getByRole("region", { name: "Tâches de fond" })
+    .getByRole("listitem")
+    .filter({ hasText: `Marquage d’une révision « ${version} »` });
+  await expect(task.getByText("Réussie")).toBeVisible({ timeout: MARKING });
+  await task.getByRole("button", { name: "Recharger l’écran" }).click();
+}
 
 type Schemas = components["schemas"];
 
 type Headers = Readonly<Record<string, string>>;
 
 /** The headers of an extraction, as the mapping of the installation declares them (WF-REF-0190). */
-const HEADERS = [
+export const HEADERS = [
   "Elément d'OTP",
   "Nº pièce référence",
   "Poste",
@@ -76,13 +93,12 @@ export async function bringInProgress(
     .filter({ hasText: "Marquage d’une révision « v1.0 »" });
   await expect(task.getByText("Réussie")).toBeVisible({ timeout: MARKING });
   await task.getByRole("button", { name: "Recharger l’écran" }).click();
-  const designation = main.getByRole("region", { name: "Désignation de la référence" });
-  const offer = designation.getByRole("listitem").filter({ hasText: "v1.0" });
+  const history = main.getByRole("table", { name: "Historique des révisions" });
+  const offer = history.getByRole("row").filter({ hasText: "v1.0" });
   const designate = offer.getByRole("button", { name: "Désigner comme référence" });
   await expect(designate).not.toHaveAttribute("aria-disabled", "true", { timeout: WORKING });
   await designate.click();
-  await designation.getByRole("button", { name: "Confirmer la désignation" }).click();
-  const history = main.getByRole("table", { name: "Historique des révisions" });
+  await history.getByRole("button", { name: "Confirmer la désignation" }).click();
   await expect(history.getByRole("row").nth(1)).toContainText("Référence", { timeout: WORKING });
 
   await between.afterDesignation?.();

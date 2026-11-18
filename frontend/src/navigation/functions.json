@@ -293,6 +293,13 @@
               "route": "/projects/[projectId]/revisions/[revisionId]/workload",
               "scope": "revision",
               "permission": "estimate"
+            },
+            {
+              "code": "FBS-4.4.5",
+              "label": "functions.spending",
+              "route": "/projects/[projectId]/revisions/[revisionId]/spending",
+              "scope": "revision",
+              "permission": "estimate"
             }
           ]
         },

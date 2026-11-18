@@ -2,10 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The migrations: chained, applied once, mirrored, and the schema the code declares."""
 
-import re
 import subprocess
 import sys
-from contextlib import contextmanager
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
@@ -14,6 +12,7 @@ import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
+from migrations_support import partition_parts, scratch_database
 from project_rows import (
     insert_project,
     insert_revision,
@@ -50,7 +49,15 @@ from waterfall.core.estimate.tables import (
 )
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.history.tables import PastePlan, UndoEntry
-from waterfall.core.planning.tables import Node, Task, TaskLink, Timeline, TrackingEntry
+from waterfall.core.indicators.tables import RevisionIndicator
+from waterfall.core.planning.tables import (
+    Node,
+    StructureReading,
+    Task,
+    TaskLink,
+    Timeline,
+    TrackingEntry,
+)
 from waterfall.core.projects.tables import (
     Contributor,
     Deliverable,
@@ -65,46 +72,17 @@ from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.core.users.tables import IdentitySyncReport, UserAccount
 from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
 from waterfall.platform.audit import AuditEntry
-from waterfall.platform.database import Base, Database, create_database_engine, engine_url
+from waterfall.platform.database import Base, Database
 from waterfall.platform.installation import Installation
 from waterfall.platform.settings import SettingsError, load_platform_settings, load_settings
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.platform.uploads import FileUpload
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterator
-
     from sqlalchemy.engine import Connection
 
 # The last revision of the chain, which a migrated database says it has applied.
 HEAD = ScriptDirectory.from_config(alembic_config()).get_current_head()
-
-
-@contextmanager
-def scratch_database(database_url: str, prefix: str = "waterfall_migration") -> Generator[Engine]:
-    """Give an engine on a database of its own, without a table, dropped with its role after."""
-    server = create_database_engine(database_url).execution_options(isolation_level="AUTOCOMMIT")
-    name = f"{prefix}_{uuid4().hex}"
-    with server.connect() as connection:
-        connection.execute(text(f'CREATE DATABASE "{name}"'))
-    engine = create_database_engine(
-        engine_url(database_url).set(database=name).render_as_string(hide_password=False)
-    )
-    try:
-        yield engine
-    finally:
-        engine.dispose()
-        with server.connect() as connection:
-            connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
-            connection.execute(text(f'DROP ROLE IF EXISTS "{service_role(engine.url)}"'))
-        server.dispose()
-
-
-@pytest.fixture
-def empty_engine(database_url: str) -> Iterator[Engine]:
-    """Give an engine on a database of its own, without a table."""
-    with scratch_database(database_url) as engine:
-        yield engine
 
 
 def start_migration(engine: Engine) -> subprocess.Popen[str]:
@@ -239,12 +217,18 @@ def test_each_migration_is_undone_by_its_mirror_and_applied_again(empty_engine: 
 
 
 def describe_schema(engine: Engine) -> dict[str, list[tuple[object, ...]]]:
-    """Read what the catalogue says of the tables: constraints, indexes and columns."""
+    """Read what the catalogue says of the tables: constraints, indexes and columns.
+
+    The constraint trigger of ``revision_indicator`` (``contype`` ``t``) is a trigger, which the
+    migrations alone write, as every other trigger: the tables of the code declare none. It is left
+    out by its name alone, so that any other constraint trigger shows in the comparison.
+    """
     queries = {
         "constraints": (
             "SELECT conrelid::regclass::text, conname, pg_get_constraintdef(oid) "
             "FROM pg_constraint WHERE connamespace = 'public'::regnamespace "
-            "AND conrelid::regclass::text <> 'alembic_version'"
+            "AND conrelid::regclass::text <> 'alembic_version' "
+            "AND NOT (contype = 't' AND conname = 'revision_indicator_refuse_outside_marking')"
         ),
         "indexes": (
             "SELECT indexname, indexdef FROM pg_indexes "
@@ -309,6 +293,7 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         TaskLink.__tablename__,
         Timeline.__tablename__,
         TrackingEntry.__tablename__,
+        StructureReading.__tablename__,
         ImportReport.__tablename__,
         UndoEntry.__tablename__,
         PastePlan.__tablename__,
@@ -319,6 +304,7 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         RevisionCategory.__tablename__,
         CostLine.__tablename__,
         CostImport.__tablename__,
+        RevisionIndicator.__tablename__,
     }
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
@@ -443,6 +429,9 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "import_report": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "undo_entry": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "paste_plan": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    # The reading kept of a structure of a marked revision (EP-26, US-2270): inserted at its first
+    # reading, replaced when its format or its settings change, deleted with its structure.
+    "structure_reading": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     # The estimate (EP-07): a line and a rate of a current revision are changed and deleted with it,
     # a marked one's the database refuses to change (migration 0025); an image is written once, at
     # the marking, and never changed nor deleted, its revision marked for good.
@@ -456,6 +445,9 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     # (migration 0027).
     "cost_line": {"SELECT", "INSERT", "UPDATE"},
     "cost_import": {"SELECT", "INSERT"},
+    # The indicators (EP-10): a document written once, by the marking of its revision, and never
+    # changed nor deleted, its revision marked for good (migration 0032).
+    "revision_indicator": {"SELECT", "INSERT"},
 }
 
 
@@ -512,13 +504,17 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
     database: Database, owner: Engine
 ) -> None:
     # A guard runs with the rights of its caller: its search path is its own, so that a temporary
-    # table of the caller's session never stands for a table the guard reads.
+    # table of the caller's session never stands for a table the guard reads. The functions are
+    # those of the schema of the tables alone (#3558): another schema of the server may name its
+    # own so.
     del database
     with owner.connect() as connection:
         guards = connection.execute(
             text(
                 "SELECT proname, prosecdef, proconfig FROM pg_proc "
-                "WHERE proname LIKE '%refuse_marked_change' ORDER BY proname"
+                "JOIN pg_namespace ON pg_namespace.oid = pg_proc.pronamespace "
+                "WHERE nspname = 'public' AND (proname LIKE '%refuse_marked_change' "
+                "OR proname = 'revision_indicator_refuse_outside_marking') ORDER BY proname"
             )
         ).all()
     own = ["search_path=pg_catalog, pg_temp"]
@@ -528,6 +524,8 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
         ("node_refuse_marked_change", False, own),
         ("revision_calendar_refuse_marked_change", False, own),
         ("revision_category_refuse_marked_change", False, own),
+        ("revision_indicator_refuse_marked_change", False, own),
+        ("revision_indicator_refuse_outside_marking", False, own),
         ("revision_rate_refuse_marked_change", False, own),
         ("revision_refuse_marked_change", False, own),
         ("revision_role_refuse_marked_change", False, own),
@@ -536,8 +534,10 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
     ]
 
 
-# The revised tables of the revisions and the planning (EP-04, EP-06), and of the estimate (EP-07).
-PLANNING_REVISED = ("cost_structure", "node", "task", "task_link")
+# The revised tables of the revisions and the planning (EP-04, EP-06), of the estimate (EP-07),
+# and of the indicators (EP-10).
+PLANNING_REVISED = ("cost_structure", "node", "structure_reading", "task", "task_link")
+INDICATORS_REVISED = ("revision_indicator",)
 ESTIMATE_REVISED = (
     "estimate_line",
     "revision_rate",
@@ -573,7 +573,7 @@ def test_the_function_called_by_the_owner_creates_the_partition_of_the_project_a
             (parent, name, values, truncate) for parent, name, _, values, _, truncate in partitions
         ] == [
             (table, f"{table}_p_{project_id.hex}", bound, [f"{table}_refuse_truncate"])
-            for table in sorted((*PLANNING_REVISED, *ESTIMATE_REVISED))
+            for table in sorted((*PLANNING_REVISED, *ESTIMATE_REVISED, *INDICATORS_REVISED))
         ]
         assert partition_of(project_id) == f"cost_structure_p_{project_id.hex}"
         assert all(row[2] == row[4] for row in partitions)
@@ -583,65 +583,21 @@ def test_the_function_called_by_the_owner_creates_the_partition_of_the_project_a
             assert getattr(raised.value.orig, "sqlstate", None) == code
 
 
-# What the catalogue says of the partitions of a project (``:suffix``): their relation, columns,
-# constraints and keys, those of other tables that name them, their indexes and triggers.
-PARTITION_PARTS = text(
-    "WITH part AS (SELECT oid FROM pg_class WHERE relname LIKE '%' || :suffix "
-    "AND relnamespace = 'public'::regnamespace AND relkind = 'r') "
-    "SELECT 'relation', c.oid::regclass::text, concat_ws(' ', c.relpersistence, "
-    "c.relreplident, c.reloptions, pg_get_userbyid(c.relowner), c.relacl, "
-    "pg_get_expr(c.relpartbound, c.oid), (SELECT inhparent::regclass::text FROM pg_inherits "
-    "WHERE inhrelid = c.oid)) FROM pg_class AS c JOIN part USING (oid) "
-    "UNION ALL SELECT 'column', a.attrelid::regclass::text || '.' || a.attname, "
-    "concat_ws(' ', a.attnum, format_type(a.atttypid, a.atttypmod), a.attnotnull, a.attislocal, "
-    "a.attinhcount, a.attstorage, a.attcompression, a.attcollation, "
-    "pg_get_expr(d.adbin, d.adrelid)) FROM pg_attribute AS a JOIN part ON part.oid = a.attrelid "
-    "LEFT JOIN pg_attrdef AS d ON d.adrelid = a.attrelid AND d.adnum = a.attnum "
-    "WHERE a.attnum > 0 AND NOT a.attisdropped "
-    "UNION ALL SELECT 'constraint', k.conname, concat_ws(' ', k.conrelid::regclass::text, "
-    "k.contype, k.conislocal, k.coninhcount, k.connoinherit, k.convalidated, "
-    "k.conparentid <> 0, pg_get_constraintdef(k.oid)) FROM pg_constraint AS k "
-    "JOIN part ON part.oid = k.conrelid OR part.oid = k.confrelid "
-    "UNION ALL SELECT 'index', i.indexrelid::regclass::text, concat_ws(' ', "
-    "EXISTS (SELECT FROM pg_inherits WHERE inhrelid = i.indexrelid), "
-    "pg_get_indexdef(i.indexrelid)) FROM pg_index AS i JOIN part ON part.oid = i.indrelid "
-    "UNION ALL SELECT 'trigger', t.tgname, concat_ws(' ', t.tgenabled, t.tgisinternal, "
-    "t.tgparentid <> 0, pg_get_triggerdef(t.oid)) FROM pg_trigger AS t "
-    "JOIN part ON part.oid = t.tgrelid"
-)
-
-
-def partition_parts(connection: Connection, project_id: UUID) -> list[tuple[str, str, str]]:
-    """Describe the partitions of a project, but for their names.
-
-    The identifier of the project, whole or cut short in the name of an index, becomes ``P``; the
-    number the server gives a name — of a key that names a partition, of an internal trigger —
-    becomes ``N``.
-    """
-    suffix = f"_p_{project_id.hex}"
-
-    def unnamed(value: str) -> str:
-        value = value.replace(str(project_id), "P")
-        return re.sub(r"_\d+\b", "_N", re.sub(r"_p_[0-9a-f]{1,32}", "_p_P", value))
-
-    rows = connection.execute(PARTITION_PARTS, {"suffix": suffix})
-    return sorted((part, unnamed(name), unnamed(form)) for part, name, form in rows)
-
-
 @pytest.mark.requirement("WF-DAT-0050-A")
 def test_a_partition_attached_is_one_created_by_the_function_of_0025_but_for_its_names(
     empty_engine: Engine,
 ) -> None:
     # The function of 0026 creates a partition alone, then attaches it: its columns, constraints,
     # keys, indexes and triggers are those ``PARTITION OF`` gave by the function of 0025. The
-    # descent puts that function back, as it was.
+    # descent puts that function back, as it was. Compared at 0026: a revised table a later
+    # migration adds gives its partition to the projects that exist, which ``created`` is not.
     upgrade(empty_engine, "0025")
     created, attached = uuid4(), uuid4()
     definition = text("SELECT pg_get_functiondef('create_project_partitions(uuid)'::regprocedure)")
     with empty_engine.begin() as connection:
         former = connection.scalar(definition)
         connection.execute(select(func.create_project_partitions(created)))
-    upgrade(empty_engine)
+    upgrade(empty_engine, "0026")
     with empty_engine.begin() as connection:
         assert connection.scalar(definition) != former
         connection.execute(select(func.create_project_partitions(attached)))
@@ -888,77 +844,3 @@ def test_an_installation_bootstrapped_before_its_time_zone_is_given_universal_ti
             )
         )
         assert "time_zone" not in set(columns)
-
-
-def catalogue_and_grants(
-    engine: Engine,
-) -> tuple[list[tuple[str, str | None]], set[tuple[str, str]]]:
-    """Give the catalogue in its order, code and function, and each role's label with a code."""
-    with engine.connect() as connection:
-        catalogue = connection.execute(
-            select(Permission.code, Permission.fbs_code).order_by(Permission.position)
-        ).all()
-        grants = connection.execute(
-            select(AccessRole.label, Permission.code)
-            .join(AccessRolePermission, AccessRolePermission.access_role_id == AccessRole.id)
-            .join(Permission, Permission.id == AccessRolePermission.permission_id)
-        ).all()
-    return [(code, fbs) for code, fbs in catalogue], {(label, code) for label, code in grants}
-
-
-@pytest.mark.requirement("WF-ADM-0100-A")
-def test_the_permissions_of_the_installation_arrive_by_a_migration_to_whoever_administers(
-    empty_engine: Engine,
-) -> None:
-    # Of the Vérif of WF-ADM-0100-A, « Chaque fonction de second niveau de l'arborescence est
-    # représentée par ses deux permissions » — the installation, FBS-1.6 — and « Aucun écran ne
-    # permet de créer une permission » — they arrive by a migration, as the rest of the catalogue.
-    # Given to a role not deleted holding both permissions of administration (WF-ADM-0120), to
-    # none other; the descent gives back the catalogue and the grants it found.
-    upgrade(empty_engine, "0029")
-    holding = {
-        "Administrateur": ("users.write", "access_roles.write", "audit_log.read"),
-        "Comptes": ("users.write",),
-        "Rôles": ("access_roles.write",),
-        "Supprimé": ("users.write", "access_roles.write"),
-    }
-    moment = datetime(2026, 11, 15, tzinfo=UTC)
-    with empty_engine.begin() as connection:
-        ids = dict(connection.execute(select(Permission.code, Permission.id)).all())
-        for label, codes in holding.items():
-            role_id = uuid4()
-            connection.execute(
-                insert(AccessRole).values(
-                    id=role_id,
-                    label=label,
-                    is_predefined=False,
-                    deleted_at=moment if label == "Supprimé" else None,
-                    created_at=moment,
-                    updated_at=moment,
-                )
-            )
-            connection.execute(
-                insert(AccessRolePermission),
-                [{"access_role_id": role_id, "permission_id": ids[code]} for code in codes],
-            )
-    before = catalogue_and_grants(empty_engine)
-    upgrade(empty_engine)
-    catalogue, grants = catalogue_and_grants(empty_engine)
-    after = catalogue.index(("audit_log.read", "FBS-1.5"))
-    assert catalogue[after + 1 : after + 3] == [
-        ("installation.read", "FBS-1.6"),
-        ("installation.write", "FBS-1.6"),
-    ]
-    # The others keep their order.
-    assert catalogue[: after + 1] + catalogue[after + 3 :] == before[0]
-    added = {grant for grant in grants if grant[1].startswith("installation.")}
-    assert added == {
-        ("Administrateur", "installation.read"),
-        ("Administrateur", "installation.write"),
-    }
-    assert grants - added == before[1]
-    downgrade(empty_engine, "0029")
-    assert catalogue_and_grants(empty_engine) == before
-    # And up again: the catalogue and the grants of the first rise (0029, 0030, 0029, 0030).
-    upgrade(empty_engine)
-    assert catalogue_and_grants(empty_engine) == (catalogue, grants)

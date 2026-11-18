@@ -16,8 +16,9 @@
  */
 import { expect, type Page, test } from "@playwright/test";
 
+import { WORKING } from "./bounds";
 import { compile } from "./compile";
-import { untilHydrated, WORKING } from "./hydration";
+import { untilHydrated } from "./hydration";
 import { path } from "./routes";
 
 test.describe.configure({ mode: "parallel" });

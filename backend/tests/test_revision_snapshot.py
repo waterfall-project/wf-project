@@ -51,7 +51,7 @@ from waterfall.core.cost_settings.tables import CostCategory, CostType
 from waterfall.core.estimate import keeping
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
 from waterfall.core.projects.tables import Project
-from waterfall.core.resource_settings.interface import set_role_activation
+from waterfall.core.resource_settings.interface import read_roles, set_role_activation
 from waterfall.core.resource_settings.tables import Calendar, ResourceRole
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.audit import Act
@@ -278,6 +278,8 @@ def test_the_workload_of_a_marked_revision_keeps_the_calendar_the_capacity_and_t
     before = site.plan("marked_remaining", **asked)
     kept = next(each for each in before["roles"] if each["resource_role_id"] == str(site.worker))
     assert kept["months"]
+    # US-2410: the marking writes in its image the hours calculated, 1 * 40 * 52 / 12.
+    assert kept["capacity_monthly_hours"] == "173.33"
     with database.transaction() as session:
         calendar = session.scalars(
             select(ResourceRole.calendar_id).where(ResourceRole.id == site.worker)
@@ -288,8 +290,12 @@ def test_the_workload_of_a_marked_revision_keeps_the_calendar_the_capacity_and_t
         session.execute(
             update(ResourceRole)
             .where(ResourceRole.id == site.worker)
-            .values(label="Rôle WRK bis", monthly_hours=Decimal(1), headcount=Decimal(9))
+            .values(label="Rôle WRK bis", headcount=Decimal(9))
         )
+    # The role now has 9 * 20 * 52 / 12 hours; the image keeps those of the marking.
+    with database.transaction() as session:
+        (now,) = read_roles(session, [site.worker], may_change=False)
+    assert now.capacity.monthly_hours == Decimal("780.00")
     assert site.plan("marked_remaining", **asked) == before
 
 
@@ -616,7 +622,7 @@ def test_a_role_given_a_calendar_that_meets_no_other_of_its_task_is_refused(
             "code": role.code,
             "label": role.label,
             "cost_category_id": str(role.cost_category_id),
-            "capacity": {"monthly_hours": "140.00", "headcount": "1"},
+            "capacity": {"headcount": "1"},
             "lock_version": role.lock_version,
         }
     path = f"{REFERENCE}/resource-roles/{offer.role}"

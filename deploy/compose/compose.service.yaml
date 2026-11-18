@@ -29,6 +29,11 @@ x-back: &back
     args: [WATERFALL_MIRROR]
   environment: *back-environment
 
+# The number of the processes of the API (US-2230), four unless the environment says otherwise (the
+# measure of docs/measures/processes.json: README.md, « Les processus de l'API »): the
+# API serves on them, and PostgreSQL counts fifteen connections for each.
+x-api-processes: &api-processes ${WATERFALL_API_PROCESSES:-4}
+
 # Where the browser and the server of Next reach Keycloak, through its front end: the issuer of
 # every token, whoever asks for it; the port the front end is published on, which alone moves —
 # the front end serves localhost and 127.0.0.1 only (#735).
@@ -93,8 +98,16 @@ services:
     # One partition of each partitioned table per project: the restoration drops the schema, and
     # pg_restore makes it again, in one transaction that locks every one of them. The default of 64
     # locks per transaction refuses it ("out of shared memory") from a few hundred projects.
-    command: ["postgres", "-c", "max_locks_per_transaction=1024"]
+    # max_connections carries the connections of every process of the platform: fifteen for each
+    # process of the API, two hundred for the others, Keycloak's hundred included (README.md, « Les
+    # processus de l'API »). Computed from their number by the shell, which then hands over to the
+    # entry point of the image.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - case "$$WATERFALL_API_PROCESSES" in ''|*[!0-9]*|0*) echo "WATERFALL_API_PROCESSES must be a whole number above zero, without leading zero" >&2; exit 1;; esac; exec docker-entrypoint.sh postgres -c max_locks_per_transaction=1024 -c max_connections=$$((15 * WATERFALL_API_PROCESSES + 200))
     environment:
+      WATERFALL_API_PROCESSES: *api-processes
       POSTGRES_USER: waterfall
       POSTGRES_DB: waterfall
       POSTGRES_PASSWORD: ${WATERFALL_POSTGRES_PASSWORD:?export WATERFALL_POSTGRES_PASSWORD}
@@ -187,6 +200,8 @@ services:
     <<: *back
     environment:
       <<: [*back-environment, *keycloak-client-environment, *storage-environment]
+      WATERFALL_INDICATORS_CACHE_TTL: ${WATERFALL_INDICATORS_CACHE_TTL:-600}
+      WATERFALL_API_PROCESSES: *api-processes
     depends_on:
       service-database-role:
         condition: service_completed_successfully
@@ -514,7 +529,7 @@ services:
   # Receives every mail Keycloak sends; read at http://127.0.0.1:8025.
   mailpit:
     image: ${WATERFALL_MIRROR:-}axllent/mailpit:v1.33.0@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
-    user: "1000:1000"
+    user: "${WATERFALL_UID:-1000}:${WATERFALL_GID:-1000}"
     ports:
       - "127.0.0.1:${WATERFALL_MAILPIT_PORT:-8025}:8025"
 
@@ -560,7 +575,7 @@ services:
       - ../../frontend/bench/contract-proxy.ts:/bench/contract-proxy.ts:ro
       # npx keeps Prism in the npm cache, in a named volume: downloaded once, not at every start.
       - contract-proxy-npm:/home/node
-    user: "1000:1000"
+    user: "${WATERFALL_UID:-1000}:${WATERFALL_GID:-1000}"
     environment:
       npm_config_cache: /home/node/.npm
     depends_on:
@@ -573,6 +588,34 @@ services:
       interval: 2s
       timeout: 3s
       retries: 90
+
+  # The load of fifty users under which the report of a version is taken (US-2300, EP-26): k6, which
+  # annex C names for the tests of load, at the version and the digest pinned, playing the scenario
+  # of the front (frontend/bench/load.ts, its draw and its requests beside it), whose types it strips.
+  # Its users speak to the API and renew their tokens at Keycloak on the back channel, inside the
+  # network of the platform, as the server of Next does; their accounts, their tokens and their tasks
+  # are in the file the measure prepares (frontend/.e2e/load/, ignored by git), where k6 writes its
+  # summary once stopped. Started and stopped by `make measure-version` alone, by its measure
+  # (frontend/e2e/measure/load-users.ts), in a container of its own; as the user that owns the file,
+  # which holds tokens and only its owner reads.
+  load:
+    profiles: [load]
+    image: ${WATERFALL_MIRROR:-}grafana/k6:2.4.0@sha256:d41bb79cd8de5a7ad619b53570e3712633e8bff0937010a5c6c57a4747e7a276
+    command: ["run", "--quiet", "--no-color", "/bench/load.ts"]
+    user: "${WATERFALL_UID:-1000}:${WATERFALL_GID:-1000}"
+    environment:
+      WATERFALL_LOAD_FILE: /load/load.json
+      WATERFALL_LOAD_API: http://api:8000/api/v1
+      WATERFALL_LOAD_KEYCLOAK: http://keycloak:8080/auth
+      WATERFALL_FRONT_CLIENT_SECRET: ${WATERFALL_FRONT_CLIENT_SECRET:?export WATERFALL_FRONT_CLIENT_SECRET}
+    volumes:
+      - ../../frontend/bench:/bench:ro
+      - ../../frontend/.e2e/load:/load
+    depends_on:
+      api:
+        condition: service_healthy
+    # The time k6 is given, once asked to stop, to end its users and write its summary.
+    stop_grace_period: 60s
 
 volumes:
   postgres-data:

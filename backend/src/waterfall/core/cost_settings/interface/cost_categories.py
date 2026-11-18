@@ -317,6 +317,20 @@ def category_labels(
     }
 
 
+def categories_of_kind(session: Session, kind: str) -> frozenset[UUID]:
+    """Give the categories whose nature is of a kind, deactivated ones too.
+
+    What the lines of the provision kind are told apart by, before the lines are read, so that a
+    statement over the lines leaves them out (the tally of a task, US-1680).
+    """
+    found = session.scalars(
+        select(CostCategory.id)
+        .join(CostType, CostType.id == CostCategory.cost_type_id)
+        .where(CostType.kind == kind)
+    )
+    return frozenset(found)
+
+
 def categories_named(session: Session, labels: Collection[str]) -> dict[str, list[UUID]]:
     """Give the categories each label names, deactivated ones too; a label with none is absent.
 

@@ -1,0 +1,13 @@
+{
+  "summary": "Une ligne de main-d'oeuvre de quantité 1, charge 100 et taux 50, dont la tâche se place deux ans après l'année de référence, avec 2 % d'inflation : son montant aux taux de l'année de référence est 5 000,00, son montant réestimé 5 202,00, supérieur de 4,04 % (1,02 x 1,02 = 1,0404) (WF-DEV-0050, WF-DEV-0030).",
+  "examples": ["WF-DEV-0050-A#52fb4a7cb73b"],
+  "quantity": "1",
+  "effort": "100",
+  "hourly_rate": "50",
+  "inflation_rate": "0.02",
+  "reference_year": 2026,
+  "consumption_year": 2028,
+  "base_amount": "5000.00",
+  "reestimated_amount": "5202.00",
+  "increase_percent": "4.04"
+}

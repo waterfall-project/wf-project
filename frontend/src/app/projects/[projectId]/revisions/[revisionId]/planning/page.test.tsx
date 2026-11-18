@@ -102,6 +102,7 @@ beforeEach(() => {
     "GET /me": "me",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/subprojects": "subprojects",
+    "GET /projects/{project_id}/revisions": "revisions",
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
     "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
     [NODES]: "nodes_planning",
@@ -128,6 +129,17 @@ describe("the screen of the planning", () => {
     expect(command).not.toContain(" aria-disabled=");
     expect(page).not.toContain("Mock-up");
     expect(page).not.toContain(CATALOGUES.en.mockup.notKept);
+  });
+
+  it("hands the grid the task the address names, which it shows and aims at, and asks the server nothing of it [WF-DEV-0090-A]", async () => {
+    const task = "01926f3a-7c00-7000-8000-000000000552";
+    await planning({ task });
+    expect(grid.given.at(-1)?.target).toBe(task);
+    // A parameter of the screen: the server reads the whole tree, the grid finds the row in it.
+    expect(callsOf(NODES)[0]?.query.has("task")).toBe(false);
+    grid.given = [];
+    await planning({ task: "not-an-identifier" });
+    expect(grid.given.at(-1)?.target).toBeUndefined();
   });
 
   it("enters the attachment from the work breakdown read whole, and offers no skeleton beside the tasks", async () => {
@@ -488,6 +500,21 @@ describe("« Écarts seulement » on the grid of the planning [WF-REV-0100-A] [W
     expect(callsOf(NODES)[0]?.query.get("difference")).toBe("added,modified");
     expect(BUTTON.exec(page)?.[1]).toBe("false");
     expect(chips(page)).toContain("Differences: Added and Modified");
+  });
+
+  it("folds the grid of a comparison, the address read the same: nothing asked of the server, no filter said in the banner [WF-IHM-0170-A]", async () => {
+    // « Écarts seulement » d'une comparaison est le repli de la grille, non un filtre : la pastille
+    // du bandeau disparaît, et l'adresse ne change pas la lecture.
+    const reference = "01926f3a-7c00-7000-8000-000000000101";
+    const COMPARISON = "GET /projects/{project_id}/revisions/comparison";
+    server.answers = { ...server.answers, [COMPARISON]: "comparison_current" };
+    const page = await planning({ base_revision_id: reference, difference: ALL });
+    const [read] = callsOf(COMPARISON);
+    expect(read?.query.get("from_revision_id")).toBe(reference);
+    expect(read?.query.has("difference")).toBe(false);
+    expect(BUTTON.exec(page)?.[1]).toBe("false");
+    expect(page).not.toContain("Active filters");
+    expect(grid.given.at(-1)?.comparing).toBe(true);
   });
 
   it("neither offers, nor sends, nor says it on the main structure and on the own estimate of a risk", async () => {

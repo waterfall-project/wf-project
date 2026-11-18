@@ -21,6 +21,7 @@ import {
   type FakeTiming,
   held,
 } from "@/test/fixtures";
+import { browserOffline } from "@/test/offline";
 
 import type { ContributorReading, Suggestion } from "./contributor-commands";
 import { ContributorList } from "./settings-lists";
@@ -134,6 +135,8 @@ afterEach(() => {
   refresh.mockClear();
   router.refresh.mockClear();
 });
+
+beforeEach(browserOffline);
 
 describe("the modification of the contributors of a project", () => {
   it("writes the whole list with its counter, a capacity changed, and shows the list the server answered", async () => {

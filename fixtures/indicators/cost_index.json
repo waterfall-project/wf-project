@@ -1,0 +1,8 @@
+{
+  "summary": "Une valeur acquise de 400 pour un coût réel de 500 : l'indice de coût vaut 0,8 et l'écart de coût -100 (WF-IND-0070).",
+  "examples": ["WF-IND-0070-A#c2dde0dac2a2", "WF-IND-0070-A#039eed3b60cd"],
+  "earned_value": "400.00",
+  "actual_cost": "500.00",
+  "cost_index": "0.8000",
+  "cost_variance": "-100.00"
+}

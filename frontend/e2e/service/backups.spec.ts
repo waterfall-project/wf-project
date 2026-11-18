@@ -34,9 +34,10 @@ import { readFile } from "node:fs/promises";
 
 import { type APIRequestContext, expect, type Locator, type Page, test } from "@playwright/test";
 
+import { WORKING } from "../bounds";
 import type { components } from "../../src/api/generated/schema";
 import { compileAnswered } from "../compile";
-import { untilHydrated, WORKING } from "../hydration";
+import { untilHydrated } from "../hydration";
 import { markRevision } from "../in-progress";
 import { heldToTheContract } from "./contract";
 import {

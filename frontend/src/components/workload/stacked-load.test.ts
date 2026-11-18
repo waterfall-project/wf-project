@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { ChartPalette } from "@/components/chart/chart";
 import { example } from "@/test/fixtures";
 
-import { type LoadRole, monthTooltip, stackedRoles } from "./stacked-load";
+import { alignedLoad, type LoadRole, monthTooltip, stackedRoles } from "./stacked-load";
 
 const PALETTE: ChartPalette = {
   series: ["rgb(1, 1, 1)", "rgb(2, 2, 2)", "rgb(3, 3, 3)"],
@@ -21,12 +21,30 @@ const PALETTE: ChartPalette = {
 };
 
 /** The roles of the witness project, as the service gives them: the third is loaded on 8 months. */
-const ROLES = (example("workload") as { roles: LoadRole[] }).roles;
+const ROLES: LoadRole[] = alignedLoad(
+  (
+    example("workload") as {
+      roles: { label: string; months: { month: string; hours: string }[] }[];
+    }
+  ).roles,
+  "hours",
+);
 
-/** The `[instant, hours]` points of each series. */
+/** The `[instant, value]` points of each series. */
 function points(roles: readonly LoadRole[]) {
   return stackedRoles(PALETTE, roles).map((series) => series.data);
 }
+
+describe("the load aligned for the stack", () => {
+  it("renames the hours or the amounts of the API as values, the strings as they are [WF-ARC-0020-A]", () => {
+    expect(
+      alignedLoad([{ label: "Câblage", months: [{ month: "2027-09", hours: "12.50" }] }], "hours"),
+    ).toEqual([{ label: "Câblage", months: [{ month: "2027-09", value: "12.50" }] }]);
+    expect(
+      alignedLoad([{ label: "Achats", months: [{ month: "2027-09", amount: "0.10" }] }], "amount"),
+    ).toEqual([{ label: "Achats", months: [{ month: "2027-09", value: "0.10" }] }]);
+  });
+});
 
 describe("the series of the roles of a stack of bars", () => {
   it("ranks the points of a role loaded on fewer months at the ranks of the others, the months it lacks left empty [WF-DEV-0070-A]", () => {
@@ -41,7 +59,7 @@ describe("the series of the roles of a stack of bars", () => {
     const rank = (month: string) => instants(electrician)?.indexOf(`${month}-01T00:00:00Z`) ?? -1;
     expect(instants(electrician)).toEqual([...(instants(electrician) ?? [])].sort());
     // The wirer is on its own months, at the rank of those months — September 2027, not June 2026.
-    expect(wirer?.[rank("2027-09")]).toEqual(["2027-09-01T00:00:00Z", ROLES[2]?.months[0]?.hours]);
+    expect(wirer?.[rank("2027-09")]).toEqual(["2027-09-01T00:00:00Z", ROLES[2]?.months[0]?.value]);
     expect(wirer?.[rank("2026-06")]?.[1]).toBe("-");
     expect(wirer?.[rank("2029-08")]?.[1]).toBe("-");
     // And the others are empty in December 2027, where only the wirer is loaded.
@@ -49,10 +67,10 @@ describe("the series of the roles of a stack of bars", () => {
     expect(wirer?.[rank("2027-12")]?.[1]).not.toBe("-");
   });
 
-  it("keeps the hours of the API as they are: nothing is summed, nothing is rounded [WF-ARC-0020-A]", () => {
+  it("keeps the values of the API as they are: nothing is summed, nothing is rounded [WF-ARC-0020-A]", () => {
     const [electrician] = points(ROLES);
     const given = new Map(
-      ROLES[0]?.months.map((each) => [`${each.month}-01T00:00:00Z`, each.hours]),
+      ROLES[0]?.months.map((each) => [`${each.month}-01T00:00:00Z`, each.value]),
     );
     for (const [instant, hours] of electrician ?? []) {
       if (hours !== "-") {

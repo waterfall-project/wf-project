@@ -72,8 +72,15 @@ KEYS = ("subproject", "cost_category")
 
 
 def _amounts(node: Node) -> list[str]:
-    """Return what changed of a node besides its key: its amounts, its delay, its parent."""
-    return [change for change in cast("list[str]", node.get("changes") or []) if change not in KEYS]
+    """Return what changed of a node besides its key: its amounts, its delay, its parent.
+
+    Nor ``other``, the values WF-REV-0080 does not enumerate (EP-27).
+    """
+    return [
+        change
+        for change in cast("list[str]", node.get("changes") or [])
+        if change not in {*KEYS, "other"}
+    ]
 
 
 def _summed(compared: Node) -> set[Decimal]:
@@ -191,7 +198,7 @@ def test_the_deltas_of_the_witness_by_subproject_sum_to_those_by_nature() -> Non
     compared = cast("Node", mockcomparisons.comparison_example(mockhistory.reference_rows()))
     value = cast("Node", compared["value"])
     [wiring] = [node for node in value["items"] if _label(node) == "Câblage sur site"]
-    assert wiring["changes"] == ["reestimated_amount", "subproject"]
+    assert wiring["changes"] == ["reestimated_amount", "subproject", "other"]
     by: dict[str, Decimal] = {}
     for entry in value["amount_deltas"]:
         by[entry["dimension"]] = by.get(entry["dimension"], Decimal(0)) + Decimal(
@@ -342,9 +349,12 @@ def test_the_volume_of_the_comparison_is_the_whole_comparison_read_with_the_fiel
     read = cast("Node", volume["value"])
     assert len(read["items"]) == 5_999
     modified = (node for node in read["items"] if node["difference"] == "modified")
-    # Modified by their own values: the six of the core and every line drawn (#1628).
-    assert sum(1 for node in modified if node["changes"]) == 6 + len(DRAWN_LINES)
-    kept = {*mockdiff.ALWAYS, "kind", "task", "estimate_line"}
+    # Modified by the values WF-REV-0080 names: the six of the core and every line drawn (#1628);
+    # the others by another value alone, a task by its amounts (EP-27).
+    assert sum(1 for node in modified if _amounts(node) or "subproject" in node["changes"]) == (
+        6 + len(DRAWN_LINES)
+    )
+    kept = {*mockdiff.COMPARED_ALWAYS, "kind", "task", "estimate_line"}
     for node, entire in zip(read["items"], whole["items"], strict=True):
         assert set(node) <= kept
         assert {key: node[key] for key in mockdiff.ALWAYS} == {
@@ -352,16 +362,31 @@ def test_the_volume_of_the_comparison_is_the_whole_comparison_read_with_the_fiel
         }
         assert node["kind"] == entire["kind"]
         assert node[node["kind"]] == {"label": _label(entire)}
-    rest = ("from_revision_id", "to_revision_id", "totals", "meta", "amount_deltas")
+        # No label differs: the base and the deltas of a node modified are reduced to nothing.
+        reduced: dict[str, Any] | None = None if node["difference"] != mockdiff.MODIFIED else {}
+        assert (node["base"], node["deltas"]) == (reduced, reduced)
+    rest = (
+        "from_revision_id",
+        "to_revision_id",
+        "totals",
+        "base_totals",
+        "totals_delta",
+        "meta",
+        "amount_deltas",
+    )
     assert {key: read[key] for key in rest} == {key: whole[key] for key in rest}
     summary = str(volume["summary"])
     assert "5 999 nœuds" in summary
-    assert "4 997 modifiés par leurs propres valeurs" in summary
+    assert "5 962 modifiés par leurs propres valeurs" in summary
     assert "852 890,95 et -1 013 056,56 en tout" in summary
 
 
-VOLUME_BOUND = 1_500_000
-"""The bytes the volume of the comparison stays under, written as the fixture is (#1204)."""
+VOLUME_BOUND = 2_000_000
+"""The bytes the volume of the comparison stays under, written as the fixture is (#1204): raised
+from 1,5 Mo by EP-27, each node rendering its base and its deltas, reduced to the fields read,
+1,55 Mo. No requirement sets 1,5 Mo — #1204 estimated the example at 1,3 Mo —: the bound guards
+against the 7,4 Mo of the nodes rendered whole, so that 2 Mo leave a quarter of margin to the
+example and still refuse a reading that does not reduce its nodes to `fields`."""
 
 
 def test_the_volume_of_the_comparison_stays_under_its_bound() -> None:
@@ -382,17 +407,27 @@ def test_the_moved_variant_bears_a_task_moved_under_another_summary_marked_modif
     moved = cast("Node", example["value"])
     items = cast("list[Node]", moved["items"])
     [task] = [node for node in items if "parent" in node["changes"]]
+    # Its amounts move with its lines, re-estimated from 2026: another value (EP-27).
     assert (task["node_id"], task["kind"], task["difference"], task["changes"]) == (
         universe(N.COMMISSIONING),
         "task",
         "modified",
-        ["parent"],
+        ["parent", "other"],
     )
     assert task["parent_id"] == universe(N.INSTALLATION)
+    assert task["base"]["parent_id"] == universe(N.CONTROL_STATION)
     ids = [node["node_id"] for node in items]
     assert ids.count(universe(N.COMMISSIONING)) == 1
     assert set(ids) == {node["node_id"] for node in first["items"]}
-    rest = ("from_revision_id", "to_revision_id", "totals", "meta", "amount_deltas")
+    rest = (
+        "from_revision_id",
+        "to_revision_id",
+        "totals",
+        "base_totals",
+        "totals_delta",
+        "meta",
+        "amount_deltas",
+    )
     assert {key: moved[key] for key in rest} == {key: first[key] for key in rest}
     summary = str(example["summary"])
     assert summary.startswith("Variante contrefactuelle : ")
@@ -494,12 +529,13 @@ def test_the_filter_of_the_differences_retains_the_marks_asked_with_their_ancest
 
 def test_the_example_of_the_differences_reads_the_additions_and_withdrawals_alone() -> None:
     # #1398: two of the three marks combined over the whole structure, the ancestors with them,
-    # each a task modified by its content alone.
+    # each a task modified by its content, and by nothing WF-REV-0080 names: by its amounts at
+    # most, another value (EP-27).
     example = mockcomparisons.examples()["comparison_differences.json"]
     items = cast("list[Node]", cast("Node", example["value"])["items"])
     assert {node["difference"] for node in items} == {"added", "removed", "modified"}
     assert all(
-        node["kind"] == mockcore.TASK and not node["changes"]
+        node["kind"] == mockcore.TASK and node["changes"] in ([], ["other"])
         for node in items
         if node["difference"] == mockdiff.MODIFIED
     )

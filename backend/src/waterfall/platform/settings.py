@@ -74,9 +74,14 @@ class PlatformSettings(BaseSettings):
 
 
 class Settings(PlatformSettings):
-    """What a service of the platform reads besides: Redis, and where the API listens."""
+    """What a service of the platform reads besides: Redis, and where the API listens.
+
+    ``indicators_cache_ttl`` is how long an entry of the cache of the indicators stays valid, in
+    seconds: ten minutes by default (WF-DAT-0130-A).
+    """
 
     redis_url: SecretStr = Field(min_length=1)
+    indicators_cache_ttl: int = Field(default=600, ge=1)
     host: str = "127.0.0.1"
     port: int = Field(default=8000, ge=1, le=65535)
 
@@ -113,6 +118,17 @@ class StorageSettings(PlatformSettings):
 
 class ServiceSettings(Settings, KeycloakSettings, StorageSettings):
     """What a service that reaches Keycloak reads: the API, and the worker after it."""
+
+
+class ApiSettings(ServiceSettings):
+    """What the API reads besides: on how many processes it serves (US-2230).
+
+    ``api_processes`` is the number of the processes of uvicorn that serve the requests, each with
+    its own services and its own reserve of connections to the database: one by default, so that
+    the tests and the workstation serve on the process that starts them.
+    """
+
+    api_processes: int = Field(default=1, ge=1)
 
 
 class PurgeSettings(Settings, StorageSettings):
@@ -241,6 +257,11 @@ def load_purge_settings() -> PurgeSettings:
 def load_service_settings() -> ServiceSettings:
     """Read the settings of a process that reaches Keycloak, as ``load_settings`` does."""
     return _load(ServiceSettings)
+
+
+def load_api_settings() -> ApiSettings:
+    """Read the settings of the API, as ``load_settings`` does."""
+    return _load(ApiSettings)
 
 
 def load_worker_settings() -> WorkerSettings:

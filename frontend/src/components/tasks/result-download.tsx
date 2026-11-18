@@ -40,7 +40,7 @@ import {
 
 import { readBackgroundTask } from "@/api/actions/tasks";
 import type { BackgroundTask, Outcome } from "@/api/problem";
-import { rejected } from "@/components/commands/rejection";
+import { rejectedRead } from "@/components/commands/rejection";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/components/ui/utils";
 import { LOGIN_ROUTE } from "@/navigation/login";
@@ -63,7 +63,7 @@ async function checkResult(
   task: BackgroundTask,
   dispatch: Dispatch<TrackingEvent>,
 ): Promise<{ readonly outcome: Outcome<BackgroundTask>; readonly there: boolean }> {
-  const outcome = await readBackgroundTask(task.task_id).catch(rejected);
+  const outcome = await readBackgroundTask(task.task_id).catch(rejectedRead);
   dispatch({ type: "answer", source: "download", key, taskId: task.task_id, outcome });
   return { outcome, there: outcome.kind === "done" && outcome.data.result_url != null };
 }

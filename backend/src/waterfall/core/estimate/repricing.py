@@ -23,29 +23,27 @@ ways (#2104, #2615):
    it before anything else, and no path that holds the lock of a revision or of a structure takes
    it after;
 2. the current revision, shared (``FOR SHARE``): a rate written reads the current revisions so
-   (``current_structures``), the designation and the change of the rate of inflation share it
-   before they lock the project (``hold_current_revision``), as a write of the tree does before
-   its structure; the marking and the abandonment, which lock it ``FOR UPDATE``, wait for it, or
-   are waited for;
-3. the project, for the designation and the change of the rate of inflation, after the revision —
-   the order of the marking and of the abandonment;
+   (``current_structures``), the designation, the change of the rate of inflation and the writing
+   of the work breakdown share it before they lock the project (``hold_current_revision``, #3654),
+   as a write of the tree does before its structure; the marking and the abandonment, which lock
+   it ``FOR UPDATE``, wait for it, or are waited for;
+3. the project, for the designation, the change of the rate of inflation and the writing of the
+   work breakdown, after the revision — the order of the marking and of the abandonment;
 4. each structure of the revision, ``FOR UPDATE``, in the order of its identifier, the revisions in
    the order of their project: the lines are read under it, then priced.
 
 Written by US-1500/L2.
 """
 
-from contextlib import contextmanager
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
-from waterfall.core.estimate.entries import AmountOverflowError
 from waterfall.core.estimate.keeping import reprice_revision
 from waterfall.core.estimate.reading import budgeted_of, rows_of
 from waterfall.core.estimate.tables import RevisionRate
-from waterfall.core.planning.interface import lines_of_revision
+from waterfall.core.planning.interface import lines_of_revision, refused_at
 from waterfall.core.projects.interface import project_facts
 from waterfall.core.revisions.interface import (
     current_structures,
@@ -53,10 +51,8 @@ from waterfall.core.revisions.interface import (
     revision_structures,
     structure_facts,
 )
-from waterfall.platform.errors import VALIDATION_FAILED, FieldError
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
     from datetime import datetime
     from uuid import UUID
 
@@ -66,22 +62,6 @@ if TYPE_CHECKING:
     from waterfall.core.revisions.interface import ReferenceDesignated
 
 NOUGHT = Decimal("0.00")
-
-
-@contextmanager
-def _refused_at(pointer: str) -> Generator[None]:
-    """Name the field of the request that carries a price again that crosses the amounts' columns.
-
-    A rate of a category, the rate of inflation of the project: lines written long ago cross the
-    digits of ``base_amount`` or ``reestimated_amount`` (#3035, #3039). The refusal (422) is at the
-    field that carries the change, and the transaction that wrote it is rolled back.
-    """
-    try:
-        yield
-    except AmountOverflowError:
-        raise AmountOverflowError(
-            VALIDATION_FAILED, fields=(FieldError(pointer, VALIDATION_FAILED),)
-        ) from None
 
 
 def refresh_budgeted(designation: ReferenceDesignated) -> None:
@@ -127,7 +107,7 @@ def reinflate_project(session: Session, project_id: UUID, at: datetime) -> None:
     """
     current = hold_current_revision(session, project_id)
     if current is not None:
-        with _refused_at("/inflation_rate"):
+        with refused_at(("/inflation_rate",)):
             reprice_revision(session, (project_id, current), at)
 
 
@@ -155,7 +135,7 @@ def reprice_after_rate(session: Session, written: RateWritten) -> None:
             )
         )
         if kept is None:
-            with _refused_at("/amount"):
+            with refused_at(("/amount",)):
                 reprice_revision(
                     session, (project_id, revision_id), written.at, {written.cost_category_id}
                 )

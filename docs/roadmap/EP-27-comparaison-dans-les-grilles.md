@@ -1,7 +1,7 @@
 ---
 id: EP-27
 titre: Comparer la révision lue à une révision marquée dans les grilles où l'on travaille
-statut: en cours
+statut: livré
 depend_de: EP-26
 famille: front, back
 issue: 3482
@@ -147,7 +147,9 @@ contre le service ;
 2026-11-15) ;
 - #3467 — contrat : le paragraphe des causes sans champ de `docs/api/DECISIONS.md` (US-2260/L3) a
 un retour à la ligne irrégulier — relevé pendant EP-26, reporté ici avec #3401, dont le lot
-réécrit ce paragraphe.
+réécrit ce paragraphe ;
+- #3532 — back : la lecture gardée projetée par `fields` relit encore le document entier (reporté
+→ EP-27, décision de l'auteur du 2026-11-15).
 
 ## Conception
 
@@ -192,9 +194,9 @@ engendrés, client du front régénéré, entrée de `docs/api/DECISIONS.md`.
   l'installation sur site.
 - **Exigées en deux temps.** Le lot du contrat déclare les propriétés nouvelles sans les exiger :
   le service ne les rend pas encore, et chaque réponse est validée contre le contrat. Le lot du
-  service qui en sert une la passe en exigée — `base` et `deltas` avec la comparaison d'une
-  révision en cours, `base_totals` et `totals_delta` avec les totaux de la base. Écarté : un seul
-  lot pour le contrat et le service, au-delà de ce qu'une revue relit.
+  service qui en sert une la passe en exigée — `base` avec la comparaison d'une révision en cours
+  (US-2320/L3), `deltas` avec US-2340, `base_totals` et `totals_delta` avec US-2350. Écarté : un
+  seul lot pour le contrat et le service, au-delà de ce qu'une revue relit.
 
 ### Les gardes
 
@@ -356,7 +358,7 @@ Prises par l'auteur le 2026-11-15, au cadrage, sauf mention.
 
 ## US-2320 — Une révision, en cours ou marquée, se compare à une base marquée, et la comparaison rend la valeur de la base
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REV-0080-A`
 - **opérations** : `compareRevisions`, `getRevision`, `listCostStructures`, `listRevisions`
 - **issue** : #3483
@@ -429,7 +431,7 @@ US-2340 et US-2350.
 
 ## US-2330 — La révision lue et la base d'une comparaison se choisissent dans le bandeau, et la base suit du planning au devis et au reste à engager
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0020-A`, `WF-IHM-0010-A`
 - **opérations** : `listRevisions`, `getRevision`, `compareRevisions`
 - **issue** : #3485
@@ -495,7 +497,7 @@ conséquence acceptée, que le Vérif ne dit pas (même décision).
 
 ## US-2340 — Les grilles de planning, de devis et de reste à engager marquent les écarts à la base, ligne par ligne et cellule par cellule, et la saisie y reste ouverte
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0150-A`
 - **opérations** : `compareRevisions`, `listNodes`, `updateTaskFacet`, `updateEstimateLine`,
   `setLineRemaining`, `setTaskProgress`, `setPredecessors`, `setNodeTracking`, `createNode`,
@@ -551,7 +553,7 @@ chronologies, qui ne portent pas la base.
 
 ## US-2350 — La ligne de totaux porte le total de la révision lue, celui de la base et leur écart, et les écarts par nature de coût et par sous-projet s'ouvrent depuis le devis et le reste à engager
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0160-A`
 - **opérations** : `compareRevisions`
 - **issue** : #3488
@@ -585,7 +587,7 @@ les compte : la règle est gardée et écrite par la spécification 1.0.6 (déci
 
 ## US-2360 — Les branches sans écart se replient, chaque suite repliée signalée à sa place avec son nombre de lignes
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0170-A`
 - **opérations** : `compareRevisions`
 - **issue** : #3489
@@ -619,7 +621,7 @@ applique (`difference`, US-0700) — EP-08, qui sert les différentiels.
 
 ## US-2370 — L'écran « Révisions » : l'historique et ses commandes seuls
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-04, EP-07
   et EP-08
 - **opérations** : `listRevisions`, `getRevision`, `createRevision`, `abandonRevision`,
@@ -659,7 +661,7 @@ tombe avec cette section : la comparaison se lit dans les grilles. WF-REV-0060 v
 
 ## US-2380 — Le parcours de la comparaison de PRJ-001, réécrit sur les grilles et rejoué contre le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — le parcours éprouve US-2320 à US-2360 de bout en bout
 - **opérations** : `compareRevisions`, `listRevisions`, `updateTaskFacet`
 - **issue** : #3490
@@ -684,7 +686,7 @@ contre le service, **afin que** la file de fusion éprouve la comparaison telle 
 
 ## US-2390 — La grille comparée et la saisie dans une grille comparée sont mesurées, et l'option des empreintes est instruite
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — l'outil de WF-QUA-0060, que clôt US-2300 (EP-26)
 - **opérations** : `compareRevisions`, `updateTaskFacet`, `updateEstimateLine`
 - **issue** : #3491
@@ -710,11 +712,33 @@ mesures, **afin de** savoir si la comparaison tient ses deux secondes avant de p
   les deux secondes tiennent, une issue à trancher sinon (décision de l'auteur du 2026-11-15, au
   cadrage).
 
+**Notes de réalisation (mesures du 2026-11-18).** `make measure-version MEASURE_VERSION=0.4.0`
+(cinquante utilisateurs, cinq passages ; 19 min, file d'attente comprise) : ouvrir une grille
+comparée 2,847 s à la médiane pour 2 s (pire 4,608 s, dispersion 0,443 s, vingt échantillons :
+quatre grilles, cinq passages) ; saisir dans une grille comparée 4,502 s pour 2 s (pire 5,1 s,
+dispersion 0,418 s). Les deux objectifs sont dépassés, documentés dans `docs/measures/0.4.0.json`
+et portés chacun par une issue à trancher. Seules ces deux opérations ont été portées au rapport :
+les autres et les conditions restent celles du 2026-11-16, que des décisions de l'auteur
+documentent ; celles que la nouvelle mesure a relevées sous une charge plus longue (quatorze étapes
+au lieu de neuf, 279 s) sont citées dans sa note, non portées — ouvrir une grille y passe à
+1,116 s. Un utilisateur sans charge (`make measure MEASURE_USERS=1 MEASURE_PASSES=1`) : les
+quatre grilles comparées 1,416 s, 2,074 s, 2,321 s et 1,454 s, la saisie comparée 2,532 s, contre
+1,294 s pour la même saisie hors comparaison. `make measure-core ONLY=current RUNS=5` : la
+comparaison entière depuis les lignes 0,884 s, dont lectures 56 %, union 33 %, corps 11 % — union
+et corps 44 %, au-dessus des 15 % de #3168 ; depuis le gardé 0,534 s (34 %) ; tâches seules
+0,807 s (38 %) ; l'union jamais planchée (`union_clamped` faux, `runs_union_negative` 0) ; 43
+nœuds sur 5 999 diffèrent (0,7 %). **Verdict sur l'option 3** : les deux secondes ne tiennent pas,
+l'option n'est donc pas écartée, elle devient une issue à trancher ; les écarts sont rares, mais la
+comparaison du noyau ne pèse que 0,5 à 0,9 s des durées mesurées, et la saisie comparée porte aussi
+l'écriture qui redate : l'option 3 seule ne ramènerait pas cette saisie sous 2 s. L'étape
+`planning.compared-duration` cherche la tâche par son libellé : l'union de la grille comparée
+compte une ligne de la base au-dessus d'elle sur le témoin.
+
 **Hors périmètre.** Réaliser l'option 3 ; rendre un objectif bloquant.
 
 ## US-2400 — Les constats reçus sont soldés
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-06 et EP-07
 - **opérations** : `applyRateUpdate`, `moveNodes`, `applyPaste`, `updateCalendar`,
   `setDurationUnits`

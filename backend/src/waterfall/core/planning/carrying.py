@@ -27,20 +27,22 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.calendars import Applicable
-    from waterfall.core.planning.tree import Tree
+    from waterfall.core.planning.tree import NodeColumns, TaskColumns, Tree
     from waterfall.core.planning.writing import Write
 
 TASK_NOT_COMPLETED = "task_not_completed"
 
 
-def bearing(
-    session: Session, project_id: UUID, tree: Tree, task_id: UUID, *, is_main: bool
+def bearing[N: NodeColumns, T: TaskColumns](
+    session: Session, project_id: UUID, tree: Tree[N, T], task_id: UUID, *, is_main: bool
 ) -> BearingTask:
     """Give a task of a tree as the facet of a node it bears is told of it."""
     return borne(tree, task_id, calendar_of(session, project_id, task_id), is_main=is_main)
 
 
-def borne(tree: Tree, task_id: UUID, calendar: Applicable, *, is_main: bool) -> BearingTask:
+def borne[N: NodeColumns, T: TaskColumns](
+    tree: Tree[N, T], task_id: UUID, calendar: Applicable, *, is_main: bool
+) -> BearingTask:
     """Give a task of a tree as ``bearing`` does, its applicable calendar read already.
 
     For a write that tells many tasks at once, their calendars read together (``calendars_of``).
@@ -60,9 +62,18 @@ def borne(tree: Tree, task_id: UUID, calendar: Applicable, *, is_main: bool) -> 
 
 def refuse_completed(write: Write, task_ids: Iterable[UUID | None]) -> None:
     """Refuse a write of a line under one of these tasks completed, on the main structure (409)."""
-    tree = write.tree
-    if not write.facts.is_main:
-        return
+    if write.facts.is_main:
+        refuse_completed_on(write.tree, task_ids)
+
+
+def refuse_completed_on[N: NodeColumns, T: TaskColumns](
+    tree: Tree[N, T], task_ids: Iterable[UUID | None]
+) -> None:
+    """Refuse a write of a line under one of these tasks completed, on a tree of the main (409).
+
+    What ``refuse_completed`` judges, on the tree a write holds: objects of the session, or rows
+    for a write whose columns are all inert (``read_inert``).
+    """
     for each in task_ids:
         if each is not None and each in tree.tasks and state_of(tree, each).progress == COMPLETED:
             raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": TASK_NOT_COMPLETED})

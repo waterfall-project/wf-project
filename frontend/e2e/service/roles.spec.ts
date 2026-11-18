@@ -19,8 +19,9 @@ import { randomBytes } from "node:crypto";
 
 import { expect, type Locator, test } from "@playwright/test";
 
+import { WORKING } from "../bounds";
 import { compileAnswered } from "../compile";
-import { openMenu, WORKING } from "../hydration";
+import { openMenu } from "../hydration";
 import { heldToTheContract } from "./contract";
 import { ADMINISTRATOR, grantRole, signIn, waterfallAccount } from "./realm";
 

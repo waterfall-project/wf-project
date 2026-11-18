@@ -2,86 +2,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /*
  * The screen of the revisions of a project (`/projects/{id}/revisions`), against the fake back and,
- * tagged `@shared`, against the service, which serves the history, the revision and its structures
- * (US-0960); the « Écarts seulement » path plays against it too, the service serving the
- * comparison and the rate update proposal (US-1530). The comparison reads, against the service,
- * the whole structure of PRJ-001 from its revision 100 to its revision 101 — 5 966 nodes there, not
- * the 5 999 of the volume, which stays with the fake back until EP-13 (#2696) —, of which the grid
- * draws the rows in view (virtualised: as many as the window shows, `ROWS_IN_VIEW`) and
- * counts all, the nodes of the answer and its two header rows (`aria-rowcount`); against the fake
- * back, the window of its example (« 2 nodes added, 2 removed… »).
+ * tagged `@shared`, against the service, which serves the history, the revision and its commands
+ * (US-0960). The screen holds the history and the commands of the revision read, no comparison
+ * (US-2370): « Comparer à la révision lue » leads a marked revision of the history to the grid
+ * chosen, that revision as its base. The comparison itself is played on the grids, below (US-2380).
  *
  * The fake back serves the first example of each operation: the history of three revisions —
  * the reference, the draft, the offer v1.0 —, the draft read whatever the address names, its
- * structures, no rate update proposed for it, and the comparison of the offer to the reference;
- * the comparison proves the fake back serves `compareRevisions` — its path,
- * `/revisions/comparison`, could be mistaken for a revision named `comparison`. The service serves
- * the witness, of which PRJ-001 holds the same three revisions, its 100 and 101 marked by the loader
- * as the worker marks (US-0970).
+ * structures, and no rate update proposed for it. The service serves the witness, of which PRJ-001
+ * holds the same three revisions, its 100 and 101 marked by the loader as the worker marks
+ * (US-0970).
  */
-import { readFileSync } from "node:fs";
+import { expect, type Locator, type Page } from "@playwright/test";
 
-import { type Browser, expect } from "@playwright/test";
-
-import { openHydrated, WORKING } from "./hydration";
+import { MARKING, WORKING } from "./bounds";
+import { columnsOf } from "./columns";
+import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
-import { ScreenSteps } from "./screen-steps";
-import { API, frontToken, type LocalPerson } from "./service/realm";
+import { SECOND_TASK_DAYS, seedPlanning } from "./planning-seed";
+import { rowAt, scrollToFoot } from "./scroll";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const FROM = "01926f3a-7c00-7000-8000-000000000100";
-const TO = "01926f3a-7c00-7000-8000-000000000101";
-// The rows of the grid in view (virtualised) of PRJ-001 compared, 100 to 101, against the service:
-// exactly the count that the window of the harness shows, which fixes the height of the grid.
-const ROWS_IN_VIEW = 39;
-
-interface AmountDelta {
-  dimension: string;
-  label: string | null;
-  budgeted_delta: string;
-  reestimated_delta: string;
-}
-
-/** An amount as the screen writes it (fr-FR, euro), whitespace normalised as an assertion does. */
-function asTheScreenWrites(amount: string): string {
-  return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" })
-    .format(Number(amount))
-    .replace(/\s+/g, " ");
-}
-
-/** A text that ends on the amount whole, not on the tail of a larger one (« 0,00 € » of « 3 000,00 € »). */
-function amountWhole(amount: string): RegExp {
-  const escaped = amount.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(?<![\\d,\\-\u2212])${escaped}$`);
-}
-
-interface ServedComparison {
-  items: { difference: string }[];
-  amount_deltas: AmountDelta[];
-}
-
-/** The comparison of 100 to 101 as the service renders it, which the screen asks of it. */
-async function comparisonServed(
-  browser: Browser,
-  manager: LocalPerson | undefined,
-): Promise<ServedComparison> {
-  if (manager === undefined) {
-    throw new Error("a path in the service has its manager");
-  }
-  const context = await browser.newContext({ ignoreHTTPSErrors: true });
-  try {
-    const headers = { Authorization: `Bearer ${await frontToken(browser, manager)}` };
-    const response = await context.request.get(`${API}/projects/${PROJECT}/revisions/comparison`, {
-      headers,
-      params: { from_revision_id: FROM, to_revision_id: TO, fields: "kind" },
-    });
-    expect(response.status(), "GET comparison").toBe(200);
-    return (await response.json()) as ServedComparison;
-  } finally {
-    await context.close();
-  }
-}
 
 // The current revision is the first of the history: the fake back's, opened in 2026; the service's,
 // the revision 102 of PRJ-001, whose reference year is that of the loading of the witness, not of
@@ -118,26 +61,9 @@ test("the history of the revisions of a project, each attribute of a revision in
   ).toBeVisible();
 });
 
-// In quarantine against the service (decision of the author of 2026-11-14): the comparison of the
-// whole of PRJ-001 does not show within `WORKING` by moments in the queue (#3168, #3172). The fake
-// back still plays the path; EP-27 rewrites it on the grids and plays it again (#3192).
-const QUARANTINED_3192 =
-  "in quarantine against the service until EP-27 moves the comparison to the grids (#3192)";
-
-test("the revisions of a project, their comparison as the API renders it, its structures and the rates proposed @shared [WF-ARC-0020-A]", async ({
+test("the revisions of a project, the history and the commands, no list of structures nor of rates @shared [WF-ARC-0020-A]", async ({
   page,
-  browser,
-  manager,
 }) => {
-  test.skip(inService, QUARANTINED_3192);
-  // Against the service the path reads the comparison of the whole structure of PRJ-001 twice — the
-  // screen, then the API, whose answer gives both the count of the nodes and the deviations —, two
-  // bounds of a screen of grid besides the opening, more than the thirty seconds of a test: the
-  // comparison takes 2.2 s at the API alone, 5 to 16 s in the queue, whose paths read PRJ-001 on the
-  // one process of the API together (run 43403635976, 16.1 s for the one of this path; #2942).
-  test.slow();
-  const steps = new ScreenSteps(page, "the comparison as the API renders it");
-  // Les montants, dates et indices affichés sont ceux que l'API renvoie, sans recalcul.
   await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const main = page.getByRole("main");
   await expect(main.getByRole("heading", { level: 1 })).toHaveText("Gestion des révisions");
@@ -150,189 +76,283 @@ test("the revisions of a project, their comparison as the API renders it, its st
   const commands = main.getByRole("region", { name: "Commandes" });
   await expect(commands.getByRole("button", { name: "Marquer la révision" })).toBeVisible();
 
-  // The structures of the revision, and no rate update: the current revision, opened in 2026 as
-  // the reference it copies, has none to propose (WF-REV-0060).
-  await expect(main.getByRole("table", { name: "Structures de coûts" })).toContainText(
-    "Structure principale",
-  );
-  await expect(main).toContainText("aucune mise à jour des taux n’est proposée");
-  await expect(main.getByRole("table", { name: "Mise à jour des taux proposée" })).toHaveCount(0);
-
-  // The comparison asked of the server: what it answers is shown, nothing paired by the front.
-  // Against the service, it is the whole structure of PRJ-001 from 100 to 101, of which the grid
-  // draws the rows in view. Against the fake back, the example is a window, the sub-tree of
-  // « Installation sur site » (#1193), as its description counts it: 2 nodes added, 2 removed, 2
-  // lines re-estimated at the rates of 2026 (EP-14/L45a), and 5 deviations — 3 natures of cost, 2
-  // sub-projects —, each table with its header row. The nodes come in the dense grid of the
-  // structures, each with the mark the server gives it, and the screen keeps the bound of a screen
-  // of grid (`WORKING`).
-  await steps.timed("compare", async () => {
-    await main.getByRole("button", { name: "Comparer" }).click();
-    await expect(page).toHaveURL(/from_revision_id=.+&to_revision_id=.+/, { timeout: WORKING });
-  });
-  const nodes = main.getByRole("grid", { name: "Nœuds comparés" });
-  // The window of the fake back is 11 rows; the service compares the whole structure, of which the
-  // grid draws the rows in view and counts all of them, its two header rows besides.
-  await expect(nodes.getByRole("row")).toHaveCount(inService ? ROWS_IN_VIEW : 11);
-  const served = inService
-    ? await steps.timed("the API", () => comparisonServed(browser, manager))
-    : undefined;
-  if (served !== undefined) {
-    await expect(nodes).toHaveAttribute("aria-rowcount", (served.items.length + 2).toString());
-  }
-  await expect(nodes.getByRole("row", { name: /Assistance aux essais de câblage/ })).toContainText(
-    "Ajouté",
-  );
-  await expect(nodes.getByRole("row", { name: /Essais préliminaires sur site/ })).toContainText(
-    "Retiré",
-  );
-  const wiring = nodes.getByRole("row", { name: /Câblage sur site/ });
-  await expect(wiring).toContainText("Modifié");
-  await expect(wiring).toContainText("Montant réestimé");
-  const deltas = main.getByRole("table", { name: "Écarts de montants" });
-  await expect(deltas.getByRole("row")).toHaveCount(6);
-  // Both deviations, each under the header that names it, on the row of the nature of cost
-  // « Main-d'œuvre ». The fake back's window: budgeted 3 000,00, re-estimated 2 840,83. Against
-  // the service, the amounts are those the API renders for the comparison, read of it and written
-  // as the screen writes them, none pinned (the loader changes them with the provisions, EP-08).
-  await expect(deltas.getByRole("columnheader", { name: "Écart budgété" })).toBeVisible();
-  await expect(deltas.getByRole("columnheader", { name: "Écart réestimé" })).toBeVisible();
-  const labour = deltas
-    .getByRole("row")
-    .filter({ has: page.getByRole("cell", { name: "Main-d'œuvre", exact: true }) });
-  let budgeted = "3000.00";
-  let reestimated = "2840.83";
-  if (served !== undefined) {
-    const delta = served.amount_deltas.find(
-      ({ dimension, label }) => dimension === "cost_type" && label === "Main-d'œuvre",
+  // The rate update is a command of the revision: pressed available, it opens its dialog, which
+  // reads the proposal then (never at the render); unavailable, it names its conditions (the
+  // description is the hydrated tooltip's).
+  const rates = main.getByRole("button", { name: "Appliquer la mise à jour des taux" });
+  await expect(rates).toBeVisible();
+  if ((await rates.getAttribute("aria-disabled")) === "true") {
+    // Each text is the whole of what the screen says there: the fake back's account holds the one
+    // condition unmet, the service's account is no contributor of the project, which is another.
+    await expect(rates).toHaveAccessibleDescription(
+      inService
+        ? /^Conditions non remplies\s?: être contributeur du projet et une mise à jour des taux disponible\.$/
+        : /^Condition non remplie\s?: une mise à jour des taux disponible\.$/,
     );
-    expect(delta, "the nature of cost « Main-d'œuvre » in the comparison").toBeDefined();
-    budgeted = delta?.budgeted_delta ?? "";
-    reestimated = delta?.reestimated_delta ?? "";
+  } else {
+    await rates.click();
+    const dialog = page.getByRole("dialog", { name: "Appliquer la mise à jour des taux" });
+    await expect(
+      dialog
+        .getByRole("table", { name: "Mise à jour des taux proposée" })
+        .or(dialog.getByText(/aucune mise à jour des taux n’est proposée/)),
+    ).toBeVisible({ timeout: WORKING });
+    await dialog.getByRole("button", { name: "Annuler" }).click();
+    await expect(dialog).toBeHidden();
   }
-  await expect(
-    labour.getByRole("cell", { name: amountWhole(asTheScreenWrites(budgeted)) }),
-  ).toHaveCount(1);
-  await expect(
-    labour.getByRole("cell", { name: amountWhole(asTheScreenWrites(reestimated)) }),
-  ).toHaveCount(1);
+
+  // The screen holds the history and the commands: neither the structures of the revision nor the
+  // rate update it proposes are listed (US-2370); the banner offers the structures, the command of
+  // the revision the rate update.
+  await expect(main.getByRole("table", { name: "Structures de coûts" })).toHaveCount(0);
+  await expect(main.getByRole("table", { name: "Mise à jour des taux proposée" })).toHaveCount(0);
 });
 
-// The project of the volume exists in the fake back only, until the volumes of EP-13 give the
-// witness its own (#2696): the path is skipped against the service.
-const NO_VOLUME_IN_SERVICE =
-  "the volume project exists in the fake back only until the volumes of EP-13 (#2696)";
-
-// The comparison of the volume: the project 300 is served the offer compared to the reference over
-// the whole structure of the witness, 5 999 nodes read unfiltered, with `fields` reduced to what the
-// screen shows (`comparison_volume`, #1201). The bound of 15 seconds of the criterion of US-0500 is
-// proven on it: the grid is up with its marks, from the address opened, under `WORKING`.
-const VOLUME_PROJECT = "01926f3a-7c00-7000-8000-000300000300";
-// The nodes of the example of the volume, the header and the totals besides making the rows.
-const VOLUME_NODES = (
-  JSON.parse(
-    readFileSync(
-      `${import.meta.dirname}/../../fixtures/api/volume/comparison_volume.json`,
-      "utf-8",
-    ),
-  ) as { value: { items: unknown[] } }
-).value.items.length;
-
-test("the comparison of the whole structure, 5 999 nodes, shows its grid with its marks under the bound of a screen of grid @shared [WF-REV-0080-A]", async ({
+test("« Comparer à la révision lue » leads a marked revision of the history to the grid chosen, that revision as its base (US-2370) [WF-IHM-0010-A]", async ({
   page,
 }) => {
-  test.skip(inService, NO_VOLUME_IN_SERVICE);
-  test.slow();
-  const started = Date.now();
-  await openHydrated(
-    page,
-    `/projects/${VOLUME_PROJECT}/revisions?from_revision_id=${FROM}&to_revision_id=${TO}`,
+  await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
+  const main = page.getByRole("main");
+  // The screen holds the history alone: no section of comparison.
+  await expect(main.getByRole("region", { name: "Comparaison de deux révisions" })).toHaveCount(0);
+  await main
+    .getByRole("button", { name: "Comparer à la révision lue\u00a0: «\u00a0Offre v1.0\u00a0»" })
+    .click();
+  await page.getByRole("menuitem", { name: "Planification" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/projects/${PROJECT}/revisions/${REVISION}/planning\\?.*base_revision_id=${FROM}`),
   );
-  const nodes = page.getByRole("main").getByRole("grid", { name: "Nœuds comparés" });
-  // The first rows of the plan, each with the mark the server gives it.
-  await expect(nodes.getByRole("row", { name: /Études de détail/ })).toBeVisible({
-    timeout: WORKING,
-  });
-  await expect(nodes.getByRole("row", { name: /Études$/ }).first()).toContainText("Modifié", {
-    timeout: WORKING,
-  });
-  // The whole structure is the grid's, the rows drawn being those in view.
-  await expect(nodes).toHaveAttribute("aria-rowcount", (VOLUME_NODES + 2).toString());
-  const elapsed = Date.now() - started;
-  test.info().annotations.push({ type: "duration", description: `${elapsed.toString()} ms` });
-  expect(elapsed).toBeLessThan(WORKING);
 });
 
-test("retains the differences alone in the comparison: pressed, in the address and the banner, kept through the choice of the pair @shared [WF-REV-0080-A]", async ({
+// The comparison, played on the grids of the current revision of PRJ-001 (US-2380), which the three
+// of them read with the reference for base (US-2320 to US-2360). The fake back serves the first
+// example of `compareRevisions` whatever the address names (`comparison`, the offer against the
+// reference, over the installation on site, every node of it in difference): the marks, the values
+// of the base and the totals are read on it, and nothing is folded. The service compares the
+// revision under way to its reference, on all of PRJ-001: its nodes in difference are marked, the
+// branches without difference fold, and the witness is never written (#2193): the writing of a
+// finish is played on a project of the run, below.
+const BASE = `/projects/${PROJECT}/revisions/${REVISION}`;
+const REFERENCE_PARAMETER = "base_revision_id=[0-9a-f-]{36}";
+
+/** The banner of the reading context. */
+function banner(page: Page): Locator {
+  return page.getByRole("region", { name: "Contexte de lecture" });
+}
+
+/**
+ * Reach a cell of a grid by the arrows of the keyboard alone, from the cell of another: each press
+ * moves the focus one cell to the right, until it is on the cell.
+ */
+async function reachByKeyboard(page: Page, from: Locator, to: Locator): Promise<void> {
+  await from.click();
+  await expect(async () => {
+    if (!(await to.evaluate((cell) => cell === document.activeElement))) {
+      // The arrows only go right: the focus on the last cell of its row, the aim is out of reach.
+      const end = await page.evaluate(() => {
+        const cell = document.activeElement;
+        return cell?.parentElement?.lastElementChild === cell;
+      });
+      expect(
+        end,
+        "the cell aimed at is not to the right of the focus, on the last cell of its row",
+      ).toBe(false);
+      await page.keyboard.press("ArrowRight");
+    }
+    await expect(to).toBeFocused({ timeout: 500 });
+  }).toPass({ timeout: WORKING });
+}
+
+test("the comparison of the current revision of PRJ-001 to its reference, from the estimate to the planning and the remaining to commit, the cell marked and the value of its base read at the keyboard, the branches without difference folded, the comparison lifted @shared [WF-IHM-0010-A] [WF-IHM-0020-A] [WF-IHM-0150-A] [WF-IHM-0160-A] [WF-IHM-0170-A]", async ({
+  page,
+}) => {
+  // Three grids of PRJ-001 read in turn, each given the bound of a screen of grid.
+  test.slow();
+  await openHydrated(page, `${BASE}/estimate`);
+  const comparedTo = banner(page)
+    .getByRole("definition")
+    .filter({ hasText: /^Comparée à / });
+  await expect(comparedTo).toHaveCount(0);
+
+  // From the estimate of the revision under way, the reference is chosen for base, without leaving
+  // the screen, which names it.
+  await banner(page).getByRole("button", { name: "Choisir une base de comparaison" }).click();
+  // The reference of the project is the one of the bases that says so: « Référence » itself against
+  // the fake back, the offer v1.0 designated in the witness of the service.
+  const reference = page.getByRole("menuitemradio", { name: /\(référence\)$/ });
+  const named = (await reference.innerText()).replace(/\s*\(référence\)$/, "");
+  await reference.click();
+  await expect(page).toHaveURL(new RegExp(`${BASE}/estimate\\?${REFERENCE_PARAMETER}$`), {
+    timeout: WORKING,
+  });
+  const compared = new URL(page.url()).search;
+  await expect(comparedTo).toContainText(named);
+  const estimate = page.getByRole("treegrid", { name: "Grille de devis" });
+  await expect(estimate).toBeVisible({ timeout: WORKING });
+
+  // A row marked, and the value its base held in the cell that differs, read at the keyboard: the
+  // focus on the cell says it, as the pointer does.
+  const marked = estimate.getByRole("row").filter({ hasText: "Modifié" }).first();
+  await expect(marked).toBeVisible({ timeout: WORKING });
+  const at = await columnsOf(estimate, { label: "Libellé" });
+  const differing = marked.getByRole("gridcell").filter({ hasText: "Δ" }).first();
+  await expect(differing).toContainText(/Base\s*:/);
+  await reachByKeyboard(page, marked.getByRole("gridcell").nth(at.label), differing);
+  // The cell says the value of its base to a reader of the screen at once. The scroll that brought
+  // the cell into view closes the tooltip that has just opened (Radix closes it on any scroll of
+  // the cell's ancestors, #3901): it opens again when the cell is reached again, the arrows left
+  // and right.
+  await expect(differing).toContainText(/Base\s*:/);
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowRight");
+  await expect(differing).toBeFocused();
+  await expect(page.getByRole("tooltip")).toContainText(/^Base\s*:/);
+  await page.keyboard.press("Escape");
+
+  // The totals say the total read, that of the base and their difference; the differences of the
+  // amounts open from the estimate.
+  await expect(estimate.getByText(/^Total — /)).toHaveCount(1);
+  await expect(estimate.getByText(/^Base : Total — /)).toHaveCount(1);
+  await expect(estimate.getByText(/^Écart : Total — /)).toHaveCount(1);
+  await page.getByRole("button", { name: "Écarts de montants" }).click();
+  const dialog = page.getByRole("dialog", { name: "Écarts de montants à la base" });
+  await expect(dialog.getByRole("table", { name: "Écarts de montants à la base" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+
+  // The planning, then the remaining to commit, with the same base: the banner names it, the
+  // address carries it.
+  const functions = page.getByRole("navigation", { name: "Fonctions" });
+  await functions.getByRole("link", { name: "Planification", exact: true }).click();
+  await expect(page).toHaveURL(`${BASE}/planning${compared}`, { timeout: WORKING });
+  const planning = page.getByRole("treegrid", { name: "Grille de planning" });
+  await expect(planning).toBeVisible({ timeout: WORKING });
+  await expect(comparedTo).toContainText(named);
+
+  // The branches without difference fold, each run said in its place with its number of rows, and
+  // unfold. Every node of the example of the fake back is in difference: none folds there; the
+  // planning of PRJ-001 holds many that the base leaves as they are. The fold on a response with
+  // branches without difference is proved without the service, by `folded-runs.dom.test.tsx`.
+  const only = page.getByRole("button", { name: "Écarts seulement" });
+  await only.click();
+  await expect(only).toHaveAttribute("aria-pressed", "true");
+  const runs = planning.getByRole("button", { name: /sans écart repliées?$/ });
+  if (inService) {
+    // The grid renders the rows in view: the runs are those of the foot, where the plan ends.
+    await scrollToFoot(planning);
+    const run = runs.last();
+    await expect(run).toBeVisible({ timeout: WORKING });
+    // Said collapsed, it unfolds its rows at the click: the run is no more, among those in view.
+    await expect(run).toHaveAttribute("aria-expanded", "false");
+    const folded = await runs.count();
+    await run.click();
+    await expect(runs).toHaveCount(folded - 1, { timeout: WORKING });
+  } else {
+    await expect(runs).toHaveCount(0);
+  }
+  await only.click();
+  await expect(only).toHaveAttribute("aria-pressed", "false");
+
+  await functions.getByRole("link", { name: "Estimation du reste à engager", exact: true }).click();
+  await expect(page).toHaveURL(`${BASE}/remaining${compared}`, { timeout: WORKING });
+  const remaining = page.getByRole("treegrid", { name: "Grille de reste à engager" });
+  await expect(remaining).toBeVisible({ timeout: WORKING });
+  await expect(comparedTo).toContainText(named);
+  await expect(page.getByRole("button", { name: "Écarts de montants" })).toBeVisible();
+
+  // The comparison lifted: the base leaves the address and the banner offers the choice again.
+  await banner(page)
+    .getByRole("link", { name: `Lever la comparaison avec «\u00a0${named}\u00a0»` })
+    .click();
+  await expect(page).toHaveURL(`${BASE}/remaining`, { timeout: WORKING });
+  await expect(comparedTo).toHaveCount(0);
+  await expect(
+    banner(page).getByRole("button", { name: "Choisir une base de comparaison" }),
+  ).toBeVisible();
+});
+
+// The writing of a finish needs a service that remembers it, and a project the account of the run
+// writes: PRJ-001 is never written by a path (#2193), so the path makes its own, as the cycle of the
+// revisions does (`revision-cycle.spec.ts`) — its six tasks, its revision marked by the worker, a
+// current revision opened, which is the grid compared to the revision marked.
+const SERVICE_ONLY =
+  "the fake back keeps nothing of what is written, and answers each write by its first example";
+
+test("a finish pushed from the planning is read modified, with the date of the base, brought back, and read modified no more @shared [WF-IHM-0150-A] [WF-REV-0080-A]", async ({
   page,
   browser,
+  request,
   manager,
 }) => {
-  // Against the service the comparison spans the whole structure of PRJ-001 (some 6,000 nodes),
-  // which the path reads five times, one after the other — the screen four times, the API once —:
-  // 15 s at the least on a workstation at rest, 2.2 s for each at the API, and 45 s under six
-  // workers (#2942), more than the thirty seconds of a test.
+  // Wanted, not a gap: the fake back plays no write of a finish, as the issue and the criterion say.
+  test.skip(!inService, SERVICE_ONLY);
   test.slow();
-  const steps = new ScreenSteps(page, "the differences alone");
-  // The fake back serves the same comparison whatever the address names: what the server retains is
-  // proven on `comparison_differences` by the test of the page (`revisions/page.test.tsx`).
+  const seeded = await seedPlanning(page, browser, request, manager, "Fin repoussée");
+  const main = page.getByRole("main");
+
+  // The revision marked by the worker, then a current revision opened, a copy of it.
+  await openHydrated(page, `${seeded.own.path}/revisions?revision_id=${seeded.ids.revision}`);
+  const commands = main.getByRole("region", { name: "Commandes" });
+  await commands.getByRole("button", { name: "Marquer la révision" }).click();
+  const marking = commands.getByRole("form");
+  await marking.getByRole("textbox", { name: "Nom de version" }).fill("v1.0");
+  await marking.getByRole("button", { name: "Marquer", exact: true }).click();
+  await expect(commands.getByRole("form")).toHaveCount(0);
+  await page.getByRole("button", { name: /^Tâches et messages\s: 1 tâche suivie/ }).click();
+  const task = page
+    .getByRole("dialog", { name: "Tâches et messages" })
+    .getByRole("region", { name: "Tâches de fond" })
+    .getByRole("listitem")
+    .filter({ hasText: "Marquage d’une révision « v1.0 »" });
+  await expect(task.getByText("Réussie")).toBeVisible({ timeout: MARKING });
+  await task.getByRole("button", { name: "Recharger l’écran" }).click();
+  const opened = page.url();
+  await main
+    .getByRole("region", { name: "Historique des révisions" })
+    .getByRole("button", { name: "Ouvrir une révision en cours" })
+    .click();
+  await expect(page).not.toHaveURL(opened, { timeout: WORKING });
+  const current = new URL(page.url()).searchParams.get("revision_id");
+  expect(current, "the revision opened is named by the address").not.toBeNull();
+
+  // Its planning, compared to the revision marked: nothing differs yet.
   await openHydrated(
     page,
-    `/projects/${PROJECT}/revisions?revision_id=${REVISION}&from_revision_id=${FROM}&to_revision_id=${TO}`,
+    `${seeded.own.path}/revisions/${current ?? ""}/planning?base_revision_id=${seeded.ids.revision}`,
   );
-  const main = page.getByRole("main");
-  const only = main.getByRole("button", { name: "Écarts seulement" });
-  await expect(only).toHaveAttribute("aria-pressed", "false");
-  await steps.timed("differences alone", async () => {
-    await only.click();
-    await expect(page).toHaveURL(/difference=added%2Cremoved%2Cmodified/, { timeout: WORKING });
-  });
-  await expect(only).toHaveAttribute("aria-pressed", "true");
-  const filters = page.getByRole("list", { name: "Filtres actifs" });
-  await expect(filters).toContainText("Écarts seulement");
-  const nodes = main.getByRole("grid", { name: "Nœuds comparés" });
-  await expect(nodes).toBeVisible();
-  // Against the service the filter is the server's, the screen asking it of the API: the grid
-  // counts the nodes the server retains — its two header rows besides, as in the volume path —,
-  // exactly those of the whole comparison that are not unchanged, which has some. The whole is read
-  // of the API once: what it retains is that count, the screen filtering nothing. (The fake back
-  // serves the same window whatever the address names.) The absence of « Inchangé » on the screen is
-  // read on the rows drawn alone, the grid being virtualised: the count of its rows says the rest.
-  if (inService) {
-    const whole = await steps.timed("the API", () => comparisonServed(browser, manager));
-    const differences = whole.items.filter(({ difference }) => difference !== "unchanged");
-    expect(differences.length).toBeGreaterThan(0);
-    expect(differences.length).toBeLessThan(whole.items.length);
-    await expect(nodes).toHaveAttribute("aria-rowcount", (differences.length + 2).toString());
-    await expect(nodes.getByRole("row").filter({ hasText: "Inchangé" })).toHaveCount(0);
-  }
-  // The choice of the pair carries the filter on: the address the form leads to — another than the
-  // one shown, which writes its parameters in another order — keeps it. It is waited for before the
-  // filter is lifted: lifted before, the comparison it asks would be read beside the one of the form,
-  // still under way, which Next gives up without the server stopping it — the lift took 15 s so,
-  // twice the time of one comparison under load (#2911, #2942).
-  const chosen = page.url();
-  await steps.timed("the pair", async () => {
-    await main.getByRole("button", { name: "Comparer" }).click();
-    // The form writes revision_id, difference, from, to — the button of the filter, revision_id,
-    // from, to, difference: only the form's order tells its address from the one shown.
-    const expected = new URLSearchParams(new URL(chosen).search);
-    const revision = expected.get("revision_id");
-    const query = new URLSearchParams();
-    if (revision !== null) query.set("revision_id", revision);
-    query.set("difference", "added,removed,modified");
-    query.set("from_revision_id", FROM);
-    query.set("to_revision_id", TO);
-    const search = `?${query.toString()}`;
-    await expect(
-      page,
-      `the address of the form of the pair, ${search} (its parameters in the form's order), is awaited`,
-    ).toHaveURL((url) => url.href !== chosen && url.search === search, { timeout: WORKING });
-  });
-  await expect(only).toHaveAttribute("aria-pressed", "true");
-  await steps.timed("the filter lifted", async () => {
-    await filters.getByRole("link", { name: /Lever le filtre/ }).click();
-    await expect(page).not.toHaveURL(/difference=/, { timeout: WORKING });
-  });
-  await expect(only).toHaveAttribute("aria-pressed", "false");
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(grid, { label: "Libellé", duration: "Durée", finish: "Fin" });
+  // The row of the second task of the plan, by its place in the answer: its name changes as it is marked.
+  const row = rowAt(grid, 2);
+  const finish = row.getByRole("gridcell").nth(at.finish);
+  await expect(finish).toBeVisible({ timeout: WORKING });
+  await expect(row).not.toContainText("Modifié");
+  await expect(finish).not.toContainText("Δ");
+  const settled = () => expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+  const date = /\d{2}\/\d{2}\/\d{4}/;
+  const before = date.exec(await finish.innerText())?.[0] ?? "";
+  expect(before, "the finish is a date").not.toBe("");
+
+  /** Write the duration of the task, which moves its finish: `updateTaskFacet`. */
+  const lasting = async (duration: string): Promise<void> => {
+    await row.getByRole("gridcell").nth(at.duration).click();
+    await page.keyboard.press("F2");
+    await grid.getByRole("textbox", { name: "Durée" }).fill(duration);
+    await page.keyboard.press("Enter");
+    await settled();
+  };
+
+  // The finish pushed two days: the task is read modified, its finish marked, the date of the base
+  // given — as the grid reads its comparison anew once the write answered.
+  await lasting("7 j");
+  await expect(row).toContainText("Modifié", { timeout: WORKING });
+  await expect(finish).toContainText("Δ");
+  await expect(finish).toContainText(`Base : ${before}`);
+  await expect(finish).not.toContainText(new RegExp(`^${before}`));
+
+  // The finish brought back: the task is read modified no more.
+  await lasting(`${SECOND_TASK_DAYS} j`);
+  await expect(row).not.toContainText("Modifié", { timeout: WORKING });
+  await expect(finish).not.toContainText("Δ");
+  await expect(finish).toContainText(before);
 });
