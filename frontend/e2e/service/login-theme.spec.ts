@@ -61,6 +61,9 @@ const ERRORS = [
   ".pf-v5-c-helper-text__item.pf-m-error",
   ".pf-v5-c-form__helper-text",
   ".pf-v5-c-alert.pf-m-danger .pf-v5-c-alert__title",
+  ".pf-v5-c-alert.pf-m-info .pf-v5-c-alert__title",
+  ".pf-v5-c-alert.pf-m-success .pf-v5-c-alert__title",
+  ".pf-v5-c-alert.pf-m-warning .pf-v5-c-alert__title",
 ];
 
 interface Painted {
@@ -160,6 +163,7 @@ for (const mode of ["light", "dark"] as const) {
 
       await judge(page, "the sign-in page", [
         ".pf-v5-c-form-control",
+        ".pf-v5-c-login__main-header-utilities .pf-v5-c-form-control",
         "#kc-social-providers .pf-v5-c-button",
       ]);
 
@@ -196,7 +200,11 @@ for (const mode of ["light", "dark"] as const) {
       // The forgotten password, and its answer.
       await page.getByRole("link", { name: /oublié|Forgot/i }).click();
       await expect(page).toHaveURL(under(`${REALM}/login-actions/reset-credentials`));
-      await judge(page, "the forgotten password", [".pf-v5-c-form-control"]);
+      await judge(page, "the forgotten password", [
+        ".pf-v5-c-form-control",
+        ".pf-v5-c-login__main-header-utilities .pf-v5-c-form-control",
+        ".pf-v5-c-button.pf-m-secondary",
+      ]);
       await page.locator("input[name=username]").fill("nobody@example.test");
       await page.locator("input[name=username]").press("Enter");
       await expect(page.locator(".pf-v5-c-alert")).toBeVisible();

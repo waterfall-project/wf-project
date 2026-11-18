@@ -12,6 +12,8 @@ import { join, relative } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { uncommented } from "@/test/uncommented";
+
 const SOURCES = join(import.meta.dirname, "..");
 /** The table of the interface, whose header cells set the background themselves. */
 const TABLE = join("components", "ui", "table.tsx");
@@ -23,11 +25,6 @@ function components(): string[] {
       (entry) => entry.isFile() && entry.name.endsWith(".tsx") && !entry.name.includes(".test."),
     )
     .map((entry) => join(entry.parentPath, entry.name));
-}
-
-/** A source without its comments: a comment that names `<thead>` is no head. */
-function uncommented(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/[^\n]*/g, "$1");
 }
 
 /** The heads written by hand in a source that do not take the muted background, as written. */

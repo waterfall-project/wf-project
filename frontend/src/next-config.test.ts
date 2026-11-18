@@ -36,6 +36,8 @@ import { join, relative } from "node:path";
 import type { NextConfig } from "next";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { uncommented } from "@/test/uncommented";
+
 const FRONT = join(import.meta.dirname, "..");
 
 /** The configuration of Next, loaded anew under the environment of the build. */
@@ -54,11 +56,6 @@ function builtSources(): string[] {
     )
     .map((entry) => join(entry.parentPath, entry.name));
   return [...sources, join(FRONT, "next.config.ts")];
-}
-
-/** A source without its comments: a directive or a name written in a comment is none. */
-function uncommented(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/[^\n]*/g, "$1");
 }
 
 /**
@@ -144,6 +141,12 @@ describe("the build of the front", () => {
     expect(keyed("src/app/page.tsx", 'async function c() {\n  "use cache: private";\n}\n')).toEqual(
       ['"use cache: private"'],
     );
+  });
+
+  it("[US-2530] finds an inline server action after a string that holds a comment opener (#839)", () => {
+    const probe =
+      'const g = "/*";\nexport async function a() {\n  "use server";\n}\n/** doc */\nconst b = 1;\n';
+    expect(keyed("src/app/page.tsx", probe)).toEqual(['"use server"']);
   });
 
   it("finds what enters the draft mode, and neither it nor a directive in a comment", () => {
