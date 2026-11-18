@@ -168,7 +168,9 @@ def remaining_of_revision(
 
     The re-estimated amounts of the lines, provisions left out, of the tasks not completed of its
     main structure — started or not, re-estimated or not —, the current revision or a marked one,
-    as its tasks stand in it (WF-RAE-0010); none for a revision without a main structure.
+    as its tasks stand in it (WF-RAE-0010); none for a revision without a main structure. The
+    remaining that ``getRemainingIndicators`` gives counts the provisions of the risks too
+    (``remaining_indicators``).
     """
     total, by_line = revision_remaining(session, project_id, revision_id)
     return RevisionRemaining(total, by_line)
@@ -182,7 +184,8 @@ def remaining_of_lines(
     ``tasks`` are those of the main structure of the revision (``tasks_for_indicators``), ``lines``
     its lines on them, provisions left out (``lines_for_indicators``): the re-estimated amount of
     each line whose task is not completed, in their order — what ``remaining_of_revision`` gives on
-    the same revision, without reading it.
+    the same revision, without reading it. The provisions are left out here as there:
+    ``getRemainingIndicators`` counts them (``remaining_indicators``).
     """
     completed = {task.node_id for task in tasks if task.progress == COMPLETED}
     total, by_line = remaining_sum(
@@ -215,11 +218,6 @@ def _ventilated(
         amounts[key] = amounts.get(key, NOUGHT) + remaining.by_line.get(line.node_id, NOUGHT)
         labels[key] = nature.label
     return distributed(amounts, labels)
-
-
-def previous_total(session: Session, project_id: UUID, revision_id: UUID) -> Decimal:
-    """Give the remaining to commit of the revision marked before, the risks provisions included."""
-    return revision_remaining(session, project_id, revision_id, provisions=True)[0]
 
 
 def remaining_indicators(

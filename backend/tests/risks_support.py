@@ -403,10 +403,6 @@ class Risks:
             path, headers=self.headers, params={"lock_version": node["lock_version"]}
         )
 
-    def task(self, label: str) -> dict[str, Any]:
-        """Create a task at the first level of the main structure, last of them."""
-        return self.project.tree.made(label)
-
     def remaining(self) -> dict[str, Any]:
         """Read the indicators of the remaining to commit of the current revision."""
         answer = self.api.get(f"{self.base}/remaining-indicators", headers=self.headers)
