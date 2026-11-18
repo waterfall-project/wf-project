@@ -207,6 +207,9 @@ from waterfall.core.planning.interface.lines import (
     lines_of_structure as lines_of_structure,
 )
 from waterfall.core.planning.interface.lines import (
+    lines_of_structures as lines_of_structures,
+)
+from waterfall.core.planning.interface.lines import (
     new_line_node as new_line_node,
 )
 from waterfall.core.planning.interface.lines import (

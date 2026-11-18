@@ -31,7 +31,7 @@ from waterfall.core.revisions.interface import (
     last_marked_revision,
     read_revision_for,
 )
-from waterfall.core.risks.reading import NOUGHT, Found, risk_view
+from waterfall.core.risks.reading import NOUGHT, Found, read_context, risk_view
 from waterfall.core.risks.tables import Risk, RiskEvaluation
 from waterfall.core.risks.views import ProvisionTotals, RiskList
 from waterfall.platform.database import contains
@@ -177,12 +177,11 @@ def read_register(
         empty = ProvisionTotals(NOUGHT, NOUGHT, NOUGHT, NOUGHT, NOUGHT)
         return RiskList([], 0, empty)
     revision_id = read_revision_for(session, project_id, filters.revision_id).revision_id
+    founds = _found(session, project_id, revision_id, filters.search)
+    context = read_context(session, project_id, founds)
     views = [
         view
-        for view in (
-            risk_view(session, project_id, found, viewer)
-            for found in _found(session, project_id, revision_id, filters.search)
-        )
+        for view in (risk_view(session, project_id, found, viewer, context) for found in founds)
         if _kept(view, filters)
     ]
     ordered = _sorted(views, sort)
