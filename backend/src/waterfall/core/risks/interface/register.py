@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.projects.interface import Viewer
-    from waterfall.core.risks.interface.risks import RiskState, RiskView
+    from waterfall.core.risks.views import RiskState, RiskView
 
 # The columns the register sorts on (``listRisks``, ``sort_by``).
 type RiskColumn = Literal[

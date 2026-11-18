@@ -6,9 +6,11 @@ The common hook of the marking and of the abandonment (EP-06, "Les points d'exte
 under the lock of the revision, once it is judged and before it is written. Each module registers
 its part under a stage, and the stages run in their declared order (``CLOSING_STAGES``), whatever
 the order in which a process imported the modules: the history and the plans of a paste first
-(``history``: ``close_history``, US-1450/L1), then the content of the revision (``content``: the
-nodes at an abandonment, ``delete_nodes``, US-1380/L2; the images of EP-07), the parts of a stage
-in the order of their registration; the structures of EP-04 are deleted after them
+(``history``: ``close_history``, US-1450/L1), then the rows of a later module that name the content
+— the evaluations and the reviews of the risks at an abandonment, which name the provision lines
+and the own estimates (``evaluations``, EP-08, US-2570/L1) —, then the content of the revision
+(``content``: the nodes at an abandonment, ``delete_nodes``, US-1380/L2; the images of EP-07), the
+parts of a stage in the order of their registration; the structures of EP-04 are deleted after them
 (``delete_structures``), so that the abandonment of a full revision leaves no row (WF-DAT-0010).
 The cascade of the keys keeps the same order should a path forget it.
 
@@ -29,9 +31,10 @@ if TYPE_CHECKING:
 
 # Why a revision closes: it is marked, or it is abandoned.
 type ClosingKind = Literal["marked", "abandoned"]
-# The stages of a closing, in the order they run: the history, then the content of the revision.
-type ClosingStage = Literal["history", "content"]
-CLOSING_STAGES: tuple[ClosingStage, ...] = ("history", "content")
+# The stages of a closing, in the order they run: the history, the rows that name the content of the
+# revision, then that content.
+type ClosingStage = Literal["history", "evaluations", "content"]
+CLOSING_STAGES: tuple[ClosingStage, ...] = ("history", "evaluations", "content")
 
 
 @dataclass(frozen=True, slots=True)

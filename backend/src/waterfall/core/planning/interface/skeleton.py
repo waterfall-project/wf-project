@@ -35,7 +35,11 @@ from waterfall.core.projects.interface import (
     read_work_breakdown,
     work_breakdown_items,
 )
-from waterfall.core.revisions.interface import last_marked_revisions, revision_draft
+from waterfall.core.revisions.interface import (
+    last_marked_revisions,
+    main_structures_of,
+    revision_draft,
+)
 from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 from waterfall.platform.identifiers import new_id
 
@@ -287,3 +291,25 @@ def opening_with_tasks(session: Session, project_ids: Collection[UUID]) -> froze
     )
     held = set(bearing)
     return frozenset(project for project, revision in sources.items() if revision in held)
+
+
+def opening_main_with_tasks(session: Session, project_ids: Collection[UUID]) -> frozenset[UUID]:
+    """Tell which of the projects would open a revision whose main structure carries a task.
+
+    The copy of the last marked revision, judged as ``first_task`` judges a structure — a task at
+    its first level —, what the declaration of a risk asks (WF-RIS-0010). One statement for the
+    revisions, one for the structures, one for the tasks.
+    """
+    sources = last_marked_revisions(session, project_ids)
+    mains = main_structures_of(session, sources.values()) if sources else {}
+    if not mains:
+        return frozenset()
+    bearing = session.scalars(
+        select(Node.structure_id)
+        .where(Node.structure_id.in_(mains.values()), Node.kind == TASK, Node.parent_id.is_(None))
+        .distinct()
+    )
+    held = set(bearing)
+    return frozenset(
+        project for project, revision in sources.items() if mains.get(revision) in held
+    )

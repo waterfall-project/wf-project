@@ -157,7 +157,8 @@ class Node(Stamped):
         ForeignKeyConstraint(
             ["project_id", "origin_risk_id"], ["risk.project_id", "risk.id"], ondelete="RESTRICT"
         ),
-        Index(None, "revision_id"),
+        # The nodes of a revision are read by ``uq_node_revision_id``, of which ``revision_id`` is
+        # the prefix: no index of their own (migration ``0036``, #3954).
         Index(None, "parent_id"),
         Index(None, "origin_risk_id", postgresql_where=text("origin_risk_id IS NOT NULL")),
         counted(),

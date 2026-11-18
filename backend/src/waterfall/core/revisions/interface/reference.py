@@ -49,7 +49,7 @@ from waterfall.core.revisions.interface.shared import (
     refuse,
 )
 from waterfall.core.revisions.registry import Registry
-from waterfall.core.revisions.tables import Revision
+from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import STALE_LOCK_VERSION, PreconditionFailedError
@@ -59,6 +59,7 @@ if TYPE_CHECKING:
     from datetime import datetime
     from uuid import UUID
 
+    from sqlalchemy import Select
     from sqlalchemy.orm import Session
 
     from waterfall.core.projects.interface import Viewer
@@ -72,6 +73,8 @@ _TASKS_AND_LINES: Registry[tuple[RevisionPart, Callable[[Session, UUID], bool]]]
 )
 # What a module does once a reference is designated, in the order of registration: EP-07's.
 _DESIGNATIONS: Registry[Callable[[ReferenceDesignated], None]] = Registry("revisions.designation")
+# The questions on the main structure of a revision: does it bear a task, by the planning.
+_MAIN_TASK: Registry[Callable[[Session, Select[UUID]], bool]] = Registry("revisions.main_task")
 
 
 def reference_correctable(session: Session, project_id: UUID) -> bool:
@@ -237,3 +240,29 @@ def revision_has_tasks(session: Session, revision_id: UUID) -> bool:
     """
     questions = [question for part, question in _TASKS_AND_LINES.entries() if part == "tasks"]
     return any(question(session, revision_id) for question in questions)
+
+
+def register_main_task_question(
+    question: Callable[[Session, Select[UUID]], bool],
+) -> Callable[[], None]:
+    """Add a question on the main structure of a revision, given as a selection: has it a task.
+
+    The planning registers it. Give its withdrawal.
+    """
+    return _MAIN_TASK.register(question)
+
+
+def main_structure_has_task(session: Session, project_id: UUID, revision_id: UUID) -> bool:
+    """Tell whether the main structure of a revision bears a task, by the questions registered.
+
+    What the declaration of a risk asks of the revision it writes in (WF-RIS-0010), where
+    ``revision_has_tasks`` covers every structure of the revision; false while none is registered.
+    The structure is given to the questions as a selection, so that they read it in one statement.
+    """
+    questions = _MAIN_TASK.entries()
+    main = select(CostStructure.id).where(
+        CostStructure.project_id == project_id,
+        CostStructure.revision_id == revision_id,
+        CostStructure.kind == "main",  # ``MAIN`` of ``structures``, which imports this module
+    )
+    return bool(questions) and all(question(session, main) for question in questions)

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
     from waterfall.core.projects.interface import Viewer
     from waterfall.core.risks.interface.register import ProvisionTotals
-    from waterfall.core.risks.interface.risks import RiskState
+    from waterfall.core.risks.views import RiskState
 
 
 @dataclass(frozen=True, slots=True)

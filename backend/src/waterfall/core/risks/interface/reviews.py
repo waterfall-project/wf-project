@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
     from waterfall.core.planning.interface import Writer
     from waterfall.core.projects.interface import Viewer
-    from waterfall.core.risks.interface.risks import RiskState, RiskView
+    from waterfall.core.risks.views import RiskState, RiskView
 
 
 @dataclass(frozen=True, slots=True)

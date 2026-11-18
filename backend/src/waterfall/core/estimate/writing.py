@@ -25,9 +25,11 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Numeric, SmallInteger, Uuid, column, select, update, values
 from sqlalchemy.orm.attributes import set_committed_value
 
+from waterfall.core.cost_settings.interface import categories_of_kind
 from waterfall.core.estimate.costing import (
     Basis,
     Figures,
+    Priced,
     basis_of,
     calendar_hours,
     judge_working_hours,
@@ -38,6 +40,7 @@ from waterfall.core.estimate.costing import (
 )
 from waterfall.core.estimate.entries import (
     CREATED_LINE,
+    PROVISION,
     AmountOverflowError,
     Draft,
     LineEntry,
@@ -45,6 +48,7 @@ from waterfall.core.estimate.entries import (
     overflowing,
 )
 from waterfall.core.estimate.pricing import CENT
+from waterfall.core.estimate.provisioning import ProvisionEntry, create_provision
 from waterfall.core.estimate.recalling import recalled, remembers
 from waterfall.core.estimate.tables import AMOUNT_PRECISION, AMOUNT_SCALE, EstimateLine
 from waterfall.core.resource_settings.interface import role_calendars
@@ -56,7 +60,6 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.estimate.costing import Priced
     from waterfall.core.planning.interface import BearingTask, FacetCreation, FacetWrite
 
 NOUGHT = CENT * 0
@@ -200,7 +203,13 @@ def judged_priced(
 
 
 def create_line(creation: FacetCreation) -> None:
-    """Write the facet of a line created under its task, priced (``createNode``); or refuse."""
+    """Write the facet of a line created under its task, priced (``createNode``); or refuse.
+
+    The provision line a risk asks for is written as the risks ask (``provisioning``, EP-08).
+    """
+    if isinstance(creation.entry, ProvisionEntry):
+        create_provision(creation, creation.entry)
+        return
     session, project_id = creation.session, creation.project_id
     entry, judged = _sent(creation.entry)
     draft = judged_line(session, (project_id, creation.bearer), entry, None)
@@ -297,7 +306,10 @@ def reprice(
     """Price again the lines named on the dates of their tasks; give those whose amounts moved.
 
     A rate gone since — the reference never takes one away — leaves the base amount as it was, from
-    which the shares are cut (EP-07, "Le calcul des montants"). The amounts are computed here, line
+    which the shares are cut (EP-07, "Le calcul des montants"). A provision line is never
+    projected (WF-RIS-0010): it keeps its amount, the severity weighted by the probability that
+    its risk sets, and only its year of consumption follows the dates of its task. The amounts are
+    computed here, line
     by line, and those that moved written by set (``_write_priced``): a revision opened a year
     later moves most of its lines (#3535).
     """
@@ -318,8 +330,14 @@ def reprice(
     weeks = calendar_hours(session, calendars.values())
     labour = {row.cost_category_id for row in rows if row.resource_role_id is not None}
     rates = rates_of(session, project_id, basis, labour)
+    provisions = categories_of_kind(session, PROVISION)
     moved: list[tuple[EstimateLine, Priced]] = []
     for row in rows:
+        if row.cost_category_id in provisions:
+            year = priced(row.base_amount, lines[row.node_id], basis, None).consumption_year
+            if year != row.consumption_year:
+                moved.append((row, Priced(row.base_amount, row.reestimated_amount, year)))
+            continue
         role = row.resource_role_id
         calendar = None if role is None else calendars.get(role)
         figures = Figures(

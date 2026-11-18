@@ -116,6 +116,8 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
 # US-2550/L1) so that no later story opens their ``__init__``.
 PLANNING_INTERFACES: dict[str, set[str]] = {
     "planning": {
+        # The tasks a risk names and the provision line it asks for (US-2570/L1, EP-08).
+        "borne_lines",
         "closing",
         # The copy of the nodes of a revision, moved out of ``nodes`` (US-2240/L2).
         "copying",

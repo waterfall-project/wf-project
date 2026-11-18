@@ -411,6 +411,8 @@ def get_structures(
                 "is_merged": view.is_merged,
                 "available_commands": _commands(view.commands),
                 "lock_version": view.lock_version,
+                # The risk of an own estimate, absent from the other kinds, as the examples have it.
+                **({} if view.risk_id is None else {"risk_id": view.risk_id}),
             }
         ).model_dump(mode="json", exclude_unset=True)
         for view in views

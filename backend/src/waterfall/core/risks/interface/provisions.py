@@ -11,8 +11,9 @@ Declared by US-2550/L1, the socle of EP-08; filled by US-2580/L1.
 """
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import TYPE_CHECKING
+
+from waterfall.core.risks.views import OMITTED, Omitted
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -21,16 +22,7 @@ if TYPE_CHECKING:
 
     from waterfall.core.planning.interface import Writer
     from waterfall.core.projects.interface import Viewer
-    from waterfall.core.risks.interface.risks import RiskView
-
-
-class Omitted(Enum):
-    """A field of the provision a change does not send: the risk's stays."""
-
-    FIELD = "omitted"
-
-
-OMITTED = Omitted.FIELD
+    from waterfall.core.risks.views import RiskView
 
 
 @dataclass(frozen=True, slots=True)

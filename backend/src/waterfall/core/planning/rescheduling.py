@@ -119,8 +119,9 @@ def replayed(
     """Replay the engine on a structure locked, write what changes; give what it moved.
 
     The structure is locked (read under its lock unless ``held`` hands what the write read), its
-    dates' instant moved on to ``at`` and its counter advanced. A tree ``held`` hands is brought to
-    what the write made of it (``reshaped``), not read again.
+    lines priced again, then its dates' instant moved on to ``at`` and its counter advanced: what
+    follows the counter of the own estimate of a risk reads its total (EP-08, US-2570/L1). A tree
+    ``held`` hands is brought to what the write made of it (``reshaped``), not read again.
     Beyond fifteen years (WF-PLA-0150), refused (422 ``PROJECT_HORIZON_EXCEEDED``), nothing
     written: naming the task the write blames — its node, none for a task created, its label, and
     the row of the block of a paste — or, without one, the task that finishes last. A loop of
@@ -147,7 +148,6 @@ def replayed(
         raise horizon_exceeded(named.node_id, named.label, named.row)
     moved = kept(replay, computed, held.conflicts)
     session.flush()
-    counter = structure_rescheduled(session, project_id, structure_id, at)
     bearers = {each for each in moved if each in tree.tasks}
     for each in held.repriced:
         node = tree.nodes.get(each)
@@ -155,6 +155,8 @@ def replayed(
         if bearer is not None:
             bearers.add(bearer)
     reinflated = _reinflated(session, (project_id, facts.is_main), tree, calendars, bearers)
+    # Last, once the lines are priced: what follows the counter of an own estimate reads its total.
+    counter = structure_rescheduled(session, project_id, structure_id, at)
     return Rescheduled(
         tree, replay.links, calendars, frozenset(moved), counter, facts.is_main, reinflated
     )
