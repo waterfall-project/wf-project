@@ -173,6 +173,7 @@ BY_KIND = {"exchanges.formats", "exchanges.exporters"}
 DECLARED = {
     "revisions.copy",
     "revisions.tasks_and_lines",
+    "revisions.main_task",
     "revisions.indicators",
     "revisions.marking",
     "revisions.designation",
@@ -183,6 +184,7 @@ DECLARED = {
     "resource_settings.recalculation",
     "projects.attachments",
     "projects.opening",
+    "projects.opening_main",
     "projects.estimate_facts",
     "projects.cost_facts",
     "planning.facets",
@@ -208,6 +210,7 @@ REGISTERED = {
         f"{PLANNING}.copying.copy_nodes",
         f"{PLANNING}.reference.redate_copy",
     ],
+    "revisions.main_task": [f"{PLANNING}.borne_lines.structures_have_task"],
     "revisions.tasks_and_lines": [f"tasks:{PLANNING}.nodes.revision_has_tasks"],
     "resource_settings.idle_task_guard": [f"{PLANNING}.reference.tasks_left_idle"],
     "resource_settings.recalculation": [f"{PLANNING}.reference.reschedule_current_structures"],
@@ -220,6 +223,7 @@ REGISTERED = {
         )
     ],
     "projects.opening": [f"{PLANNING}.skeleton.opening_with_tasks"],
+    "projects.opening_main": [f"{PLANNING}.skeleton.opening_main_with_tasks"],
     CLOSING: [
         "history:waterfall.core.history.interface.closing.close_history",
         f"content:{PLANNING}.closing.delete_nodes",

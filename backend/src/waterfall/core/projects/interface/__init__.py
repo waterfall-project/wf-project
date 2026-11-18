@@ -119,7 +119,9 @@ from waterfall.core.projects.interface.projects import (
 
 # ``skeleton`` (US-1460): whether the revision a project would open carries a task.
 from waterfall.core.projects.interface.skeleton import (
+    opening_main_with_tasks,
     opening_with_tasks,
+    register_opening_main_question,
     register_opening_question,
 )
 
@@ -262,6 +264,7 @@ __all__ = [
     "lock_project",
     "next_state",
     "no_background_task_running",
+    "opening_main_with_tasks",
     "opening_with_tasks",
     "project_code",
     "project_commands",
@@ -277,6 +280,7 @@ __all__ = [
     "register_attachments",
     "register_cost_facts",
     "register_estimate_facts",
+    "register_opening_main_question",
     "register_opening_question",
     "require_project_manager",
     "set_contributors",

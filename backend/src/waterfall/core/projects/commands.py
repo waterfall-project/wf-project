@@ -127,7 +127,8 @@ class Running:
     """What the commands read of the background and of the revision an opening would create.
 
     ``no_task_running`` tells that no task of the background writes in the project;
-    ``opening_has_tasks`` that the revision its opening would create carries a task;
+    ``opening_has_tasks`` that the revision its opening would create carries a task,
+    ``opening_has_main_task`` that its main structure does, which the declaration of a risk asks;
     ``mapping_complete`` that the mapping of an extraction of the actual costs declares a label for
     each column it requires (WF-REF-0190), true by the callers that do not read it;
     ``provision_category_active`` that an active category of the provision kind exists, which
@@ -137,6 +138,7 @@ class Running:
     no_task_running: bool
     mapping_complete: bool
     opening_has_tasks: bool = False
+    opening_has_main_task: bool = False
     provision_category_active: bool = True
 
 
@@ -223,7 +225,7 @@ def _declaration_lacks(running: Running) -> list[str]:
     A copy of the last marked revision, without a task if the project has none; the category of
     provision is the installation's (WF-RIS-0010). The background task is named before them.
     """
-    missing = [] if running.opening_has_tasks else [AT_LEAST_ONE_TASK]
+    missing = [] if running.opening_has_main_task else [AT_LEAST_ONE_TASK]
     return missing if running.provision_category_active else [*missing, ACTIVE_PROVISION_CATEGORY]
 
 

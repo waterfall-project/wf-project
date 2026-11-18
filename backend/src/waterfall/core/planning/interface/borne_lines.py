@@ -19,7 +19,7 @@ Filled by US-2570/L1.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ColumnElement, select
+from sqlalchemy import ColumnElement, exists, select
 
 from waterfall.core.planning.interface.lines import judge_line_creation, write_line_node
 from waterfall.core.planning.interface.nodes import NodeCreation
@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from collections.abc import Collection
     from uuid import UUID
 
+    from sqlalchemy import Select
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.writing import Place
@@ -61,6 +62,24 @@ def first_task(session: Session, project_id: UUID, structure_id: UUID) -> TaskNa
     """Give the first task of the first level of a structure, none for a structure without one."""
     found = _named(session, project_id, Node.structure_id == structure_id, Node.parent_id.is_(None))
     return found[0] if found else None
+
+
+def structures_have_task(session: Session, structures: Select[UUID]) -> bool:
+    """Tell whether one of the structures selected has a task at its first level.
+
+    What the declaration of a risk asks of the main structure of a revision (WF-RIS-0010,
+    ``createRisk``): as ``first_task`` judges it, in one statement, whichever tasks the other
+    structures of the revision bear.
+    """
+    return bool(
+        session.scalar(
+            select(
+                exists().where(
+                    Node.structure_id.in_(structures), Node.kind == TASK, Node.parent_id.is_(None)
+                )
+            )
+        )
+    )
 
 
 def task_of(

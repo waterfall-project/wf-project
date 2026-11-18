@@ -57,6 +57,9 @@ from waterfall.core.planning.interface.borne_lines import (
     first_task as first_task,
 )
 from waterfall.core.planning.interface.borne_lines import (
+    structures_have_task as structures_have_task,
+)
+from waterfall.core.planning.interface.borne_lines import (
     task_of as task_of,
 )
 from waterfall.core.planning.interface.borne_lines import (
@@ -482,6 +485,9 @@ from waterfall.core.planning.interface.skeleton import (
     generate_skeleton as generate_skeleton,
 )
 from waterfall.core.planning.interface.skeleton import (
+    opening_main_with_tasks as opening_main_with_tasks,
+)
+from waterfall.core.planning.interface.skeleton import (
     opening_with_tasks as opening_with_tasks,
 )
 
@@ -664,6 +670,7 @@ from waterfall.core.planning.writing import (
 from waterfall.core.projects.interface import (
     Attachments,
     register_attachments,
+    register_opening_main_question,
     register_opening_question,
 )
 from waterfall.core.resource_settings.interface import (
@@ -673,6 +680,7 @@ from waterfall.core.resource_settings.interface import (
 from waterfall.core.revisions.interface import (
     register_closing,
     register_copy,
+    register_main_task_question,
     register_tasks_and_lines,
 )
 
@@ -694,6 +702,8 @@ register_attachments(
     )
 )
 register_opening_question(opening_with_tasks)
+register_opening_main_question(opening_main_with_tasks)
+register_main_task_question(structures_have_task)
 register_format("ms_project_schedule", MS_PROJECT_FORMAT)
 register_exporter("ms_project_schedule", MS_PROJECT_EXPORTER)
 register_exporter("task_tree_image", TASK_TREE_EXPORTER)

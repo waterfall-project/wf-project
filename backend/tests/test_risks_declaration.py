@@ -20,7 +20,8 @@ from nodes_support import Tree, mark, opened
 from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
 from risks_support import MAKING, STUDY, Costed, costed
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
+from sqlalchemy.orm import Session
 
 from waterfall.core.access_roles.predefined import PROJECT_MANAGER
 from waterfall.core.cost_settings.interface import (
@@ -39,6 +40,7 @@ from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.core.risks.tables import Risk, RiskEvaluation, RiskReview
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
+from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -526,3 +528,48 @@ def test_declare_risk_of_the_project_judges_the_last_marked_revision_it_would_co
     (delivered,) = provision_categories(stage)
     deactivate(stage, delivered)
     judged_alike(api, stage, base, ["active_provision_category"])
+
+
+def task_outside_the_main_structure(stage: Scene, revision_id: object) -> None:
+    """Leave the main structure of a revision without a task, the tasks in an amendment.
+
+    The structure that bore them is turned into an amendment and a main one, empty, takes its
+    place: what a differential structure bearing a task beside an empty main one looks like.
+    """
+    with Session(stage.owner) as session, session.begin():
+        held = session.execute(
+            select(CostStructure).where(
+                CostStructure.revision_id == UUID(str(revision_id)), CostStructure.kind == "main"
+            )
+        ).scalar_one()
+        columns = {each.key: getattr(held, each.key) for each in CostStructure.__table__.columns}
+        session.execute(
+            update(CostStructure)
+            .where(CostStructure.project_id == held.project_id, CostStructure.id == held.id)
+            .values(kind="amendment", label="Avenant")
+        )
+        session.add(CostStructure(**{**columns, "id": new_id(), "lineage_id": new_id()}))
+
+
+@pytest.mark.requirement("WF-RIS-0020-A")
+def test_declare_risk_of_a_revision_asks_a_task_of_its_main_structure_alone(
+    api: ContractClient, project: Costed
+) -> None:
+    # A task kept by another structure of the revision does not make the declaration possible:
+    # the list says what `createRisk` refuses (409 `at_least_one_task`).
+    stage = project.stage
+    task_outside_the_main_structure(stage, project.revision_id)
+    path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{project.revision_id}"
+    judged_alike(api, stage, path, ["at_least_one_task"])
+
+
+@pytest.mark.requirement("WF-RIS-0020-A")
+def test_declare_risk_of_the_project_asks_a_task_of_the_main_structure_it_would_copy(
+    api: ContractClient, project: Costed
+) -> None:
+    # The same on the project without a current revision, which would copy the last marked one.
+    stage = project.stage
+    task_outside_the_main_structure(stage, project.revision_id)
+    mark(stage, {"revision_id": str(project.revision_id)})
+    base = f"{PROJECTS}/{stage.project['project_id']}"
+    judged_alike(api, stage, base, ["at_least_one_task"])

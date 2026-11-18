@@ -108,6 +108,7 @@ class RevisionState:
     has_tasks_and_lines: bool
     reference_correctable: bool
     has_tasks: bool = False
+    has_main_task: bool = False
     rate_update_available: bool = False
     provision_category_active: bool = True
 
@@ -146,7 +147,7 @@ def revision_conditions(command: str, revision: RevisionState) -> list[str]:
     if command == "declare_risk":
         return [
             *([] if revision.no_task_running else [NO_BACKGROUND_TASK_RUNNING]),
-            *([] if revision.has_tasks else [AT_LEAST_ONE_TASK]),
+            *([] if revision.has_main_task else [AT_LEAST_ONE_TASK]),
             *([] if revision.provision_category_active else [ACTIVE_PROVISION_CATEGORY]),
         ]
     # The skeleton asks a main structure without tasks first, its own condition (WF-PRJ-0030).

@@ -53,6 +53,7 @@ from waterfall.core.revisions.interface import (
     create_own_estimate,
     create_revision,
     last_marked_revision,
+    main_structure_has_task,
     revision_draft,
 )
 from waterfall.core.risks.commands import (
@@ -121,8 +122,7 @@ def _judge_state(
     """
     if not no_background_task_running(session, project_id, running):
         raise refuse(NO_BACKGROUND_TASK_RUNNING)
-    main = None if revision_id is None else aimed_structure(session, project_id, revision_id, None)
-    if main is None or first_task(session, project_id, main) is None:
+    if revision_id is None or not main_structure_has_task(session, project_id, revision_id):
         raise refuse(AT_LEAST_ONE_TASK)
     if not provision_category_active(session):
         raise refuse(ACTIVE_PROVISION_CATEGORY)

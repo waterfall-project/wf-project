@@ -56,7 +56,7 @@ from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Collection
     from datetime import date, datetime
     from uuid import UUID
 
@@ -336,6 +336,16 @@ def aimed_structure(
     else:
         criteria.append(CostStructure.id == structure_id)
     return session.scalar(select(CostStructure.id).where(*criteria))
+
+
+def main_structures_of(session: Session, revision_ids: Collection[UUID]) -> dict[UUID, UUID]:
+    """Give the main structure of each of the revisions that has one, in one statement."""
+    rows = session.execute(
+        select(CostStructure.revision_id, CostStructure.id).where(
+            CostStructure.revision_id.in_(revision_ids), CostStructure.kind == MAIN
+        )
+    )
+    return {row[0]: row[1] for row in rows}
 
 
 def structure_in_revision(

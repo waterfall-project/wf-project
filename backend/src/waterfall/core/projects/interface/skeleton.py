@@ -22,6 +22,10 @@ if TYPE_CHECKING:
 _OPENING: Registry[Callable[[Session, Collection[UUID]], frozenset[UUID]]] = Registry(
     "projects.opening"
 )
+# What each module tells of the main structure of the revision a project would open.
+_OPENING_MAIN: Registry[Callable[[Session, Collection[UUID]], frozenset[UUID]]] = Registry(
+    "projects.opening_main"
+)
 
 
 def register_opening_question(
@@ -39,5 +43,24 @@ def opening_with_tasks(session: Session, project_ids: Collection[UUID]) -> froze
     """Tell which of the projects would open a revision that carries a task, by any module."""
     found: set[UUID] = set()
     for question in _OPENING.entries():
+        found |= question(session, project_ids)
+    return frozenset(found)
+
+
+def register_opening_main_question(
+    question: Callable[[Session, Collection[UUID]], frozenset[UUID]],
+) -> Callable[[], None]:
+    """Add a question on the revisions projects would open: which main structure carries a task.
+
+    The declaration of a risk judges that one, ``opening_with_tasks`` the whole revision being the
+    skeleton's (WF-RIS-0010). Give its withdrawal.
+    """
+    return _OPENING_MAIN.register(question)
+
+
+def opening_main_with_tasks(session: Session, project_ids: Collection[UUID]) -> frozenset[UUID]:
+    """Tell which of the projects would open a revision whose main structure carries a task."""
+    found: set[UUID] = set()
+    for question in _OPENING_MAIN.entries():
         found |= question(session, project_ids)
     return frozenset(found)

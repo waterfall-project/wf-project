@@ -61,8 +61,9 @@ FRIDAY = DAY + timedelta(days=4)
 TERMINAL = ["completed", "lost", "abandoned"]
 # The conditions, in the order of the contract, a task not started that is no milestone lacks.
 NOT_STARTED = ["task_is_milestone", "task_without_lines"]
-# The statements the Kanban takes, measured at 33; tight enough to catch one more a task.
-BOUND = 35
+# The statements the Kanban takes, measured at 36 (one reads the main structure of the revision, for
+# the declaration of a risk, US-2570); tight enough to catch one more a task.
+BOUND = 36
 
 
 @pytest.fixture
