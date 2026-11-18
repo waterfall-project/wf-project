@@ -462,6 +462,9 @@ from waterfall.core.estimate.severities import (
 from waterfall.core.estimate.severities import (
     structure_amount as structure_amount,
 )
+from waterfall.core.estimate.severities import (
+    structure_amounts as structure_amounts,
+)
 
 # ``spreading`` (US-1520/L1; US-2040/L2): the line the planned value is computed on, which EP-10
 # reads; the rounding of the hours and of the amounts, once, from the exact value.

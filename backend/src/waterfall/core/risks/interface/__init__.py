@@ -91,27 +91,6 @@ from waterfall.core.risks.interface.provisions import (
 
 # ``register`` (US-2550/L1; US-2600/L1): the register of the risks.
 from waterfall.core.risks.interface.register import (
-    Bounds as Bounds,
-)
-from waterfall.core.risks.interface.register import (
-    ProvisionTotals as ProvisionTotals,
-)
-from waterfall.core.risks.interface.register import (
-    RiskColumn as RiskColumn,
-)
-from waterfall.core.risks.interface.register import (
-    RiskFilters as RiskFilters,
-)
-from waterfall.core.risks.interface.register import (
-    RiskList as RiskList,
-)
-from waterfall.core.risks.interface.register import (
-    RiskPage as RiskPage,
-)
-from waterfall.core.risks.interface.register import (
-    RiskSort as RiskSort,
-)
-from waterfall.core.risks.interface.register import (
     list_risks as list_risks,
 )
 
@@ -137,10 +116,14 @@ from waterfall.core.risks.interface.risks import (
 from waterfall.core.risks.interface.risks import (
     update_risk as update_risk,
 )
-
-# ``risks`` (US-2550/L1; US-2570/L1): a risk declared, read and renamed.
 from waterfall.core.risks.views import (
     OMITTED as OMITTED,
+)
+
+# ``risks`` (US-2550/L1; US-2570/L1): a risk declared, read and renamed; ``register`` (US-2600/L1):
+# what the register asks for and gives.
+from waterfall.core.risks.views import (
+    Bounds as Bounds,
 )
 from waterfall.core.risks.views import (
     Omitted as Omitted,
@@ -149,16 +132,34 @@ from waterfall.core.risks.views import (
     ProvisionTask as ProvisionTask,
 )
 from waterfall.core.risks.views import (
+    ProvisionTotals as ProvisionTotals,
+)
+from waterfall.core.risks.views import (
+    RiskColumn as RiskColumn,
+)
+from waterfall.core.risks.views import (
     RiskCommand as RiskCommand,
 )
 from waterfall.core.risks.views import (
     RiskEntry as RiskEntry,
 )
 from waterfall.core.risks.views import (
+    RiskFilters as RiskFilters,
+)
+from waterfall.core.risks.views import (
     RiskIdentityChange as RiskIdentityChange,
 )
 from waterfall.core.risks.views import (
+    RiskList as RiskList,
+)
+from waterfall.core.risks.views import (
     RiskMatrixCell as RiskMatrixCell,
+)
+from waterfall.core.risks.views import (
+    RiskPage as RiskPage,
+)
+from waterfall.core.risks.views import (
+    RiskSort as RiskSort,
 )
 from waterfall.core.risks.views import (
     RiskState as RiskState,

@@ -6,7 +6,9 @@ The objects of ``interface/risks.py`` (US-2550/L1), moved here by US-2570/L1 so 
 read and write a risk build them without importing the interface, which imports those files: a
 ``RiskView`` is what a reading gives, which the register, the matrix and the portfolio read too;
 a ``RiskEntry`` what a declaration sends, a ``RiskIdentityChange`` what a change of the identity
-sends, a field not sent ``OMITTED``. Another module names them through the interface.
+sends, a field not sent ``OMITTED``. The objects of ``interface/register.py`` follow, moved here by
+US-2600/L1 for the same reason: what the register asks for and gives. Another module names them
+through the interface.
 """
 
 from dataclasses import dataclass
@@ -120,3 +122,79 @@ class RiskIdentityChange:
     lock_version: int
     description: str | Omitted | None = OMITTED
     mitigation_notes: str | Omitted | None = OMITTED
+
+
+# The columns the register sorts on (``listRisks``, ``sort_by``).
+type RiskColumn = Literal[
+    "label",
+    "probability",
+    "severity",
+    "provision_amount",
+    "occurrence_cost",
+    "occurred_reestimated_amount",
+    "state",
+    "last_review_on",
+]
+
+
+@dataclass(frozen=True, slots=True)
+class Bounds[T]:
+    """The two bounds of a column, each included, ``None`` when not given."""
+
+    least: T | None = None
+    most: T | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RiskFilters:
+    """What the register keeps (``listRisks``): each column by its list, its search or its bounds.
+
+    ``revision_id`` the revision read: the current one, or the last marked, when ``None``.
+    """
+
+    revision_id: UUID | None = None
+    states: tuple[RiskState, ...] | None = None
+    zones: tuple[str, ...] | None = None
+    search: str | None = None
+    probability: Bounds[Decimal] = Bounds()
+    severity: Bounds[Decimal] = Bounds()
+    provision_amount: Bounds[Decimal] = Bounds()
+    occurrence_cost: Bounds[Decimal] = Bounds()
+    occurred_reestimated_amount: Bounds[Decimal] = Bounds()
+    last_review_on: Bounds[date] = Bounds()
+
+
+@dataclass(frozen=True, slots=True)
+class RiskSort:
+    """How the register is sorted: by a column, or in the order of declaration when ``None``."""
+
+    key: RiskColumn | None = None
+    descending: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class RiskPage:
+    """Which risks of the register are read: ``limit`` of them, after the first ``offset``."""
+
+    limit: int
+    offset: int
+
+
+@dataclass(frozen=True, slots=True)
+class ProvisionTotals:
+    """The provision totals of the risks retained, by state, their sum, and the reserve."""
+
+    identified: Decimal
+    occurred: Decimal
+    dismissed: Decimal
+    total: Decimal
+    reserve: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class RiskList:
+    """A page of the register, how many risks the filters retain, and their totals."""
+
+    risks: list[RiskView]
+    total: int
+    totals: ProvisionTotals
