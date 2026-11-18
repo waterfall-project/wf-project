@@ -25,6 +25,11 @@ named with its cause where the test stands:
 - the contexts, ``is_stored``, the actual cost, the earned value, the dates of the milestones and
   the shapes and steps of the series are the examples'.
 
+``SINCE`` names what the 101 read at its marking, 1 February, differs in from the example of the
+day, 3 June, which holds the work since: each such path is pinned to the 101's own estimate and
+indicators by an equality, in the test that names it. The causes of the ``*_APART`` tables
+document only: the tests compare their paths, never their causes.
+
 The invariants the witness proves: the sums of the meshes, the projection of the project manager,
 the offer refused, the points of the time/time diagram, the documents of the 101 on two platforms.
 """
@@ -77,10 +82,8 @@ THE_DAY = "2026-06-03"
 REFERENCE = "measured to the offer 100, the reference until the amendment 1 (EP-08)"
 PROVISIONS = "the provisions and the lines of the occurrence of a risk (EP-08)"
 BOTH = "the reference and the provisions (EP-08)"
-# What the criterion does not list: the 101 read at its marking, 1 February, against an example of
-# the day, 3 June, which holds the work since. Each such path is pinned to the 101's own estimate
-# and indicators instead, by an equality, in the test that names it.
-SINCE = "the day against the marking, pinned to the estimate and the indicators of the 101"
+# What the criterion does not list: see the header of the module.
+SINCE = "the day against the marking, pinned to the 101's own estimate and indicators"
 
 # The fields of the indicators of the day that differ from the example, each with its cause.
 DAY_APART = {
@@ -134,10 +137,9 @@ ESTIMATE_APART = {
 }
 # What the remaining of the 101 kept differs in from the example of the day. The provision, the
 # reserve and the lines of the occurrence are EP-08's; the budgets of the subprojects, and the
-# margins and the deltas measured to them, are the offer's, the reference. The amounts of the
-# marking, 1 February, against those of the day, 3 June, which holds the work since, are not in the
-# criterion's list: the 101 spent nothing, so they are pinned to its own estimate and indicators
-# (``test_the_remaining_of_the_101_...``).
+# margins and the deltas measured to them, are the offer's, the reference. The amounts of
+# the marking against those of the day (``SINCE``) are pinned to the 101's own estimate and
+# indicators (``test_the_remaining_of_the_101_...``).
 REMAINING_APART = {
     "/total": SINCE,
     "/by_cost_type[len]": PROVISIONS,
@@ -176,6 +178,13 @@ def cents(amount: Decimal) -> Decimal:
 def four_places(ratio: Decimal) -> Decimal:
     """Round a ratio or an index to four decimals, half to even, as the service does."""
     return ratio.quantize(RATIO_STEP, rounding=ROUND_HALF_EVEN)
+
+
+def zone_of(value: Decimal, watch: Decimal, alert: Decimal) -> str:
+    """Give the zone of an index: nominal from the watch on, watch from the alert on."""
+    if value >= watch:
+        return "nominal"
+    return "watch" if value >= alert else "alert"
 
 
 def provisions_of_the_day() -> Decimal:
@@ -461,11 +470,9 @@ def test_the_index_history_is_the_example_but_for_the_last_point_the_reference_m
         each["key"]: D(each["actual_cost"])
         for each in example("remaining_indicators")["by_subproject"]
     }
-    assert spent == {
-        COMMAND_POST: D("2400.00"),
-        TESTING: D("831352.97"),
-        UNASSIGNED: D("579217.23"),
-    }
+    # The meshes spend, together, what the project spent (1 412 970,20 in the examples).
+    assert sum(spent.values()) == D(example("project_indicators")["actual_cost"])
+    assert set(spent) == set(MESHES) - {"project"}
     scopes = {mesh: read(api, witness, realm, f"{INDICATORS}?scope={mesh}") for mesh in MESHES}
     # The indicators of a subproject name it in their context as the example does (#3653), with its
     # actual cost and its earned value; the rest is measured to the offer, which budgets none.
@@ -493,10 +500,19 @@ def test_the_index_history_is_the_example_but_for_the_last_point_the_reference_m
         assert (reference == 0) == (mesh != UNASSIGNED)
         for field in ("earned_value", "planned_value"):
             assert D(scope[field]) == (D(scopes["project"][field]) if reference else 0), mesh
-        # A zone follows its index: where the example's value is the reading's, its zone is.
-        for axis in ("cost_index", "schedule_index"):
-            if day[axis]["value"] == theirs[axis]["value"]:
-                assert day[axis]["zone"] == theirs[axis]["zone"], (mesh, axis)
+        # A zone follows its index: the zone of the reading's own value, on the thresholds of the
+        # example (WF-REF-0170), whatever the example's value is.
+        for axis, kind in (("cost_index", "cost"), ("schedule_index", "schedule")):
+            shown = day[axis]["value"]["value"]
+            assert day[axis]["zone"] == (
+                None
+                if shown is None
+                else zone_of(
+                    D(shown),
+                    D(expected["thresholds"][f"{kind}_watch"]),
+                    D(expected["thresholds"][f"{kind}_alert"]),
+                )
+            ), (mesh, axis)
     # The earned value of the project is the example's, and spread over its meshes by the example.
     tolerance = D("0.00005") * sum(spent.values())
     assert abs(earned_by_the_example - D(scopes["project"]["earned_value"])) <= tolerance
@@ -813,27 +829,63 @@ def test_the_estimate_of_the_101_is_the_example_but_for_the_provision_the_risks_
     )
     as_marked = D(marked["remaining"])
     assert as_marked == ours + provisions_marked()
+
+
+@QUA
+def test_the_deltas_of_the_estimate_of_the_101_are_measured_to_the_offer_100(
+    api: ContractClient, witness: Database, realm: TestRealm
+) -> None:
     # The deltas of the witness are measured to the offer 100, the reference and the revision
-    # marked before; those of the example, read on the 102, to the 101 as marked, and its total
-    # holds the provision and the occurrence: the example's delta is its total less the 101 as
-    # marked, the variance of the coverage, nought of the witness.
+    # marked before: the 101's total less the offer's estimate, the same for both.
+    body, _, offer = estimate_deltas(api, witness, realm)
+    assert D(body["delta_to_reference"]["value"]) == D(body["total"]["value"]) - offer
+    assert body["delta_to_previous_revision"] == body["delta_to_reference"]
+
+
+@QUA
+def test_the_deltas_of_the_example_estimate_are_its_total_less_the_101_as_marked(
+    api: ContractClient, witness: Database, realm: TestRealm
+) -> None:
+    # Those of the example, read on the 102, are measured to the 101 as marked, and its total holds
+    # the provision and the occurrence: the example's delta is its total less the 101 as marked, the
+    # variance of the coverage, nought of the witness.
+    _, expected, _ = estimate_deltas(api, witness, realm)
+    coverage = example("remaining_indicators")["coverage"]
+    as_marked = D(example("project_indicators_marked")["remaining"])
+    for delta in ("delta_to_reference", "delta_to_previous_revision"):
+        assert D(expected["total"]["value"]) - D(expected[delta]["value"]) == as_marked, delta
+        assert D(expected[delta]["value"]) == -D(coverage["coverage_variance"]), delta
+
+
+@QUA
+def test_the_gap_to_the_example_is_the_provision_the_occurrence_and_the_reference(
+    api: ContractClient, witness: Database, realm: TestRealm
+) -> None:
+    # What the delta of the witness lacks of the example's, to the cent: the provision and the
+    # occurrence of the total, and the reference, the offer's estimate over the 101's as marked, not
+    # the step of the amendment (2 830.95) the reference budget falls short by.
+    body, expected, offer = estimate_deltas(api, witness, realm)
+    provision = D(expected["provisions_identified"])
+    occurred = D(example("remaining_indicators")["coverage"]["occurred_reestimated"])
+    as_marked = D(example("project_indicators_marked")["remaining"])
+    # The one literal of the corpus, anchoring the identity: the offer over the 101 as marked.
+    assert offer - as_marked == D("1013056.56")
+    for delta in ("delta_to_reference", "delta_to_previous_revision"):
+        gap = D(expected[delta]["value"]) - D(body[delta]["value"])
+        assert gap == provision + occurred + (offer - as_marked), delta
+
+
+def estimate_deltas(
+    api: ContractClient, witness: Database, realm: TestRealm
+) -> tuple[dict[str, Any], dict[str, Any], Decimal]:
+    """Give the estimate of the 101, the example's and the offer 100's estimate they measure to."""
+    body = read(api, witness, realm, f"{BASE}/estimate-indicators?{KEPT}")
     with witness.transaction() as session:
         offer = sum(
             (facet.reestimated_amount for _, facet in line_rows(session, REVISION_100).values()),
             D(0),
         )
-    assert D(body["delta_to_reference"]["value"]) == ours - offer
-    assert body["delta_to_previous_revision"] == body["delta_to_reference"]
-    for delta in ("delta_to_reference", "delta_to_previous_revision"):
-        assert theirs - D(expected[delta]["value"]) == as_marked, delta
-        assert D(expected[delta]["value"]) == -D(coverage["coverage_variance"]), delta
-        # What the delta of the witness lacks of the example's, to the cent: the provision and the
-        # occurrence of the total, and the reference, the offer's estimate over the 101's as marked,
-        # not the step of the amendment (2 830.95) the reference budget falls short by.
-        gap = D(expected[delta]["value"]) - D(body[delta]["value"])
-        assert gap == provision + occurred + (offer - as_marked)
-        assert offer - as_marked == D("1013056.56")
-        assert gap == D("1513256.56")
+    return body, example("estimate_indicators"), offer
 
 
 @QUA

@@ -81,6 +81,7 @@ test("the project manager of the run reads the indicators of a project she creat
   // (the one marked before the passage kept none, which the service refuses with a 409).
   await openRevision(page, seeded.own);
   const opened = /revision_id=([0-9a-f-]{36})$/.exec(page.url())?.[1] ?? "";
+  expect(opened, "the address of the revision opened names it").toMatch(/^[0-9a-f-]{36}$/);
   await openHydrated(page, `${seeded.own.path}/revisions?revision_id=${opened}`);
   await mark(page, "v1.1");
 

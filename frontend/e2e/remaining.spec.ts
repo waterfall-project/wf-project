@@ -558,25 +558,30 @@ async function referenceOf(page: Page, seeded: Seeded) {
 }
 
 /**
- * The reference budget and the planned value the service serves for the project in progress
- * (`getProjectIndicators`, WF-IND-0010), read by the API under the token of its creator, with the
- * day of the reading: the planned value is that of the current day, and the service does not yet
- * answer `as_of` for a project in progress (it raises `NotImplementedError`, US-1670/L2), so a
- * comparison of two readings holds the planned value only when the day has not changed between them.
+ * The figures the service serves for the project in progress (`getProjectIndicators`, WF-IND-0010),
+ * read by the API under the token of its creator: the reference budget, and the planned value of the
+ * current day, with the day the service computed it (`context.computed_at`). `as_of` pins neither:
+ * the project has no revision marked In progress (the one it has was marked before the passage, and
+ * kept no indicator: 409), and a reading kept at the marking would be immune to the gesture, so it
+ * could not see a drift the gesture caused.
  */
 async function figuresOf(calls: APIRequestContext, seeded: Seeded) {
-  const day = today();
   const read = await calls.get(`${API}/projects/${seeded.ids.project}/indicators`, {
     headers: seeded.headers,
   });
   expect(read.status()).toBe(200);
   const body = (await read.json()) as components["schemas"]["ProjectIndicators"];
-  return { day, budget: body.reference_budget, planned: body.planned_value };
+  return {
+    budget: body.reference_budget,
+    planned: body.planned_value,
+    day: body.context.computed_at.slice(0, 10),
+  };
 }
 
 /**
- * The figures before the gesture: both amounts are asserted non-zero, since a service that
- * answered « 0.00 » everywhere would leave every comparison between two readings true.
+ * The figures before the gesture: both asserted non-zero, since a service that answered « 0.00 »
+ * everywhere would leave every comparison between two readings true. The planned value is positive
+ * because the planning starts on a fixed day of the past (`Extras.pastStart`).
  */
 async function figuresBefore(calls: APIRequestContext, seeded: Seeded) {
   const before = await figuresOf(calls, seeded);
@@ -585,7 +590,11 @@ async function figuresBefore(calls: APIRequestContext, seeded: Seeded) {
   return before;
 }
 
-/** The figures read again after the gesture are those of before (the reference did not move). */
+/**
+ * The figures read again after the gesture are those of before (WF-RAE-0040-A): the reference budget
+ * always, the planned value when the two readings were computed the same day (a run over midnight
+ * moves it, and says nothing of the gesture).
+ */
 async function expectFiguresKept(
   calls: APIRequestContext,
   seeded: Seeded,
@@ -593,13 +602,9 @@ async function expectFiguresKept(
 ) {
   const after = await figuresOf(calls, seeded);
   expect(after.budget).toBe(before.budget);
-  // A run across midnight moves the planned value of the day, not the reference.
-  if (after.day === before.day) expect(after.planned).toBe(before.planned);
-}
-
-/** Today, as the date the contract reads (`PlanningDate`). */
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  if (after.day === before.day) {
+    expect(after.planned).toBe(before.planned);
+  }
 }
 
 /**
@@ -615,7 +620,7 @@ async function openOwnRemaining(
   manager: LocalPerson | undefined,
   name: string,
 ) {
-  const seeded = await seedPlanning(page, browser, calls, manager, name);
+  const seeded = await seedPlanning(page, browser, calls, manager, name, { pastStart: true });
   await bringInProgress(page, calls, seeded);
   // The reference as the project in progress has it, read before the grid is opened (the read
   // leaves the page).
@@ -685,7 +690,7 @@ test("adds a task from the remaining to commit of a project in progress the run 
     // ... while the reference is the same revision, without the task.
     const kept = await referenceOf(page, seeded);
     expect(kept.reference).toBe(reference.reference);
-    // ... and the reference budget and the planned value do not move (WF-RAE-0040-A).
+    // ... and the reference budget does not move (WF-RAE-0040-A).
     await expectFiguresKept(calls, seeded, before);
     await openHydrated(page, `${seeded.own.path}/revisions/${reference.reference}/planning`);
     const referenced = page.getByRole("treegrid", { name: "Grille de planning" });
@@ -744,7 +749,7 @@ test("inserts a line in the remaining to commit of a project in progress the run
     // make a line of labour), and the quantity is the one entered.
     await expect(created.getByRole("img", { name: "Ligne de débours" })).toBeVisible();
     // The line is added to the revision in progress, which the reference ignores: the reference
-    // budget and the planned value do not move (WF-RAE-0040-A).
+    // budget does not move (WF-RAE-0040-A).
     await expectFiguresKept(calls, seeded, before);
   } finally {
     await calls.dispose();
