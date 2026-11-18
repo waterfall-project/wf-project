@@ -15,6 +15,7 @@ from uuid import UUID, uuid4
 
 import asked_actual_cost_mapping
 import asked_actual_costs
+import asked_amendments
 import asked_calendars
 import asked_comparison
 import asked_contributors
@@ -29,6 +30,7 @@ import asked_imports
 import asked_index_history
 import asked_indicator_curves
 import asked_lifecycle
+import asked_merges
 import asked_milestone_tracking
 import asked_nodes
 import asked_org_nodes
@@ -42,6 +44,12 @@ import asked_remaining_indicators
 import asked_remaining_lines
 import asked_resource_roles
 import asked_revisions
+import asked_risk_coverage
+import asked_risk_occurrences
+import asked_risk_provisions
+import asked_risk_register
+import asked_risk_reviews
+import asked_risks
 import asked_scheduling
 import asked_skeleton
 import asked_spending
@@ -483,6 +491,17 @@ INDICATORS = (
     asked_index_history,
     asked_milestone_tracking,
 )
+# The operations of the amendments and of the risks, router by router (EP-08).
+RISKS = (
+    asked_amendments,
+    asked_merges,
+    asked_risks,
+    asked_risk_provisions,
+    asked_risk_reviews,
+    asked_risk_register,
+    asked_risk_coverage,
+    asked_risk_occurrences,
+)
 # The permissions each served operation asks for, in the order they are evaluated.
 ASKED: dict[str, tuple[str, ...]] = {
     "getLiveness": (),
@@ -528,11 +547,12 @@ ASKED: dict[str, tuple[str, ...]] = {
     **{name: asked for router in ESTIMATE for name, asked in router.ASKED.items()},
     **{name: asked for router in COSTS for name, asked in router.ASKED.items()},
     **{name: asked for router in INDICATORS for name, asked in router.ASKED.items()},
+    **{name: asked for router in RISKS for name, asked in router.ASKED.items()},
 }
 # Two files that declare the same operation would overwrite each other in the table above.
 DECLARED = [
     name
-    for router in (*REFERENCE, *PROJECTS, *PLANNING, *ESTIMATE, *COSTS, *INDICATORS)
+    for router in (*REFERENCE, *PROJECTS, *PLANNING, *ESTIMATE, *COSTS, *INDICATORS, *RISKS)
     for name in router.ASKED
 ]
 assert len(DECLARED) == len(set(DECLARED)), sorted(
@@ -541,7 +561,7 @@ assert len(DECLARED) == len(set(DECLARED)), sorted(
 # The quality on its project each operation of a project asks for, by ``RequiresProject``.
 ON_PROJECT: dict[str, str] = {
     name: quality
-    for router in (*PROJECTS, *PLANNING, *ESTIMATE, *COSTS, *INDICATORS)
+    for router in (*PROJECTS, *PLANNING, *ESTIMATE, *COSTS, *INDICATORS, *RISKS)
     for name, quality in router.ON_PROJECT.items()
 }
 # The permission each list of the reference asks for besides when it asks for deactivated objects.
@@ -559,6 +579,10 @@ PATH_OBJECTS = {"getBackgroundTask", "getBackgroundTaskResult", "getUserAvatar"}
 # The operations whose route asks for no permission because the command of a revision judges it:
 # the export refuses by a 403 naming the permission of its kind (WF-CYC-0110).
 BY_COMMAND = {"requestExport"}
+# The operations of an import whose route asks for the visibility of the project alone, the
+# exchanges judging the reading and the writing of its kind with the import (#2473): a 403 for the
+# writing or the quality of contributor, named here, operation by operation.
+BY_KIND = asked_imports.BY_KIND
 
 
 def asked(route: APIRoute) -> tuple[str, ...]:
@@ -647,6 +671,8 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
     assert {name: asked(route) for name, route in routes.items()} == ASKED
     held = {name: on_project(route) for name, route in routes.items()}
     assert {name: quality for name, quality in held.items() if quality} == ON_PROJECT
+    # An operation admitted by the kind of its import is one of a project that asks for nothing.
+    assert {name for name in BY_KIND if name in ON_PROJECT and not ASKED[name]} == BY_KIND
     # A guard on a project reads ``project_id`` of the path: a route without it would answer 404
     # to everyone, silently.
     for name, route in routes.items():
@@ -667,7 +693,7 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
             # field, its guard of each field (``BY_FIELD``).
             refusals = {"403", "404"}
             allowed_404: set[str] = {"404"} if name in PATH_OBJECTS | set(ON_PROJECT) else set()
-            guarded = name in INACTIVE or name in BY_FIELD or name in BY_COMMAND
+            guarded = name in INACTIVE or name in BY_FIELD or name in BY_COMMAND | BY_KIND
             allowed_403: set[str] = {"403"} if guarded else set()
             refused = refusals - allowed_404 - allowed_403
             assert not refused & responses, name

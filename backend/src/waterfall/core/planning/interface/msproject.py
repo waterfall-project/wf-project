@@ -75,6 +75,7 @@ class MsProjectFormat:
     header_length = HEADER_LENGTH
     judged_first = False
     scope: ImportScope = "structure"
+    reading = "planning.read"
     permission = PLANNING_WRITE
 
     def read_header(self, session: Session, head: bytes) -> None:

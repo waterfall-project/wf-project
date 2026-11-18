@@ -108,6 +108,8 @@ def create_main_structure(session: Session, project_id: UUID, revision_id: UUID,
 def copy_structures(copy: RevisionCopy) -> None:
     """Copy the structures of the source but the merged ones, each keeping its lineage (#1759).
 
+    The own estimate of a risk keeps its risk (``risk_id``, EP-08), which is not revised.
+
     Each keeps the date its planning starts on and the instant its dates were computed (#2170): a
     null date stays null, read by the lineage the copy keeps; a null instant is the creation of the
     structure copied. The planning then redates, at the opening, those that hold a node, with the
@@ -134,6 +136,7 @@ def copy_structures(copy: RevisionCopy) -> None:
                 label=row.label,
                 is_merged=False,
                 lineage_id=row.lineage_id,
+                risk_id=row.risk_id,
                 planning_start_on=row.planning_start_on,
                 scheduled_at=row.scheduled_at or row.created_at,
                 lock_version=FIRST_VERSION,

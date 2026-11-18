@@ -52,6 +52,7 @@ from waterfall.core.planning.interface.facets import (
 from waterfall.core.planning.shaping import place as put_in_place
 from waterfall.core.planning.shaping import stamp
 from waterfall.core.planning.tables import Node
+from waterfall.core.planning.tallying import provision_lines
 from waterfall.core.planning.tree import LINE, read_tree
 from waterfall.core.planning.writing import writing
 from waterfall.platform.database import among
@@ -141,23 +142,23 @@ def bearers_of(session: Session, project_id: UUID, node_ids: Collection[UUID]) -
 
 
 def bearing_tasks(session: Session, project_id: UUID, structure_id: UUID) -> frozenset[UUID]:
-    """Give the tasks of a structure that bear a line besides the provisions, in one statement.
+    """Give the tasks of a structure that bear a line besides the provisions.
 
-    A provision is the line of a risk (``origin_risk_id``, EP-08): it holds a task back from
-    nothing, and does not send it to the entry of its remaining to commit (WF-PLA-0050). The
-    judgement of ``setTaskProgress`` is the same, so that a card and the refusal agree (US-1590).
-
-    "Besides the provisions" is judged here by ``origin_risk_id`` null, as ``setTaskProgress``
-    does; ``open_lines`` (``estimate``) judges by the category of provision of the line. The two
-    meet once EP-08 gives every provision line its risk.
+    A provision holds a task back from nothing, and does not send it to the entry of its remaining
+    to commit (WF-PLA-0050). The judgement of ``setTaskProgress`` is the same, so that a card and
+    the refusal agree (US-1590): a line is a provision by its category, as the estimate tells
+    (``provision_lines``), never by the risk it came from (EP-08, "Ce qui reconnaît une ligne de
+    provision"). The provisions read first — one by identified risk at most —, then the tasks, in
+    one statement.
     """
+    provisions = provision_lines(session, project_id, structure_id)
     parents = session.scalars(
         select(Node.parent_id)
         .where(
             Node.project_id == project_id,
             Node.structure_id == structure_id,
             Node.kind == LINE,
-            Node.origin_risk_id.is_(None),
+            Node.id.not_in(list(provisions)),
         )
         .distinct()
     )

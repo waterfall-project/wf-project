@@ -482,7 +482,7 @@ bâtisse pas le sien.
 
 ## US-2550 — Les structures différentielles : ouvrir, saisir, importer, abandonner
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-REV-0100-A`, `WF-DEV-0050-A`, `WF-INTF-0100-A`
 - **opérations** : `createCostStructure`, `listCostStructures`, `updateCostStructure`,
   `deleteCostStructure` (nouvelle, écrite par la conception), `createRevision` ; sur un
@@ -1578,7 +1578,7 @@ rejoue la fusion. `docs/api/DECISIONS.md`, « L'univers témoin », « Révision
 
 ## US-2660 — Les constats reçus sont soldés
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-06, EP-07 et
   EP-09
 - **opérations** : `openImport`, `listImports`, `getImport`, `applyImport`
