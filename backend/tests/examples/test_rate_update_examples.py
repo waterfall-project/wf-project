@@ -17,7 +17,12 @@ from typing import TYPE_CHECKING, cast
 import pytest
 
 from waterfall.core.estimate.keeping import projected_rate
-from waterfall.core.estimate.pricing import Share, projected_amount, unrounded_labour_amount
+from waterfall.core.estimate.pricing import (
+    Share,
+    projected_amount,
+    unrounded_disbursement_amount,
+    unrounded_labour_amount,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -141,3 +146,29 @@ def test_an_update_refused_at_the_creation_then_accepted_reprices_the_line_at_th
     accepted = _line_priced_at(data, cast("str", engineering["reference_rate"]))
     assert refused == Decimal(cast("str", engineering["amount_projected"]))
     assert accepted == Decimal(cast("str", engineering["amount_updated"]))
+
+
+@pytest.mark.requirement("WF-REV-0060-A")
+def test_a_disbursement_of_8000_consumed_in_2028_is_8487_20_in_the_revisions_of_2026_and_2027(
+    example: Callable[[str], Example],
+) -> None:
+    # « Avec une inflation de 3 %, une ligne de débours 8 000 consommée en 2028 vaut 8 487,20 dans
+    # la révision de 2026 comme dans celle créée en 2027, où son débours est de 8 240. » : the
+    # disbursement of 2026 projected by one year is the 8 240 of the revision of 2027, and the line
+    # consumed in 2028 is worth the same from either year of reference.
+    data = example("WF-REV-0060-A#413d589bd41d")
+    rate = Decimal(cast("str", data["inflation_rate"]))
+    quantity = Decimal(cast("str", data["quantity"]))
+    year = cast("int", data["consumption_year"])
+    first, second = cast("int", data["first_year"]), cast("int", data["second_year"])
+    disbursement = Decimal(cast("str", data["unit_disbursement"]))
+    expected = Decimal(cast("str", data["projected_amount"]))
+    in_first = projected_amount(
+        (Share(year, unrounded_disbursement_amount(quantity, disbursement)),), first, rate
+    )
+    carried = projected_rate(disbursement, rate, (first, second))
+    assert carried == Decimal(cast("str", data["second_unit_disbursement"]))
+    in_second = projected_amount(
+        (Share(year, unrounded_disbursement_amount(quantity, carried)),), second, rate
+    )
+    assert in_first == in_second == expected

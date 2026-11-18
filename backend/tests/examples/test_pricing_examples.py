@@ -17,6 +17,7 @@ from waterfall.core.estimate.pricing import (
     labour_base_amount,
     projected_amount,
     round_to_cent,
+    sum_amounts,
     unrounded_labour_amount,
 )
 
@@ -64,3 +65,25 @@ def test_two_years_at_three_percent_is_1_03_times_1_03(
         rate, cast("int", data["reference_year"]), cast("int", data["consumption_year"])
     )
     assert factor == (1 + rate) * (1 + rate) == Decimal(cast("str", data["factor"]))
+
+
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_an_amount_of_0_10_added_ten_times_is_exactly_1_00(
+    example: Callable[[str], Example],
+) -> None:
+    # « Un montant de 0,10 additionné dix fois donne exactement 1,00. » An exact decimal, where
+    # a binary float would give 0.9999999999999999.
+    added = cast("dict[str, object]", example("WF-DAT-0100-A#2ce6d54b40a4")["added"])
+    amount = Decimal(cast("str", added["amount"]))
+    total = sum_amounts([amount] * cast("int", added["times"]))
+    assert total == Decimal(cast("str", added["total"]))
+    assert str(total) == cast("str", added["total"])
+
+
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_a_computed_amount_of_75_705_is_presented_75_71(
+    example: Callable[[str], Example],
+) -> None:
+    # « Un montant calculé de 75,705 est présenté 75,71. » Half away from zero, once.
+    rounded = cast("dict[str, str]", example("WF-DAT-0100-A#a2d83cfac195")["rounded"])
+    assert round_to_cent(Decimal(rounded["computed"])) == Decimal(rounded["presented"])

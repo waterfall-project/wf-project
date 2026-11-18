@@ -1,0 +1,7 @@
+{
+  "summary": "Une récapitulative dont toutes les subordonnées sont terminées reste démarrée et signalée tant qu'une ligne propre porte un reste à engager de 500 ; avec pour seule ligne une provision de 40, elle est terminée et n'est pas signalée (WF-PLA-0040).",
+  "examples": ["WF-PLA-0040-A#4b10e3009332", "WF-PLA-0040-A#017bc131bcfa"],
+  "subordinates": {"progress": "completed", "started_on": "2026-03-02", "completed_on": "2026-03-04"},
+  "own_line_remaining": "500",
+  "provision": "40"
+}

@@ -1061,7 +1061,7 @@ du paramétrage (`reference-*.spec.ts`).
 
 ## US-2780 — Les exemples chiffrés ont tous leur test, chaque calcul une seule implémentation
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-QUA-0020-A`, `WF-ARC-0010-A`, `WF-INTF-0150-A`
 - **opérations** : aucune en propre
 - **issue** : #3859
