@@ -44,14 +44,19 @@ def planned_value(lines: Iterable[PlannedLine], at: date) -> Decimal:
     to that month (``parting``). EP-07 and the indicators of EP-10 read it alike (#3566).
     """
     end = WorkInstant(at + timedelta(days=1))
-    return sum(
-        (MONEY.of(Fraction(line.amount) * _earned(line, end)) for line in lines), Decimal("0.00")
-    )
+    # The share earned depends on the task alone, not on the amount: each task counted once (#3802).
+    shares: dict[Placement, Fraction] = {}
+    total = Decimal("0.00")
+    for line in lines:
+        share = shares.get(line.placement)
+        if share is None:
+            share = shares[line.placement] = _earned(line.placement, end)
+        total += MONEY.of(Fraction(line.amount) * share)
+    return total
 
 
-def _earned(line: PlannedLine, end: WorkInstant) -> Fraction:
-    """Return the share of a line earned before an instant, from 0 to 1."""
-    placement = line.placement
+def _earned(placement: Placement, end: WorkInstant) -> Fraction:
+    """Return the share of a task earned before an instant, from 0 to 1."""
     week, start, finish = placement.week, placement.start, placement.finish
     total = week.worked(finish) - week.worked(start)
     if total == 0:

@@ -15,7 +15,9 @@ end of a month is the planned value of the line then (``planned_value``, #3566).
 rounding leaves at nought is not one the line loads (#3096).
 
 The plan of workload, its detail by task (US-2040), the projection of spending (US-2050) and the
-curves of EP-10 (US-1690/L4, #3564) share it, each summing the parts at its own level.
+curves of EP-10 (US-1690/L4, #3564) share it, each summing the parts at its own level. A caller that
+spreads many lines of the same tasks weighs each task once (``weighing``, #3802): the weights of the
+months do not depend on the amount, and the parts are the same.
 """
 
 from datetime import timedelta
@@ -24,33 +26,70 @@ from fractions import Fraction
 from itertools import accumulate
 from typing import TYPE_CHECKING
 
-from waterfall.core.estimate.spreading import Month, exact_by_month
+from waterfall.core.estimate.spreading import Month, exact_of, month_weights
 from waterfall.core.planning.interface import WorkInstant
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Callable, Iterable, Mapping
     from datetime import date
 
-    from waterfall.core.estimate.spreading import Placement, Rounding
+    from waterfall.core.estimate.spreading import MonthWeights, Placement, Rounding
 
 NOUGHT = Decimal(0)
 ONE_DAY = timedelta(days=1)
 
+# What gives the weights of the months of a task, from the date of calculation if any.
+type Weighing = Callable[[Placement, date | None], MonthWeights]
+
+
+def _weighed(placement: Placement, as_of: date | None) -> MonthWeights:
+    return month_weights(placement, as_of=as_of)
+
+
+def weighing() -> Weighing:
+    """Give a weighing that weighs each task once, for one computation, its weights kept.
+
+    The weights are those ``month_weights`` gives: a pure value of the task and the date, kept as
+    long as the weighing is, never longer.
+    """
+    held: dict[tuple[Placement, date | None], MonthWeights] = {}
+
+    def weigh(placement: Placement, as_of: date | None) -> MonthWeights:
+        key = (placement, as_of)
+        found = held.get(key)
+        if found is None:
+            found = held[key] = month_weights(placement, as_of=as_of)
+        return found
+
+    return weigh
+
 
 def rounded_parts(
-    placement: Placement, total: Decimal, rounding: Rounding, *, as_of: date | None = None
+    placement: Placement,
+    total: Decimal,
+    rounding: Rounding,
+    *,
+    as_of: date | None = None,
+    weigh: Weighing = _weighed,
 ) -> dict[Month, Decimal]:
     """Give the parts of a line in the months it loads, in their order, rounded to sum to its total.
 
     ``as_of`` is the date of calculation of a remaining: the line is then spread over the part of
     its task after it, or falls whole in its month once the task is over (``spread_by_month``).
+    ``weigh`` gives the weights of the months of the task, one weighing kept by the caller
+    (``weighing``) or each time.
     """
-    shares = exact_by_month(placement, total, as_of=as_of)
+    shares = exact_of(total, weigh(placement, as_of))
     return parts_of_cumulated(zip(shares, accumulate(shares.values()), strict=True), rounding)
 
 
 def remaining_parts(
-    placement: Placement, total: Decimal, rounding: Rounding, *, as_of: date
+    placement: Placement,
+    total: Decimal,
+    rounding: Rounding,
+    *,
+    as_of: date,
+    weigh: Weighing = _weighed,
 ) -> dict[Month, Decimal]:
     """Give the parts of a remaining to commit, the part of its task after the end of ``as_of``.
 
@@ -61,7 +100,7 @@ def remaining_parts(
     """
     if placement.finish <= WorkInstant(as_of + ONE_DAY):
         return parts_of_cumulated([(Month(as_of.year, as_of.month), Fraction(total))], rounding)
-    return rounded_parts(placement, total, rounding, as_of=as_of + ONE_DAY)
+    return rounded_parts(placement, total, rounding, as_of=as_of + ONE_DAY, weigh=weigh)
 
 
 def parts_of_cumulated(

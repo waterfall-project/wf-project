@@ -36,6 +36,11 @@ class Month:
     month: int
 
 
+# The months a task works in, in their order, each with its share of the hours, exact: what does not
+# depend on the amount a line spreads, so that the lines of one task are weighed once (#3802).
+type MonthWeights = tuple[tuple[Month, Fraction], ...]
+
+
 @dataclass(frozen=True, slots=True)
 class Placement:
     """A task as a line sees it: the calendar it is worked on, and its start and finish."""
@@ -72,7 +77,20 @@ def exact_by_month(
     The fractions ``spread_by_month`` rounds to ten decimals, which add up to the amount exactly: a
     caller that rounds a cumulated of them rounds it once (``parting``).
     """
-    weights = _weights(placement, as_of, _month_of, _months)
+    return exact_of(amount, month_weights(placement, as_of=as_of))
+
+
+def month_weights(placement: Placement, *, as_of: date | None = None) -> MonthWeights:
+    """Give the months a task works in, each with its share of the hours, exact, in their order.
+
+    What ``exact_by_month`` shares an amount by, whatever the amount: a caller that spreads many
+    lines of one task weighs it once, and gives the weights to ``exact_of``.
+    """
+    return tuple(_weights(placement, as_of, _month_of, _months))
+
+
+def exact_of(amount: Decimal, weights: MonthWeights) -> dict[Month, Fraction]:
+    """Share an amount among months by their weights, exactly (``exact_by_month``)."""
     return {month: Fraction(amount) * weight for month, weight in weights}
 
 

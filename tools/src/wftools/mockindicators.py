@@ -805,7 +805,7 @@ def project_indicators(
         at_rate = (fixed * spent / gained).quantize(CENT)
         observed, variance = computable(money(at_rate)), money(at_rate - fixed)
     return {
-        "context": context(reading, stored=reading.is_stored),
+        "context": context(reading, stored=reading.is_stored, scope=scope),
         "reference_budget": money(fixed),
         "planned_value": money(value),
         "earned_value": money(gained),

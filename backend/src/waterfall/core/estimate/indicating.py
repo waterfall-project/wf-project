@@ -341,6 +341,7 @@ def _by_work_package(
     found: list[AmountByKey] = []
     for package_id, label in named:
         amount = work_package_amount(rows, borne.get(package_id), lacking)
+        # Not ``amount.value is None``: a rate missing leaves it so too, and keeps its share.
         if package_id not in borne:
             found.append(AmountByKey(str(package_id), label, amount, amount))
             continue

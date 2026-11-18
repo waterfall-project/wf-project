@@ -75,8 +75,8 @@ from waterfall.core.costs.interface.subprojects import (
     subproject_has_actual_costs as subproject_has_actual_costs,
 )
 
-# ``tracked_costs`` (US-1580/L1; US-1600, US-1610/L2, US-1690/L2): the sums of the tracked lines,
-# which the indicators read (EP-09, EP-10).
+# ``tracked_costs`` (US-1580/L1; US-1600, US-1610/L2, US-1690/L2, #3802): the sums of the tracked
+# lines, which the indicators read (EP-09, EP-10).
 from waterfall.core.costs.interface.tracked_costs import (
     PROJECT as PROJECT,
 )
@@ -97,6 +97,12 @@ from waterfall.core.costs.interface.tracked_costs import (
 )
 from waterfall.core.costs.interface.tracked_costs import (
     actual_costs_until as actual_costs_until,
+)
+from waterfall.core.costs.interface.tracked_costs import (
+    actual_costs_until_by_subproject as actual_costs_until_by_subproject,
+)
+from waterfall.core.costs.interface.tracked_costs import (
+    scope_cost as scope_cost,
 )
 
 # ``cost_lines`` (US-1580/L1; US-1620/L1, US-1610/L3): the lines read, excluded, loaded; the

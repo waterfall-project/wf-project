@@ -3,8 +3,9 @@
 """The five amounts of each scope of a project at a day, in one pass (EP-10, "Le calcul").
 
 The revision computed R and the reference Ref of the project are read once — their lines, the tasks
-of R, the remaining to commit of R —, and the scopes asked are drawn from them in memory, the actual
-cost of each by its own sum (WF-IND-0010 to WF-IND-0030, WF-IND-0020):
+of R, the remaining to commit of R drawn from them —, and the scopes asked are drawn from them in
+memory, the actual cost of each from the sums by subproject at the day, read once (WF-IND-0010 to
+WF-IND-0030, WF-IND-0020; #3569):
 
 - the reference budget, the budgeted amounts of the lines of Ref, provisions left out, that bear
   the scope in Ref (``unassigned``: no subproject);
@@ -13,8 +14,8 @@ cost of each by its own sum (WF-IND-0010 to WF-IND-0030, WF-IND-0020):
   R on or before the day — a task started, or completed after, earns nothing, a lineage R does not
   hold neither, and a line of a task created by an occurred risk is not earned;
 - the actual cost, the tracked lines of the scope dated on or before the day
-  (``actual_costs_until``);
-- the remaining to commit, that of each line of R (``remaining_of_revision``) whose subproject in R
+  (``actual_costs_until_by_subproject``, ``scope_cost``);
+- the remaining to commit, that of each line of R (``remaining_of_lines``) whose subproject in R
   is the scope: a line moved from a subproject to another since the reference earns in the first
   and counts its remaining in the second.
 
@@ -26,11 +27,16 @@ spreading, so that the scopes sum to the project (WF-IND-0020-A); the formulas r
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
-from waterfall.core.costs.interface import PROJECT, UNASSIGNED, actual_costs_until
+from waterfall.core.costs.interface import (
+    PROJECT,
+    UNASSIGNED,
+    actual_costs_until_by_subproject,
+    scope_cost,
+)
 from waterfall.core.estimate.interface import (
     lines_for_indicators,
     planned_value_at,
-    remaining_of_revision,
+    remaining_of_lines,
 )
 from waterfall.core.indicators.formulas import NOUGHT, Amounts, indicators_of
 from waterfall.core.indicators.shaping import Context, indicators_document
@@ -100,16 +106,18 @@ def amounts_by_scope(
 
     Without a reference, the budget, the planned value and the earned value are nought.
     """
-    project_id, revision_id = basis.project_id, basis.revision_id
     tasks, lines, reference = read_lines(session, basis)
-    completed = {
+    read = LinesRead(reference, lines, remaining_of_lines(tasks, lines).by_line, completions(tasks))
+    return amounts_from(session, basis.project_id, read, day, scopes)
+
+
+def completions(tasks: Iterable[IndicatorTask]) -> dict[UUID, date]:
+    """Give the day each lineage of task completed in a revision was completed on."""
+    return {
         task.lineage_id: task.completed_on
         for task in tasks
         if task.progress == COMPLETED and task.completed_on is not None
     }
-    remaining = remaining_of_revision(session, project_id, revision_id).by_line
-    read = LinesRead(reference, lines, remaining, completed)
-    return amounts_from(session, project_id, read, day, scopes)
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,10 +139,11 @@ def amounts_from(
 ) -> dict[CostScope, Amounts]:
     """Give the five amounts of each scope asked, from the lines read, at a day.
 
-    Only the actual cost of each scope is read here; what the curves read once serves as well
-    (the cache of the indicators, US-1720/L2).
+    Only the actual cost is read here, once for every scope; what the curves read once serves as
+    well (the cache of the indicators, US-1720/L2).
     """
     reference, lines, remaining = read.reference, read.lines, read.remaining
+    spent = actual_costs_until_by_subproject(session, project_id, day)
     earned = {lineage for lineage, done in read.completed.items() if done <= day}
     subprojects = {line.node_id: line.subproject_id for line in lines}
     found: dict[CostScope, Amounts] = {}
@@ -148,7 +157,7 @@ def amounts_from(
                 for line in budgeted
                 if line.task_origin_risk_id is None and line.task_lineage_id in earned
             ),
-            actual_cost=actual_costs_until(session, project_id, day, scope),
+            actual_cost=scope_cost(spent, scope),
             remaining=_summed(
                 amount
                 for node_id, amount in remaining.items()

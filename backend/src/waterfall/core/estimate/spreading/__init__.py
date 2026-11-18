@@ -33,10 +33,19 @@ from waterfall.core.estimate.spreading.spread import (
     Month as Month,
 )
 from waterfall.core.estimate.spreading.spread import (
+    MonthWeights as MonthWeights,
+)
+from waterfall.core.estimate.spreading.spread import (
     Placement as Placement,
 )
 from waterfall.core.estimate.spreading.spread import (
     exact_by_month as exact_by_month,
+)
+from waterfall.core.estimate.spreading.spread import (
+    exact_of as exact_of,
+)
+from waterfall.core.estimate.spreading.spread import (
+    month_weights as month_weights,
 )
 from waterfall.core.estimate.spreading.spread import (
     spread_by_month as spread_by_month,

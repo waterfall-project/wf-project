@@ -8,7 +8,10 @@ remaining to commit read it (US-1600). ``actual_costs_until`` sums the tracked l
 scope whose document is dated on or before a day, as known at the reading: the indicators of the
 project read it (EP-10), served by US-1610/L2, which applies the imports (EP-09, "Ce que le cadrage
 laisse à EP-10"); ``actual_cost_dates`` gives them by day of document, for the curves (US-1690/L2).
-An excluded line enters neither (WF-CRE-0030).
+``actual_costs_until_by_subproject`` gives the sums of every scope at a day in one statement, by
+subproject as ``actual_cost_by_subproject`` does, and ``scope_cost`` draws one scope from them: the
+indicators of several scopes read the actual cost once (#3569, #3802). An excluded line enters none
+(WF-CRE-0030).
 
 Declared by US-1580/L1 with their arguments and their results, which EP-10 reads:
 ``actual_costs_until`` is filled by US-1610/L2, ``actual_cost_by_subproject`` by US-1600.
@@ -84,6 +87,33 @@ def actual_costs_until(
     criteria = _tracked_until(project_id, until, scope)
     total = session.scalar(select(func.sum(CostLine.amount)).where(*criteria))
     return total if total is not None else Decimal(0)
+
+
+def actual_costs_until_by_subproject(
+    session: Session, project_id: UUID, until: date
+) -> Mapping[CostKey, Decimal]:
+    """Give the tracked lines of a project dated on or before ``until``, summed by subproject.
+
+    In one statement, keyed as ``actual_cost_by_subproject`` is: a subproject, or the lines imputed
+    to the project alone under ``UNASSIGNED``; one without a line so dated is absent. The sum of a
+    scope is drawn from them by ``scope_cost``, equal to ``actual_costs_until`` of that scope.
+    """
+    rows = session.execute(
+        select(CostLine.subproject_id, func.sum(CostLine.amount))
+        .where(*_tracked_until(project_id, until, PROJECT))
+        .group_by(CostLine.subproject_id)
+    )
+    return {UNASSIGNED if key is None else key: total for key, total in rows}
+
+
+def scope_cost(by_subproject: Mapping[CostKey, Decimal], scope: CostScope) -> Decimal:
+    """Give the sum of a scope from the sums by subproject: all of them for the whole project.
+
+    A scope without a sum is nought, as ``actual_costs_until`` gives it.
+    """
+    if scope == PROJECT:
+        return sum(by_subproject.values(), Decimal(0))
+    return by_subproject.get(scope, Decimal(0))
 
 
 def actual_cost_dates(

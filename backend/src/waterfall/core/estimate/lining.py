@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.planning.interface import IndicatorTask
+    from waterfall.core.planning.interface import Calendar, IndicatorTask
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,12 +82,18 @@ def lines_for_indicators(
     found: list[IndicatorLine] = []
     for task_id, held in bearing.items():
         task = by_node[task_id]
+        # The calendar of the task, made once for its lines without a role (#3802).
+        own: Calendar | None = None
         for node in held:
             row = rows.get(node)
             if row is None or node in provisions:
                 continue
             role = row.resource_role_id
-            week = weekly_calendar(task.calendar_hours) if role is None else weeks[role]
+            if role is None:
+                own = own or weekly_calendar(task.calendar_hours)
+                week = own
+            else:
+                week = weeks[role]
             found.append(
                 IndicatorLine(
                     node_id=node,

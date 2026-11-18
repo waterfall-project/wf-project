@@ -474,6 +474,10 @@ def test_the_index_history_is_the_example_but_for_the_last_point_the_reference_m
     assert sum(spent.values()) == D(example("project_indicators")["actual_cost"])
     assert set(spent) == set(MESHES) - {"project"}
     scopes = {mesh: read(api, witness, realm, f"{INDICATORS}?scope={mesh}") for mesh in MESHES}
+    # A subproject names itself in its context as the example does, with its costs (#3653).
+    subproject = example("project_indicators_subproject")
+    for field in ("context", "actual_cost", "earned_value"):
+        assert scopes[COMMAND_POST][field] == subproject[field], field
     earned_by_the_example = D(0)
     for found, wanted in zip(body["scopes"], expected["scopes"], strict=True):
         mesh, scope = found["scope"], scopes[found["scope"]]

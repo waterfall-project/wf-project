@@ -27,8 +27,8 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from waterfall.core.costs.interface import actual_cost_dates
-from waterfall.core.estimate.interface import remaining_of_revision
-from waterfall.core.indicators.computing import COMPLETED, Basis, in_scope, read_lines
+from waterfall.core.estimate.interface import remaining_of_lines
+from waterfall.core.indicators.computing import Basis, completions, in_scope, read_lines
 from waterfall.core.indicators.series import (
     CashOutMonth,
     Point,
@@ -96,13 +96,8 @@ class CurveSources:
 def read_curve_sources(session: Session, basis: Basis) -> CurveSources:
     """Read, once for all the scopes, the lines, the remaining and the completions of a basis."""
     tasks, lines, reference = read_lines(session, basis)
-    completed = {
-        task.lineage_id: task.completed_on
-        for task in tasks
-        if task.progress == COMPLETED and task.completed_on is not None
-    }
-    remaining = remaining_of_revision(session, basis.project_id, basis.revision_id).by_line
-    return CurveSources(tuple(reference), tuple(lines), remaining, completed)
+    remaining = remaining_of_lines(tasks, lines).by_line
+    return CurveSources(tuple(reference), tuple(lines), remaining, completions(tasks))
 
 
 def curves_of_scope(

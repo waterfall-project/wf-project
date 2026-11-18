@@ -25,7 +25,7 @@ from wftools import mockcore, mockcurves, mockdata, mockhistory, mockindicators,
 from wftools.mockcalendar import Instant
 from wftools.mockindicators import END_OF_DAY, Cost
 from wftools.mockstructure import CENT
-from wftools.mockwitness import PROVISIONS, SUBCONTRACTING, TODAY, Line, Task
+from wftools.mockwitness import PROVISIONS, SUBCONTRACTING, SUBPROJECT_CONTROL, TODAY, Line, Task
 
 type Node = dict[str, Any]
 
@@ -270,6 +270,18 @@ def test_the_earned_value_and_the_budget_of_a_subproject_leave_out_the_lines_of_
             Decimal(0),
         )
     assert any(mockhistory.is_provision(line) for line in base.lines)
+
+
+@pytest.mark.requirement("WF-IND-0020-A")
+def test_the_indicators_of_a_subproject_name_it_as_the_scope_of_their_context(
+    today: dict[str, Any],
+) -> None:
+    # « se calculent pour le projet et pour chacun de ses sous-projets » : the indicators of a
+    # subproject name it in their context, as its curves and its index history do (#3653).
+    subproject = today["project_indicators_subproject"]
+    assert subproject["context"]["scope"] == SUBPROJECT_CONTROL
+    assert today["cost_curve_subproject"]["context"]["scope"] == SUBPROJECT_CONTROL
+    assert today["project_indicators"]["context"]["scope"] == "project"
 
 
 @pytest.mark.requirement("WF-RAE-0020-A")

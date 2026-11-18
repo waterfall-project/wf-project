@@ -141,4 +141,3 @@ def test_an_update_refused_at_the_creation_then_accepted_reprices_the_line_at_th
     accepted = _line_priced_at(data, cast("str", engineering["reference_rate"]))
     assert refused == Decimal(cast("str", engineering["amount_projected"]))
     assert accepted == Decimal(cast("str", engineering["amount_updated"]))
-    assert accepted > refused

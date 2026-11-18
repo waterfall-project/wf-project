@@ -14,6 +14,7 @@ from fractions import Fraction
 
 import pytest
 
+from waterfall.core.estimate import parting
 from waterfall.core.estimate.interface import (
     HOURS,
     MONEY,
@@ -21,10 +22,13 @@ from waterfall.core.estimate.interface import (
     Placement,
     PlannedLine,
     parts_of_cumulated,
+    remaining_parts,
     rounded_parts,
     summed_parts,
+    weighing,
 )
-from waterfall.core.estimate.spreading import planned_value
+from waterfall.core.estimate.spreading import MonthWeights, month_weights, planned_value
+from waterfall.core.indicators.series import SpreadLine, spread_lines
 from waterfall.core.planning.interface import WorkInstant, weekly_calendar
 
 EIGHT = Decimal(8)
@@ -166,3 +170,69 @@ def test_the_parts_of_a_cumulated_are_the_differences_of_its_roundings_in_the_or
         MARCH: Decimal("-6.00"),
         MAY: Decimal("16.00"),
     }
+
+
+WINTER = Placement(
+    EIGHT_HOURS, WorkInstant(date(2026, 1, 5)), WorkInstant(date(2026, 2, 27), EIGHT)
+)
+
+
+@pytest.mark.requirement("WF-DEV-0090-A")
+@pytest.mark.requirement("WF-DEV-0080-A")
+def test_a_task_weighed_once_gives_each_of_its_lines_the_parts_it_has_alone() -> None:
+    # The weights of the months depend on the task, not on the amount (#3802): the lines of a task
+    # spread by one weighing, which weighs it once for a date of calculation, have the parts each
+    # has alone, on the whole task and after a date of calculation; and the planned value of lines
+    # of one task, each task counted once, is the sum of theirs.
+    weighed: list[tuple[Placement, date | None]] = []
+    kept = weighing()
+
+    def weigh(placement: Placement, as_of: date | None) -> MonthWeights:
+        weighed.append((placement, as_of))
+        return kept(placement, as_of)
+
+    amounts = (Decimal(100), Decimal("0.05"), Decimal("100.01"), Decimal(-7))
+    after = date(2026, 2, 10)
+    for placement in (SPRING, WINTER):
+        for amount in amounts:
+            alone = rounded_parts(placement, amount, MONEY)
+            assert rounded_parts(placement, amount, MONEY, weigh=weigh) == alone
+            alone = remaining_parts(placement, amount, HOURS, as_of=after)
+            assert remaining_parts(placement, amount, HOURS, as_of=after, weigh=weigh) == alone
+    assert len(weighed) == 2 * 2 * len(amounts)
+    assert kept(SPRING, None) is kept(SPRING, None)
+    assert kept(SPRING, after) is not kept(SPRING, None)
+    lines = [PlannedLine(amount, SPRING) for amount in amounts]
+    day = date(2026, 3, 17)
+    assert planned_value(lines, day) == sum(
+        (planned_value([line], day) for line in lines), Decimal(0)
+    )
+
+
+@pytest.mark.requirement("WF-DEV-0090-A")
+def test_the_lines_of_a_sum_weigh_each_task_once_for_a_date_of_calculation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A detail of the realisation (#3802), which reprises no Vérif of its own: the weights of the
+    # months are computed once by task and date, whatever the number of its lines.
+    calls: list[tuple[Placement, date | None]] = []
+
+    def counting(placement: Placement, *, as_of: date | None = None) -> MonthWeights:
+        calls.append((placement, as_of))
+        return month_weights(placement, as_of=as_of)
+
+    monkeypatch.setattr(parting, "month_weights", counting)
+    lines = [
+        SpreadLine(Decimal(amount), placement)
+        for placement in (SPRING, WINTER)
+        for amount in (100, 7, 33, 250)
+    ]
+    for as_of in (None, date(2026, 2, 10)):
+        # The part to come starts the day after the date of calculation.
+        weighed_at = None if as_of is None else as_of + timedelta(days=1)
+        calls.clear()
+        spread_lines(lines, as_of=as_of)
+        assert sorted(calls, key=lambda each: each[0].start.day) == [
+            (WINTER, weighed_at),
+            (SPRING, weighed_at),
+        ]
