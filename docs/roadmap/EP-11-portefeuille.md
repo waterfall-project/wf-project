@@ -725,7 +725,7 @@ l'écran et son export (US-2760).
 
 ## US-2710 — La performance du portefeuille
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PTF-0070-A`
 - **opérations** : `getPortfolioPerformance`, `getReferenceSettings`
 - **issue** : #3862
