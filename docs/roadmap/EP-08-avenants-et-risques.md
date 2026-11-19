@@ -1639,7 +1639,7 @@ portefeuille (EP-11).
 
 ## US-2620 — La survenance d'un risque
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-RIS-0060-A`
 - **opérations** : `getRiskOccurrenceReport`, `declareRiskOccurrence`, `getBackgroundTask`,
   `listNodes` et `compareRevisions` (`is_from_risk`, `origin_risk_ids`), `getRisk`
@@ -1717,6 +1717,11 @@ d'un risque » (#1453), « Les risques… » (M-05 : la place des tâches fusion
 d'un risque survenu gardent sa trace » (#1761), « La racine du devis propre d'un risque survenu,
 dans le témoin » (H-03). La survenance partage avec la fusion d'un avenant la mécanique qui greffe
 un sous-arbre dans la structure principale : la conception dit ce qui est commun.
+`DECISIONS.md` dit aussi, au même endroit, l'application de la survenance, la structure vide que la
+révision suivante garde au risque survenu (son évaluation et son coût à la survenance y restent),
+l'abandon d'une révision où le risque fut déclaré puis survenu, et `UNKNOWN_RISK`. La conservation
+d'`origin_risk_id` par la fusion d'un avenant revient à US-2560, qui écrit cette fusion : la copie,
+les déplacements et les imports rapprochés par la lignée la tiennent ici, par leurs tests.
 
 **Hors périmètre.** La couverture après la survenance (US-2610) ; la valeur acquise et la projection
 devant elle (US-2630) ; l'écran (US-2640).

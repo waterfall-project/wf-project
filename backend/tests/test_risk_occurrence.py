@@ -29,7 +29,7 @@ from occurrence_support import (
     idle_diagnostic,
     occurring,
 )
-from projects_support import PROJECTS, Scene
+from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
 from risks_support import STUDY, Costed, costed, material
 from sqlalchemy import func, select
@@ -42,6 +42,8 @@ from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.core.risks.tables import RiskEvaluation, RiskReview
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.keycloak_admin import KeycloakAdmin
+from waterfall.platform.logs import logging_context
+from waterfall.platform.tasks import submit
 from waterfall.worker.occurrence import occur
 from waterfall.worker.runner import Timing, Worker
 
@@ -212,8 +214,7 @@ def test_the_risk_keeps_its_cost_at_occurrence_and_its_last_review_is_the_occurr
     }
     with ready.project.stage.database.transaction() as session:
         review = session.scalars(
-            select(RiskReview)
-            .where(RiskReview.risk_id == risk_id, RiskReview.state == "occurred")
+            select(RiskReview).where(RiskReview.risk_id == risk_id, RiskReview.state == "occurred")
         ).one()
         assert review.severity == Decimal("200.00")
         assert review.revision_id == UUID(ready.revision["revision_id"])
@@ -276,9 +277,7 @@ def test_a_stale_report_is_refused_with_412_and_nothing_is_deposited(ready: Occu
         },
     )
     assert refusal(answer)[:2] == (412, STALE)
-    assert (
-        refusal(confirm(ready, creates_current_revision=True))[:2] == (412, STALE)
-    )
+    assert refusal(confirm(ready, creates_current_revision=True))[:2] == (412, STALE)
     assert ready.read()["state"] == "identified"
 
 
@@ -479,14 +478,19 @@ def test_the_grids_filter_on_the_tasks_and_lines_issued_from_a_risk_or_from_a_gi
             {"pointer": f"/query/origin_risk_ids/{place}", "code": "UNKNOWN_RISK"}
         ]
     base = f"{PROJECTS}/{ready.project.project_id}/revisions/comparison"
-    revisions = f"from_revision_id={ready.first['revision_id']}&to_revision_id={ready.revision['revision_id']}"
+    revisions = (
+        f"from_revision_id={ready.first['revision_id']}"
+        f"&to_revision_id={ready.revision['revision_id']}"
+    )
     compared = ready.api.get(
         f"{base}?{revisions}&is_from_risk=true&fields=kind,task.label,estimate_line.label",
         headers=ready.risks.headers,
     )
     assert compared.status_code == 200, compared.text
     assert merged <= set(labels(compared.json()["items"]))
-    refused = ready.api.get(f"{base}?{revisions}&origin_risk_ids={unknown}", headers=ready.risks.headers)
+    refused = ready.api.get(
+        f"{base}?{revisions}&origin_risk_ids={unknown}", headers=ready.risks.headers
+    )
     assert refused.status_code == 422, refused.text
     assert refused.json()["fields"][0]["code"] == "UNKNOWN_RISK"
 
@@ -520,6 +524,58 @@ def test_a_line_merged_and_reestimated_shows_beside_a_cost_at_occurrence_that_st
     assert answer.status_code == 200, answer.text
     risk = ready.read()
     assert (risk["occurrence_cost"], risk["occurred_reestimated_amount"]) == ("200.00", "280.00")
+
+
+@pytest.mark.requirement("WF-RIS-0060-A")
+def test_the_confirmation_is_refused_by_the_conditions_of_the_project_and_of_the_revision(
+    ready: Occurring, queue: TaskQueue
+) -> None:
+    # In the order of the 409 the report names: a project writing in a task — here a marking queued
+    # around the service —, then a terminal project, both before the risk is read; a risk unknown is not found.
+    stage = ready.project.stage
+    report = ready.reported()
+    sent = {
+        "confirmed": True,
+        "main_structure_lock_version": report["main_structure_lock_version"],
+        "risk_lock_version": report["risk_lock_version"],
+        "creates_current_revision": False,
+    }
+    path = f"{ready.path}/occurrence"
+    unknown = f"{ready.risks.base}/risks/{uuid4()}/occurrence"
+    assert ready.api.post(unknown, headers=ready.risks.headers, json=sent).status_code == 404
+    payload = {"project_id": stage.project["project_id"]}
+    with logging_context(correlation_id="queued-around"), stage.database.transaction() as session:
+        submit(session, queue, "revision_mark", stage.manager.user_id, payload)
+    answer = ready.api.post(path, headers=ready.risks.headers, json=sent)
+    assert refusal(answer) == (409, CONDITION, {"missing_condition": "no_background_task_running"})
+    put_in_state(stage.owner, stage.project["project_id"], "completed")
+    answer = ready.api.post(path, headers=ready.risks.headers, json=sent)
+    assert refusal(answer) == (409, CONDITION, {"missing_condition": "project_not_terminal"})
+
+
+@pytest.mark.requirement("WF-RIS-0060-A")
+def test_who_may_not_create_the_revision_is_refused_and_who_lacks_the_permission_is_forbidden(
+    ready: Occurring, realm: TestRealm
+) -> None:
+    # Without a current revision the occurrence creates one: ``may_create_revision`` is missing for
+    # who lacks ``revisions.write`` (409); who lacks ``risk_occurrence`` is forbidden (403).
+    stage = ready.project.stage
+    mark(stage, ready.revision, "v2.0")
+    report = ready.reported()
+    sent = {
+        "confirmed": True,
+        "main_structure_lock_version": report["main_structure_lock_version"],
+        "risk_lock_version": report["risk_lock_version"],
+        "creates_current_revision": True,
+    }
+    path = f"{ready.path}/occurrence"
+    keeper = person(stage.database, realm, "risks.read", "risk_occurrence", "planning.read")
+    contribute(stage.database, stage.project["project_id"], keeper, "contributor")
+    answer = ready.api.post(path, headers=keeper.headers, json=sent)
+    assert refusal(answer) == (409, CONDITION, {"missing_condition": "may_create_revision"})
+    reader = person(stage.database, realm, "risks.read")
+    contribute(stage.database, stage.project["project_id"], reader, "contributor")
+    assert ready.api.post(path, headers=reader.headers, json=sent).status_code == 403
 
 
 @pytest.mark.requirement("WF-RIS-0060-A")

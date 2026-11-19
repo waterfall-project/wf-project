@@ -23,12 +23,12 @@ from sqlalchemy.orm import Session
 from support import bearer, raw_account
 
 from waterfall.core.access_roles.tables import UserAccessRole
+from waterfall.core.cost_settings.tables import CostCategory
 from waterfall.core.history.tables import UndoEntry
 from waterfall.core.planning.tables import Node, Task
 from waterfall.core.projects.tables import OrderItem, WorkPackage
 from waterfall.core.revisions.interface import mark_revision
 from waterfall.core.revisions.tables import CostStructure
-from waterfall.core.cost_settings.tables import CostCategory
 from waterfall.core.risks.tables import Risk, RiskEvaluation
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act
@@ -234,6 +234,7 @@ def put_occurred_risk(stage: Scene, node_id: str, risk_id: UUID) -> None:
     project_id = UUID(stage.project["project_id"])
     with stage.owner.begin() as connection:
         revision_id = connection.scalar(select(Node.revision_id).where(Node.id == UUID(node_id)))
+        assert revision_id is not None
         category = connection.scalar(select(CostCategory.id).limit(1))
         structure = structure_row(
             project_id, revision_id, kind="risk", risk_id=risk_id, is_merged=True

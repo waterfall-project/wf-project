@@ -16,10 +16,10 @@ Registered at the import of the interface of the risks (EP-08, "Modules"):
   it names; the reviews and the shares are not (EP-08, "Tables et migrations"). The own estimate of
   a risk that occurred is consumed by its occurrence: its content is not copied, but the evaluation,
   which keeps the cost at occurrence, names a structure of its revision, copied empty and merged
-  (``copy_consumed_estimate``, US-2620/L2). ``copy_evaluations`` advances no counter itself: the counter of a risk
-  advances at the opening because the planning redates each copied structure that holds a node
-  (``redate_copy``), which counts it as any write of its tree — the own estimate of a risk that
-  holds none is not redated, and its risk keeps its counter;
+  (``copy_consumed_estimate``, US-2620/L2). ``copy_evaluations`` advances no counter itself: the
+  counter of a risk advances at the opening because the planning redates each copied structure that
+  holds a node (``redate_copy``), which counts it as any write of its tree — the own estimate of a
+  risk that holds none is not redated, and its risk keeps its counter;
 - **the provision lines moved** (``register_provision_owners``): the risk a line a deletion of its
   task, or an import that no longer carries it, moves under another task, is named when the
   deletion would leave the structure without a task, and its counter advances once the line is

@@ -9142,6 +9142,34 @@ ni le cas du jalon.
   Le nom du champ dit ce qu'il porte, la date et non un booléen, pour que l'écran la nomme ; `_on`
   suit `planning_start_on`. Écartés : un `ReportRefusal`, qui bloquerait la survenance d'un devis
   que personne ne peut redater sans le saisir ; un booléen, qui ne nomme pas la date.
+- **L'application de la survenance** (US-2620/L2, `declareRiskOccurrence`). Une seule tâche
+  `risk_occurrence`, une seule transaction, sous le verrou du projet puis du devis propre, de la
+  structure principale et du risque : la requête juge les 409 dans l'ordre du contrat, puis les deux
+  compteurs lus et `creates_current_revision` (412 `STALE_LOCK_VERSION`, `params.expected_lock_version`
+  le compteur du risque) ; le worker les juge de nouveau, la tâche elle-même ne comptant pas comme
+  une tâche qui écrit. Sans révision en cours, il la crée d'abord, par copie de la dernière marquée
+  aux taux conservés, projetés, après avoir jugé les compteurs sur la structure marquée, que le
+  marquage a figée. L'évaluation passe à `occurred` avant que la greffe ne supprime la ligne de
+  provision, que sa clé et sa contrainte refuseraient sinon ; le coût à la survenance est le total du
+  devis propre avant la greffe ; le réexamen de survenance garde la probabilité de l'évaluation, qui ne
+  change pas, et la gravité ; le devis propre est marqué `is_merged`. Rien n'est marqué, la référence
+  ne bouge pas, rien n'entre à l'historique annulable ; le journal reçoit `risk_occurrence` sur le
+  risque, dans sa révision.
+- **La révision qui suit une survenance garde l'évaluation du risque et une structure vide**
+  (US-2620/L2). La copie d'une révision ne reprend pas le devis propre fusionné, ni ses nœuds,
+  ses lignes, ses liaisons et ses images. Mais l'évaluation du risque survenu, avec son coût à la
+  survenance, est reprise (WF-RIS-0030), et elle nomme une structure de sa révision et de son risque
+  (`Risk.structure_id`, exigé ; clé de `risk_evaluation`) : la structure est donc copiée comme ligne,
+  fusionnée et vide, sa lignée et son début de planning gardés. `listCostStructures` la rend
+  `is_merged`, sans nœud. Écarté : ne pas reprendre l'évaluation, qui ferait disparaître un risque
+  survenu du registre, de la matrice et de la couverture dès la révision suivante.
+- **L'abandon d'une révision où le risque a été déclaré puis est survenu** (US-2620/L2) supprime le
+  risque avec elle, les nœuds fusionnés qui le nomment (`origin_risk_id`) lâchés avant sa suppression
+  et supprimés avec la révision.
+- **`UNKNOWN_RISK`** (US-2620/L2, `NodeOriginRiskFilter`) : un risque est connu du filtre quand il est
+  survenu, dans une révision du projet ou dans une autre ; l'abandon qui défait la survenance le
+  rend inconnu. Le refus nomme chaque identifiant fautif par sa place (`/query/origin_risk_ids/<n>`),
+  à `listNodes` comme à `compareRevisions`.
 
 **Corrélation** 1591 et 1592.
 

@@ -28,8 +28,9 @@ found, under the lock of the two structures, so that what the report presented i
   fields that change of it — the summary of the tasks grafted, its dates and its duration now
   spanning theirs (WF-PLA-0040), its mode automatic —, a milestone being left as it is; each task
   of the structure grafted into whose dates the engine moves, updated by its dates, after it, in
-  the order of the plan (#4134); each node removed. The reasons that refuse the whole graft (``ReportRefusal``): those the facets
-  give (``FacetHooks.judge_graft``), then a planning beyond fifteen years
+  the order of the plan (#4134); each node removed. The reasons that refuse the whole graft
+  (``ReportRefusal``): those the facets give (``FacetHooks.judge_graft``), then a planning beyond
+  fifteen years
   (``PROJECT_HORIZON_EXCEEDED``, WF-PLA-0150), the engine replayed on the structure the graft
   leaves.
 """

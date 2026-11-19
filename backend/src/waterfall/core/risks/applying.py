@@ -68,7 +68,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.projects.interface import Viewer
-    from waterfall.core.risks.reading import Found
     from waterfall.core.risks.tables import Risk, RiskEvaluation
     from waterfall.platform.audit import Act
     from waterfall.platform.queue import TaskQueue
@@ -194,7 +193,9 @@ def _opened(
     return open_revision_by_task(session, project_id, act, task_id)
 
 
-def run_occurrence_task(session: Session, payload: Mapping[str, Any], act: Act, task_id: UUID) -> None:
+def run_occurrence_task(
+    session: Session, payload: Mapping[str, Any], act: Act, task_id: UUID
+) -> None:
     """Apply the occurrence a task names, in the transaction of the task (the worker's).
 
     Judged again under the locks as the request judged it, the task itself not counting as a task
@@ -269,9 +270,8 @@ def _inscribe(session: Session, risk: Risk, revision_id: UUID, act: Act) -> None
     """Inscribe the occurrence in the journal: the risk, its revision, its project (WF-SEC-0030)."""
     project_id = risk.project_id
     label = project_label(session, project_id)
-    named = (
-        None if label is None else AuditProject(project_id, project_code(session, project_id), label)
-    )
+    code = project_code(session, project_id)
+    named = None if label is None else AuditProject(project_id, code, label)
     audited = AuditObject("risk", risk.id, risk.label, AuditRevision(revision_id, None))
     actor = inscribed_actor(session, act.author)
     record(session, Inscription("risk_occurrence", actor, audited, act.at, project=named))

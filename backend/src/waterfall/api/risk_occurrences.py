@@ -10,6 +10,7 @@
 Registered by the application from US-2550/L1; the report served by US-2620/L1.
 """
 
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -58,6 +59,17 @@ def get_risk_occurrence_report(
     )
 
 
+def occurrence_request(project_id: UUID, risk_id: UUID, body: RiskOccurrence) -> OccurrenceRequest:
+    """Read what the confirmation sends: the risk, and the counters and the creation it read."""
+    return OccurrenceRequest(
+        project_id,
+        risk_id,
+        body.main_structure_lock_version.root,
+        body.risk_lock_version.root,
+        body.creates_current_revision,
+    )
+
+
 @router.post(
     "/projects/{project_id}/risks/{risk_id}/occurrence",
     operation_id="declareRiskOccurrence",
@@ -67,9 +79,7 @@ def get_risk_occurrence_report(
     response_model_exclude_unset=True,
 )
 def post_risk_occurrence(
-    project_id: UUID,
-    risk_id: UUID,
-    body: RiskOccurrence,
+    request: Annotated[OccurrenceRequest, Depends(occurrence_request)],
     actor: Acting,
     session: Transaction,
     services: ServicesOf,
@@ -79,13 +89,6 @@ def post_risk_occurrence(
     Judged under the locks at the counters the report read, nothing deposited if refused; the task
     is written in the transaction of the request, and deposited once it is committed.
     """
-    request = OccurrenceRequest(
-        project_id,
-        risk_id,
-        body.main_structure_lock_version.root,
-        body.risk_lock_version.root,
-        body.creates_current_revision,
-    )
     act = Act(actor.user_id, utc_now())
     task_id = submit_occurrence(session, services.queue, request, act, viewer_of(actor))
     return task_ref(session.get_one(BackgroundTask, task_id))

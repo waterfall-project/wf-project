@@ -549,6 +549,29 @@ def test_a_reimport_matches_by_lineage_then_by_uid_and_keeps_only_the_started_ab
     assert (after["Tâche E"][1].external_id, after["Lot A"][1].external_id) == ("5", "1")
 
 
+@pytest.mark.requirement("WF-RIS-0060-A")
+def test_a_task_issued_from_a_risk_matched_by_its_lineage_keeps_the_risk_it_comes_from(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # « Une ligne fusionnée par la survenance d'un risque est encore désignée comme issue de ce
+    # risque […] » through the imports matched by lineage: the task reworked in the file and
+    # renamed is the same node, still issued from its risk; one the file creates comes from none.
+    opened(api, stage)
+    imported(api, stage, worker, planning(task(1, "Lot A"), task(2, "Tâche B")))
+    before = by_label(stage)
+    risk = uuid4()
+    put_risk(stage, str(before["Tâche B"][0].id), risk)
+    lineage = f"<GUID>{before['Tâche B'][0].lineage_id}</GUID>"
+    reworked = planning(
+        task(1, "Lot A"), task(20, "Tâche B revue", besides=lineage), task(3, "Neuve")
+    )
+    applied(api, stage, worker, analysed(api, stage, worker, reworked))
+    after = by_label(stage)
+    assert after["Tâche B revue"][0].id == before["Tâche B"][0].id
+    assert after["Tâche B revue"][0].origin_risk_id == risk
+    assert after["Neuve"][0].origin_risk_id is None
+
+
 @pytest.mark.requirement("WF-INTF-0040-A")
 @pytest.mark.requirement("WF-PLA-0030-A")
 def test_the_links_of_the_file_replace_those_of_the_structure_each_change_presented(
