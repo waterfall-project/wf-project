@@ -23,7 +23,7 @@ from projects_support import scene as make_scene
 from risks_support import Costed, Risks
 from sqlalchemy import select
 from support import ContractClient
-from test_msproject_import import analysed, applied, planning, task
+from test_msproject_import import analysed, applied, opening, planning, task
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -218,3 +218,27 @@ def test_a_provision_declared_after_the_report_fails_the_application_by_the_same
         {"risks": [{"risk_id": risk["risk_id"], "label": risk["label"]}]},
     )
     assert risks.project.tree.items() == before
+
+
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_a_stranded_provision_line_without_a_risk_is_an_anomaly_not_an_empty_refusal(
+    api: ContractClient,
+    risks: Risks,
+    stage: Scene,
+    worker: Worker,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A provision line always has its risk: a refusal that would name none is a defect to raise,
+    # never a ``PROVISION_WITHOUT_TASK`` without ``params.risks``.
+    risks.declared_costed()
+
+    def nobody(*_args: object) -> list[object]:
+        return []
+
+    monkeypatch.setattr("waterfall.core.planning.importing.owners_named", nobody)
+    response = opening(api, stage, NO_TASK_LEFT)
+    assert response.status_code == 202, response.text
+    run(worker)
+    found = read(api, stage, response.json()["import_id"])
+    assert found["status"] == "failed", found
+    assert found.get("report") is None

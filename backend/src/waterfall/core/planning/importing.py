@@ -351,8 +351,10 @@ def _carry_provisions(session: Session, plan: Plan) -> None:
     if stranded:
         owners = owners_named(session, plan.aimed.project_id, facts.revision_id, stranded)
         named = [{"risk_id": str(each.risk_id), "label": each.label} for each in owners]
-        params = {"risks": named} if named else {}
-        plan.refusals.append({"code": PROVISION_WITHOUT_TASK, "params": params})
+        if not named:
+            msg = "A provision line stranded by the import belongs to no risk"
+            raise RuntimeError(msg)
+        plan.refusals.append({"code": PROVISION_WITHOUT_TASK, "params": {"risks": named}})
         return
     plan.carried = {line: task for line, task in moves.items() if task is not None}
     names = {

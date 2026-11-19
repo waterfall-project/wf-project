@@ -12695,7 +12695,7 @@ précédents du contrat.
 - **Les imports du devis et du reste à engager ne touchent pas une ligne de provision** : une ligne
   du fichier qui porte sa lignée est ignorée et nommée par sa désignation
   (`ImportIgnored.kind` `provision_lines`, hors de `unchanged_count`) ; le devis qui ne la porte
-  plus la garde et la signale (`kept`), le reste à engager la laisse sans la signaler comme toute
+  plus la garde et la signale (`kept`, WF-INTF-0100), le reste à engager la laisse sans la signaler comme toute
   ligne absente (WF-INTF-0100, WF-INTF-0120). Le contrat le disait déjà ; le service le réalise.
 
 ### La réserve d'une révision marquée se lit de la référence (US-2610/L1)

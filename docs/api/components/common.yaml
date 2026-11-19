@@ -281,10 +281,11 @@ Problem:
         identifier and its label (`risk_id`, `label`), in the order of the list of risks; and for
         the deletion of a provision line itself (`missing_condition` at `line_not_provision`,
         `deleteNode`; #4007), the risk whose provision it is; `work_package_task` and
-        `order_item_tasks` for a merge that would take the task of an order item out of the subtree of the task of its work package
-        (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `mergeCostStructure`, WF-PLA-0170) : the task of the
-        work package and those of the order items that would leave it, nodes of the main
-        structure, each by its node and its label (`node_id`, `label`), like the tasks of
+        `order_item_tasks` for a merge that would take the task of an order item out of the
+        subtree of the task of its work package (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
+        `mergeCostStructure`, WF-PLA-0170) : the task of the work package and those of the order
+        items that would leave it, nodes of the main structure, each by its node and its label
+        (`node_id`, `label`), like the tasks of
         `TASK_WITHOUT_WORKING_HOURS` — "the failure names what failed" (WF-IHM-0080; EP-14/L42k)
         —, and likewise for the import file that would be rejected whole for this reason
         (`ImportReport.refusals`) and the preliminary report of a merge
