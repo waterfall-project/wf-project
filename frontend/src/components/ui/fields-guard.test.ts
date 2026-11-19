@@ -13,6 +13,8 @@ import { join, relative } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { uncommented } from "@/test/uncommented";
+
 const SRC = join(import.meta.dirname, "..", "..");
 const UI = import.meta.dirname;
 
@@ -32,7 +34,7 @@ const NOT_TYPED = /\btype="(?:hidden|checkbox|radio|file)"/;
 
 /** The fields a source writes by hand, each as its opening tag. */
 function handWritten(source: string): string[] {
-  const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+  const code = uncommented(source);
   return [...code.matchAll(/<(input|textarea|select)\b[^>]*>/g)]
     .map((match) => match[0])
     .filter((tag) => !(tag.startsWith("<input") && NOT_TYPED.test(tag)));
@@ -53,6 +55,12 @@ describe("the fields of the screens (#3259)", () => {
     expect(handWritten("<select value={kind}>")).toHaveLength(1);
     expect(handWritten('<input type="checkbox" checked={on} />')).toEqual([]);
     expect(handWritten('<Input type="date" />')).toEqual([]);
+  });
+
+  it("finds a field written after a string holding a comment opener [US-2800]", () => {
+    expect(handWritten('const a = "http://x"; <input id={a} />')).toHaveLength(1);
+    expect(handWritten('const a = "/*";\n<textarea />\n// */')).toHaveLength(1);
+    expect(handWritten("// <input />\n/* <select> */")).toEqual([]);
   });
 
   it.each(SOURCES)("are the fields of the charter: %s", (_path, source) => {

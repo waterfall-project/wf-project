@@ -75,7 +75,6 @@ import type { RiskMatrix } from "@/components/risks/risk-matrix";
 import { RisksGrid } from "@/components/risks/risks-grid";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { Card, CardContent } from "@/components/ui/card";
 import { startReading } from "@/components/start-reading";
 import { Streamed } from "@/components/streamed";
@@ -473,7 +472,6 @@ export default async function RisksPage({
             />
           }
         />
-        <MockupNotice lists />
         <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
           <FiguresGrid className="min-w-0 grow basis-[40rem]">
             {risks.kind === "read" ? <ProvisionSummary totals={risks.totals} /> : null}

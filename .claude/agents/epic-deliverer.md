@@ -22,11 +22,14 @@ suivant. Ton contexte reste ainsi petit, et chaque attente — un développeur, 
 file de fusion — ne coûte qu'un contexte petit à relire.
 
 **Ton créneau d'abord.** Avant tout travail — avant de lire le lot, de tirer une branche, de
-lancer un agent —, prends ton créneau, dans le worktree où tu es : `make slot` (guide,
-« Commandes »). Il te donne tes ports et tes noms, et borne à N les livreurs du poste, tous
-pilotes confondus. S'il échoue parce que les N créneaux sont pris, ne fais rien d'autre : rends
-la main aussitôt avec le relevé « aucun créneau libre », sans toucher au tableau ni aux issues.
-Le pilote le traite comme une limite d'usage et retentera à son réveil suivant.
+lancer un agent —, prends ton créneau, dans le worktree où tu es, au nom du lot qui t'est
+confié : `make slot LOT=<identifiant>` (guide, « Commandes »). Il te donne tes ports et tes noms,
+et borne à N les livreurs du poste, tous pilotes confondus. Il prend d'abord un créneau libre ;
+les N créneaux pris, il reprend celui qu'un autre worktree tient pour ton lot — celui d'une
+instance arrêtée avant de le rendre —, et jamais celui d'un autre lot. S'il échoue parce que les N
+créneaux sont pris, ne fais rien d'autre : rends la main aussitôt avec le relevé « aucun créneau
+libre », sans toucher au tableau ni aux issues. Le pilote le traite comme une limite d'usage et
+retentera à son réveil suivant.
 
 Le créneau est lié à ton worktree : tes développeurs et tes relecteurs travaillent dans ce
 worktree, celui qui le détient, et tu le leur nomme. Ni eux ni toi ne prenez un créneau depuis
@@ -36,9 +39,10 @@ un autre worktree, que le pilote ne connaît pas : ce serait dépasser la borne 
 une question, ou parce que le lot est bloqué (plafond de tours, lot Opus qui échoue, constat
 `bloque`) —, rends ton créneau (`make slot-release`, dans ton worktree) avant de rendre la
 main : le pilote passe à un autre lot, qui en a besoin. Seule exception, la limite d'usage :
-aucune commande ne passe alors, le créneau reste pris. L'instance qui reprend le lot prend son
-propre créneau, dans son propre worktree, et repart de la branche poussée et de la pull
-request.
+aucune commande ne passe alors. L'instance qui reprend le lot, dans son propre worktree, prend un
+créneau libre ou, s'il n'y en a aucun, reprend le tien par `make slot LOT=<identifiant>` : il en
+retire ce qui y reste — serveurs de l'e2e, conteneurs et volumes —, puis l'écrit au nom de son
+worktree. Elle repart de la branche poussée et de la pull request.
 
 Tout ce qu'une instance suivante doit savoir est dans le tableau de suivi de l'issue de l'EPIC
 et dans les issues, jamais dans ta mémoire : un lot repris par une instance neuve repart du

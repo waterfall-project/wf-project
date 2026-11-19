@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockcategories, mockdata, mockhistory, mockreference, mockwitness
+from wftools import REPOSITORY, mockcategories, mockhistory, mockrates, mockreference, mockwitness
 from wftools.mockids import universe
 from wftools.mockwitness import fixture
 
@@ -168,7 +168,7 @@ def test_the_probability_sent_as_a_percent_is_refused_with_the_bound_it_crosses(
     # Written by hand, like its sibling above: 120 sent for a ratio, refused at its maximum,
     # which the front says as a percent (WF-RIS-0010).
     # Its correlation is its own: test_each_correlation_is_told_by_one_example_alone
-    # (test_mockuniverse.py) reads every fixture, those written by hand included.
+    # (test_mockcorrelations.py) reads every fixture, those written by hand included.
     refused = fixture("risk_probability_out_of_range")
     assert set(refused) == {"code", "status", "fields", "correlation_id"}
     assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
@@ -533,9 +533,11 @@ def test_a_deactivated_nature_deactivates_its_category_whose_reactivation_it_wit
     # `cost_type_active` until the nature is reactivated (WF-REF-0010; EP-14/L42s, C-291).
     [nature] = [n for n in fixture("cost_types")["items"] if n["kind"] == "provision"]
     entries = [(universe(404), "Provisions pour risques")]
-    [active] = cast("list[Entry]", mockdata.categories_of(entries, "PRV", "681", nature))
+    [active] = cast("list[Entry]", mockrates.categories_of(entries, "PRV", "681", nature))
     inactive_nature = {**nature, "is_active": False}
-    [inactive] = cast("list[Entry]", mockdata.categories_of(entries, "PRV", "681", inactive_nature))
+    [inactive] = cast(
+        "list[Entry]", mockrates.categories_of(entries, "PRV", "681", inactive_nature)
+    )
     assert (active["is_active"], active["cost_type_is_active"]) == (True, True)
     assert (inactive["is_active"], inactive["cost_type_is_active"]) == (False, False)
     [state, _] = mockreference.category_commands(inactive, set(), set(), set())

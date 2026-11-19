@@ -52,6 +52,7 @@ from waterfall.api import (
     project_indicators,
     projects,
     rate_update,
+    rebases,
     reference,
     reference_settings,
     remaining_indicators,
@@ -220,11 +221,14 @@ def create_app(services: Services, lifespan: Lifespan | None = None) -> FastAPI:
     for risks_router in (
         amendments.router,
         merges.router,
+        # The update of a differential from the main structure (US-3050/L3).
+        rebases.router,
+        # The routes named under ``/risks`` (``matrix``, ``coverage``) before ``/risks/{risk_id}``.
+        risk_register.router,
+        risk_coverage.router,
         risks.router,
         risk_provisions.router,
         risk_reviews.router,
-        risk_register.router,
-        risk_coverage.router,
         risk_occurrences.router,
     ):
         app.include_router(risks_router, prefix=PREFIX)

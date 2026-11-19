@@ -429,10 +429,12 @@ def test_the_lock_of_an_undoing_finds_the_structure_from_the_objects_of_a_creati
     locked: list[UUID] = []
     real = writing.structure_facts
 
-    def spy(session: Any, project_id: UUID, structure_id: UUID, *, lock: bool) -> Any:
+    def spy(
+        session: Any, project_id: UUID, structure_id: UUID, *, lock: bool, base: bool = False
+    ) -> Any:
         if lock:
             locked.append(structure_id)
-        return real(session, project_id, structure_id, lock=lock)
+        return real(session, project_id, structure_id, lock=lock, base=base)
 
     monkeypatch.setattr(writing, "structure_facts", spy)
     task = tree.made("Câblage", who=who)
@@ -458,10 +460,12 @@ def test_the_lock_of_a_redoing_and_of_an_undoing_of_a_deletion_find_the_structur
     locked: list[UUID] = []
     real = writing.structure_facts
 
-    def spy(session: Any, project_id: UUID, structure_id: UUID, *, lock: bool) -> Any:
+    def spy(
+        session: Any, project_id: UUID, structure_id: UUID, *, lock: bool, base: bool = False
+    ) -> Any:
         if lock:
             locked.append(structure_id)
-        return real(session, project_id, structure_id, lock=lock)
+        return real(session, project_id, structure_id, lock=lock, base=base)
 
     monkeypatch.setattr(writing, "structure_facts", spy)
     # The deletion undone: its entry holds the task before it and no object after it.

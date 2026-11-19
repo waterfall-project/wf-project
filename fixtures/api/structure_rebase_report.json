@@ -1,0 +1,16 @@
+{
+  "summary": "Variante déclarée, la suite d'écritures faites aujourd'hui dans la structure principale de la révision courante : la « Réception provisoire sur site » créée sous l'« Installation sur site » (node_created_manual), la « Câblage des armoires » renommée « Câblage et repérage des armoires » (task_renamed), la charge du « Raccordement des borniers » portée à 14 h (estimate_line_updated), la ligne « Borniers » supprimée (node_deleted), et la ligne « Mise en service sur site » réestimée à 96 h. Le différentiel « Avenant 2 — reprise des essais », à jour jusque-là (structures), est en retard, et le compte rendu préalable de sa mise à jour présente ce qu'elle y reporterait : la tâche ajoutée, sous sa lignée, à sa place ; le libellé et la charge modifiés ; la ligne retirée. La charge de la ligne « Mise en service sur site », que l'avenant porte à 120 h, est gardée et signalée (kept, ses champs) : la fusion lui donnera ces 120 h pour référence, et la principale gardera sa réestimation (WF-REV-0050). Aucun motif de refus : la confirmation est offerte, qui renverra les compteurs lus — celui de la principale, 6, et celui du différentiel, 2 (WF-REV-0100, WF-IHM-0110, #4034).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "main_structure_lock_version": 6,
+    "structure_lock_version": 2,
+    "differences": [
+      {"change":"added","target":"task","lineage_id":"01926f3a-7c00-7000-8000-000000000694","label":"Réception provisoire sur site","predecessor_label":null,"fields":[]},
+      {"change":"updated","target":"task","lineage_id":"01926f3a-7c00-7000-8000-000000000652","label":"Câblage et repérage des armoires","predecessor_label":null,"fields":["label"]},
+      {"change":"updated","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000653","label":"Raccordement des borniers","predecessor_label":null,"fields":["hours"]},
+      {"change":"removed","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000654","label":"Borniers","predecessor_label":null,"fields":[]},
+      {"change":"kept","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000666","label":"Mise en service sur site","predecessor_label":null,"fields":["hours"]}
+    ],
+    "refusals": []
+  }
+}

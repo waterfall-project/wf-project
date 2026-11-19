@@ -12,6 +12,8 @@ Declared by US-2550/L1, the socle of EP-08; filled by US-2590/L1.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from waterfall.core.risks.deleting import delete_current
+
 if TYPE_CHECKING:
     from uuid import UUID
 
@@ -32,6 +34,9 @@ class RiskDeletion:
 def delete_risk(
     session: Session, project_id: UUID, deletion: RiskDeletion, writer: Writer, viewer: Viewer
 ) -> None:
-    """Delete a risk no marked revision cites, with its own estimate and its provision line."""
-    msg = "delete_risk is filled by US-2590/L1"
-    raise NotImplementedError(msg)
+    """Delete a risk no marked revision cites, with its own estimate and its provision line.
+
+    Refused by the conditions of ``delete_current`` (409), the risk unknown (404) or read at
+    another counter (412); the current revision created first when the project has none.
+    """
+    delete_current(session, project_id, deletion, writer, viewer)

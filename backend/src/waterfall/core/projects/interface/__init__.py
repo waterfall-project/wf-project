@@ -12,12 +12,17 @@ the file.
 
 # ``commands`` (US-0920; exported by US-1380/L5 and US-1480/L4): the states that end the cycle of
 # life and those before In progress, the condition a terminal project lacks and the one a running
-# background task takes away, which the other modules judge by these names, never a copy (#2555).
+# background task takes away, which the other modules judge by these names, never a copy (#2555);
+# the entries of the risks and the two conditions a declaration lacks, written here once for the
+# revisions and the risks, which would else drift apart (#3996).
 from waterfall.core.projects.commands import (
+    ACTIVE_PROVISION_CATEGORY,
+    AT_LEAST_ONE_TASK,
     BEFORE_IN_PROGRESS,
     NO_BACKGROUND_TASK_RUNNING,
     PROJECT_BEFORE_IN_PROGRESS,
     PROJECT_NOT_TERMINAL,
+    RISK_ENTRIES,
     TERMINAL,
 )
 
@@ -125,12 +130,11 @@ from waterfall.core.projects.interface.projects import (
     update_project,
 )
 
-# ``skeleton`` (US-1460): whether the revision a project would open carries a task.
+# ``skeleton`` (US-1460, #2541): whether the main structure of the revision a project would open
+# carries a task.
 from waterfall.core.projects.interface.skeleton import (
     opening_main_with_tasks,
-    opening_with_tasks,
     register_opening_main_question,
-    register_opening_question,
 )
 
 # ``subprojects`` (US-0940; the facts of the actual costs, US-1610/L3): the subprojects of a
@@ -184,11 +188,14 @@ from waterfall.core.projects.interface.work_breakdown import (
 )
 
 __all__ = [
+    "ACTIVE_PROVISION_CATEGORY",
+    "AT_LEAST_ONE_TASK",
     "BEFORE_IN_PROGRESS",
     "BORN_LOCK_VERSION",
     "NO_BACKGROUND_TASK_RUNNING",
     "PROJECT_BEFORE_IN_PROGRESS",
     "PROJECT_NOT_TERMINAL",
+    "RISK_ENTRIES",
     "TERMINAL",
     "Attachments",
     "ClosedOffer",
@@ -276,7 +283,6 @@ __all__ = [
     "offers_closed_between",
     "openable",
     "opening_main_with_tasks",
-    "opening_with_tasks",
     "project_code",
     "project_commands",
     "project_exists",
@@ -293,7 +299,6 @@ __all__ = [
     "register_cost_facts",
     "register_estimate_facts",
     "register_opening_main_question",
-    "register_opening_question",
     "require_project_manager",
     "set_contributors",
     "set_current_revision",

@@ -7,7 +7,7 @@ module of the revisions (migration 0020); ``node``, ``task`` and ``task_link``, 
 module of the planning of the same form (migration 0022); what a review writes on a line of
 estimate (migration 0027), by the guard of the estimate (migration 0025), whose other writes
 ``test_database_constraints_estimate.py`` tries; the documents of indicators a marking keeps, by a
-guard of the same form (migration 0032), those of the portfolio included (migration 0037), whose
+guard of the same form (migration 0032), those of the portfolio included (migration 0039), whose
 refusal of a document written outside a marking ``test_database_constraints_indicators.py`` tries.
 The rows are written around the service, by the owner of the tables, whom the triggers refuse as
 they refuse the service. A revision is opened through the service, and marked by the transaction of
@@ -542,7 +542,7 @@ def test_the_indicators_a_marking_kept_are_never_written_again(
     assert documents_of(owner, revision_id) == before
 
 
-# The kinds a marking keeps for the portfolio (EP-11, migration 0037).
+# The kinds a marking keeps for the portfolio (EP-11, migration 0039).
 PORTFOLIO_KINDS = (
     "portfolio_workload",
     "portfolio_cost_structure",

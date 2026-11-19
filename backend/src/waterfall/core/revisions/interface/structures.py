@@ -26,6 +26,15 @@ condition of the phase an entry lacks, by the rule its commands state
 their revisions read ``FOR SHARE`` (``current_structures``), which a change of the reference
 redates (US-1390/L2).
 
+A differential is born with its base (US-3050/L2): the copy of the main structure it is read
+against, which no operation serves — neither listed, nor read by its identifier (``structure_facts``
+refuses it as an unknown structure, but for what sweeps every structure of a revision), nor counted
+by what reads the structures of a revision —, which the abandonment of the differential deletes and
+the copy of a revision takes up with a differential not merged, its state with it (``bases``). A
+differential keeps the counter the main structure bore when its base was taken: it is up to date
+while the main structure bears it (``CostStructure.is_up_to_date``), and lists its update
+(``rebase``) available once out of date.
+
 The own estimate of a risk is born with its risk, in the current revision (``create_own_estimate``,
 E-09; US-2570/L1), labelled as its risk. Its counter is the risk's too: each time it advances —
 whatever writes the tree, once the write has priced its lines —, the modules registered follow it
@@ -39,7 +48,7 @@ revision, the others are EP-06's and EP-07's.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select, update
+from sqlalchemy import case, delete, func, select, update
 from sqlalchemy.orm import aliased
 
 from waterfall.core.projects.interface import (
@@ -48,7 +57,15 @@ from waterfall.core.projects.interface import (
     current_day,
     project_facts,
 )
-from waterfall.core.revisions.commands import phase_conditions, structure_commands_of
+from waterfall.core.revisions.commands import (
+    DIFFERENTIAL_NATURE,
+    MAIN_NATURE,
+    UP_TO_DATE_NATURE,
+    StructureNature,
+    phase_conditions,
+    structure_commands_of,
+)
+from waterfall.core.revisions.interface.shared import MAIN, inscribe_structure
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.states import revision_state
 from waterfall.core.revisions.tables import CostStructure, Revision
@@ -66,14 +83,20 @@ if TYPE_CHECKING:
     from waterfall.core.revisions.interface.revisions import RevisionCopy
     from waterfall.platform.audit import Act
 
-MAIN = "main"
+# The kind of a differential, the amendment a negotiation prepares (``StructureKind``).
+AMENDMENT = "amendment"
 # The kind of the own estimate of a risk (``StructureKind``).
 RISK = "risk"
+# The kind of the base of a differential, which no operation serves (US-3050).
+BASE = "base"
 # The label of the main structure at its creation, as the examples of the contract name it.
 MAIN_LABEL = "Structure principale"
 # The counter of a structure at its creation, its own or a copy's: every resource is born at 1
 # (``LockVersion`` of the contract; E-16, #2542).
 FIRST_VERSION = 1
+# The counter of the main structure a differential copied out of date keeps: below
+# ``FIRST_VERSION``, the main structure never bears it (US-3050).
+NEVER_BORNE = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,6 +112,16 @@ class StructureView:
     commands: tuple[CommandAvailability, ...]
     lock_version: int
     risk_id: UUID | None = None
+    # Whether a differential not merged is up to date; ``None`` for any other structure (US-3050).
+    is_up_to_date: bool | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class OpenedDifferential:
+    """A differential just created, and its base: two structures the caller copies the main into."""
+
+    structure_id: UUID
+    base_id: UUID
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,16 +204,22 @@ def create_main_structure(session: Session, project_id: UUID, revision_id: UUID,
 
 
 def create_own_estimate(
-    session: Session, revision: tuple[UUID, UUID], risk: tuple[UUID, str], act: Act
+    session: Session,
+    revision: tuple[UUID, UUID],
+    risk: tuple[UUID, str],
+    act: Act,
+    kept: tuple[UUID, date] | None = None,
 ) -> UUID:
     """Create the own estimate of a risk in a revision, empty, labelled as it is; give it (E-09).
 
     ``revision`` is the project and its current revision, ``risk`` the risk and its label. Its
     planning starts on the day of its creation, as the main structure's; the risks judge the
-    revision before.
+    revision before. ``kept`` the identifier and the start of an own estimate deleted with its risk,
+    which the undoing of the deletion, or the redoing of the declaration, creates again
+    (US-2590/L2).
     """
     (project_id, revision_id), (risk_id, label) = revision, risk
-    structure_id = new_id()
+    structure_id, start = (new_id(), current_day(act.at)) if kept is None else kept
     session.add(
         CostStructure(
             project_id=project_id,
@@ -191,7 +230,7 @@ def create_own_estimate(
             is_merged=False,
             lineage_id=structure_id,
             risk_id=risk_id,
-            planning_start_on=current_day(act.at),
+            planning_start_on=start,
             scheduled_at=act.at,
             lock_version=FIRST_VERSION,
             created_at=act.at,
@@ -204,10 +243,137 @@ def create_own_estimate(
     return structure_id
 
 
+def delete_own_estimate(session: Session, project_id: UUID, structure_id: UUID) -> None:
+    """Delete the own estimate of a risk deleted with it, its nodes already deleted (US-2590/L1).
+
+    The structure is locked by the caller, which has deleted the evaluation that names it and the
+    nodes it holds; nothing else names it.
+    """
+    session.delete(
+        session.scalars(
+            select(CostStructure).where(
+                CostStructure.project_id == project_id,
+                CostStructure.id == structure_id,
+                CostStructure.kind == RISK,
+            )
+        ).one()
+    )
+    session.flush()
+
+
+def consume_own_estimate(session: Session, project_id: UUID, structure_id: UUID) -> None:
+    """Mark the own estimate of a risk occurred merged, its counter advanced (WF-RIS-0060).
+
+    The occurrence consumes it: it is read ``is_merged`` in the revision it occurred in, and the
+    next revision does not take its content up (``copy_structures``, ``copy_consumed_estimate``).
+    Under the lock of the structure, which the caller holds; the followers of an own estimate
+    counted (``register_own_estimate_counted``) are not told, the risk being written by the caller.
+    """
+    session.execute(
+        update(CostStructure)
+        .where(
+            CostStructure.project_id == project_id,
+            CostStructure.id == structure_id,
+            CostStructure.kind == RISK,
+        )
+        .values(is_merged=True, lock_version=CostStructure.lock_version + 1)
+        .execution_options(synchronize_session=False)
+    )
+
+
+def copy_consumed_estimate(copy: RevisionCopy, structure_id: UUID) -> UUID:
+    """Copy the own estimate of a risk occurred into the revision opened, empty; give its copy.
+
+    The evaluation of a risk occurred is taken up by the next revision, with its cost at occurrence,
+    and it names a structure of its own revision and of its risk: the structure is copied as the
+    row it is — merged, its lineage and its start kept — but not its content, which the occurrence
+    consumed and which is read in the revision it occurred in (WF-REV-0100, WF-RIS-0060). Its nodes,
+    its lines and its images are not taken up: ``copy_structures`` leaves it out of the identifiers
+    the copies of the planning and of the estimate follow.
+    """
+    row = copy.session.scalars(
+        select(CostStructure).where(
+            CostStructure.project_id == copy.project_id, CostStructure.id == structure_id
+        )
+    ).one()
+    copied = new_id()
+    copy.session.add(
+        CostStructure(
+            project_id=copy.project_id,
+            id=copied,
+            revision_id=copy.target,
+            kind=row.kind,
+            label=row.label,
+            is_merged=True,
+            lineage_id=row.lineage_id,
+            risk_id=row.risk_id,
+            planning_start_on=row.planning_start_on,
+            scheduled_at=row.scheduled_at or row.created_at,
+            lock_version=FIRST_VERSION,
+            created_at=copy.at,
+            created_by=copy.author,
+            updated_at=copy.at,
+            updated_by=copy.author,
+        )
+    )
+    copy.session.flush()
+    return copied
+
+
+def create_differential(
+    session: Session,
+    revision: tuple[UUID, UUID],
+    main: StructureFacts,
+    label: str,
+    act: Act,
+) -> OpenedDifferential:
+    """Create a differential in a revision and its base, copies of its main structure; give them.
+
+    ``revision`` is the project and the revision, ``main`` the facts of its main structure, read
+    under its lock. Both start their planning the day the main structure does and hold its dates as
+    it computed them (``scheduled_at``); their nodes are copied after them (``open_differential``).
+    The differential keeps the counter of the main structure read: it is up to date while the main
+    structure bears it (US-3050). The lineage of each structure is its own: the next revision copies
+    them under it (WF-REV-0100, WF-DAT-0030). The label is not unique: several differentials
+    coexist; the base bears its differential's, which nothing reads.
+    """
+    project_id, revision_id = revision
+    structure_id, base_id = new_id(), new_id()
+    for each, kind, named in ((structure_id, AMENDMENT, None), (base_id, BASE, structure_id)):
+        session.add(
+            CostStructure(
+                project_id=project_id,
+                id=each,
+                revision_id=revision_id,
+                kind=kind,
+                label=label,
+                is_merged=False,
+                lineage_id=each,
+                differential_id=named,
+                main_lock_version=main.lock_version if kind == AMENDMENT else None,
+                planning_start_on=main.planning_start_on,
+                scheduled_at=main.scheduled_at,
+                lock_version=FIRST_VERSION,
+                created_at=act.at,
+                created_by=act.author,
+                updated_at=act.at,
+                updated_by=act.author,
+            )
+        )
+        # The base names its differential, which is written first.
+        session.flush()
+    return OpenedDifferential(structure_id, base_id)
+
+
 def copy_structures(copy: RevisionCopy) -> None:
     """Copy the structures of the source but the merged ones, each keeping its lineage (#1759).
 
-    The own estimate of a risk keeps its risk (``risk_id``, EP-08), which is not revised.
+    The own estimate of a risk keeps its risk (``risk_id``, EP-08), which is not revised. The base
+    of a differential not merged is copied after it, naming its copy; that of a merged one is not
+    copied, as its differential is not (US-3050, WF-REV-0100). A differential's counter of the main
+    structure is ``NEVER_BORNE`` here, the main structure of the copy never bearing it: the state of
+    each differential is given once every table is copied and the main structure redated
+    (``keep_differential_states``).
 
     Each keeps the date its planning starts on and the instant its dates were computed (#2170): a
     null date stays null, read by the lineage the copy keeps; a null instant is the creation of the
@@ -223,7 +389,11 @@ def copy_structures(copy: RevisionCopy) -> None:
         )
         .order_by(CostStructure.id)
     ).all()
-    for row in rows:
+    taken = {row.id for row in rows}
+    # The differentials before their bases, which name their copies.
+    for row in sorted(rows, key=lambda row: row.kind == BASE):
+        if row.differential_id is not None and row.differential_id not in taken:
+            continue
         copied = new_id()
         copy.identifiers[row.id] = copied
         copy.session.add(
@@ -236,6 +406,10 @@ def copy_structures(copy: RevisionCopy) -> None:
                 is_merged=False,
                 lineage_id=row.lineage_id,
                 risk_id=row.risk_id,
+                differential_id=None
+                if row.differential_id is None
+                else copy.identifiers[row.differential_id],
+                main_lock_version=None if row.main_lock_version is None else NEVER_BORNE,
                 planning_start_on=row.planning_start_on,
                 scheduled_at=row.scheduled_at or row.created_at,
                 lock_version=FIRST_VERSION,
@@ -249,13 +423,19 @@ def copy_structures(copy: RevisionCopy) -> None:
 
 
 def delete_structures(session: Session, project_id: UUID, revision_id: UUID) -> None:
-    """Delete the structures of a revision being abandoned, row by row (WF-DAT-0010)."""
-    for row in session.scalars(
+    """Delete the structures of a revision being abandoned, row by row (WF-DAT-0010).
+
+    The bases first, which name their differentials (US-3050).
+    """
+    rows = session.scalars(
         select(CostStructure).where(
             CostStructure.project_id == project_id, CostStructure.revision_id == revision_id
         )
-    ):
+    ).all()
+    for row in sorted(rows, key=lambda row: row.kind != BASE):
         session.delete(row)
+        if row.kind == BASE:
+            session.flush()
     session.flush()
 
 
@@ -264,7 +444,8 @@ def _structures(
 ) -> list[tuple[CostStructure, datetime]]:
     """Read the structures of a revision, the main one first, with the birth of their lineage.
 
-    A structure whose lineage lost its origin is born with itself: it is listed all the same.
+    A structure whose lineage lost its origin is born with itself: it is listed all the same. The
+    bases are not read (US-3050).
     """
     origin = aliased(CostStructure)
     rows = session.execute(
@@ -274,7 +455,11 @@ def _structures(
             (origin.project_id == CostStructure.project_id)
             & (origin.id == CostStructure.lineage_id),
         )
-        .where(CostStructure.project_id == project_id, CostStructure.revision_id == revision_id)
+        .where(
+            CostStructure.project_id == project_id,
+            CostStructure.revision_id == revision_id,
+            CostStructure.kind != BASE,
+        )
         .order_by((CostStructure.kind != MAIN), CostStructure.label, CostStructure.id)
     ).all()
     return [(row[0], row[1]) for row in rows]
@@ -283,7 +468,9 @@ def _structures(
 def revision_structures(session: Session, project_id: UUID, revision_id: UUID) -> tuple[UUID, ...]:
     """Give the structures of a revision, in the order of their identifiers, unlocked.
 
-    The caller locks them (``structure_facts``, ``lock=True``), in that order.
+    The caller locks them (``structure_facts``, ``lock=True``, ``base=True``), in that order. The
+    bases come with the others: what prices or redates every structure of a revision writes them
+    too, so that a differential and its base are read alike (US-3050).
     """
     return tuple(
         session.scalars(
@@ -294,13 +481,44 @@ def revision_structures(session: Session, project_id: UUID, revision_id: UUID) -
     )
 
 
+def _up_to_date(row: CostStructure, main_counter: int | None) -> bool | None:
+    """Tell whether a differential not merged is up to date; ``None`` for any other structure.
+
+    Up to date while the main structure bears the counter its base was taken at (US-3050); a
+    merged differential, consumed, has no update left, and says nothing of it.
+    """
+    if row.kind != AMENDMENT or row.is_merged:
+        return None
+    return row.main_lock_version == main_counter
+
+
+def _nature(row: CostStructure, main_counter: int | None) -> StructureNature:
+    """Tell what the commands of a structure read of it: the main one, a differential not merged.
+
+    ``main_counter`` that of the main structure of its revision: a differential up to date has
+    nothing to carry over (US-3050).
+    """
+    if row.kind == MAIN:
+        return MAIN_NATURE
+    if row.kind == AMENDMENT:
+        if row.is_merged:
+            return "amendment"
+        return UP_TO_DATE_NATURE if _up_to_date(row, main_counter) else DIFFERENTIAL_NATURE
+    return "risk"
+
+
 def list_cost_structures(
     session: Session, project_id: UUID, revision_id: UUID, viewer: Viewer
 ) -> list[StructureView]:
-    """List the structures of a revision, with their commands (``listCostStructures``); or 404."""
+    """List the structures of a revision, with their commands (``listCostStructures``); or 404.
+
+    The bases are not listed (US-3050).
+    """
     revision = revision_state(session, project_id, revision_id)
     state = project_facts(session, project_id).state
     kind = contributor_kind(session, project_id, viewer.user_id)
+    rows = _structures(session, project_id, revision_id)
+    main_counter = next((row.lock_version for row, _ in rows if row.kind == MAIN), None)
     return [
         StructureView(
             structure_id=row.id,
@@ -312,13 +530,18 @@ def list_cost_structures(
             commands=tuple(
                 CommandAvailability(command, missing)
                 for command, missing in structure_commands_of(
-                    viewer.permissions, kind, state, revision, main=row.kind == MAIN
+                    viewer.permissions,
+                    kind,
+                    state,
+                    revision,
+                    nature=_nature(row, main_counter),
                 )
             ),
             lock_version=row.lock_version,
             risk_id=row.risk_id,
+            is_up_to_date=_up_to_date(row, main_counter),
         )
-        for row, born in _structures(session, project_id, revision_id)
+        for row, born in rows
     ]
 
 
@@ -328,9 +551,13 @@ def aimed_structure(
     """Give the structure of a revision an import aims at: the one named, or the main one.
 
     ``None`` when the structure named is not one of the revision — unknown, of another revision or
-    of another project —, which the opening of an import refuses (404, EP-06).
+    of another project, or a base (US-3050) —, which the opening of an import refuses (404, EP-06).
     """
-    criteria = [CostStructure.project_id == project_id, CostStructure.revision_id == revision_id]
+    criteria = [
+        CostStructure.project_id == project_id,
+        CostStructure.revision_id == revision_id,
+        CostStructure.kind != BASE,
+    ]
     if structure_id is None:
         criteria.append(CostStructure.kind == MAIN)
     else:
@@ -354,11 +581,14 @@ def structure_in_revision(
     """Give the structure of a revision that is ``structure_id``, or the copy of its lineage.
 
     An import analysed on a structure of the last marked revision applies to the copy the current
-    revision holds of it (WF-INTF-0090, EP-06); ``None`` when the revision holds none.
+    revision holds of it (WF-INTF-0090, EP-06); ``None`` when the revision holds none, and for a
+    base, which no import aims at (US-3050).
     """
     lineage = session.scalar(
         select(CostStructure.lineage_id).where(
-            CostStructure.project_id == project_id, CostStructure.id == structure_id
+            CostStructure.project_id == project_id,
+            CostStructure.id == structure_id,
+            CostStructure.kind != BASE,
         )
     )
     if lineage is None:
@@ -372,14 +602,21 @@ def structure_in_revision(
     )
 
 
+def read_cost_structure(
+    session: Session, project_id: UUID, revision_id: UUID, structure_id: UUID, viewer: Viewer
+) -> StructureView:
+    """Read a structure of a revision as the list gives it, with its commands; or 404."""
+    for view in list_cost_structures(session, project_id, revision_id, viewer):
+        if view.structure_id == structure_id:
+            return view
+    raise NotFoundError(NOT_FOUND)
+
+
 def structure_commands(
     session: Session, project_id: UUID, revision_id: UUID, structure_id: UUID, viewer: Viewer
 ) -> tuple[CommandAvailability, ...]:
     """Give the commands of a structure of a revision and the conditions each lacks; or 404."""
-    for view in list_cost_structures(session, project_id, revision_id, viewer):
-        if view.structure_id == structure_id:
-            return view.commands
-    raise NotFoundError(NOT_FOUND)
+    return read_cost_structure(session, project_id, revision_id, structure_id, viewer).commands
 
 
 def structure_phase_conditions(command: str, state: str, *, main: bool) -> tuple[str, ...]:
@@ -393,12 +630,37 @@ def structure_phase_conditions(command: str, state: str, *, main: bool) -> tuple
     return tuple(phase_conditions(command, state, main=main))
 
 
+def abandon_structure(
+    session: Session, project_id: UUID, structure: StructureFacts, act: Act
+) -> None:
+    """Delete the row of a differential and inscribe its abandonment (``structure_abandon``).
+
+    To be called under the lock of the structure, once the modules that hold rows of its own
+    (``abandon_differential``: the history, the nodes and their facets, its base's too) have
+    deleted them; its base goes before it, which names it (US-3050). The inscription names the
+    structure by its label of the moment, in its revision, which is current and bears no name yet
+    (WF-SEC-0030).
+    """
+    inscribe_structure(session, project_id, structure, act)
+    for criterion in (
+        CostStructure.differential_id == structure.structure_id,
+        CostStructure.id == structure.structure_id,
+    ):
+        session.execute(
+            delete(CostStructure)
+            .where(CostStructure.project_id == project_id, criterion)
+            .execution_options(synchronize_session=False)
+        )
+    session.flush()
+
+
 @dataclass(frozen=True, slots=True)
 class StructureFacts:
     """What the planning reads of a structure: its revision, its kind, its start, its instant.
 
     ``planning_start_on`` and ``scheduled_at`` are derived as the list reads them when the
-    migration left them null (#2170); ``lock_version`` is the counter of its writes.
+    migration left them null (#2170); ``lock_version`` is the counter of its writes, ``kind`` its
+    nature.
     """
 
     structure_id: UUID
@@ -408,15 +670,25 @@ class StructureFacts:
     scheduled_at: datetime
     lock_version: int
     label: str
+    kind: str = MAIN
+    is_merged: bool = False
+
+    @property
+    def is_differential(self) -> bool:
+        """Tell whether the structure is a differential, read against the main one (WF-REV-0100)."""
+        return self.kind == AMENDMENT
 
 
 def structure_facts(
-    session: Session, project_id: UUID, structure_id: UUID, *, lock: bool
+    session: Session, project_id: UUID, structure_id: UUID, *, lock: bool, base: bool = False
 ) -> StructureFacts:
     """Read a structure of a project; or refuse (404).
 
     ``lock`` takes it ``FOR UPDATE`` and reads it under the lock: every write of its nodes does,
-    after the revision and the stack of the history (EP-06, "L'historique annulable").
+    after the revision and the stack of the history (EP-06, "L'historique annulable"). The base of
+    a differential is refused as an unknown structure, no operation serving it, unless ``base``
+    asks it: what sweeps every structure of a revision to price or redate it, and the reading of a
+    differential against its base (US-3050).
     """
     query = select(CostStructure).where(
         CostStructure.project_id == project_id, CostStructure.id == structure_id
@@ -424,7 +696,7 @@ def structure_facts(
     if lock:
         query = query.with_for_update().execution_options(populate_existing=True)
     row = session.scalars(query).first()
-    if row is None:
+    if row is None or (row.kind == BASE and not base):
         raise NotFoundError(NOT_FOUND)
     start, at = row.planning_start_on, row.scheduled_at or row.created_at
     if start is None:
@@ -435,7 +707,15 @@ def structure_facts(
         )
         start = (origin or row.created_at).date()
     return StructureFacts(
-        row.id, row.revision_id, row.kind == MAIN, start, at, row.lock_version, row.label
+        row.id,
+        row.revision_id,
+        row.kind == MAIN,
+        start,
+        at,
+        row.lock_version,
+        row.label,
+        row.kind,
+        row.is_merged,
     )
 
 
@@ -483,6 +763,44 @@ def write_structure(
         update(CostStructure)
         .where(CostStructure.project_id == project_id, CostStructure.id == structure_id)
         .values(**values)
+        .execution_options(synchronize_session=False)
+    )
+
+
+def rename_own_estimate(
+    session: Session, project_id: UUID, structure_id: UUID, label: str, act: Act
+) -> None:
+    """Write the label of the own estimate of a risk, its counter advancing; tell no follower.
+
+    The risks rename it with their risk (``updateRisk``, #3980), and advance the counter of the
+    risk themselves, so that the followers of the own estimate (``register_own_estimate_counted``)
+    are not told a second time. To be called under the lock of the structure (``structure_facts``).
+    """
+    session.execute(
+        update(CostStructure)
+        .where(CostStructure.project_id == project_id, CostStructure.id == structure_id)
+        .values(
+            label=label,
+            lock_version=CostStructure.lock_version + 1,
+            updated_at=act.at,
+            updated_by=act.author,
+        )
+        .execution_options(synchronize_session=False)
+    )
+
+
+def rename_own_estimates(session: Session, project_id: UUID, labels: dict[UUID, str]) -> None:
+    """Label the own estimates of a revision opened by their risks' labels, in one statement.
+
+    ``labels`` maps each own estimate to the label of its risk: the copy of a revision names them
+    from the risk, not from the structures it copies (#3980). They are new, at their first version.
+    """
+    if not labels:
+        return
+    session.execute(
+        update(CostStructure)
+        .where(CostStructure.project_id == project_id, CostStructure.id.in_(labels))
+        .values(label=case(labels, value=CostStructure.id))
         .execution_options(synchronize_session=False)
     )
 

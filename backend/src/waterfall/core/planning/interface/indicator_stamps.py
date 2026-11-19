@@ -7,7 +7,7 @@ which a write of a task, of its state or of its dates moves on with its node: a 
 of a state or of a link changes them, and with them the key of the indicators of the day (EP-10,
 "Le cache"); no write of the planning calls the cache. A link has no instant of its own: a link
 added or removed changes the number, a link changed redates its structure, whose counter the key
-reads beside this stamp.
+reads beside this stamp. The bases of the differentials are not counted (US-3050).
 
 Declared by US-1660/L3, the only lot of EP-10 that writes the ``__init__`` of the planning; filled
 by US-1720/L2.
@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import func, select
 
 from waterfall.core.planning.tables import Node, Task, TaskLink
+from waterfall.core.revisions.interface import not_a_base
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -38,8 +39,16 @@ class ContentStamp:
 
 
 def revision_content_stamp(session: Session, project_id: UUID, revision_id: UUID) -> ContentStamp:
-    """Give the stamp of the nodes, the tasks and the links of a revision, in one statement."""
-    of_revision = (Node.project_id == project_id, Node.revision_id == revision_id)
+    """Give the stamp of the nodes, the tasks and the links of a revision, in one statement.
+
+    The bases of its differentials are left out, which no indicator reads (US-3050): a base is
+    priced and redated with the other structures, and moves the stamp no further than they do.
+    """
+    of_revision = (
+        Node.project_id == project_id,
+        Node.revision_id == revision_id,
+        not_a_base(Node.structure_id, project_id, revision_id),
+    )
     nodes = select(func.count()).select_from(Node).where(*of_revision)
     tasks = (
         select(func.count())
@@ -50,7 +59,11 @@ def revision_content_stamp(session: Session, project_id: UUID, revision_id: UUID
     links = (
         select(func.count())
         .select_from(TaskLink)
-        .where(TaskLink.project_id == project_id, TaskLink.revision_id == revision_id)
+        .where(
+            TaskLink.project_id == project_id,
+            TaskLink.revision_id == revision_id,
+            not_a_base(TaskLink.structure_id, project_id, revision_id),
+        )
     )
     last = select(func.max(Node.updated_at)).where(*of_revision)
     row = session.execute(

@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import YEAR, Costing, Lines, add_role, costing
+from estimate_support import YEAR, Costing, Lines, add_role, costing, task_in
 from nodes_support import Tree, faults, mark, opened, refusal, set_progress
 from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
@@ -48,7 +48,12 @@ STATE_FORBIDS = "STATE_FORBIDS_OPERATION"
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
     return make_scene(api, owner, database, realm)
 
@@ -151,7 +156,7 @@ def test_a_line_is_created_under_its_task_labelled_and_priced(
 ) -> None:
     # The line is placed under its task, its label composed of the task's and the role's, its
     # category its role's, priced at the rate of the year; the task and the totals follow.
-    task = tree.made("Mise en service")
+    task = tree.made("Mise en service", task=task_in(YEAR))
     written = lines.made(task, **labour(costs))
     [node] = written["nodes"]
     assert (node["kind"], node["parent_id"], node["position"], node["level"]) == (
@@ -324,15 +329,8 @@ def test_a_labour_line_two_years_after_the_reference_is_projected_by_the_inflati
     # année ; pour une ligne consommée deux ans plus tard, avec un taux d'inflation de 3 %, il vaut
     # ce produit fois 1,0609 (WF-DEV-0030). »
     set_inflation(api, stage, "0.03")
-    now = tree.made("Études")
-    later = tree.made(
-        "Exploitation",
-        task={
-            "scheduling_mode": "manual",
-            "start": {"date": f"{YEAR + 2}-11-06"},
-            "finish": {"date": f"{YEAR + 2}-11-07"},
-        },
-    )
+    now = tree.made("Études", task=task_in(YEAR))
+    later = tree.made("Exploitation", task=task_in(YEAR + 2))
     present = facet(lines.made(now, **labour(costs, quantity="2")))
     future = facet(lines.made(later, **labour(costs, quantity="2")))
     product = 2 * 10 * RATE

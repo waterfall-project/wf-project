@@ -1,5 +1,5 @@
 {
-  "summary": "L'avenant 2 « reprise des essais » ouvert dans la révision 101, alors en cours, pendant que l'avenant 1 « extension du poste » l'est encore, non fusionné : deux différentiels coexistent dans une même révision, chacun fusionné ou abandonné indépendamment (WF-REV-0100, structures_amendments, #1211). Un différentiel non fusionné, copie de la structure principale à sa création, qui se saisit au planning et au devis quel que soit l'état du projet, sans reste à engager, et qui s'abandonne tant qu'il n'est pas fusionné (delete), à sa première version (WF-DEV-0050, WF-RAE-0040, WF-REV-0100).",
+  "summary": "L'avenant 2 « reprise des essais » ouvert dans la révision 101, alors en cours, pendant que l'avenant 1 « extension du poste » l'est encore, non fusionné : deux différentiels coexistent dans une même révision, chacun fusionné ou abandonné indépendamment (WF-REV-0100, structures_amendments, #1211). Un différentiel non fusionné, copie de la structure principale à sa création, qui se saisit au planning et au devis quel que soit l'état du projet, sans reste à engager, et qui s'abandonne tant qu'il n'est pas fusionné (delete), à sa première version ; à jour, sa base étant la structure principale telle qu'il vient de la copier, il n'a rien à en reprendre (is_up_to_date, rebase, structure_out_of_date) (WF-DEV-0050, WF-RAE-0040, WF-REV-0100, #4034).",
   "value": {
     "structure_id": "01926f3a-7c00-7000-8000-000000000213",
     "revision_id": "01926f3a-7c00-7000-8000-000000000101",
@@ -7,6 +7,7 @@
     "label": "Avenant 2 — reprise des essais",
     "planning_start_on": "2026-03-02",
     "is_merged": false,
+    "is_up_to_date": true,
     "available_commands": [
       {
         "command": "edit_planning",
@@ -22,6 +23,13 @@
         "command": "delete",
         "is_available": true,
         "missing_conditions": []
+      },
+      {
+        "command": "rebase",
+        "is_available": false,
+        "missing_conditions": [
+          "structure_out_of_date"
+        ]
       }
     ],
     "lock_version": 1

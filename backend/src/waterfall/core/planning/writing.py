@@ -158,9 +158,13 @@ class NodesWritten:
     totals: StructureTotals | None = None
 
 
-def facts_of(session: Session, place: Place, *, lock: bool) -> StructureFacts:
-    """Read the structure a request names, of its revision and its project; or refuse (404)."""
-    facts = structure_facts(session, place.project_id, place.structure_id, lock=lock)
+def facts_of(session: Session, place: Place, *, lock: bool, base: bool = False) -> StructureFacts:
+    """Read the structure a request names, of its revision and its project; or refuse (404).
+
+    The base of a differential is refused, as no request names it, unless ``base`` asks it: the
+    reading of a differential against it (US-3050).
+    """
+    facts = structure_facts(session, place.project_id, place.structure_id, lock=lock, base=base)
     if facts.revision_id != place.revision_id:
         raise NotFoundError(NOT_FOUND)
     return facts

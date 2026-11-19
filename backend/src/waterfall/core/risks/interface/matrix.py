@@ -8,74 +8,32 @@ as a share of the base of the project — its reference budget, or before it the
 estimate of its current revision, provisions left out —, and the zone of its cell, which the risk
 settings give (``zone_of``). The portfolio matrix of EP-11 reads its points.
 
-Declared by US-2550/L1, the socle of EP-08; filled by US-2600/L2.
+Declared by US-2550/L1, the socle of EP-08; filled by US-2600/L2. What it gives lives in ``views``
+(``RiskMatrix``, ``MatrixLevel``, ``MatrixCell``, ``MatrixPoint``), which the interface of the
+module names.
 """
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from waterfall.core.risks.matrixing import read_matrix
+
 if TYPE_CHECKING:
-    from decimal import Decimal
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
     from waterfall.core.projects.interface import Viewer
-    from waterfall.core.risks.interface.register import ProvisionTotals
-    from waterfall.core.risks.views import RiskState
-
-
-@dataclass(frozen=True, slots=True)
-class MatrixLevel:
-    """A level of an axis and its bounds (``RiskMatrixLevel``), the upper ``None`` at the last."""
-
-    level: int
-    lower: Decimal
-    upper: Decimal | None
-
-
-@dataclass(frozen=True, slots=True)
-class MatrixCell:
-    """A cell of the matrix, its zone, and how many identified risks it holds."""
-
-    probability_level: int
-    severity_level: int
-    zone: str
-    count: int
-
-
-@dataclass(frozen=True, slots=True)
-class MatrixPoint:
-    """A risk the matrix places (``RiskMatrixPoint``), at the values of the risk read.
-
-    ``severity_ratio`` its severity as a share of the base of the project, ``None`` on a base of
-    nought, which relates it to nothing (#1240).
-    """
-
-    risk_id: UUID
-    label: str
-    probability: Decimal
-    severity_amount: Decimal
-    severity_ratio: Decimal | None
-    provision_amount: Decimal
-    state: RiskState
-    zone: str
-
-
-@dataclass(frozen=True, slots=True)
-class RiskMatrix:
-    """The matrix of a project in a revision (``RiskMatrix``): its levels, cells, points, totals."""
-
-    probability_levels: tuple[MatrixLevel, ...]
-    severity_levels: tuple[MatrixLevel, ...]
-    cells: tuple[MatrixCell, ...]
-    points: tuple[MatrixPoint, ...]
-    totals: ProvisionTotals
+    from waterfall.core.risks.views import RiskMatrix
 
 
 def risk_matrix(
     session: Session, project_id: UUID, revision_id: UUID | None, viewer: Viewer
 ) -> RiskMatrix:
-    """Fill the matrix of a project with its risks read in a revision, by default the current."""
-    msg = "risk_matrix is filled by US-2600/L2"
-    raise NotImplementedError(msg)
+    """Fill the matrix of a project with its risks read in a revision.
+
+    The revision named, else the current, else the last marked; one of another project is not
+    found (404). The levels are those of the reference settings, refused while they are not
+    written (503). A risk is read as ``read_risk`` reads it, so its cell and its zone are the ones
+    the register gives.
+    """
+    return read_matrix(session, project_id, revision_id, viewer)

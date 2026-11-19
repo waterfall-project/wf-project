@@ -2254,6 +2254,7 @@
     "title": "Compte rendu de la survenance",
     "reading": "Lecture du compte rendu…",
     "createsRevision": "Le projet n’a pas de révision en cours : la survenance la crée d’abord par copie de la dernière révision marquée, y fusionne le devis propre du risque, dans la même tâche de fond. Si elle échoue, aucune révision n’est créée.",
+    "pastStart": "Le devis propre du risque commence le {date}, avant le jour de la déclaration : la survenance l’accepte sans le refuser ni redater ses tâches, qui gardent leurs dates, désormais passées.",
     "provision": "La ligne de provision du risque est retirée du reste à engager : {amount} de provision en moins.",
     "refusals": "{count, plural, one {# motif refuse la survenance} other {# motifs refusent la survenance}}",
     "reread": "Relire le compte rendu"
@@ -3171,6 +3172,7 @@
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche porte un lot ou un poste, jamais les deux.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce lot ou ce poste est déjà porté par une autre tâche.",
     "ORDER_ITEM_OUTSIDE_WORK_PACKAGE": "La tâche d’un poste doit rester dans le sous-arbre de la tâche de son lot.",
+    "PROVISION_WITHOUT_TASK": "Le fichier ne laisserait aucune tâche sous la ligne de provision d’un risque : une ligne de provision se range sous une tâche.",
     "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Seule une tâche de la structure principale porte un lot ou un poste.",
     "DUPLICATE_WORK_BREAKDOWN_ITEM": "Cet élément figure déjà plus haut dans le lotissement saisi : chacun ne s’écrit qu’une fois.",
     "PROJECT_HORIZON_EXCEEDED": "La durée du projet dépasserait quinze ans.",
@@ -3644,6 +3646,8 @@
       "subproject_without_actual_costs": "aucun coût réel imputé au sous-projet",
       "subproject_without_estimate_lines": "aucune ligne de devis de la révision en cours portant le sous-projet",
       "main_structure": "opération permise sur la structure principale seulement",
+      "structure_up_to_date": "avenant à jour de la structure principale",
+      "structure_out_of_date": "avenant en retard sur la structure principale",
       "main_structure_without_tasks": "structure principale sans aucune tâche",
       "import_awaiting_decision": "import en attente de décision",
       "import_file_accepted": "fichier accepté par le compte rendu",
@@ -3759,7 +3763,8 @@
       "edit_planning": "Modifier le planning",
       "edit_estimate": "Modifier le devis",
       "edit_remaining": "Réestimer le reste à engager",
-      "delete": "Abandonner l’avenant"
+      "delete": "Abandonner l’avenant",
+      "rebase": "Mettre à jour l’avenant"
     },
     "StructureCreate": {
       "kind": {

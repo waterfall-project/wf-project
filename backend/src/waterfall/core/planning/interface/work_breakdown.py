@@ -134,7 +134,7 @@ def _held(session: Session, project_id: UUID, current: UUID) -> None:
     too, before they create a structure (#3661).
     """
     for structure_id in revision_structures(session, project_id, current):
-        structure_facts(session, project_id, structure_id, lock=True)
+        structure_facts(session, project_id, structure_id, lock=True, base=True)
 
 
 def share_work_breakdown_revision(session: Session, project_id: UUID) -> None:

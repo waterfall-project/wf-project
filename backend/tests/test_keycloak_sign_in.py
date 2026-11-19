@@ -45,6 +45,7 @@ from test_keycloak_authentication import (
     known,
     new_address,
     realm_address,
+    realm_logs,
     refreshed,
     served_api,
     served_settings,
@@ -93,6 +94,13 @@ pytestmark = pytest.mark.keycloak
 CONSULTING = "users.read"
 PLANNING = "planning.read"
 SESSIONS = "/api/v1/me/sessions"
+
+
+@pytest.fixture
+def logs() -> Iterator[Logs]:
+    """Give the logs of the realm, captured."""
+    with realm_logs() as captured:
+        yield captured
 
 
 @pytest.fixture

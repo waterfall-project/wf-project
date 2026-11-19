@@ -76,7 +76,7 @@ services:
   # the domain under its own name too, inside the network: the front reaches Keycloak there, in
   # HTTPS, at the address the browser knows.
   caddy:
-    image: ${WATERFALL_MIRROR:-}caddy:2.11.7-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
+    image: ${WATERFALL_MIRROR:-}caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
     command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.prod", "--adapter", "caddyfile"]
     environment:
       WATERFALL_DOMAIN: ${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}

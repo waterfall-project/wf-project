@@ -113,6 +113,10 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "merging",
         # The revisions of several projects the portfolio retains (US-2670/L1, EP-11).
         "portfolio",
+        # The base of a differential (US-3050/L2).
+        "bases",
+        # The parts of the modules in the update of a differential (US-3050/L3).
+        "rebasing",
     },
 }
 # The modules of the planning, the history and the exchanges (EP-06), of the indicators (EP-10), of
@@ -126,21 +130,33 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "closing",
         # The copy of the nodes of a revision, moved out of ``nodes`` (US-2240/L2).
         "copying",
+        # The abandonment of a differential: its nodes and facets deleted (US-2550/L4).
+        "differential_deletion",
         "facets",
+        # The tasks of an own estimate grafted into the main structure (US-2620/L1, EP-08).
+        "grafts",
         # What the indicators read of the planning, laid by US-1660/L3 (EP-10, "Modules").
         "indicator_stamps",
         "indicator_tasks",
         "kept_readings",
         "lines",
         "loading",
+        # Its part of the merge of a differential, and its end (US-2560/L1, EP-08).
+        "merging",
         "milestone_dates",
         "msproject",
+        # The deletion of a node, moved out of ``nodes`` (US-2580/L1).
+        "node_deletion",
         "nodes",
         "open_lines",
         "paste",
         "physical_progress",
         "predecessors",
         "progress",
+        # A differential updated from the main structure, and for the witness (US-3050/L4).
+        "rebased",
+        # Its part of the update of a differential, and its end (US-3050/L3, EP-08).
+        "rebasing",
         "reference",
         "skeleton",
         "snapshots",
@@ -323,6 +339,7 @@ DESIGNED: dict[str, set[str]] = {
         "list_risks",
         "risk_matrix",
         "risk_coverage_of",
+        "kept_coverage",
         "occurrence_report",
         "submit_occurrence",
         "run_occurrence",

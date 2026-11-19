@@ -45,7 +45,12 @@ from workload_support import (
 
 
 @pytest.fixture
-def site(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Site:
+def site(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+) -> Site:
     """Give a platform, a project its manager made, its revision opened, and a role to load."""
     return make_site(api, owner, database, realm)
 

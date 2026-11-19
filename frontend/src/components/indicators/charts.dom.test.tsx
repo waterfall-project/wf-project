@@ -294,8 +294,7 @@ function curves(
   };
 }
 
-// These tests carry the criterion of US-2160 (#3097) on the axes, not the Vérif of WF-IHM-0070-A
-// (the signals), which they cite for the requirement they serve.
+// These tests carry the criteria of US-2160 on the presentation of the charts (axes, symbols of the preference).
 describe("the presentation common to the charts (#3097)", () => {
   const ordinate = {
     axisLine: { show: false },
@@ -303,12 +302,12 @@ describe("the presentation common to the charts (#3097)", () => {
     splitLine: { lineStyle: { color: "grid", type: "dashed" } },
   };
 
-  it("reads the evolution of an index across the plot by light dashes, its ordinate without line nor tick, from zero [WF-IHM-0070-A]", () => {
+  it("reads the evolution of an index across the plot by light dashes, its ordinate without line nor tick, from zero [US-2160]", () => {
     english(<IndexChart kind="cost" history={HISTORY} />);
     expect(lastOption()?.yAxis).toMatchObject({ ...ordinate, min: 0 });
   });
 
-  it("reads the forecasts of the milestones by the same dashes, its ordinate in time without line nor tick [WF-IHM-0070-A]", () => {
+  it("reads the forecasts of the milestones by the same dashes, its ordinate in time without line nor tick [US-2160]", () => {
     english(<MilestoneChart tracking={TRACKING} provenance={PROVENANCE} />);
     expect(lastOption()?.yAxis).toMatchObject({ ...ordinate, type: "time" });
     // Its curves bear the symbols of the preference, like the others: the legend follows.
@@ -316,14 +315,14 @@ describe("the presentation common to the charts (#3097)", () => {
     expect(first?.symbol).toBe("circle");
   });
 
-  it("draws the symbols of its points when the account asks for the patterns, and none of the diagonal [WF-IHM-0070-A]", () => {
+  it("draws the symbols of its points when the account asks for the patterns, and none of the diagonal [US-2160]", () => {
     english(<MilestoneChart tracking={TRACKING} provenance={PROVENANCE} />);
     const series = drawn.options.at(-1)?.({ ...PALETTE, patterns: true })
       .series as LineSeriesOption[];
     expect(series.map((each) => each.symbol)).toEqual(["circle", "triangle", "none"]);
   });
 
-  it("reads the cumulative curves by the same dashes, the currency still the title of the axis [WF-IHM-0070-A]", () => {
+  it("reads the cumulative curves by the same dashes, the currency still the title of the axis [US-2160]", () => {
     curves("cost_curve", (data) => data, "EUR");
     expect(lastOption()?.yAxis).toMatchObject({ ...ordinate, name: "EUR" });
   });

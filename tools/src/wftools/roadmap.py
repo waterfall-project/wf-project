@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 ROADMAP = REPOSITORY / "docs" / "roadmap"
 MAKEFILE = REPOSITORY / "Makefile"
-AGENT_FILES = (".claude/agents/*.md", "docs/dev/*.md")
+AGENT_FILES = (".claude/agents/*.md", ".claude/skills/**/*.md", "docs/dev/*.md")
 
 EXCEPTIONS: dict[str, str] = {}
 """F0 requirements no story is meant to cite, each with its reason. None so far."""

@@ -4,13 +4,15 @@
 
 A registry of this module (EP-07, "Les points d'extension"), filled by the estimate at the import of
 its interface, which this module never imports: one entry holds the questions the projects ask
-of the lines, and two acts — the subprojects a marked revision cites by its lines
+of the lines, and three acts — the subprojects a marked revision cites by its lines
 (``subproject_is_cited``), those the lines of the current revision bear
 (``subproject_is_estimated``, which the list of subprojects asks), and those lines, named
 (``subproject_estimate_lines``, which the deletion of a subproject asks alone; WF-DAT-0080,
-WF-PRJ-0050); the roles the labour lines of a project employ (``roles_employed``,
-``listContributorSuggestions``, US-1540); whether a marked revision bears a line
-(``marked_revision_has_lines``, ``getProjectNextState``, US-1540); the current revision priced
+WF-PRJ-0050), and the subproject a deletion admitted takes from the lines of the bases of the
+differentials, which no operation serves (``forget_subproject``, US-3050); the roles the labour
+lines of a project employ (``roles_employed``, ``listContributorSuggestions``, US-1540); whether
+a marked revision bears a line (``marked_revision_has_lines``, ``getProjectNextState``,
+US-1540); the current revision priced
 again when the inflation of its project changes (``reinflate_project``, ``updateProject``,
 US-1500), its lock shared before the project is locked (``hold_revision``). Each story that asks a
 question reads it here; while nothing is registered, no subproject is cited nor estimated, and no
@@ -55,6 +57,8 @@ class EstimateFacts:
     bears; ``subproject_is_estimated`` those a line of the current revision bears;
     ``subproject_estimate_lines`` the lines of the current revision that bear each subproject
     named, a subproject that none bears left out, in the order a refusal names them;
+    ``forget_subproject`` takes a subproject being deleted from the lines of the bases of the
+    current revision, which none of these questions counts (US-3050);
     ``roles_employed`` the roles of resources the labour lines of the project employ;
     ``marked_revision_has_lines`` whether a marked revision of the project bears a line;
     ``reinflate_project`` prices the current revision of the project again, under the lock of the
@@ -68,6 +72,7 @@ class EstimateFacts:
     subproject_estimate_lines: Callable[
         [Session, UUID, Collection[UUID]], Mapping[UUID, tuple[EstimatedLine, ...]]
     ]
+    forget_subproject: Callable[[Session, UUID, UUID], None]
     roles_employed: Callable[[Session, UUID], frozenset[UUID]]
     marked_revision_has_lines: Callable[[Session, UUID], bool]
     reinflate_project: Callable[[Session, UUID, datetime], None]
@@ -117,6 +122,12 @@ def subproject_estimate_lines(
             ).items():
                 found[each] = (*found.get(each, ()), *lines)
     return found
+
+
+def forget_subproject(session: Session, project_id: UUID, subproject_id: UUID) -> None:
+    """Take a subproject being deleted from the lines of the bases of the current revision."""
+    for facts in _FACTS.entries():
+        facts.forget_subproject(session, project_id, subproject_id)
 
 
 def roles_employed(session: Session, project_id: UUID) -> frozenset[UUID]:

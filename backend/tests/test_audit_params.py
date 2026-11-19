@@ -77,6 +77,9 @@ WRITERS = {
     "waterfall.core.revisions.interface.shared",
     # The exit of a project, tried in test_projects_lifecycle.py, which exits one by the service.
     "waterfall.core.projects.interface.lifecycle",
+    # The occurrence of a risk, tried in test_risk_occurrence.py, which has the worker apply one:
+    # its object, the risk, says it in full, no parameter.
+    "waterfall.core.risks.applying",
     "waterfall.core.users.identity",
     "waterfall.core.users.password_link",
     "waterfall.core.users.provider",

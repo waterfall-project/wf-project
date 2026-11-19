@@ -33,7 +33,7 @@ from waterfall.core.estimate.lining import (
     planned_value_at,
 )
 from waterfall.core.estimate.tables import EstimateLine
-from waterfall.core.planning.interface import lines_of_revision
+from waterfall.core.planning.interface import revision_lines
 from waterfall.platform.database import among
 
 if TYPE_CHECKING:
@@ -54,10 +54,11 @@ __all__ = [
 def lines_stamp(session: Session, project_id: UUID, revision_id: UUID) -> LinesStamp:
     """Give the number of the lines of a revision and the last instant one was written.
 
-    The lines of every structure of the revision, whatever their kind: a re-estimate, a rate or an
-    inflation that prices a line again writes its ``updated_at`` without passing by a grid.
+    The lines of every structure of the revision, whatever their kind, but the bases of its
+    differentials, which no indicator reads (US-3050): a re-estimate, a rate or an inflation that
+    prices a line again writes its ``updated_at`` without passing by a grid.
     """
-    nodes = list(lines_of_revision(session, project_id, revision_id).values())
+    nodes = list(revision_lines(session, project_id, revision_id, bases=False))
     if not nodes:
         return LinesStamp(0, None)
     count, last = session.execute(

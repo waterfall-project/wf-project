@@ -23,16 +23,17 @@ make check BASE=origin/epic/EP-nn # only what your change touches, before you pu
 
 You need [uv](https://docs.astral.sh/uv/), which installs Python 3.14 for the back and the tools; a
 Python 3.14 or later on the `PATH` as `python3`, which builds the specification projection; Node 26
-and pnpm (`npm install --global pnpm`, once); Docker, for `make dev`, the test services and
-the service platform, which also needs its secrets; the PostgreSQL 18 client
-(`postgresql-client-18`), whose `pg_dump` and `pg_restore` the backup tests call; `pandoc` 3.13 —
+and pnpm (`npm install --global pnpm`, once); Docker, for `make dev`, the test services and the
+service platform, which also needs its secrets; the PostgreSQL 18 client (`postgresql-client-18`:
+Ubuntu 26.04's archive on a workstation, the PGDG repository on the runner, whose `ubuntu-26.04`
+image already carries it), whose `pg_dump` and `pg_restore` the backup tests call; `pandoc` 3.13 —
 the version the projection is generated with, since another one writes another Markdown; `openssl`,
 to draw another Garage secret than the workflow's; and `mmdc`, installed through npm, if you want
 the diagrams validated. [`INSTALL.md`](INSTALL.md) says where to find pandoc 3.13 on Ubuntu 26.04,
 how to install `mmdc` and what to put in `~/.bashrc`. If you drive the work with agents, their
 permissions are versioned in `.claude/settings.json`, the one that lets a deliverer put its pull
-request in the merge queue included: [`docs/dev/agents.md`](docs/dev/agents.md) (in French),
-« La mise en file », says what they allow.
+request in the merge queue included: [`docs/dev/agents.md`](docs/dev/agents.md) (in French), « La
+mise en file », says what they allow.
 
 ## Changing the specification
 

@@ -23,10 +23,16 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import exists, func, select
+from sqlalchemy import func, select
 
 from waterfall.core.cost_settings.interface import category_labels, read_reference_settings
-from waterfall.core.estimate.interface import risk_base, round_to_cent, structure_amount
+from waterfall.core.estimate.interface import (
+    lines_for_indicators,
+    risk_base,
+    round_to_cent,
+    share_of,
+    structure_amounts,
+)
 from waterfall.core.planning.interface import bearing_of
 from waterfall.core.projects.interface import project_facts, subproject_labels
 from waterfall.core.revisions.interface import marked_revisions_at, read_revision_for
@@ -43,12 +49,15 @@ from waterfall.core.risks.views import ProvisionTask, RiskMatrixCell, RiskView
 from waterfall.platform.errors import NOT_FOUND, NotFoundError
 
 if TYPE_CHECKING:
-    from datetime import date
+    from collections.abc import Collection, Sequence
+    from datetime import date, datetime
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.projects.interface import Viewer
+    from waterfall.core.cost_settings.interface import CategoryLabel, RiskMatrix
+    from waterfall.core.planning.interface import TaskNamed
+    from waterfall.core.projects.interface import ProjectFacts, Viewer
     from waterfall.core.risks.views import RiskState
 
 PROVISION_KIND = "provision"
@@ -89,73 +98,164 @@ def evaluation_of(
     ).first()
 
 
-def _reference_share(
-    session: Session, project_id: UUID, risk_id: UUID, reference_id: UUID | None
-) -> Decimal:
-    """Give the provision a risk held in the reference revision, nought without one (H-03)."""
-    if reference_id is None:
-        return NOUGHT
-    share = session.scalar(
-        select(RiskReferenceShare.provision_amount).where(
-            RiskReferenceShare.project_id == project_id,
-            RiskReferenceShare.revision_id == reference_id,
-            RiskReferenceShare.risk_id == risk_id,
+@dataclass(frozen=True, slots=True)
+class ReadContext:
+    """What the reading of a set of risks shares, read once for all of them (US-2600/L1).
+
+    ``risk_view`` describes a risk from it and from nothing else the database holds, so that a
+    register costs the same statements whatever the number of its risks, and ``getRisk`` is the
+    register of one: the two never read a column two ways.
+    """
+
+    facts: ProjectFacts
+    matrix: RiskMatrix
+    cited: frozenset[UUID]
+    amounts: dict[UUID, Decimal]
+    shares: dict[UUID, Decimal]
+    categories: dict[UUID, CategoryLabel]
+    subprojects: dict[UUID, str]
+    tasks: dict[UUID, TaskNamed]
+    bases: dict[UUID, Decimal]
+    reestimated: dict[UUID, dict[UUID, Decimal]]
+    reviews: dict[tuple[UUID, UUID], date]
+
+
+def cited_among(
+    session: Session, project_id: UUID, risk_ids: Collection[UUID], marked: Collection[UUID]
+) -> set[UUID]:
+    """Give the risks among those named that a marked revision holds an evaluation of (WF-RIS-0020).
+
+    ``marked`` the marked revisions of the project: a risk they cite can no longer be deleted.
+    """
+    if not marked or not risk_ids:
+        return set()
+    return set(
+        session.scalars(
+            select(RiskEvaluation.risk_id)
+            .where(
+                RiskEvaluation.project_id == project_id,
+                RiskEvaluation.risk_id.in_(list(risk_ids)),
+                RiskEvaluation.revision_id.in_(list(marked)),
+            )
+            .distinct()
         )
     )
-    return NOUGHT if share is None else share
 
 
-def _last_review(
-    session: Session, project_id: UUID, risk_id: UUID, revision_id: UUID
-) -> date | None:
-    """Give the day of the last review of a risk the revision read sees, none without one.
+def _shares(
+    session: Session, project_id: UUID, reference_id: UUID | None, risk_ids: Collection[UUID]
+) -> dict[UUID, Decimal]:
+    """Give the provision each risk held in the reference revision (H-03), in one statement."""
+    if reference_id is None:
+        return {}
+    rows = session.execute(
+        select(RiskReferenceShare.risk_id, RiskReferenceShare.provision_amount).where(
+            RiskReferenceShare.project_id == project_id,
+            RiskReferenceShare.revision_id == reference_id,
+            RiskReferenceShare.risk_id.in_(list(risk_ids)),
+        )
+    )
+    return dict(rows.all())
+
+
+def seen_revisions(marked: dict[UUID, datetime], revision_id: UUID) -> set[UUID]:
+    """Give the revisions whose reviews a revision read presents: its own and the marked before it.
+
+    A review is not copied: the history of a risk read in a revision is that of the revisions
+    marked before it, and its own (EP-08, "Tables et migrations"); those that follow its marking
+    do not belong to what it freezes (WF-RIS-0030). A revision not marked, the current one, sees
+    them all.
+    """
+    until = marked.get(revision_id)
+    return {revision for revision, at in marked.items() if until is None or at < until} | {
+        revision_id
+    }
+
+
+def _reviews(
+    session: Session,
+    project_id: UUID,
+    marked: dict[UUID, datetime],
+    founds: Sequence[Found],
+) -> dict[tuple[UUID, UUID], date]:
+    """Give the day of the last review of each risk, by revision read, in one statement each.
 
     The reviews of the revision read and of the marked revisions marked before it: a review is not
     copied, and the history of a risk read in a revision is that of the marked ones before it and
     its own (EP-08, "Tables et migrations").
     """
-    marked = marked_revisions_at(session, project_id)
-    until = marked.get(revision_id)
-    seen = {revision for revision, at in marked.items() if until is None or at < until} | {
-        revision_id
-    }
-    return session.scalar(
-        select(func.max(RiskReview.reviewed_on)).where(
-            RiskReview.project_id == project_id,
-            RiskReview.risk_id == risk_id,
-            RiskReview.revision_id.in_(seen),
-        )
-    )
-
-
-def risk_cited(session: Session, project_id: UUID, risk_id: UUID) -> bool:
-    """Tell whether a marked revision holds an evaluation of a risk (``risk_not_cited``)."""
-    marked = marked_revisions_at(session, project_id)
-    if not marked:
-        return False
-    return bool(
-        session.scalar(
-            select(
-                exists().where(
-                    RiskEvaluation.project_id == project_id,
-                    RiskEvaluation.risk_id == risk_id,
-                    RiskEvaluation.revision_id.in_(list(marked)),
-                )
+    found: dict[tuple[UUID, UUID], date] = {}
+    for revision_id in {each.evaluation.revision_id for each in founds}:
+        seen = seen_revisions(marked, revision_id)
+        risk_ids = {each.risk.id for each in founds if each.evaluation.revision_id == revision_id}
+        rows = session.execute(
+            select(RiskReview.risk_id, func.max(RiskReview.reviewed_on))
+            .where(
+                RiskReview.project_id == project_id,
+                RiskReview.risk_id.in_(list(risk_ids)),
+                RiskReview.revision_id.in_(list(seen)),
             )
+            .group_by(RiskReview.risk_id)
         )
+        found.update({(revision_id, risk): day for risk, day in rows})
+    return found
+
+
+def occurred_amounts(session: Session, project_id: UUID, revision_id: UUID) -> dict[UUID, Decimal]:
+    """Give the re-estimated amount of the lines each risk's occurrence merged, in a revision.
+
+    The lines of the revision read whose task names the risk (``origin_risk_id``), which the
+    occurrence merges (WF-RIS-0060).
+    """
+    amounts: dict[UUID, Decimal] = {}
+    for line in lines_for_indicators(session, project_id, revision_id):
+        origin = line.task_origin_risk_id
+        if origin is not None:
+            amounts[origin] = amounts.get(origin, NOUGHT) + line.reestimated_amount
+    return amounts
+
+
+def read_context(session: Session, project_id: UUID, founds: Sequence[Found]) -> ReadContext:
+    """Read once what the description of the risks given shares, a fixed number of statements."""
+    facts = project_facts(session, project_id)
+    marked = marked_revisions_at(session, project_id)
+    risk_ids = [each.risk.id for each in founds]
+    evaluations = [each.evaluation for each in founds]
+    revisions = {each.revision_id for each in evaluations}
+    categories = {each.provision_cost_category_id for each in evaluations}
+    subprojects = {
+        each.provision_subproject_id
+        for each in evaluations
+        if each.provision_subproject_id is not None
+    }
+    lines = [each.provision_node_id for each in evaluations if each.provision_node_id is not None]
+    cited = cited_among(session, project_id, risk_ids, marked)
+    occurred = {each.revision_id for each in evaluations if each.state == OCCURRED}
+    return ReadContext(
+        facts=facts,
+        matrix=read_reference_settings(session).risk_matrix,
+        cited=frozenset(cited),
+        amounts=structure_amounts(session, project_id, {each.structure_id for each in evaluations}),
+        shares=_shares(session, project_id, facts.reference_revision_id, risk_ids),
+        categories=category_labels(session, categories),
+        subprojects=subproject_labels(session, project_id, subprojects),
+        tasks=bearing_of(session, project_id, lines),
+        bases={each: risk_base(session, project_id, each) for each in revisions},
+        reestimated={each: occurred_amounts(session, project_id, each) for each in occurred},
+        reviews=_reviews(session, project_id, marked, founds),
     )
 
 
 def _cell(
-    session: Session, project_id: UUID, revision_id: UUID, values: tuple[Decimal, Decimal]
+    context: ReadContext, revision_id: UUID, values: tuple[Decimal, Decimal]
 ) -> RiskMatrixCell:
     """Place a probability and a severity in the matrix of the reference settings (WF-REF-0160).
 
     The severity as a share of the base of the project; on a base of nought, at the lowest level.
     """
     probability, severity = values
-    matrix = read_reference_settings(session).risk_matrix
-    base = risk_base(session, project_id, revision_id)
+    matrix = context.matrix
+    base = context.bases[revision_id]
     ratio = severity / base if base > 0 else Decimal(0)
     return RiskMatrixCell(
         level_of(probability, matrix.probability_bounds),
@@ -164,22 +264,39 @@ def _cell(
     )
 
 
-def _provision_task(
-    session: Session, project_id: UUID, evaluation: RiskEvaluation
-) -> ProvisionTask | None:
+def severity_share(context: ReadContext, revision_id: UUID, severity: Decimal) -> Decimal | None:
+    """Give a severity as a share of the base of the project, to four places; none on a base of 0.
+
+    The share the matrix draws; the cell of the risk is that of the exact share (``_cell``).
+    """
+    base = context.bases[revision_id]
+    return share_of(severity, base) if base > 0 else None
+
+
+def _provision_task(context: ReadContext, evaluation: RiskEvaluation) -> ProvisionTask | None:
     """Name the task that bears the provision line of a risk, none without a line."""
     line = evaluation.provision_node_id
-    if line is None:
-        return None
-    task = bearing_of(session, project_id, [line]).get(line)
+    task = None if line is None else context.tasks.get(line)
     return None if task is None else ProvisionTask(task.node_id, task.label)
 
 
-def risk_view(session: Session, project_id: UUID, found: Found, viewer: Viewer) -> RiskView:
-    """Describe a risk as the revision of its evaluation freezes it, with its commands."""
+def risk_view(
+    session: Session,
+    project_id: UUID,
+    found: Found,
+    viewer: Viewer,
+    context: ReadContext | None = None,
+) -> RiskView:
+    """Describe a risk as the revision of its evaluation freezes it, with its commands.
+
+    From the context of the risks read together, which a register builds once for all of its
+    risks; a risk read alone is read in the context of that one.
+    """
+    if context is None:
+        context = read_context(session, project_id, [found])
     risk, evaluation = found.risk, found.evaluation
     revision_id = evaluation.revision_id
-    facts = project_facts(session, project_id)
+    facts = context.facts
     state: RiskState = (
         "identified"
         if evaluation.state == IDENTIFIED
@@ -187,19 +304,18 @@ def risk_view(session: Session, project_id: UUID, found: Found, viewer: Viewer) 
         if evaluation.state == OCCURRED
         else "dismissed"
     )
-    severity = structure_amount(session, project_id, evaluation.structure_id)
+    severity = context.amounts[evaluation.structure_id]
     provision = (
         round_to_cent(severity * evaluation.probability)
         if state == IDENTIFIED
-        else _reference_share(session, project_id, risk.id, facts.reference_revision_id)
+        else context.shares.get(risk.id, NOUGHT)
     )
     category_id = evaluation.provision_cost_category_id
-    category = category_labels(session, [category_id])[category_id]
+    category = context.categories[category_id]
     subproject = evaluation.provision_subproject_id
-    labels = {} if subproject is None else subproject_labels(session, project_id, [subproject])
     standing = RiskStanding(
         state,
-        risk_cited(session, project_id, risk.id),
+        risk.id in context.cited,
         is_terminal(facts.state),
         facts.current_revision_id is not None,
     )
@@ -213,7 +329,9 @@ def risk_view(session: Session, project_id: UUID, found: Found, viewer: Viewer) 
         severity=severity,
         provision_amount=provision,
         occurrence_cost=evaluation.occurrence_cost,
-        occurred_reestimated_amount=_occurred_reestimated(state),
+        occurred_reestimated_amount=(
+            context.reestimated[revision_id].get(risk.id, NOUGHT) if state == OCCURRED else None
+        ),
         state=state,
         structure_id=evaluation.structure_id,
         provision_node_id=evaluation.provision_node_id,
@@ -225,10 +343,12 @@ def risk_view(session: Session, project_id: UUID, found: Found, viewer: Viewer) 
             and category.cost_type_kind == PROVISION_KIND
         ),
         provision_subproject_id=subproject,
-        provision_subproject_label=None if subproject is None else labels.get(subproject),
-        provision_task=_provision_task(session, project_id, evaluation),
-        matrix_cell=_cell(session, project_id, revision_id, (evaluation.probability, severity)),
-        last_review_on=_last_review(session, project_id, risk.id, revision_id),
+        provision_subproject_label=(
+            None if subproject is None else context.subprojects.get(subproject)
+        ),
+        provision_task=_provision_task(context, evaluation),
+        matrix_cell=_cell(context, revision_id, (evaluation.probability, severity)),
+        last_review_on=context.reviews.get((revision_id, risk.id)),
         commands=risk_commands(standing, viewer.permissions),
         created_at=risk.created_at,
         created_by=risk.created_by,
@@ -236,18 +356,6 @@ def risk_view(session: Session, project_id: UUID, found: Found, viewer: Viewer) 
         updated_by=risk.updated_by,
         lock_version=risk.lock_version,
     )
-
-
-def _occurred_reestimated(state: RiskState) -> Decimal | None:
-    """Give the re-estimated amount of the lines an occurrence merged, none unless occurred.
-
-    The lines of the revision read whose node names the risk (``Node.origin_risk_id``), which the
-    occurrence merges (WF-RIS-0060): US-2620 fills it, no risk occurring before.
-    """
-    if state != OCCURRED:
-        return None
-    msg = "the lines an occurrence merged are read by US-2620"
-    raise NotImplementedError(msg)
 
 
 def read_found(

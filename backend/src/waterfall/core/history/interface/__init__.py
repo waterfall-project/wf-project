@@ -19,6 +19,9 @@ go before the nodes of the planning, whatever the order in which a process impor
 from waterfall.core.history.interface.closing import (
     close_history as close_history,
 )
+from waterfall.core.history.interface.closing import (
+    forget_structure as forget_structure,
+)
 
 # ``plans`` (US-1380/L1; US-1450/L1): the plans of a paste.
 from waterfall.core.history.interface.plans import (
@@ -88,6 +91,9 @@ from waterfall.core.history.interface.undo import (
     StructureLocker as StructureLocker,
 )
 from waterfall.core.history.interface.undo import (
+    carry_everywhere as carry_everywhere,
+)
+from waterfall.core.history.interface.undo import (
     depth as depth,
 )
 from waterfall.core.history.interface.undo import (
@@ -102,7 +108,13 @@ from waterfall.core.history.interface.undoable import (
     Undoable as Undoable,
 )
 from waterfall.core.history.interface.undoable import (
+    moved_aside as moved_aside,
+)
+from waterfall.core.history.interface.undoable import (
     register_undoable as register_undoable,
+)
+from waterfall.core.history.interface.undoable import (
+    taken_aside as taken_aside,
 )
 from waterfall.core.history.interface.undoable import (
     undoables as undoables,

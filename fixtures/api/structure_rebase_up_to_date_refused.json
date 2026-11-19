@@ -1,0 +1,10 @@
+{
+  "summary": "Le compte rendu de la mise à jour du différentiel « Avenant 2 — reprise des essais » demandé tel que `structures` le liste, à jour : sa base est la structure principale telle qu'elle est, et il n'a rien à en reprendre — sa commande rebase le disait d'avance ; refusé par la condition qui manque, structure_out_of_date, comme la mise à jour elle-même ; rien n'est écrit (WF-REV-0100, WF-IHM-0090, #4034).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"structure_out_of_date"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001961"
+  }
+}

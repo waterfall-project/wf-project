@@ -11,11 +11,12 @@ from typing import TYPE_CHECKING
 from waterfall.core.estimate.provisioning import NOUGHT
 from waterfall.core.estimate.reading import budgeted_of, rows_of
 from waterfall.core.estimate.remaining.reviewing import provisions_of
-from waterfall.core.planning.interface import lines_of_structure
+from waterfall.core.planning.interface import lines_of_structure, lines_of_structures
 from waterfall.core.projects.interface import project_facts
 from waterfall.core.revisions.interface import aimed_structure
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
     from decimal import Decimal
     from uuid import UUID
 
@@ -31,6 +32,24 @@ def structure_amount(session: Session, project_id: UUID, structure_id: UUID) -> 
     session.flush()
     lines = rows_of(session, project_id, lines_of_structure(session, project_id, structure_id))
     return sum((line.reestimated_amount for line in lines), NOUGHT)
+
+
+def structure_amounts(
+    session: Session, project_id: UUID, structure_ids: Collection[UUID]
+) -> dict[UUID, Decimal]:
+    """Give the total of each structure named, as ``structure_amount`` does, in few statements.
+
+    The same number of statements whatever the number of structures: a register of risks reads the
+    own estimate of each of them at once.
+    """
+    session.flush()
+    held = lines_of_structures(session, project_id, structure_ids)
+    rows = rows_of(session, project_id, [node for nodes in held.values() for node in nodes])
+    amounts = {row.node_id: row.reestimated_amount for row in rows}
+    return {
+        structure_id: sum((amounts[node] for node in nodes if node in amounts), NOUGHT)
+        for structure_id, nodes in held.items()
+    }
 
 
 def risk_base(session: Session, project_id: UUID, revision_id: UUID) -> Decimal:

@@ -6,7 +6,10 @@
 version: 2
 updates:
   - package-ecosystem: github-actions
-    directory: /
+    # The workflows, and the local actions that pin actions too (PLC-09).
+    directories:
+      - /
+      - /.github/actions/*
     schedule:
       interval: monthly
     commit-message:
@@ -54,30 +57,19 @@ updates:
         update-types:
           - minor
           - patch
+  # The images of Docker Hub, behind the prefix of the mirror in the files, which Dependabot does
+  # not read: it follows their manifest, deploy/images (make mirror-sync copies it into the files,
+  # US-2490); and the image of the paths, deploy/e2e, of other registries and with no prefix.
   - package-ecosystem: docker
     directories:
-      - /backend
-      - /frontend
-      - /deploy/keycloak
-      - /deploy/openldap
-      - /deploy/compose
+      - /deploy/images
+      - /deploy/e2e
     schedule:
       interval: monthly
     commit-message:
       prefix: "Chaîne :"
     groups:
       docker-minor-patch:
-        update-types:
-          - minor
-          - patch
-  - package-ecosystem: docker-compose
-    directory: /deploy/compose
-    schedule:
-      interval: monthly
-    commit-message:
-      prefix: "Chaîne :"
-    groups:
-      docker-compose-minor-patch:
         update-types:
           - minor
           - patch

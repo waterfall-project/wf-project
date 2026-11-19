@@ -118,10 +118,12 @@ def test_the_differential_is_a_structure_of_its_own_beside_the_main_one(project:
     with project.stage.database.transaction() as session:
         kinds = dict(
             session.execute(
-                select(CostStructure.id, CostStructure.kind).where(
-                    CostStructure.revision_id == project.revision_id
+                select(CostStructure.kind, CostStructure.differential_id).where(
+                    CostStructure.revision_id == project.revision_id,
+                    CostStructure.id != project.structure_id,
                 )
             ).all()
         )
-    assert kinds == {project.structure_id: "main", structure_id: "amendment"}
+    # The differential, and its base, which names it (US-3050).
+    assert kinds == {"amendment": None, "base": structure_id}
     assert total(lines_of(project, project.structure_id)) == ESTIMATE

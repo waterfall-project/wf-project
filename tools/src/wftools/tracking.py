@@ -11,10 +11,11 @@ Usage: ``python -m wftools.tracking --issue N --lot ID [--state S] [--pr P] [--m
 ``--issue N --replace-dependency OLD=NEW`` (US-1290).
 
 The body of the issue is read, changed and written again by ``gh`` while the tool holds
-``$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`` (``/tmp`` by default): two deliverers that
-change two lines of the same table each keep their change, the second reading the body the first
-wrote. The tool touches the cell or the line it is asked for and nothing else: the rest of the
-body is written back byte for byte. A line it does not find is refused, the body unchanged.
+``waterfall-tracking-<issue>.lock`` of the directory of the locks of the workstation
+(``heavyturns.runtime_directory``): two deliverers that change two lines of the same table each
+keep their change, the second reading the body the first wrote. The tool touches the cell or the
+line it is asked for and nothing else: the rest of the body is written back byte for byte. A line
+it does not find is refused, the body unchanged.
 
 The table « Ordre de réalisation » is read by the names of its columns (« Pas avec » exists in
 the epics from EP-19 on only). A story of one lot has the cell « Lot » ``lot unique`` and is named

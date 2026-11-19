@@ -767,10 +767,10 @@ describe("the commands of the risks", () => {
   });
 });
 
-describe("the note of the fake back on the risks", () => {
-  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+describe("the note of the mock-up on the risks", () => {
+  it("is gone: the service of EP-08 keeps what is written and applies the filters [US-2640] [WF-IHM-0020-A]", async () => {
     const page = await risksAt();
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
-    expect(page).toContain("Filters, search, sort and pages are ignored");
+    expect(page).not.toContain("Filters, search, sort and pages are ignored");
+    expect(page).not.toContain('<p role="note"');
   });
 });

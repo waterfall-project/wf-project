@@ -860,7 +860,7 @@ describe("the charts of the portfolio", () => {
     },
   );
 
-  it("reads the curves of the portfolio across the plot by light dashes, their ordinate without line nor tick (the criterion of US-2160, #3097, not the Vérif of WF-IHM-0070-A) [WF-IHM-0070-A]", () => {
+  it("reads the curves of the portfolio across the plot by light dashes, their ordinate without line nor tick [US-2160]", () => {
     const curves = example("portfolio_cost_curve") as Schemas["PortfolioCostCurve"];
     charts.props = [];
     render(inLanguage(<PortfolioCurveChart curves={curves} scope={curves.scope} />));
