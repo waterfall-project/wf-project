@@ -616,6 +616,72 @@ describe("a period of the portfolio the server refuses", () => {
   });
 });
 
+describe("a filter of the list of the projects the server refuses [WF-IHM-0130-A]", () => {
+  const REFUSED = "The projects are not read: the server refuses the filters asked.";
+
+  /** The tag of the input of a field, by its label. */
+  function input(markup: string, label: string): string {
+    return new RegExp(`<input[^>]*aria-label="${label}"[^>]*>`).exec(markup)?.[0] ?? "";
+  }
+
+  /** Answer the list of the projects with a refusal of the contract. */
+  function refuse(name: string, extra: NonNullable<Problem["fields"]> = []) {
+    const problem = example(name) as Problem & { status: 422 };
+    server.answers = {
+      ...server.answers,
+      "GET /portfolio/projects": {
+        problem: { ...problem, fields: [...(problem.fields ?? []), ...extra] },
+      },
+    };
+  }
+
+  it("says a bound refused at its field, instead of the grid, the panel kept", async () => {
+    refuse("portfolio_projects_bounds_inverted");
+    const markup = await render(ProjectsPage, {
+      reference_budget_min: "10000",
+      reference_budget_max: "1000",
+    });
+    expect(text(markup)).toContain(REFUSED);
+    expect(markup).not.toContain('role="grid"');
+    expect(input(markup, "Reference budget, to")).toContain('aria-invalid="true"');
+    expect(input(markup, "Reference budget, from")).not.toContain("aria-invalid");
+    expect(markup).toContain("Filter by code");
+  });
+
+  it("says the period of the last marking refused at its field, instead of the grid, the panel kept", async () => {
+    refuse("portfolio_projects_marking_period_inverted");
+    const markup = await render(ProjectsPage, {
+      last_marked_at_from: "2026-04-01",
+      last_marked_at_to: "2026-03-01",
+    });
+    expect(text(markup)).toContain(REFUSED);
+    expect(markup).not.toContain('role="grid"');
+    expect(markup).toContain('aria-invalid="true"');
+    expect(markup).toContain("Period of the last marked revision");
+  });
+
+  it("leaves the filters to the period of the perimeter when the server refuses both", async () => {
+    refuse("portfolio_projects_bounds_inverted", [
+      { pointer: "/query/to", code: "VALUE_OUT_OF_RANGE", params: { minimum: "2026-03-31" } },
+    ]);
+    const markup = await render(ProjectsPage, {
+      from: "2026-03-31",
+      to: "2026-01-01",
+      as_of: "2026-06-03",
+    });
+    expect(text(markup)).toContain("The view is not read: the server refuses the period asked.");
+    expect(text(markup)).not.toContain(REFUSED);
+    expect(markup).not.toContain('role="grid"');
+    expect(markup).not.toContain("Filter by code");
+  });
+
+  it("asks no node of an address that names one that is not an identifier [WF-IHM-0130-A]", async () => {
+    await render(ProjectsPage, { org_node_id: "not-a-uuid" });
+    expect(queryOf("GET /portfolio/projects")).not.toHaveProperty("org_node_id");
+    expect(queryOf("GET /portfolio/value")).not.toHaveProperty("org_node_id");
+  });
+});
+
 describe("the portfolio, the size of the pages of the list of projects", () => {
   it.each([
     ["no preference", {}, "50"],

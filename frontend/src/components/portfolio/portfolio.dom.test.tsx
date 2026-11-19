@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
 import type { ApiClient } from "@/api/client";
+import type { Problem } from "@/api/problem";
 import {
   type ChartPalette,
   type ChartProps,
@@ -390,47 +391,55 @@ describe("the filter of the list of the projects by zone", () => {
 });
 
 describe("the filters of the columns of the list of the projects", () => {
-  const FILTERS = "code=PRJ&reference_budget_min=1000&cost_index_max=0.9&zones=alert";
-
-  it("are folded into the bar of the grid, each told by its chip, panel closed [WF-IHM-0130-A]", () => {
-    page.search = FILTERS;
-    render(
-      inLanguage(
-        <ProjectsGrid
-          projects={LIST.items}
-          page={LIST.meta}
-          query={{ sort: undefined, search: undefined, size: undefined }}
-          preferences={undefined}
-          filters={readProjectFilters(new URLSearchParams(FILTERS))}
-          panel={
-            <ProjectFilterPanel
-              filters={readProjectFilters(new URLSearchParams(FILTERS))}
-              fields={[]}
-            />
-          }
-        />,
-      ),
-    );
-    const chips = screen.getByRole("list", { name: "Filtres actifs" });
-    expect(chips).toHaveTextContent("Zone des indices : Alerte");
-    expect(chips).toHaveTextContent("Code : PRJ");
-    expect(chips).toHaveTextContent("Budget de référence");
-    expect(chips).toHaveTextContent("Indice de coût");
-  });
+  it.each([
+    ["the code", "code=PRJ", "Code : PRJ"],
+    ["the budget of reference", "reference_budget_min=1000", "Budget de référence"],
+    ["the current estimate", "current_estimate_max=5000", "Devis courant"],
+    [
+      "the projection of the project manager",
+      "project_manager_projection_min=100",
+      "Projection du chef de projet",
+    ],
+    ["the delta to the reference", "delta_to_reference_max=50", "Écart à la référence"],
+    ["the win probability", "win_probability_min=0.5", "Probabilité de gain"],
+    ["the cost index", "cost_index_max=0.9", "Indice de coût"],
+    ["the schedule index", "schedule_index_min=0.8", "Indice de délai"],
+    [
+      "the period of the last marking",
+      "last_marked_at_from=2026-03-01T00:00:00Z",
+      "Dernière révision marquée",
+    ],
+    ["the zones", "zones=alert", "Zone des indices : Alerte"],
+  ])(
+    "are folded into the bar of the grid, %s told by its chip, the panel closed [WF-IHM-0130-A]",
+    (_filter, search, chip) => {
+      page.search = search;
+      const filters = readProjectFilters(new URLSearchParams(search));
+      render(
+        inLanguage(
+          <ProjectsGrid
+            projects={LIST.items}
+            page={LIST.meta}
+            query={{ sort: undefined, search: undefined, size: undefined }}
+            preferences={undefined}
+            filters={filters}
+            panel={<ProjectFilterPanel filters={filters} fields={[]} />}
+          />,
+        ),
+      );
+      expect(screen.getByRole("list", { name: "Filtres actifs" })).toHaveTextContent(chip);
+      expect(screen.queryByRole("searchbox", { name: "Filtre par code" })).not.toBeInTheDocument();
+    },
+  );
 
   it("offers the bounds of the columns of figures and says at its field a bound the server refused [WF-IHM-0130-A]", () => {
-    page.search = "cost_index_min=1&cost_index_max=0.5";
+    const refused = example("portfolio_projects_bounds_inverted") as Problem;
+    page.search = "reference_budget_min=10000&reference_budget_max=1000";
     render(
       inLanguage(
         <ProjectFilterPanel
           filters={readProjectFilters(new URLSearchParams(page.search))}
-          fields={[
-            {
-              pointer: "/query/cost_index_max",
-              code: "VALUE_OUT_OF_RANGE",
-              params: { minimum: "1" },
-            },
-          ]}
+          fields={refused.fields ?? []}
         />,
       ),
     );
@@ -438,7 +447,10 @@ describe("the filters of the columns of the list of the projects", () => {
     expect(screen.getByRole("group", { name: "Probabilité de gain" })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Budget de référence" })).toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: "Filtre par code" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Indice de coût, au")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Budget de référence, au")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
   });
 });
 
