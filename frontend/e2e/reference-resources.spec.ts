@@ -307,7 +307,7 @@ test("modifies the units of duration from the settings of the resources, and say
     section.getByText(name, { exact: true }).locator("xpath=following-sibling::dd");
   // The fake back starts from 8 hours; the service from what the installation keeps, which a
   // replay found changed: the path writes the other of 7 and 8, valid on every run, then puts back
-  // what it found.
+  // the 8 hours a day the dates of the witness are counted at.
   await expect(value("Heures par jour")).toHaveText(/^\d+$/, { timeout: WORKING });
   const before = (await value("Heures par jour").textContent()) ?? "";
   if (!inService) {
