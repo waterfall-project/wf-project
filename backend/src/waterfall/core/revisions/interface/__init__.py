@@ -122,11 +122,10 @@ from waterfall.core.revisions.interface.revisions import (
 )
 
 # ``shared`` (US-1500/L2): the current revision held before its project is locked.
-from waterfall.core.revisions.interface.shared import hold_current_revision
+from waterfall.core.revisions.interface.shared import MAIN, hold_current_revision
 
 # ``structures`` (US-0960; the facts the planning reads, US-1380/L2; written, US-1390/L2).
 from waterfall.core.revisions.interface.structures import (
-    MAIN,
     CurrentStructure,
     OwnEstimateCounted,
     StructureFacts,
@@ -139,6 +138,8 @@ from waterfall.core.revisions.interface.structures import (
     main_structures_of,
     read_cost_structure,
     register_own_estimate_counted,
+    rename_own_estimate,
+    rename_own_estimates,
     revision_structures,
     structure_commands,
     structure_counted,
@@ -221,6 +222,8 @@ __all__ = [
     "register_own_estimate_counted",
     "register_rate_update",
     "register_tasks_and_lines",
+    "rename_own_estimate",
+    "rename_own_estimates",
     "revision_draft",
     "revision_has_tasks_and_lines",
     "revision_marked_at",

@@ -36,9 +36,18 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import delete, select, update
 
-from waterfall.core.estimate.interface import round_to_cent, set_provision, structure_amount
+from waterfall.core.estimate.interface import (
+    rename_provisions,
+    round_to_cent,
+    set_provision,
+    structure_amount,
+)
 from waterfall.core.planning.interface import Place, ProvisionOwner
-from waterfall.core.revisions.interface import aimed_structure, structure_facts
+from waterfall.core.revisions.interface import (
+    aimed_structure,
+    rename_own_estimates,
+    structure_facts,
+)
 from waterfall.core.risks.commands import IDENTIFIED
 from waterfall.core.risks.reading import evaluation_of
 from waterfall.core.risks.tables import Risk, RiskEvaluation, RiskReview
@@ -119,17 +128,33 @@ def follow_provision_lines(
 
 
 def copy_evaluations(copy: RevisionCopy) -> None:
-    """Take up the evaluations of the source in the revision opened, under their copies' names."""
+    """Take up the evaluations of the source in the revision opened, under their copies' names.
+
+    The own estimate and the provision line copied are named by the label of their risk as it is
+    now, not as the source marked it: the identity is outside the history (H-02, #3980). The
+    revisions marked keep their names (WF-DAT-0020). One statement reads the labels, one writes
+    each kind of name.
+    """
     session, ids = copy.session, copy.identifiers
-    rows = session.scalars(
-        select(RiskEvaluation)
+    rows = session.execute(
+        select(RiskEvaluation, Risk.label)
+        .join(
+            Risk,
+            (Risk.project_id == RiskEvaluation.project_id) & (Risk.id == RiskEvaluation.risk_id),
+        )
         .where(
             RiskEvaluation.project_id == copy.project_id,
             RiskEvaluation.revision_id == copy.source,
         )
         .order_by(RiskEvaluation.risk_id)
     ).all()
-    for row in rows:
+    estimates: dict[UUID, str] = {}
+    provisions: dict[UUID, str] = {}
+    for row, label in rows:
+        estimates[ids[row.structure_id]] = label
+        if row.provision_node_id is not None:
+            provisions[ids[row.provision_node_id]] = label
+    for row, _ in rows:
         line = row.provision_node_id
         session.add(
             RiskEvaluation(
@@ -151,6 +176,8 @@ def copy_evaluations(copy: RevisionCopy) -> None:
             )
         )
     session.flush()
+    rename_own_estimates(session, copy.project_id, estimates)
+    rename_provisions(session, copy.project_id, provisions)
 
 
 def close_evaluations(closing: RevisionClosing) -> None:

@@ -21,9 +21,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from waterfall.core.projects.interface import (
+    ACTIVE_PROVISION_CATEGORY,
+    AT_LEAST_ONE_TASK,
     BEFORE_IN_PROGRESS,
     NO_BACKGROUND_TASK_RUNNING,
     PROJECT_BEFORE_IN_PROGRESS,
+    RISK_ENTRIES,
     TERMINAL,
 )
 
@@ -36,8 +39,6 @@ PROJECT_IN_PROGRESS = "project_in_progress"
 NO_CURRENT_REVISION = "no_current_revision"
 REVISION_DRAFT = "revision_draft"
 MAIN_STRUCTURE_WITHOUT_TASKS = "main_structure_without_tasks"
-AT_LEAST_ONE_TASK = "at_least_one_task"
-ACTIVE_PROVISION_CATEGORY = "active_provision_category"
 REVISION_MARKED = "revision_marked"
 REVISION_HAS_TASKS_AND_LINES = "revision_has_tasks_and_lines"
 REFERENCE_CORRECTABLE = "reference_correctable"
@@ -52,8 +53,6 @@ class Rule:
     permission: str
     manager: bool = False
 
-
-RISK_ENTRIES = ("edit_risks", "declare_risk")
 
 # In the order of ``RevisionCommand``. The marking, the designation and the abandonment have a
 # permission of their own, structuring actions reserved to the project managers (WF-ADM-0100).
