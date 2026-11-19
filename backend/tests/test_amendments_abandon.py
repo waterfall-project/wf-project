@@ -30,7 +30,7 @@ from amendments_support import (
 from estimate_support import Costing, Lines, costing
 from history_support import plans
 from nodes_support import Tree, entries, mark, opened, signed_in
-from paste_support import planned
+from paste_support import applied, planned
 from projects_support import PROJECTS, Person, Scene, put_in_state
 from projects_support import scene as make_scene
 from risks_support import Costed, costed, declared, material
@@ -462,3 +462,52 @@ def test_the_opening_answers_the_commands_of_the_example_of_the_contract(
     assert created["available_commands"] == example["available_commands"]
     assert created["lock_version"] == example["lock_version"]
     assert abandoned(api, project, created["structure_id"]).status_code == 204
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_an_undoing_in_flight_while_the_differential_is_abandoned_ends_in_a_conflict(
+    api: ContractClient, project: Costed, who: Person
+) -> None:
+    # The undoing of another stack has read its entry and waits for the lock of the structure the
+    # abandonment holds first: when it has the lock, the structure and its nodes are gone, and it
+    # ends in 409 ``UNDO_CONFLICT`` (``_judge``), not in a 404 or a failure.
+    structure_id = opened_amendment(api, project)
+    created = on(project.tree, structure_id).create("Essais", who)
+    assert created.status_code == 201, created.text
+    read = counter_of(api, project, structure_id)
+    revision = f"{PROJECTS}/{project.project_id}/revisions/{project.revision_id}"
+    with ThreadPoolExecutor(2) as others, project.stage.owner.begin() as writing:
+        writing.execute(
+            select(CostStructure.id).where(CostStructure.id == UUID(structure_id)).with_for_update()
+        )
+        abandoning = others.submit(abandon, api, project, structure_id, read)
+        wait_for_a_lock(project.stage.database)
+        undoing = others.submit(api.post, f"{revision}/undo", headers=who.headers)
+        wait_for_a_lock(project.stage.database, 2)
+        assert not abandoning.done()
+        assert not undoing.done()
+    assert abandoning.result(timeout=10).status_code == 204
+    answer = undoing.result(timeout=10)
+    assert answer.status_code == 409, answer.text
+    assert answer.json()["code"] == "UNDO_CONFLICT"
+    assert answer.json()["params"]["conflicting_object_id"] == created.json()["nodes"][0]["node_id"]
+    assert held_by(project, structure_id)["structure"] == 0
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_the_entries_of_a_paste_applied_on_the_differential_leave_the_stack_with_it(
+    api: ContractClient, project: Costed, who: Person
+) -> None:
+    # ``forget_structure`` keeps the entries that name no node by their snapshot alone, the label
+    # of the structure: an entry of a paste, which names its nodes, leaves the stack as the others.
+    structure_id = opened_amendment(api, project)
+    other = on(project.tree, opened_amendment(api, project, "Avenant 2"))
+    kept = other.create("Recette", who)
+    assert kept.status_code == 201, kept.text
+    tree = on(project.tree, structure_id)
+    created = tree.create("Essais", who).json()["nodes"][0]
+    applied(tree, planned(tree, tree.node(created["node_id"]), "label", [["Un"], ["Deux"]], who), who)
+    assert len(entries(project.stage)) == 3
+    assert abandoned(api, project, structure_id).status_code == 204
+    [remaining] = entries(project.stage)
+    assert remaining.node_ids == [UUID(kept.json()["nodes"][0]["node_id"])]
