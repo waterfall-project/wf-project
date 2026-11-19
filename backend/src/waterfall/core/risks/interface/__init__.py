@@ -109,9 +109,15 @@ from waterfall.core.risks.interface.risks import (
     read_risk as read_risk,
 )
 from waterfall.core.risks.interface.risks import (
+    risks_stamp as risks_stamp,
+)
+from waterfall.core.risks.interface.risks import (
     update_risk as update_risk,
 )
 from waterfall.core.risks.sharing import write_shares
+from waterfall.core.risks.stamping import (
+    RisksStamp as RisksStamp,
+)
 
 # ``undoing``, beside the interface (US-2590/L2): the kinds of entry of the history the risks undo.
 from waterfall.core.risks.undoing import (
