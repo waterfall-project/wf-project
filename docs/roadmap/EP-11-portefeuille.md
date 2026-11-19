@@ -253,6 +253,52 @@ Décisions de l'auteur du 2026-11-17, chacune avec l'option écartée :
   que sous leur libellé et leur code (WF-PTF-0030) — ils y figureraient avec leur budget et leurs
   indices.
 
+### Décisions de l'auteur du 2026-11-19
+
+Prises pendant la livraison, sur les constats que les revues ont relevés ; chacune dit le lot ou la
+section qui la porte, et rien d'autre dans la conception ne change.
+
+- **Une liste lue sans période ne retient aucun projet terminé** (#4020 point 1, #4136) : voir « Les
+  vues ». Déjà appliquée par US-2690/L2 (`docs/api/DECISIONS.md`). Le point 2 de #4020, les états
+  que chaque vue compte, n'est pas tranché ici : chaque lot de vue fixe ses états d'après les
+  documents, la liste suivant `PortfolioStates`.
+- **Toute vue lit par `PortfolioReading(at, cache)`** (#4194) : voir « Les vues ».
+- **`win_probability` vaut `null` pour un projet qui n'est pas une offre** (#4137) : un projet en
+  cours ou terminé n'a pas de probabilité de gain dans la liste. L'exemple `portfolio_projects` du
+  contrat, qui montre `"1"` pour un projet en cours, est aligné par US-2760/L2 #3884, avec les
+  exemples qu'il touche déjà (#1714).
+- **La période de `getPortfolioPerformance` est bornée par le contrat** (#4176) : au-delà de la durée
+  maximale, 422 `VALUE_OUT_OF_RANGE` sur la période, au lieu d'une lecture par trimestre touché sans
+  limite. Écartées : lire les documents conservés de tous les trimestres en une requête ; laisser
+  tel quel et attendre la mesure. Porté par US-2670/L4 #3873, qui éprouve la règle des périodes sur
+  les six vues ; **la durée maximale n'est pas fixée** : le lot la propose dans son issue.
+- **Un exemple de 422 de `getPortfolioProjects` sur la période du périmètre** (#4164) : période
+  inversée avec `as_of`, champs `/query/from` et `/query/to`, au contrat, que le test de l'écran lit
+  au lieu de composer ses champs. Porté par US-2760/L2 #3884.
+- **L'empreinte de la contribution d'un projet couvre ce que la contribution lit** (#4158) : le nœud
+  courant d'un rôle et la probabilité de gain d'une offre entrent dans l'empreinte par US-2680/L2
+  #3880 ; les compteurs des risques par US-2680/L3 #3881. Aucune entrée ne tient plus que sa durée de
+  validité là où une valeur change (WF-DAT-0130-A).
+- **Une seule règle « qui peut ouvrir un projet »** (#4131) : `access_roles/evaluation.py` lit la
+  règle de `Viewer.sees_all`, et non plus sa copie ; le jugement d'accès d'un projet et `can_open`
+  du portefeuille ne peuvent plus diverger (WF-PTF-0030). Porté par US-2670/L4 #3873.
+- **La copie d'`IDENTIFIER` de la navigation est corrigée** (#4160, `frontend/src/navigation/
+  context.ts`) : un identifiant qui n'est pas un UUID est ignoré comme un identifiant absent, par la
+  fonction du référentiel. Porté par US-2760/L2 #3884. La copie du registre des risques
+  (`components/risks/address.ts`) reste à EP-08.
+- **Le coût de la lecture du jour projet par projet est laissé à la mesure** (#4165, #4177) :
+  `day_documents_of` (neuf requêtes par projet au cache chaud) et la performance au jour courant
+  (`current_day_reading`, `day_indicators`) ne changent pas avant US-2790 ; si une vue du jour
+  dépasse son objectif, le groupement des empreintes se fait en lot neuf. Écarté : grouper
+  maintenant, ce qui toucherait les interfaces de cinq modules hors d'un lot de correction.
+- **Les tests tiennent les fabriques du portefeuille** (#4051) : le PostgreSQL des tests monte
+  `max_locks_per_transaction` (`deploy/compose/compose.test.yaml`, et le service de `back.yml`), et
+  `drop_partitions` supprime les partitions projet par projet, une transaction chacun. Les deux
+  leviers, non l'un des deux. Porté par US-2680/L2 #3880, que les lots de vue qui écrivent des
+  tests sur les fabriques attendent tous, directement ou non.
+- **Les exemples à barre oblique de WF-CRE-0020 et WF-PRJ-0050** (#4022) entrent au harnais avec le
+  lot qui réalise #3966 : voir US-2780.
+
 ### Tables et migrations
 
 Aucune table. Une migration, dans le socle, chaînée sur la dernière d'`epic/EP-08` au tirage de la
@@ -322,10 +368,20 @@ Chaque vue résout le périmètre par une seule fonction — les états à la da
 la période, celle par défaut comprise, et son refus ; le nœud et son libellé —, lit les
 contributions des projets retenus et rend `PortfolioScope`.
 
+- **Toute vue lit par `PortfolioReading(at, cache)`** (décision du 2026-11-19, #4194) : l'instant de
+  la lecture et le cache des indicateurs du jour, passés ensemble, comme US-2690/L2 l'introduit
+  (`core/portfolio/interface/scope.py`) ; une lecture partagée évite la dérive de #4193. Les lots
+  d'US-2700 à US-2750 adaptent leur squelette, où `at: datetime` tient aujourd'hui lieu des deux.
 - **La liste et la valeur** (US-2690) : les documents `project`, `estimate` et `remaining` d'EP-10.
   Le filtre, le tri et la pagination se font sur les lignes formées, en mémoire : trois cents
   projets, et des colonnes calculées qu'aucune table ne porte. Le taux de transformation lit les
-  transitions de la période, périmètre ou non.
+  transitions de la période, périmètre ou non. **Une liste lue sans période ne retient aucun projet
+  terminé** (décision du 2026-11-19, #4020 point 1 et #4136) : sans `from` ni `to`, il n'y a pas de
+  période où un projet aurait été terminé ; la liste retient les projets en cours et en chiffrage,
+  qu'un état `completed` soit demandé ou non, et `scope.from` et `scope.to` sont nuls. Avec l'un des
+  deux, la période par défaut complète l'autre et le projet terminé dans la période est retenu. Écarté :
+  retenir par défaut les projets terminés de la période par défaut, que le contrat (« ne retient
+  aucune période ») ne dit pas.
 - **Le plan de charge** (US-2700) : `portfolio_workload`, pondéré, sommé par rôle et par mois ; les
   rôles retenus et leur capacité par `core/resource_settings` ; la zone de chaque mois.
 - **La performance** (US-2710) : les grandeurs du document `project` sommées, puis les formules
@@ -518,6 +574,12 @@ de** comparer les vues entre elles et de retrouver le portefeuille tel qu'il ét
   dans `docs/api/DECISIONS.md`) ;
 - propre à l'US : `ALL_PROJECTS_READ` n'a plus qu'une définition, que `projects` et `access_roles`
   lisent tous deux (#3341) ;
+- propre à l'US : la règle « qui peut ouvrir un projet » n'est écrite qu'une fois : `access_roles`
+  (`evaluation.py`) lit celle de `Viewer.sees_all`, et un test éprouve que le jugement d'accès d'un
+  projet et `can_open` du portefeuille s'accordent (#4131, décision du 2026-11-19 ; US-2670/L4) ;
+- propre à l'US : la période de `getPortfolioPerformance` est bornée par le contrat : au-delà d'une
+  durée maximale, 422 `VALUE_OUT_OF_RANGE` ; le lot propose la durée dans son issue (#4176, décision
+  du 2026-11-19 ; US-2670/L4) ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
 
 **Notes de réalisation.** `docs/api/DECISIONS.md` : « Le portefeuille : horizon, projets terminés,
@@ -585,7 +647,15 @@ soit recalculé.
   projets, leurs transitions et les révisions ; elle rend `is_stored` partout où le contrat le
   porte ;
 - propre à l'US : une révision marquée avant cet EPIC n'a pas ces documents, et n'en reçoit pas
-  (décision de l'auteur du 2026-11-17).
+  (décision de l'auteur du 2026-11-17) ;
+- propre à l'US : l'empreinte sous laquelle le cache garde la contribution d'un projet couvre ce que
+  la contribution lit : le nœud courant d'un rôle et la probabilité de gain d'une offre (US-2680/L2),
+  les compteurs des risques (US-2680/L3) ; un changement de l'une de ces valeurs n'est pas servi
+  d'après l'entrée ancienne (WF-DAT-0130-A ; #4158, décision du 2026-11-19) ;
+- propre à l'US : le PostgreSQL des tests monte `max_locks_per_transaction`, et la fixture
+  `database` supprime les partitions projet par projet, une transaction chacun, pour que les lots de
+  vue écrivent leurs tests sur les fabriques sans épuiser les verrous (#4051, décision du
+  2026-11-19 ; US-2680/L2, que ces lots attendent).
 
 **Notes de réalisation.** Le registre `register_indicators` est déclaré par `core/revisions`
 (EP-04) et reçoit l'`Act` du marquage (EP-10) ; le déclencheur de `revision_indicator` refuse une
@@ -992,7 +1062,12 @@ montrés.
 - propre à l'US : un périmètre qui nomme `completed` se lit sur le plan de charge agrégé et la
   santé du pilotage, avec l'avis que ces projets y sont sans effet (#1714) ;
 - propre à l'US : un identifiant de l'adresse qui n'est pas un UUID est ignoré comme un identifiant
-  absent, par la fonction du référentiel et non plus par une copie (#2867) ;
+  absent, par la fonction du référentiel et non plus par une copie (#2867) ; la copie d'`IDENTIFIER`
+  de la navigation (`navigation/context.ts`) est corrigée de même (#4160, décision du 2026-11-19) ;
+  celle du registre des risques reste à EP-08 ;
+- propre à l'US : le contrat reçoit l'exemple d'un 422 de `getPortfolioProjects` sur la période du
+  périmètre (#4164), que le test de l'écran lit, et l'exemple `portfolio_projects` montre une
+  probabilité de gain nulle pour un projet en cours (#4137), décisions du 2026-11-19 ;
 - propre à l'US : un projet que l'appelant ne peut pas ouvrir est nommé sans lien, dans la liste,
   les risques les plus lourds et les signaux ; aucun écran ne porte de commande de saisie ;
 - propre à l'US : le guide de l'utilisateur dit ce que le service sert désormais.
@@ -1105,6 +1180,14 @@ pas en silence ce que le document a décidé.
 - propre à l'US : `make requirements` ne laisse sans test du back aucune des exigences que cet EPIC
   clôt.
 
+**Les exemples à barre oblique** (#4022, décision du 2026-11-19). WF-CRE-0020-A#327d63bf4748,
+WF-CRE-0020-A#80d94ea6d2fe et WF-PRJ-0050-A#38958d887e9a entrent au harnais avec le lot qui réalise
+#3966 (l'élément d'OTP comparé en entier, spécification 1.0.7), non avec un lot de cet EPIC : le
+noyau refuse encore ces codes. **Aucun lot de l'EPIC ni d'un autre EPIC ne réalise #3966 à ce
+jour** (issue sans EPIC) ; ce lot reste à nommer quand #3966 sera planifié, et c'est lui qui écrit
+ces trois exemples dans `backend/tests/examples/test_wbs_element_examples.py`. Ils restent hors de la
+liste versionnée des exemples hors du harnais, qui ne reçoit que ce que le noyau ne calcule pas.
+
 **Notes de réalisation.** Le relevé compte 98 exemples au cadrage ; les exemples d'EP-10 et d'EP-08
 entrent au harnais par leurs propres lots. Le harnais est `backend/tests/examples`, l'outil
 `wftools.examples`.
@@ -1139,7 +1222,11 @@ mesures, **afin de** savoir si elles tiennent leur objectif avant de publier la 
 - écart : les trois cents projets de l'objectif sont à EP-13, qui rejoue la mesure sur le jeu aux
   volumes ; le rapport le dit ;
 - propre à l'US : les mesures existantes tiennent leurs objectifs et ne se dégradent pas de plus
-  d'un quart ; un dépassement documenté passe, non documenté il fait échouer la chaîne (US-2300).
+  d'un quart ; un dépassement documenté passe, non documenté il fait échouer la chaîne (US-2300) ;
+- propre à l'US : la mesure décide du coût de la lecture du jour projet par projet (`day_documents_of`,
+  neuf requêtes par projet au cache chaud ; la performance au jour courant, #4165 et #4177, décision du
+  2026-11-19) : aucune vue ne change avant elle, et une vue du jour qui dépasse son objectif ouvre un
+  lot neuf de groupement des empreintes.
 
 **Notes de réalisation.** La mesure prend le poste pour elle seule (`docs/dev/agents.md`, « Une
 mesure prend le poste »). Le rapport est versionné dans `docs/measures/`.
