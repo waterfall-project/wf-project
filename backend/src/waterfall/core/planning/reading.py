@@ -193,14 +193,15 @@ def structure_totals(reading: Reading[NodeRow, TaskRow], found: Retained) -> Str
 
 
 def retained_reading(
-    session: Session, place: Place, filters: NodeFilters
+    session: Session, place: Place, filters: NodeFilters, *, base: bool = False
 ) -> tuple[RowsReading, Retained, datetime]:
     """Read a structure as rows, and what the filters retain of it; or refuse (404).
 
     The reading, what it retains, and the instant of the dates of the structure. A reading of the
-    tasks alone reads none of the nodes they bear (``tasks_reading``, US-2280).
+    tasks alone reads none of the nodes they bear (``tasks_reading``, US-2280). ``base`` reads the
+    base of a differential, which a request never names (US-3050).
     """
-    facts = facts_of(session, place, lock=False)
+    facts = facts_of(session, place, lock=False, base=base)
     scheduled = (facts.scheduled_at, facts.is_main)
     reading: RowsReading
     if _tasks_alone(filters):
@@ -232,10 +233,15 @@ def list_records(
     )
 
 
-def read_structure(session: Session, place: Place, filters: NodeFilters) -> StructureRead:
-    """Read a structure whole, and what the filters retain of it; or refuse (404)."""
+def read_structure(
+    session: Session, place: Place, filters: NodeFilters, *, base: bool = False
+) -> StructureRead:
+    """Read a structure whole, and what the filters retain of it; or refuse (404).
+
+    ``base`` reads the base of a differential, which its reading compares it to (US-3050).
+    """
     reading, found, scheduled_at = retained_reading(
-        session, place, replace(filters, kinds=None, sort=None)
+        session, place, replace(filters, kinds=None, sort=None), base=base
     )
     tree = reading.tree
     reading.prefetch(tree.order)

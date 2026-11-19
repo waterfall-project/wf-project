@@ -40,7 +40,7 @@ from waterfall.core.projects.commands import (
 from waterfall.core.projects.interface.contributors import require_project_manager
 from waterfall.core.projects.interface.estimate_facts import hold_estimate, reinflate_estimate
 from waterfall.core.projects.interface.lifecycle import advance
-from waterfall.core.projects.interface.skeleton import opening_main_with_tasks, opening_with_tasks
+from waterfall.core.projects.interface.skeleton import opening_main_with_tasks
 from waterfall.core.projects.interface.work_breakdown import BORN_LOCK_VERSION, follow_project_label
 from waterfall.core.projects.tables import (
     STATES,
@@ -342,7 +342,6 @@ def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> lis
         if "planning.write" in viewer.permissions or RISKS_WRITE in viewer.permissions
         else []
     )
-    opening: frozenset[UUID] = opening_with_tasks(session, asking) if asking else frozenset()
     opening_main: frozenset[UUID] = (
         opening_main_with_tasks(session, asking) if asking else frozenset()
     )
@@ -382,7 +381,6 @@ def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> lis
                     row.current_revision_id,
                     running=Running(
                         no_task_running=row.id not in busy,
-                        opening_has_tasks=row.id in opening,
                         opening_has_main_task=row.id in opening_main,
                         mapping_complete=mapping_complete,
                         provision_category_active=provision_active,

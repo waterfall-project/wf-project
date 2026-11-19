@@ -21,7 +21,10 @@ never over what another contributor did since:
   gone is left out;
 - the facet of a node of another kind — an estimate line, EP-07 — is written back by the hooks of
   its kind (``FacetHooks.restore``), then priced again on the dates of its task with the others it
-  bears (``FacetHooks.reinflate``).
+  bears (``FacetHooks.reinflate``);
+- a provision line brought back under another task than the one now bearing it — the undoing of
+  the deletion of its task, which carried it to the parent — tells its risk, as the deletion did
+  (``lines_reported``, #4010).
 """
 
 import annotationlib
@@ -38,6 +41,8 @@ from waterfall.core.planning.attachments import ORDER_ITEM_ID, WORK_PACKAGE_ID, 
 from waterfall.core.planning.dating import conflicts_of
 from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.interface.structures import structure_state
+from waterfall.core.planning.lineage_lock import lock_lineage
+from waterfall.core.planning.provisioning import lines_reported
 from waterfall.core.planning.rescheduling import Holding
 from waterfall.core.planning.shaping import PARKED, deleted
 from waterfall.core.planning.snapshotting import taken
@@ -201,7 +206,9 @@ def _judged(session: Session, project_id: UUID, tree: Tree, restoring: Restoring
     changed = tuple(state for state in states if state.object_id in tree.nodes)
     for node_id in removed:
         for child in tree.children.get(node_id, []):
-            if child not in removed:
+            # A child the restoring takes elsewhere — the provision line the redoing of a deletion
+            # carries to the parent again (#4010) — is not left under the node removed.
+            if child not in removed and child not in kept:
                 raise _conflict(child, _label(session, project_id, tree, child))
     outside = set(tree.nodes) - kept - set(removed)
     holders = {
@@ -311,10 +318,19 @@ def _unstrayed(
             return
 
 
-def _park(tree: Tree, changed: tuple[ObjectState, ...]) -> None:
-    """Park the rank of every node brought back, so that the places exchange at their turn."""
+def _park(tree: Tree, changed: tuple[ObjectState, ...], removed: tuple[UUID, ...]) -> None:
+    """Park the rank of every node brought back, so that the places exchange at their turn.
+
+    One under a node the restoring deletes is parked under the parent it goes back to, which the
+    tree holds, so that the deletion does not take it with the node: the provision line the
+    redoing of a deletion carries to the parent again (#4010).
+    """
     for turn, state in enumerate(changed, start=1):
-        tree.nodes[state.object_id].rank = PARKED + turn
+        node = tree.nodes[state.object_id]
+        node.rank = PARKED + turn
+        target = _id(_row(state, "node"), "parent_id")
+        if node.parent_id in removed and target in tree.nodes and target not in removed:
+            node.parent_id = target
 
 
 def _write_changed(tree: Tree, restoration: Restoration, writer: Writer) -> None:
@@ -441,6 +457,8 @@ def _restore_tracking(
         return
     timelines = set(session.scalars(select(Timeline.id).where(Timeline.project_id == project_id)))
     lineages = {state.object_id: _id(_row(state, "node"), "lineage_id") for state in states}
+    for locked in sorted({each for each in lineages.values() if each}, key=str):
+        lock_lineage(session, project_id, locked)
     held = tracking_of(session, project_id, {each for each in lineages.values() if each})
     for state in states:
         lineage = lineages[state.object_id]
@@ -507,13 +525,17 @@ def bring_back(
             above for each in removed for above in tree.ancestors(each) if above not in removed
         )
     )
+    reported = _provisions_moved(tree, restoration.changed)
+    _park(tree, restoration.changed, removed)
+    session.flush()
     if removed:
         deleted(session, project_id, tree, list(removed))
-    _park(tree, restoration.changed)
-    session.flush()
+    # The nodes created again first: a node brought back may go under one of them — the provision
+    # line a deletion carried away goes back under its task (#4010) —, and the nodes it changes
+    # are parked, so that none holds the place of a node created.
+    _write_created(session, restoration, writer)
     _write_changed(tree, restoration, writer)
     session.flush()
-    _write_created(session, restoration, writer)
     _restore_facets(session, project_id, restoring.restored, writer)
     _restore_links(session, place, restoration, restoring.kind)
     _restore_tracking(session, project_id, restoration, restoring.kind)
@@ -525,6 +547,24 @@ def bring_back(
     # The tree read before the restoration, brought to it rather than read again (US-2250).
     held = Holding(facts, None, conflicts, bearers, tree)
     redated = redated_structure(session, place, writer.act, held)
+    if reported:
+        # The risks whose provision line the restoring carried under another task (#4010).
+        lines_reported(session, project_id, place.revision_id, reported)
     ids = tuple(state.object_id for state in restoring.restored)
     restoring.keep_present(taken(session, project_id, ids))
     return redated.written(ids, former)
+
+
+def _provisions_moved(tree: Tree, changed: tuple[ObjectState, ...]) -> tuple[UUID, ...]:
+    """Give the provision lines a restoring brings back under another task than the one now theirs.
+
+    The deletion of the task that bore one carried it to the parent (``carry_provisions``), which
+    told its risk; the undoing of that deletion, and its redoing, carry it back and tell it again:
+    its provision task changes with it (WF-RIS-0010, US-2580/L1).
+    """
+    return tuple(
+        state.object_id
+        for state in changed
+        if state.object_id in tree.provisions
+        and _id(_row(state, "node"), "parent_id") != tree.nodes[state.object_id].parent_id
+    )

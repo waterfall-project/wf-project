@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The tree of the tasks of a structure (WF-PLA-0040, 0050, 0070, 0150, 0170).
 
-``listNodes``, ``createNode``, ``updateTaskFacet``, ``getComputedValueDependencies`` and
-``resolveRowNumber`` (US-1380/L2); ``deleteNode`` and ``moveNodes`` (US-1380/L3); the lines of
-estimate in them, their facet, their filters, their sort, their totals and the amounts of the tasks
-(US-1490/L3), which the planning reads by the hooks of the facet the estimate registers.
+``createNode``, ``updateTaskFacet``, ``getComputedValueDependencies`` and ``resolveRowNumber``
+(US-1380/L2), and ``listNodes``, which ``amendments`` serves since US-2550/L3, reading a
+differential as a diff with the main structure; ``deleteNode`` and ``moveNodes`` (US-1380/L3); the
+lines of estimate in them, their facet, their filters, their sort, their totals and the amounts of
+the tasks (US-1490/L3), which the planning reads by the hooks of the facet the estimate registers.
 
 A structure is read by whoever may consult the planning of its project; its tasks are written by
 the contributors of the project who may write the planning (``StructureCommand.edit_planning``).
@@ -58,6 +59,8 @@ from waterfall.api.contract.models import (
     WorkInstantWrite,
 )
 from waterfall.api.evaluation import Acting, RequiresProject
+from waterfall.api.node_risks import unknown_risks
+from waterfall.api.numbering import renumbered, resolved, rows_of
 from waterfall.api.queries import read_list, refuse_query
 from waterfall.api.wire import instant_of, text_of
 from waterfall.core.access_roles.interface import PERMISSION_MISSING
@@ -92,7 +95,6 @@ from waterfall.core.planning.interface import (
     list_records,
     move_nodes,
     record_of,
-    resolve_row_number,
     update_task_facet,
 )
 from waterfall.core.projects.interface import subproject_labels
@@ -282,6 +284,7 @@ def node_reading(
             faults += wrong
     subproject, wrong = _subproject_asked(session, project_id, query.subproject_id)
     faults += wrong
+    faults += unknown_risks(session, project_id, risks)
     refuse_query(faults)
     fields = None if query.fields is None else frozenset(query.fields.split(","))
     if fields is not None and not all(_known(name) for name in fields):
@@ -637,7 +640,7 @@ def joined(document: bytes, inscriptions: Mapping[UUID, tuple[TrackingView, ...]
     return b"".join(parts)
 
 
-def _gives_progress(fields: frozenset[str] | None) -> bool:
+def gives_progress(fields: frozenset[str] | None) -> bool:
     """Tell whether a reading gives the physical progress of the summaries (``listNodes``).
 
     Whole, or when ``fields`` names it, or names the facet of a task that holds it.
@@ -656,7 +659,7 @@ def whole_nodes(session: Session, place: Place, fields: frozenset[str] | None) -
     if fields is not None:
         read = kept_body(session, place)
         if read is None:
-            records = list_records(session, place, NodeFilters(), progress=_gives_progress(fields))
+            records = list_records(session, place, NodeFilters(), progress=gives_progress(fields))
             return read_body(nodes_body(records, fields))
         read["items"] = [projected(item, fields) for item in read["items"]]
         return read_body(read)
@@ -709,6 +712,16 @@ def written_of(result: NodesWritten) -> dict[str, Any]:
         "totals": totals_body(result.task_count, result.totals),
         "structure_lock_version": result.structure_lock_version,
     }
+
+
+def written_in(session: Session, place: Place, result: NodesWritten) -> dict[str, Any]:
+    """Write what a write of a structure gives back, numbered as that structure is read.
+
+    A differential is numbered with the nodes it removes in their place (``numbering``).
+    """
+    body = written_of(result)
+    rows = rows_of(session, place, node_body)
+    return body if rows is None else renumbered(body, rows)
 
 
 def _sent_instant(sent: WorkInstantWrite | None) -> InstantSent | None:
@@ -821,25 +834,6 @@ Placed = Annotated[Place, Depends(place_of)]
 Writing = Annotated[Writer, Depends(writer_of)]
 
 
-@router.get(
-    f"{STRUCTURE}/nodes",
-    operation_id="listNodes",
-    dependencies=[Depends(RequiresProject(CONSULT))],
-    response_model=None,
-)
-def get_nodes(
-    place: Placed,
-    asked: Annotated[tuple[NodeFilters, frozenset[str] | None], Depends(node_reading)],
-    session: Transaction,
-) -> Response:
-    """Give the nodes of a structure retained, depth first, their totals and its meta."""
-    filters, fields = asked
-    if filters == NodeFilters():
-        return whole_nodes(session, place, fields)
-    read = list_records(session, place, filters, progress=_gives_progress(fields))
-    return read_body(nodes_body(read, fields))
-
-
 @router.post(
     f"{STRUCTURE}/nodes",
     operation_id="createNode",
@@ -879,7 +873,7 @@ def post_node(
         kind=body.kind.value,
         facet=None if line is None else line_entry(line, frozenset(line.model_fields_set), None),
     )
-    return written_of(create_node(session, place, creation, writer))
+    return written_in(session, place, create_node(session, place, creation, writer))
 
 
 @router.patch(
@@ -906,7 +900,7 @@ def patch_task(
     if faults or not sent:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
     change = replace(_entry(body, sent), lock_version=body.lock_version.root)
-    return written_of(update_task_facet(session, place, node_id, change, writer))
+    return written_in(session, place, update_task_facet(session, place, node_id, change, writer))
 
 
 @router.delete(
@@ -923,7 +917,7 @@ def delete_task(
     session: Transaction,
 ) -> dict[str, Any]:
     """Delete a node of a structure and its subtree, at the counter of the node read."""
-    return written_of(delete_node(session, place, node_id, lock_version, writer))
+    return written_in(session, place, delete_node(session, place, node_id, lock_version, writer))
 
 
 @router.post(
@@ -946,7 +940,7 @@ def post_move(
         after_given="after_node_id" in body.model_fields_set,
         lock_version=body.lock_version.root,
     )
-    return written_of(move_nodes(session, place, moving, writer))
+    return written_in(session, place, move_nodes(session, place, moving, writer))
 
 
 @router.get(
@@ -963,13 +957,19 @@ def get_dependencies(
 ) -> ComputedValueDependencies:
     """Name what a computed value of a node depends on, the rows by number and label."""
     found = computed_value_dependencies(session, place, node_id, field.value)
+    rows = rows_of(session, place, node_body)
+    numbers = {} if rows is None else {each.node_id: each.row_number for each in rows}
     return ComputedValueDependencies.model_validate(
         {
             "node_id": found.node_id,
             "field": found.field,
             "depends_on": list(found.depends_on),
             "rows": [
-                {"node_id": row.node_id, "row_number": row.row_number, "label": row.label}
+                {
+                    "node_id": row.node_id,
+                    "row_number": numbers.get(row.node_id, row.row_number),
+                    "label": row.label,
+                }
                 for row in found.rows
             ],
         }
@@ -988,7 +988,7 @@ def get_row(
     session: Transaction,
 ) -> RowNumberResolution:
     """Give the node a row number designates in the numbering of the whole structure."""
-    found = resolve_row_number(session, place, row_number)
+    found = resolved(session, place, row_number, node_body)
     return RowNumberResolution.model_validate(
         {
             "node_id": found.node_id,

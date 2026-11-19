@@ -155,6 +155,9 @@ export interface Examples {
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
     200: "dependencies_labour" | "dependencies_labour_category" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_provision_subproject" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
   };
+  "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase": {
+    200: "structure_rebase_report" | "structure_rebase_report_refused";
+  };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}": {
     200: "row_number_estimate_line" | "row_number_task";
   };
@@ -234,7 +237,7 @@ export interface Examples {
     200: "tasks_none" | "tasks_running";
   };
   "GET /tasks/{task_id}": {
-    200: "identity_sync_succeeded" | "task_exit_mark_failed" | "task_exit_mark_relaunched" | "task_exit_mark_relaunched_succeeded" | "task_exit_mark_running" | "task_exit_mark_succeeded" | "task_export_succeeded" | "task_export_tree_image_too_large" | "task_failed" | "task_import_analysis_failed" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_merge_horizon_exceeded" | "task_merge_link_cycle" | "task_merge_link_forbidden" | "task_merge_outside_work_package" | "task_merge_running" | "task_merge_succeeded" | "task_restore_backup_newer_version" | "task_restore_verification_failed" | "task_running" | "task_succeeded";
+    200: "identity_sync_succeeded" | "task_exit_mark_failed" | "task_exit_mark_relaunched" | "task_exit_mark_relaunched_succeeded" | "task_exit_mark_running" | "task_exit_mark_succeeded" | "task_export_succeeded" | "task_export_tree_image_too_large" | "task_failed" | "task_import_analysis_failed" | "task_import_provision_without_task" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_merge_horizon_exceeded" | "task_merge_link_cycle" | "task_merge_link_forbidden" | "task_merge_outside_work_package" | "task_merge_running" | "task_merge_succeeded" | "task_restore_backup_newer_version" | "task_restore_verification_failed" | "task_running" | "task_succeeded";
   };
   "GET /users": {
     200: "users" | "users_anonymized" | "users_by_access_role" | "users_by_created_at" | "users_created_by_platform" | "users_inactive" | "users_page" | "users_search" | "users_without_access_role";
@@ -359,6 +362,9 @@ export interface Examples {
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview": {
     200: "paste_plan" | "paste_plan_amendment" | "paste_plan_amendment_skipping" | "paste_plan_amendment_target_removed" | "paste_plan_creating" | "paste_plan_creating_lines" | "paste_plan_subproject_held" | "paste_plan_unknown_category" | "paste_plan_without_hours";
+  };
+  "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase": {
+    200: "structure_rebased";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/undo": {
     200: "undo_task_renamed" | "undo_task_renamed_one_left";

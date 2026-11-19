@@ -43,7 +43,9 @@ from waterfall.core.planning.filters import (
     NodeFilters as NodeFilters,
 )
 
-# ``borne_lines`` (US-2570/L1): the tasks a risk names, and the provision line it asks for (EP-08).
+# ``borne_lines`` (US-2570/L1; US-2580/L1; US-2590/L2): the tasks a risk names, the provision line
+# it asks for, brings back and moves, and the module that owns the lines a deletion or an import
+# moves (EP-08).
 from waterfall.core.planning.interface.borne_lines import (
     TaskNamed as TaskNamed,
 )
@@ -54,7 +56,16 @@ from waterfall.core.planning.interface.borne_lines import (
     create_borne_line as create_borne_line,
 )
 from waterfall.core.planning.interface.borne_lines import (
+    delete_borne_line as delete_borne_line,
+)
+from waterfall.core.planning.interface.borne_lines import (
     first_task as first_task,
+)
+from waterfall.core.planning.interface.borne_lines import (
+    move_borne_line as move_borne_line,
+)
+from waterfall.core.planning.interface.borne_lines import (
+    recreate_borne_line as recreate_borne_line,
 )
 from waterfall.core.planning.interface.borne_lines import (
     structures_have_task as structures_have_task,
@@ -68,11 +79,30 @@ from waterfall.core.planning.interface.borne_lines import (
 from waterfall.core.planning.interface.closing import (
     delete_nodes as delete_nodes,
 )
+from waterfall.core.planning.interface.closing import (
+    delete_structure_nodes as delete_structure_nodes,
+)
+
+# ``closing`` (US-2590/L2): the nodes of a structure kept whole, and written back.
+from waterfall.core.planning.interface.closing import (
+    restore_structure_nodes as restore_structure_nodes,
+)
+from waterfall.core.planning.interface.closing import (
+    structure_nodes as structure_nodes,
+)
 
 # ``copying`` (US-1380/L2; moved out of ``nodes`` and written as one statement a table by
 # US-2240/L2): the copy of the nodes of a revision opened from a marked one.
 from waterfall.core.planning.interface.copying import (
     copy_nodes as copy_nodes,
+)
+from waterfall.core.planning.interface.copying import (
+    copy_structure_nodes as copy_structure_nodes,
+)
+
+# ``differential_deletion`` (US-2550/L4): a differential abandoned.
+from waterfall.core.planning.interface.differential_deletion import (
+    abandon_differential as abandon_differential,
 )
 
 # ``facets`` (US-1380/L1; read by US-1380/L2; completed by US-1490/L3, US-2260/L3, US-2280/L1,
@@ -97,6 +127,9 @@ from waterfall.core.planning.interface.facets import (
 )
 from waterfall.core.planning.interface.facets import (
     FacetCreation as FacetCreation,
+)
+from waterfall.core.planning.interface.facets import (
+    FacetGraft as FacetGraft,
 )
 from waterfall.core.planning.interface.facets import (
     FacetHooks as FacetHooks,
@@ -136,6 +169,20 @@ from waterfall.core.planning.interface.facets import (
 )
 from waterfall.core.planning.interface.facets import (
     register_facet as register_facet,
+)
+
+# ``grafts`` (US-2620/L1; US-2620/L2): the tasks of a structure grafted into another (EP-08).
+from waterfall.core.planning.interface.grafts import (
+    Graft as Graft,
+)
+from waterfall.core.planning.interface.grafts import (
+    Grafted as Grafted,
+)
+from waterfall.core.planning.interface.grafts import (
+    graft as graft,
+)
+from waterfall.core.planning.interface.grafts import (
+    release_origin as release_origin,
 )
 
 # ``indicator_stamps`` (US-1660/L3; US-1720/L2): what the key of the cache of the indicators reads.
@@ -207,6 +254,9 @@ from waterfall.core.planning.interface.lines import (
     lines_of_structure as lines_of_structure,
 )
 from waterfall.core.planning.interface.lines import (
+    lines_of_structures as lines_of_structures,
+)
+from waterfall.core.planning.interface.lines import (
     new_line_node as new_line_node,
 )
 from waterfall.core.planning.interface.lines import (
@@ -219,7 +269,13 @@ from waterfall.core.planning.interface.lines import (
     node_versions as node_versions,
 )
 from waterfall.core.planning.interface.lines import (
+    outside_bases as outside_bases,
+)
+from waterfall.core.planning.interface.lines import (
     revision_bears as revision_bears,
+)
+from waterfall.core.planning.interface.lines import (
+    revision_lines as revision_lines,
 )
 from waterfall.core.planning.interface.lines import (
     structures_of as structures_of,
@@ -264,6 +320,27 @@ from waterfall.core.planning.interface.loading import (
     load_tasks as load_tasks,
 )
 
+# ``merging`` (US-2560/L1): the part of the planning in the merge of a differential, its end, and
+# where the lines stand for the estimate's.
+from waterfall.core.planning.interface.merging import (
+    MergedLine as MergedLine,
+)
+from waterfall.core.planning.interface.merging import (
+    MergedLines as MergedLines,
+)
+from waterfall.core.planning.interface.merging import (
+    lines_in_order as lines_in_order,
+)
+from waterfall.core.planning.interface.merging import (
+    merge_end as merge_end,
+)
+from waterfall.core.planning.interface.merging import (
+    merge_tasks as merge_tasks,
+)
+from waterfall.core.planning.interface.merging import (
+    merged_lines as merged_lines,
+)
+
 # ``milestone_dates`` (US-1660/L3; US-1710): the dates of the milestones in the revisions.
 from waterfall.core.planning.interface.milestone_dates import (
     milestone_forecasts as milestone_forecasts,
@@ -278,6 +355,9 @@ from waterfall.core.planning.interface.msproject import (
 )
 from waterfall.core.planning.interface.msproject import (
     MS_PROJECT_FORMAT as MS_PROJECT_FORMAT,
+)
+from waterfall.core.planning.interface.node_deletion import (
+    delete_node as delete_node,
 )
 
 # ``nodes`` (US-1380/L1; US-1380/L2, L3; US-1480/L2; US-1450/L5): the nodes of a structure.
@@ -321,7 +401,7 @@ from waterfall.core.planning.interface.nodes import (
     create_node as create_node,
 )
 from waterfall.core.planning.interface.nodes import (
-    delete_node as delete_node,
+    describe_row as describe_row,
 )
 from waterfall.core.planning.interface.nodes import (
     judge_cell as judge_cell,
@@ -475,6 +555,47 @@ from waterfall.core.planning.interface.progress import (
     write_remaining as write_remaining,
 )
 
+# ``rebased`` (US-3050/L4): a differential updated from the main structure, and for the witness.
+from waterfall.core.planning.interface.rebased import (
+    load_rebase as load_rebase,
+)
+from waterfall.core.planning.interface.rebased import (
+    rebase_differential as rebase_differential,
+)
+
+# ``rebasing`` (US-3050/L3): the part of the planning in the update of a differential, its end,
+# what a structure designates, and where the lines stand for the estimate's.
+from waterfall.core.planning.interface.rebasing import (
+    Gap as Gap,
+)
+from waterfall.core.planning.interface.rebasing import (
+    LinesPlaced as LinesPlaced,
+)
+from waterfall.core.planning.interface.rebasing import (
+    RebasedLines as RebasedLines,
+)
+from waterfall.core.planning.interface.rebasing import (
+    RebasedTask as RebasedTask,
+)
+from waterfall.core.planning.interface.rebasing import (
+    designated as designated,
+)
+from waterfall.core.planning.interface.rebasing import (
+    hand_calendars as hand_calendars,
+)
+from waterfall.core.planning.interface.rebasing import (
+    place_rebased_lines as place_rebased_lines,
+)
+from waterfall.core.planning.interface.rebasing import (
+    rebase_end as rebase_end,
+)
+from waterfall.core.planning.interface.rebasing import (
+    rebase_tasks as rebase_tasks,
+)
+from waterfall.core.planning.interface.rebasing import (
+    rebased_lines as rebased_lines,
+)
+
 # ``reference`` (US-1380/L1; US-1390/L2): what the planning answers to the reference.
 from waterfall.core.planning.interface.reference import (
     redate_copy as redate_copy,
@@ -492,9 +613,6 @@ from waterfall.core.planning.interface.skeleton import (
 )
 from waterfall.core.planning.interface.skeleton import (
     opening_main_with_tasks as opening_main_with_tasks,
-)
-from waterfall.core.planning.interface.skeleton import (
-    opening_with_tasks as opening_with_tasks,
 )
 
 # ``snapshots`` (US-1380/L1; US-1380/L2, US-1450/L2): the snapshots the history keeps, restored.
@@ -517,6 +635,9 @@ from waterfall.core.planning.interface.snapshots import (
 # ``structures`` (US-1380/L1; US-1380/L2, US-1390/L2): the dates, the start and the label.
 from waterfall.core.planning.interface.structures import (
     StructureChange as StructureChange,
+)
+from waterfall.core.planning.interface.structures import (
+    open_differential as open_differential,
 )
 from waterfall.core.planning.interface.structures import (
     reschedule as reschedule,
@@ -585,6 +706,17 @@ from waterfall.core.planning.interface.work_breakdown import (
 )
 from waterfall.core.planning.interface.work_breakdown import (
     work_package_lines as work_package_lines,
+)
+
+# Beside the interface (US-2580/L1): what names the risk of a provision line and follows its report.
+from waterfall.core.planning.provisioning import (
+    ProvisionOwner as ProvisionOwner,
+)
+from waterfall.core.planning.provisioning import (
+    ProvisionOwners as ProvisionOwners,
+)
+from waterfall.core.planning.provisioning import (
+    register_provision_owners as register_provision_owners,
 )
 
 # Beside the interface (US-1530; US-2220/L2): a structure read whole, and what a reading's filters
@@ -677,7 +809,6 @@ from waterfall.core.projects.interface import (
     Attachments,
     register_attachments,
     register_opening_main_question,
-    register_opening_question,
 )
 from waterfall.core.resource_settings.interface import (
     register_idle_task_guard,
@@ -687,12 +818,18 @@ from waterfall.core.revisions.interface import (
     register_closing,
     register_copy,
     register_main_task_question,
+    register_merge,
+    register_merge_end,
+    register_rebase,
+    register_rebase_end,
     register_tasks_and_lines,
 )
 
 # The registrations, once, at the import: the copy of the nodes after the structures', whose
 # module this one imports first, and their redating after them; the nodes deleted after the
-# history, by the stage of their part.
+# history, by the stage of their part; its part of a merge, before the estimate's, and the end of
+# a merge, judged on the structure all the parts leave (US-2560/L1); likewise for the update of a
+# differential (US-3050/L3).
 register_copy(copy_nodes)
 register_copy(redate_copy)
 register_tasks_and_lines("tasks", revision_has_tasks)
@@ -707,9 +844,12 @@ register_attachments(
         share_work_breakdown_revision,
     )
 )
-register_opening_question(opening_with_tasks)
 register_opening_main_question(opening_main_with_tasks)
 register_main_task_question(structures_have_task)
 register_format("ms_project_schedule", MS_PROJECT_FORMAT)
 register_exporter("ms_project_schedule", MS_PROJECT_EXPORTER)
 register_exporter("task_tree_image", TASK_TREE_EXPORTER)
+register_merge(merge_tasks)
+register_merge_end(merge_end)
+register_rebase(rebase_tasks)
+register_rebase_end(rebase_end)

@@ -14,6 +14,7 @@ from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from migrations_support import partition_parts, scratch_database
 from project_rows import (
+    base_row,
     insert_project,
     insert_revision,
     insert_structure,
@@ -75,6 +76,7 @@ from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Base, Database
 from waterfall.platform.installation import Installation
+from waterfall.platform.settings import SettingsError, load_platform_settings, load_settings
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.platform.uploads import FileUpload
 
@@ -86,12 +88,11 @@ HEAD = ScriptDirectory.from_config(alembic_config()).get_current_head()
 
 
 def start_migration(engine: Engine) -> subprocess.Popen[str]:
-    """Start the command that applies the migrations, as an instance of the service does."""
+    """Start the command that applies the migrations, with the database alone in its environment."""
     return subprocess.Popen(
         [sys.executable, "-m", "waterfall.migrations.runner"],
         env={
             "WATERFALL_DATABASE_URL": engine.url.render_as_string(hide_password=False),
-            "WATERFALL_REDIS_URL": "redis://redis:6379/0",
         },
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -176,6 +177,26 @@ def test_the_command_applies_the_migrations_to_the_database_of_the_settings(
     assert (result.returncode, errors) == (0, "")
     with empty_engine.connect() as connection:
         assert applied(connection) == [HEAD]
+
+
+@pytest.mark.requirement("WF-DAT-0140-A")
+def test_the_command_applies_the_migrations_without_the_address_of_redis(
+    empty_engine: Engine,
+) -> None:
+    # The migrations need the database alone: the command runs on an environment that names nothing
+    # else, and the settings it reads are those of the platform, not those of the service, which
+    # ask for Redis.
+    result = start_migration(empty_engine)
+    _, errors = result.communicate(timeout=60)
+    assert (result.returncode, errors) == (0, "")
+    with empty_engine.connect() as connection:
+        assert applied(connection) == [HEAD]
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("WATERFALL_DATABASE_URL", "postgresql://u@127.0.0.1:9/x")
+        patch.delenv("WATERFALL_REDIS_URL", raising=False)
+        assert load_platform_settings().database_url.get_secret_value().endswith("/x")
+        with pytest.raises(SettingsError, match="WATERFALL_REDIS_URL"):
+            load_settings()
 
 
 def test_each_migration_is_undone_by_its_mirror_and_applied_again(empty_engine: Engine) -> None:
@@ -843,3 +864,53 @@ def test_an_installation_bootstrapped_before_its_time_zone_is_given_universal_ti
             )
         )
         assert "time_zone" not in set(columns)
+
+
+def test_the_descent_of_the_abandonment_of_a_differential_fails_while_the_journal_holds_one(
+    empty_engine: Engine,
+) -> None:
+    # US-2550/L4: 0037 admits ``structure_abandon``; its descent refuses the action again, which a
+    # journal that holds one — never deleted — forbids: the descent fails and the schema stays.
+    upgrade(empty_engine, "0037")
+    with empty_engine.begin() as connection:
+        connection.execute(
+            insert(AuditEntry).values(
+                id=uuid4(),
+                occurred_at=datetime(2026, 11, 19, tzinfo=UTC),
+                action="structure_abandon",
+                object_kind="cost_structure",
+                object_id=uuid4(),
+                object_label="Avenant",
+                params={},
+                correlation_id="abandon",
+            )
+        )
+    with pytest.raises(DBAPIError, match="action_known"):
+        downgrade(empty_engine, "0036")
+    with empty_engine.connect() as connection:
+        assert applied(connection) == ["0037"]
+        assert connection.scalar(select(func.count()).select_from(AuditEntry)) == 1
+
+
+def test_the_descent_of_the_base_of_a_differential_fails_while_a_base_exists(
+    empty_engine: Engine,
+) -> None:
+    # US-3050/L2: 0038 admits the kind ``base``; its descent refuses the kind again, which a base
+    # held forbids: the descent fails and the schema stays, the base with it.
+    upgrade(empty_engine, "0038")
+    project, revision, differential = uuid4(), uuid4(), uuid4()
+    with empty_engine.begin() as connection:
+        connection.execute(insert_project(id=project))
+        connection.execute(select(func.create_project_partitions(project)))
+        connection.execute(insert_revision(project, id=revision))
+        connection.execute(insert_structure(project, revision))
+        connection.execute(
+            insert_structure(project, revision, id=differential, kind="amendment", label="Avenant")
+        )
+        connection.execute(insert(CostStructure).values(base_row(project, revision, differential)))
+    with pytest.raises(DBAPIError, match="kind_known"):
+        downgrade(empty_engine, "0037")
+    with empty_engine.connect() as connection:
+        assert applied(connection) == ["0038"]
+        kinds = connection.scalars(select(CostStructure.kind).order_by(CostStructure.kind))
+        assert list(kinds) == ["amendment", "base", "main"]

@@ -10,12 +10,12 @@ checked against the contract. A revision is marked by the transaction of the wor
 
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import give_a_line
+from estimate_support import CEILING, YEAR, give_a_line, pin_year, pinned_clock
 from planning_support import give_a_task
 from projects_support import MANAGING, PROJECTS, READING, Scene, person, put_in_state
 from projects_support import scene as make_scene
@@ -60,7 +60,12 @@ EVENTS = "/api/v1/audit-events"
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+) -> Scene:
     """Give a platform whose reference is complete, its sessions, and a project its manager made."""
     return make_scene(api, owner, database, realm)
 
@@ -158,7 +163,7 @@ def test_the_first_revision_is_born_current_with_its_main_structure_alone(
         None,
         None,
     )
-    assert revision["reference_year"] == utc_now().year
+    assert revision["reference_year"] == YEAR
     assert (revision["source_revision_id"], revision["source_version_name"]) == (None, None)
     assert revision["is_reference"] is False
     assert project_of(api, stage)["current_revision_id"] == revision["revision_id"]
@@ -171,6 +176,8 @@ def test_the_first_revision_is_born_current_with_its_main_structure_alone(
         "edit_risks": [],
         # Without a task in its main structure, no risk is declared (WF-RIS-0010).
         "declare_risk": ["at_least_one_task"],
+        # The opening of a differential lacks nothing on a revision in progress (US-2550/L3).
+        "create_structure": [],
         # A first revision keeps no rate: no update to propose (WF-REV-0060, US-1500).
         "apply_rate_update": ["rate_update_available"],
         "mark": [],
@@ -483,6 +490,27 @@ def test_the_history_lists_the_marked_revisions_with_each_of_their_attributes(
     assert wrong.status_code == 422
 
 
+@pytest.mark.requirement("WF-REV-0060-A")
+@pytest.mark.parametrize(
+    ("instant", "year"),
+    [
+        (datetime(YEAR, 12, 31, 23, 59, 59, tzinfo=UTC), YEAR),
+        (datetime(YEAR + 1, 1, 1, 0, 0, 0, tzinfo=UTC), YEAR + 1),
+    ],
+)
+def test_the_year_of_a_revision_is_that_of_the_instant_it_is_opened_at(
+    api: ContractClient,
+    stage: Scene,
+    monkeypatch: pytest.MonkeyPatch,
+    instant: datetime,
+    year: int,
+) -> None:
+    # The last second of a year and the first of the next: the year of reference follows the clock
+    # of the service, whose reading is set here, not the year the test was loaded in.
+    monkeypatch.setattr("waterfall.api.revisions.utc_now", lambda: instant)
+    assert open_revision(api, stage)["reference_year"] == year
+
+
 @pytest.mark.requirement("WF-REV-0030-A")
 @pytest.mark.requirement("WF-REV-0070-A")
 def test_a_marked_revision_keeps_its_year_of_reference_and_the_next_takes_the_current_one(
@@ -493,7 +521,7 @@ def test_a_marked_revision_keeps_its_year_of_reference_and_the_next_takes_the_cu
     offer = open_revision(api, stage)
     mark_as_the_worker(stage.owner, offer, "v1.0", reference_year=2025)
     current = open_revision(api, stage)
-    assert current["reference_year"] == utc_now().year
+    assert current["reference_year"] == YEAR
     path = f"{revisions_of(stage.project['project_id'])}/{offer['revision_id']}"
     assert api.get(path, headers=stage.manager.headers).json()["reference_year"] == 2025
 
@@ -835,6 +863,22 @@ def test_the_witness_opens_and_marks_its_revisions_as_the_service_and_the_worker
     ]
 
 
+@pytest.mark.requirement("WF-REV-0060-A")
+def test_a_pinned_clock_past_its_ceiling_goes_on_a_microsecond_a_reading_within_the_year() -> None:
+    # A run that has crossed New Year reads an instant past the ceiling at every reading, as a
+    # clock stopped there would give twice (#3739): two readings are apart, and in ``YEAR``.
+    clock = pinned_clock(lambda: datetime(YEAR + 1, 1, 1, tzinfo=UTC))
+    first, second, third = clock(), clock(), clock()
+    assert first == CEILING
+    assert first < second < third
+    assert second - first == third - second == timedelta(microseconds=1)
+    assert third.year == YEAR
+    # Followed from an earlier instant, it reads that one, and never goes back.
+    early = pinned_clock(iter([CEILING - timedelta(days=1), CEILING - timedelta(days=2)]).__next__)
+    assert early() == CEILING - timedelta(days=1)
+    assert early() == CEILING - timedelta(days=1) + timedelta(microseconds=1)
+
+
 def test_a_withdrawal_withdraws_its_registration_once() -> None:
     # A detail of the realization which reprises no Vérif (#2179): called again, the withdrawal
     # does nothing, and never withdraws the same entry registered anew since.
@@ -848,3 +892,15 @@ def test_a_withdrawal_withdraws_its_registration_once() -> None:
     assert registry.entries() == ("tasks",)
     again()
     assert registry.entries() == ()
+
+
+@pytest.mark.requirement("WF-REV-0060-A")
+def test_a_clock_already_set_when_the_year_is_pinned_is_refused_not_pinned_over(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # ``pinned_year`` has pinned the clocks before this test ran: pinning them again, as a fixture
+    # called in the wrong order would, says so, where it once left the clock without a word.
+    with pytest.raises(
+        AssertionError, match=r"the clock of waterfall\.api\.revisions is already set"
+    ):
+        pin_year(monkeypatch)

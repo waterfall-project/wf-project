@@ -64,8 +64,13 @@ MARKED: dict[str, object] = {"status": "marked", "version_name": "v1.0", "marked
 
 
 def structure_row(project_id: UUID, revision_id: UUID, **overrides: object) -> dict[str, object]:
-    """Give the columns of the main structure of a revision, with the changes asked for."""
+    """Give the columns of the main structure of a revision, with the changes asked for.
+
+    A differential keeps the counter of the main structure its base was taken at (US-3050): the
+    first, unless the changes say another.
+    """
     structure_id = uuid4()
+    differential = overrides.get("kind") == "amendment"
     return {
         "project_id": project_id,
         "id": structure_id,
@@ -74,9 +79,21 @@ def structure_row(project_id: UUID, revision_id: UUID, **overrides: object) -> d
         "label": "Principale",
         "is_merged": False,
         "lineage_id": structure_id,
+        **({"main_lock_version": 1} if differential else {}),
         **STAMP,
         **overrides,
     }
+
+
+def base_row(project_id: UUID, revision_id: UUID, differential_id: object) -> dict[str, object]:
+    """Give the columns of the base of a differential, empty, in its revision (US-3050).
+
+    What the reading of a differential written around the service compares it to: every node it
+    holds is added.
+    """
+    return structure_row(
+        project_id, revision_id, kind="base", label="Base", differential_id=differential_id
+    )
 
 
 def risk_row(project_id: UUID, **overrides: object) -> dict[str, object]:
@@ -101,13 +118,18 @@ def delete_structure(owner: Engine, structure_id: UUID) -> None:
 
     The one place that knows what hangs from a structure: a test that wrote one by hand calls it in
     its ``finally``, and a table that comes to depend on the nodes is added here, not in each test.
+    The base of a differential goes first, which names it (US-3050).
     """
     with owner.begin() as connection:
-        nodes = select(Node.id).where(Node.structure_id == structure_id)
-        connection.execute(delete(EstimateLine).where(EstimateLine.node_id.in_(nodes)))
-        connection.execute(delete(Task).where(Task.node_id.in_(nodes)))
-        connection.execute(delete(Node).where(Node.structure_id == structure_id))
-        connection.execute(delete(CostStructure).where(CostStructure.id == structure_id))
+        bases = connection.scalars(
+            select(CostStructure.id).where(CostStructure.differential_id == structure_id)
+        ).all()
+        for each in (*bases, structure_id):
+            nodes = select(Node.id).where(Node.structure_id == each)
+            connection.execute(delete(EstimateLine).where(EstimateLine.node_id.in_(nodes)))
+            connection.execute(delete(Task).where(Task.node_id.in_(nodes)))
+            connection.execute(delete(Node).where(Node.structure_id == each))
+            connection.execute(delete(CostStructure).where(CostStructure.id == each))
 
 
 def insert_project(**overrides: object) -> Executable:

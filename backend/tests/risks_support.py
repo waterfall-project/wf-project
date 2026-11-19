@@ -13,28 +13,46 @@ by the owner of the tables, as the rows the service will write: the risk with it
 task bearing a line of 200, its evaluation identified, and its provision line of 60 in the main
 structure, under the first task of the first level, of the category of provision the installation
 is delivered with (WF-RIS-0010). A lot that serves one may write it through the service here,
-leaving its result unchanged. A helper several test modules read lives here, never in one of them.
+leaving its result unchanged. A helper several test modules read lives here, never in one of them:
+the risks through the service (``Risks``), which the tests of the provision (US-2580) write with.
 """
 
+import time
+from concurrent.futures import Future, ThreadPoolExecutor
+from contextlib import contextmanager
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
+import pytest
 from estimate_support import YEAR, Costing, Lines
 from nodes_support import Tree, opened
 from planning_support import insert_task, node_row
-from project_rows import AT, STAMP, risk_row, structure_row
-from sqlalchemy import func, insert, select
+from project_rows import AT, STAMP, base_row, risk_row, structure_row
+from projects_support import PROJECTS
+from sqlalchemy import delete, func, insert, select, text, update
+from sqlalchemy.exc import DBAPIError
 
+from waterfall.core.cost_settings.interface import (
+    CostCategoryDraft,
+    CostTypeDraft,
+    create_cost_category,
+    create_cost_type,
+    set_cost_category_activation,
+)
 from waterfall.core.cost_settings.tables import CostCategory, CostType
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.tables import Node
 from waterfall.core.revisions.tables import CostStructure
 from waterfall.core.risks.tables import Risk, RiskEvaluation
+from waterfall.platform.audit import Act
+from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
-    from projects_support import Scene
+    from collections.abc import Callable, Generator
+
+    from projects_support import Person, Scene
     from sqlalchemy.engine import Connection
     from support import ContractClient
 
@@ -46,10 +64,18 @@ PROBABILITY = Decimal("0.30")
 PROVISION = Decimal("60.00")
 # The two tasks of the project costed, each with its line of material and its amount.
 STUDY, MAKING = "Étude", "Réalisation"
+# The label of the risk the tests of the provision declare.
+RISK_LABEL = "Indisponibilité de la grue de levage"
 COSTED = ((STUDY, "Plans", "600.00"), (MAKING, "Fabrication", "400.00"))
 
 
 # --- The rows, around the service ----------------------------------------------------------------
+
+# The statements a reading of the risks sends at most, whatever the number of its risks (#4013): the
+# cost measured of each, 34, 23 and 24, and two of margin.
+MOST_STATEMENTS_OF_REGISTER = 36
+MOST_STATEMENTS_OF_MATRIX = 25
+MOST_STATEMENTS_OF_DETAIL = 26
 
 
 def evaluation_row(
@@ -174,6 +200,104 @@ def provision_category(connection: Connection) -> UUID:
     return found
 
 
+def occur(stage: Scene, risk_id: str, revision_id: object, cost: str = "200.00") -> None:
+    """Make a risk occurred in a revision, around the service, as US-2620 will leave it.
+
+    Its evaluation says occurred at a cost, its provision line is gone; its own estimate is not
+    consumed, which the occurrence will do (EP-08, "La fusion et la survenance"): what the tests of
+    the transitions need of an occurred risk is its state.
+    """
+    with stage.owner.begin() as connection:
+        evaluation = (
+            RiskEvaluation.risk_id == UUID(risk_id),
+            RiskEvaluation.revision_id == revision_id,
+        )
+        line = connection.scalar(select(RiskEvaluation.provision_node_id).where(*evaluation))
+        connection.execute(
+            update(RiskEvaluation)
+            .where(*evaluation)
+            .values(state="occurred", provision_node_id=None, occurrence_cost=Decimal(cost))
+        )
+        connection.execute(delete(Node).where(Node.id == line))
+
+
+def deactivate_category(stage: Scene, category_id: UUID) -> None:
+    """Deactivate a category of the reference through its module, at the version read."""
+    with stage.database.transaction() as session:
+        held = session.scalar(
+            select(CostCategory.lock_version).where(CostCategory.id == category_id)
+        )
+        assert held is not None
+        set_cost_category_activation(
+            session, category_id, is_active=False, lock_version=held, act=Act(None, utc_now())
+        )
+
+
+def another_provision(stage: Scene, code: str = "ALE") -> UUID:
+    """Give a category of the provision kind, under a nature other than the one installed."""
+    act = Act(None, utc_now())
+    with stage.database.transaction() as session:
+        nature = create_cost_type(session, CostTypeDraft(code, "Aléas", "provision"), act)
+        accounting = f"606{sum(map(ord, code)) % 1000:03d}"
+        draft = CostCategoryDraft(f"{code}-001", f"Aléas {code}", accounting, nature.cost_type_id)
+        return create_cost_category(session, draft, act).cost_category_id
+
+
+@contextmanager
+def concurrently() -> Generator[Callable[[Callable[[], Any]], Future[Any]]]:
+    """Give what starts a call in a thread of its own, its future's result joining it.
+
+    Every thread started is waited for when the scene leaves the block, a failure included (#4018):
+    a holder opened inside the block has let its locks go by then, and no call outlives its test.
+    """
+    pool = ThreadPoolExecutor(max_workers=2)
+    try:
+        yield pool.submit
+    finally:
+        pool.shutdown(wait=True)
+
+
+# The sessions that wait, directly or behind another that waits, for a lock the holder holds.
+WAITING_ON = text(
+    "WITH RECURSIVE blocked(pid) AS ("
+    " SELECT pid FROM pg_stat_activity WHERE :holder = ANY(pg_blocking_pids(pid))"
+    " UNION"
+    " SELECT waiting.pid FROM pg_stat_activity AS waiting, blocked"
+    " WHERE blocked.pid = ANY(pg_blocking_pids(waiting.pid))"
+    ") SELECT count(*) FROM blocked"
+)
+
+
+def waiting_for_a_lock(stage: Scene, holder: Connection, count: int = 1) -> None:
+    """Wait until ``count`` sessions wait for a lock the holder holds, or one held behind it.
+
+    Asked of the server by ``pg_blocking_pids`` (#4018): a session of the base that waits for
+    anything else — another test, another lock — is not counted.
+    """
+    pid = holder.scalar(text("SELECT pg_backend_pid()"))
+    for _ in range(150):
+        with stage.owner.connect() as connection:
+            waiting = connection.scalar(WAITING_ON.bindparams(holder=pid))
+        if waiting and waiting >= count:
+            return
+        time.sleep(0.1)
+    pytest.fail(f"fewer than {count} sessions wait for a lock the holder holds")
+
+
+def lock_held(stage: Scene, structure_id: UUID) -> bool:
+    """Tell whether another transaction holds the lock of a structure (``FOR UPDATE NOWAIT``)."""
+    with stage.owner.connect() as connection:
+        try:
+            connection.execute(
+                select(CostStructure.id)
+                .where(CostStructure.id == structure_id)
+                .with_for_update(nowait=True)
+            )
+        except DBAPIError:
+            return True
+        return False
+
+
 # --- The fabrics ---------------------------------------------------------------------------------
 
 
@@ -296,12 +420,227 @@ def declared(costed: Costed, label: str = "Retard du fournisseur") -> Declared:
 def differential(costed: Costed, label: str = "Avenant 1") -> UUID:
     """Open an empty differential in the current revision of a project costed, around the service.
 
-    A structure of the kind ``amendment``; a test writes its nodes. Its copy of the main structure
-    is US-2550/L3's.
+    A structure of the kind ``amendment``, with its base, empty too (US-3050); a test writes its
+    nodes. The copy of the main structure the service makes (``createCostStructure``, US-2550/L3)
+    is ``amendments_support``'s.
     """
-    row = structure_row(costed.project_id, costed.revision_id, kind="amendment", label=label)
+    project_id, revision_id = costed.project_id, costed.revision_id
+    row = structure_row(project_id, revision_id, kind="amendment", label=label)
     structure_id = row["id"]
     assert isinstance(structure_id, UUID)
     with costed.stage.owner.begin() as connection:
         connection.execute(insert(CostStructure).values(**row))
+        connection.execute(
+            insert(CostStructure).values(**base_row(project_id, revision_id, structure_id))
+        )
     return structure_id
+
+
+# --- The risks, through the service --------------------------------------------------------------
+
+# The label of the risk declared by default.
+LABEL = "Retard du fournisseur"
+
+
+class Risks:
+    """The risks of a project costed, declared, read, provisioned, written through the service.
+
+    Through the service, as its manager does; the helpers of the tests of the register (US-2600),
+    of the identity (US-2570) and of the provision (US-2580).
+    """
+
+    def __init__(self, api: ContractClient, project: Costed) -> None:
+        self.api = api
+        self.project = project
+        self.stage = project.stage
+        self.base = f"{PROJECTS}/{project.project_id}"
+        self.headers = self.stage.manager.headers
+
+    def declared(self, probability: str = "0.3", label: str = LABEL) -> dict[str, Any]:
+        """Declare a risk in the current revision; give it."""
+        sent = {"label": label, "probability": probability}
+        answer = self.api.post(f"{self.base}/risks", headers=self.headers, json=sent)
+        assert answer.status_code == 201, answer.text
+        return answer.json()
+
+    def read(self, risk: dict[str, Any], revision_id: object = None) -> Any:
+        """Read a risk, in the revision named, the current or the last marked otherwise."""
+        query = "" if revision_id is None else f"?revision_id={revision_id}"
+        return self.api.get(f"{self.base}/risks/{risk['risk_id']}{query}", headers=self.headers)
+
+    def risk(self, risk: dict[str, Any], revision_id: object = None) -> dict[str, Any]:
+        """Read a risk that must be read; give it."""
+        answer = self.read(risk, revision_id)
+        assert answer.status_code == 200, answer.text
+        return answer.json()
+
+    def update(self, risk: dict[str, Any], who: Person | None = None, **body: Any) -> Any:
+        """Change the identity of a risk at the counter read, as the manager by default."""
+        sent = {"label": risk["label"], "lock_version": risk["lock_version"], **body}
+        path = f"{self.base}/risks/{risk['risk_id']}"
+        headers = self.headers if who is None else who.headers
+        return self.api.patch(path, headers=headers, json=sent)
+
+    def own(self, risk: dict[str, Any], revision_id: object) -> str:
+        """Give the path of the nodes of the own estimate a risk holds in a revision."""
+        held = self.risk(risk, revision_id)["structure_id"]
+        return f"{self.base}/revisions/{revision_id}/structures/{held}/nodes"
+
+    def made(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
+        """Create a node in a structure, as the manager does; give the node created."""
+        answer = self.api.post(path, headers=self.headers, json=body)
+        assert answer.status_code == 201, answer.text
+        return answer.json()["nodes"][0]
+
+    def costed_at(self, risk: dict[str, Any], revision_id: object, amount: str) -> dict[str, Any]:
+        """Write a task bearing a line of material at an amount in an own estimate; give it."""
+        path = self.own(risk, revision_id)
+        task = self.made(path, {"kind": "task", "parent_id": None, "task": {"label": "Grue"}})
+        line = material(self.project.costs, "Location", amount)
+        sent = {"kind": "estimate_line", "parent_id": task["node_id"], "estimate_line": line}
+        return self.made(path, sent)
+
+    def repriced(
+        self, risk: dict[str, Any], revision_id: object, line: dict[str, Any], amount: str
+    ) -> dict[str, Any]:
+        """Change the amount of a line of the own estimate; give the line written."""
+        path = f"{self.own(risk, revision_id)}/{line['node_id']}/estimate-line"
+        sent = {"lock_version": line["lock_version"], "unit_disbursement": amount}
+        answer = self.api.patch(path, headers=self.headers, json=sent)
+        assert answer.status_code == 200, answer.text
+        return answer.json()["nodes"][0]
+
+    def revision(self) -> dict[str, Any]:
+        """Open the current revision of the project; give it."""
+        answer = self.api.post(f"{self.base}/revisions", headers=self.headers, json={})
+        assert answer.status_code == 201, answer.text
+        return answer.json()
+
+    def abandon(self, revision: dict[str, Any]) -> None:
+        """Abandon a current revision at the counter read."""
+        path = f"{self.base}/revisions/{revision['revision_id']}"
+        query = f"?lock_version={revision['lock_version']}"
+        answer = self.api.delete(f"{path}{query}", headers=self.headers)
+        assert answer.status_code == 204, answer.text
+
+    def declare(self, **body: Any) -> Any:
+        """Ask for a risk at 30 %; give the answer."""
+        sent = {"label": RISK_LABEL, "probability": "0.3", **body}
+        return self.api.post(f"{self.base}/risks", headers=self.headers, json=sent)
+
+    def declared_costed(self, amount: str | None = "200.00", **body: Any) -> dict[str, Any]:
+        """Declare a risk that must be declared, its own estimate at an amount unless none."""
+        answer = self.declare(**body)
+        assert answer.status_code == 201, answer.text
+        risk = answer.json()
+        if amount is not None:
+            self.costed_in(risk, amount)
+            return self.risk(risk)
+        return risk
+
+    def costed_in(self, risk: dict[str, Any], amount: str) -> None:
+        """Write a task bearing a line of material at an amount in the own estimate of a risk."""
+        path = f"{self.base}/revisions/{self.project.revision_id}/structures"
+        path = f"{path}/{risk['structure_id']}/nodes"
+        made = self.api.post(
+            path,
+            headers=self.headers,
+            json={"kind": "task", "parent_id": None, "task": {"label": "Grue"}},
+        )
+        assert made.status_code == 201, made.text
+        line = material(self.project.costs, "Location", amount)
+        sent = {
+            "kind": "estimate_line",
+            "parent_id": made.json()["nodes"][0]["node_id"],
+            "estimate_line": line,
+        }
+        written = self.api.post(path, headers=self.headers, json=sent)
+        assert written.status_code == 201, written.text
+
+    def provision(self, risk: dict[str, Any], who: Any = None, **body: Any) -> Any:
+        """Change the provision of a risk at the counter read, as the manager by default."""
+        sent = {"lock_version": risk["lock_version"], **body}
+        headers = self.headers if who is None else who.headers
+        return self.api.put(
+            f"{self.base}/risks/{risk['risk_id']}/provision", headers=headers, json=sent
+        )
+
+    def provisioned(self, risk: dict[str, Any], **body: Any) -> dict[str, Any]:
+        """Change the provision of a risk that must be changed; give the risk answered."""
+        answer = self.provision(risk, **body)
+        assert answer.status_code == 200, answer.text
+        return answer.json()
+
+    def review(self, risk: dict[str, Any], who: Any = None, **body: Any) -> Any:
+        """Review a risk at the counter read and its probability and state, as the manager does.
+
+        Without a probability or a state sent, those of the risk read: a confirmation.
+        """
+        sent = {
+            "probability": risk["probability"],
+            "state": risk["state"],
+            "lock_version": risk["lock_version"],
+            **body,
+        }
+        headers = self.headers if who is None else who.headers
+        return self.api.post(
+            f"{self.base}/risks/{risk['risk_id']}/reviews", headers=headers, json=sent
+        )
+
+    def reviewed(self, risk: dict[str, Any], **body: Any) -> dict[str, Any]:
+        """Review a risk that must be reviewed; give the risk answered."""
+        answer = self.review(risk, **body)
+        assert answer.status_code == 201, answer.text
+        return answer.json()
+
+    def reviews(self, risk: dict[str, Any], revision_id: object = None) -> list[dict[str, Any]]:
+        """List the reviews of a risk, in the revision named or the one the risk is read in."""
+        query = "" if revision_id is None else f"?revision_id={revision_id}"
+        answer = self.api.get(
+            f"{self.base}/risks/{risk['risk_id']}/reviews{query}", headers=self.headers
+        )
+        assert answer.status_code == 200, answer.text
+        return answer.json()
+
+    def remove(self, risk: dict[str, Any], who: Any = None, **query: Any) -> Any:
+        """Delete a risk at the counter read, as the manager does; give the answer."""
+        params = {"lock_version": risk["lock_version"], **query}
+        headers = self.headers if who is None else who.headers
+        return self.api.delete(
+            f"{self.base}/risks/{risk['risk_id']}", headers=headers, params=params
+        )
+
+    def started_marking(self) -> None:
+        """Ask for the marking of the current revision, which the worker does not run here."""
+        path = f"{self.base}/revisions/{self.project.revision_id}"
+        held = self.api.get(path, headers=self.headers).json()
+        sent = {"version_name": "v1.0", "lock_version": held["lock_version"]}
+        asked = self.api.post(f"{path}/mark", headers=self.headers, json=sent)
+        assert asked.status_code == 202, asked.text
+
+    def indicators(self) -> dict[str, Any]:
+        """Read the indicators of the estimate of the current revision."""
+        answer = self.api.get(f"{self.base}/estimate-indicators", headers=self.headers)
+        assert answer.status_code == 200, answer.text
+        return answer.json()
+
+    def subproject(self, code: str) -> str:
+        """Create a subproject of the project; give its identifier."""
+        answer = self.api.post(
+            f"{self.base}/subprojects", headers=self.headers, json={"code": code, "label": code}
+        )
+        assert answer.status_code == 201, answer.text
+        return answer.json()["subproject_id"]
+
+    def delete(self, node: dict[str, Any]) -> Any:
+        """Delete a node of the main structure, at the counter read."""
+        path = f"{self.project.tree.path}/nodes/{node['node_id']}"
+        return self.api.delete(
+            path, headers=self.headers, params={"lock_version": node["lock_version"]}
+        )
+
+    def remaining(self) -> dict[str, Any]:
+        """Read the indicators of the remaining to commit of the current revision."""
+        answer = self.api.get(f"{self.base}/remaining-indicators", headers=self.headers)
+        assert answer.status_code == 200, answer.text
+        return answer.json()

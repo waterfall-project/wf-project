@@ -22,7 +22,8 @@ terminal project (409 ``project_not_terminal``), then the first condition the co
 ``designate_reference`` lacks (409). It writes ``is_reference`` of the previous reference and of
 the new one, the project, and ``reference_designate`` in the journal; the project moves to In
 progress if its code is entered (``set_reference_revision``). The modules registered then do their
-part (``register_designation``: the budgeted amounts of EP-07), in the same transaction.
+part (``register_designation``: the budgeted amounts of EP-07, the reserve for risks of EP-08), in
+the same transaction.
 """
 
 from dataclasses import dataclass, replace
@@ -43,6 +44,7 @@ from waterfall.core.revisions.commands import (
     revision_conditions,
 )
 from waterfall.core.revisions.interface.shared import (
+    MAIN,
     found_revision,
     hold_current_revision,
     inscribe_revision,
@@ -116,7 +118,10 @@ def _write(revision: Revision, *, reference: bool, act: Act) -> None:
 class ReferenceDesignated:
     """A reference just designated, in the transaction of its designation, under its locks.
 
-    ``at`` is the instant of the designation, ``author`` who designated it.
+    ``at`` is the instant of the designation, ``author`` who designated it; ``previous_id`` the
+    revision that was the reference before, none for a first designation, and ``corrects`` whether
+    the designation corrects that one (``reference_correctable``, WF-REV-0040) rather than follows
+    it with a new reference of the project.
     """
 
     session: Session
@@ -124,6 +129,8 @@ class ReferenceDesignated:
     revision_id: UUID
     at: datetime
     author: UUID | None
+    previous_id: UUID | None = None
+    corrects: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,7 +199,15 @@ def designate_reference(
     _write(revision, reference=True, act=act)
     session.flush()
     set_reference_revision(session, project_id, revision_id, act)
-    designation = ReferenceDesignated(session, project_id, revision_id, act.at, act.author)
+    designation = ReferenceDesignated(
+        session,
+        project_id,
+        revision_id,
+        act.at,
+        act.author,
+        None if previous is None else previous.id,
+        corrects=state.reference_correctable,
+    )
     # The current revision, opened or marked since it was held, is held under the lock now.
     hold_current_revision(session, project_id)
     for follow in _DESIGNATIONS.entries():
@@ -232,16 +247,6 @@ def revision_has_tasks_and_lines(session: Session, revision_id: UUID) -> bool:
     return all(question(session, revision_id) for _, question in questions)
 
 
-def revision_has_tasks(session: Session, revision_id: UUID) -> bool:
-    """Tell whether a revision bears a task, by the questions of its tasks (``tasks`` part).
-
-    What the generation of the planning skeleton asks of the main structure (WF-PRJ-0030); the
-    planning's question covers every structure of the revision until the differentials of EP-08.
-    """
-    questions = [question for part, question in _TASKS_AND_LINES.entries() if part == "tasks"]
-    return any(question(session, revision_id) for question in questions)
-
-
 def register_main_task_question(
     question: Callable[[Session, Select[UUID]], bool],
 ) -> Callable[[], None]:
@@ -255,14 +260,15 @@ def register_main_task_question(
 def main_structure_has_task(session: Session, project_id: UUID, revision_id: UUID) -> bool:
     """Tell whether the main structure of a revision bears a task, by the questions registered.
 
-    What the declaration of a risk asks of the revision it writes in (WF-RIS-0010), where
-    ``revision_has_tasks`` covers every structure of the revision; false while none is registered.
-    The structure is given to the questions as a selection, so that they read it in one statement.
+    What the declaration of a risk (WF-RIS-0010) and the generation of the planning skeleton
+    (WF-PRJ-0030, #2541) ask of the revision: a task of the main structure alone, whichever tasks
+    the differentials bear; false while no question is registered. The structure is given to the
+    questions as a selection, so that they read it in one statement.
     """
     questions = _MAIN_TASK.entries()
     main = select(CostStructure.id).where(
         CostStructure.project_id == project_id,
         CostStructure.revision_id == revision_id,
-        CostStructure.kind == "main",  # ``MAIN`` of ``structures``, which imports this module
+        CostStructure.kind == MAIN,
     )
     return bool(questions) and all(question(session, main) for question in questions)

@@ -5941,7 +5941,7 @@ que le 409 de `setCostCategoryActivation`, nouveau, nomme ; exemple
 le résumé dit la cascade. La définition provisoire de L42p disparaît : `active_provision_category`
 est une catégorie active de type provision pour risques, une catégorie active l'étant toujours sous
 une nature active ; `CostCategoryImage.cost_type_is_active` reste, une information de lecture. Les
-générateurs suivent (`mockdata.categories_of`, `mockreference.category_commands`,
+générateurs suivent (`mockrates.categories_of`, `mockreference.category_commands`,
 `mockhistory.is_active_provision`) ; les natures du témoin sont actives, et aucun exemple engendré
 ne change. Écartés : rendre les catégories désactivées dans la réponse, comme `setOrgNodeActivation`
 — le schéma de la réponse aurait changé pour un écran qui lit une nature, et qui relit ses
@@ -9042,8 +9042,8 @@ ni le cas du jalon.
   - la tâche porteuse, devenue la récapitulative des tâches placées sous elle, est un `updated`
     dont `fields` nomme ce qui change de ses dates et de sa durée (`duration`, `start`, `finish`,
     dans l'ordre de `NodeColumn`) : elle couvre désormais les dates de ses subordonnées
-    (WF-PLA-0040), qui gardent celles du devis propre (WF-RIS-0060). Les tâches que ce changement
-    redate ailleurs ne sont pas des écarts, comme au compte rendu d'une fusion ;
+    (WF-PLA-0040), qui gardent celles du devis propre (WF-RIS-0060). *Les tâches que ce changement
+    redate ailleurs sont des écarts de plus, depuis la décision du 2026-11-19 (#4134, ci-dessous).*
   - un jalon porteur reste un jalon sans sous-tâche (Vérif de WF-RIS-0060) : il n'est pas modifié,
     et les tâches sont ajoutées après lui.
 - **Le refus.** Un risque qui n'est pas identifié — survenu ou écarté — : 409
@@ -9111,6 +9111,65 @@ ni le cas du jalon.
   `risk_occurrence_report_stale`, le 412, un compte rendu lu avant le réexamen du 2 mars.
   `tools/tests/test_mockriskwrites.py` les tient contre le registre, les structures et la
   structure principale.
+- **Une tâche greffée est nommée par son nœud du devis propre, dans les deux motifs** (US-2620/L1,
+  #4151, constat de contrat à trancher). `TASK_WITHOUT_WORKING_HOURS` nomme ses tâches par
+  `ProblemTask`, dont `node_id` est requis et non nul : elle ne peut pas nommer par un nœud nul la
+  tâche que la greffe crée. Pour que les deux motifs d'un même compte rendu nomment la même tâche
+  de la même façon, `PROJECT_HORIZON_EXCEEDED`, dont `params.task` admet un nœud nul pour une tâche
+  que l'entrée crée, nomme aussi la tâche greffée par son nœud du devis propre ; seule une tâche de
+  la structure principale est nommée par son nœud. Le contrat n'est pas modifié ; #4151 reste à
+  trancher (nœud nul à l'import, nœud du devis propre ici).
+- **Les tâches que la greffe redate sont des différences de plus** (US-2620/L2, #4134, décision de
+  l'auteur du 2026-11-19, la variante « deux champs au compte rendu » d'un commentaire antérieur
+  écartée). Chaque tâche de la structure principale, autre que la tâche porteuse, dont les dates
+  calculées changent par la greffe est une différence `updated` de `differences`, après la tâche
+  porteuse et avant la ligne retirée, dans l'ordre du plan, `fields` nommant ses dates par les
+  colonnes de la grille (`start`, `finish`, dans l'ordre de `NodeColumn`). Les dates sont celles du
+  moteur, rejoué une fois sur la structure que la survenance laisse — le passage même qui juge les
+  motifs de refus —, comparées à celles que la tâche porte. Une tâche qu'aucune liaison ne rattache à
+  la greffe n'y figure pas. Aucun schéma ne change : la description de `differences` le dit. La
+  règle est provisoire, EP-30 la reprenant pour le devis propre préparé comme un différentiel.
+- **Le devis propre qui commence avant le jour de la déclaration est signalé, non refusé** (US-2620/L2,
+  #4133, décision de l'auteur du 2026-11-19, la variante « la survenance redate » écartée). Les
+  tâches fusionnées gardent les dates qu'elles avaient dans le devis propre (WF-RIS-0060) ; un
+  devis propre dont le début de planning précède le jour de la déclaration les placerait dans le
+  passé. `RiskOccurrenceReport.own_estimate_past_planning_start_on`, facultatif et nul quand il n'y a
+  rien à dire, est la date de début de planning du devis propre quand elle précède le jour de la
+  lecture, dans le fuseau de l'installation (`current_day`). Ce n'est pas un motif de refus
+  (`refusals` reste vide) et la survenance ne redate rien. Une saisie du début du devis propre
+  (`updateCostStructure`) fait avancer le compteur du risque : le compte rendu lu avant elle est
+  périmé (412 à la confirmation), celui qui suit, avec un début au jour ou après, ne signale rien.
+  Le nom du champ dit ce qu'il porte, la date et non un booléen, pour que l'écran la nomme ; `_on`
+  suit `planning_start_on`. Écartés : un `ReportRefusal`, qui bloquerait la survenance d'un devis
+  que personne ne peut redater sans le saisir ; un booléen, qui ne nomme pas la date.
+- **L'application de la survenance** (US-2620/L2, `declareRiskOccurrence`). Une seule tâche
+  `risk_occurrence`, une seule transaction, sous le verrou du projet puis du devis propre, de la
+  structure principale et du risque : la requête juge les 409 dans l'ordre du contrat, puis les deux
+  compteurs lus et `creates_current_revision` (412 `STALE_LOCK_VERSION`, `params.expected_lock_version`
+  le compteur du risque) ; le worker les juge de nouveau, la tâche elle-même ne comptant pas comme
+  une tâche qui écrit. Sans révision en cours, il la crée d'abord, par copie de la dernière marquée
+  aux taux conservés, projetés, après avoir jugé les compteurs sur la structure marquée, que le
+  marquage a figée. L'évaluation passe à `occurred` avant que la greffe ne supprime la ligne de
+  provision, que sa clé et sa contrainte refuseraient sinon ; le coût à la survenance est le total du
+  devis propre avant la greffe ; le réexamen de survenance garde la probabilité de l'évaluation, qui ne
+  change pas, et la gravité ; le devis propre est marqué `is_merged`. Rien n'est marqué, la référence
+  ne bouge pas, rien n'entre à l'historique annulable ; le journal reçoit `risk_occurrence` sur le
+  risque, dans sa révision.
+- **La révision qui suit une survenance garde l'évaluation du risque et une structure vide**
+  (US-2620/L2). La copie d'une révision ne reprend pas le devis propre fusionné, ni ses nœuds,
+  ses lignes, ses liaisons et ses images. Mais l'évaluation du risque survenu, avec son coût à la
+  survenance, est reprise (WF-RIS-0030), et elle nomme une structure de sa révision et de son risque
+  (`Risk.structure_id`, exigé ; clé de `risk_evaluation`) : la structure est donc copiée comme ligne,
+  fusionnée et vide, sa lignée et son début de planning gardés. `listCostStructures` la rend
+  `is_merged`, sans nœud. Écarté : ne pas reprendre l'évaluation, qui ferait disparaître un risque
+  survenu du registre, de la matrice et de la couverture dès la révision suivante.
+- **L'abandon d'une révision où le risque a été déclaré puis est survenu** (US-2620/L2) supprime le
+  risque avec elle, les nœuds fusionnés qui le nomment (`origin_risk_id`) lâchés avant sa suppression
+  et supprimés avec la révision.
+- **`UNKNOWN_RISK`** (US-2620/L2, `NodeOriginRiskFilter`) : un risque est connu du filtre quand il est
+  survenu, dans une révision du projet ou dans une autre ; l'abandon qui défait la survenance le
+  rend inconnu. Le refus nomme chaque identifiant fautif par sa place (`/query/origin_risk_ids/<n>`),
+  à `listNodes` comme à `compareRevisions`.
 
 **Corrélation** 1591 et 1592.
 
@@ -10823,6 +10882,18 @@ la révision ; celui d'`updateRiskProvision` nomme `project_not_terminal`,
 `risk_updated_without_current_revision` modifie l'identité d'un risque sur le projet sans révision
 en cours (`project_without_current_revision`) : aucune révision n'est créée.*
 
+*Décision de l'utilisateur du 2026-11-18 (US-2570/L2, #3980) : **renommer un risque renomme son devis
+propre et sa ligne de provision** dans la révision en cours, du libellé de la déclaration — « Provision —
+<libellé> » pour la ligne —, hors de l'historique annulable, comme l'identité qui le commande. L'ouverture d'une révision — par
+`createRevision`, ou par `createRisk` quand le projet n'en a pas — nomme le devis propre et la ligne
+d'après le libellé du risque tel qu'il est alors, et non d'après la dernière révision marquée : un
+renommage fait sans révision en cours, ou dans une révision abandonnée depuis, se lit donc dans la
+suivante. Les révisions marquées gardent les noms qu'elles figent (WF-DAT-0020) ; sans révision en
+cours, `updateRisk` n'écrit que l'identité. Le compteur de la structure propre et celui de la
+structure principale avancent, celui du risque une seule fois. Écarté : laisser au devis propre et à la
+ligne le libellé de la déclaration, qui aurait fait lire un ancien nom dans `listCostStructures` et dans la
+grille de la structure principale.*
+
 ### Le registre des risques se filtre sur chacune de ses colonnes (US-0704, #1735, H-01, #1785)
 
 Décision de l'auteur du 2026-11-01 : le contrat suit WF-IHM-0130. `listRisks` se triait sur ses six
@@ -12352,6 +12423,89 @@ lieu de `estimate.read`) viennent avec US-2320/L3. `info.version` reste `1.0.0`.
 figée à tout lecteur d'une grille (option 2), qui ouvrait les taux à un compte sans
 `cost_settings.read`.
 
+### La mise à jour d'un différentiel depuis la structure principale (US-3050/L1, #4034, #4132)
+
+La reprise de la conception d'EP-08 du 2026-11-19 (« Le contrat », « La base d'un différentiel et sa
+mise à jour ») écrit au contrat, avant le code qui le sert (US-3050/L2 et suivants), ce que la
+fusion en trois voies sur une base conservée demande (décision de l'auteur, #4034) ; la
+spécification 1.0.7 ne le dit pas encore, #4132 en propose le texte. `info.version` reste `1.0.0` :
+deux opérations, deux schémas, une propriété facultative, une commande, deux conditions et des
+exemples de plus ; aucune propriété existante ne change, aucune n'est exigée de plus.
+
+- **`getStructureRebaseReport` et `rebaseCostStructure`**, `GET` et `POST
+  …/structures/{structure_id}/rebase`, contre le gel du contrat comme `deleteCostStructure` : le
+  compte rendu préalable et la confirmation, comme l'import, la fusion et la survenance. « Rebase »
+  dit l'opération de git qu'elle est : reporter sous ce qu'une branche désigne ce que la branche
+  principale a reçu, et faire de celle-ci la nouvelle base. Le chemin suit `…/merge`. Écarté :
+  `update`, que `updateCostStructure` porte déjà pour le libellé et la date de début.
+- **`StructureRebaseReport`** : `main_structure_lock_version`, `structure_lock_version`,
+  `differences` (`ImportDifference`), `refusals` (`ReportRefusal`). Ni `completed_tasks` ni
+  `creates_current_revision` : la mise à jour ne termine aucune tâche et n'est offerte que sur la
+  révision en cours. **Le compteur du différentiel s'appelle `structure_lock_version`**, et non
+  `amendment_lock_version` comme celui de la fusion : la conception veut que ce que la structure
+  désigne et son report ne nomment pas la nature « avenant », EP-30 les reprenant pour le devis
+  propre d'un risque, et le nom est celui que `NodesWritten` donne déjà au compteur de la structure
+  que le chemin nomme. **`StructureRebase`** : `confirmed`, et les deux mêmes compteurs ; l'un
+  périmé, 412 `STALE_LOCK_VERSION`, `params.expected_lock_version` le compteur du différentiel,
+  comme la fusion.
+- **Aucun schéma nouveau pour une différence** : `added`, `updated` et `removed` disent ce que la
+  mise à jour reporte de la principale dans le différentiel ; `kept`, ce qu'il garde contre elle,
+  par les quatre règles de la conception. **Un `kept` de mise à jour nomme dans `fields` les valeurs
+  gardées** (règle 1) ; les trois autres règles — la tâche modifiée que la principale n'a plus, la
+  tâche ajoutée sous une tâche disparue, la liaison ajoutée vers une tâche disparue — n'en nomment
+  aucune. Un ajout porte ici sa lignée, celle de la principale, sous laquelle il entre au
+  différentiel. Les descriptions d'`ImportDifference` et de `ReportRefusal` le disent.
+- **Le refus par un motif du compte rendu est un 422**, `problem.code` le premier motif du compte
+  rendu (`LINK_CYCLE`, `LINK_FORBIDDEN`, `PROJECT_HORIZON_EXCEEDED`, `TASK_WITHOUT_WORKING_HOURS`)
+  et `params` ses paramètres, comme toute écriture synchrone qui fermerait une boucle
+  (`setPredecessors`, `moveNodes`). Les tâches y sont nommées par leur nœud **dans le
+  différentiel**, la structure que la mise à jour écrit, et non dans la principale comme pour la
+  fusion. Écartés : un 409 d'état (`import_file_accepted` pour l'import), un refus qui n'est pas
+  un état ; l'échec d'une tâche de fond, la mise à jour étant synchrone.
+- **`CostStructure.is_up_to_date`**, booléen ou nul, **facultatif** comme `risk_id` : le seul champ
+  qu'un schéma servi reçoit, et que le service rend avant US-3050/L2 sans le connaître. Vrai à
+  l'ouverture et après la mise à jour, faux dès qu'une écriture avance le compteur de la principale.
+  **Nul pour la principale, le devis propre d'un risque et un différentiel fusionné** : ce dernier,
+  consommé, n'a plus de mise à jour possible, et son état ne dirait rien. Écarté : `is_rebased`,
+  qui dirait un geste passé plutôt qu'un état.
+- **La commande `rebase`** s'ajoute à `StructureCommand`, après `delete`, listée où `delete` l'est —
+  sur un différentiel non fusionné seul —, sous la permission de `create_structure`, avec les mêmes
+  conditions d'état dans le même ordre, puis la sienne.
+- **Deux conditions, en miroir**, rangées après `main_structure` : **`structure_up_to_date`** manque
+  à la fusion d'un différentiel en retard — `getStructureMergeReport` et `mergeCostStructure` la
+  nomment dans leur 409 après celles de la fusion (`unmerged_amendment_exists`, `revision_draft`,
+  `may_create_revision`), et se juge avant le nom de version, comme `markRevision` juge l'état de
+  sa révision avant son nom : un différentiel en retard dont le nom de version est déjà pris est
+  refusé par `structure_up_to_date`, non par `ALREADY_EXISTS` (#4186) ; aucune commande ne la dit
+  d'avance, `merge_structure` étant une commande
+  de la révision et non du différentiel : la structure le dit, et sa commande `rebase`. La fusion
+  d'un différentiel en retard de la dernière révision marquée, sans révision en cours, la nomme
+  aussi : il attend que la révision soit créée. **`structure_out_of_date`** manque à la mise à jour d'un
+  différentiel déjà à jour, nommée par le 409 de ses deux opérations après les conditions de
+  `deleteCostStructure` (`project_not_terminal`, `revision_draft`, `no_background_task_running`,
+  `unmerged_amendment_exists`). Le nom est celui de la structure, non de l'avenant, pour la même
+  raison que le compteur. Écarté : `rebase_available`, à la manière de `rate_update_available`,
+  qui ne se lit pas en miroir de la condition de la fusion.
+- **La base n'est servie par aucune opération** : `createCostStructure` dit qu'elle naît avec le
+  différentiel, `deleteCostStructure` qu'elle disparaît avec lui, et une route qui la nomme répond
+  le 404 d'une structure inconnue ; `NodeDifference`, `Node.difference` et `listNodes` disent qu'un
+  différentiel se lit contre elle.
+
+Exemples, engendrés par `wftools.mockrebase` et tenus par `tools/tests/test_mockrebase.py` : une
+variante déclarée, la suite d'écritures faites aujourd'hui dans la principale — celles de ses
+exemples (`node_created_manual`, `task_renamed`, `estimate_line_updated`, `node_deleted`) et la
+ligne de la mise en service réestimée à 96 h, que l'avenant porte à 120 h — met l'avenant 2 en
+retard ; le compte rendu (`structure_rebase_report`) en présente une différence de chaque sorte,
+la charge de la mise en service gardée (`kept`, `hours`) ; sa variante refusée
+(`structure_rebase_report_refused`), le montage que la principale fait suivre à la mise en service
+fermant une boucle dans le différentiel ; la mise à jour aboutie (`structure_rebased`), refusée par
+ce motif (`structure_rebase_link_cycle`), au compteur périmé (`structure_rebase_stale`) ou sur
+l'avenant à jour (`structure_rebase_up_to_date_refused`) ; la fusion de l'avenant en retard
+(`merge_out_of_date_refused`). Les exemples écrits à la main portent l'état : l'avenant 2 à jour à
+son ouverture (`amendment_created`) et dans la révision courante (`structures`), mis à jour depuis
+sa reprise ; en retard dans la référence marquée (`structures_amendments`), la fusion de l'avenant
+1 ayant écrit la principale après son ouverture.
+
 ### L'abandon d'un différentiel, l'inscription refusée hors de la principale, la couverture réestimée (US-2550/L2, #3823, #2497, #2002)
 
 Trois modifications que la conception d'EP-08 écrit au contrat (« Le contrat ») avant le code qui
@@ -12416,6 +12570,40 @@ Les refus ont leurs exemples, engendrés par `wftools.mockdifferentials` et tenu
 (`structure_delete_main_refused`), l'avenant 2 de la référence marquée
 (`structure_delete_revision_marked`), l'avenant 2 courant au compteur périmé
 (`structure_delete_stale`). Aucun exemple de succès : le 204 n'a pas de corps.
+
+### La condition de l'abandon, l'inscription et la migration du journal (US-2550/L4, #3953, #2497, #2499)
+
+Trois précisions que le lot qui sert `deleteCostStructure` et le refus de `setNodeTracking` écrit,
+aucune propriété du contrat ne changeant.
+
+- **`unmerged_amendment_exists` dit, sur `deleteCostStructure`, que la structure visée n'est pas un
+  différentiel non fusionné** (#3953, décision de l'auteur du 2026-11-18) : non pas qu'il n'en existe
+  aucun dans la révision, d'autres pouvant exister. La condition est gardée, et la description de
+  l'opération le dit d'une phrase. Écarté : une condition propre à l'abandon.
+- **L'ordre des refus de l'abandon** : le 409 de l'état de la révision (`project_not_terminal`,
+  `revision_draft`, `no_background_task_running`), puis celui de la nature de la structure
+  (`unmerged_amendment_exists`), puis le 412 du compteur : la principale n'est jamais refusée par
+  412, quel que soit le compteur envoyé.
+- **Les inscriptions d'une lignée se sérialisent par un verrou de la lignée** (#2499), pris après
+  celui de la structure par toute écriture des inscriptions — `setNodeTracking`, la restitution
+  d'une entrée de l'historique —, de sorte que deux structures qui partagent une lignée ne les
+  insèrent pas en parallèle. Avec le refus de `main_structure` (#2497), qui laisse la principale
+  seule les écrire, il ne reste à tenir que la restitution ; le verrou ferme le cas sans qu'une
+  violation d'unicité remonte en 500.
+- **La migration `0037`** admet `structure_abandon` dans le journal, après `amendment_merge`, qui
+  garde son ancien nom jusqu'à US-2560 : la contrainte `action_known` et l'index du rang de
+  l'action suivent l'ordre du contrat.
+
+### La permission de l'ouverture d'un différentiel (US-2550/L3, #3824)
+
+`createCostStructure` — la commande `create_structure` de la révision — est sous `revisions.write`,
+et `deleteCostStructure`, que US-2550/L4 sert, y est aussi, par renvoi : ni la conception d'EP-08 ni
+le contrat ne nommaient la permission. Pourquoi : comme `createRevision` et `apply_rate_update`, la
+commande ne dispose d'aucune permission propre au catalogue de WF-ADM-0100 ; ouvrir ou abandonner
+un différentiel est une écriture de la révision, dont `revisions.write` est la gestion. Le lecteur
+d'un projet qui ne la détient pas est refusé par `403`, et la commande lui est listée absente de la
+révision. Écarté : une permission propre, qui ajouterait une ligne au catalogue des rôles pour une
+écriture que tient déjà la gestion des révisions.
 
 ### Le tri des constats de spécification : le référentiel sous permission, l'élément d'OTP comparé en entier (#3349, #3370)
 
@@ -12536,6 +12724,75 @@ description de `sort_by` de `getPortfolioProjects` gagne la place d'une valeur a
   somme des budgets de référence des projets en cours, le pipeline celle des devis courants des
   offres, brut, et pondéré par la probabilité que la révision retenue a gardée, chaque part arrondie
   au centime une fois. Un devis qu'un taux manquant empêche de calculer n'entre dans aucune somme.
+### La ligne de provision d'un risque suit sa tâche et compte au reste à engager (US-2580/L1)
+
+Aucune forme du contrat ne change ; ce que `updateRiskProvision` et `deleteNode` disent déjà se
+réalise ainsi (conception d'EP-08, « Ce qui reconnaît une ligne de provision », « Modules »).
+
+- **La suppression d'une tâche qui porte une provision, ou l'import d'un planning qui ne la porte
+  plus, ne l'emporte pas** : la ligne passe sur la tâche parente de la tâche retirée — la plus
+  proche qui reste quand l'import retire toute une branche —, sur la première tâche de premier niveau
+  qui reste pour une tâche de premier niveau, au rang après les lignes de sa nouvelle tâche. Le
+  compteur du risque avance avec elle. `deleteNode` la rend dans `nodes` ; le compte rendu de
+  l'import la présente par un écart `updated` de la ligne (`target` `estimate_line`, `fields`
+  `["parent"]`, son libellé) ; une tâche démarrée, que l'import garde, garde sa ligne. La lignée de la tâche que le risque
+  désigne n'est pas réécrite : la tâche retirée n'existe plus, et le retour d'un risque écarté
+  retombe sur la première tâche de premier niveau (WF-RIS-0010).
+- **`updateRiskProvision` désigne une tâche de la révision qu'elle crée par l'une de la dernière
+  révision marquée** quand le projet n'a pas de révision en cours : le client ne connaît pas les
+  identifiants de la copie, la tâche est retrouvée par sa lignée (WF-DAT-0030). Une tâche inconnue
+  des deux reste `UNKNOWN_TASK`.
+- **La provision d'un risque identifié compte au reste à engager** (WF-RAE-0010), quel que soit
+  l'état de la tâche qui la porte, sous le sous-projet de sa ligne — « hors sous-projet » sans lui —
+  et sous la nature de sa catégorie dans `by_cost_type` : `getRemainingIndicators` ne la sert plus à
+  zéro. Le sous-projet d'une ligne de provision se change même quand sa tâche est démarrée et que
+  son sous-projet a reçu des coûts réels : la règle d'EP-09 vise les lignes de la grille.
+- **`updateRiskProvision` n'entre pas encore à l'historique annulable**, comme `createRisk` : les
+  quatre genres de saisie d'un risque s'y inscrivent avec US-2590/L2. L'abandon de la révision
+  défait la saisie, l'évaluation et la ligne étant de la révision.
+
+### La ligne de provision ne se supprime pas par la grille ; un planning ne la laisse pas sans tâche (US-2580/L2, #4007, #4011)
+
+Décisions de l'utilisateur du 2026-11-19 ; la forme en est fixée par le lot, au plus près des
+précédents du contrat.
+
+- **`deleteNode` sur la ligne de provision elle-même est refusé par 409
+  `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `line_not_provision`, `params.risks`
+  nommant son risque** (#4007). La ligne ne s'écrit que par son risque — son écartement, sa
+  survenance, sa suppression (WF-RIS-0010) ; la clé de `risk_evaluation` vers elle répondait 500.
+  La condition est celle que `setLineRemaining` nomme déjà pour la même ligne et que
+  `remaining_entry` dit manquante : aucune valeur nouvelle de `CommandCondition`, aucune clé de
+  traduction nouvelle. Elle vient après `task_not_completed`, dans l'ordre de `CommandCondition`,
+  comme pour `setLineRemaining`. `params.risks` suit `at_least_one_task`, qui nomme de même les
+  risques d'une ligne qui n'aurait plus de tâche (`provision_line_refused`). Une ligne d'une
+  catégorie de provision hors de la structure principale n'est la provision d'aucun risque et se
+  supprime comme une autre. Écartés : 422 (le refus tient à l'état de la ligne, non à une valeur
+  envoyée), et un code propre, que J-01 a retiré pour les refus d'état.
+- **Un planning de MS Project qui laisserait sans tâche une structure principale portant une
+  provision est refusé entier au compte rendu, `PROVISION_WITHOUT_TASK`, `params.risks`** (#4011),
+  comme `ORDER_ITEM_OUTSIDE_WORK_PACKAGE` et `PROJECT_HORIZON_EXCEEDED` : un `ReportRefusal`, rendu
+  dès l'analyse (`ImportReport.refusals`), jugé de nouveau à l'application, qui échoue sur lui avec
+  les mêmes paramètres. Le nom suit `TASK_WITHOUT_WORKING_HOURS` ; `params.risks` est celui de
+  `at_least_one_task`. Écarté : un refus d'état (`at_least_one_task`) dans le compte rendu, dont
+  les raisons sont des codes d'`ErrorCode` sans condition.
+- **Les imports du devis et du reste à engager ne touchent pas une ligne de provision** : une ligne
+  du fichier qui porte sa lignée est ignorée et nommée par sa désignation
+  (`ImportIgnored.kind` `provision_lines`, hors de `unchanged_count`) ; le devis qui ne la porte
+  plus la garde et la signale (`kept`, WF-INTF-0100), le reste à engager la laisse sans la signaler comme toute
+  ligne absente (WF-INTF-0100, WF-INTF-0120). Le contrat le disait déjà ; le service le réalise.
+
+### La réserve d'une révision marquée se lit de la référence (US-2610/L1)
+
+Aucune forme du contrat ne change. `getProjectRiskCoverage` et `coverage` de `getRemainingIndicators`
+sur une révision marquée rendent les grandeurs des risques telles que le marquage les a conservées
+(`remaining_provisions`, `occurred_cost`, `occurred_reestimated` ; WF-DAT-0040), mais la réserve est
+lue de la référence du projet, comme `ProvisionTotals.reserve`, et l'écart se déduit
+`reserve − (remaining_provisions + occurred_cost)`. Raison : la réserve est une donnée que la
+référence conserve (`risk_reference_share`, écrite une fois à la désignation, jamais recalculée) et
+non un calcul sur les risques de la révision ; or le chemin normal marque v1.0 *puis* la désigne, et
+le marquage ne peut avoir conservé que la réserve d'avant, 0 (écart −60 pour une provision de 60),
+quand le registre rend 60 sur la même révision (WF-RIS-0050-A). Les deux lectures restent égales
+(WF-RAE-0020-A).
 
 ## Collage et annulation
 

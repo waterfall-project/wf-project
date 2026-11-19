@@ -11,6 +11,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { uncommented } from "@/test/uncommented";
+
 const UI = import.meta.dirname;
 const SOURCES = readdirSync(UI)
   .filter((name) => name.endsWith(".tsx") || (name.endsWith(".ts") && !name.includes(".test.")))
@@ -20,6 +22,11 @@ const SOURCES = readdirSync(UI)
 const ORNAMENT =
   /(^|[\s"'`:!])(transition(-[\w[\]-]+)?|animate-[\w-]+|bg-(linear|radial|conic)-[\w-]+|bg-gradient-[\w-]+|(drop|text|inset)-shadow(-[\w[\]/-]+)?|shadow(?!-md\b)(-[\w[\]/-]+)?)(?=[\s"'`]|$)/;
 
+/** The first ornament a source writes outside its comments, or undefined when it writes none. */
+function ornamentOf(source: string): string | undefined {
+  return ORNAMENT.exec(uncommented(source))?.[0].trim();
+}
+
 describe("the components of shadcn/ui copied into the repository", () => {
   it("are read, every one of them", () => {
     expect(SOURCES.map(([name]) => name)).toContain("sidebar.tsx");
@@ -27,8 +34,16 @@ describe("the components of shadcn/ui copied into the repository", () => {
   });
 
   it.each(SOURCES)("carry no ornament but the shadow of what floats: %s", (_name, source) => {
-    const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
-    expect(ORNAMENT.exec(code)?.[0].trim()).toBeUndefined();
+    expect(ornamentOf(source)).toBeUndefined();
+  });
+
+  it("find an ornament written after a string holding a comment opener [US-2800]", () => {
+    for (const source of [
+      'const a = "http://x"; const b = "shadow-sm";',
+      'const a = "/*";\nconst b = "transition-all";\n// */',
+    ]) {
+      expect(ornamentOf(source), source).toBeDefined();
+    }
   });
 
   it("tell an ornament from what it is not", () => {

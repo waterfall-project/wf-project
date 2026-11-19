@@ -5,7 +5,9 @@
 A line of estimate is a node of the structure, under the task that bears it (EP-06, "Ce que le
 cadrage décide"): the planning owns ``node``, and gives the estimate the lines of tasks
 (``lines_of``) and the task of lines (``bearers_of``, US-1500), the lineages of lines
-(``lineages_of``, ``lines_of_revision``), the tasks of a structure that bear a line besides the
+(``lineages_of``; ``lines_of_revision``, of the structures that hold their lineages alone), the
+lines of the structures of a revision, its bases' or not (``revision_lines``), the nodes no base
+holds (``outside_bases``, US-3050), the tasks of a structure that bear a line besides the
 provisions (``bearing_tasks``, US-1590/L2), the structures that hold nodes (``structures_of``) and
 whether a revision bears one (``revision_bears``). It places a line it creates
 (``create_line_node``, from ``createNode``): under a task of the structure, a milestone included
@@ -55,6 +57,7 @@ from waterfall.core.planning.tables import Node
 from waterfall.core.planning.tallying import provision_lines
 from waterfall.core.planning.tree import LINE, read_tree
 from waterfall.core.planning.writing import writing
+from waterfall.core.revisions.interface import holds_its_lineages, not_a_base
 from waterfall.platform.database import among
 from waterfall.platform.errors import (
     NOT_FOUND,
@@ -212,13 +215,58 @@ def structures_of(
 
 
 def lines_of_revision(session: Session, project_id: UUID, revision_id: UUID) -> dict[UUID, UUID]:
-    """Give the lines of every structure of a revision, by their lineage."""
+    """Give the lines of a revision by their lineage: its main structure's, its own estimates'.
+
+    What a reading by lineage asks — the budgeted amount of the reference, by the lineage of a
+    line —: a differential and its base copy the main structure under its lineages (US-3050), and
+    the main structure alone says what the revision holds of them; an own estimate of a risk holds
+    lineages of its own.
+    """
     rows = session.execute(
         select(Node.lineage_id, Node.id).where(
-            Node.project_id == project_id, Node.revision_id == revision_id, Node.kind == LINE
+            Node.project_id == project_id,
+            Node.revision_id == revision_id,
+            Node.kind == LINE,
+            holds_its_lineages(Node.structure_id, project_id, revision_id),
         )
     )
     return dict(rows.all())
+
+
+def revision_lines(
+    session: Session, project_id: UUID, revision_id: UUID, *, bases: bool
+) -> dict[UUID, UUID]:
+    """Give the lines of the structures of a revision, each with its lineage, by node.
+
+    ``bases`` keeps the lines of the bases of its differentials: what prices every structure of a
+    revision writes them too (US-3050). Without, what counts the lines a revision holds leaves them
+    out, no operation serving a base.
+    """
+    criteria = [Node.project_id == project_id, Node.revision_id == revision_id, Node.kind == LINE]
+    if not bases:
+        criteria.append(not_a_base(Node.structure_id, project_id, revision_id))
+    return dict(session.execute(select(Node.id, Node.lineage_id).where(*criteria)).all())
+
+
+def outside_bases(
+    session: Session, project_id: UUID, node_ids: Collection[UUID]
+) -> frozenset[UUID]:
+    """Give, of the nodes of a project named, those no base of a differential holds (US-3050).
+
+    What a question of employment keeps of the lines it found: a base, which no operation serves,
+    employs nothing.
+    """
+    if not node_ids:
+        return frozenset()
+    return frozenset(
+        session.scalars(
+            select(Node.id).where(
+                Node.project_id == project_id,
+                among(Node.id, node_ids),
+                not_a_base(Node.structure_id, project_id),
+            )
+        )
+    )
 
 
 def lines_of_structure(session: Session, project_id: UUID, structure_id: UUID) -> tuple[UUID, ...]:
@@ -236,11 +284,35 @@ def lines_of_structure(session: Session, project_id: UUID, structure_id: UUID) -
     )
 
 
-def revision_bears(session: Session, revision_id: UUID, kind: str) -> bool:
-    """Tell whether a structure of a revision holds a node of a kind."""
-    return bool(
-        session.scalar(select(exists().where(Node.revision_id == revision_id, Node.kind == kind)))
+def lines_of_structures(
+    session: Session, project_id: UUID, structure_ids: Collection[UUID]
+) -> dict[UUID, tuple[UUID, ...]]:
+    """Give the estimate lines of each structure named, in node order, in one statement."""
+    held: dict[UUID, list[UUID]] = {each: [] for each in structure_ids}
+    if not held:
+        return {}
+    rows = session.execute(
+        select(Node.structure_id, Node.id)
+        .where(
+            Node.project_id == project_id,
+            Node.structure_id.in_(list(held)),
+            Node.kind == LINE,
+        )
+        .order_by(Node.id)
     )
+    for structure_id, node_id in rows:
+        held[structure_id].append(node_id)
+    return {structure_id: tuple(nodes) for structure_id, nodes in held.items()}
+
+
+def revision_bears(session: Session, revision_id: UUID, kind: str) -> bool:
+    """Tell whether a structure of a revision holds a node of a kind; a base is none (US-3050)."""
+    criteria = (
+        Node.revision_id == revision_id,
+        Node.kind == kind,
+        not_a_base(Node.structure_id, Node.project_id, revision_id),
+    )
+    return bool(session.scalar(select(exists().where(*criteria))))
 
 
 @dataclass(frozen=True, slots=True)

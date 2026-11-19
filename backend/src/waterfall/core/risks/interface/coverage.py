@@ -9,12 +9,20 @@ occurrence of the occurred ones (WF-RIS-0050), the re-estimated amount of the li
 them beside, outside the variance (#1761). The estimate reads it in its indicators of the remaining
 to commit, by the registry it declares (``register_coverage``), which this answers.
 
+The reserve is the one the reference of the project conserves, whichever revision is read; none
+without a reference. A marked revision is read as its marking kept it (EP-10) for the figures of
+its risks, with the reserve of the reference (``kept_coverage``): this computes the coverage of a
+revision the marking has not kept, and what the marking keeps.
+
 Declared by US-2550/L1, the socle of EP-08; filled by US-2610/L1.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from waterfall.core.risks.covering import conserved_coverage, coverage_of
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -24,5 +32,9 @@ if TYPE_CHECKING:
 
 def risk_coverage_of(session: Session, project_id: UUID, revision_id: UUID) -> Coverage:
     """Give the coverage of the risks of a revision of a project: its reserve, provisions, costs."""
-    msg = "risk_coverage_of is filled by US-2610/L1"
-    raise NotImplementedError(msg)
+    return coverage_of(session, project_id, revision_id)
+
+
+def kept_coverage(session: Session, project_id: UUID, kept: Mapping[str, Any]) -> dict[str, Any]:
+    """Give the coverage a marked revision kept, with the reserve the reference conserves now."""
+    return conserved_coverage(session, project_id, kept)

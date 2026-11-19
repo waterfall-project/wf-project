@@ -12,15 +12,21 @@ occurrence frozen, a review of occurrence written, the own estimate marked merge
 It marks nothing.
 
 Declared by US-2550/L1, the socle of EP-08; filled by US-2620/L1 (the report) and US-2620/L2 (the
-application).
+application, ``applying``).
 """
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from waterfall.core.risks.applying import (
+    OccurrenceRequest,
+    run_occurrence_task,
+    submit_occurrence_task,
+)
+from waterfall.core.risks.occurring import OccurrenceReport, occurred_among, report_occurrence
+
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-    from decimal import Decimal
+    from collections.abc import Collection, Mapping
+    from datetime import date
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -29,51 +35,36 @@ if TYPE_CHECKING:
     from waterfall.platform.audit import Act
     from waterfall.platform.queue import TaskQueue
 
-
-@dataclass(frozen=True, slots=True)
-class OccurrenceReport:
-    """What the occurrence of a risk would do (``RiskOccurrenceReport``), and the counters read.
-
-    ``differences`` as ``ImportDifference``, ``refusals`` as ``ReportRefusal``; the provision line
-    the occurrence removes, by its amount.
-    """
-
-    main_structure_lock_version: int
-    risk_lock_version: int
-    creates_current_revision: bool
-    differences: tuple[Mapping[str, object], ...]
-    provision_amount: Decimal
-    refusals: tuple[Mapping[str, object], ...]
-
-
-@dataclass(frozen=True, slots=True)
-class OccurrenceRequest:
-    """An occurrence confirmed (``RiskOccurrence``): the risk, and what its report read."""
-
-    project_id: UUID
-    risk_id: UUID
-    main_structure_lock_version: int
-    risk_lock_version: int
-    creates_current_revision: bool
+# The report and the request, as the interface hands them on (``risks.interface`` re-exports them).
+__all__ = ["OccurrenceReport", "OccurrenceRequest"]
 
 
 def occurrence_report(
-    session: Session, project_id: UUID, risk_id: UUID, viewer: Viewer
+    session: Session, project_id: UUID, risk_id: UUID, viewer: Viewer, today: date
 ) -> OccurrenceReport:
-    """Tell what the occurrence of an identified risk would do, writing nothing."""
-    msg = "occurrence_report is filled by US-2620/L1"
-    raise NotImplementedError(msg)
+    """Tell what the occurrence of an identified risk would do, writing nothing; or refuse (409).
+
+    In the order of the 409 of the occurrence: the conditions of the project, then, the risk read
+    (404), those of the risk (``occurring``). ``today`` is the day of the read, in the time zone of
+    the installation: an own estimate that starts before it is told (#4133).
+    """
+    return report_occurrence(session, project_id, risk_id, viewer, today)
 
 
 def submit_occurrence(
     session: Session, queue: TaskQueue, request: OccurrenceRequest, act: Act, viewer: Viewer
 ) -> UUID:
     """Judge an occurrence confirmed, then submit its task, in the transaction of the request."""
-    msg = "submit_occurrence is filled by US-2620/L2"
-    raise NotImplementedError(msg)
+    return submit_occurrence_task(session, queue, request, act, viewer)
 
 
-def run_occurrence(session: Session, payload: Mapping[str, Any], act: Act) -> None:
+def run_occurrence(session: Session, payload: Mapping[str, Any], act: Act, task_id: UUID) -> None:
     """Apply the occurrence a task names, in the transaction of the task (the worker's)."""
-    msg = "run_occurrence is filled by US-2620/L2"
-    raise NotImplementedError(msg)
+    run_occurrence_task(session, payload, act, task_id)
+
+
+def occurred_risk_ids(
+    session: Session, project_id: UUID, risk_ids: Collection[UUID]
+) -> frozenset[UUID]:
+    """Give those of the risks named that occurred in the project, in any of its revisions."""
+    return occurred_among(session, project_id, risk_ids)

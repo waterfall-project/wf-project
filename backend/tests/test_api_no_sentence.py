@@ -251,6 +251,9 @@ DATA = {
     "Risk.mitigation_notes": "a text",
     "Risk.provision_cost_category_label": "a label",
     "Risk.provision_subproject_label": "a label",
+    # The label of a risk and of its subproject, as the matrix places them.
+    "RiskMatrixPoint.label": "a label",
+    "RiskMatrixPoint.project_label": "a label",
     "ProvisionTask.label": "a label",
 }
 # The objects the answers hold whose properties the contract does not close: the parameters of a

@@ -46,6 +46,7 @@ import asked_progress
 import asked_project_indicators
 import asked_projects
 import asked_rate_update
+import asked_rebases
 import asked_reference
 import asked_reference_settings
 import asked_remaining_indicators
@@ -503,6 +504,7 @@ INDICATORS = (
 RISKS = (
     asked_amendments,
     asked_merges,
+    asked_rebases,
     asked_risks,
     asked_risk_provisions,
     asked_risk_reviews,

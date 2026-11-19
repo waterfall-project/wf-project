@@ -48,6 +48,11 @@ from waterfall.core.indicators.interface.estimate_documents import (
     remaining_document as remaining_document,
 )
 
+# ``estimate_documents`` (US-2610/L1): the coverage of the risks under its context.
+from waterfall.core.indicators.interface.estimate_documents import (
+    risk_coverage_document as risk_coverage_document,
+)
+
 # ``formulas`` (US-2670/L2): the formulas of the indices and the projections, which the portfolio
 # applies to sums.
 from waterfall.core.indicators.interface.formulas import (

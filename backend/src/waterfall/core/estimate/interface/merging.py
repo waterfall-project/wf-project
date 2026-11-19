@@ -1,0 +1,97 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+"""The part of the estimate in the merge of a differential (WF-REV-0050; EP-08, "Modules").
+
+Its part of ``register_merge``, after the planning's, whose plan says where each line stands
+(``merged_lines``): a line of the differential the main structure lacks is added; one of the main
+structure the differential lacks is removed, unless its task is kept, started, which keeps its lines
+(their remaining to commit brought to nought by the application); one of both is updated by the
+columns the differential designates — its label, its category, its role, its quantity, its hours,
+its unit disbursement, its subproject, its delay of payment, in the order of ``NodeColumn`` — and by
+its parent when it changes task. They become its reference figures, and its current ones when its
+task is not started and nobody re-estimated it: the report does not tell the two apart (US-0701/L1,
+M-08).
+
+The provision lines stay out of the comparison (#4008): a risk alone writes them, on the main
+structure, and a differential does not take them up at its opening; one a differential would still
+hold is ignored. A provision line whose task the merge removes goes to another task, and the report
+signals it by an update of its parent (WF-RIS-0010; #789).
+
+Written by US-2560/L1.
+"""
+
+from typing import TYPE_CHECKING, Any
+
+from waterfall.core.estimate.reading import line_rows
+from waterfall.core.planning.interface import merged_lines
+from waterfall.core.revisions.interface import MergePart
+
+if TYPE_CHECKING:
+    from waterfall.core.estimate.reading import LineRow
+    from waterfall.core.planning.interface import MergedLine
+    from waterfall.core.revisions.interface import StructureMerging
+
+type Json = dict[str, Any]
+LINE = "estimate_line"
+# The columns of a line a differential designates, as ``NodeColumn`` names them, and their field.
+COLUMNS = (
+    ("label", "label"),
+    ("cost_category", "cost_category_id"),
+    ("resource_role", "resource_role_id"),
+    ("quantity", "quantity"),
+    ("hours", "hours"),
+    ("unit_disbursement", "unit_disbursement"),
+    ("subproject", "subproject_id"),
+    ("payment_delay_days", "payment_delay_days"),
+)
+
+
+def _difference(change: str, line: MergedLine | None, label: str, fields: list[str]) -> Json:
+    """Give a difference of a line (``ImportDifference``), its lineage none for one added."""
+    return {
+        "change": change,
+        "target": LINE,
+        "lineage_id": None if line is None else str(line.lineage_id),
+        "label": label,
+        "predecessor_label": None,
+        "fields": fields,
+    }
+
+
+def _fields(held: tuple[MergedLine, LineRow], sent: tuple[MergedLine, LineRow]) -> list[str]:
+    """Name what the differential changes of a line of the main structure, then its parent."""
+    (line, old), (other, new) = held, sent
+    fields = [name for name, column in COLUMNS if getattr(old, column) != getattr(new, column)]
+    if line.task_lineage_id != other.task_lineage_id:
+        fields.append("parent")
+    return fields
+
+
+def merge_lines(merging: StructureMerging) -> MergePart:
+    """Give the part of the estimate in a merge: lines added, updated, removed, provisions moved.
+
+    In the order of the plan of the differential, then those of the main structure.
+    """
+    where = merged_lines(merging)
+    nodes = [each.node_id for each in (*where.main, *where.amendment)]
+    rows = {row.node_id: row for row in line_rows(merging.session, merging.project_id, nodes)}
+    held = {each.lineage_id: each for each in where.main if not each.is_provision}
+    sent = {each.lineage_id: each for each in where.amendment if not each.is_provision}
+    differences: list[Json] = []
+    for lineage, line in sent.items():
+        found = held.get(lineage)
+        new = rows[line.node_id]
+        if found is None:
+            differences.append(_difference("added", None, new.label, []))
+            continue
+        fields = _fields((found, rows[found.node_id]), (line, new))
+        if fields:
+            differences.append(_difference("updated", found, new.label, fields))
+    for line in where.main:
+        label = rows[line.node_id].label
+        if line.is_provision:
+            if line.task_lineage_id in where.moved:
+                differences.append(_difference("updated", line, label, ["parent"]))
+        elif line.lineage_id not in sent and line.task_lineage_id not in where.kept:
+            differences.append(_difference("removed", line, label, []))
+    return MergePart(differences=tuple(differences))

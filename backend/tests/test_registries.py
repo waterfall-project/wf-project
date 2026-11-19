@@ -22,6 +22,7 @@ the work breakdown, the facets, the formats and the exporters, the coverage of t
 the fillers of the witness.
 """
 
+import importlib
 import json
 import subprocess
 import sys
@@ -96,6 +97,7 @@ from waterfall.core.resource_settings.interface import (
 from waterfall.core.revisions.interface import (
     CLOSING_STAGES,
     MergePart,
+    MergePartError,
     ReferenceDesignated,
     RevisionClosing,
     RevisionMarking,
@@ -108,12 +110,15 @@ from waterfall.core.revisions.interface import (
     register_indicators,
     register_marking,
     register_merge,
+    register_merge_end,
 )
 from waterfall.core.revisions.tables import Revision
+from waterfall.core.risks.interface import RISK_KINDS
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.logs import logging_context
+from waterfall.platform.registry import Registry
 from waterfall.witness.revisions import OpenedRevision, register_revision_filler
 
 if TYPE_CHECKING:
@@ -184,7 +189,6 @@ DECLARED = {
     "resource_settings.idle_task_guard",
     "resource_settings.recalculation",
     "projects.attachments",
-    "projects.opening",
     "projects.opening_main",
     "projects.estimate_facts",
     "projects.cost_facts",
@@ -196,11 +200,17 @@ DECLARED = {
     "exchanges.exporters",
     "witness.revision_fillers",
     "estimate.coverage",
-    # EP-08 (US-2550/L1): the parts of a merge, the kinds of entry another module undoes; what
-    # follows the counter of an own estimate (US-2570/L1).
+    # EP-08 (US-2550/L1): the parts of a merge, and its end (US-2560/L1, #3946), the kinds of
+    # entry another module undoes; what follows the counter of an own estimate (US-2570/L1), who
+    # owns the provision lines a deletion or an import moves (US-2580/L1).
     "revisions.merge",
+    "revisions.merge_end",
     "history.undoable",
     "revisions.own_estimate_counted",
+    "planning.provision_owners",
+    # EP-08 (US-3050/L3): the parts of the update of a differential, and its end.
+    "revisions.rebase",
+    "revisions.rebase_end",
 }
 PLANNING = "waterfall.core.planning.interface"
 # What EP-06 registers (US-1380/L1, US-1390/L2), the copy of the nodes after the structures', and
@@ -223,7 +233,6 @@ REGISTERED = {
             f"{PLANNING}.work_breakdown.share_work_breakdown_revision)"
         )
     ],
-    "projects.opening": [f"{PLANNING}.skeleton.opening_with_tasks"],
     "projects.opening_main": [f"{PLANNING}.skeleton.opening_main_with_tasks"],
     CLOSING: [
         "history:waterfall.core.history.interface.closing.close_history",
@@ -259,6 +268,8 @@ LINE_HOOKS = (
     f"{CORE}.reading.line_columns",
     f"{CORE}.tallying.line_tallies",
     f"{CORE}.tallying.line_provisions",
+    f"{CORE}.grafting.judge_grafted_lines",
+    f"{CORE}.grafting.graft_lines",
     # The inert fields of a line (US-2250), a tuple, its names joined.
     "estimate_line.label:estimate_line.payment_delay_days:estimate_line.subproject_id",
 )
@@ -268,6 +279,7 @@ FACTS = (
     f"{ESTIMATE}.employment.subproject_is_cited",
     f"{ESTIMATE}.employment.subproject_is_estimated",
     f"{ESTIMATE}.employment.subproject_estimate_lines",
+    f"{ESTIMATE}.employment.forget_subproject",
     f"{ESTIMATE}.contributors.roles_employed",
     f"{ESTIMATE}.contributors.marked_revision_has_lines",
     f"{ESTIMATE}.rates.reinflate_project",
@@ -316,13 +328,21 @@ REGISTERED_BY_EP09 = {
     "planning.zeroed_at": [f"{ESTIMATE}.kanban.zeroed_lines"],
 }
 RISKS = "waterfall.core.risks.following"
+RISKS_CORE = "waterfall.core.risks"
 # What the risks register (US-2570/L1): the copy of their evaluations after the copies of the rows
 # they name, their deletion at an abandonment before the content of the revision, and what follows
-# the counter of an own estimate.
+# the counter of an own estimate; and what names the risks of the provision lines a deletion or an
+# import moves, and follows them (US-2580/L1); the shares of the reserve a designation writes, and
+# the coverage of the remaining to commit (US-2610/L1).
 REGISTERED_BY_EP08 = {
+    "estimate.coverage": [f"{RISKS_CORE}.interface.coverage.risk_coverage_of"],
+    "revisions.designation": [f"{RISKS_CORE}.sharing.write_shares"],
     "revisions.copy": [f"{RISKS}.copy_evaluations"],
     CLOSING: [f"evaluations:{RISKS}.close_evaluations"],
     "revisions.own_estimate_counted": [f"{RISKS}.follow_own_estimate"],
+    "planning.provision_owners": [
+        f"ProvisionOwners({RISKS}.name_provision_owners, {RISKS}.follow_provision_lines)"
+    ],
 }
 INDICATORS = "waterfall.core.indicators.interface"
 # What the socle of EP-10 registers (US-1660/L1): what a marking keeps of the indicators, which
@@ -405,15 +425,14 @@ def test_every_registry_holds_what_the_socle_of_ep09_registers_after_the_estimat
 ) -> None:
     # The extensions of the remaining to commit and of the actual costs, beside those of EP-06 and
     # EP-07; the remaining of the review before is no copy of its own: the copy of the lines writes
-    # it (US-2240/L2), and the copy of the rates comes last. Nothing answers the coverage of the
-    # risks before EP-08.
+    # it (US-2240/L2), and the copy of the rates comes last. The risks answer the coverage
+    # (``REGISTERED_BY_EP08``).
     others = before(REGISTERED, REGISTERED_BY_EP07, REGISTERED_BY_EP08)
     for name, entries in REGISTERED_BY_EP09.items():
         held = [entry for entry in everything[name] if entry not in others.get(name, set())]
         assert held == entries, name
     copies = everything["revisions.copy"]
     assert copies[copies.index(f"{RISKS}.copy_evaluations") - 1] == f"{CORE}.keeping.copy_rates"
-    assert everything["estimate.coverage"] == []
 
 
 def test_every_registry_holds_what_the_socle_of_ep10_registers_after_the_others(
@@ -789,11 +808,27 @@ def test_a_kind_has_one_facet_one_format_and_one_exporter_at_most() -> None:
     assert (dict(facets()), dict(formats()), dict(exporters())) == held
 
 
-def test_the_coverage_of_the_risks_is_zero_until_the_risks_answer_it_once(
-    session: Session,
+def test_the_coverage_of_the_risks_has_the_answer_of_the_risks_alone() -> None:
+    # What EP-08 answers for a revision of a project, once, at the import of its interface: a second
+    # answer is refused, the risks being one module's (the registry holds theirs, in
+    # ``REGISTERED_BY_EP08``).
+    def cover(_session: Session, _project: UUID, _revision: UUID) -> Coverage:
+        return NO_COVERAGE
+
+    with pytest.raises(ValueError, match="has its answer already"):
+        register_coverage(cover)
+
+
+def test_the_coverage_of_the_risks_is_zero_until_something_answers_it_once(
+    session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # What EP-08 answers for a revision of a project; zero before, and after its withdrawal; a
-    # second answer refused, the risks being one module's.
+    # The registry the estimate declares, without the answer of the risks, which this test sets
+    # aside for its duration: zero before an answer and after its withdrawal, the arguments passed
+    # to the answer, a second answer refused.
+    empty: Registry[Callable[[Session, UUID, UUID], Coverage]] = Registry()
+    # ``interface.remaining_indicators`` is the function the package re-exports: the module by name.
+    module = importlib.import_module("waterfall.core.estimate.interface.remaining_indicators")
+    monkeypatch.setattr(module, "_COVERAGE", empty)
     project_id, revision_id = uuid4(), uuid4()
     asked: list[tuple[UUID, UUID]] = []
     answered = Coverage(
@@ -808,7 +843,7 @@ def test_the_coverage_of_the_risks_is_zero_until_the_risks_answer_it_once(
         asked.append((project, revision))
         return answered
 
-    assert risk_coverage(session, project_id, revision_id) == Coverage(*(Decimal("0.00"),) * 5)
+    assert risk_coverage(session, project_id, revision_id) == NO_COVERAGE
     with ExitStack() as registered:
         registered.callback(register_coverage(cover))
         assert risk_coverage(session, project_id, revision_id) == answered
@@ -818,68 +853,144 @@ def test_the_coverage_of_the_risks_is_zero_until_the_risks_answer_it_once(
     assert asked == [(project_id, revision_id)]
 
 
-def test_the_parts_of_a_merge_are_those_of_each_module_registered_in_their_order(
-    session: Session,
+def test_the_planning_then_the_estimate_take_their_part_of_a_merge_and_the_planning_its_end(
+    everything: dict[str, list[str]],
 ) -> None:
-    # A tool of the registries, which covers no requirement: what the planning and the estimate
-    # find of a merge (EP-08, US-2560) — nothing before either registers; then their differences,
-    # their completed tasks and their refusals, the planning's before the estimate's; nothing once
-    # withdrawn.
-    merging = StructureMerging(
-        session, uuid4(), uuid4(), uuid4(), uuid4(), Act(None, utc_now()), applying=False
-    )
-    asked: list[tuple[str, StructureMerging]] = []
+    # What the planning and the estimate find of a merge, the planning's first, whose plan the
+    # estimate reads; what the planning judges at its end, once (US-2560/L1, #3946).
+    assert everything["revisions.merge"] == [
+        f"{PLANNING}.merging.merge_tasks",
+        f"{ESTIMATE}.merging.merge_lines",
+    ]
+    assert everything["revisions.merge_end"] == [f"{PLANNING}.merging.merge_end"]
 
-    def part(name: str, *, refused: bool) -> Callable[[StructureMerging], MergePart]:
+
+def test_the_planning_then_the_estimate_take_their_part_of_an_update_and_the_planning_its_end(
+    everything: dict[str, list[str]],
+) -> None:
+    # What the planning and the estimate find of the update of a differential, the planning's
+    # first, whose plan the estimate reads; what the planning judges at its end, once, with the
+    # calendars the estimate hands it (US-3050/L3).
+    assert everything["revisions.rebase"] == [
+        f"{PLANNING}.rebasing.rebase_tasks",
+        f"{ESTIMATE}.rebasing.rebase_lines",
+    ]
+    assert everything["revisions.rebase_end"] == [f"{PLANNING}.rebasing.rebase_end"]
+
+
+def test_the_end_of_a_merge_is_judged_once_after_every_part_whatever_their_order(
+    api: ContractClient, stage: Scene
+) -> None:
+    # A tool of the registries, which covers no requirement: the parts of a merge, each in the order
+    # of its registration, then its ends, called once after every part, even a part registered after
+    # an end (#3946); the differences in the order of their change, each change in the order of the
+    # parts, the completed tasks and the refusals in the order of the parts, the ends' after; the
+    # merge on structures without a node, which the planning and the estimate find nothing of.
+    revision_id = UUID(open_revision(api, stage)["revision_id"])
+    path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{revision_id}/structures"
+    opened = api.post(
+        path, headers=stage.manager.headers, json={"kind": "amendment", "label": "Avenant"}
+    )
+    assert opened.status_code == 201, opened.text
+    main = api.get(path, headers=stage.manager.headers).json()[0]
+    asked: list[str] = []
+
+    def part(name: str, change: str) -> Callable[[StructureMerging], MergePart]:
         def found(given: StructureMerging) -> MergePart:
-            asked.append((name, given))
-            refusals = ({"code": "LINK_CYCLE", "params": {"by": name}},) if refused else ()
+            assert given.applying is False
+            asked.append(name)
             return MergePart(
-                differences=({"change": "added", "target": name},),
-                completed_tasks=({"lineage_id": name},) if name == "task" else (),
-                refusals=refusals,
+                differences=({"change": change, "target": name},),
+                completed_tasks=({"lineage_id": name},),
+                refusals=({"code": "LINK_CYCLE", "params": {"by": name}},),
             )
 
         return found
 
-    assert merge_parts(merging) == MergePart()
-    with ExitStack() as registered:
-        registered.callback(register_merge(part("task", refused=False)))
-        registered.callback(register_merge(part("estimate_line", refused=True)))
-        assert merge_parts(merging) == MergePart(
-            differences=(
-                {"change": "added", "target": "task"},
-                {"change": "added", "target": "estimate_line"},
-            ),
-            completed_tasks=({"lineage_id": "task"},),
-            refusals=({"code": "LINK_CYCLE", "params": {"by": "estimate_line"}},),
+    with ExitStack() as registered, Session(stage.owner) as session:
+        merging = StructureMerging(
+            session,
+            UUID(stage.project["project_id"]),
+            revision_id,
+            UUID(main["structure_id"]),
+            UUID(opened.json()["structure_id"]),
+            Act(None, utc_now()),
+            applying=False,
         )
-    assert merge_parts(merging) == MergePart()
-    assert asked == [("task", merging), ("estimate_line", merging)]
+        assert merge_parts(merging) == MergePart()
+        registered.callback(register_merge_end(part("end", "updated")))
+        registered.callback(register_merge(part("task", "removed")))
+        registered.callback(register_merge(part("estimate_line", "added")))
+        found = merge_parts(merging)
+    assert asked == ["task", "estimate_line", "end"]
+    assert found == MergePart(
+        differences=(
+            {"change": "added", "target": "estimate_line"},
+            {"change": "updated", "target": "end"},
+            {"change": "removed", "target": "task"},
+        ),
+        completed_tasks=tuple({"lineage_id": name} for name in asked),
+        refusals=tuple({"code": "LINK_CYCLE", "params": {"by": name}} for name in asked),
+    )
+
+
+def test_a_part_of_a_merge_with_a_change_unknown_is_a_defect_named_by_its_error(
+    api: ContractClient, stage: Scene
+) -> None:
+    # A tool of the registries, which covers no requirement: a part that gives a change the report
+    # does not know is a defect of the module that registered it (#3948), named by a
+    # ``MergePartError`` and not by the index of the sort; withdrawn, the merge gives its parts.
+    revision_id = UUID(open_revision(api, stage)["revision_id"])
+    path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{revision_id}/structures"
+    opened = api.post(
+        path, headers=stage.manager.headers, json={"kind": "amendment", "label": "Avenant"}
+    )
+    assert opened.status_code == 201, opened.text
+    main = api.get(path, headers=stage.manager.headers).json()[0]
+
+    def faulty(_given: StructureMerging) -> MergePart:
+        return MergePart(differences=({"change": "moved", "target": "task"},))
+
+    with ExitStack() as registered, Session(stage.owner) as session:
+        merging = StructureMerging(
+            session,
+            UUID(stage.project["project_id"]),
+            revision_id,
+            UUID(main["structure_id"]),
+            UUID(opened.json()["structure_id"]),
+            Act(None, utc_now()),
+            applying=False,
+        )
+        withdraw = register_merge(faulty)
+        registered.callback(withdraw)
+        with pytest.raises(MergePartError, match="'moved'"):
+            merge_parts(merging)
+        withdraw()
+        assert merge_parts(merging) == MergePart()
 
 
 def test_a_kind_of_entry_is_undone_by_one_module_at_most() -> None:
-    # A tool of the registries, which covers no requirement: how the risks undo their four kinds
-    # (EP-08, US-2590/L2) — none before they register, the planning's then; a second module for the
-    # same kind refused; none once withdrawn.
+    # A tool of the registries, which covers no requirement: the risks undo their four kinds (EP-08,
+    # US-2590/L2), registered at the import of their interface; another kind is the planning's until
+    # a module registers it; a second module for the same kind refused; none once withdrawn.
     def lock(_session: Session, _project: UUID, _states: Snapshot) -> None:
         return None
 
     def read(_session: Session, _project: UUID, _ids: tuple[UUID, ...]) -> Snapshot:
         return ()
 
-    def restore(_session: Session, _project: UUID, _restoring: Restoring) -> None:
+    def restore(_session: Session, _project: UUID, _restoring: Restoring, _act: Act) -> None:
         return None
 
-    undoable = Undoable(lock, read, restore)
-    assert undoables() == {}
+    risks = undoables()
+    assert set(risks) == set(RISK_KINDS)
+    undoable = Undoable(("planning.write",), lock, read, restore)
     with ExitStack() as registered:
-        registered.callback(register_undoable("risk_create", undoable))
-        registered.callback(register_undoable("risk_review", undoable))
-        assert undoables() == {"risk_create": undoable, "risk_review": undoable}
+        registered.callback(register_undoable("node_move", undoable))
+        assert undoables() == {**risks, "node_move": undoable}
         with pytest.raises(ValueError, match="undone by a module already"):
             register_undoable("risk_create", undoable)
-    assert undoables() == {}
+    assert undoables() == risks
 
 
 @pytest.fixture

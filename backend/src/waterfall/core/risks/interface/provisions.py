@@ -7,12 +7,16 @@ revision (WF-RIS-0010, WF-RIS-0020; H-02, #1782), at the counter of the risk rea
 stays the risk's, a task named moves the line under it, the total of the estimate unchanged. The
 line itself is written by the estimate, at the request of the risks alone (EP-08, "Modules").
 
-Declared by US-2550/L1, the socle of EP-08; filled by US-2580/L1.
+Refused by the conditions of ``update_provision`` (409), the risk unknown (404) or read at another
+counter (412), then by the designations (422), nothing written; the current revision created first
+when the project has none. Declared by US-2550/L1, the socle of EP-08; filled by US-2580/L1.
 """
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from waterfall.core.risks.provisioning import update_provision
+from waterfall.core.risks.reading import read_found, risk_view
 from waterfall.core.risks.views import OMITTED, Omitted
 
 if TYPE_CHECKING:
@@ -43,6 +47,8 @@ class RiskProvisionChange:
 def update_risk_provision(
     session: Session, project_id: UUID, change: RiskProvisionChange, writer: Writer, viewer: Viewer
 ) -> RiskView:
-    """Change the provision of an identified risk, and read it in the current revision."""
-    msg = "update_risk_provision is filled by US-2580/L1"
-    raise NotImplementedError(msg)
+    """Change the provision of an identified risk, and read it in the revision it was written in."""
+    revision_id = update_provision(session, project_id, change, writer, viewer)
+    return risk_view(
+        session, project_id, read_found(session, project_id, change.risk_id, revision_id), viewer
+    )

@@ -1,0 +1,25 @@
+{
+  "summary": "Une variante déclarée : l'application, demandée à 13 h 54, d'un planning MS Project dont le compte rendu, analysé avant la déclaration du « Risque de reprise du câblage », ne laissait aucune tâche à la structure principale ; le risque déclaré entre l'analyse et l'application, sa ligne de provision n'aurait plus de tâche où se ranger. L'application juge de nouveau le fichier sous le verrou de la structure et échoue à 13 h 54 min 20 s sur le motif que le compte rendu aurait présenté, le risque nommé ; rien n'est appliqué (WF-RIS-0010, WF-INTF-0040, WF-IHM-0080 ; #4011).",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000927",
+    "kind": "import_apply",
+    "status": "failed",
+    "progress": 20,
+    "submitted_at": "2026-06-03T13:54:00Z",
+    "finished_at": "2026-06-03T13:54:20Z",
+    "problem": {
+      "code": "PROVISION_WITHOUT_TASK",
+      "status": 422,
+      "params": {
+        "risks": [
+          {
+            "risk_id": "01926f3a-7c00-7000-8000-000000000751",
+            "label": "Risque de reprise du câblage"
+          }
+        ]
+      },
+      "correlation_id": "01926f3a-7c00-7000-8000-000000001716"
+    },
+    "result_url": null
+  }
+}

@@ -20,7 +20,9 @@ kept and projected, WF-REV-0060), the risk, its own estimate (E-09), its provisi
 task designated or the first of the first level, of nought while its own estimate is empty, and its
 evaluation in the revision — its probability, the state identified, its own estimate, its line,
 the category, the subproject and the lineage of the task it designates — with a first review dated
-of the day (WF-RIS-0010). The revision is held ``FOR SHARE`` before anything, as any write in it;
+of the day (WF-RIS-0010). The natures of cost are shared first, then the revision is held ``FOR
+SHARE``, as any write of the tree takes them; the entry of the history of the writer
+(``risk_create``, US-2590/L2) is opened once the revision is known, which locks the stack, and
 its main structure is locked by the write of the line.
 
 The identity (``updateRisk``) is a datum of the project (H-02, #1783): the label, the description
@@ -36,10 +38,14 @@ from waterfall.core.cost_settings.interface import (
     categories_of_kind,
     category_labels,
     provision_category_active,
+    share_natures,
 )
-from waterfall.core.estimate.interface import ProvisionEntry
+from waterfall.core.estimate.interface import ProvisionEntry, rename_provision
+from waterfall.core.history.interface import carry_everywhere
 from waterfall.core.planning.interface import Place, create_borne_line, first_task, task_of
 from waterfall.core.projects.interface import (
+    ACTIVE_PROVISION_CATEGORY,
+    AT_LEAST_ONE_TASK,
     NO_BACKGROUND_TASK_RUNNING,
     PROJECT_NOT_TERMINAL,
     current_day,
@@ -54,7 +60,9 @@ from waterfall.core.revisions.interface import (
     create_revision,
     last_marked_revision,
     main_structure_has_task,
+    rename_own_estimate,
     revision_draft,
+    structure_facts,
 )
 from waterfall.core.risks.commands import (
     IDENTIFIED,
@@ -64,7 +72,14 @@ from waterfall.core.risks.commands import (
     RISK_NOT_OCCURRED,
     is_terminal,
 )
-from waterfall.core.risks.reading import NOUGHT, PROVISION_KIND, found_risk, read_found
+from waterfall.core.risks.reading import (
+    NOUGHT,
+    PROVISION_KIND,
+    evaluation_of,
+    found_risk,
+    read_found,
+)
+from waterfall.core.risks.recording import recorded
 from waterfall.core.risks.tables import PROBABILITY_SCALE, Risk, RiskEvaluation, RiskReview
 from waterfall.core.risks.views import Omitted
 from waterfall.platform.errors import (
@@ -88,8 +103,6 @@ if TYPE_CHECKING:
     from waterfall.core.risks.views import RiskEntry, RiskIdentityChange
     from waterfall.platform.audit import Act
 
-AT_LEAST_ONE_TASK = "at_least_one_task"
-ACTIVE_PROVISION_CATEGORY = "active_provision_category"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 UNKNOWN_COST_CATEGORY = "UNKNOWN_COST_CATEGORY"
 INACTIVE_REFERENCE_OBJECT = "INACTIVE_REFERENCE_OBJECT"
@@ -128,7 +141,7 @@ def _judge_state(
         raise refuse(ACTIVE_PROVISION_CATEGORY)
 
 
-def _probability_faults(probability: Decimal) -> list[FieldError]:
+def probability_faults(probability: Decimal) -> list[FieldError]:
     """Refuse a probability out of 0 to 1, naming the bound crossed, or more precise than kept.
 
     A ratio (WF-RIS-0010); one of more decimals than the column keeps, which the base would round,
@@ -143,7 +156,9 @@ def _probability_faults(probability: Decimal) -> list[FieldError]:
     return []
 
 
-def _category(session: Session, category_id: UUID | None, faults: list[FieldError]) -> UUID | None:
+def designated_category(
+    session: Session, category_id: UUID | None, faults: list[FieldError]
+) -> UUID | None:
     """Judge the category of a provision: the only active one of the kind when none is named.
 
     The natures are shared first (``category_labels``, ``locked``): a deactivation waits for the
@@ -183,8 +198,8 @@ def _designated(
     (422); nothing is written.
     """
     project_id = place.project_id
-    faults = _probability_faults(entry.probability)
-    category = _category(session, entry.provision_cost_category_id, faults)
+    faults = probability_faults(entry.probability)
+    category = designated_category(session, entry.provision_cost_category_id, faults)
     subproject = entry.provision_subproject_id
     if subproject is not None and not subproject_labels(
         session, project_id, [subproject], held=True
@@ -206,8 +221,13 @@ def _designated(
 def declare(
     session: Session, project_id: UUID, entry: RiskEntry, writer: Writer, viewer: Viewer
 ) -> tuple[UUID, UUID]:
-    """Declare a risk in the current revision, created if needed; give the risk and the revision."""
-    act = writer.act
+    """Declare a risk in the current revision, created if needed; give the risk and the revision.
+
+    An entry of the history of its writer (``risk_create``, US-2590/L2), opened once the revision
+    is known and before the main structure is locked, whose undoing takes the risk away.
+    """
+    # The natures first, as every write of the tree takes them (#2615), before the stack.
+    share_natures(session)
     facts = project_facts(session, project_id)
     if is_terminal(facts.state):
         raise refuse(PROJECT_NOT_TERMINAL)
@@ -219,7 +239,21 @@ def declare(
     if revision_id is None:
         if REVISIONS_WRITE not in viewer.permissions:
             raise refuse(MAY_CREATE_REVISION)
-        revision_id = create_revision(session, project_id, act, viewer).revision_id
+        revision_id = create_revision(session, project_id, writer.act, viewer).revision_id
+    with recorded(session, project_id, writer, "risk_create") as recording:
+        recording.open(revision_id)
+        recording.before(None)
+        risk_id = _declared(session, (project_id, revision_id), entry, writer)
+        recording.after(risk_id, whole=True)
+    return risk_id, revision_id
+
+
+def _declared(
+    session: Session, revision: tuple[UUID, UUID], entry: RiskEntry, writer: Writer
+) -> UUID:
+    """Write a risk declared in a revision: its row, its own estimate, its line, its evaluation."""
+    act = writer.act
+    project_id, revision_id = revision
     main = aimed_structure(session, project_id, revision_id, None)
     if main is None:
         raise refuse(AT_LEAST_ONE_TASK)
@@ -274,7 +308,7 @@ def declare(
         )
     )
     session.flush()
-    return risk_id, revision_id
+    return risk_id
 
 
 def change_identity(
@@ -285,8 +319,22 @@ def change_identity(
     Refused if the risk is unknown or has no evaluation to read (404), at another version (412),
     on a terminal project, then on a risk occurred in the revision read (409). A change that
     changes nothing writes nothing; a description or notes not sent stay the risk's.
+
+    A new label renames the own estimate and the provision line of the risk in the current
+    revision, if the risk is evaluated there, as the declaration named them: outside the history,
+    like the identity (H-02), the revisions marked keeping the names they were marked with (#3980).
+    Without a current revision it writes the identity alone: the revision opened next names them
+    by the label of the risk (``copy_evaluations``).
+    The own estimate is locked before the risk, as every write of its tree locks them.
     """
     facts = lock_project(session, project_id)
+    current = (
+        None
+        if facts.current_revision_id is None
+        else evaluation_of(session, project_id, change.risk_id, facts.current_revision_id)
+    )
+    if current is not None:
+        structure_facts(session, project_id, current.structure_id, lock=True)
     risk = found_risk(session, project_id, change.risk_id, lock=True)
     evaluation = read_found(session, project_id, risk.id, None).evaluation
     if risk.lock_version != change.lock_version:
@@ -308,10 +356,29 @@ def change_identity(
     )
     if written == (risk.label, risk.description, risk.mitigation_notes):
         return
+    renamed = written[0] != risk.label
     risk.label, risk.description, risk.mitigation_notes = written
     risk.updated_at, risk.updated_by = act.at, act.author
+    before = risk.lock_version
     risk.lock_version += 1
     session.flush()
+    # The identity is no entry of the history and no entry restores it: its counter, which the
+    # entries of the risk are judged on, is carried to them, so that it is no conflict (US-2590/L2).
+    carry_everywhere(session, project_id, {risk.id: (before, risk.lock_version)})
+    if renamed and current is not None:
+        _rename_in_revision(session, (project_id, current), written[0], act)
+
+
+def _rename_in_revision(
+    session: Session, held: tuple[UUID, RiskEvaluation], label: str, act: Act
+) -> None:
+    """Name the own estimate and the provision line an evaluation holds by the label of its risk."""
+    project_id, evaluation = held
+    rename_own_estimate(session, project_id, evaluation.structure_id, label, act)
+    line = evaluation.provision_node_id
+    main = aimed_structure(session, project_id, evaluation.revision_id, None)
+    if line is not None and main is not None:
+        rename_provision(session, Place(project_id, evaluation.revision_id, main), line, label, act)
 
 
 def _stamp(act: Act) -> dict[str, object]:

@@ -365,6 +365,8 @@ _RENAMED = {
             "task_renamed.json",
             "redo_task_renamed.json",
             "redo_task_renamed_two_left.json",
+            "structure_rebase_report.json",
+            "structure_rebase_report_refused.json",
         )
         for identifier in (universe(WIRING), mockcore.lineage(WIRING))
     ),
@@ -384,7 +386,8 @@ _RENAMED = {
     ),
 }
 """The nodes a write renames, by their node and their lineage, in the fixture that answers it:
-the wiring of the cabinets (``wftools.mockwrites``), renamed again by the redo of its renaming
+the wiring of the cabinets (``wftools.mockwrites``), as the update of the amendment 2 carries it
+(``wftools.mockrebase``), renamed again by the redo of its renaming
 undone (``wftools.mockundoable``, #2564), the three rows the block pasted on the
 amendment 2 relabels (``wftools.mockamendmentwrites``, #1277), and the trials on site the block
 that skips the line withdrawn relabels (#1278); and the own estimate of the risk 752 as the

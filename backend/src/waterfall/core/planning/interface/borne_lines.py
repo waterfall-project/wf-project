@@ -10,10 +10,12 @@ name, as it reads them — the first of the first level (``first_task``), a task
 the tree — its revision judged, the structure locked and read under the lock, redated once written
 —, but under a task whatever its state, a provision entering no state of its task (WF-PLA-0040), and
 kept out of the history, whose entry the module that asks frames for all it writes (EP-08,
-US-2590/L2). Its facet is written by the hooks of its kind, which the module that asks addresses
-(``FacetCreation.entry``).
+US-2590/L2), and which brings a line back under its identifier. Its facet is written by the hooks
+of its kind, which the module that asks addresses (``FacetCreation.entry``). It moves the line
+under another task (``move_borne_line``) the same way, and tells which module owns the lines a
+deletion or an import moves under another task (``register_provision_owners``, US-2580/L1).
 
-Filled by US-2570/L1.
+Filled by US-2570/L1; completed by US-2580/L1.
 """
 
 from dataclasses import dataclass
@@ -21,11 +23,18 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import ColumnElement, exists, select
 
-from waterfall.core.planning.interface.lines import judge_line_creation, write_line_node
+from waterfall.core.planning.interface.lines import (
+    judge_bearer,
+    judge_line_creation,
+    write_line_node,
+)
 from waterfall.core.planning.interface.nodes import NodeCreation
+from waterfall.core.planning.shaping import Placing, deleted, placed
+from waterfall.core.planning.shaping import place as place_nodes
 from waterfall.core.planning.tables import Node, Task
 from waterfall.core.planning.tree import LINE, TASK
 from waterfall.core.planning.writing import Writer, writing
+from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
@@ -134,7 +143,18 @@ def create_borne_line(
     history is kept: the module that asks keeps its own. The structure is redated, and the lines of
     the task priced again.
     """
-    node_id = new_id()
+    return recreate_borne_line(session, place, (task_id, new_id()), entry, writer)
+
+
+def recreate_borne_line(
+    session: Session, place: Place, borne: tuple[UUID, UUID], entry: object, writer: Writer
+) -> UUID:
+    """Create a line under a task as ``create_borne_line`` does, under the identifier given.
+
+    ``borne`` the task and the line: one deleted and brought back by the undoing or the redoing of
+    the entry of the module that asks (US-2590/L2).
+    """
+    task_id, node_id = borne
     unrecorded = Writer(writer.act, None, writer.running)
     with writing(session, place, unrecorded, ("node_create", (node_id,))) as write:
         tree = write.tree
@@ -145,3 +165,53 @@ def create_borne_line(
         write.redate((task_id, tree.tasks[task_id].label), None, (task_id,))
         write.after(judged.touched)
     return node_id
+
+
+def move_borne_line(
+    session: Session, place: Place, line_id: UUID, task_id: UUID, writer: Writer
+) -> bool:
+    """Move a line another module bears under another task of its structure; tell if it moved.
+
+    Framed as a write of the tree, as ``create_borne_line`` is: refused as one (404, 409), then if
+    the task is none of the structure (422 ``UNKNOWN_TASK``), whatever its state, a provision
+    entering no state of its task; the line placed after the lines of its new task, the structure
+    redated and the line priced again on the dates of its task. A line already there is left as it
+    is. No entry of the history is kept: the module that asks keeps its own.
+    """
+    unrecorded = Writer(writer.act, None, writer.running)
+    with writing(session, place, unrecorded, ("node_move", (line_id,))) as write:
+        tree = write.tree
+        node = tree.nodes.get(line_id)
+        if node is None or node.kind != LINE:
+            raise NotFoundError(NOT_FOUND)
+        judge_bearer(tree, task_id)
+        if node.parent_id == task_id:
+            return False
+        changes = placed(tree, Placing((line_id,), task_id, None, after_given=False))
+        write.before((line_id,))
+        place_nodes(write, changes, (line_id,))
+        write.redate((task_id, tree.tasks[task_id].label), None, entered=("/provision_task_id",))
+        write.after((line_id,))
+        return True
+
+
+def delete_borne_line(session: Session, place: Place, line_id: UUID, writer: Writer) -> None:
+    """Delete a line another module bears under a task of its structure (US-2590/L1).
+
+    Framed as a write of the tree, as ``create_borne_line`` is: refused as one (404, 409), then if
+    the node is no line of the structure (404); the line and its facet deleted, the structure
+    redated and the lines of its task priced again, whatever the state of the task. It is not
+    carried to the parent as the provision line a deletion of its task leaves (``delete_node``):
+    the module that asks deletes it for good — a risk dismissed or deleted. No entry of the
+    history is kept.
+    """
+    unrecorded = Writer(writer.act, None, writer.running)
+    with writing(session, place, unrecorded, ("node_delete", (line_id,))) as write:
+        tree = write.tree
+        node = tree.nodes.get(line_id)
+        if node is None or node.kind != LINE:
+            raise NotFoundError(NOT_FOUND)
+        write.before((line_id,))
+        deleted(session, place.project_id, tree, [line_id])
+        write.redate(None)
+        write.after((line_id,))

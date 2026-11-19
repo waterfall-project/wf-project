@@ -6,8 +6,9 @@ import json
 from typing import TYPE_CHECKING
 
 import pytest
+import yaml
 
-from wftools import gate
+from wftools import REPOSITORY, gate
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -40,3 +41,13 @@ def test_failures_are_named(
 def test_nothing_to_judge_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("NEEDS", raising=False)
     assert gate.main() == 1
+
+
+@pytest.mark.story("US-2490")
+def test_the_gate_judges_every_job_of_the_chain() -> None:
+    # A job the gate does not name passes unseen: the two jobs of the work image of the paths, the
+    # lookup of the fast tier and the publication of the full one (PLC-10), as every other.
+    chain = yaml.safe_load((REPOSITORY / ".github" / "workflows" / "ci.yml").read_text("utf-8"))
+    jobs = chain["jobs"]
+    assert sorted(jobs["gate"]["needs"]) == sorted(name for name in jobs if name != "gate")
+    assert {"e2e-image", "e2e-image-publish"} <= set(jobs["gate"]["needs"])

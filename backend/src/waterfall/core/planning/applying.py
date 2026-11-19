@@ -23,6 +23,7 @@ from sqlalchemy import insert
 # By its module: its own imports reach the interface, which reaches this module again.
 from waterfall.core.planning import importing
 from waterfall.core.planning.dating import MANUAL, conflicts_of
+from waterfall.core.planning.provisioning import lines_reported
 from waterfall.core.planning.rescheduling import Holding, replayed
 from waterfall.core.planning.scheduling import WorkInstant
 from waterfall.core.planning.shaping import PARKED, deleted, emptied, stamp
@@ -134,12 +135,31 @@ def _places(session: Session, plan: Plan, facts: StructureFacts, act: Act) -> se
             node.parent_id, node.rank = place[0], next(turn)
             moved.add(node_id)
     session.flush()
+    _carried(session, plan, act)
     if plan.removed:
         deleted(session, plan.aimed.project_id, tree, plan.removed)
     for node_id in [*created, *moved]:
         (created.get(node_id) or tree.nodes[node_id]).rank = final[node_id][1]
     session.flush()
     return moved
+
+
+def _carried(session: Session, plan: Plan, act: Act) -> None:
+    """Place the provision lines the tasks removed bore under their new task, after its lines.
+
+    Before the tasks go: the risk holds its line by a key that refuses a deletion, and the line
+    would follow its task by the cascade of its parent.
+    """
+    tree = plan.aimed.tree
+    ranks: dict[UUID, int] = {}
+    for line, task in plan.carried.items():
+        if task not in ranks:
+            ranks[task] = max((tree.nodes[each].rank for each in tree.lines(task)), default=0)
+        ranks[task] += 1
+        node = tree.nodes[line]
+        node.parent_id, node.rank = task, ranks[task]
+        stamp(node, act)
+    session.flush()
 
 
 def _created(row: Row, facet: Facet, facts: StructureFacts) -> dict[str, object]:
@@ -219,4 +239,7 @@ def apply_plan(session: Session, plan: Plan, act: Act) -> None:
         session.execute(insert(Task), facets)
     if added:
         session.execute(insert(TaskLink), added)
-    replayed(session, project_id, structure_id, act.at, Holding(facts, None, conflicts))
+    repriced = tuple(dict.fromkeys(plan.carried.values()))
+    replayed(session, project_id, structure_id, act.at, Holding(facts, None, conflicts, repriced))
+    if plan.carried:
+        lines_reported(session, project_id, facts.revision_id, tuple(plan.carried))

@@ -25,15 +25,25 @@ that none lacks their part once a story registers it (#2180).
 
 # ``coverage`` (US-2550/L1; US-2610/L1): the reserve and the coverage of the risks.
 # The registries the risks fill (US-2570/L1).
+from waterfall.core.estimate.interface import register_coverage
+from waterfall.core.history.interface import register_undoable
+from waterfall.core.planning.interface import ProvisionOwners, register_provision_owners
 from waterfall.core.revisions.interface import (
     register_closing,
     register_copy,
+    register_designation,
     register_own_estimate_counted,
 )
+from waterfall.core.risks.commands import state_named as state_named
 from waterfall.core.risks.following import (
     close_evaluations,
     copy_evaluations,
     follow_own_estimate,
+    follow_provision_lines,
+    name_provision_owners,
+)
+from waterfall.core.risks.interface.coverage import (
+    kept_coverage as kept_coverage,
 )
 from waterfall.core.risks.interface.coverage import (
     risk_coverage_of as risk_coverage_of,
@@ -49,18 +59,6 @@ from waterfall.core.risks.interface.deletion import (
 
 # ``matrix`` (US-2550/L1; US-2600/L2): the matrix of the risks of a project.
 from waterfall.core.risks.interface.matrix import (
-    MatrixCell as MatrixCell,
-)
-from waterfall.core.risks.interface.matrix import (
-    MatrixLevel as MatrixLevel,
-)
-from waterfall.core.risks.interface.matrix import (
-    MatrixPoint as MatrixPoint,
-)
-from waterfall.core.risks.interface.matrix import (
-    RiskMatrix as RiskMatrix,
-)
-from waterfall.core.risks.interface.matrix import (
     risk_matrix as risk_matrix,
 )
 
@@ -70,6 +68,9 @@ from waterfall.core.risks.interface.occurrence import (
 )
 from waterfall.core.risks.interface.occurrence import (
     OccurrenceRequest as OccurrenceRequest,
+)
+from waterfall.core.risks.interface.occurrence import (
+    occurred_risk_ids as occurred_risk_ids,
 )
 from waterfall.core.risks.interface.occurrence import (
     occurrence_report as occurrence_report,
@@ -91,37 +92,10 @@ from waterfall.core.risks.interface.provisions import (
 
 # ``register`` (US-2550/L1; US-2600/L1): the register of the risks.
 from waterfall.core.risks.interface.register import (
-    Bounds as Bounds,
-)
-from waterfall.core.risks.interface.register import (
-    ProvisionTotals as ProvisionTotals,
-)
-from waterfall.core.risks.interface.register import (
-    RiskColumn as RiskColumn,
-)
-from waterfall.core.risks.interface.register import (
-    RiskFilters as RiskFilters,
-)
-from waterfall.core.risks.interface.register import (
-    RiskList as RiskList,
-)
-from waterfall.core.risks.interface.register import (
-    RiskPage as RiskPage,
-)
-from waterfall.core.risks.interface.register import (
-    RiskSort as RiskSort,
-)
-from waterfall.core.risks.interface.register import (
     list_risks as list_risks,
 )
 
 # ``reviews`` (US-2550/L1; US-2590/L1): the reviews of a risk and the changes of its state.
-from waterfall.core.risks.interface.reviews import (
-    RiskReviewEntry as RiskReviewEntry,
-)
-from waterfall.core.risks.interface.reviews import (
-    RiskReviewView as RiskReviewView,
-)
 from waterfall.core.risks.interface.reviews import (
     list_risk_reviews as list_risk_reviews,
 )
@@ -137,10 +111,30 @@ from waterfall.core.risks.interface.risks import (
 from waterfall.core.risks.interface.risks import (
     update_risk as update_risk,
 )
+from waterfall.core.risks.sharing import write_shares
 
-# ``risks`` (US-2550/L1; US-2570/L1): a risk declared, read and renamed.
+# ``undoing``, beside the interface (US-2590/L2): the kinds of entry of the history the risks undo.
+from waterfall.core.risks.undoing import (
+    RISK_KINDS as RISK_KINDS,
+)
+from waterfall.core.risks.undoing import UNDOABLE
 from waterfall.core.risks.views import (
     OMITTED as OMITTED,
+)
+
+# ``risks`` (US-2550/L1; US-2570/L1): a risk declared, read and renamed; ``register`` (US-2600/L1):
+# what the register asks for and gives.
+from waterfall.core.risks.views import (
+    Bounds as Bounds,
+)
+from waterfall.core.risks.views import (
+    MatrixCell as MatrixCell,
+)
+from waterfall.core.risks.views import (
+    MatrixLevel as MatrixLevel,
+)
+from waterfall.core.risks.views import (
+    MatrixPoint as MatrixPoint,
 )
 from waterfall.core.risks.views import (
     Omitted as Omitted,
@@ -149,16 +143,43 @@ from waterfall.core.risks.views import (
     ProvisionTask as ProvisionTask,
 )
 from waterfall.core.risks.views import (
+    ProvisionTotals as ProvisionTotals,
+)
+from waterfall.core.risks.views import (
+    RiskColumn as RiskColumn,
+)
+from waterfall.core.risks.views import (
     RiskCommand as RiskCommand,
 )
 from waterfall.core.risks.views import (
     RiskEntry as RiskEntry,
 )
 from waterfall.core.risks.views import (
+    RiskFilters as RiskFilters,
+)
+from waterfall.core.risks.views import (
     RiskIdentityChange as RiskIdentityChange,
 )
 from waterfall.core.risks.views import (
+    RiskList as RiskList,
+)
+from waterfall.core.risks.views import (
+    RiskMatrix as RiskMatrix,
+)
+from waterfall.core.risks.views import (
     RiskMatrixCell as RiskMatrixCell,
+)
+from waterfall.core.risks.views import (
+    RiskPage as RiskPage,
+)
+from waterfall.core.risks.views import (
+    RiskReviewEntry as RiskReviewEntry,
+)
+from waterfall.core.risks.views import (
+    RiskReviewView as RiskReviewView,
+)
+from waterfall.core.risks.views import (
+    RiskSort as RiskSort,
 )
 from waterfall.core.risks.views import (
     RiskState as RiskState,
@@ -170,7 +191,15 @@ from waterfall.core.risks.views import (
 # The registrations, once, at the import: the copy of the evaluations after the structures and the
 # nodes whose copies they name, the interfaces of the revisions and of the planning imported first;
 # their deletion at an abandonment before the nodes and the structures they name (``evaluations``);
-# the counter and the provision of a risk following its own estimate (US-2570/L1).
+# the counter and the provision of a risk following its own estimate (US-2570/L1), and the risks
+# that own the provision lines a deletion or an import moves (US-2580/L1), the shares of the reserve
+# a designation writes and the coverage of the remaining to commit (US-2610/L1).
 register_copy(copy_evaluations)
 register_closing("evaluations", close_evaluations)
 register_own_estimate_counted(follow_own_estimate)
+register_provision_owners(ProvisionOwners(name_provision_owners, follow_provision_lines))
+register_designation(write_shares)
+register_coverage(risk_coverage_of)
+# The four kinds of entry of the history the risks undo and redo (US-2590/L2).
+for _kind in RISK_KINDS:
+    register_undoable(_kind, UNDOABLE)

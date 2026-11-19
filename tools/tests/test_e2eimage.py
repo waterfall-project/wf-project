@@ -119,36 +119,113 @@ def test_no_job_of_the_paths_installs_a_package_of_ubuntu() -> None:
             assert forbidden not in text, f"{name} names {forbidden}"
 
 
-def test_the_parts_of_the_paths_run_in_the_image_the_chain_found() -> None:
+@pytest.mark.story("US-2490")
+def test_the_parts_of_the_paths_run_in_the_image_the_chain_published() -> None:
+    # Every job that reads the image is of the full tier, and names the job that publishes it
+    # alone, never the lookup of the fast tier (PLC-10).
     chain = workflow("ci.yml")["jobs"]
     container = workflow("e2e.yml")["jobs"]["paths"]["container"]
     assert container["image"] == "${{ inputs.image }}"
     assert "credentials" in container
     for job in ("e2e", "service"):
-        assert "e2e-image" in chain[job]["needs"]
-        assert chain[job]["with"]["image"] == "${{ needs.e2e-image.outputs.image }}"
+        assert "e2e-image-publish" in chain[job]["needs"]
+        assert "e2e-image" not in chain[job]["needs"]
+        assert "needs.changes.outputs.tier == 'full'" in chain[job]["if"]
+        assert chain[job]["with"]["image"] == "${{ needs.e2e-image-publish.outputs.image }}"
         assert chain[job]["permissions"]["packages"] == "read"
 
 
-def test_the_image_is_found_or_published_before_the_paths_and_judged_by_the_gate() -> None:
+@pytest.mark.story("US-2490")
+def test_the_image_is_looked_up_in_the_fast_tier_without_the_right_to_write_packages() -> None:
+    # A pull request runs its own code here: its token reads the packages, it never writes them
+    # (PLC-10). An image that changed is built, not published, so that its build fails the pull
+    # request before the merge queue.
     chain = workflow("ci.yml")["jobs"]
     job = chain["e2e-image"]
-    assert job["permissions"]["packages"] == "write"
-    assert job["outputs"]["image"] == "${{ steps.image.outputs.image }}"
-    # Whenever either kind of path could run, in both tiers: in the fast one, an image that
-    # changed is built there, without being published, so that its build fails the pull request
-    # before the merge queue.
-    assert "tier" not in job["if"]
+    assert job["permissions"] == {"contents": "read", "packages": "read"}
+    assert "needs.changes.outputs.tier == 'fast'" in job["if"]
     assert "needs.changes.outputs.front == 'true'" in job["if"]
     assert "needs.changes.outputs.service == 'true'" in job["if"]
+    runs = [step["run"] for step in job["steps"] if "run" in step]
+    assert runs == ["make e2e-image"]
     assert "e2e-image" in chain["gate"]["needs"]
 
 
+@pytest.mark.story("US-2490")
 def test_the_image_is_published_in_the_full_tier_alone() -> None:
-    job = workflow("ci.yml")["jobs"]["e2e-image"]
+    # The one job that may write the packages for the image never runs on a pull request: the
+    # tier is fast there, and the event is named besides, should the tier come to be chosen
+    # otherwise (PLC-10).
+    chain = workflow("ci.yml")["jobs"]
+    job = chain["e2e-image-publish"]
+    assert job["permissions"] == {"contents": "read", "packages": "write"}
+    assert "needs.changes.outputs.tier == 'full'" in job["if"]
+    assert "github.event_name != 'pull_request'" in job["if"]
+    assert "needs.changes.outputs.front == 'true'" in job["if"]
+    assert "needs.changes.outputs.service == 'true'" in job["if"]
+    assert job["outputs"]["image"] == "${{ steps.image.outputs.image }}"
     step = next(step for step in job["steps"] if step.get("id") == "image")
-    assert step["run"] == 'make e2e-image PUSH="$PUSH" >> "$GITHUB_OUTPUT"'
-    assert step["env"]["PUSH"] == "${{ needs.changes.outputs.tier == 'full' && 'yes' || 'no' }}"
+    assert step["run"] == 'make e2e-image PUSH=yes >> "$GITHUB_OUTPUT"'
+    assert "e2e-image-publish" in chain["gate"]["needs"]
+
+
+def assert_fast_for_a_pull_request(tier: str) -> None:
+    """Fail unless the expression of the tier gives `full` to the merge queue alone, or by hand."""
+    assert "pull_request" not in tier
+    assert "event_name == 'merge_group' && 'full'" in tier
+    assert "inputs.tier" in tier
+    assert tier.count("'full'") == 1
+    assert tier.rstrip(" }").endswith("|| 'fast'")
+
+
+@pytest.mark.story("US-2490")
+def test_a_pull_request_runs_in_the_fast_tier() -> None:
+    # What keeps the publication off a pull request: the tier, full in the merge queue or when
+    # chosen by hand, which a pull request cannot do (PLC-10).
+    assert_fast_for_a_pull_request(workflow("ci.yml")["jobs"]["changes"]["outputs"]["tier"])
+
+
+@pytest.mark.story("US-2800")
+def test_a_tier_expression_inverted_gives_the_full_tier_to_a_pull_request() -> None:
+    # [US-2800] #3924: a copy of ci.yml whose expression reads `!=` names the merge queue still,
+    # and would give `full` to a pull request; the test of the tier must fail on it.
+    text = (WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
+    inverted = text.replace(
+        "event_name == 'merge_group' && 'full'", "event_name != 'merge_group' && 'full'"
+    )
+    assert inverted != text
+    tier = yaml.safe_load(inverted)["jobs"]["changes"]["outputs"]["tier"]
+    assert "merge_group" in tier
+    with pytest.raises(AssertionError):
+        assert_fast_for_a_pull_request(tier)
+
+
+@pytest.mark.story("US-2490")
+def test_no_other_job_of_a_pull_request_writes_the_packages() -> None:
+    # The mirror keeps the right, to fill itself before the merge (guide, « Chaîne »); the work
+    # image of the paths publishes in the full tier alone (PLC-10).
+    document = workflow("ci.yml")
+    assert document["permissions"] == {"contents": "read"}
+    chain = document["jobs"]
+    writing = sorted(
+        name for name, job in chain.items() if job.get("permissions", {}).get("packages") == "write"
+    )
+    assert writing == ["e2e-image-publish", "mirror"]
+    # The workflows that ci.yml calls hold the right in neither place, workflow or job.
+    called = sorted(
+        {
+            job["uses"].rsplit("/", 1)[1]
+            for job in chain.values()
+            if job.get("uses", "").startswith("./.github/workflows/")
+        }
+    )
+    assert "e2e.yml" in called
+    assert "service.yml" in called
+    for name in called:
+        callee = workflow(name)
+        scopes = [callee, *callee["jobs"].values()]
+        granted = [scope.get("permissions", {}).get("packages") for scope in scopes]
+        assert "write" not in granted, name
 
 
 def test_the_browser_alone_plays_in_the_image_the_paths_on_the_runner() -> None:

@@ -34,7 +34,13 @@ from sqlalchemy import select
 from waterfall.core.projects.interface import project_code, project_facts, project_label
 from waterfall.core.revisions.tables import Revision
 from waterfall.core.users.interface import inscribed_actor
-from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
+from waterfall.platform.audit import (
+    AuditObject,
+    AuditProject,
+    AuditRevision,
+    Inscription,
+    record,
+)
 from waterfall.platform.errors import (
     NOT_FOUND,
     STATE_FORBIDS_OPERATION,
@@ -47,7 +53,13 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.revisions.interface.structures import StructureFacts
     from waterfall.platform.audit import Act, AuditAction
+
+
+# The kind of the main structure of a revision (``StructureKind``), read by the modules of this
+# package that cannot import ``structures``, which imports them (#4003).
+MAIN = "main"
 
 
 def refuse(condition: str) -> ConflictError:
@@ -86,6 +98,19 @@ def inscribe_revision(
     audited = AuditObject("revision", revision.id, name)
     actor = inscribed_actor(session, act.author)
     record(session, Inscription(action, actor, audited, act.at, project=named))
+
+
+def inscribe_structure(
+    session: Session, project_id: UUID, structure: StructureFacts, act: Act
+) -> None:
+    """Inscribe the abandonment of a differential: it, its revision, its project."""
+    code = project_code(session, project_id)
+    label = project_label(session, project_id)
+    named = None if label is None else AuditProject(project_id, code, label)
+    revision = AuditRevision(structure.revision_id, None)
+    audited = AuditObject("cost_structure", structure.structure_id, structure.label, revision)
+    actor = inscribed_actor(session, act.author)
+    record(session, Inscription("structure_abandon", actor, audited, act.at, project=named))
 
 
 def hold_current_revision(session: Session, project_id: UUID) -> UUID | None:

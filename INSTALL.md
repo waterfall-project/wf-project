@@ -16,7 +16,7 @@ Pour installer une plateforme de démonstration à partir des images publiées, 
 | La version de `tools/.python-version`, sous le nom `python3` | la projection de la spécification |
 | Node 26 (par nvm, par exemple) | le front, et pnpm, que `npm install --global pnpm` installe une fois |
 | Docker et son greffon Compose | `make dev`, les services des tests, la plateforme de service, les images |
-| Le client PostgreSQL 18 (`postgresql-client-18`, celui d'Ubuntu 26.04) | `pg_dump` et `pg_restore` dans `/usr/bin`, que les tests des sauvegardes et des restaurations appellent : ceux de la majeure du serveur, ni plus récents ni plus anciens (#982) |
+| Le client PostgreSQL 18 (`postgresql-client-18`, celui de l'archive d'Ubuntu 26.04 sur un poste ; le runner prend le même paquet au dépôt PGDG, que l'image `ubuntu-26.04` porte déjà) | `pg_dump` et `pg_restore` dans `/usr/bin`, que les tests des sauvegardes et des restaurations appellent : ceux de la majeure du serveur, ni plus récents ni plus anciens (#982) |
 | `openssl` | tirer un autre secret que celui du workflow, pour Garage (« Les secrets », plus bas) |
 | `pandoc` 3.13 | la projection de la spécification (une autre version écrit un autre Markdown) |
 | `mmdc`, installé par npm | facultatif : la validation des diagrammes (`make build-doc`, `make check-spec`) |

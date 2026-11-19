@@ -308,10 +308,10 @@ def reprice(
     A rate gone since — the reference never takes one away — leaves the base amount as it was, from
     which the shares are cut (EP-07, "Le calcul des montants"). A provision line is never
     projected (WF-RIS-0010): it keeps its amount, the severity weighted by the probability that
-    its risk sets, and only its year of consumption follows the dates of its task. The amounts are
-    computed here, line
-    by line, and those that moved written by set (``_write_priced``): a revision opened a year
-    later moves most of its lines (#3535).
+    its risk sets, and only its year of consumption follows the dates of its task, also when a
+    revision is opened a year later (#3995). The amounts are computed here, line by line, and those
+    that moved written by set (``_write_priced``): a revision opened a year later moves most of
+    its lines (#3535).
     """
     if not lines:
         return frozenset()

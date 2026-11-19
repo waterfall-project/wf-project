@@ -31,6 +31,10 @@ leave its task without an hour (``TASK_WITHOUT_WORKING_HOURS``). Its quantity is
 days typed x hours per day, its unit disbursement the amount typed over the mean inflation
 coefficient of the years of its task.
 
+A line that carries the lineage of a provision line of a risk is ignored, the line left as it is
+and named in the report (``provision_lines``, WF-INTF-0120, WF-RIS-0010; US-2580/L2): a provision
+is its risk's, and the remaining to commit counts it for its amount.
+
 The subproject of a line is the one of its tab, named by its code as the writer names it
 (``sheet_name``), « Hors sous-projet » none: a line placed in another tab changes subproject — an
 ``updated`` difference on ``subproject`` —, rejected when its task is started or completed and its
@@ -261,6 +265,8 @@ def analyse(
         current = held.lines.get(lineage) if lineage is not None and lineage not in taken else None
         if lineage is not None and current is not None:
             taken.add(lineage)
+            if importing.ignored_provision(held, current, found):
+                continue
         if line.sheet not in scale.tabs:
             unknown = {"value": line.sheet}
             found.rejected.append(importing.rejection(_placed(line), UNKNOWN_SUBPROJECT, unknown))
@@ -511,14 +517,15 @@ def report_of(held: Aimed, read: RemainingRead, reviewed: Reviewed) -> dict[str,
     ]
     rejected_rows = {(each["sheet"], each["row"]) for each in rejected}
     read_count = len(set(rows))
+    unchanged = read_count - len(rejected_rows) - len(found.planned) - len(found.provisions)
     return {
         "format_version": str(FORMAT_VERSION),
         "read_count": read_count,
-        "unchanged_count": read_count - len(rejected_rows) - len(found.planned),
+        "unchanged_count": unchanged,
         "rejected": rejected,
         "refusals": [],
         "differences": differences,
-        "ignored": [],
+        "ignored": importing.ignored_of(found),
         "completed_tasks": completed,
         "date_mismatches": [],
         "signals": [],

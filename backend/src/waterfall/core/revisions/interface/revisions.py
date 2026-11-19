@@ -52,6 +52,7 @@ from waterfall.core.projects.interface import (
 )
 from waterfall.core.resource_settings.interface import share_reference
 from waterfall.core.revisions.commands import NO_CURRENT_REVISION, REVISION_DRAFT, revision_commands
+from waterfall.core.revisions.interface.bases import keep_differential_states
 from waterfall.core.revisions.interface.closing import close_revision
 from waterfall.core.revisions.interface.reference import reference_correctable
 from waterfall.core.revisions.interface.shared import (
@@ -187,6 +188,9 @@ class RevisionCopy:
     The copies bear the stamp of the creation of the revision, its author and its instant.
     ``apply_rate_update`` tells whether the creation accepts the update of the rates the proposal
     would present at the rate of the reference (``RevisionCreate.apply_rate_update``, WF-REV-0060).
+    ``within_revision`` tells that the copy is of one structure into another of the same revision
+    (a differential opened, ``source`` and ``target`` then being that revision), the figures of the
+    rows kept as they are and not drawn again from the reference.
     """
 
     session: Session
@@ -197,6 +201,7 @@ class RevisionCopy:
     author: UUID | None
     identifiers: dict[UUID, UUID]
     apply_rate_update: bool = False
+    within_revision: bool = False
 
 
 # The copies a revision opened from a marked one makes, table after table, in the order of their
@@ -588,7 +593,8 @@ def copy_revision(
     The structures here, but the merged ones, each under an identifier of its own and the lineage
     of the one it copies (#1759); the copies bear the stamp of the creation of ``target``, which is
     written already. Each epic adds its tables by ``register_copy``; ``apply_rate_update`` tells the
-    copy of the rates whether the update is accepted (EP-07).
+    copy of the rates whether the update is accepted (EP-07). Once every table is copied, each
+    differential taken up is given the state it had, up to date or out of date (US-3050).
     """
     revision = session.get_one(Revision, target)
     copy = RevisionCopy(
@@ -603,6 +609,7 @@ def copy_revision(
     )
     for copier in _COPIES.entries():
         copier(copy)
+    keep_differential_states(copy)
 
 
 def abandon_revision(

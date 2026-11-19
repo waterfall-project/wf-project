@@ -134,7 +134,8 @@ attach it outside the subtree of the task of its lot speaks of it
 of a project whose order was not entered (`work_breakdown_default`). The correlations
 written by hand go on past the chronologies, their first range being full (EP-02/L42d), then past
 the nodes of the amendment 2, the second being full in its turn (#1228), then on, the second
-range being full too (US-0701/L8). The nodes
+range being full too (US-0701/L8); no number is taken in them any more, the correlation of a new
+example of an error being derived from its name (``wftools.mockcorrelations``, #1007). The nodes
 of the amendment 2 have identifiers of their own, apart from those of the main structure whose
 lineages they share, so that one identifier at one version names one content (#421, US-0500/L1)."""
 

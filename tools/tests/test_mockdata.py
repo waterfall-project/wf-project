@@ -18,6 +18,7 @@ from wftools import (
     mocksliceviews,
     mockstructure,
     mocktoday,
+    mockvolumes,
     mockwitness,
     paths,
 )
@@ -37,7 +38,8 @@ type Node = dict[str, Any]
 def volumes() -> dict[str, Any]:
     """Generate the volumes once, read back from the text the generator writes."""
     return {
-        name: json.loads(mockdata.render(example)) for name, example in mockdata.volumes().items()
+        name: json.loads(mockdata.render(example))
+        for name, example in mockvolumes.volumes().items()
     }
 
 
@@ -196,7 +198,7 @@ def test_a_summary_counts_what_its_volume_holds(volumes: dict[str, Any]) -> None
 def test_the_dependencies_written_are_those_of_the_structure_written(
     volumes: dict[str, Any],
 ) -> None:
-    assert volumes["summary_dependencies.json"]["value"] == mockdata.summary_dependencies(
+    assert volumes["summary_dependencies.json"]["value"] == mockvolumes.summary_dependencies(
         volumes["nodes_thousand.json"]["value"]
     )
 
@@ -227,7 +229,7 @@ def test_the_dependencies_of_a_summary_are_its_tasks_not_its_lines() -> None:
             task(5, 2, "Lot B"),
         ]
     }
-    dependencies = mockdata.summary_dependencies(answer)
+    dependencies = mockvolumes.summary_dependencies(answer)
     assert dependencies["node_id"] == "n2"
     assert dependencies["rows"] == [
         {"node_id": "n4", "row_number": 4, "label": "Lot A"},
@@ -752,8 +754,8 @@ def test_two_runs_write_the_same_bytes(
     # `mockdating._schedule`, `mockcore._core`, `mockindicators._read`, `mockcosts.drawn`,
     # `mockportfolio._witness`, `mockportfoliotime._rates`. Clearing them would cost some thirty
     # seconds a run, for little (#653).
-    first = {name: mockdata.render(example) for name, example in mockdata.volumes().items()}
-    second = {name: mockdata.render(example) for name, example in mockdata.volumes().items()}
+    first = {name: mockdata.render(example) for name, example in mockvolumes.volumes().items()}
+    second = {name: mockdata.render(example) for name, example in mockvolumes.volumes().items()}
     assert first == second
     # The named examples too, assembled anew against those the session shares.
     _, named = universe_computed
@@ -787,7 +789,7 @@ def test_an_object_below_the_value_that_holds_a_long_list_is_laid_out_too() -> N
 def test_the_written_volumes_and_readings_check_up_to_date(tmp_path: Path) -> None:
     assert mockdata.main([], tmp_path) == 0
     volume = tmp_path / mockdata.VOLUME
-    assert sorted(path.name for path in volume.iterdir()) == sorted(mockdata.volumes())
+    assert sorted(path.name for path in volume.iterdir()) == sorted(mockvolumes.volumes())
     named = sorted(path.name for path in tmp_path.iterdir() if path.is_file())
     assert named == sorted(mockdata.named())
     assert mockdata.main(["--check"], tmp_path) == 0
@@ -846,7 +848,7 @@ def test_writing_removes_a_file_the_generator_no_longer_makes(tmp_path: Path) ->
         "volume/archive is a directory left over, remove it by hand"
     ]
     assert mockdata.check(tmp_path / "absent") == [
-        *(f"volume/{name} is missing" for name in mockdata.volumes()),
+        *(f"volume/{name} is missing" for name in mockvolumes.volumes()),
         *(f"{name} is missing" for name in mockdata.named()),
         *(f"witness/portfolio/{name} is missing" for name in mocksliceviews.documents()),
     ]
@@ -868,7 +870,7 @@ def test_a_directory_left_over_is_not_sent_to_make_mock_data(
 def test_the_examples_are_written_with_plain_line_ends_whatever_was_there(tmp_path: Path) -> None:
     volume = tmp_path / mockdata.VOLUME
     volume.mkdir()
-    for name, example in mockdata.volumes().items():
+    for name, example in mockvolumes.volumes().items():
         (volume / name).write_bytes(mockdata.render(example).replace("\n", "\r\n").encode())
     for name, example in mockdata.readings().items():
         (tmp_path / name).write_bytes(mockdata.render(example).replace("\n", "\r\n").encode())
@@ -880,7 +882,7 @@ def test_the_examples_are_written_with_plain_line_ends_whatever_was_there(tmp_pa
 
 def test_the_contract_cites_every_volume_so_that_its_lint_checks_it() -> None:
     contract = "".join(path.read_text(encoding="utf-8") for path in CONTRACT.glob("*.yaml"))
-    for name in mockdata.volumes():
+    for name in mockvolumes.volumes():
         assert f"$ref: ../../../fixtures/api/volume/{name} }}" in contract
     for name in mockdata.readings():
         assert f"$ref: ../../../fixtures/api/{name} }}" in contract

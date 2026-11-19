@@ -12,6 +12,7 @@ state (``computed_fields``, WF-IHM-0030).
 Registered by the application from US-2550/L1; served by US-2570/L1.
 """
 
+from collections.abc import Iterable
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
@@ -36,7 +37,7 @@ from waterfall.core.risks.interface import (
     read_risk,
     update_risk,
 )
-from waterfall.core.users.interface import read_authors
+from waterfall.core.users.interface import Author, read_authors
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 
@@ -66,11 +67,21 @@ def _computed(view: RiskView) -> list[dict[str, str | list[str]]]:
     return [SEVERITY, PROVISION_REFERENCE]
 
 
-def described(session: Session, view: RiskView) -> Risk:
-    """Describe a risk as the contract does, its authors named as they are today."""
-    authors = read_authors(
-        session, {each for each in (view.created_by, view.updated_by) if each is not None}
+def authors_of(session: Session, views: Iterable[RiskView]) -> dict[UUID, Author]:
+    """Name the authors of the risks given as they are today, in one statement."""
+    return read_authors(
+        session,
+        {each for view in views for each in (view.created_by, view.updated_by) if each is not None},
     )
+
+
+def described(session: Session, view: RiskView, authors: dict[UUID, Author] | None = None) -> Risk:
+    """Describe a risk as the contract does, its authors named as they are today.
+
+    ``authors`` are those a register has named at once for all its risks; none, they are read here.
+    """
+    if authors is None:
+        authors = authors_of(session, [view])
     task = view.provision_task
     cell = view.matrix_cell
     return Risk.model_validate(
@@ -131,7 +142,7 @@ def described(session: Session, view: RiskView) -> Risk:
     )
 
 
-def _id(value: object) -> UUID | None:
+def id_of(value: object) -> UUID | None:
     """Give the identifier a body carries, none when it carries none."""
     root = getattr(value, "root", None)
     return root if isinstance(root, UUID) else None
@@ -154,9 +165,9 @@ def post_risk(
         probability=Decimal(body.probability.root.root),
         description=body.description,
         mitigation_notes=body.mitigation_notes,
-        provision_cost_category_id=_id(body.provision_cost_category_id),
-        provision_subproject_id=_id(body.provision_subproject_id),
-        provision_task_id=_id(body.provision_task_id),
+        provision_cost_category_id=id_of(body.provision_cost_category_id),
+        provision_subproject_id=id_of(body.provision_subproject_id),
+        provision_task_id=id_of(body.provision_task_id),
     )
     view = create_risk(session, project_id, entry, writer, viewer_of(actor))
     return described(session, view)

@@ -2,17 +2,20 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The slot of a worktree: its ports, its projects of Compose and the tags of its images (US-1100).
 
-The tool is run as the Makefile runs it, ``python3 slots.py claim``, in repositories of git made
-for the test — a main repository and worktrees of it —, with ``XDG_RUNTIME_DIR`` on a temporary
-directory: no test touches the register of the workstation. Docker, pnpm and uv are stand-ins on
-the ``PATH`` that write what they are asked and the variables they are given: the Makefile is
-tried by what it hands its commands, nothing is started.
+The tool is run as ``python3 slots.py claim``, the arguments the Makefile gives it through
+``launch.py slots`` (US-2450), in repositories of git made for the test — a main repository and
+worktrees of it —, with ``WATERFALL_RUNTIME_DIR`` on a temporary directory: no test touches the
+register of the workstation. Docker, pnpm and uv are stand-ins on the ``PATH`` that write what
+they are asked and the variables they are given: the Makefile is tried by what it hands its
+commands, nothing is started.
 """
 
 import fcntl
+import importlib
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -20,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from wftools import REPOSITORY, slots
+from wftools import REPOSITORY, heavyturns, slots
 
 SLOTS = REPOSITORY / "tools" / "src" / "wftools" / "slots.py"
 MAKEFILE = REPOSITORY / "Makefile"
@@ -59,7 +62,7 @@ class Workstation:
         }
         self.environment = kept | {
             "PATH": f"{bin_directory}{os.pathsep}{os.environ['PATH']}",
-            "XDG_RUNTIME_DIR": str(root / "run"),
+            "WATERFALL_RUNTIME_DIR": str(root / "run"),
             "STAND_IN_LOG": str(self.log),
             # An empty process table: claim and release stop no server of the workstation (US-1300).
             "WATERFALL_SLOTS_PROC": str(self.empty_table()),
@@ -446,6 +449,146 @@ def test_a_takeover_whose_removal_failed_is_done_again(workstation: Workstation)
     assert docker_asked(workstation.logged()) == DOWNS_OF_SLOT_1
 
 
+def two_lots_in_flight(workstation: Workstation) -> tuple[Path, Path]:
+    """Have two living worktrees take the 2 slots, for US-1/L1 and US-2/L1; return them."""
+    stopped, other = workstation.worktree("stopped"), workstation.worktree("other")
+    for tree, lot in ((stopped, "US-1/L1"), (other, "US-2/L1")):
+        assert workstation.make(tree, "slot", f"LOT={lot}", extra=TWO).returncode == 0
+    workstation.logged()
+    return stopped, other
+
+
+TWO = {"WATERFALL_SLOTS": "2"}
+
+
+def test_every_slot_taken_the_same_lot_takes_over_its_slot(workstation: Workstation) -> None:
+    """[US-2460] PLC-04: the deliverer that takes a lot up gets the slot of the stopped one."""
+    stopped, other = two_lots_in_flight(workstation)
+    listed = workstation.make(workstation.main, "slots", extra=TWO).stdout
+    assert f"slot 1: {stopped} (lot US-1/L1, taken " in listed
+    assert f"slot 2: {other} (lot US-2/L1, taken " in listed
+    tree = workstation.worktree("lot")
+    claimed = workstation.make(tree, "slot", "LOT=US-1/L1", extra=TWO)
+    assert claimed.returncode == 0, claimed.stderr
+    assert f"slot 1 is taken over from {stopped}, of the same lot US-1/L1" in claimed.stdout
+    assert f"slot 1 taken: {tree}" in claimed.stdout
+    assert docker_asked(workstation.logged()) == DOWNS_OF_SLOT_1, "what it left is removed first"
+    taken = slots.holders(workstation.register)
+    assert (taken[1].worktree, taken[1].lot) == (str(tree), "US-1/L1")
+    assert (taken[2].worktree, taken[2].lot) == (str(other), "US-2/L1")
+    assert (workstation.register / "1").read_text().splitlines()[2] == "US-1/L1"
+    assert workstation.tool(stopped, "which").returncode == 1, "the stopped one holds no slot"
+
+
+def test_the_slot_of_another_lot_is_never_taken_over(workstation: Workstation) -> None:
+    """[US-2460] PLC-04: every slot taken, a lot that holds none, or none said, gets nothing."""
+    stopped, other = two_lots_in_flight(workstation)
+    tree = workstation.worktree("lot")
+    for asked in (["LOT=US-3/L1"], []):
+        refused = workstation.make(tree, "slot", *asked, extra=TWO)
+        assert refused.returncode != 0
+        assert "all 2 slot(s) are taken" in refused.stderr
+        assert ("none for lot US-3/L1" in refused.stderr) == bool(asked)
+    assert workstation.logged() == "", "nothing removed"
+    taken = slots.holders(workstation.register)
+    assert [taken[slot].worktree for slot in (1, 2)] == [str(stopped), str(other)]
+
+
+def test_a_free_slot_is_taken_before_the_one_of_the_same_lot(workstation: Workstation) -> None:
+    """[US-2460] PLC-04: a slot free, the one held for the same lot elsewhere is left as it is."""
+    stopped = workstation.worktree("stopped")
+    workstation.make(stopped, "slot", "LOT=US-1/L1", extra=TWO)
+    tree = workstation.worktree("lot")
+    claimed = workstation.make(tree, "slot", "LOT=US-1/L1", extra=TWO)
+    assert f"slot 2 taken: {tree}" in claimed.stdout
+    assert slots.holders(workstation.register)[1].worktree == str(stopped)
+
+
+def test_a_slot_file_of_two_lines_holds_no_lot(tmp_path: Path) -> None:
+    """[US-2460] PLC-04: the file an older tool wrote is read; its slot is of no lot."""
+    register = tmp_path / "waterfall-slots"
+    elsewhere = tmp_path / "elsewhere"
+    (elsewhere / ".git").mkdir(parents=True)
+    register.mkdir()
+    (register / "1").write_text(f"{elsewhere}\n2026-11-18T08:00:00+00:00\n", encoding="utf-8")
+    assert slots.holders(register)[1] == slots.Holder(str(elsewhere), "2026-11-18T08:00:00+00:00")
+    tree = tmp_path / "lot"
+    with pytest.raises(slots.RegisterError, match="none for lot US-1/L1"):
+        slots.claim(register, tree, 1, lambda _slot: None, "US-1/L1")
+    assert slots.claim(register, elsewhere, 1, lambda _slot: None, "US-1/L1") == (1, False, "")
+    assert slots.holders(register)[1].lot == "US-1/L1", "the lot is written to the slot held"
+
+
+def two_held_slots(tmp_path: Path) -> tuple[Path, Path, Path]:
+    """Write 2 slots held for US-1/L1 and US-2/L1; return it, the stopped tree, a new."""
+    register = tmp_path / "waterfall-slots"
+    register.mkdir()
+    for slot, (name, lot) in enumerate((("stopped", "US-1/L1"), ("other", "US-2/L1")), 1):
+        (tmp_path / name / ".git").mkdir(parents=True)
+        holder = slots.Holder(str(tmp_path / name), "2026-11-18T08:00:00+00:00", lot)
+        slots.write(register, slot, holder)
+    return register, tmp_path / "stopped", tmp_path / "lot"
+
+
+def test_a_failed_removal_says_no_takeover(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """[US-2460] PLC-04: claim prints nothing; a takeover is returned, and said once it is done."""
+    register, stopped, tree = two_held_slots(tmp_path)
+
+    def fail(_slot: int) -> None:
+        message = "docker compose down failed"
+        raise slots.RegisterError(message)
+
+    with pytest.raises(slots.RegisterError, match="slot 1 is not taken"):
+        slots.claim(register, tree, 2, fail, "US-1/L1")
+    assert "taken over" not in capsys.readouterr().out
+    assert slots.holders(register)[1].worktree == str(stopped), "the slot is still the old one's"
+    assert slots.claim(register, tree, 2, lambda _slot: None, "US-1/L1") == (1, True, str(stopped))
+    assert capsys.readouterr().out == ""
+
+
+def test_a_takeover_stops_the_servers_of_the_slot_by_pid_and_no_other(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[US-2460] PLC-04, US-1080: the takeover stops what listens on the ports of the slot only."""
+    fake_table = importlib.import_module("test_slots").fake_table  # it imports this module
+
+    register, stopped, tree = two_held_slots(tmp_path)
+    ours = subprocess.Popen(["sleep", "120"])
+    theirs = subprocess.Popen(["sleep", "120"])
+    # 20140 is the first front of slot 1, the slot taken over; 20240, that of slot 2.
+    table = fake_table(tmp_path, {ours.pid: {20140: 4245}, theirs.pid: {20240: 4246}})
+    sent: list[tuple[int, int]] = []
+
+    def record(pid: int, number: int) -> None:
+        """Say the signal, and end the listening in the table: no real signal is sent."""
+        sent.append((pid, number))
+        shutil.rmtree(table / str(pid))
+
+    monkeypatch.setattr(slots, "send", record)
+    monkeypatch.setattr(slots, "POLL_SECONDS", 0.01)
+    environment = {"WATERFALL_SLOTS_PROC": str(table)}
+    try:
+        taken = slots.claim(register, tree, 2, slots.stopper(environment), "US-1/L1")
+    finally:
+        ours.kill()
+        theirs.kill()
+        ours.wait(timeout=30)
+        theirs.wait(timeout=30)
+    assert taken == (1, True, str(stopped))
+    assert sent == [(ours.pid, signal.SIGTERM)], "by its PID, and no other process"
+
+
+@pytest.mark.parametrize("lot", ["", "US-1/L1\nUS-2/L1", "../x", "a b"])
+def test_a_lot_that_cannot_be_a_line_is_refused(workstation: Workstation, lot: str) -> None:
+    """[US-2460] PLC-04: the lot is one line of the register: anything else is refused, said."""
+    refused = workstation.tool(workstation.worktree("lot"), "claim", "--lot", lot)
+    assert refused.returncode == 2
+    assert "is not the identifier of a lot" in refused.stderr
+    assert slots.holders(workstation.register) == {}
+
+
 def test_no_claim_says_held_before_the_slot_is_emptied(workstation: Workstation) -> None:
     """US-1100: two claims at once on an abandoned slot: none says held before its down ends."""
     tree = abandon_slot_1(workstation)
@@ -512,7 +655,7 @@ def test_the_register_is_locked_while_a_slot_is_emptied(tmp_path: Path) -> None:
     with pytest.raises(slots.RegisterError, match=r"slot 1 is not taken: .* down failed"):
         slots.claim(register, tree, 2, fail)
     assert slots.holders(register) == {}
-    assert slots.claim(register, tree, 2, remove) == (1, True)
+    assert slots.claim(register, tree, 2, remove) == (1, True, "")
     with pytest.raises(slots.RegisterError, match="down failed"):
         slots.release(register, tree, fail)
     assert slots.slot_of(slots.holders(register), tree) == 1
@@ -557,10 +700,14 @@ def test_a_slot_whose_projects_cannot_be_removed_stays_taken(workstation: Workst
     assert slots.holders(workstation.register)[1].worktree == str(tree)
 
 
-def test_the_register_falls_back_on_tmp_without_a_runtime_directory() -> None:
-    """US-1100: without XDG_RUNTIME_DIR, the register is in /tmp, as the heavy locks are."""
+def test_the_register_is_in_the_directory_of_the_locks(
+    user_runtime: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """US-1100, US-2460: waterfall-slots of the directory of the heavy locks, /tmp at the last."""
+    assert slots.register({"WATERFALL_RUNTIME_DIR": "/run/x"}) == Path("/run/x/waterfall-slots")
+    assert slots.register({}) == user_runtime / "waterfall-slots"
+    monkeypatch.setattr(heavyturns, "USER_RUNTIME_ROOT", user_runtime / "absent")
     assert slots.register({}) == Path(os.sep, "tmp", "waterfall-slots")
-    assert slots.register({"XDG_RUNTIME_DIR": "/run/user/7"}) == Path("/run/user/7/waterfall-slots")
 
 
 def test_a_target_of_a_worktree_without_a_slot_stops_saying_make_slot(

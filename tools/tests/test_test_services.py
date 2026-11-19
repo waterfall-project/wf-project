@@ -4,12 +4,12 @@
 
 (US-1110.)
 
-The tool is run as the Makefile runs it, ``python3 slots.py run --services …``, in the repositories
-of git made for the test by ``test_worktree_slots``: a main repository and worktrees of it, each
-with a Makefile that includes the one of the repository, and the stand-ins of Docker, pnpm and uv
-on the ``PATH``, which write what they are asked and the variables they are given. Nothing is
-started: the tests tell what the Makefile asks of Docker, in which order, and what the tests are
-given.
+The tool is run as ``python3 slots.py run --services …``, the arguments the Makefile gives it
+through ``launch.py slots`` (US-2450), in the repositories of git made for the test by
+``test_worktree_slots``: a main repository and worktrees of it, each with a Makefile that includes
+the one of the repository, and the stand-ins of Docker, pnpm and uv on the ``PATH``, which write
+what they are asked and the variables they are given. Nothing is started: the tests tell what the
+Makefile asks of Docker, in which order, and what the tests are given.
 """
 
 import fcntl
@@ -264,7 +264,7 @@ def test_a_failed_start_of_the_services_stops_before_the_tests(workstation: Work
 
 def test_run_refuses_an_unknown_service_and_a_run_that_asks_for_nothing(tmp_path: Path) -> None:
     """US-1110: run --services names db, redis and storage; run needs a mode or --services."""
-    environment = {**os.environ, "XDG_RUNTIME_DIR": str(tmp_path)}
+    environment = {**os.environ, "WATERFALL_RUNTIME_DIR": str(tmp_path)}
     unknown = subprocess.run(
         [sys.executable, str(SLOTS), "run", "--services", "db,mongo", "--", "true"],
         env=environment,
