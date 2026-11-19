@@ -2676,7 +2676,7 @@ export interface paths {
         };
         /**
          * List of the portfolio projects
-         * @description Label, code, state, reference budget or current estimate and probability, project manager's projection and, for a project in progress, its variance to the reference budget, indices with their zone, and date of the last marked revision (WF-PTF-0040). The list is filtered by state, by period, by zone and by a search on the label; the sort is done by the server, and `meta.total` counts the projects retained (WF-IHM-0130).
+         * @description Label, code, state, reference budget or current estimate and probability, project manager's projection and, for a project in progress, its variance to the reference budget, indices with their zone, and date of the last marked revision (WF-PTF-0040). The list is filtered by state, by period, by zone and by a search on the label, and each of its columns by its own filter, following the convention of the contract's README: the code by the text it contains, each number column — reference budget, current estimate, win probability, project manager's projection, variance to the reference, cost index and schedule index — by its two inclusive bounds, `<column>_min` and `<column>_max`, and the instant of the last marked revision by its period, `last_marked_at_from` and `last_marked_at_to`, end excluded (the author's decision of 2026-11-17, against the freeze of EP-16). The filters apply together, to the values the row returns at the calculation date; a project whose column is null — an offer has no reference budget nor index, a project in progress no current estimate — or whose index is not computed is retained by no bound of that column. The sort is done by the server, and `meta.total` counts the projects that every filter retains (WF-IHM-0130). The organisation node changes no row (`PortfolioOrgNode`).
          */
         get: operations["getPortfolioProjects"];
         put?: never;
@@ -6625,8 +6625,42 @@ export interface components {
         PortfolioFrom: components["schemas"]["PlanningDate"];
         /** @description End of the period, inclusive, a planning date. Earlier than `from`, it is refused with 422 (`PortfolioPeriodRefused`). Without `from`, the start is that of the default period: the calculation date minus twelve months (28 February for a 29 February), then the next day — 4 June 2025 for 3 June 2026, 1 March 2027 for 29 February 2028; an end that is earlier than it is refused likewise, `params.minimum` the start filled in. */
         PortfolioTo: components["schemas"]["PlanningDate"];
-        /** @description Restricts only the labour lines whose role falls under the node — attached to it or to one of its descendants; a project belongs to no department (WF-PTF-0010). */
+        /** @description Restricts only the labour lines whose role falls under the node — attached to it or to one of its descendants; a project belongs to no department (WF-PTF-0010). The node therefore restricts only the aggregated workload (`getPortfolioWorkload`) and the labour of the cost structure (`getPortfolioCostStructure`): it changes no amount of the project list, of the value nor of the performance (`getPortfolioProjects`, `getPortfolioValue`, `getPortfolioPerformance`), which retain the same projects and the same figures with or without it, and only return it in their scope (`scope.org_node_id`, `scope.org_node_label`). A row of the list, an index or a value is never restricted to the labour of the node: that would set an earned value restricted to labour against a whole actual cost (the author's decision of 2026-11-17, design of EP-11). */
         PortfolioOrgNode: components["schemas"]["Uuid"];
+        /** @description Restricts to the projects whose code contains the given text, compared like the search (README, "A search…"); a project without a code is not retained (WF-PTF-0040, WF-IHM-0130). */
+        PortfolioCode: string;
+        /** @description Restricts to the projects whose reference budget (`PortfolioProjectRow.reference_budget`) reaches this bound, inclusive; a project without a reference budget — before In progress — is not retained (WF-PTF-0040, WF-IHM-0130). */
+        PortfolioReferenceBudgetMin: components["schemas"]["Money"];
+        /** @description Restricts to the projects whose reference budget does not exceed this bound, inclusive; a project without a reference budget is not retained. Lower than `reference_budget_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/reference_budget_max`. */
+        PortfolioReferenceBudgetMax: components["schemas"]["Money"];
+        /** @description Restricts to the projects whose current estimate (`PortfolioProjectRow.current_estimate`) reaches this bound, inclusive: projects in pricing, since another project has none; one without a revision is not retained either (WF-PTF-0040, WF-IHM-0130). */
+        PortfolioCurrentEstimateMin: components["schemas"]["Money"];
+        /** @description Restricts to the projects in pricing whose current estimate does not exceed this bound, inclusive; a project without a current estimate is not retained. Lower than `current_estimate_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/current_estimate_max`. */
+        PortfolioCurrentEstimateMax: components["schemas"]["Money"];
+        /** @description Restricts to the projects whose win probability (`PortfolioProjectRow.win_probability`) reaches this bound, inclusive, a share (`0.4` for 40 %); a project without a probability is not retained (WF-PTF-0040, WF-IHM-0130). */
+        PortfolioWinProbabilityMin: components["schemas"]["Percent"];
+        /** @description Restricts to the projects whose win probability does not exceed this bound, inclusive, a share (`0.4` for 40 %); a project without a probability is not retained. Lower than `win_probability_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/win_probability_max`. */
+        PortfolioWinProbabilityMax: components["schemas"]["Percent"];
+        /** @description Restricts to the projects whose project manager's projection (`PortfolioProjectRow.project_manager_projection`) reaches this bound, inclusive: projects in progress, since another project has none (WF-PTF-0040, WF-IHM-0130). */
+        PortfolioProjectionMin: components["schemas"]["Money"];
+        /** @description Restricts to the projects in progress whose project manager's projection does not exceed this bound, inclusive; a project without a projection is not retained. Lower than `project_manager_projection_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/project_manager_projection_max`. */
+        PortfolioProjectionMax: components["schemas"]["Money"];
+        /** @description Restricts to the projects whose variance to the reference budget (`PortfolioProjectRow.delta_to_reference`, positive beyond the budget) reaches this bound, inclusive — `0` for the projects whose projection reaches or exceeds their budget: projects in progress, since another project has none (WF-PTF-0040, WF-IHM-0130). The bound may be negative. */
+        PortfolioDeltaToReferenceMin: components["schemas"]["Money"];
+        /** @description Restricts to the projects in progress whose variance to the reference budget does not exceed this bound, inclusive; a project without a variance is not retained. Lower than `delta_to_reference_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/delta_to_reference_max`. */
+        PortfolioDeltaToReferenceMax: components["schemas"]["Money"];
+        /** @description Restricts to the projects whose cost index (`PortfolioProjectRow.cost_index.value`) reaches this bound, inclusive; a project without a cost index, or whose index is not computed (`is_computable` false), is not retained (WF-PTF-0040, WF-IHM-0130). */
+        PortfolioCostIndexMin: components["schemas"]["Decimal"];
+        /** @description Restricts to the projects whose cost index does not exceed this bound, inclusive; a project without a computed cost index is not retained. Lower than `cost_index_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/cost_index_max`. */
+        PortfolioCostIndexMax: components["schemas"]["Decimal"];
+        /** @description Restricts to the projects whose schedule index (`PortfolioProjectRow.schedule_index.value`) reaches this bound, inclusive; a project without a schedule index, or whose index is not computed, is not retained (WF-PTF-0040, WF-IHM-0130). */
+        PortfolioScheduleIndexMin: components["schemas"]["Decimal"];
+        /** @description Restricts to the projects whose schedule index does not exceed this bound, inclusive; a project without a computed schedule index is not retained. Lower than `schedule_index_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/schedule_index_max`. */
+        PortfolioScheduleIndexMax: components["schemas"]["Decimal"];
+        /** @description Start, inclusive, of the period of the last marked revision: restricts to the projects whose last marked revision (`PortfolioProjectRow.last_marked_at`) was marked at this instant or after it; a project that has none is not retained (WF-PTF-0040, WF-IHM-0130). */
+        PortfolioLastMarkedAtFrom: components["schemas"]["Timestamp"];
+        /** @description End, exclusive, of the period of the last marked revision: restricts to the projects whose last marked revision was marked before this instant — those not marked since a date —; a project that has none is not retained (WF-IHM-0130). Earlier than `last_marked_at_from`, it is refused with 422, `fields[]` designating `/query/last_marked_at_to` with `VALUE_OUT_OF_RANGE`, `params.minimum` the start given; equal, the period is empty. */
+        PortfolioLastMarkedAtTo: components["schemas"]["Timestamp"];
     };
     requestBodies: never;
     headers: never;
@@ -14110,7 +14144,7 @@ export interface operations {
                 to?: components["parameters"]["PortfolioTo"];
                 /** @description Calculation date. Absent, the indicators of the current day: those of the current revision, or, when the project has none, those of its last marked revision calculated with the actual cost of the day, `is_stored` false (WF-IND-0010); present, those of the last marked revision on or before it, as they were kept at its marking (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). A date that designates no revision marked In progress — none marked on or before it, or none of them kept the indicators of the project — is refused by 409 `STATE_FORBIDS_OPERATION` without `params`, as an offer is (#2449). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Restricts only the labour lines whose role falls under the node — attached to it or to one of its descendants; a project belongs to no department (WF-PTF-0010). */
+                /** @description Restricts only the labour lines whose role falls under the node — attached to it or to one of its descendants; a project belongs to no department (WF-PTF-0010). The node therefore restricts only the aggregated workload (`getPortfolioWorkload`) and the labour of the cost structure (`getPortfolioCostStructure`): it changes no amount of the project list, of the value nor of the performance (`getPortfolioProjects`, `getPortfolioValue`, `getPortfolioPerformance`), which retain the same projects and the same figures with or without it, and only return it in their scope (`scope.org_node_id`, `scope.org_node_label`). A row of the list, an index or a value is never restricted to the labour of the node: that would set an earned value restricted to labour against a whole actual cost (the author's decision of 2026-11-17, design of EP-11). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
                 /** @description Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100 lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a choice, such as the categories and roles of an estimate line, which are read page after page up to `meta.total` with the largest page. */
                 limit?: components["parameters"]["Limit"];
@@ -14120,6 +14154,40 @@ export interface operations {
                 search?: components["parameters"]["Search"];
                 /** @description Restricts to the projects whose cost index or schedule index is in one of these zones — `alert` to see the projects in alert (WF-PTF-0040, WF-IHM-0130); the order remains that of `sort_by`. */
                 zones?: components["schemas"]["AlertZone"][];
+                /** @description Restricts to the projects whose code contains the given text, compared like the search (README, "A search…"); a project without a code is not retained (WF-PTF-0040, WF-IHM-0130). */
+                code?: components["parameters"]["PortfolioCode"];
+                /** @description Restricts to the projects whose reference budget (`PortfolioProjectRow.reference_budget`) reaches this bound, inclusive; a project without a reference budget — before In progress — is not retained (WF-PTF-0040, WF-IHM-0130). */
+                reference_budget_min?: components["parameters"]["PortfolioReferenceBudgetMin"];
+                /** @description Restricts to the projects whose reference budget does not exceed this bound, inclusive; a project without a reference budget is not retained. Lower than `reference_budget_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/reference_budget_max`. */
+                reference_budget_max?: components["parameters"]["PortfolioReferenceBudgetMax"];
+                /** @description Restricts to the projects whose current estimate (`PortfolioProjectRow.current_estimate`) reaches this bound, inclusive: projects in pricing, since another project has none; one without a revision is not retained either (WF-PTF-0040, WF-IHM-0130). */
+                current_estimate_min?: components["parameters"]["PortfolioCurrentEstimateMin"];
+                /** @description Restricts to the projects in pricing whose current estimate does not exceed this bound, inclusive; a project without a current estimate is not retained. Lower than `current_estimate_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/current_estimate_max`. */
+                current_estimate_max?: components["parameters"]["PortfolioCurrentEstimateMax"];
+                /** @description Restricts to the projects whose win probability (`PortfolioProjectRow.win_probability`) reaches this bound, inclusive, a share (`0.4` for 40 %); a project without a probability is not retained (WF-PTF-0040, WF-IHM-0130). */
+                win_probability_min?: components["parameters"]["PortfolioWinProbabilityMin"];
+                /** @description Restricts to the projects whose win probability does not exceed this bound, inclusive, a share (`0.4` for 40 %); a project without a probability is not retained. Lower than `win_probability_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/win_probability_max`. */
+                win_probability_max?: components["parameters"]["PortfolioWinProbabilityMax"];
+                /** @description Restricts to the projects whose project manager's projection (`PortfolioProjectRow.project_manager_projection`) reaches this bound, inclusive: projects in progress, since another project has none (WF-PTF-0040, WF-IHM-0130). */
+                project_manager_projection_min?: components["parameters"]["PortfolioProjectionMin"];
+                /** @description Restricts to the projects in progress whose project manager's projection does not exceed this bound, inclusive; a project without a projection is not retained. Lower than `project_manager_projection_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/project_manager_projection_max`. */
+                project_manager_projection_max?: components["parameters"]["PortfolioProjectionMax"];
+                /** @description Restricts to the projects whose variance to the reference budget (`PortfolioProjectRow.delta_to_reference`, positive beyond the budget) reaches this bound, inclusive — `0` for the projects whose projection reaches or exceeds their budget: projects in progress, since another project has none (WF-PTF-0040, WF-IHM-0130). The bound may be negative. */
+                delta_to_reference_min?: components["parameters"]["PortfolioDeltaToReferenceMin"];
+                /** @description Restricts to the projects in progress whose variance to the reference budget does not exceed this bound, inclusive; a project without a variance is not retained. Lower than `delta_to_reference_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/delta_to_reference_max`. */
+                delta_to_reference_max?: components["parameters"]["PortfolioDeltaToReferenceMax"];
+                /** @description Restricts to the projects whose cost index (`PortfolioProjectRow.cost_index.value`) reaches this bound, inclusive; a project without a cost index, or whose index is not computed (`is_computable` false), is not retained (WF-PTF-0040, WF-IHM-0130). */
+                cost_index_min?: components["parameters"]["PortfolioCostIndexMin"];
+                /** @description Restricts to the projects whose cost index does not exceed this bound, inclusive; a project without a computed cost index is not retained. Lower than `cost_index_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/cost_index_max`. */
+                cost_index_max?: components["parameters"]["PortfolioCostIndexMax"];
+                /** @description Restricts to the projects whose schedule index (`PortfolioProjectRow.schedule_index.value`) reaches this bound, inclusive; a project without a schedule index, or whose index is not computed, is not retained (WF-PTF-0040, WF-IHM-0130). */
+                schedule_index_min?: components["parameters"]["PortfolioScheduleIndexMin"];
+                /** @description Restricts to the projects whose schedule index does not exceed this bound, inclusive; a project without a computed schedule index is not retained. Lower than `schedule_index_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/schedule_index_max`. */
+                schedule_index_max?: components["parameters"]["PortfolioScheduleIndexMax"];
+                /** @description Start, inclusive, of the period of the last marked revision: restricts to the projects whose last marked revision (`PortfolioProjectRow.last_marked_at`) was marked at this instant or after it; a project that has none is not retained (WF-PTF-0040, WF-IHM-0130). */
+                last_marked_at_from?: components["parameters"]["PortfolioLastMarkedAtFrom"];
+                /** @description End, exclusive, of the period of the last marked revision: restricts to the projects whose last marked revision was marked before this instant — those not marked since a date —; a project that has none is not retained (WF-IHM-0130). Earlier than `last_marked_at_from`, it is refused with 422, `fields[]` designating `/query/last_marked_at_to` with `VALUE_OUT_OF_RANGE`, `params.minimum` the start given; equal, the period is empty. */
+                last_marked_at_to?: components["parameters"]["PortfolioLastMarkedAtTo"];
                 /** @description Sort column; when absent, the label. */
                 sort_by?: "label" | "code" | "state" | "reference_budget" | "current_estimate" | "win_probability" | "project_manager_projection" | "delta_to_reference" | "cost_index" | "schedule_index" | "last_marked_at";
                 /** @description Direction of the sort requested by `sort_by`. */
@@ -14146,7 +14214,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            422: components["responses"]["PortfolioPeriodRefused"];
+            /** @description `VALIDATION_FAILED`. The period (`from`, `to`) refused by the rule of every period of the portfolio (`PortfolioPeriodRefused`): an end that precedes the start, `/query/to` with `VALUE_OUT_OF_RANGE`, `params.minimum` the start given; a malformed start or end, `/query/from` or `/query/to` with `DATE_INVALID`. A single bound is completed with that of the default period — the end, the calculation date; the start, the calculation date minus twelve months (28 February for a 29 February), then the next day — and the completed period follows the same rule: a start later than the calculation date, `/query/from` with `VALUE_OUT_OF_RANGE`, `params.maximum` the completed end; an end earlier than the default start, `/query/to`, `params.minimum` the completed start. Or a column filter refused, following the convention of the README, `fields` on the parameter: a malformed bound with `NUMBER_INVALID`, a malformed instant with `DATE_INVALID`; an upper bound lower than the lower one with `VALUE_OUT_OF_RANGE` on `/query/<column>_max`, `params.minimum` the lower bound given; an end of the period of the last marked revision earlier than its start with `VALUE_OUT_OF_RANGE` on `/query/last_marked_at_to`, `params.minimum` the start given (WF-IHM-0130). No empty list stands in for a refusal. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -14162,7 +14238,7 @@ export interface operations {
                 to?: components["parameters"]["PortfolioTo"];
                 /** @description Calculation date. Absent, the indicators of the current day: those of the current revision, or, when the project has none, those of its last marked revision calculated with the actual cost of the day, `is_stored` false (WF-IND-0010); present, those of the last marked revision on or before it, as they were kept at its marking (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). A date that designates no revision marked In progress — none marked on or before it, or none of them kept the indicators of the project — is refused by 409 `STATE_FORBIDS_OPERATION` without `params`, as an offer is (#2449). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Restricts only the labour lines whose role falls under the node — attached to it or to one of its descendants; a project belongs to no department (WF-PTF-0010). */
+                /** @description Restricts only the labour lines whose role falls under the node — attached to it or to one of its descendants; a project belongs to no department (WF-PTF-0010). The node therefore restricts only the aggregated workload (`getPortfolioWorkload`) and the labour of the cost structure (`getPortfolioCostStructure`): it changes no amount of the project list, of the value nor of the performance (`getPortfolioProjects`, `getPortfolioValue`, `getPortfolioPerformance`), which retain the same projects and the same figures with or without it, and only return it in their scope (`scope.org_node_id`, `scope.org_node_label`). A row of the list, an index or a value is never restricted to the labour of the node: that would set an earned value restricted to labour against a whole actual cost (the author's decision of 2026-11-17, design of EP-11). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
             };
             header?: never;
@@ -14194,7 +14270,7 @@ export interface operations {
                 states?: components["parameters"]["PortfolioStates"];
                 /** @description Calculation date. Absent, the indicators of the current day: those of the current revision, or, when the project has none, those of its last marked revision calculated with the actual cost of the day, `is_stored` false (WF-IND-0010); present, those of the last marked revision on or before it, as they were kept at its marking (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). A date that designates no revision marked In progress — none marked on or before it, or none of them kept the indicators of the project — is refused by 409 `STATE_FORBIDS_OPERATION` without `params`, as an offer is (#2449). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Restricts only the labour lines whose role falls under the node — attached to it or to one of its descendants; a project belongs to no department (WF-PTF-0010). */
+                /** @description Restricts only the labour lines whose role falls under the node — attached to it or to one of its descendants; a project belongs to no department (WF-PTF-0010). The node therefore restricts only the aggregated workload (`getPortfolioWorkload`) and the labour of the cost structure (`getPortfolioCostStructure`): it changes no amount of the project list, of the value nor of the performance (`getPortfolioProjects`, `getPortfolioValue`, `getPortfolioPerformance`), which retain the same projects and the same figures with or without it, and only return it in their scope (`scope.org_node_id`, `scope.org_node_label`). A row of the list, an index or a value is never restricted to the labour of the node: that would set an earned value restricted to labour against a whole actual cost (the author's decision of 2026-11-17, design of EP-11). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
                 /** @description Number of months of the plan, the month of the calculation date first (WF-PTF-0060); when absent, six. */
                 horizon_months?: number;
@@ -14242,7 +14318,7 @@ export interface operations {
                 to?: components["parameters"]["PortfolioTo"];
                 /** @description Calculation date. Absent, the indicators of the current day: those of the current revision, or, when the project has none, those of its last marked revision calculated with the actual cost of the day, `is_stored` false (WF-IND-0010); present, those of the last marked revision on or before it, as they were kept at its marking (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). A date that designates no revision marked In progress — none marked on or before it, or none of them kept the indicators of the project — is refused by 409 `STATE_FORBIDS_OPERATION` without `params`, as an offer is (#2449). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Restricts only the labour lines whose role falls under the node — attached to it or to one of its descendants; a project belongs to no department (WF-PTF-0010). */
+                /** @description Restricts only the labour lines whose role falls under the node — attached to it or to one of its descendants; a project belongs to no department (WF-PTF-0010). The node therefore restricts only the aggregated workload (`getPortfolioWorkload`) and the labour of the cost structure (`getPortfolioCostStructure`): it changes no amount of the project list, of the value nor of the performance (`getPortfolioProjects`, `getPortfolioValue`, `getPortfolioPerformance`), which retain the same projects and the same figures with or without it, and only return it in their scope (`scope.org_node_id`, `scope.org_node_label`). A row of the list, an index or a value is never restricted to the labour of the node: that would set an earned value restricted to labour against a whole actual cost (the author's decision of 2026-11-17, design of EP-11). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
             };
             header?: never;
@@ -14278,7 +14354,7 @@ export interface operations {
                 to?: components["parameters"]["PortfolioTo"];
                 /** @description Calculation date. Absent, the indicators of the current day: those of the current revision, or, when the project has none, those of its last marked revision calculated with the actual cost of the day, `is_stored` false (WF-IND-0010); present, those of the last marked revision on or before it, as they were kept at its marking (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). A date that designates no revision marked In progress — none marked on or before it, or none of them kept the indicators of the project — is refused by 409 `STATE_FORBIDS_OPERATION` without `params`, as an offer is (#2449). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Restricts only the labour lines whose role falls under the node — attached to it or to one of its descendants; a project belongs to no department (WF-PTF-0010). */
+                /** @description Restricts only the labour lines whose role falls under the node — attached to it or to one of its descendants; a project belongs to no department (WF-PTF-0010). The node therefore restricts only the aggregated workload (`getPortfolioWorkload`) and the labour of the cost structure (`getPortfolioCostStructure`): it changes no amount of the project list, of the value nor of the performance (`getPortfolioProjects`, `getPortfolioValue`, `getPortfolioPerformance`), which retain the same projects and the same figures with or without it, and only return it in their scope (`scope.org_node_id`, `scope.org_node_label`). A row of the list, an index or a value is never restricted to the labour of the node: that would set an earned value restricted to labour against a whole actual cost (the author's decision of 2026-11-17, design of EP-11). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
             };
             header?: never;

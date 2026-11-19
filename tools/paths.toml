@@ -366,6 +366,8 @@ paths = [
     "fixtures/api/nodes_estimate_filtered.json",
     "fixtures/api/nodes_period_inverted.json",
     "fixtures/api/nodes_bounds_inverted.json",
+    "fixtures/api/portfolio_projects_bounds_inverted.json",
+    "fixtures/api/portfolio_projects_marking_period_inverted.json",
     "fixtures/api/nodes_installation.json",
     "fixtures/api/nodes_core.json",
     "fixtures/api/nodes_milestone.json",

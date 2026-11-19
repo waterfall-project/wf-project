@@ -71,6 +71,9 @@ from waterfall.core.portfolio.interface.scope import (
     RetainedProject as RetainedProject,
 )
 from waterfall.core.portfolio.interface.scope import (
+    period_instants as period_instants,
+)
+from waterfall.core.portfolio.interface.scope import (
     resolve_scope as resolve_scope,
 )
 
