@@ -1,6 +1,5 @@
 {
   "summary": "Variante contrefactuelle : l'extraction d'avril importée sur un projet de code A.ABC.26001, qui porte des points, et dont un sous-projet a pour code 10001. Seule la barre oblique sépare le code projet du code de sous-projet : la ligne 2, d'élément d'OTP « A.ABC.26001/10001 », est ajoutée et imputée au sous-projet 10001 ; la ligne 3, d'élément « A.ABC.26002/10001 », est rejetée comme d'un autre projet, le code projet lu, A.ABC.26002, nommé. L'application demande une confirmation explicite pour la ligne d'un autre projet (WF-CRE-0020, WF-PRJ-0010, WF-INTF-0140).",
-  "x-examples": ["WF-CRE-0020-A#05375b7a17e8"],
   "value": {
     "import_id": "01926f3a-7c00-7000-8000-000000000af0",
     "kind": "actual_costs",

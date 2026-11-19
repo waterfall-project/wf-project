@@ -613,10 +613,9 @@ travaille, sans changer d'écran.
 - `WF-DEV-0050-A` — « Dans la structure principale, la création d’une ligne sous une tâche
   terminée, ou le déplacement d’une ligne vers elle, est refusé. » : le refus est dit à la ligne en
   cause, sur l'exemple du faux back ; EP-07 le juge sur le service.
-- écart : `WF-DEV-0050-A` — « Dans un différentiel, la modification de la quantité d’une ligne
-  d’une tâche terminée aboutit, et la fusion lui donne ce montant budgété ; dans la structure
-  principale, elle est refusée. » : ajouté par la spécification 1.0.2 (#1765) ; la saisie dans un
-  différentiel et sa fusion sont du service — EP-08.
+- écart : `WF-DEV-0050-A` — « Dans un différentiel, la modification de la quantité d’une ligne d’une
+  tâche terminée aboutit, et la fusion lui donne ce montant budgété. » : réécrit par la
+  spécification 1.0.7 (#3372) : le refus dans la structure principale se lit dans WF-RAE-0040.
 - `WF-DEV-0050-A` — « La grille de devis ne propose la saisie ni de la durée ni des prédécesseurs
   d’une tâche. »
 - `WF-DEV-0050-A` — « Sur un projet En cours, la grille de devis de la structure principale ne
@@ -633,8 +632,7 @@ travaille, sans changer d'écran.
   dont la tâche se place deux ans après l’année de référence, avec une inflation de 2 %, affiche un
   montant réestimé supérieur de 4,04 % à son montant aux taux de l’année de référence. » : le calcul
   est du service — EP-07.
-- `WF-RAE-0040-A` — « Sur un projet qui n’est pas En cours, la grille ne propose ni création ni
-  suppression de tâche ou de ligne. »
+- `WF-RAE-0040-A` — « Sur un projet qui n’est pas En cours, la grille ne propose aucune saisie. »
 - `WF-RAE-0040-A` — « Une ligne ajoutée après la référence peut y être portée à un sous-projet. » :
   par le menu contextuel d'US-0480, sur une ligne que le serveur dit saisissable.
 - écart : `WF-RAE-0040-A` — « Une tâche ajoutée depuis la grille de reste à engager apparaît dans la
@@ -656,7 +654,10 @@ travaille, sans changer d'écran.
 - écart : `WF-RAE-0040-A` — « Une tâche démarrée dont la fin est dépassée est signalée ; sa date
   n’est pas modifiable depuis cette grille. » : constaté par EP-02 ; EP-09 clôt.
 - écart : `WF-RAE-0040-A` — « La saisie d’un reste à engager nul sur toutes les lignes d’une tâche
-  non démarrée la termine, avec une date de démarrage égale à sa date de terminaison. » : EP-09.
+  non démarrée la termine, avec une date de démarrage égale à sa date de terminaison. » : EP-09 ;
+- écart : `WF-RAE-0040-A` — « La création d’une ligne sous une tâche terminée, ou le déplacement
+  d’une ligne vers elle, est refusé. » : passé de WF-DEV-0050 à WF-RAE-0040 par la spécification
+  1.0.7 (#3372) ; tenu par le service (`planning/carrying.py`).
 - propre à l'US : les commandes — « Insérer au-dessous », « Insérer une sous-tâche », « Insérer une
   ligne », « Indenter », « Désindenter », « Monter », « Descendre », « Supprimer » — sont au menu
   contextuel des cellules et ont un raccourci : Alt+Maj+→, Alt+Maj+←, Alt+Maj+↑, Alt+Maj+↓, comme
@@ -710,7 +711,13 @@ la grille ni la souris.
   saisie un samedi est refusée, et le refus nomme le lundi suivant ; la même date importée d’un
   fichier MS Project est gardée et signalée au compte rendu. » : saisie — le refus est dit à la
   cellule et nomme le jour travaillé suivant, sur l'exemple du faux back (US-0470/L3, #1285, #1289)
-  ; importée — EP-06.
+  ; importée — EP-06 ;
+- écart : `WF-PLA-0020-A` — « Le successeur d’une tâche d’un jour, lié fin à début avec une avance
+  de cinq jours, commence avant la date de début de planning. » : ajouté par la spécification 1.0.7
+  (#3375) ; le moteur l'admet déjà ;
+- écart : `WF-PLA-0020-A` — « Un prédécesseur lié fin à début à une récapitulative, dont une
+  subordonnée manuelle est datée avant sa fin, est signalé avec cette subordonnée. » : ajouté par la
+  spécification 1.0.7 (#3368) ; #3984 l'éprouve.
 - `WF-PLA-0030-A` — « Les quatre types et un décalage négatif sont importés, saisis et exportés
   sans perte. » : saisis — la colonne des prédécesseurs accepte « 3FD+2 j ; 5DD », les quatre types
   et un décalage négatif ou en pourcentage, analysés dans la langue de l'interface ; importés et
@@ -722,7 +729,10 @@ la grille ni la souris.
 - écart : `WF-PLA-0030-A` — « Un décalage saisi en semaines ou en mois est conservé dans son
   unité, importé et exporté sans conversion. » : EP-06.
 - écart : `WF-PLA-0030-A` — « Un décalage de 50 % sur un prédécesseur de dix jours vaut cinq jours
-  de travail. » : le calcul est du service — EP-06.
+  de travail. » : le calcul est du service — EP-06 ;
+- écart : `WF-PLA-0030-A` — « Une liaison fin à début vers une récapitulative fait commencer chacune
+  de ses subordonnées automatiques sans prédécesseur après la fin du prédécesseur. » : ajouté par la
+  spécification 1.0.7 (#3368) ; le moteur l'applique déjà.
 - `WF-PLA-0160-A` — « « 1 m » est lu comme un mois et « 1 min » comme une minute, dans chacune des
   langues de l’interface. » : l'analyse des suffixes au front, dans les deux langues.
 - écart : `WF-PLA-0160-A` — « Avec les valeurs par défaut, une durée saisie « 2 j » vaut seize
@@ -801,9 +811,12 @@ et ma ventilation par sous-projet sans quitter la grille.
 - écart : `WF-PRJ-0050-A` — « La suppression d’un sous-projet que porte une ligne de devis de la
   révision en cours est refusée ; elle aboutit une fois cette ligne passée à un autre
   sous-projet. » : la seconde moitié demande le service — EP-04.
-- écart : `WF-PRJ-0050-A` — « La création d’un sous-projet de code « SP/01 », « Synthèse » ou de
-  plus de trente et un caractères est refusée. » : la borne du code est au contrat et au service —
-  #1304.
+- écart : `WF-PRJ-0050-A` — « Un sous-projet de code « A.ABC.26001/10001 », « Synthèse » ou de
+  quarante caractères se crée, et le fichier de reste à engager lui donne un onglet qui porte son
+  code en tête. » : remplace, par la spécification 1.0.7 (#3370), le refus de « SP/01 », de «
+  Synthèse » et de plus de trente et un caractères, que le livré tient encore ; #3966 l'éprouve ;
+- écart : `WF-PRJ-0050-A` — « La création d’un sous-projet dont le code est celui du projet est
+  refusée. » : ajouté par la spécification 1.0.7 (#3370) ; #3966 l'éprouve.
 - propre à l'US : le sous-menu « Sous-projet » est exclusif (boutons radio) : « Aucun sous-projet »
   et chaque sous-projet du projet, celui de la ligne coché ; il n'est offert que si la ligne nomme
   `estimate_line.subproject_id` dans `editable_fields` — une ligne de provision ne l'offre pas ;
@@ -898,7 +911,10 @@ montre tout le cycle, de la création à la réalisation.
 - écart : `WF-REV-0060-A` — « Une mise à jour refusée à la création d’une révision est acceptée
   ensuite depuis la révision en cours, qui est alors rechiffrée au taux de 2027 pour cette
   catégorie. » : la commande est offerte depuis la révision en cours ; le rechiffrage est du
-  service — EP-07.
+  service — EP-07 ;
+- écart : `WF-REV-0060-A` — « Avec une inflation de 3 %, une ligne de débours 8 000 consommée en
+  2028 vaut 8 487,20 dans la révision de 2026 comme dans celle créée en 2027, où son débours est de
+  8 240. » : ajouté par la spécification 1.0.7 (#3366) ; #3983 l'éprouve.
 - propre à l'US : la page du projet porte l'encart « Démarrer le projet » tant que la structure
   principale de la révision en cours n'a aucune tâche, pour qui peut modifier le planning — et
   aussi dès la création du projet, sur un projet sans révision, où « Engendrer le planning » ouvre
@@ -965,9 +981,10 @@ travaille, sans table à plat.
   montant budgété ne présente aucun écart de montant réestimé. » : EP-07.
 - écart : `WF-REV-0080-A` — « Entre deux révisions d’années de référence différentes, les montants
   réestimés diffèrent en outre sur chaque ligne dont le taux a été mis à jour ou projeté jusqu’à la
-  nouvelle année de référence (WF-REV-0060), et sur chaque ligne de débours, dont le montant est
-  projeté de même (WF-DEV-0030) ; les tâches et les montants budgétés restent ceux du
-  différentiel. » : EP-07 ;
+  nouvelle année de référence (WF-REV-0060) ; une ligne de débours, dont le débours unitaire est
+  projeté de même, n’y présente aucun écart de montant réestimé ; les tâches et les montants
+  budgétés restent ceux du différentiel. » : réécrit par la spécification 1.0.7 (#3366) ; une ligne
+  de débours ne présente plus d'écart, son débours étant projeté ; #3983 l'éprouve ;
 - écart : `WF-REV-0080-A` — « La révision en cours se compare à la révision marquée dont elle est
   issue : une tâche dont la fin y est repoussée de cinq jours est présentée modifiée, avec la date
   de fin de la base ; la date ramenée à celle de la base, la tâche n'est plus présentée modifiée. »
@@ -1043,8 +1060,8 @@ référence se déplace, et qu'EP-08 serve ce parcours tel qu'il est validé.
 - écart : `WF-REV-0050-A` — « Les tâches inchangées conservent leur identité et leur état. » :
   EP-08.
 - écart : `WF-REV-0050-A` — « Une tâche démarrée désignée comme retirée par un différentiel est
-  conservée, son reste à engager est nul, et sa valeur acquise est inchangée après la fusion. » :
-  EP-08.
+  conservée, son reste à engager est nul, et le montant budgété de ses lignes est inchangé après la
+  fusion : terminée, elle l’acquiert. » : EP-08.
 - écart : `WF-REV-0050-A` — « Une ligne réestimée à 140 pour un montant budgété de 100, non désignée
   par le différentiel, porte toujours 100 et 140 après la fusion. » : EP-08.
 - écart : `WF-REV-0050-A` — « Une ligne ajoutée en revue périodique, non désignée par le
@@ -1273,7 +1290,10 @@ la vue qui les répartit par état.
 - écart : `WF-RAE-0030-A` — « Une tâche non démarrée n’y apparaît qu’à la demande. » : constaté par
   EP-02 ; EP-09 clôt.
 - écart : `WF-RAE-0030-A` — « Un jalon terminé que l’on rouvre est non démarré et ne contribue plus à
-  la valeur acquise. » : l'état est rendu par le serveur ; la valeur acquise est d'EP-09 et EP-10.
+  la valeur acquise. » : l'état est rendu par le serveur ; la valeur acquise est d'EP-09 et EP-10 ;
+- écart : `WF-RAE-0030-A` — « Sur un projet qui n’est pas En cours, le Kanban ne propose aucun
+  geste. » : ajouté par la spécification 1.0.7 (#3372) ; le contrat ferme déjà tout geste du Kanban
+  hors En cours.
 - `WF-IHM-0090-A` — « Sur un projet en chiffrage, la commande de terminaison est présentée
   indisponible en nommant la condition manquante. » : sur la carte du Kanban, un geste que l'état
   de la tâche rend momentanément impossible est présenté indisponible avec la condition qui lui

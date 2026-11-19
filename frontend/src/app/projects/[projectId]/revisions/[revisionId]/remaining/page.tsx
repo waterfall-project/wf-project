@@ -215,6 +215,7 @@ function RemainingHeader({
       title={t("functions.remaining")}
       icon={FUNCTION_ICONS.remaining}
       density={FUNCTION_DENSITY.remaining}
+      commandsKeepWidth
       subtitle={t("estimateGrid.summary", {
         structure: label,
         tasks: totals.task_count,

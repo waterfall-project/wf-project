@@ -655,6 +655,9 @@ référentiel existe avant tout projet et dise ce qui lui manque encore.
   (ci-dessous) ;
 - écart : `WF-EXP-0020-A` — « Le lien produit à l'installation est accepté plus d'une heure après
   sa production. » : constaté par EP-03 (US-0420) ;
+- écart : `WF-EXP-0020-A` — « Le fuseau horaire choisi à l’installation est conservé ; une seconde
+  exécution ne le change pas. » : ajouté par la spécification 1.0.7 (#3382) ; tenu depuis EP-25
+  (US-2200, #2527) ;
 - `WF-CYC-0120-A` — « Sur une installation neuve, dont la seule catégorie est celle des provisions
   pour risques, la création est refusée en nommant la catégorie de main-d'œuvre et le rôle
   manquants. » : `getReferenceReadiness` rend `is_complete` faux et `missing` à
@@ -1162,6 +1165,9 @@ réactiver, **afin que** l'histoire des projets reste lisible et qu'une erreur s
   US-0820 ;
 - `WF-REF-0010-A` — « La réactivation d'une catégorie dont la nature est désactivée est
   refusée. » : constaté par US-0820 ;
+- écart : `WF-REF-0010-A` — « La désactivation d’une catégorie que porte un rôle de ressource actif
+  est refusée et nomme ce rôle ; elle aboutit une fois le rôle désactivé ou passé à une autre
+  catégorie. » : ajouté par la spécification 1.0.7 (#3359) ; #3985 l'éprouve ;
 - `WF-REF-0150-A` — « Un objet désactivé n'apparaît pas dans la liste par défaut, apparaît lorsque
   l'affichage des objets désactivés est demandé, et peut y être réactivé. » : contre le service,
   pour chacune des cinq listes — nœuds, rôles, calendriers, natures, catégories — et la grille des

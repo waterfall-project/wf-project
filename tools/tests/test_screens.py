@@ -321,11 +321,11 @@ def test_a_pending_declaration_the_specification_has_met_is_named() -> None:
     ]
 
 
-def test_the_repository_declares_a_pending_function_the_projection_lacks() -> None:
+def test_the_repository_declares_no_pending_function_the_projection_has() -> None:
     named = {fn.code for fn in projection.read_functions()}
     assert not set(screens.PENDING_IN_THE_SPECIFICATION) & named
-    # FBS-4.4.5, the projection of spending, decided on 2026-11-16 (#3643, option C).
-    assert "FBS-4.4.5" in screens.PENDING_IN_THE_SPECIFICATION
+    # FBS-1.6 (#3197) and FBS-4.4.5 (#3643) are in the tree since the specification 1.0.7.
+    assert {"FBS-1.6", "FBS-4.4.5"} <= named
 
 
 def test_the_command_accepts_the_pending_function_until_the_specification_has_it(
