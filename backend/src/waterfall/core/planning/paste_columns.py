@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 from waterfall.core.planning.tree import LINE, TASK
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from waterfall.core.history.interface import NodeColumn
 
 # The columns of the facet task, in the order of ``NodeColumn``: the others are the estimate line's.
@@ -63,7 +65,7 @@ def own_columns(columns: set[str], *, is_task: bool) -> set[str]:
 
 
 def given_cells(
-    columns: tuple[NodeColumn, ...], cells: list[str]
+    columns: tuple[NodeColumn, ...], cells: Sequence[str]
 ) -> tuple[tuple[NodeColumn, str], ...]:
     """Give the cells of a row of a block that hold a text, with the column each falls on."""
     return tuple((columns[at], text) for at, text in enumerate(cells) if text.strip())
