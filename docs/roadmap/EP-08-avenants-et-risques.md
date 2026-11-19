@@ -1812,7 +1812,7 @@ des indicateurs, inchangé.
 
 ## US-2640 — Les écrans des risques et des avenants, branchés sur le service
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0020-A`
 - **opérations** : celles des US-2550 à US-2630 et d'US-3050, par le client engendré ;
   `deleteCostStructure` et `rebaseCostStructure` (les gestes nouveaux)

@@ -32,7 +32,7 @@
 import { Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { components } from "@/api/generated/schema";
 import { useUnmet } from "@/components/commands/command";
@@ -132,6 +132,36 @@ export function IdentifyRisk({
 }
 
 /**
+ * Read the risk anew when the commands are shown — at the mount of the detail, and again when the
+ * screen is shown after a tab was left or a page restored from the memory of the browser —, before
+ * any write of the risk: an entry in the own estimate of the risk, made meanwhile, advances
+ * `Risk.lock_version` and answers no counter of the risk (#1626, the contract does not change). The
+ * gesture is a navigation in the same tab — the detail leads to the own estimate, one enters a cell,
+ * one comes back —, which fires neither `visibilitychange` nor `pageshow` and which the router of Next
+ * restores from its cache, with the counter read before: the reading at the mount is the one that
+ * holds it. The write that still goes out with a counter read before is refused with 412, and the
+ * offer to read the page anew resolves it (WF-IHM-0110). One reading per mount: the page read anew
+ * keeps the commands mounted, so nothing loops.
+ */
+function useRereadWhenShown(): void {
+  const router = useRouter();
+  useEffect(() => {
+    router.refresh();
+    const reread = () => {
+      if (document.visibilityState === "visible") {
+        router.refresh();
+      }
+    };
+    document.addEventListener("visibilitychange", reread);
+    window.addEventListener("pageshow", reread);
+    return () => {
+      document.removeEventListener("visibilitychange", reread);
+      window.removeEventListener("pageshow", reread);
+    };
+  }, [router]);
+}
+
+/**
  * The commands of the detail of a risk — « Modifier », « Réexaminer », « Déclarer survenu » and
  * « Supprimer le risque » — as the risk lists them. What a write of a risk leaves — that it is under
  * way, the answer it brought — outlives the form and the detail of the risk, by risk, for the
@@ -140,7 +170,7 @@ export function IdentifyRisk({
  * before (défaut n° 24 de `typescript.md`). The risk the commands present is the answer while it is
  * newer than the risk read, so that the commands a review changes — a risk dismissed no longer
  * declared occurred — follow it before the page is read anew. The dialogs and the statuses are those
- * of the risk shown alone.
+ * of the risk shown alone. The risk is read anew when the commands are shown (#1626).
  */
 export function RiskCommands({
   projectId,
@@ -153,6 +183,7 @@ export function RiskCommands({
   readonly options: ProvisionOptions | undefined;
 }) {
   const [writes, setWrites] = useState<Readonly<Record<string, Write>>>({});
+  useRereadWhenShown();
   const id = risk.risk_id;
   const write = writes[id];
   const answered = write?.answered;

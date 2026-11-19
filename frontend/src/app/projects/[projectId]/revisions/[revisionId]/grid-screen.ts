@@ -524,6 +524,10 @@ export async function readGridScreen<N extends NodeField, T extends TaskField, L
     asked,
     grid.byBreakdown === true ? readBreakdownItems(at, needed) : undefined,
     occurred,
+    // Awaited here as well as by the nodes, which wait for the structures first: a reading of the
+    // risks that rejects while they are not yet awaited would leave `requested` without a handler
+    // (#1972). Its value is the one `structure` carries.
+    requested,
   ]);
   if (reading === "not_found") {
     notFound();
