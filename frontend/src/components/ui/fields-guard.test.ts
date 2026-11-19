@@ -58,7 +58,7 @@ describe("the fields of the screens (#3259)", () => {
   });
 
   it("finds a field written after a string holding a comment opener [US-2800]", () => {
-    expect(handWritten('const a = "http://x";\n<input id={a} />')).toHaveLength(1);
+    expect(handWritten('const a = "http://x"; <input id={a} />')).toHaveLength(1);
     expect(handWritten('const a = "/*";\n<textarea />\n// */')).toHaveLength(1);
     expect(handWritten("// <input />\n/* <select> */")).toEqual([]);
   });

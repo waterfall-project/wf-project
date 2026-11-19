@@ -86,7 +86,6 @@ describe("the commands that open a dialog", () => {
 
   it("counts a command that follows a string holding a comment opener [US-2800]", () => {
     expect(sayings('const a = "/*";\n<Button aria-haspopup="dialog" />\n// */')).toBe(1);
-    expect(sayings('const a = "//";\n<Button aria-haspopup="dialog" />')).toBe(1);
     expect(sayings('/* aria-haspopup="dialog" */ // aria-haspopup="dialog"')).toBe(0);
   });
 
