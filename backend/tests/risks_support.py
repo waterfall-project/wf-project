@@ -250,8 +250,8 @@ def concurrently(call: Callable[[], Any]) -> Future[Any]:
     return future
 
 
-def waiting_for_a_lock(stage: Scene) -> None:
-    """Wait until a transaction of the database waits for a lock another holds."""
+def waiting_for_a_lock(stage: Scene, count: int = 1) -> None:
+    """Wait until ``count`` transactions of the database wait for a lock another holds."""
     for _ in range(150):
         with stage.owner.connect() as connection:
             waiting = connection.scalar(
@@ -260,10 +260,10 @@ def waiting_for_a_lock(stage: Scene) -> None:
                     " WHERE wait_event_type = 'Lock' AND datname = current_database()"
                 )
             )
-        if waiting:
+        if waiting and waiting >= count:
             return
         time.sleep(0.1)
-    pytest.fail("no transaction waits for a lock")
+    pytest.fail(f"fewer than {count} transactions wait for a lock")
 
 
 def lock_held(stage: Scene, structure_id: UUID) -> bool:

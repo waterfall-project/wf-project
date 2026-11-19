@@ -11,7 +11,6 @@ revision, and the counter of a risk never goes back (WF-RIS-0030). Every answer 
 the contract (``ContractClient``).
 """
 
-import time
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -332,19 +331,26 @@ def test_the_counter_of_a_risk_never_goes_back_the_abandonment_of_a_revision_inc
 def test_the_abandonment_against_a_change_of_the_risk_it_created_answers_cleanly(
     risks: Risks, project: Costed
 ) -> None:
-    # M-04: the risk erased by the abandonment is locked after its structures. A change of its
-    # identity sent meanwhile waits for them, then finds the risk gone: 404, never a 500.
+    # The abandonment holds the revision, the project, then the structures; a change of the
+    # identity of the risk it erases, sent meanwhile, waits for the project, then finds the risk
+    # gone: 404, never a 500. The abandonment is held at the structure of the risk by the test; the
+    # lock of the risk row in ``close_evaluations`` is not what this proves (the lock of the
+    # project already serializes both), only the clean answer.
     mark(project.stage, {"revision_id": str(project.revision_id)})
     opened = risks.revision()
     created = risks.declared(label="Créé")
     risks.costed_at(created, opened["revision_id"], "50.00")
     stage = project.stage
     with stage.owner.connect() as holder:
-        holder.execute(select(Risk.id).where(Risk.id == UUID(created["risk_id"])).with_for_update())
+        holder.execute(
+            select(CostStructure.id)
+            .where(CostStructure.id == UUID(risks.risk(created)["structure_id"]))
+            .with_for_update()
+        )
         abandoning = concurrently(lambda: risks.abandon(opened))
         waiting_for_a_lock(stage)
         changing = concurrently(lambda: risks.update(created, label="Changé"))
-        time.sleep(1)
+        waiting_for_a_lock(stage, count=2)
         holder.rollback()
     abandoning.result(timeout=30)
     assert changing.result(timeout=30).status_code == 404
