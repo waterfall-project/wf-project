@@ -15,7 +15,8 @@
  * Pure, and neither server nor client: the page reads, the screen writes.
  */
 import type { components, operations } from "@/api/generated/schema";
-import { readValues } from "@/components/grid/filters";
+import { type Bounds, boundNames, readBounds, readValues } from "@/components/grid/filters";
+import { type Period, type PeriodNames, readPeriod } from "@/components/grid/period";
 import {
   CONTRACT_ADDRESS,
   type GridQuery,
@@ -23,6 +24,7 @@ import {
   OFFSET,
   pagedList,
 } from "@/components/grid/query";
+import { identifierOf, textOf } from "@/components/reference/address";
 import { isPlanningDate } from "@/i18n/format";
 import type { SearchParameters } from "@/navigation/context";
 import type { ProjectState } from "@/navigation/home";
@@ -79,7 +81,46 @@ export const THRESHOLDS = ["0.3", "0.5", "0.7"] as const;
 /** A decimal as the contract writes a `Percent`. */
 const DECIMAL = /^-?\d+(\.\d+)?$/;
 
-/** The list of the projects: its sort, its search, its perimeter and its zones. */
+/** The column of the code, which the text of `code` is searched in. */
+export const CODE = "code";
+
+/** The longest code text the contract takes. */
+export const CODE_LENGTH = 50;
+
+/**
+ * The columns of amounts the list bounds, as the contract names them: their bounds are
+ * `<column>_min` and `<column>_max` (`boundNames`), both included. A project whose column is null —
+ * an offer has no reference budget — is retained by no bound of it.
+ */
+export const AMOUNT_COLUMNS = [
+  "reference_budget",
+  "current_estimate",
+  "project_manager_projection",
+  "delta_to_reference",
+] as const;
+
+/** A column of amounts of the list. */
+export type AmountColumn = (typeof AMOUNT_COLUMNS)[number];
+
+/** The column of the win probability, a share (`0.4` for 40 %), bounded as the contract says. */
+export const WIN_PROBABILITY = "win_probability";
+
+/** The columns of the value of an index the list bounds. */
+export const INDEX_COLUMNS = ["cost_index", "schedule_index"] as const;
+
+/** A column of the value of an index of the list. */
+export type IndexColumn = (typeof INDEX_COLUMNS)[number];
+
+/** The parameters of the period of the last marking, as the contract names them. */
+export const MARKED_PERIOD: PeriodNames = {
+  from: "last_marked_at_from",
+  to: "last_marked_at_to",
+};
+
+/**
+ * The list of the projects: its sort, its search, its perimeter and its filters — the zones, the
+ * code, the bounds of the columns of figures and the period of the last marking.
+ */
 export const PROJECTS_LIST: PagedList = pagedList(
   CONTRACT_ADDRESS,
   STATES,
@@ -88,6 +129,13 @@ export const PROJECTS_LIST: PagedList = pagedList(
   AS_OF,
   ORG_NODE,
   ZONES,
+  CODE,
+  ...[...AMOUNT_COLUMNS, WIN_PROBABILITY, ...INDEX_COLUMNS].flatMap((column) => {
+    const { min, max } = boundNames(column);
+    return [min, max];
+  }),
+  MARKED_PERIOD.from,
+  MARKED_PERIOD.to,
 );
 
 /** The perimeter the address asks; what it does not name, the server chooses. */
@@ -98,9 +146,6 @@ export interface Perimeter {
   readonly asOf: string | undefined;
   readonly orgNode: string | undefined;
 }
-
-/** An identifier the API may know: anything else names no node, and is not asked. */
-const IDENTIFIER = /^[\w-]+$/;
 
 /** A date of the address the API may take; none otherwise — 30 February is not asked. */
 function dateOf(search: SearchParameters, name: string): string | undefined {
@@ -114,12 +159,6 @@ function dateOf(search: SearchParameters, name: string): string | undefined {
  */
 export function readStates(search: SearchParameters): readonly ProjectState[] {
   return readValues(search, STATES, PORTFOLIO_STATES);
-}
-
-/** An identifier of the address the API may know; none otherwise. */
-function identifierOf(search: SearchParameters, name: string): string | undefined {
-  const value = search.get(name);
-  return value !== null && IDENTIFIER.test(value) ? value : undefined;
 }
 
 /** Read the perimeter the address asks; a value the contract would refuse is not asked. */
@@ -220,24 +259,141 @@ export function readZones(search: SearchParameters): readonly AlertZone[] {
   return readValues(search, ZONES, INDEX_ZONES);
 }
 
+/** What the list of the projects is filtered on besides its perimeter, as the address asks it. */
+export interface ProjectFilters {
+  readonly zones: readonly AlertZone[];
+  /** The text the code contains; none, no filter. */
+  readonly code: string | undefined;
+  /** The bounds of each column of amounts, as the contract writes a `Money`. */
+  readonly amounts: Readonly<Record<AmountColumn, Bounds>>;
+  /** The bounds of the win probability, a share written as a decimal. */
+  readonly winProbability: Bounds;
+  /** The bounds of the value of each index, written as a decimal. */
+  readonly indices: Readonly<Record<IndexColumn, Bounds>>;
+  /** The period of the last marking: local days drawn as instants, the end excluded. */
+  readonly marked: Period;
+}
+
+/** The filters of the list the address names; a value the contract would refuse is not asked. */
+export function readProjectFilters(search: SearchParameters): ProjectFilters {
+  return {
+    zones: readZones(search),
+    code: textOf(search, CODE, CODE_LENGTH),
+    amounts: {
+      reference_budget: readBounds(search, "reference_budget", "money"),
+      current_estimate: readBounds(search, "current_estimate", "money"),
+      project_manager_projection: readBounds(search, "project_manager_projection", "money"),
+      delta_to_reference: readBounds(search, "delta_to_reference", "money"),
+    },
+    winProbability: readBounds(search, WIN_PROBABILITY, "decimal"),
+    indices: {
+      cost_index: readBounds(search, "cost_index", "decimal"),
+      schedule_index: readBounds(search, "schedule_index", "decimal"),
+    },
+    marked: readPeriod(search, "day", MARKED_PERIOD),
+  };
+}
+
 /** What the list of the projects asks `getPortfolioProjects`: the query of the contract. */
 type ProjectsQuery = NonNullable<operations["getPortfolioProjects"]["parameters"]["query"]>;
 
+/** The filters of the query of `getPortfolioProjects`. */
+type FilterQuery = Pick<
+  ProjectsQuery,
+  | "zones"
+  | "code"
+  | "reference_budget_min"
+  | "reference_budget_max"
+  | "current_estimate_min"
+  | "current_estimate_max"
+  | "project_manager_projection_min"
+  | "project_manager_projection_max"
+  | "delta_to_reference_min"
+  | "delta_to_reference_max"
+  | "win_probability_min"
+  | "win_probability_max"
+  | "cost_index_min"
+  | "cost_index_max"
+  | "schedule_index_min"
+  | "schedule_index_max"
+  | "last_marked_at_from"
+  | "last_marked_at_to"
+>;
+
+/** The bounds of the columns of amounts, as the query takes them: the sides asked alone. */
+function amountsQuery(amounts: ProjectFilters["amounts"]) {
+  return {
+    ...(amounts.reference_budget.min === undefined
+      ? {}
+      : { reference_budget_min: amounts.reference_budget.min }),
+    ...(amounts.reference_budget.max === undefined
+      ? {}
+      : { reference_budget_max: amounts.reference_budget.max }),
+    ...(amounts.current_estimate.min === undefined
+      ? {}
+      : { current_estimate_min: amounts.current_estimate.min }),
+    ...(amounts.current_estimate.max === undefined
+      ? {}
+      : { current_estimate_max: amounts.current_estimate.max }),
+    ...(amounts.project_manager_projection.min === undefined
+      ? {}
+      : { project_manager_projection_min: amounts.project_manager_projection.min }),
+    ...(amounts.project_manager_projection.max === undefined
+      ? {}
+      : { project_manager_projection_max: amounts.project_manager_projection.max }),
+    ...(amounts.delta_to_reference.min === undefined
+      ? {}
+      : { delta_to_reference_min: amounts.delta_to_reference.min }),
+    ...(amounts.delta_to_reference.max === undefined
+      ? {}
+      : { delta_to_reference_max: amounts.delta_to_reference.max }),
+  };
+}
+
+/** The bounds of the win probability and of the indices, as the query takes them. */
+function figuresQuery({ winProbability, indices }: ProjectFilters) {
+  return {
+    ...(winProbability.min === undefined ? {} : { win_probability_min: winProbability.min }),
+    ...(winProbability.max === undefined ? {} : { win_probability_max: winProbability.max }),
+    ...(indices.cost_index.min === undefined ? {} : { cost_index_min: indices.cost_index.min }),
+    ...(indices.cost_index.max === undefined ? {} : { cost_index_max: indices.cost_index.max }),
+    ...(indices.schedule_index.min === undefined
+      ? {}
+      : { schedule_index_min: indices.schedule_index.min }),
+    ...(indices.schedule_index.max === undefined
+      ? {}
+      : { schedule_index_max: indices.schedule_index.max }),
+  };
+}
+
+/** The filters of the list, as the query of `getPortfolioProjects` takes them: the sides asked alone. */
+export function projectFilterQuery(filters: ProjectFilters): FilterQuery {
+  const { zones, code, marked } = filters;
+  return {
+    ...(zones.length === 0 ? {} : { zones: [...zones] }),
+    ...(code === undefined ? {} : { code }),
+    ...amountsQuery(filters.amounts),
+    ...figuresQuery(filters),
+    ...(marked.from === undefined ? {} : { last_marked_at_from: marked.from }),
+    ...(marked.to === undefined ? {} : { last_marked_at_to: marked.to }),
+  };
+}
+
 /**
  * The query of the list of the projects of the portfolio, as the address asks it: its perimeter,
- * its zones, its page, its search and its sort — every parameter but the page read from
+ * its filters, its page, its search and its sort — every parameter but the page read from
  * `PROJECTS_LIST`, which says when two addresses read the same list.
  */
 export function portfolioProjectsQuery<Sort extends NonNullable<ProjectsQuery["sort_by"]>>(asked: {
   readonly perimeter: Perimeter;
-  readonly zones: readonly AlertZone[];
+  readonly filters: ProjectFilters;
   readonly offset: number;
   readonly query: GridQuery<Sort>;
 }): ProjectsQuery {
-  const { zones, offset, query } = asked;
+  const { filters, offset, query } = asked;
   return {
     ...perimeterQuery(asked.perimeter),
-    ...(zones.length === 0 ? {} : { zones: [...zones] }),
+    ...projectFilterQuery(filters),
     ...(offset === 0 ? {} : { offset }),
     ...(query.search === undefined ? {} : { search: query.search }),
     ...limited(query),

@@ -12,6 +12,7 @@ import "server-only";
 import { useTranslations } from "next-intl";
 import type { ComponentProps } from "react";
 
+import type { components } from "@/api/generated/schema";
 import { type Answer, readOrRefused } from "@/api/problem";
 import { type PeriodRefusals, refusedPeriod } from "@/components/grid/period";
 import type { Perimeter, Takes } from "@/components/portfolio/address";
@@ -26,7 +27,14 @@ const PERIOD_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
 /** A view read, or the sides of its period the server refused. */
 export type ViewRead<T> =
   | { readonly kind: "read"; readonly data: T }
-  | { readonly kind: "refused"; readonly refused: PeriodRefusals | undefined };
+  | {
+      readonly kind: "refused";
+      readonly refused: PeriodRefusals | undefined;
+      /** The fields the server refused, whatever they are: the filters of a list read from them. */
+      readonly fields: readonly FieldProblem[];
+    };
+
+type FieldProblem = components["schemas"]["FieldProblem"];
 
 /** Read a view of the portfolio, or the period the server refuses of it. */
 export async function readView<T>(
@@ -36,7 +44,11 @@ export async function readView<T>(
   const read = await readOrRefused(operation, PERIOD_REFUSED, call);
   return read.kind === "read"
     ? { kind: "read", data: read.data }
-    : { kind: "refused", refused: refusedPeriod(read.problem.fields ?? []) };
+    : {
+        kind: "refused",
+        refused: refusedPeriod(read.problem.fields ?? []),
+        fields: read.problem.fields ?? [],
+      };
 }
 
 /** Render a view of the portfolio whose period the server refused, its perimeter kept. */

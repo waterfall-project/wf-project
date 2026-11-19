@@ -952,7 +952,7 @@ conservé (US-2680).
 
 ## US-2760 — Les écrans du portefeuille, branchés sur le service
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0130-A`, `WF-IHM-0140-A`
 - **opérations** : `getPortfolioProjects`, `getPortfolioValue`, `getPortfolioWorkload`,
   `getPortfolioPerformance`, `getPortfolioCostStructure`, `getPortfolioRisks`,

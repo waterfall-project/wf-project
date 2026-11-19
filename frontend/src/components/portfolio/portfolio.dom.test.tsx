@@ -30,6 +30,7 @@ import {
   PROJECTS_LIST,
   type ProjectState,
   readPerimeter,
+  readProjectFilters,
   type Takes,
 } from "./address";
 
@@ -37,6 +38,7 @@ import { type NodeChoice, PerimeterBar, type ViewParameters } from "./perimeter"
 import { CashOutChart, monthAfter, PortfolioCurveChart, QuarterlyChart } from "./portfolio-charts";
 import type { ProjectPage, ProjectRow } from "./portfolio-grid";
 import { PortfolioValueView } from "./portfolio-value";
+import { ProjectFilterPanel } from "./project-filters";
 import { ProjectsGrid } from "./projects-grid";
 import { ZoneFilter } from "./zone-filter";
 
@@ -370,7 +372,7 @@ describe("the filter of the list of the projects by zone", () => {
           page={LIST.meta}
           query={{ sort: undefined, search: undefined, size: undefined }}
           preferences={undefined}
-          zones={["watch", "alert"]}
+          filters={readProjectFilters(new URLSearchParams("zones=watch,alert"))}
           panel={<ZoneFilter zones={["watch", "alert"]} />}
         />,
       ),
@@ -384,6 +386,59 @@ describe("the filter of the list of the projects by zone", () => {
       }),
     );
     expect(await lastAddress()).toBe(`${PATHNAME}?states=in_progress`);
+  });
+});
+
+describe("the filters of the columns of the list of the projects", () => {
+  const FILTERS = "code=PRJ&reference_budget_min=1000&cost_index_max=0.9&zones=alert";
+
+  it("are folded into the bar of the grid, each told by its chip, panel closed [WF-IHM-0130-A]", () => {
+    page.search = FILTERS;
+    render(
+      inLanguage(
+        <ProjectsGrid
+          projects={LIST.items}
+          page={LIST.meta}
+          query={{ sort: undefined, search: undefined, size: undefined }}
+          preferences={undefined}
+          filters={readProjectFilters(new URLSearchParams(FILTERS))}
+          panel={
+            <ProjectFilterPanel
+              filters={readProjectFilters(new URLSearchParams(FILTERS))}
+              fields={[]}
+            />
+          }
+        />,
+      ),
+    );
+    const chips = screen.getByRole("list", { name: "Filtres actifs" });
+    expect(chips).toHaveTextContent("Zone des indices : Alerte");
+    expect(chips).toHaveTextContent("Code : PRJ");
+    expect(chips).toHaveTextContent("Budget de référence");
+    expect(chips).toHaveTextContent("Indice de coût");
+  });
+
+  it("offers the bounds of the columns of figures and says at its field a bound the server refused [WF-IHM-0130-A]", () => {
+    page.search = "cost_index_min=1&cost_index_max=0.5";
+    render(
+      inLanguage(
+        <ProjectFilterPanel
+          filters={readProjectFilters(new URLSearchParams(page.search))}
+          fields={[
+            {
+              pointer: "/query/cost_index_max",
+              code: "VALUE_OUT_OF_RANGE",
+              params: { minimum: "1" },
+            },
+          ]}
+        />,
+      ),
+    );
+    expect(screen.getByRole("group", { name: "Indice de coût" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Probabilité de gain" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Budget de référence" })).toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Filtre par code" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Indice de coût, au")).toHaveAttribute("aria-invalid", "true");
   });
 });
 

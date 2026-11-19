@@ -12,6 +12,7 @@ import {
   PROJECTS_LIST,
   readHorizon,
   readPerimeter,
+  readProjectFilters,
   readThreshold,
   statesValue,
 } from "./address";
@@ -93,12 +94,74 @@ describe("what the list of the projects of the portfolio reads of its address", 
     );
     const query = portfolioProjectsQuery({
       perimeter,
-      zones: ["alert"],
+      filters: readProjectFilters(new URLSearchParams("zones=alert")),
       offset: 50,
       query: { sort: { column: "cost_index", order: "asc" }, search: "poste", size: undefined },
     });
     const asked = Object.keys(query).filter((name) => name !== PROJECTS_LIST.page);
     expect(asked).toHaveLength(9);
     expect(PROJECTS_LIST.reads).toEqual(expect.arrayContaining(asked));
+  });
+
+  it("reads every filter of a column of the list, the bounds of both sides and the period of the last marking, and asks them under the names of the contract [WF-IHM-0130-A]", () => {
+    const search = new URLSearchParams(
+      [
+        "code=PRJ",
+        "reference_budget_min=1000.50",
+        "current_estimate_max=-5",
+        "win_probability_min=0.4",
+        "project_manager_projection_max=20",
+        "delta_to_reference_min=0",
+        "cost_index_max=0.9",
+        "schedule_index_min=1.1",
+        "last_marked_at_from=2026-01-01T00:00:00Z",
+        "last_marked_at_to=2026-04-01T00:00:00Z",
+      ].join("&"),
+    );
+    const filters = readProjectFilters(search);
+    const query = portfolioProjectsQuery({
+      perimeter: readPerimeter(new URLSearchParams()),
+      filters,
+      offset: 0,
+      query: { sort: undefined, search: undefined, size: undefined },
+    });
+    expect(query).toEqual({
+      code: "PRJ",
+      reference_budget_min: "1000.50",
+      current_estimate_max: "-5",
+      win_probability_min: "0.4",
+      project_manager_projection_max: "20",
+      delta_to_reference_min: "0",
+      cost_index_max: "0.9",
+      schedule_index_min: "1.1",
+      last_marked_at_from: "2026-01-01T00:00:00Z",
+      last_marked_at_to: "2026-04-01T00:00:00Z",
+    });
+    // Every one is read by the list: a filter under way reads another list.
+    expect(PROJECTS_LIST.reads).toEqual(expect.arrayContaining(Object.keys(query)));
+  });
+
+  it("does not ask a bound or a text the contract would refuse", () => {
+    const filters = readProjectFilters(
+      new URLSearchParams(
+        `reference_budget_min=abc&cost_index_max=1,5&last_marked_at_from=hier&code=${"x".repeat(51)}`,
+      ),
+    );
+    expect(
+      portfolioProjectsQuery({
+        perimeter: readPerimeter(new URLSearchParams()),
+        filters,
+        offset: 0,
+        query: { sort: undefined, search: undefined, size: undefined },
+      }),
+    ).toEqual({});
+  });
+
+  it("ignores an identifier of the address that is no UUID, as an absent one, by the function of the reference [WF-QUA-0010]", () => {
+    expect(readPerimeter(new URLSearchParams("org_node_id=not-a-uuid")).orgNode).toBeUndefined();
+    expect(readPerimeter(new URLSearchParams("org_node_id=abc_123")).orgNode).toBeUndefined();
+    expect(readPerimeter(new URLSearchParams(`org_node_id=${DESIGN_OFFICE}`)).orgNode).toBe(
+      DESIGN_OFFICE,
+    );
   });
 });
