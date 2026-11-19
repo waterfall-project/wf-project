@@ -64,6 +64,7 @@ if TYPE_CHECKING:
     from waterfall.core.indicators.computing import Basis
     from waterfall.core.indicators.interface.documents import Document
     from waterfall.core.indicators.shaping import Context
+    from waterfall.core.projects.interface import ProjectFacts
     from waterfall.platform.cache import IndicatorsCache
 
 # The form of an entry: a change of what an entry holds changes it, and the entries of the form
@@ -87,14 +88,21 @@ def _text(value: object) -> str:
     return str(isoformat()) if callable(isoformat) else str(value)
 
 
-def day_key(session: Session, basis: Basis, context: Context, subprojects: Sequence[UUID]) -> str:
+def day_key(
+    session: Session,
+    basis: Basis,
+    context: Context,
+    subprojects: Sequence[UUID],
+    facts: ProjectFacts | None = None,
+) -> str:
     """Give the key of the day of a project: its identifier, then the fingerprint.
 
     ``subprojects`` are those of the project, as its scopes are drawn. The entry of a scope is kept
-    under this key followed by the scope (``scope_key``).
+    under this key followed by the scope (``scope_key``). ``facts`` are those of the project when
+    the caller has read them already: they are read here otherwise.
     """
     project_id, revision_id = basis.project_id, basis.revision_id
-    facts = project_facts(session, project_id)
+    facts = project_facts(session, project_id) if facts is None else facts
     main = aimed_structure(session, project_id, revision_id, None)
     structure = None if main is None else structure_facts(session, project_id, main, lock=False)
     content = revision_content_stamp(session, project_id, revision_id)

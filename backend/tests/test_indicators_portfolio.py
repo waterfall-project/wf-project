@@ -26,13 +26,18 @@ from projects_support import scene as make_scene
 from sqlalchemy import event, select
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
-from waterfall.core.indicators.contributions import contribution_key, read_contribution
+from waterfall.core.indicators.contributions import (
+    UnserializableContributionError,
+    contribution_key,
+    read_contribution,
+)
 from waterfall.core.indicators.interface import (
     PORTFOLIO_KINDS,
     day_documents_of,
     keep_document,
     kept_documents_of,
 )
+from waterfall.core.indicators.interface.portfolio import STATEMENTS_PER_PROJECT
 from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.projects.interface import (
     ProjectChange,
@@ -449,6 +454,66 @@ def test_a_redis_out_of_reach_or_no_cache_computes_every_project_and_writes_noth
     assert read_day(fabrics, AT, counted, None) == found
     assert read_day(fabrics, AT, counted, None) == found
     assert counted.calls == [*revisions.items(), *revisions.items()]
+
+
+def statements_of_day(
+    fabrics: Portfolio, revisions: dict[UUID, UUID], cache: IndicatorsCache
+) -> int:
+    """Count the SQL statements of a reading of the day of ``revisions``."""
+    seen: list[str] = []
+
+    def capture(*call: Any) -> None:
+        seen.append(call[2])
+
+    with fabrics.stage.database.transaction() as session:
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", capture)
+        try:
+            day_documents_of(session, revisions, AT, Counted(), cache)
+        finally:
+            event.remove(bind, "before_cursor_execute", capture)
+    return len(seen)
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+def test_the_statements_of_a_warm_reading_of_the_day_are_bounded_per_project(
+    fabrics: Portfolio, cache: Exchanges
+) -> None:
+    # Propre à l'US : the fingerprint of a project is read by statements, project after project,
+    # even when Redis answers all; the cost per project is bounded (STATEMENTS_PER_PROJECT,
+    # documented by ``day_documents_of``), and the exchanges with Redis do not grow with them.
+    revisions = of_the_day(fabrics)
+    read_day(fabrics, AT, Counted(), cache)
+    lookups = cache.lookups
+    counts = {
+        size: statements_of_day(fabrics, dict(list(revisions.items())[:size]), cache)
+        for size in (1, len(revisions))
+    }
+    assert cache.lookups == lookups + 2
+    assert len(cache.writes) == 1
+    for size, count in counts.items():
+        assert count <= STATEMENTS_PER_PROJECT * size
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+@pytest.mark.parametrize("with_cache", [True, False])
+def test_a_document_that_is_not_json_is_refused_with_a_cache_or_without(
+    fabrics: Portfolio, cache: Exchanges, *, with_cache: bool
+) -> None:
+    # Propre à l'US : a Decimal or a datetime in a document fails the same way in both paths.
+    def contribute(
+        session: Session, *, project_id: UUID, revision_id: UUID, at: datetime
+    ) -> Mapping[IndicatorKind, Document]:
+        del session, project_id, revision_id
+        return {"portfolio_workload": {"at": at}}
+
+    revisions = of_the_day(fabrics)
+    with (
+        fabrics.stage.database.transaction() as session,
+        pytest.raises(UnserializableContributionError),
+    ):
+        day_documents_of(session, revisions, AT, contribute, cache if with_cache else None)
+    assert cache.writes == []
 
 
 def test_no_project_asks_no_exchange(fabrics: Portfolio, cache: Exchanges) -> None:

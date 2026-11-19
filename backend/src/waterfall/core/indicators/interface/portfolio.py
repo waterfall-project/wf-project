@@ -23,11 +23,12 @@ read nor change.
 - ``day_documents_of`` gives the documents of the day of several projects, each on the revision
   of its day that the caller selected, from the cache of the indicators under the fingerprint of the
   project, those not kept computed by ``contribute`` and written (``contributions``).
-- ``offer_curves``, the series of the month of the estimate of an offer, provision lines apart
-  and included: still declared, the reading of the provision lines of an estimate being undecided
-  (no interface of ``core/estimate`` gives them with their task).
+- ``offer_curves`` (US-2680/L1b, #4156), the series of the month of the estimate of an offer,
+  provision lines apart and included: still declared, the reading of the provision lines of an
+  estimate being undecided (no interface of ``core/estimate`` gives them with their task).
 
-Declared by US-2670/L1, the socle of EP-11; filled by US-2680/L1.
+Declared by US-2670/L1, the socle of EP-11; filled by US-2680/L1, except ``offer_curves``, filled by
+US-2680/L1b (#4156).
 """
 
 from typing import TYPE_CHECKING, Protocol, cast
@@ -65,6 +66,10 @@ PORTFOLIO_KINDS: frozenset[IndicatorKind] = frozenset(
 )
 
 
+# The bound of the statements the fingerprint of one project reads (``day_documents_of``).
+STATEMENTS_PER_PROJECT = 9
+
+
 class Contribute(Protocol):
     """What computes the documents of the portfolio of a project on the current day.
 
@@ -86,7 +91,8 @@ def keep_document(
 
     For the scope ``project``, at the instant and by the requester of ``act``, the act of the
     marking (``register_indicators``). A kind that is not of the portfolio is a fault of the caller
-    (``ValueError``), as is a second document of a kind for the revision, which the table refuses.
+    (``ValueError``). A second document of a kind for the revision is refused by the table, at the
+    flush here: an ``IntegrityError`` (unique constraint).
     """
     if kind not in PORTFOLIO_KINDS:
         msg = f"{kind} is not a kind of the portfolio: the marking of EP-10 keeps it"
@@ -137,7 +143,7 @@ def day_documents_of(
     revisions: Mapping[UUID, UUID],
     at: datetime,
     contribute: Contribute,
-    cache: IndicatorsCache | None,
+    cache: IndicatorsCache | None = None,
 ) -> dict[UUID, dict[IndicatorKind, Document]]:
     """Give the documents of the day of projects, by project, from the cache or computed.
 
@@ -149,11 +155,17 @@ def day_documents_of(
     the key. Given ``cache``, the cache of the process, the entries of the projects are read in one
     exchange and those missing computed by ``contribute`` and written; without it, every project is
     computed. Every project asked has its entry, in the order given.
+
+    Cost: the fingerprint of a project is read by about nine statements, project after project, even
+    when Redis answers all: a number of statements that grows with the number of projects, bounded
+    per project (``STATEMENTS_PER_PROJECT``); the exchanges with Redis do not (one to read, one to
+    write). A document that is not JSON, as computed, raises ``UnserializableContributionError``,
+    with a cache or without.
     """
     return contributions(session, revisions, at, contribute, cache)
 
 
 def offer_curves(session: Session, revision_id: UUID, at: datetime) -> Document:
     """Give the series of the month of the estimate of an offer, provisions and delays apart."""
-    msg = "offer_curves is filled by US-2680/L1"
+    msg = "offer_curves is filled by US-2680/L1b"
     raise NotImplementedError(msg)

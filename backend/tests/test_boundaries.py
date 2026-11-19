@@ -790,7 +790,7 @@ def test_a_stub_of_an_interface_refuses_naming_the_story_that_fills_it() -> None
     assert [
         (file, message)
         for file, name, message in stubs()
-        if not re.fullmatch(rf"{name} is filled by US-\d{{4}}(/L\d+)?", message)
+        if not re.fullmatch(rf"{name} is filled by US-\d{{4}}(/L\d+[a-z]?)?", message)
     ] == []
 
 
