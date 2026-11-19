@@ -13,7 +13,9 @@ Les dates des tâches en mode automatique sont calculées par le serveur, d’ap
 En tête de l’écran :
 
 - **Chronologies**, **Imports et exports**, **Arborescence de tâches** mènent aux écrans voisins du planning, dans le même contexte.
-- **Contractualiser l’avenant**, sur le différentiel d’un avenant seulement : lit le compte rendu de la fusion — tâches, lignes et liaisons ajoutées, modifiées, retirées, tâches démarrées qui seront terminées, motifs qui la refusent —, demande le nom de version de la révision produite, puis confie la fusion au traitement de fond. Indisponible tant que la révision n’a aucun avenant à fusionner (« un avenant non fusionné ») ; refusée par les motifs que le compte rendu nomme.
+- **Contractualiser l’avenant**, sur le différentiel d’un avenant seulement : lit le compte rendu de la fusion — tâches, lignes et liaisons ajoutées, modifiées, retirées, tâches démarrées qui seront terminées, motifs qui la refusent —, demande le nom de version de la révision produite, puis confie la fusion au traitement de fond. Indisponible tant que la révision n’a aucun avenant à fusionner (« un avenant non fusionné ») ; refusée par les motifs que le compte rendu nomme. Elle n’est offerte que sur un avenant à jour : un avenant en retard, dont la structure principale a reçu des écritures depuis son ouverture, se met d’abord à jour.
+- **Mettre à jour l’avenant**, sur un avenant en retard seulement — l’écran le dit — : présente le compte rendu de la mise à jour — ce que la structure principale a reçu et que l’avenant reprend (ajouté, modifié, retiré), ce que l’avenant garde avec ses champs, et les motifs qui la refusent —, puis la confirme ; la grille est relue. Un motif de refus empêche la confirmation ; un compte rendu périmé se relit.
+- **Abandonner l’avenant**, sur un différentiel non fusionné de la révision en cours seulement : demande confirmation, supprime l’avenant et ramène à la structure principale. Il n’est offert que lorsque la structure l’annonce disponible ; l’abandon est irréversible.
 
 Au-dessus de la grille :
 
