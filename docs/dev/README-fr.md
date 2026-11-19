@@ -3488,12 +3488,12 @@ est au créneau 0 : ses ports et ses noms sont ceux d'avant les créneaux.
 sous le dépôt (`.claude/worktrees/`) ou ailleurs sur le disque, jamais dans `/tmp` ni dans un
 scratchpad. Aucun outil ne le contrôle : `make slot` et `make slots` ne comptent pas les inodes.
 
-| Commande            | Ce qu'elle fait                                                                                                                                                                                                                                                                                                                           |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `make slot`         | prend pour le worktree où elle est lancée le premier créneau libre de 1 à N, ou dit le sien ; si N sont pris, elle échoue, porteurs nommés ; dans le dépôt principal (son `.git` est un répertoire), elle dit le créneau 0, sans en prendre                                                                                               |
-| `make slot-release` | arrête les serveurs de l'e2e du créneau, retire ses conteneurs et ses volumes — la plateforme de service, les services de test —, puis le libère ; si Docker ne peut les retirer, le créneau reste pris, et elle le dit                                                                                                                   |
-| `make e2e-down`     | arrête les processus de l'utilisateur qui écoutent sur les ports de l'e2e du créneau — le faux back, les fronts des parcours (au créneau 0, 4110 et 3100 à 3139) —, chacun trouvé par son port dans `/proc`, arrêté par son PID : `SIGTERM`, puis `SIGKILL` après cinq secondes ; elle dit ce qu'elle arrête, et rien quand rien n'écoute |
-| `make slots`        | écrit N, puis chaque créneau pris sur le poste, tous dépôts confondus, avec son worktree et l'instant de sa prise                                                                                                                                                                                                                         |
+| Commande            | Ce qu'elle fait                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `make slot`         | prend pour le worktree où elle est lancée le premier créneau libre de 1 à N, ou dit le sien ; avec `LOT=<identifiant>`, elle y écrit le lot, et si N sont pris, elle reprend celui qu'un autre worktree tient pour ce même lot, jamais celui d'un autre ; si N sont pris et qu'aucun n'est à reprendre, elle échoue, porteurs nommés ; dans le dépôt principal (son `.git` est un répertoire), elle dit le créneau 0, sans en prendre |
+| `make slot-release` | arrête les serveurs de l'e2e du créneau, retire ses conteneurs et ses volumes — la plateforme de service, les services de test —, puis le libère ; si Docker ne peut les retirer, le créneau reste pris, et elle le dit                                                                                                                                                                                                               |
+| `make e2e-down`     | arrête les processus de l'utilisateur qui écoutent sur les ports de l'e2e du créneau — le faux back, les fronts des parcours (au créneau 0, 4110 et 3100 à 3139) —, chacun trouvé par son port dans `/proc`, arrêté par son PID : `SIGTERM`, puis `SIGKILL` après cinq secondes ; elle dit ce qu'elle arrête, et rien quand rien n'écoute                                                                                             |
+| `make slots`        | écrit N, puis chaque créneau pris sur le poste, tous dépôts confondus, avec son worktree, son lot s'il a été pris avec `LOT`, et l'instant de sa prise                                                                                                                                                                                                                                                                                |
 
 **Le répertoire des verrous du poste** porte le registre des créneaux, les verrous des exécutions
 lourdes, ceux des services de test et ceux du tableau de suivi : `/run/user/<uid>` s'il existe,
@@ -3511,14 +3511,27 @@ tests posent, le remplace : aucun test ne touche les verrous du poste.
 
 Le registre du poste est `waterfall-slots/` de ce répertoire, comme les verrous des exécutions
 lourdes : un fichier `<i>` par créneau pris, qui porte le chemin du worktree (`git rev-parse
---show-toplevel`) et l'instant de la prise, écrit sous un verrou exclusif du registre
-(`tools/src/wftools/slots.py claim`, `release`, `list`). Un créneau dont le worktree n'existe plus
-est libre ; celui qui prend un créneau en retire d'abord ce qu'un porteur y a laissé (`docker
+--show-toplevel`), l'instant de la prise et, pris avec `LOT`, le lot en troisième ligne, écrit
+sous un verrou exclusif du registre (`tools/src/wftools/slots.py claim`, `release`, `list`) ; un
+fichier de deux lignes, écrit sans `LOT` ou par l'outil d'une branche plus ancienne, n'a pas de lot.
+Un créneau dont le worktree n'existe plus est libre. Les N pris, `make slot LOT=<identifiant>`
+reprend celui qu'un autre worktree, même encore là, tient pour le même lot : le pilote ne lance
+qu'un livreur par lot, et l'autre s'est arrêté sans `make slot-release` — une limite d'usage, un
+livreur planté (US-2460) ; le créneau d'un autre lot, ou sans lot, n'est jamais repris. Celui qui
+prend un créneau, libre ou repris, en retire d'abord ce qu'un porteur y a laissé (`docker
 compose -p <projet> down --volumes`, pour chacun de ses deux projets), le verrou du registre tenu
 jusqu'à ce que ce retrait ait réussi, comme le tient `make slot-release` : un `make slot` lancé
 entre-temps attend, en le disant, et si Docker échoue, le créneau n'est pas pris, et le `make slot`
 suivant refait le retrait. Avant ce retrait, l'un et l'autre arrêtent les serveurs de l'e2e que le
 créneau a laissés (`make e2e-down`). `slots.py which` dit le créneau du worktree courant.
+
+Un créneau libre se prend avant tout : la reprise n'a lieu que si les N sont pris, et un créneau
+tenu pour un lot ne s'ajoute donc pas aux créneaux libres que le pilote compte. Celui que l'arrêté
+tenait, quand un libre a été pris, reste pris, au nom de son ancien worktree, jusqu'au retrait de
+ce worktree. Limites connues : la clé de la reprise n'est que l'identifiant du lot, alors que le
+registre est commun à tous les dépôts du poste — deux dépôts qui portent un même identifiant de lot
+pourraient se reprendre un créneau — ; et la reprise ne regarde pas si l'ancien worktree a encore
+un livreur vivant : elle suppose, comme le pilote le garantit, un seul livreur vivant par lot.
 
 Au créneau i de 1 à 9, les ports sont ceux du bloc `20000 + 100·i`, sous la plage des ports
 éphémères de Linux ; au créneau 0, ceux d'avant :

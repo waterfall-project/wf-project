@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The exclusive mode of the slots: a measure takes the workstation for itself alone (US-2210).
 
-The tool is run as the Makefile runs it, ``python3 slots.py run --exclusive -- <command>``, with
-``WATERFALL_RUNTIME_DIR`` on a temporary directory: no test touches the locks of the workstation.
-A test waits for what it can see — a file the command writes, a line the tool says —, never a
-delay.
+The tool is run as ``python3 slots.py run --exclusive -- <command>``, the arguments the Makefile
+gives it through ``launch.py slots`` (US-2450), with ``WATERFALL_RUNTIME_DIR`` on a temporary
+directory: no test touches the locks of the workstation. A test waits for what it can see — a file
+the command writes, a line the tool says —, never a delay.
 """
 
 import contextlib

@@ -52,7 +52,7 @@ def test_two_sessions_one_without_xdg_runtime_dir_share_the_slots_and_turns(
     def keep(_slot: int) -> None:
         """Remove nothing: no slot here was ever used."""
 
-    assert slots.claim(slots.register(with_variable), first, 1, keep) == (1, True)
+    assert slots.claim(slots.register(with_variable), first, 1, keep) == (1, True, "")
     with pytest.raises(slots.RegisterError, match="all 1 slot"):
         slots.claim(slots.register(without), second, 1, keep)
     held = heavyturns.take_slot(heavyturns.lock_paths(with_variable, 1))
