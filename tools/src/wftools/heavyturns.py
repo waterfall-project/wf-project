@@ -222,11 +222,3 @@ def held_above(environment: Mapping[str, str]) -> bool:
     finally:
         os.close(descriptor)
     return False
-    descriptor = open_lock(gate_path(environment))
-    try:
-        fcntl.flock(descriptor, fcntl.LOCK_SH | fcntl.LOCK_NB)
-    except BlockingIOError:
-        return mark == HELD_EXCLUSIVE or os.pread(descriptor, 256, 0).decode() == token
-    finally:
-        os.close(descriptor)
-    return False
