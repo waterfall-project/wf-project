@@ -19,11 +19,10 @@ from uuid import UUID
 import pytest
 from estimate_support import YEAR, Costing, Lines, costing
 from nodes_support import Tree, refusal
-from planning_support import DAY
+from planning_support import DAY, insert_task
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from remaining_support import Review, in_progress, line_named, task_named
-from planning_support import insert_task
 from risks_support import (
     RISK_LABEL,
     Costed,
@@ -279,9 +278,7 @@ def own_later(risks: Risks, risk: dict[str, Any], amount: str) -> None:
     path = risks.own(risk, risks.project.revision_id)
     made = risks.made(path, {"kind": "task", "parent_id": None, "task": {"label": "Grue"}})
     sent = {"lock_version": made["lock_version"], **later(2)}
-    changed = risks.api.patch(
-        f"{path}/{made['node_id']}/task", headers=risks.headers, json=sent
-    )
+    changed = risks.api.patch(f"{path}/{made['node_id']}/task", headers=risks.headers, json=sent)
     assert changed.status_code == 200, changed.text
     line = material(risks.project.costs, "Location", amount)
     risks.made(path, {"kind": "estimate_line", "parent_id": made["node_id"], "estimate_line": line})

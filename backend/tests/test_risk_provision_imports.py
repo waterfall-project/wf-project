@@ -17,7 +17,6 @@ from estimate_import_support import analysed_import, entry_of, row, workbook
 from estimate_support import Costing, Lines, costing
 from fastapi.testclient import TestClient
 from imports_trial import apply, import_worker, read, run
-from nodes_support import Tree
 from projects_support import Scene
 from projects_support import scene as make_scene
 from remaining_import_support import analysed as remaining_analysed
@@ -33,6 +32,7 @@ from waterfall.core.cost_settings.tables import CostCategory
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 
 if TYPE_CHECKING:
+    from nodes_support import Tree
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
@@ -99,13 +99,16 @@ def held(tree: Tree, label: str) -> tuple[str, str, str, str]:
     """Read what an import must leave of a line: its task, lineage, budgeted and re-estimated."""
     line = line_named(tree, label)
     facet = line["estimate_line"]
-    return line["parent_id"], line["lineage_id"], facet["budgeted_amount"], facet["reestimated_amount"]
+    budgeted, reestimated = facet["budgeted_amount"], facet["reestimated_amount"]
+    return line["parent_id"], line["lineage_id"], budgeted, reestimated
 
 
+# The two lines of material of the project costed, by the entry of their task, and their amounts.
+MATERIAL = (("1 Étude", "Plans", 600), ("2 Réalisation", "Fabrication", 400))
 IGNORED = [{"kind": "provision_lines", "count": 1, "labels": [PROVISION]}]
 
 
-# --- The estimate (WF-INTF-0100) -------------------------------------------------------------------
+# --- The estimate (WF-INTF-0100) ------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -133,7 +136,7 @@ def estimate_rows(project: Costed, risk: dict[str, Any] | None, amount: str) -> 
                 "ID ligne": line_named(tree, label)["lineage_id"],
             },
         )
-        for entry, label, figure in (("1 Étude", "Plans", 600), ("2 Réalisation", "Fabrication", 400))
+        for entry, label, figure in MATERIAL
     ]
     if risk is not None:
         provision = entry_of(stage.database, CostCategory, project.costs.provision)

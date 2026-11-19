@@ -50,7 +50,7 @@ from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Callable, Generator
 
     from projects_support import Person, Scene
     from sqlalchemy.engine import Connection
@@ -244,7 +244,7 @@ def another_provision(stage: Scene, code: str = "ALE") -> UUID:
 
 
 @contextmanager
-def concurrently() -> Iterator[Callable[[Callable[[], Any]], Future[Any]]]:
+def concurrently() -> Generator[Callable[[Callable[[], Any]], Future[Any]]]:
     """Give what starts a call in a thread of its own, its future's result joining it.
 
     Every thread started is waited for when the scene leaves the block, a failure included (#4018):
