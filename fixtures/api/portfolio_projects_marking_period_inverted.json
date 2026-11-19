@@ -1,0 +1,12 @@
+{
+  "summary": "La liste du portefeuille du §4.6.2 lue pour les projets dont la dernière révision a été marquée du 1er avril 2026 au 1er mars 2026 (last_marked_at_from, last_marked_at_to) : la fin de la période précède son début, et last_marked_at_to est refusé, désigné par /query/last_marked_at_to, le début nommé (README du contrat, WF-IHM-0130).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/query/last_marked_at_to","code":"VALUE_OUT_OF_RANGE","params":{"minimum":"2026-04-01T00:00:00Z"}}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001197"
+  }
+}

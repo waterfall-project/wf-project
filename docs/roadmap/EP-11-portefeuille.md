@@ -600,7 +600,7 @@ ne s'étend pas au portefeuille.
 
 ## US-2690 — La liste des projets et la valeur du portefeuille
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-PTF-0040-A`, `WF-PTF-0050-A`
 - **opérations** : `getPortfolioProjects`, `getPortfolioValue`
 - **issue** : #3858
