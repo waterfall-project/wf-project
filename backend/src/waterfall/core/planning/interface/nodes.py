@@ -19,7 +19,7 @@ in the paste's one write (US-1450/L5). The tasks of the witness are written by `
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import exists, inspect, select, update
+from sqlalchemy import inspect, update
 
 from waterfall.core.planning.attachments import (
     ORDER_ITEM_ID,
@@ -46,7 +46,7 @@ from waterfall.core.planning.entries import (
     judged_creation,
 )
 from waterfall.core.planning.interface.facets import calendar_of, facets
-from waterfall.core.planning.interface.lines import create_line_node
+from waterfall.core.planning.interface.lines import create_line_node, revision_bears
 from waterfall.core.planning.reading import retained_reading, structure_totals
 from waterfall.core.planning.scheduling import Move, WorkInstant
 from waterfall.core.planning.shaping import (
@@ -207,10 +207,11 @@ class Dependencies:
 
 
 def revision_has_tasks(session: Session, revision_id: UUID) -> bool:
-    """Tell whether a revision bears a task: the planning's part of a designation (WF-CYC-0030)."""
-    return bool(
-        session.scalar(select(exists().where(Node.revision_id == revision_id, Node.kind == TASK)))
-    )
+    """Tell whether a revision bears a task: the planning's part of a designation (WF-CYC-0030).
+
+    A task of the base of a differential is not one the revision bears (US-3050).
+    """
+    return revision_bears(session, revision_id, TASK)
 
 
 def _columns(row: Node | Task | TaskLink) -> dict[str, object]:

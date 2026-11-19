@@ -7,7 +7,9 @@ whose accounts ``listContributorSuggestions`` proposes (``register_estimate_fact
 US-1490/L3 declares in ``core/projects``, WF-PRJ-0070).
 
 The lines read are those of the current revision, or, the project having none, of its last marked
-one: a project whose revision was just marked still proposes the team its estimate calls for.
+one: a project whose revision was just marked still proposes the team its estimate calls for. A
+line of the base of a differential employs nothing, and is not one a marked revision bears
+(US-3050).
 """
 
 from typing import TYPE_CHECKING
@@ -15,7 +17,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from waterfall.core.estimate.tables import EstimateLine
-from waterfall.core.planning.interface import node_revisions
+from waterfall.core.planning.interface import node_revisions, outside_bases
 from waterfall.core.projects.interface import project_facts
 from waterfall.core.revisions.interface import last_marked_revision, marked_revisions
 
@@ -46,7 +48,10 @@ def roles_employed(session: Session, project_id: UUID) -> frozenset[UUID]:
         if role is not None
     ]
     revisions = node_revisions(session, project_id, [node for node, _ in held])
-    return frozenset(role for node, role in held if revisions.get(node) == revision)
+    kept = outside_bases(session, project_id, [node for node, _ in held])
+    return frozenset(
+        role for node, role in held if revisions.get(node) == revision and node in kept
+    )
 
 
 def marked_revision_has_lines(session: Session, project_id: UUID) -> bool:
@@ -58,8 +63,14 @@ def marked_revision_has_lines(session: Session, project_id: UUID) -> bool:
     marked = marked_revisions(session, project_id)
     if not marked:
         return False
-    nodes = list(
-        session.scalars(select(EstimateLine.node_id).where(EstimateLine.project_id == project_id))
+    nodes = outside_bases(
+        session,
+        project_id,
+        list(
+            session.scalars(
+                select(EstimateLine.node_id).where(EstimateLine.project_id == project_id)
+            )
+        ),
     )
     return any(
         revision in marked for revision in node_revisions(session, project_id, nodes).values()

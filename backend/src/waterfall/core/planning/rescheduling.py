@@ -130,7 +130,8 @@ def replayed(
     """
     held = held or Holding()
     blamed = held.blamed
-    # The base of a differential is redated with the other structures of its revision (US-3050).
+    # The base of a differential is redated with the other structures of its revision (US-3050): a
+    # base whose dates did not follow the calendars would make its differential read modified.
     facts = held.facts or structure_facts(session, project_id, structure_id, lock=True, base=True)
     session.flush()
     tree = (

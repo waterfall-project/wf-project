@@ -134,6 +134,9 @@ from waterfall.core.estimate.interface.employment import (
     category_is_employed as category_is_employed,
 )
 from waterfall.core.estimate.interface.employment import (
+    forget_subproject as forget_subproject,
+)
+from waterfall.core.estimate.interface.employment import (
     subproject_estimate_lines as subproject_estimate_lines,
 )
 from waterfall.core.estimate.interface.employment import (
@@ -596,6 +599,7 @@ register_estimate_facts(
         subproject_is_cited,
         subproject_is_estimated,
         subproject_estimate_lines,
+        forget_subproject,
         roles_employed,
         marked_revision_has_lines,
         reinflate_project,

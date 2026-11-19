@@ -46,6 +46,7 @@ from waterfall.core.projects.interface.contributors import (
     require_project_manager,
 )
 from waterfall.core.projects.interface.estimate_facts import (
+    forget_subproject,
     subproject_estimate_lines,
     subprojects_cited,
     subprojects_estimated,
@@ -516,8 +517,9 @@ def delete_subproject(
     Refused if unknown (404), at another version (412), and by the first condition of its command
     that is lacking (409 ``STATE_FORBIDS_OPERATION``, ``missing_condition``): the lines of the
     current revision that bear it named for ``subproject_without_estimate_lines``
-    (``estimate_lines``, WF-DAT-0080). The place of the risks that designate it for their
-    provision is kept: EP-08 nulls the designation.
+    (``estimate_lines``, WF-DAT-0080). The lines of the bases of the differentials, which no
+    operation serves, neither refuse it nor keep it (``forget_subproject``, US-3050). The place of
+    the risks that designate it for their provision is kept: EP-08 nulls the designation.
     """
     _, row = _locked(session, project_id, subproject_id, lock_version, viewer)
     # ``_locked`` has judged the project writable (``_writable``): the manager under the lock, and
@@ -537,6 +539,7 @@ def delete_subproject(
                 for line in deletion.lines
             ]
         raise ConflictError(STATE_FORBIDS_OPERATION, params)
+    forget_subproject(session, project_id, row.id)
     session.delete(row)
     session.flush()
 

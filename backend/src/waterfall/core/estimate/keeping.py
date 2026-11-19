@@ -39,9 +39,9 @@ from waterfall.core.estimate.pricing import CENT, inflation_factor
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
 from waterfall.core.planning.interface import (
     Holding,
-    lines_of_revision,
     refused_at,
     reschedule,
+    revision_lines,
     structures_of,
 )
 from waterfall.core.projects.interface import project_facts
@@ -121,8 +121,8 @@ def projected_rate(amount: Decimal, inflation_rate: Decimal, years: tuple[int, i
 
 
 def labour_categories(session: Session, project_id: UUID, revision_id: UUID) -> frozenset[UUID]:
-    """Give the categories the lines of labour of a revision employ, every structure included."""
-    nodes = list(lines_of_revision(session, project_id, revision_id).values())
+    """Give the categories the labour lines of a revision employ, its bases left out (US-3050)."""
+    nodes = list(revision_lines(session, project_id, revision_id, bases=False))
     if not nodes:
         return frozenset()
     return frozenset(
@@ -160,6 +160,10 @@ def reprice_revision(
     the identifiers holds within a pass only: a structure created between two passes may bear a
     lower identifier than one held, so a deadlock is possible only with a writer that locks several
     structures, and PostgreSQL detects it.
+
+    The lines of every structure are priced, the bases of the differentials included (US-3050): a
+    base that did not follow the rates and the inflation would make the lines of its differential,
+    priced again, read modified against it.
     """
     project_id, revision_id = revision
     held_structures: set[UUID] = set()
@@ -172,7 +176,7 @@ def reprice_revision(
         for structure_id in missing:
             structure_facts(session, project_id, structure_id, lock=True, base=True)
             held_structures.add(structure_id)
-        nodes = list(lines_of_revision(session, project_id, revision_id).values())
+        nodes = list(revision_lines(session, project_id, revision_id, bases=True))
         strangers = sorted(set(structures_of(session, project_id, nodes)) - held_structures)
         for structure_id in strangers:
             structure_facts(session, project_id, structure_id, lock=True, base=True)

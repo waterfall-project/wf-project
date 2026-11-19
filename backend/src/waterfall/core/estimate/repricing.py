@@ -43,7 +43,7 @@ from sqlalchemy import select
 from waterfall.core.estimate.keeping import reprice_revision
 from waterfall.core.estimate.reading import budgeted_of, rows_of
 from waterfall.core.estimate.tables import RevisionRate
-from waterfall.core.planning.interface import lines_of_revision, refused_at
+from waterfall.core.planning.interface import lines_of_revision, refused_at, revision_lines
 from waterfall.core.projects.interface import project_facts
 from waterfall.core.revisions.interface import (
     current_structures,
@@ -69,7 +69,11 @@ def refresh_budgeted(designation: ReferenceDesignated) -> None:
 
     In the transaction of the designation, the current revision held before the project: its
     structures locked, its lines read under the locks, then written where the amount moves. A
-    budgeted amount is computed by the server: it advances no counter.
+    budgeted amount is computed by the server: it advances no counter. The lines of every structure
+    are written, the bases of the differentials included, as the other figures of a line priced
+    again (``reprice_revision``): a base left behind would make the lines of its differential read
+    modified against it (US-3050). The reference is read on its main structure, which alone says
+    what it holds of a lineage (``lines_of_revision``).
     """
     session, project_id = designation.session, designation.project_id
     current = project_facts(session, project_id).current_revision_id
@@ -78,14 +82,13 @@ def refresh_budgeted(designation: ReferenceDesignated) -> None:
     for structure_id in revision_structures(session, project_id, current):
         structure_facts(session, project_id, structure_id, lock=True, base=True)
     # Read under the locks: a line created meanwhile is there, a line deleted is not.
-    held = lines_of_revision(session, project_id, current)
+    lineages = revision_lines(session, project_id, current, bases=True)
     reference = lines_of_revision(session, project_id, designation.revision_id)
     budgets = {
         line.node_id: budgeted_of(line)
         for line in rows_of(session, project_id, list(reference.values()))
     }
-    lineages = {node: lineage for lineage, node in held.items()}
-    for line in rows_of(session, project_id, list(held.values())):
+    for line in rows_of(session, project_id, list(lineages)):
         node = reference.get(lineages[line.node_id])
         budgeted = NOUGHT if node is None else budgets.get(node, NOUGHT)
         if line.budgeted_amount != budgeted:

@@ -257,7 +257,13 @@ from waterfall.core.planning.interface.lines import (
     node_versions as node_versions,
 )
 from waterfall.core.planning.interface.lines import (
+    outside_bases as outside_bases,
+)
+from waterfall.core.planning.interface.lines import (
     revision_bears as revision_bears,
+)
+from waterfall.core.planning.interface.lines import (
+    revision_lines as revision_lines,
 )
 from waterfall.core.planning.interface.lines import (
     structures_of as structures_of,
