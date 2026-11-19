@@ -1,0 +1,15 @@
+{
+  "summary": "Une offre à 40 % de probabilité et 100 000 de devis contribue pour 40 000 à la valeur du pipeline, 40 % de sa charge au plan de charge pondéré, et pour tout au pipeline brut (WF-PTF-0020, WF-PTF-0050, WF-PRJ-0090).",
+  "examples": [
+    "WF-PTF-0020-A#c424fdc63fd8",
+    "WF-PTF-0050-A#2495b6b38022",
+    "WF-PRJ-0090-A#0600dd236bf1"
+  ],
+  "state": "pricing",
+  "win_probability": "0.4",
+  "estimate": "100000.00",
+  "hours": "100.00",
+  "pipeline_gross": "100000.00",
+  "pipeline_weighted": "40000.00",
+  "weighted_hours": "40.00"
+}

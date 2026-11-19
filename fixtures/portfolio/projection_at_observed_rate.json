@@ -1,0 +1,11 @@
+{
+  "summary": "Sur deux projets de budget 1 000, de valeur acquise 400 et 500 et de coût réel 500 et 500, la projection au rythme constaté agrégée vaut 2 222 et non 2 250 (WF-PTF-0070).",
+  "examples": ["WF-PTF-0070-A#107cfb595699"],
+  "projects": [
+    {"reference_budget": "1000.00", "earned_value": "400.00", "actual_cost": "500.00"},
+    {"reference_budget": "1000.00", "earned_value": "500.00", "actual_cost": "500.00"}
+  ],
+  "at_observed_rate": "2222.22",
+  "at_observed_rate_whole": "2222",
+  "mean_of_indices_projection": "2250"
+}

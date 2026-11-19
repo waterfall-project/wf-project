@@ -1,0 +1,10 @@
+{
+  "summary": "Une offre incluse à 40 %, dont le devis porte 100 hors provisions et une provision de 50, apporte 40 au budget cumulé final et 60 à la projection, et contribue pour 40 % de ses courbes (WF-PTF-0100).",
+  "examples": ["WF-PTF-0100-A#faac2b71539d", "WF-PTF-0100-A#b4875ef04969"],
+  "win_probability": "0.4",
+  "budget_curve": ["50.00", "100.00"],
+  "projection_curve": ["75.00", "150.00"],
+  "final_budget": "40.00",
+  "final_projection": "60.00",
+  "weighted_budget_curve": ["20.00", "40.00"]
+}

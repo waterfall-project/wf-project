@@ -48,6 +48,33 @@ from waterfall.core.indicators.interface.estimate_documents import (
     remaining_document as remaining_document,
 )
 
+# ``formulas`` (US-2670/L2): the formulas of the indices and the projections, which the portfolio
+# applies to sums.
+from waterfall.core.indicators.interface.formulas import (
+    Computable as Computable,
+)
+from waterfall.core.indicators.interface.formulas import (
+    Projections as Projections,
+)
+from waterfall.core.indicators.interface.formulas import (
+    cost_index as cost_index,
+)
+from waterfall.core.indicators.interface.formulas import (
+    cost_variance as cost_variance,
+)
+from waterfall.core.indicators.interface.formulas import (
+    projections as projections,
+)
+from waterfall.core.indicators.interface.formulas import (
+    schedule_index as schedule_index,
+)
+from waterfall.core.indicators.interface.formulas import (
+    schedule_variance as schedule_variance,
+)
+from waterfall.core.indicators.interface.formulas import (
+    zone_of as zone_of,
+)
+
 # ``index_history`` (US-1660/L1; US-1700): the evolution of the indices.
 from waterfall.core.indicators.interface.index_history import (
     index_history as index_history,

@@ -1,0 +1,13 @@
+{
+  "summary": "Une offre incluse à 40 % dont le devis porte 100 de main-d'oeuvre ajoute 40 à la main-d'oeuvre du budget agrégé ; une ligne de provision pour risques de 50 n'ajoute rien à sa nature dans le budget agrégé, qui n'a pas de lignes de provision, et ajoute 20 dans le reste à engager agrégé ; une ligne de 50 d'une nature hors main-d'oeuvre, une provision pour aléas par exemple, ajoute 20 à sa nature dans l'un et dans l'autre (WF-PTF-0080).",
+  "examples": [
+    "WF-PTF-0080-A#304cd560fe09",
+    "WF-PTF-0080-A#c53a7c6ba53d",
+    "WF-PTF-0080-A#47418792a9e5"
+  ],
+  "win_probability": "0.4",
+  "budget_by_nature": {"labour": "100.00", "other": "50.00"},
+  "remaining_by_nature": {"risk_provision": "50.00", "other": "50.00"},
+  "aggregated_budget": {"labour": "40.00", "other": "20.00"},
+  "aggregated_remaining": {"risk_provision": "20.00", "other": "20.00"}
+}

@@ -236,10 +236,16 @@ from waterfall.core.estimate.interface.indicators import (
     MissingRate as MissingRate,
 )
 from waterfall.core.estimate.interface.indicators import (
+    distribution as distribution,
+)
+from waterfall.core.estimate.interface.indicators import (
     estimate_indicators as estimate_indicators,
 )
 from waterfall.core.estimate.interface.indicators import (
     missing_rates as missing_rates,
+)
+from waterfall.core.estimate.interface.indicators import (
+    share_of as share_of,
 )
 from waterfall.core.estimate.interface.indicators import (
     shown as shown,
