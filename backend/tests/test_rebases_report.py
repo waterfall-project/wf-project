@@ -12,6 +12,7 @@ checked against the contract (``ContractClient``), and the parts of the modules 
 """
 
 from dataclasses import replace
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -61,6 +62,7 @@ if TYPE_CHECKING:
     from sqlalchemy import Engine
     from support import ContractClient
 
+    from waterfall.core.planning.rebasing import RebasePlan
     from waterfall.platform.database import Database
 
 REFUSED = "STATE_FORBIDS_OPERATION"
@@ -154,6 +156,29 @@ def rebasing(project: Costed, structure_id: str, session: Any) -> StructureRebas
         Act(None, utc_now()),
         applying=False,
     )
+
+
+def planned(project: Costed, structure_id: str) -> RebasePlan:
+    """Give the plan of the update of a differential, every task it places held once.
+
+    The tasks the plan orders are those it places, and the ends of each link it leaves among them.
+    """
+    with project.stage.database.transaction() as session:
+        plan = rebase_plan(rebasing(project, structure_id, session))
+    assert sorted(plan.order) == sorted(plan.parents)
+    assert {end for pair in plan.links for end in pair} <= set(plan.order)
+    return plan
+
+
+def placed_under(api: ContractClient, project: Costed, tree: Any, label: str, parent: str) -> None:
+    """Move the node of a structure that bears a label under the task that bears another."""
+    sent = {
+        "node_ids": [node_labelled(tree, label)["node_id"]],
+        "parent_id": node_labelled(tree, parent)["node_id"],
+        "lock_version": counters(api, project)[tree.structure_id],
+    }
+    moved = api.post(f"{tree.path}/nodes/move", headers=project.stage.manager.headers, json=sent)
+    assert moved.status_code == 200, moved.text
 
 
 # --- What the update carries ----------------------------------------------------------------------
@@ -340,11 +365,12 @@ def test_what_the_differential_adds_under_a_task_that_leaves_goes_to_its_nearest
 ) -> None:
     # « une tâche qu'il ajoute sous une tâche que la structure principale n'a plus passe sous
     # l'ancêtre le plus proche qui reste, signalée »: a subtask and a line the differential adds
-    # under a subtask the main structure removes go under its parent, each kept; the subtask
-    # removed is the main structure's removal.
+    # under a subtask the main structure removes go under its parent, each kept, at the place the
+    # subtask held among its siblings; the subtask removed is the main structure's removal.
     main, manager = project.tree, project.stage.manager
     lot = node_labelled(main, STUDY)
     main.made("Relevés", parent_id=lot["node_id"])
+    main.made("Synthèse", parent_id=lot["node_id"])
     structure_id = opened_amendment(api, project)
     own = on(main, structure_id)
     surveys = node_labelled(own, "Relevés")
@@ -367,6 +393,10 @@ def test_what_the_differential_adds_under_a_task_that_leaves_goes_to_its_nearest
     study = UUID(lineage(own, STUDY))
     assert where.staying[UUID(lineage(own, "Relevés"))] == study
     assert UUID(lineage(own, "Relevés complémentaires")) in where.tasks
+    plan = planned(project, structure_id)
+    labels = [plan.label_of(each) for each in plan.order]
+    assert labels == [STUDY, "Relevés complémentaires", "Synthèse", MAKING]
+    assert plan.parents[UUID(lineage(own, "Relevés complémentaires"))] == study
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
@@ -400,6 +430,95 @@ def test_a_link_the_differential_adds_to_a_task_that_leaves_is_removed_signalled
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
+def test_a_link_the_differential_adds_to_a_task_it_keeps_by_the_rule_2_stays(
+    api: ContractClient, late: OutOfDate
+) -> None:
+    # « une liaison qu'il ajoute vers une tâche que la structure principale n'a plus est retirée,
+    # signalée », judged on the differential the update leaves: the task the main structure
+    # removes, which the differential renames, stays (« une tâche que le différentiel modifie et
+    # que la structure principale n'a plus reste au différentiel »), and the link to it with it.
+    own = late.amendment
+    own.changed(node_labelled(own, MAIN_REMOVED), label="Documentation reprise")
+    essais = node_labelled(own, OWN_ADDED)
+    documentation = node_labelled(own, "Documentation reprise")
+    assert link(own, essais, late.project.stage.manager, documentation).status_code == 200
+    found = report(api, late)["differences"]
+    named = (lineage(own, "Documentation reprise"), "Documentation reprise")
+    assert difference("kept", "task", named) in found
+    assert not [each for each in found if each["target"] == "link"]
+    plan = planned(late.project, late.structure_id)
+    assert (UUID(named[0]), UUID(lineage(own, OWN_ADDED))) in plan.links
+
+
+@pytest.mark.requirement("WF-REV-0100-A")
+def test_a_link_the_differential_retypes_and_the_main_removes_stays_signalled(
+    api: ContractClient, project: Costed
+) -> None:
+    # « une tâche ou une ligne que le différentiel modifie et que la principale n'a plus reste au
+    # différentiel », for a link: the differential makes the link from Étude to Réalisation start
+    # to start, the main structure removes it; the update leaves the differential's, signalled.
+    main = project.tree
+    lagged(main, MAKING, {STUDY: "0"})
+    structure_id = opened_amendment(api, project)
+    own = on(main, structure_id)
+    lagged(own, MAKING, {STUDY: "0"}, "start_to_start")
+    lagged(main, MAKING, {})
+    found = report(api, OutOfDate(project, structure_id, own))["differences"]
+    assert found == [linked("kept", (lineage(main, MAKING), MAKING), STUDY)]
+    plan = planned(project, structure_id)
+    pair = (UUID(lineage(main, STUDY)), UUID(lineage(main, MAKING)))
+    assert plan.links[pair].link_type == "start_to_start"
+
+
+@pytest.mark.requirement("WF-REV-0100-A")
+def test_a_line_the_main_adds_to_a_task_the_differential_removes_goes_to_its_nearest_ancestor(
+    api: ContractClient, project: Costed
+) -> None:
+    # « un nœud que la principale a ajouté y entre sous sa lignée, à sa place »: a line the main
+    # structure adds to a subtask the differential removes enters under the subtask's parent, as a
+    # task would; one it adds to a task of the first level the differential removes has no task
+    # to enter under, and does not enter, as a link to it does not.
+    main = project.tree
+    main.made("Montage", parent_id=node_labelled(main, STUDY)["node_id"])
+    main.made("Documentation")
+    structure_id = opened_amendment(api, project)
+    own = on(main, structure_id)
+    deleted(own, "Montage", project.stage.manager)
+    deleted(own, "Documentation", project.stage.manager)
+    Lines(main).made(node_labelled(main, "Montage"), **material(project.costs, "Grue", "80.00"))
+    Lines(main).made(
+        node_labelled(main, "Documentation"), **material(project.costs, "Notices", "30.00")
+    )
+    found = report(api, OutOfDate(project, structure_id, own))["differences"]
+    assert found == [difference("added", "estimate_line", (lineage(main, "Grue"), "Grue"))]
+    with project.stage.database.transaction() as session:
+        where = rebased_lines(rebasing(project, structure_id, session))
+    assert where.staying[UUID(lineage(main, "Montage"))] == UUID(lineage(main, STUDY))
+    assert where.staying[UUID(lineage(main, "Documentation"))] is None
+
+
+@pytest.mark.requirement("WF-REV-0100-A")
+def test_the_dates_the_main_changes_of_a_task_the_differential_makes_automatic_are_not_carried(
+    api: ContractClient, project: Costed
+) -> None:
+    # « une valeur qu'elle a changée y est changée »: the dates of a task are its own in manual
+    # mode only; the differential makes Réalisation automatic, the main structure moves its
+    # finish, and its duration with it: the update, which leaves it automatic, carries the
+    # duration, and no date of it, nor names one.
+    main = project.tree
+    task = node_labelled(main, MAKING)["task"]
+    start, finish = task["start"], task["finish"]
+    main.changed(node_labelled(main, MAKING), scheduling_mode="manual", start=start, finish=finish)
+    structure_id = opened_amendment(api, project)
+    own = on(main, structure_id)
+    own.changed(node_labelled(own, MAKING), scheduling_mode="automatic")
+    later = date.fromisoformat(finish["date"]) + timedelta(days=7)
+    main.changed(node_labelled(main, MAKING), finish={**finish, "date": later.isoformat()})
+    found = report(api, OutOfDate(project, structure_id, own))["differences"]
+    assert found == [difference("updated", "task", (lineage(own, MAKING), MAKING), ["duration"])]
+
+
+@pytest.mark.requirement("WF-REV-0100-A")
 def test_a_node_both_remove_is_not_signalled(api: ContractClient, project: Costed) -> None:
     # « Un nœud que le différentiel retire et que la principale n'a plus ne se signale pas. »: the
     # task removed on both sides is named by no difference, nor its line.
@@ -410,14 +529,16 @@ def test_a_node_both_remove_is_not_signalled(api: ContractClient, project: Coste
     assert report(api, OutOfDate(project, structure_id, own))["differences"] == []
 
 
-def lagged(tree: Any, successor: str, lags: dict[str, str]) -> None:
-    """Give a task of a structure its predecessors, finish to start, each with its lag in days."""
+def lagged(
+    tree: Any, successor: str, lags: dict[str, str], link_type: str = "finish_to_start"
+) -> None:
+    """Give a task of a structure its predecessors, of a type, each with its lag in days."""
     node = node_labelled(tree, successor)
     sent = {
         "predecessors": [
             {
                 "predecessor_node_id": node_labelled(tree, label)["node_id"],
-                "link_type": "finish_to_start",
+                "link_type": link_type,
                 "lag": {"value": lag, "unit": "d"},
             }
             for label, lag in lags.items()
@@ -511,6 +632,76 @@ def test_a_task_the_main_adds_takes_its_place_after_the_sibling_that_precedes_it
     assert plan.parents[UUID(lineage(own, OWN_RENAMED[1]))] == UUID(lineage(own, STUDY))
 
 
+@pytest.mark.requirement("WF-REV-0100-A")
+def test_a_move_of_the_main_that_would_close_a_loop_of_the_hierarchy_keeps_the_differential_s(
+    api: ContractClient, late: OutOfDate
+) -> None:
+    # « une valeur que le différentiel désigne et que la structure principale a changée depuis
+    # garde la valeur du différentiel, et le compte rendu la nomme (kept, ses champs) », for a
+    # parent the two moves would make a loop of: the differential moves Formation under
+    # Réalisation, the main structure Réalisation under Formation. The differential's move wins;
+    # Réalisation stays at the first level, kept, its parent named; both stay in the plan.
+    project, main, own = late.project, late.project.tree, late.amendment
+    placed_under(api, project, own, OWN_RENAMED[1], MAKING)
+    placed_under(api, project, main, MAKING, OWN_RENAMED[0])
+    found = report(api, late)["differences"]
+    making = (lineage(own, MAKING), MAKING)
+    assert difference("kept", "task", making, ["parent"]) in found
+    assert difference("updated", "task", making, ["parent"]) not in found
+    plan = planned(project, late.structure_id)
+    assert plan.parents[UUID(making[0])] is None
+    assert plan.parents[UUID(lineage(own, OWN_RENAMED[1]))] == UUID(making[0])
+
+
+@pytest.mark.requirement("WF-REV-0100-A")
+def test_a_task_the_differential_moves_under_a_task_that_leaves_goes_to_its_nearest_ancestor(
+    api: ContractClient, project: Costed
+) -> None:
+    # « une tâche qu'il ajoute sous une tâche que la structure principale n'a plus passe sous
+    # l'ancêtre le plus proche qui reste, signalée », for a task of the base the differential moves
+    # under a subtask the main structure removes: it goes under the subtask's parent, kept, its
+    # parent named.
+    main = project.tree
+    main.made("Montage", parent_id=node_labelled(main, STUDY)["node_id"])
+    structure_id = opened_amendment(api, project)
+    own = on(main, structure_id)
+    placed_under(api, project, own, MAKING, "Montage")
+    deleted(main, "Montage", project.stage.manager)
+    found = report(api, OutOfDate(project, structure_id, own))["differences"]
+    assert found == [
+        difference("removed", "task", (lineage(own, "Montage"), "Montage")),
+        difference("kept", "task", (lineage(own, MAKING), MAKING), ["parent"]),
+    ]
+    plan = planned(project, structure_id)
+    assert plan.parents[UUID(lineage(own, MAKING))] == UUID(lineage(own, STUDY))
+
+
+@pytest.mark.requirement("WF-REV-0100-A")
+def test_a_line_the_differential_moves_under_a_task_that_leaves_goes_to_its_nearest_ancestor(
+    api: ContractClient, project: Costed
+) -> None:
+    # « une tâche ou une ligne que le différentiel ajoute sous une tâche que la principale n'a
+    # plus […] passe sous l'ancêtre le plus proche qui reste », for a line of the base the
+    # differential attaches to a subtask the main structure removes: it goes under the subtask's
+    # parent, kept, its parent named.
+    main = project.tree
+    main.made("Montage", parent_id=node_labelled(main, STUDY)["node_id"])
+    structure_id = opened_amendment(api, project)
+    own = on(main, structure_id)
+    placed_under(api, project, own, "Fabrication", "Montage")
+    deleted(main, "Montage", project.stage.manager)
+    found = report(api, OutOfDate(project, structure_id, own))["differences"]
+    assert found == [
+        difference("removed", "task", (lineage(own, "Montage"), "Montage")),
+        difference(
+            "kept", "estimate_line", (lineage(own, "Fabrication"), "Fabrication"), ["parent"]
+        ),
+    ]
+    with project.stage.database.transaction() as session:
+        where = rebased_lines(rebasing(project, structure_id, session))
+    assert where.staying[UUID(lineage(own, "Montage"))] == UUID(lineage(own, STUDY))
+
+
 # --- The refusals ---------------------------------------------------------------------------------
 
 
@@ -542,6 +733,9 @@ def test_a_loop_the_update_would_close_is_named_by_the_nodes_of_the_differential
             },
         }
     ]
+    # « le lien fautif retiré du différentiel, elle aboutit »
+    assert link(own, node_labelled(own, STUDY), manager).status_code == 200
+    assert report(api, late)["refusals"] == []
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
@@ -577,6 +771,9 @@ def test_a_link_the_update_would_put_across_the_hierarchy_is_named_the_summary_f
             },
         }
     ]
+    # « le lien fautif retiré du différentiel, elle aboutit »
+    assert link(own, node_labelled(own, MAKING), manager).status_code == 200
+    assert report(api, late)["refusals"] == []
 
 
 @pytest.mark.requirement("WF-REV-0100-A")

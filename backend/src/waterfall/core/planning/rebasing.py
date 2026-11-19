@@ -16,10 +16,13 @@ structure, a differential and its base (EP-08, "La base d'un différentiel et sa
   enters it under its lineage, at its place — after the sibling that precedes it there —; a column
   it changes is changed; a task it removes leaves it. Four rules say what it does not carry, each
   signalled by a ``kept`` difference: a column both change keeps the differential's, the columns
-  named (1); a task the differential modifies and the main structure removes stays, as an addition
-  (2); a task the differential adds under a task that leaves stays, under the nearest ancestor that
-  remains, or at the first level (3); a link the differential adds to a task that leaves goes (4). A
-  task the differential removes and the main structure no longer has is not signalled.
+  named (1) — a parent the main structure gives a task under one the differential moved under it,
+  which would close a loop, among them —; a task the differential modifies and the main structure
+  removes stays, as an addition (2); a task the differential adds under a task that leaves stays,
+  under the nearest ancestor that remains, or at the first level, and one it moves there goes
+  likewise, its parent named (3); a link the differential adds to a task that leaves goes (4),
+  judged on the differential the update leaves. A task the differential removes and the main
+  structure no longer has is not signalled.
 - **What refuses it** is judged once on the differential it leaves, the engine replayed: a loop, a
   link across the hierarchy, the horizon (WF-PLA-0030, WF-PLA-0150), each task named by its node in
   the differential and its label, null for a task the main structure adds.
@@ -314,16 +317,25 @@ def _intended(plan: RebasePlan, lineage: UUID) -> UUID | None:
 
 
 def _fields(plan: RebasePlan) -> None:
-    """Give each task of the three the fields carried, and those kept against the main (rule 1)."""
+    """Give each task of the three the fields carried, and those kept against the main (rule 1).
+
+    The dates of a task are its own in manual mode only: neither carried nor kept when the task is
+    automatic once updated — the mode carried if the main structure changes it alone.
+    """
     designates, received = plan.designated.changed, plan.received.changed
     for lineage, changed in received.items():
         if not plan.structure.has(lineage):
             continue
         own = designates.get(lineage, frozenset())
-        plan.carried[lineage] = changed - own
+        carried = changed - own
+        mode = plan.main if "scheduling_mode" in carried else plan.structure
+        named = changed
+        if mode.task(lineage).scheduling_mode != MANUAL:
+            named = changed - {"start", "finish"}
+        plan.carried[lineage] = named - own
         plan.kept_fields[lineage] = frozenset(
             name
-            for name in changed & own
+            for name in named & own
             if value_of(plan.main, lineage, name) != value_of(plan.structure, lineage, name)
         )
 
@@ -346,23 +358,61 @@ def _insert(plan: RebasePlan, children: list[UUID], lineage: UUID, parent: UUID 
     children.append(lineage)
 
 
+def _closes(plan: RebasePlan, lineage: UUID) -> bool:
+    """Tell whether the parent a task would have once updated has it among its ancestors."""
+    seen: set[UUID] = set()
+    above = plan.staying(_intended(plan, lineage))
+    while above is not None and above not in seen:
+        if above == lineage:
+            return True
+        seen.add(above)
+        above = plan.staying(_intended(plan, above))
+    return False
+
+
+def _unlooped(plan: RebasePlan, left: list[UUID]) -> None:
+    """Keep off each parent the main structure carries that would close a loop of the hierarchy.
+
+    Two moves make it — the differential moves a task under another, the main structure that one
+    under the first —: the differential's wins. The task the main structure moves stays where the
+    differential has it, its parent kept against the main structure, as rule 1 keeps a value. Until
+    no carried parent closes a loop: one kept off may leave another closing.
+    """
+    looping = True
+    while looping:
+        looping = False
+        for lineage in left:
+            if PARENT in plan.carried.get(lineage, frozenset()) and _closes(plan, lineage):
+                plan.carried[lineage] -= {PARENT}
+                plan.kept_fields[lineage] |= {PARENT}
+                looping = True
+
+
 def _placed(plan: RebasePlan) -> None:
     """Place the tasks the update leaves: parents, order, summaries; signal the rule 3.
 
     The differential's tasks stay in its order under their parent; those the main structure places
     — added, or moved by a parent carried — take their place there; those whose parent leaves go
-    under the nearest ancestor that remains, last.
+    under the nearest ancestor that remains, in the differential's order among its children: at the
+    place the task that leaves held there. A task of the base the differential moves under a task
+    that leaves goes there likewise, its parent kept, signalled as rule 3 signals a task it adds.
     """
     left = _kept_tasks(plan)
     _fields(plan)
     plan.parents.update(dict.fromkeys(left))
+    _unlooped(plan, left)
     for lineage in left:
         intended = _intended(plan, lineage)
         plan.parents[lineage] = plan.staying(intended)
-        own = plan.structure.has(lineage) and not plan.base.has(lineage)
-        if own and plan.parents[lineage] != intended:
+        if plan.parents[lineage] == intended or not plan.structure.has(lineage):
+            continue
+        if not plan.base.has(lineage):
             # Rule 3: a task the differential adds under a task that leaves.
             plan.kept.append(lineage)
+        elif PARENT in plan.designated.changed.get(lineage, frozenset()):
+            # Rule 3, for a task the differential moves under a task that leaves.
+            kept = plan.kept_fields.get(lineage, frozenset())
+            plan.kept_fields[lineage] = kept | {PARENT}
     children: dict[UUID | None, list[UUID]] = {}
     placed_by_main: list[UUID] = []
     held = set(left)

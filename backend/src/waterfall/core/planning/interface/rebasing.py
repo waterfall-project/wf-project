@@ -8,9 +8,11 @@ rules (``rebasing``); ``rebase_end`` its part of ``register_rebase_end``: what r
 judged once on the differential it leaves, the engine replayed (WF-PLA-0030, WF-PLA-0150). The
 estimate, whose part comes after, reads of the same plan where each line stands (``rebased_lines``):
 the lines of the three structures by the lineage of their task, the tasks the update leaves, and
-where the lines of a task that leaves go — to the nearest ancestor that remains, or, from the first
-level, to the first task of the first level, as a provision line does at a merge (WF-RIS-0010;
-#789). It hands the end the calendars its lines will name (``RebasedCalendars``).
+where the lines of a task that leaves go — to the nearest ancestor that remains; from the first
+level, a line the differential holds goes to the first task of the first level, as a provision line
+does at a merge (WF-RIS-0010; #789), and one the main structure adds does not enter, as a link it
+adds to the task does not. It hands the end the calendars its lines will name
+(``RebasedCalendars``).
 
 ``designated`` gives what a structure designates against its base, by lineage; neither it nor the
 update names the nature of the differential (EP-30).
@@ -59,7 +61,8 @@ class RebasedLines:
     """Where the lines of an update stand, each structure in the order of its plan.
 
     ``tasks`` the tasks the update leaves, by lineage, in the order of the plan; ``staying`` the
-    task the lines of each other task of the three go to, none when no task remains.
+    nearest ancestor the update leaves of each other task of the three, none from the first level;
+    ``first`` the first task of the plan, where a line of the differential goes from there.
     """
 
     base: tuple[MergedLine, ...]
@@ -67,6 +70,7 @@ class RebasedLines:
     main: tuple[MergedLine, ...]
     tasks: Mapping[UUID, RebasedTask]
     staying: Mapping[UUID, UUID | None]
+    first: UUID | None
 
 
 def designated(session: Session, project_id: UUID, structures: tuple[UUID, UUID]) -> Gap:
@@ -97,18 +101,18 @@ def rebased_lines(rebasing: StructureRebasing) -> RebasedLines:
         each: RebasedTask(plan.structure.tasks.get(each), plan.label_of(each))
         for each in plan.order
     }
-    first = plan.order[0] if plan.order else None
     staying: dict[UUID, UUID | None] = {}
     for side in (plan.structure, plan.main, plan.base):
         for lineage in side.tasks:
             if lineage not in tasks and lineage not in staying:
-                staying[lineage] = plan.staying(lineage) or first
+                staying[lineage] = plan.staying(lineage)
     return RebasedLines(
         lines_in_order(plan.base.tree),
         lines_in_order(plan.structure.tree),
         lines_in_order(plan.main.tree),
         tasks,
         staying,
+        plan.order[0] if plan.order else None,
     )
 
 

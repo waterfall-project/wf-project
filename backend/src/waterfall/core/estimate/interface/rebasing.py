@@ -8,15 +8,17 @@ category, its role, its quantity, its hours, its unit disbursement, its subproje
 payment, in the order of ``NodeColumn`` — and its task (``parent``); the differential and the main
 structure are each compared with the base of the differential, by the lineage:
 
-- a line the main structure adds enters the differential (``added``), under its task, or the task
-  its own goes to when the differential removed it; a column it changes is taken (``updated``); a
-  line it removes leaves the differential (``removed``);
+- a line the main structure adds enters the differential (``added``), under its task, or, when the
+  differential removed it, under its nearest ancestor that remains — none from the first level, and
+  the line does not enter, as a link the main structure adds to the task does not —; a column it
+  changes is taken (``updated``); a line it removes leaves the differential (``removed``);
 - a column the differential changes too keeps the differential's (``kept``, its columns named):
   for the figures of a line, the rule of WF-REV-0050 — the merge gives them to the line as its
   reference, and the main structure keeps its current ones, re-estimated (rule 1);
 - a line the differential modifies and the main structure removes stays, as an addition (rule 2),
   and a line it adds under a task that leaves stays too (rule 3), each under the task the planning
-  says its own goes to, signalled (``kept``).
+  says its own goes to, signalled (``kept``); a line of the base it moves under a task that leaves
+  goes there likewise, its parent named.
 
 The provision lines stay out (#4008): a base holds none, nor a differential. Then what refuses the
 update: a task whose lines, once updated, would name roles whose calendars share no working hour in
@@ -121,18 +123,29 @@ class _Update:
     differences: list[Json] = field(default_factory=list[Json])
     roles: dict[UUID, set[UUID]] = field(default_factory=dict[UUID, set[UUID]])
 
-    def placed(self, task: UUID) -> UUID | None:
-        """Give the task a line goes under once updated: its own, or where its own goes."""
-        return task if task in self.where.tasks else self.where.staying.get(task)
+    def placed(self, task: UUID, *, held: bool = True) -> UUID | None:
+        """Give the task a line goes under once updated: its own, or where its own goes.
 
-    def leave(self, line: tuple[UUID, str], task: UUID, role: UUID | None) -> bool:
+        From the first level, the first task of the plan for a line the differential ``held``,
+        none for one the main structure adds.
+        """
+        if task in self.where.tasks:
+            return task
+        staying = self.where.staying.get(task)
+        return self.where.first if staying is None and held else staying
+
+    def leave(
+        self, line: tuple[UUID, str], task: UUID, role: UUID | None, *, held: bool = True
+    ) -> bool:
         """Leave a line under the task it goes to, its role counted; false if none remains.
 
-        A line no task remains for leaves the differential, which says so (``removed``).
+        A line of the differential no task remains for leaves it, which says so (``removed``); one
+        the main structure adds does not enter it, unnamed.
         """
-        placed = self.placed(task)
+        placed = self.placed(task, held=held)
         if placed is None:
-            self.differences.append(_difference("removed", line, []))
+            if held:
+                self.differences.append(_difference("removed", line, []))
             return False
         if role is not None:
             self.roles.setdefault(placed, set()).add(role)
@@ -144,16 +157,22 @@ class _Update:
             self.differences.append(_difference("kept", line, []))
 
     def both(self, own: _Line, old: _Line, new: _Line) -> None:
-        """Carry what the main structure changes of a line, keep what the differential changes."""
+        """Carry what the main structure changes of a line, keep what the differential changes.
+
+        A task the differential moves the line to and that leaves keeps its parent, named (rule 3).
+        """
         designates, received = _fields(old, own), _fields(old, new)
         carried = received - designates
         kept = frozenset(
             name for name in received & designates if new.value(name) != own.value(name)
         )
+        task = (new if PARENT in carried else own).task
+        if PARENT in designates and task not in self.where.tasks:
+            kept |= {PARENT}
         taken = new if "label" in carried else own
         named = (own.lineage, taken.row.label)
         role = (new if "resource_role" in carried else own).row.resource_role_id
-        if not self.leave(named, (new if PARENT in carried else own).task, role):
+        if not self.leave(named, task, role):
             return
         if carried:
             self.differences.append(_difference("updated", named, _ordered(carried)))
@@ -188,7 +207,7 @@ def _found(where: RebasedLines, lines: tuple[dict[UUID, _Line], ...]) -> _Update
     for lineage, line in main.items():
         if lineage not in own and lineage not in base:
             named = (lineage, line.row.label)
-            if found.leave(named, line.task, line.row.resource_role_id):
+            if found.leave(named, line.task, line.row.resource_role_id, held=False):
                 found.differences.append(_difference("added", named, []))
     return found
 
