@@ -26,9 +26,10 @@ lancer un agent —, prends ton créneau, dans le worktree où tu es, au nom du 
 confié : `make slot LOT=<identifiant>` (guide, « Commandes »). Il te donne tes ports et tes noms,
 et borne à N les livreurs du poste, tous pilotes confondus. Il prend d'abord un créneau libre ;
 les N créneaux pris, il reprend celui qu'un autre worktree tient pour ton lot — celui d'une
-instance arrêtée avant de le rendre —, et jamais celui d'un autre lot. S'il échoue parce que les N créneaux sont pris, ne fais rien
-d'autre : rends la main aussitôt avec le relevé « aucun créneau libre », sans toucher au tableau
-ni aux issues. Le pilote le traite comme une limite d'usage et retentera à son réveil suivant.
+instance arrêtée avant de le rendre —, et jamais celui d'un autre lot. S'il échoue parce que les N
+créneaux sont pris, ne fais rien d'autre : rends la main aussitôt avec le relevé « aucun créneau
+libre », sans toucher au tableau ni aux issues. Le pilote le traite comme une limite d'usage et
+retentera à son réveil suivant.
 
 Le créneau est lié à ton worktree : tes développeurs et tes relecteurs travaillent dans ce
 worktree, celui qui le détient, et tu le leur nomme. Ni eux ni toi ne prenez un créneau depuis

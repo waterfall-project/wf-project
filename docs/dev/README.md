@@ -3453,10 +3453,14 @@ lock of the gate, without waiting, while it looks for a turn. An older tool, whi
 gate, is waited for like any run in progress, but it does not wait for the gate in turn: it polls
 the turns every second and may take one back before the measure, without end. A measure therefore
 holds the workstation against the other deliverers only once their branches have this mode, and the
-pilot does not start one before. The command is given the mark `WATERFALL_SLOTS_HELD=exclusive`: a
-`make` it starts that goes through `$(heavy)`, or another exclusive command, takes no turn — they
-are the measure's —, says so, and runs; without it, it would wait without end for the gate its
-parent holds. The mark is believed only while an exclusive run holds the gate. The command is also
+pilot does not start one before. The command is given the mark
+`WATERFALL_SLOTS_HELD=exclusive:<token>`: a `make` it starts that goes through `$(heavy)`, or
+another exclusive command, takes no turn — they are the measure's —, says so, and runs; without it,
+it would wait without end for the gate its parent holds. The token — the PID of the exclusive run
+and the instant it took the gate — is written in the gate file. The mark is believed only while an
+exclusive run holds the gate **and** its file bears that token: the one of a measure that ended is
+not believed when another measure holds the gate (US-2460). A mark without a token, set by a tool
+that predates it, is believed while the gate is held. The command is also
 given the `WATERFALL_PROCESSORS` of the whole workstation, but a recipe that writes it after
 `$(exclusive)`, as `WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS)`, wins with the share of N make
 computed before: a target of measure takes the variable from the mode, without writing it again.

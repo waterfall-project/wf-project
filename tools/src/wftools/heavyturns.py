@@ -21,11 +21,14 @@ not see it, and is waited for like any heavy run in progress — but it does not
 in turn, and may take a turn back before the exclusive run gets it: a measure holds the
 workstation against the other deliverers once their branches have this tool.
 
-The command of an exclusive run is given ``WATERFALL_SLOTS_HELD=exclusive``: a heavy or exclusive
-run it starts in turn — a ``make`` behind ``$(heavy)`` — takes no turn, as the turns are its
-parent's and waiting for them would never end, and says so. The mark is believed only while an
-exclusive run holds the gate: one that outlived its measure, in a server the measure left, is
-dropped and the run takes its turn as any other.
+The command of an exclusive run is given ``WATERFALL_SLOTS_HELD=exclusive:<token>``: a heavy or
+exclusive run it starts in turn — a ``make`` behind ``$(heavy)`` — takes no turn, as the turns are
+its parent's and waiting for them would never end, and says so. The token, the PID of the exclusive
+run and the instant it took the gate, is written in the gate file. The mark is believed only while
+an exclusive run holds the gate and the file bears its token (US-2460): one that outlived its
+measure, in a server the measure left, is dropped — even when another measure holds the gate by
+then — and the run takes its turn as any other. A mark without a token, from a tool that predates
+it, is believed while the gate is held.
 """
 
 import fcntl
@@ -184,18 +187,29 @@ def take_workstation(environment: Mapping[str, str]) -> list[int]:
     return descriptors
 
 
+def write_token(descriptor: int) -> str:
+    """Write the token of the exclusive run in the gate it holds; return the mark to give."""
+    token = f"{os.getpid()}:{time.time_ns()}"
+    os.ftruncate(descriptor, 0)
+    os.pwrite(descriptor, token.encode(), 0)
+    return f"{HELD_EXCLUSIVE}:{token}"
+
+
 def held_above(environment: Mapping[str, str]) -> bool:
     """Tell whether an exclusive run above this one holds the workstation: its mark, its gate held.
 
-    A shared lock of the gate is refused only while an exclusive run holds it.
+    A shared lock of the gate is refused only while an exclusive run holds it. A mark that carries
+    a token is believed only if the gate file bears the same one: another measure holds it else.
     """
-    if environment.get(HELD_VARIABLE) != HELD_EXCLUSIVE:
+    mark = environment.get(HELD_VARIABLE, "")
+    token = mark.removeprefix(f"{HELD_EXCLUSIVE}:")
+    if mark != HELD_EXCLUSIVE and token == mark:
         return False
     descriptor = open_lock(gate_path(environment))
     try:
         fcntl.flock(descriptor, fcntl.LOCK_SH | fcntl.LOCK_NB)
     except BlockingIOError:
-        return True
+        return mark == HELD_EXCLUSIVE or os.pread(descriptor, 256, 0).decode() == token
     finally:
         os.close(descriptor)
     return False
