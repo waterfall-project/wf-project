@@ -78,7 +78,12 @@ def quarter_of(day: date) -> Quarter:
 
 
 def quarters_touched(period_from: date, period_to: date) -> list[Quarter]:
-    """Give the civil quarters a period touches, bounds included, the oldest first."""
+    """Give the civil quarters a period touches, bounds included, the oldest first.
+
+    The contract names the quarters the period touches and bounds them by nothing else: a period
+    that runs past the date of calculation gives quarters that are not over, each read on that date
+    (``reading_day``), which the view repeats as the contract has it.
+    """
     quarters: list[Quarter] = []
     quarter = quarter_of(period_from)
     last = quarter_of(period_to)

@@ -9,7 +9,10 @@
   "win_probability": "0.4",
   "estimate": "100000.00",
   "hours": "100.00",
+  "other_offer": {"win_probability": "0.25", "estimate": "20000.00"},
   "pipeline_gross": "100000.00",
+  "pipeline_gross_of_both": "120000.00",
+  "pipeline_weighted_of_both": "45000.00",
   "pipeline_weighted": "40000.00",
   "weighted_hours": "40.00"
 }

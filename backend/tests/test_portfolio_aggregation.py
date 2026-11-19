@@ -19,6 +19,7 @@ from waterfall.core.portfolio.aggregation import (
     ZoneCount,
     aggregate,
     conversion_rate,
+    count_by_key,
     load_ratio,
     load_zone,
     month_label,
@@ -80,6 +81,28 @@ def test_the_sum_of_nothing_is_written_as_an_amount_and_keys_sum_in_the_order_th
     assert list(sum_by_key([{"b": D("1.00")}, {"a": D("2.00"), "b": D("0.50")}]).items()) == [
         ("b", D("1.50")),
         ("a", D("2.00")),
+    ]
+
+
+@pytest.mark.requirement("WF-PTF-0090-A")
+def test_the_risks_are_counted_by_cell_of_the_matrix_once_each_in_the_order_cells_appear() -> None:
+    cells = [("high", "low"), ("low", "low"), ("high", "low")]
+    assert list(count_by_key(cells).items()) == [(("high", "low"), 2), (("low", "low"), 1)]
+    assert count_by_key([]) == {}
+
+
+@pytest.mark.requirement("WF-PTF-0070-A")
+def test_a_period_past_the_date_gives_the_quarters_to_come_each_read_on_the_date() -> None:
+    # The contract bounds the quarters by the period alone: none is dropped, and a quarter that
+    # is not over is read on the date of calculation, so the points repeat that reading.
+    as_of = date(2026, 5, 20)
+    quarters = quarters_touched(date(2026, 1, 1), date(2026, 12, 31))
+    assert [each.label for each in quarters] == ["2026-Q1", "2026-Q2", "2026-Q3", "2026-Q4"]
+    assert [reading_day(each, as_of) for each in quarters] == [
+        date(2026, 3, 31),
+        as_of,
+        as_of,
+        as_of,
     ]
 
 

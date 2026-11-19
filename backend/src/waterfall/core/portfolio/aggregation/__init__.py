@@ -56,6 +56,9 @@ from waterfall.core.portfolio.aggregation.ratios import (
 
 # ``sums``.
 from waterfall.core.portfolio.aggregation.sums import (
+    count_by_key as count_by_key,
+)
+from waterfall.core.portfolio.aggregation.sums import (
     sum_by_key as sum_by_key,
 )
 from waterfall.core.portfolio.aggregation.sums import (
@@ -66,6 +69,15 @@ from waterfall.core.portfolio.aggregation.sums import (
 )
 
 # ``weighting``.
+from waterfall.core.portfolio.aggregation.weighting import (
+    CostLine as CostLine,
+)
+from waterfall.core.portfolio.aggregation.weighting import (
+    included_hours as included_hours,
+)
+from waterfall.core.portfolio.aggregation.weighting import (
+    sum_by_nature as sum_by_nature,
+)
 from waterfall.core.portfolio.aggregation.weighting import (
     weight_of as weight_of,
 )

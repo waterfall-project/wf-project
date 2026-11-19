@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, cast
 
 import pytest
 
+from waterfall.core.indicators.interface import projections
 from waterfall.core.portfolio.aggregation import (
     ProjectFigures,
     aggregate,
@@ -48,7 +49,7 @@ def test_two_projects_of_earned_value_100_and_1000_and_cost_200_and_1000_give_an
     # coût de portefeuille de 0,917, et non de 0,75. »
     data = example("WF-PTF-0020-A#a4a5e110bdc6")
     projects = cast("list[dict[str, str]]", data["projects"])
-    result = aggregate(_figures(project, planned_value="1.00") for project in projects)
+    result = aggregate(_figures(project) for project in projects)
     assert result.cost_index.value == _decimal(data, "cost_index")
     assert result.cost_index.value is not None
     assert result.cost_index.value.quantize(Decimal("0.001")) == _decimal(data, "cost_index_shown")
@@ -77,9 +78,16 @@ def test_an_offer_at_40_percent_counts_for_all_in_the_gross_pipeline_and_40_perc
     data = example("WF-PTF-0050-A#2495b6b38022")
     estimate = _decimal(data, "estimate")
     weight = weight_of("pricing", _decimal(data, "win_probability"))
-    # The raw pipeline applies no weight: it sums the quotes as they are.
-    assert total_of([estimate]) == _decimal(data, "pipeline_gross")
     assert weighted_amount(estimate, weight) == _decimal(data, "pipeline_weighted")
+    # Two offers at different probabilities: the raw pipeline sums the quotes as they are, the
+    # weighted one each quote at its weight.
+    other = cast("dict[str, str]", data["other_offer"])
+    other_weight = weight_of("pricing", Decimal(other["win_probability"]))
+    other_estimate = Decimal(other["estimate"])
+    assert total_of([estimate, other_estimate]) == _decimal(data, "pipeline_gross_of_both")
+    assert total_of(
+        [weighted_amount(estimate, weight), weighted_amount(other_estimate, other_weight)]
+    ) == _decimal(data, "pipeline_weighted_of_both")
 
 
 @pytest.mark.requirement("WF-PTF-0050-A")
@@ -104,16 +112,14 @@ def test_a_project_of_budget_1000_cost_500_and_remaining_550_projects_1050_with_
     # « Un projet en cours de budget 1 000, de coût réel 500 et de reste à engager 550 affiche une
     # projection de 1 050 et un écart de 50. »
     data = example("WF-PTF-0040-A#b7dfea08ee32")
-    figures = ProjectFigures(
-        reference_budget=_decimal(data, "reference_budget"),
-        earned_value=NOUGHT,
-        actual_cost=_decimal(data, "actual_cost"),
-        planned_value=NOUGHT,
-        remaining=_decimal(data, "remaining"),
+    projected = projections(
+        _decimal(data, "reference_budget"),
+        NOUGHT,
+        _decimal(data, "actual_cost"),
+        _decimal(data, "remaining"),
     )
-    projections = aggregate([figures]).projections
-    assert projections.project_manager == _decimal(data, "projection")
-    assert projections.variance_project_manager == _decimal(data, "variance")
+    assert projected.project_manager == _decimal(data, "projection")
+    assert projected.variance_project_manager == _decimal(data, "variance")
 
 
 @pytest.mark.requirement("WF-PTF-0070-A")

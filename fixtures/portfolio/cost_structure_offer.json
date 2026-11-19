@@ -6,8 +6,11 @@
     "WF-PTF-0080-A#47418792a9e5"
   ],
   "win_probability": "0.4",
-  "budget_by_nature": {"labour": "100.00", "other": "50.00"},
-  "remaining_by_nature": {"risk_provision": "50.00", "other": "50.00"},
+  "quote_lines": [
+    {"nature": "labour", "amount": "100.00", "provision": false},
+    {"nature": "other", "amount": "50.00", "provision": false},
+    {"nature": "risk_provision", "amount": "50.00", "provision": true}
+  ],
   "aggregated_budget": {"labour": "40.00", "other": "20.00"},
-  "aggregated_remaining": {"risk_provision": "20.00", "other": "20.00"}
+  "aggregated_remaining": {"labour": "40.00", "risk_provision": "20.00", "other": "20.00"}
 }

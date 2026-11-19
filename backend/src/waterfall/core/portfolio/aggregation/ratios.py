@@ -58,7 +58,7 @@ def aggregate(figures: Iterable[ProjectFigures]) -> Aggregate:
     """Give the indices of the sums of the figures of the projects, and their projections.
 
     Each index is the ratio of two sums, to four decimals, not computable when the sum it divides
-    by is nought (WF-PTF-0020); the variances are the sums of the variances, the sums of the
+    by is nought (WF-PTF-0020); the variances are the variances of the sums, the sums of the
     projections at budget and of the project manager the projections of the sums, and the one at
     the observed rate the aggregated budget over the aggregated cost index, so that two projects
     of budget 1 000, of earned value 400 and 500 and of actual cost 500 and 500 give 2 222 and not

@@ -2,8 +2,8 @@
   "summary": "Deux projets de valeur acquise 100 et 1 000, de coût réel 200 et 1 000, donnent un indice de coût de portefeuille de 0,917 — le rapport des sommes, 1 100 sur 1 200 —, et non de 0,75, la moyenne de 0,5 et de 1 (WF-PTF-0020).",
   "examples": ["WF-PTF-0020-A#a4a5e110bdc6"],
   "projects": [
-    {"earned_value": "100.00", "actual_cost": "200.00"},
-    {"earned_value": "1000.00", "actual_cost": "1000.00"}
+    {"earned_value": "100.00", "actual_cost": "200.00", "planned_value": "1.00"},
+    {"earned_value": "1000.00", "actual_cost": "1000.00", "planned_value": "1.00"}
   ],
   "cost_index": "0.9167",
   "cost_index_shown": "0.917",

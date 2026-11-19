@@ -34,6 +34,14 @@ def sum_by_key[K](parts: Iterable[Mapping[K, Decimal]]) -> dict[K, Decimal]:
     return sums
 
 
+def count_by_key[K](keys: Iterable[K]) -> dict[K, int]:
+    """Count the items by key, in the order keys appear: the risks of a cell of the matrix."""
+    counts: dict[K, int] = {}
+    for key in keys:
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
 def sum_by_month(
     series: Iterable[Mapping[Month, Decimal]], months: Sequence[Month]
 ) -> list[Decimal]:

@@ -14,13 +14,15 @@ import pytest
 
 from waterfall.core.estimate.interface import Month
 from waterfall.core.portfolio.aggregation import (
+    CostLine,
+    included_hours,
     load_ratio,
     load_zone,
     sum_by_key,
     sum_by_month,
+    sum_by_nature,
     weight_of,
     weighted_amount,
-    weighted_hours,
 )
 
 if TYPE_CHECKING:
@@ -34,17 +36,24 @@ def _decimal(data: Example, name: str) -> Decimal:
     return Decimal(cast("str", data[name]))
 
 
-def _weighted_by_key(amounts: dict[str, str], weight: Decimal) -> dict[str, Decimal]:
-    return {key: weighted_amount(Decimal(amount), weight) for key, amount in amounts.items()}
+def _quote_lines(data: Example) -> list[CostLine]:
+    lines = cast("list[dict[str, object]]", data["quote_lines"])
+    return [
+        CostLine(
+            nature=cast("str", each["nature"]),
+            amount=Decimal(cast("str", each["amount"])),
+            provision=cast("bool", each["provision"]),
+        )
+        for each in lines
+    ]
 
 
 def _aggregated(data: Example, weight: Decimal) -> tuple[dict[str, Decimal], dict[str, Decimal]]:
-    """Sum an offer's weighted budget and remaining by nature, as the cost structure does."""
-    budget = cast("dict[str, str]", data["budget_by_nature"])
-    remaining = cast("dict[str, str]", data["remaining_by_nature"])
+    """Sum an offer's weighted quote by nature, in the budget and in the remaining to commit."""
+    lines = _quote_lines(data)
     return (
-        sum_by_key([_weighted_by_key(budget, weight)]),
-        sum_by_key([_weighted_by_key(remaining, weight)]),
+        sum_by_nature(lines, weight, with_provisions=False),
+        sum_by_nature(lines, weight, with_provisions=True),
     )
 
 
@@ -73,13 +82,12 @@ def test_an_offer_at_50_percent_of_100_hours_adds_50_hours_when_included_and_non
     data = example("WF-PTF-0060-A#dd1733488885")
     offer = cast("dict[str, str]", data["offer"])
     weight = weight_of("pricing", Decimal(offer["win_probability"]))
-    offer_hours = weighted_hours(Decimal(offer["hours"]), weight)
-    assert offer_hours == _decimal(data, "offer_hours")
-    in_progress = [{ROLE: Decimal(hours)} for hours in cast("list[str]", data["in_progress_hours"])]
-    # Included, the offer's weighted hours join the sum; not included, the view does not pass them.
-    included = sum_by_key([*in_progress, {ROLE: offer_hours}])
-    assert included[ROLE] == _decimal(data, "with_offer_hours")
-    assert sum_by_key(in_progress)[ROLE] == _decimal(data, "aggregated_hours")
+    hours = Decimal(offer["hours"])
+    in_progress = [{ROLE: Decimal(each)} for each in cast("list[str]", data["in_progress_hours"])]
+    for included, expected in ((True, "with_offer_hours"), (False, "aggregated_hours")):
+        offer_hours = included_hours(hours, weight, included=included)
+        assert sum_by_key([*in_progress, {ROLE: offer_hours}])[ROLE] == _decimal(data, expected)
+    assert included_hours(hours, weight, included=True) == _decimal(data, "offer_hours")
 
 
 @pytest.mark.requirement("WF-PTF-0060-A")
@@ -103,9 +111,8 @@ def test_an_offer_at_40_percent_of_100_of_labour_adds_40_to_the_labour_of_the_ag
     # budget agrégé lorsqu'elle est incluse. »
     data = example("WF-PTF-0080-A#304cd560fe09")
     weight = weight_of("pricing", _decimal(data, "win_probability"))
-    budget = _weighted_by_key(cast("dict[str, str]", data["budget_by_nature"]), weight)
-    aggregated = cast("dict[str, str]", data["aggregated_budget"])
-    assert sum_by_key([budget])["labour"] == Decimal(aggregated["labour"])
+    budget, _ = _aggregated(data, weight)
+    assert budget["labour"] == Decimal(cast("dict[str, str]", data["aggregated_budget"])["labour"])
 
 
 @pytest.mark.requirement("WF-PTF-0080-A")
@@ -117,11 +124,15 @@ def test_a_provision_line_of_50_of_an_offer_at_40_percent_adds_20_to_the_remaini
     # dans le reste à engager agrégé. »
     data = example("WF-PTF-0080-A#c53a7c6ba53d")
     weight = weight_of("pricing", _decimal(data, "win_probability"))
-    # The budget document of the offer holds no provision line (EP-11, "Tables et migrations").
+    # The quote holds the provision line: the budget leaves it out, the remaining keeps it.
     budget, remaining = _aggregated(data, weight)
     aggregated_remaining = cast("dict[str, str]", data["aggregated_remaining"])
     assert "risk_provision" not in budget
     assert remaining["risk_provision"] == Decimal(aggregated_remaining["risk_provision"])
+    assert budget == {
+        nature: Decimal(amount)
+        for nature, amount in cast("dict[str, str]", data["aggregated_budget"]).items()
+    }
 
 
 @pytest.mark.requirement("WF-PTF-0080-A")
