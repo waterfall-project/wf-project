@@ -19,10 +19,10 @@ from uuid import UUID, uuid4
 import pytest
 from amendments_support import on, opened_amendment
 from estimate_support import Costing, costing
-from history_support import counter
-from nodes_support import mark
+from history_support import counter, undone
+from nodes_support import mark, signed_in
 from project_rows import STAMP
-from projects_support import PROJECTS, Scene
+from projects_support import PROJECTS, Person, Scene
 from projects_support import scene as make_scene
 from risks_support import STUDY, Costed, costed
 from sqlalchemy import insert, select
@@ -183,4 +183,38 @@ def test_two_writes_of_the_inscriptions_of_a_lineage_come_one_after_the_other_an
         holding.commit()
     answer = asking.result(timeout=10)
     assert answer.status_code == 200, answer.text
+    assert held(project) == [(lineage, "timeline", UUID(committee))]
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_an_undoing_that_gives_an_inscription_back_waits_for_the_lineage_and_none_fails(
+    api: ContractClient, project: Costed, realm: TestRealm
+) -> None:
+    # The restitution of an entry of the history writes the inscriptions of a lineage: it takes the
+    # lock of the lineage as ``setNodeTracking`` does (#2499), waits for the write that holds it,
+    # then gives the inscription back — one row, no failure.
+    stage = project.stage
+    who: Person = signed_in(stage, realm)
+    committee = timeline(api, project)
+    study = task_of(project.tree, STUDY)
+    body = {"kind": "timeline", "timeline_id": committee}
+    for sent in ([body], []):
+        node = task_of(project.tree, STUDY)
+        answer = project.tree.api.put(
+            f"{project.tree.path}/nodes/{node['node_id']}/tracking",
+            headers=who.headers,
+            json={"entries": sent, "lock_version": node["lock_version"]},
+        )
+        assert answer.status_code == 200, answer.text
+    assert held(project) == []
+    with stage.database.transaction() as session:
+        lineage = session.scalar(select(Node.lineage_id).where(Node.id == UUID(study["node_id"])))
+    assert lineage is not None
+    with ThreadPoolExecutor(1) as others, Session(stage.owner) as holding:
+        lock_lineage(holding, project.project_id, lineage)
+        asking = others.submit(undone, project.tree, who)
+        wait_for_a_lock(stage.database)
+        assert not asking.done()
+        holding.commit()
+    assert asking.result(timeout=10)["undone"]["kind"] == "tracking"
     assert held(project) == [(lineage, "timeline", UUID(committee))]
