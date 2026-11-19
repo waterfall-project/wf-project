@@ -164,11 +164,13 @@ def lock_waiting(path: Path, reason: str, *, said: bool, patience: float = 0.0) 
         raise
 
 
-def take_workstation(environment: Mapping[str, str]) -> list[int]:
-    """Take the gate, then every turn of the heavy runs in their order; return the descriptors.
+def take_workstation(environment: Mapping[str, str]) -> tuple[list[int], str]:
+    """Take the gate, then every turn of the heavy runs in their order; return them and the mark.
 
     The fixed order keeps two exclusive runs from each holding a part: the gate makes them one
-    after the other. Whatever is taken is freed if the wait is interrupted.
+    after the other. The token goes in the gate as soon as it is held, before the wait for the
+    turns: a survivor of the measure before, with its token, is not believed in the meantime.
+    Whatever is taken is freed if the wait is interrupted.
     """
     descriptors: list[int] = []
     other = "Another exclusive run holds the workstation; waiting."
@@ -176,6 +178,7 @@ def take_workstation(environment: Mapping[str, str]) -> list[int]:
     try:
         gate = lock_waiting(gate_path(environment), other, said=False, patience=GATE_PATIENCE)
         descriptors.append(gate[0])
+        mark = write_token(gate[0])
         said = False
         for path in lock_paths(environment, MAX_SLOTS):
             descriptor, said = lock_waiting(path, heavy, said=said)
@@ -184,7 +187,7 @@ def take_workstation(environment: Mapping[str, str]) -> list[int]:
         for descriptor in descriptors:
             os.close(descriptor)
         raise
-    return descriptors
+    return descriptors, mark
 
 
 def write_token(descriptor: int) -> str:
@@ -202,9 +205,23 @@ def held_above(environment: Mapping[str, str]) -> bool:
     a token is believed only if the gate file bears the same one: another measure holds it else.
     """
     mark = environment.get(HELD_VARIABLE, "")
-    token = mark.removeprefix(f"{HELD_EXCLUSIVE}:")
-    if mark != HELD_EXCLUSIVE and token == mark:
+    prefix = f"{HELD_EXCLUSIVE}:"
+    if mark == HELD_EXCLUSIVE:
+        token = None
+    elif mark.startswith(prefix):
+        token = mark[len(prefix) :].encode()
+        if not token:
+            return False
+    else:
         return False
+    descriptor = open_lock(gate_path(environment))
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_SH | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return token is None or os.pread(descriptor, 256, 0) == token
+    finally:
+        os.close(descriptor)
+    return False
     descriptor = open_lock(gate_path(environment))
     try:
         fcntl.flock(descriptor, fcntl.LOCK_SH | fcntl.LOCK_NB)

@@ -220,8 +220,7 @@ def run_prepared(
             flush=True,
         )
     elif exclusive:
-        descriptors = heavyturns.take_workstation(environment)
-        mark = heavyturns.write_token(descriptors[0])
+        descriptors, mark = heavyturns.take_workstation(environment)
     elif heavy:
         paths = heavyturns.lock_paths(environment, slots)
         descriptors = [heavyturns.wait_for_slot(paths, heavyturns.gate_path(environment))]

@@ -15,6 +15,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -460,3 +461,62 @@ def test_a_mark_without_a_token_is_believed_while_the_gate_is_held(tmp_path: Pat
         assert heavyturns.held_above(environment)
     finally:
         os.close(holder)
+
+
+def test_a_mark_with_an_empty_token_is_not_believed(tmp_path: Path) -> None:
+    """US-2460 (#3343): `exclusive:` alone must not equal an empty gate file."""
+    holder = heavyturns.open_lock(heavyturns.gate_path({"WATERFALL_RUNTIME_DIR": str(tmp_path)}))
+    fcntl.flock(holder, fcntl.LOCK_EX)
+    environment = {
+        "WATERFALL_RUNTIME_DIR": str(tmp_path),
+        heavyturns.HELD_VARIABLE: f"{heavyturns.HELD_EXCLUSIVE}:",
+    }
+    try:
+        assert not heavyturns.held_above(environment)
+    finally:
+        os.close(holder)
+
+
+def test_a_gate_with_bytes_that_are_not_text_does_not_raise(tmp_path: Path) -> None:
+    """US-2460 (#3343): invalid UTF-8 in the gate file is a token that differs, not an error."""
+    holder = hold_gate(tmp_path, "100:1")
+    os.ftruncate(holder, 0)
+    os.pwrite(holder, b"\xff\xfe", 0)
+    environment = {
+        "WATERFALL_RUNTIME_DIR": str(tmp_path),
+        heavyturns.HELD_VARIABLE: f"{heavyturns.HELD_EXCLUSIVE}:100:1",
+    }
+    try:
+        assert not heavyturns.held_above(environment)
+    finally:
+        os.close(holder)
+
+
+def test_the_token_is_in_the_gate_while_the_exclusive_run_waits_for_the_turns(
+    tmp_path: Path,
+) -> None:
+    """US-2460 (#3343): a survivor of the measure before is not believed during the wait."""
+    environment = {"WATERFALL_RUNTIME_DIR": str(tmp_path)}
+    previous = hold_gate(tmp_path, "100:1")
+    os.close(previous)
+    survivor = {**environment, heavyturns.HELD_VARIABLE: f"{heavyturns.HELD_EXCLUSIVE}:100:1"}
+    turn = heavyturns.open_lock(heavyturns.lock_paths(environment, 1)[0])
+    fcntl.flock(turn, fcntl.LOCK_EX)
+
+    def take_then_free() -> None:
+        for descriptor in heavyturns.take_workstation(environment)[0]:
+            os.close(descriptor)
+
+    taking = threading.Thread(target=take_then_free, daemon=True)
+    taking.start()
+    try:
+        deadline = time.monotonic() + 30
+        gate = heavyturns.gate_path(environment)
+        while gate.read_bytes() in {b"", b"100:1"} and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert gate.read_bytes() not in {b"", b"100:1"}, "the gate bears the token of the new run"
+        assert taking.is_alive(), "the run still waits for the turn"
+        assert not heavyturns.held_above(survivor)
+    finally:
+        os.close(turn)
+        taking.join(timeout=30)
