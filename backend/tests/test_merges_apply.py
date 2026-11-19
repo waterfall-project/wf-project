@@ -38,6 +38,7 @@ from merges_support import (
 )
 from nodes_support import put_facts, set_progress, work_breakdown
 from risks_support import MAKING, STUDY, Costed, material
+
 from waterfall.core.projects.interface import current_day
 from waterfall.platform.database import utc_now
 
@@ -46,6 +47,7 @@ if TYPE_CHECKING:
     from realm import TestRealm
     from sqlalchemy import Engine
     from support import ContractClient
+
     from waterfall.platform.database import Database
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
@@ -120,18 +122,21 @@ def written(
     after = shape_of(project, project.structure_id)
     held = {(each[0], each[1]): each[2:] for each in linked}
     now = {(each[0], each[1]): each[2:] for each in links_of(project, project.structure_id)}
-    return {
-        "added": {(after[each][0], after[each][1]) for each in after.keys() - before.keys()}
-        | {("link", pair) for pair in now.keys() - held.keys()},
+    changes: Changes = {
+        "added": {(str(after[each][0]), after[each][1]) for each in after.keys() - before.keys()},
         "updated": {
-            (before[each][0], each)
+            (str(before[each][0]), each)
             for each in after.keys() & before.keys()
             if after[each] != before[each]
-        }
-        | {("link", pair) for pair in now.keys() & held.keys() if now[pair] != held[pair]},
-        "removed": {(before[each][0], each) for each in before.keys() - after.keys()}
-        | {("link", pair) for pair in held.keys() - now.keys()},
+        },
+        "removed": {(str(before[each][0]), each) for each in before.keys() - after.keys()},
     }
+    changes["added"] |= {("link", pair) for pair in now.keys() - held.keys()}
+    changes["updated"] |= {
+        ("link", pair) for pair in now.keys() & held.keys() if now[pair] != held[pair]
+    }
+    changes["removed"] |= {("link", pair) for pair in held.keys() - now.keys()}
+    return changes
 
 
 # --- What the merge writes ------------------------------------------------------------------------

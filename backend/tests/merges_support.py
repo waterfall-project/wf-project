@@ -20,6 +20,7 @@ from projects_support import scene as make_scene
 from risks_support import Costed, costed
 from sqlalchemy import select, update
 from support import ContractClient, nowhere
+
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.estimate.tables import EstimateLine
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
+
     from waterfall.platform.database import Database
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue

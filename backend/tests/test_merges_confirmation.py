@@ -51,6 +51,7 @@ from projects_support import PROJECTS, contribute, person, put_in_state
 from rebases_support import rebased
 from risks_support import MAKING, STUDY, Costed, material
 from sqlalchemy import func, select
+
 from waterfall.core.history.tables import UndoEntry
 from waterfall.core.revisions.interface import (
     MergePart,
@@ -63,11 +64,14 @@ from waterfall.platform.audit import AuditEntry
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
     from sqlalchemy.orm import Session
     from support import ContractClient
+
     from waterfall.core.revisions.interface import RevisionMarking, StructureMerging
     from waterfall.platform.audit import Act
     from waterfall.platform.database import Database
@@ -426,7 +430,7 @@ def test_a_merge_that_fails_at_the_marking_without_a_current_revision_leaves_non
     assert structure_row(project, amendment).is_merged is False
 
 
-def journal(project: Costed) -> tuple[list[tuple[str, str, str | None, object]], set[object]]:
+def journal(project: Costed) -> tuple[list[tuple[str, str, str | None, datetime]], set[object]]:
     """Read the journal of the project: each entry's action, object, revision named and instant.
 
     And the authors of the last three.

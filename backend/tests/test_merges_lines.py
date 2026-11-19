@@ -38,6 +38,7 @@ from merges_support import (
 from nodes_support import set_progress
 from risks_support import MAKING, STUDY, Costed
 from sqlalchemy import func, select, update
+
 from waterfall.core.estimate.tables import (
     EstimateLine,
     RevisionCalendar,
@@ -54,6 +55,7 @@ if TYPE_CHECKING:
     from realm import TestRealm
     from sqlalchemy import Engine
     from support import ContractClient
+
     from waterfall.platform.database import Database
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
