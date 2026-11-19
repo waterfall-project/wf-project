@@ -3,9 +3,10 @@
 """The scripts that run by the system's ``python3``, without uv, compile with it (US-1160).
 
 The guard of the commands (``.claude/settings.json``) and the admission of the heavy runs
-(``Makefile``) are started as ``python3 <script>``: no environment, no uv, the interpreter of the
-workstation or of the runner. A syntax the target of ruff allows, and that interpreter does not,
-would stop every command of an agent. No requirement is cited: it is a tool of the repository.
+(``Makefile``) are started as ``python3 launch.py <tool>``: no environment, no uv, the interpreter
+of the workstation or of the runner. A syntax the target of ruff allows, and that interpreter does
+not, would stop every command of an agent; under an older one, the launcher refuses (US-2450,
+``test_launch.py``). No requirement is cited: it is a tool of the repository.
 """
 
 import os
@@ -22,7 +23,7 @@ from wftools import REPOSITORY
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-SCRIPTS = ("guard.py", "slots.py", "heavyturns.py")
+SCRIPTS = ("launch.py", "guard.py", "guardgit.py", "guardoptions.py", "slots.py", "heavyturns.py")
 
 
 def _outside_the_venv(entries: Sequence[str]) -> list[str]:

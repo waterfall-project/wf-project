@@ -241,3 +241,25 @@ def test_a_path_against_the_service_is_a_test_of_its_own_family() -> None:
     declaration = paths.read()
     assert declaration.test_family("frontend/e2e/service/sign-in.spec.ts") == "end-to-end-service"
     assert declaration.test_family("frontend/e2e/grid.spec.ts") == "end-to-end"
+
+
+@pytest.mark.parametrize(
+    ("changed", "woken"),
+    [
+        # What the checks read besides their own code (PLC-06).
+        ("ruff.toml", {"back"}),
+        # The script that makes the owner NOSUPERUSER, which a test of the back migrates by (#958).
+        ("deploy/compose/waterfall-database.sql", {"back"}),
+        ("tools/src/wftools/launch.py", {"back", "front", "service", "production"}),
+        ("tools/src/wftools/slots.py", {"back", "front", "service", "production"}),
+        ("tools/src/wftools/heavyturns.py", {"back", "front", "service", "production"}),
+        ("deploy/compose/garage.toml", {"back", "keycloak", "service"}),
+        ("deploy/compose/storage-buckets.sh", {"back", "keycloak", "service"}),
+        # The witness of the roles, which the tests of the accounts hold to the realm (#898).
+        ("fixtures/api/access_roles.json", {"keycloak"}),
+    ],
+)
+@pytest.mark.story("US-2480")
+def test_what_a_check_reads_wakes_the_families_that_run_it(changed: str, woken: set[str]) -> None:
+    touched = {family.name for family in paths.read().touched([changed])}
+    assert woken <= touched

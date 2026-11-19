@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import pytest
 from access_rows import role
+from estimate_support import pin_year
 from fastapi.testclient import TestClient
 from installations import Installation, Take, installed, taker
 from installed_reference import install
@@ -57,6 +58,10 @@ from waterfall.witness.main import load_witness
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+# A test that skips without declaring it by the mark ``unexecuted`` fails (US-2440): the plugin is
+# the tools', shared with their tests, and found on the ``pythonpath`` of pyproject.toml.
+pytest_plugins = ("wftools.unexecuted",)
+
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     """Declare ``--shard``: one part of the tests, as the chain spreads them (back.yml)."""
@@ -88,6 +93,16 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         (kept if index % int(parts) == int(part) - 1 else left).append(item)
     config.hook.pytest_deselected(items=left)
     items[:] = kept
+
+
+@pytest.fixture(autouse=True)
+def pinned_year(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Hold the clocks of the services that read a year or a day at the year of ``YEAR``.
+
+    Before every test, and before the fixtures a test asks for, which set the clocks they want over
+    these ones: no fixture calls ``pin_year`` in an order that would undo it (#3739).
+    """
+    pin_year(monkeypatch)
 
 
 @pytest.fixture(autouse=True)
@@ -167,9 +182,18 @@ def api(
 
 
 @pytest.fixture
-def logs(platform_settings: ServiceSettings) -> Iterator[Logs]:
-    """Capture the logs in memory, as a service of the test platform writes them, then restore."""
-    with captured_logs(platform_settings.secret_values()) as logs:
+def logs() -> Iterator[Logs]:
+    """Capture the logs in memory, the secrets of the test platform masked, then restore.
+
+    The secrets are read in an environment given for that alone and then forgotten: the fixture
+    leaves none in the process, where a ``served_settings()`` of the Keycloak tests would read the
+    false secret of the service account, which Keycloak refuses (#935).
+    """
+    with pytest.MonkeyPatch.context() as patch:
+        for name, value in {**PLATFORM_SECRETS, **PLATFORM_ADDRESSES}.items():
+            patch.setenv(name, value)
+        secrets = load_service_settings().secret_values()
+    with captured_logs(secrets) as logs:
         yield logs
 
 

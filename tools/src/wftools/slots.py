@@ -3,10 +3,10 @@
 """Admit N heavy runs at a time; give each worktree of a lot a slot of its own (US-1090, US-1100).
 
 The Makefile runs every heavy run — the whole tests of a side, their coverage, the production
-build of the front, the end-to-end paths — behind ``python3 tools/src/wftools/slots.py run
---heavy -- <command>``. It depends on the standard library alone and imports no other module of
-``wftools`` but ``heavyturns``, beside it: the ``back`` job of the chain has not the environment
-of the tools.
+build of the front, the end-to-end paths — behind ``python3 tools/src/wftools/launch.py slots run
+--heavy -- <command>``, the launcher saying the version it expects under an older Python (US-2450).
+It depends on the standard library alone and imports no other module of ``wftools`` but
+``heavyturns``, beside it: the ``back`` job of the chain has not the environment of the tools.
 
 ``WATERFALL_SLOTS`` (1 by default, an integer from 1 to 9) says how many heavy runs pass at once,
 whatever the repository or the worktree. Each is a turn of ``heavyturns``, a lock file the tool
@@ -34,13 +34,16 @@ for no slot and still has its services.
 The same N bounds the worktrees of the lots, each of which takes a slot of 1 to N (``claim``,
 ``make slot``) that gives it its ports, its projects of Compose and the tags of its images; the
 main repository — and every runner of the chain, a main repository too — is at slot 0, on the
-ports and under the names of before. The register of the workstation, whatever the repository, is
-``$XDG_RUNTIME_DIR/waterfall-slots/``: a file ``<i>`` for each slot taken, which holds the path of
-its worktree and the moment it was taken, written under an exclusive lock of the register. A slot
-whose worktree no longer exists is free; whoever takes a slot first removes the projects of
-Compose an earlier holder left in it, volumes included, as ``release`` does before it frees it,
-the lock held until they are removed; both first stop the servers of the end-to-end paths the slot
-left running (US-1300).
+ports and under the names of before. The register of the workstation, whatever the repository
+and the session, is ``waterfall-slots/`` of the directory of the locks
+(``heavyturns.runtime_directory``): a file ``<i>`` for each slot taken, which holds the path of its
+worktree, the moment it was taken and, given by ``claim --lot``, the lot it is taken for, written
+under an exclusive lock of the register. A slot whose worktree no longer exists is free; every slot
+taken, ``claim --lot`` takes over the one another worktree holds for the same lot (US-2460): the
+deliverer of a lot stopped without ``make slot-release`` holds back no other. Whoever takes a slot,
+free or taken over, first removes the projects of Compose an earlier holder left in it, volumes
+included, as ``release`` does before it frees it, the lock held until they are removed; both first
+stop the servers of the end-to-end paths the slot left running (US-1300).
 ``stop-servers`` (``make e2e-down``) stops the processes of the user that listen on the ports of
 the end-to-end paths of the slot of the current worktree — the fake back and the fronts —, each
 found by its port in ``/proc`` and stopped by its PID: ``SIGTERM``, then ``SIGKILL`` for those that
@@ -209,6 +212,7 @@ def run_prepared(
     slots = slot_count(environment)
     above = heavyturns.held_above(environment)
     descriptors: list[int] = []
+    mark = environment.get(heavyturns.HELD_VARIABLE, heavyturns.HELD_EXCLUSIVE)
     if above and (heavy or exclusive):
         print(
             "An exclusive run above this one holds the workstation; no turn to take.",
@@ -216,7 +220,7 @@ def run_prepared(
             flush=True,
         )
     elif exclusive:
-        descriptors = heavyturns.take_workstation(environment)
+        descriptors, mark = heavyturns.take_workstation(environment)
     elif heavy:
         paths = heavyturns.lock_paths(environment, slots)
         descriptors = [heavyturns.wait_for_slot(paths, heavyturns.gate_path(environment))]
@@ -225,7 +229,7 @@ def run_prepared(
         held = heavyturns.HELD_VARIABLE
         child_environment = {name: value for name, value in environment.items() if name != held}
         if above or exclusive:
-            child_environment[held] = heavyturns.HELD_EXCLUSIVE
+            child_environment[held] = mark
         if heavy or exclusive:
             share = processor_share(1 if above or exclusive else slots)
             child_environment["WATERFALL_PROCESSORS"] = str(share)
@@ -474,16 +478,20 @@ class Worktree(NamedTuple):
 
 
 class Holder(NamedTuple):
-    """A slot taken: the path of the worktree that holds it, and the moment it was taken."""
+    """A slot taken: the path of the worktree that holds it, when, and for which lot, if said."""
 
     worktree: str
     taken: str
+    lot: str = ""
 
     def abandoned(self) -> bool:
         """Whether the worktree no longer exists: removed, or never written whole."""
         path = Path(self.worktree)
         return not (self.worktree and path.is_absolute() and (path / ".git").exists())
 
+
+LOT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]*")
+"""A lot as the register keeps it on a line of its own: ``US-2460/L2``, ``SYNC-EP-28``."""
 
 Remove = Callable[[int], None]
 """Removes the projects of Compose of a slot, volumes included; raises ``RegisterError``."""
@@ -610,8 +618,9 @@ def holders(directory: Path) -> dict[int, Holder]:
             continue
         except OSError, UnicodeDecodeError:
             lines = []  # unreadable: no worktree, so abandoned, and taken again as such
-        worktree, taken_at = ([*lines, "", ""])[:2]
-        taken[int(entry.name)] = Holder(worktree, taken_at)
+        # A file of two lines, written without a lot or by an older tool, holds no lot.
+        worktree, taken_at, lot = ([*lines, "", "", ""])[:3]
+        taken[int(entry.name)] = Holder(worktree, taken_at, lot)
     return dict(sorted(taken.items()))
 
 
@@ -621,35 +630,56 @@ def slot_of(taken: Mapping[int, Holder], worktree: Path) -> int | None:
 
 
 def describe(taken: Mapping[int, Holder]) -> list[str]:
-    """Return a line for each slot taken: its number, its worktree, when it was taken."""
+    """Return a line for each slot taken: its number, its worktree, its lot, when it was taken."""
     gone = " — its worktree no longer exists"
     return [
-        f"slot {slot}: {holder.worktree} (taken {holder.taken}){gone if holder.abandoned() else ''}"
+        f"slot {slot}: {holder.worktree} ({f'lot {holder.lot}, ' if holder.lot else ''}"
+        f"taken {holder.taken}){gone if holder.abandoned() else ''}"
         for slot, holder in taken.items()
     ]
 
 
-def claim(directory: Path, worktree: Path, count: int, remove: Remove) -> tuple[int, bool]:
-    """Take a slot of 1 to N for the worktree, or find the one it holds; return it, and if new.
+def write(directory: Path, slot: int, holder: Holder) -> None:
+    """Write the file of a slot whole, then put it in place: its lot on a third line, if any."""
+    lines = [holder.worktree, holder.taken, *([holder.lot] if holder.lot else [])]
+    written = directory / f".{slot}.new"
+    written.write_text("".join(f"{line}\n" for line in lines), encoding="utf-8")
+    written.replace(directory / str(slot))
+
+
+def claim(
+    directory: Path, worktree: Path, count: int, remove: Remove, lot: str = ""
+) -> tuple[int, bool, str]:
+    """Take a slot of 1 to N for the worktree, or find the one it holds.
+
+    Return it, whether it is new, and the worktree it was taken over from ("" if none): the caller
+    says it, once the removal has succeeded.
 
     The slot taken is the smallest free one, a slot whose worktree no longer exists being free.
-    What a holder left in it is removed first, then the slot written, the lock held throughout: a
-    slot is never said held — to this worktree, by another claim — before it is emptied, and a
-    removal that fails takes nothing, so the next claim does it again.
+    None free, and a lot given, it is the smallest that another worktree holds for that very lot
+    (US-2460): one deliverer a lot, the other is stopped. A slot of another lot, or of none, is
+    never taken over. What a holder left in it is removed first, then the slot written, the lock
+    held throughout: a slot is never said held — to this worktree, by another claim — before it is
+    emptied, and a removal that fails takes nothing, so the next claim does it again. A lot given
+    to the slot the worktree holds is written in it.
     """
     with locked(directory):
         taken = holders(directory)
         held = slot_of(taken, worktree)
         if held is not None:
-            return held, False
-        free = [
-            slot for slot in range(1, count + 1) if slot not in taken or taken[slot].abandoned()
-        ]
-        if not free:
+            if lot and taken[held].lot != lot:
+                write(directory, held, taken[held]._replace(lot=lot))
+            return held, False, ""
+        within = range(1, count + 1)
+        free = [slot for slot in within if slot not in taken or taken[slot].abandoned()]
+        same = [slot for slot in within if lot and slot in taken and taken[slot].lot == lot]
+        if not free and not same:
             listed = "\n  ".join(describe(taken))
-            message = f"all {count} slot(s) are taken (WATERFALL_SLOTS):\n  {listed}"
+            none = f", none for lot {lot}" if lot else ""
+            message = f"all {count} slot(s) are taken (WATERFALL_SLOTS){none}:\n  {listed}"
             raise RegisterError(message)
-        slot = free[0]
+        slot = (free or same)[0]
+        former = "" if free else taken[slot].worktree
         try:
             remove(slot)
         except RegisterError as error:
@@ -659,10 +689,8 @@ def claim(directory: Path, worktree: Path, count: int, remove: Remove) -> tuple[
             )
             raise RegisterError(message) from error
         stamp = datetime.now(UTC).isoformat(timespec="seconds")
-        written = directory / f".{slot}.new"
-        written.write_text(f"{worktree}\n{stamp}\n", encoding="utf-8")
-        written.replace(directory / str(slot))
-    return slot, True
+        write(directory, slot, Holder(str(worktree), stamp, lot))
+    return slot, True, former
 
 
 def release(directory: Path, worktree: Path, remove: Remove) -> int | None:
@@ -732,21 +760,24 @@ def compose_remover(
     return remove
 
 
-def take(environment: Mapping[str, str]) -> int:
-    """``claim``: take a slot for the current worktree, and say which."""
+def take(environment: Mapping[str, str], lot: str = "") -> int:
+    """``claim``: take a slot for the current worktree, for the lot if given, and say which."""
     worktree = current_worktree()
     if worktree is None or worktree.main:
         print("slot 0: the main repository is at slot 0; make slot is for a worktree of a lot")
         return 0
     count = slot_count(environment)
     directory = register(environment)
-    slot, new = claim(
+    slot, new, former = claim(
         directory,
         worktree.path,
         count,
         compose_remover(environment, directory, stopper(environment)),
+        lot,
     )
     first = block(slot)
+    if former:
+        print(f"slot {slot} is taken over from {former}, of the same lot {lot}")
     held = "taken" if new else "already held"
     print(f"slot {slot} {held}: {worktree.path} (ports {first} to {first + BLOCK_SIZE - 1})")
     return 0
@@ -794,6 +825,14 @@ def which(environment: Mapping[str, str], *, listed: bool) -> int:
     return 0
 
 
+def lot_identifier(raw: str) -> str:
+    """Return the lot a slot is taken for; refuse what cannot be one line of the register."""
+    if not LOT.fullmatch(raw):
+        message = f"{raw!r} is not the identifier of a lot, such as US-2460/L2"
+        raise argparse.ArgumentTypeError(message)
+    return raw
+
+
 def services_list(raw: str) -> tuple[str, ...]:
     """Return the test services a comma-separated list names; refuse one that is not known."""
     names_asked = tuple(name for name in raw.split(",") if name)
@@ -824,7 +863,12 @@ def parser() -> argparse.ArgumentParser:
     )
     run.add_argument("command", nargs=argparse.REMAINDER, help="-- <command…>")
     commands.add_parser("processors", help="print the share of the processors of one heavy run")
-    commands.add_parser("claim", help="take a slot for this worktree, or say the one it holds")
+    taking = commands.add_parser("claim", help="take a slot for this worktree, or say its own")
+    taking.add_argument(
+        "--lot",
+        type=lot_identifier,
+        help="the lot of this worktree: every slot taken, take over the one held for it elsewhere",
+    )
     commands.add_parser("release", help="remove what the slot of this worktree holds, free it")
     commands.add_parser("stop-servers", help="stop what listens on the e2e ports of this slot")
     commands.add_parser("list", help="print N and the slots taken on the workstation")
@@ -838,7 +882,7 @@ def parser() -> argparse.ArgumentParser:
 def run_action(options: argparse.Namespace, environment: Mapping[str, str]) -> int:
     """Run the sub-command the options name; return its code."""
     actions: dict[str, Callable[[Mapping[str, str]], int]] = {
-        "claim": take,
+        "claim": lambda environment: take(environment, options.lot or ""),
         "release": give_back,
         "list": list_slots,
         "stop-servers": stop_here,

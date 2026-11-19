@@ -24,16 +24,14 @@ from access_rows import role
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import func, insert, select
-from support import ContractClient, Logs, Watching, nowhere, raw_account
+from support import ContractClient, Logs, Watching, captured_logs, nowhere, raw_account
 from test_keycloak_platform import (
     ADDRESS_VARIABLE,
-    BACKCHANNEL_VARIABLE,
     DIRECTORY_EMAIL,
     EXTENSION_ACTION,
     EXTERNAL_PROVIDER,
     PASSWORD,
     REALM,
-    SERVICE_CREDENTIAL_VARIABLE,
     TEST_CLIENT,
     UNREACHABLE_MAIL_SERVER,
     Account,
@@ -43,6 +41,7 @@ from test_keycloak_platform import (
     mail_server,
     mailed_link,
     required,
+    served_settings,
     set_password,
 )
 
@@ -55,7 +54,6 @@ from waterfall.platform.correlation import HEADER
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.keycloak import IdentityProviderError, Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity, refused_identity
-from waterfall.platform.settings import ServiceSettings
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
@@ -63,6 +61,7 @@ if TYPE_CHECKING:
     from openapi_core import OpenAPI
 
     from waterfall.platform.database import Database
+    from waterfall.platform.settings import ServiceSettings
 
 pytestmark = pytest.mark.keycloak
 
@@ -207,24 +206,6 @@ def bearer(tokens: dict[str, Any]) -> dict[str, str]:
     return {"Authorization": f"Bearer {tokens['access_token']}"}
 
 
-def served_settings() -> ServiceSettings:
-    """Give the settings of an API served on the Keycloak of the platform."""
-    # The database is the test's own, given to the application apart; Redis and the object storage
-    # serve nothing here.
-    return ServiceSettings.model_validate(
-        {
-            "database_url": "postgresql://unused@127.0.0.1/unused",
-            "redis_url": "redis://unused",
-            "storage_address": "http://127.0.0.1:9",
-            "storage_access_key": "unused",
-            "storage_secret": "unused",
-            "keycloak_address": required(ADDRESS_VARIABLE),
-            "keycloak_backchannel": required(BACKCHANNEL_VARIABLE),
-            "service_client_secret": required(SERVICE_CREDENTIAL_VARIABLE),
-        }
-    )
-
-
 def served_api(contract: OpenAPI, database: Database, keycloak: Keycloak) -> ContractClient:
     """Give a client of the API on ``database`` and the Keycloak of the platform, watched (#669)."""
     watching = Watching(keycloak, served_settings(), database)
@@ -269,6 +250,25 @@ def collected(admin: httpx2.Client, database: Database) -> Generator[list[str]]:
 def settings() -> ServiceSettings:
     """Give the settings of an API served on the Keycloak of the platform."""
     return served_settings()
+
+
+@contextmanager
+def realm_logs() -> Generator[Logs]:
+    """Capture the logs in memory, the secrets of the realm masked, then restore them.
+
+    The fixture of ``conftest.py`` stays clear of the environment, and this one reads the secrets
+    of the realm as ``served_settings`` does (#935). The fixture ``logs`` of the Keycloak tests
+    gives it, here and in ``test_keycloak_sign_in.py``.
+    """
+    with captured_logs(served_settings().secret_values()) as captured:
+        yield captured
+
+
+@pytest.fixture
+def logs() -> Iterator[Logs]:
+    """Give the logs of the realm, captured."""
+    with realm_logs() as captured:
+        yield captured
 
 
 @pytest.fixture

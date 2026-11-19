@@ -13,7 +13,7 @@ from sqlalchemy.sql import text
 
 from waterfall import schema
 from waterfall.platform.database import create_database_engine
-from waterfall.platform.settings import load_settings
+from waterfall.platform.settings import load_platform_settings
 
 # One number for the whole history: the key of the advisory lock of a migration run.
 MIGRATION_LOCK = 7_240_330
@@ -42,7 +42,7 @@ def run() -> None:
     engine = (
         given
         if isinstance(given, Engine)
-        else create_database_engine(load_settings().database_url.get_secret_value())
+        else create_database_engine(load_platform_settings().database_url.get_secret_value())
     )
     with engine.connect() as connection:
         run_migrations(connection)

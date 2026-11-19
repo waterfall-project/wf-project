@@ -111,10 +111,26 @@ paths = [
     "docs/api/**",
     "docs/spec/waterfall-spec.md",
     "fixtures/**",
+    # The rules of lint the back is held to.
+    "ruff.toml",
     "deploy/compose/compose.service.yaml",
+    # The files the platform mounts, which the object storage reads (PLC-06).
+    "deploy/compose/garage.toml",
+    "deploy/compose/storage-buckets.sh",
+    # The script of the production that makes the owner NOSUPERUSER, which
+    # backend/tests/test_migrations_as_owner.py reads to migrate a new base as that owner (#958).
+    "deploy/compose/waterfall-database.sql",
     ".github/workflows/back.yml",
     # The thresholds of the coverage.
     "tools/src/wftools/codecoverage.py",
+    # The plugin that fails a test which skips undeclared, loaded by tests/conftest.py (US-2440).
+    "tools/src/wftools/unexecuted.py",
+    # The launcher the Makefile starts the slots by, and the slots that run its heavy checks
+    # (US-2450, PLC-06).
+    "tools/src/wftools/launch.py",
+    "tools/src/wftools/slots.py",
+    "tools/src/wftools/heavyturns.py",
+    "tools/src/wftools/marks.py",
 ]
 target = "check-back"
 
@@ -128,6 +144,7 @@ paths = [
     "tools/src/wftools/projection.py",
     ".github/workflows/roadmap.yml",
     ".claude/agents/**",
+    ".claude/skills/**",
     # Every guide the agents read (roadmap.AGENT_FILES), whose commands the check holds.
     "docs/dev/*.md",
 ]
@@ -156,6 +173,9 @@ paths = [
     "deploy/openldap/**",
     "deploy/compose/compose.service.yaml",
     "deploy/compose/Caddyfile.service",
+    # The files the platform mounts, which the object storage reads (PLC-06).
+    "deploy/compose/garage.toml",
+    "deploy/compose/storage-buckets.sh",
     "deploy/compose/postgres-volume.sh",
     "deploy/compose/keycloak-database.sql",
     "deploy/compose/service-database-role.sql",
@@ -173,10 +193,20 @@ paths = [
     "backend/pyproject.toml",
     "backend/coverage-keycloak.toml",
     "backend/uv.lock",
+    # The witness of the roles, which the tests of the accounts compare to the realm (#898).
+    "fixtures/api/access_roles.json",
     "docs/api/**",
     ".github/workflows/keycloak.yml",
     ".github/actions/**",
     "tools/src/wftools/codecoverage.py",
+    # The launcher and the slots that give build-keycloak its variables.
+    "tools/src/wftools/launch.py",
+    "tools/src/wftools/slots.py",
+    "tools/src/wftools/heavyturns.py",
+    # The plugin that fails a test which skips undeclared, which both conftest.py load (US-2440).
+    "tools/src/wftools/unexecuted.py",
+    "tools/src/wftools/marks.py",
+    "tools/tests/conftest.py",
 ]
 target = "check-keycloak"
 
@@ -191,6 +221,9 @@ paths = [
     "fixtures/**",
     "deploy/compose/compose.service.yaml",
     "deploy/compose/Caddyfile.service",
+    # The files the platform mounts, which the object storage reads (PLC-06).
+    "deploy/compose/garage.toml",
+    "deploy/compose/storage-buckets.sh",
     "deploy/compose/postgres-volume.sh",
     "deploy/compose/keycloak-database.sql",
     "deploy/compose/service-database-role.sql",
@@ -207,6 +240,11 @@ paths = [
     "tools/src/wftools/registry.py",
     # The parts of the paths, spread by the seconds they took (US-1910).
     "tools/src/wftools/e2eparts.py",
+    # The launcher the Makefile starts the slots by, and the slots that run its heavy checks
+    # (US-2450, PLC-06).
+    "tools/src/wftools/launch.py",
+    "tools/src/wftools/slots.py",
+    "tools/src/wftools/heavyturns.py",
     "tools/e2e-service-durations.json",
 ]
 target = "check-service"
@@ -229,6 +267,10 @@ paths = [
     "deploy/compose/service-database-role.sql",
     "deploy/compose/backup-database-role.sql",
     "deploy/compose/waterfall-database.sql",
+    # The launcher the Makefile starts the slots by, and the slot guard of production-trial (PLC-06).
+    "tools/src/wftools/launch.py",
+    "tools/src/wftools/slots.py",
+    "tools/src/wftools/heavyturns.py",
     "tools/src/wftools/production.py",
     "tools/src/wftools/restoration_trial.py",
     "tools/src/wftools/images.py",
@@ -264,6 +306,11 @@ paths = [
     "tools/src/wftools/registry.py",
     # What spreads the parts of the paths by their measured durations (US-1910).
     "tools/src/wftools/e2eparts.py",
+    # The launcher the Makefile starts the slots by, and the slots that run its heavy checks
+    # (US-2450, PLC-06).
+    "tools/src/wftools/launch.py",
+    "tools/src/wftools/slots.py",
+    "tools/src/wftools/heavyturns.py",
     "tools/e2e-durations.json",
 ]
 target = "check-front"
@@ -292,6 +339,10 @@ paths = [
     ".github/actions/**",
     "tools/src/wftools/frontimage.py",
     "tools/src/wftools/images.py",
+    # The launcher and the slots that give check-front-image its variables.
+    "tools/src/wftools/launch.py",
+    "tools/src/wftools/slots.py",
+    "tools/src/wftools/heavyturns.py",
 ]
 target = "check-front-image"
 

@@ -91,6 +91,22 @@ engendrés du contrat, jamais écrits à la main — un mock écrit à la main d
 valide plus rien. Leurs jeux de données sont les exemples chiffrés des champs Vérif de la
 spécification (WF-QUA-0020), aux volumes du §4.6.2.
 
+Un exemple d'erreur — dont la valeur est l'enveloppe d'erreur — reçoit l'identifiant de corrélation
+que son nom donne, sans le choisir : son nom est celui de son fichier sous `fixtures/api/`, sans
+`.json`, et son identifiant le préfixe de l'univers témoin, `01926f3a-7c00-7000-8000-`, suivi des
+douze premiers chiffres hexadécimaux de l'empreinte SHA-256 de ce nom (`correlation` de
+`tools/src/wftools/mockcorrelations.py`) : son générateur écrit
+`"correlation_id": correlation("<nom>")`. Deux lots tirés de la même branche d'EPIC n'en prennent
+donc pas un même sans donner à deux exemples le même nom, ce qu'un répertoire refuse ; le numéro
+libre suivant d'une plage, vu de la base de chaque branche, était pris deux fois et se renumérotait
+à la reprise (#1007). Les exemples d'erreur numérotés à la main avant la règle gardent leur
+identifiant : leurs noms sont figés dans `NUMBERED`, du même module, qui recense les exemples
+numérotés de `main` et des branches d'EPIC en cours au moment de la règle. Un exemple numéroté à la
+main ajouté depuis sur une branche d'EPIC tirée avant la règle rejoint la liste à la reprise, sans
+changer de numéro ; aucun autre ne s'y ajoute. Un nom dont l'identifiant tomberait dans une famille
+d'identifiants de `tools/src/wftools/mockids.py` se change. `tools/tests/test_mockcorrelations.py`
+tient la règle, et qu'aucun identifiant de corrélation n'est porté par deux exemples.
+
 ## Ce que le contrat ne porte pas
 
 Une partie des exigences n'a pas de surface d'API, et il vaut mieux qu'elles n'en aient pas :
