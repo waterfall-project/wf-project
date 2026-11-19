@@ -13,13 +13,15 @@ in the write itself: nothing is written then.
 
 The order of the locks, which every write that touches a risk and its line follows (a deletion, an
 import, a write of the own estimate; see ``follow_own_estimate``): the lock of the natures of cost
-first, as every write of the tree does (#2615); the own estimate of the risk, for a write that
-deletes it; the main structure that bears the line; then the risk, whose counter advances under
-it. The opening of a revision by the entry is the one exception: the reference, shared, then the
-project, as every opening does, then the risk, then the main structure of the revision opened,
-which no other transaction sees before the commit. The current revision is created, if the project
-has none, a copy of the last marked one that copies the evaluation of the risk and its line; the
-counter and the state of the risk are judged under its lock, in both cases.
+first, as every write of the tree does (#2615); the revision; the stack of the history of the
+writer, which the entry opens (``Held.opened``, US-2590/L2); the own estimate of the risk, for a
+write that deletes it; the main structure that bears the line; then the risk, whose counter
+advances under it. The opening of a revision by the entry is the one exception: the reference,
+shared, then the project, as every opening does, then the risk, then the stack and the main
+structure of the revision opened, which no other transaction sees before the commit. The current
+revision is created, if the project has none, a copy of the last marked one that copies the
+evaluation of the risk and its line; the counter and the state of the risk are judged under its
+lock, in both cases.
 """
 
 from dataclasses import dataclass
@@ -87,13 +89,16 @@ class Held:
     """A risk to enter at the counter its caller read, and what the command judges of it.
 
     ``lock_own_estimate`` takes the own estimate of the risk before the main structure, for the
-    write that deletes it.
+    write that deletes it. ``opened`` is told the revision written in once it is known — created
+    if need be — and before any structure is locked: the entry of the history opens there, which
+    locks the stack of the writer between the revision and the structures (US-2590/L2).
     """
 
     risk_id: UUID
     lock_version: int
     judge: Judge
     lock_own_estimate: bool = False
+    opened: Callable[[UUID], None] | None = None
 
 
 def _judge_held(risk: Risk, lock_version: int) -> None:
@@ -154,7 +159,9 @@ def enter(
     if revision_id is None:
         _read_before(session, project_id, held, viewer)
         revision_id = create_revision(session, project_id, writer.act, viewer).revision_id
-    elif held.lock_own_estimate:
+    if held.opened is not None:
+        held.opened(revision_id)
+    if not created and held.lock_own_estimate:
         # The structure of an evaluation never changes: read before the lock, it is the one the
         # evaluation read under the lock of the risk names.
         pending = evaluation_of(session, project_id, risk_id, revision_id)

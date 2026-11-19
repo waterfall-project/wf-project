@@ -105,7 +105,13 @@ from waterfall.core.history.interface.undoable import (
     Undoable as Undoable,
 )
 from waterfall.core.history.interface.undoable import (
+    moved_aside as moved_aside,
+)
+from waterfall.core.history.interface.undoable import (
     register_undoable as register_undoable,
+)
+from waterfall.core.history.interface.undoable import (
+    taken_aside as taken_aside,
 )
 from waterfall.core.history.interface.undoable import (
     undoables as undoables,

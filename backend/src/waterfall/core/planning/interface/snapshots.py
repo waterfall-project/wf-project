@@ -31,7 +31,14 @@ task, a task created with more than its label, a row of a paste on a task — as
 state of a task and its remaining for ``remaining.write``, the other entries — a link, a tracking,
 the planning start date — for ``planning.write``. It is read from the entry as the write kept it
 (``Restoring.written``): a task among the nodes it names, present before it, or created without
-the values a creation by its label alone gives it (WF-DEV-0050).
+the values a creation by its label alone gives it (WF-DEV-0050). A paste that wrote the execution
+of a task alone — the days it started and completed on — asks for ``remaining.write``, as the paste
+asked for it, and one that wrote both kinds of column asks for both (#2805, #2905).
+
+An entry of a kind another module registers (``history.undoables``: the four of the risks, EP-08)
+is locked and read by that module in the frame of the history, judged on the permission it says,
+and restored by it; the answer names its objects (``UndoDone.object_ids``, the risks, #2538) and no
+node written, the entry naming neither a node nor a structure the planning would number.
 
 A caller whose token carries no session of sign-in has no stack: refused by 403
 ``SESSION_ID_MISSING`` (#2472), whereas a write it makes passes, without an entry.
@@ -51,6 +58,7 @@ from waterfall.core.planning.entries import (
     PLANNING_WRITE,
     REMAINING_WRITE,
 )
+from waterfall.core.planning.paste_columns import EXECUTION_COLUMNS
 from waterfall.core.planning.restoring import bring_back, read_objects, structure_of
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.writing import Place, facts_of, hold_before_lock, judge_revision
@@ -62,7 +70,13 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.history.interface import JsonValue, Restoring, Snapshot, UndoneKind
+    from waterfall.core.history.interface import (
+        JsonValue,
+        ObjectState,
+        Restoring,
+        Snapshot,
+        UndoneKind,
+    )
     from waterfall.core.planning.writing import NodesWritten, Writer
     from waterfall.core.revisions.interface import StructureFacts
 
@@ -78,6 +92,14 @@ ASKS: dict[str, tuple[str, ...]] = {
 }
 # The kinds whose permission depends on the nodes they wrote: tasks or lines.
 BY_NODES = frozenset({"node_create", "paste", "cell"})
+# The columns of the row of a task its execution writes (``EXECUTION_COLUMNS`` of the paste), with
+# the state they give it; its physical progress is computed from them, not kept on the row.
+EXECUTION_TASK_COLUMNS = (EXECUTION_COLUMNS - {"physical_progress"}) | {"progress"}
+# The columns of the row of a task the engine computes again after any write, which a write of its
+# execution moves without writing them.
+SCHEDULED_TASK_COLUMNS = frozenset(
+    {"start_date", "start_hours", "finish_date", "finish_hours", "total_float_days", "is_critical"}
+)
 # The columns of a task a creation by its label alone leaves as a creation sets them (WF-DEV-0050):
 # no description, the automatic mode, a day, no attachment.
 CREATED: dict[str, object] = {
@@ -113,14 +135,18 @@ class UndoDone:
     """What an undoing or a redoing did: the kind and the nodes of the entry, what it wrote.
 
     ``remaining_depth`` is what remains to undo — to redo, for a redoing — after this one;
-    ``structure_id`` the structure the entry was written in, which numbers ``written``.
+    ``structure_id`` the structure the entry was written in, which numbers ``written``. An entry
+    of a kind another module restores (``history.undoables``, the risks') writes no node the
+    planning gives back: ``written`` and ``structure_id`` are none, and ``object_ids`` names its
+    objects — the risks (#2538) —, empty for an entry of the planning.
     """
 
     kind: UndoneKind
     node_ids: tuple[UUID, ...]
-    written: NodesWritten
+    written: NodesWritten | None
     remaining_depth: int
-    structure_id: UUID
+    structure_id: UUID | None
+    object_ids: tuple[UUID, ...] = ()
 
 
 def _writes_task(task: dict[str, JsonValue] | None, *, existed: bool) -> bool:
@@ -139,23 +165,62 @@ def _writes_task(task: dict[str, JsonValue] | None, *, existed: bool) -> bool:
     )
 
 
-def _asked(restoring: Restoring) -> tuple[str, ...]:
-    """Give the permissions the write of an entry asked for, one at least of which is held.
+def _task_row(state: ObjectState | None) -> dict[str, JsonValue] | None:
+    """Give the row of the task a snapshot of a node holds, none for another node."""
+    task = None if state is None else state.rows.get("task")
+    return task if isinstance(task, dict) else None
+
+
+def _pasted(before: ObjectState, after: ObjectState | None) -> set[str]:
+    """Give the permissions a paste asked for a node that existed, by the columns it wrote.
+
+    The columns of the execution of a task — the days it started and completed on and the state
+    they give it, its physical progress being computed from them — are the remaining to commit's,
+    the others of the task the planning's, as the paste asks (#2805, #2905); the dates the engine
+    computed again after it are not what it wrote. A task written of which nothing tells the
+    columns is the planning's; a line, none.
+    """
+    held, written = _task_row(before), _task_row(after)
+    if held is None or written is None:
+        return {PLANNING_WRITE} if _writes_task(held or written, existed=True) else set()
+    changed = {name for name, value in written.items() if value != held.get(name)}
+    entered = changed - SCHEDULED_TASK_COLUMNS
+    asked: set[str] = {REMAINING_WRITE} if entered & EXECUTION_TASK_COLUMNS else set()
+    if entered - EXECUTION_TASK_COLUMNS or not entered:
+        asked.add(PLANNING_WRITE)
+    return asked
+
+
+def _asked(restoring: Restoring) -> tuple[tuple[str, ...], ...]:
+    """Give the permissions the write of an entry asked for: one at least of each group is held.
 
     Read from the kind of the entry and, for a creation, a paste or a cell, from the nodes it names
     as the write kept them: a task written asks for the planning, a cell of a line for the
-    estimate, a line created or pasted for one of the three grids.
+    estimate, a line created or pasted for one of the three grids. A paste asks, for a task whose
+    execution alone it wrote, for the remaining to commit instead, and for both when its rows
+    write both kinds of column, the planning's first, as the paste itself does (#2905).
     """
     kind = restoring.kind
     if kind not in BY_NODES:
-        return ASKS.get(kind, (PLANNING_WRITE,))
+        return (ASKS.get(kind, (PLANNING_WRITE,)),)
     before, after = ({state.object_id: state for state in states} for states in restoring.written)
+    asked: set[str] = set()
     for node_id in restoring.node_ids:
-        state = after.get(node_id) or before.get(node_id)
-        task = None if state is None else state.rows.get("task")
-        if _writes_task(task if isinstance(task, dict) else None, existed=node_id in before):
-            return (PLANNING_WRITE,)
-    return (ESTIMATE_WRITE,) if kind == "cell" else ENTRIES
+        held, written = before.get(node_id), after.get(node_id)
+        if kind == "paste" and held is not None:
+            asked |= _pasted(held, written)
+        elif _writes_task(_task_row(written or held), existed=held is not None):
+            asked.add(PLANNING_WRITE)
+    if asked:
+        return tuple((each,) for each in (PLANNING_WRITE, REMAINING_WRITE) if each in asked)
+    return ((ESTIMATE_WRITE,) if kind == "cell" else ENTRIES,)
+
+
+def _refuse_unheld(asked: tuple[tuple[str, ...], ...], permissions: Collection[str]) -> None:
+    """Refuse an undoing or a redoing to whoever holds none of a group of permissions (403)."""
+    for group in asked:
+        if not any(each in permissions for each in group):
+            raise ForbiddenError(PERMISSION_MISSING, {"missing_permission": group[0]})
 
 
 def _stack(revision_id: UUID, writer: Writer) -> UndoStack:
@@ -195,9 +260,16 @@ def _turned(
 
     frame = history.undo if undoing else history.redo
     with frame(session, stack, lock=lock, read=read) as restoring:
-        asking = _asked(restoring)
-        if not any(each in permissions for each in asking):
-            raise ForbiddenError(PERMISSION_MISSING, {"missing_permission": asking[0]})
+        undoable = history.undoables().get(restoring.kind)
+        if undoable is not None:
+            # An entry of another module, which the frame had it lock and read: it restores it.
+            _refuse_unheld((undoable.asks,), permissions)
+            undoable.restore(session, project_id, restoring, writer.act)
+            named = tuple(dict.fromkeys(s.object_id for side in restoring.written for s in side))
+            return UndoDone(
+                restoring.kind, (), None, restoring.remaining_depth, None, object_ids=named
+            )
+        _refuse_unheld(_asked(restoring), permissions)
         place, facts = held[0]
         written = restore(session, place, facts, restoring, writer)
     return UndoDone(

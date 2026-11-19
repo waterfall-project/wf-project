@@ -16,9 +16,10 @@ It then writes the category and the subproject on the line, whatever the state o
 and the costs its subproject received (WF-PRJ-0050), moves the line under the task designated, the
 total of the estimate unchanged (WF-RIS-0010), and the evaluation of the risk in the revision: its
 category, its subproject and the lineage of the task it designates, none for the first task of the
-first level. The counter of the risk advances. Nothing enters the history before US-2590/L2, which
-undoes and redoes the entries of the risks; the abandonment of the revision brings the evaluation
-and the line back with it (WF-RIS-0020).
+first level. The counter of the risk advances. The change is an entry of the history of its writer
+(``risk_update``, US-2590/L2), whose undoing gives back the category, the subproject and the task
+of the provision; one that changes nothing keeps none. The abandonment of the revision brings the
+evaluation and the line back with it (WF-RIS-0020).
 """
 
 from typing import TYPE_CHECKING
@@ -43,6 +44,7 @@ from waterfall.core.risks.declaring import (
     refuse,
 )
 from waterfall.core.risks.entering import Held, enter
+from waterfall.core.risks.recording import recorded
 from waterfall.core.risks.views import OMITTED, Omitted
 from waterfall.platform.errors import (
     NOT_FOUND,
@@ -59,6 +61,7 @@ if TYPE_CHECKING:
 
     from waterfall.core.planning.interface import Writer
     from waterfall.core.projects.interface import Viewer
+    from waterfall.core.risks.entering import Entered
     from waterfall.core.risks.interface.provisions import RiskProvisionChange
     from waterfall.core.risks.tables import RiskEvaluation
 
@@ -132,11 +135,24 @@ def update_provision(
     Entered as every write of a risk is (``enter``, which says the order of the locks and the
     revision created): the counter and the state of the risk are judged under its lock.
     """
+    with recorded(session, project_id, writer, "risk_update") as recording:
+        held_risk = Held(change.risk_id, change.lock_version, _judge, opened=recording.open)
+        entered = enter(session, project_id, held_risk, writer, viewer)
+        recording.before(change.risk_id)
+        if _provisioned(session, entered, change, writer):
+            recording.after(change.risk_id)
+        else:
+            recording.unchanged()
+    return entered.revision_id
+
+
+def _provisioned(
+    session: Session, entered: Entered, change: RiskProvisionChange, writer: Writer
+) -> bool:
+    """Write the provision of a risk entered, its line moved; tell whether anything changed."""
     act = writer.act
-    held_risk = Held(change.risk_id, change.lock_version, _judge)
-    entered = enter(session, project_id, held_risk, writer, viewer)
     place, risk, evaluation = entered.place, entered.risk, entered.evaluation
-    revision_id, created = entered.revision_id, entered.created
+    created = entered.created
     line = evaluation.provision_node_id
     if line is None:
         raise NotFoundError(NOT_FOUND)
@@ -150,7 +166,7 @@ def update_provision(
         evaluation.provision_task_lineage_id,
     )
     if not (moved or changed or (category, subproject, lineage) != held):
-        return revision_id
+        return False
     evaluation.provision_cost_category_id = category
     evaluation.provision_subproject_id = subproject
     evaluation.provision_task_lineage_id = lineage
@@ -158,4 +174,4 @@ def update_provision(
     risk.updated_at, risk.updated_by = act.at, act.author
     risk.lock_version += 1
     session.flush()
-    return revision_id
+    return True

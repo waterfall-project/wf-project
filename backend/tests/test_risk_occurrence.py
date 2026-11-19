@@ -17,7 +17,7 @@ from uuid import UUID, uuid4
 import pytest
 from estimate_support import Costing, costing
 from fastapi.testclient import TestClient
-from nodes_support import entries, mark, refusal
+from nodes_support import entries, mark, refusal, signed_in
 from occurrence_support import (
     DIAGNOSTIC,
     OWN_PLAN,
@@ -363,6 +363,37 @@ def test_the_occurrence_is_inscribed_in_the_journal(ready: Occurring, worker: Wo
     assert [(each.object_kind, each.object_label) for each in inscribed] == [
         ("risk", ready.risk["label"])
     ]
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_no_undoing_takes_back_an_occurrence(
+    ready: Occurring, worker: Worker, realm: TestRealm
+) -> None:
+    # « Aucune commande n'annule […] une déclaration de survenance » (US-2590/L2): a contributor
+    # reviews the risk, an entry of their history, then declares its occurrence, which enters none.
+    # Their undoing takes the review, the last entry of their history, which the occurrence wrote
+    # over since: refused, the risk named, and the risk stays occurred.
+    who = signed_in(ready.project.stage, realm)
+    assert ready.risks.review(ready.read(), who).status_code == 201
+    report = ready.reported()
+    sent = {
+        "confirmed": True,
+        "main_structure_lock_version": report["main_structure_lock_version"],
+        "risk_lock_version": report["risk_lock_version"],
+        "creates_current_revision": report["creates_current_revision"],
+    }
+    answer = ready.api.post(f"{ready.path}/occurrence", headers=who.headers, json=sent)
+    assert answer.status_code == 202, answer.text
+    assert worker.step()
+    assert ready.read()["state"] == "occurred"
+    base = f"{PROJECTS}/{ready.project.project_id}/revisions/{ready.revision['revision_id']}"
+    status, code, params = refusal(ready.api.post(f"{base}/undo", headers=who.headers))
+    assert (status, code, params["conflicting_object_id"]) == (
+        409,
+        "UNDO_CONFLICT",
+        ready.risk["risk_id"],
+    )
+    assert ready.read()["state"] == "occurred"
 
 
 @pytest.mark.requirement("WF-RIS-0060-A")

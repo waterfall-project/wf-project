@@ -13,7 +13,9 @@ which a risk no marked revision cites never needs: it was declared in the curren
 
 A risk no marked revision cites is held by one revision, the current one: its reviews, its
 evaluation, its provision line, its own estimate and the risk itself go, in that order, those that
-name the others first. The locks follow the order of ``enter``, the own estimate first.
+name the others first (``remove``). The locks follow the order of ``enter``, the own estimate first.
+The deletion is an entry of the history of its writer (US-2590/L2): the risk is kept whole before
+it, its own estimate with its nodes, which its undoing writes back under their identifiers.
 
 The abandonment of a revision deletes the same way each risk it declared (``erase``): one that no
 other revision evaluates is held by it alone (M-04).
@@ -29,6 +31,7 @@ from waterfall.core.risks.commands import OCCURRED, RISK_NOT_CITED, RISK_NOT_OCC
 from waterfall.core.risks.declaring import refuse
 from waterfall.core.risks.entering import Held, enter
 from waterfall.core.risks.reading import cited_among
+from waterfall.core.risks.recording import recorded
 from waterfall.core.risks.tables import Risk, RiskEvaluation, RiskReview
 
 if TYPE_CHECKING:
@@ -36,7 +39,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.planning.interface import Writer
+    from waterfall.core.planning.interface import Place, Writer
     from waterfall.core.projects.interface import Viewer
     from waterfall.core.risks.entering import Judge
     from waterfall.core.risks.interface.deletion import RiskDeletion
@@ -73,21 +76,44 @@ def _judging(session: Session, project_id: UUID, risk_id: UUID) -> Judge:
 def delete_current(
     session: Session, project_id: UUID, deletion: RiskDeletion, writer: Writer, viewer: Viewer
 ) -> None:
-    """Delete a risk no marked revision cites, with its own estimate and its provision line."""
+    """Delete a risk no marked revision cites, with its own estimate and its provision line.
+
+    An entry of the history of its writer (``risk_delete``, US-2590/L2), which keeps the risk whole
+    — its own estimate with its nodes — for its undoing.
+    """
     judge = _judging(session, project_id, deletion.risk_id)
-    held = Held(deletion.risk_id, deletion.lock_version, judge, lock_own_estimate=True)
-    entered = enter(session, project_id, held, writer, viewer)
-    risk, evaluation, place = entered.risk, entered.evaluation, entered.place
+    risk_id = deletion.risk_id
+    with recorded(session, project_id, writer, "risk_delete") as entry:
+        counter = deletion.lock_version
+        held = Held(risk_id, counter, judge, lock_own_estimate=True, opened=entry.open)
+        entered = enter(session, project_id, held, writer, viewer)
+        entry.before(risk_id, whole=True)
+        remove(session, entered.place, (entered.risk, entered.evaluation), writer)
+        entry.after(risk_id)
+
+
+def remove(
+    session: Session, place: Place, held: tuple[Risk, RiskEvaluation], writer: Writer
+) -> None:
+    """Delete a risk held by the current revision alone: its rows, its line, its own estimate.
+
+    ``place`` the main structure that bears its line; the locks taken in the order of ``enter``.
+    Its reviews and its evaluation, its provision line, its own estimate and the risk itself go, in
+    that order, those that name the others first. What a deletion and the undoing of a declaration
+    share (US-2590/L2).
+    """
+    risk, evaluation = held
+    project_id, risk_id = place.project_id, risk.id
     line, structure_id = evaluation.provision_node_id, evaluation.structure_id
     for held_row in (evaluation, risk):
         session.expunge(held_row)
     for table in (RiskReview, RiskEvaluation):
         session.execute(
             delete(table)
-            .where(table.project_id == project_id, table.risk_id == deletion.risk_id)
+            .where(table.project_id == project_id, table.risk_id == risk_id)
             .execution_options(synchronize_session=False)
         )
     if line is not None:
         delete_borne_line(session, place, line, writer)
-    erase(session, project_id, deletion.risk_id, structure_id)
+    erase(session, project_id, risk_id, structure_id)
     session.flush()

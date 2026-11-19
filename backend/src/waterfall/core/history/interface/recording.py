@@ -85,7 +85,7 @@ class RecordedChange:
 class Recording:
     """The frame of a write: the snapshots its caller takes, before the write then after it."""
 
-    __slots__ = ("_after", "_awaits", "_before", "_named")
+    __slots__ = ("_after", "_awaits", "_before", "_named", "discarded")
 
     def __init__(self, *, awaits: bool = False) -> None:
         """Open the frame: nothing is taken yet; ``awaits`` if the write must name its nodes."""
@@ -93,6 +93,11 @@ class Recording:
         self._after: Snapshot | None = None
         self._named: tuple[UUID, ...] | None = None
         self._awaits = awaits
+        self.discarded = False
+
+    def discard(self) -> None:
+        """Keep no entry: the write changed nothing, and leaves the stack as it found it."""
+        self.discarded = True
 
     def name(self, node_ids: tuple[UUID, ...]) -> None:
         """Name the nodes the entry touches, when the write knows them only once judged.
@@ -139,12 +144,14 @@ def recording(session: Session, change: RecordedChange) -> Generator[Recording]:
 
     The stack is locked at the opening. Once the block has handed both snapshots, the entries
     undone of the stack are deleted and the entry is kept on its top; a block that raises keeps
-    nothing — its transaction is rolled back anyway.
+    nothing — its transaction is rolled back anyway —, nor one that discards its entry.
     """
     stack = change.stack
     lock_stack(session, stack)
     frame = Recording(awaits=change.kind == "paste" and not change.node_ids)
     yield frame
+    if frame.discarded:
+        return
     before, after = frame.taken()
     session.execute(delete(UndoEntry).where(of_stack(stack), UndoEntry.undone))
     top = session.scalar(select(func.max(UndoEntry.rank)).where(of_stack(stack)))

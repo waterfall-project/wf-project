@@ -20,7 +20,9 @@ kept and projected, WF-REV-0060), the risk, its own estimate (E-09), its provisi
 task designated or the first of the first level, of nought while its own estimate is empty, and its
 evaluation in the revision — its probability, the state identified, its own estimate, its line,
 the category, the subproject and the lineage of the task it designates — with a first review dated
-of the day (WF-RIS-0010). The revision is held ``FOR SHARE`` before anything, as any write in it;
+of the day (WF-RIS-0010). The natures of cost are shared first, then the revision is held ``FOR
+SHARE``, as any write of the tree takes them; the entry of the history of the writer
+(``risk_create``, US-2590/L2) is opened once the revision is known, which locks the stack, and
 its main structure is locked by the write of the line.
 
 The identity (``updateRisk``) is a datum of the project (H-02, #1783): the label, the description
@@ -36,6 +38,7 @@ from waterfall.core.cost_settings.interface import (
     categories_of_kind,
     category_labels,
     provision_category_active,
+    share_natures,
 )
 from waterfall.core.estimate.interface import ProvisionEntry, rename_provision
 from waterfall.core.planning.interface import Place, create_borne_line, first_task, task_of
@@ -75,6 +78,7 @@ from waterfall.core.risks.reading import (
     found_risk,
     read_found,
 )
+from waterfall.core.risks.recording import recorded
 from waterfall.core.risks.tables import PROBABILITY_SCALE, Risk, RiskEvaluation, RiskReview
 from waterfall.core.risks.views import Omitted
 from waterfall.platform.errors import (
@@ -216,8 +220,13 @@ def _designated(
 def declare(
     session: Session, project_id: UUID, entry: RiskEntry, writer: Writer, viewer: Viewer
 ) -> tuple[UUID, UUID]:
-    """Declare a risk in the current revision, created if needed; give the risk and the revision."""
-    act = writer.act
+    """Declare a risk in the current revision, created if needed; give the risk and the revision.
+
+    An entry of the history of its writer (``risk_create``, US-2590/L2), opened once the revision
+    is known and before the main structure is locked, whose undoing takes the risk away.
+    """
+    # The natures first, as every write of the tree takes them (#2615), before the stack.
+    share_natures(session)
     facts = project_facts(session, project_id)
     if is_terminal(facts.state):
         raise refuse(PROJECT_NOT_TERMINAL)
@@ -229,7 +238,21 @@ def declare(
     if revision_id is None:
         if REVISIONS_WRITE not in viewer.permissions:
             raise refuse(MAY_CREATE_REVISION)
-        revision_id = create_revision(session, project_id, act, viewer).revision_id
+        revision_id = create_revision(session, project_id, writer.act, viewer).revision_id
+    with recorded(session, project_id, writer, "risk_create") as recording:
+        recording.open(revision_id)
+        recording.before(None)
+        risk_id = _declared(session, (project_id, revision_id), entry, writer)
+        recording.after(risk_id, whole=True)
+    return risk_id, revision_id
+
+
+def _declared(
+    session: Session, revision: tuple[UUID, UUID], entry: RiskEntry, writer: Writer
+) -> UUID:
+    """Write a risk declared in a revision: its row, its own estimate, its line, its evaluation."""
+    act = writer.act
+    project_id, revision_id = revision
     main = aimed_structure(session, project_id, revision_id, None)
     if main is None:
         raise refuse(AT_LEAST_ONE_TASK)
@@ -284,7 +307,7 @@ def declare(
         )
     )
     session.flush()
-    return risk_id, revision_id
+    return risk_id
 
 
 def change_identity(

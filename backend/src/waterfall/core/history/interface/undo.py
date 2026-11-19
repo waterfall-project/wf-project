@@ -24,7 +24,11 @@ not undone that holds the object in its ``after``, the nearest undone one in its
 that fifty entries on the same task undo one by one, then redo in order, and only a change made
 outside the stack is a conflict.
 
-Declared by US-1380/L1; filled by US-1450/L1.
+An entry of a kind another module registers (``register_undoable``, EP-08) is locked and read by
+that module, which restores it in the block; the versions a write moved aside in the transaction
+(``moved_aside``) are carried with the ones the restoring left.
+
+Declared by US-1380/L1; filled by US-1450/L1; the kinds of another module by US-2590/L2.
 """
 
 from contextlib import contextmanager
@@ -33,6 +37,7 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import func, select
 
+from waterfall.core.history.interface.undoable import taken_aside, undoables
 from waterfall.core.history.snapshots import decoded, encoded, with_versions
 from waterfall.core.history.stacks import lock_stack, of_stack
 from waterfall.core.history.tables import UndoEntry
@@ -180,6 +185,8 @@ def _turned(
     block has restored them.
     """
     lock_stack(session, stack)
+    # What a write before this frame moved aside is none of its business.
+    taken_aside(session)
     # The last entry not undone, for an undoing; the last one undone — the lowest — for a redoing.
     edge = UndoEntry.rank.desc() if undoing else UndoEntry.rank.asc()
     entry = session.scalars(
@@ -193,6 +200,7 @@ def _turned(
         raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": condition})
     left, wanted = (entry.after, entry.before) if undoing else (entry.before, entry.after)
     expected, restored = decoded(left), decoded(wanted)
+    lock, read = _by_kind(session, entry, lock, read)
     try:
         lock(expected + restored)
     except NotFoundError:
@@ -213,7 +221,31 @@ def _turned(
     present = restoring.present()
     entry.undone = undoing
     session.flush()
-    _follow(session, stack, {state.object_id: state.lock_version for state in present})
+    moved = taken_aside(session)
+    moved.update({state.object_id: state.lock_version for state in present})
+    _follow(session, stack, moved)
+
+
+def _by_kind(
+    session: Session, entry: UndoEntry, lock: StructureLocker, read: SnapshotReader
+) -> tuple[StructureLocker, SnapshotReader]:
+    """Give the lock and the reading of an entry: its module's for a kind it registers, else these.
+
+    A module above the planning locks and reads the objects of its kinds itself
+    (``register_undoable``), in the project of the entry.
+    """
+    undoable = undoables().get(cast("UndoneKind", entry.kind))
+    if undoable is None:
+        return lock, read
+    project_id = entry.project_id
+
+    def locked(states: Snapshot) -> None:
+        undoable.lock(session, project_id, states)
+
+    def reading(object_ids: tuple[UUID, ...]) -> Snapshot:
+        return undoable.read(session, project_id, object_ids)
+
+    return locked, reading
 
 
 def _judge(expected: Snapshot, read: SnapshotReader) -> None:

@@ -24,6 +24,10 @@ and of the provision kind, else of the one the review asks for, and of the subpr
 a risk that stays identified has its line written again at the probability, the severity weighted
 by it, to the cent.
 
+The review is an entry of the history of its writer (``risk_review``, US-2590/L2): its undoing
+gives the risk back its probability, its state and its line, and takes the review away; its redoing
+writes them again (``undoing``).
+
 The reviews of a risk read in a revision are those of the marked revisions before it, and its own.
 """
 
@@ -62,6 +66,7 @@ from waterfall.core.risks.declaring import (
 )
 from waterfall.core.risks.entering import Held, enter
 from waterfall.core.risks.reading import PROVISION_KIND, read_found, seen_revisions
+from waterfall.core.risks.recording import recorded
 from waterfall.core.risks.tables import RiskReview
 from waterfall.core.risks.views import RiskReviewView
 from waterfall.platform.errors import VALIDATION_FAILED, UnprocessableError
@@ -75,7 +80,7 @@ if TYPE_CHECKING:
 
     from waterfall.core.planning.interface import Place, Writer
     from waterfall.core.projects.interface import Viewer
-    from waterfall.core.risks.entering import Judge
+    from waterfall.core.risks.entering import Entered, Judge
     from waterfall.core.risks.tables import Risk, RiskEvaluation
     from waterfall.core.risks.views import RiskReviewEntry
     from waterfall.platform.errors import FieldError
@@ -180,9 +185,24 @@ def _write_review(
 def review(
     session: Session, project_id: UUID, entry: RiskReviewEntry, writer: Writer, viewer: Viewer
 ) -> UUID:
-    """Review a risk in the current revision, created if need be; give the revision it is in."""
-    held = Held(entry.risk_id, entry.lock_version, _judging(session, project_id, entry))
-    entered = enter(session, project_id, held, writer, viewer)
+    """Review a risk in the current revision, created if need be; give the revision it is in.
+
+    An entry of the history of its writer (``risk_review``, US-2590/L2), whose undoing gives the
+    risk back its probability, its state, its line and its reviews.
+    """
+    with recorded(session, project_id, writer, "risk_review") as recording:
+        judge = _judging(session, project_id, entry)
+        held = Held(entry.risk_id, entry.lock_version, judge, opened=recording.open)
+        entered = enter(session, project_id, held, writer, viewer)
+        recording.before(entry.risk_id)
+        _reviewed(session, entered, entry, writer)
+        recording.after(entry.risk_id)
+    return entered.revision_id
+
+
+def _reviewed(session: Session, entered: Entered, entry: RiskReviewEntry, writer: Writer) -> None:
+    """Write the review of a risk entered: its row, its evaluation, its provision line."""
+    project_id = entered.place.project_id
     place, risk, evaluation = entered.place, entered.risk, entered.evaluation
     returning = evaluation.state == DISMISSED and entry.state == IDENTIFIED
     faults = probability_faults(entry.probability)
@@ -209,7 +229,6 @@ def review(
         delete_borne_line(session, place, line, writer)
     elif line is not None:
         set_provision(session, place, line, amount)
-    return entered.revision_id
 
 
 def list_reviews(
