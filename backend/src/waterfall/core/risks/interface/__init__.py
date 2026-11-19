@@ -31,6 +31,7 @@ from waterfall.core.revisions.interface import (
     register_copy,
     register_own_estimate_counted,
 )
+from waterfall.core.risks.commands import state_named as state_named
 from waterfall.core.risks.following import (
     close_evaluations,
     copy_evaluations,

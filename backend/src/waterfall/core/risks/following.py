@@ -41,7 +41,7 @@ from waterfall.core.planning.interface import Place, ProvisionOwner
 from waterfall.core.revisions.interface import aimed_structure, structure_facts
 from waterfall.core.risks.commands import IDENTIFIED
 from waterfall.core.risks.deleting import erase
-from waterfall.core.risks.reading import evaluation_of
+from waterfall.core.risks.reading import evaluation_of, found_risk
 from waterfall.core.risks.tables import Risk, RiskEvaluation, RiskReview
 
 if TYPE_CHECKING:
@@ -188,6 +188,9 @@ def close_evaluations(closing: RevisionClosing) -> None:
     for risk_id, structure_id in sorted(evaluated.items()):
         if risk_id not in kept:
             structure_facts(session, project_id, structure_id, lock=True)
+            # The risk last, after the structures, as every write of a risk takes them: a change
+            # of its identity that waits for them finds it gone once this commits (404).
+            found_risk(session, project_id, risk_id, lock=True)
             erase(session, project_id, risk_id, structure_id)
     advance_risks(session, project_id, kept)
     session.flush()

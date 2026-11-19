@@ -46,7 +46,13 @@ from waterfall.core.planning.interface import (
 )
 from waterfall.core.projects.interface import current_day
 from waterfall.core.revisions.interface import main_structure_has_task, marked_revisions_at
-from waterfall.core.risks.commands import DISMISSED, IDENTIFIED, OCCURRED, RISK_NOT_OCCURRED
+from waterfall.core.risks.commands import (
+    DISMISSED,
+    IDENTIFIED,
+    OCCURRED,
+    RISK_NOT_OCCURRED,
+    state_named,
+)
 from waterfall.core.risks.declaring import (
     ACTIVE_PROVISION_CATEGORY,
     AT_LEAST_ONE_TASK,
@@ -71,7 +77,7 @@ if TYPE_CHECKING:
     from waterfall.core.projects.interface import Viewer
     from waterfall.core.risks.entering import Judge
     from waterfall.core.risks.tables import Risk, RiskEvaluation
-    from waterfall.core.risks.views import RiskReviewEntry, RiskState
+    from waterfall.core.risks.views import RiskReviewEntry
     from waterfall.platform.errors import FieldError
 
 
@@ -206,11 +212,6 @@ def review(
     return entered.revision_id
 
 
-def _state_of(value: str) -> RiskState:
-    """Give the state a review kept as the contract names it."""
-    return "identified" if value == IDENTIFIED else "occurred" if value == OCCURRED else "dismissed"
-
-
 def list_reviews(
     session: Session, project_id: UUID, risk_id: UUID, revision_id: UUID | None
 ) -> list[RiskReviewView]:
@@ -235,7 +236,7 @@ def list_reviews(
             reviewed_on=each.reviewed_on,
             probability=each.probability,
             severity=each.severity,
-            state=_state_of(each.state),
+            state=state_named(each.state),
             actor=each.created_by,
             created_at=each.created_at,
         )

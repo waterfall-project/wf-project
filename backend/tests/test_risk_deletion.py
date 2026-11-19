@@ -11,6 +11,7 @@ revision, and the counter of a risk never goes back (WF-RIS-0030). Every answer 
 the contract (``ContractClient``).
 """
 
+import time
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -317,7 +318,34 @@ def test_the_counter_of_a_risk_never_goes_back_the_abandonment_of_a_revision_inc
     seen.append(risks.risk(risk)["lock_version"])
     risks.abandon(opened)
     seen.append(risks.risk(risk)["lock_version"])
-    assert seen == sorted(seen)
-    assert seen[1] > seen[0]
-    assert seen[2] > seen[1]
-    assert seen[-1] > seen[-2]
+    steps = ("the opening", "the review", "the differential", "the abandonment")
+    # Strictly: the opening, the review and the abandonment advance the counter; the differential
+    # may leave it where it stood, never lower.
+    for step, before, after in zip(steps, seen[:-1], seen[1:], strict=True):
+        if step == "the differential":
+            assert after >= before, f"{step} brought the counter back: {before} to {after}"
+        else:
+            assert after > before, f"{step} did not advance the counter: {before} to {after}"
+
+
+@pytest.mark.requirement("WF-RIS-0020-A")
+def test_the_abandonment_against_a_change_of_the_risk_it_created_answers_cleanly(
+    risks: Risks, project: Costed
+) -> None:
+    # M-04: the risk erased by the abandonment is locked after its structures. A change of its
+    # identity sent meanwhile waits for them, then finds the risk gone: 404, never a 500.
+    mark(project.stage, {"revision_id": str(project.revision_id)})
+    opened = risks.revision()
+    created = risks.declared(label="Créé")
+    risks.costed_at(created, opened["revision_id"], "50.00")
+    stage = project.stage
+    with stage.owner.connect() as holder:
+        holder.execute(select(Risk.id).where(Risk.id == UUID(created["risk_id"])).with_for_update())
+        abandoning = concurrently(lambda: risks.abandon(opened))
+        waiting_for_a_lock(stage)
+        changing = concurrently(lambda: risks.update(created, label="Changé"))
+        time.sleep(1)
+        holder.rollback()
+    abandoning.result(timeout=30)
+    assert changing.result(timeout=30).status_code == 404
+    assert risks.read(created).status_code == 404

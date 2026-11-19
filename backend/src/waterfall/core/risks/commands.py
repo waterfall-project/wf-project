@@ -40,6 +40,17 @@ RISK_NOT_CITED = "risk_not_cited"
 MAY_CREATE_REVISION = "may_create_revision"
 IDENTIFIED, OCCURRED, DISMISSED = "identified", "occurred", "dismissed"
 
+
+def state_named(value: str) -> RiskState:
+    """Give the state of a risk as the contract names it, from the one a row or a body holds.
+
+    The one conversion of the module: a value that is neither identified nor occurred is dismissed.
+    """
+    if value == IDENTIFIED:
+        return "identified"
+    return "occurred" if value == OCCURRED else "dismissed"
+
+
 # In the order of ``RiskCommand``, each with the permission that guards it.
 RULES: tuple[tuple[RiskCommand, str], ...] = (
     ("update", WRITE),

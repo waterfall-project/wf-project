@@ -20,7 +20,7 @@ from fastapi.responses import Response
 
 from waterfall.api.actors import actor_ref
 from waterfall.api.authentication import Transaction
-from waterfall.api.contract.models import Risk, RiskReview, RiskReviewWrite, State
+from waterfall.api.contract.models import Risk, RiskReview, RiskReviewWrite
 from waterfall.api.evaluation import RequiresProject
 from waterfall.api.risk_provisions import Entering
 from waterfall.api.risks import CHANGE, CONSULT, described, id_of
@@ -31,6 +31,7 @@ from waterfall.core.risks.interface import (
     delete_risk,
     list_risk_reviews,
     review_risk,
+    state_named,
 )
 from waterfall.core.users.interface import read_authors
 
@@ -86,7 +87,7 @@ def post_risk_review(
     entry = RiskReviewEntry(
         risk_id,
         Decimal(body.probability.root.root),
-        "identified" if body.state is State.identified else "dismissed",
+        state_named(body.state.value),
         body.lock_version.root,
         provision_cost_category_id=id_of(body.provision_cost_category_id),
     )
