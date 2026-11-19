@@ -84,10 +84,8 @@ def workflow(name: str) -> dict[Any, Any]:
 
 
 def scanned() -> list[Path]:
-    """Return the files the tool reads for the images of the mirror."""
-    return sorted(
-        {path for pattern in mirror.SCANNED for path in REPOSITORY.glob(pattern) if path.is_file()}
-    )
+    """Return the files the tool reads for the images of the mirror, the manifest aside."""
+    return mirror.scanned()
 
 
 def dockerfile(root: Path) -> Path:
@@ -125,8 +123,9 @@ def test_outside_the_chain_the_files_name_docker_hub_by_default() -> None:
     assert "MIRROR" not in demo.read_text(encoding="utf-8")
 
 
+# `image:`, `FROM`, and the head anchor of a Compose file (`x-postgres-image: &postgres-image …`).
 BARE = re.compile(
-    r"^\s*(?:image:\s*|FROM\s+(?:--platform=\S+\s+)?)"
+    r"^\s*(?:image:\s*|x-[\w-]*image:\s*&\S+\s+|FROM\s+(?:--platform=\S+\s+)?)"
     r"(?![^/\s]*\.[^/\s]*/|\$\{WATERFALL_MIRROR|ghcr\.io/|\*|waterfall-|\$\{|[a-z-]+\s+AS\b)"
     r"(?P<name>[a-z0-9./_-]+:[^\s@]+@sha256:\S+)",
     re.MULTILINE,
@@ -140,6 +139,15 @@ def test_a_file_the_chain_pulls_from_names_no_image_of_docker_hub_bare() -> None
         if path.name == "compose.demo.yaml" or path.parent.name == "workflows":
             continue
         assert not BARE.findall(path.read_text(encoding="utf-8")), str(path.relative_to(REPOSITORY))
+
+
+@pytest.mark.story("US-2490")
+def test_a_bare_head_anchor_of_a_compose_file_is_caught() -> None:
+    # #3028, point 1: an anchor would have the chain pull Docker Hub as well as an `image:`.
+    anchored = f"x-postgres-image: &postgres-image postgres:18@{DIGEST}\n"
+    assert BARE.findall(anchored) == [f"postgres:18@{DIGEST}"]
+    assert not BARE.findall(anchored.replace("postgres:", "${WATERFALL_MIRROR:-}postgres:", 1))
+    assert not BARE.findall(f"x-waterfall-image: &waterfall-image ghcr.io/x/y:1@{DIGEST}\n")
 
 
 def test_every_image_of_docker_hub_the_files_name_is_pinned_by_a_digest() -> None:
@@ -322,12 +330,62 @@ def test_main_fails_on_a_missing_image_without_push_and_on_a_source_that_fails(
     assert "Docker Hub did not give" in capsys.readouterr().err
 
 
-def test_a_copy_ghcr_refuses_is_not_blamed_on_docker_hub() -> None:
-    said = "ERROR: failed to push ghcr.io/waterfall-project/mirror/postgres: denied"
-    registry = Registry(NOT_FOUND, copying=1, said=said)
+REFUSED_WRITE = "ERROR: failed to push ghcr.io/waterfall-project/mirror/postgres: denied"
+
+
+@pytest.mark.story("US-2490")
+def test_a_copy_ghcr_refuses_twice_is_not_blamed_on_docker_hub() -> None:
+    registry = Registry(NOT_FOUND, copying=1, said=REFUSED_WRITE)
     with pytest.raises(shared.ImageError, match=r"^ghcr\.io refused to write"):
         registry.ensure([POSTGRES])
-    assert registry.verbs().count("create") == 1
+    assert registry.verbs().count("create") == 2
+    assert registry.waits == [shared.PAUSE]
+
+
+class Refusing(Registry):
+    """A registry whose copies are refused as many times as said, then pass."""
+
+    def __init__(self, refusals: int, *answers: tuple[int, str]) -> None:
+        super().__init__(*answers, said=REFUSED_WRITE)
+        self.refusals = refusals
+
+    def read(self, command: list[str]) -> tuple[int, str]:
+        if command[3] == "create":
+            self.commands.append(command)
+            if self.refusals:
+                self.refusals -= 1
+                return 1, self.said
+            return 0, ""
+        return super().read(command)
+
+
+@pytest.mark.story("US-2490")
+def test_a_copy_ghcr_refuses_once_is_tried_again_after_a_pause() -> None:
+    # #3028, point 5: ghcr.io refused the creation of a package once, and took it on the next run.
+    registry = Refusing(1, NOT_FOUND, INSPECTED)
+    assert registry.ensure([POSTGRES]) == [POSTGRES]
+    assert registry.verbs() == ["inspect", "create", "create", "inspect"]
+    assert registry.waits == [shared.PAUSE]
+
+
+class FailingThenRefusing(Registry):
+    """A registry whose copies fail on Docker Hub's side, then are refused at the last attempt."""
+
+    def read(self, command: list[str]) -> tuple[int, str]:
+        if command[3] == "create":
+            self.commands.append(command)
+            last = self.verbs().count("create") == shared.ATTEMPTS
+            return 1, REFUSED_WRITE if last else "ERROR: docker.io: toomanyrequests"
+        return super().read(command)
+
+
+@pytest.mark.story("US-2490")
+def test_a_refusal_at_the_last_attempt_is_said_as_a_refusal() -> None:
+    # Docker Hub failed the first attempts; ghcr.io refuses the last: the refusal is what is said.
+    registry = FailingThenRefusing(NOT_FOUND)
+    with pytest.raises(shared.ImageError, match=r"^ghcr\.io refused to write"):
+        registry.ensure([POSTGRES])
+    assert registry.verbs().count("create") == shared.ATTEMPTS
 
 
 def test_main_without_a_login_says_ghcr_refused_to_answer(
@@ -338,6 +396,20 @@ def test_main_without_a_login_says_ghcr_refused_to_answer(
     )
     assert Registry((1, "requested access to the resource is denied")).main(tmp_path) == 1
     assert "refused to answer" in capsys.readouterr().err
+
+
+@pytest.mark.story("US-2490")
+def test_a_refusal_to_answer_names_its_two_causes(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # #3028, point 2: ghcr.io refuses alike a reader not logged in and a package never copied.
+    dockerfile(tmp_path).write_text(
+        f"FROM {mirror.MIRROR}/postgres:18-trixie@{DIGEST}\n", encoding="utf-8"
+    )
+    assert Registry((1, "requested access to the resource is denied")).main(tmp_path) == 1
+    said = capsys.readouterr().err
+    assert "log in to ghcr.io" in said
+    assert "not copied yet (make mirror PUSH=yes)" in said
 
 
 def test_main_fails_when_no_file_names_the_mirror(tmp_path: Path) -> None:

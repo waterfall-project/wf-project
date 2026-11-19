@@ -18,10 +18,11 @@ import pytest
 from wftools import (
     mockamendment,
     mockcore,
-    mockdata,
     mockhistory,
     mockids,
+    mockrates,
     mockstructure,
+    mockvolumes,
     mockwitness,
 )
 from wftools.mockcalendar import Calendar, Instant
@@ -431,7 +432,7 @@ def test_the_one_provision_is_that_of_the_risk_identified(items: list[Node]) -> 
 def test_a_line_names_its_category_role_and_subproject_as_the_universe_does(
     items: list[Node],
 ) -> None:
-    categories = cast("list[dict[str, str]]", mockdata.categories())
+    categories = cast("list[dict[str, str]]", mockrates.categories())
     names = {category["cost_category_id"]: category["label"] for category in categories}
     names.update(
         (role["resource_role_id"], role["label"])
@@ -477,7 +478,7 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
     assert (task(1)["label"], task(1)["is_summary"]) == ("Études", True)
     subordinates = [
         (entry["row_number"], entry["label"])
-        for entry in cast("dict[str, Any]", mockdata.summary_dependencies(answer))["rows"]
+        for entry in cast("dict[str, Any]", mockvolumes.summary_dependencies(answer))["rows"]
     ]
     assert subordinates == [
         (2, "Études de détail"),

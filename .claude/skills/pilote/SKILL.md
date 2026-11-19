@@ -29,7 +29,15 @@ relevés et les commentaires dont tu as besoin, rien de plus, et borne les sorti
 4. **Les créneaux.** Lis `make slots` : il écrit N (`WATERFALL_SLOTS`, 1 sur le poste actuel)
    puis les créneaux pris sur le poste. Les créneaux sont le verrou commun à tous les pilotes
    et à tous les dépôts du poste : il y a un pilote par EPIC, et jamais plus de N livreurs en
-   tout. Le nombre de créneaux libres borne ce que tu peux lancer.
+   tout. Le nombre de créneaux libres borne ce que tu peux lancer. Un créneau que `make slots`
+   montre pris pour un de tes lots (`lot <identifiant>`) sans livreur en vol — arrêté par une
+   limite d'usage, ou planté, avant `make slot-release` — ne s'ajoute pas aux créneaux libres :
+   le livreur qui reprend ce lot prend d'abord un créneau libre, et ne reprend celui de son lot,
+   après en avoir retiré ce qui y reste, que si tous les créneaux sont pris. Tu ne comptes donc
+   que les créneaux libres ; quand il n'y en a aucun, ceux tenus pour un lot prêt que tu relances.
+   Si un libre a été pris, le créneau de l'arrêté reste pris, au nom de son ancien worktree, jusqu'à
+   ce que ce worktree soit retiré — il se signale à l'étape 5 comme un worktree de trop — et il est
+   alors libre ; tu ne le rends pas toi-même. Le créneau d'un autre lot n'est jamais repris.
 5. **Les worktrees.** `git worktree list` ne doit pas en montrer plus de N + 1 dans ton dépôt,
    le dépôt principal compris — deux à N = 1 (#1444) : chaque livreur retire ceux de son lot
    après la fusion. **Fais exception du worktree d'un livreur qui a rendu son relevé, lot
@@ -40,6 +48,8 @@ relevés et les commentaires dont tu as besoin, rien de plus, et borne les sorti
    worktree resté d'un lot arrêté (question, bloqué) se signale comme les autres.
 6. **Lancer.** Lance un livreur par lot prêt, selon « Lancer un livreur », tant qu'il reste un
    créneau libre : autant de livreurs que de lots prêts et de créneaux libres, pas davantage.
+   Seul le cas où il n'y en a aucun ajoute les créneaux tenus pour un lot prêt (étape 4), un par
+   lot, que tu relances.
    **Jamais plus de N livreurs sur le poste** : il s'est effondré trois fois sous les tests de
    plusieurs agents (2026-10-19, 21 et 22) ; à N = 1, un seul à la fois. **Jamais un lot dont
    un lot « Pas avec » est commencé et non fusionné** (`en cours`, `en revue`, `question`,
@@ -76,7 +86,9 @@ d'autre : il lit lui-même ses règles et le lot, et prend son créneau avant to
   Si le relevé parle d'un plafond de dépense mensuel, préviens l'utilisateur et arrête la
   boucle.
 - **Livreur planté**, sans relevé utilisable : relance une instance neuve sur le même lot, une
-  seule fois ; s'il plante encore, marque le lot bloqué dans le tableau, avec ce que tu sais :
+  seule fois — elle prend un créneau libre, ou, s'il n'y en a aucun, reprend celui du livreur
+  planté, s'il ne l'a pas rendu ; s'il plante encore, marque le lot bloqué dans le tableau, avec
+  ce que tu sais :
   `make tracking ISSUE=<n> LOT=<identifiant> STATE='bloqué : <issue>'`. Tu ne réécris jamais
   le corps de l'issue toi-même.
 

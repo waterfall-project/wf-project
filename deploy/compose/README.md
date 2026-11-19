@@ -376,7 +376,7 @@ Sur la machine, le DNS de `demo.waterfall-project.pro` pointant déjà vers elle
 ```sh
 cd ~/waterfall-demo
 mv demo.env.example .env && chmod 600 .env
-docker run --rm -it caddy:2.11.7-alpine caddy hash-password   # demande le mot de passe, rend son hash
+docker run --rm -it caddy:2.11.9-alpine caddy hash-password   # demande le mot de passe, rend son hash
 openssl rand -base64 32                                        # rend la clé des actions serveur
 ```
 

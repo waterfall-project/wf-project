@@ -5,10 +5,10 @@
 ``slots.py`` takes them here; this module, as that one, depends on the standard library alone,
 for the ``back`` job of the chain runs ``slots.py`` as a script, this module beside it.
 
-Each turn is a lock file of ``$XDG_RUNTIME_DIR`` (``/tmp`` by default): ``waterfall-heavy.lock``
-first — the lock of a repository whose Makefile predates the tool takes the first turn —, then
-``waterfall-heavy.2.lock`` to ``waterfall-heavy.<N>.lock``. A heavy run takes the first free one
-by a ``flock`` that does not wait, and tries again every second.
+Each turn is a lock file of the directory of the locks of the workstation (``runtime_directory``):
+``waterfall-heavy.lock`` first — the lock of a repository whose Makefile predates the tool takes
+the first turn —, then ``waterfall-heavy.2.lock`` to ``waterfall-heavy.<N>.lock``. A heavy run
+takes the first free one by a ``flock`` that does not wait, and tries again every second.
 
 An exclusive run (US-2210), for a measure, takes the gate ``waterfall-heavy.exclusive.lock`` of the
 same directory, then every lock file, ``waterfall-heavy.lock`` to ``waterfall-heavy.9.lock`` — the
@@ -21,11 +21,14 @@ not see it, and is waited for like any heavy run in progress — but it does not
 in turn, and may take a turn back before the exclusive run gets it: a measure holds the
 workstation against the other deliverers once their branches have this tool.
 
-The command of an exclusive run is given ``WATERFALL_SLOTS_HELD=exclusive``: a heavy or exclusive
-run it starts in turn — a ``make`` behind ``$(heavy)`` — takes no turn, as the turns are its
-parent's and waiting for them would never end, and says so. The mark is believed only while an
-exclusive run holds the gate: one that outlived its measure, in a server the measure left, is
-dropped and the run takes its turn as any other.
+The command of an exclusive run is given ``WATERFALL_SLOTS_HELD=exclusive:<token>``: a heavy or
+exclusive run it starts in turn — a ``make`` behind ``$(heavy)`` — takes no turn, as the turns are
+its parent's and waiting for them would never end, and says so. The token, the PID of the exclusive
+run and the instant it took the gate, is written in the gate file. The mark is believed only while
+an exclusive run holds the gate and the file bears its token (US-2460): one that outlived its
+measure, in a server the measure left, is dropped — even when another measure holds the gate by
+then — and the run takes its turn as any other. A mark without a token, from a tool that predates
+it, is believed while the gate is held.
 """
 
 import fcntl
@@ -49,11 +52,30 @@ GATE_POLL = 0.05
 HELD_VARIABLE = "WATERFALL_SLOTS_HELD"
 HELD_EXCLUSIVE = "exclusive"
 """The mark an exclusive run gives its command: the workstation is held above it."""
+RUNTIME_VARIABLE = "WATERFALL_RUNTIME_DIR"
+"""The directory of the locks of the workstation, set by the tests alone."""
+USER_RUNTIME_ROOT = Path(os.sep, "run", "user")
+"""Where the system keeps the runtime directory of each user, ``<root>/<uid>``."""
 
 
 def runtime_directory(environment: Mapping[str, str]) -> Path:
-    """Return ``$XDG_RUNTIME_DIR``, or ``/tmp`` where it is not set (WSL, a runner)."""
-    return Path(environment.get("XDG_RUNTIME_DIR") or Path(os.sep, "tmp"))
+    """Return the directory of the locks of the workstation, the same for every session (US-2460).
+
+    ``$WATERFALL_RUNTIME_DIR`` where it is set (the tests), else ``/run/user/<uid>`` where it
+    exists, else ``/tmp`` (WSL, a runner). ``XDG_RUNTIME_DIR`` is not read: a session without it
+    — a cron job, ``su``, a shell of an IDE — would lock elsewhere than the others, and two runs
+    would each believe themselves alone. Under a systemd session, ``XDG_RUNTIME_DIR`` is
+    ``/run/user/<uid>``: the directory is the one of before, which the tools of a branch without
+    this function still use, and they exclude each other with these. Where it points elsewhere
+    (WSLg, ``/mnt/wslg/runtime-dir``; a session without systemd), a tool of a branch without this
+    function locks under ``XDG_RUNTIME_DIR``, one with it under ``/run/user/<uid>`` or ``/tmp``:
+    they do not exclude each other until the branch has taken this lot.
+    """
+    chosen = environment.get(RUNTIME_VARIABLE)
+    if chosen:
+        return Path(chosen)
+    session = USER_RUNTIME_ROOT / str(os.getuid())
+    return session if session.is_dir() else Path(os.sep, "tmp")
 
 
 def lock_paths(environment: Mapping[str, str], slots: int) -> list[Path]:
@@ -142,11 +164,13 @@ def lock_waiting(path: Path, reason: str, *, said: bool, patience: float = 0.0) 
         raise
 
 
-def take_workstation(environment: Mapping[str, str]) -> list[int]:
-    """Take the gate, then every turn of the heavy runs in their order; return the descriptors.
+def take_workstation(environment: Mapping[str, str]) -> tuple[list[int], str]:
+    """Take the gate, then every turn of the heavy runs in their order; return them and the mark.
 
     The fixed order keeps two exclusive runs from each holding a part: the gate makes them one
-    after the other. Whatever is taken is freed if the wait is interrupted.
+    after the other. The token goes in the gate as soon as it is held, before the wait for the
+    turns: a survivor of the measure before, with its token, is not believed in the meantime.
+    Whatever is taken is freed if the wait is interrupted.
     """
     descriptors: list[int] = []
     other = "Another exclusive run holds the workstation; waiting."
@@ -154,6 +178,7 @@ def take_workstation(environment: Mapping[str, str]) -> list[int]:
     try:
         gate = lock_waiting(gate_path(environment), other, said=False, patience=GATE_PATIENCE)
         descriptors.append(gate[0])
+        mark = write_token(gate[0])
         said = False
         for path in lock_paths(environment, MAX_SLOTS):
             descriptor, said = lock_waiting(path, heavy, said=said)
@@ -162,21 +187,38 @@ def take_workstation(environment: Mapping[str, str]) -> list[int]:
         for descriptor in descriptors:
             os.close(descriptor)
         raise
-    return descriptors
+    return descriptors, mark
+
+
+def write_token(descriptor: int) -> str:
+    """Write the token of the exclusive run in the gate it holds; return the mark to give."""
+    token = f"{os.getpid()}:{time.time_ns()}"
+    os.ftruncate(descriptor, 0)
+    os.pwrite(descriptor, token.encode(), 0)
+    return f"{HELD_EXCLUSIVE}:{token}"
 
 
 def held_above(environment: Mapping[str, str]) -> bool:
     """Tell whether an exclusive run above this one holds the workstation: its mark, its gate held.
 
-    A shared lock of the gate is refused only while an exclusive run holds it.
+    A shared lock of the gate is refused only while an exclusive run holds it. A mark that carries
+    a token is believed only if the gate file bears the same one: another measure holds it else.
     """
-    if environment.get(HELD_VARIABLE) != HELD_EXCLUSIVE:
+    mark = environment.get(HELD_VARIABLE, "")
+    prefix = f"{HELD_EXCLUSIVE}:"
+    if mark == HELD_EXCLUSIVE:
+        token = None
+    elif mark.startswith(prefix):
+        token = mark[len(prefix) :].encode()
+        if not token:
+            return False
+    else:
         return False
     descriptor = open_lock(gate_path(environment))
     try:
         fcntl.flock(descriptor, fcntl.LOCK_SH | fcntl.LOCK_NB)
     except BlockingIOError:
-        return True
+        return token is None or os.pread(descriptor, 256, 0) == token
     finally:
         os.close(descriptor)
     return False

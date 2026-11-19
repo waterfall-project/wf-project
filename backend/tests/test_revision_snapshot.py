@@ -23,7 +23,16 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import YEAR, Bearer, Costing, LineReference, Lines, add_role, costing
+from estimate_support import (
+    YEAR,
+    Bearer,
+    Costing,
+    LineReference,
+    Lines,
+    add_role,
+    costing,
+    task_in,
+)
 from estimate_support import insert_line as insert_line_row
 from nodes_support import Tree, mark, opened, refusal
 from projects_support import PROJECTS, Scene, person
@@ -81,7 +90,12 @@ class Offer:
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
     return make_scene(api, owner, database, realm)
 
@@ -479,11 +493,7 @@ def test_a_new_rate_of_inflation_prices_the_current_revision_again_and_no_marked
     # again, the others not (the provision line is EP-08's).
     later = offer.tree.made(
         "Exploitation",
-        task={
-            "scheduling_mode": "manual",
-            "start": {"date": f"{YEAR + 2}-11-06"},
-            "finish": {"date": f"{YEAR + 2}-11-07"},
-        },
+        task=task_in(YEAR + 2),
     )
     future = node_of(
         offer.lines.made(later, quantity="1", resource_role_id=str(costs.role), hours="10")

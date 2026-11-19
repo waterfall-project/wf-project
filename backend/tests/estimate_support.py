@@ -11,11 +11,13 @@ helper writes it in its own file.
 """
 
 from dataclasses import dataclass
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from importlib import import_module
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from planning_support import node_row
+from planning_support import DAY, node_row
 from project_rows import AT, STAMP
 from sqlalchemy import insert, select
 
@@ -34,6 +36,9 @@ from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import pytest
     from nodes_support import Tree
     from projects_support import Person
     from sqlalchemy.engine import Connection
@@ -266,8 +271,100 @@ def category_image_row(
     }
 
 
-# The year the revisions of the tests are priced at: that of their creation.
+# The year the revisions of the tests are priced at: that of their creation. ``YEAR`` and
+# ``LAST_INSTANT`` are both taken once, when this module is loaded.
 YEAR = utc_now().year
+LAST_INSTANT = datetime(YEAR, 12, 31, 23, 59, 59, 999999, tzinfo=UTC)
+
+
+def monday_in(year: int) -> date:
+    """Give a Monday of a year: that of the tests of the planning, moved whole weeks.
+
+    ``planning_support.DAY`` is where a tree starts its planning: Monday 2 November 2026. Moved by
+    52 weeks a year, the date drifts a day or so earlier in the calendar each year, which does not
+    matter: it is a Monday, a working day, in the year asked. A task that must be consumed in
+    ``YEAR`` or two years later is placed on the Monday ``monday_in`` gives, working whatever the
+    year, where a date written in the test would fall on a day off.
+    """
+    return DAY + timedelta(weeks=52 * (year - DAY.year))
+
+
+def task_in(year: int) -> dict[str, Any]:
+    """Give the facts of a task set by hand on two days of a year, to consume its lines there."""
+    first = monday_in(year)
+    return {
+        "scheduling_mode": "manual",
+        "start": {"date": first.isoformat()},
+        "finish": {"date": (first + timedelta(days=1)).isoformat()},
+    }
+
+
+# The modules whose reading of the clock gives a year or a day that a test compares to ``YEAR``:
+# the year of a revision (the service, and the import that opens one), the day a structure starts
+# on or a review is dated, the day the plans and the indicators are read at. ``api.lifecycle`` and
+# ``api.subprojects`` read the clock only to date what they write (``Act``): no revision is opened
+# through them, and none of their reads is a year or a day a test compares (#3739).
+CLOCKED = (
+    "waterfall.api.revisions",
+    "waterfall.api.nodes",
+    "waterfall.api.work_breakdown",
+    "waterfall.api.workload",
+    "waterfall.api.estimate_indicators",
+    "waterfall.api.remaining_indicators",
+    "waterfall.core.exchanges.running",
+    "waterfall.core.exchanges.interface.exports",
+    "waterfall.core.estimate.interface.remaining_excel",
+    "waterfall.core.revisions.interface.reference",
+)
+
+
+# What is left of ``YEAR`` after the instant a pinned clock stops at: a clock that has stopped goes
+# on by a microsecond a reading, and this is the number of readings it has before the year ends.
+HEADROOM = timedelta(seconds=1)
+CEILING = LAST_INSTANT - HEADROOM
+
+
+def pinned_clock(read: Callable[[], datetime]) -> Callable[[], datetime]:
+    """Give a clock that reads ``read`` but never leaves ``YEAR``, and never reads twice the same.
+
+    It follows ``read`` until ``CEILING``, a second before the last instant of ``YEAR``. Past it,
+    it advances by a microsecond at each reading: a test that compares two instants it reads (a
+    review that must be after another) still finds them apart, where a clock stopped at one
+    instant would give them equal (#3739).
+    """
+    last: list[datetime] = []
+
+    def clock() -> datetime:
+        instant = min(read(), CEILING)
+        if last and instant <= last[0]:
+            instant = last[0] + timedelta(microseconds=1)
+        last[:] = [instant]
+        return instant
+
+    return clock
+
+
+def read_clock() -> datetime:
+    """Read ``utc_now`` of this module at each call: a test sets it to cross New Year."""
+    return utc_now()
+
+
+def pin_year(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the services that read the year or the day in ``YEAR``, though the run crosses New Year.
+
+    The year a revision is born with is the one its clock reads at the request (WF-REV-0060), by
+    the service or by the import that opens it; the rates of ``costing`` are for ``YEAR``, read
+    once. The clock of each module of ``CLOCKED`` still runs, but stops near the end of ``YEAR``
+    (``pinned_clock``): an instant after midnight, when the run has crossed it, falls there,
+    on the 31 December, and each reading is after the one before. It runs before every test (the
+    fixture ``pinned_year`` of ``conftest.py``), so that a test or a fixture that sets a clock of
+    its own sets it over this one; a clock already set when it runs would be pinned over, or
+    left, and fails the test instead.
+    """
+    clock = pinned_clock(read_clock)
+    for module in CLOCKED:
+        assert import_module(module).utc_now is utc_now, f"the clock of {module} is already set"
+        monkeypatch.setattr(f"{module}.utc_now", clock)
 
 
 @dataclass(frozen=True)
