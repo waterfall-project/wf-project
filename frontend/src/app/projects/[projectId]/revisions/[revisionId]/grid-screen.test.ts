@@ -199,3 +199,36 @@ describe("a grid compared to the base its address names", () => {
     });
   });
 });
+
+describe("a grid filtered by a risk occurred", () => {
+  const RISKS = "GET /projects/{project_id}/risks";
+  const STRUCTURES_ROUTE = "GET /projects/{project_id}/revisions/{revision_id}/structures";
+  const OCCURRED = "01926f3a-7c00-7000-8000-000000000751";
+
+  it("handles the rejection of the risks read when the structures fail first, never leaving the retained origin unhandled [US-2640] [#1972]", async () => {
+    const unhandled = vi.fn();
+    process.on("unhandledRejection", unhandled);
+    server.answers = {
+      ...server.answers,
+      [STRUCTURES_ROUTE]: { problem: { code: "INTERNAL_ERROR", status: 500 } },
+      [RISKS]: { problem: { code: "INTERNAL_ERROR", status: 500 } },
+    };
+    try {
+      await expect(
+        readGridScreen(
+          gridAddress(
+            { projectId: PROJECT, revisionId: CURRENT },
+            { origin_risk_ids: OCCURRED },
+            "planning",
+          ),
+          { ...GRID, byOrigin: true },
+        ),
+      ).rejects.toMatchObject({ name: "UnexpectedAnswer" });
+      // The rejections surface on the next turns of the loop: give them their time.
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off("unhandledRejection", unhandled);
+    }
+  });
+});

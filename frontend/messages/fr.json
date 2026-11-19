@@ -2248,6 +2248,7 @@
     "title": "Compte rendu de la survenance",
     "reading": "Lecture du compte rendu…",
     "createsRevision": "Le projet n’a pas de révision en cours : la survenance la crée d’abord par copie de la dernière révision marquée, y fusionne le devis propre du risque, dans la même tâche de fond. Si elle échoue, aucune révision n’est créée.",
+    "pastStart": "Le devis propre du risque commence le {date}, avant le jour de la déclaration : la survenance l’accepte sans le refuser ni redater ses tâches, qui gardent leurs dates, désormais passées.",
     "provision": "La ligne de provision du risque est retirée du reste à engager : {amount} de provision en moins.",
     "refusals": "{count, plural, one {# motif refuse la survenance} other {# motifs refusent la survenance}}",
     "reread": "Relire le compte rendu"

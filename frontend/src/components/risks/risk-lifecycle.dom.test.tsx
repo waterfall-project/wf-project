@@ -181,6 +181,23 @@ describe("« Supprimer le risque »", () => {
   });
 });
 
+describe("le risque relu après une écriture dans son devis propre", () => {
+  it("relit le risque quand l'écran redevient visible, avant toute écriture, et ne relit rien tant qu'il est caché [US-2640] [WF-IHM-0110-A]", () => {
+    serve({});
+    render(detail(IDENTIFIED));
+    expect(router.refresh).not.toHaveBeenCalled();
+    // The tab was left for the own estimate of the risk and found again: the counter of the risk
+    // has advanced (#1626), the page is read anew.
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(router.refresh).toHaveBeenCalledOnce();
+    window.dispatchEvent(new Event("pageshow"));
+    expect(router.refresh).toHaveBeenCalledTimes(2);
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(router.refresh).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("« Déclarer survenu »", () => {
   /** Open the confirmation of the declaration, and wait for its report. */
   async function openDeclare() {

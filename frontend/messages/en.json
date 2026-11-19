@@ -2248,6 +2248,7 @@
     "title": "Report of the occurrence",
     "reading": "Reading the report…",
     "createsRevision": "The project has no revision in progress: the occurrence first creates it by copying the last marked revision, and merges the own estimate of the risk into it, in the same background task. If it fails, no revision is created.",
+    "pastStart": "The own estimate of the risk starts on {date}, before the day of the declaration: the occurrence accepts it, neither refusing it nor redating its tasks, which keep their dates, now in the past.",
     "provision": "The line of provision of the risk is withdrawn from the remaining to commit: {amount} of provision less.",
     "refusals": "{count, plural, one {# reason refuses the occurrence} other {# reasons refuse the occurrence}}",
     "reread": "Read the report again"
