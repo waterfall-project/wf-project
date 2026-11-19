@@ -12475,8 +12475,8 @@ schéma de réponse ne change, aucune propriété n'est exigée de plus.
   date de calcul ; `meta.total` compte les projets que tous retiennent. **Un projet dont la colonne
   est nulle n'est retenu par aucune borne de cette colonne** — une offre n'a ni budget de référence
   ni indice, un projet en cours n'a pas de devis courant, un projet sans code n'est retenu par aucun
-  `code` —, et **un indice non calculé non plus** (`is_computable` faux) : sa valeur est nulle, et
-  le classer serait lui en inventer une, comme une colonne nulle d'une grille. Refus : une borne
+  `code`. Un indice non calculé (`Computable`, `is_computable` faux) a une valeur nulle : il suit la
+  même règle, sans décision de plus. Refus : une borne
   haute inférieure à la basse, 422 `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_max`,
   `params.minimum` la borne basse donnée ; une fin de la période du marquage antérieure à son
   début, `/query/last_marked_at_to`, `params.minimum` le début ; égale, la période est vide ; une

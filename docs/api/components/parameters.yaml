@@ -1092,16 +1092,16 @@ PortfolioWinProbabilityMin:
   in: query
   description: >-
     Restricts to the projects whose win probability (`PortfolioProjectRow.win_probability`)
-    reaches this bound, inclusive; a project without a probability is not retained
-    (WF-PTF-0040, WF-IHM-0130).
+    reaches this bound, inclusive, a share (`0.4` for 40 %); a project without a probability is
+    not retained (WF-PTF-0040, WF-IHM-0130).
   schema: { $ref: common.yaml#/Percent }
 
 PortfolioWinProbabilityMax:
   name: win_probability_max
   in: query
   description: >-
-    Restricts to the projects whose win probability does not exceed this bound, inclusive; a
-    project without a probability is not retained. Lower than `win_probability_min`, refused
+    Restricts to the projects whose win probability does not exceed this bound, inclusive, a
+    share (`0.4` for 40 %); a project without a probability is not retained. Lower than `win_probability_min`, refused
     with 422 `VALUE_OUT_OF_RANGE` on `/query/win_probability_max`.
   schema: { $ref: common.yaml#/Percent }
 
@@ -1159,8 +1159,8 @@ PortfolioCostIndexMax:
   in: query
   description: >-
     Restricts to the projects whose cost index does not exceed this bound, inclusive; a
-    project without a computed cost index is not retained. Lower than `cost_index_min`, refused with 422
-    `VALUE_OUT_OF_RANGE` on `/query/cost_index_max`.
+    project without a computed cost index is not retained. Lower than `cost_index_min`, refused
+    with 422 `VALUE_OUT_OF_RANGE` on `/query/cost_index_max`.
   schema: { $ref: common.yaml#/Decimal }
 
 PortfolioScheduleIndexMin:
