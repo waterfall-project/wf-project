@@ -31,6 +31,7 @@ from waterfall.core.portfolio.aggregation import (
 from waterfall.core.portfolio.documents import documents_of
 from waterfall.core.portfolio.interface.scope import period_instants, resolve_scope
 from waterfall.core.portfolio.shaping import computable, money, scope_document
+from waterfall.core.portfolio.states import COMPLETED, IN_PROGRESS, PRICING
 from waterfall.core.projects.interface import offers_closed_between
 
 if TYPE_CHECKING:
@@ -49,7 +50,7 @@ if TYPE_CHECKING:
 
 # The states the value counts: the order book In progress, the pipeline In pricing, the delivered
 # Completed in the period.
-COUNTED: frozenset[ProjectState] = frozenset({"in_progress", "pricing", "completed"})
+COUNTED: frozenset[ProjectState] = frozenset({IN_PROGRESS, PRICING, COMPLETED})
 
 
 def _figure(documents: Documents, name: str) -> Decimal | None:
@@ -90,10 +91,10 @@ def read_portfolio_value(
     offers: list[tuple[RetainedProject, Decimal]] = []
     for project_id, held in documents.items():
         retained = resolved.projects[project_id]
-        if retained.state == "in_progress":
+        if retained.state == IN_PROGRESS:
             budget = _figure(held, "reference_budget")
             in_progress += [] if budget is None else [budget]
-        elif retained.state == "completed":
+        elif retained.state == COMPLETED:
             cost = _figure(held, "actual_cost")
             delivered += [] if cost is None else [cost]
         elif (estimate := _total(held)) is not None:

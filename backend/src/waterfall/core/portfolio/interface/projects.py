@@ -30,6 +30,7 @@ from waterfall.core.portfolio.folding import holding
 from waterfall.core.portfolio.interface.scope import resolve_scope
 from waterfall.core.portfolio.rows import Named, ProjectRow, filter_rows, row_of, sort_rows
 from waterfall.core.portfolio.shaping import row_document, scope_document
+from waterfall.core.portfolio.states import COMPLETED, IN_PROGRESS, PRICING
 from waterfall.core.projects.interface import openable, projects_named
 
 if TYPE_CHECKING:
@@ -45,8 +46,8 @@ if TYPE_CHECKING:
 
 # The states the list counts: In progress, In pricing, and Completed in a period. Without a period,
 # none is Completed in it: the state is not counted (#4020).
-IN_PERIOD: frozenset[ProjectState] = frozenset({"in_progress", "pricing", "completed"})
-WITHOUT_PERIOD: frozenset[ProjectState] = frozenset({"in_progress", "pricing"})
+IN_PERIOD: frozenset[ProjectState] = frozenset({IN_PROGRESS, PRICING, COMPLETED})
+WITHOUT_PERIOD: frozenset[ProjectState] = frozenset({IN_PROGRESS, PRICING})
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,15 +143,17 @@ def read_portfolio_projects(
     can_open = openable(session, identifiers, viewer)
     documents = documents_of(session, resolved, reading)
     thresholds = read_reference_settings(session).index_thresholds
+    # ``projects_named`` gives (code, label) by project: unpacked once, so that no index says which.
     rows = [
         row_of(
-            Named(project_id, names[project_id][1], names[project_id][0], project_id in can_open),
+            Named(project_id, label, code, project_id in can_open),
             retained,
             documents.get(project_id),
             thresholds,
         )
         for project_id, retained in resolved.projects.items()
         if project_id in names
+        for code, label in [names[project_id]]
     ]
     kept = _text_filter(session, rows, listing)
     found = filter_rows(rows, listing, lambda row: kept[row.project_id])

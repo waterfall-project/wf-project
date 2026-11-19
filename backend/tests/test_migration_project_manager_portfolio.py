@@ -45,7 +45,7 @@ def grants(engine: Engine) -> dict[str, set[str]]:
     return held
 
 
-@pytest.mark.requirement("WF-PTF-0030-A")
+@pytest.mark.requirement("WF-ADM-0010-A")
 def test_the_migration_takes_the_reading_of_the_portfolio_from_the_predefined_project_manager_alone(
     empty_engine: Engine,
 ) -> None:

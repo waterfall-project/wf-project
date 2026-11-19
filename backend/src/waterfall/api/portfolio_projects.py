@@ -21,7 +21,7 @@ from decimal import Decimal
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import AwareDatetime, BaseModel, Field
+from pydantic import AwareDatetime, Field
 
 from waterfall.api.authentication import ServicesOf, Transaction
 from waterfall.api.contract.base import Text
@@ -29,11 +29,11 @@ from waterfall.api.contract.models import AlertZone, SortOrder
 from waterfall.api.evaluation import Acting, Requires
 from waterfall.api.queries import (
     GREATEST_OFFSET,
+    PORTFOLIO_READ,
     PortfolioQuery,
     Search,
-    listed,
     portfolio_asked,
-    refuse_query,
+    read_list,
 )
 from waterfall.core.portfolio.interface import (
     Bounds,
@@ -47,7 +47,6 @@ from waterfall.platform.errors import FieldError
 
 router = APIRouter(tags=["portfolio"])
 
-READ = "portfolio_projects.read"
 DEFAULT_LIMIT = 50
 GREATEST_LIMIT = 500
 NUMBER_INVALID = "NUMBER_INVALID"
@@ -122,14 +121,31 @@ def _bound(text: str | None, form: re.Pattern[str]) -> tuple[Decimal | None, boo
     return Decimal(text), False
 
 
-def _bounds(query: BaseModel, column: str, faults: list[FieldError]) -> Bounds:
+def _texts(query: ProjectsQuery, column: str) -> tuple[str | None, str | None]:
+    """Give the two texts of the bounds of a column, as the query holds them."""
+    texts: dict[str, tuple[str | None, str | None]] = {
+        "reference_budget": (query.reference_budget_min, query.reference_budget_max),
+        "current_estimate": (query.current_estimate_min, query.current_estimate_max),
+        "win_probability": (query.win_probability_min, query.win_probability_max),
+        "project_manager_projection": (
+            query.project_manager_projection_min,
+            query.project_manager_projection_max,
+        ),
+        "delta_to_reference": (query.delta_to_reference_min, query.delta_to_reference_max),
+        "cost_index": (query.cost_index_min, query.cost_index_max),
+        "schedule_index": (query.schedule_index_min, query.schedule_index_max),
+    }
+    return texts[column]
+
+
+def _bounds(query: ProjectsQuery, column: str, faults: list[FieldError]) -> Bounds:
     """Read the two bounds of a column; the faults found are added to ``faults``.
 
     A bound that is no number is the fault of its parameter; an upper bound lower than the lower,
     the fault of the upper, which names the lower given.
     """
     low_name, high_name = f"{column}_min", f"{column}_max"
-    low_text, high_text = getattr(query, low_name), getattr(query, high_name)
+    low_text, high_text = _texts(query, column)
     low, low_fault = _bound(low_text, BOUNDED[column])
     high, high_fault = _bound(high_text, BOUNDED[column])
     faults += [
@@ -142,9 +158,12 @@ def _bounds(query: BaseModel, column: str, faults: list[FieldError]) -> Bounds:
     return Bounds(low, high)
 
 
-def listing_of(query: ProjectsQuery) -> PortfolioListing:
-    """Read what the list is asked besides its scope; every fault of a filter, at once (422)."""
-    faults: list[FieldError] = []
+def listing_of(query: ProjectsQuery, faults: list[FieldError]) -> PortfolioListing:
+    """Read what the list is asked besides its scope; the faults of a filter go to ``faults``.
+
+    The caller refuses them all at once, with those of the scope (422): the listing returned is
+    to be used only when ``faults`` stays empty.
+    """
     bounds = {column: _bounds(query, column, faults) for column in BOUNDED}
     since, until = query.last_marked_at_from, query.last_marked_at_to
     if since is not None and until is not None and until < since:
@@ -153,8 +172,8 @@ def listing_of(query: ProjectsQuery) -> PortfolioListing:
                 "/query/last_marked_at_to", VALUE_OUT_OF_RANGE, {"minimum": since.astimezone(UTC)}
             )
         )
-    zones = listed("zones", query.zones, AlertZone)
-    refuse_query(faults)
+    zones, zone_faults = read_list("zones", query.zones, AlertZone)
+    faults += zone_faults
     return PortfolioListing(
         limit=query.limit,
         offset=query.offset,
@@ -172,7 +191,7 @@ def listing_of(query: ProjectsQuery) -> PortfolioListing:
 @router.get(
     "/portfolio/projects",
     operation_id="getPortfolioProjects",
-    dependencies=[Depends(Requires(READ))],
+    dependencies=[Depends(Requires(PORTFOLIO_READ))],
     response_model=None,
 )
 def get_portfolio_projects(
@@ -186,10 +205,13 @@ def get_portfolio_projects(
     A project the caller cannot open is listed under its label and its code, ``can_open`` false.
     The list reads the indicators of the day in the cache of the process, if there is one.
     """
+    faults: list[FieldError] = []
+    listing = listing_of(query, faults)
+    asked = portfolio_asked(query, faults)
     return read_portfolio_projects(
         session,
-        portfolio_asked(query),
-        listing_of(query),
+        asked,
+        listing,
         PortfolioReading(utc_now(), services.indicators_cache),
         Viewer(actor.user_id, actor.permissions),
     )

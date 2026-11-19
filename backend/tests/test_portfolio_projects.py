@@ -11,11 +11,13 @@ opens a project and the one who does not (WF-PTF-0030); the pure part — the ro
 sort — is in ``test_portfolio_rows``.
 """
 
+import json
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
+import yaml
 from costs_support import cost, load_import
 from estimate_support import costing
 from portfolio_listing_support import (
@@ -29,12 +31,17 @@ from portfolio_listing_support import (
     served,
     with_index,
 )
-from portfolio_support import OFFERS_MARKED, REVIEW_MARKED, Portfolio, portfolio
+from portfolio_support import OFFER, OFFERS_MARKED, REVIEW, REVIEW_MARKED, Portfolio, portfolio
 from projects_support import Scene, contribute, person
 from projects_support import scene as make_scene
 from remaining_support import in_progress, line_named, review_marked
+from support import CONTRACT
 
+from waterfall.api.portfolio_projects import DECIMAL, MONEY
+from waterfall.core.costs.interface import PROJECT
 from waterfall.core.indicators.contributions import contribution_key
+from waterfall.core.indicators.interface import current_day_reading, day_indicators
+from waterfall.core.portfolio.documents import day_contribution
 from waterfall.core.portfolio.interface import (
     PortfolioAsked,
     PortfolioListing,
@@ -301,6 +308,15 @@ def test_a_filter_at_fault_is_refused_with_every_other_at_once_and_a_period_by_i
         refused = read(api, reader, "projects", malformed).json()
         assert (refused["status"], refused["fields"][0]["pointer"]) == (422, pointer), malformed
         assert refused["fields"][0]["code"] == code, malformed
+    # A state, a zone and a bound at fault together are named at once, none masking another.
+    together = read(
+        api, reader, "projects", f"{READ}&states=sleeping&zones=red&cost_index_min=abc"
+    ).json()
+    assert {(each["pointer"], each["code"]) for each in together["fields"]} == {
+        ("/query/states", "VALIDATION_FAILED"),
+        ("/query/zones", "VALIDATION_FAILED"),
+        ("/query/cost_index_min", "NUMBER_INVALID"),
+    }
     # The period is refused by the one rule of every view: the end before the start.
     inverted = read(api, reader, "projects", f"{READ}&from=2026-03-31&to=2026-01-01").json()
     assert inverted["fields"] == [
@@ -390,6 +406,20 @@ def test_the_documents_of_the_current_day_are_computed_once_and_then_read_from_t
         assert all(isinstance(entry, str) for entry in entries)
         assert read(PortfolioReading(now, cache)) == first
         assert read(PortfolioReading(now)) == first
+        # The second reading serves the entry, it computes nothing: an entry altered in the cache is
+        # what the list shows, and a reading without the cache shows the computed figure again.
+        running = keys[0]
+        kept = cache.read(running)
+        assert kept is not None
+        altered = json.loads(kept)
+        computed = altered["project"]["reference_budget"]
+        altered["project"]["reference_budget"] = "123456.00"
+        cache.write(running, json.dumps(altered))
+        served_again = read(PortfolioReading(now, cache))
+        shown = {item["label"]: item["reference_budget"] for item in served_again["items"]}
+        assert shown[RUNNING_LABEL] == "123456.00"
+        assert shown[RUNNING_LABEL] != computed
+        assert read(PortfolioReading(now)) == first
         assert [item["label"] for item in first["items"]] == [
             OFFER_LABEL,
             COMPLETED_LABEL,
@@ -448,3 +478,43 @@ def test_a_project_of_budget_1000_cost_500_and_remaining_550_projects_1050_with_
     kept = row(f"as_of={datetime.now(UTC).date().isoformat()}")
     assert {name: kept[name] for name in expected} == expected
     assert kept["last_marked_at"] is not None
+
+
+@pytest.mark.requirement("WF-PTF-0040-A")
+def test_the_forms_of_a_bound_are_the_patterns_of_money_and_of_decimal_of_the_contract() -> None:
+    # The route reads a bound in the form of its column, with the patterns of the contract copied
+    # (``MONEY``, ``DECIMAL``): read here in ``components/common.yaml``, so that a copy that drifts
+    # is found by this test, the digits being 0 to 9 where the contract writes ``\d``.
+    common = yaml.safe_load(
+        (CONTRACT.parent / "components" / "common.yaml").read_text(encoding="utf-8")
+    )
+
+    def written(pattern: str) -> str:
+        return pattern.removeprefix("^").removesuffix("$").replace(r"\d", "[0-9]")
+
+    assert MONEY.pattern == written(common["Money"]["pattern"])
+    assert DECIMAL.pattern == written(common["Decimal"]["pattern"])
+
+
+@pytest.mark.requirement("WF-PTF-0040-A")
+def test_a_contribution_is_computed_on_the_revision_it_is_given_not_on_the_current_one(
+    fabrics: Portfolio,
+) -> None:
+    # « La révision du jour est donnée, jamais choisie » : the cache keys the entry on the revision
+    # of the day, so the document must be that of this revision. The project In progress has two
+    # marked revisions, its offer and its review; the contribution on each gives its own document,
+    # and the one on the review is the one the reading of the day, which chooses it, gives.
+    running = fabrics.in_progress
+    offer, review = running.marked[OFFER][0], running.marked[REVIEW][0]
+    now = datetime(2026, 11, 19, 12, tzinfo=UTC)
+    with fabrics.stage.database.transaction() as session:
+        on_offer = day_contribution(
+            session, project_id=running.project_id, revision_id=offer, at=now
+        )
+        on_review = day_contribution(
+            session, project_id=running.project_id, revision_id=review, at=now
+        )
+        chosen = current_day_reading(session, running.project_id, now)
+        assert chosen.basis.revision_id == review
+        assert on_review["project"] == day_indicators(session, chosen, (PROJECT,), None)[PROJECT]
+    assert on_offer["project"] != on_review["project"]

@@ -15,7 +15,12 @@ administrator: a role delivered with the platform (``is_predefined``), not delet
 company created (``is_predefined`` false) keeps what it holds, the predefined manager and the
 predefined administrator too, and every other permission of the project manager stays.
 
-The descent gives the permission back to the roles the same description designates.
+The same description is written in both directions, and it leaves two cases apart. The descent gives
+the permission back to every predefined role it recognises, even one whose company had taken it
+away: the table keeps no trace of who removed it, and the descent restores the delivered state.
+A predefined role the company deprived of ``project_create`` is not recognised as the project
+manager, so the ascent leaves it what it holds, ``portfolio_projects.read`` included — the method
+of ``0030``, which knows a role by what it holds and misses the one a company has modified.
 """
 
 from typing import TYPE_CHECKING

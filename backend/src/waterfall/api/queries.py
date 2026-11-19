@@ -135,13 +135,23 @@ class PortfolioQuery(BaseModel):
     org_node_id: UUID | None = None
 
 
-def portfolio_asked(query: PortfolioQuery) -> PortfolioAsked:
+# The permission of every view of the portfolio: that of its function alone (EP-11).
+PORTFOLIO_READ = "portfolio_projects.read"
+
+
+def portfolio_asked(
+    query: PortfolioQuery, other_faults: Iterable[FieldError] = ()
+) -> PortfolioAsked:
     """Read what a view of the portfolio is asked; a state that is none of the six is refused (422).
+
+    ``other_faults`` are those the view found in its own parameters: refused at once with the
+    state's, every parameter at fault named in one answer.
 
     The refusals of the period and of the node are the portfolio's own, one rule for every view
     (``resolve_scope``).
     """
-    states = listed("states", query.states, ProjectState)
+    states, faults = read_list("states", query.states, ProjectState)
+    refuse_query((*faults, *other_faults))
     return PortfolioAsked(
         states=() if states is None else tuple(state.value for state in states),
         period_from=query.period_from,

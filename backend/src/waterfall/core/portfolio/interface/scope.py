@@ -28,6 +28,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from waterfall.core.portfolio.aggregation import weight_of
+from waterfall.core.portfolio.states import COMPLETED, PRICING
 from waterfall.core.projects.interface import current_day, projects_in_states_on
 from waterfall.core.resource_settings.interface import node_labels
 from waterfall.core.revisions.interface import last_marked_at_instant
@@ -51,8 +52,6 @@ VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 FROM_POINTER = "/query/from"
 TO_POINTER = "/query/to"
 ORG_NODE_POINTER = "/query/org_node_id"
-COMPLETED: ProjectState = "completed"
-PRICING: ProjectState = "pricing"
 NOUGHT = Decimal(0)
 
 

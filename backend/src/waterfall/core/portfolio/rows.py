@@ -18,6 +18,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from waterfall.core.indicators.interface import Computable, zone_of
+from waterfall.core.portfolio.states import IN_PROGRESS, PRICING
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -29,8 +30,6 @@ if TYPE_CHECKING:
     from waterfall.core.portfolio.interface.scope import RetainedProject
     from waterfall.core.projects.interface import ProjectState
 
-PRICING: ProjectState = "pricing"
-IN_PROGRESS: ProjectState = "in_progress"
 # The places of the states in the cycle of life, the order of ``ProjectState`` (WF-CYC-0010).
 LIFECYCLE: tuple[ProjectState, ...] = (
     "created",

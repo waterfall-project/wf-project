@@ -13,19 +13,17 @@ from fastapi import APIRouter, Depends, Query
 
 from waterfall.api.authentication import ServicesOf, Transaction
 from waterfall.api.evaluation import Requires
-from waterfall.api.queries import PortfolioQuery, portfolio_asked
+from waterfall.api.queries import PORTFOLIO_READ, PortfolioQuery, portfolio_asked
 from waterfall.core.portfolio.interface import PortfolioReading, read_portfolio_value
 from waterfall.platform.database import utc_now
 
 router = APIRouter(tags=["portfolio"])
 
-READ = "portfolio_projects.read"
-
 
 @router.get(
     "/portfolio/value",
     operation_id="getPortfolioValue",
-    dependencies=[Depends(Requires(READ))],
+    dependencies=[Depends(Requires(PORTFOLIO_READ))],
     response_model=None,
 )
 def get_portfolio_value(

@@ -21,12 +21,13 @@ from typing import TYPE_CHECKING
 from waterfall.core.costs.interface import PROJECT
 from waterfall.core.estimate.interface import IndicatorsAsked, estimate_indicators
 from waterfall.core.indicators.interface import (
-    current_day_reading,
     day_documents_of,
     day_indicators,
+    day_reading_of,
     estimate_document,
     kept_documents_of,
 )
+from waterfall.core.portfolio.states import PRICING
 from waterfall.core.projects.interface import project_facts
 
 if TYPE_CHECKING:
@@ -39,7 +40,6 @@ if TYPE_CHECKING:
     from waterfall.core.indicators.interface import Document, IndicatorKind
     from waterfall.core.portfolio.interface.scope import PortfolioReading, ResolvedScope
 
-PRICING = "pricing"
 # The kinds the list and the value read: a project In progress or Completed has its ``project``, an
 # offer its ``estimate``.
 KINDS: tuple[IndicatorKind, ...] = ("project", "estimate")
@@ -59,7 +59,7 @@ def day_contribution(
     if project_facts(session, project_id).state == PRICING:
         asked = IndicatorsAsked(revision_id, str(PROJECT), at)
         return {"estimate": estimate_document(estimate_indicators(session, project_id, asked))}
-    reading = current_day_reading(session, project_id, at)
+    reading = day_reading_of(session, project_id, revision_id, at)
     return {"project": day_indicators(session, reading, (PROJECT,), None)[PROJECT]}
 
 
