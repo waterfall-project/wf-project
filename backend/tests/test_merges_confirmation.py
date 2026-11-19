@@ -10,6 +10,7 @@ inscribed in the journal before the marking and the designation it produces; the
 revision. Every answer is checked against the contract (``ContractClient``).
 """
 
+from contextlib import ExitStack
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -23,7 +24,8 @@ from amendments_support import (
     out_of_date,
     revision_commands,
 )
-from history_support import undo
+from estimate_support import Lines
+from history_support import delete, undo
 from merges_support import (
     REFUSED,
     STALE,
@@ -39,6 +41,7 @@ from merges_support import (
     project_of,
     read_report,
     revision_of,
+    shape_of,
     structure_row,
     tasks_of,
 )
@@ -46,18 +49,27 @@ from nodes_support import mark, opened, refusal, signed_in
 from planning_support import insert_link
 from projects_support import PROJECTS, contribute, person, put_in_state
 from rebases_support import rebased
-from risks_support import MAKING, STUDY, Costed
+from risks_support import MAKING, STUDY, Costed, material
 from sqlalchemy import func, select
-
+from waterfall.core.history.tables import UndoEntry
+from waterfall.core.revisions.interface import (
+    MergePart,
+    register_indicators,
+    register_marking,
+    register_merge_end,
+)
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import AuditEntry
+from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
+    from sqlalchemy.orm import Session
     from support import ContractClient
-
+    from waterfall.core.revisions.interface import RevisionMarking, StructureMerging
+    from waterfall.platform.audit import Act
     from waterfall.platform.database import Database
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
@@ -98,6 +110,22 @@ def revisions_counted(project: Costed) -> int:
             .where(Revision.project_id == project.project_id)
         )
     return counted or 0
+
+
+# Why a computation refuses, as the indicators of EP-10 may: a category without its rate.
+HOURLY_RATE_MISSING = "HOURLY_RATE_MISSING"
+MISSING_RATES = {
+    "missing_rates": [{"cost_category_id": "01926f3a-7c00-7000-8000-000000000201", "year": 2026}]
+}
+
+
+def entries_of(project: Costed) -> list[tuple[UUID, str]]:
+    """Read the entries of the history of the revision of the project, around the service."""
+    with project.stage.database.transaction() as session:
+        rows = session.execute(
+            select(UndoEntry.id, UndoEntry.kind).where(UndoEntry.revision_id == project.revision_id)
+        ).all()
+        return sorted((each, kind) for each, kind in rows)
 
 
 def held_counters(project: Costed, late: OutOfDate, name: str = "v2.0") -> dict[str, Any]:
@@ -334,15 +362,75 @@ def test_a_merge_that_fails_without_a_current_revision_leaves_none(
     assert structure_row(project, amendment).is_merged is False
 
 
-@pytest.mark.requirement("WF-SEC-0030-A")
-def test_the_merge_is_inscribed_before_the_marking_and_the_designation_it_produces(
+def failing_once_written(merging: StructureMerging) -> MergePart:
+    """End a merge by a failure once everything is written; give nothing to its report."""
+    if merging.applying:
+        raise UnprocessableError(HOURLY_RATE_MISSING, MISSING_RATES)
+    return MergePart()
+
+
+def failing_at_the_marking(_session: Session, _revision_id: UUID, _act: Act) -> None:
+    """Fail the computation of the indicators of a revision being marked, as EP-10 may."""
+    raise UnprocessableError(HOURLY_RATE_MISSING, MISSING_RATES)
+
+
+@pytest.mark.requirement("WF-REV-0050-A")
+def test_a_merge_that_fails_once_it_has_written_leaves_nothing_of_it(
     api: ContractClient, project: Costed, worker: Worker
 ) -> None:
-    # « la fusion […] s'inscrit au journal »: structure_merge on the differential, its revision
-    # named by the name confirmed, then revision_mark and reference_designate on the revision, at
-    # one instant, by the requester.
+    # « la fusion est une tâche de fond et une seule opération […] en échec, sur un motif de refus
+    # ou tout autre, elle ne laisse ni fusion, ni révision marquée, ni révision créée »: a failure
+    # at the end of the merge, once its tasks, its lines and the end of the planning are written
+    # (``place_lines``, ``finish``): the main structure, the revisions, the reference and the
+    # differential are as they were.
     amendment = opened_amendment(api, project)
-    merged(api, project, worker, amendment, name="Avenant 1")
+    tree = on(project.tree, amendment)
+    tests = tree.made("Essais")
+    Lines(tree).made(tests, **material(project.costs, "Banc d'essai", "50.00"))
+    assert delete(tree, node_labelled(tree, MAKING), project.stage.manager).status_code == 200
+    held = (shape_of(project, project.structure_id), revisions_counted(project))
+    reference = project_of(api, project)["reference_revision_id"]
+    with ExitStack() as registered:
+        registered.callback(register_merge_end(failing_once_written))
+        task = merged(api, project, worker, amendment)
+    assert (task["status"], task["problem"]["code"]) == ("failed", HOURLY_RATE_MISSING)
+    assert (shape_of(project, project.structure_id), revisions_counted(project)) == held
+    read = project_of(api, project)
+    assert (read["current_revision_id"], read["reference_revision_id"]) == (
+        str(project.revision_id),
+        reference,
+    )
+    assert revision_of(api, project, project.revision_id)["status"] == "draft"
+    assert structure_row(project, amendment).is_merged is False
+
+
+@pytest.mark.requirement("WF-REV-0050-A")
+def test_a_merge_that_fails_at_the_marking_without_a_current_revision_leaves_none(
+    api: ContractClient, project: Costed, worker: Worker
+) -> None:
+    # « Sans révision en cours, la même tâche ouvre la révision par copie, y fusionne la copie du
+    # différentiel […] et la marque ; en échec, la transaction ne laisse rien » (conception): the
+    # failure comes at the marking, once the revision is opened and the copy merged into it.
+    amendment = opened_amendment(api, project)
+    on(project.tree, amendment).made("Essais")
+    mark(project.stage, {"revision_id": str(project.revision_id)})
+    held = (shape_of(project, project.structure_id), revisions_counted(project))
+    reference = project_of(api, project)["reference_revision_id"]
+    with ExitStack() as registered:
+        registered.callback(register_indicators(failing_at_the_marking))
+        task = merged(api, project, worker, amendment)
+    assert (task["status"], task["problem"]["code"]) == ("failed", HOURLY_RATE_MISSING)
+    assert (shape_of(project, project.structure_id), revisions_counted(project)) == held
+    read = project_of(api, project)
+    assert (read["current_revision_id"], read["reference_revision_id"]) == (None, reference)
+    assert structure_row(project, amendment).is_merged is False
+
+
+def journal(project: Costed) -> tuple[list[tuple[str, str, str | None, object]], set[object]]:
+    """Read the journal of the project: each entry's action, object, revision named and instant.
+
+    And the authors of the last three.
+    """
     with project.stage.database.transaction() as session:
         rows = session.scalars(
             select(AuditEntry)
@@ -353,7 +441,19 @@ def test_the_merge_is_inscribed_before_the_marking_and_the_designation_it_produc
             (row.action, str(row.object_id), row.object_revision_label, row.occurred_at)
             for row in rows
         ]
-        authors = {row.actor_user_id for row in rows[-3:]}
+        return found, {row.actor_user_id for row in rows[-3:]}
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_the_merge_is_inscribed_before_the_marking_and_the_designation_it_produces(
+    api: ContractClient, project: Costed, worker: Worker
+) -> None:
+    # « la fusion […] s'inscrit au journal »: structure_merge on the differential, its revision
+    # named by the name confirmed, then revision_mark and reference_designate on the revision, at
+    # one instant, by the requester.
+    amendment = opened_amendment(api, project)
+    merged(api, project, worker, amendment, name="Avenant 1")
+    found, authors = journal(project)
     [merge, marking, reference] = found[-3:]
     assert merge[:3] == ("structure_merge", amendment, "Avenant 1")
     assert marking[:2] == ("revision_mark", str(project.revision_id))
@@ -362,18 +462,61 @@ def test_the_merge_is_inscribed_before_the_marking_and_the_designation_it_produc
     assert authors == {project.stage.manager.user_id}
 
 
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_without_a_current_revision_the_journal_names_the_copy_of_the_differential_merged(
+    api: ContractClient, project: Costed, worker: Worker
+) -> None:
+    # « Sans révision en cours, la même tâche ouvre la révision par copie, y fusionne la copie du
+    # différentiel » (conception): the object of structure_merge is the copy, merged in the
+    # revision the merge creates and marks — the differential of the marked revision is untouched.
+    amendment = opened_amendment(api, project)
+    mark(project.stage, {"revision_id": str(project.revision_id)})
+    merged(api, project, worker, amendment, name="Avenant 1")
+    created = project_of(api, project)["reference_revision_id"]
+    copy = copy_of(project, amendment, created)
+    found, authors = journal(project)
+    [merge, marking, reference] = found[-3:]
+    assert merge[:3] == ("structure_merge", str(copy), "Avenant 1")
+    assert marking[:2] == ("revision_mark", created)
+    assert reference[:2] == ("reference_designate", created)
+    assert merge[3] == marking[3] == reference[3]
+    assert authors == {project.stage.manager.user_id}
+    assert all(each[1] != amendment for each in found)
+
+
 @pytest.mark.requirement("WF-IHM-0110-A")
 def test_no_undoing_takes_back_a_merge(
     api: ContractClient, project: Costed, worker: Worker, realm: TestRealm
 ) -> None:
     # « Aucune commande n'annule […] une fusion » (US-2590, #4211): a contributor's entry, the
-    # last of their history, then the merge, which enters none and finishes the history of the
-    # revision it marks: their undoing is refused, and the merge stays.
+    # last of their history, then the merge, which enters none — the entries of the revision, read
+    # by the marking the merge calls, just before it finishes the history, are those it had —:
+    # their undoing is refused, and the merge stays.
     who = signed_in(project.stage, realm)
     project.tree.made("Recette", who=who)
     amendment = opened_amendment(api, project)
     on(project.tree, amendment).made("Essais")
-    merged(api, project, worker, amendment)
+    before = entries_of(project)
+    seen: list[list[tuple[UUID, str]]] = []
+
+    def entries_at_the_marking(marking: RevisionMarking) -> None:
+        seen.append(
+            sorted(
+                (each, kind)
+                for each, kind in marking.session.execute(
+                    select(UndoEntry.id, UndoEntry.kind).where(
+                        UndoEntry.revision_id == marking.revision_id
+                    )
+                ).all()
+            )
+        )
+
+    with ExitStack() as registered:
+        registered.callback(register_marking(entries_at_the_marking))
+        merged(api, project, worker, amendment)
+    assert before
+    assert seen == [before]
+    assert entries_of(project) == []
     status, code, params = refusal(undo(project.tree, who))
     assert (status, code, params) == (409, REFUSED, {"missing_condition": "revision_draft"})
     assert set(tasks_of(project, project.structure_id)) == {STUDY, MAKING, "Recette", "Essais"}

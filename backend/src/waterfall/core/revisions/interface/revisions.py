@@ -66,7 +66,7 @@ from waterfall.core.revisions.interface.structures import (
     delete_structures,
 )
 from waterfall.core.revisions.registry import Registry
-from waterfall.core.revisions.states import ProjectStanding, state_of
+from waterfall.core.revisions.states import ProjectStanding, last_marked, opening_of, state_of
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
@@ -281,12 +281,12 @@ def _views(
     Whether a background task writes in the project is the project's: read once for them all.
     """
     project = project_facts(session, project_id)
-    # The revision whose merge would open the current one, if the project has none (#790).
-    opening = None if project.current_revision_id is not None else _last_marked(session, project_id)
+    # The revision whose merge would open the current one, if the project has none (#790), as the
+    # list of the structures reads it (``revision_state``).
     standing = ProjectStanding(
         no_background_task_running(session, project_id),
         reference_correctable(session, project_id),
-        opening,
+        opening_of(session, project_id),
     )
     kind = contributor_kind(session, project_id, viewer.user_id)
     sources = {row.source_revision_id for row in rows if row.source_revision_id is not None}
@@ -485,12 +485,7 @@ def last_marked_revisions(session: Session, project_ids: Collection[UUID]) -> di
 
 def _last_marked(session: Session, project_id: UUID) -> UUID | None:
     """Give the last marked revision of a project, the source of the next one, if any."""
-    return session.scalar(
-        select(Revision.id)
-        .where(Revision.project_id == project_id, Revision.status == "marked")
-        .order_by(Revision.marked_at.desc(), Revision.id.desc())
-        .limit(1)
-    )
+    return last_marked(session, project_id)
 
 
 @dataclass(frozen=True, slots=True)

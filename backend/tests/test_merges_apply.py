@@ -24,20 +24,20 @@ from merges_support import (
     client,
     costed_project,
     lines_of,
+    links_of,
     main_of,
     merged,
     merging_worker,
     project_of,
+    put_line,
     read_report,
     revision_of,
+    shape_of,
     structure_row,
     tasks_of,
 )
 from nodes_support import put_facts, set_progress, work_breakdown
 from risks_support import MAKING, STUDY, Costed, material
-from sqlalchemy import update
-
-from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.projects.interface import current_day
 from waterfall.platform.database import utc_now
 
@@ -46,7 +46,6 @@ if TYPE_CHECKING:
     from realm import TestRealm
     from sqlalchemy import Engine
     from support import ContractClient
-
     from waterfall.platform.database import Database
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
@@ -89,6 +88,52 @@ def node_of(tree: Any, label: str) -> dict[str, Any]:
     return found[0]
 
 
+type Changes = dict[str, set[tuple[str, object]]]
+
+
+def presented(found: dict[str, Any]) -> Changes:
+    """Read what a report presents: added by label, updated and removed by lineage, links by ends.
+
+    A link by the labels of its predecessor and its successor.
+    """
+    changes: Changes = {"added": set(), "updated": set(), "removed": set()}
+    for each in found["differences"]:
+        target, change = each["target"], each["change"]
+        if target == "link":
+            changes[change].add((target, (each["predecessor_label"], each["label"])))
+        elif change == "added":
+            changes[change].add((target, each["label"]))
+        else:
+            changes[change].add((target, UUID(each["lineage_id"])))
+    return changes
+
+
+def written(
+    project: Costed,
+    before: dict[UUID, tuple[object, ...]],
+    linked: set[tuple[str, str, str, Decimal, str]],
+) -> Changes:
+    """Give what a merge changed of the main structure, in the terms of ``presented``.
+
+    ``before`` and ``linked`` the nodes and the links the main structure had before the merge.
+    """
+    after = shape_of(project, project.structure_id)
+    held = {(each[0], each[1]): each[2:] for each in linked}
+    now = {(each[0], each[1]): each[2:] for each in links_of(project, project.structure_id)}
+    return {
+        "added": {(after[each][0], after[each][1]) for each in after.keys() - before.keys()}
+        | {("link", pair) for pair in now.keys() - held.keys()},
+        "updated": {
+            (before[each][0], each)
+            for each in after.keys() & before.keys()
+            if after[each] != before[each]
+        }
+        | {("link", pair) for pair in now.keys() & held.keys() if now[pair] != held[pair]},
+        "removed": {(before[each][0], each) for each in before.keys() - after.keys()}
+        | {("link", pair) for pair in held.keys() - now.keys()},
+    }
+
+
 # --- What the merge writes ------------------------------------------------------------------------
 
 
@@ -100,7 +145,9 @@ def test_the_merge_writes_what_the_report_presented_and_marks_the_revision(
     # plus aucune des tâches retirées. »: a task and its line added under lineages new to the main
     # structure, a task renamed, a line whose quantity doubles, a task not started removed with
     # its line; « La fusion demande un nom de version, et la révision produite le porte. »;
-    # « Après fusion, le projet ne comporte plus de révision en cours. »
+    # « Après fusion, le projet ne comporte plus de révision en cours. »; « ce que la fusion écrit
+    # est ce que le compte rendu a présenté »: the report read before the confirmation, its
+    # differences are what changed in the main structure — tasks, lines and links, by lineage.
     amendment = opened_amendment(api, project)
     tree = on(project.tree, amendment)
     manager = project.stage.manager
@@ -113,10 +160,13 @@ def test_the_merge_writes_what_the_report_presented_and_marks_the_revision(
     linked = link(tree, node_of(tree, "Essais"), manager, node_of(tree, "Étude détaillée"))
     assert linked.status_code == 200, linked.text
     before = tasks_of(project, project.structure_id)
+    found = read_report(api, project, amendment)
+    shaped = (shape_of(project, project.structure_id), links_of(project, project.structure_id))
     task = merged(
         api, project, worker, amendment, name="Avenant 1", description="Extension du poste"
     )
     assert (task["kind"], task["status"], task["problem"]) == ("structure_merge", "succeeded", None)
+    assert presented(found) == written(project, *shaped)
     after = tasks_of(project, project.structure_id)
     assert set(after) == {"Étude détaillée", "Essais"}
     # The task renamed keeps its node and its lineage; the task added has a lineage new to the
@@ -190,12 +240,6 @@ def test_a_started_task_removed_is_kept_completed_and_its_lines_keep_their_budge
         Decimal("400.00"),
     )
     assert making.reestimated_at is not None
-
-
-def put_line(project: Costed, label: str, **values: object) -> None:
-    """Write columns of a line of the main structure around the service, as a review would."""
-    with project.stage.owner.begin() as connection:
-        connection.execute(update(EstimateLine).where(EstimateLine.label == label).values(**values))
 
 
 @pytest.mark.requirement("WF-REV-0050-A")

@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import exists, select
 
 from waterfall.core.cost_settings.interface import provision_category_active
-from waterfall.core.projects.interface import no_background_task_running
+from waterfall.core.projects.interface import no_background_task_running, project_facts
 from waterfall.core.revisions.commands import RevisionState
 from waterfall.core.revisions.interface.rates import rate_update_available
 from waterfall.core.revisions.interface.reference import (
@@ -44,9 +44,32 @@ def revision_state(session: Session, project_id: UUID, revision_id: UUID) -> Rev
     if status is None:
         raise NotFoundError(NOT_FOUND)
     standing = ProjectStanding(
-        no_background_task_running(session, project_id), reference_correctable(session, project_id)
+        no_background_task_running(session, project_id),
+        reference_correctable(session, project_id),
+        opening_of(session, project_id),
     )
     return state_of(session, (project_id, revision_id), status, standing)
+
+
+def last_marked(session: Session, project_id: UUID) -> UUID | None:
+    """Give the last marked revision of a project, the source of the next one, if any."""
+    return session.scalar(
+        select(Revision.id)
+        .where(Revision.project_id == project_id, Revision.status == "marked")
+        .order_by(Revision.marked_at.desc(), Revision.id.desc())
+        .limit(1)
+    )
+
+
+def opening_of(session: Session, project_id: UUID) -> UUID | None:
+    """Give the revision whose merge would open the current one: its last marked, if it has none.
+
+    Read by every path that judges the commands of a revision (``source``, #790): the list and
+    the reading of the revisions as the list of the structures.
+    """
+    if project_facts(session, project_id).current_revision_id is not None:
+        return None
+    return last_marked(session, project_id)
 
 
 @dataclass(frozen=True, slots=True)

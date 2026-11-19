@@ -15,15 +15,20 @@ lines (``place_merged_lines``), then this module their facets:
   category, its role, its subproject and its delay of payment are the line's own. Its figures —
   its quantity, its hours, its unit disbursement — become its figures of reference, and its
   budgeted amount the differential's, whenever the differential changes what prices it (a figure,
-  its category or its role); they become its current figures too when its task is not started
-  and nobody re-estimated it (``reestimated_at``), or when its role changes, the figures of a line
-  following the presence of its role. Otherwise the current figures and the re-estimated amount
-  stay: a line re-estimated to 140 that the differential brings to 120 bears 120 budgeted and 140
-  re-estimated. A line the differential only moves, or names only by its label, keeps its budget.
+  its category or its role); they become its current figures too only when its task is not
+  started and nobody re-estimated it (``reestimated_at``), as ``mergeCostStructure`` says.
+  Otherwise the current figures stay, whatever the differential changes, its role included: a
+  line re-estimated to 140 that the differential brings to 120 bears 120 budgeted and 140
+  re-estimated. A role changed keeps the kind of the line — an entry never gives a role to a line
+  without one, nor takes it from one (``RESOURCE_ROLE_REQUIRED``, ``FIELD_NOT_ACCEPTED``) —, so
+  its current hours stay those of a labour line; the replay prices them at the rate of the role
+  it now names. A line the differential only moves, or names only by its label, its subproject or
+  its delay of payment, keeps its budget and its figures.
 - **The lines of a started task the merge keeps and completes** are brought to a remaining of
-  nought — their quantity nought, marked as a re-estimate is —, their budgeted amount kept: a line
-  that read its budget from its re-estimated amount, the project having no reference yet, keeps it
-  written. The provision lines are never touched.
+  nought by the function of ``setLineRemaining`` (``reestimate``): their quantity nought, priced
+  again, marked, the reason of a former re-estimate cleared; their budgeted amount kept — a line
+  that read its budget from its re-estimated amount, the project having no reference yet, has it
+  written first. The provision lines are never touched.
 
 The amounts are priced again by the replay of the dates that ends the merge.
 """
@@ -32,15 +37,17 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from waterfall.core.estimate.entries import LineEntry
 from waterfall.core.estimate.reading import rows_of
+from waterfall.core.estimate.remaining.reviewing import reestimate
 from waterfall.core.estimate.tables import EstimateLine
-from waterfall.core.planning.interface import place_merged_lines
+from waterfall.core.planning.interface import FacetWrite, place_merged_lines
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping
     from uuid import UUID
 
-    from waterfall.core.planning.interface import MergedLines
+    from waterfall.core.planning.interface import BearingTask, MergedLines
     from waterfall.core.revisions.interface import StructureMerging
 
 NOUGHT = Decimal(0)
@@ -116,7 +123,7 @@ def _designated(
     """Give a line of the main structure what the differential designates of it.
 
     ``current`` whether its task is not started: its current figures follow the differential's if
-    nobody re-estimated it.
+    nobody re-estimated it, whatever the columns the differential changes.
     """
     for name, column in OWN:
         if name in line.fields:
@@ -126,18 +133,23 @@ def _designated(
     for reference, figure in zip(REFERENCE, FIGURES, strict=True):
         setattr(row, reference, getattr(source, figure))
     row.budgeted_amount = source.reestimated_amount
-    if (current and row.reestimated_at is None) or "resource_role" in line.fields:
+    if current and row.reestimated_at is None:
         for figure in FIGURES:
             setattr(row, figure, getattr(source, figure))
 
 
-def _zeroed(row: EstimateLine, merging: StructureMerging) -> None:
-    """Bring a line of a task the merge completes to a remaining of nought, its budget kept."""
+def _zeroed(row: EstimateLine, merging: StructureMerging, bearer: BearingTask) -> None:
+    """Bring a line of a task the merge completes to a remaining of nought, its budget kept.
+
+    By the function of ``setLineRemaining`` (``reestimate``), on the task that bears it, without a
+    reason: the line counted, priced again and marked, as a re-estimate to nought leaves it.
+    """
     if row.budgeted_amount is None:
         row.budgeted_amount = row.reestimated_amount
-    row.quantity = NOUGHT
-    row.reestimated_at = merging.act.at
-    _stamped(row, merging)
+    write = FacetWrite(
+        merging.session, merging.project_id, merging.revision_id, row.node_id, bearer, merging.act
+    )
+    reestimate(write, LineEntry(quantity=NOUGHT, sent=frozenset({"quantity"})), None)
 
 
 def write_lines(
@@ -174,5 +186,5 @@ def write_lines(
     for each in where.main:
         completing = each.task_lineage_id in where.completing
         if completing and not each.is_provision and each.node_id not in sent:
-            _zeroed(held[each.node_id], merging)
+            _zeroed(held[each.node_id], merging, where.bearers[each.task_lineage_id])
     session.flush()

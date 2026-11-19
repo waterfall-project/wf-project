@@ -10,7 +10,9 @@ estimate, whose part comes after, reads of the same plan where each line stands
 (``merged_lines``): in the main structure and in the differential, by the lineage of its task, the
 provisions told; which tasks the merge keeps, and where the provision lines of a task it removes
 go — to the nearest ancestor it leaves, or, from the first level, to the first task of the first
-level (WF-RIS-0010; #789).
+level (WF-RIS-0010; #789); the tasks the merge leaves, named, which the estimate judges for their
+working hours; and, to the application, the started tasks it completes as the facet of a line is
+told of its task (``BearingTask``), whose lines the estimate re-estimates to nought.
 
 The report reads; the application (``StructureMerging.applying``, US-2560/L2) writes what the same
 plan finds, under the lock of the two structures (``merging_writing``): the planning writes its
@@ -21,9 +23,12 @@ merge does not keep, completes the started ones it keeps, and replays the engine
 Written by US-2560/L1; the application by US-2560/L2.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
+from uuid import UUID
 
+from waterfall.core.planning.carrying import bearing
+from waterfall.core.planning.interface.facets import BearingTask
 from waterfall.core.planning.interface.rebased import load_rebase
 from waterfall.core.planning.merging import merge_plan, merge_refusals, task_differences
 from waterfall.core.planning.merging_writing import finish, place_lines, write_tasks
@@ -38,7 +43,6 @@ from waterfall.core.revisions.interface import (
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-    from uuid import UUID
 
     from sqlalchemy.orm import Session
 
@@ -66,7 +70,11 @@ class MergedLines:
     ``moved`` the lineage of each task it removes whose provision lines go to another task, with
     the node of that task — in the main structure, or in the differential for a task it adds;
     ``completing`` the lineages of the tasks kept that are started, which the merge completes;
-    ``started`` those of the tasks of the main structure that are started or completed.
+    ``started`` those of the tasks of the main structure that are started or completed; ``tasks``
+    each task the merge leaves, by its lineage, in the order of the plan, with its node in the main
+    structure — none for a task the differential adds — and its label; ``bearers`` each task it
+    completes, by its lineage, as the facet of a line it bears is told of it, for the application
+    alone, which brings their remaining to nought.
     """
 
     main: tuple[MergedLine, ...]
@@ -75,6 +83,10 @@ class MergedLines:
     moved: Mapping[UUID, UUID]
     completing: frozenset[UUID] = frozenset()
     started: frozenset[UUID] = frozenset()
+    tasks: Mapping[UUID, tuple[UUID | None, str]] = field(
+        default_factory=dict[UUID, tuple[UUID | None, str]]
+    )
+    bearers: Mapping[UUID, BearingTask] = field(default_factory=dict[UUID, BearingTask])
 
 
 def merge_tasks(merging: StructureMerging) -> MergePart:
@@ -141,8 +153,29 @@ def merged_lines(merging: StructureMerging) -> MergedLines:
         for each in main.tasks
         if state_of(main, each).progress != NOT_STARTED
     )
+    tasks: dict[UUID, tuple[UUID | None, str]] = {}
+    for task_id in plan.order:
+        node = main.nodes.get(task_id) or plan.amendment.nodes[plan.sources[task_id]]
+        tasks[node.lineage_id] = (
+            task_id if task_id in main.nodes else None,
+            plan.label_of(task_id),
+        )
+    bearers = {
+        main.nodes[each].lineage_id: bearing(
+            merging.session, merging.project_id, main, each, is_main=True
+        )
+        for each in plan.kept
+        if merging.applying and main.nodes[each].lineage_id in completing
+    }
     return MergedLines(
-        lines_in_order(main), lines_in_order(plan.amendment), kept, moved, completing, started
+        lines_in_order(main),
+        lines_in_order(plan.amendment),
+        kept,
+        moved,
+        completing,
+        started,
+        tasks,
+        bearers,
     )
 
 

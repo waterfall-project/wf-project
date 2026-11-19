@@ -18,23 +18,23 @@ from fastapi.testclient import TestClient
 from projects_support import PROJECTS
 from projects_support import scene as make_scene
 from risks_support import Costed, costed
-from sqlalchemy import select
+from sqlalchemy import select, update
 from support import ContractClient, nowhere
-
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.estimate.tables import EstimateLine
-from waterfall.core.planning.tables import Node, Task
+from waterfall.core.planning.tables import Node, Task, TaskLink
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.worker.merge import merge
 from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
+    from decimal import Decimal
+
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
-
     from waterfall.platform.database import Database
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
@@ -184,6 +184,77 @@ def lines_of(project: Costed, structure_id: object) -> dict[str, EstimateLine]:
         ).all()
         session.expunge_all()
         return {row.label: row for row in rows}
+
+
+def shape_of(project: Costed, structure_id: object) -> dict[UUID, tuple[object, ...]]:
+    """Read the nodes of a structure by their lineage, as a merge designates them.
+
+    Each its kind, its label, the lineage of its parent, and the columns a differential designates:
+    a task's mode and duration, a line's category, role, figures, subproject and delay of payment.
+    """
+    with project.stage.database.transaction() as session:
+        nodes = session.execute(
+            select(Node.id, Node.lineage_id, Node.kind, Node.parent_id).where(
+                Node.structure_id == UUID(str(structure_id))
+            )
+        ).all()
+        lineages = {node: lineage for node, lineage, _, _ in nodes}
+        named = [node for node, _, _, _ in nodes]
+        tasks = {
+            row.node_id: (row.label, row.description, row.scheduling_mode, row.duration_value)
+            for row in session.scalars(select(Task).where(Task.node_id.in_(named)))
+        }
+        lines = {
+            row.node_id: (
+                row.label,
+                row.cost_category_id,
+                row.resource_role_id,
+                row.quantity,
+                row.hours,
+                row.unit_disbursement,
+                row.subproject_id,
+                row.payment_delay_days,
+            )
+            for row in session.scalars(select(EstimateLine).where(EstimateLine.node_id.in_(named)))
+        }
+    return {
+        lineage: (
+            kind,
+            *(tasks.get(node) or lines[node]),
+            None if parent is None else lineages[parent],
+        )
+        for node, lineage, kind, parent in nodes
+    }
+
+
+def links_of(project: Costed, structure_id: object) -> set[tuple[str, str, str, Decimal, str]]:
+    """Read the links of a structure: its predecessor's label, its successor's, its type and lag."""
+    with project.stage.database.transaction() as session:
+        rows = session.execute(
+            select(TaskLink).where(TaskLink.structure_id == UUID(str(structure_id)))
+        ).scalars()
+        links = list(rows)
+        labels = dict(
+            session.execute(
+                select(Task.node_id, Task.label).where(Task.structure_id == UUID(str(structure_id)))
+            ).all()
+        )
+        return {
+            (
+                labels[each.predecessor_id],
+                labels[each.successor_id],
+                each.link_type,
+                each.lag_value,
+                each.lag_unit,
+            )
+            for each in links
+        }
+
+
+def put_line(project: Costed, label: str, **values: object) -> None:
+    """Write columns of the lines of a label around the service, as a review would."""
+    with project.stage.owner.begin() as connection:
+        connection.execute(update(EstimateLine).where(EstimateLine.label == label).values(**values))
 
 
 def structure_row(project: Costed, structure_id: object) -> CostStructure:

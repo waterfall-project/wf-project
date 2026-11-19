@@ -204,7 +204,12 @@ def _merged(session: Session, request: MergeRequest, act: Act, task_id: UUID | N
     ``task_id`` the task of the merge, none for the witness, whose instant ``act`` imposes.
     """
     project_id = request.project_id
-    # The current revision locked first, then the project, as the marking does.
+    # The current revision locked first, then the project, as the marking does: which revision to
+    # lock is read before the lock of the project, which the order of the locks forbids to take
+    # first. Nothing is decided on that reading: ``_judged`` reads the project again under its lock
+    # (``merging_of``), and a revision that stopped being current meanwhile — marked by another
+    # task — is refused by ``revision_draft``, its row locked all the same; a revision never
+    # becomes current after its creation, so none the merge writes is left unlocked.
     if project_facts(session, project_id).current_revision_id == request.revision_id:
         found_revision(session, request.revision_id, project_id, lock=True)
     lock_project(session, project_id)
