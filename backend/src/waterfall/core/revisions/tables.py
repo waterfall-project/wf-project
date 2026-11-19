@@ -192,6 +192,8 @@ class CostStructure(Audited):
             "(main_lock_version IS NOT NULL) = (kind = 'amendment')",
             name="main_counter_of_its_kind",
         ),
+        # A differential copied out of date keeps 0, which the main structure never bears.
+        CheckConstraint("main_lock_version >= 0", name="main_counter_not_negative"),
         *bounded("label", LABEL_LENGTH),
         # What a revised row of the planning names: the structure with its revision (EP-06).
         UniqueConstraint("project_id", "id", "revision_id"),

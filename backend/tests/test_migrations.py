@@ -14,6 +14,7 @@ from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from migrations_support import partition_parts, scratch_database
 from project_rows import (
+    base_row,
     insert_project,
     insert_revision,
     insert_structure,
@@ -869,3 +870,27 @@ def test_the_descent_of_the_abandonment_of_a_differential_fails_while_the_journa
     with empty_engine.connect() as connection:
         assert applied(connection) == ["0037"]
         assert connection.scalar(select(func.count()).select_from(AuditEntry)) == 1
+
+
+def test_the_descent_of_the_base_of_a_differential_fails_while_a_base_exists(
+    empty_engine: Engine,
+) -> None:
+    # US-3050/L2: 0038 admits the kind ``base``; its descent refuses the kind again, which a base
+    # held forbids: the descent fails and the schema stays, the base with it.
+    upgrade(empty_engine, "0038")
+    project, revision, differential = uuid4(), uuid4(), uuid4()
+    with empty_engine.begin() as connection:
+        connection.execute(insert_project(id=project))
+        connection.execute(select(func.create_project_partitions(project)))
+        connection.execute(insert_revision(project, id=revision))
+        connection.execute(insert_structure(project, revision))
+        connection.execute(
+            insert_structure(project, revision, id=differential, kind="amendment", label="Avenant")
+        )
+        connection.execute(insert(CostStructure).values(base_row(project, revision, differential)))
+    with pytest.raises(DBAPIError, match="kind_known"):
+        downgrade(empty_engine, "0037")
+    with empty_engine.connect() as connection:
+        assert applied(connection) == ["0038"]
+        kinds = connection.scalars(select(CostStructure.kind).order_by(CostStructure.kind))
+        assert list(kinds) == ["amendment", "base", "main"]

@@ -9,7 +9,8 @@ differential with its project and its revision — a base lives in the revision 
 —, one base at most by differential (a partial unique index, which holds the key of the
 partition). And ``main_lock_version``, the counter the main structure bore when the base of a
 differential was taken: there if and only if the kind is ``amendment``; the differential is up to
-date while the main structure bears it.
+date while the main structure bears it; never negative, 0 for a differential copied out of date,
+which the main structure never bears.
 
 Added to the partitioned table, the columns, the checks, the key and the index go to each
 partition; the columns are born null. No row is to take up: no differential exists but in the
@@ -60,6 +61,7 @@ def upgrade() -> None:
     op.create_check_constraint(
         "main_counter_of_its_kind", TABLE, "(main_lock_version IS NOT NULL) = (kind = 'amendment')"
     )
+    op.create_check_constraint("main_counter_not_negative", TABLE, "main_lock_version >= 0")
     op.create_foreign_key(
         None,
         TABLE,
@@ -81,6 +83,7 @@ def downgrade() -> None:
     """Refuse the base of a differential again; fails while one exists."""
     op.drop_index(BASE_INDEX, table_name=TABLE)
     op.drop_constraint(op.f(f"fk_{TABLE}_project_id_{TABLE}"), TABLE, type_="foreignkey")
+    op.drop_constraint(op.f(f"ck_{TABLE}_main_counter_not_negative"), TABLE, type_="check")
     op.drop_constraint(op.f(f"ck_{TABLE}_main_counter_of_its_kind"), TABLE, type_="check")
     op.drop_constraint(op.f(f"ck_{TABLE}_differential_of_its_kind"), TABLE, type_="check")
     _kinds(FORMER_KINDS)

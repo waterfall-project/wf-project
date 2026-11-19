@@ -299,6 +299,11 @@ REFUSALS: list[Refusal] = [
     ),
     (CostStructure, {"kind": "amendment"}, "ck_cost_structure_main_counter_of_its_kind"),
     (CostStructure, {"main_lock_version": 1}, "ck_cost_structure_main_counter_of_its_kind"),
+    (
+        CostStructure,
+        {"kind": "amendment", "main_lock_version": -1},
+        "ck_cost_structure_main_counter_not_negative",
+    ),
     *bounds(CostStructure, "label", 300),
     (CostStructure, {"revision_id": uuid4()}, "fk_cost_structure_project_id_revision"),
 ]

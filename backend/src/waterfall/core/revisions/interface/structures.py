@@ -94,6 +94,9 @@ MAIN_LABEL = "Structure principale"
 # The counter of a structure at its creation, its own or a copy's: every resource is born at 1
 # (``LockVersion`` of the contract; E-16, #2542).
 FIRST_VERSION = 1
+# The counter of the main structure a differential copied out of date keeps: below
+# ``FIRST_VERSION``, the main structure never bears it (US-3050).
+NEVER_BORNE = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -362,8 +365,8 @@ def copy_structures(copy: RevisionCopy) -> None:
     The own estimate of a risk keeps its risk (``risk_id``, EP-08), which is not revised. The base
     of a differential not merged is copied after it, naming its copy; that of a merged one is not
     copied, as its differential is not (US-3050, WF-REV-0100). A differential's counter of the main
-    structure is 0 here, the main structure of the copy never bearing it: the state of each
-    differential is given once every table is copied and the main structure redated
+    structure is ``NEVER_BORNE`` here, the main structure of the copy never bearing it: the state of
+    each differential is given once every table is copied and the main structure redated
     (``keep_differential_states``).
 
     Each keeps the date its planning starts on and the instant its dates were computed (#2170): a
@@ -400,7 +403,7 @@ def copy_structures(copy: RevisionCopy) -> None:
                 differential_id=None
                 if row.differential_id is None
                 else copy.identifiers[row.differential_id],
-                main_lock_version=None if row.main_lock_version is None else 0,
+                main_lock_version=None if row.main_lock_version is None else NEVER_BORNE,
                 planning_start_on=row.planning_start_on,
                 scheduled_at=row.scheduled_at or row.created_at,
                 lock_version=FIRST_VERSION,
