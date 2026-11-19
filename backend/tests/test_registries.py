@@ -486,24 +486,6 @@ def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
     assert held["planning.physical_progress"] == REGISTERED_BY_EP10["planning.physical_progress"]
 
 
-# The interface of the portfolio, which registers its part of a marking from US-2680/L2 on.
-PORTFOLIO = "waterfall.core.portfolio.interface"
-
-
-@pytest.mark.parametrize("entry_point", sorted(ENTRY_POINTS))
-def test_each_entry_point_imports_the_interface_of_the_portfolio(entry_point: str) -> None:
-    # A tool of the registries, which covers no requirement. The portfolio fills no registry before
-    # US-2680/L2, which registers at ``register_indicators``
-    # what a marking keeps for it: the comparison above cannot tell yet whether an entry point
-    # imports it. Each that marks a revision — the API, the worker, the loader — does from the
-    # socle on (EP-11, "Modules"), so that none marks without its part once it registers.
-    statement = f"import sys, {ENTRY_POINTS[entry_point]}; print({PORTFOLIO!r} in sys.modules)"
-    result = subprocess.run(
-        [sys.executable, "-c", statement], capture_output=True, text=True, timeout=120, check=True
-    )
-    assert result.stdout.strip() == "True"
-
-
 @pytest.fixture
 def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
     """Give a platform whose reference is complete, its sessions, and a project its manager made."""
