@@ -12,7 +12,7 @@ marked as its marking kept it (WF-DAT-0040). The provisions the remaining to com
 """
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -29,10 +29,13 @@ from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.tables import Node, Task
 from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.interface import ReferenceDesignated
+from waterfall.core.revisions.interface.shared import inscribe_revision
 from waterfall.core.revisions.tables import Revision
 from waterfall.core.risks.sharing import write_shares
 from waterfall.core.risks.tables import RiskReferenceShare
+from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
+from waterfall.platform.logs import logging_context
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -188,7 +191,7 @@ def refer_as_a_merge(
             .where(Project.id == project.project_id)
             .values(reference_revision_id=revision_id)
         )
-    with project.stage.database.transaction() as session:
+    with logging_context(correlation_id="merge"), project.stage.database.transaction() as session:
         designation = ReferenceDesignated(
             session,
             project.project_id,
@@ -199,6 +202,11 @@ def refer_as_a_merge(
             corrects=False,
         )
         write_shares(designation)
+        # The designation inscribes itself in the journal after its parts, as the command does.
+        revision = session.get(Revision, revision_id)
+        assert revision is not None
+        act = Act(None, designation.at)
+        inscribe_revision(session, revision, "reference_designate", revision.version_name, act)
 
 
 def share_rows(stage: Scene, revision_id: object) -> dict[UUID, Decimal]:
@@ -455,12 +463,13 @@ def test_a_marked_revision_keeps_the_figures_of_its_risks_and_reads_the_reserve_
 
 
 @pytest.mark.requirement("WF-RIS-0050-A")
-def test_two_designations_at_the_same_instant_take_the_shares_of_the_one_before(
+def test_two_designations_at_the_same_instant_take_the_shares_of_the_previous_reference(
     risks: Risks, project: Costed
 ) -> None:
-    # The shares taken back are those of the reference the designation replaces, whatever the
-    # instants (the loader of the witness imposes them): two designations at the same one, the
-    # second takes the share the first conserved for a risk occurred since. The occurrence and the
+    # The shares taken are those of the reference the designation replaces (``previous_id``),
+    # whatever the instants (the loader of the witness imposes them): two designations at the same
+    # one, the second takes the share the first conserved for a risk occurred since. The order of
+    # the journal, which a correction needs, is proved by the test below. The occurrence and the
     # merge are emulated (``occur``, ``refer_as_a_merge``): the example of the Vérif, on the real
     # ones, is US-2610/L2's (#3837), not acquired here.
     first = declare(risks, project.revision_id, "Retard du fournisseur", "0.3", "200.00")
@@ -475,6 +484,45 @@ def test_two_designations_at_the_same_instant_take_the_shares_of_the_one_before(
     mark(project.stage, {"revision_id": str(again)}, label="v3.0")
     refer_as_a_merge(project, following, again, at)
     assert share_rows(project.stage, again) == {UUID(first["risk_id"]): Decimal("60.00")}
+
+
+@pytest.mark.requirement("WF-RIS-0050-A")
+@pytest.mark.parametrize("same_instant", [False, True])
+def test_a_correction_takes_the_shares_of_the_reference_designated_last_before_the_corrected(
+    risks: Risks, project: Costed, monkeypatch: pytest.MonkeyPatch, same_instant: bool
+) -> None:
+    # The reference replaced by a correction being gone, the shares come from the reference
+    # designated last among the others, by the order of the journal (``_reference_before``), not by
+    # instants. Z, designated by the command, conserves 60 for the risk; A, made the reference by a
+    # merge (``refer_as_a_merge``, emulated and inscribed), 90 (its estimate was raised); the risk
+    # occurred in M, marked before B, which the next merge makes the reference after A. M is then
+    # designated by the command, which corrects B (no mark since): M takes the 90 of A, designated
+    # last before B, not the 60 of Z. With ``same_instant``, Z, A and B are designated at one
+    # instant, the order of the journal alone telling A from Z. The instant is an hour on, so that
+    # no mark comes after it and the designation stays correctable.
+    at = utc_now() + timedelta(hours=1)
+    with monkeypatch.context() as patch:
+        if same_instant:
+            patch.setattr("waterfall.api.lifecycle.utc_now", lambda: at)
+        risk = declare(risks, project.revision_id, "Retard du fournisseur", "0.3", "200.00")
+        mark_and_designate(risks, project.revision_id)
+    held_by_a = UUID(risks.revision()["revision_id"])
+    risks.costed_at(risk, held_by_a, "100.00")
+    mark(project.stage, {"revision_id": str(held_by_a)}, label="v2.0")
+    corrected_to = UUID(risks.revision()["revision_id"])
+    occur(project.stage, risk["risk_id"], corrected_to)
+    mark(project.stage, {"revision_id": str(corrected_to)}, label="v3.0")
+    merged = UUID(risks.revision()["revision_id"])
+    occur(project.stage, risk["risk_id"], merged)
+    mark(project.stage, {"revision_id": str(merged)}, label="v4.0")
+    instant = at if same_instant else None
+    refer_as_a_merge(project, project.revision_id, held_by_a, instant)
+    assert share_rows(project.stage, held_by_a) == {UUID(risk["risk_id"]): Decimal("90.00")}
+    refer_as_a_merge(project, held_by_a, merged, instant)
+    assert share_rows(project.stage, merged) == {UUID(risk["risk_id"]): Decimal("90.00")}
+    designate(risks.api, project.stage, {"revision_id": str(corrected_to)})
+    assert share_rows(project.stage, merged) == {}
+    assert share_rows(project.stage, corrected_to) == {UUID(risk["risk_id"]): Decimal("90.00")}
 
 
 @pytest.mark.requirement("WF-RAE-0020-A")

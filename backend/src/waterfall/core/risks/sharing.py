@@ -49,19 +49,19 @@ def _delete_shares(session: Session, project_id: UUID, revision_id: UUID) -> Non
     )
 
 
-def _reference_before(session: Session, project_id: UUID, revision_id: UUID) -> UUID | None:
-    """Give the reference that holds shares and was designated last, other than a revision.
+def _reference_before(session: Session, project_id: UUID) -> UUID | None:
+    """Give the reference that holds shares and was designated last.
 
-    Only a correction needs it, the reference it replaces being gone: the order is that of the
-    inscriptions of the designations in the journal, whose identifiers are drawn in time order,
-    never the instants of the designations, which the witness may impose twice the same.
+    Only a correction needs it, once the shares of the revision designated and of the reference it
+    replaces are gone, so that neither is found: the order is that of the inscriptions of the
+    designations in the journal, whose identifiers are drawn in time order, never the instants of
+    the designations, which the witness may impose twice the same.
     """
     return session.scalar(
         select(RiskReferenceShare.revision_id)
         .join(AuditEntry, AuditEntry.object_id == RiskReferenceShare.revision_id)
         .where(
             RiskReferenceShare.project_id == project_id,
-            RiskReferenceShare.revision_id != revision_id,
             AuditEntry.action == "reference_designate",
         )
         .order_by(AuditEntry.id.desc())
@@ -108,7 +108,7 @@ def write_shares(designation: ReferenceDesignated) -> None:
     if designation.corrects and before is not None:
         _delete_shares(session, project_id, before)
         session.flush()
-        before = _reference_before(session, project_id, revision_id)
+        before = _reference_before(session, project_id)
     session.flush()
     evaluations = session.scalars(
         select(RiskEvaluation)
