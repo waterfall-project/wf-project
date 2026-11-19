@@ -58,12 +58,12 @@ test("opens the amendment « Préparer un avenant » creates, names it in the ba
     const form = page.getByRole("form", { name: "Abandonner l’avenant" });
     await form.getByRole("button", { name: /Confirmer l’abandon/ }).click();
     await expect(page).not.toHaveURL(/structure=/, { timeout: WORKING });
-    await expect(named(page, "Structure principale")).toBeVisible({ timeout: WORKING });
-    // The structure is gone from the revision: the banner lists the main structure alone.
-    await named(page, "Structure principale").click();
-    await expect(page.getByRole("menu").getByRole("menuitemradio")).toHaveText([
-      "Structure principale",
-    ]);
+    // The grid reads the main structure, the only one left: the banner offers no other to choose.
+    await expect(page.getByText(/Structure principale · 6 tâches/)).toBeVisible({
+      timeout: WORKING,
+    });
+    await expect(named(page, "Avenant service")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Abandonner l’avenant" })).toHaveCount(0);
   } finally {
     await calls.dispose();
   }
