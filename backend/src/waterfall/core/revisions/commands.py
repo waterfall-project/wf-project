@@ -42,6 +42,11 @@ REVISION_MARKED = "revision_marked"
 REVISION_HAS_TASKS_AND_LINES = "revision_has_tasks_and_lines"
 REFERENCE_CORRECTABLE = "reference_correctable"
 RATE_UPDATE_AVAILABLE = "rate_update_available"
+UNMERGED_AMENDMENT_EXISTS = "unmerged_amendment_exists"
+MAIN_STRUCTURE = "main_structure"
+# What the commands of a structure read of its nature: the main one, a differential not merged.
+MAIN_NATURE = "main"
+DIFFERENTIAL_NATURE = "differential"
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,11 +94,13 @@ EXPORT_RULES: tuple[Rule, ...] = (
     Rule("export_task_tree_image", "planning.read"),
 )
 # In the order of ``StructureCommand``: each guarded by the permission of the command of the same
-# name of the revision.
+# name of the revision; the abandonment of a differential (``delete``) by that of the opening of
+# one (``create_structure``), listed on a differential that is not merged alone (US-2550/L4).
 STRUCTURE_RULES: tuple[Rule, ...] = (
     Rule("edit_planning", "planning.write"),
     Rule("edit_estimate", "estimate.write"),
     Rule("edit_remaining", "remaining.write"),
+    Rule("delete", "revisions.write"),
 )
 
 
@@ -210,13 +217,16 @@ def structure_commands_of(
     state: str,
     revision: RevisionState,
     *,
-    main: bool,
+    nature: str,
 ) -> list[tuple[str, tuple[str, ...]]]:
     """List the commands a caller holds on a structure, each with the conditions it lacks.
 
-    Only the main structure has a remaining to commit (WF-RAE-0040): the other kinds, EP-08's,
-    never list it.
+    ``nature`` is ``MAIN_NATURE``, ``DIFFERENTIAL_NATURE`` — a differential that is not merged — or
+    any other. Only the main structure has a remaining to commit (WF-RAE-0040): the other kinds,
+    EP-08's, never list it. Only a differential not merged lists its abandonment: it would never
+    become available on another structure (WF-REV-0100).
     """
+    main = nature == MAIN_NATURE
     if state in TERMINAL:
         return []
     return [
@@ -229,5 +239,7 @@ def structure_commands_of(
             ),
         )
         for rule in STRUCTURE_RULES
-        if rule.permission in permissions and (main or rule.command != "edit_remaining")
+        if rule.permission in permissions
+        and (main or rule.command != "edit_remaining")
+        and (nature == DIFFERENTIAL_NATURE or rule.command != "delete")
     ]

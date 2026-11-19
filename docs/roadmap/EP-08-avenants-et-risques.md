@@ -482,7 +482,7 @@ bâtisse pas le sien.
 
 ## US-2550 — Les structures différentielles : ouvrir, saisir, importer, abandonner
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-REV-0100-A`, `WF-DEV-0050-A`, `WF-INTF-0100-A`
 - **opérations** : `createCostStructure`, `listCostStructures`, `updateCostStructure`,
   `deleteCostStructure` (nouvelle, écrite par la conception), `createRevision` ; sur un

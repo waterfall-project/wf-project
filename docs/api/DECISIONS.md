@@ -12417,6 +12417,29 @@ Les refus ont leurs exemples, engendrés par `wftools.mockdifferentials` et tenu
 (`structure_delete_revision_marked`), l'avenant 2 courant au compteur périmé
 (`structure_delete_stale`). Aucun exemple de succès : le 204 n'a pas de corps.
 
+### La condition de l'abandon, l'inscription et la migration du journal (US-2550/L4, #3953, #2497, #2499)
+
+Trois précisions que le lot qui sert `deleteCostStructure` et le refus de `setNodeTracking` écrit,
+aucune propriété du contrat ne changeant.
+
+- **`unmerged_amendment_exists` dit, sur `deleteCostStructure`, que la structure visée n'est pas un
+  différentiel non fusionné** (#3953, décision de l'auteur du 2026-11-18) : non pas qu'il n'en existe
+  aucun dans la révision, d'autres pouvant exister. La condition est gardée, et la description de
+  l'opération le dit d'une phrase. Écarté : une condition propre à l'abandon.
+- **L'ordre des refus de l'abandon** : le 409 de l'état de la révision (`project_not_terminal`,
+  `revision_draft`, `no_background_task_running`), puis celui de la nature de la structure
+  (`unmerged_amendment_exists`), puis le 412 du compteur : la principale n'est jamais refusée par
+  412, quel que soit le compteur envoyé.
+- **Les inscriptions d'une lignée se sérialisent par un verrou de la lignée** (#2499), pris après
+  celui de la structure par toute écriture des inscriptions — `setNodeTracking`, la restitution
+  d'une entrée de l'historique —, de sorte que deux structures qui partagent une lignée ne les
+  insèrent pas en parallèle. Avec le refus de `main_structure` (#2497), qui laisse la principale
+  seule les écrire, il ne reste à tenir que la restitution ; le verrou ferme le cas sans qu'une
+  violation d'unicité remonte en 500.
+- **La migration `0037`** admet `structure_abandon` dans le journal, après `amendment_merge`, qui
+  garde son ancien nom jusqu'à US-2560 : la contrainte `action_known` et l'index du rang de
+  l'action suivent l'ordre du contrat.
+
 ### La permission de l'ouverture d'un différentiel (US-2550/L3, #3824)
 
 `createCostStructure` — la commande `create_structure` de la révision — est sous `revisions.write`,
