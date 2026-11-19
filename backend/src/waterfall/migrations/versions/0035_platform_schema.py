@@ -7,8 +7,9 @@ tables of a schema of their own, ``platform`` (US-2830, #956, ``waterfall.platfo
 a backup dumps ``public`` alone, and a restoration replaces it alone. Each table holds one row at
 most; the role of the service reads them, and the owner alone writes them — the service of the
 restoration. A restoration of a backup taken before this revision applies it again over the
-schema it left in place: the schema, its tables and their rights are then left as they are, the
-maintenance it holds included, and only what follows, in ``public``, is applied.
+schema it left in place: what is there is then left as it is, the maintenance it holds included,
+and only what follows, in ``public``, is applied. The schema, each table and the rights are made
+where they are missing — a schema made by hand without its tables is completed.
 
 ``background_task.kind`` admits the three kinds the platform schedules — the purge, the external
 copy of a backup, the test of a restoration —, after those of the contract and in that order, as
@@ -63,9 +64,11 @@ $$
 
 
 def upgrade() -> None:
-    """Make the schema ``platform`` unless it is there; admit the kinds; a report with its task."""
-    if SCHEMA not in sa.inspect(op.get_bind()).get_schema_names():
-        _create_platform()
+    """Make the schema ``platform``, its tables and rights where missing; admit the kinds, etc.
+
+    A report of the accounts goes with its task.
+    """
+    _create_platform()
     _replace_kinds(KINDS)
     _replace_report_key("CASCADE")
 
@@ -84,7 +87,7 @@ def downgrade() -> None:
 
 
 def _create_platform() -> None:
-    op.execute(sa.schema.CreateSchema(SCHEMA))
+    op.execute(sa.schema.CreateSchema(SCHEMA, if_not_exists=True))
     op.create_table(
         "maintenance",
         sa.Column("id", sa.SmallInteger(), autoincrement=False, nullable=False),
@@ -92,6 +95,7 @@ def _create_platform() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.CheckConstraint("id = 1", name="single_row"),
         schema=SCHEMA,
+        if_not_exists=True,
     )
     op.create_table(
         "restoration",
@@ -108,6 +112,7 @@ def _create_platform() -> None:
         sa.CheckConstraint("attempts >= 1", name="attempts_positive"),
         sa.CheckConstraint("jsonb_typeof(payload) = 'object'", name="payload_object"),
         schema=SCHEMA,
+        if_not_exists=True,
     )
     op.execute(GRANT)
 

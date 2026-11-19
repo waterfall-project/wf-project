@@ -12,7 +12,9 @@ platform schedules, and lets the report of a reading of the accounts go with its
 """
 
 import dataclasses
+import socket
 import subprocess
+import time
 from typing import TYPE_CHECKING, Any, LiteralString
 from uuid import UUID, uuid4
 
@@ -23,7 +25,7 @@ from alembic.script import ScriptDirectory
 from fastapi.testclient import TestClient
 from installations import Installation, Take, restore, written_task
 from psycopg import sql
-from sqlalchemy import Engine, delete, func, insert, select, text
+from sqlalchemy import Engine, create_engine, delete, func, insert, select, text
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
 from waterfall.api.app import create_app
@@ -31,6 +33,7 @@ from waterfall.core.access_roles.tables import AccessRole
 from waterfall.core.users.tables import IdentitySyncReport
 from waterfall.migrations.runner import alembic_config, downgrade, upgrade
 from waterfall.platform.database import (
+    CONNECT_TIMEOUT,
     Base,
     Database,
     create_database_engine,
@@ -87,6 +90,7 @@ def refusal(engine: Engine, statement: Any) -> str:
     return cause.diag.constraint_name or ""
 
 
+@pytest.mark.requirement("WF-ARC-0090-A")
 def test_the_owner_holds_the_maintenance_which_the_service_reads_and_may_not_write(
     database: Database, owned: Database, queue: TaskQueue
 ) -> None:
@@ -198,6 +202,7 @@ def held_on(installation: Installation, queue: TaskQueue) -> Iterator[Maintenanc
     owner.dispose()
 
 
+@pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_backup_dumps_public_alone_and_a_restoration_leaves_the_maintenance_in_place(
     installation: Installation, take: Take, queue: TaskQueue, held_on: Maintenance, tmp_path: Path
 ) -> None:
@@ -213,6 +218,7 @@ def test_a_backup_dumps_public_alone_and_a_restoration_leaves_the_maintenance_in
     assert Maintenance.of(installation.database, queue).current() == HELD
 
 
+@pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_backup_taken_before_the_schema_platform_is_restored_and_the_migration_leaves_it_be(
     installation: Installation, take: Take, queue: TaskQueue, held_on: Maintenance, tmp_path: Path
 ) -> None:
@@ -387,6 +393,7 @@ def test_the_database_of_the_identity_provider_is_restored_without_a_loss(
     assert restored == backed_up
 
 
+@pytest.mark.requirement("WF-ARC-0090-A")
 def test_the_probe_of_liveness_answers_when_the_maintenance_cannot_be_read(
     services: Services, queue: TaskQueue
 ) -> None:
@@ -399,3 +406,82 @@ def test_the_probe_of_liveness_answers_when_the_maintenance_cannot_be_read(
     finally:
         unreached.dispose()
     assert (answer.status_code, answer.json()) == (200, {"status": "ok"})
+
+
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_the_probe_of_liveness_answers_within_a_bound_when_the_database_does_not_answer(
+    services: Services, queue: TaskQueue
+) -> None:
+    # A server that takes the connection and never speaks (lost packets, not a refusal) holds the
+    # probe for the time of the connection and no longer: the healthcheck of Compose waits no more.
+    with socket.socket() as mute:
+        mute.bind(("127.0.0.1", 0))
+        mute.listen()
+        address = f"postgresql://nobody:nothing@127.0.0.1:{mute.getsockname()[1]}/nowhere"
+        unreached = Database(create_database_engine(address))
+        served = dataclasses.replace(services, maintenance=Maintenance.of(unreached, queue))
+        began = time.monotonic()
+        try:
+            answer = TestClient(create_app(served)).get("/api/v1/health")
+        finally:
+            unreached.dispose()
+        elapsed = time.monotonic() - began
+    assert (answer.status_code, answer.json()) == (200, {"status": "ok"})
+    assert elapsed < CONNECT_TIMEOUT + 2
+
+
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_the_probe_of_liveness_answers_when_the_pool_of_connections_is_spent(
+    services: Services, database: Database, queue: TaskQueue
+) -> None:
+    # The pool waits for a connection and gives up: not a 500, the probe answers.
+    spent = Database(
+        create_engine(database.engine.url, pool_size=1, max_overflow=0, pool_timeout=0.2)
+    )
+    served = dataclasses.replace(services, maintenance=Maintenance.of(spent, queue))
+    try:
+        with spent.engine.connect():
+            answer = TestClient(create_app(served)).get("/api/v1/health")
+    finally:
+        spent.dispose()
+    assert (answer.status_code, answer.json()) == (200, {"status": "ok"})
+
+
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_a_maintenance_held_without_its_state_stays_held_as_a_restoration_abandoned(
+    database: Database, owned: Database, queue: TaskQueue
+) -> None:
+    # The state missing while the maintenance is held is an inconsistency to see, not a platform
+    # to serve: the maintenance stays, abandoned, for an operator.
+    with owned.transaction() as session:
+        session.execute(insert(HeldMaintenance).values(**VALID[HeldMaintenance]))
+    try:
+        current = Maintenance.of(database, queue).current()
+    finally:
+        with owned.transaction() as session:
+            session.execute(delete(HeldMaintenance))
+    assert current is not None
+    assert (current.task_id, current.abandoned) == (VALID[HeldMaintenance]["task_id"], True)
+
+
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_the_migration_completes_a_schema_made_by_hand_without_its_tables(
+    installation: Installation, queue: TaskQueue
+) -> None:
+    # A schema ``platform`` made without its tables is completed by the migration, with the rights
+    # of the service; applied again over a complete one, it leaves the maintenance it holds.
+    owner = create_database_engine(installation.owner["waterfall"])
+    try:
+        downgrade(owner, "0034")
+        with owner.begin() as connection:
+            connection.execute(text("CREATE SCHEMA platform"))
+        upgrade(owner)
+        read = Maintenance.of(installation.database, queue)
+        assert read.current() is None
+        Maintenance.of(Database(owner), queue).hold(HELD)
+        with owner.begin() as connection:
+            connection.execute(text("UPDATE alembic_version SET version_num = '0034'"))
+        upgrade(owner)
+        assert read.current() == HELD
+    finally:
+        owner.dispose()

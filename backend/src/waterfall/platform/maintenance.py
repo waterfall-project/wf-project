@@ -138,19 +138,28 @@ class Maintenance:
         A database the migrations have not brought to the schema ``platform`` yet holds none: the
         code of a version runs on the schema of the one before for the time of an update
         (``docs/dev/sql.md``), and a restoration reads a backup of an earlier revision there.
+
+        A maintenance held whose state is missing is still held: it is given as a restoration
+        abandoned, which nothing takes up and which stays for an operator, rather than as none,
+        which would lift it unseen.
         """
-        held = select(RestorationState).join(
-            HeldMaintenance, HeldMaintenance.task_id == RestorationState.task_id
+        held = select(HeldMaintenance.task_id, RestorationState).outerjoin(
+            RestorationState, HeldMaintenance.task_id == RestorationState.task_id
         )
         try:
             with self.database.transaction() as session:
-                state = session.scalars(held).one_or_none()
+                row = session.execute(held).one_or_none()
         except ProgrammingError as error:
             if isinstance(error.orig, UndefinedTable):
                 return None
             raise
-        if state is None:
+        if row is None:
             return None
+        task_id = row[0]
+        # The outer join gives no state where the table of the states lacks the row.
+        state = cast("RestorationState | None", row[1])
+        if state is None:
+            return Restoring(task_id, {}, None, "", 1, abandoned=True)
         return Restoring(
             state.task_id,
             state.payload,

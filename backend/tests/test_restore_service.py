@@ -746,6 +746,7 @@ def test_the_realm_applied_again_is_asked_in_a_folder_and_its_answer_read(tmp_pa
         late.apply("never")
 
 
+@pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_worker_whose_redis_is_out_of_reach_reads_the_maintenance_in_the_database(
     installation: Installation, service: Service
 ) -> None:
