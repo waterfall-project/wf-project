@@ -57,9 +57,6 @@ from waterfall.core.risks.interface.matrix import (
 
 # ``occurrence`` (US-2550/L1; US-2620/L1, US-2620/L2): the occurrence of a risk.
 from waterfall.core.risks.interface.occurrence import (
-    OccurrenceReport as OccurrenceReport,
-)
-from waterfall.core.risks.interface.occurrence import (
     OccurrenceRequest as OccurrenceRequest,
 )
 from waterfall.core.risks.interface.occurrence import (
@@ -106,6 +103,9 @@ from waterfall.core.risks.interface.risks import (
 )
 from waterfall.core.risks.interface.risks import (
     update_risk as update_risk,
+)
+from waterfall.core.risks.occurring import (
+    OccurrenceReport as OccurrenceReport,
 )
 from waterfall.core.risks.views import (
     OMITTED as OMITTED,
