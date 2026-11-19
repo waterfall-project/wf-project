@@ -51,7 +51,12 @@ class MaintenanceMiddleware:
         self.maintenance = maintenance
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        """Serve the request, or answer 503 if it is not served held and the platform is held."""
+        """Serve the request, or answer 503 if the platform is held and it is not one served held.
+
+        The refusal comes before the routing: the metrics count it as ``unrouted``, the route being
+        resolved by the router of FastAPI alone, which gives no operation to a request refused
+        before it.
+        """
         if scope["type"] == "http" and scope["path"] not in SERVED_IN_MAINTENANCE:
             held = await run_in_threadpool(in_maintenance, self.maintenance)
             if held:

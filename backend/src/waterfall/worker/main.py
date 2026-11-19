@@ -32,6 +32,7 @@ from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, log
 from waterfall.platform.metrics import MetricsRegistry, WorkerMetrics
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import (
+    ENV_PREFIX,
     PurgeSettings,
     Settings,
     SettingsError,
@@ -151,18 +152,34 @@ def serve(worker: Worker) -> int:
 
 def _work(settings: WorkerSettings) -> int:
     logger.info("worker.starting", version=__version__)
-    database = Database(create_database_engine(settings.database_url.get_secret_value()))
-    TIME_ZONE.read_from(stored_in(database))
-    queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=WORKER_TIMEOUT)
     registry = MetricsRegistry()
     metrics = WorkerMetrics(registry)
-    # The worker listens to nothing but its metrics, on a port of their own (WF-OBS-0010).
-    stop_metrics = registry.serve(settings.host, settings.metrics_port)
+    # The worker listens to nothing but its metrics, on a port of their own (WF-OBS-0010); a port
+    # that cannot be taken is said, as a setting is, before anything is opened.
     try:
-        return serve(Worker(database, queue, handlers(settings, metrics)).count_in(metrics))
+        stop_metrics = registry.serve(settings.host, settings.metrics_port)
+    except OSError as error:
+        sys.stderr.write(
+            f"{NAME}: {ENV_PREFIX}METRICS_PORT: cannot listen on "
+            f"{settings.host}:{settings.metrics_port}: {error.strerror or error}\n"
+        )
+        return 2
+    try:
+        return _run(settings, metrics)
     finally:
         stop_metrics()
-        queue.close()
+
+
+def _run(settings: WorkerSettings, metrics: WorkerMetrics) -> int:
+    database = Database(create_database_engine(settings.database_url.get_secret_value()))
+    try:
+        TIME_ZONE.read_from(stored_in(database))
+        queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=WORKER_TIMEOUT)
+        try:
+            return serve(Worker(database, queue, handlers(settings, metrics)).count_in(metrics))
+        finally:
+            queue.close()
+    finally:
         database.dispose()
 
 

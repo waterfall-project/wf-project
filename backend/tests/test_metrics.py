@@ -16,14 +16,22 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi.testclient import TestClient
 from metrics_reading import Samples, samples, value
-from sqlalchemy import insert
+from sqlalchemy import delete, insert
+from sqlalchemy.orm import Session
+from sqlalchemy.pool import QueuePool
 from support import PLATFORM_SECRETS, ContractClient, raw_account
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.backups.tables import Backup
 from waterfall.core.users.tables import UserAccount
-from waterfall.platform.database import Database, create_database_engine, engine_url, utc_now
+from waterfall.platform.database import (
+    POOL_OVERFLOW,
+    Database,
+    create_database_engine,
+    engine_url,
+    utc_now,
+)
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.maintenance import Maintenance, Restoring
 from waterfall.platform.metrics import (
@@ -31,11 +39,15 @@ from waterfall.platform.metrics import (
     LAST_RUN_SUCCESS,
     LAST_RUN_TIMESTAMP,
     OLDEST_QUEUED_TASK_AGE,
+    PROBE_SECONDS,
     PROBED,
     QUEUED_TASKS,
     STORAGE_AVAILABLE,
     STORAGE_USED,
     Capacities,
+    MetricsRegistry,
+    PlatformState,
+    Probe,
     probe,
 )
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
@@ -48,6 +60,7 @@ if TYPE_CHECKING:
 
     from openapi_core import OpenAPI
     from realm import TestRealm
+    from sqlalchemy import Engine
 
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.settings import ServiceSettings
@@ -331,7 +344,7 @@ def test_the_latest_scheduled_backup_and_reading_of_the_accounts_are_given_with_
 ) -> None:
     # Proper to US-2870: the latest outcome of a scheduled backup and of a reading of the accounts,
     # read from the database, which the alerts read (WF-OBS-0030). A backup is failed when its task
-    # failed or its archive failed its verification; one an account asked for is not scheduled.
+    # failed; one an account asked for is not scheduled.
     served = platform()
     read = served.collect()
     assert value(read, LAST_RUN_SUCCESS, run="scheduled_backup") is None
@@ -353,13 +366,27 @@ def test_the_latest_scheduled_backup_and_reading_of_the_accounts_are_given_with_
         == (now - timedelta(days=1)).timestamp()
     )
     assert value(read, LAST_RUN_SUCCESS, run="identity_sync") == 0
-    unverified = ended_task(database, "backup", now - timedelta(hours=1), succeeded=True)
-    backup_of(database, unverified, "failed")
-    assert value(served.collect(), LAST_RUN_SUCCESS, run="scheduled_backup") == 0
     ended_task(database, "backup", now - timedelta(minutes=30), succeeded=False)
-    ended_task(database, "backup", now - timedelta(minutes=10), succeeded=True)
-    # The task of the latest has succeeded, and no backup names it: not verified, so failed.
     assert value(served.collect(), LAST_RUN_SUCCESS, run="scheduled_backup") == 0
+    ended_task(database, "backup", now - timedelta(minutes=10), succeeded=True)
+    assert value(served.collect(), LAST_RUN_SUCCESS, run="scheduled_backup") == 1
+
+
+def test_a_scheduled_backup_that_succeeded_stays_succeeded_once_the_rotation_removed_its_row(
+    platform: MakePlatform, database: Database, owner: Engine
+) -> None:
+    # Proper to US-2870: the failure of a backup is that of its task (contract, OperationOutcome):
+    # the table of the backups is not read, and the rotation that removes a row changes nothing.
+    now = utc_now().replace(microsecond=0)
+    task_id = ended_task(database, "backup", now, succeeded=True)
+    backup_of(database, task_id, "passed")
+    served = platform()
+    assert value(served.collect(), LAST_RUN_SUCCESS, run="scheduled_backup") == 1
+    with Session(owner) as session, session.begin():
+        session.execute(delete(Backup).where(Backup.task_id == task_id))
+    read = served.collect()
+    assert value(read, LAST_RUN_SUCCESS, run="scheduled_backup") == 1
+    assert value(read, LAST_RUN_TIMESTAMP, run="scheduled_backup") == now.timestamp()
 
 
 @pytest.mark.requirement("WF-OBS-0010-A")
@@ -450,13 +477,17 @@ def test_an_instance_without_its_database_is_not_ready_and_names_it(platform: Ma
     )
 
 
-@pytest.mark.parametrize("stopped", ["cache", "object_storage"])
+@pytest.mark.parametrize("stopped", ["cache", "object_storage", "identity_provider"])
 def test_an_instance_stays_ready_without_what_it_serves_without_and_says_it_unavailable(
-    platform: MakePlatform, stopped: str
+    platform: MakePlatform, realm: TestRealm, stopped: str
 ) -> None:
-    # Proper to US-2870: without Redis or the storage, the instance still serves what does not
-    # need them (§4.5.4, table 12); the component is said unavailable, never available.
-    response = platform(stopped).api.get(READINESS)
+    # Proper to US-2870: without Redis, the storage or the identity provider, the instance still
+    # serves what does not need them (§4.5.4, table 12); the component is said unavailable, never
+    # available.
+    served = platform(None if stopped == "identity_provider" else stopped)
+    if stopped == "identity_provider":
+        realm.stop()
+    response = served.api.get(READINESS)
     assert response.status_code == 200
     said = {each["component"]: each["is_available"] for each in response.json()["components"]}
     assert said[stopped] is False
@@ -473,3 +504,60 @@ def test_in_maintenance_the_metrics_are_served_and_the_instance_is_not_ready(
     refused = served.api.get(READINESS)
     assert refused.status_code == 503
     assert refused.json()["params"] == {"component": "database"}
+    # The requests the maintenance refuses come before the routing: counted, but as unrouted.
+    assert served.api.get(f"/api/v1/projects/{uuid4()}").status_code == 503
+    read = served.collect()
+    assert value(read, "waterfall_api_requests_total", operation="unrouted", status="503") == 2
+
+
+@pytest.mark.requirement("WF-OBS-0010-A")
+def test_the_probes_and_the_collection_answer_while_every_connection_of_the_requests_is_taken(
+    platform: MakePlatform, reached: Services
+) -> None:
+    # « L'arrêt de PostgreSQL, de Redis, du stockage objet ou du fournisseur d'identité fait passer
+    # sa disponibilité à zéro à la collecte suivante. » : and only then; a pool of the requests
+    # saturated does not make the database look down, nor hold the collection. The probe and the
+    # reading of the state have a connection of their own.
+    served = platform()
+    pool = reached.database.engine.pool
+    assert isinstance(pool, QueuePool)
+    taken = [reached.database.engine.connect() for _ in range(pool.size() + POOL_OVERFLOW)]
+    try:
+        started = time.monotonic()
+        ready = served.api.get(READINESS)
+        read = served.collect()
+        assert time.monotonic() - started < 2 * PROBE_SECONDS
+    finally:
+        for connection in taken:
+            connection.close()
+    assert ready.status_code == 200
+    assert value(read, COMPONENT_UP, component="database") == 1
+    assert value(read, QUEUED_TASKS) is not None
+    assert value(read, STORAGE_USED, component="database") is not None
+
+
+class SleepingBucket(Bucket):
+    """A bucket whose listing of the objects takes longer than a collection waits."""
+
+    def used_bytes(self) -> int:
+        """List the objects, slowly."""
+        time.sleep(2)
+        return 1
+
+
+def test_a_listing_of_the_storage_that_outlasts_the_budget_leaves_the_space_out(
+    database: Database, backups_bucket: Bucket
+) -> None:
+    # Proper to US-2870: the listing of every object is held to the budget of the probes; past it
+    # the space of the storage is left out, and the collection is not held.
+    sleeping = SleepingBucket(backups_bucket.client, backups_bucket.name)
+    registry = MetricsRegistry()
+    probes: dict[str, Probe] = {"object_storage": sleeping.reach}
+    state = PlatformState(database, probes, sleeping, {}, Capacities())
+    state.budget = 0.2
+    registry.read_at_collection.append(state)
+    started = time.monotonic()
+    read = samples(registry.expose().decode())
+    assert time.monotonic() - started < 1
+    assert value(read, COMPONENT_UP, component="object_storage") == 1
+    assert value(read, STORAGE_USED, component="object_storage") is None

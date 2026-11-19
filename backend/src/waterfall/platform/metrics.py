@@ -42,7 +42,7 @@ from prometheus_client.multiprocess import MultiProcessCollector
 from sqlalchemy import Boolean, Text, column, func, select, table, true
 from sqlalchemy.exc import SQLAlchemyError
 
-from waterfall.platform.database import utc_now
+from waterfall.platform.database import OBSERVATION_SECONDS, utc_now
 from waterfall.platform.errors import UnavailableError
 from waterfall.platform.keycloak import expect
 from waterfall.platform.logs import get_logger
@@ -59,6 +59,7 @@ if TYPE_CHECKING:
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
     from waterfall.platform.storage import Bucket
+    from waterfall.platform.tasks import Outcome
 
 # The variable by which the client library shares the counters of several processes.
 MULTIPROCESS = "PROMETHEUS_MULTIPROC_DIR"
@@ -87,7 +88,7 @@ UNROUTED = "unrouted"
 # The bounds of the durations of the tasks, in seconds: from a marking to a backup.
 TASK_BUCKETS = (0.1, 0.5, 1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0, 1800.0, 3600.0)
 # How long a collection waits for the probes, in seconds: one that has not answered is down.
-PROBE_SECONDS = 3.0
+PROBE_SECONDS = float(OBSERVATION_SECONDS)
 # How long a reading of the database waits for a statement or a lock, at a collection.
 READING_TIMEOUT = "2s"
 
@@ -263,7 +264,7 @@ def probes_of(
 
     def database_probe() -> str | None:
         with database.transaction() as session:
-            limited(session)
+            bound_waiting(session)
             version = session.scalar(select(func.current_setting("server_version")))
         return None if version is None else str(version).split()[0]
 
@@ -285,18 +286,10 @@ def probes_of(
     }
 
 
-def limited(session: Session) -> None:
+def bound_waiting(session: Session) -> None:
     """Bound how long the statements of a transaction wait, and the locks they take."""
     for setting in ("statement_timeout", "lock_timeout"):
         session.execute(select(func.set_config(setting, READING_TIMEOUT, true())))
-
-
-@dataclass(frozen=True, slots=True)
-class Outcome:
-    """How the latest run of an operation the platform runs on a schedule ended, and when."""
-
-    at: datetime
-    succeeded: bool
 
 
 # What reads the latest outcome of one such operation in the database; ``None`` if none has ended.
@@ -328,8 +321,11 @@ class PlatformState:
     """What the API reads of the platform at each collection, and exposes as gauges.
 
     ``outcomes`` names each operation the platform runs on a schedule, and reads its latest outcome:
-    a module adds its own without this class changing (the external copy, US-2910).
+    a module adds its own without this class changing (the external copy, US-2910). ``budget`` is
+    how long, in seconds, the listing of the storage may take.
     """
+
+    budget: float = PROBE_SECONDS
 
     def __init__(
         self,
@@ -377,7 +373,7 @@ class PlatformState:
         """Read the queue, the latest outcomes and the space used, in one bounded transaction."""
         try:
             with self.database.transaction() as session:
-                limited(session)
+                bound_waiting(session)
                 queued = waiting(session)
                 outcomes = {name: read(session) for name, read in self.outcomes.items()}
                 used = database_used_bytes(session)
@@ -396,9 +392,22 @@ class PlatformState:
         return [count, age, *_outcome_metrics(outcomes)], used
 
     def storage_used(self) -> int | None:
-        """Sum the objects of the bucket; ``None`` if the storage does not answer the listing."""
+        """Sum the objects of the bucket; ``None`` if the listing fails or outlasts the budget.
+
+        The listing reads every object: once the budget of the probes is spent it is left to end
+        alone, as a probe is, so that a large bucket does not hold the collection.
+        """
+        pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="storage-used")
         try:
-            return self.storage.used_bytes()
+            listing = pool.submit(self.storage.used_bytes)
+            wait([listing], timeout=self.budget)
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
+        if not listing.done():
+            logger.warning("metrics.storage_unread", reason="timed_out")
+            return None
+        try:
+            return listing.result()
         except UnavailableError, MissingObjectError:
             logger.warning("metrics.storage_unread", exc_info=True)
             return None

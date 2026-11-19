@@ -5,6 +5,7 @@
 import json
 import os
 import signal
+import socket
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -163,6 +164,29 @@ def test_the_worker_answers_on_its_metrics_endpoint_while_it_runs(
     assert "waterfall_identity_directory_sync_failures_total 0.0" in answer.text
     with pytest.raises(httpx2.TransportError):
         httpx2.get(f"http://127.0.0.1:{port}/metrics", timeout=1)
+
+
+@pytest.mark.usefixtures("platform_environment", "logs")
+def test_a_metrics_port_already_taken_stops_the_worker_naming_the_variable(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Proper to US-2870: a port the worker cannot listen on is a setting wrong, said as the others
+    # are (2), not a bare error; the worker has opened nothing, and runs nothing.
+    with socket.socket() as taken:
+        taken.bind(("127.0.0.1", 0))
+        taken.listen()
+        monkeypatch.setenv("WATERFALL_HOST", "127.0.0.1")
+        monkeypatch.setenv("WATERFALL_METRICS_PORT", str(taken.getsockname()[1]))
+        served: list[Worker] = []
+
+        def serve(worker: Worker) -> int:
+            served.append(worker)
+            return 0
+
+        monkeypatch.setattr(worker_main, "serve", serve)
+        assert worker_main.main([]) == 2
+    assert "WATERFALL_METRICS_PORT" in capsys.readouterr().err
+    assert served == []
 
 
 def test_a_stop_of_the_platform_stops_the_worker_where_it_stands(

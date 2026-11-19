@@ -36,7 +36,6 @@ from waterfall.platform.audit import (
 )
 from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.identifiers import new_id
-from waterfall.platform.metrics import Outcome
 from waterfall.platform.restoration import (
     begin_keeping,
     end_keeping,
@@ -47,7 +46,13 @@ from waterfall.platform.restoration import (
     take_over,
     write_back,
 )
-from waterfall.platform.tasks import keep_more_tasks, keep_tasks, last_ended, write_back_tasks
+from waterfall.platform.tasks import (
+    Outcome,
+    keep_more_tasks,
+    keep_tasks,
+    last_ended,
+    write_back_tasks,
+)
 from waterfall.platform.uploads import FileUpload
 
 if TYPE_CHECKING:
@@ -116,15 +121,11 @@ def read_backup(session: Session, backup_id: UUID) -> BackupView:
 def last_scheduled_outcome(session: Session) -> Outcome | None:
     """Give how the latest backup the platform scheduled ended; ``None`` if none has ended yet.
 
-    It failed if its task failed, or if its archive failed its verification (WF-ADM-0170).
+    The failure of a backup is that of its task (contract, ``OperationOutcome.problem``): the table
+    of the backups is not read, so that a backup the rotation has removed still says how it ended.
     """
     ended = last_ended(session, "backup", by_platform=True)
-    if ended is None:
-        return None
-    verified = session.scalar(
-        select(Backup.verification == "passed").where(Backup.task_id == ended.task_id)
-    )
-    return Outcome(ended.at, succeeded=ended.succeeded and verified is True)
+    return None if ended is None else Outcome(ended.at, succeeded=ended.succeeded)
 
 
 def add_backup(session: Session, taken: TakenBackup, act: Act) -> UUID:

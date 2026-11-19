@@ -21,7 +21,7 @@ from waterfall.api.authentication import Services, ServicesOf, Transaction
 from waterfall.api.contract.models import ComponentHealth, Installation
 from waterfall.api.maintenance import in_maintenance
 from waterfall.core.backups import interface as backups_interface
-from waterfall.platform.database import utc_now
+from waterfall.platform.database import Database, create_observation_engine, utc_now
 from waterfall.platform.errors import UnavailableError
 from waterfall.platform.installation import read_settings
 from waterfall.platform.metrics import (
@@ -30,12 +30,11 @@ from waterfall.platform.metrics import (
     Capacities,
     Health,
     MetricsRegistry,
-    Outcome,
     OutcomeReader,
     PlatformState,
     probes_of,
 )
-from waterfall.platform.tasks import last_ended
+from waterfall.platform.tasks import Outcome, last_ended
 
 router = APIRouter(tags=["system"])
 
@@ -65,15 +64,26 @@ class Observed:
     registry: MetricsRegistry
     requests: ApiMetrics
     state: PlatformState
+    # The connection of the observation, apart from the pool of the requests.
+    database: Database
+
+    def close(self) -> None:
+        """Close the connection of the observation."""
+        self.database.dispose()
 
 
 def observed(services: Services, capacities: Capacities) -> Observed:
-    """Make the registry of a process of the API, on the components its services reach."""
+    """Make the registry of a process of the API, on the components its services reach.
+
+    The database is probed and read on a connection of its own, on the same database as the
+    requests: saturated, their pool does not make the database look down.
+    """
     registry = MetricsRegistry()
-    probes = probes_of(services.database, services.queue, services.backups, services.keycloak)
-    state = PlatformState(services.database, probes, services.backups, OUTCOMES, capacities)
+    database = Database(create_observation_engine(services.database.engine.url))
+    probes = probes_of(database, services.queue, services.backups, services.keycloak)
+    state = PlatformState(database, probes, services.backups, OUTCOMES, capacities)
     registry.read_at_collection.append(state)
-    return Observed(registry, ApiMetrics(registry), state)
+    return Observed(registry, ApiMetrics(registry), state, database)
 
 
 def observed_of(request: Request) -> Observed:

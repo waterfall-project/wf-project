@@ -167,12 +167,17 @@ class UtcDateTime(TypeDecorator[datetime]):
         return None if value is None else value.astimezone(UTC)
 
 
-# The reserve of connections of an engine, those of SQLAlchemy written out: five kept, ten more
-# while they are all taken. The calculation of ``max_connections`` counts fifteen per process
-# (deploy/compose/README.md, « Les processus de l'API »).
+# The reserve of connections of a process, fifteen in all (deploy/compose/README.md, « Les
+# processus de l'API »): five kept and nine more while they are all taken, for the requests; one
+# for what observes the platform (``create_observation_engine``). The calculation of
+# ``max_connections`` counts fifteen per process.
 POOL_SIZE = 5
-POOL_OVERFLOW = 10
-CONNECTIONS_PER_ENGINE = POOL_SIZE + POOL_OVERFLOW
+POOL_OVERFLOW = 9
+OBSERVATION_CONNECTIONS = 1
+CONNECTIONS_PER_ENGINE = POOL_SIZE + POOL_OVERFLOW + OBSERVATION_CONNECTIONS
+# How long what observes the platform waits for a connection to open or to be lent, in whole
+# seconds: a pool of the requests saturated must not make the database look down.
+OBSERVATION_SECONDS = 3
 
 
 def utc_now() -> datetime:
@@ -192,8 +197,8 @@ def create_database_engine(address: str) -> Engine:
     """Open the engine on the database, whose sessions keep time in universal time.
 
     Its reserve holds ``POOL_SIZE`` connections, and opens ``POOL_OVERFLOW`` more while they are
-    all taken: ``CONNECTIONS_PER_ENGINE`` at most, which ``max_connections`` of the server carries
-    for each process of the platform (US-2230).
+    all taken; with the one of the observation, ``CONNECTIONS_PER_ENGINE`` at most, which
+    ``max_connections`` of the server carries for each process of the platform (US-2230).
     """
     return create_engine(
         engine_url(address),
@@ -201,6 +206,24 @@ def create_database_engine(address: str) -> Engine:
         pool_pre_ping=True,
         pool_size=POOL_SIZE,
         max_overflow=POOL_OVERFLOW,
+    )
+
+
+def create_observation_engine(url: URL) -> Engine:
+    """Open an engine of one connection, apart from the pool of the requests, on the same database.
+
+    What observes the platform — the probe of the database, the reading of its state at a
+    collection — must answer when every connection of the requests is taken: it waits
+    ``OBSERVATION_SECONDS`` at most, for a connection to open or to be lent, then fails. Its
+    connection is the ``OBSERVATION_CONNECTIONS`` of ``CONNECTIONS_PER_ENGINE``.
+    """
+    return create_engine(
+        url,
+        connect_args={"options": "-c timezone=UTC", "connect_timeout": OBSERVATION_SECONDS},
+        pool_pre_ping=True,
+        pool_size=OBSERVATION_CONNECTIONS,
+        max_overflow=0,
+        pool_timeout=OBSERVATION_SECONDS,
     )
 
 

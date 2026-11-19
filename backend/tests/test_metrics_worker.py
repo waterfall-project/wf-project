@@ -25,6 +25,7 @@ from waterfall.worker.identity_sync import IdentitySync
 from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
+    from realm import TestRealm
     from sqlalchemy.orm import Session
 
     from waterfall.platform.database import Database
@@ -49,12 +50,8 @@ class StoppedError(Exception):
     """The reading of the accounts stopped by the test, once the directories are synchronised."""
 
 
-class FailingDirectories(KeycloakAdmin):
-    """A provider that says it failed entries of its directories, then is not read further."""
-
-    def synchronize_directories(self) -> int:
-        """Say three entries failed, over the directories."""
-        return 3
+class StoppedReading(KeycloakAdmin):
+    """A provider whose directories are synchronised by the realm, then is not read further."""
 
     def list_accounts(self) -> list[RealmAccount]:
         """Stop the reading: what follows the synchronisation is not this test's."""
@@ -108,13 +105,15 @@ def test_the_entries_the_directories_failed_in_a_reading_of_the_accounts_are_cou
     database: Database,
     queue: TaskQueue,
     keycloak: Keycloak,
+    realm: TestRealm,
     realm_settings: ServiceSettings,
 ) -> None:
     # Proper to US-2870: the failures of the synchronisation of the federated directories during a
     # reading of the accounts are carried by a metric (#917), whatever the reading becomes.
+    realm.synchronization = b'{"added": 0, "updated": 0, "failed": 3}'
     registry = MetricsRegistry()
     metrics = WorkerMetrics(registry)
-    reading = IdentitySync(FailingDirectories(keycloak, realm_settings), metrics=metrics)
+    reading = IdentitySync(StoppedReading(keycloak, realm_settings), metrics=metrics)
     queue.prepare()
     worker = Worker(database, queue, {"identity_sync": reading}, "worker-0", AT_ONCE)
     task_id = deposit(database, queue)
@@ -123,3 +122,25 @@ def test_the_entries_the_directories_failed_in_a_reading_of_the_accounts_are_cou
     read = samples(registry.expose().decode())
     assert value(read, f"{DIRECTORY_SYNC_FAILURES}_total") == 3
     assert value(read, TASKS, kind="identity_sync", outcome="failed") == 1
+
+
+@pytest.mark.parametrize(
+    ("answer", "failed"),
+    [
+        (b'{"added": 1, "updated": 0, "failed": 2}', 2),
+        (b'{"added": 1, "updated": 0}', 0),
+        (b'{"failed": "two"}', 0),
+        (b"not a document", 0),
+    ],
+)
+def test_the_failed_entries_of_a_synchronisation_are_read_from_what_the_realm_answers(
+    answer: bytes,
+    failed: int,
+    keycloak: Keycloak,
+    realm: TestRealm,
+    realm_settings: ServiceSettings,
+) -> None:
+    # Proper to US-2870: #917, what the realm says of the entries it failed to synchronise is
+    # read as a whole number, and a report that says none, or no number, counts none.
+    realm.synchronization = answer
+    assert KeycloakAdmin(keycloak, realm_settings).synchronize_directories() == failed

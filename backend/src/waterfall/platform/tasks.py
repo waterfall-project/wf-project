@@ -197,6 +197,14 @@ class Ended:
     succeeded: bool
 
 
+@dataclass(frozen=True, slots=True)
+class Outcome:
+    """How the latest run of an operation the platform runs on a schedule ended, and when."""
+
+    at: datetime
+    succeeded: bool
+
+
 def last_ended(session: Session, kind: TaskKind, *, by_platform: bool = False) -> Ended | None:
     """Give the latest task of a kind that has ended, or ``None`` if none has yet.
 

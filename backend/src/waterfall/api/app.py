@@ -7,6 +7,7 @@ It serves the operations of the contract and nothing else: no documentation page
 interface (WF-ARC-0060). A path with a slash the contract does not write is not redirected.
 """
 
+import weakref
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
@@ -108,6 +109,7 @@ def create_app(
     process; ``capacities`` is the space the deployment declares, none by default (WF-OBS-0010).
     """
     schema.declared()
+    observed = system.observed(services, capacities or Capacities())
     app = FastAPI(
         title="Waterfall API",
         version=__version__,
@@ -117,8 +119,9 @@ def create_app(
         redirect_slashes=False,
         lifespan=lifespan,
     )
+    # The connection of the observation is closed with the application, at the latest at exit.
+    weakref.finalize(app, observed.close)
     # Added first, run second: a refusal in maintenance carries the correlation of its request.
-    observed = system.observed(services, capacities or Capacities())
     app.add_middleware(MaintenanceMiddleware, maintenance=services.maintenance)
     app.add_middleware(CorrelationMiddleware, metrics=observed.requests)
     install_problem_handlers(app)
