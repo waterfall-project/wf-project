@@ -128,7 +128,7 @@ def test_a_provision_line_of_50_of_an_offer_at_40_percent_adds_20_to_the_remaini
     budget, remaining = _aggregated(data, weight)
     aggregated_remaining = cast("dict[str, str]", data["aggregated_remaining"])
     assert "risk_provision" not in budget
-    # The remaining compared whole: a drift on another nature fails too (#4036).
+    # The remaining compared whole: a drift on another nature fails too.
     assert remaining == {nature: Decimal(amount) for nature, amount in aggregated_remaining.items()}
     assert budget == {
         nature: Decimal(amount)

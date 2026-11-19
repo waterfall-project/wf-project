@@ -96,8 +96,9 @@ class RetainedProject:
     end of that day; it is null for a project none of whose revisions was marked by then, which is
     retained by its state and contributes to no sum. ``weight`` is one for a project In progress or
     Completed; for an offer, the probability of winning its revision kept at the marking, or that of
-    the project on the current day; null when ``revision_id`` is, and for an offer at a past date
-    whose marking, before EP-07, kept no probability: nothing is taken up nor recalculated.
+    the project on the current day; null when ``revision_id`` is, and also for an offer whose
+    revision retained, marked before EP-07, kept no probability: nothing is taken up nor
+    recalculated.
     """
 
     state: ProjectState
@@ -111,7 +112,10 @@ class ResolvedScope:
 
     ``scope.project_count`` is the number of ``projects``; ``on_current_day`` says whether the
     contributions are read for the current day (``day_documents_of``) or kept by the revisions
-    retained (``kept_documents_of``).
+    retained (``kept_documents_of``). It is true only without ``as_of``: an ``as_of`` equal to the
+    current day is a date asked, read by the markings (``AsOf``) — each project by its last revision
+    marked by the end of the day, an offer weighing the probability that marking kept, a revision
+    in progress ignored.
     """
 
     scope: PortfolioScope
@@ -183,10 +187,9 @@ def _retained(
     """Give a project retained, with the revision it contributes by and its weight.
 
     On the current day, its current revision or, without one, its last marked, and, for an offer,
-    its probability of winning now; at a past date, its last
-    revision marked by the end of that day, and the probability that marking kept (EP-07), never
-    the project's of today (#4025). The weight is that of the aggregation (``weight_of``): one for
-    a project In progress or Completed.
+    its probability of winning now; at a past date, its last revision marked by the end of that
+    day, and the probability that marking kept (EP-07), never the project's of today (#4025). The
+    weight is that of the aggregation (``weight_of``): one for a project In progress or Completed.
     """
     if on_current_day:
         revision_id = kept.current_id or kept.last_marked_id

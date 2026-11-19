@@ -16,7 +16,7 @@ server of the tests (``max_locks_per_transaction``).
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -33,7 +33,7 @@ from portfolio_support import (
 )
 from projects_support import MANAGING, Scene, contribute, create
 from projects_support import scene as make_scene
-from sqlalchemy import select
+from sqlalchemy import event, select, text, update
 
 from waterfall.core.portfolio.interface import (
     PortfolioAsked,
@@ -47,15 +47,18 @@ from waterfall.core.projects.interface import (
     Viewer,
     offers_closed_between,
     openable,
+    projects_in_states_on,
     stored_lock_version,
     update_project,
 )
+from waterfall.core.projects.tables import STATES, Project, ProjectStateTransition
 from waterfall.core.resource_settings.tables import OrgNode, ResourceRole
 from waterfall.core.revisions.interface import (
     RetainedRevisions,
     create_revision,
     last_marked_at_instant,
 )
+from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.installation import TIME_ZONE
@@ -63,8 +66,11 @@ from waterfall.platform.logs import logging_context
 from waterfall.platform.permissions import ALL_PROJECTS_READ
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from realm import TestRealm
     from sqlalchemy import Engine
+    from sqlalchemy.orm import Session
     from support import ContractClient
 
     from waterfall.core.projects.interface import ProjectState
@@ -273,6 +279,12 @@ def test_the_revision_retained_is_the_current_one_on_the_current_day_and_the_las
     assert (retained.revision_id, retained.weight) == (opened, Decimal(1))
     past = _resolved(database, PortfolioAsked(as_of=READ_ON)).projects[running]
     assert past.revision_id == review
+    # An ``as_of`` equal to the current day is a date asked: read by the markings, not by the
+    # revision in progress.
+    today = _resolved(database, PortfolioAsked(as_of=NOW.date()))
+    assert today.projects[running].revision_id == review
+    assert not today.on_current_day
+    assert _resolved(database, PortfolioAsked()).on_current_day
     # The end of the day is that of the time zone of the installation: at Honolulu, ten hours
     # behind, the marking of the review falls on 1 March.
     TIME_ZONE.read_from(lambda: "Pacific/Honolulu")
@@ -281,7 +293,7 @@ def test_the_revision_retained_is_the_current_one_on_the_current_day_and_the_las
 
 @pytest.mark.requirement("WF-PTF-0010-A")
 def test_the_weight_of_an_offer_at_a_past_date_is_the_probability_its_marking_kept(
-    fabrics: Portfolio,
+    fabrics: Portfolio, owner: Engine
 ) -> None:
     # « La probabilité de gain étant celle que ce marquage a gardée (EP-07) » (#4025): the offer
     # marked at 40 % is now at 70 %; read on 3 June it weighs 40 %, on the current day 70 %.
@@ -296,6 +308,26 @@ def test_the_weight_of_an_offer_at_a_past_date_is_the_probability_its_marking_ke
     assert past[offer].weight == OFFER_PROBABILITY
     assert today[offer].weight == Decimal("0.70")
     assert past[running].weight == Decimal(1)
+    # Read with ``as_of`` the current day, the offer weighs the probability its marking kept.
+    on_the_day = _resolved(database, replace(asked, as_of=NOW.date())).projects
+    assert on_the_day[offer].weight == OFFER_PROBABILITY
+    # A marking before EP-07 kept no probability: the offer weighs nothing known, a project In
+    # progress one.
+    with owner.begin() as connection:
+        # A marked revision is immutable: the trigger that says so is set aside, as a superuser.
+        connection.execute(text("SET LOCAL session_replication_role = replica"))
+        connection.execute(
+            update(Revision)
+            .where(Revision.project_id.in_([offer, running]), Revision.status == "marked")
+            .values(win_probability=None)
+        )
+    unknown = _resolved(database, replace(asked, as_of=READ_ON)).projects
+    assert (unknown[offer].state, unknown[offer].revision_id, unknown[offer].weight) == (
+        "pricing",
+        fabrics.offer.marked[OFFER][0],
+        None,
+    )
+    assert unknown[running].weight == Decimal(1)
     # The revisions of every project are read together, each asked with its entry.
     ids = [*(each.project_id for each in fabrics.projects), uuid4()]
     with database.transaction() as session:
@@ -358,3 +390,82 @@ def test_a_reader_opens_the_projects_it_contributes_to_or_all_with_all_projects_
     contribute(database, str(other), stage.outsider, "project_manager")
     with database.transaction() as session:
         assert openable(session, ids, outsider) == {other}
+
+
+def _statements(session: Session, read: Callable[[], object]) -> int:
+    """Give the number of statements a reading sends to the database."""
+    sent: list[str] = []
+
+    def heard(*arguments: Any) -> None:
+        sent.append(str(arguments[2]))
+
+    engine = session.get_bind()
+    event.listen(engine, "before_cursor_execute", heard)
+    try:
+        read()
+    finally:
+        event.remove(engine, "before_cursor_execute", heard)
+    return len(sent)
+
+
+@pytest.mark.requirement("WF-PTF-0010-A")
+def test_each_reading_of_several_projects_is_one_statement_whatever_their_number(
+    api: ContractClient, fabrics: Portfolio
+) -> None:
+    # « chaque lecture groupée en une requête » (EP-11, "La contribution d'un projet"), under the
+    # scope of WF-PTF-0010-A: the count does not grow with the projects, no reading one by one.
+    stage = fabrics.stage
+    contributor = Viewer(stage.participant.user_id, MANAGING)
+    reader = Viewer(stage.reader.user_id, {ALL_PROJECTS_READ})
+    ids = [each.project_id for each in fabrics.projects]
+
+    def counted(session: Session, project_ids: list[UUID]) -> dict[str, int]:
+        def count(read: Callable[[], object]) -> int:
+            return _statements(session, read)
+
+        return {
+            "states": count(lambda: projects_in_states_on(session, list(STATES), at(6, 1))),
+            "now": count(lambda: projects_in_states_on(session, list(STATES), None)),
+            "marked": count(lambda: last_marked_at_instant(session, project_ids, at(6, 1))),
+            "closed": count(lambda: offers_closed_between(session, at(1, 1), at(7, 1))),
+            "openable": count(lambda: openable(session, project_ids, contributor)),
+            "all": count(lambda: openable(session, project_ids, reader)),
+            "none": count(lambda: openable(session, [], contributor)),
+        }
+
+    with stage.database.transaction() as session:
+        four = counted(session, ids)
+    fifth = UUID(create(api, stage.manager)["project_id"])
+    with stage.database.transaction() as session:
+        five = counted(session, [*ids, fifth])
+    expected = {"states": 1, "now": 1, "marked": 1, "closed": 1, "openable": 1, "all": 0, "none": 0}
+    assert four == expected
+    assert five == expected
+
+
+@pytest.mark.requirement("WF-PTF-0010-A")
+def test_the_state_at_an_instant_is_that_of_the_last_transition_ranked_by_the_state_reached(
+    fabrics: Portfolio,
+) -> None:
+    # « L'état d'un projet à une date est celui de sa dernière transition datée de ce jour ou
+    # d'avant (WF-CYC-0130) ». Read now, it is the state the project stores; before its creation
+    # a project has none; two transitions of one instant — its creation and its first revision —
+    # are ranked by the state reached.
+    offer = fabrics.offer.project_id
+    with fabrics.stage.database.transaction() as session:
+        every = projects_in_states_on(session, list(STATES), None)
+        stored = {row.id: row.state for row in session.execute(select(Project.id, Project.state))}
+        assert {key: each.state for key, each in every.items()} == stored
+        assert {each.project_id for each in fabrics.projects} <= set(every)
+        assert projects_in_states_on(session, list(STATES), at(1, 1)) == {}
+        instants = list(
+            session.scalars(
+                select(ProjectStateTransition.occurred_at).where(
+                    ProjectStateTransition.project_id == offer
+                )
+            )
+        )
+        assert len(instants) > len(set(instants))
+        both = projects_in_states_on(session, ["created", "pricing"], at(2, 3))
+        assert both[offer].state == "pricing"
+        assert offer not in projects_in_states_on(session, ["created"], at(2, 3))

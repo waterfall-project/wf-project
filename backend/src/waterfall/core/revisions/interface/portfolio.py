@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from sqlalchemy import or_, select
+from sqlalchemy.dialects.postgresql import distinct_on
 
 from waterfall.core.revisions.tables import Revision
 
@@ -50,10 +51,13 @@ def last_marked_at_instant(
 
     Every project asked has its entry, empty for one that has neither. Two markings of one instant
     are ordered by identifier, as the indicators order them. One query for all the projects: their
-    current revisions and their revisions marked before the instant, the latest kept.
+    current revisions and the latest of their revisions marked before the instant, chosen by the
+    database (``DISTINCT ON``).
     """
     if not project_ids:
         return {}
+    # A project has at most one revision in progress, and its marked ones are ranked by instant:
+    # the first of each (project, status) is its current revision, and its last marked.
     rows = session.execute(
         select(
             Revision.project_id,
@@ -62,6 +66,7 @@ def last_marked_at_instant(
             Revision.marked_at,
             Revision.win_probability,
         )
+        .ext(distinct_on(Revision.project_id, Revision.status))
         .where(
             Revision.project_id.in_(list(project_ids)),
             or_(
@@ -69,10 +74,14 @@ def last_marked_at_instant(
                 (Revision.status == "marked") & (Revision.marked_at < before),
             ),
         )
-        .order_by(Revision.marked_at.asc().nulls_first(), Revision.id.asc())
+        .order_by(
+            Revision.project_id,
+            Revision.status,
+            Revision.marked_at.desc().nulls_last(),
+            Revision.id.desc(),
+        )
     )
     current: dict[UUID, UUID] = {}
-    # Ascending: the last marked row of a project is its latest.
     marked: dict[UUID, tuple[UUID, datetime | None, Decimal | None]] = {}
     for row in rows:
         if row.status == "draft":
