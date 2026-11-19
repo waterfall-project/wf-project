@@ -174,6 +174,7 @@ closes. Four rules, which each slice follows:
 | [EP-13](EP-13-exploitation.md) | Operations and going to production | en cours | EP-04 |
 | [EP-28](EP-28-chaine-et-outillage.md) | Chain and development tooling | en cours | nothing |
 | [EP-29](EP-29-habilitations-specification-1-0-7.md) | Access rights: follow-up to specification 1.0.7 | à planifier | EP-08 |
+| [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risks prepared as differentials | à planifier | EP-08 |
 
 The distribution of 2026-11-14, at the delivery of EP-24, spread what remains by theme — that of
 the code touched — and no longer by date of deferral: EP-25 keeps only the ergonomic redesign and
@@ -185,7 +186,9 @@ the workload and the spending projection; EP-28 gathers what touches only the ch
 and depends on nothing. A review finding now goes to the epic that touches its code. EP-29
 receives, at the framing of EP-13, the access-rights findings that the sorting of the specification
 of 2026-11-18 had labelled EP-13, which keeps only operations (decision of the author of
-2026-11-18).
+2026-11-18). EP-30 makes the own estimate of a risk a differential, so that a risk can rework or
+abandon existing work; it waits for EP-08, whose update of a differential it reuses, and for a
+revision of the specification (decision of the author of 2026-11-19).
 
 The order of the list is not that of the numbers, and that is deliberate: an identifier is not
 renumbered. The distribution of the requirements put the reference data before the projects —
