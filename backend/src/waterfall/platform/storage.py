@@ -118,6 +118,22 @@ class Bucket:
             settings.storage_secret.get_secret_value(),
         )
 
+    def reach(self) -> None:
+        """Ask the storage whether the bucket is there; refuse as unavailable if it does not say."""
+        with reached():
+            self.client.head_bucket(Bucket=self.name)
+
+    def used_bytes(self) -> int:
+        """Give the sum of the sizes of the objects of the bucket, under every prefix.
+
+        The parts of a deposit not completed are not objects, and are not counted.
+        """
+        used = 0
+        with reached():
+            for page in self.client.get_paginator("list_objects_v2").paginate(Bucket=self.name):
+                used += sum(listed.get("Size", 0) for listed in page.get("Contents", []))
+        return used
+
     def upload(self, key: str, path: Path) -> None:
         """Write a file under a key, in parts if it is large; an object there is replaced."""
         with reached():

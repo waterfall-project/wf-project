@@ -15,12 +15,15 @@ are left, unacknowledged, and it claims them again once idle, after the maintena
 It never runs a restoration, which the service of the restoration takes from a stream of its own
 (#953), nor deposits one again; that service waits for the run of each task the worker started
 before the maintenance to end, by its lock (``await_run``), before it keeps anything.
+
+Each task ended is counted in the metrics of the worker, by kind and outcome, with how long it ran
+(WF-OBS-0010).
 """
 
 import socket
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 from pydantic_core import to_jsonable_python
 from redis.exceptions import RedisError, ResponseError
@@ -45,6 +48,8 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.orm import Session
+
+    from waterfall.platform.metrics import WorkerMetrics
 
 INTERNAL_ERROR = "INTERNAL_ERROR"
 # A task fails once that many attempts have been started and none ended it.
@@ -153,9 +158,16 @@ class Worker:
         self.handlers = handlers
         self.consumer = consumer or socket.gethostname()
         self.timing = timing or Timing()
+        # Where the tasks it ends are counted, if anywhere (``count_in``).
+        self.metrics: WorkerMetrics | None = None
         self.maintenance = Maintenance.of(queue)
         # Where the next look for the entries left pending starts: each look goes on from the last.
         self.sweep = SWEEP_START
+
+    def count_in(self, metrics: WorkerMetrics) -> Self:
+        """Count the tasks this worker ends in the metrics of its process (WF-OBS-0010)."""
+        self.metrics = metrics
+        return self
 
     def run(self) -> None:
         """Take and run the tasks, until the process is stopped."""
@@ -233,10 +245,18 @@ class Worker:
             task = self.start(task_id)
             if task is None:
                 return True
+            started = time.perf_counter()
             with logging_context(**context_of(task)):
                 logger.info("task.started", attempt=task.attempt)
-                self.execute(session, task)
+                succeeded = self.execute(session, task)
+        # Counted once its end is committed: a task whose end is lost runs again (WF-OBS-0010).
+        self.ended(task.kind, succeeded=succeeded, seconds=time.perf_counter() - started)
         return True
+
+    def ended(self, kind: str, *, succeeded: bool, seconds: float | None) -> None:
+        """Count a task ended in the metrics of the worker, if it has any."""
+        if self.metrics is not None:
+            self.metrics.task_ended(kind, succeeded=succeeded, seconds=seconds)
 
     def start(self, task_id: UUID) -> Task | None:
         """Start one more attempt of a task, committed, or end it if it may not run."""
@@ -253,15 +273,19 @@ class Worker:
                 with logging_context(**context_of(task)):
                     logger.error("task.failed", reason=reason, attempts=row.attempts)
                 end(session, task_id, problem=failure(INTERNAL_ERROR, 500, row.correlation_id))
-                return None
-            row.status, row.attempts, row.started_at = "running", attempt, utc_now()
-            return task
+            else:
+                row.status, row.attempts, row.started_at = "running", attempt, utc_now()
+                return task
+        # Failed without running, counted once its end is committed.
+        self.ended(task.kind, succeeded=False, seconds=None)
+        return None
 
-    def execute(self, session: Session, task: Task) -> None:
-        """Run the handler of a task and end the task; a failed handler's work is undone.
+    def execute(self, session: Session, task: Task) -> bool:
+        """Run the handler of a task and end the task; tell whether it succeeded.
 
-        A refusal ends the task with its code, anything else with an ``INTERNAL_ERROR``. A handler
-        that leaves a trace of its failure (``UndoneError``) has it written once its work is undone.
+        A failed handler's work is undone. A refusal ends the task with its code, anything else
+        with an ``INTERNAL_ERROR``. A handler that leaves a trace of its failure (``UndoneError``)
+        has it written once its work is undone.
         """
         try:
             with session.begin_nested():
@@ -277,6 +301,8 @@ class Worker:
         else:
             end(session, task.task_id, result=result)
             logger.info("task.succeeded")
+            return True
+        return False
 
     def fail(self, session: Session, task: Task, error: Exception) -> None:
         """End a task that failed: a refusal with its code, anything else as an internal error."""

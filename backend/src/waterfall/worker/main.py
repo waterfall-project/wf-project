@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Entry point of the worker, and of the command that schedules a task.
 
-``waterfall-worker`` runs the tasks of the queue until it is stopped (WF-ARC-0090);
+``waterfall-worker`` runs the tasks of the queue until it is stopped (WF-ARC-0090), and serves its
+metrics meanwhile (WF-OBS-0010);
 ``waterfall-worker enqueue <kind>`` deposits a task the platform schedules, unless one of that kind
 is pending (PBS-5.3); ``waterfall-worker purge`` purges what expired — imports, deposits, exports,
 history — under a lock of its own (EP-06, "La purge"). Each stops at start, naming the variable that
@@ -28,6 +29,7 @@ from waterfall.platform.database import Database, create_database_engine, utc_no
 from waterfall.platform.errors import UnavailableError
 from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, logging_context
+from waterfall.platform.metrics import MetricsRegistry, WorkerMetrics
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import (
     PurgeSettings,
@@ -67,16 +69,19 @@ EXTENDING = (
 )
 
 
-def handlers(settings: WorkerSettings) -> dict[str, TaskHandler]:
+def handlers(
+    settings: WorkerSettings, metrics: WorkerMetrics | None = None
+) -> dict[str, TaskHandler]:
     """Give what the worker runs, by kind of task: a backup, the reading of the accounts, a marking.
 
     The marking is the first task of the trade (US-0970); the analysis and the application of an
-    import and an export are the exchanges' (EP-06).
+    import and an export are the exchanges' (EP-06). The reading of the accounts counts in
+    ``metrics`` the directories it could not read (#917).
     """
     imports = exchanges.ImportTasks.of(settings)
     return {
         "backup": BackupTask.of(settings),
-        "identity_sync": IdentitySync.of(settings),
+        "identity_sync": IdentitySync.of(settings, metrics),
         "revision_mark": mark,
         "import_analysis": imports.analyse,
         "import_apply": imports.apply,
@@ -149,9 +154,14 @@ def _work(settings: WorkerSettings) -> int:
     database = Database(create_database_engine(settings.database_url.get_secret_value()))
     TIME_ZONE.read_from(stored_in(database))
     queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=WORKER_TIMEOUT)
+    registry = MetricsRegistry()
+    metrics = WorkerMetrics(registry)
+    # The worker listens to nothing but its metrics, on a port of their own (WF-OBS-0010).
+    stop_metrics = registry.serve(settings.host, settings.metrics_port)
     try:
-        return serve(Worker(database, queue, handlers(settings)))
+        return serve(Worker(database, queue, handlers(settings, metrics)).count_in(metrics))
     finally:
+        stop_metrics()
         queue.close()
         database.dispose()
 

@@ -71,6 +71,7 @@ from waterfall.core.exchanges import interface as exchanges_interface
 from waterfall.core.history import interface as history_interface
 from waterfall.core.indicators import interface as indicators_interface
 from waterfall.core.planning import interface as planning_interface
+from waterfall.platform.metrics import Capacities
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -96,12 +97,15 @@ EXTENDING = (
 )
 
 
-def create_app(services: Services, lifespan: Lifespan | None = None) -> FastAPI:
+def create_app(
+    services: Services, lifespan: Lifespan | None = None, capacities: Capacities | None = None
+) -> FastAPI:
     """Build the application on its services: its routes, its correlation, its envelope of errors.
 
     Nothing is reached before a request needs it: a probe answers without the database or
     Keycloak. ``lifespan`` runs around the serving of the application: the process that opened
-    the services closes them by it (``api.main``).
+    the services closes them by it (``api.main``). Its metrics are its own, in a registry of the
+    process; ``capacities`` is the space the deployment declares, none by default (WF-OBS-0010).
     """
     schema.declared()
     app = FastAPI(
@@ -114,10 +118,12 @@ def create_app(services: Services, lifespan: Lifespan | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     # Added first, run second: a refusal in maintenance carries the correlation of its request.
+    observed = system.observed(services, capacities or Capacities())
     app.add_middleware(MaintenanceMiddleware, maintenance=services.maintenance)
-    app.add_middleware(CorrelationMiddleware)
+    app.add_middleware(CorrelationMiddleware, metrics=observed.requests)
     install_problem_handlers(app)
     app.state.services = services
+    app.state.observed = observed
     app.include_router(system.router, prefix=PREFIX)
     app.include_router(me.router, prefix=PREFIX)
     app.include_router(avatars.router, prefix=PREFIX)

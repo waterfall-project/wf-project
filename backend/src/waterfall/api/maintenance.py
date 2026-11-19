@@ -3,9 +3,9 @@
 """The maintenance of a restoration, as the API serves it (WF-ADM-0160, #604).
 
 While a restoration holds the platform in maintenance, every operation but the probe of liveness
-answers 503 ``COMPONENT_UNAVAILABLE``, the database being replaced; the probe says the maintenance,
-and its end. A Redis out of reach says no maintenance: the operations that need it say so
-themselves, and the others are served.
+and the metrics answers 503 ``COMPONENT_UNAVAILABLE``, the database being replaced; the probe says
+the maintenance, and its end. A Redis out of reach says no maintenance: the operations that need it
+say so themselves, and the others are served.
 """
 
 from typing import TYPE_CHECKING
@@ -23,8 +23,11 @@ if TYPE_CHECKING:
     from waterfall.platform.maintenance import Maintenance
 
 COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
-# The path of the probe of liveness (``getLiveness``), served in maintenance.
+# The path of the probe of liveness (``getLiveness``), served in maintenance; and that of the
+# metrics (``getMetrics``), which depend on no component and say each one down (WF-OBS-0010).
 LIVENESS = "/api/v1/health"
+METRICS = "/api/v1/metrics"
+SERVED_IN_MAINTENANCE = (LIVENESS, METRICS)
 
 logger = get_logger(__name__)
 
@@ -41,15 +44,15 @@ def in_maintenance(maintenance: Maintenance | None) -> bool:
 
 
 class MaintenanceMiddleware:
-    """Refuse every operation but the probe of liveness while the platform is in maintenance."""
+    """Refuse every operation but the probe of liveness and the metrics during a maintenance."""
 
     def __init__(self, app: ASGIApp, maintenance: Maintenance | None) -> None:
         self.app = app
         self.maintenance = maintenance
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        """Serve the request, or answer 503 if it is not the probe and the platform is held."""
-        if scope["type"] == "http" and scope["path"] != LIVENESS:
+        """Serve the request, or answer 503 if it is not served held and the platform is held."""
+        if scope["type"] == "http" and scope["path"] not in SERVED_IN_MAINTENANCE:
             held = await run_in_threadpool(in_maintenance, self.maintenance)
             if held:
                 refused = problem_response(

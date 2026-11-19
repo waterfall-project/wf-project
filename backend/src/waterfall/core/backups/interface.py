@@ -9,7 +9,8 @@ restoration keeps the journal, the list of the backups and their tasks, and the 
 writes back what the restored database lacks: the archives of the backups taken since stay in the
 bucket, and stay listed (#893); the deposits are those of the installation, not the source's;
 the accounts the journal says anonymised since are anonymised again (#988). The date a backup
-deposited from elsewhere says is read from the head of its archive (#350).
+deposited from elsewhere says is read from the head of its archive (#350). The outcome of the latest
+backup the platform scheduled is a gauge of the metrics, which its alert reads (WF-OBS-0030).
 """
 
 import io
@@ -35,6 +36,7 @@ from waterfall.platform.audit import (
 )
 from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.identifiers import new_id
+from waterfall.platform.metrics import Outcome
 from waterfall.platform.restoration import (
     begin_keeping,
     end_keeping,
@@ -45,7 +47,7 @@ from waterfall.platform.restoration import (
     take_over,
     write_back,
 )
-from waterfall.platform.tasks import keep_more_tasks, keep_tasks, write_back_tasks
+from waterfall.platform.tasks import keep_more_tasks, keep_tasks, last_ended, write_back_tasks
 from waterfall.platform.uploads import FileUpload
 
 if TYPE_CHECKING:
@@ -109,6 +111,20 @@ def read_backup(session: Session, backup_id: UUID) -> BackupView:
     if row is None:
         raise NotFoundError(NOT_FOUND)
     return _view(row)
+
+
+def last_scheduled_outcome(session: Session) -> Outcome | None:
+    """Give how the latest backup the platform scheduled ended; ``None`` if none has ended yet.
+
+    It failed if its task failed, or if its archive failed its verification (WF-ADM-0170).
+    """
+    ended = last_ended(session, "backup", by_platform=True)
+    if ended is None:
+        return None
+    verified = session.scalar(
+        select(Backup.verification == "passed").where(Backup.task_id == ended.task_id)
+    )
+    return Outcome(ended.at, succeeded=ended.succeeded and verified is True)
 
 
 def add_backup(session: Session, taken: TakenBackup, act: Act) -> UUID:

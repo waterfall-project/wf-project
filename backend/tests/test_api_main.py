@@ -7,6 +7,8 @@ the factory, which opens the services of the process and closes them when it sto
 """
 
 import json
+import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
@@ -19,6 +21,7 @@ from waterfall.api import main as api_main
 from waterfall.platform.cache import PREFIX, IndicatorsCache
 from waterfall.platform.database import Database
 from waterfall.platform.keycloak import Keycloak
+from waterfall.platform.metrics import MULTIPROCESS, Capacities
 from waterfall.platform.queue import TaskQueue
 from waterfall.platform.storage import Bucket
 
@@ -26,6 +29,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from waterfall.api.authentication import Services
+    from waterfall.api.system import Observed
     from waterfall.platform.settings import ServiceSettings
 
 
@@ -240,3 +244,58 @@ def test_a_validity_that_is_not_a_whole_number_above_zero_stops_the_start(
     monkeypatch.setattr(api_main.uvicorn, "run", serve)
     assert api_main.main([]) == 2
     assert "WATERFALL_INDICATORS_CACHE_TTL" in capsys.readouterr().err
+
+
+@pytest.mark.usefixtures("platform_environment", "logs")
+@pytest.mark.parametrize(("processes", "shared"), [("1", False), ("3", True)])
+def test_several_processes_share_their_counters_in_a_folder_removed_after_them(
+    processes: str, shared: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Proper to US-2870: the metrics of the API are aggregated between its processes, which write
+    # their counters in a folder they share while they serve; one process keeps them.
+    monkeypatch.setenv("WATERFALL_API_PROCESSES", processes)
+    monkeypatch.delenv(MULTIPROCESS, raising=False)
+    folders: list[str | None] = []
+
+    def serve(*_: Any, **__: Any) -> None:
+        folder = os.environ.get(MULTIPROCESS)
+        assert folder is None or Path(folder).is_dir()
+        folders.append(folder)
+
+    monkeypatch.setattr(api_main.uvicorn, "run", serve)
+    assert api_main.main([]) == 0
+    (folder,) = folders
+    assert (folder is not None) == shared
+    assert MULTIPROCESS not in os.environ
+    assert folder is None or not Path(folder).exists()
+
+
+@pytest.mark.usefixtures("platform_environment", "logs")
+def test_the_capacities_the_deployment_declares_are_those_the_metrics_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Proper to US-2870: the space available is the capacity the deployment declares less the
+    # space used (EP-13, "La supervision"), a setting of the API in bytes.
+    monkeypatch.setenv("WATERFALL_DATABASE_CAPACITY_BYTES", "5000000000")
+    monkeypatch.setenv("WATERFALL_STORAGE_CAPACITY_BYTES", "7000000000")
+    app = api_main.application()
+    with TestClient(app):
+        capacities = cast("Observed", app.state.observed).state.capacities
+    assert capacities == Capacities(database=5_000_000_000, object_storage=7_000_000_000)
+
+
+@pytest.mark.usefixtures("platform_environment")
+@pytest.mark.parametrize("variable", ["DATABASE_CAPACITY_BYTES", "STORAGE_CAPACITY_BYTES"])
+def test_a_capacity_that_is_no_whole_number_above_zero_stops_the_start(
+    variable: str, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Proper to US-2870: a capacity is a whole number of bytes above zero; anything else stops the
+    # start, the variable named.
+    monkeypatch.setenv(f"WATERFALL_{variable}", "0")
+
+    def serve(*_: Any, **__: Any) -> None:
+        pytest.fail("the service started")
+
+    monkeypatch.setattr(api_main.uvicorn, "run", serve)
+    assert api_main.main([]) == 2
+    assert f"WATERFALL_{variable}" in capsys.readouterr().err

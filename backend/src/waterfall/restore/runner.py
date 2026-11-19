@@ -172,8 +172,8 @@ class Restorer(Worker):
         self.maintenance.hold(dataclasses.replace(restoring, attempts=attempt))
         return task
 
-    def execute(self, session: Session, task: Task) -> None:
-        """Run the restoration and end its task; once the maintenance is held, an error interrupts.
+    def execute(self, session: Session, task: Task) -> bool:
+        """Run the restoration, end its task, tell whether it succeeded; once held, an error stops.
 
         Before the maintenance, a refusal ends the task with its code, anything else with an
         ``INTERNAL_ERROR``, and nothing has changed. Once it is held, an error leaves the task as it
@@ -193,10 +193,11 @@ class Restorer(Worker):
                 logger.exception("task.failed", reason="error")
                 problem = failure(INTERNAL_ERROR, 500, task.correlation_id)
                 end(session, task.task_id, problem=problem)
-            return
+            return False
         end(session, task.task_id, result=result)
         self.succeeded = True
         logger.info("task.succeeded")
+        return True
 
     def redeposit(self) -> None:
         """Deposit again the restorations the stream no longer names.
