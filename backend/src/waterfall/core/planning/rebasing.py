@@ -28,7 +28,7 @@ structure, a differential and its base (EP-08, "La base d'un différentiel et sa
   the differential and its label, null for a task the main structure adds.
 
 The plan is keyed by lineage, which every structure of the three holds once for a task: the
-application (US-3050/L4) writes it as the report presents it.
+application (``rebasing_writing``, US-3050/L4) writes it as the report presents it.
 """
 
 from dataclasses import dataclass, field
@@ -224,7 +224,9 @@ class RebasePlan:
     differential takes; ``kept_fields`` those it keeps against it (rule 1); ``added`` the tasks
     the main structure adds, ``removed`` those that leave the differential, in its order;
     ``kept`` the tasks the rules 2 and 3 keep, signalled; ``links`` the links the update leaves,
-    and ``link_changes`` what it does of each — its change, its pair, its fields.
+    and ``link_changes`` what it does of each — its change, its pair, its fields. ``nodes`` the
+    node of each task in the differential, given by the application as it writes (a task the main
+    structure adds takes a new one), empty while the report reads.
     """
 
     base: Side
@@ -245,6 +247,7 @@ class RebasePlan:
         default_factory=list[tuple[str, Pair, list[str]]]
     )
     summaries: set[UUID] = field(default_factory=set[UUID])
+    nodes: dict[UUID, UUID] = field(default_factory=dict[UUID, UUID])
 
     def holds(self, lineage: UUID | None) -> bool:
         """Tell whether the update leaves a task of the lineage — the first level always."""

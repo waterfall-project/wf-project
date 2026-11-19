@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-def _delete_nodes(session: Session, place: Place) -> None:
+def delete_structure_nodes(session: Session, place: Place) -> None:
     """Delete the nodes of a structure with the facets of the later kinds.
 
     The facets of the other kinds go first, by their hooks, then the nodes, whose task, links and
@@ -89,7 +89,7 @@ def abandon_differential(session: Session, place: Place, lock_version: int, writ
     if base_id is not None:
         structure_facts(session, place.project_id, base_id, lock=True, base=True)
     forget_structure(session, place.revision_id, place.structure_id, node_ids)
-    _delete_nodes(session, place)
+    delete_structure_nodes(session, place)
     if base_id is not None:
-        _delete_nodes(session, Place(place.project_id, place.revision_id, base_id))
+        delete_structure_nodes(session, Place(place.project_id, place.revision_id, base_id))
     abandon_structure(session, place.project_id, facts, writer.act)

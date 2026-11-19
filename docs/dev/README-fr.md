@@ -3147,7 +3147,8 @@ l'accueil connecté (US-0920/L2), les révisions (US-0960, US-0970) et les param
 (US-1440) et le planning (US-1470), d'EP-07, le plan de charge (US-1520), la comparaison des
 révisions (US-1530), les contributeurs proposés (US-1540), l'import et l'export du devis (US-1550)
 et le devis (US-1560), et, d'EP-09, les coûts réels (US-1620), la grille du reste à engager et le
-Kanban (US-1640, qui en retire `MockupNotice`) ; un succès y est ce que le service a gardé, relu.
+Kanban (US-1640, qui en retire `MockupNotice`), et, d'EP-08, les risques (US-2640, qui en retire
+`MockupNotice`) ; un succès y est ce que le service a gardé, relu.
 Contre le faux back, l'écran des chronologies dessine tout le volume que Prism rend pour
 `listNodes`, quelle que soit la chronologie : les parcours de la frise et du focus n'y jugent que la
 disposition, et leur sélection se prouve contre le service.

@@ -3136,8 +3136,9 @@ the connected home (US-0920/L2), the revisions (US-0960, US-0970) and the settin
 (US-1440) and the planning (US-1470), from EP-07, the workload (US-1520), the comparison of
 revisions (US-1530), the proposed contributors (US-1540), the import and export of the estimate
 (US-1550) and the estimate (US-1560), and, from EP-09, the actual costs (US-1620), the
-remaining-to-commit grid and the Kanban (US-1640, which removes `MockupNotice` from them); a success
-there is what the service kept, read anew. Against the fake back, the timelines screen draws the
+remaining-to-commit grid and the Kanban (US-1640, which removes `MockupNotice` from them), and, from
+EP-08, the risks (US-2640, which removes `MockupNotice`); a success there is what the service kept,
+read anew. Against the fake back, the timelines screen draws the
 whole volume Prism renders for `listNodes`, whatever the timeline: the paths of the frieze and of
 the focus judge only the layout there, and their selection is proven against the service.
 

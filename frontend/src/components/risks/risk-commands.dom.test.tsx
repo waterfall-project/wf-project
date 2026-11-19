@@ -205,7 +205,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   refresh.mockClear();
   router.push.mockClear();
-  router.refresh.mockClear();
+  router.refresh.mockReset();
 });
 
 beforeEach(browserOffline);

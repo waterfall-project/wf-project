@@ -1003,7 +1003,7 @@ d'un différentiel et sa mise à jour (US-3050).
 
 ## US-3050 — La base d'un différentiel et sa mise à jour depuis la structure principale
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-REV-0100-A`
 - **opérations** : `getStructureRebaseReport`, `rebaseCostStructure` (nouvelles, écrites par la
   conception), `createCostStructure`, `listCostStructures`, `deleteCostStructure`, `createRevision`,
@@ -1812,7 +1812,7 @@ des indicateurs, inchangé.
 
 ## US-2640 — Les écrans des risques et des avenants, branchés sur le service
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0020-A`
 - **opérations** : celles des US-2550 à US-2630 et d'US-3050, par le client engendré ;
   `deleteCostStructure` et `rebaseCostStructure` (les gestes nouveaux)
