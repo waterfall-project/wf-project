@@ -11,7 +11,7 @@ or draws at random: every value drawn comes from the seed and from what it descr
 
 from collections import Counter
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from functools import cache
 from typing import Any, cast
@@ -148,10 +148,15 @@ def portfolio_page(answer: JsonObject) -> JsonObject:
 
 FILTERED_COST_INDEX_MAX = Decimal("0.9")
 FILTERED_DELTA_MIN = Decimal(0)
-FILTERED_MARKED_BEFORE = "2026-04-01T00:00:00Z"
+FILTERED_MARKED_BEFORE = datetime(2026, 4, 1, tzinfo=UTC)
 """The column filters of `portfolio_projects_filtered` (US-2690): the projects whose cost index
 is at most the watch threshold, whose projection reaches their budget, and whose last revision
 was marked before April — the drifting projects not reviewed since."""
+
+
+def instant(text: str) -> datetime:
+    """Read an instant of the contract, ``2026-03-01T17:00:00Z``, as a moment of time."""
+    return datetime.fromisoformat(text)
 
 
 def _index_number(row: JsonObject, name: str) -> Decimal | None:
@@ -179,7 +184,7 @@ def filtered_rows(rows: list[JsonObject]) -> list[JsonObject]:
         if (
             cost <= FILTERED_COST_INDEX_MAX
             and Decimal(cast("str", delta)) >= FILTERED_DELTA_MIN
-            and cast("str", marked) < FILTERED_MARKED_BEFORE
+            and instant(cast("str", marked)) < FILTERED_MARKED_BEFORE
         ):
             kept.append((cost, row))
     kept.sort(key=lambda pair: (pair[0], str(pair[1]["label"]), str(pair[1]["project_id"])))
@@ -194,7 +199,8 @@ def portfolio_filtered(answer: JsonObject) -> JsonObject:
     value["meta"] = {"limit": PAGE, "offset": 0, "total": len(kept)}
     return mocktext.example(
         f"La liste du portefeuille du §4.6.2 lue avec cost_index_max={FILTERED_COST_INDEX_MAX}, "
-        f"delta_to_reference_min={FILTERED_DELTA_MIN}, last_marked_at_to={FILTERED_MARKED_BEFORE} "
+        f"delta_to_reference_min={FILTERED_DELTA_MIN}, "
+        f"last_marked_at_to={FILTERED_MARKED_BEFORE:%Y-%m-%dT%H:%M:%SZ} "
         f"et sort_by=cost_index : les {mocktext.count(len(kept))} projets en cours dont l'indice "
         f"de coût ne dépasse pas {mocktext.amount(FILTERED_COST_INDEX_MAX, 1)}, dont la "
         f"projection atteint ou dépasse le budget de référence et dont la dernière révision a "
@@ -203,6 +209,54 @@ def portfolio_filtered(answer: JsonObject) -> JsonObject:
         f"et meta.total compte les seuls projets retenus (WF-IHM-0130, WF-PTF-0040).",
         value,
     )
+
+
+REFUSED_BOUNDS = (Decimal(1000), Decimal(10_000))
+"""The bounds of the reference budget asked inverted: the upper one first, the lower one after."""
+REFUSED_MARKING = (datetime(2026, 4, 1, tzinfo=UTC), datetime(2026, 3, 1, tzinfo=UTC))
+"""The period of the last marked revision asked inverted: its end before its start."""
+
+
+def _refusal(pointer: str, minimum: str, correlation: int) -> JsonObject:
+    """Return the 422 of a column filter refused, the bound named, the lower one given."""
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [
+            {"pointer": pointer, "code": "VALUE_OUT_OF_RANGE", "params": {"minimum": minimum}}
+        ],
+        "correlation_id": universe(correlation),
+    }
+
+
+def refusals() -> dict[str, JsonObject]:
+    """Return the refusals of the column filters of the list, by file name (US-2690).
+
+    The rule of every column of numbers and of every period of the contract (README): 422, the
+    upper bound or the end named by VALUE_OUT_OF_RANGE, ``params.minimum`` the lower bound or the
+    start given, in the type of the column.
+    """
+    low, high = REFUSED_BOUNDS
+    start, end = REFUSED_MARKING
+    return {
+        "portfolio_projects_bounds_inverted.json": mocktext.example(
+            f"La liste du portefeuille du §4.6.2 lue entre {mocktext.amount(high)} et "
+            f"{mocktext.amount(low)} de budget de référence (reference_budget_min, "
+            f"reference_budget_max) : la borne supérieure précède la borne inférieure, et "
+            f"reference_budget_max est refusée, désignée par /query/reference_budget_max, la "
+            f"borne inférieure nommée, un décimal en chaîne comme la colonne (README du contrat, "
+            f"WF-IHM-0130).",
+            _refusal("/query/reference_budget_max", f"{high:.2f}", 1196),
+        ),
+        "portfolio_projects_marking_period_inverted.json": mocktext.example(
+            f"La liste du portefeuille du §4.6.2 lue pour les projets dont la dernière révision a "
+            f"été marquée du {mocktext.day(start.date())} au {mocktext.day(end.date())} "
+            f"(last_marked_at_from, last_marked_at_to) : la fin de la période précède son "
+            f"début, et last_marked_at_to est refusé, désigné par /query/last_marked_at_to, le "
+            f"début nommé (README du contrat, WF-IHM-0130).",
+            _refusal("/query/last_marked_at_to", f"{start:%Y-%m-%dT%H:%M:%SZ}", 1197),
+        ),
+    }
 
 
 def universe_rows() -> list[JsonObject]:

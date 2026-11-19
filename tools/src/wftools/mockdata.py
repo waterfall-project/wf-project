@@ -26,7 +26,10 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
   automatic mode it redates (``wftools.mockplanning``, WF-PLA-0020);
 - ``portfolio_projects.json``, ``getPortfolioProjects``: the projects of the portfolio, the
   witness project and the offer of the other examples first, and ``portfolio_projects_page.json``,
-  its second page of fifty, and ``portfolio_projects_filtered.json``, read with column filters;
+  its second page of fifty, and ``portfolio_projects_filtered.json``, read with column filters
+  (``portfolio_projects_bounds_inverted.json`` and
+  ``portfolio_projects_marking_period_inverted.json``, the refusals of its bounds and of its period
+  of marking, are written by ``wftools.mockportfolio``);
 - ``portfolio_value.json``, ``portfolio_performance.json``, ``portfolio_cost_structure.json``
   and ``portfolio_risks.json``, of ``getPortfolioValue``, ``getPortfolioPerformance``,
   ``getPortfolioCostStructure`` and ``getPortfolioRisks``: the views of the same projects,
@@ -105,6 +108,7 @@ from wftools import (
     mocklists,
     mocknonworking,
     mockplanning,
+    mockportfolio,
     mockportfoliotime,
     mockproject,
     mockreference,
@@ -348,6 +352,7 @@ def named() -> dict[str, JsonObject]:
         **mocktoday.examples(),
         **mockcosts.examples(),
         **mockportfoliotime.examples(),
+        **mockportfolio.refusals(),
         **mockaudit.examples(),
         **mockauditadmin.examples(),
         **mockreference.named(),

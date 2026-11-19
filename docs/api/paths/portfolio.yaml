@@ -102,8 +102,16 @@
       '422':
         description: >-
           `VALIDATION_FAILED`. The period (`from`, `to`) refused by the rule of every period of
-          the portfolio (`PortfolioPeriodRefused`). Or a column filter refused, following the
-          convention of the README, `fields` on the parameter: a malformed bound with
+          the portfolio (`PortfolioPeriodRefused`): an end that precedes the start, `/query/to`
+          with `VALUE_OUT_OF_RANGE`, `params.minimum` the start given; a malformed start or end,
+          `/query/from` or `/query/to` with `DATE_INVALID`. A single bound is completed with that
+          of the default period — the end, the calculation date; the start, the calculation date
+          minus twelve months (28 February for a 29 February), then the next day — and the
+          completed period follows the same rule: a start later than the calculation date,
+          `/query/from` with `VALUE_OUT_OF_RANGE`, `params.maximum` the completed end; an end
+          earlier than the default start, `/query/to`, `params.minimum` the completed start. Or a
+          column filter refused, following the convention of the README, `fields` on the
+          parameter: a malformed bound with
           `NUMBER_INVALID`, a malformed instant with `DATE_INVALID`; an upper bound lower than
           the lower one with `VALUE_OUT_OF_RANGE` on `/query/<column>_max`, `params.minimum` the
           lower bound given; an end of the period of the last marked revision earlier than its
@@ -116,6 +124,10 @@
               period_inverted: { $ref: ../../../fixtures/api/portfolio_period_inverted.json }
               open_period_inverted:
                 $ref: ../../../fixtures/api/portfolio_open_period_inverted.json
+              bounds_inverted:
+                $ref: ../../../fixtures/api/portfolio_projects_bounds_inverted.json
+              marking_period_inverted:
+                $ref: ../../../fixtures/api/portfolio_projects_marking_period_inverted.json
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

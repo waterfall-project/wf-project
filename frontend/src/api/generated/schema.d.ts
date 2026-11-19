@@ -6637,9 +6637,9 @@ export interface components {
         PortfolioCurrentEstimateMin: components["schemas"]["Money"];
         /** @description Restricts to the projects in pricing whose current estimate does not exceed this bound, inclusive; a project without a current estimate is not retained. Lower than `current_estimate_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/current_estimate_max`. */
         PortfolioCurrentEstimateMax: components["schemas"]["Money"];
-        /** @description Restricts to the projects whose win probability (`PortfolioProjectRow.win_probability`) reaches this bound, inclusive; a project without a probability is not retained (WF-PTF-0040, WF-IHM-0130). */
+        /** @description Restricts to the projects whose win probability (`PortfolioProjectRow.win_probability`) reaches this bound, inclusive, a share (`0.4` for 40 %); a project without a probability is not retained (WF-PTF-0040, WF-IHM-0130). */
         PortfolioWinProbabilityMin: components["schemas"]["Percent"];
-        /** @description Restricts to the projects whose win probability does not exceed this bound, inclusive; a project without a probability is not retained. Lower than `win_probability_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/win_probability_max`. */
+        /** @description Restricts to the projects whose win probability does not exceed this bound, inclusive, a share (`0.4` for 40 %); a project without a probability is not retained. Lower than `win_probability_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/win_probability_max`. */
         PortfolioWinProbabilityMax: components["schemas"]["Percent"];
         /** @description Restricts to the projects whose project manager's projection (`PortfolioProjectRow.project_manager_projection`) reaches this bound, inclusive: projects in progress, since another project has none (WF-PTF-0040, WF-IHM-0130). */
         PortfolioProjectionMin: components["schemas"]["Money"];
@@ -14164,9 +14164,9 @@ export interface operations {
                 current_estimate_min?: components["parameters"]["PortfolioCurrentEstimateMin"];
                 /** @description Restricts to the projects in pricing whose current estimate does not exceed this bound, inclusive; a project without a current estimate is not retained. Lower than `current_estimate_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/current_estimate_max`. */
                 current_estimate_max?: components["parameters"]["PortfolioCurrentEstimateMax"];
-                /** @description Restricts to the projects whose win probability (`PortfolioProjectRow.win_probability`) reaches this bound, inclusive; a project without a probability is not retained (WF-PTF-0040, WF-IHM-0130). */
+                /** @description Restricts to the projects whose win probability (`PortfolioProjectRow.win_probability`) reaches this bound, inclusive, a share (`0.4` for 40 %); a project without a probability is not retained (WF-PTF-0040, WF-IHM-0130). */
                 win_probability_min?: components["parameters"]["PortfolioWinProbabilityMin"];
-                /** @description Restricts to the projects whose win probability does not exceed this bound, inclusive; a project without a probability is not retained. Lower than `win_probability_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/win_probability_max`. */
+                /** @description Restricts to the projects whose win probability does not exceed this bound, inclusive, a share (`0.4` for 40 %); a project without a probability is not retained. Lower than `win_probability_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/win_probability_max`. */
                 win_probability_max?: components["parameters"]["PortfolioWinProbabilityMax"];
                 /** @description Restricts to the projects whose project manager's projection (`PortfolioProjectRow.project_manager_projection`) reaches this bound, inclusive: projects in progress, since another project has none (WF-PTF-0040, WF-IHM-0130). */
                 project_manager_projection_min?: components["parameters"]["PortfolioProjectionMin"];
@@ -14214,7 +14214,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description `VALIDATION_FAILED`. The period (`from`, `to`) refused by the rule of every period of the portfolio (`PortfolioPeriodRefused`). Or a column filter refused, following the convention of the README, `fields` on the parameter: a malformed bound with `NUMBER_INVALID`, a malformed instant with `DATE_INVALID`; an upper bound lower than the lower one with `VALUE_OUT_OF_RANGE` on `/query/<column>_max`, `params.minimum` the lower bound given; an end of the period of the last marked revision earlier than its start with `VALUE_OUT_OF_RANGE` on `/query/last_marked_at_to`, `params.minimum` the start given (WF-IHM-0130). No empty list stands in for a refusal. */
+            /** @description `VALIDATION_FAILED`. The period (`from`, `to`) refused by the rule of every period of the portfolio (`PortfolioPeriodRefused`): an end that precedes the start, `/query/to` with `VALUE_OUT_OF_RANGE`, `params.minimum` the start given; a malformed start or end, `/query/from` or `/query/to` with `DATE_INVALID`. A single bound is completed with that of the default period — the end, the calculation date; the start, the calculation date minus twelve months (28 February for a 29 February), then the next day — and the completed period follows the same rule: a start later than the calculation date, `/query/from` with `VALUE_OUT_OF_RANGE`, `params.maximum` the completed end; an end earlier than the default start, `/query/to`, `params.minimum` the completed start. Or a column filter refused, following the convention of the README, `fields` on the parameter: a malformed bound with `NUMBER_INVALID`, a malformed instant with `DATE_INVALID`; an upper bound lower than the lower one with `VALUE_OUT_OF_RANGE` on `/query/<column>_max`, `params.minimum` the lower bound given; an end of the period of the last marked revision earlier than its start with `VALUE_OUT_OF_RANGE` on `/query/last_marked_at_to`, `params.minimum` the start given (WF-IHM-0130). No empty list stands in for a refusal. */
             422: {
                 headers: {
                     [name: string]: unknown;
