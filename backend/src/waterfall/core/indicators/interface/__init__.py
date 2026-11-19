@@ -93,6 +93,9 @@ from waterfall.core.indicators.interface.physical_progress import (
 # ``portfolio`` (US-2670/L1; US-2680/L1): the documents of the projects the portfolio sums, kept at
 # the marking and of the day.
 from waterfall.core.indicators.interface.portfolio import (
+    PORTFOLIO_KINDS as PORTFOLIO_KINDS,
+)
+from waterfall.core.indicators.interface.portfolio import (
     Contribute as Contribute,
 )
 from waterfall.core.indicators.interface.portfolio import (
