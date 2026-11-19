@@ -607,6 +607,50 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
         "'document_number', 'excluded_reason', 'in_tracked_scope', 'subproject'} "
         r"| pattern='^passthrough\\..+$')"
     ),
+    # The bounds of the columns of the list of the portfolio, read as text and judged by the route,
+    # every one at fault named at once (``NUMBER_INVALID``, ``getPortfolioProjects``, US-2690/L2).
+    ("getPortfolioProjects", "query", "reference_budget_min"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("getPortfolioProjects", "query", "reference_budget_max"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("getPortfolioProjects", "query", "current_estimate_min"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("getPortfolioProjects", "query", "current_estimate_max"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("getPortfolioProjects", "query", "project_manager_projection_min"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("getPortfolioProjects", "query", "project_manager_projection_max"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("getPortfolioProjects", "query", "delta_to_reference_min"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("getPortfolioProjects", "query", "delta_to_reference_max"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("getPortfolioProjects", "query", "win_probability_min"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d+)?$'"
+    ),
+    ("getPortfolioProjects", "query", "win_probability_max"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d+)?$'"
+    ),
+    ("getPortfolioProjects", "query", "cost_index_min"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d+)?$'"
+    ),
+    ("getPortfolioProjects", "query", "cost_index_max"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d+)?$'"
+    ),
+    ("getPortfolioProjects", "query", "schedule_index_min"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d+)?$'"
+    ),
+    ("getPortfolioProjects", "query", "schedule_index_max"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d+)?$'"
+    ),
     ("listContributors", "query", "sort_by"): (
         "declared pattern='^(display_name|kind|is_active)$', "
         "contract enum={'display_name', 'is_active', 'kind'}"

@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 
     from waterfall.core.projects.interface import ProjectAtDate, ProjectState
     from waterfall.core.revisions.interface import RetainedRevisions
+    from waterfall.platform.cache import IndicatorsCache
 
 # The states retained when none is asked: the projects In progress (``PortfolioStates``).
 DEFAULT_STATES: tuple[ProjectState, ...] = ("in_progress",)
@@ -68,6 +69,19 @@ class PortfolioAsked:
     period_to: date | None = None
     as_of: date | None = None
     org_node_id: UUID | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PortfolioReading:
+    """When a view is read, and what the indicators of the day are read from.
+
+    ``at`` is the instant of the reading, read once by the caller, never by the view; ``cache`` is
+    the cache of the indicators of the day of the process, none for a process that computes them at
+    each reading (EP-10, "Le cache"). A date asked (``as_of``) reads the markings, never the cache.
+    """
+
+    at: datetime
+    cache: IndicatorsCache | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,12 +112,15 @@ class RetainedProject:
     Completed; for an offer, the probability of winning its revision kept at the marking, or that of
     the project on the current day; null when ``revision_id`` is, and also for an offer whose
     revision retained, marked before EP-07, kept no probability: nothing is taken up nor
-    recalculated.
+    recalculated. ``marked_at`` is the instant of the last marking before the end of the date, null
+    for a project none of whose revisions was marked by then: the column ``last_marked_at`` of the
+    list (WF-PTF-0040), which is not that of ``revision_id``, a revision in progress on the day.
     """
 
     state: ProjectState
     revision_id: UUID | None
     weight: Decimal | None
+    marked_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,13 +215,13 @@ def _retained(
         revision_id = kept.last_marked_id
         probability = kept.win_probability
     if revision_id is None:
-        return RetainedProject(found.state, None, None)
+        return RetainedProject(found.state, None, None, kept.marked_at)
     if probability is None:
         # A marking before EP-07 kept no probability: an offer by it weighs nothing known.
         weight = None if found.state == PRICING else weight_of(found.state, NOUGHT)
     else:
         weight = weight_of(found.state, probability)
-    return RetainedProject(found.state, revision_id, weight)
+    return RetainedProject(found.state, revision_id, weight, kept.marked_at)
 
 
 def resolve_scope(
@@ -228,8 +245,9 @@ def resolve_scope(
     is both asked and counted. ``period`` false, the view retains no period: ``from`` and ``to``
     are not read, and the scope gives none. A project Completed at the date is then retained if
     and only if ``completed`` is both counted and asked: whether a view without a period — the list
-    read without ``from`` nor ``to`` — counts it is the view's choice, by ``counted``, which #4020
-    leaves to decide. With a period, it is retained only when its completion falls in the period,
+    read without ``from`` nor ``to`` — counts it is the view's choice, by ``counted``; the list
+    does not (#4020, decided on 2026-11-19 by the author: no period in which it would have been
+    completed). With a period, it is retained only when its completion falls in the period,
     its bounds included (``PortfolioStates``, G-05).
     """
     as_of = current_day(at) if asked.as_of is None else asked.as_of

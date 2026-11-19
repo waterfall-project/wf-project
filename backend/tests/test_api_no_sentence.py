@@ -71,6 +71,11 @@ DATA = {
     "IndexHistoryScope.label": "a label",
     "IndexHistoryPoint.version_name": "a name",
     "WorkloadPlan.org_node_label": "a label",
+    # What the list of the portfolio names: the label and the code of a project, and the label of
+    # the node asked, as a person gave them (``getPortfolioProjects``, US-2690).
+    "PortfolioProjectRow.label": "a label",
+    "PortfolioProjectRow.code": "a code",
+    "PortfolioScope.org_node_label": "a label",
     "CalculationContext.scope": "a scope",
     # The label a person gave an element of the work breakdown, and that of the task that bears it.
     "WorkPackageReading.label": "a label",
