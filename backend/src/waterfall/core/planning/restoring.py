@@ -38,6 +38,7 @@ from waterfall.core.planning.attachments import ORDER_ITEM_ID, WORK_PACKAGE_ID, 
 from waterfall.core.planning.dating import conflicts_of
 from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.interface.structures import structure_state
+from waterfall.core.planning.lineage_lock import lock_lineage
 from waterfall.core.planning.rescheduling import Holding
 from waterfall.core.planning.shaping import PARKED, deleted
 from waterfall.core.planning.snapshotting import taken
@@ -441,6 +442,8 @@ def _restore_tracking(
         return
     timelines = set(session.scalars(select(Timeline.id).where(Timeline.project_id == project_id)))
     lineages = {state.object_id: _id(_row(state, "node"), "lineage_id") for state in states}
+    for locked in sorted({each for each in lineages.values() if each}, key=str):
+        lock_lineage(session, project_id, locked)
     held = tracking_of(session, project_id, {each for each in lineages.values() if each})
     for state in states:
         lineage = lineages[state.object_id]

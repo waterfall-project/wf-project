@@ -19,6 +19,9 @@ go before the nodes of the planning, whatever the order in which a process impor
 from waterfall.core.history.interface.closing import (
     close_history as close_history,
 )
+from waterfall.core.history.interface.closing import (
+    forget_structure as forget_structure,
+)
 
 # ``plans`` (US-1380/L1; US-1450/L1): the plans of a paste.
 from waterfall.core.history.interface.plans import (

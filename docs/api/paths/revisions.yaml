@@ -900,7 +900,9 @@
           processing of an occurrence or the application of an import, which write to the
           revision or freeze it, then `unmerged_amendment_exists` for a structure that is not
           a differential that is not merged — the main structure, the own estimate of a risk,
-          a merged differential (WF-REV-0100, WF-REV-0050). Nothing is deleted.
+          a merged differential (WF-REV-0100, WF-REV-0050). On this operation the condition
+          says that the structure aimed at is not an unmerged differential, not that the
+          revision holds none: others may exist. Nothing is deleted.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

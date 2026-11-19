@@ -194,9 +194,9 @@ def test_an_object_without_a_label_but_a_backup_or_an_account_is_a_defect_said_f
 # 2026-10-28 on #1577, option b): the action the contract names that the back does not serve yet —
 # the merge of a differential under its new name (K-04) — and the one it still serves that the
 # contract renamed. The creation of a project and the abandonment of a revision, EP-04 admits
-# (#1577, migration 0021). The abandonment of a differential, which the contract names since
-# US-2550/L2, is served with its operation by US-2550/L4.
-TO_SERVE_BY_EP04 = ("structure_merge", "structure_abandon")
+# (#1577, migration 0021); the abandonment of a differential, named by the contract since
+# US-2550/L2, is served with its operation by US-2550/L4 (migration 0037).
+TO_SERVE_BY_EP04 = ("structure_merge",)
 SERVED_UNDER_AN_OLD_NAME = ("amendment_merge",)
 
 

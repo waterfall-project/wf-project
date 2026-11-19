@@ -843,3 +843,29 @@ def test_an_installation_bootstrapped_before_its_time_zone_is_given_universal_ti
             )
         )
         assert "time_zone" not in set(columns)
+
+
+def test_the_descent_of_the_abandonment_of_a_differential_fails_while_the_journal_holds_one(
+    empty_engine: Engine,
+) -> None:
+    # US-2550/L4: 0037 admits ``structure_abandon``; its descent refuses the action again, which a
+    # journal that holds one — never deleted — forbids: the descent fails and the schema stays.
+    upgrade(empty_engine, "0037")
+    with empty_engine.begin() as connection:
+        connection.execute(
+            insert(AuditEntry).values(
+                id=uuid4(),
+                occurred_at=datetime(2026, 11, 19, tzinfo=UTC),
+                action="structure_abandon",
+                object_kind="cost_structure",
+                object_id=uuid4(),
+                object_label="Avenant",
+                params={},
+                correlation_id="abandon",
+            )
+        )
+    with pytest.raises(DBAPIError, match="action_known"):
+        downgrade(empty_engine, "0036")
+    with empty_engine.connect() as connection:
+        assert applied(connection) == ["0037"]
+        assert connection.scalar(select(func.count()).select_from(AuditEntry)) == 1
