@@ -82,7 +82,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   router.push.mockClear();
-  router.refresh.mockClear();
+  router.refresh.mockReset();
   address.query = "risk=01926f3a-7c00-7000-8000-000000000751";
 });
 
@@ -103,6 +103,8 @@ describe("« Supprimer le risque »", () => {
   it("says the risk written since it was read under its confirmation, with the offer to read the page anew, and deletes nothing [WF-IHM-0110-A]", async () => {
     serve({ [DELETE]: { problem: example("risk_delete_stale") as Problem & { status: 412 } } });
     render(detail(UNCITED));
+    // The reading of the mount is not the offer's: only the offer is counted.
+    router.refresh.mockClear();
     await userEvent.click(screen.getByRole("button", { name: "Supprimer le risque" }));
     const form = screen.getByRole("form", { name: "Supprimer le risque" });
     await userEvent.click(within(form).getByRole("button", { name: "Supprimer le risque" }));
@@ -182,19 +184,58 @@ describe("« Supprimer le risque »", () => {
 });
 
 describe("le risque relu après une écriture dans son devis propre", () => {
-  it("relit le risque quand l'écran redevient visible, avant toute écriture, et ne relit rien tant qu'il est caché [US-2640] [WF-IHM-0110-A]", () => {
-    serve({});
+  it("relit le risque au montage du détail, avant toute écriture, puis à chaque retour de l'écran, et ne relit rien tant qu'il est caché [US-2640] [WF-IHM-0020-A]", () => {
+    const client = serve({});
+    // What the client had sent when the page was asked to be read anew: nothing yet.
+    const sentBefore: number[] = [];
+    router.refresh.mockImplementation(() => sentBefore.push(client.calls.length));
     render(detail(IDENTIFIED));
-    expect(router.refresh).not.toHaveBeenCalled();
-    // The tab was left for the own estimate of the risk and found again: the counter of the risk
-    // has advanced (#1626), the page is read anew.
-    document.dispatchEvent(new Event("visibilitychange"));
+    // The gesture is a navigation in the same tab (the own estimate, a cell entered, the way back):
+    // neither `visibilitychange` nor `pageshow` goes out, the detail is mounted again from the router
+    // cache, and the reading is the one of the mount (#1626).
     expect(router.refresh).toHaveBeenCalledOnce();
-    window.dispatchEvent(new Event("pageshow"));
-    expect(router.refresh).toHaveBeenCalledTimes(2);
-    vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    expect(sentBefore).toEqual([0]);
     document.dispatchEvent(new Event("visibilitychange"));
     expect(router.refresh).toHaveBeenCalledTimes(2);
+    window.dispatchEvent(new Event("pageshow"));
+    expect(router.refresh).toHaveBeenCalledTimes(3);
+    const hidden = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    try {
+      document.dispatchEvent(new Event("visibilitychange"));
+      expect(router.refresh).toHaveBeenCalledTimes(3);
+    } finally {
+      hidden.mockRestore();
+    }
+    expect(document.visibilityState).toBe("visible");
+  });
+
+  it("supprime avec la version relue après un 412 : la relecture suivie d'une suppression qui aboutit [WF-IHM-0110-A] [US-2640]", async () => {
+    // The version the page read anew brings: derived from the risk read, no example of the contract
+    // carries a risk deleted from a later version (the contract is frozen, #4134).
+    const NEWER: Risk = { ...UNCITED, lock_version: UNCITED.lock_version + 1 };
+    const client = serve({
+      [DELETE]: [
+        { problem: example("risk_delete_stale") as Problem & { status: 412 } },
+        { status: 204 },
+      ],
+    });
+    const { rerender } = render(detail(UNCITED));
+    await userEvent.click(screen.getByRole("button", { name: "Supprimer le risque" }));
+    const form = screen.getByRole("form", { name: "Supprimer le risque" });
+    await userEvent.click(within(form).getByRole("button", { name: "Supprimer le risque" }));
+    await userEvent.click(await within(form).findByRole("button", { name: "Recharger" }));
+    // The page is read anew (once at the mount, once by the offer), the risk it brings is the newer.
+    expect(router.refresh).toHaveBeenCalledTimes(2);
+    rerender(detail(NEWER));
+    await userEvent.click(within(form).getByRole("button", { name: "Supprimer le risque" }));
+    await vi.waitFor(() => {
+      expect(router.push).toHaveBeenCalledOnce();
+    });
+    expect(client.calls.map((call) => call.route)).toEqual([DELETE, DELETE]);
+    expect(client.calls.map((call) => call.query.get("lock_version"))).toEqual([
+      String(UNCITED.lock_version),
+      String(NEWER.lock_version),
+    ]);
   });
 });
 

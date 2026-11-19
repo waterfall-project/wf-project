@@ -224,8 +224,9 @@ describe("a grid filtered by a risk occurred", () => {
           { ...GRID, byOrigin: true },
         ),
       ).rejects.toMatchObject({ name: "UnexpectedAnswer" });
-      // The rejections surface on the next turns of the loop: give them their time.
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      // Node reports an unhandled rejection once the microtasks of the turn are drained: a macrotask
+      // queued now runs after that report, with no delay to guess.
+      await new Promise((resolve) => setImmediate(resolve));
       expect(unhandled).not.toHaveBeenCalled();
     } finally {
       process.off("unhandledRejection", unhandled);

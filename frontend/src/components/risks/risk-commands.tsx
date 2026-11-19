@@ -132,16 +132,21 @@ export function IdentifyRisk({
 }
 
 /**
- * Read the risk anew when the screen is shown again after having been left — a tab left and found
- * again, a page restored from the memory of the browser —, before any other write: an entry in the
- * own estimate of the risk, made meanwhile in another tab or by another session, advances
- * `Risk.lock_version` and answers no counter of the risk (#1626, the contract does not change).
- * The write that still goes out with a counter read before is refused with 412 and resolved by a
- * reading, as every stale write is (WF-IHM-0110).
+ * Read the risk anew when the commands are shown — at the mount of the detail, and again when the
+ * screen is shown after a tab was left or a page restored from the memory of the browser —, before
+ * any write of the risk: an entry in the own estimate of the risk, made meanwhile, advances
+ * `Risk.lock_version` and answers no counter of the risk (#1626, the contract does not change). The
+ * gesture is a navigation in the same tab — the detail leads to the own estimate, one enters a cell,
+ * one comes back —, which fires neither `visibilitychange` nor `pageshow` and which the router of Next
+ * restores from its cache, with the counter read before: the reading at the mount is the one that
+ * holds it. The write that still goes out with a counter read before is refused with 412, and the
+ * offer to read the page anew resolves it (WF-IHM-0110). One reading per mount: the page read anew
+ * keeps the commands mounted, so nothing loops.
  */
 function useRereadWhenShown(): void {
   const router = useRouter();
   useEffect(() => {
+    router.refresh();
     const reread = () => {
       if (document.visibilityState === "visible") {
         router.refresh();
@@ -165,7 +170,7 @@ function useRereadWhenShown(): void {
  * before (défaut n° 24 de `typescript.md`). The risk the commands present is the answer while it is
  * newer than the risk read, so that the commands a review changes — a risk dismissed no longer
  * declared occurred — follow it before the page is read anew. The dialogs and the statuses are those
- * of the risk shown alone. The risk is read anew when the screen is shown again (#1626).
+ * of the risk shown alone. The risk is read anew when the commands are shown (#1626).
  */
 export function RiskCommands({
   projectId,
