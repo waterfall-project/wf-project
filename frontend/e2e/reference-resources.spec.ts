@@ -4,8 +4,8 @@
  * The screen of the settings of the resources (`/reference/resources`): the roles, the tree of the
  * organisation, the calendars and the units of duration, against the fake back and, for the paths
  * tagged `@shared`, against the service (US-0850). The service keeps what is written: the paths
- * that write leave a state equivalent to the one they found — the units of duration alternate
- * between 7 and 8 — and the screen shows no mock-up notice. Every path of this file writes what the
+ * that write leave the state they found — the units of duration are written the other of 7 and 8,
+ * then put back — and the screen shows no mock-up notice. Every path of this file writes what the
  * installation holds once — the units of duration, the default calendar, the position of a node, the
  * activity of a role, a calendar or a node — and is read by the paths beside it (the roles and the
  * calendars of the settings of the costs, the schedules of every project, which the default calendar
@@ -299,7 +299,8 @@ test("modifies the units of duration from the settings of the resources, and say
   const value = (name: string) =>
     section.getByText(name, { exact: true }).locator("xpath=following-sibling::dd");
   // The fake back starts from 8 hours; the service from what the installation keeps, which a
-  // replay found changed: the path writes the other of 7 and 8, valid on every run.
+  // replay found changed: the path writes the other of 7 and 8, valid on every run, then puts back
+  // what it found.
   await expect(value("Heures par jour")).toHaveText(/^\d+$/, { timeout: WORKING });
   const before = (await value("Heures par jour").textContent()) ?? "";
   if (!inService) {
@@ -307,34 +308,67 @@ test("modifies the units of duration from the settings of the resources, and say
   }
   const written = before === "7" ? "8" : "7";
   const form = page.getByRole("dialog", { name: "Modifier les unités de durée" });
-  // No project is opened here, nothing witnesses the hydration: the command is pressed again until
-  // React opens its form, and never once it is open.
-  await expect(async () => {
-    if (!(await form.isVisible())) {
-      await section.getByRole("button", { name: "Modifier les unités de durée" }).click();
+  const notRestored: unknown[] = [];
+  try {
+    // No project is opened here, nothing witnesses the hydration: the command is pressed again until
+    // React opens its form, and never once it is open.
+    await expect(async () => {
+      if (!(await form.isVisible())) {
+        await section.getByRole("button", { name: "Modifier les unités de durée" }).click();
+      }
+      await expect(form).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: WORKING });
+    await expect(form).toContainText(
+      "les plannings des révisions en cours sont recalculés ; une révision marquée garde les heures qu’elle a calculées.",
+    );
+    await form.getByRole("textbox", { name: "Heures par jour" }).fill(written);
+    await form.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(form).toBeHidden({ timeout: WORKING });
+    if (!inService) {
+      // The fake back answers the first example of the operation whatever was written: 7 and 35.
+      await expect(value("Heures par semaine")).toHaveText("35");
     }
-    await expect(form).toBeVisible({ timeout: 1_000 });
-  }).toPass({ timeout: WORKING });
-  await expect(form).toContainText(
-    "les plannings des révisions en cours sont recalculés ; une révision marquée garde les heures qu’elle a calculées.",
-  );
-  await form.getByRole("textbox", { name: "Heures par jour" }).fill(written);
-  await form.getByRole("button", { name: "Enregistrer" }).click();
-  await expect(form).toBeHidden({ timeout: WORKING });
-  if (!inService) {
-    // The fake back answers the first example of the operation whatever was written: 7 and 35.
-    await expect(value("Heures par semaine")).toHaveText("35");
+    await expect(page.getByRole("status").filter({ hasText: "enregistrées" })).toHaveText(
+      "Unités de durée enregistrées.",
+    );
+    await expect(
+      section.getByRole("button", { name: "Modifier les unités de durée" }),
+    ).toBeFocused();
+    await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+    if (inService) {
+      // What the service kept, read anew after a reload.
+      await page.reload();
+      await expect(value("Heures par jour")).toHaveText(written, { timeout: WORKING });
+    }
+  } finally {
+    if (inService) {
+      // Leave what was found, even on a failure: the Gantt and the timelines of the witness, which
+      // the paths `@shared` read, hold dates counted at 8 hours a day, and a platform replayed
+      // would play them at 7. The restoration stands alone and never replaces the error that
+      // brought us here; its gestures follow a navigation, so they are pressed again until React
+      // answers. The other of 7 and 8 stays written, for a platform an interrupted run left at 7.
+      try {
+        await page.goto("/reference/resources");
+        await expect(async () => {
+          if (!(await form.isVisible())) {
+            await section.getByRole("button", { name: "Modifier les unités de durée" }).click({
+              timeout: 1_000,
+            });
+          }
+          await expect(form).toBeVisible({ timeout: 1_000 });
+        }).toPass({ timeout: WORKING });
+        await form.getByRole("textbox", { name: "Heures par jour" }).fill(before);
+        await form.getByRole("button", { name: "Enregistrer" }).click();
+        await expect(form).toBeHidden({ timeout: WORKING });
+        await page.reload();
+        await expect(value("Heures par jour")).toHaveText(before, { timeout: WORKING });
+      } catch (error) {
+        notRestored.push(error);
+      }
+    }
   }
-  await expect(page.getByRole("status").filter({ hasText: "enregistrées" })).toHaveText(
-    "Unités de durée enregistrées.",
-  );
-  await expect(section.getByRole("button", { name: "Modifier les unités de durée" })).toBeFocused();
-  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
-  if (inService) {
-    // What the service kept, read anew after a reload.
-    await page.reload();
-    await expect(value("Heures par jour")).toHaveText(written, { timeout: WORKING });
-  }
+  // A restoration that failed leaves the service changed: the path, which passed, does not.
+  expect(notRestored, "the restorations that failed").toEqual([]);
 });
 
 /**
