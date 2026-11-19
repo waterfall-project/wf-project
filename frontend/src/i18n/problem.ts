@@ -353,7 +353,7 @@ const DETAILS: readonly Reader[] = [
       : ["missing_rates", { categories: conjunction(named, locale), count: named.length }];
   },
   // The risks whose line of provision would have no task left to stand on, each by its label
-  // (`risks`, `at_least_one_task`, WF-RIS-0010).
+  // (`risks`: `at_least_one_task`, `PROVISION_WITHOUT_TASK` #4011, `line_not_provision` #4007; WF-RIS-0010).
   ({ risks = [] }, _label, locale, say) => {
     const named = risks.map(({ label }) => say("riskName", { label }));
     return named.length === 0

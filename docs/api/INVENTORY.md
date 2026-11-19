@@ -252,7 +252,7 @@ Le contrat cite **195 des 219 exigences** de la spécification.
 | PUT | `/chunked-uploads/{chunked_upload_id}/parts/{part_number}` | Upload a chunk | WF-ADM-0160 |
 | POST | `/chunked-uploads/{chunked_upload_id}/completion` | Complete the chunked upload | WF-ADM-0160 |
 | GET | `/projects/{project_id}/imports` | Imports of the project | WF-ARC-0100, WF-INTF-0080 |
-| POST | `/projects/{project_id}/imports` | Open an import and start its analysis | WF-ARC-0090, WF-ARC-0100, WF-CRE-0050, WF-DAT-0120, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0150, WF-PLA-0170, WF-PRJ-0050, WF-REF-0190 |
+| POST | `/projects/{project_id}/imports` | Open an import and start its analysis | WF-ARC-0090, WF-ARC-0100, WF-CRE-0050, WF-DAT-0120, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0150, WF-PLA-0170, WF-PRJ-0050, WF-REF-0190, WF-RIS-0010 |
 | GET | `/projects/{project_id}/imports/{import_id}` | Report of an import | WF-ARC-0110, WF-CRE-0020, WF-IHM-0090, WF-INTF-0040, WF-INTF-0080, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0160, WF-REF-0190 |
 | DELETE | `/projects/{project_id}/imports/{import_id}` | Abandon an import | WF-ARC-0100, WF-DAT-0120, WF-INTF-0080 |
 | POST | `/projects/{project_id}/imports/{import_id}/apply` | Apply an import | WF-ARC-0100, WF-CRE-0030, WF-DAT-0110, WF-INTF-0080, WF-INTF-0100, WF-INTF-0140, WF-REF-0190 |

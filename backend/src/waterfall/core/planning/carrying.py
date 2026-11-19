@@ -9,7 +9,9 @@ a completed task of the main structure, or from it, which is first reopened from
 ``task_not_completed``, WF-RAE-0040, WF-DEV-0050; #1767), what a differential permits (EP-08); the
 lines a move gives another task judged by the hooks of their kind once placed (``FacetHooks.moved``,
 WF-PLA-0010); the provision lines a deletion does not take with their task, which pass to the
-parent of the task deleted (``judge_provisions``, ``carry_provisions``; US-2580/L1).
+parent of the task deleted (``judge_provisions``, ``carry_provisions``; US-2580/L1); a provision
+line itself, which its risk alone writes, never deleted (``refuse_provision``, 409
+``line_not_provision``; US-2580/L2, #4007).
 
 Written by US-1490/L4, ``bearing`` moved from ``interface.lines`` (US-1490/L3).
 """
@@ -40,6 +42,7 @@ if TYPE_CHECKING:
 
 TASK_NOT_COMPLETED = "task_not_completed"
 AT_LEAST_ONE_TASK = "at_least_one_task"
+LINE_NOT_PROVISION = "line_not_provision"
 
 
 def bearing[N: NodeColumns, T: TaskColumns](
@@ -131,18 +134,39 @@ def judge_provisions(write: Write, removed: Iterable[UUID]) -> dict[UUID, UUID]:
     carry, WF-RIS-0010). Only the main structure bears provisions: the others give none. Nothing is
     written.
     """
-    tree, where = write.tree, write.place
+    tree = write.tree
     if not write.facts.is_main:
         return {}
     gone = list(removed)
     moves = provision_moves(tree, gone, first_left(tree, gone))
     stranded = [line for line, task in moves.items() if task is None]
     if stranded:
-        owners = owners_named(write.session, where.project_id, where.revision_id, stranded)
-        named = [{"risk_id": str(each.risk_id), "label": each.label} for each in owners]
-        params = {"missing_condition": AT_LEAST_ONE_TASK, "risks": named}
+        params = {"missing_condition": AT_LEAST_ONE_TASK, "risks": risks_named(write, stranded)}
         raise ConflictError(STATE_FORBIDS_OPERATION, params)
     return {line: task for line, task in moves.items() if task is not None}
+
+
+def risks_named(write: Write, lines: Collection[UUID]) -> list[dict[str, str]]:
+    """Name the risks the provision lines belong to, as a refusal does (``params.risks``)."""
+    where = write.place
+    owners = owners_named(write.session, where.project_id, where.revision_id, lines)
+    return [{"risk_id": str(each.risk_id), "label": each.label} for each in owners]
+
+
+def refuse_provision(write: Write, node_id: UUID) -> None:
+    """Refuse the deletion of a provision line of the main structure, its risk's alone (409).
+
+    ``line_not_provision`` the condition missing, ``params.risks`` naming the risk whose provision
+    the line is (WF-RIS-0010; #4007): the line goes with its risk — dismissed, occurred, deleted —,
+    never by a write of the grid. Only the main structure bears provisions.
+    """
+    if not write.facts.is_main or node_id not in write.tree.provisions:
+        return
+    params: dict[str, object] = {"missing_condition": LINE_NOT_PROVISION}
+    named = risks_named(write, (node_id,))
+    if named:
+        params["risks"] = named
+    raise ConflictError(STATE_FORBIDS_OPERATION, params)
 
 
 def carry_provisions(write: Write, moves: dict[UUID, UUID]) -> None:

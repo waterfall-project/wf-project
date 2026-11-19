@@ -3165,6 +3165,7 @@
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche porte un lot ou un poste, jamais les deux.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce lot ou ce poste est déjà porté par une autre tâche.",
     "ORDER_ITEM_OUTSIDE_WORK_PACKAGE": "La tâche d’un poste doit rester dans le sous-arbre de la tâche de son lot.",
+    "PROVISION_WITHOUT_TASK": "Le fichier ne laisserait aucune tâche sous la ligne de provision d’un risque : une ligne de provision se range sous une tâche.",
     "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Seule une tâche de la structure principale porte un lot ou un poste.",
     "DUPLICATE_WORK_BREAKDOWN_ITEM": "Cet élément figure déjà plus haut dans le lotissement saisi : chacun ne s’écrit qu’une fois.",
     "PROJECT_HORIZON_EXCEEDED": "La durée du projet dépasserait quinze ans.",

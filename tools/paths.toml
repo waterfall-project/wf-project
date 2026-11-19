@@ -743,6 +743,7 @@ paths = [
     "fixtures/api/predecessors_duplicate.json",
     "fixtures/api/node_delete_started_refused.json",
     "fixtures/api/node_delete_last_provision_task_refused.json",
+    "fixtures/api/node_delete_provision_line_refused.json",
     "fixtures/api/node_tracking_marked_refused.json",
     "fixtures/api/node_tracking_timeline_required.json",
     "fixtures/api/node_tracking_timeline_unknown.json",
