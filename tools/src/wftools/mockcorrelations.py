@@ -11,9 +11,11 @@ twice by two lots in parallel, and renumbered when the epic took them in (#1007)
 
 The examples of errors numbered before the rule keep their numbers, in the ranges of the
 correlations of ``wftools.mockids``: their names are frozen here, those of ``main`` and of the
-branches of the epics in progress when the rule was written, some of which reach this branch only
-when it takes those in (``tests/test_mockcorrelations.py``). One numbered by hand since on a branch
-of an epic drawn before the rule joins them when it is taken in, with its number; no other does.
+branches of the epics in progress when the rule was written, and every one of them must be an
+example of the fixtures (``tests/test_mockcorrelations.py``). The test accepts no absence: a
+branch that lacks one fails it, and takes in ``main`` or its epic to get it back. One numbered by
+hand since on a branch of an epic drawn before the rule joins them when it is taken in, with its
+number; no other does.
 """
 
 import hashlib

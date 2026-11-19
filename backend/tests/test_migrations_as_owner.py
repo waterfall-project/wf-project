@@ -124,10 +124,62 @@ def run_production_script(server: str, name: str, password: str) -> None:
         text=True,
         check=False,
     )
-    shown = ran.stderr.replace(password, "***")
-    if address.password is not None:
+    # An empty password would put the mask between every character of the message.
+    shown = ran.stderr.replace(password, "***") if password else ran.stderr
+    if address.password:
         shown = shown.replace(str(address.password), "***")
-    assert ran.returncode == 0, f"the production script failed: {shown}"
+    # Not an ``assert``: pytest would add to its message the process, and so the password unmasked.
+    if ran.returncode != 0:
+        pytest.fail(f"the production script failed: {shown}")
+
+
+def failing_psql(monkeypatch: pytest.MonkeyPatch, stderr: str) -> None:
+    """Make ``psql`` fail with ``stderr``, without running it."""
+
+    def ran(arguments: list[str], **_options: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(arguments, 3, "", stderr)
+
+    def found(_psql: str) -> None:
+        return None
+
+    monkeypatch.setattr(f"{__name__}.require_psql", found)
+    monkeypatch.setattr(subprocess, "run", ran)
+
+
+@pytest.mark.story("US-2800")
+def test_the_password_of_the_owner_is_masked_in_the_message_of_a_failed_script(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # [US-2800] #3898: what psql says may repeat the password of the owner, and of the server.
+    failing_psql(monkeypatch, "FATAL: password secret-owner refused, secret-server tried")
+
+    with pytest.raises(pytest.fail.Exception) as failed:
+        run_production_script(
+            "postgresql://admin:secret-server@host/db", "waterfall_x", "secret-owner"
+        )
+
+    assert "secret-owner" not in str(failed.value)
+    assert "secret-server" not in str(failed.value)
+    assert "FATAL: password *** refused, *** tried" in str(failed.value)
+
+
+@pytest.mark.story("US-2800")
+def test_an_empty_password_inserts_nothing_in_the_message_of_a_failed_script(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # [US-2800] #3898: ``"".replace`` would put the mask between every character.
+    failing_psql(monkeypatch, "FATAL: role missing")
+
+    with pytest.raises(pytest.fail.Exception) as failed:
+        run_production_script("postgresql://admin@host/db", "waterfall_x", "")
+
+    assert "the production script failed: FATAL: role missing" in str(failed.value)
+    assert "***" not in str(failed.value)
+
+    with pytest.raises(pytest.fail.Exception) as failed_on_empty_server:
+        run_production_script("postgresql://admin:@host/db", "waterfall_x", "")
+
+    assert "***" not in str(failed_on_empty_server.value)
 
 
 def fake_psql(tmp_path: Path, version: str) -> Path:

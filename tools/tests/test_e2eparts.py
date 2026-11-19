@@ -433,7 +433,7 @@ def test_a_part_with_a_file_is_refused_before_anything_is_built(target: str) -> 
 
 
 @pytest.mark.story("US-2500")
-@pytest.mark.parametrize("shard", ["1/1", "x", "3/2", "0/4", "1/2 3", "1/2'"])
+@pytest.mark.parametrize("shard", ["1/1", "x", "3/2", "0/4", "1/2 3", "1/2'", "lint"])
 @pytest.mark.parametrize("target", ["e2e", "e2e-service", *PATH_GOALS])
 def test_a_part_of_the_paths_of_a_wrong_shape_is_refused_before_anything_is_built(
     target: str, shard: str

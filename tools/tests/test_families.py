@@ -28,8 +28,11 @@ TOOLS = REPOSITORY / "tools" / "src" / "wftools"
 HARNESS = "frontend/playwright.config.ts"
 
 
-def makefile() -> tuple[dict[str, str], dict[str, tuple[list[str], list[str]]]]:
-    """Return the variables of the Makefile, and each rule: its prerequisites and its recipe."""
+def makefile() -> tuple[str, dict[str, str], dict[str, tuple[list[str], list[str]]]]:
+    """Return the Makefile, its continued lines joined, its variables, and each rule.
+
+    A rule is its prerequisites and its recipe; the text is given for what is read from no rule.
+    """
     text = re.sub(r"\\\n", " ", (REPOSITORY / "Makefile").read_text(encoding="utf-8"))
     variables: dict[str, str] = {}
     rules: dict[str, tuple[list[str], list[str]]] = {}
@@ -48,7 +51,7 @@ def makefile() -> tuple[dict[str, str], dict[str, tuple[list[str], list[str]]]]:
             name = rule.group(1)
             rules.setdefault(name, ([], []))[0].extend(rule.group(2).split())
             current = name
-    return variables, rules
+    return text, variables, rules
 
 
 def expand(text: str, variables: dict[str, str]) -> str:
@@ -70,7 +73,7 @@ def reached(targets: list[str]) -> tuple[set[str], set[str]]:
 
     Both tiers are counted: the prerequisites of `full-else` and `full-only` alike.
     """
-    variables, rules = makefile()
+    text, variables, rules = makefile()
     modules: set[str] = set()
     scripts: set[str] = set()
     pending, seen = list(targets), set[str]()
@@ -94,7 +97,6 @@ def reached(targets: list[str]) -> tuple[set[str], set[str]]:
     }
     # A target given its variables by `slot-export` asks the register of the slots for them
     # (`launch.py slots which --variables`), which is no line of a recipe.
-    text = re.sub(r"\\\n", " ", (REPOSITORY / "Makefile").read_text(encoding="utf-8"))
     for names in re.findall(r"^\$\(call slot-export,([^,]+),", text, flags=re.MULTILINE):
         if seen & set(names.split()):
             launched |= {"tools/src/wftools/launch.py", "tools/src/wftools/slots.py"}
@@ -177,14 +179,41 @@ def test_each_family_wakes_on_the_tools_its_checks_run() -> None:
     assert missing == []
 
 
+READ_ONLY_MOUNT = re.compile(
+    r"^\s*- (\.{1,2}/[^:\s]+):[^:\s]+:(?:[^:\s]*,)?ro\b[^\n]*$", re.MULTILINE
+)
+
+
+def read_only(text: str) -> list[str]:
+    """Return what a Compose file mounts read-only from a relative path, `ro` at any place."""
+    return READ_ONLY_MOUNT.findall(text)
+
+
 def mounted() -> list[str]:
     """Return what compose.service.yaml mounts read-only from the repository."""
     compose = REPOSITORY / "deploy" / "compose"
     text = (compose / "compose.service.yaml").read_text(encoding="utf-8")
-    found = re.findall(r"^\s*- (\.{1,2}/[^:\s]+):[^:\s]+:ro\b[^\n]*$", text, flags=re.MULTILINE)
     return sorted(
-        (compose / name).resolve().relative_to(REPOSITORY.resolve()).as_posix() for name in found
+        (compose / name).resolve().relative_to(REPOSITORY.resolve()).as_posix()
+        for name in read_only(text)
     )
+
+
+@pytest.mark.story("US-2800")
+def test_a_mount_is_read_only_whatever_the_place_of_ro_in_its_options() -> None:
+    # [US-2800] #3911: `ro` leads the options, follows another, or is the one; a mount that is
+    # writable, or only named `rotate`, is not taken.
+    text = """
+    volumes:
+      - ./a.sql:/a.sql:ro
+      - ./b.sql:/b.sql:z,ro
+      - ../c.sql:/c.sql:delegated,ro
+      - ./d.sql:/d.sql:ro,z
+      - ./e.sql:/e.sql:rw
+      - ./f.sql:/f.sql:rotate
+      - data:/var/lib:ro
+    """
+    assert read_only(text) == ["./a.sql", "./b.sql", "../c.sql", "./d.sql"]
 
 
 @pytest.mark.story("US-2480")
