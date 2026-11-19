@@ -119,16 +119,22 @@ def _member(tar: tarfile.TarFile, name: str) -> Any:
 def replace(name: str, dump: Path, address: str, folder: Path) -> None:
     """Make a database again from its dump, as its owner: its schema dropped, the dump restored.
 
-    The schema is dropped and made again in a transaction of its own; the dump is then restored in
-    one transaction of ``pg_restore``, without the owners and the rights of the source: the role of
-    the service of another installation has another name. Interrupted between the two, the
-    database is left with an empty schema, and the restoration taken up starts again from the
-    beginning (WF-ARC-0090). A database that stops answering is unavailable (503), one that answers
-    and refuses the dump an internal error (#907).
+    The schema ``public`` alone is dropped and made again, and the large objects of the database,
+    which belong to no schema, are removed, in a transaction of its own: the schema ``platform``,
+    where the maintenance is held, stays as it is. The dump is then restored in one transaction of
+    ``pg_restore``, without the owners and the rights of the source: the role of the service of
+    another installation has another name. A dump of ``public`` alone makes the schema itself,
+    which a dump of the whole database — those of the backups taken before EP-13 — leaves to the
+    database: what the dump makes is dropped first, if it is there (``--clean --if-exists``). Such
+    a dump holds no schema but ``public``: ``platform`` came after it. Interrupted between the
+    two, the database is left with an empty schema, and the restoration taken up starts again from
+    the beginning (WF-ARC-0090). A database that stops answering is unavailable (503), one that
+    answers and refuses the dump an internal error (#907).
     """
     with connect(address, UNREACHED) as session:
         session.execute("DROP SCHEMA public CASCADE")
         session.execute("CREATE SCHEMA public")
+        session.execute("SELECT pg_catalog.lo_unlink(oid) FROM pg_catalog.pg_largeobject_metadata")
     environment = connection(address, folder / f"{name}.service")
     with dump.open("rb") as read:
         done = subprocess.run(
@@ -141,6 +147,8 @@ def replace(name: str, dump: Path, address: str, folder: Path) -> None:
                 "--no-owner",
                 "--no-privileges",
                 "--no-password",
+                "--clean",
+                "--if-exists",
             ],
             stdin=read,
             capture_output=True,

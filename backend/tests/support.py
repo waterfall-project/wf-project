@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Protocol, cast
 from urllib.parse import parse_qs, urljoin, urlsplit
 from uuid import uuid4
 from weakref import WeakKeyDictionary
@@ -112,6 +112,17 @@ def nowhere() -> tuple[TaskQueue, Bucket]:
         STORAGE_CREDENTIAL,
     )
     return queue, bucket
+
+
+class Emptied(Protocol):
+    """What a test asks of the client of Redis of a queue it empties: ``FLUSHDB``."""
+
+    def flushdb(self) -> bool: ...
+
+
+def emptied(queue: TaskQueue) -> None:
+    """Empty the database of Redis of a queue, as ``FLUSHDB`` does."""
+    cast("Emptied", queue.client).flushdb()
 
 
 def service_role(database: URL) -> str:

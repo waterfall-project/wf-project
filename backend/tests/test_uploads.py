@@ -37,7 +37,7 @@ from waterfall.platform.database import Database, create_database_engine, utc_no
 from waterfall.platform.installation import THE_ROW
 from waterfall.platform.installation import Installation as InstallationRow
 from waterfall.platform.keycloak_admin import KeycloakAdmin
-from waterfall.platform.maintenance import SUFFIX, Maintenance
+from waterfall.platform.maintenance import Maintenance
 from waterfall.platform.queue import RESTORES as RESTORES_SUFFIX
 from waterfall.platform.queue import TaskQueue
 from waterfall.platform.storage import Bucket, unavailable
@@ -324,7 +324,7 @@ def faltering_api(
         KeycloakAdmin(keycloak, realm_settings),
         queue,
         Faltering(installation.bucket),
-        Maintenance.of(queue),
+        Maintenance.of(installation.database, queue),
     )
     return ContractClient(TestClient(create_app(services), raise_server_exceptions=False), contract)
 
@@ -356,7 +356,7 @@ class Target:
     def restorer(self) -> Restorer:
         """Give the service of the restoration of this installation; Keycloak stands aside."""
         owner = Database(create_database_engine(self.installation.owner["waterfall"]))
-        maintenance = Maintenance.of(self.queue)
+        maintenance = Maintenance.of(owner, self.queue)
         task = RestoreTask(
             self.installation.owner, self.installation.bucket, maintenance, Provider([]), upgrade
         )
@@ -389,11 +389,11 @@ def target(
         KeycloakAdmin(keycloak, realm_settings),
         own,
         target_installation.bucket,
-        Maintenance.of(own),
+        Maintenance.of(target_installation.database, own),
     )
     client = TestClient(create_app(services), raise_server_exceptions=False)
     yield Target(target_installation, ContractClient(client, contract), own)
-    own.client.delete(own.stream, own.stream + RESTORES_SUFFIX, own.stream + SUFFIX)
+    own.client.delete(own.stream, own.stream + RESTORES_SUFFIX)
 
 
 @pytest.mark.requirement("WF-ADM-0160-A")
@@ -507,7 +507,7 @@ def test_a_restoration_whose_whole_manifest_says_another_date_fails_before_the_m
         accounts = set(session.scalars(select(UserAccount.idp_subject)))
     assert (task.status, (task.problem or {}).get("code")) == ("failed", "FILE_FORMAT_UNREADABLE")
     assert source not in accounts
-    assert Maintenance.of(target.queue).current() is None
+    assert Maintenance.of(target.installation.database, target.queue).current() is None
 
 
 def test_a_restoration_refuses_a_deposit_unknown_without_date_or_made_for_an_import(

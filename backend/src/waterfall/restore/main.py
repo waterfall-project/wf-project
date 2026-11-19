@@ -54,14 +54,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     database = Database(create_database_engine(settings.database_url.get_secret_value()))
     queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=WORKER_TIMEOUT)
     try:
-        return serve(Restorer(database, queue, restoration(settings, queue)))
+        return serve(Restorer(database, queue, restoration(settings, database, queue)))
     finally:
         queue.close()
         database.dispose()
 
 
-def restoration(settings: RestoreSettings, queue: TaskQueue) -> RestoreTask:
-    """Restore into the databases the settings name, as their owners, from the bucket of backups."""
+def restoration(settings: RestoreSettings, database: Database, queue: TaskQueue) -> RestoreTask:
+    """Restore into the databases the settings name, as their owners, from the bucket of backups.
+
+    The maintenance is held in ``database``, that of Waterfall as its owner.
+    """
     owners = (settings.database_url, settings.keycloak_database_url)
     addresses = (address.get_secret_value() for address in owners)
     keycloak = KeycloakClient(settings)
@@ -74,7 +77,7 @@ def restoration(settings: RestoreSettings, queue: TaskQueue) -> RestoreTask:
     return RestoreTask(
         dict(zip(DATABASES, addresses, strict=True)),
         Bucket.of_backups(settings),
-        Maintenance.of(queue),
+        Maintenance.of(database, queue),
         provider,
         upgrade,
     )

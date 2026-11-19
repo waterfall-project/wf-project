@@ -183,9 +183,16 @@ ne laisse rien de son travail : un autre la reprend depuis le début, et elle é
 tentatives ; une tâche d'un genre qu'aucun traitement n'exécute échoue sans s'exécuter. Une
 restauration (`restore`) n'est jamais celle du worker : `startRestore` la dépose dans un second
 flux, `waterfall:tasks:restores`, que le service de la restauration lit seul, dans son groupe de
-consommateurs ; il pose la maintenance, une clé de Redis à côté du flux du worker que l'API lit (503
-sauf la sonde de vie), et le worker n'exécute rien tant qu'elle y est (EP-03, « Sauvegarde et
-restauration »). Les tâches planifiées se déposent par `waterfall-worker enqueue <genre>`, qui n'en
+consommateurs ; il pose la maintenance, que l'API lit (503 sauf la sonde de vie), et le worker
+n'exécute rien tant qu'elle y est (EP-03, « Sauvegarde et restauration »). La maintenance et l'état
+de la restauration qui la tient vivent dans le schéma `platform` de la base de Waterfall, une ligne
+au plus dans chacune de ses deux tables, que le rôle du service lit et que le propriétaire seul
+écrit (`waterfall.platform.maintenance`, migration `0035`) : une sauvegarde ne vide que `public`, et
+une restauration ne remplace que lui, si bien que vider Redis pendant une restauration ne lève pas
+la maintenance (EP-13, US-2830, #956). Chaque requête de l'API lit donc la maintenance en base, une
+lecture de plus par requête (la sonde de vie la lit pour la dire), bornée par `CONNECT_TIMEOUT` ; une
+base qui ne répond pas ou dont le réservoir est épuisé dit « pas de maintenance » et la sonde répond.
+Une maintenance posée dont l'état manque reste posée, comme une restauration abandonnée. Les tâches planifiées se déposent par `waterfall-worker enqueue <genre>`, qui n'en
 dépose pas une quand une tâche du même genre est en file ou en cours : le service `scheduler` de
 Compose l'appelle à l'intervalle de `WATERFALL_IDENTITY_SYNC_INTERVAL`, en secondes, un jour par
 défaut ; sa seconde boucle appelle `waterfall-worker purge`, qui ramasse ce qui a expiré — comptes

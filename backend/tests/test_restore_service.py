@@ -3,7 +3,7 @@
 """The service of the restoration runs the restorations the API deposits, in their order (#985).
 
 Each test makes an installation of its own (``installations``) and serves the API on it, the
-maintenance beside its queue; the service of the restoration runs on the same queue, as the owner of
+maintenance in its database; the service of the restoration runs on the same queue, as the owner of
 both databases. Keycloak is not here: what a restoration asks of it is kept by ``Provider``, in its
 order; the tests of the platform try the requests themselves (``test_keycloak_restoration``).
 """
@@ -18,6 +18,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from access_rows import role
+from fastapi.testclient import TestClient
 from installations import (
     Installation,
     Provider,
@@ -26,16 +27,19 @@ from installations import (
     restorer_headers,
     written_task,
 )
-from redis.exceptions import RedisError
 from sqlalchemy import Engine, insert, select
-from support import ContractClient, Logs, nowhere
+from sqlalchemy.exc import OperationalError
+from support import ContractClient, Logs, emptied, nowhere
 from task_handlers import Runs, deposit, held_run
 
+from waterfall.api.app import create_app
+from waterfall.api.authentication import Services
 from waterfall.core.access_roles.tables import AccessRole
 from waterfall.core.backups.tables import Backup
 from waterfall.migrations.runner import upgrade
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database, create_database_engine, utc_now
+from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.maintenance import Maintenance, Restoring
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.restore import task as restoration
@@ -52,7 +56,9 @@ if TYPE_CHECKING:
     from openapi_core import OpenAPI
     from realm import TestRealm
 
+    from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
+    from waterfall.platform.settings import ServiceSettings
 
 RESTORES = "/api/v1/restores"
 
@@ -77,15 +83,59 @@ def service(
     realm: TestRealm,
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[Service]:
-    """Run the service of the restoration on an installation, its steps kept in their order.
+    """Run the service of the restoration on an installation, its steps kept in their order."""
+    yield from served(installation, queue, installation_api, realm, monkeypatch)
 
-    The sessions of the front it closes are those of a pattern of the test alone: other tests
-    share the Redis.
+
+@pytest.fixture
+def emptied_api(
+    installation: Installation,
+    emptied_queue: TaskQueue,
+    contract: OpenAPI,
+    keycloak: Keycloak,
+    realm_settings: ServiceSettings,
+) -> ContractClient:
+    """Serve the API on an installation, its queue on a Redis a test may empty (``FLUSHDB``)."""
+    services = Services(
+        installation.database,
+        keycloak,
+        KeycloakAdmin(keycloak, realm_settings),
+        emptied_queue,
+        installation.bucket,
+        Maintenance.of(installation.database, emptied_queue),
+    )
+    return ContractClient(TestClient(create_app(services), raise_server_exceptions=False), contract)
+
+
+@pytest.fixture
+def emptied_service(
+    installation: Installation,
+    emptied_queue: TaskQueue,
+    emptied_api: ContractClient,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[Service]:
+    """Run the service of the restoration beside that API, on the same Redis."""
+    yield from served(installation, emptied_queue, emptied_api, realm, monkeypatch)
+
+
+def served(
+    installation: Installation,
+    queue: TaskQueue,
+    api: ContractClient,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[Service]:
+    """Run the service of the restoration on an installation, beside its API, then stop it.
+
+    Its steps are kept in their order. The sessions of the front it closes are those of a pattern
+    of the test alone: other tests share the Redis.
     """
     steps: list[str] = []
     provider = Provider(steps)
     sessions = f"wf-test-{uuid4().hex}:"
-    maintenance = Maintenance(queue.client, queue.stream + ":maintenance", f"{sessions}*")
+    owner = Database(create_database_engine(installation.owner["waterfall"]))
+    maintenance = Maintenance(owner, queue.client, f"{sessions}*")
     for name in ("keep_for_restoration", "replace", "write_back_after_restoration"):
         monkeypatch.setattr(restoration, name, kept_as(steps, name, getattr(restoration, name)))
 
@@ -94,11 +144,10 @@ def service(
         upgrade(engine)
 
     task = RestoreTask(installation.owner, installation.bucket, maintenance, provider, migrate)
-    owner = Database(create_database_engine(installation.owner["waterfall"]))
     restorer = Restorer(owner, queue, task, "restorer-test", Timing(0, 0.1))
     restorer.queue.prepare()
     headers = restorer_headers(installation, realm)
-    yield Service(restorer, provider, maintenance, installation_api, headers, sessions)
+    yield Service(restorer, provider, maintenance, api, headers, sessions)
     owner.dispose()
 
 
@@ -426,6 +475,37 @@ def test_a_restoration_interrupted_in_maintenance_starts_again_and_lifts_it_at_i
 
 
 @pytest.mark.requirement("WF-ARC-0090-A")
+def test_redis_emptied_during_a_restoration_lifts_no_maintenance_until_the_restoration_ends(
+    installation: Installation, take: Take, emptied_service: Service, emptied_queue: TaskQueue
+) -> None:
+    # « Le vidage de Redis pendant une restauration ne lève pas la maintenance : l'API refuse toute
+    # requête jusqu'à la fin de la restauration. » (#956) A restoration interrupted once the
+    # maintenance is held, then Redis emptied whole (`FLUSHDB`), its streams with it: the API
+    # still refuses every operation and its probe says the maintenance, read in the database. The
+    # service makes its stream again, deposits the restoration the maintenance holds, runs it to
+    # its end, and only then does the API serve again.
+    service = emptied_service
+    service.provider.failing = 1
+    take()
+    backup = taken(installation)
+    asked_for = service.api.post(RESTORES, json=asked(backup), headers=service.headers)
+    assert service.restorer.step()
+    assert service.maintenance.current() is not None
+    emptied(emptied_queue)
+    refused = service.api.get("/api/v1/me", headers=service.headers)
+    assert (refused.status_code, refused.json()["code"]) == (503, "COMPONENT_UNAVAILABLE")
+    assert service.api.get("/api/v1/health").json() == {"status": "maintenance"}
+    assert not service.restorer.step()
+    assert service.api.get("/api/v1/me", headers=service.headers).status_code == 503
+    assert service.restorer.step()
+    assert service.maintenance.current() is None
+    assert service.api.get("/api/v1/health").json() == {"status": "ok"}
+    assert service.api.get("/api/v1/me", headers=service.headers).status_code == 200
+    assert read_task(installation, asked_for.json()["task_id"]).status == "succeeded"
+    assert service.provider.steps.count("keep_for_restoration") == 2
+
+
+@pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_restoration_interrupted_once_the_caches_are_cleared_gives_the_realm_back_first(
     installation: Installation, take: Take, service: Service
 ) -> None:
@@ -478,17 +558,17 @@ def test_a_restoration_ended_whose_maintenance_was_not_lifted_lifts_it_and_runs_
     logs: Logs,
 ) -> None:
     # The task succeeded and the restoration inscribed, committed, then the maintenance not lifted
-    # — Redis out of reach, the process stopped —: the entry is left. Taken over, the restoration
-    # lifts the maintenance and runs nothing again; the journal names it once. The lifting is
-    # logged under the correlation of the restoration, and of its task.
+    # — the database out of reach, the process stopped —: the entry is left. Taken over, the
+    # restoration lifts the maintenance and runs nothing again; the journal names it once. The
+    # lifting is logged under the correlation of the restoration, and of its task.
     lift = service.restorer.maintenance.lift
     lifts: list[int] = []
 
     def lifting() -> None:
         lifts.append(1)
         if len(lifts) == 1:
-            message = "Redis out of reach"
-            raise RedisError(message)
+            statement = "DELETE FROM platform.restoration"
+            raise OperationalError(statement, None, ConnectionError("database out of reach"))
         lift()
 
     monkeypatch.setattr(service.restorer.maintenance, "lift", lifting)
@@ -666,16 +746,20 @@ def test_the_realm_applied_again_is_asked_in_a_folder_and_its_answer_read(tmp_pa
         late.apply("never")
 
 
-def test_a_worker_that_cannot_read_the_maintenance_after_its_lock_runs_the_task(
-    installation: Installation,
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_a_worker_whose_redis_is_out_of_reach_reads_the_maintenance_in_the_database(
+    installation: Installation, service: Service
 ) -> None:
-    # The maintenance read once the lock of a run is taken: a Redis out of reach says none, as for
-    # the API, and the task runs.
+    # #956: the maintenance read once the lock of a run is taken is the database's, which a Redis
+    # out of reach does not hide: the task is left while it is held, and runs once it is lifted.
     runs = Runs()
     unreached, _ = nowhere()
     task_id = written_task(installation.database, "identity_sync", "queued")
     worker = Worker(installation.database, unreached, {"identity_sync": runs}, "worker-test")
+    service.maintenance.hold(Restoring(uuid4(), {}, None, "request-3f6a", 1))
     try:
+        assert not worker.run_task(task_id)
+        service.maintenance.lift()
         assert worker.run_task(task_id)
     finally:
         unreached.close()
