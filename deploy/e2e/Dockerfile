@@ -16,17 +16,17 @@
 # and `RUN --mount`, where a named one would be pulled from Docker Hub.
 
 # Docker's client alone, from the static build of Docker, out of its archive.
-FROM mcr.microsoft.com/playwright:v1.65.0-noble@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe AS docker-client
+FROM mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579 AS docker-client
 ADD --checksum=sha256:3fb5d1f13014c18cc54945bc177c58a9056a482dada031e17d12cf2e6922c973 \
     https://download.docker.com/linux/static/stable/x86_64/docker-29.9.3.tgz /docker.tgz
 RUN tar --extract --gzip --file /docker.tgz --directory / docker/docker
 
 # uv, which installs the Python of the tools and is left out of the image.
-FROM ghcr.io/astral-sh/uv:0.13.8@sha256:5cc1805e2426484abca4ad46ea783bab281fdb225fd82d8ce6d66a81254bac85 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.9@sha256:d3b601f0c7b118bc1753febf7c41cc80981df678445e0254284eecf84db79a7d AS uv
 
 # The tag follows the version of @playwright/test frontend/pnpm-lock.yaml resolves, which
 # tools/tests/test_e2eimage.py holds: its browser is the one that version expects.
-FROM mcr.microsoft.com/playwright:v1.65.0-noble@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe AS work
+FROM mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579 AS work
 LABEL org.opencontainers.image.source="https://github.com/waterfall-project/wf-project"
 LABEL org.opencontainers.image.description="The work image of the end-to-end paths of Waterfall"
 
