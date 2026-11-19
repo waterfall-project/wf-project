@@ -135,7 +135,17 @@ def enter(
     """
     risk_id = held.risk_id
     share_natures(session)
+    # The facts are judged once (#4019): as read when the project has a current revision, which
+    # its share holds; read again under the lock of the project when it has none, the entry then
+    # opening one on what the lock holds. The reference shared, then the project, as the opening
+    # of a revision does (``_open`` shares it again, to no effect): another opening waits for the
+    # project before it advances this risk, and the revision it opened is the one we write in. The
+    # project first would close an interlock with a writer of the reference that waits behind an
+    # opening.
     facts = project_facts(session, project_id)
+    if facts.current_revision_id is None and not is_terminal(facts.state):
+        share_reference(session)
+        facts = lock_project(session, project_id)
     if is_terminal(facts.state):
         raise refuse(PROJECT_NOT_TERMINAL)
     revision_id = facts.current_revision_id
@@ -143,18 +153,6 @@ def enter(
         revision_draft(session, revision_id)
     if not no_background_task_running(session, project_id, writer.running):
         raise refuse(NO_BACKGROUND_TASK_RUNNING)
-    if revision_id is None:
-        # The reference shared, then the project, as the opening of a revision does (``_open``
-        # shares it again, to no effect): another opening waits for the project before it advances
-        # this risk, and the revision it opened is the one we write in. The project first would
-        # close an interlock with a writer of the reference that waits behind an opening.
-        share_reference(session)
-        facts = lock_project(session, project_id)
-        if is_terminal(facts.state):
-            raise refuse(PROJECT_NOT_TERMINAL)
-        revision_id = facts.current_revision_id
-        if revision_id is not None:
-            revision_draft(session, revision_id)
     created = revision_id is None
     if revision_id is None:
         _read_before(session, project_id, held, viewer)

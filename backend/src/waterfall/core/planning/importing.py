@@ -46,9 +46,11 @@ the lock of the structure, so that the application judges again what the analysi
   import leaves for ``date_mismatches`` — the start and the finish of each task of the file read
   on its calendar in the file, the duration of a summary, by their day and its value in a gap —
   and the refusals of the whole file:
-  the task of an order item outside the subtree of that of its work package
-  (``ORDER_ITEM_OUTSIDE_WORK_PACKAGE``, the main structure alone), and a planning beyond fifteen
-  years (``PROJECT_HORIZON_EXCEEDED``, WF-PLA-0150), whose dates are then not compared.
+  a main structure left without a task while it bears the provision line of a risk
+  (``PROVISION_WITHOUT_TASK``, the risks named; WF-RIS-0010, #4011), the task of an order item
+  outside the subtree of that of its work package (``ORDER_ITEM_OUTSIDE_WORK_PACKAGE``, the main
+  structure alone), and a planning beyond fifteen years (``PROJECT_HORIZON_EXCEEDED``,
+  WF-PLA-0150), whose dates are then not compared.
 """
 
 from dataclasses import dataclass, field
@@ -93,7 +95,7 @@ from waterfall.core.planning.msproject import (
 from waterfall.core.planning.msproject import (
     duration_of as file_duration_of,
 )
-from waterfall.core.planning.provisioning import provision_moves
+from waterfall.core.planning.provisioning import owners_named, provision_moves
 from waterfall.core.planning.scheduling import (
     Duration,
     Lag,
@@ -142,6 +144,7 @@ MILESTONE_HAS_NO_SUBTASK = "MILESTONE_HAS_NO_SUBTASK"
 NON_WORKING_DAY = "NON_WORKING_DAY"
 SUMMARY_TASK_DERIVED = "SUMMARY_TASK_DERIVED"
 PREDECESSORS = "predecessors"
+PROVISION_WITHOUT_TASK = "PROVISION_WITHOUT_TASK"
 
 type Json = dict[str, Any]
 type Pair = tuple[UUID, UUID]
@@ -336,15 +339,21 @@ def _carry_provisions(session: Session, plan: Plan) -> None:
     The nearest ancestor that stays, else the first task of the first level the import leaves
     (WF-PLA-0070, WF-RIS-0010): the structure the file leaves holds its tasks, and the total of
     the estimate does not change. Only the main structure bears provisions. A file that leaves no
-    task of the first level carries nothing: no refusal of the contract of the import names it
-    (``ImportReport.refusals`` lists its own), and the application fails on the line the risk holds
-    (#4011).
+    task of the first level refuses the whole file, the risks named, as the deletion of the last
+    task refuses it (``PROVISION_WITHOUT_TASK``, ``params.risks``; WF-RIS-0010, #4011).
     """
-    tree = plan.aimed.tree
-    if not plan.aimed.is_main or not plan.removed or not tree.provisions:
+    tree, facts = plan.aimed.tree, plan.aimed.facts
+    if facts is None or not facts.is_main or not plan.removed or not tree.provisions:
         return
     first = next((each for each in plan.children.get(None, []) if each not in plan.removed), None)
     moves = provision_moves(tree, plan.removed, first)
+    stranded = [line for line, task in moves.items() if task is None]
+    if stranded:
+        owners = owners_named(session, plan.aimed.project_id, facts.revision_id, stranded)
+        named = [{"risk_id": str(each.risk_id), "label": each.label} for each in owners]
+        params = {"risks": named} if named else {}
+        plan.refusals.append({"code": PROVISION_WITHOUT_TASK, "params": params})
+        return
     plan.carried = {line: task for line, task in moves.items() if task is not None}
     names = {
         state.object_id: state.label

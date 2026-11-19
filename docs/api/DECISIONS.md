@@ -12668,6 +12668,36 @@ réalise ainsi (conception d'EP-08, « Ce qui reconnaît une ligne de provision 
   quatre genres de saisie d'un risque s'y inscrivent avec US-2590/L2. L'abandon de la révision
   défait la saisie, l'évaluation et la ligne étant de la révision.
 
+### La ligne de provision ne se supprime pas par la grille ; un planning ne la laisse pas sans tâche (US-2580/L2, #4007, #4011)
+
+Décisions de l'utilisateur du 2026-11-19 ; la forme en est fixée par le lot, au plus près des
+précédents du contrat.
+
+- **`deleteNode` sur la ligne de provision elle-même est refusé par 409
+  `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `line_not_provision`, `params.risks`
+  nommant son risque** (#4007). La ligne ne s'écrit que par son risque — son écartement, sa
+  survenance, sa suppression (WF-RIS-0010) ; la clé de `risk_evaluation` vers elle répondait 500.
+  La condition est celle que `setLineRemaining` nomme déjà pour la même ligne et que
+  `remaining_entry` dit manquante : aucune valeur nouvelle de `CommandCondition`, aucune clé de
+  traduction nouvelle. Elle vient après `task_not_completed`, dans l'ordre de `CommandCondition`,
+  comme pour `setLineRemaining`. `params.risks` suit `at_least_one_task`, qui nomme de même les
+  risques d'une ligne qui n'aurait plus de tâche (`provision_line_refused`). Une ligne d'une
+  catégorie de provision hors de la structure principale n'est la provision d'aucun risque et se
+  supprime comme une autre. Écartés : 422 (le refus tient à l'état de la ligne, non à une valeur
+  envoyée), et un code propre, que J-01 a retiré pour les refus d'état.
+- **Un planning de MS Project qui laisserait sans tâche une structure principale portant une
+  provision est refusé entier au compte rendu, `PROVISION_WITHOUT_TASK`, `params.risks`** (#4011),
+  comme `ORDER_ITEM_OUTSIDE_WORK_PACKAGE` et `PROJECT_HORIZON_EXCEEDED` : un `ReportRefusal`, rendu
+  dès l'analyse (`ImportReport.refusals`), jugé de nouveau à l'application, qui échoue sur lui avec
+  les mêmes paramètres. Le nom suit `TASK_WITHOUT_WORKING_HOURS` ; `params.risks` est celui de
+  `at_least_one_task`. Écarté : un refus d'état (`at_least_one_task`) dans le compte rendu, dont
+  les raisons sont des codes d'`ErrorCode` sans condition.
+- **Les imports du devis et du reste à engager ne touchent pas une ligne de provision** : une ligne
+  du fichier qui porte sa lignée est ignorée et nommée par sa désignation
+  (`ImportIgnored.kind` `provision_lines`, hors de `unchanged_count`) ; le devis qui ne la porte
+  plus la garde et la signale (`kept`), le reste à engager la laisse sans la signaler comme toute
+  ligne absente (WF-INTF-0100, WF-INTF-0120). Le contrat le disait déjà ; le service le réalise.
+
 ### La réserve d'une révision marquée se lit de la référence (US-2610/L1)
 
 Aucune forme du contrat ne change. `getProjectRiskCoverage` et `coverage` de `getRemainingIndicators`

@@ -354,7 +354,9 @@ CommandCondition:
     WF-REV-0050; #1184, #1214, #1766). `line_not_provision` is missing for the re-estimation of
     a provision line, whose amount is the one its risk computes and which the remaining to
     commit counts for that amount (`EstimateLineFacet.remaining_entry`, WF-RIS-0010,
-    WF-RAE-0010); `setLineRemaining` names it in its 409. `task_not_started` is missing for the
+    WF-RAE-0010); `setLineRemaining` names it in its 409, and `deleteNode` for the deletion of
+    a provision line of the main structure, which its risk alone writes and removes, the risk
+    named (`params.risks`, WF-RIS-0010; #4007). `task_not_started` is missing for the
     deletion of a started or completed task, or of a summary task one of whose subordinates is:
     "A started or completed task cannot be deleted" (WF-PLA-0070); its remaining to commit is
     set to zero instead. `deleteNode` names it in its 409; no command states it in advance, the

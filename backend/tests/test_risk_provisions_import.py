@@ -1,12 +1,13 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The provision line of a risk when an import no longer carries its task (US-2580/L1).
+"""The provision line of a risk when an import no longer carries its task (US-2580/L1, L2).
 
 A provision is the risk's, never the task's (WF-PLA-0070, WF-RIS-0010): the import of a planning
 that drops the task that bears it does not take the line with it. The report presents the line as
 updated, its parent (``parent``), the application passes it to the parent of the task removed or to
-the first task of the first level left, the counter of its risk advancing with it. Against the
-service, with the worker of the imports; every answer is checked against the contract.
+the first task of the first level left, the counter of its risk advancing with it; a file that
+leaves no task at all is refused whole, the risks named (``PROVISION_WITHOUT_TASK``, #4011). Against
+the service, with the worker of the imports; every answer is checked against the contract.
 """
 
 from typing import TYPE_CHECKING, Any
@@ -15,7 +16,7 @@ from uuid import UUID
 import pytest
 from estimate_support import Lines, costing
 from fastapi.testclient import TestClient
-from imports_trial import import_worker
+from imports_trial import import_worker, path, read, refusal, run
 from nodes_support import Tree, opened
 from projects_support import Scene
 from projects_support import scene as make_scene
@@ -156,3 +157,64 @@ def test_an_import_that_drops_a_first_level_task_passes_its_line_to_the_first_on
     assert read["provision_task"] == {"node_id": str(project.tasks[STUDY]), "label": STUDY}
     assert read["provision_amount"] == "60.00"
     assert line_parent(risks, risk["provision_node_id"]) == project.tasks[STUDY]
+
+
+# --- A file that would leave the provision without a task (#4011) ---------------------------------
+
+# A planning whose only task is rejected — its label empty, the task it would create not created:
+# the main structure it leaves holds no task.
+NO_TASK_LEFT = planning(task(9, ""))
+
+
+def applying(api: ContractClient, stage: Scene, found: dict[str, Any]) -> Any:
+    """Confirm the application of an import analysed; give the answer."""
+    return api.post(
+        f"{path(stage, found['import_id'])}/apply",
+        headers=stage.manager.headers,
+        json={"confirmed": True},
+    )
+
+
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_a_planning_that_leaves_no_task_under_a_provision_is_refused_by_its_report(
+    api: ContractClient, risks: Risks, stage: Scene, worker: Worker
+) -> None:
+    # « la suppression de la dernière tâche d'une structure principale qui porte une provision est
+    # refusée en nommant le risque » — the same, at the report, for the import of a planning: the
+    # whole file is refused (``PROVISION_WITHOUT_TASK``, ``params.risks``), and nothing applies.
+    risk = risks.declared_costed()
+    found = analysed(api, stage, worker, NO_TASK_LEFT)
+    report = found["report"]
+    assert report["refusals"] == [
+        {
+            "code": "PROVISION_WITHOUT_TASK",
+            "params": {"risks": [{"risk_id": risk["risk_id"], "label": risk["label"]}]},
+        }
+    ]
+    assert [each["code"] for each in report["rejected"]] == ["VALUE_REQUIRED"]
+    refused = applying(api, stage, found)
+    assert refusal(refused)[2] == {"missing_condition": "import_file_accepted"}
+    assert line_parent(risks, risk["provision_node_id"]) == risks.project.tasks[STUDY]
+
+
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_a_provision_declared_after_the_report_fails_the_application_by_the_same_reason(
+    api: ContractClient, risks: Risks, stage: Scene, worker: Worker
+) -> None:
+    # The report accepted before any provision, a risk declared before the application: it judges
+    # again under the lock, fails by the same reason, and leaves the structure as it was.
+    found = analysed(api, stage, worker, NO_TASK_LEFT)
+    assert found["report"]["refusals"] == []
+    risk = risks.declared_costed()
+    before = risks.project.tree.items()
+    answer = applying(api, stage, found)
+    assert answer.status_code == 202, answer.text
+    run(worker)
+    failed = read(api, stage, found["import_id"])
+    assert failed["status"] == "failed"
+    problem = failed["task"]["problem"]
+    assert (problem["code"], problem["params"]) == (
+        "PROVISION_WITHOUT_TASK",
+        {"risks": [{"risk_id": risk["risk_id"], "label": risk["label"]}]},
+    )
+    assert risks.project.tree.items() == before

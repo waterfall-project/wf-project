@@ -8,7 +8,12 @@ parent (US-2580/L1), the rest is the deletion as it was.
 
 from typing import TYPE_CHECKING
 
-from waterfall.core.planning.carrying import carry_provisions, judge_provisions, refuse_completed
+from waterfall.core.planning.carrying import (
+    carry_provisions,
+    judge_provisions,
+    refuse_completed,
+    refuse_provision,
+)
 from waterfall.core.planning.interface.nodes import TASK_NOT_STARTED
 from waterfall.core.planning.shaping import (
     closed_again,
@@ -42,8 +47,10 @@ def delete_node(
     Under the lock of the structure: refused if the structure does not hold the node (404), at
     another version than the one read (412), for a task started or completed, or a summary one of
     whose subordinates is (409 ``task_not_started``, WF-PLA-0070), for a line of a completed task
-    of the main structure (409 ``task_not_completed``, WF-RAE-0040; #1767). The subtree goes, its
-    lines, its links and the inscriptions of its lineages with it (WF-DAT-0090); a summary left
+    of the main structure (409 ``task_not_completed``, WF-RAE-0040; #1767), then for a provision
+    line of the main structure, which its risk alone writes (409 ``line_not_provision``,
+    ``params.risks``; #4007). The subtree goes, its lines, its links and the inscriptions of its
+    lineages with it (WF-DAT-0090); a summary left
     without subordinate becomes a leaf in its state (WF-PLA-0040) and is given back among the
     ancestors, with the tasks the links taken away redate — and the task a line leaves, whose
     calendar may change (WF-PLA-0010) — and the totals without them; a summary it leaves completed
@@ -65,6 +72,7 @@ def delete_node(
         parent = node.parent_id
         if node_id not in tree.tasks:
             refuse_completed(write, (parent,))
+            refuse_provision(write, node_id)
         former = () if parent is None else (parent, *tree.ancestors(parent))
         subtree = list(tree.subtree(node_id))
         carried = judge_provisions(write, subtree)

@@ -1750,7 +1750,8 @@
       through `getRisk` before following up with an `updateRiskProvision` or an `updateRisk`,
       which carry it (WF-IHM-0110; `provision_moved`, #1665). The deletion that would leave
       without a task a main structure that carries a provision line is refused, naming the
-      risks (WF-RIS-0010). A summary task that loses its last subordinate becomes a leaf task
+      risks (WF-RIS-0010); so is the deletion of a provision line itself, which is its risk's
+      (#4007). A summary task that loses its last subordinate becomes a leaf task
       in automatic mode: it takes as its duration the one it computed, keeps its state, its
       own lines and its attachment to the work breakdown (WF-PLA-0170), and its dates are
       recomputed; if this duration is zero, it becomes a milestone, in the not started or
@@ -1816,7 +1817,10 @@
           task to be placed under, `params.risks` naming each of the risks whose provision it
           would carry (WF-RIS-0010; F-04, H-05, US-0702/L2); for a line of the main
           structure, `task_not_completed` when its task is completed, which is first reopened
-          from the Kanban (`line_completed_refused`; WF-RAE-0040, WF-DEV-0050; F-01, #1766).
+          from the Kanban (`line_completed_refused`; WF-RAE-0040, WF-DEV-0050; F-01, #1766),
+          then `line_not_provision` for a provision line, which its risk alone writes and
+          removes — its dismissal, its occurrence, its deletion —, `params.risks` naming that
+          risk (`provision_line_refused`; WF-RIS-0010; #4007).
           In a differential, the line of a completed task can be deleted (WF-REV-0050).
         content:
           application/problem+json:
@@ -1826,6 +1830,8 @@
               last_provision_task: { $ref: ../../../fixtures/api/node_delete_last_provision_task_refused.json }
               line_completed_refused:
                 $ref: ../../../fixtures/api/node_delete_line_completed_refused.json
+              provision_line_refused:
+                $ref: ../../../fixtures/api/node_delete_provision_line_refused.json
       '412':
         description: >-
           `STALE_LOCK_VERSION`: the node has been written since it was read, and nothing is

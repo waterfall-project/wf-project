@@ -275,10 +275,13 @@ Problem:
         its row number and its label (`structure_id`, `structure_label`, `node_id`,
         `row_number`, `label`); `risks` for the deletion that would leave without a task a main
         structure that carries one (`STATE_FORBIDS_OPERATION`, `missing_condition` at
-        `at_least_one_task`, `deleteNode`, WF-RIS-0010, WF-RIS-0060): the risks whose provision
-        line would no longer have a task to be placed in, each by its identifier and its label
-        (`risk_id`, `label`), in the order of the list of risks; `work_package_task` and `order_item_tasks` for a merge that
-        would take the task of an order item out of the subtree of the task of its work package
+        `at_least_one_task`, `deleteNode`, WF-RIS-0010, WF-RIS-0060), or for the schedule of
+        MS Project that would leave it so (`PROVISION_WITHOUT_TASK`, `ReportRefusal`; #4011): the
+        risks whose provision line would no longer have a task to be placed in, each by its
+        identifier and its label (`risk_id`, `label`), in the order of the list of risks; and for
+        the deletion of a provision line itself (`missing_condition` at `line_not_provision`,
+        `deleteNode`; #4007), the risk whose provision it is; `work_package_task` and
+        `order_item_tasks` for a merge that would take the task of an order item out of the subtree of the task of its work package
         (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `mergeCostStructure`, WF-PLA-0170) : the task of the
         work package and those of the order items that would leave it, nodes of the main
         structure, each by its node and its label (`node_id`, `label`), like the tasks of
@@ -680,6 +683,14 @@ ErrorCode:
     # risk, which designates its task (`/node_ids/<n>`, `moveNodes`, `fields[].params.risk`,
     # WF-RIS-0010; #1227).
     - PROVISION_LINE_MOVED_BY_RISK
+    # A schedule of MS Project that would leave without a task a main structure that carries the
+    # provision line of a risk, the line no longer having a task to be placed under: a reason
+    # that refuses the whole file, presented in the report before the application
+    # (`ImportReport.refusals`, `ReportRefusal`), `params.risks` naming each risk whose provision
+    # it would carry, as the deletion of the last task names them (`at_least_one_task`,
+    # `deleteNode`); the reason on which the application fails (WF-RIS-0010, WF-INTF-0040;
+    # #4011).
+    - PROVISION_WITHOUT_TASK
     # A re-estimation that completes the task without the completion date that validation
     # requires (`setLineRemaining`, WF-RAE-0040, WF-PLA-0130).
     - COMPLETION_DATE_REQUIRED
@@ -914,7 +925,11 @@ ProblemParams:
         The risks whose provision line would no longer have a task to be placed in, each by its
         identifier and its label, in the order of the list of risks: the deletion that would
         leave without a task a main structure that carries one (`STATE_FORBIDS_OPERATION`,
-        `at_least_one_task`, `deleteNode`, WF-RIS-0010; H-05, US-0702/L2).
+        `at_least_one_task`, `deleteNode`, WF-RIS-0010; H-05, US-0702/L2), and the schedule of
+        MS Project that would leave it so (`PROVISION_WITHOUT_TASK`, `ReportRefusal.params`;
+        #4011). Or the risk whose provision line a deletion designates, the line being written
+        by its risk alone (`STATE_FORBIDS_OPERATION`, `line_not_provision`, `deleteNode`,
+        WF-RIS-0010; #4007).
       items: { $ref: '#/ProblemRisk' }
     subproject:
       allOf: [{ $ref: '#/ProblemSubproject' }]
