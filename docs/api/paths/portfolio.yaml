@@ -62,7 +62,12 @@
       - $ref: ../components/parameters.yaml#/PortfolioLastMarkedAtTo
       - name: sort_by
         in: query
-        description: Sort column; when absent, the label.
+        description: >-
+          Sort column; when absent, the label. The label and the code compare in Unicode code
+          point order, the state in the order of `ProjectState`, that of the lifecycle
+          (WF-CYC-0010). A project without a value in the column — a null column, an index not
+          computed — comes after the others in ascending order, before them in descending order;
+          on a tie, the order of the unsorted list, then the identifier (WF-IHM-0060).
         schema:
           type: string
           enum:
@@ -107,7 +112,8 @@
           `/query/from` or `/query/to` with `DATE_INVALID`. A single bound is completed with that
           of the default period — the end, the calculation date; the start, the calculation date
           minus twelve months (28 February for a 29 February), then the next day — and the
-          completed period follows the same rule: a start later than the calculation date,
+          completed period follows the same rule: the refusal designates the bound sent,
+          `params` naming the completed bound — a start later than the calculation date,
           `/query/from` with `VALUE_OUT_OF_RANGE`, `params.maximum` the completed end; an end
           earlier than the default start, `/query/to`, `params.minimum` the completed start. Or a
           column filter refused, following the convention of the README, `fields` on the
