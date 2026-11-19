@@ -191,6 +191,7 @@ NUMBERED = frozenset(
         "node_create_without_hours",
         "node_delete_last_provision_task_refused",
         "node_delete_line_completed_refused",
+        "node_delete_provision_line_refused",
         "node_delete_stale",
         "node_delete_started_refused",
         "node_tracking_amendment_refused",
