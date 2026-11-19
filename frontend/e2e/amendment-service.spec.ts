@@ -58,10 +58,9 @@ test("opens the amendment « Préparer un avenant » creates, names it in the ba
     const form = page.getByRole("form", { name: "Abandonner l’avenant" });
     await form.getByRole("button", { name: /Confirmer l’abandon/ }).click();
     await expect(page).not.toHaveURL(/structure=/, { timeout: WORKING });
-    // The grid reads the main structure, the only one left: the banner offers no other to choose.
-    await expect(page.getByText(/Structure principale · 6 tâches/)).toBeVisible({
-      timeout: WORKING,
-    });
+    // The grid reads the main structure, the only one left: the banner names it, and offers no other
+    // to choose. No count of tasks is asserted: it is what `seedPlanning` wrote, not what this proves.
+    await expect(page.getByText(/Structure principale/).first()).toBeVisible({ timeout: WORKING });
     await expect(named(page, "Avenant service")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Abandonner l’avenant" })).toHaveCount(0);
   } finally {
@@ -113,6 +112,21 @@ test("says an amendment in arrears is late, updates it from the report, and offe
     });
     await expect(page.getByRole("button", { name: "Contractualiser l’avenant" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Mettre à jour l’avenant" })).toHaveCount(0);
+    // Contractualised at last, against the service: the report read, the version name asked, the
+    // merge handed to the worker and followed to its end, which marks the revision that carries it.
+    await page.getByRole("button", { name: "Contractualiser l’avenant" }).click();
+    const merge = page.getByRole("form", { name: "Contractualiser l’avenant" });
+    await expect(merge.getByRole("list", { name: "Écarts par objet" })).toBeVisible({
+      timeout: WORKING,
+    });
+    await merge.getByRole("textbox", { name: "Nom de version" }).fill("Avenant contractualisé");
+    await merge.getByRole("button", { name: "Confirmer la fusion" }).click();
+    await expect(merge).toHaveCount(0, { timeout: WORKING });
+    // The worker ends: the screen tells the reference, and no more offers the merge of what is merged.
+    await expect(
+      page.getByText("« Avenant contractualisé » est la nouvelle révision de référence"),
+    ).toBeVisible({ timeout: WORKING });
+    await expect(page.getByRole("button", { name: "Contractualiser l’avenant" })).toHaveCount(0);
   } finally {
     await calls.dispose();
   }

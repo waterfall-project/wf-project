@@ -21,7 +21,13 @@ import { RebaseAmendmentCommand } from "./rebase-amendment-command";
 
 type StructureCommand = components["schemas"]["StructureCommand"];
 
-/** What the structure lists available, which the screen offers as a command that is. */
+/**
+ * The offer of a command the structure lists available. The grid screen (`grid-screen.ts`) keeps from
+ * `available_commands` only the commands that are available — the others, with their missing
+ * conditions, are dropped there, the grid reading as it does a structure it cannot write —, so the
+ * set this component receives holds nothing else: a command in it is offered, one missing from it is
+ * not offered at all, which is the word of the structure, not a deduction of the front.
+ */
 const AVAILABLE: CommandOffer = { is_available: true, missing_conditions: [] };
 
 /** Where the amendment is. */

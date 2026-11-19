@@ -7,8 +7,9 @@
  * deletes the structure (`deleteCostStructure`) from the counter the screen read, and the screen leaves
  * the address of the differential, which is no more, for the same screen on the main structure. It is
  * offered where the structure lists its `delete` command available — a differential not merged of the
- * revision in progress — and nowhere else. A counter that moved since it was read (412) offers to
- * reload the screen, which reads the structure anew.
+ * revision in progress — and nowhere else. A counter that moved since it was read (412) offers, as
+ * every command does that carries nothing it read, to reload the screen (`Reload`, `router.refresh`),
+ * which reads the structure anew: there is no report to read again, so no `reread` is given.
  */
 "use client";
 

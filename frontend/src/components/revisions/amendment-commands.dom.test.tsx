@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { refresh } from "next/cache";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
@@ -71,6 +72,13 @@ function amendment(name: string): CostStructure {
   return found;
 }
 
+/** The commands a structure lists available, as the grid screen reads them (`grid-screen.ts`). */
+function listedAvailable(structure: CostStructure): Command[] {
+  return structure.available_commands
+    .filter((offer) => offer.is_available)
+    .map(({ command }) => command);
+}
+
 /** The commands of the amendment, as the screen of its grid offers them. */
 function commands(structure: CostStructure, available: readonly Command[], merge = true) {
   const revision = example("revision") as Revision;
@@ -94,6 +102,7 @@ function commands(structure: CostStructure, available: readonly Command[], merge
 }
 
 beforeEach(() => {
+  vi.mocked(refresh).mockClear();
   router.refresh.mockClear();
   router.replace.mockClear();
 });
@@ -109,6 +118,27 @@ describe("the abandon of an amendment", () => {
 
   it("is not offered where the structure does not list `delete` available [US-2640]", () => {
     commands(amendment("structures"), ["edit_planning"]);
+    expect(screen.queryByRole("button", { name: "Abandonner l’avenant" })).toBeNull();
+  });
+
+  it("is not offered on a differential of a marked revision, which the example lists `delete` unavailable on [US-2640] [WF-REV-0100]", () => {
+    const marked = amendment("structures_amendments");
+    const listed = marked.available_commands.find((offer) => offer.command === "delete");
+    expect(listed?.is_available).toBe(false);
+    expect(listed?.missing_conditions).toContain("revision_draft");
+    commands(marked, listedAvailable(marked));
+    expect(screen.queryByRole("button", { name: "Abandonner l’avenant" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Mettre à jour l’avenant" })).toBeNull();
+  });
+
+  it("is not offered on a differential already merged, which lists no `delete` [US-2640] [WF-REV-0100]", () => {
+    const merged = (example("structures_amendments") as CostStructure[]).find(
+      (structure) => structure.kind === "amendment" && structure.is_merged,
+    );
+    if (merged === undefined) {
+      throw new Error("structures_amendments lists no amendment merged");
+    }
+    commands(merged, listedAvailable(merged));
     expect(screen.queryByRole("button", { name: "Abandonner l’avenant" })).toBeNull();
   });
 
@@ -139,6 +169,10 @@ describe("the abandon of an amendment", () => {
     await userEvent.click(screen.getByRole("button", { name: /Confirmer l’abandon/ }));
     expect(await screen.findByRole("alert")).toBeVisible();
     expect(router.replace).not.toHaveBeenCalled();
+    // The notice offers to reload the screen, which reads the structure anew.
+    expect(router.refresh).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Recharger" }));
+    expect(router.refresh).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -187,6 +221,8 @@ describe("an amendment in arrears", () => {
       { confirmed: true, main_structure_lock_version: 6, structure_lock_version: 2 },
     ]);
     expect(await screen.findByText(/est à jour\./)).toBeVisible();
+    // The grid is read anew with the screen: the server action refreshes the page.
+    expect(refresh).toHaveBeenCalled();
   });
 
   it("refuses the confirmation while a motive of the report refuses the update, and sends nothing [US-2640]", async () => {
