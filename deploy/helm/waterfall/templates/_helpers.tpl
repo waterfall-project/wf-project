@@ -8,12 +8,16 @@ template names a component by its name in compose.prod.yaml — front, api, post
 suffix of its objects and the value of its label app.kubernetes.io/component.
 */ -}}
 
-{{/* The prefix of every object: the release, followed by the name of the chart unless it holds it. */}}
+{{/*
+The prefix of every object: the release, followed by the name of the chart unless it holds it. At
+most 28 characters, so that the longest name of a CronJob, which Kubernetes bounds to 52 (its Jobs
+add eleven to the 63 of a label), stays under it with its suffix, "-scheduler-identity-sync".
+*/}}
 {{- define "waterfall.fullname" -}}
 {{- if contains .Chart.Name .Release.Name -}}
-{{- .Release.Name | trunc 40 | trimSuffix "-" -}}
+{{- .Release.Name | trunc 28 | trimSuffix "-" -}}
 {{- else -}}
-{{- printf "%s-%s" .Release.Name .Chart.Name | trunc 40 | trimSuffix "-" -}}
+{{- printf "%s-%s" .Release.Name .Chart.Name | trunc 28 | trimSuffix "-" -}}
 {{- end -}}
 {{- end -}}
 

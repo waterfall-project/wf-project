@@ -4,10 +4,10 @@
 # PostgreSQL, its data in a volume of its own (compose.prod.yaml, postgres). Its administrator,
 # postgres, is made at the first start alone, as is its password, and serves the steps of the
 # database alone (hooks.yaml). One lock table per project at restoration, hence 1 024 locks per
-# transaction; fifteen connections for each process of each replica of the API, two hundred for the
-# others, Keycloak's hundred included.
+# transaction; the connections are a value of their own (postgresql.maxConnections), never computed
+# from the replicas: a flag that followed them would change the template of this pod and restart it
+# when the API scales (WF-ARC-0050-A).
 {{- $name := include "waterfall.name" (list . "postgres") }}
-{{- $connections := add 200 (mul 15 (int .Values.api.replicas) (int .Values.api.processes)) }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -64,7 +64,7 @@ spec:
             - -c
             - max_locks_per_transaction=1024
             - -c
-            - max_connections={{ $connections }}
+            - max_connections={{ int .Values.postgresql.maxConnections }}
           env:
             - name: POSTGRES_USER
               value: postgres

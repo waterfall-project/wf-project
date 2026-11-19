@@ -44,6 +44,7 @@ from wftools.production import (
     Browser,
     Platform,
     ProductionError,
+    check_console_hidden,
     check_liveness,
     check_signed_in,
     installation_link,
@@ -61,8 +62,12 @@ NODE = (
     "kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5"
 )
 """The node of kind 0.33.0 for Kubernetes 1.37, by the digest its release names."""
-TRAEFIK = ("oci://ghcr.io/traefik/helm/traefik", "42.4.1")
-"""The chart of Traefik, the controller of ingresses of the trial, and its version."""
+TRAEFIK = (
+    "oci://ghcr.io/traefik/helm/traefik@"
+    "sha256:50098cedd13beccdaae2bda8f17091b3eebede130ce73a7b2fc97bb72955e59f"
+)
+"""The chart of Traefik 42.4.1, the controller of ingresses of the trial, by the digest of its
+artifact: a tag moves, the digest does not (as each binary of ``kubetools`` is pinned)."""
 NODE_PORT = 30443
 """The port of the node HTTPS is served on, which kind publishes on the loopback."""
 CERTIFICATE = "waterfall-tls"
@@ -150,7 +155,7 @@ def free_port() -> int:
 
 def _must(run: Run, command: list[str]) -> None:
     if code := run(command):
-        message = f"{Path(command[0]).name} {command[1]} failed ({code})"
+        message = f"{Path(command[0]).name} {' '.join(command[-4:])} failed ({code})"
         raise TrialError(message)
 
 
@@ -282,7 +287,6 @@ class Trial:
 
     def ingress(self) -> str:
         """Install Traefik, serving HTTPS on the port of the node; return its address inside."""
-        reference, version = TRAEFIK
         settings = ["service.spec.type=NodePort", f"ports.websecure.nodePort={NODE_PORT}"]
         _must(
             self.run,
@@ -290,9 +294,7 @@ class Trial:
                 *self.tools.helm,
                 "install",
                 "traefik",
-                reference,
-                "--version",
-                version,
+                TRAEFIK,
                 "--namespace",
                 "traefik",
                 "--create-namespace",
@@ -368,6 +370,8 @@ class Trial:
         check_liveness(_output(self.read, [*kubectl, "exec", api, "--", "python", "-c", LIVENESS]))
         print("  the API answers its liveness probe: ok", flush=True)
         browser = Browser(sender(self.platform)(self.folder / "ca.crt"))
+        check_console_hidden(browser, self.platform)
+        print("  the console of Keycloak and its realm master are not served: ok", flush=True)
         password = f"Trial-{secrets.token_urlsafe(18)}"
         set_password(browser, link, password)
         print("  the first administrator sets their password by the link", flush=True)

@@ -22,6 +22,7 @@ from wftools.kubetools import Binary, ToolError
 from wftools.production import Platform
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 PLATFORM = Platform("waterfall.localhost", 41443, 0)
@@ -128,3 +129,56 @@ def test_an_image_not_built_here_stops_the_trial_before_the_cluster_loads_any(
     with pytest.raises(TrialError, match="keycloak:abc is not built here"):
         trial.load("cluster", "abc")
     assert not any(command[0] == "kind" for command in ran)
+
+
+def test_a_failed_command_is_named_by_what_it_did_not_by_its_flag(tmp_path: Path) -> None:
+    def run(command: list[str]) -> int:
+        return 1 if command[0] == "kubectl" else 0
+
+    trial = Trial(
+        Tools(["kind"], ["kubectl", "--kubeconfig", "k"], ["helm"]),
+        run,
+        lambda _: (0, ""),
+        tmp_path,
+        PLATFORM,
+    )
+    # The second word of a command of kubectl is its flag: the message names what it did.
+    with pytest.raises(TrialError, match=r"^kubectl k create namespace waterfall failed \(1\)$"):
+        trial.install({})
+
+
+def test_traefik_is_pulled_by_the_digest_of_its_artifact() -> None:
+    assert re.search(r"@sha256:[0-9a-f]{64}$", charttrial.TRAEFIK)
+
+
+def test_the_trial_holds_that_the_console_and_the_master_realm_are_not_served(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: list[str] = []
+
+    def nothing(*_: object, **__: object) -> None:
+        return None
+
+    def link(*_: object) -> str:
+        return "link"
+
+    def sender(_: Platform) -> Callable[[Path], object]:
+        return lambda _ca: object()
+
+    def browser(sent: object) -> object:
+        return sent
+
+    def hidden(_browser: object, platform: Platform) -> None:
+        seen.append(platform.domain)
+
+    for name in ("check_liveness", "set_password", "sign_in", "check_signed_in"):
+        monkeypatch.setattr(charttrial, name, nothing)
+    monkeypatch.setattr(charttrial, "installation_link", link)
+    monkeypatch.setattr(charttrial, "sender", sender)
+    monkeypatch.setattr(charttrial, "Browser", browser)
+    monkeypatch.setattr(charttrial, "check_console_hidden", hidden)
+    trial = Trial(
+        Tools(["kind"], ["kubectl"], ["helm"]), lambda _: 0, lambda _: (0, "x"), tmp_path, PLATFORM
+    )
+    trial.hold("a@b.test")
+    assert seen == ["waterfall.localhost"]

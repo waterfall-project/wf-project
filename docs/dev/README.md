@@ -3742,6 +3742,15 @@ a change of what the images are made of is put to the proof that way only after 
 `images.yml`. It costs the build of the three images, that of Keycloak and of its extension above
 all, then the start of Keycloak and the application of its realm.
 
+The `chart` family (`chart.yml`, US-2800) puts the Helm chart `deploy/helm/waterfall`, which
+deploys the same platform on Kubernetes, to the proof. At both tiers, `make lint-chart` lints it
+strictly and `make test-chart` renders it by Helm and holds its objects against `compose.prod.yaml`;
+at the full tier only, `make check-chart` builds the three images like `images.yml`, without pushing
+them, then installs the chart on a cluster of kind made for the trial, bootstraps it, asserts the
+liveness probe of the API, that Keycloak's console and the `master` realm are not served, and lets
+the first administrator in (`make chart-trial`, `wftools.charttrial`). Helm, kind and kubectl are
+downloaded at the versions and digests that `wftools.kubetools` pins.
+
 The families, the paths that wake them, the generated paths and those of the tests are
 declared in `tools/paths.toml`, and nowhere else. A path of `shared` — the
 Makefile, `ci.yml`, the declaration itself and the code that reads it — wakes every
@@ -3776,7 +3785,7 @@ WATERFALL_MIRROR=` before the `FROM` of a `Dockerfile`, which `--build-arg WATER
 mirror to hold the new digest (`make mirror PUSH=yes`, by a person if the token of the pull request
 cannot write). The workflows that
 build or run Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`, `production.yml`,
-`images.yml`)
+`chart.yml`, `images.yml`)
 set `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` and log in to it; the services of
 `back.yml` and `front.yml` name the mirror in full. The mirror is kept by `make mirror PUSH=yes`
 (`wftools.mirror`): it reads those references, asks ghcr.io whether the digest is there — held,
@@ -3921,7 +3930,7 @@ The back follows the same model (#492, lever 5):
 The images are built from a GitHub Actions cache (`type=gha`): the extension of Keycloak compiled by
 Maven, the dependencies of the front and of the back are not redone at each job. The `cache` job of
 `images.yml` writes it after each merge (`make build-cache`), on the branch whose caches the pull
-requests read; `keycloak.yml`, `service.yml`, `production.yml` and `front-image.yml` read it
+requests read; `keycloak.yml`, `service.yml`, `production.yml`, `chart.yml` and `front-image.yml` read it
 (`build-keycloak`, `wftools.images`, `wftools.frontimage`). The local action
 `.github/actions/build-cache` opens it to them: it enables the containerd image store, without which
 Docker's builder neither imports nor exports such a cache, and restarts Docker — never in a job that

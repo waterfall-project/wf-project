@@ -105,6 +105,11 @@ postgresql:
   persistence:
     size: 10Gi
     className: ""
+  # The connections PostgreSQL accepts, whatever the replicas: changing it restarts the database, which
+  # scaling the API must not. It covers fifteen for each process of each instance of the API (three
+  # instances of two processes at most: 90), the worker, and two hundred for the others, Keycloak's
+  # hundred included.
+  maxConnections: 300
   resources: {}
 
 # Redis: nothing durable is kept in it. US-2800/L2 lets the operator provide it.

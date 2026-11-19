@@ -30,7 +30,7 @@ spec:
     spec:
       {{- include "waterfall.podDefaults" . | nindent 6 }}
       initContainers:
-        {{- include "waterfall.waitForDatabase" (list . "waterfall_service" "waterfall" "WATERFALL_SERVICE_DATABASE_PASSWORD") | nindent 8 }}
+        {{- include "waterfall.waitForDatabase" (list . "waterfall" "waterfall" "WATERFALL_POSTGRES_PASSWORD") | nindent 8 }}
         {{- /* The hook applies the realm first: two applications that both found no realm would both make it. */}}
         {{- include "waterfall.waitForKeycloak" (list . "8080" "/auth/realms/waterfall") | nindent 8 }}
       containers:

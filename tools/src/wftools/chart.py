@@ -90,9 +90,9 @@ def helm(arguments: list[str], values: Mapping[str, Any]) -> str:
     return done.stdout
 
 
-def render(values: Mapping[str, Any] | None = None) -> str:
-    """Render the chart, its hooks included, with the values of the chain and those given."""
-    return helm(["template", RELEASE], merged(chain_values(), values or {}))
+def render(values: Mapping[str, Any] | None = None, release: str = RELEASE) -> str:
+    """Render the chart of a release, hooks included, with the chain's values and those given."""
+    return helm(["template", release], merged(chain_values(), values or {}))
 
 
 def main() -> int:

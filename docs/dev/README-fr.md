@@ -3767,6 +3767,15 @@ dont les images sont faites n'est éprouvé ainsi qu'après la fusion, par `imag
 construction des trois images, celle de Keycloak et de son extension surtout, puis le démarrage de
 Keycloak et l'application de son royaume.
 
+La famille `chart` (`chart.yml`, US-2800) éprouve le chart Helm `deploy/helm/waterfall`, qui
+déploie la même plateforme sur Kubernetes. Aux deux paliers, `make lint-chart` le lint en mode strict
+et `make test-chart` le rend par Helm et tient ses objets contre `compose.prod.yaml` ; au palier
+complet seulement, `make check-chart` construit les trois images comme `images.yml`, sans les
+pousser, puis installe le chart sur un cluster de kind fait pour l'essai, l'amorce, affirme la sonde
+de vie de l'API, que la console de Keycloak et le royaume `master` ne sont pas servis, et laisse
+entrer le premier administrateur (`make chart-trial`, `wftools.charttrial`). Helm, kind et kubectl
+sont téléchargés aux versions et aux empreintes que `wftools.kubetools` épingle.
+
 Les familles, les chemins qui les réveillent, les chemins engendrés et ceux des tests sont
 déclarés dans `tools/paths.toml`, et nulle part ailleurs. Un chemin de `shared` — le
 Makefile, `ci.yml`, la déclaration elle-même et le code qui la lit — réveille toutes les
@@ -3801,7 +3810,7 @@ références paramétrées (`${WATERFALL_MIRROR:-}…`, `FROM ${WATERFALL_MIRROR
 d'image demande que le miroir tienne la nouvelle empreinte (`make mirror PUSH=yes`, par une personne
 si le jeton de la pull request ne peut pas écrire). Les workflows
 qui construisent ou lancent Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`,
-`production.yml`, `images.yml`) posent `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` et s'y connectent ; les
+`production.yml`, `chart.yml`, `images.yml`) posent `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` et s'y connectent ; les
 services de `back.yml` et de `front.yml` nomment le miroir en toutes lettres. Le miroir est tenu par
 `make mirror PUSH=yes` (`wftools.mirror`) : il lit ces références, demande à ghcr.io si l'empreinte
 y est — présente, rien d'autre n'est lu, Docker Hub non plus —, et copie celles qui manquent de
@@ -3952,7 +3961,7 @@ Les images se construisent depuis un cache de GitHub Actions (`type=gha`) : l'ex
 Keycloak compilée par Maven, les dépendances du front et du back ne se refont pas à chaque
 travail. Le job `cache` d'`images.yml` l'écrit après chaque fusion (`make build-cache`), sur la
 branche dont les pull requests lisent les caches ; `keycloak.yml`, `service.yml`,
-`production.yml` et `front-image.yml` le lisent (`build-keycloak`, `wftools.images`,
+`production.yml`, `chart.yml` et `front-image.yml` le lisent (`build-keycloak`, `wftools.images`,
 `wftools.frontimage`). L'action locale `.github/actions/build-cache` le leur ouvre : elle active
 le magasin d'images de containerd, sans lequel le builder de Docker n'importe ni n'exporte un tel
 cache, et redémarre Docker — jamais dans un travail qui a des `services:`

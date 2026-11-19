@@ -32,9 +32,9 @@ PUBLISHED = re.compile(r"^(ghcr\.io/waterfall-project/\w+):\$\{WATERFALL_IMAGE_T
 Objects = list[dict[str, Any]]
 
 
-def rendered(values: dict[str, Any] | None = None) -> Objects:
+def rendered(values: dict[str, Any] | None = None, release: str = chart.RELEASE) -> Objects:
     """Render the chart with the values of the chain and those given."""
-    return [document for document in yaml.safe_load_all(chart.render(values)) if document]
+    return [document for document in yaml.safe_load_all(chart.render(values, release)) if document]
 
 
 @pytest.fixture(scope="module")
@@ -112,9 +112,40 @@ def test_the_api_and_the_worker_multiply_by_a_value() -> None:
     deployments = of_kind(objects, "Deployment")
     assert deployments["api"]["spec"]["replicas"] == 3
     assert deployments["worker"]["spec"]["replicas"] == 2
-    # PostgreSQL counts fifteen connections for each process of each replica, two hundred besides.
-    (postgres,) = pod(of_kind(objects, "StatefulSet")["postgres"])["containers"]
-    assert "max_connections=290" in postgres["args"]
+
+
+def test_scaling_the_api_does_not_change_the_pod_of_postgres() -> None:
+    """The connections are a value of their own: a scaled API must not restart the database."""
+
+    def postgres(values: dict[str, Any]) -> dict[str, Any]:
+        return pod(of_kind(rendered(values), "StatefulSet")["postgres"])
+
+    one = postgres({"api": {"replicas": 1}})
+    three = postgres({"api": {"replicas": 3, "processes": 2}})
+    assert one == three
+    assert "max_connections=300" in one["containers"][0]["args"]
+    custom = postgres({"postgresql": {"maxConnections": 500}})
+    assert "max_connections=500" in custom["containers"][0]["args"]
+
+
+def test_a_long_release_keeps_every_cronjob_name_within_52_characters() -> None:
+    objects = rendered(release="r" * 40)
+    names = [item["metadata"]["name"] for item in objects if item["kind"] == "CronJob"]
+    assert names
+    assert all(len(name) <= 52 for name in names), names
+
+
+def test_the_restoration_waits_for_the_owner_of_the_database_it_reads() -> None:
+    (restore,) = [
+        item
+        for item in rendered()
+        if item["kind"] == "Deployment"
+        and item["metadata"]["labels"]["app.kubernetes.io/component"] == "restore"
+    ]
+    wait = next(c for c in pod(restore)["initContainers"] if c["name"] == "wait-for-database")
+    env = {item["name"]: item for item in wait["env"]}
+    assert env["PGUSER"]["value"] == "waterfall"
+    assert env["PGPASSWORD"]["valueFrom"]["secretKeyRef"]["key"] == "WATERFALL_POSTGRES_PASSWORD"
 
 
 def test_the_chart_describes_the_services_the_ingress_the_secrets_and_the_volumes(
@@ -201,10 +232,12 @@ def test_the_migrations_run_in_the_order_of_the_compose_as_the_roles_it_names(
     assert environment(steps["migrate"])["WATERFALL_DATABASE_URL"].startswith(
         "postgresql://waterfall:$(WATERFALL_POSTGRES_PASSWORD)@"
     )
-    for name in ("api", "worker", "restore"):
+    # The restoration reads the database as its owner, as the Compose does for migrate alone.
+    roles = {"api": "waterfall_service", "worker": "waterfall_service", "restore": "waterfall"}
+    for name, role in roles.items():
         deployment = of_kind(objects, "Deployment")[name]
         url = environment(next(containers(deployment)))
-        assert url["PGUSER"] == "waterfall_service", name
+        assert url["PGUSER"] == role, name
 
 
 def test_the_tasks_planned_are_cronjobs_that_run_the_commands_of_the_scheduler(
