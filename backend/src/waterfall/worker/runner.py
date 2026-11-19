@@ -10,8 +10,9 @@ whose attempts are spent, or that no handler runs, fails without running. A hand
 undone; one whose failure leaves a trace on its own rows — an import passed ``failed`` or
 ``refused`` (EP-06) — raises ``UndoneError``, and the trace is written with the end of the task.
 
-While a restoration holds the platform in maintenance, the worker runs no task: the entries it reads
-are left, unacknowledged, and it claims them again once idle, after the maintenance (WF-ADM-0160).
+While a restoration holds the platform in maintenance — read in the database, not in Redis
+(``waterfall.platform.maintenance``) —, the worker runs no task: the entries it reads are left,
+unacknowledged, and it claims them again once idle, after the maintenance (WF-ADM-0160).
 It never runs a restoration, which the service of the restoration takes from a stream of its own
 (#953), nor deposits one again; that service waits for the run of each task the worker started
 before the maintenance to end, by its lock (``await_run``), before it keeps anything.
@@ -23,7 +24,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from pydantic_core import to_jsonable_python
-from redis.exceptions import RedisError, ResponseError
+from redis.exceptions import ResponseError
 from sqlalchemy import ColumnElement, Integer, cast, func, select, update
 
 from waterfall.platform.database import Database, utc_now
@@ -153,7 +154,7 @@ class Worker:
         self.handlers = handlers
         self.consumer = consumer or socket.gethostname()
         self.timing = timing or Timing()
-        self.maintenance = Maintenance.of(queue)
+        self.maintenance = Maintenance.of(database, queue)
         # Where the next look for the entries left pending starts: each look goes on from the last.
         self.sweep = SWEEP_START
 
@@ -192,16 +193,12 @@ class Worker:
         return bool(entries)
 
     def halted(self) -> bool:
-        """Tell whether a maintenance began; not if Redis does not say, as the API reads it.
+        """Tell whether a maintenance began, read once the lock of a run is taken.
 
-        Read once the lock of a run is taken, for the run a maintenance began before; a Redis out
-        of reach then is no maintenance, as for the API (``waterfall.api.maintenance``).
+        For the run a maintenance began before: read in the database, which a Redis out of reach or
+        emptied does not change (#956).
         """
-        try:
-            return self.restoring() is not None
-        except RedisError:
-            logger.warning("maintenance.unread", exc_info=True)
-            return False
+        return self.restoring() is not None
 
     def restoring(self) -> Restoring | None:
         """Give the restoration that holds the platform in maintenance, if one does."""

@@ -234,21 +234,23 @@ docker compose -f compose.prod.yaml restart keycloak-realm
 
 Abandonnée, ses trois tentatives épuisées, une restauration laisse la maintenance posée et ne se
 reprend plus d'elle-même ; la reprise automatique au redémarrage relève d'EP-13 (#1016). La
-maintenance est une clé de Redis, `waterfall:tasks:maintenance`, qui nomme la tâche de la
-restauration, compte ses tentatives et la dit abandonnée (`"abandoned": true`) :
+maintenance est la ligne de la table `platform.maintenance` de la base `waterfall`, hors du schéma
+`public` que la restauration remplace : vider Redis ne la lève pas (#956). La table
+`platform.restoration` nomme la tâche de la restauration, compte ses tentatives et la dit abandonnée
+(`abandoned`) :
 
 ```sh
-docker compose -f compose.prod.yaml exec redis redis-cli GET waterfall:tasks:maintenance
+docker compose -f compose.prod.yaml exec postgres psql -U postgres -d waterfall \
+  -c "SELECT task_id, attempts, caches_cleared, abandoned FROM platform.restoration"
 ```
 
-La cause corrigée d'après les journaux, l'exploitant lève la maintenance en retirant la clé :
+La cause corrigée d'après les journaux, l'exploitant lève la maintenance en retirant ses deux
+lignes, d'une seule commande, donc d'une seule transaction :
 
 ```sh
-docker compose -f compose.prod.yaml exec redis redis-cli DEL waterfall:tasks:maintenance
+docker compose -f compose.prod.yaml exec postgres psql -U postgres -d waterfall \
+  -c "DELETE FROM platform.restoration; DELETE FROM platform.maintenance"
 ```
-
-`redis-cli` s'authentifie par la variable `REDISCLI_AUTH` du conteneur `redis`, que Compose tire
-de `WATERFALL_REDIS_PASSWORD` : le mot de passe ne s'écrit pas sur la ligne de commande.
 
 Lever la maintenance ne termine pas la tâche. Si la base de Waterfall la tient encore en file ou
 en cours — l'abandon avant le remplacement des bases, ou après la réinscription de ce que la

@@ -19,7 +19,6 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, cast
-from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID, uuid4
 
 import pytest
@@ -90,10 +89,8 @@ READINGS = (
     "indicators/earned-value-curves",
     "indicators/index-history",
 )
-# A Redis no one listens on, and how many Redis databases the tests' workers may take at most.
+# A Redis no one listens on.
 CLOSED_PORT = "redis://127.0.0.1:1/0"
-WORKERS = 8
-REDIS_DATABASES = 16
 
 type Clock = Callable[[datetime], None]
 
@@ -415,31 +412,6 @@ def test_two_readings_of_an_entry_absent_compute_it_both_and_answer_the_same(
 
 
 # --- The cache emptied, the cache out of reach ------------------------------------------------
-
-
-@pytest.fixture
-def emptied_queue(redis_url: str, worker_id: str) -> Iterator[TaskQueue]:
-    """Give a queue on a database of the Redis of the tests that no worker takes, emptied after.
-
-    The workers take the databases that follow the one given, eight at most: the eighth after
-    the worker's own is the test's, whichever worker it runs on, and ``FLUSHDB`` empties nothing
-    another test reads. That holds for eight processes at most, as the ``Makefile`` runs them
-    (``--maxprocesses``): beyond, the database emptied could be a worker's own, so the test fails
-    rather than empty it.
-    """
-    rank = int(worker_id.removeprefix("gw")) if worker_id != "master" else 0
-    if rank >= WORKERS:
-        pytest.fail(
-            f"worker {worker_id} would empty the database of another worker: this test is for "
-            f"{WORKERS} processes at most (-n {WORKERS} or fewer)",
-            pytrace=False,
-        )
-    parts = urlsplit(redis_url)
-    index = (int(parts.path.strip("/") or 0) + WORKERS) % REDIS_DATABASES
-    opened = TaskQueue.connect(urlunsplit(parts._replace(path=f"/{index}")), timeout=WORKER_TIMEOUT)
-    yield opened
-    flush(opened)
-    opened.close()
 
 
 def flush(queue: TaskQueue) -> None:

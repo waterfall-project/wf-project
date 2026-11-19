@@ -32,6 +32,7 @@ from support import (
     ReferenceSessions,
     bearer,
     captured_logs,
+    emptied,
     nowhere,
     raw_account,
     service_role,
@@ -47,7 +48,7 @@ from waterfall.platform.database import Base, Database, create_database_engine, 
 from waterfall.platform.installation import DELIVERED_TIME_ZONE, TIME_ZONE
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
-from waterfall.platform.maintenance import SUFFIX, Maintenance
+from waterfall.platform.maintenance import Maintenance
 from waterfall.platform.queue import RESTORES, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import ServiceSettings, WitnessSettings, load_service_settings
 from waterfall.platform.storage import Bucket
@@ -362,11 +363,11 @@ def queue(redis_url: str) -> Iterator[TaskQueue]:
     """Give a queue of tasks on the Redis of the tests, in a stream of its own, deleted after.
 
     It waits for Redis as the worker's does, which the tests run on it. The stream of the
-    restorations and the maintenance beside it are deleted with it.
+    restorations beside it is deleted with it.
     """
     opened = TaskQueue.connect(redis_url, f"waterfall:test:{uuid4().hex}", timeout=WORKER_TIMEOUT)
     yield opened
-    opened.client.delete(opened.stream, opened.stream + RESTORES, opened.stream + SUFFIX)
+    opened.client.delete(opened.stream, opened.stream + RESTORES)
     opened.close()
 
 
@@ -377,6 +378,36 @@ def platform_queue(redis_url: str) -> Iterator[TaskQueue]:
     opened.client.delete(opened.stream)
     yield opened
     opened.client.delete(opened.stream)
+    opened.close()
+
+
+# How many processes run the tests at most, each on a database of Redis of its own (``Makefile``,
+# ``--maxprocesses``).
+REDIS_WORKERS = 8
+
+
+@pytest.fixture
+def emptied_queue(redis_url: str, worker_id: str) -> Iterator[TaskQueue]:
+    """Give a queue on a database of the Redis of the tests that no worker takes, emptied after.
+
+    The workers take the databases that follow the one given, eight at most: the eighth after
+    the worker's own is the test's, whichever worker it runs on, and ``FLUSHDB`` empties nothing
+    another test reads. That holds for eight processes at most, as the ``Makefile`` runs them
+    (``--maxprocesses``): beyond, the database emptied could be a worker's own, so the test fails
+    rather than empty it.
+    """
+    rank = int(worker_id.removeprefix("gw")) if worker_id != "master" else 0
+    if rank >= REDIS_WORKERS:
+        pytest.fail(
+            f"worker {worker_id} would empty the database of another worker: this test is for "
+            f"{REDIS_WORKERS} processes at most (-n {REDIS_WORKERS} or fewer)",
+            pytrace=False,
+        )
+    parts = urlsplit(redis_url)
+    index = (int(parts.path.strip("/") or 0) + REDIS_WORKERS) % REDIS_DATABASES
+    opened = TaskQueue.connect(urlunsplit(parts._replace(path=f"/{index}")), timeout=WORKER_TIMEOUT)
+    yield opened
+    emptied(opened)
     opened.close()
 
 
@@ -437,14 +468,14 @@ def installation_api(
     keycloak: Keycloak,
     realm_settings: ServiceSettings,
 ) -> ContractClient:
-    """Serve the API on an installation, as the role of the service, the maintenance beside it."""
+    """Serve the API on an installation, as the role of the service, the maintenance in it."""
     services = Services(
         installation.database,
         keycloak,
         KeycloakAdmin(keycloak, realm_settings),
         queue,
         installation.bucket,
-        Maintenance.of(queue),
+        Maintenance.of(installation.database, queue),
     )
     return ContractClient(TestClient(create_app(services), raise_server_exceptions=False), contract)
 

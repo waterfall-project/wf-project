@@ -22,6 +22,7 @@ from project_rows import (
 )
 from sqlalchemy import Engine, func, insert, select, text, update
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy.schema import CreateSchema
 from support import raw_account, service_role
 
 from waterfall.core.access_roles.tables import (
@@ -74,6 +75,7 @@ from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Base, Database
 from waterfall.platform.installation import Installation
+from waterfall.platform.maintenance import SCHEMA, HeldMaintenance, RestorationState
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.platform.uploads import FileUpload
 
@@ -191,6 +193,8 @@ def test_each_migration_is_undone_by_its_mirror_and_applied_again(empty_engine: 
             text("SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace")
         ).scalar_one()
         assert functions == 0
+        platform = connection.execute(text("SELECT to_regnamespace(:name)"), {"name": SCHEMA})
+        assert platform.scalar_one() is None
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
         assert applied(connection) == [HEAD]
@@ -199,6 +203,8 @@ def test_each_migration_is_undone_by_its_mirror_and_applied_again(empty_engine: 
 def describe_schema(engine: Engine) -> dict[str, list[tuple[object, ...]]]:
     """Read what the catalogue says of the tables: constraints, indexes and columns.
 
+    Those of ``public``, and of ``platform`` (migration 0035).
+
     The constraint trigger of ``revision_indicator`` (``contype`` ``t``) is a trigger, which the
     migrations alone write, as every other trigger: the tables of the code declare none. It is left
     out by its name alone, so that any other constraint trigger shows in the comparison.
@@ -206,19 +212,20 @@ def describe_schema(engine: Engine) -> dict[str, list[tuple[object, ...]]]:
     queries = {
         "constraints": (
             "SELECT conrelid::regclass::text, conname, pg_get_constraintdef(oid) "
-            "FROM pg_constraint WHERE connamespace = 'public'::regnamespace "
+            "FROM pg_constraint WHERE connamespace IN "
+            "('public'::regnamespace, 'platform'::regnamespace) "
             "AND conrelid::regclass::text <> 'alembic_version' "
             "AND NOT (contype = 't' AND conname = 'revision_indicator_refuse_outside_marking')"
         ),
         "indexes": (
-            "SELECT indexname, indexdef FROM pg_indexes "
-            "WHERE schemaname = 'public' AND tablename <> 'alembic_version'"
+            "SELECT schemaname, indexname, indexdef FROM pg_indexes "
+            "WHERE schemaname IN ('public', 'platform') AND tablename <> 'alembic_version'"
         ),
         "columns": (
-            "SELECT table_name, column_name, data_type, collation_name, is_nullable, "
-            "column_default "
+            "SELECT table_schema, table_name, column_name, data_type, collation_name, "
+            "is_nullable, column_default "
             "FROM information_schema.columns "
-            "WHERE table_schema = 'public' AND table_name <> 'alembic_version'"
+            "WHERE table_schema IN ('public', 'platform') AND table_name <> 'alembic_version'"
         ),
     }
     with engine.connect() as connection:
@@ -226,6 +233,11 @@ def describe_schema(engine: Engine) -> dict[str, list[tuple[object, ...]]]:
             name: sorted((tuple(row) for row in connection.execute(text(query))), key=repr)
             for name, query in queries.items()
         }
+
+
+def compared_schema(name: str | None, kind: str, _: object) -> bool:
+    """Compare the schema ``platform`` too, which the tables of the code name, and no other."""
+    return kind != "schema" or name in {None, SCHEMA}
 
 
 def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
@@ -285,15 +297,23 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         CostLine.__tablename__,
         CostImport.__tablename__,
         RevisionIndicator.__tablename__,
+        HeldMaintenance.__tablename__,
+        RestorationState.__tablename__,
     }
     upgrade(empty_engine)
+    compared: dict[str, object] = {
+        "compare_server_default": True,
+        "include_schemas": True,
+        "include_name": compared_schema,
+    }
     with empty_engine.connect() as connection:
         differences = compare_metadata(
-            MigrationContext.configure(connection, opts={"compare_server_default": True}),
-            Base.metadata,
+            MigrationContext.configure(connection, opts=compared), Base.metadata
         )
     assert differences == []
     with scratch_database(database_url) as created:
+        with created.begin() as connection:
+            connection.execute(CreateSchema(SCHEMA))
         Base.metadata.create_all(created)
         from_the_code = describe_schema(created)
     from_the_migrations = describe_schema(empty_engine)
@@ -428,6 +448,11 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     # The indicators (EP-10): a document written once, by the marking of its revision, and never
     # changed nor deleted, its revision marked for good (migration 0032).
     "revision_indicator": {"SELECT", "INSERT"},
+    # The maintenance of a restoration and its state (EP-13, migration 0035), in the schema
+    # ``platform``: read by the API and the worker, written by the owner alone, which the service
+    # of the restoration is.
+    "maintenance": {"SELECT"},
+    "restoration": {"SELECT"},
 }
 
 

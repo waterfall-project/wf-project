@@ -119,12 +119,15 @@ def _member(tar: tarfile.TarFile, name: str) -> Any:
 def replace(name: str, dump: Path, address: str, folder: Path) -> None:
     """Make a database again from its dump, as its owner: its schema dropped, the dump restored.
 
-    The schema is dropped and made again in a transaction of its own; the dump is then restored in
-    one transaction of ``pg_restore``, without the owners and the rights of the source: the role of
-    the service of another installation has another name. Interrupted between the two, the
-    database is left with an empty schema, and the restoration taken up starts again from the
-    beginning (WF-ARC-0090). A database that stops answering is unavailable (503), one that answers
-    and refuses the dump an internal error (#907).
+    The schema ``public`` alone is dropped and made again, in a transaction of its own: the schema
+    ``platform``, where the maintenance is held, stays as it is. The dump is then restored in one
+    transaction of ``pg_restore``, without the owners and the rights of the source: the role of
+    the service of another installation has another name. A dump of ``public`` alone makes the
+    schema itself, which a dump of the whole database leaves to the database — those of the
+    backups taken before EP-13 —: what the dump makes is dropped first, if it is there.
+    Interrupted between the two, the database is left with an empty schema, and the restoration
+    taken up starts again from the beginning (WF-ARC-0090). A database that stops answering is
+    unavailable (503), one that answers and refuses the dump an internal error (#907).
     """
     with connect(address, UNREACHED) as session:
         session.execute("DROP SCHEMA public CASCADE")
@@ -141,6 +144,8 @@ def replace(name: str, dump: Path, address: str, folder: Path) -> None:
                 "--no-owner",
                 "--no-privileges",
                 "--no-password",
+                "--clean",
+                "--if-exists",
             ],
             stdin=read,
             capture_output=True,

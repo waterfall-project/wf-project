@@ -429,6 +429,9 @@ CASCADES = {
     "fk_estimate_line_project_id_node",
     # The reading kept of a structure with its structure (EP-26, "Tables et migrations").
     "fk_structure_reading_project_id_cost_structure",
+    # The report of a reading of the accounts with its task, which the purge deletes (EP-13,
+    # "Tables et migrations", #921).
+    "fk_identity_sync_report_task_id_background_task",
 }
 
 
