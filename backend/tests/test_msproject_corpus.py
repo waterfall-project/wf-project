@@ -309,7 +309,9 @@ def test_each_case_the_body_cites_is_declared_by_a_planning_of_the_corpus(
     # « Chaque cas cité par le corps figure dans au moins un planning du corpus. » A case no file
     # declares is not run only when the test names the issue that says why (``MISSING``, empty
     # since the file 02 carries a negative lag in weeks, #2812); any other fails, and a case a
-    # file declares needs that file in the corpus.
+    # file declares needs that file in the corpus. A case added to ``MISSING`` makes this skip run,
+    # and the hook of US-2440 fails it: the test then needs ``@pytest.mark.unexecuted`` (and no
+    # mark before, or it would be reported not run while it runs for every case today).
     declaring = [entry["file"] for entry in FILES if case in entry["cases"]]
     if not declaring and case in MISSING:
         pytest.skip(f"{case} ({theme}): no planning of the corpus declares it ({MISSING[case]})")
@@ -362,6 +364,7 @@ def schema() -> etree.XMLSchema:
 
 
 @pytest.mark.requirement("WF-QUA-0080-A")
+@pytest.mark.unexecuted("skipped unless WATERFALL_MSPDI_SCHEMA_PATH names the schema of MSPDI")
 @pytest.mark.parametrize("entry", FILES, ids=[entry["file"] for entry in FILES])
 def test_each_planning_of_the_corpus_read_then_written_is_valid_against_the_schema(
     entry: dict[str, Any], schema: etree.XMLSchema

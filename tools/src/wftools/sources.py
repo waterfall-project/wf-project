@@ -27,12 +27,22 @@ _SLASH = frozenset({".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"})
 _JAVA = frozenset({".java"})
 SOURCES = _HASH | _SLASH | _JAVA
 
+
+def is_dockerfile(path: str) -> bool:
+    """Say whether a path is a ``Dockerfile`` or a ``*.Dockerfile``."""
+    name = Path(path).name
+    return name == "Dockerfile" or name.endswith(".Dockerfile")
+
+
 # A suppression is recognised in a comment only, so that a string or a document that names
 # one — this module, the guide — is not mistaken for one.
 _HASH_SUPPRESSION = re.compile(
-    r"#\s*(?:noqa\b|ruff:\s*noqa|type:\s*ignore|pyright:\s*(?:ignore|basic|standard|report\w+)"
-    r"|fmt:\s*(?:off|skip)|pragma:\s*no\s*cover|shellcheck\s+disable)",
+    r"#\s*(?:noqa\b|flake8:\s*noqa|ruff:\s*(?:noqa|disable|enable|ignore)|type:\s*ignore"
+    r"|pyright:\s*(?:ignore|basic|standard|report\w+)|isort:\s*(?:skip|off)"
+    r"|fmt:\s*(?:off|skip)|pragma:?\s*no\s*(?:cover|branch)|shellcheck\s+disable)",
 )
+# A Dockerfile is read for the one comment that silences its linter (US-2470, PLC-05).
+_DOCKERFILE_SUPPRESSION = re.compile(r"#\s*hadolint\s+(?:ignore|global|shell)")
 _SLASH_SUPPRESSION = re.compile(
     r"(?://|/\*|\{/\*)\s*(?:eslint-disable|@ts-(?:ignore|expect-error|nocheck)"
     r"|prettier-ignore|(?:v8|c8|istanbul)\s+ignore)",
@@ -66,7 +76,9 @@ def breaches(path: str, text: str) -> list[Breach]:
     """Return the breaches of one source file, given its path and its content."""
     suffix = Path(path).suffix
     pattern = (
-        _HASH_SUPPRESSION
+        _DOCKERFILE_SUPPRESSION
+        if is_dockerfile(path)
+        else _HASH_SUPPRESSION
         if suffix in _HASH
         else _JAVA_SUPPRESSION
         if suffix in _JAVA
@@ -112,7 +124,7 @@ def sources(declaration: paths.Declaration) -> list[str]:
     return [
         path
         for path in sorted(set(output.splitlines()))
-        if Path(path).suffix in SOURCES
+        if (Path(path).suffix in SOURCES or is_dockerfile(path))
         and (REPOSITORY / path).is_file()
         and not declaration.is_generated(path)
         and not declaration.is_excepted(path)

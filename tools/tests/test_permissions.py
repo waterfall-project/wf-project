@@ -17,7 +17,7 @@ import pytest
 from wftools import REPOSITORY
 
 SETTINGS = REPOSITORY / ".claude" / "settings.json"
-GUARD_HOOK = 'python3 "$CLAUDE_PROJECT_DIR/tools/src/wftools/guard.py"'
+GUARD_HOOK = 'python3 "$CLAUDE_PROJECT_DIR/tools/src/wftools/launch.py" guard || exit 2'
 ENQUEUE = (
     "gh api graphql -f query='mutation($id:ID!){enqueuePullRequest(input:{pullRequestId:$id})"
     "{mergeQueueEntry{state}}}' -f id=PR_kwDOAbc123"
@@ -51,6 +51,7 @@ def test_the_pre_tool_use_hook_on_bash_is_the_guard() -> None:
         for h in cast("list[dict[str, Any]]", e["hooks"])
     ]
     assert commands == [GUARD_HOOK]
+    assert (REPOSITORY / "tools" / "src" / "wftools" / "launch.py").is_file()
     assert (REPOSITORY / "tools" / "src" / "wftools" / "guard.py").is_file()
 
 

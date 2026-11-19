@@ -244,6 +244,11 @@ def load_settings() -> Settings:
     return _load(Settings)
 
 
+def load_platform_settings() -> PlatformSettings:
+    """Read what every process reads, its database and its logs, as ``load_settings`` does."""
+    return _load(PlatformSettings)
+
+
 def load_purge_settings() -> PurgeSettings:
     """Read the settings of the purge, as ``load_settings`` does."""
     return _load(PurgeSettings)

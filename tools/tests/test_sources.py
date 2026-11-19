@@ -129,3 +129,38 @@ def test_a_typescript_todo_cites_its_issue(line: str, breach: bool) -> None:
 
 def test_a_python_todo_is_left_to_ruff() -> None:
     assert sources.breaches("backend/src/a.py", f"# {TODO}: Ruff reports this one\n") == []
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "import os  # flake8" + ": " + NOQA,
+        "# ruff" + ": disable[E501]",
+        "# ruff" + ": enable[E501]",
+        "# ruff" + ": ignore",
+        "import os  # isort" + ": skip",
+        "# isort" + ": off",
+        "if debug:  # pragma" + " no cover",
+        "if debug:  # pragma" + ": no branch",
+    ],
+)
+def test_the_other_silencing_comments_of_python_are_breaches(line: str) -> None:
+    """US-2470 (PLC-05): flake8, Ruff, isort and coverage comments are refused too."""
+    (breach,) = sources.breaches("backend/src/a.py", f"{line}\n")
+    assert breach.reason.startswith("suppression comment")
+
+
+@pytest.mark.parametrize("path", ["frontend/Dockerfile", "deploy/compose/mock.Dockerfile"])
+def test_a_hadolint_ignore_in_a_dockerfile_is_a_breach(path: str) -> None:
+    """US-2470 (PLC-05): a ``Dockerfile`` and a ``*.Dockerfile`` are read for ``hadolint``."""
+    assert sources.is_dockerfile(path)
+    (breach,) = sources.breaches(path, "FROM x\n# hadolint" + " ignore=DL3008\nRUN y\n")
+    assert breach.line == 2
+    assert sources.breaches(path, "FROM x\n# Hadolint reads this file.\n") == []
+
+
+def test_a_dockerfile_enters_the_sources_read() -> None:
+    """US-2470 (PLC-05): the repository's ``Dockerfile`` files are among the sources read."""
+    read = sources.sources(paths.read())
+    assert "frontend/Dockerfile" in read
+    assert "deploy/compose/mock.Dockerfile" in read

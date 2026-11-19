@@ -34,6 +34,8 @@ from uuid import uuid4
 import httpx2
 import pytest
 
+from waterfall.platform.settings import ServiceSettings
+
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
 
@@ -88,6 +90,24 @@ def required(variable: str) -> str:
     if not value:
         pytest.fail(f"{variable} is not set: run these tests by make test-keycloak")
     return value
+
+
+def served_settings() -> ServiceSettings:
+    """Give the settings of an API served on the Keycloak of the platform."""
+    # The database is the test's own, given to the application apart; Redis and the object storage
+    # serve nothing here.
+    return ServiceSettings.model_validate(
+        {
+            "database_url": "postgresql://unused@127.0.0.1/unused",
+            "redis_url": "redis://unused",
+            "storage_address": "http://127.0.0.1:9",
+            "storage_access_key": "unused",
+            "storage_secret": "unused",
+            "keycloak_address": required(ADDRESS_VARIABLE),
+            "keycloak_backchannel": required(BACKCHANNEL_VARIABLE),
+            "service_client_secret": required(SERVICE_CREDENTIAL_VARIABLE),
+        }
+    )
 
 
 @pytest.fixture(scope="module")
