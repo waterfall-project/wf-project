@@ -20,16 +20,20 @@ from nodes_support import mark, refusal
 from occurrence_support import (
     DIAGNOSTIC,
     OWN_PLAN,
+    TESTS,
     Occurring,
+    beyond_horizon,
     idle_diagnostic,
     occurring,
 )
-from projects_support import Scene
+from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
 from risks_support import STUDY, Costed, Risks, costed
 from sqlalchemy import update
 
 from waterfall.core.risks.tables import RiskEvaluation
+from waterfall.platform.logs import logging_context
+from waterfall.platform.tasks import submit
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -37,6 +41,7 @@ if TYPE_CHECKING:
     from support import ContractClient
 
     from waterfall.platform.database import Database
+    from waterfall.platform.queue import TaskQueue
 
 CONDITION = "STATE_FORBIDS_OPERATION"
 # The provision of the risk: 200 at 30 %.
@@ -198,3 +203,78 @@ def test_a_task_its_roles_leave_without_hours_refuses_the_occurrence(ready: Occu
     # The dates are not computed: the task bearing the provision is named by no difference.
     assert [each["change"] for each in report["differences"]][-1:] == ["removed"]
     assert "updated" not in [each["change"] for each in report["differences"]]
+
+
+@pytest.mark.requirement("WF-RIS-0060-A")
+def test_the_provision_removed_is_the_amount_of_its_line_not_a_recomputation(
+    ready: Occurring,
+) -> None:
+    # A probability that is not round, 0.333, written on the evaluation around the service: the
+    # severity weighted would give 66.60, but the line still holds 60.00, and the report gives the
+    # amount of the line, "the amount of the line removed" (``RiskOccurrenceReport``).
+    with ready.project.stage.owner.begin() as connection:
+        connection.execute(
+            update(RiskEvaluation)
+            .where(
+                RiskEvaluation.risk_id == UUID(ready.risk["risk_id"]),
+                RiskEvaluation.revision_id == UUID(ready.revision["revision_id"]),
+            )
+            .values(probability=Decimal("0.333"))
+        )
+    line = _provision(ready)["estimate_line"]
+    assert line["reestimated_amount"] == PROVISION
+    assert ready.reported()["provision_amount"] == line["reestimated_amount"]
+
+
+@pytest.mark.requirement("WF-PLA-0150-A")
+def test_a_task_grafted_beyond_the_horizon_refuses_the_occurrence_by_its_own_estimate_node(
+    ready: Occurring,
+) -> None:
+    # The diagnostic of the own estimate pushed to 2060, its successors with it: the engine finds
+    # the last to finish beyond the horizon, ``PROJECT_HORIZON_EXCEEDED``, named by its node of the
+    # own estimate and its label, as ``TASK_WITHOUT_WORKING_HOURS`` names its tasks (``ProblemTask``
+    # has no null node; #4151).
+    beyond_horizon(ready, DIAGNOSTIC)
+    last = next(
+        each for each in ready.own() if each["kind"] == "task" and each["task"]["label"] == TESTS
+    )
+    report = ready.reported()
+    assert [each["code"] for each in report["refusals"]] == ["PROJECT_HORIZON_EXCEEDED"]
+    assert report["refusals"][0]["params"] == {"task": {"node_id": last["node_id"], "label": TESTS}}
+
+
+@pytest.mark.requirement("WF-RIS-0060-A")
+def test_a_terminal_project_is_refused_before_the_risk(ready: Occurring) -> None:
+    put_in_state(ready.project.stage.owner, ready.project.stage.project["project_id"], "completed")
+    answer = ready.report()
+    assert refusal(answer) == (409, CONDITION, {"missing_condition": "project_not_terminal"})
+
+
+@pytest.mark.requirement("WF-RIS-0060-A")
+def test_a_background_task_writing_in_the_project_refuses_the_report(
+    ready: Occurring, queue: TaskQueue
+) -> None:
+    # A marking queued around the service: the report waits for it, as the occurrence does.
+    stage = ready.project.stage
+    payload = {"project_id": stage.project["project_id"]}
+    with logging_context(correlation_id="queued-around"), stage.database.transaction() as session:
+        submit(session, queue, "revision_mark", stage.manager.user_id, payload)
+    answer = ready.report()
+    assert refusal(answer) == (409, CONDITION, {"missing_condition": "no_background_task_running"})
+
+
+@pytest.mark.requirement("WF-RIS-0060-A")
+def test_without_a_current_revision_a_reader_who_may_not_create_one_is_refused(
+    ready: Occurring, realm: TestRealm
+) -> None:
+    # The occurrence would create the revision (WF-RIS-0060): who lacks ``revisions.write`` has
+    # ``may_create_revision`` missing, after the conditions of the project and of the risk.
+    stage = ready.project.stage
+    mark(stage, ready.revision, "v2.0")
+    reader = person(stage.database, realm, "risks.read", "planning.read", "estimate.read")
+    contribute(stage.database, stage.project["project_id"], reader, "contributor")
+    answer = ready.api.get(
+        f"{PROJECTS}/{ready.project.project_id}/risks/{ready.risk['risk_id']}/occurrence",
+        headers=reader.headers,
+    )
+    assert refusal(answer) == (409, CONDITION, {"missing_condition": "may_create_revision"})

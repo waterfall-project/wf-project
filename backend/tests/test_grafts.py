@@ -28,6 +28,7 @@ from occurrence_support import (
     WIRES,
     Occurring,
     idle_diagnostic,
+    main_task,
     occurring,
 )
 from projects_support import Scene
@@ -272,3 +273,66 @@ def test_a_risk_occurred_reads_the_reestimated_amount_of_its_lines_grafted(
     assert risk["state"] == "occurred"
     assert (risk["occurrence_cost"], risk["occurred_reestimated_amount"]) == ("200.00", "200.00")
     assert risk["provision_node_id"] is None
+
+
+@pytest.mark.requirement("WF-RIS-0060-A")
+def test_after_a_milestone_under_a_parent_the_tasks_take_its_parent_and_the_siblings_move_down(
+    ready: Occurring,
+) -> None:
+    # ``Lot`` holds the milestone ``Jalon`` then ``Suite``: the tasks of the own estimate become
+    # children of ``Lot``, right after the milestone, ``Suite`` last — its rank moved down by their
+    # number; the milestone stays one and bears nothing.
+    lot = main_task(ready, "Lot", None, "1")
+    milestone = main_task(ready, "Jalon", lot["node_id"], "0")
+    main_task(ready, "Suite", lot["node_id"], "1")
+    ready.risks.provisioned(ready.read(), provision_task_id=milestone["node_id"])
+    asked = _asked(ready)
+    assert str(asked.bearer_id) == milestone["node_id"]
+    _grafted(ready, asked)
+    main = ready.main()
+    held = _by_label(main)
+    assert _children(main, lot["node_id"]) == ["Jalon", DIAGNOSTIC, REWORK, "Suite"]
+    assert held[DIAGNOSTIC]["parent_id"] == held[REWORK]["parent_id"] == lot["node_id"]
+    assert held["Suite"]["parent_id"] == lot["node_id"]
+    assert _children(main, milestone["node_id"]) == []
+    assert held["Jalon"]["task"]["is_milestone"] is True
+
+
+@pytest.mark.requirement("WF-RIS-0060-A")
+def test_the_total_of_the_summary_above_the_bearer_moves_by_the_lines_less_the_provision(
+    ready: Occurring,
+) -> None:
+    # The provision borne by ``Sous-lot``, under the summary ``Lot``: the total of ``Lot`` moves by
+    # the 200 of the lines grafted less the provision of 60, as the bearer's own does.
+    lot = main_task(ready, "Lot", None, "1")
+    bearer = main_task(ready, "Sous-lot", lot["node_id"], "1")
+    ready.risks.provisioned(ready.read(), provision_task_id=bearer["node_id"])
+    before = _by_label(ready.main())
+    _grafted(ready, _asked(ready))
+    after = _by_label(ready.main())
+    for label in ("Lot", "Sous-lot"):
+        moved = Decimal(after[label]["task"]["reestimated_amount"]) - Decimal(
+            before[label]["task"]["reestimated_amount"]
+        )
+        assert moved == Decimal(200) - Decimal(60)
+    assert after["Lot"]["task"]["is_summary"] is True
+    assert after[STUDY]["task"]["reestimated_amount"] == "600.00", (
+        "the provision left the study: nothing else moved there"
+    )
+
+
+@pytest.mark.requirement("WF-RIS-0060-A")
+def test_the_tasks_grafted_are_not_started_whatever_the_own_estimate_held(
+    ready: Occurring,
+) -> None:
+    # The own estimate is a plan: its tasks are not started; the graft writes them not started, with
+    # neither start nor completion date, whatever its source's columns hold.
+    _grafted(ready, _asked(ready))
+    held = _by_label(ready.main())
+    for label in GRAFTED_TASKS:
+        task = held[label]["task"]
+        assert (task["progress"], task["started_on"], task["completed_on"]) == (
+            "not_started",
+            None,
+            None,
+        )

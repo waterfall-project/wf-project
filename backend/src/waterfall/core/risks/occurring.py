@@ -25,7 +25,7 @@ Filled by US-2620/L1; the application, under the locks, is US-2620/L2's.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from waterfall.core.estimate.interface import round_to_cent, structure_amounts
+from waterfall.core.estimate.interface import provision_amount
 from waterfall.core.planning.interface import Graft, bearing_of, graft
 from waterfall.core.projects.interface import (
     NO_BACKGROUND_TASK_RUNNING,
@@ -113,9 +113,7 @@ def report_occurrence(
         session,
         Graft(project_id, evaluation.structure_id, main, bearer, (line,), risk_id),
     )
-    severity = structure_amounts(session, project_id, {evaluation.structure_id})[
-        evaluation.structure_id
-    ]
+    provision = provision_amount(session, project_id, line)
     return OccurrenceReport(
         main_structure_lock_version=structure_facts(
             session, project_id, main, lock=False
@@ -123,6 +121,6 @@ def report_occurrence(
         risk_lock_version=risk.lock_version,
         creates_current_revision=not current,
         differences=grafted.differences,
-        provision_amount=round_to_cent(severity * evaluation.probability),
+        provision_amount=provision,
         refusals=grafted.refusals,
     )

@@ -25,6 +25,7 @@ from projects_support import PROJECTS, designate
 from risks_support import Costed, Risks, material
 from sqlalchemy import select, update
 
+from waterfall.core.planning.tables import Task
 from waterfall.core.resource_settings.tables import Calendar, ResourceRole
 from waterfall.core.revisions.tables import CostStructure
 
@@ -218,3 +219,28 @@ def idle_diagnostic(ready: Occurring) -> tuple[UUID, UUID, UUID]:
         )
         connection.execute(update(Calendar).where(Calendar.id == calendar).values(**weekend))
     return welder, fitter, UUID(diagnostic["node_id"])
+
+
+def main_task(ready: Occurring, label: str, parent: str | None, days: str) -> dict[str, Any]:
+    """Create a task in the main structure of the current revision, last under its parent."""
+    task = {"label": label, "duration": {"value": days, "unit": "d"}}
+    sent = {"kind": "task", "parent_id": parent, "task": task}
+    return ready.risks.made(f"{ready.main_path()}/nodes", sent)
+
+
+def beyond_horizon(ready: Occurring, label: str) -> UUID:
+    """Push a task of the own estimate to the year 2060, past the fifteen years of the horizon.
+
+    Give its node. Around the service, as a change of the reference would leave it: the dates of
+    the own estimate are read as they stand.
+    """
+    node = next(
+        each for each in ready.own() if each["kind"] == "task" and each["task"]["label"] == label
+    )
+    with ready.project.stage.owner.begin() as connection:
+        connection.execute(
+            update(Task)
+            .where(Task.node_id == UUID(node["node_id"]))
+            .values(finish_date=date(2060, 1, 1))
+        )
+    return UUID(node["node_id"])

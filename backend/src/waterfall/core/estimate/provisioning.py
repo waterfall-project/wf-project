@@ -134,6 +134,15 @@ def rename_provisions(session: Session, project_id: UUID, risk_labels: dict[UUID
     )
 
 
+def provision_amount(session: Session, project_id: UUID, node_id: UUID) -> Decimal:
+    """Read the amount of a provision line: its re-estimated amount, which is its provision."""
+    return session.scalars(
+        select(EstimateLine.reestimated_amount).where(
+            EstimateLine.project_id == project_id, EstimateLine.node_id == node_id
+        )
+    ).one()
+
+
 def set_provision(session: Session, place: Place, node_id: UUID, amount: Decimal) -> bool:
     """Write the amount of a provision line again, under the lock of its structure; tell if moved.
 

@@ -74,7 +74,7 @@ from waterfall.core.planning.scheduling import Task as Planned
 from waterfall.core.planning.shaping import closed_above, deleted, reopened, stamp
 from waterfall.core.planning.tables import Node, Task, TaskLink
 from waterfall.core.planning.tree import TASK, read_links, read_tree
-from waterfall.core.planning.views import state_of
+from waterfall.core.planning.views import NOT_STARTED, state_of
 from waterfall.core.revisions.interface import structure_facts
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.identifiers import new_id
@@ -444,8 +444,11 @@ def _report(session: Session, plan: GraftPlan) -> None:
     if beyond is not None:
         sources = {copy: node for node, copy in plan.copies.items()}
         node = sources.get(beyond)
+        # A task grafted is named by its node of the own estimate, as ``TASK_WITHOUT_WORKING_HOURS``
+        # names it (``ProblemTask`` forbids a null node; #4151).
+        named_node = beyond if node is None else node
         named = {
-            "node_id": None if node is not None else str(beyond),
+            "node_id": str(named_node),
             "label": (source.tasks[node] if node is not None else target.tasks[beyond]).label,
         }
         plan.refusals.append({"code": PROJECT_HORIZON_EXCEEDED, "params": {"task": named}})
@@ -498,7 +501,8 @@ def _node(plan: GraftPlan, node_id: UUID, act: Act) -> Json:
 def _task(plan: GraftPlan, node_id: UUID) -> Json:
     """Give the facet of a task grafted: its own, unattached, manual without predecessor.
 
-    Its dates are those it had, which the engine keeps in manual mode and computes otherwise.
+    Its dates are those it had, which the engine keeps in manual mode and computes otherwise. Its
+    progress is not started: the tasks grafted are created in the structure grafted into.
     """
     task = plan.source.tasks[node_id]
     return {
@@ -515,9 +519,9 @@ def _task(plan: GraftPlan, node_id: UUID) -> Json:
         "start_hours": task.start_hours,
         "finish_date": task.finish_date,
         "finish_hours": task.finish_hours,
-        "progress": task.progress,
-        "started_on": task.started_on,
-        "completed_on": task.completed_on,
+        "progress": NOT_STARTED,
+        "started_on": None,
+        "completed_on": None,
         "external_id": None,
         "order_item_id": None,
         "work_package_id": None,

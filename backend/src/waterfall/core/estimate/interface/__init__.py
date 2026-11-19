@@ -448,6 +448,9 @@ from waterfall.core.estimate.provisioning import (
     ProvisionEntry as ProvisionEntry,
 )
 from waterfall.core.estimate.provisioning import (
+    provision_amount as provision_amount,
+)
+from waterfall.core.estimate.provisioning import (
     rename_provision as rename_provision,
 )
 from waterfall.core.estimate.provisioning import (

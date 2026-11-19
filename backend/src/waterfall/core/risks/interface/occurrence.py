@@ -18,7 +18,7 @@ application).
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from waterfall.core.risks.occurring import report_occurrence
+from waterfall.core.risks.occurring import OccurrenceReport, report_occurrence
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -27,9 +27,11 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.projects.interface import Viewer
-    from waterfall.core.risks.occurring import OccurrenceReport
     from waterfall.platform.audit import Act
     from waterfall.platform.queue import TaskQueue
+
+# The report, as the interface hands it on (``risks.interface`` re-exports it from here).
+__all__ = ["OccurrenceReport"]
 
 
 @dataclass(frozen=True, slots=True)
