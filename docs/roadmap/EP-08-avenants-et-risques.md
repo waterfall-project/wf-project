@@ -1008,7 +1008,7 @@ d'un différentiel et sa mise à jour (US-3050).
 - **opérations** : `getStructureRebaseReport`, `rebaseCostStructure` (nouvelles, écrites par la
   conception), `createCostStructure`, `listCostStructures`, `deleteCostStructure`, `createRevision`,
   `listNodes` sur un différentiel, `getStructureMergeReport`, `mergeCostStructure` (leur refus)
-- **issue** : à ouvrir
+- **issue** : #4143
 **En tant que** chef de projet, **je veux** qu'un avenant préparé pendant que le projet avance ne
 désigne que ce que j'y ai changé, et le remettre au niveau de la structure principale quand elle a
 bougé, **afin de** le négocier sur plusieurs revues et de le contractualiser sans défaire ce que le
@@ -1029,7 +1029,7 @@ projet a reçu entre-temps.
   fusion de l'une laisse l'autre intacte. » : tenu par US-2550 et US-2560 ; ici, après la fusion de
   l'une, l'autre, reprise par la révision suivante, est en retard ; mise à jour, elle porte ce que
   la première a apporté à la structure principale, sans le désigner, et ce qu'elle désignait est
-  inchangé ;
+  inchangé — éprouvé avec US-2560, qui fusionne ;
 - `WF-REV-0100-A` — « Un risque déclaré ajoute une structure propre, présente dans chaque révision
   marquée postérieure tant qu'il n'est pas survenu. » : tenu par US-2570, non touché ici ; un devis
   propre n'a ni base ni mise à jour (EP-30) ;
