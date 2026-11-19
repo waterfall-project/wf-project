@@ -5,25 +5,37 @@
 import ast
 import json
 from dataclasses import replace
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from functools import cache
 from typing import TYPE_CHECKING, Any, cast
+from zoneinfo import ZoneInfo
 
 import pytest
 
-from wftools import REPOSITORY, mockids, mockslice, mocksliceviews
+from wftools import REPOSITORY, mockids, mockportfolio, mockslice, mocksliceviews
 from wftools.mockslice import (
     ABANDONED,
     COMPLETED,
     IN_PROGRESS,
     LOST,
+    OCCURRED,
     PRICING,
     SLICE,
+    Import,
     Revision,
 )
-from wftools.mockslicereadings import AS_OF, PERIOD_FROM, member, members
+from wftools.mockslicereadings import (
+    AS_OF,
+    PERIOD_FROM,
+    Kept,
+    KeptRisk,
+    Member,
+    member,
+    members,
+)
 from wftools.mocksliceviews import Portfolio
+from wftools.mockwitness import ENGINEER, fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -123,6 +135,47 @@ def test_the_dates_of_the_slice_keep_to_the_rules_that_spare_its_readings_any_do
                 # At a marking, a task is completed, or ahead of it, or started past its finish.
                 ahead = task.start > day
                 assert task.completed_by(day) or ahead or task.started_on, (project.code, day)
+            # No import at the instant of a marking: the bound, the marking included for the
+            # actual cost and for the signal alike, decides no reading.
+            assert all(imported.at != revision.marked for imported in project.imports)
+        # The curve of the slice is computed at the day, that of PRJ-001 at the step of the month:
+        # the point of 3 June is exact because nothing of the slice is dated from 1 to 3 June —
+        # no finish of a task, no document of a cost, no marking (WF-PTF-0100).
+        month = AS_OF.replace(day=1)
+        dated = [task.finish for task in project.tasks]
+        dated += [on for imported in project.imports for on, _ in imported.costs]
+        dated += [revision.marked.date() for revision in project.revisions if revision.marked]
+        assert not [day for day in dated if month <= day <= AS_OF], project.code
+
+
+@pytest.mark.requirement(REQUIREMENT)
+def test_no_instant_of_the_witness_falls_on_another_day_in_the_zone_of_the_installation() -> None:
+    # The readings date an instant by its day in universal time, the service by its day in the
+    # zone of the installation (WF-DAT-0040): no instant of the projects read lies near midnight,
+    # where the two days would differ.
+    zone = ZoneInfo(cast("str", fixture("installation")["time_zone"]))
+    for each in members():
+        found = [instant for instant, _ in each.history]
+        found += [kept.marked for kept in each.markings]
+        found += [instant for instant, _, _ in each.outcomes]
+        found += [instant for _, instant in each.reviews]
+        found += list(each.imports)
+        for instant in found:
+            local = instant.astimezone(zone).date()
+            assert local == instant.astimezone(UTC).date(), (each.project_id, instant)
+
+
+@pytest.mark.requirement("WF-PTF-0110-A")
+def test_an_import_at_the_instant_of_a_marking_is_known_to_it_for_the_cost_and_the_signal() -> None:
+    # « aucun coût réel n'a été importé dans le même intervalle », closed on the last marking,
+    # as the actual cost that marking keeps.
+    marked = cast("datetime", mockslice.R1.revisions[-1].marked)
+    imports = (Import(marked, ((date(2026, 4, 30), Decimal(10)),)),)
+    found = member(replace(mockslice.R1, imports=imports))
+    assert cast("Kept", found.project_on(AS_OF)).actual == Decimal(10)
+    signals = mocksliceviews.pilot_health(Portfolio([found]))["signals"]
+    codes = [signal["code"] for signal in cast("list[dict[str, Any]]", signals)]
+    assert "no_actual_cost_since_last_review" not in codes
 
 
 @pytest.mark.requirement(REQUIREMENT)
@@ -304,3 +357,143 @@ def test_the_versioned_slice_is_the_one_the_generator_writes() -> None:
     )
     assert reading["operation"] == "getPortfolioValue"
     assert reading["query"] == {"as_of": "2026-06-03", "states": "in_progress,pricing,completed"}
+
+
+# --- The interpretations the readings settle, each named ---------------------------------------
+
+
+@pytest.mark.requirement("WF-PTF-0090-A")
+def test_the_matrix_counts_each_kept_risk_once_and_the_period_outcome_by_its_review() -> None:
+    # US-2730, « à une date passée, la vue lit les risques que les révisions marquées ont
+    # conservés »: the risk 753 of PRJ-001, identified at its marking of 1 February and dismissed
+    # on the 2nd, is identified in the matrix and its totals, each risk in one state; it is
+    # dismissed in the period outcome alone, read « par la date du réexamen qui les a fait
+    # changer d'état ».
+    risks = _readings()["portfolio_risks"]
+    totals = risks["matrix"]["totals"]
+    assert mockids.universe(753) in {point["risk_id"] for point in risks["matrix"]["points"]}
+    assert totals["identified"] == risks["identified_total"] == "855360.00"
+    # PRJ-305 kept its risk dismissed, for the provision of its reference, 0.3 x 5,000.
+    assert (totals["occurred"], totals["dismissed"]) == ("0.00", "1500.00")
+    states = ("identified", "occurred", "dismissed")
+    assert Decimal(totals["total"]) == sum(Decimal(totals[state]) for state in states)
+    assert totals["reserve"] == risks["coverage"]["reserve"]
+    # The period: 752 occurred on 20 February (60), 753 dismissed on 2 February (600,000), the
+    # risk of PRJ-305 on 15 December 2025 (1,500) — overlapping the identified total.
+    assert risks["period_outcome"] == {
+        "occurred_provisions": "60.00",
+        "dismissed_provisions": "601500.00",
+    }
+
+
+@pytest.mark.requirement("WF-PTF-0100-A")
+def test_at_a_past_date_the_actual_cost_and_the_projection_need_not_meet_at_the_day() -> None:
+    # US-2740, « à une date passée, la vue somme les courbes que les révisions marquées ont
+    # conservées »: each actual cost stops at what its marking knew, each projection runs from
+    # its marking, the work planned since included; at 3 June the two sums differ.
+    found = _readings()["portfolio_cost_curve"]["series"]
+    curve = {series["name"]: series["points"] for series in found}
+    actual, projection = curve["actual_cost"][-1], curve["project_manager_projection"][0]
+    assert actual["date"] == projection["date"] == AS_OF.isoformat()
+    assert (actual["amount"], projection["amount"]) == ("114000.00", "1712191.39")
+
+
+@pytest.mark.requirement("WF-PTF-0110-A")
+def test_the_declaration_of_a_risk_is_its_first_review_for_the_health_of_the_steering() -> None:
+    # EP-08, US-2570: the declaration writes « un premier réexamen daté du jour »; US-2590:
+    # listRiskReviews renders each review, « l'identification le premier ». The risk of PRJ-303,
+    # declared on 5 January 2026 between its markings of 1 December and 9 February, is so
+    # reviewed in that interval; that of PRJ-301, declared before its review of November and not
+    # reviewed until that of May, is not.
+    (risk,) = mockslice.R3.risks
+    first, last = (cast("datetime", each.marked) for each in mockslice.R3.revisions[:2])
+    assert len(risk.reviews) == 1
+    assert first < risk.reviews[0].at <= last
+    signals = _readings()["pilot_health"]["signals"]
+    flagged = {s["project_id"] for s in signals if s["code"] == "risks_not_reviewed"}
+    assert flagged == {mockslice.R1.project_id}
+
+
+@pytest.mark.requirement("WF-PTF-0010-A")
+def test_the_scope_of_each_view_counts_the_projects_it_retains() -> None:
+    # US-2670, « le nombre de projets retenus »: PRJ-001, PRJ-002, the four projects in progress
+    # of the slice, PRJ-305 completed in the period and its three offers; the workload counts
+    # those in progress and in pricing, the performance and the health those in progress alone.
+    counts = {name: value["scope"]["project_count"] for name, value in _readings().items()}
+    assert counts == {
+        "portfolio_projects": 10,
+        "portfolio_value": 10,
+        "portfolio_workload": 9,
+        "portfolio_performance": 5,
+        "portfolio_cost_structure": 10,
+        "portfolio_risks": 10,
+        "portfolio_cost_curve": 10,
+        "pilot_health": 5,
+    }
+
+
+@pytest.mark.requirement("WF-PRJ-0090-A")
+def test_a_project_without_a_marked_revision_is_listed_without_its_probability() -> None:
+    # US-2670: at a past date, « la probabilité de gain étant celle que ce marquage a gardée »,
+    # and a project without a marked revision « figure dans la liste sans montant »: PRJ-307 and
+    # PRJ-308 carry a probability of their own, and no marking kept it.
+    assert (mockslice.O2.probability, mockslice.O3.probability) == (Decimal("0.3"), Decimal("0.8"))
+    rows = _rows()
+    for code in ("PRJ-002", "PRJ-307", "PRJ-308"):
+        assert rows[code]["win_probability"] is None
+    assert rows["PRJ-306"]["win_probability"] == "0.6"
+
+
+def _offer(rank: int, hours: dict[tuple[str, str], Decimal], chance: str) -> Member:
+    created = datetime(2026, 1, 5, 9, tzinfo=UTC)
+    kept = Kept(
+        marked=datetime(2026, 2, 2, 9, tzinfo=UTC),
+        offer=True,
+        probability=Decimal(chance),
+        budget=Decimal(0),
+        estimate=Decimal(0),
+        hours=hours,
+    )
+    return Member(f"offer-{rank}", f"Offre {rank}", f"O-{rank}", ((created, PRICING),), (kept,))
+
+
+@pytest.mark.requirement("WF-PTF-0060-A")
+def test_the_weighted_load_of_an_offer_is_rounded_to_the_hundredth_of_an_hour_first() -> None:
+    # EP-11, « Une somme de portefeuille est une somme de montants déjà arrondis », and US-2700,
+    # « le plan agrégé somme des heures déjà arrondies »: two offers of one hour at 0.5 % bring
+    # 0.01 h each, half away from zero, and the plan 0.02 h, where the exact sum gives 0.01 h.
+    hours = {(ENGINEER, "2026-06"): Decimal(1)}
+    offers = Portfolio([_offer(1, hours, "0.005"), _offer(2, hours, "0.005")])
+    roles = cast("list[dict[str, Any]]", mocksliceviews.workload(offers)["roles"])
+    (role,) = (each for each in roles if each["resource_role_id"] == ENGINEER)
+    assert (role["months"][0]["month"], role["months"][0]["hours"]) == ("2026-06", "0.02")
+
+
+@pytest.mark.requirement("WF-RIS-0050-A")
+def test_no_risk_of_the_slice_occurs_and_a_kept_occurred_risk_is_refused() -> None:
+    # The slice describes no cost at occurrence nor any line merged from an occurred risk
+    # (WF-RIS-0060): its coverage carries an occurred cost and a reestimate of nought, which a
+    # kept occurred risk would make false.
+    reviews = [review for project in SLICE for risk in project.risks for review in risk.reviews]
+    assert OCCURRED not in {review.state for review in reviews}
+    day = datetime(2026, 2, 2, 9, tzinfo=UTC)
+    risk = KeptRisk("r", "Risque", Decimal("0.5"), Decimal(100), Decimal(0), OCCURRED)
+    kept = Kept(
+        day, offer=False, probability=Decimal(1), budget=Decimal(100), estimate=Decimal(100)
+    )
+    found = Member("p", "Projet", "P", ((day, IN_PROGRESS),), (replace(kept, risks=(risk,)),))
+    with pytest.raises(ValueError, match="occurred risk"):
+        mocksliceviews.risks(Portfolio([found]))
+
+
+@pytest.mark.requirement(REQUIREMENT)
+def test_the_projects_of_the_slice_carry_labels_the_witness_generates() -> None:
+    # « Aucun libellé de projet réel n'y figure »: each label of the slice is a subject and an
+    # object of the generator of the witness at a site of its own (US-2770), and none is the
+    # label of a project of the portfolio of §4.6.2.
+    taken = mockportfolio.generated_labels()
+    for project in SLICE:
+        assert project.label.endswith(f" — {mockslice.SITE}"), project.code
+        assert project.label not in taken, project.code
+    with pytest.raises(ValueError, match="vocabulary"):
+        mockportfolio.generated_label("Démolition", "de la chaufferie", mockslice.SITE)

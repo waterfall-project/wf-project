@@ -24,9 +24,19 @@ The rules it follows, where the design of EP-11 leaves the lot of a view to deci
   cost stays at what was known at the marking, the projection starts there (WF-IND-0100);
 - a weighted part of an offer is rounded once, by project, to the cent — to the hundredth of an
   hour for its load —, before the sum (EP-11, « Ce que le cadrage décide »);
-- the outcomes of the period are the provisions the risks had when a review made them occur or
-  dismissed them, dated by that review (``outcomes_between``); the totals of the portfolio matrix
-  carry them, as the example of the contract does;
+- the matrix of the portfolio, its totals included, is a ``RiskMatrix`` read from the risks the
+  marked revisions kept (US-2730): its ``ProvisionTotals`` count each risk once, in the state the
+  marking kept — an identified one for its provision, an occurred or dismissed one for the one it
+  held in the reference revision —; the outcomes of the period alone, ``period_outcome``, are read
+  by the date of the review that changed the state of a risk, after the marking or not (US-2730),
+  so that they may overlap the identified total: they are two readings, not one;
+- a review of a risk is any row of its history, its declaration the first: the declaration writes
+  « un premier réexamen daté du jour », and ``listRiskReviews`` renders each review,
+  « l'identification le premier » (EP-08, US-2570 and US-2590), which the signal
+  ``risks_not_reviewed`` counts like the others;
+- an import of actual costs at or before the instant of a marking is known to it: the actual cost
+  kept and the signal ``no_actual_cost_since_last_review`` take the same bound, the marking
+  included;
 - the reader is the manager, who opens every project (WF-INTF-0020): ``can_open`` is true.
 """
 
@@ -100,6 +110,9 @@ class KeptRisk:
     severity: Decimal
     provision: Decimal
     state: str
+    held: Decimal = ZERO
+    """The provision it held in the reference revision, which ``ProvisionTotals`` counts for an
+    occurred or dismissed risk."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,6 +160,8 @@ class Member:
     markings: tuple[Kept, ...]
     outcomes: tuple[tuple[datetime, str, Decimal], ...] = ()
     reviews: tuple[tuple[str, datetime], ...] = ()
+    """Each review of each risk, its declaration included: the first review of its history
+    (EP-08, US-2570, « un premier réexamen daté du jour »)."""
     imports: tuple[datetime, ...] = ()
     milestones: tuple[tuple[str, str, date, date | None], ...] = ()
 
@@ -226,7 +241,7 @@ def _kept(project: Project, marked: datetime) -> Kept:
     costs = [
         (on, amount)
         for imported in project.imports
-        if imported.at < marked
+        if imported.at <= marked
         for on, amount in imported.costs
         if on <= day
     ]
@@ -265,6 +280,7 @@ def _kept(project: Project, marked: datetime) -> Kept:
             risk.severity,
             risk.provision_at(marked),
             known.state,
+            risk.provision_at(reference) if reference else ZERO,
         )
         for number, risk in enumerate(project.risks, start=1)
         if (known := risk.known_at(marked)) is not None
@@ -407,6 +423,7 @@ def witness() -> Member:
                 known.severity,
                 reference_provision(risk),
                 known.state,
+                reference_provision(risk),
             )
             for risk in REGISTER
             if (known := risk.known_on(on)) is not None

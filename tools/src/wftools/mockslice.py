@@ -40,6 +40,7 @@ from wftools.mockids import (
     SLICE_RISKS,
     identifier,
 )
+from wftools.mockportfolio import generated_label
 from wftools.mockstructure import LABOUR_RATES, JsonObject, JsonValue, decimal, hourly_rate, money
 from wftools.mockwitness import (
     COMMISSIONING,
@@ -53,7 +54,7 @@ from wftools.mockwitness import (
 
 CREATED, PRICING, IN_PROGRESS = "created", "pricing", "in_progress"
 COMPLETED, LOST, ABANDONED = "completed", "lost", "abandoned"
-IDENTIFIED, DISMISSED = "identified", "dismissed"
+IDENTIFIED, DISMISSED, OCCURRED = "identified", "dismissed", "occurred"
 
 ROLE_CATEGORIES = {ENGINEER: ELECTRICAL_ENGINEERING, COMMISSIONING_TECHNICIAN: COMMISSIONING}
 """The category each role of the slice holds (``resource_roles``), whose rate prices its lines."""
@@ -65,6 +66,16 @@ DESCRIPTION = (
     "Description de la tranche du portefeuille engendrée par `make mock-data` "
     "(`wftools.mockslice`) : elle ne se retouche pas."
 )
+
+
+SITE = "Valence"
+"""The site of the labels of the slice: none of the four of the portfolio of §4.6.2, so that no
+label of the slice is one of theirs (``mockportfolio.generated_label``)."""
+
+
+def _label(subject: str, thing: str) -> str:
+    """Return the label of a project of the slice, generated as the witness generates its own."""
+    return generated_label(subject, thing, SITE)
 
 
 def at(day: date, hour: int = 9, minute: int = 0) -> datetime:
@@ -295,7 +306,7 @@ def _in_progress(day: str) -> Transition:
 
 R1 = Project(
     1,
-    "Modernisation de la chaufferie — Valence",
+    _label("Modernisation", "de la chaufferie"),
     Decimal("0.7"),
     at(_d("2025-09-08")),
     (
@@ -339,7 +350,7 @@ R1 = Project(
 
 R2 = Project(
     2,
-    "Extension de l'unité de traitement — Valence",
+    _label("Extension", "de l'unité de traitement"),
     Decimal("0.5"),
     at(_d("2025-09-15")),
     (
@@ -388,7 +399,7 @@ R2 = Project(
 
 R3 = Project(
     3,
-    "Rénovation de la sous-station — Valence",
+    _label("Rénovation", "de la sous-station"),
     Decimal("0.6"),
     at(_d("2025-11-03")),
     (
@@ -418,7 +429,7 @@ R3 = Project(
 
 R4 = Project(
     4,
-    "Construction de l'atelier de montage — Valence",
+    _label("Construction", "de l'atelier de montage"),
     Decimal("0.8"),
     at(_d("2025-10-13")),
     (
@@ -450,7 +461,7 @@ R4 = Project(
 
 C1 = Project(
     5,
-    "Automatisation du banc de mesure — Valence",
+    _label("Automatisation", "du banc de mesure"),
     Decimal("0.6"),
     at(_d("2025-09-08")),
     (
@@ -502,7 +513,7 @@ C1 = Project(
 
 O1 = Project(
     6,
-    "Extension du système de supervision — Valence",
+    _label("Extension", "du système de supervision"),
     Decimal("0.6"),
     at(_d("2026-03-02")),
     (
@@ -526,7 +537,7 @@ O1 = Project(
 
 O2 = Project(
     7,
-    "Mise en conformité de la station de pompage — Valence",
+    _label("Mise en conformité", "de la station de pompage"),
     Decimal("0.3"),
     at(_d("2026-04-07")),
     (_task("Études", "2026-10-05", "2026-10-23", _labour("Études", ENGINEER, 40)),),
@@ -536,7 +547,7 @@ O2 = Project(
 
 O3 = Project(
     8,
-    "Remplacement du magasin automatisé — Valence",
+    _label("Remplacement", "du magasin automatisé"),
     Decimal("0.8"),
     at(_d("2026-05-11")),
     (
@@ -553,7 +564,7 @@ O3 = Project(
 
 L1 = Project(
     9,
-    "Rénovation du banc de mesure — Valence",
+    _label("Rénovation", "du banc de mesure"),
     Decimal("0.2"),
     at(_d("2025-10-06")),
     (
@@ -571,7 +582,7 @@ L1 = Project(
 
 A1 = Project(
     10,
-    "Modernisation de la ligne d'essais — Valence",
+    _label("Modernisation", "de la ligne d'essais"),
     Decimal("0.5"),
     at(_d("2025-11-17")),
     (_task("Études", "2026-02-02", "2026-02-20", _labour("Études", ENGINEER, 30)),),

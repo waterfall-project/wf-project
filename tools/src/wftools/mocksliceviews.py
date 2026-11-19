@@ -24,7 +24,15 @@ from wftools import (
     mockrender,
     mockslice,
 )
-from wftools.mockslice import COMPLETED, DISMISSED, IDENTIFIED, IN_PROGRESS, LOST, PRICING
+from wftools.mockslice import (
+    COMPLETED,
+    DISMISSED,
+    IDENTIFIED,
+    IN_PROGRESS,
+    LOST,
+    OCCURRED,
+    PRICING,
+)
 from wftools.mockslicereadings import (
     AS_OF,
     HORIZON,
@@ -400,7 +408,12 @@ def risks(portfolio: Portfolio) -> JsonObject:
 
     Each risk classed on the base of its project as its marking kept it: the reference budget,
     the estimate without provisions for an offer (WF-REF-0160); the reserve and the coverage of
-    the projects in progress and completed alone (WF-PTF-0090, WF-RIS-0050).
+    the projects in progress and completed alone (WF-PTF-0090, WF-RIS-0050). The matrix, its
+    totals included, is a ``RiskMatrix`` of the risks the marked revisions kept (US-2730, « à une
+    date passée, la vue lit les risques que les révisions marquées ont conservés »): its
+    ``ProvisionTotals`` count each risk once, in the state kept — a risk dismissed after the
+    marking stays identified there. ``period_outcome`` alone is read by the date of the review
+    that changed the state (US-2730), and may so count again a risk the matrix holds identified.
     """
     matrix = mockhistory.readings()["risk_matrix"]
     probabilities = cast("list[JsonObject]", matrix["probability_levels"])
@@ -411,13 +424,24 @@ def risks(portfolio: Portfolio) -> JsonObject:
     }
     found: list[tuple[Member, Kept, KeptRisk]] = []
     reserve = remaining = Decimal(0)
+    held: defaultdict[str, Decimal] = defaultdict(Decimal)
     for each in portfolio.retained(STATES):
         in_pricing = each.state_on(portfolio.day) == PRICING
         kept = each.offer_on(portfolio.day) if in_pricing else each.project_on(portfolio.day)
         if kept is None:
             continue
+        # The slice describes no occurrence — neither the cost at occurrence of a risk nor the
+        # lines merged from it and their reestimate (WF-RIS-0060) —, so that ``occurred_cost``
+        # and ``occurred_reestimated`` of the coverage are nought: a kept occurred risk would make
+        # them false, and is refused rather than read as nought.
+        if any(risk.state == OCCURRED for risk in kept.risks):
+            message = f"{each.project_id} kept an occurred risk, which the slice cannot read"
+            raise ValueError(message)
         identified = [risk for risk in kept.risks if risk.state == IDENTIFIED]
         found.extend((each, kept, risk) for risk in identified)
+        for risk in kept.risks:
+            if risk.state != IDENTIFIED:
+                held[risk.state] += risk.held
         if not in_pricing:
             reserve += kept.reserve
             remaining += _sum(risk.provision for risk in identified)
@@ -425,9 +449,11 @@ def risks(portfolio: Portfolio) -> JsonObject:
     for each in portfolio.retained(STATES):
         for instant, state, provision in each.outcomes:
             if PERIOD_FROM <= instant.date() <= portfolio.day:
-                occurred += provision if state == "occurred" else 0
+                occurred += provision if state == OCCURRED else 0
                 dismissed += provision if state == DISMISSED else 0
     total = _sum(risk.provision for _, _, risk in found)
+    occurred_cost = occurred_reestimated = Decimal(0)
+    kept_occurred, kept_dismissed = held[OCCURRED], held[DISMISSED]
     points: list[JsonValue] = []
     counted: Counter[tuple[int, int]] = Counter()
     for each, kept, risk in found:
@@ -481,19 +507,19 @@ def risks(portfolio: Portfolio) -> JsonObject:
             ],
             "points": points,
             "totals": {
-                "total": money(total + occurred + dismissed),
+                "total": money(total + kept_occurred + kept_dismissed),
                 "identified": money(total),
-                "occurred": money(occurred),
-                "dismissed": money(dismissed),
+                "occurred": money(kept_occurred),
+                "dismissed": money(kept_dismissed),
                 "reserve": money(reserve),
             },
         },
         "coverage": {
             "reserve": money(reserve),
             "remaining_provisions": money(remaining),
-            "occurred_cost": money(Decimal(0)),
-            "occurred_reestimated": money(Decimal(0)),
-            "coverage_variance": money(reserve - remaining),
+            "occurred_cost": money(occurred_cost),
+            "occurred_reestimated": money(occurred_reestimated),
+            "coverage_variance": money(reserve - remaining - occurred_cost),
         },
         "period_outcome": {
             "occurred_provisions": money(occurred),
@@ -511,6 +537,12 @@ def cost_curve(portfolio: Portfolio) -> JsonObject:
     The twelve months before that of the day, then the horizon: the reference budget at each end
     of month, the actual cost up to the day, the projection from it; an offer its curves weighted
     point by point, without its provisions for the budget, with them for the projection.
+
+    At a past date, the view sums the curves the marked revisions kept (US-2740, « à une date
+    passée, la vue somme les courbes que les révisions marquées ont conservées »): the actual cost
+    of each stops at what its marking knew, and its projection runs on from the marking, the work
+    planned since included. The two series need not meet at the day: on 3 June 2026 the actual
+    cost sums 114,000.00 and the projection 1,712,191.39.
     """
     ends = mockportfoliotime.curve_months(portfolio.day, HORIZON)
     past = [end for end in ends if end < portfolio.day]
@@ -594,8 +626,11 @@ def pilot_health(portfolio: Portfolio) -> JsonObject:
 
     The review overdue past the delay of the reference, in whole weeks; a risk identified with no
     review between the last two marked revisions — since the passage to In progress without a
-    previous one —; no import of actual costs in the same interval; a tracked milestone past its
-    reference date that the kept marking did not see completed.
+    previous one —; no import of actual costs in the same interval, the marking included, as for
+    the actual cost it keeps; a tracked milestone past its reference date that the kept marking
+    did not see completed. The declaration of a risk is its first review: it writes « un premier
+    réexamen daté du jour », and ``listRiskReviews`` renders each review, « l'identification le
+    premier » (EP-08, US-2570 and US-2590); a risk declared in the interval is so reviewed in it.
     """
     progressing_ = sorted(
         (each for each in portfolio.retained([IN_PROGRESS]) if each.kept_on(portfolio.day)),
