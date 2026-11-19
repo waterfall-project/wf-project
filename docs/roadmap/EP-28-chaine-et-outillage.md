@@ -917,7 +917,7 @@ dépôt dément (#851, #3041, #3057, #3161, PLC-12, PLC-15).
 
 ## US-2800 — Les finitions des constats mineurs : tests plus stricts, lignes refluées, gardes du front
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #4047
