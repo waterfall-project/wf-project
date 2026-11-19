@@ -6408,6 +6408,16 @@ royaume de l'installation qui restaure est réappliqué : la description de `sta
 ses clients et ses adresses restent ceux de la cible, ses comptes et leurs mots de passe ceux de
 la sauvegarde (#955).
 
+Décision de l'auteur du 2026-11-19 (#4168, conception d'EP-13) : la maintenance et l'état de la
+restauration vivent dans le schéma `platform` de la base de Waterfall, que la restauration laisse en
+place, plus dans Redis (#956). La sonde de vie lit donc cette seule donnée dans PostgreSQL : la
+description de `getLiveness` dit « Answers as soon as the process has started; the only data it
+reads is the maintenance, held in the schema `platform` of the database, which a restore leaves in
+place », à la place de « without touching any data component ». Aucune forme ne change, aucun
+exemple non plus : seule la description. Une modification du contrat figé (« La règle d'après le
+gel »). Non écrit : que la base inaccessible se lise comme une absence de maintenance, la sonde
+répondant 200 ; la conception d'EP-13 ne le dit pas, et l'auteur doit le confirmer d'abord.
+
 ## Le compte rendu de la lecture des comptes (EP-03/US-0370/L2, #707, #811)
 
 `IdentitySyncReport` dit de quelle lecture il rend compte et quand elle a fini (`task_id`,
