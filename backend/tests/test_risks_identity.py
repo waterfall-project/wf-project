@@ -392,7 +392,6 @@ def provision_label(risks: Risks, revision_id: object, risk: dict[str, Any]) -> 
     )
 
 
-@pytest.mark.requirement("WF-RIS-0020-A")
 def test_a_risk_renamed_renames_its_own_estimate_and_its_provision_line_outside_the_history(
     risks: Risks, project: Costed, realm: TestRealm
 ) -> None:
@@ -425,7 +424,6 @@ def test_a_risk_renamed_renames_its_own_estimate_and_its_provision_line_outside_
     assert main_counter(project) == counted + 1
 
 
-@pytest.mark.requirement("WF-RIS-0020-A")
 def test_a_risk_renamed_leaves_the_marked_revisions_with_the_names_they_were_marked_with(
     risks: Risks, project: Costed
 ) -> None:
@@ -442,14 +440,37 @@ def test_a_risk_renamed_leaves_the_marked_revisions_with_the_names_they_were_mar
     assert provision_label(risks, marked, risk) == f"Provision — {LABEL}"
 
 
-@pytest.mark.requirement("WF-RIS-0020-A")
-def test_a_risk_renamed_without_a_current_revision_writes_the_identity_alone(
+def test_a_risk_renamed_without_a_current_revision_names_the_revision_opened_after_it(
     risks: Risks, project: Costed
 ) -> None:
+    # #3980: nothing is written but the identity, the marked revision keeping its names; the copy
+    # that opens the next revision names the own estimate and the line by the label of the risk,
+    # not by those of the last revision marked.
     risk = risks.declared()
     mark(project.stage, {"revision_id": str(project.revision_id)})
     before = revisions_of(project)
     answer = risks.update(risk, label="Grue indisponible")
     assert answer.status_code == 200, answer.text
     assert revisions_of(project) == before
+    assert own_label(risks, project.revision_id, risk) == LABEL
+    opened = risks.revision()["revision_id"]
+    assert own_label(risks, opened, risk) == "Grue indisponible"
+    assert provision_label(risks, opened, risks.risk(risk)) == "Provision — Grue indisponible"
+    assert own_label(risks, project.revision_id, risk) == LABEL
+    assert provision_label(risks, project.revision_id, risk) == f"Provision — {LABEL}"
+
+
+def test_a_risk_renamed_in_a_revision_abandoned_names_the_revision_opened_after_it(
+    risks: Risks, project: Costed
+) -> None:
+    # #3980: the abandonment brings the names of the revision back no more than the identity; the
+    # revision opened next copies the last one marked and names its rows by the label of the risk.
+    risk = risks.declared()
+    mark(project.stage, {"revision_id": str(project.revision_id)})
+    opened = risks.revision()
+    assert risks.update(risk, label="Grue indisponible").status_code == 200
+    risks.abandon(opened)
+    reopened = risks.revision()["revision_id"]
+    assert own_label(risks, reopened, risk) == "Grue indisponible"
+    assert provision_label(risks, reopened, risks.risk(risk)) == "Provision — Grue indisponible"
     assert own_label(risks, project.revision_id, risk) == LABEL

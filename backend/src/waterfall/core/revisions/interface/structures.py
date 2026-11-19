@@ -39,7 +39,7 @@ revision, the others are EP-06's and EP-07's.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select, update
+from sqlalchemy import case, func, select, update
 from sqlalchemy.orm import aliased
 
 from waterfall.core.projects.interface import (
@@ -561,6 +561,22 @@ def rename_own_estimate(
             updated_at=act.at,
             updated_by=act.author,
         )
+        .execution_options(synchronize_session=False)
+    )
+
+
+def rename_own_estimates(session: Session, project_id: UUID, labels: dict[UUID, str]) -> None:
+    """Label the own estimates of a revision opened by their risks' labels, in one statement.
+
+    ``labels`` maps each own estimate to the label of its risk: the copy of a revision names them
+    from the risk, not from the structures it copies (#3980). They are new, at their first version.
+    """
+    if not labels:
+        return
+    session.execute(
+        update(CostStructure)
+        .where(CostStructure.project_id == project_id, CostStructure.id.in_(labels))
+        .values(label=case(labels, value=CostStructure.id))
         .execution_options(synchronize_session=False)
     )
 

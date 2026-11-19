@@ -297,6 +297,8 @@ def change_identity(
     A new label renames the own estimate and the provision line of the risk in the current
     revision, if the risk is evaluated there, as the declaration named them: outside the history,
     like the identity (H-02), the revisions marked keeping the names they were marked with (#3980).
+    Without a current revision it writes the identity alone: the revision opened next names them
+    by the label of the risk (``copy_evaluations``).
     The own estimate is locked before the risk, as every write of its tree locks them.
     """
     facts = lock_project(session, project_id)

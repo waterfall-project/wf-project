@@ -10825,9 +10825,12 @@ en cours (`project_without_current_revision`) : aucune révision n'est créée.*
 
 *Décision de l'utilisateur du 2026-11-18 (US-2570/L2, #3980) : **renommer un risque renomme son devis
 propre et sa ligne de provision** dans la révision en cours, du libellé de la déclaration — « Provision —
-<libellé> » pour la ligne —, hors de l'historique annulable et sans que l'abandon le défasse, comme
-l'identité qui le commande. Les révisions marquées gardent les noms qu'elles figent (WF-DAT-0020) ; sans
-révision en cours, `updateRisk` n'écrit que l'identité. Le compteur de la structure propre et celui de la
+<libellé> » pour la ligne —, hors de l'historique annulable, comme l'identité qui le commande. L'ouverture d'une révision — par
+`createRevision`, ou par `createRisk` quand le projet n'en a pas — nomme le devis propre et la ligne
+d'après le libellé du risque tel qu'il est alors, et non d'après la dernière révision marquée : un
+renommage fait sans révision en cours, ou dans une révision abandonnée depuis, se lit donc dans la
+suivante. Les révisions marquées gardent les noms qu'elles figent (WF-DAT-0020) ; sans révision en
+cours, `updateRisk` n'écrit que l'identité. Le compteur de la structure propre et celui de la
 structure principale avancent, celui du risque une seule fois. Écarté : laisser au devis propre et à la
 ligne le libellé de la déclaration, qui aurait fait lire un ancien nom dans `listCostStructures` et dans la
 grille de la structure principale.*

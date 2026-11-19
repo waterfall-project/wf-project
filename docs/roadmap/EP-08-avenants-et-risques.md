@@ -839,9 +839,12 @@ survenait, **afin que** sa gravité soit un chiffrage et non une affirmation.
   principale (`at_least_one_task`) ou sans catégorie active de provision ;
 - propre à l'US : la gravité est le total du devis propre, calculée, jamais saisie ; toute saisie
   dans le devis propre fait avancer `Risk.lock_version` avec le compteur de sa structure (#1453) ;
-- propre à l'US : `updateRisk` n'écrit que l'identité — libellé, description, actions de mitigation
-  —, donnée du projet : il ne crée pas de révision, n'entre pas à l'historique annulable, et
-  l'abandon de la révision ne le défait pas ; `getRisk` lit l'évaluation de la révision en cours ou,
+- propre à l'US : `updateRisk` écrit l'identité — libellé, description, actions de mitigation —,
+  donnée du projet : il ne crée pas de révision, n'entre pas à l'historique annulable, et
+  l'abandon de la révision ne le défait pas ; un nouveau libellé renomme aussi le devis propre et la
+  ligne de provision de la révision en cours, hors historique, et l'ouverture d'une révision les
+  nomme d'après le libellé du risque, non d'après la dernière révision marquée, qui garde les siens
+  (#3980, DECISIONS) ; `getRisk` lit l'évaluation de la révision en cours ou,
   avec `revision_id`, celle qu'une révision marquée a figée (H-02, #1783) ;
 - propre à l'US : un risque déclaré ajoute une structure propre que `listCostStructures` rend
   (#1369), présente dans chaque révision marquée postérieure tant qu'il n'est pas survenu

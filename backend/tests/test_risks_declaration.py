@@ -324,6 +324,7 @@ def test_a_declaration_on_a_main_structure_without_a_task_is_refused(
     refused_with(declare(api, stage), "at_least_one_task")
 
 
+@pytest.mark.requirement("WF-RIS-0010-A")
 def test_the_409_of_a_declaration_comes_before_the_designations_of_the_provision_alone(
     api: ContractClient, stage: Scene
 ) -> None:
@@ -334,7 +335,8 @@ def test_the_409_of_a_declaration_comes_before_the_designations_of_the_provision
     designated = declare(api, stage, provision_cost_category_id=str(UUID(int=1)), probability="2")
     refused_with(designated, "at_least_one_task")
     assert fields_of(declare(api, stage, label="")) == [("/label", "VALUE_REQUIRED")]
-    assert fields_of(declare(api, stage, probability="beaucoup")) != []
+    shape = fields_of(declare(api, stage, probability="beaucoup"))
+    assert shape == [("/probability", "VALIDATION_FAILED")]
 
 
 @pytest.mark.requirement("WF-RIS-0030-A")

@@ -71,6 +71,15 @@ def node_of(tree: Tree, label: str) -> dict[str, Any]:
     return found[0]
 
 
+def outside_provision(tree: Tree) -> list[dict[str, Any]]:
+    """Read the nodes of a structure but the provision lines, which follow the risks written."""
+    return [
+        each
+        for each in tree.items()
+        if not (each["estimate_line"] or {"label": ""})["label"].startswith("Provision")
+    ]
+
+
 def snapshot(tree: Tree) -> tuple[Any, int]:
     """Read a structure whole, and its counter: what a write elsewhere must leave as it was."""
     return tree.read().json(), counter(tree)
@@ -104,6 +113,7 @@ def test_every_operation_of_the_grids_serves_the_own_estimate_of_a_risk(
     tree = own_tree(project, risk)
     lines = Lines(tree)
     main_before = snapshot(project.tree)
+    main_nodes = outside_provision(project.tree)
     assert tree.items() == []
     counted = counter(tree)
     held = risk_counter(project, risk)
@@ -147,6 +157,9 @@ def test_every_operation_of_the_grids_serves_the_own_estimate_of_a_risk(
     # The main structure keeps its tasks: its provision line alone follows the risk (US-2580).
     kept = [each["task"]["label"] for each in project.tree.items() if each["task"]]
     assert kept == [each["task"]["label"] for each in main_before[0]["items"] if each["task"]]
+    assert outside_provision(project.tree) == main_nodes
+    # Its counter advances once per move of the provision (150, 300, then nought), none else.
+    assert counter(project.tree) == main_before[1] + 3
 
 
 @pytest.mark.requirement("WF-RIS-0030-A")
@@ -182,6 +195,19 @@ def test_the_own_estimate_is_entered_in_every_state_of_a_project_that_is_not_ter
     assert changed["estimate_line"]["reestimated_amount"] == "120.00"
     assert total(tree) == Decimal("120.00")
     assert "edit_remaining" not in commands_of(structures[risk["structure_id"]])
+
+
+@pytest.mark.requirement("WF-RIS-0030-A")
+def test_the_own_estimate_is_refused_to_a_terminal_project(
+    api: ContractClient, project: Costed
+) -> None:
+    # The states that are not terminal enter the own estimate; the others refuse it, naming it.
+    risk = Risks(api, project).declared()
+    mark(project.stage, project.tree.revision)
+    put_in_state(project.stage.owner, str(project.project_id), "completed")
+    refused = own_tree(project, risk).create("Grue")
+    assert refused.status_code == 409, refused.text
+    assert refused.json()["params"] == {"missing_condition": "project_not_terminal"}
 
 
 @pytest.mark.requirement("WF-RIS-0030-A")
@@ -250,6 +276,10 @@ def test_the_own_estimate_of_a_risk_is_in_every_revision_marked_after_it(
     marked = own_tree(project, risk)
     assert total(marked) == Decimal("200.00")
     mark(project.stage, second, "v2.0")
+    marked_second = api.get(path, headers=project.stage.manager.headers).json()
+    assert [each["risk_id"] for each in marked_second if each["kind"] == "risk"] == [
+        risk["risk_id"]
+    ]
     third = risks.revision()
     assert [
         each["risk_id"]

@@ -14,7 +14,7 @@ The risks ask for it at the declaration (``ProvisionEntry``, by ``create_borne_l
 planning, whose facet hook ``create_line`` addresses here), and write its amount again each time
 the severity or the probability changes (``set_provision``), under the lock of the main structure,
 whose counter advances. They write its label again when their risk is renamed
-(``rename_provision``, #3980).
+(``rename_provision``, #3980), and name the lines of a revision opened (``rename_provisions``).
 
 Filled by US-2570/L1.
 """
@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import case, select, update
 
 from waterfall.core.estimate.costing import basis_of, priced
 from waterfall.core.estimate.pricing import CENT
@@ -111,6 +111,24 @@ def rename_provision(
     line.updated_at, line.updated_by = act.at, act.author
     session.flush()
     structure_counted(session, place.project_id, place.structure_id)
+
+
+def rename_provisions(session: Session, project_id: UUID, risk_labels: dict[UUID, str]) -> None:
+    """Name the provision lines of a revision opened by their risks' labels, in one statement.
+
+    ``risk_labels`` maps the node of each line to the label of its risk: the copy of a revision
+    names them from the risk, not from the lines it copies (#3980). The lines are new, at their
+    first version: no counter advances.
+    """
+    if not risk_labels:
+        return
+    names = {node: PROVISION_LABEL.format(label=label) for node, label in risk_labels.items()}
+    session.execute(
+        update(EstimateLine)
+        .where(EstimateLine.project_id == project_id, EstimateLine.node_id.in_(names))
+        .values(label=case(names, value=EstimateLine.node_id))
+        .execution_options(synchronize_session=False)
+    )
 
 
 def set_provision(session: Session, place: Place, node_id: UUID, amount: Decimal) -> bool:
