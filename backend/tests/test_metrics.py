@@ -368,12 +368,21 @@ def test_the_space_of_the_object_storage_is_the_sum_of_its_objects(
 ) -> None:
     # « Chaque disponibilité et chaque espace présentés par l'écran d'état se retrouvent dans une
     # métrique. » : the space used of the storage measured, what is left the capacity declared
-    # less it; a capacity smaller than the space used leaves nothing.
-    backups_bucket.put("uploads/a", b"x" * 1000)
-    backups_bucket.put("backups/b", b"y" * 24)
-    read = platform(capacities=Capacities(database=1, object_storage=10_000)).collect()
-    assert value(read, STORAGE_USED, component="object_storage") == 1024
-    assert value(read, STORAGE_AVAILABLE, component="object_storage") == 10_000 - 1024
+    # less it; a capacity smaller than the space used leaves nothing. The bucket of the tests holds
+    # what the tests before this one left: what it holds is measured first.
+    measured = platform(capacities=Capacities(database=1, object_storage=10**9))
+    before = value(measured.collect(), STORAGE_USED, component="object_storage")
+    assert before is not None
+    keys = [f"uploads/{uuid4()}", f"backups/{uuid4()}"]
+    backups_bucket.put(keys[0], b"x" * 1000)
+    backups_bucket.put(keys[1], b"y" * 24)
+    try:
+        read = measured.collect()
+    finally:
+        for key in keys:
+            backups_bucket.remove(key)
+    assert value(read, STORAGE_USED, component="object_storage") == before + 1024
+    assert value(read, STORAGE_AVAILABLE, component="object_storage") == 10**9 - before - 1024
     assert value(read, STORAGE_AVAILABLE, component="database") == 0
 
 
