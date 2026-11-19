@@ -126,7 +126,7 @@ def run_production_script(server: str, name: str, password: str) -> None:
     )
     # An empty password would put the mask between every character of the message.
     shown = ran.stderr.replace(password, "***") if password else ran.stderr
-    if address.password is not None:
+    if address.password:
         shown = shown.replace(str(address.password), "***")
     # Not an ``assert``: pytest would add to its message the process, and so the password unmasked.
     if ran.returncode != 0:
@@ -146,6 +146,7 @@ def failing_psql(monkeypatch: pytest.MonkeyPatch, stderr: str) -> None:
     monkeypatch.setattr(subprocess, "run", ran)
 
 
+@pytest.mark.story("US-2800")
 def test_the_password_of_the_owner_is_masked_in_the_message_of_a_failed_script(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -162,6 +163,7 @@ def test_the_password_of_the_owner_is_masked_in_the_message_of_a_failed_script(
     assert "FATAL: password *** refused, *** tried" in str(failed.value)
 
 
+@pytest.mark.story("US-2800")
 def test_an_empty_password_inserts_nothing_in_the_message_of_a_failed_script(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -173,6 +175,11 @@ def test_an_empty_password_inserts_nothing_in_the_message_of_a_failed_script(
 
     assert "the production script failed: FATAL: role missing" in str(failed.value)
     assert "***" not in str(failed.value)
+
+    with pytest.raises(pytest.fail.Exception) as failed_on_empty_server:
+        run_production_script("postgresql://admin:@host/db", "waterfall_x", "")
+
+    assert "***" not in str(failed_on_empty_server.value)
 
 
 def fake_psql(tmp_path: Path, version: str) -> Path:
