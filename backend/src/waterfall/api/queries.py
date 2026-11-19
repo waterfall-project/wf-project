@@ -3,15 +3,16 @@
 """The parameters of a query that several operations of the API share, typed once."""
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Annotated
 from uuid import UUID
 
 from fastapi import Query
-from pydantic import AwareDatetime, BaseModel
+from pydantic import AwareDatetime, BaseModel, Field
 
 from waterfall.api.contract.base import Text
-from waterfall.api.contract.models import AuditActorKind
+from waterfall.api.contract.models import AuditActorKind, ProjectState
+from waterfall.core.portfolio.interface import PortfolioAsked
 from waterfall.platform.audit_columns import AuditColumnFilters, AuthorFilter, Period
 from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
@@ -118,3 +119,43 @@ def audit_column_filters(
         updated_by=_author(query.updated_by_user_id, query.updated_by_kind),
     )
     return FiltersRead(filters, faults)
+
+
+class PortfolioQuery(BaseModel):
+    """What every view of the portfolio is asked, as its query names it (WF-PTF-0010).
+
+    ``states`` is a list in one parameter, its values separated by commas; the others as the
+    contract writes them. A view that retains no period reads no ``from`` nor ``to`` of it.
+    """
+
+    states: str | None = None
+    period_from: Annotated[date | None, Field(alias="from")] = None
+    period_to: Annotated[date | None, Field(alias="to")] = None
+    as_of: date | None = None
+    org_node_id: UUID | None = None
+
+
+# The permission of every view of the portfolio: that of its function alone (EP-11).
+PORTFOLIO_READ = "portfolio_projects.read"
+
+
+def portfolio_asked(
+    query: PortfolioQuery, other_faults: Iterable[FieldError] = ()
+) -> PortfolioAsked:
+    """Read what a view of the portfolio is asked; a state that is none of the six is refused (422).
+
+    ``other_faults`` are those the view found in its own parameters: refused at once with the
+    state's, every parameter at fault named in one answer.
+
+    The refusals of the period and of the node are the portfolio's own, one rule for every view
+    (``resolve_scope``).
+    """
+    states, faults = read_list("states", query.states, ProjectState)
+    refuse_query((*faults, *other_faults))
+    return PortfolioAsked(
+        states=() if states is None else tuple(state.value for state in states),
+        period_from=query.period_from,
+        period_to=query.period_to,
+        as_of=query.as_of,
+        org_node_id=query.org_node_id,
+    )

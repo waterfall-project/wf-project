@@ -1101,8 +1101,9 @@ PortfolioWinProbabilityMax:
   in: query
   description: >-
     Restricts to the projects whose win probability does not exceed this bound, inclusive, a
-    share (`0.4` for 40 %); a project without a probability is not retained. Lower than `win_probability_min`, refused
-    with 422 `VALUE_OUT_OF_RANGE` on `/query/win_probability_max`.
+    share (`0.4` for 40 %); a project without a probability is not retained. Lower than
+    `win_probability_min`, refused with 422 `VALUE_OUT_OF_RANGE` on
+    `/query/win_probability_max`.
   schema: { $ref: common.yaml#/Percent }
 
 PortfolioProjectionMin:

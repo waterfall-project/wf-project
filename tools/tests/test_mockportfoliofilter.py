@@ -161,6 +161,17 @@ def test_the_list_declares_a_filter_for_each_of_its_columns() -> None:
     assert "/query/last_marked_at_to" in refused
 
 
+def test_the_sort_says_where_a_project_without_a_value_comes() -> None:
+    # US-2690/L2: the service sorts a null column after the others in ascending order.
+    sort = next(
+        parameter
+        for parameter in _operation("getPortfolioProjects")["parameters"]
+        if parameter.get("name") == "sort_by"
+    )
+    description = " ".join(sort["description"].split())
+    assert "after the others in ascending order, before them in descending" in description
+
+
 def test_the_column_filters_are_optional_and_typed_as_their_column() -> None:
     types = {
         "reference_budget": "Money",
@@ -194,9 +205,17 @@ def test_the_422_of_the_list_gives_the_rules_and_the_examples_of_the_portfolio_p
     # The same two examples, by the same files; the others are the refusals of the columns.
     for name, example in common.items():
         assert own[name]["$ref"] == example["$ref"], name
-    for rule in ("/query/from", "/query/to", "params.maximum", "params.minimum", "DATE_INVALID"):
-        assert rule in shared["description"]
-        assert rule in refusal["description"], rule
+    rules = (
+        "/query/from",
+        "/query/to",
+        "params.maximum",
+        "params.minimum",
+        "DATE_INVALID",
+        "the refusal designates the bound sent, `params` naming the completed bound",
+    )
+    for rule in rules:
+        assert " ".join(rule.split()) in " ".join(shared["description"].split())
+        assert " ".join(rule.split()) in " ".join(refusal["description"].split()), rule
     assert {"bounds_inverted", "marking_period_inverted"} <= own.keys()
 
 

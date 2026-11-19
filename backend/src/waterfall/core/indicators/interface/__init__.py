@@ -128,6 +128,9 @@ from waterfall.core.indicators.interface.project_indicators import (
     day_reading as day_reading,
 )
 from waterfall.core.indicators.interface.project_indicators import (
+    day_reading_of as day_reading_of,
+)
+from waterfall.core.indicators.interface.project_indicators import (
     project_indicators as project_indicators,
 )
 

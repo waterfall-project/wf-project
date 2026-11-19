@@ -12508,6 +12508,35 @@ schéma de réponse ne change, aucune propriété n'est exigée de plus.
   devis à une date passée, contre le Vérif de WF-DAT-0040 ; une reprise au déploiement, qui
   écrirait dans `revision_indicator` hors d'un marquage et calculerait sur les coûts d'aujourd'hui.
 
+### La liste et la valeur du portefeuille servies (US-2690/L2, #3875)
+
+Ce que le service fait là où le contrat laissait un choix ; `info.version` reste `1.0.0`, seule la
+description de `sort_by` de `getPortfolioProjects` gagne la place d'une valeur absente.
+
+- **Une liste lue sans période ne retient aucun projet terminé** (décision de l'auteur du
+  2026-11-19, #4020). Sans `from` ni `to`, il n'y a pas de période où un projet aurait été terminé :
+  `PortfolioStates` s'applique, la liste retient les projets en cours et en chiffrage, le projet
+  terminé n'est pas retenu qu'il soit demandé ou non, et `scope.from` et `scope.to` sont nuls. Avec
+  l'un des deux, la période par défaut complète l'autre et le projet terminé dans la période est
+  retenu. Un état créé, perdu ou abandonné, demandé, est sans effet, jamais refusé.
+- **Un projet sans valeur dans la colonne triée vient après les autres dans l'ordre croissant, avant
+  eux dans l'ordre décroissant** : la convention des tris du contrat (le code d'un projet,
+  `listProjects`), étendue aux colonnes de la liste du portefeuille. Le tri par indice de coût,
+  croissant, place les projets en alerte en tête, puis les autres, puis les offres sans indice ; un
+  indice non calculé est sans valeur. Les égalités suivent le README : l'ordre de la liste non triée,
+  le libellé comparé par points de code, puis l'identifiant, dans les deux sens.
+- **Une ligne ne porte que ce que son état donne** : une offre, son devis courant et sa probabilité
+  de gain ; un projet en cours ou terminé, son budget de référence et ses indices, sans devis
+  courant ni probabilité (la décision du critère de l'US ; l'exemple `portfolio_projects` montre
+  encore « 1 » à la probabilité d'un projet en cours, #4137, à trancher) ; la projection du chef de
+  projet et l'écart à la référence, ceux d'un projet en cours seul, comme les descriptions des
+  colonnes le disent. Un projet que nul document n'atteint — aucune révision marquée à la date, ou
+  une révision qui n'a pas conservé le document de son état — figure sans montant.
+- **Le réalisé est le coût réel que le document `project` du projet terminé donne**, le carnet la
+  somme des budgets de référence des projets en cours, le pipeline celle des devis courants des
+  offres, brut, et pondéré par la probabilité que la révision retenue a gardée, chaque part arrondie
+  au centime une fois. Un devis qu'un taux manquant empêche de calculer n'entre dans aucune somme.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
