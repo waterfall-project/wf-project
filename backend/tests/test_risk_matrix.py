@@ -362,7 +362,7 @@ def test_a_probability_that_crosses_a_bound_changes_the_cell_and_the_zone(
     # 2 % of the base: the second severity level. A probability from 45 % to 55 % crosses the
     # bound of 50 %: from the second probability level, nominal, to the third, to watch — in the
     # register, the detail and the matrix; the revision named gives the evaluation it froze.
-    # The probability is written in the evaluation directly: ``reviewRisk`` is served by US-2590/L1.
+    # The probability is written by the review (``reviewRisk``, US-2590/L1), the only write of it.
     risk = matrixed.declare("0.45", "Grue", "20.00")
     zones = ["nominal"] * 8 + ["watch"] * 4 + ["alert"] * 4
     with matrixed.project.stage.owner.begin() as connection:
@@ -371,15 +371,10 @@ def test_a_probability_that_crosses_a_bound_changes_the_cell_and_the_zone(
     mark(matrixed.project.stage, {"revision_id": str(matrixed.project.revision_id)})
     first = matrixed.api.get(revision, headers=matrixed.risks.headers).json()
     second = matrixed.risks.revision()
-    with matrixed.project.stage.owner.begin() as connection:
-        connection.execute(
-            update(RiskEvaluation)
-            .where(
-                RiskEvaluation.risk_id == UUID(risk["risk_id"]),
-                RiskEvaluation.revision_id == UUID(second["revision_id"]),
-            )
-            .values(probability=Decimal("0.55"))
-        )
+    reviewed = matrixed.risks.reviewed(matrixed.risks.risk(risk), probability="0.55")
+    assert reviewed["matrix_cell"]["zone"] == "watch"
+    assert matrixed.risks.risk(risk)["lock_version"] > risk["lock_version"]
+    assert second["revision_id"] != first["revision_id"]
     before = f"?revision_id={first['revision_id']}"
     assert point(matrixed.matrix(before), "Grue")["zone"] == "nominal"
     assert counted(matrixed.matrix(before)) == {(2, SECOND): 1}

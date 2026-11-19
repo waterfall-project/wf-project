@@ -38,7 +38,7 @@ RISK_NOT_OCCURRED = "risk_not_occurred"
 RISK_IDENTIFIED = "risk_identified"
 RISK_NOT_CITED = "risk_not_cited"
 MAY_CREATE_REVISION = "may_create_revision"
-IDENTIFIED, OCCURRED = "identified", "occurred"
+IDENTIFIED, OCCURRED, DISMISSED = "identified", "occurred", "dismissed"
 
 # In the order of ``RiskCommand``, each with the permission that guards it.
 RULES: tuple[tuple[RiskCommand, str], ...] = (

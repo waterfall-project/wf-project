@@ -128,7 +128,7 @@ def _judge_state(
         raise refuse(ACTIVE_PROVISION_CATEGORY)
 
 
-def _probability_faults(probability: Decimal) -> list[FieldError]:
+def probability_faults(probability: Decimal) -> list[FieldError]:
     """Refuse a probability out of 0 to 1, naming the bound crossed, or more precise than kept.
 
     A ratio (WF-RIS-0010); one of more decimals than the column keeps, which the base would round,
@@ -185,7 +185,7 @@ def _designated(
     (422); nothing is written.
     """
     project_id = place.project_id
-    faults = _probability_faults(entry.probability)
+    faults = probability_faults(entry.probability)
     category = designated_category(session, entry.provision_cost_category_id, faults)
     subproject = entry.provision_subproject_id
     if subproject is not None and not subproject_labels(

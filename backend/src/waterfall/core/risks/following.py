@@ -26,8 +26,8 @@ Registered at the import of the interface of the risks (EP-08, "Modules"):
 - **the closing of a revision abandoned** (``register_closing``, ``evaluations``): its reviews and
   its evaluations are deleted before its nodes and its structures, which they name, and the counter
   of each risk it evaluated advances, never going back (H-02, #1783). A risk the revision declared
-  keeps no evaluation: its deletion with the revision is US-2590/L1's, with the rest of what the
-  abandonment brings back. Nothing is done at a marking.
+  keeps no evaluation: it is deleted with the revision, its own estimate with it (``erase``, M-04;
+  US-2590/L1). Nothing is done at a marking.
 
 A figure computed, not entered: the counter of the risk advances, its audit is left to its entries.
 """
@@ -40,6 +40,7 @@ from waterfall.core.estimate.interface import round_to_cent, set_provision, stru
 from waterfall.core.planning.interface import Place, ProvisionOwner
 from waterfall.core.revisions.interface import aimed_structure, structure_facts
 from waterfall.core.risks.commands import IDENTIFIED
+from waterfall.core.risks.deleting import erase
 from waterfall.core.risks.reading import evaluation_of
 from waterfall.core.risks.tables import Risk, RiskEvaluation, RiskReview
 
@@ -154,20 +155,39 @@ def copy_evaluations(copy: RevisionCopy) -> None:
 
 
 def close_evaluations(closing: RevisionClosing) -> None:
-    """Delete the reviews and the evaluations of a revision abandoned; advance their risks."""
+    """Delete the reviews and the evaluations of a revision abandoned; advance their risks.
+
+    A risk that no other revision evaluates was declared by this one, and goes with it, its own
+    estimate with it (M-04); the others are given back as the last marked revision holds them, their
+    counter advanced, never going back (H-02, #1783).
+    """
     if closing.kind != "abandoned":
         return
     session, project_id, revision_id = closing.session, closing.project_id, closing.revision_id
-    evaluated = session.scalars(
-        select(RiskEvaluation.risk_id).where(
-            RiskEvaluation.project_id == project_id, RiskEvaluation.revision_id == revision_id
-        )
-    ).all()
+    evaluated = dict(
+        session.execute(
+            select(RiskEvaluation.risk_id, RiskEvaluation.structure_id).where(
+                RiskEvaluation.project_id == project_id, RiskEvaluation.revision_id == revision_id
+            )
+        ).all()
+    )
     for table in (RiskReview, RiskEvaluation):
         session.execute(
             delete(table)
             .where(table.project_id == project_id, table.revision_id == revision_id)
             .execution_options(synchronize_session=False)
         )
-    advance_risks(session, project_id, evaluated)
+    kept = set(
+        session.scalars(
+            select(RiskEvaluation.risk_id).where(
+                RiskEvaluation.project_id == project_id,
+                RiskEvaluation.risk_id.in_(list(evaluated)),
+            )
+        )
+    )
+    for risk_id, structure_id in sorted(evaluated.items()):
+        if risk_id not in kept:
+            structure_facts(session, project_id, structure_id, lock=True)
+            erase(session, project_id, risk_id, structure_id)
+    advance_risks(session, project_id, kept)
     session.flush()

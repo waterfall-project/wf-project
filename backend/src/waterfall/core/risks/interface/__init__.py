@@ -87,12 +87,6 @@ from waterfall.core.risks.interface.register import (
 
 # ``reviews`` (US-2550/L1; US-2590/L1): the reviews of a risk and the changes of its state.
 from waterfall.core.risks.interface.reviews import (
-    RiskReviewEntry as RiskReviewEntry,
-)
-from waterfall.core.risks.interface.reviews import (
-    RiskReviewView as RiskReviewView,
-)
-from waterfall.core.risks.interface.reviews import (
     list_risk_reviews as list_risk_reviews,
 )
 from waterfall.core.risks.interface.reviews import (
@@ -160,6 +154,12 @@ from waterfall.core.risks.views import (
 )
 from waterfall.core.risks.views import (
     RiskPage as RiskPage,
+)
+from waterfall.core.risks.views import (
+    RiskReviewEntry as RiskReviewEntry,
+)
+from waterfall.core.risks.views import (
+    RiskReviewView as RiskReviewView,
 )
 from waterfall.core.risks.views import (
     RiskSort as RiskSort,
