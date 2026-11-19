@@ -77,6 +77,10 @@ def test_each_structure_says_its_commands_by_the_phase_and_the_state_of_its_revi
             # Abandoned under the conditions of the opening of a differential (US-2550/L2).
             missing = of_revision["create_structure"]
             expected.append(("delete", not missing, missing))
+            # Updated under the same conditions, then its own: out of date (US-3050/L1, #4034).
+            if structure["is_up_to_date"]:
+                missing = [*missing, "structure_out_of_date"]
+            expected.append(("rebase", not missing, missing))
         assert _commands(structure) == expected, (name, structure["structure_id"])
 
 
@@ -95,7 +99,8 @@ def test_the_witness_enters_its_main_structure_in_the_remaining_to_commit_alone(
 
 def test_the_conditions_of_the_commands_of_a_structure_are_those_of_the_contract() -> None:
     schemas = REPOSITORY / "docs" / "api" / "components" / "schemas"
-    assert _enumeration(schemas / "revisions.yaml", "StructureCommand") == [*EDIT, "delete"]
+    commands = _enumeration(schemas / "revisions.yaml", "StructureCommand")
+    assert commands == [*EDIT, "delete", "rebase"]
     conditions = _enumeration(schemas / "projects.yaml", "CommandCondition")
     assert set(PHASE.values()) <= set(conditions)
 

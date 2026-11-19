@@ -728,7 +728,13 @@
       risk is born with it (`createRisk`, WF-RIS-0030) and disappears with it; the main
       structure exists from the revision onwards: neither one nor the other is created here.
       A differential that will not be signed is abandoned by `deleteCostStructure`, as long as
-      it is not merged; a merged differential is consumed by its merge (WF-REV-0050).
+      it is not merged; a merged differential is consumed by its merge (WF-REV-0050). Its base
+      is born with it: a second copy of the main structure, taken under the same lock, which
+      nobody writes and which no operation serves — `listCostStructures` does not list it, and a
+      path that names it answers 404, like an unknown structure. The differential is read
+      against it (`NodeDifference`), is up to date as long as the main structure keeps the
+      counter it had then (`CostStructure.is_up_to_date`), and is updated from the main
+      structure when it is not (`rebaseCostStructure`), which replaces its base (#4034).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -862,7 +868,8 @@
       differential (`RevisionCommand.create_structure`). Its tasks, its lines and their images
       are deleted with it; the other structures of the revision — the main structure, the
       other differentials, the own estimates of the risks — are unchanged, and the next
-      revision does not know it (`createRevision`). The main structure exists as long as its
+      revision does not know it (`createRevision`). Its base, born with it
+      (`createCostStructure`), disappears with it (#4034). The main structure exists as long as its
       revision, the own estimate of a risk disappears with its risk (`deleteRisk`), and a
       merged differential is consumed by its merge (WF-REV-0050): none of them is deleted here.
       The abandonment is irreversible, outside of undo, like that of a revision: it is not
@@ -948,7 +955,9 @@
       `StructureMergeReport.creates_current_revision`, #790); its differences are then those
       of the differential with the main structure of that marked revision, which the copy
       carries over as is. Another structure is refused with 409, like its merge
-      (EP-14/L42s).
+      (EP-14/L42s); so is a differential out of date, which the main structure has passed since
+      its base (`CostStructure.is_up_to_date`): it is first updated (`rebaseCostStructure`), and
+      the report of an up to date differential presents what it designates (#4034).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -974,12 +983,14 @@
         description: >-
           This structure has no merge report: `STATE_FORBIDS_OPERATION`,
           `params.missing_condition` the first missing condition, as in the 409 of its merge
-          (`mergeCostStructure`).
+          (`mergeCostStructure`) — `structure_up_to_date` for a differential out of date, which
+          is first updated (`rebaseCostStructure`).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               revision_marked: { $ref: ../../../fixtures/api/merge_revision_marked_refused.json }
+              out_of_date: { $ref: ../../../fixtures/api/merge_out_of_date_refused.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
@@ -1066,9 +1077,20 @@
           `may_create_revision`, after `unmerged_amendment_exists`, and the merge is refused
           likewise, `params.missing_condition` set to `may_create_revision` — a 409 and not a
           403, as for imports and `declare_risk`, the permission being refused only where it
-          would create the revision (WF-REV-0050, WF-REV-0010). Or a version name already used
-          by a marked revision of the project, as for `markRevision`: `ALREADY_EXISTS`, `fields`
-          designating `/version_name` with `ALREADY_EXISTS`,
+          would create the revision (WF-REV-0050, WF-REV-0010). After the conditions of the
+          command, last of the conditions, `structure_up_to_date` for a differential out of
+          date, which the main structure has passed since its base
+          (`CostStructure.is_up_to_date`), `params.missing_condition` set to
+          `structure_up_to_date`: the merge applies only what the differential designates, and
+          requires it up to date; it does not update it itself (`rebaseCostStructure`, #4034) —
+          on the last marked revision of a project without a current revision, the differential
+          waits for that revision to be created, where it is updated. No command states it in
+          advance: the structure says it, and its `rebase` command. These conditions are all
+          judged before the name of version, as `markRevision` judges the state of its revision
+          before its name: a differential out of date whose version name is already taken is
+          refused with `structure_up_to_date`, not with `ALREADY_EXISTS`. Or a version name
+          already used by a marked revision of the project, as for `markRevision`:
+          `ALREADY_EXISTS`, `fields` designating `/version_name` with `ALREADY_EXISTS`,
           `fields[].params.conflicting_object_id` the revision that carries it (WF-REV-0020);
           judged at submission, nothing is queued, and no current revision is created only to
           fail at the marking (E-05, US-0702/L2). The check of the state and the submission of
@@ -1079,6 +1101,7 @@
             examples:
               revision_marked: { $ref: ../../../fixtures/api/merge_revision_marked_refused.json }
               may_create_revision: { $ref: ../../../fixtures/api/merge_may_create_revision_refused.json }
+              out_of_date: { $ref: ../../../fixtures/api/merge_out_of_date_refused.json }
               version_name_taken: { $ref: ../../../fixtures/api/merge_version_name_taken.json }
       '412':
         description: >-
@@ -1096,6 +1119,148 @@
             examples:
               report_stale: { $ref: ../../../fixtures/api/merge_report_stale.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase:
+  get:
+    operationId: getStructureRebaseReport
+    tags: [revisions]
+    summary: Preliminary report of the update of a differential
+    description: >-
+      A differential relates to its base, the copy of the main structure it took at its opening
+      or at its last update (`NodeDifference`): what it designates is its gap to that base. The
+      main structure keeps receiving entries meanwhile — tasks, re-estimates, the occurrence of
+      a risk, the merge of another differential —, and every write that advances its counter
+      leaves the differential out of date (`CostStructure.is_up_to_date`), which then cannot be
+      merged (`mergeCostStructure`). The update carries into the differential what the main
+      structure has received since its base, without changing anything it designates, then
+      makes the main structure its new base (`rebaseCostStructure`; WF-REV-0100, WF-REV-0050;
+      decision of the author, #4034). This report presents it before it is applied, as the
+      report of an import or of a merge does: a read, which writes nothing (`StructureRebaseReport`).
+      As long as `refusals` is not empty, the update does not apply, and the screen does not
+      offer its confirmation; the user lifts the reason by an entry in the differential, then
+      reads the report again. Only an unmerged differential of the current revision that is out
+      of date has a report: another structure is refused with 409, like its update.
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RevisionId
+      - $ref: ../components/parameters.yaml#/StructureId
+    responses:
+      '200':
+        description: What the update would write into the differential, what it keeps, and what refuses it.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/revisions.yaml#/StructureRebaseReport }
+            examples:
+              applicable: { $ref: ../../../fixtures/api/structure_rebase_report.json }
+              refused: { $ref: ../../../fixtures/api/structure_rebase_report_refused.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          This structure has no update report: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` the first missing condition, as in the 409 of its update
+          (`rebaseCostStructure`).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              up_to_date: { $ref: ../../../fixtures/api/structure_rebase_up_to_date_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+  post:
+    operationId: rebaseCostStructure
+    tags: [revisions]
+    summary: Update a differential from the main structure
+    description: >-
+      Writes into the differential what the main structure has received since its base, as
+      the report presented it (`getStructureRebaseReport`), computed by the same function: a
+      node the main structure added enters it under its lineage, at its place; a value it
+      changed is changed there; a node it removed leaves it. What the differential designates is
+      unchanged, its nodes keep their identifiers, and what it keeps against the main structure
+      is the report's `kept` (`StructureRebaseReport.differences`). The base is then replaced by a
+      copy of the main structure, and the differential is up to date
+      (`CostStructure.is_up_to_date`); the dates of the differential are computed again. The main
+      structure is not written. Under the command of the structure
+      (`StructureCommand.rebase`), guarded by the permission of the opening of a differential
+      (`RevisionCommand.create_structure`). Synchronous, like the opening of a differential,
+      which copies the main structure likewise. It is not recorded in the undoable history: an
+      entry of the differential made before it can still be undone, except on a node it has
+      written, where the undo is refused, naming the object (`UNDO_CONFLICT`, WF-IHM-0110); nor in
+      the audit log. The confirmation carries the counters of the two structures that the report
+      read: refused with 412 if either has changed since, it never applies a report that nobody
+      has seen. Offered on the current revision alone, like the opening of a differential: on
+      the last marked revision of a project without a current revision, an out of date
+      differential waits for the revision to be created (WF-REV-0010, WF-REV-0100; #4034).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RevisionId
+      - $ref: ../components/parameters.yaml#/StructureId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/revisions.yaml#/StructureRebase }
+    responses:
+      '200':
+        description: >-
+          Differential updated: the structure, up to date, its counter advanced
+          (`CostStructure`); the grid reads its nodes again (`listNodes`).
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/revisions.yaml#/CostStructure }
+            examples:
+              rebased: { $ref: ../../../fixtures/api/structure_rebased.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          The `rebase` command of the structure is unavailable: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` the first condition it lacks, in the order in which it
+          names them — those of the abandonment (`deleteCostStructure`), in its order:
+          `project_not_terminal` on a terminal project (WF-CYC-0100), then `revision_draft` on a
+          marked revision (WF-DAT-0020), then `no_background_task_running` during a marking, a
+          merge, the processing of an occurrence or the application of an import, then
+          `unmerged_amendment_exists` for a structure that is not an unmerged differential — the
+          main structure, the own estimate of a risk, a merged differential —; then
+          `structure_out_of_date` for a differential already up to date, whose base is the main
+          structure as it is: there is nothing to carry over (#4034). Nothing is written.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              up_to_date: { $ref: ../../../fixtures/api/structure_rebase_up_to_date_refused.json }
+      '412':
+        description: >-
+          `STALE_LOCK_VERSION`: the main structure or the differential has changed since the
+          confirmed report, and nothing is written; `params.expected_lock_version` is the
+          current counter of the differential, the object that the path names, even when only
+          the main structure has changed, like the 412 of a merge (WF-IHM-0110). The client reads
+          the report again, which returns both.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/structure_rebase_stale.json }
+      '422':
+        description: >-
+          A reason of the report refuses the update (`StructureRebaseReport.refusals`), judged on
+          the differential that the update would leave, as a merge judges the main structure: a
+          loop of links, `LINK_CYCLE`, `params.cycle`; a link between a summary task and its
+          subordinate, `LINK_FORBIDDEN`, `params.link` (WF-PLA-0030); a date beyond the
+          horizon, `PROJECT_HORIZON_EXCEEDED`, `params.task` (WF-PLA-0150); a task without any
+          worked hour, `TASK_WITHOUT_WORKING_HOURS` (WF-PLA-0010) — the first reason of the
+          report, `problem.code` its code and `params` its parameters, each task named by its
+          node in the differential and its label. Nothing is written. Or a body that is not a
+          confirmation (`VALIDATION_FAILED`).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              link_cycle: { $ref: ../../../fixtures/api/structure_rebase_link_cycle.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1179,7 +1344,8 @@
       properties that `Node` and its facets require are required of a read without `fields`:
       a read that names some returns only what it names.
 
-      The read of a differential is a diff with the main structure of its revision, which
+      The read of a differential is a diff with its base — the copy of the main structure it
+      keeps, and not the main structure as it is (`NodeDifference`, #4034) —, which
       the server computes and which the front end does not recompute (WF-REV-0100, C-361):
       each node carries its difference, `difference` — added, removed, modified or unchanged —
       and what changes about it, `changes`, matched by lineage, and the nodes that the
@@ -1189,7 +1355,7 @@
       like the four; the totals do not count the removed nodes, which are no longer part of
       the structure (`nodes_amendment`).
       A filter, the search and a sorting judge a removed node on its base values — those
-      of the main structure, which it still carries —, like any other node on its own:
+      of the base of the differential, which still carries it —, like any other node on its own:
       a filter on a task retains it if its base values satisfy it, a sorting places a
       removed line among the lines of its task by its base value in the sorted column, and
       without sorting it stays in the place it had (#1205). `difference` retains only the
