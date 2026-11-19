@@ -172,6 +172,7 @@ sommer (décision de l'auteur du 2026-11-17), les trois cents projets en EP-13, 
 | [EP-13](EP-13-exploitation.md) | Exploitation et mise en production | en cours | EP-04 |
 | [EP-28](EP-28-chaine-et-outillage.md) | Chaîne et outillage de développement | en cours | rien |
 | [EP-29](EP-29-habilitations-specification-1-0-7.md) | Habilitations : suites de la spécification 1.0.7 | à planifier | EP-08 |
+| [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risques préparés comme des différentiels | à planifier | EP-08 |
 
 La ventilation du 2026-11-14, à la livraison d'EP-24, a réparti le reste à faire par thème — celui du
 code touché — et non plus par date de report : EP-25 ne garde que la refonte ergonomique et passe en
@@ -182,7 +183,10 @@ EP-24, se relit contre la base livrée et reçoit le détail du plan de charge e
 dépenses ; EP-28 rassemble ce qui ne touche que la chaîne et les outils, et ne dépend de rien. Un
 constat de revue va désormais à l'EPIC qui touche son code. EP-29 reçoit, au cadrage d'EP-13, les
 constats d'habilitation que le tri de la spécification du 2026-11-18 avait étiquetés EP-13, qui ne
-garde que l'exploitation (décision de l'auteur du 2026-11-18).
+garde que l'exploitation (décision de l'auteur du 2026-11-18). EP-30 fait du devis propre d'un
+risque un différentiel, pour qu'un risque reprenne ou abandonne du travail existant ; il attend
+EP-08, dont il réutilise la mise à jour d'un différentiel, et une révision de la spécification
+(décision de l'auteur du 2026-11-19).
 
 L'ordre de la liste n'est pas celui des numéros, et c'est voulu : un identifiant ne se
 renumérote pas. La répartition des exigences a fait passer le référentiel avant les projets —
