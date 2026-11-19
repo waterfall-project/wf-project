@@ -188,10 +188,9 @@ def close_evaluations(closing: RevisionClosing) -> None:
     for risk_id, structure_id in sorted(evaluated.items()):
         if risk_id not in kept:
             structure_facts(session, project_id, structure_id, lock=True)
-            # The risk last, after the structures, as every write of a risk takes them. Defence in
-            # depth: the locks of the revision and of the project, held since the start of the
-            # abandonment, already keep out every writer of the risk (no interleaving of the tests
-            # tells the two apart); this one serves a writer that would lock the risk alone.
+            # The risk last, after the structures, as every write of a risk takes them. No current
+            # writer locks the risk without the revision or the project, which the abandonment
+            # already holds; this lock protects a future writer that would.
             found_risk(session, project_id, risk_id, lock=True)
             erase(session, project_id, risk_id, structure_id)
     advance_risks(session, project_id, kept)

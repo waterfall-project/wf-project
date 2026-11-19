@@ -331,11 +331,7 @@ def test_the_counter_of_a_risk_never_goes_back_the_abandonment_of_a_revision_inc
 def test_the_abandonment_against_a_change_of_the_risk_it_created_answers_cleanly(
     risks: Risks, project: Costed
 ) -> None:
-    # The abandonment holds the revision, the project, then the structures; a change of the
-    # identity of the risk it erases, sent meanwhile, waits for the project, then finds the risk
-    # gone: 404, never a 500. The abandonment is held at the structure of the risk by the test; the
-    # lock of the risk row in ``close_evaluations`` is not what this proves (the lock of the
-    # project already serializes both), only the clean answer.
+    # The change of identity waits for the abandonment, at the lock of the project, and answers 404.
     mark(project.stage, {"revision_id": str(project.revision_id)})
     opened = risks.revision()
     created = risks.declared(label="Créé")
