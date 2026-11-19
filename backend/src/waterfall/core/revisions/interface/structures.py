@@ -39,7 +39,7 @@ revision, the others are EP-06's and EP-07's.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select, update
+from sqlalchemy import case, func, select, update
 from sqlalchemy.orm import aliased
 
 from waterfall.core.projects.interface import (
@@ -49,6 +49,7 @@ from waterfall.core.projects.interface import (
     project_facts,
 )
 from waterfall.core.revisions.commands import phase_conditions, structure_commands_of
+from waterfall.core.revisions.interface.shared import MAIN
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.states import revision_state
 from waterfall.core.revisions.tables import CostStructure, Revision
@@ -66,7 +67,6 @@ if TYPE_CHECKING:
     from waterfall.core.revisions.interface.revisions import RevisionCopy
     from waterfall.platform.audit import Act
 
-MAIN = "main"
 # The kind of a differential, the amendment a negotiation prepares (``StructureKind``).
 AMENDMENT = "amendment"
 # The kind of the own estimate of a risk (``StructureKind``).
@@ -204,6 +204,24 @@ def create_own_estimate(
     )
     session.flush()
     return structure_id
+
+
+def delete_own_estimate(session: Session, project_id: UUID, structure_id: UUID) -> None:
+    """Delete the own estimate of a risk deleted with it, its nodes already deleted (US-2590/L1).
+
+    The structure is locked by the caller, which has deleted the evaluation that names it and the
+    nodes it holds; nothing else names it.
+    """
+    session.delete(
+        session.scalars(
+            select(CostStructure).where(
+                CostStructure.project_id == project_id,
+                CostStructure.id == structure_id,
+                CostStructure.kind == RISK,
+            )
+        ).one()
+    )
+    session.flush()
 
 
 def create_differential(
@@ -539,6 +557,44 @@ def write_structure(
         update(CostStructure)
         .where(CostStructure.project_id == project_id, CostStructure.id == structure_id)
         .values(**values)
+        .execution_options(synchronize_session=False)
+    )
+
+
+def rename_own_estimate(
+    session: Session, project_id: UUID, structure_id: UUID, label: str, act: Act
+) -> None:
+    """Write the label of the own estimate of a risk, its counter advancing; tell no follower.
+
+    The risks rename it with their risk (``updateRisk``, #3980), and advance the counter of the
+    risk themselves, so that the followers of the own estimate (``register_own_estimate_counted``)
+    are not told a second time. To be called under the lock of the structure (``structure_facts``).
+    """
+    session.execute(
+        update(CostStructure)
+        .where(CostStructure.project_id == project_id, CostStructure.id == structure_id)
+        .values(
+            label=label,
+            lock_version=CostStructure.lock_version + 1,
+            updated_at=act.at,
+            updated_by=act.author,
+        )
+        .execution_options(synchronize_session=False)
+    )
+
+
+def rename_own_estimates(session: Session, project_id: UUID, labels: dict[UUID, str]) -> None:
+    """Label the own estimates of a revision opened by their risks' labels, in one statement.
+
+    ``labels`` maps each own estimate to the label of its risk: the copy of a revision names them
+    from the risk, not from the structures it copies (#3980). They are new, at their first version.
+    """
+    if not labels:
+        return
+    session.execute(
+        update(CostStructure)
+        .where(CostStructure.project_id == project_id, CostStructure.id.in_(labels))
+        .values(label=case(labels, value=CostStructure.id))
         .execution_options(synchronize_session=False)
     )
 

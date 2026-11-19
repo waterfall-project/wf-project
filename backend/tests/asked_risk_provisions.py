@@ -6,8 +6,12 @@
 quality on its project each asks for besides.
 """
 
+CONSULT = "risks.read"
+CHANGE = "risks.write"
+
 # The permissions each operation asks for, in the order they are evaluated.
-ASKED: dict[str, tuple[str, ...]] = {}
+# The provision of a risk is changed by whoever may enter the risks (US-2580/L1).
+ASKED: dict[str, tuple[str, ...]] = {"updateRiskProvision": (CONSULT, CHANGE)}
 # The quality on its project each operation that names one asks for, evaluated by
 # ``RequiresProject``: ``consultation``, ``contributor`` or ``project_manager`` (WF-ADM-0110).
-ON_PROJECT: dict[str, str] = {}
+ON_PROJECT: dict[str, str] = {"updateRiskProvision": "contributor"}

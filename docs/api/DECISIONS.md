@@ -10823,6 +10823,18 @@ la révision ; celui d'`updateRiskProvision` nomme `project_not_terminal`,
 `risk_updated_without_current_revision` modifie l'identité d'un risque sur le projet sans révision
 en cours (`project_without_current_revision`) : aucune révision n'est créée.*
 
+*Décision de l'utilisateur du 2026-11-18 (US-2570/L2, #3980) : **renommer un risque renomme son devis
+propre et sa ligne de provision** dans la révision en cours, du libellé de la déclaration — « Provision —
+<libellé> » pour la ligne —, hors de l'historique annulable, comme l'identité qui le commande. L'ouverture d'une révision — par
+`createRevision`, ou par `createRisk` quand le projet n'en a pas — nomme le devis propre et la ligne
+d'après le libellé du risque tel qu'il est alors, et non d'après la dernière révision marquée : un
+renommage fait sans révision en cours, ou dans une révision abandonnée depuis, se lit donc dans la
+suivante. Les révisions marquées gardent les noms qu'elles figent (WF-DAT-0020) ; sans révision en
+cours, `updateRisk` n'écrit que l'identité. Le compteur de la structure propre et celui de la
+structure principale avancent, celui du risque une seule fois. Écarté : laisser au devis propre et à la
+ligne le libellé de la déclaration, qui aurait fait lire un ancien nom dans `listCostStructures` et dans la
+grille de la structure principale.*
+
 ### Le registre des risques se filtre sur chacune de ses colonnes (US-0704, #1735, H-01, #1785)
 
 Décision de l'auteur du 2026-11-01 : le contrat suit WF-IHM-0130. `listRisks` se triait sur ses six
@@ -12463,6 +12475,33 @@ citées, qui diront les formes et la version.
 
 Le contrat, le service, le front, le témoin et la reprise des codes déjà saisis suivent par
 #3966.
+
+### La ligne de provision d'un risque suit sa tâche et compte au reste à engager (US-2580/L1)
+
+Aucune forme du contrat ne change ; ce que `updateRiskProvision` et `deleteNode` disent déjà se
+réalise ainsi (conception d'EP-08, « Ce qui reconnaît une ligne de provision », « Modules »).
+
+- **La suppression d'une tâche qui porte une provision, ou l'import d'un planning qui ne la porte
+  plus, ne l'emporte pas** : la ligne passe sur la tâche parente de la tâche retirée — la plus
+  proche qui reste quand l'import retire toute une branche —, sur la première tâche de premier niveau
+  qui reste pour une tâche de premier niveau, au rang après les lignes de sa nouvelle tâche. Le
+  compteur du risque avance avec elle. `deleteNode` la rend dans `nodes` ; le compte rendu de
+  l'import la présente par un écart `updated` de la ligne (`target` `estimate_line`, `fields`
+  `["parent"]`, son libellé) ; une tâche démarrée, que l'import garde, garde sa ligne. La lignée de la tâche que le risque
+  désigne n'est pas réécrite : la tâche retirée n'existe plus, et le retour d'un risque écarté
+  retombe sur la première tâche de premier niveau (WF-RIS-0010).
+- **`updateRiskProvision` désigne une tâche de la révision qu'elle crée par l'une de la dernière
+  révision marquée** quand le projet n'a pas de révision en cours : le client ne connaît pas les
+  identifiants de la copie, la tâche est retrouvée par sa lignée (WF-DAT-0030). Une tâche inconnue
+  des deux reste `UNKNOWN_TASK`.
+- **La provision d'un risque identifié compte au reste à engager** (WF-RAE-0010), quel que soit
+  l'état de la tâche qui la porte, sous le sous-projet de sa ligne — « hors sous-projet » sans lui —
+  et sous la nature de sa catégorie dans `by_cost_type` : `getRemainingIndicators` ne la sert plus à
+  zéro. Le sous-projet d'une ligne de provision se change même quand sa tâche est démarrée et que
+  son sous-projet a reçu des coûts réels : la règle d'EP-09 vise les lignes de la grille.
+- **`updateRiskProvision` n'entre pas encore à l'historique annulable**, comme `createRisk` : les
+  quatre genres de saisie d'un risque s'y inscrivent avec US-2590/L2. L'abandon de la révision
+  défait la saisie, l'évaluation et la ligne étant de la révision.
 
 ## Collage et annulation
 

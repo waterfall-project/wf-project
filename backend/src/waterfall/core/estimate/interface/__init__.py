@@ -447,13 +447,22 @@ from waterfall.core.estimate.pricing import (
     round_to_cent as round_to_cent,
 )
 
-# ``provisioning`` (US-2570/L1): the provision line of a risk, which the risks alone ask for and
-# write again (EP-08).
+# ``provisioning`` (US-2570/L1; US-2580/L1): the provision line of a risk, which the risks alone ask
+# for and write again (EP-08).
 from waterfall.core.estimate.provisioning import (
     ProvisionEntry as ProvisionEntry,
 )
 from waterfall.core.estimate.provisioning import (
+    rename_provision as rename_provision,
+)
+from waterfall.core.estimate.provisioning import (
+    rename_provisions as rename_provisions,
+)
+from waterfall.core.estimate.provisioning import (
     set_provision as set_provision,
+)
+from waterfall.core.estimate.provisioning import (
+    set_provision_bearing as set_provision_bearing,
 )
 
 # ``reading`` (US-1490/L3): the lines as ``listNodes`` reads them, and what it filters.

@@ -35,7 +35,6 @@ from waterfall.core.planning.calendars import default_calendar
 from waterfall.core.planning.carrying import (
     judge_facets_moved,
     judge_lines_moved,
-    refuse_completed,
 )
 from waterfall.core.planning.dating import constants_of
 from waterfall.core.planning.entries import (
@@ -55,7 +54,6 @@ from waterfall.core.planning.shaping import (
     closed_above,
     closed_again,
     completed_again,
-    deleted,
     emptied,
     judge_place,
     place,
@@ -81,9 +79,7 @@ from waterfall.core.projects.interface import work_breakdown_items
 from waterfall.platform.errors import (
     NOT_FOUND,
     STALE_LOCK_VERSION,
-    STATE_FORBIDS_OPERATION,
     VALIDATION_FAILED,
-    ConflictError,
     FieldError,
     NotFoundError,
     PreconditionFailedError,
@@ -793,53 +789,6 @@ class NodeMoving:
     after_node_id: UUID | None
     after_given: bool
     lock_version: int
-
-
-def delete_node(
-    session: Session, place: Place, node_id: UUID, lock_version: int, writer: Writer
-) -> NodesWritten:
-    """Delete a node and its subtree, and give the nodes written (``deleteNode``).
-
-    Under the lock of the structure: refused if the structure does not hold the node (404), at
-    another version than the one read (412), for a task started or completed, or a summary one of
-    whose subordinates is (409 ``task_not_started``, WF-PLA-0070), for a line of a completed task
-    of the main structure (409 ``task_not_completed``, WF-RAE-0040; #1767). The subtree goes, its
-    lines, its links and the inscriptions of its lineages with it (WF-DAT-0090); a summary left
-    without subordinate becomes a leaf in its state (WF-PLA-0040) and is given back among the
-    ancestors, with the tasks the links taken away redate — and the task a line leaves, whose
-    calendar may change (WF-PLA-0010) — and the totals without them; a summary it leaves completed
-    again reads the zeroing of its lines (``closed_again``, #2803). No provision line moves before
-    EP-08: ``nodes`` is empty.
-    """
-    with writing(session, place, writer, ("node_delete", (node_id,))) as write:
-        tree = write.tree
-        if node_id not in tree.nodes:
-            raise NotFoundError(NOT_FOUND)
-        node = tree.nodes[node_id]
-        if node.lock_version != lock_version:
-            raise PreconditionFailedError(
-                STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
-            )
-        if node_id in tree.tasks and state_of(tree, node_id).progress != NOT_STARTED:
-            raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": TASK_NOT_STARTED})
-        parent = node.parent_id
-        if node_id not in tree.tasks:
-            refuse_completed(write, (parent,))
-        former = () if parent is None else (parent, *tree.ancestors(parent))
-        subtree = list(tree.subtree(node_id))
-        left_bare = parent is not None and tree.subtasks(parent) == [node_id]
-        again = closed_again(session, place.project_id, tree, (node_id,))
-        bare = (parent,) if left_bare and parent is not None else ()
-        touched = (*subtree, *bare, *again)
-        write.before(touched)
-        if left_bare and parent is not None:
-            emptied(tree, parent)
-            stamp(tree.nodes[parent], writer.act)
-        completed_again(tree, again, writer.act)
-        deleted(session, place.project_id, tree, subtree)
-        redated = write.redate(None)
-        write.after(touched)
-        return redated.written((), former)
 
 
 def _judge_move(tree: Tree, placing: Placing) -> None:

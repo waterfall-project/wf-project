@@ -163,6 +163,7 @@ def test_a_risk_is_declared_on_a_fresh_installation_its_provision_category_retai
     assert risk["state"] == "identified"
 
 
+@pytest.mark.requirement("WF-RIS-0010-A")
 @pytest.mark.requirement("WF-REF-0030-A")
 def test_once_the_last_active_provision_category_is_deactivated_a_declaration_is_refused(
     api: ContractClient, stage: Scene
@@ -316,12 +317,31 @@ def test_a_declaration_that_would_create_the_revision_is_refused_to_who_may_not_
     assert counted(stage) == before
 
 
+@pytest.mark.requirement("WF-RIS-0010-A")
 @pytest.mark.requirement("WF-RIS-0030-A")
 def test_a_declaration_on_a_main_structure_without_a_task_is_refused(
     api: ContractClient, stage: Scene
 ) -> None:
-    opened(api, stage)
+    revision = opened(api, stage)
     refused_with(declare(api, stage), "at_least_one_task")
+    # « …aboutissent dès qu'une tâche existe. »
+    Tree(api, stage, revision).made("Étude")
+    assert declare(api, stage).status_code == 201
+
+
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_the_409_of_a_declaration_comes_before_the_designations_of_the_provision_alone(
+    api: ContractClient, stage: Scene
+) -> None:
+    # #3979: on a main structure without a task, a designation that would be refused (422) and a
+    # probability out of its bounds, judged with them, are not judged: 409. The label and the shape
+    # of the probability, which the schema of the request judges, are refused (422) before it.
+    opened(api, stage)
+    designated = declare(api, stage, provision_cost_category_id=str(UUID(int=1)), probability="2")
+    refused_with(designated, "at_least_one_task")
+    assert fields_of(declare(api, stage, label="")) == [("/label", "VALUE_REQUIRED")]
+    shape = fields_of(declare(api, stage, probability="beaucoup"))
+    assert shape == [("/probability", "VALIDATION_FAILED")]
 
 
 @pytest.mark.requirement("WF-RIS-0030-A")
@@ -362,6 +382,7 @@ def test_the_designations_of_a_declaration_are_refused_each_on_its_field(
     assert counted(stage) == before
 
 
+@pytest.mark.requirement("WF-RIS-0010-A")
 @pytest.mark.requirement("WF-RIS-0030-A")
 def test_with_two_active_provision_categories_the_category_is_asked_and_a_deactivated_refused(
     api: ContractClient, project: Costed

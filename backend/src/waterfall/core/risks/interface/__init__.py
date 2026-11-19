@@ -25,15 +25,19 @@ that none lacks their part once a story registers it (#2180).
 
 # ``coverage`` (US-2550/L1; US-2610/L1): the reserve and the coverage of the risks.
 # The registries the risks fill (US-2570/L1).
+from waterfall.core.planning.interface import ProvisionOwners, register_provision_owners
 from waterfall.core.revisions.interface import (
     register_closing,
     register_copy,
     register_own_estimate_counted,
 )
+from waterfall.core.risks.commands import state_named as state_named
 from waterfall.core.risks.following import (
     close_evaluations,
     copy_evaluations,
     follow_own_estimate,
+    follow_provision_lines,
+    name_provision_owners,
 )
 from waterfall.core.risks.interface.coverage import (
     risk_coverage_of as risk_coverage_of,
@@ -83,12 +87,6 @@ from waterfall.core.risks.interface.register import (
 )
 
 # ``reviews`` (US-2550/L1; US-2590/L1): the reviews of a risk and the changes of its state.
-from waterfall.core.risks.interface.reviews import (
-    RiskReviewEntry as RiskReviewEntry,
-)
-from waterfall.core.risks.interface.reviews import (
-    RiskReviewView as RiskReviewView,
-)
 from waterfall.core.risks.interface.reviews import (
     list_risk_reviews as list_risk_reviews,
 )
@@ -159,6 +157,12 @@ from waterfall.core.risks.views import (
     RiskPage as RiskPage,
 )
 from waterfall.core.risks.views import (
+    RiskReviewEntry as RiskReviewEntry,
+)
+from waterfall.core.risks.views import (
+    RiskReviewView as RiskReviewView,
+)
+from waterfall.core.risks.views import (
     RiskSort as RiskSort,
 )
 from waterfall.core.risks.views import (
@@ -171,7 +175,9 @@ from waterfall.core.risks.views import (
 # The registrations, once, at the import: the copy of the evaluations after the structures and the
 # nodes whose copies they name, the interfaces of the revisions and of the planning imported first;
 # their deletion at an abandonment before the nodes and the structures they name (``evaluations``);
-# the counter and the provision of a risk following its own estimate (US-2570/L1).
+# the counter and the provision of a risk following its own estimate (US-2570/L1), and the risks
+# that own the provision lines a deletion or an import moves (US-2580/L1).
 register_copy(copy_evaluations)
 register_closing("evaluations", close_evaluations)
 register_own_estimate_counted(follow_own_estimate)
+register_provision_owners(ProvisionOwners(name_provision_owners, follow_provision_lines))

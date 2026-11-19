@@ -13,16 +13,20 @@ share of its task, as for any line; its budgeted amount is nought on a project t
 The risks ask for it at the declaration (``ProvisionEntry``, by ``create_borne_line`` of the
 planning, whose facet hook ``create_line`` addresses here), and write its amount again each time
 the severity or the probability changes (``set_provision``), under the lock of the main structure,
-whose counter advances.
+whose counter advances. They write its label again when their risk is renamed
+(``rename_provision``, #3980), and name the lines of a revision opened (``rename_provisions``).
+When the risk designates another category or subproject for it (``updateRiskProvision``), they write
+them on the line (``set_provision_bearing``): the subproject of a line of a started task that has
+received actual costs included, which a line entered by the grid may not take (WF-PRJ-0050).
 
-Filled by US-2570/L1.
+Filled by US-2570/L1; completed by US-2580/L1.
 """
 
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import case, select, update
 
 from waterfall.core.estimate.costing import basis_of, priced
 from waterfall.core.estimate.pricing import CENT
@@ -35,6 +39,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.interface import FacetCreation, Place
+    from waterfall.platform.audit import Act
 
 # The label of a provision line, before the label of its risk.
 PROVISION_LABEL = "Provision — {label}"
@@ -87,6 +92,48 @@ def create_provision(creation: FacetCreation, entry: ProvisionEntry) -> None:
     session.flush()
 
 
+def rename_provision(
+    session: Session, place: Place, node_id: UUID, risk_label: str, act: Act
+) -> None:
+    """Write the label of a provision line again from its risk's, under the lock of its structure.
+
+    ``place`` is the main structure that bears the line. A line already so named is left as it is;
+    one that is renamed advances the counter of the structure, and not its own, as its amount
+    does (``set_provision``): the risks rename it, never the grid (#3980).
+    """
+    structure_facts(session, place.project_id, place.structure_id, lock=True)
+    line = session.scalars(
+        select(EstimateLine)
+        .where(EstimateLine.project_id == place.project_id, EstimateLine.node_id == node_id)
+        .execution_options(populate_existing=True)
+    ).one()
+    label = PROVISION_LABEL.format(label=risk_label)
+    if line.label == label:
+        return
+    line.label = label
+    line.updated_at, line.updated_by = act.at, act.author
+    session.flush()
+    structure_counted(session, place.project_id, place.structure_id)
+
+
+def rename_provisions(session: Session, project_id: UUID, risk_labels: dict[UUID, str]) -> None:
+    """Name the provision lines of a revision opened by their risks' labels, in one statement.
+
+    ``risk_labels`` maps the node of each line to the label of its risk: the copy of a revision
+    names them from the risk, not from the lines it copies (#3980). The lines are new, at their
+    first version: no counter advances.
+    """
+    if not risk_labels:
+        return
+    names = {node: PROVISION_LABEL.format(label=label) for node, label in risk_labels.items()}
+    session.execute(
+        update(EstimateLine)
+        .where(EstimateLine.project_id == project_id, EstimateLine.node_id.in_(names))
+        .values(label=case(names, value=EstimateLine.node_id))
+        .execution_options(synchronize_session=False)
+    )
+
+
 def set_provision(session: Session, place: Place, node_id: UUID, amount: Decimal) -> bool:
     """Write the amount of a provision line again, under the lock of its structure; tell if moved.
 
@@ -106,6 +153,32 @@ def set_provision(session: Session, place: Place, node_id: UUID, amount: Decimal
     line.unit_disbursement = amount
     line.base_amount = amount
     line.reestimated_amount = amount
+    session.flush()
+    structure_counted(session, place.project_id, place.structure_id)
+    return True
+
+
+def set_provision_bearing(
+    session: Session, place: Place, node_id: UUID, bearing: tuple[UUID, UUID | None]
+) -> bool:
+    """Write the category and the subproject of a provision line, its amount as it is; tell if so.
+
+    ``bearing`` the category of provision the risk designates and its subproject, none to take the
+    provision out of its subproject. The line is the risk's alone: no rule of the grid judges the
+    change, neither the actual costs of its subproject nor the state of its task (WF-PRJ-0050).
+    Under the lock of the main structure, whose counter advances, the line's own staying: a figure
+    the risk writes (``LockVersion``).
+    """
+    structure_facts(session, place.project_id, place.structure_id, lock=True)
+    line = session.scalars(
+        select(EstimateLine)
+        .where(EstimateLine.project_id == place.project_id, EstimateLine.node_id == node_id)
+        .execution_options(populate_existing=True)
+    ).one()
+    category, subproject = bearing
+    if (line.cost_category_id, line.subproject_id) == (category, subproject):
+        return False
+    line.cost_category_id, line.subproject_id = category, subproject
     session.flush()
     structure_counted(session, place.project_id, place.structure_id)
     return True

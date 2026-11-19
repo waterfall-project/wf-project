@@ -8,7 +8,8 @@ told to the facet of a node it bears (``bearing``); a line neither written, dele
 a completed task of the main structure, or from it, which is first reopened from the Kanban (409
 ``task_not_completed``, WF-RAE-0040, WF-DEV-0050; #1767), what a differential permits (EP-08); the
 lines a move gives another task judged by the hooks of their kind once placed (``FacetHooks.moved``,
-WF-PLA-0010).
+WF-PLA-0010); the provision lines a deletion does not take with their task, which pass to the
+parent of the task deleted (``judge_provisions``, ``carry_provisions``; US-2580/L1).
 
 Written by US-1490/L4, ``bearing`` moved from ``interface.lines`` (US-1490/L3).
 """
@@ -16,7 +17,14 @@ Written by US-1490/L4, ``bearing`` moved from ``interface.lines`` (US-1490/L3).
 from typing import TYPE_CHECKING
 
 from waterfall.core.planning.interface.facets import BearingTask, calendar_of, facets
+from waterfall.core.planning.provisioning import (
+    first_left,
+    lines_reported,
+    owners_named,
+    provision_moves,
+)
 from waterfall.core.planning.scheduling import WorkInstant
+from waterfall.core.planning.shaping import Placing, place, placed
 from waterfall.core.planning.views import COMPLETED, state_of
 from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
@@ -31,6 +39,7 @@ if TYPE_CHECKING:
     from waterfall.core.planning.writing import Write
 
 TASK_NOT_COMPLETED = "task_not_completed"
+AT_LEAST_ONE_TASK = "at_least_one_task"
 
 
 def bearing[N: NodeColumns, T: TaskColumns](
@@ -111,3 +120,42 @@ def judge_facets_moved(write: Write, node_ids: Collection[UUID]) -> None:
                 held[each] = bearing(session, project_id, tree, parent, is_main=write.facts.is_main)
         if held:
             hooks.moved(session, project_id, held)
+
+
+def judge_provisions(write: Write, removed: Iterable[UUID]) -> dict[UUID, UUID]:
+    """Give the task each provision line under the nodes removed passes to, by line (WF-PLA-0070).
+
+    The parent of the node deleted, the first task of the first level left for a task of the first
+    level — the removal of the last task of a main structure that bears a provision is refused
+    instead (409 ``at_least_one_task``, ``params.risks`` naming each risk whose provision it would
+    carry, WF-RIS-0010). Only the main structure bears provisions: the others give none. Nothing is
+    written.
+    """
+    tree, where = write.tree, write.place
+    if not write.facts.is_main:
+        return {}
+    gone = list(removed)
+    moves = provision_moves(tree, gone, first_left(tree, gone))
+    stranded = [line for line, task in moves.items() if task is None]
+    if stranded:
+        owners = owners_named(write.session, where.project_id, where.revision_id, stranded)
+        named = [{"risk_id": str(each.risk_id), "label": each.label} for each in owners]
+        params = {"missing_condition": AT_LEAST_ONE_TASK, "risks": named}
+        raise ConflictError(STATE_FORBIDS_OPERATION, params)
+    return {line: task for line, task in moves.items() if task is not None}
+
+
+def carry_provisions(write: Write, moves: dict[UUID, UUID]) -> None:
+    """Place the provision lines of ``moves`` under their new task, after its lines; tell the risks.
+
+    Each line is stamped, its place written before the nodes removed are deleted — the risk holds
+    its line by a key that refuses a deletion — and the risks told once all are placed.
+    """
+    tree, where = write.tree, write.place
+    changes: dict[UUID, tuple[UUID | None, int]] = {}
+    for task in dict.fromkeys(moves.values()):
+        lines = tuple(line for line, target in moves.items() if target == task)
+        changes.update(placed(tree, Placing(lines, task, None, after_given=False)))
+    if changes:
+        place(write, changes, tuple(moves))
+        lines_reported(write.session, where.project_id, where.revision_id, tuple(moves))

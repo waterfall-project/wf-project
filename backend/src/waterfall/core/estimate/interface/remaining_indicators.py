@@ -41,7 +41,6 @@ from waterfall.core.estimate.remaining.comparing import (
     summed_by_subproject,
 )
 from waterfall.core.estimate.remaining.reviewing import (
-    provisions_of,
     remaining_of_placed,
     revision_remaining,
 )
@@ -169,7 +168,9 @@ def remaining_of_revision(
 
     The re-estimated amounts of the lines, provisions left out, of the tasks not completed of its
     main structure — started or not, re-estimated or not —, the current revision or a marked one,
-    as its tasks stand in it (WF-RAE-0010); none for a revision without a main structure.
+    as its tasks stand in it (WF-RAE-0010); none for a revision without a main structure. The
+    remaining that ``getRemainingIndicators`` gives counts the provisions of the risks too
+    (``remaining_indicators``).
     """
     total, by_line = revision_remaining(session, project_id, revision_id)
     return RevisionRemaining(total, by_line)
@@ -183,7 +184,8 @@ def remaining_of_lines(
     ``tasks`` are those of the main structure of the revision (``tasks_for_indicators``), ``lines``
     its lines on them, provisions left out (``lines_for_indicators``): the re-estimated amount of
     each line whose task is not completed, in their order — what ``remaining_of_revision`` gives on
-    the same revision, without reading it.
+    the same revision, without reading it. The provisions are left out here as there:
+    ``getRemainingIndicators`` counts them (``remaining_indicators``).
     """
     completed = {task.node_id for task in tasks if task.progress == COMPLETED}
     total, by_line = remaining_sum(
@@ -202,14 +204,11 @@ def _ventilated(
 ) -> tuple[AmountByKey, ...]:
     """Ventilate the remaining by the nature of cost of the category of each line that counts.
 
-    The nature provision is served at nought: each type of cost of the provision kind the lines of
-    the main structure bear, whatever the state of their task, figures with nothing, its share
-    nought (WF-RAE-0020). ``placed`` are the lines of the revision on their tasks, read once.
+    The nature provision is the provisions of the risks identified, counted whatever the state of
+    their task, under the nature of the category each designates (WF-RAE-0010, WF-RAE-0020;
+    US-2580/L1). ``placed`` are the lines of the revision on their tasks, read once.
     """
-    every = [each.line for each in placed]
-    provisions = provisions_of(session, every)
-    counted = [line for line in every if line.node_id in remaining.by_line]
-    kept = [*counted, *(line for line in every if line.node_id in provisions)]
+    kept = [each.line for each in placed if each.line.node_id in remaining.by_line]
     natures = natures_of(session, project_id, read, {line.cost_category_id for line in kept})
     amounts: dict[str, Decimal] = {}
     labels: dict[str, str | None] = {}
@@ -231,12 +230,14 @@ def remaining_indicators(
     alone, as ``unassigned`` — compares its budget in the reference with its actual cost and its
     remaining; the margin on the reference is none without one, the difference with the revision
     marked before this one — the offer, when it is the only one — none without one, as the estimate
-    reads it. A revision unknown is 404.
+    reads it. The remaining counts the provisions of the risks identified, whatever the state of the
+    task that bears them, the revision marked before it too (WF-RAE-0010; US-2580/L1). A revision
+    unknown is 404.
     """
     read = read_revision_for(session, project_id, revision_id)
     # The lines on their tasks, the costliest read: once for the remaining and its ventilation.
     placed = placed_lines(session, project_id, read.revision_id)
-    held = RevisionRemaining(*remaining_of_placed(session, placed))
+    held = RevisionRemaining(*remaining_of_placed(session, placed, provisions=True))
     lines = rows_of(session, project_id, list(held.by_line))
     remainings = summed_by_subproject(lines, held.by_line)
     actual_costs = {
@@ -276,6 +277,8 @@ def remaining_indicators(
             held.total,
             None
             if read.previous_marked_id is None
-            else remaining_of_revision(session, project_id, read.previous_marked_id).total,
+            else revision_remaining(session, project_id, read.previous_marked_id, provisions=True)[
+                0
+            ],
         ),
     )
