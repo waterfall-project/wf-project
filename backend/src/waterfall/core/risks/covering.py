@@ -70,14 +70,18 @@ def coverage_of(session: Session, project_id: UUID, revision_id: UUID) -> Covera
 
 
 def conserved_coverage(
-    session: Session, project_id: UUID, kept: Mapping[str, str]
-) -> dict[str, str]:
+    session: Session, project_id: UUID, kept: Mapping[str, str] | None
+) -> dict[str, str] | None:
     """Give the coverage a marking kept with the reserve of the reference of the project.
 
     The figures of the risks stay as the marking kept them; the reserve is the one the reference
     conserves, which a revision marked before it was designated could not keep, and the variance is
-    deduced from it.
+    deduced from it. A document that kept no coverage, or one whose figures are missing, gives
+    none (#4183): the caller computes the coverage at the reading, as it does for a revision whose
+    marking kept nothing.
     """
+    if kept is None or "remaining_provisions" not in kept or "occurred_cost" not in kept:
+        return None
     reserve = _reserve(session, project_id)
     left = Decimal(kept["remaining_provisions"])
     cost = Decimal(kept["occurred_cost"])

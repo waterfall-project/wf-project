@@ -12711,6 +12711,12 @@ le marquage ne peut avoir conservé que la réserve d'avant, 0 (écart −60 pou
 quand le registre rend 60 sur la même révision (WF-RIS-0050-A). Les deux lectures restent égales
 (WF-RAE-0020-A).
 
+La réserve rendue pour une révision marquée suit la référence désignée ensuite, non celle qui l'était
+à son marquage : désigner une autre référence change la réserve que les deux lectures rendent pour
+toutes les révisions marquées (M-01, #4184). C'est voulu : la réserve est celle du projet. Un
+marquage qui n'a pas conservé la couverture, ou dont le document n'en porte pas les grandeurs, est
+lu comme une révision marquée sans document : la couverture se calcule à la lecture (#4183).
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
