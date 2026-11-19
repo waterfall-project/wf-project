@@ -28,7 +28,6 @@ Nothing is restored then. The counter of the risk advances, never going back; th
 the nodes of its own estimate brought back are handed to the frame as they are left.
 """
 
-from contextlib import suppress
 from datetime import date
 from typing import TYPE_CHECKING, cast
 
@@ -42,7 +41,7 @@ from waterfall.core.estimate.interface import (
     set_provision_bearing,
     structure_amount,
 )
-from waterfall.core.history.interface import ObjectState, Undoable
+from waterfall.core.history.interface import UNDO_CONFLICT, ObjectState, Undoable
 from waterfall.core.planning.interface import (
     Place,
     Writer,
@@ -73,7 +72,7 @@ from waterfall.core.risks.following import advance_risks
 from waterfall.core.risks.reading import PROVISION_KIND, evaluation_of, found_risk
 from waterfall.core.risks.recording import amount, decoded_nodes, identifier, instant
 from waterfall.core.risks.tables import Risk, RiskEvaluation, RiskReview
-from waterfall.platform.errors import NOT_FOUND, NotFoundError
+from waterfall.platform.errors import NOT_FOUND, ConflictError, NotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -117,12 +116,20 @@ def lock_risks(session: Session, project_id: UUID, states: Snapshot) -> None:
     kept = {state.object_id: state for state in states}
     for risk_id, state in sorted(kept.items()):
         structure_id = cast("UUID", identifier(_rows(state, "evaluation"), "structure_id"))
-        # A risk the entry deleted, or whose declaration was undone, has no own estimate to hold.
-        with suppress(NotFoundError):
-            structure_facts(session, project_id, structure_id, lock=True)
+        of_risk = (Risk.project_id == project_id, Risk.id == risk_id)
+        # Only a risk absent now — deleted, or whose declaration was undone — has no own estimate
+        # to hold. A risk present whose own estimate is absent was taken up since, as a redoing of
+        # its declaration finds it: a conflict that names it (the history judges what it expects,
+        # which is nothing there), not a structure absent the entry would restore over.
+        label = session.scalar(select(Risk.label).where(*of_risk))
+        if label is not None:
+            try:
+                structure_facts(session, project_id, structure_id, lock=True)
+            except NotFoundError:
+                params = {"conflicting_object_id": str(risk_id), "conflicting_object_label": label}
+                raise ConflictError(UNDO_CONFLICT, params) from None
         place = _main(session, project_id, _revision_of(state))
         structure_facts(session, project_id, place.structure_id, lock=True)
-        of_risk = (Risk.project_id == project_id, Risk.id == risk_id)
         session.scalars(select(Risk.id).where(*of_risk).with_for_update()).first()
 
 

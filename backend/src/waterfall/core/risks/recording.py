@@ -13,11 +13,12 @@ token carries no session of sign-in has no stack: its write is made, and no entr
 
 The history keeps a risk as one object, at the counter of the risk (``Risk.lock_version``), which
 every write of the risk, of its evaluation or of its own estimate advances: a change another
-contributor made since is a conflict. Its rows are what an undoing or a redoing brings back
-(``undoing``): the identity, to create the risk again; its evaluation in the revision; its reviews
-there; the task that bears its provision line; the start of its own estimate and, for a write that
-creates or deletes the risk, every node of it (``whole``). Identifiers, amounts, days and instants
-are kept as text.
+contributor made since is a conflict. The change of its identity, which no entry restores, advances
+it too, and carries the new counter to the entries (``carry_everywhere``): it is no conflict. Its
+rows are what an undoing or a redoing brings back (``undoing``): the identity, to create the risk
+again; its evaluation in the revision; its reviews there; the task that bears its provision line;
+the start of its own estimate and, for a write that creates or deletes the risk, every node of it
+(``whole``). Identifiers, amounts, days and instants are kept as text.
 """
 
 from contextlib import ExitStack, contextmanager

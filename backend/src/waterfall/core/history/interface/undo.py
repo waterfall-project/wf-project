@@ -37,6 +37,7 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import func, select
 
+from waterfall.core.history.interface.recording import UndoStack
 from waterfall.core.history.interface.undoable import taken_aside, undoables
 from waterfall.core.history.snapshots import decoded, encoded, with_versions
 from waterfall.core.history.stacks import lock_stack, of_stack
@@ -49,7 +50,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.history.interface.recording import UndoneKind, UndoStack
+    from waterfall.core.history.interface.recording import UndoneKind
     from waterfall.core.history.snapshots import Snapshot
 
 UNDO_CONFLICT = "UNDO_CONFLICT"
@@ -287,3 +288,19 @@ def _follow(session: Session, stack: UndoStack, versions: dict[UUID, int]) -> No
             else:
                 entry.after = carried
     session.flush()
+
+
+def carry_everywhere(session: Session, project_id: UUID, versions: dict[UUID, int]) -> None:
+    """Carry the versions a write moved, of objects no entry restores, to every stack of a project.
+
+    A datum an entry keeps the version of but does not restore — the identity of a risk, H-02 —
+    moves its counter without being what an entry judges: each stack follows it as it follows the
+    versions of a restoring (``_follow``), so that the change is no conflict of an undoing.
+    """
+    stacks = session.execute(
+        select(UndoEntry.revision_id, UndoEntry.user_account_id, UndoEntry.session_id)
+        .where(UndoEntry.project_id == project_id)
+        .distinct()
+    ).all()
+    for revision_id, account_id, session_id in stacks:
+        _follow(session, UndoStack(revision_id, account_id, session_id), versions)

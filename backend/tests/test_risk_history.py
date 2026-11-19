@@ -23,6 +23,7 @@ import pytest
 from estimate_support import Costing, costing
 from history_support import delete
 from nodes_support import SESSION, refusal, signed_in
+from project_rows import risk_row
 from projects_support import Scene
 from projects_support import scene as make_scene
 from risks_support import (
@@ -35,13 +36,16 @@ from risks_support import (
     deactivate_category,
     material,
 )
-from sqlalchemy import select, update
+from sqlalchemy import delete as delete_rows
+from sqlalchemy import insert, select, update
 
+from waterfall.core.access_roles.tables import AccessRolePermission, Permission, UserAccessRole
 from waterfall.core.history.interface import RecordedChange, UndoStack, recording
 from waterfall.core.planning import writing
 from waterfall.core.planning.interface import snapshot, undo_last_change
 from waterfall.core.planning.tables import Task
 from waterfall.core.revisions.tables import CostStructure
+from waterfall.core.risks.tables import Risk
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import ForbiddenError
@@ -80,6 +84,26 @@ def risks(api: ContractClient, project: Costed) -> Risks:
 def who(stage: Scene, realm: TestRealm) -> Person:
     """Give a contributor of the project whose token carries a session of sign-in."""
     return signed_in(stage, realm)
+
+
+def holding(stage: Scene, realm: TestRealm, *permissions: str) -> Person:
+    """Give a contributor whose custom role holds these permissions, and a session of sign-in."""
+    return signed_in(stage, realm, permissions)
+
+
+def deprived(stage: Scene, who: Person, permission: str) -> None:
+    """Take a permission from the roles of a contributor, as a manager of the roles does."""
+    with stage.database.transaction() as session:
+        roles = select(UserAccessRole.access_role_id).where(
+            UserAccessRole.user_account_id == who.user_id
+        )
+        code = select(Permission.id).where(Permission.code == permission)
+        session.execute(
+            delete_rows(AccessRolePermission).where(
+                AccessRolePermission.access_role_id.in_(roles),
+                AccessRolePermission.permission_id.in_(code),
+            )
+        )
 
 
 def turned(risks: Risks, who: Person, way: str) -> Any:
@@ -516,3 +540,198 @@ def test_the_undoing_of_a_paste_of_the_execution_of_a_task_asks_for_the_remainin
     assert refused("planning.write") == "remaining.write"
     assert attempt("planning.write", "remaining.write").kind == "paste"
     assert project.tree.node(str(task_id))["task"]["label"] == STUDY
+
+
+# --- The undoing through the route, under the permissions of the risks (#2905) --------------------
+
+
+@pytest.mark.requirement("WF-ADM-0100-A")
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_a_role_that_holds_only_the_risks_write_undoes_and_redoes_a_review_by_the_route(
+    risks: Risks, stage: Scene, realm: TestRealm
+) -> None:
+    # A custom role that reads the project and writes its risks, nothing of the three grids: the
+    # review it wrote is undone (200) and redone by the routes, which ask no more for the planning.
+    owner = holding(stage, realm, "planning.read", "risks.read", "risks.write")
+    risk = risks.declared_costed()
+    entered(risks.review(risks.risk(risk), owner, probability="0.5"))
+    risk_undone(undone(risks, owner), "risk_review", risk)
+    assert risks.risk(risk)["probability"] == "0.3"
+    risk_undone(undone(risks, owner, "redo"), "risk_review", risk)
+    assert risks.risk(risk)["probability"] == "0.5"
+
+
+@pytest.mark.requirement("WF-ADM-0100-A")
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_the_undoing_of_a_review_by_the_route_is_refused_naming_the_risks_write_once_taken_away(
+    risks: Risks, stage: Scene, realm: TestRealm
+) -> None:
+    # The same role that keeps a grid but is no longer granted ``risks.write``: the dependency of
+    # the route passes, the service judges the entry and names ``risks.write`` (403): no undoing.
+    owner = holding(stage, realm, "planning.read", "risks.read", "risks.write", "remaining.write")
+    risk = risks.declared_costed()
+    entered(risks.review(risks.risk(risk), owner, probability="0.5"))
+    deprived(stage, owner, "risks.write")
+    assert refusal(turned(risks, owner, "undo")) == (
+        403,
+        "PERMISSION_MISSING",
+        {"missing_permission": "risks.write"},
+    )
+    assert risks.risk(risk)["probability"] == "0.5"
+
+
+@pytest.mark.requirement("WF-ADM-0100-A")
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_the_undoing_of_a_paste_of_the_execution_passes_the_route_under_the_remaining_write_alone(
+    project: Costed, risks: Risks, stage: Scene, realm: TestRealm
+) -> None:
+    # #2905 through the route: a role that reads the project and commits the remaining, no grid
+    # else, undoes the paste of the execution of a task (200); the entry is kept around the service.
+    owner = holding(stage, realm, "planning.read", "remaining.write")
+    task_id = project.tasks[STUDY]
+    pasted(project, owner, task_id, progress="started", started_on=date(2026, 11, 3))
+    assert undone(risks, owner)["undone"]["kind"] == "paste"
+    assert project.tree.node(str(task_id))["task"]["progress"] == "not_started"
+
+
+# --- What an entry is judged on: what it restores ------------------------------------------------
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_a_change_of_the_identity_by_the_author_is_no_conflict_of_the_undoing_of_a_review(
+    risks: Risks, who: Person
+) -> None:
+    # Only « la modification d'un autre contributeur » is a conflict: the author reviews, corrects
+    # the label, and undoes the review (200); the new label stays, the stack below is not blocked.
+    risk = risks.declared_costed()
+    reviewed = entered(risks.review(risks.risk(risk), who, probability="0.5"))
+    assert risks.update(reviewed, who, label="Grue en panne").status_code == 200
+    risk_undone(undone(risks, who), "risk_review", risk)
+    back = risks.risk(risk)
+    assert (back["label"], back["probability"]) == ("Grue en panne", "0.3")
+    risk_undone(undone(risks, who, "redo"), "risk_review", risk)
+    assert risks.risk(risk)["label"] == "Grue en panne"
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_a_real_write_of_another_contributor_after_a_change_of_the_identity_is_still_a_conflict(
+    risks: Risks, who: Person
+) -> None:
+    # The identity corrected, then the manager reviews the risk again: that is the modification of
+    # another contributor, 409 naming the risk by the label it has now.
+    risk = risks.declared_costed()
+    reviewed = entered(risks.review(risks.risk(risk), who, probability="0.5"))
+    assert risks.update(reviewed, who, label="Grue en panne").status_code == 200
+    risks.reviewed(risks.risk(risk), probability="0.6")
+    assert refusal(turned(risks, who, "undo")) == (
+        409,
+        "UNDO_CONFLICT",
+        {"conflicting_object_id": risk["risk_id"], "conflicting_object_label": "Grue en panne"},
+    )
+
+
+# --- What enters the history, and what does not --------------------------------------------------
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_a_change_of_the_provision_that_changes_nothing_keeps_no_entry(
+    risks: Risks, who: Person
+) -> None:
+    # ``updateRiskProvision`` with what the risk already has writes nothing: no entry is kept, and
+    # the review before it is the last change to undo.
+    risk = risks.declared_costed()
+    reviewed = entered(risks.review(risks.risk(risk), who, probability="0.5"))
+    same = {"provision_cost_category_id": reviewed["provision_cost_category_id"]}
+    assert risks.provision(reviewed, who, **same).status_code == 200
+    risk_undone(undone(risks, who), "risk_review", risk)
+    assert risks.risk(risk)["probability"] == "0.3"
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_a_write_of_a_risk_by_a_token_without_session_keeps_no_entry(risks: Risks) -> None:
+    # #2472: the token of the manager carries no ``sid``; its review is made, no stack keeps it.
+    risk = risks.declared_costed()
+    risks.reviewed(risks.risk(risk), probability="0.5")
+    assert risks.risk(risk)["probability"] == "0.5"
+    answer = risks.api.post(
+        f"{risks.base}/revisions/{risks.project.revision_id}/undo", headers=risks.headers
+    )
+    assert refusal(answer)[:2] == (403, "SESSION_ID_MISSING")
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_the_redoing_of_a_declaration_is_refused_when_the_risk_was_taken_up_since(
+    risks: Risks, project: Costed, stage: Scene, who: Person
+) -> None:
+    # The declaration undone, the risk is absent; found again under its identifier since — which
+    # the stacks would not let pass here: written around the service —, its redoing would create it
+    # twice: 409 ``UNDO_CONFLICT`` naming it.
+    risk = declared_by(risks, who)
+    risk_undone(undone(risks, who), "risk_create", risk)
+    with stage.database.transaction() as session:
+        session.execute(
+            insert(Risk).values(
+                **risk_row(
+                    project.project_id, id=UUID(risk["risk_id"]), label="Reprise", lock_version=7
+                )
+            )
+        )
+    assert refusal(turned(risks, who, "redo")) == (
+        409,
+        "UNDO_CONFLICT",
+        {"conflicting_object_id": risk["risk_id"], "conflicting_object_label": "Reprise"},
+    )
+
+
+# --- The restoring of a deleted task that carried a provision line (#4010) ------------------------
+
+
+def study_deleted(
+    risks: Risks, project: Costed, who: Person
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Delete the task of the provision line of a risk, which the line leaves for the next task."""
+    risk = risks.declared_costed()
+    task = project.tree.node(str(project.tasks[STUDY]))
+    assert delete(project.tree, task, who).status_code == 200
+    return risk, risks.risk(risk)
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_the_undoing_of_a_deletion_that_carried_a_provision_line_does_not_break_a_foreign_key(
+    risks: Risks, project: Costed, who: Person
+) -> None:
+    # Before US-2590/L2 the line, carried under ``Réalisation``, held the row of the task to bring
+    # back: the undoing failed on a foreign key (500). It is 200 and the line is under ``Étude``.
+    risk, carried = study_deleted(risks, project, who)
+    assert carried["provision_task"]["node_id"] == str(project.tasks[MAKING])
+    assert undone(risks, who)["undone"]["kind"] == "node_delete"
+    assert risks.risk(risk)["provision_task"]["node_id"] == str(project.tasks[STUDY])
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_the_redoing_of_a_deletion_that_carried_a_provision_line_is_no_conflict_on_the_line(
+    risks: Risks, project: Costed, who: Person
+) -> None:
+    # Before US-2590/L2 the redoing was refused (409): the line, carried back under ``Étude`` by the
+    # undoing, was judged at a counter the undoing had not carried to the entry.
+    risk, _ = study_deleted(risks, project, who)
+    undone(risks, who)
+    assert undone(risks, who, "redo")["undone"]["kind"] == "node_delete"
+    assert risks.risk(risk)["provision_task"]["node_id"] == str(project.tasks[MAKING])
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_a_task_brought_back_is_written_before_the_line_that_goes_under_it(
+    risks: Risks, project: Costed, who: Person
+) -> None:
+    # The nodes created again come before those changed (``bring_back``): the line goes under the
+    # task that is only now written again, and the tasks are in their order.
+    risk, _ = study_deleted(risks, project, who)
+    undone(risks, who)
+    line = risks.risk(risk)["provision_node_id"]
+    nodes = {each["node_id"]: each for each in project.tree.items()}
+    assert nodes[line]["parent_id"] == str(project.tasks[STUDY])
+    roots = [each["node_id"] for each in project.tree.items() if each["parent_id"] is None]
+    assert roots[:2] == [str(project.tasks[STUDY]), str(project.tasks[MAKING])]

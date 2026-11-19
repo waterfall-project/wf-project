@@ -47,6 +47,8 @@ from waterfall.core.planning.interface import (
 router = APIRouter(tags=["revisions"])
 
 CONSULT = "planning.read"
+# What lets a caller undo or redo: the permission of any kind of entry; the service judges it.
+UNDOING = (*ENTRIES, "risks.write")
 REVISION = "/projects/{project_id}/revisions/{revision_id}"
 
 
@@ -129,7 +131,7 @@ def post_paste(
 @router.post(
     f"{REVISION}/undo",
     operation_id="undoLastChange",
-    dependencies=[Depends(RequiresProject(CONSULT, one_of=ENTRIES))],
+    dependencies=[Depends(RequiresProject(CONSULT, one_of=UNDOING))],
     response_model=None,
 )
 def post_undo(
@@ -143,7 +145,7 @@ def post_undo(
 @router.post(
     f"{REVISION}/redo",
     operation_id="redoLastUndo",
-    dependencies=[Depends(RequiresProject(CONSULT, one_of=ENTRIES))],
+    dependencies=[Depends(RequiresProject(CONSULT, one_of=UNDOING))],
     response_model=None,
 )
 def post_redo(

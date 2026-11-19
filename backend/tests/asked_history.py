@@ -11,6 +11,9 @@ CONSULT = "planning.read"
 # The permissions of the three grids, one at least of which a paste, an undoing and a redoing ask
 # for (#2601, #2774).
 ENTRIES = ("planning.write", "estimate.write", "remaining.write")
+# An undoing and a redoing ask for the permission of the risks besides: their entries are undone
+# under ``risks.write`` (US-2590/L2).
+UNDOING = (*ENTRIES, "risks.write")
 
 # The permissions each operation asks for, in the order they are evaluated: a paste, an undoing and
 # a redoing, which the three grids make alike, one at least of their permissions (#2601, #2774). A
@@ -20,8 +23,8 @@ ENTRIES = ("planning.write", "estimate.write", "remaining.write")
 ASKED: dict[str, tuple[str, ...]] = {
     "previewPaste": (CONSULT, *ENTRIES),
     "applyPaste": (CONSULT, *ENTRIES),
-    "undoLastChange": (CONSULT, *ENTRIES),
-    "redoLastUndo": (CONSULT, *ENTRIES),
+    "undoLastChange": (CONSULT, *UNDOING),
+    "redoLastUndo": (CONSULT, *UNDOING),
 }
 # The quality on its project each operation that names one asks for, evaluated by
 # ``RequiresProject``: ``consultation``, ``contributor`` or ``project_manager`` (WF-ADM-0110).

@@ -41,6 +41,7 @@ from waterfall.core.cost_settings.interface import (
     share_natures,
 )
 from waterfall.core.estimate.interface import ProvisionEntry, rename_provision
+from waterfall.core.history.interface import carry_everywhere
 from waterfall.core.planning.interface import Place, create_borne_line, first_task, task_of
 from waterfall.core.projects.interface import (
     ACTIVE_PROVISION_CATEGORY,
@@ -360,6 +361,9 @@ def change_identity(
     risk.updated_at, risk.updated_by = act.at, act.author
     risk.lock_version += 1
     session.flush()
+    # The identity is no entry of the history and no entry restores it: its counter, which the
+    # entries of the risk are judged on, is carried to them, so that it is no conflict (US-2590/L2).
+    carry_everywhere(session, project_id, {risk.id: risk.lock_version})
     if renamed and current is not None:
         _rename_in_revision(session, (project_id, current), written[0], act)
 
