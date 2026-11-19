@@ -24,22 +24,18 @@ from risks_support import MOST_STATEMENTS_OF_REGISTER, Costed, Risks, costed, sh
 from sqlalchemy import delete, event, insert, select, update
 
 from waterfall.core.cost_settings.interface import read_reference_settings
-from waterfall.core.estimate.interface import Coverage, register_coverage
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.tables import Node
 from waterfall.core.risk_settings.interface import zone_of
 from waterfall.core.risks.tables import RiskEvaluation, RiskReferenceShare, RiskReview
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-
     from realm import TestRealm
     from sqlalchemy import Engine
     from support import ContractClient
 
     from waterfall.platform.database import Database
 
-RESERVE = Decimal("850.00")
 # The five risks: label, probability, severity, the day of the last review.
 DELAY = ("Retard de livraison", "0.30", "200.00", date(2026, 1, 10))
 STUDY = ("Étude hydrologique incomplète", "0.50", "400.00", date(2026, 2, 20))
@@ -51,6 +47,8 @@ ALL = (DELAY, STUDY, STRIKE, CRANE, FOREMAN)
 CRANE_SHARE = Decimal("80.00")
 FOREMAN_SHARE = Decimal("25.00")
 CRANE_COST = Decimal("300.00")
+# The reserve the reference conserves: the shares of the two, the three others written none.
+RESERVE = CRANE_SHARE + FOREMAN_SHARE
 
 
 @pytest.fixture
@@ -64,17 +62,6 @@ def project(api: ContractClient, stage: Scene) -> Costed:
     """Give the project costed at 1 000 in its current revision."""
     costs: Costing = costing(stage.database)
     return costed(api, stage, costs)
-
-
-@pytest.fixture
-def reserve() -> Iterator[None]:
-    """Answer the coverage of the risks with a reserve, as US-2610 will with the shares."""
-    nought = Decimal("0.00")
-    withdraw = register_coverage(
-        lambda _session, _project, _revision: Coverage(RESERVE, nought, nought, nought, nought)
-    )
-    yield
-    withdraw()
 
 
 @dataclass(frozen=True)
@@ -390,25 +377,23 @@ def test_a_risk_never_reviewed_sorts_after_the_others_and_before_them_when_desce
 
 @pytest.mark.requirement("WF-RIS-0040-A")
 def test_the_three_totals_are_distinct_and_the_reserve_is_beside_them(
-    register: Registered, reserve: None
+    register: Registered,
 ) -> None:
     # 200 + 60 + 10 identified at their provision, the occurred at the 80 the reference held, the
-    # dismissed at the 25; the reserve of the coverage beside them.
-    del reserve
+    # dismissed at the 25; the reserve the reference conserves beside them: the 80 and the 25.
     assert register.page()["totals"] == {
         "identified": "270.00",
         "occurred": "80.00",
         "dismissed": "25.00",
         "total": "375.00",
-        "reserve": "850.00",
+        "reserve": str(RESERVE),
     }
 
 
 @pytest.mark.requirement("WF-RIS-0040-A")
 def test_the_totals_are_those_of_the_risks_retained_not_of_the_page(
-    register: Registered, reserve: None
+    register: Registered,
 ) -> None:
-    del reserve
     body = register.page("?limit=1&offset=1")
     assert [item["label"] for item in body["items"]] == [STUDY[0]]
     assert body["meta"] == {"limit": 1, "offset": 1, "total": 5}
@@ -420,7 +405,7 @@ def test_the_totals_are_those_of_the_risks_retained_not_of_the_page(
         "occurred": "0.00",
         "dismissed": "0.00",
         "total": "270.00",
-        "reserve": "850.00",
+        "reserve": str(RESERVE),
     }
 
 
@@ -497,9 +482,8 @@ def test_the_zone_filter_keeps_the_risks_whose_cell_is_in_one_of_the_zones(
 
 @pytest.mark.requirement("WF-IHM-0130-A")
 def test_the_totals_follow_a_filter_that_retains_one_risk(
-    register: Registered, reserve: None
+    register: Registered,
 ) -> None:
-    del reserve
     body = register.page("?probability_min=0.5")
     assert [item["label"] for item in body["items"]] == [STUDY[0]]
     assert body["totals"] == {
@@ -507,7 +491,7 @@ def test_the_totals_follow_a_filter_that_retains_one_risk(
         "occurred": "0.00",
         "dismissed": "0.00",
         "total": "200.00",
-        "reserve": "850.00",
+        "reserve": str(RESERVE),
     }
     nothing = register.page("?probability_min=0.9")
     assert (nothing["items"], nothing["meta"]["total"]) == ([], 0)

@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from waterfall.core.estimate.interface import (
         AmountByKey,
         CalculationContext,
+        Coverage,
         EstimateIndicators,
         Figure,
         MissingRate,
@@ -141,21 +142,34 @@ def _context(context: CalculationContext) -> dict[str, Any]:
     }
 
 
+def _coverage(coverage: Coverage) -> dict[str, Any]:
+    """Write the coverage of the risks as the contract writes it (``RiskCoverageTotals``)."""
+    return {
+        "reserve": _money(coverage.reserve),
+        "remaining_provisions": _money(coverage.remaining_provisions),
+        "occurred_cost": _money(coverage.occurred_cost),
+        "occurred_reestimated": _money(coverage.occurred_reestimated),
+        "coverage_variance": _money(coverage.coverage_variance),
+    }
+
+
+def risk_coverage_document(context: CalculationContext, coverage: Coverage) -> Document:
+    """Write the coverage of the risks of a revision as the contract writes it (``RiskCoverage``).
+
+    The totals the remaining to commit gives for its ``coverage``, under their context: the two
+    never part (WF-RAE-0020).
+    """
+    return {"context": _context(context), **_coverage(coverage)}
+
+
 def remaining_document(found: RemainingIndicators) -> Document:
     """Write the indicators of the remaining to commit as the contract writes them."""
-    coverage = found.coverage
     return {
         "context": _context(found.context),
         "total": _money(found.total),
         "by_cost_type": [_remaining_by_key(each) for each in found.by_cost_type],
         "by_subproject": [_balance(each) for each in found.by_subproject],
-        "coverage": {
-            "reserve": _money(coverage.reserve),
-            "remaining_provisions": _money(coverage.remaining_provisions),
-            "occurred_cost": _money(coverage.occurred_cost),
-            "occurred_reestimated": _money(coverage.occurred_reestimated),
-            "coverage_variance": _money(coverage.coverage_variance),
-        },
+        "coverage": _coverage(found.coverage),
         "delta_to_reference": (
             None if found.delta_to_reference is None else _money(found.delta_to_reference)
         ),

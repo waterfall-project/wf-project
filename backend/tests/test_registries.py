@@ -21,6 +21,7 @@ the work breakdown, the facets, the formats and the exporters, the coverage of t
 the fillers of the witness.
 """
 
+import importlib
 import json
 import subprocess
 import sys
@@ -115,6 +116,7 @@ from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.logs import logging_context
+from waterfall.platform.registry import Registry
 from waterfall.witness.revisions import OpenedRevision, register_revision_filler
 
 if TYPE_CHECKING:
@@ -320,11 +322,15 @@ REGISTERED_BY_EP09 = {
     "planning.zeroed_at": [f"{ESTIMATE}.kanban.zeroed_lines"],
 }
 RISKS = "waterfall.core.risks.following"
+RISKS_CORE = "waterfall.core.risks"
 # What the risks register (US-2570/L1): the copy of their evaluations after the copies of the rows
 # they name, their deletion at an abandonment before the content of the revision, and what follows
 # the counter of an own estimate; and what names the risks of the provision lines a deletion or an
-# import moves, and follows them (US-2580/L1).
+# import moves, and follows them (US-2580/L1); the shares of the reserve a designation writes, and
+# the coverage of the remaining to commit (US-2610/L1).
 REGISTERED_BY_EP08 = {
+    "estimate.coverage": [f"{RISKS_CORE}.interface.coverage.risk_coverage_of"],
+    "revisions.designation": [f"{RISKS_CORE}.sharing.write_shares"],
     "revisions.copy": [f"{RISKS}.copy_evaluations"],
     CLOSING: [f"evaluations:{RISKS}.close_evaluations"],
     "revisions.own_estimate_counted": [f"{RISKS}.follow_own_estimate"],
@@ -413,15 +419,14 @@ def test_every_registry_holds_what_the_socle_of_ep09_registers_after_the_estimat
 ) -> None:
     # The extensions of the remaining to commit and of the actual costs, beside those of EP-06 and
     # EP-07; the remaining of the review before is no copy of its own: the copy of the lines writes
-    # it (US-2240/L2), and the copy of the rates comes last. Nothing answers the coverage of the
-    # risks before EP-08.
+    # it (US-2240/L2), and the copy of the rates comes last. The risks answer the coverage
+    # (``REGISTERED_BY_EP08``).
     others = before(REGISTERED, REGISTERED_BY_EP07, REGISTERED_BY_EP08)
     for name, entries in REGISTERED_BY_EP09.items():
         held = [entry for entry in everything[name] if entry not in others.get(name, set())]
         assert held == entries, name
     copies = everything["revisions.copy"]
     assert copies[copies.index(f"{RISKS}.copy_evaluations") - 1] == f"{CORE}.keeping.copy_rates"
-    assert everything["estimate.coverage"] == []
 
 
 def test_every_registry_holds_what_the_socle_of_ep10_registers_after_the_others(
@@ -779,11 +784,27 @@ def test_a_kind_has_one_facet_one_format_and_one_exporter_at_most() -> None:
     assert (dict(facets()), dict(formats()), dict(exporters())) == held
 
 
-def test_the_coverage_of_the_risks_is_zero_until_the_risks_answer_it_once(
-    session: Session,
+def test_the_coverage_of_the_risks_has_the_answer_of_the_risks_alone() -> None:
+    # What EP-08 answers for a revision of a project, once, at the import of its interface: a second
+    # answer is refused, the risks being one module's (the registry holds theirs, in
+    # ``REGISTERED_BY_EP08``).
+    def cover(_session: Session, _project: UUID, _revision: UUID) -> Coverage:
+        return NO_COVERAGE
+
+    with pytest.raises(ValueError, match="has its answer already"):
+        register_coverage(cover)
+
+
+def test_the_coverage_of_the_risks_is_zero_until_something_answers_it_once(
+    session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # What EP-08 answers for a revision of a project; zero before, and after its withdrawal; a
-    # second answer refused, the risks being one module's.
+    # The registry the estimate declares, without the answer of the risks, which this test sets
+    # aside for its duration: zero before an answer and after its withdrawal, the arguments passed
+    # to the answer, a second answer refused.
+    empty: Registry[Callable[[Session, UUID, UUID], Coverage]] = Registry()
+    # ``interface.remaining_indicators`` is the function the package re-exports: the module by name.
+    module = importlib.import_module("waterfall.core.estimate.interface.remaining_indicators")
+    monkeypatch.setattr(module, "_COVERAGE", empty)
     project_id, revision_id = uuid4(), uuid4()
     asked: list[tuple[UUID, UUID]] = []
     answered = Coverage(
@@ -798,7 +819,7 @@ def test_the_coverage_of_the_risks_is_zero_until_the_risks_answer_it_once(
         asked.append((project, revision))
         return answered
 
-    assert risk_coverage(session, project_id, revision_id) == Coverage(*(Decimal("0.00"),) * 5)
+    assert risk_coverage(session, project_id, revision_id) == NO_COVERAGE
     with ExitStack() as registered:
         registered.callback(register_coverage(cover))
         assert risk_coverage(session, project_id, revision_id) == answered

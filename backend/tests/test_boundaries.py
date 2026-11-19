@@ -299,6 +299,7 @@ DESIGNED: dict[str, set[str]] = {
         "list_risks",
         "risk_matrix",
         "risk_coverage_of",
+        "kept_coverage",
         "occurrence_report",
         "submit_occurrence",
         "run_occurrence",

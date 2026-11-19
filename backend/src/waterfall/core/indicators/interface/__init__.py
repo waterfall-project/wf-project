@@ -48,6 +48,11 @@ from waterfall.core.indicators.interface.estimate_documents import (
     remaining_document as remaining_document,
 )
 
+# ``estimate_documents`` (US-2610/L1): the coverage of the risks under its context.
+from waterfall.core.indicators.interface.estimate_documents import (
+    risk_coverage_document as risk_coverage_document,
+)
+
 # ``index_history`` (US-1660/L1; US-1700): the evolution of the indices.
 from waterfall.core.indicators.interface.index_history import (
     index_history as index_history,

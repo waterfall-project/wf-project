@@ -22,7 +22,8 @@ terminal project (409 ``project_not_terminal``), then the first condition the co
 ``designate_reference`` lacks (409). It writes ``is_reference`` of the previous reference and of
 the new one, the project, and ``reference_designate`` in the journal; the project moves to In
 progress if its code is entered (``set_reference_revision``). The modules registered then do their
-part (``register_designation``: the budgeted amounts of EP-07), in the same transaction.
+part (``register_designation``: the budgeted amounts of EP-07, the reserve for risks of EP-08), in
+the same transaction.
 """
 
 from dataclasses import dataclass, replace
@@ -117,7 +118,10 @@ def _write(revision: Revision, *, reference: bool, act: Act) -> None:
 class ReferenceDesignated:
     """A reference just designated, in the transaction of its designation, under its locks.
 
-    ``at`` is the instant of the designation, ``author`` who designated it.
+    ``at`` is the instant of the designation, ``author`` who designated it; ``previous_id`` the
+    revision that was the reference before, none for a first designation, and ``corrects`` whether
+    the designation corrects that one (``reference_correctable``, WF-REV-0040) rather than follows
+    it with a new reference of the project.
     """
 
     session: Session
@@ -125,6 +129,8 @@ class ReferenceDesignated:
     revision_id: UUID
     at: datetime
     author: UUID | None
+    previous_id: UUID | None = None
+    corrects: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,7 +199,15 @@ def designate_reference(
     _write(revision, reference=True, act=act)
     session.flush()
     set_reference_revision(session, project_id, revision_id, act)
-    designation = ReferenceDesignated(session, project_id, revision_id, act.at, act.author)
+    designation = ReferenceDesignated(
+        session,
+        project_id,
+        revision_id,
+        act.at,
+        act.author,
+        None if previous is None else previous.id,
+        corrects=state.reference_correctable,
+    )
     # The current revision, opened or marked since it was held, is held under the lock now.
     hold_current_revision(session, project_id)
     for follow in _DESIGNATIONS.entries():
