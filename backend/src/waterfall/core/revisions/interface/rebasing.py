@@ -30,13 +30,18 @@ estimate of a risk will take them up (EP-30).
 judged as its update is (``rebase_conditions``), the parts asked, writing nothing, and the counters
 of the two structures read, which the confirmation sends back.
 
-Written by US-3050/L3.
+``rebased_structure`` is what the application leaves of the structures themselves, once the nodes
+are written: the differential bears the counter of the main structure, which it is up to date at,
+and its base takes the start (the column as it is, null included) and the dates' instant of the
+main structure it is a copy of.
+
+Written by US-3050/L3; the application by US-3050/L4.
 """
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from waterfall.core.projects.interface import (
     TERMINAL,
@@ -47,7 +52,7 @@ from waterfall.core.revisions.commands import RebaseState, rebase_conditions
 from waterfall.core.revisions.interface.bases import differential_base
 from waterfall.core.revisions.interface.merging import by_change
 from waterfall.core.revisions.interface.shared import refuse
-from waterfall.core.revisions.interface.structures import AMENDMENT, BASE, MAIN
+from waterfall.core.revisions.interface.structures import AMENDMENT, BASE, MAIN, structure_facts
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.errors import NOT_FOUND, NotFoundError
@@ -202,3 +207,40 @@ def rebase_report(session: Session, structure: tuple[UUID, UUID, UUID], act: Act
         structure_lock_version=differential.lock_version,
         found=rebase_parts(rebasing),
     )
+
+
+def rebased_structure(rebasing: StructureRebasing) -> None:
+    """Make a differential up to date and its base the main structure as it stands.
+
+    To be called under the lock of the three structures, once the nodes are written: the
+    differential bears the counter the main structure bears now (``main_lock_version``), its base
+    the start and the instant of the dates of the main structure, whose nodes it copies. The
+    counter of the differential advances with the replay of its dates, not here; the main
+    structure is not written. Written by statements: the caller gives up the rows it read.
+    """
+    session, project_id = rebasing.session, rebasing.project_id
+    main = structure_facts(session, project_id, rebasing.main_structure_id, lock=False)
+    session.execute(
+        update(CostStructure)
+        .where(CostStructure.project_id == project_id, CostStructure.id == rebasing.structure_id)
+        .values(
+            main_lock_version=main.lock_version,
+            updated_at=rebasing.act.at,
+            updated_by=rebasing.act.author,
+        )
+        .execution_options(synchronize_session=False)
+    )
+    # The column as the main structure holds it, null if it is: ``main.planning_start_on`` is
+    # derived when the column is null, a value the main structure does not bear.
+    start = session.scalar(
+        select(CostStructure.planning_start_on).where(
+            CostStructure.project_id == project_id, CostStructure.id == rebasing.main_structure_id
+        )
+    )
+    session.execute(
+        update(CostStructure)
+        .where(CostStructure.project_id == project_id, CostStructure.id == rebasing.base_id)
+        .values(planning_start_on=start, scheduled_at=main.scheduled_at)
+        .execution_options(synchronize_session=False)
+    )
+    session.flush()

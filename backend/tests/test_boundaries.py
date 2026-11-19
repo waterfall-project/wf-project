@@ -148,6 +148,8 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "physical_progress",
         "predecessors",
         "progress",
+        # A differential updated from the main structure, and for the witness (US-3050/L4).
+        "rebased",
         # Its part of the update of a differential, and its end (US-3050/L3, EP-08).
         "rebasing",
         "reference",
