@@ -266,6 +266,21 @@ def test_a_paste_aimed_at_a_removed_task_is_refused_to_whoever_may_not_write_the
     assert [each["code"] for each in plan["rejected"]] == ["PASTE_TARGET_REMOVED"]
 
 
+@pytest.mark.requirement("WF-ADM-0100-A")
+def test_a_paste_aimed_at_a_removed_line_asks_for_no_permission_of_the_planning_as_on_a_line(
+    api: ContractClient, project: Costed, realm: TestRealm
+) -> None:
+    # The permission of the columns of a task is asked of a task alone: a line is pasted on by
+    # whoever writes the estimate, kept or removed — the removed path is that of the ordinary one.
+    tree = removing(api, project)
+    estimating = contributor_with(project, realm, "estimate.write")
+    kept = preview(tree, node_of(tree, "Plans"), "label", [["Plans 2"]], estimating)
+    assert kept.status_code == 200, kept.text
+    removed = preview(tree, node_of(tree, "Fabrication"), "label", [["Un"]], estimating)
+    assert removed.status_code == 200, removed.text
+    assert [each["code"] for each in removed.json()["rejected"]] == ["PASTE_TARGET_REMOVED"]
+
+
 @pytest.mark.requirement("WF-IHM-0050-A")
 def test_a_paste_aimed_at_a_removed_node_judges_its_column_its_width_and_its_existence_first(
     api: ContractClient, project: Costed

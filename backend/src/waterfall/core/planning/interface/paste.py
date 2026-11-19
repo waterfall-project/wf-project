@@ -136,6 +136,7 @@ if TYPE_CHECKING:
     from waterfall.core.planning.interface.nodes import CreationJudged
     from waterfall.core.planning.writing import Place, Write, Writer
     from waterfall.core.projects.interface import WorkBreakdownItem
+    from waterfall.core.revisions.interface import StructureFacts
     from waterfall.platform.audit import Act
 
 COMPUTED_VALUE = "COMPUTED_VALUE"
@@ -639,9 +640,19 @@ def _task_columns(tree: Tree, target: UUID, row: _Row) -> set[str]:
     kept: set[str] = set()
     if row.creates and tree.nodes[target].kind == TASK:
         kept = columns - {"label"}
-    elif not row.creates and row.node_id in tree.tasks:
-        kept = columns & set(TASK_COLUMNS)
+    elif not row.creates:
+        kept = _own_columns(columns, row.node_id in tree.tasks)
     return kept
+
+
+def _own_columns(columns: set[str], is_task: bool) -> set[str]:
+    """Give the columns of a task's own among those a row writes on a node: none if it is no task."""
+    return columns & set(TASK_COLUMNS) if is_task else set()
+
+
+def _given(columns: tuple[NodeColumn, ...], cells: list[str]) -> tuple[tuple[NodeColumn, str], ...]:
+    """Give the cells of a row of the block that hold a text, with the column each falls on."""
+    return tuple((columns[at], text) for at, text in enumerate(cells) if text.strip())
 
 
 def _refuse_task_columns(
@@ -704,7 +715,7 @@ def preview_paste(
     """
     facts = facts_of(session, place, lock=False)
     if block.target_node_id in block.removed:
-        return _refused_whole(session, place, block, (writer, permissions))
+        return _refused_whole(session, place, block, facts, (writer, permissions))
     tree = read_tree(session, place.project_id, place.structure_id)
     if block.target_node_id not in tree.nodes:
         raise NotFoundError(NOT_FOUND)
@@ -722,9 +733,7 @@ def preview_paste(
     start = tree.order.index(block.target_node_id)
     given_rows: list[_Row] = []
     for index, cells in enumerate(block.rows):
-        given: tuple[tuple[NodeColumn, str], ...] = tuple(
-            (columns[at], text) for at, text in enumerate(cells) if text.strip()
-        )
+        given = _given(columns, cells)
         if given:
             given_rows.append(_row_at(tree.order, start + index, index, given))
     _refuse_task_columns(tree, block.target_node_id, given_rows, permissions)
@@ -771,17 +780,20 @@ def _refused_whole(
     session: Session,
     place: Place,
     block: PasteBlock,
+    facts: StructureFacts,
     asking: tuple[Writer, Collection[str]],
 ) -> PastePlanned:
     """Keep the plan of a block aimed at a removed node, refused whole, and give it (#1361).
 
-    ``asking`` is who writes and the permissions they hold.
+    ``facts`` are those of the structure, as ``preview_paste`` read them; ``asking`` is who writes
+    and the permissions they hold.
 
     The request is judged first, as for any node (#4016): the node, as the main structure holds
-    it (404), the column and the width (422), the permission of a task's columns (403); no plan.
+    it (404), the column and the width (422), the permission of a task's columns (403, by the
+    columns ``_own_columns`` gives, as a block on any task); no plan. A line asks for no
+    permission here, nor at an ordinary paste: whoever may write a grid pastes on it (#2601).
     """
     writer, permissions = asking
-    facts = facts_of(session, place, lock=False)
     kind = session.scalar(
         select(Node.kind).where(
             Node.project_id == place.project_id, Node.id == block.target_node_id
@@ -790,14 +802,10 @@ def _refused_whole(
     if kind is None:
         raise NotFoundError(NOT_FOUND)
     columns = _columns_from(kind, block)
-    if kind == TASK:
-        written = {
-            columns[at]
-            for cells in block.rows
-            for at, text in enumerate(cells)
-            if text.strip() and columns[at] in TASK_COLUMNS
-        }
-        _refuse_written(written, permissions)
+    written: set[str] = set()
+    for cells in block.rows:
+        written |= _own_columns({column for column, _ in _given(columns, cells)}, kind == TASK)
+    _refuse_written(written, permissions)
     refusal = PasteRefusal(0, block.target_column, PASTE_TARGET_REMOVED, {})
     plan = PlanToKeep(
         project_id=place.project_id,
