@@ -3061,6 +3061,14 @@ Ce que la même commande engendre ne se relit jamais sur le disque : les indicat
 et les courbes du témoin, que le portefeuille somme, lui sont passés en mémoire, pour qu'une seule
 exécution de `make mock-data` atteigne son point fixe.
 
+**La tranche du portefeuille**, hors du contrat, s'écrit sous `fixtures/witness/portfolio/` : la
+description des dix projets que le chargeur du témoin ajoute à PRJ-001 et à PRJ-002, chaque écriture
+dans la forme de son schéma du contrat (`projects/`, `wftools.mockslice`), et les lectures attendues
+des huit vues du portefeuille au 3 juin 2026, lues par `as_of` (`readings/`,
+`wftools.mockslicereadings` et `wftools.mocksliceviews`), calculées sans rien importer du back
+(EP-11, US-2770 ; tenues par `tools/tests/test_mockslice.py` et
+`backend/tests/test_witness_portfolio_slice.py`).
+
 **Ce qui reste écrit à la main** — sessions, comptes et rôles, référentiel (rôles de ressources et
 leurs effectifs, calendriers, nœuds d'organisation), le projet, ses révisions et ses transitions,
 imports et leurs comptes rendus, tâches de fond, état du système et sauvegardes, variantes

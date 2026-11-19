@@ -1009,7 +1009,7 @@ filtres de la liste, et ce que le service rend autrement que le faux back. Le cl
 
 ## US-2770 — Le témoin : la tranche du portefeuille, et le parcours du manager
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0020-A`
 - **opérations** : les huit opérations du portefeuille ; `getReferenceSettings`,
   `updateReferenceSettings`, `listProjects`, `getProject`

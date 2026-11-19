@@ -1,0 +1,19 @@
+{
+  "summary": "Ce que getPortfolioCostCurve doit répondre sur le témoin chargé avec la tranche du portefeuille, lu au 2026-06-03 par as_of : chaque projet par ce que sa dernière révision marquée à cette date a conservé (WF-PTF-0010, WF-DAT-0040, WF-QUA-0040).",
+  "description": "Lecture attendue engendrée par `make mock-data` (`wftools.mocksliceviews`) : elle ne se retouche pas.",
+  "operation": "getPortfolioCostCurve",
+  "query": {
+    "as_of": "2026-06-03",
+    "states": "in_progress,pricing,completed"
+  },
+  "value": {
+    "scope": {"states":["in_progress","pricing","completed"],"as_of":"2026-06-03","from":"2025-06-04","to":"2026-06-03","org_node_id":null,"org_node_label":null,"project_count":10},
+    "payment_delays": false,
+    "series": [
+      {"name":"reference_budget","points":[{"date":"2025-06-30","amount":"0.00"},{"date":"2025-07-31","amount":"0.00"},{"date":"2025-08-31","amount":"0.00"},{"date":"2025-09-30","amount":"0.00"},{"date":"2025-10-31","amount":"11775.00"},{"date":"2025-11-30","amount":"35550.00"},{"date":"2025-12-31","amount":"44550.00"},{"date":"2026-01-31","amount":"72200.00"},{"date":"2026-02-28","amount":"103700.00"},{"date":"2026-03-31","amount":"179233.33"},{"date":"2026-04-30","amount":"358498.45"},{"date":"2026-05-31","amount":"1621812.49"},{"date":"2026-06-30","amount":"2914266.37"},{"date":"2026-07-31","amount":"5084759.24"},{"date":"2026-08-31","amount":"6538133.10"},{"date":"2026-09-30","amount":"8550629.55"},{"date":"2026-10-31","amount":"10386777.03"},{"date":"2026-11-30","amount":"12894200.22"}]},
+      {"name":"actual_cost","points":[{"date":"2025-06-30","amount":"0.00"},{"date":"2025-07-31","amount":"0.00"},{"date":"2025-08-31","amount":"0.00"},{"date":"2025-09-30","amount":"0.00"},{"date":"2025-10-31","amount":"11300.00"},{"date":"2025-11-30","amount":"39800.00"},{"date":"2025-12-31","amount":"48400.00"},{"date":"2026-01-31","amount":"74800.00"},{"date":"2026-02-28","amount":"113500.00"},{"date":"2026-03-31","amount":"114000.00"},{"date":"2026-04-30","amount":"114000.00"},{"date":"2026-05-31","amount":"114000.00"},{"date":"2026-06-03","amount":"114000.00"}]},
+      {"name":"project_manager_projection","points":[{"date":"2026-06-03","amount":"1712191.39"},{"date":"2026-06-30","amount":"3104062.98"},{"date":"2026-07-31","amount":"5217314.18"},{"date":"2026-08-31","amount":"6632242.00"},{"date":"2026-09-30","amount":"8594503.66"},{"date":"2026-10-31","amount":"10381935.08"},{"date":"2026-11-30","amount":"12822663.49"}]}
+    ],
+    "cash_out_by_month": null
+  }
+}
