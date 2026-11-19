@@ -111,7 +111,8 @@ def test_delete_is_listed_on_a_differential_not_merged_alone() -> None:
     # Each differential is merged or abandoned independently (WF-REV-0100): the abandonment is a
     # command of the differential not merged, with the state conditions of the opening of a
     # differential, in the same order; never on a structure it could not abandon.
-    assert _enumeration("revisions", "StructureCommand")[-1] == "delete"
+    commands = _enumeration("revisions", "StructureCommand")
+    assert commands.index("delete") == commands.index("edit_remaining") + 1
     for name, revision in (
         ("structures", "revision"),
         ("structures_amendments", "revision_marked"),

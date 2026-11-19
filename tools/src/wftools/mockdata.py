@@ -107,6 +107,7 @@ from wftools import (
     mockplanning,
     mockportfoliotime,
     mockproject,
+    mockrebase,
     mockreference,
     mockrefusals,
     mockrender,
@@ -326,7 +327,8 @@ def named() -> dict[str, JsonObject]:
     anonymised (``mockanonymized``); the exit of the witness (``mockproject``); the refusals of one
     form each (``mockrefusals``), those the contract declared without a code, a condition nor an
     example (``mockdeclared``), of the administration (``mockadminrefusals``), served undeclared
-    (``mockservedrefusals``), of the differentials (``mockdifferentials``); the majors of the
+    (``mockservedrefusals``), of the differentials (``mockdifferentials``); the update of the
+    amendment 2 (``mockrebase``); the majors of the
     review (``mockreview``); the loaders' (``mockwitness*``, ``mockchronology``).
     """
     marked = mocksnapshot.revisions(categories())
@@ -359,6 +361,7 @@ def named() -> dict[str, JsonObject]:
         **mockreview.examples(),
         **mockrevisionminors.examples(),
         **mockdifferentials.examples(),
+        **mockrebase.examples(),
         **mockservedrefusals.examples(),
         **mockspendingrefusals.examples(),
         **mockchronology.examples(),

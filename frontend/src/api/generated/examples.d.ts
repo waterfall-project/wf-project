@@ -155,6 +155,9 @@ export interface Examples {
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
     200: "dependencies_labour" | "dependencies_labour_category" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_provision_subproject" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
   };
+  "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase": {
+    200: "structure_rebase_report" | "structure_rebase_report_refused";
+  };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}": {
     200: "row_number_estimate_line" | "row_number_task";
   };
@@ -359,6 +362,9 @@ export interface Examples {
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview": {
     200: "paste_plan" | "paste_plan_amendment" | "paste_plan_amendment_skipping" | "paste_plan_amendment_target_removed" | "paste_plan_creating" | "paste_plan_creating_lines" | "paste_plan_subproject_held" | "paste_plan_unknown_category" | "paste_plan_without_hours";
+  };
+  "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase": {
+    200: "structure_rebased";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/undo": {
     200: "undo_task_renamed" | "undo_task_renamed_one_left";

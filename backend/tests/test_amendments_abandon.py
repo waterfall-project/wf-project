@@ -459,7 +459,10 @@ def test_the_opening_answers_the_commands_of_the_example_of_the_contract(
     answer = open_amendment(api, project, example["label"])
     assert answer.status_code == 201, answer.text
     created = answer.json()
-    assert created["available_commands"] == example["available_commands"]
+    # The contract lists ``rebase`` since US-3050/L1; the service lists it from US-3050/L2, which
+    # removes this filter.
+    served = [each for each in example["available_commands"] if each["command"] != "rebase"]
+    assert created["available_commands"] == served
     assert created["lock_version"] == example["lock_version"]
     assert abandoned(api, project, created["structure_id"]).status_code == 204
 

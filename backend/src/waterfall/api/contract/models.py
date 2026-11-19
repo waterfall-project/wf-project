@@ -1032,6 +1032,8 @@ class CommandCondition(StrEnum):
     subproject_without_estimate_lines = "subproject_without_estimate_lines"
     main_structure_without_tasks = "main_structure_without_tasks"
     main_structure = "main_structure"
+    structure_up_to_date = "structure_up_to_date"
+    structure_out_of_date = "structure_out_of_date"
     import_awaiting_decision = "import_awaiting_decision"
     import_file_accepted = "import_file_accepted"
     import_not_applied = "import_not_applied"
@@ -4095,6 +4097,7 @@ class StructureCommand(StrEnum):
     edit_estimate = "edit_estimate"
     edit_remaining = "edit_remaining"
     delete = "delete"
+    rebase = "rebase"
 
 
 class StructureCommandAvailability(ContractModel):
@@ -4128,6 +4131,12 @@ class CostStructure(ContractModel):
             description="True when the differential has been merged into the main structure (WF-REV-0050), or when a risk's own estimate has been merged by its occurrence (WF-RIS-0060). A merged structure is consumed: it is only in the revision where it was merged, which its marking freezes, and the next revision does not take it over (`createRevision`). A current revision therefore never carries a merged structure it has taken over; true is read there only for the own estimate of a risk that occurred since its opening, the occurrence marking no revision (WF-RIS-0060; #1758)."
         ),
     ]
+    is_up_to_date: Annotated[
+        bool | None,
+        Field(
+            description="For an unmerged differential, whether it is up to date: its base, the copy of the main structure it keeps (`NodeDifference`), is the main structure as it is. True at its opening (`createCostStructure`) and after its update (`rebaseCostStructure`); false as soon as a write advances the counter of the main structure (`lock_version`) — an entry, an import, the occurrence of a risk, the merge of another differential —, whether it touches what the differential designates or not. An out of date differential is not merged (`mergeCostStructure`, `structure_up_to_date`); its `rebase` command is available. A differential taken over by a new revision keeps its state, up to date or out of date (`createRevision`). Null for every other structure: the main structure, the own estimate of a risk, which has neither base nor update, and a merged differential, consumed by its merge (WF-REV-0100, WF-REV-0050; #4034)."
+        ),
+    ] = None
     available_commands: Annotated[
         list[StructureCommandAvailability],
         Field(
@@ -4469,7 +4478,7 @@ class Node(ContractModel):
     difference: Annotated[
         NodeDifference | None,
         Field(
-            description="The node's difference, which the server returns and the front does not compute: on the read of a differential, with the main structure of its revision; in a comparison of two revisions (`RevisionComparison`), with the base revision (WF-REV-0080, WF-REV-0100, C-361). Always returned on these two reads, whether `fields` names it or not; null — or omitted — on the main structure and on a risk's own estimate, which are read relative to nothing."
+            description="The node's difference, which the server returns and the front does not compute: on the read of a differential, with its base (`NodeDifference`); in a comparison of two revisions (`RevisionComparison`), with the base revision (WF-REV-0080, WF-REV-0100, C-361). Always returned on these two reads, whether `fields` names it or not; null — or omitted — on the main structure and on a risk's own estimate, which are read relative to nothing."
         ),
     ] = None
     changes: Annotated[
@@ -4620,7 +4629,7 @@ class ImportDifference(ContractModel):
     change: Annotated[
         Change,
         Field(
-            description="Added, removed, modified — or kept and signalled (`kept`): a started or completed task that the file no longer carries, or an estimate line of such a task, that the import keeps instead of removing it (WF-INTF-0040, WF-INTF-0100); a provision line of a risk that the file of an estimate no longer carries, kept, the import never modifying a provision (WF-INTF-0100, WF-RIS-0010) — a remaining to commit leaves unchanged, without signalling them, all the lines absent from its file (WF-INTF-0120); for a merge, a started or completed task that the differential removes, and that the merge keeps — the started one completed, its remaining to commit brought to zero (WF-REV-0050, `StructureMergeReport`; EP-14/L42s). A `kept` has no `fields`."
+            description="Added, removed, modified — or kept and signalled (`kept`): a started or completed task that the file no longer carries, or an estimate line of such a task, that the import keeps instead of removing it (WF-INTF-0040, WF-INTF-0100); a provision line of a risk that the file of an estimate no longer carries, kept, the import never modifying a provision (WF-INTF-0100, WF-RIS-0010) — a remaining to commit leaves unchanged, without signalling them, all the lines absent from its file (WF-INTF-0120); for a merge, a started or completed task that the differential removes, and that the merge keeps — the started one completed, its remaining to commit brought to zero (WF-REV-0050, `StructureMergeReport`; EP-14/L42s); for an update of a differential, what the differential keeps against the main structure, by the four rules of `StructureRebaseReport.differences` (#4034). A `kept` has no `fields`, except that of an update which keeps values that the differential designates and that the main structure has changed too: `fields` then names them."
         ),
     ]
     target: Annotated[
@@ -4632,7 +4641,7 @@ class ImportDifference(ContractModel):
     lineage_id: Annotated[
         Uuid | None,
         Field(
-            description="The lineage of the existing object; null for an addition, which has none yet, for an actual cost line, which carries none, and for the structure, which has none — the import targets only one, `Import.structure_id`. For a link (`link`), that of the successor task, whose `predecessors` column carries the link; `label` is the successor's."
+            description="The lineage of the existing object; null for an addition, which has none yet — except for the update of a differential, where an addition is a node of the main structure, which enters the differential under its lineage (`StructureRebaseReport`) —, for an actual cost line, which carries none, and for the structure, which has none — the import targets only one, `Import.structure_id`. For a link (`link`), that of the successor task, whose `predecessors` column carries the link; `label` is the successor's."
         ),
     ] = None
     label: Annotated[
@@ -4662,7 +4671,7 @@ class ImportDifference(ContractModel):
     fields: Annotated[
         list[NodeColumn | ActualCostColumn | ImportDifferenceField] | None,
         Field(
-            description='The fields that an `updated` difference changes, empty for an addition, a removal or a kept object, named like the columns of their grid, which the front renders through its catalogue (WF-ARC-0110): a task, an estimate line or a link by `NodeColumn` — a link whose type or lag changed by `predecessors`, the column that presents it; an actual cost line by `ActualCostColumn`, a kept column of the file by `passthrough.<column>`. A task or a line moved under another parent — another summary task, another carrying task — names `parent`, which no column presents, like `NodeChange.parent`: "A task moved under another summary task is presented as modified" (WF-REV-0080, WF-REV-0050; #1194). Thus the provision line of a risk whose carrying task the import of a schedule or the merge removes: it moves to the parent task of that task, or, for a top-level task, to the first remaining top-level task, and "the confirmation or the report signals it" through this difference, next to the removal of the task (WF-RIS-0010; #789).'
+            description='The fields that an `updated` difference changes, or that a `kept` difference of an update keeps (`StructureRebaseReport`), empty for an addition, a removal or another kept object, named like the columns of their grid, which the front renders through its catalogue (WF-ARC-0110): a task, an estimate line or a link by `NodeColumn` — a link whose type or lag changed by `predecessors`, the column that presents it; an actual cost line by `ActualCostColumn`, a kept column of the file by `passthrough.<column>`. A task or a line moved under another parent — another summary task, another carrying task — names `parent`, which no column presents, like `NodeChange.parent`: "A task moved under another summary task is presented as modified" (WF-REV-0080, WF-REV-0050; #1194). Thus the provision line of a risk whose carrying task the import of a schedule or the merge removes: it moves to the parent task of that task, or, for a top-level task, to the first remaining top-level task, and "the confirmation or the report signals it" through this difference, next to the removal of the task (WF-RIS-0010; #789).'
         ),
     ] = None
 
@@ -4745,6 +4754,49 @@ class StructureMerge(ContractModel):
     ]
 
 
+class StructureRebaseReport(ContractModel):
+    main_structure_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="The counter of the main structure read (`CostStructure.lock_version`): an entry that writes it since makes the report stale, and the confirmation is refused with 412."
+        ),
+    ]
+    structure_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="The counter of the differential read (`CostStructure.lock_version`), the structure the path names, likewise."
+        ),
+    ]
+    differences: Annotated[
+        list[ImportDifference],
+        Field(
+            description="What the main structure has received since the base of the differential, as the update writes it there, tasks, estimate lines and links, each named by its lineage and its label (`ImportDifference`): `added`, a node the main structure has added, which enters the differential under its lineage, at its place; `updated`, a value it has changed, named in `fields`, which the differential takes; `removed`, a node it has removed, which leaves the differential. What the update does not carry over as the main structure has it is signalled by a `kept` difference, by four rules: a value that the differential designates and that the main structure has changed too keeps the value of the differential, `fields` naming the values kept — for the figures of a line, the rule of WF-REV-0050: the merge will give the line the figures of the differential as reference, and the main structure keeps its current ones, re-estimated —; a task or a line that the differential modifies and that the main structure no longer has stays in the differential, which then designates it as an addition; a task or a line that the differential adds under a task that the main structure no longer has, and that it does not modify, moves under the closest ancestor that remains, or to the first level; a link that the differential adds and one of whose tasks the main structure no longer has is removed from the differential. These three name no field. A node that the differential removes and that the main structure no longer has is not signalled."
+        ),
+    ]
+    refusals: Annotated[
+        list[ReportRefusal],
+        Field(
+            description="The reasons that refuse the whole update, judged on the differential that it would leave, as a merge judges the main structure (WF-PLA-0010, WF-PLA-0030, WF-PLA-0150): a loop of links, a link between a summary task and its subordinate, a date beyond the horizon, a task without any worked hour (`ReportRefusal`) — each born of what the differential designates meeting what the main structure has received. The tasks are named by their node in the differential and their label. Empty when the update applies; otherwise `rebaseCostStructure` is refused with 422, the first reason named."
+        ),
+    ]
+
+
+class StructureRebase(ContractModel):
+    confirmed: Literal[True]
+    main_structure_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="The counter of the main structure that the report read (`StructureRebaseReport.main_structure_lock_version`)."
+        ),
+    ]
+    structure_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="The counter of the updated structure, the one the path names, that the report read (`StructureRebaseReport.structure_lock_version`)."
+        ),
+    ]
+
+
 class NodeProjection(ContractModel):
     node_id: Uuid
     lineage_id: Uuid | None = None
@@ -4796,7 +4848,7 @@ class NodeProjection(ContractModel):
     difference: Annotated[
         NodeDifference | None,
         Field(
-            description="The node's difference, which the server returns and the front does not compute: on the read of a differential, with the main structure of its revision; in a comparison of two revisions (`RevisionComparison`), with the base revision (WF-REV-0080, WF-REV-0100, C-361). Always returned on these two reads, whether `fields` names it or not; null — or omitted — on the main structure and on a risk's own estimate, which are read relative to nothing."
+            description="The node's difference, which the server returns and the front does not compute: on the read of a differential, with its base (`NodeDifference`); in a comparison of two revisions (`RevisionComparison`), with the base revision (WF-REV-0080, WF-REV-0100, C-361). Always returned on these two reads, whether `fields` names it or not; null — or omitted — on the main structure and on a risk's own estimate, which are read relative to nothing."
         ),
     ] = None
     changes: Annotated[

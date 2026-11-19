@@ -385,7 +385,14 @@ CommandCondition:
     carried by the lineage of a task of the main structure, the one executed and tracked
     (WF-PLA-0060, WF-REV-0100; #2497): `setNodeTracking` names it in its 409, after
     `revision_draft` and `no_background_task_running`; no command states it in advance, the
-    node not naming `task.tracking` in its `editable_fields`.
+    node not naming `task.tracking` in its `editable_fields`. Two depend on whether a
+    differential is up to date with the main structure, its base being the main structure as it
+    is (`CostStructure.is_up_to_date`, #4034): `structure_up_to_date` is missing for the merge
+    of an out of date differential, which `getStructureMergeReport` and `mergeCostStructure`
+    name in their 409 after the conditions of the merge — no command states it in advance, the
+    structure saying it —; `structure_out_of_date` for the update of a differential already up
+    to date (`StructureCommand.rebase`), which `getStructureRebaseReport` and
+    `rebaseCostStructure` name in their 409 after `unmerged_amendment_exists`.
     `rate_update_available` is missing for the rate update (`apply_rate_update`) of a current
     revision whose proposal presents no category — its reference year is that of the revision of
     which it is the copy, or each category presented has already been accepted (WF-REV-0060) —;
@@ -456,6 +463,8 @@ CommandCondition:
     - subproject_without_estimate_lines
     - main_structure_without_tasks
     - main_structure
+    - structure_up_to_date
+    - structure_out_of_date
     - import_awaiting_decision
     - import_file_accepted
     - import_not_applied

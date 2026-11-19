@@ -12364,6 +12364,86 @@ lieu de `estimate.read`) viennent avec US-2320/L3. `info.version` reste `1.0.0`.
 figée à tout lecteur d'une grille (option 2), qui ouvrait les taux à un compte sans
 `cost_settings.read`.
 
+### La mise à jour d'un différentiel depuis la structure principale (US-3050/L1, #4034, #4132)
+
+La reprise de la conception d'EP-08 du 2026-11-19 (« Le contrat », « La base d'un différentiel et sa
+mise à jour ») écrit au contrat, avant le code qui le sert (US-3050/L2 et suivants), ce que la
+fusion en trois voies sur une base conservée demande (décision de l'auteur, #4034) ; la
+spécification 1.0.7 ne le dit pas encore, #4132 en propose le texte. `info.version` reste `1.0.0` :
+deux opérations, deux schémas, une propriété facultative, une commande, deux conditions et des
+exemples de plus ; aucune propriété existante ne change, aucune n'est exigée de plus.
+
+- **`getStructureRebaseReport` et `rebaseCostStructure`**, `GET` et `POST
+  …/structures/{structure_id}/rebase`, contre le gel du contrat comme `deleteCostStructure` : le
+  compte rendu préalable et la confirmation, comme l'import, la fusion et la survenance. « Rebase »
+  dit l'opération de git qu'elle est : reporter sous ce qu'une branche désigne ce que la branche
+  principale a reçu, et faire de celle-ci la nouvelle base. Le chemin suit `…/merge`. Écarté :
+  `update`, que `updateCostStructure` porte déjà pour le libellé et la date de début.
+- **`StructureRebaseReport`** : `main_structure_lock_version`, `structure_lock_version`,
+  `differences` (`ImportDifference`), `refusals` (`ReportRefusal`). Ni `completed_tasks` ni
+  `creates_current_revision` : la mise à jour ne termine aucune tâche et n'est offerte que sur la
+  révision en cours. **Le compteur du différentiel s'appelle `structure_lock_version`**, et non
+  `amendment_lock_version` comme celui de la fusion : la conception veut que ce que la structure
+  désigne et son report ne nomment pas la nature « avenant », EP-30 les reprenant pour le devis
+  propre d'un risque, et le nom est celui que `NodesWritten` donne déjà au compteur de la structure
+  que le chemin nomme. **`StructureRebase`** : `confirmed`, et les deux mêmes compteurs ; l'un
+  périmé, 412 `STALE_LOCK_VERSION`, `params.expected_lock_version` le compteur du différentiel,
+  comme la fusion.
+- **Aucun schéma nouveau pour une différence** : `added`, `updated` et `removed` disent ce que la
+  mise à jour reporte de la principale dans le différentiel ; `kept`, ce qu'il garde contre elle,
+  par les quatre règles de la conception. **Un `kept` de mise à jour nomme dans `fields` les valeurs
+  gardées** (règle 1) ; les trois autres règles — la tâche modifiée que la principale n'a plus, la
+  tâche ajoutée sous une tâche disparue, la liaison ajoutée vers une tâche disparue — n'en nomment
+  aucune. Un ajout porte ici sa lignée, celle de la principale, sous laquelle il entre au
+  différentiel. Les descriptions d'`ImportDifference` et de `ReportRefusal` le disent.
+- **Le refus par un motif du compte rendu est un 422**, `problem.code` le premier motif du compte
+  rendu (`LINK_CYCLE`, `LINK_FORBIDDEN`, `PROJECT_HORIZON_EXCEEDED`, `TASK_WITHOUT_WORKING_HOURS`)
+  et `params` ses paramètres, comme toute écriture synchrone qui fermerait une boucle
+  (`setPredecessors`, `moveNodes`). Les tâches y sont nommées par leur nœud **dans le
+  différentiel**, la structure que la mise à jour écrit, et non dans la principale comme pour la
+  fusion. Écartés : un 409 d'état (`import_file_accepted` pour l'import), un refus qui n'est pas
+  un état ; l'échec d'une tâche de fond, la mise à jour étant synchrone.
+- **`CostStructure.is_up_to_date`**, booléen ou nul, **facultatif** comme `risk_id` : le seul champ
+  qu'un schéma servi reçoit, et que le service rend avant US-3050/L2 sans le connaître. Vrai à
+  l'ouverture et après la mise à jour, faux dès qu'une écriture avance le compteur de la principale.
+  **Nul pour la principale, le devis propre d'un risque et un différentiel fusionné** : ce dernier,
+  consommé, n'a plus de mise à jour possible, et son état ne dirait rien. Écarté : `is_rebased`,
+  qui dirait un geste passé plutôt qu'un état.
+- **La commande `rebase`** s'ajoute à `StructureCommand`, après `delete`, listée où `delete` l'est —
+  sur un différentiel non fusionné seul —, sous la permission de `create_structure`, avec les mêmes
+  conditions d'état dans le même ordre, puis la sienne.
+- **Deux conditions, en miroir**, rangées après `main_structure` : **`structure_up_to_date`** manque
+  à la fusion d'un différentiel en retard — `getStructureMergeReport` et `mergeCostStructure` la
+  nomment dans leur 409 après celles de la fusion (`unmerged_amendment_exists`, `revision_draft`,
+  `may_create_revision`) ; aucune commande ne la dit d'avance, `merge_structure` étant une commande
+  de la révision et non du différentiel : la structure le dit, et sa commande `rebase`. La fusion
+  d'un différentiel en retard de la dernière révision marquée, sans révision en cours, la nomme
+  aussi : il attend que la révision soit créée. **`structure_out_of_date`** manque à la mise à jour d'un
+  différentiel déjà à jour, nommée par le 409 de ses deux opérations après les conditions de
+  `deleteCostStructure` (`project_not_terminal`, `revision_draft`, `no_background_task_running`,
+  `unmerged_amendment_exists`). Le nom est celui de la structure, non de l'avenant, pour la même
+  raison que le compteur. Écarté : `rebase_available`, à la manière de `rate_update_available`,
+  qui ne se lit pas en miroir de la condition de la fusion.
+- **La base n'est servie par aucune opération** : `createCostStructure` dit qu'elle naît avec le
+  différentiel, `deleteCostStructure` qu'elle disparaît avec lui, et une route qui la nomme répond
+  le 404 d'une structure inconnue ; `NodeDifference`, `Node.difference` et `listNodes` disent qu'un
+  différentiel se lit contre elle.
+
+Exemples, engendrés par `wftools.mockrebase` et tenus par `tools/tests/test_mockrebase.py` : une
+variante déclarée, la suite d'écritures faites aujourd'hui dans la principale — celles de ses
+exemples (`node_created_manual`, `task_renamed`, `estimate_line_updated`, `node_deleted`) et la
+ligne de la mise en service réestimée à 96 h, que l'avenant porte à 120 h — met l'avenant 2 en
+retard ; le compte rendu (`structure_rebase_report`) en présente une différence de chaque sorte,
+la charge de la mise en service gardée (`kept`, `hours`) ; sa variante refusée
+(`structure_rebase_report_refused`), le montage que la principale fait suivre à la mise en service
+fermant une boucle dans le différentiel ; la mise à jour aboutie (`structure_rebased`), refusée par
+ce motif (`structure_rebase_link_cycle`), au compteur périmé (`structure_rebase_stale`) ou sur
+l'avenant à jour (`structure_rebase_up_to_date_refused`) ; la fusion de l'avenant en retard
+(`merge_out_of_date_refused`). Les exemples écrits à la main portent l'état : l'avenant 2 à jour à
+son ouverture (`amendment_created`) et dans la révision courante (`structures`), mis à jour depuis
+sa reprise ; en retard dans la référence marquée (`structures_amendments`), la fusion de l'avenant
+1 ayant écrit la principale après son ouverture.
+
 ### L'abandon d'un différentiel, l'inscription refusée hors de la principale, la couverture réestimée (US-2550/L2, #3823, #2497, #2002)
 
 Trois modifications que la conception d'EP-08 écrit au contrat (« Le contrat ») avant le code qui
