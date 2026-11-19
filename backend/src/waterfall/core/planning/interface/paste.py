@@ -102,6 +102,8 @@ from waterfall.core.planning.paste_columns import (
     COLUMNS_OF,
     EXECUTION_COLUMNS,
     TASK_COLUMNS,
+    given_cells,
+    own_columns,
 )
 from waterfall.core.planning.rescheduling import Named
 from waterfall.core.planning.scheduling import Duration
@@ -641,18 +643,8 @@ def _task_columns(tree: Tree, target: UUID, row: _Row) -> set[str]:
     if row.creates and tree.nodes[target].kind == TASK:
         kept = columns - {"label"}
     elif not row.creates:
-        kept = _own_columns(columns, row.node_id in tree.tasks)
+        kept = own_columns(columns, is_task=row.node_id in tree.tasks)
     return kept
-
-
-def _own_columns(columns: set[str], is_task: bool) -> set[str]:
-    """Give the columns of a task's own among those a row writes on a node: none if it is no task."""
-    return columns & set(TASK_COLUMNS) if is_task else set()
-
-
-def _given(columns: tuple[NodeColumn, ...], cells: list[str]) -> tuple[tuple[NodeColumn, str], ...]:
-    """Give the cells of a row of the block that hold a text, with the column each falls on."""
-    return tuple((columns[at], text) for at, text in enumerate(cells) if text.strip())
 
 
 def _refuse_task_columns(
@@ -733,7 +725,7 @@ def preview_paste(
     start = tree.order.index(block.target_node_id)
     given_rows: list[_Row] = []
     for index, cells in enumerate(block.rows):
-        given = _given(columns, cells)
+        given = given_cells(columns, cells)
         if given:
             given_rows.append(_row_at(tree.order, start + index, index, given))
     _refuse_task_columns(tree, block.target_node_id, given_rows, permissions)
@@ -785,12 +777,11 @@ def _refused_whole(
 ) -> PastePlanned:
     """Keep the plan of a block aimed at a removed node, refused whole, and give it (#1361).
 
-    ``facts`` are those of the structure, as ``preview_paste`` read them; ``asking`` is who writes
-    and the permissions they hold.
+    ``facts`` are those ``preview_paste`` read; ``asking`` is who writes and their permissions.
 
     The request is judged first, as for any node (#4016): the node, as the main structure holds
     it (404), the column and the width (422), the permission of a task's columns (403, by the
-    columns ``_own_columns`` gives, as a block on any task); no plan. A line asks for no
+    columns ``own_columns`` gives, as a block on any task); no plan. A line asks for no
     permission here, nor at an ordinary paste: whoever may write a grid pastes on it (#2601).
     """
     writer, permissions = asking
@@ -804,7 +795,8 @@ def _refused_whole(
     columns = _columns_from(kind, block)
     written: set[str] = set()
     for cells in block.rows:
-        written |= _own_columns({column for column, _ in _given(columns, cells)}, kind == TASK)
+        given = {column for column, _ in given_cells(columns, cells)}
+        written |= own_columns(given, is_task=kind == TASK)
     _refuse_written(written, permissions)
     refusal = PasteRefusal(0, block.target_column, PASTE_TARGET_REMOVED, {})
     plan = PlanToKeep(

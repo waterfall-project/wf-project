@@ -506,7 +506,8 @@ def test_the_entries_of_a_paste_applied_on_the_differential_leave_the_stack_with
     assert kept.status_code == 201, kept.text
     tree = on(project.tree, structure_id)
     created = tree.create("Essais", who).json()["nodes"][0]
-    applied(tree, planned(tree, tree.node(created["node_id"]), "label", [["Un"], ["Deux"]], who), who)
+    plan = planned(tree, tree.node(created["node_id"]), "label", [["Un"], ["Deux"]], who)
+    applied(tree, plan, who)
     assert len(entries(project.stage)) == 3
     assert abandoned(api, project, structure_id).status_code == 204
     [remaining] = entries(project.stage)

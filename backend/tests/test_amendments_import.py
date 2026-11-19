@@ -199,7 +199,8 @@ def test_an_import_analysed_on_a_differential_abandoned_since_is_not_applied(
     stage = project.stage
     aimed = opened_amendment(api, project)
     amendment = on(project.tree, aimed)
-    upload_id = deposited(api, stage.manager, exported(project, amendment, {"Débours unitaire": 750}))
+    content = exported(project, amendment, {"Débours unitaire": 750})
+    upload_id = deposited(api, stage.manager, content)
     opened = api.post(
         f"{PROJECTS}/{project.project_id}/imports",
         headers=stage.manager.headers,

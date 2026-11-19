@@ -55,3 +55,15 @@ COLUMNS_OF: dict[str, tuple[NodeColumn, ...]] = {
     LINE: ("label", *LINE_COLUMNS),
 }
 ALL_COLUMNS: tuple[NodeColumn, ...] = (*TASK_COLUMNS, *LINE_COLUMNS)
+
+
+def own_columns(columns: set[str], *, is_task: bool) -> set[str]:
+    """Give the columns of a task's own among those a row writes: none on a node no task."""
+    return columns & set(TASK_COLUMNS) if is_task else set()
+
+
+def given_cells(
+    columns: tuple[NodeColumn, ...], cells: list[str]
+) -> tuple[tuple[NodeColumn, str], ...]:
+    """Give the cells of a row of a block that hold a text, with the column each falls on."""
+    return tuple((columns[at], text) for at, text in enumerate(cells) if text.strip())
