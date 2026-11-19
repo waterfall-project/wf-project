@@ -43,6 +43,7 @@ from waterfall.core.revisions.commands import (
     revision_conditions,
 )
 from waterfall.core.revisions.interface.shared import (
+    MAIN,
     found_revision,
     hold_current_revision,
     inscribe_revision,
@@ -254,6 +255,6 @@ def main_structure_has_task(session: Session, project_id: UUID, revision_id: UUI
     main = select(CostStructure.id).where(
         CostStructure.project_id == project_id,
         CostStructure.revision_id == revision_id,
-        CostStructure.kind == "main",  # ``MAIN`` of ``structures``, which imports this module
+        CostStructure.kind == MAIN,
     )
     return bool(questions) and all(question(session, main) for question in questions)

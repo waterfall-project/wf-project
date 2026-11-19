@@ -19,7 +19,7 @@ from uuid import UUID
 import pytest
 from estimate_support import Costing, costing
 from history_support import undone
-from nodes_support import mark, signed_in
+from nodes_support import entries, mark, signed_in
 from projects_support import PROJECTS, Person, Scene, put_in_state
 from projects_support import scene as make_scene
 from risks_support import LABEL, Costed, Risks, costed
@@ -364,3 +364,113 @@ def test_the_opening_of_a_revision_advances_the_counter_of_a_risk_whose_estimate
     risks.revision()
     assert risks.risk(held)["lock_version"] > counters[0]
     assert risks.risk(empty)["lock_version"] == counters[1]
+
+
+# --- The label, and the names it gives (#3980) ---------------------------------------------------
+
+
+def own_label(risks: Risks, revision_id: object, risk: dict[str, Any]) -> str:
+    """Read the label the list of the structures of a revision gives the own estimate of a risk."""
+    path = f"{risks.base}/revisions/{revision_id}/structures"
+    listed = risks.api.get(path, headers=risks.headers).json()
+    return next(each["label"] for each in listed if each.get("risk_id") == risk["risk_id"])
+
+
+def provision_label(risks: Risks, revision_id: object, risk: dict[str, Any]) -> str:
+    """Read the label of the provision line of a risk in the main structure of a revision."""
+    path = f"{risks.base}/revisions/{revision_id}/structures"
+    main = next(
+        each["structure_id"]
+        for each in risks.api.get(path, headers=risks.headers).json()
+        if each["kind"] == "main"
+    )
+    items = risks.api.get(f"{path}/{main}/nodes", headers=risks.headers).json()["items"]
+    return next(
+        each["estimate_line"]["label"]
+        for each in items
+        if each["node_id"] == risk["provision_node_id"] and each["estimate_line"]
+    )
+
+
+def test_a_risk_renamed_renames_its_own_estimate_and_its_provision_line_outside_the_history(
+    risks: Risks, project: Costed, realm: TestRealm
+) -> None:
+    # #3980, option (a): the current revision follows the label, as the declaration named them
+    # (« Provision — <libellé> »); the severity and the provision stay, and no entry of the history
+    # is written, the identity being the project's (H-02).
+    writer = signed_in(project.stage, realm)
+    risk = risks.declared()
+    risks.costed_at(risk, project.revision_id, "200.00")
+    risk = risks.risk(risk)
+    entries_before = len(entries(project.stage))
+    counted = main_counter(project)
+    answer = risks.update(risk, writer, label="Grue louée indisponible")
+    assert answer.status_code == 200, answer.text
+    assert answer.json()["lock_version"] == risk["lock_version"] + 1
+    assert own_label(risks, project.revision_id, risk) == "Grue louée indisponible"
+    assert (
+        provision_label(risks, project.revision_id, risk) == "Provision — Grue louée indisponible"
+    )
+    assert main_counter(project) == counted + 1
+    after = risks.risk(risk)
+    assert (after["severity"], after["provision_amount"]) == (
+        risk["severity"],
+        risk["provision_amount"],
+    )
+    assert len(entries(project.stage)) == entries_before
+    # A change that leaves the label alone renames nothing, and moves no counter of the main one.
+    again = risks.update(after, writer, description="Grue louée.")
+    assert again.status_code == 200, again.text
+    assert main_counter(project) == counted + 1
+
+
+def test_a_risk_renamed_leaves_the_marked_revisions_with_the_names_they_were_marked_with(
+    risks: Risks, project: Costed
+) -> None:
+    # The revision marked is frozen (WF-DAT-0020): only the current one follows the label.
+    risk = risks.declared()
+    marked = project.revision_id
+    mark(project.stage, {"revision_id": str(marked)})
+    current = risks.revision()["revision_id"]
+    renamed = risks.update(risk, label="Grue indisponible")
+    assert renamed.status_code == 200, renamed.text
+    assert own_label(risks, current, risk) == "Grue indisponible"
+    assert provision_label(risks, current, risks.risk(risk)) == "Provision — Grue indisponible"
+    assert own_label(risks, marked, risk) == LABEL
+    assert provision_label(risks, marked, risk) == f"Provision — {LABEL}"
+
+
+def test_a_risk_renamed_without_a_current_revision_names_the_revision_opened_after_it(
+    risks: Risks, project: Costed
+) -> None:
+    # #3980: nothing is written but the identity, the marked revision keeping its names; the copy
+    # that opens the next revision names the own estimate and the line by the label of the risk,
+    # not by those of the last revision marked.
+    risk = risks.declared()
+    mark(project.stage, {"revision_id": str(project.revision_id)})
+    before = revisions_of(project)
+    answer = risks.update(risk, label="Grue indisponible")
+    assert answer.status_code == 200, answer.text
+    assert revisions_of(project) == before
+    assert own_label(risks, project.revision_id, risk) == LABEL
+    opened = risks.revision()["revision_id"]
+    assert own_label(risks, opened, risk) == "Grue indisponible"
+    assert provision_label(risks, opened, risks.risk(risk)) == "Provision — Grue indisponible"
+    assert own_label(risks, project.revision_id, risk) == LABEL
+    assert provision_label(risks, project.revision_id, risk) == f"Provision — {LABEL}"
+
+
+def test_a_risk_renamed_in_a_revision_abandoned_names_the_revision_opened_after_it(
+    risks: Risks, project: Costed
+) -> None:
+    # #3980: the abandonment brings the names of the revision back no more than the identity; the
+    # revision opened next copies the last one marked and names its rows by the label of the risk.
+    risk = risks.declared()
+    mark(project.stage, {"revision_id": str(project.revision_id)})
+    opened = risks.revision()
+    assert risks.update(risk, label="Grue indisponible").status_code == 200
+    risks.abandon(opened)
+    reopened = risks.revision()["revision_id"]
+    assert own_label(risks, reopened, risk) == "Grue indisponible"
+    assert provision_label(risks, reopened, risks.risk(risk)) == "Provision — Grue indisponible"
+    assert own_label(risks, project.revision_id, risk) == LABEL

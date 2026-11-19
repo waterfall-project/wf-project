@@ -8,65 +8,38 @@ identified one dismissed loses it; the occurrence is no review's (US-2620). Each
 the revision it was made in, never copied: the history of a risk read in a revision is that of the
 marked revisions before it and its own (EP-08, "Tables et migrations").
 
-Declared by US-2550/L1, the socle of EP-08; filled by US-2590/L1.
+Refused by the conditions of ``review`` (409), the risk unknown (404) or read at another counter
+(412), then by the designations (422), nothing written; the current revision created first when
+the project has none. Declared by US-2550/L1, the socle of EP-08; filled by US-2590/L1.
 """
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from waterfall.core.risks.reading import read_found, risk_view
+from waterfall.core.risks.reviewing import list_reviews, review
+
 if TYPE_CHECKING:
-    from datetime import date, datetime
-    from decimal import Decimal
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.interface import Writer
     from waterfall.core.projects.interface import Viewer
-    from waterfall.core.risks.views import RiskState, RiskView
-
-
-@dataclass(frozen=True, slots=True)
-class RiskReviewEntry:
-    """A review sent (``RiskReviewWrite``), at the counter of the risk read.
-
-    ``provision_cost_category_id`` the category a dismissed risk identified again takes when the one
-    it designated is no longer active and of the provision kind; ``None`` when not sent.
-    """
-
-    risk_id: UUID
-    probability: Decimal
-    state: RiskState
-    lock_version: int
-    provision_cost_category_id: UUID | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class RiskReviewView:
-    """A review as it is read (``RiskReview``): its day, what it retained, who made it and when.
-
-    ``actor`` is the account that made it, or the platform when null.
-    """
-
-    reviewed_on: date
-    probability: Decimal
-    severity: Decimal
-    state: RiskState
-    actor: UUID | None
-    created_at: datetime
+    from waterfall.core.risks.views import RiskReviewEntry, RiskReviewView, RiskView
 
 
 def review_risk(
     session: Session, project_id: UUID, entry: RiskReviewEntry, writer: Writer, viewer: Viewer
 ) -> RiskView:
     """Review a risk in the current revision, dated today; give it as the review leaves it."""
-    msg = "review_risk is filled by US-2590/L1"
-    raise NotImplementedError(msg)
+    revision_id = review(session, project_id, entry, writer, viewer)
+    return risk_view(
+        session, project_id, read_found(session, project_id, entry.risk_id, revision_id), viewer
+    )
 
 
 def list_risk_reviews(
-    session: Session, project_id: UUID, risk_id: UUID, revision_id: UUID | None, viewer: Viewer
+    session: Session, project_id: UUID, risk_id: UUID, revision_id: UUID | None
 ) -> list[RiskReviewView]:
     """List the reviews of a risk read in a revision, the most recent first."""
-    msg = "list_risk_reviews is filled by US-2590/L1"
-    raise NotImplementedError(msg)
+    return list_reviews(session, project_id, risk_id, revision_id)

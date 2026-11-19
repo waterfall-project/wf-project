@@ -26,8 +26,8 @@ Registered at the import of the interface of the risks (EP-08, "Modules"):
 - **the closing of a revision abandoned** (``register_closing``, ``evaluations``): its reviews and
   its evaluations are deleted before its nodes and its structures, which they name, and the counter
   of each risk it evaluated advances, never going back (H-02, #1783). A risk the revision declared
-  keeps no evaluation: its deletion with the revision is US-2590/L1's, with the rest of what the
-  abandonment brings back. Nothing is done at a marking.
+  keeps no evaluation: it is deleted with the revision, its own estimate with it (``erase``, M-04;
+  US-2590/L1). Nothing is done at a marking.
 
 A figure computed, not entered: the counter of the risk advances, its audit is left to its entries.
 """
@@ -36,11 +36,21 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import delete, select, update
 
-from waterfall.core.estimate.interface import round_to_cent, set_provision, structure_amount
+from waterfall.core.estimate.interface import (
+    rename_provisions,
+    round_to_cent,
+    set_provision,
+    structure_amount,
+)
 from waterfall.core.planning.interface import Place, ProvisionOwner
-from waterfall.core.revisions.interface import aimed_structure, structure_facts
+from waterfall.core.revisions.interface import (
+    aimed_structure,
+    rename_own_estimates,
+    structure_facts,
+)
 from waterfall.core.risks.commands import IDENTIFIED
-from waterfall.core.risks.reading import evaluation_of
+from waterfall.core.risks.deleting import erase
+from waterfall.core.risks.reading import evaluation_of, found_risk
 from waterfall.core.risks.tables import Risk, RiskEvaluation, RiskReview
 
 if TYPE_CHECKING:
@@ -119,17 +129,33 @@ def follow_provision_lines(
 
 
 def copy_evaluations(copy: RevisionCopy) -> None:
-    """Take up the evaluations of the source in the revision opened, under their copies' names."""
+    """Take up the evaluations of the source in the revision opened, under their copies' names.
+
+    The own estimate and the provision line copied are named by the label of their risk as it is
+    now, not as the source marked it: the identity is outside the history (H-02, #3980). The
+    revisions marked keep their names (WF-DAT-0020). One statement reads the labels, one writes
+    each kind of name.
+    """
     session, ids = copy.session, copy.identifiers
-    rows = session.scalars(
-        select(RiskEvaluation)
+    rows = session.execute(
+        select(RiskEvaluation, Risk.label)
+        .join(
+            Risk,
+            (Risk.project_id == RiskEvaluation.project_id) & (Risk.id == RiskEvaluation.risk_id),
+        )
         .where(
             RiskEvaluation.project_id == copy.project_id,
             RiskEvaluation.revision_id == copy.source,
         )
         .order_by(RiskEvaluation.risk_id)
     ).all()
-    for row in rows:
+    estimates: dict[UUID, str] = {}
+    provisions: dict[UUID, str] = {}
+    for row, label in rows:
+        estimates[ids[row.structure_id]] = label
+        if row.provision_node_id is not None:
+            provisions[ids[row.provision_node_id]] = label
+    for row, _ in rows:
         line = row.provision_node_id
         session.add(
             RiskEvaluation(
@@ -151,23 +177,48 @@ def copy_evaluations(copy: RevisionCopy) -> None:
             )
         )
     session.flush()
+    rename_own_estimates(session, copy.project_id, estimates)
+    rename_provisions(session, copy.project_id, provisions)
 
 
 def close_evaluations(closing: RevisionClosing) -> None:
-    """Delete the reviews and the evaluations of a revision abandoned; advance their risks."""
+    """Delete the reviews and the evaluations of a revision abandoned; advance their risks.
+
+    A risk that no other revision evaluates was declared by this one, and goes with it, its own
+    estimate with it (M-04); the others are given back as the last marked revision holds them, their
+    counter advanced, never going back (H-02, #1783).
+    """
     if closing.kind != "abandoned":
         return
     session, project_id, revision_id = closing.session, closing.project_id, closing.revision_id
-    evaluated = session.scalars(
-        select(RiskEvaluation.risk_id).where(
-            RiskEvaluation.project_id == project_id, RiskEvaluation.revision_id == revision_id
-        )
-    ).all()
+    evaluated = dict(
+        session.execute(
+            select(RiskEvaluation.risk_id, RiskEvaluation.structure_id).where(
+                RiskEvaluation.project_id == project_id, RiskEvaluation.revision_id == revision_id
+            )
+        ).all()
+    )
     for table in (RiskReview, RiskEvaluation):
         session.execute(
             delete(table)
             .where(table.project_id == project_id, table.revision_id == revision_id)
             .execution_options(synchronize_session=False)
         )
-    advance_risks(session, project_id, evaluated)
+    kept = set(
+        session.scalars(
+            select(RiskEvaluation.risk_id).where(
+                RiskEvaluation.project_id == project_id,
+                RiskEvaluation.risk_id.in_(list(evaluated)),
+            )
+        )
+    )
+    for risk_id, structure_id in sorted(evaluated.items()):
+        if risk_id not in kept:
+            structure_facts(session, project_id, structure_id, lock=True)
+            # The risk last, after the structures, as every write of a risk takes them. No current
+            # writer locks the risk without the revision or the project, which the abandonment
+            # already holds; this lock protects a future writer that would.
+            found_risk(session, project_id, risk_id, lock=True)
+            erase(session, project_id, risk_id, structure_id)
+    advance_risks(session, project_id, kept)
     session.flush()

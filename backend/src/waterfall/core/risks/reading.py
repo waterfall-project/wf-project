@@ -120,6 +120,28 @@ class ReadContext:
     reviews: dict[tuple[UUID, UUID], date]
 
 
+def cited_among(
+    session: Session, project_id: UUID, risk_ids: Collection[UUID], marked: Collection[UUID]
+) -> set[UUID]:
+    """Give the risks among those named that a marked revision holds an evaluation of (WF-RIS-0020).
+
+    ``marked`` the marked revisions of the project: a risk they cite can no longer be deleted.
+    """
+    if not marked or not risk_ids:
+        return set()
+    return set(
+        session.scalars(
+            select(RiskEvaluation.risk_id)
+            .where(
+                RiskEvaluation.project_id == project_id,
+                RiskEvaluation.risk_id.in_(list(risk_ids)),
+                RiskEvaluation.revision_id.in_(list(marked)),
+            )
+            .distinct()
+        )
+    )
+
+
 def _shares(
     session: Session, project_id: UUID, reference_id: UUID | None, risk_ids: Collection[UUID]
 ) -> dict[UUID, Decimal]:
@@ -136,6 +158,20 @@ def _shares(
     return dict(rows.all())
 
 
+def seen_revisions(marked: dict[UUID, datetime], revision_id: UUID) -> set[UUID]:
+    """Give the revisions whose reviews a revision read presents: its own and the marked before it.
+
+    A review is not copied: the history of a risk read in a revision is that of the revisions
+    marked before it, and its own (EP-08, "Tables et migrations"); those that follow its marking
+    do not belong to what it freezes (WF-RIS-0030). A revision not marked, the current one, sees
+    them all.
+    """
+    until = marked.get(revision_id)
+    return {revision for revision, at in marked.items() if until is None or at < until} | {
+        revision_id
+    }
+
+
 def _reviews(
     session: Session,
     project_id: UUID,
@@ -150,10 +186,7 @@ def _reviews(
     """
     found: dict[tuple[UUID, UUID], date] = {}
     for revision_id in {each.evaluation.revision_id for each in founds}:
-        until = marked.get(revision_id)
-        seen = {revision for revision, at in marked.items() if until is None or at < until} | {
-            revision_id
-        }
+        seen = seen_revisions(marked, revision_id)
         risk_ids = {each.risk.id for each in founds if each.evaluation.revision_id == revision_id}
         rows = session.execute(
             select(RiskReview.risk_id, func.max(RiskReview.reviewed_on))
@@ -196,19 +229,7 @@ def read_context(session: Session, project_id: UUID, founds: Sequence[Found]) ->
         if each.provision_subproject_id is not None
     }
     lines = [each.provision_node_id for each in evaluations if each.provision_node_id is not None]
-    cited: set[UUID] = set()
-    if marked and risk_ids:
-        cited.update(
-            session.scalars(
-                select(RiskEvaluation.risk_id)
-                .where(
-                    RiskEvaluation.project_id == project_id,
-                    RiskEvaluation.risk_id.in_(risk_ids),
-                    RiskEvaluation.revision_id.in_(list(marked)),
-                )
-                .distinct()
-            )
-        )
+    cited = cited_among(session, project_id, risk_ids, marked)
     occurred = {each.revision_id for each in evaluations if each.state == OCCURRED}
     return ReadContext(
         facts=facts,

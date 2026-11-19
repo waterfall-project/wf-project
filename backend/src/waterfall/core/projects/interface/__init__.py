@@ -12,12 +12,17 @@ the file.
 
 # ``commands`` (US-0920; exported by US-1380/L5 and US-1480/L4): the states that end the cycle of
 # life and those before In progress, the condition a terminal project lacks and the one a running
-# background task takes away, which the other modules judge by these names, never a copy (#2555).
+# background task takes away, which the other modules judge by these names, never a copy (#2555);
+# the entries of the risks and the two conditions a declaration lacks, written here once for the
+# revisions and the risks, which would else drift apart (#3996).
 from waterfall.core.projects.commands import (
+    ACTIVE_PROVISION_CATEGORY,
+    AT_LEAST_ONE_TASK,
     BEFORE_IN_PROGRESS,
     NO_BACKGROUND_TASK_RUNNING,
     PROJECT_BEFORE_IN_PROGRESS,
     PROJECT_NOT_TERMINAL,
+    RISK_ENTRIES,
     TERMINAL,
 )
 
@@ -175,12 +180,15 @@ from waterfall.core.projects.interface.work_breakdown import (
 )
 
 __all__ = [
+    "ACTIVE_PROVISION_CATEGORY",
     "ALL_PROJECTS_READ",
+    "AT_LEAST_ONE_TASK",
     "BEFORE_IN_PROGRESS",
     "BORN_LOCK_VERSION",
     "NO_BACKGROUND_TASK_RUNNING",
     "PROJECT_BEFORE_IN_PROGRESS",
     "PROJECT_NOT_TERMINAL",
+    "RISK_ENTRIES",
     "TERMINAL",
     "Attachments",
     "CommandAvailability",
