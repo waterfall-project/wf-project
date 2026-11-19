@@ -12,8 +12,6 @@ subproject received actual costs (WF-PRJ-0050). Every answer is checked against 
 (``ContractClient``).
 """
 
-import time
-from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -32,11 +30,14 @@ from risks_support import (
     STUDY,
     Costed,
     Risks,
+    concurrently,
     costed,
     differential,
+    lock_held,
     material_line,
+    waiting_for_a_lock,
 )
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import DBAPIError
 
 from waterfall.core.access_roles.predefined import PROJECT_MANAGER
@@ -52,14 +53,12 @@ from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.tables import Node
 from waterfall.core.projects.tables import Project
 from waterfall.core.resource_settings.interface.readiness import REFERENCE_LOCK
-from waterfall.core.revisions.tables import CostStructure, Revision
+from waterfall.core.revisions.tables import Revision
 from waterfall.core.risks.tables import Risk, RiskEvaluation
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from realm import TestRealm
     from sqlalchemy import Engine
     from support import ContractClient
@@ -523,44 +522,6 @@ def test_a_task_bearing_no_provision_is_deleted_as_before_and_gives_no_node(
 
 
 # --- The order of the locks, the counter judged under it ------------------------------------------
-
-
-def concurrently(call: Callable[[], Any]) -> Future[Any]:
-    """Start a call in a thread of its own; give its future, whose result joins it."""
-    pool = ThreadPoolExecutor(max_workers=1)
-    future = pool.submit(call)
-    pool.shutdown(wait=False)
-    return future
-
-
-def waiting_for_a_lock(stage: Scene) -> None:
-    """Wait until a transaction of the database waits for a lock another holds."""
-    for _ in range(150):
-        with stage.owner.connect() as connection:
-            waiting = connection.scalar(
-                text(
-                    "SELECT count(*) FROM pg_stat_activity"
-                    " WHERE wait_event_type = 'Lock' AND datname = current_database()"
-                )
-            )
-        if waiting:
-            return
-        time.sleep(0.1)
-    pytest.fail("no transaction waits for a lock")
-
-
-def lock_held(stage: Scene, structure_id: UUID) -> bool:
-    """Tell whether another transaction holds the lock of a structure (``FOR UPDATE NOWAIT``)."""
-    with stage.owner.connect() as connection:
-        try:
-            connection.execute(
-                select(CostStructure.id)
-                .where(CostStructure.id == structure_id)
-                .with_for_update(nowait=True)
-            )
-        except DBAPIError:
-            return True
-        return False
 
 
 @pytest.mark.requirement("WF-RIS-0010-A")

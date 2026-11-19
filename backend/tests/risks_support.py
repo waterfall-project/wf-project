@@ -17,17 +17,21 @@ leaving its result unchanged. A helper several test modules read lives here, nev
 the risks through the service (``Risks``), which the tests of the provision (US-2580) write with.
 """
 
+import time
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
+import pytest
 from estimate_support import YEAR, Costing, Lines
 from nodes_support import Tree, opened
 from planning_support import insert_task, node_row
 from project_rows import AT, STAMP, risk_row, structure_row
 from projects_support import PROJECTS
-from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy import delete, func, insert, select, text, update
+from sqlalchemy.exc import DBAPIError
 
 from waterfall.core.cost_settings.interface import (
     CostCategoryDraft,
@@ -45,6 +49,8 @@ from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from projects_support import Person, Scene
     from sqlalchemy.engine import Connection
     from support import ContractClient
@@ -234,6 +240,44 @@ def another_provision(stage: Scene, code: str = "ALE") -> UUID:
         accounting = f"606{sum(map(ord, code)) % 1000:03d}"
         draft = CostCategoryDraft(f"{code}-001", f"Aléas {code}", accounting, nature.cost_type_id)
         return create_cost_category(session, draft, act).cost_category_id
+
+
+def concurrently(call: Callable[[], Any]) -> Future[Any]:
+    """Start a call in a thread of its own; give its future, whose result joins it."""
+    pool = ThreadPoolExecutor(max_workers=1)
+    future = pool.submit(call)
+    pool.shutdown(wait=False)
+    return future
+
+
+def waiting_for_a_lock(stage: Scene) -> None:
+    """Wait until a transaction of the database waits for a lock another holds."""
+    for _ in range(150):
+        with stage.owner.connect() as connection:
+            waiting = connection.scalar(
+                text(
+                    "SELECT count(*) FROM pg_stat_activity"
+                    " WHERE wait_event_type = 'Lock' AND datname = current_database()"
+                )
+            )
+        if waiting:
+            return
+        time.sleep(0.1)
+    pytest.fail("no transaction waits for a lock")
+
+
+def lock_held(stage: Scene, structure_id: UUID) -> bool:
+    """Tell whether another transaction holds the lock of a structure (``FOR UPDATE NOWAIT``)."""
+    with stage.owner.connect() as connection:
+        try:
+            connection.execute(
+                select(CostStructure.id)
+                .where(CostStructure.id == structure_id)
+                .with_for_update(nowait=True)
+            )
+        except DBAPIError:
+            return True
+        return False
 
 
 # --- The fabrics ---------------------------------------------------------------------------------

@@ -28,16 +28,19 @@ from risks_support import (
     Costed,
     Risks,
     another_provision,
+    concurrently,
     costed,
     deactivate_category,
+    lock_held,
     occur,
+    waiting_for_a_lock,
 )
 from sqlalchemy import func, select, update
 
 from waterfall.core.access_roles.predefined import PROJECT_MANAGER
 from waterfall.core.projects.interface import current_day
 from waterfall.core.revisions.tables import Revision
-from waterfall.core.risks.tables import RiskReview
+from waterfall.core.risks.tables import Risk, RiskReview
 from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
@@ -498,3 +501,50 @@ def test_the_detail_gives_the_two_notes_and_the_history_the_reviews_of_the_risk(
         (today(), "0.45"),
         (today(), "0.3"),
     ]
+
+
+# --- The order of the locks, the counter judged under it ------------------------------------------
+
+
+@pytest.mark.requirement("WF-RIS-0020-A")
+def test_a_review_takes_the_main_structure_before_the_risk(risks: Risks, project: Costed) -> None:
+    # The order of every entry of a risk: the main structure, then the risk. The risk held by
+    # another, the review waits for it holding the main structure already — were it the other way
+    # round it would close an interlock (40P01) with a write of the own estimate.
+    risk = risks.declared_costed()
+    stage = project.stage
+    with stage.owner.connect() as holder:
+        holder.execute(select(Risk.id).where(Risk.id == UUID(risk["risk_id"])).with_for_update())
+        asking = concurrently(lambda: risks.review(risk, probability="0.5"))
+        waiting_for_a_lock(stage)
+        assert lock_held(stage, project.structure_id)
+        holder.rollback()
+    assert asking.result(timeout=30).status_code == 201
+    assert risks.risk(risk)["provision_amount"] == "100.00"
+
+
+@pytest.mark.requirement("WF-RIS-0020-A")
+def test_the_counter_of_a_review_is_judged_under_the_lock_of_the_risk(
+    risks: Risks, project: Costed
+) -> None:
+    # The risk locked by another that advances its counter while the review waits: the counter it
+    # carries is stale when it gets the lock — it is refused (412), nothing written, instead of
+    # judged on the counter read before the lock.
+    risk = risks.declared_costed()
+    stage = project.stage
+    with stage.owner.connect() as holder:
+        holder.execute(select(Risk.id).where(Risk.id == UUID(risk["risk_id"])).with_for_update())
+        asking = concurrently(lambda: risks.review(risk, state="dismissed"))
+        waiting_for_a_lock(stage)
+        holder.execute(
+            update(Risk)
+            .where(Risk.id == UUID(risk["risk_id"]))
+            .values(lock_version=Risk.lock_version + 1)
+        )
+        holder.commit()
+    assert refusal(asking.result(timeout=30)) == (
+        412,
+        "STALE_LOCK_VERSION",
+        {"expected_lock_version": risk["lock_version"] + 1},
+    )
+    assert reviews_held(project, risk) == 1

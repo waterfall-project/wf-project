@@ -20,7 +20,17 @@ from estimate_support import Costing, costing
 from nodes_support import faults, mark, refusal
 from projects_support import Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
-from risks_support import STUDY, Costed, Risks, costed, differential, occur
+from risks_support import (
+    STUDY,
+    Costed,
+    Risks,
+    concurrently,
+    costed,
+    differential,
+    lock_held,
+    occur,
+    waiting_for_a_lock,
+)
 from sqlalchemy import func, select
 
 from waterfall.core.access_roles.predefined import PROJECT_MANAGER
@@ -214,6 +224,26 @@ def test_a_risk_cited_is_refused_for_that_reason_to_who_may_not_create_a_revisio
     )
     contribute(database, project.stage.project["project_id"], entering, "contributor")
     refused_by(risks.remove(risks.risk(risk), entering), "risk_not_cited")
+
+
+@pytest.mark.requirement("WF-RIS-0020-A")
+def test_a_deletion_takes_the_own_estimate_then_the_main_structure_before_the_risk(
+    risks: Risks, project: Costed
+) -> None:
+    # The order of every write that touches a risk and its line: the own estimate, which a write of
+    # it holds first, then the main structure that bears the line, then the risk. The risk held by
+    # another, the deletion waits for it holding both structures already.
+    risk = risks.declared_costed()
+    stage = project.stage
+    with stage.owner.connect() as holder:
+        holder.execute(select(Risk.id).where(Risk.id == UUID(risk["risk_id"])).with_for_update())
+        asking = concurrently(lambda: risks.remove(risk))
+        waiting_for_a_lock(stage)
+        assert lock_held(stage, UUID(risk["structure_id"]))
+        assert lock_held(stage, project.structure_id)
+        holder.rollback()
+    assert asking.result(timeout=30).status_code == 204
+    assert held(project, risk)["risk"] == 0
 
 
 # --- The abandonment ------------------------------------------------------------------------------
