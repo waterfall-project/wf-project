@@ -28,7 +28,7 @@ from nodes_support import (
     instant,
     opened,
     put_facts,
-    put_risk,
+    put_occurred_risk,
     refusal,
     scheduled_at,
     set_progress,
@@ -260,8 +260,8 @@ def test_a_filter_of_the_state_the_float_the_duration_or_the_risk_retains_the_ta
         total_float_days=None,
         is_critical=False,
     )
-    put_risk(stage, late["node_id"], first)
-    put_risk(stage, new["node_id"], second)
+    put_occurred_risk(stage, late["node_id"], first)
+    put_occurred_risk(stage, new["node_id"], second)
     assert tree.labels(query.format(first=first, second=second)) == expected
 
 

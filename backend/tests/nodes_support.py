@@ -14,7 +14,7 @@ from uuid import UUID, uuid4
 
 from access_rows import role
 from planning_support import DAY
-from project_rows import STAMP, risk_row
+from project_rows import STAMP, risk_row, structure_row
 from projects_support import MANAGING, PROJECTS, Person, Scene, contribute
 from realm import KEY
 from sqlalchemy import insert, select, update
@@ -28,7 +28,8 @@ from waterfall.core.planning.tables import Node, Task
 from waterfall.core.projects.tables import OrderItem, WorkPackage
 from waterfall.core.revisions.interface import mark_revision
 from waterfall.core.revisions.tables import CostStructure
-from waterfall.core.risks.tables import Risk
+from waterfall.core.cost_settings.tables import CostCategory
+from waterfall.core.risks.tables import Risk, RiskEvaluation
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -219,6 +220,37 @@ def put_risk(stage: Scene, node_id: str, risk_id: UUID) -> None:
         )
         connection.execute(
             update(Node).where(Node.id == UUID(node_id)).values(origin_risk_id=risk_id)
+        )
+
+
+def put_occurred_risk(stage: Scene, node_id: str, risk_id: UUID) -> None:
+    """Make a node come from a risk that occurred in the revision of the node, around the service.
+
+    What ``put_risk`` does, and the risk is evaluated occurred there — at a cost of nought, its own
+    estimate an empty structure of the revision — as the filters of the origin name only the risks
+    that occurred (``UNKNOWN_RISK``).
+    """
+    put_risk(stage, node_id, risk_id)
+    project_id = UUID(stage.project["project_id"])
+    with stage.owner.begin() as connection:
+        revision_id = connection.scalar(select(Node.revision_id).where(Node.id == UUID(node_id)))
+        category = connection.scalar(select(CostCategory.id).limit(1))
+        structure = structure_row(
+            project_id, revision_id, kind="risk", risk_id=risk_id, is_merged=True
+        )
+        connection.execute(insert(CostStructure).values(**structure))
+        connection.execute(
+            insert(RiskEvaluation).values(
+                project_id=project_id,
+                risk_id=risk_id,
+                revision_id=revision_id,
+                probability=0,
+                state="occurred",
+                structure_id=structure["id"],
+                provision_cost_category_id=category,
+                occurrence_cost=0,
+                **STAMP,
+            )
         )
 
 

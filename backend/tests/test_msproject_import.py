@@ -14,12 +14,12 @@ from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 from imports_trial import deposited, import_worker, path, read, refusal, run
-from nodes_support import opened, put_facts, set_progress, work_breakdown
+from nodes_support import opened, put_facts, put_risk, set_progress, work_breakdown
 from projects_support import Scene
 from projects_support import scene as make_scene
 from sqlalchemy import func, select, update

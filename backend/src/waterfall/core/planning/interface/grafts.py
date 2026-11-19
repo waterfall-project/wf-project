@@ -17,7 +17,10 @@ Filled by US-2620/L1.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from sqlalchemy import update
+
 from waterfall.core.planning.grafting import GraftAsked, plan_graft, write_graft
+from waterfall.core.planning.tables import Node
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -83,3 +86,22 @@ def graft(session: Session, asked: Graft, act: Act | None = None) -> Grafted:
     if act is not None:
         write_graft(session, plan, act)
     return Grafted(tuple(plan.differences), tuple(plan.refusals), dict(plan.copies))
+
+
+def release_origin(session: Session, project_id: UUID, revision_id: UUID, risk_id: UUID) -> None:
+    """Make the nodes of a revision that come from a risk come from none, nothing else touched.
+
+    For the abandonment of a revision that declared a risk and saw it occur: the risk is deleted
+    with it, which the nodes it merged name by their key (``Node.origin_risk_id``); they are
+    deleted with the revision, after the risk (``register_closing``).
+    """
+    session.execute(
+        update(Node)
+        .where(
+            Node.project_id == project_id,
+            Node.revision_id == revision_id,
+            Node.origin_risk_id == risk_id,
+        )
+        .values(origin_risk_id=None)
+        .execution_options(synchronize_session=False)
+    )

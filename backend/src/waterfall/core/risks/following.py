@@ -43,7 +43,7 @@ from waterfall.core.estimate.interface import (
     set_provision,
     structure_amount,
 )
-from waterfall.core.planning.interface import Place, ProvisionOwner
+from waterfall.core.planning.interface import Place, ProvisionOwner, release_origin
 from waterfall.core.revisions.interface import (
     aimed_structure,
     copy_consumed_estimate,
@@ -227,6 +227,8 @@ def close_evaluations(closing: RevisionClosing) -> None:
             # writer locks the risk without the revision or the project, which the abandonment
             # already holds; this lock protects a future writer that would.
             found_risk(session, project_id, risk_id, lock=True)
+            # The tasks its occurrence merged name it: they go with the revision, after it.
+            release_origin(session, project_id, revision_id, risk_id)
             erase(session, project_id, risk_id, structure_id)
     advance_risks(session, project_id, kept)
     session.flush()
