@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+"""The revisions of several projects the portfolio retains at an instant (EP-11, US-2670).
+
+At a past date, a project contributes by its last revision marked before the end of that day, in
+the time zone of the installation; on the current day, by its current revision or, without one, by
+its last marked (WF-PTF-0010, WF-IND-0010). Both are read for every project of a scope in one query
+(EP-11, "La contribution d'un projet"), with the probability of winning the last marked kept, the
+weight of an offer at a past date (EP-07).
+
+Declared by US-2670/L1, the socle of EP-11; filled by US-2670/L3.
+"""
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
+    from datetime import datetime
+    from decimal import Decimal
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
+
+
+@dataclass(frozen=True, slots=True)
+class RetainedRevisions:
+    """The last revision of a project marked before an instant, its marking, and its current one.
+
+    ``last_marked_id``, ``marked_at`` and ``win_probability`` — the probability of winning that
+    marking kept (``Revision.win_probability``) — are null for a project none of whose revisions
+    was marked before the instant; ``current_id`` for one that has no current revision.
+    """
+
+    last_marked_id: UUID | None
+    marked_at: datetime | None
+    win_probability: Decimal | None
+    current_id: UUID | None
+
+
+def last_marked_at_instant(
+    session: Session, project_ids: Collection[UUID], before: datetime
+) -> dict[UUID, RetainedRevisions]:
+    """Give, for each project, its last revision marked before ``before`` and its current one."""
+    msg = "last_marked_at_instant is filled by US-2670/L3"
+    raise NotImplementedError(msg)

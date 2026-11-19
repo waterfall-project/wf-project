@@ -63,6 +63,12 @@ from waterfall.core.revisions.interface.merging import (
     register_merge,
 )
 
+# ``portfolio`` (US-2670/L1; US-2670/L3): the revisions of several projects the portfolio retains.
+from waterfall.core.revisions.interface.portfolio import (
+    RetainedRevisions,
+    last_marked_at_instant,
+)
+
 # ``rates`` (US-1500/L1): the update of the rates of a revision, as the revision frames it.
 from waterfall.core.revisions.interface.rates import (
     RatesToUpdate,
@@ -161,6 +167,7 @@ __all__ = [
     "RatesToUpdate",
     "ReferenceDesignated",
     "ReferenceToDesignate",
+    "RetainedRevisions",
     "RevisionAsked",
     "RevisionClosing",
     "RevisionCopy",
@@ -190,6 +197,7 @@ __all__ = [
     "designate_reference",
     "hold_current_revision",
     "keep_project_ratios",
+    "last_marked_at_instant",
     "last_marked_revision",
     "last_marked_revisions",
     "list_cost_structures",

@@ -17,7 +17,9 @@ from typing import Any, Literal
 # A document of indicators: a JSON object, its amounts in text as the contract's ``Money``.
 type Document = dict[str, Any]
 # The kinds of document a marking keeps (``revision_indicator.kind``): the indicators of the
-# estimate and of the remaining to commit, those of the project, and its three curves.
+# estimate and of the remaining to commit, those of the project, and its three curves; then the
+# documents of a project the portfolio sums, of the scope ``project`` alone (EP-11, US-2670/L1),
+# which ``keep_document`` writes for it from US-2680/L1 on.
 type IndicatorKind = Literal[
     "estimate",
     "remaining",
@@ -25,4 +27,9 @@ type IndicatorKind = Literal[
     "cost_curve",
     "cost_curve_payment_delays",
     "earned_value_curves",
+    "portfolio_workload",
+    "portfolio_cost_structure",
+    "portfolio_risks",
+    "portfolio_milestones",
+    "portfolio_offer_curves",
 ]

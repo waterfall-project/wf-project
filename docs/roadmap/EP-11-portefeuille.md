@@ -436,7 +436,7 @@ leurs requêtes dans le noyau. Le rapport dit que le témoin ne porte pas trois 
 
 ## US-2670 — Le périmètre, la date de calcul et la règle d'agrégation
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-PTF-0010-A`, `WF-PTF-0020-A`, `WF-PTF-0030-A`, `WF-CYC-0130-A`,
   `WF-PRJ-0090-A`
 - **opérations** : `getPortfolioProjects`, `getPortfolioValue`, `getPortfolioWorkload`,

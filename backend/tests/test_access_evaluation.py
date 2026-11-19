@@ -34,6 +34,14 @@ import asked_merges
 import asked_milestone_tracking
 import asked_nodes
 import asked_org_nodes
+import asked_portfolio_cost_curve
+import asked_portfolio_cost_structure
+import asked_portfolio_performance
+import asked_portfolio_pilot_health
+import asked_portfolio_projects
+import asked_portfolio_risks
+import asked_portfolio_value
+import asked_portfolio_workload
 import asked_progress
 import asked_project_indicators
 import asked_projects
@@ -502,6 +510,17 @@ RISKS = (
     asked_risk_coverage,
     asked_risk_occurrences,
 )
+# The operations of the portfolio, router by router (EP-11): none names a project.
+PORTFOLIO = (
+    asked_portfolio_projects,
+    asked_portfolio_value,
+    asked_portfolio_workload,
+    asked_portfolio_performance,
+    asked_portfolio_cost_structure,
+    asked_portfolio_risks,
+    asked_portfolio_cost_curve,
+    asked_portfolio_pilot_health,
+)
 # The permissions each served operation asks for, in the order they are evaluated.
 ASKED: dict[str, tuple[str, ...]] = {
     "getLiveness": (),
@@ -548,11 +567,21 @@ ASKED: dict[str, tuple[str, ...]] = {
     **{name: asked for router in COSTS for name, asked in router.ASKED.items()},
     **{name: asked for router in INDICATORS for name, asked in router.ASKED.items()},
     **{name: asked for router in RISKS for name, asked in router.ASKED.items()},
+    **{name: asked for router in PORTFOLIO for name, asked in router.ASKED.items()},
 }
 # Two files that declare the same operation would overwrite each other in the table above.
 DECLARED = [
     name
-    for router in (*REFERENCE, *PROJECTS, *PLANNING, *ESTIMATE, *COSTS, *INDICATORS, *RISKS)
+    for router in (
+        *REFERENCE,
+        *PROJECTS,
+        *PLANNING,
+        *ESTIMATE,
+        *COSTS,
+        *INDICATORS,
+        *RISKS,
+        *PORTFOLIO,
+    )
     for name in router.ASKED
 ]
 assert len(DECLARED) == len(set(DECLARED)), sorted(

@@ -33,6 +33,7 @@ from waterfall.core.access_roles.tables import (
 )
 from waterfall.core.projects.interface import ContributorKind, contributor_kind, project_exists
 from waterfall.platform.errors import NOT_FOUND, ForbiddenError, NotFoundError
+from waterfall.platform.permissions import ALL_PROJECTS_READ
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -45,8 +46,6 @@ NOT_PROJECT_MANAGER = "NOT_PROJECT_MANAGER"
 # The qualities a refusal names, as the contract says them (``CommandCondition``).
 IS_CONTRIBUTOR = "is_contributor"
 IS_PROJECT_MANAGER = "is_project_manager"
-# The permission that opens to consultation the projects its holder does not contribute to.
-ALL_PROJECTS_READ = "all_projects_read"
 
 
 @dataclass(frozen=True, slots=True)

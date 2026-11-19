@@ -63,6 +63,24 @@ from waterfall.core.indicators.interface.physical_progress import (
     physical_progress as physical_progress,
 )
 
+# ``portfolio`` (US-2670/L1; US-2680/L1): the documents of the projects the portfolio sums, kept at
+# the marking and of the day.
+from waterfall.core.indicators.interface.portfolio import (
+    Contribute as Contribute,
+)
+from waterfall.core.indicators.interface.portfolio import (
+    day_documents_of as day_documents_of,
+)
+from waterfall.core.indicators.interface.portfolio import (
+    keep_document as keep_document,
+)
+from waterfall.core.indicators.interface.portfolio import (
+    kept_documents_of as kept_documents_of,
+)
+from waterfall.core.indicators.interface.portfolio import (
+    offer_curves as offer_curves,
+)
+
 # ``project_indicators`` (US-1660/L1; US-1660/L3, US-1670/L2): the indicators of a project, and
 # what a reading of the current day computes on (``day_reading``, read by the curves, US-1690/L2;
 # ``current_day_reading``, by the time/time diagram, US-1710; ``day_indicators``, from the cache of
