@@ -49,6 +49,9 @@ from rebases_support import (
     state_of,
 )
 from risks_support import MAKING, STUDY, Costed, costed, declared, material
+from sqlalchemy import update
+
+from waterfall.core.revisions.tables import CostStructure
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -178,6 +181,28 @@ def test_the_main_structure_is_not_written_and_the_differential_is_up_to_date_on
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
+def test_the_base_takes_the_start_of_the_main_structure_as_the_column_holds_it(
+    api: ContractClient, late: OutOfDate
+) -> None:
+    # [US-3050] The base is a copy of the main structure after the update: a main structure whose
+    # start of planning is null (a row the migration did not fill) gives its base a null start,
+    # not the day derived for it, which the main structure does not bear.
+    project = late.project
+    with project.stage.database.transaction() as session:
+        session.execute(
+            update(CostStructure)
+            .where(
+                CostStructure.project_id == project.project_id,
+                CostStructure.id == UUID(project.tree.structure_id),
+            )
+            .values(planning_start_on=None)
+        )
+    assert base_of(project, late.structure_id).planning_start_on is not None
+    applied(api, late)
+    assert base_of(project, late.structure_id).planning_start_on is None
+
+
+@pytest.mark.requirement("WF-REV-0100-A")
 def test_an_update_leaves_the_differential_out_of_date_again_by_the_next_write_of_the_main(
     api: ContractClient, late: OutOfDate
 ) -> None:
@@ -256,10 +281,10 @@ def test_the_provision_line_of_the_main_structure_enters_neither_the_differentia
 def test_a_task_the_main_moves_goes_where_it_puts_it_and_the_task_it_adds_follows_it(
     api: ContractClient, late: OutOfDate
 ) -> None:
-    # « un nœud que la principale a ajouté y entre sous sa lignée, à sa place »; « une valeur
-    # qu'elle a changée y est changée »: the main structure moves Formation under Étude, and a
-    # task with a subtask and a line, which enter the differential one under the other, each under
-    # the lineage it has there.
+    # The conception of the EPIC (« La mise à jour ») says « un nœud que la principale a ajouté y
+    # entre sous sa lignée, à sa place ; une valeur qu'elle a changée y est changée »: the main
+    # structure moves Formation under Étude, and a task with a subtask and a line, which enter the
+    # differential one under the other, each under the lineage it has there.
     main, own = late.project.tree, late.amendment
     moved_under(main, OWN_RENAMED[0], MAIN_RENAMED[1])
     lot = main.made("Livraison")
@@ -288,7 +313,8 @@ def test_a_task_the_main_moves_goes_where_it_puts_it_and_the_task_it_adds_follow
 def test_a_line_the_main_moves_goes_under_its_new_task_after_the_line_that_precedes_it(
     api: ContractClient, late: OutOfDate
 ) -> None:
-    # « une valeur qu'elle a changée y est changée »: the main structure moves the line Plans
+    # The conception of the EPIC says « une valeur qu'elle a changée y est changée »: the main
+    # structure moves the line Plans
     # under Réalisation, after Fabrication; the line enters the differential's task there, its
     # parent named by the report as updated.
     main, own = late.project.tree, late.amendment
@@ -304,11 +330,11 @@ def test_a_line_the_main_moves_goes_under_its_new_task_after_the_line_that_prece
 def test_a_line_the_main_adds_to_a_task_the_differential_removed_enters_under_its_parent(
     api: ContractClient, project: Costed
 ) -> None:
-    # « un nœud que la principale a ajouté y entre sous sa lignée, à sa place »: a line the main
-    # structure adds to a subtask the differential removes enters under the subtask's parent, last
-    # of its lines — the differential designating its move, which the base, a copy of the main
-    # structure, says —; one it adds to a task of the first level the differential removes does
-    # not enter: the base holds it, the differential removed it.
+    # The conception of the EPIC says « un nœud que la principale a ajouté y entre sous sa lignée,
+    # à sa place »: a line the main structure adds to a subtask the differential removes enters
+    # under the subtask's parent, last of its lines — the differential designating its move, which
+    # the base, a copy of the main structure, says —; one it adds to a task of the first level the
+    # differential removes does not enter: the base holds it, the differential removed it.
     main = project.tree
     main.made("Montage", parent_id=node_labelled(main, STUDY)["node_id"])
     main.made("Documentation")
@@ -466,9 +492,10 @@ def test_a_link_the_differential_adds_to_a_task_that_leaves_is_removed_with_it(
 def test_the_dates_of_the_differential_are_computed_again_once(
     api: ContractClient, late: OutOfDate
 ) -> None:
-    # « Le moteur de dates est rejoué une fois sur le différentiel »: a duration the main structure
-    # lengthens is carried, and the finish of the task, computed on the differential, is the one
-    # the main structure computes — as its successor's, which the engine moves with it.
+    # The conception of the EPIC says « Le moteur de dates est rejoué une fois sur le
+    # différentiel »: a duration the main structure lengthens is carried, and the finish of the
+    # task, computed on the differential, is the one the main structure computes — as its
+    # successor's, which the engine moves with it.
     main, own = late.project.tree, late.amendment
     lagged(main, "Recette", {MAKING: "0"})
     task = node_labelled(main, MAKING)["task"]
@@ -488,7 +515,7 @@ def test_the_dates_of_the_differential_are_computed_again_once(
 def test_a_task_the_main_adds_enters_without_the_attachments_a_differential_never_bears(
     api: ContractClient, late: OutOfDate
 ) -> None:
-    # « Un différentiel ne porte aucun rattachement » (#4221): the task the main structure adds,
+    # A differential bears no attachment (#4221): the task the main structure adds,
     # attached to a work package, enters the differential unattached, as the fusion never takes an
     # attachment of a differential; the main structure keeps its own.
     project, main = late.project, late.project.tree

@@ -118,7 +118,7 @@ def refusal(answer: Any) -> tuple[int, str, dict[str, Any]]:
 
 
 @pytest.mark.parametrize("who", ["main", "differential"])
-@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.requirement("WF-REV-0100-A")
 def test_a_counter_changed_since_the_report_is_refused_and_nothing_is_written(
     api: ContractClient, late: OutOfDate, who: str
 ) -> None:
@@ -142,11 +142,11 @@ def test_a_counter_changed_since_the_report_is_refused_and_nothing_is_written(
     assert rebased(api, late).status_code == 200
 
 
-@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.requirement("WF-REV-0100-A")
 def test_a_body_that_is_no_confirmation_is_refused_and_nothing_is_written(
     api: ContractClient, late: OutOfDate
 ) -> None:
-    # « Or a body that is not a confirmation (VALIDATION_FAILED) »: a confirmation that is not
+    # A body that is not a confirmation is refused (VALIDATION_FAILED): a confirmation that is not
     # true, a counter missing.
     found = read_report(api, late)
     held = written(api, late)

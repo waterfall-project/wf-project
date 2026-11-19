@@ -175,7 +175,7 @@ def loaded(late: OutOfDate) -> None:
 def test_the_function_offered_to_the_witness_updates_without_a_report(
     api: ContractClient, project: Costed
 ) -> None:
-    # « la fonction de la mise à jour offerte au chargeur du témoin, sans compte rendu »: it writes
+    # The update function offered to the loader of the witness, without a report: it writes
     # what the confirmed update writes — the same outline, the differential up to date — and a
     # differential already up to date is refused as its command is.
     late = out_of_date(api, project)

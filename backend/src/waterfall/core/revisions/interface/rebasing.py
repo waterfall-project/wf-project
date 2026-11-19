@@ -32,7 +32,8 @@ of the two structures read, which the confirmation sends back.
 
 ``rebased_structure`` is what the application leaves of the structures themselves, once the nodes
 are written: the differential bears the counter of the main structure, which it is up to date at,
-and its base takes the start and the dates' instant of the main structure it is a copy of.
+and its base takes the start (the column as it is, null included) and the dates' instant of the
+main structure it is a copy of.
 
 Written by US-3050/L3; the application by US-3050/L4.
 """
@@ -229,10 +230,17 @@ def rebased_structure(rebasing: StructureRebasing) -> None:
         )
         .execution_options(synchronize_session=False)
     )
+    # The column as the main structure holds it, null if it is: ``main.planning_start_on`` is
+    # derived when the column is null, a value the main structure does not bear.
+    start = session.scalar(
+        select(CostStructure.planning_start_on).where(
+            CostStructure.project_id == project_id, CostStructure.id == rebasing.main_structure_id
+        )
+    )
     session.execute(
         update(CostStructure)
         .where(CostStructure.project_id == project_id, CostStructure.id == rebasing.base_id)
-        .values(planning_start_on=main.planning_start_on, scheduled_at=main.scheduled_at)
+        .values(planning_start_on=start, scheduled_at=main.scheduled_at)
         .execution_options(synchronize_session=False)
     )
     session.flush()
