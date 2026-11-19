@@ -359,11 +359,12 @@ def change_identity(
     renamed = written[0] != risk.label
     risk.label, risk.description, risk.mitigation_notes = written
     risk.updated_at, risk.updated_by = act.at, act.author
+    before = risk.lock_version
     risk.lock_version += 1
     session.flush()
     # The identity is no entry of the history and no entry restores it: its counter, which the
     # entries of the risk are judged on, is carried to them, so that it is no conflict (US-2590/L2).
-    carry_everywhere(session, project_id, {risk.id: risk.lock_version})
+    carry_everywhere(session, project_id, {risk.id: (before, risk.lock_version)})
     if renamed and current is not None:
         _rename_in_revision(session, (project_id, current), written[0], act)
 

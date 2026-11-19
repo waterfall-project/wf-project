@@ -262,12 +262,18 @@ def _judge(expected: Snapshot, read: SnapshotReader) -> None:
             )
 
 
-def _follow(session: Session, stack: UndoStack, versions: dict[UUID, int]) -> None:
+def _follow(
+    session: Session,
+    stack: UndoStack,
+    versions: dict[UUID, int],
+    only_from: dict[UUID, int] | None = None,
+) -> None:
     """Carry the versions a restoring left to the entries that will be judged on them next.
 
     For each object, the nearest entry not undone that holds it in its ``after`` — the next
     undoing judges it there —, and the nearest entry undone that holds it in its ``before`` — the
-    next redoing does.
+    next redoing does. With ``only_from``, an object is carried only if the entry holds it at that
+    counter: an entry already behind another write keeps its counter, and its conflict with it.
     """
     for undone in (False, True):
         pending = dict(versions)
@@ -282,6 +288,11 @@ def _follow(session: Session, stack: UndoStack, versions: dict[UUID, int]) -> No
             found = {s.object_id: pending.pop(s.object_id) for s in side if s.object_id in pending}
             if not found:
                 continue
+            if only_from is not None:
+                held = {s.object_id: s.lock_version for s in side}
+                found = {o: v for o, v in found.items() if held[o] == only_from[o]}
+                if not found:
+                    continue
             carried = encoded(with_versions(side, found))
             if undone:
                 entry.before = carried
@@ -290,17 +301,24 @@ def _follow(session: Session, stack: UndoStack, versions: dict[UUID, int]) -> No
     session.flush()
 
 
-def carry_everywhere(session: Session, project_id: UUID, versions: dict[UUID, int]) -> None:
+def carry_everywhere(
+    session: Session, project_id: UUID, moved: dict[UUID, tuple[int, int]]
+) -> None:
     """Carry the versions a write moved, of objects no entry restores, to every stack of a project.
 
     A datum an entry keeps the version of but does not restore — the identity of a risk, H-02 —
     moves its counter without being what an entry judges: each stack follows it as it follows the
     versions of a restoring (``_follow``), so that the change is no conflict of an undoing.
+    ``moved`` gives, by object, the counter before the write and the one after: an entry that does
+    not hold the former is already in conflict with another write, which the carrying does not
+    erase.
     """
+    old = {o: v[0] for o, v in moved.items()}
+    new = {o: v[1] for o, v in moved.items()}
     stacks = session.execute(
         select(UndoEntry.revision_id, UndoEntry.user_account_id, UndoEntry.session_id)
         .where(UndoEntry.project_id == project_id)
         .distinct()
     ).all()
     for revision_id, account_id, session_id in stacks:
-        _follow(session, UndoStack(revision_id, account_id, session_id), versions)
+        _follow(session, UndoStack(revision_id, account_id, session_id), new, old)

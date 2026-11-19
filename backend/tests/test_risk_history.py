@@ -630,6 +630,25 @@ def test_a_real_write_of_another_contributor_after_a_change_of_the_identity_is_s
     )
 
 
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_a_change_of_the_identity_does_not_erase_a_conflict_already_born(
+    risks: Risks, who: Person
+) -> None:
+    # A reviews, another reviews (the undoing of A is a conflict), then the label is corrected: the
+    # counter of the identity is carried only to the entries that held the one before it, so the
+    # conflict stays: 409 naming the risk, the review of the other not overwritten.
+    risk = risks.declared_costed()
+    entered(risks.review(risks.risk(risk), who, probability="0.5"))
+    risks.reviewed(risks.risk(risk), probability="0.6")
+    assert risks.update(risks.risk(risk), who, label="Grue en panne").status_code == 200
+    assert refusal(turned(risks, who, "undo")) == (
+        409,
+        "UNDO_CONFLICT",
+        {"conflicting_object_id": risk["risk_id"], "conflicting_object_label": "Grue en panne"},
+    )
+    assert risks.risk(risk)["probability"] == "0.6"
+
+
 # --- What enters the history, and what does not --------------------------------------------------
 
 
