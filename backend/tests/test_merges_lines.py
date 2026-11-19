@@ -46,6 +46,8 @@ from waterfall.core.estimate.tables import (
     RevisionRole,
 )
 from waterfall.core.indicators.tables import RevisionIndicator
+from waterfall.core.planning import merging as merging_module
+from waterfall.core.planning.scheduling.structure import TaskWithoutWorkingHoursError
 from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
@@ -293,6 +295,99 @@ def test_a_merge_that_would_leave_a_task_without_a_working_hour_is_refused_namin
     assert tasks_of(project, project.structure_id) == before
     assert revision_of(api, project, project.revision_id)["status"] == "draft"
     assert structure_row(project, amendment).is_merged is False
+
+
+@pytest.mark.requirement("WF-REV-0050-A")
+def test_a_started_task_kept_by_the_merge_is_judged_on_the_own_lines_it_keeps(
+    api: ContractClient, project: Costed, worker: Worker
+) -> None:
+    # « le moteur de dates rejoué une fois juge […] la tâche sans heure » (conception): a started
+    # task the differential removes is kept with its own lines, whose roles share no hour in the
+    # week — a welder on weekdays and a fitter on weekends, the second entered around the service
+    # after the differential copied it — and the merge is refused naming it by its node; the same
+    # task whose lines share an hour is kept and completed.
+    stage = project.stage
+    welder = add_role(stage.database, "SOUD", WEEKDAYS)
+    fitter = add_role(stage.database, "MONT", WEEKEND)
+    making = node_labelled(project.tree, MAKING)
+    project.lines.made(making, label="Soudure", **labour(welder, "4"))
+    project.lines.made(making, label="Montage", **labour(welder, "4"))
+    amendment = opened_amendment(api, project)
+    tree = on(project.tree, amendment)
+    set_progress(stage, str(project.tasks[MAKING]), "started", DAY)
+    assert delete(tree, node_labelled(tree, MAKING), stage.manager).status_code == 200
+    assert read_report(api, project, amendment)["refusals"] == []
+    put_role(project.tree, "Montage", fitter)
+    refusals = read_report(api, project, amendment)["refusals"]
+    assert [each["code"] for each in refusals] == [HOURLESS]
+    assert refusals[0]["params"]["tasks"] == [
+        {"project_id": str(project.project_id), "node_id": making["node_id"], "label": MAKING}
+    ]
+    put_role(project.tree, "Montage", welder)
+    assert merged(api, project, worker, amendment)["status"] == "succeeded"
+    assert tasks_of(project, project.structure_id)[MAKING][2] == "completed"
+
+
+@pytest.mark.requirement("WF-REV-0050-A")
+@pytest.mark.parametrize("started", [False, True])
+def test_a_line_of_a_role_the_differential_removes_no_longer_refuses_its_task(
+    api: ContractClient, project: Costed, worker: Worker, started: bool
+) -> None:
+    # « la tâche sans heure » (conception) judged on the lines the merge leaves: the main
+    # structure bears the weekend role beside the welder, which would refuse the task; the
+    # differential removes that line, and the task, started or not, is no longer refused — the
+    # lines of the main structure the differential does not name are those of a task it removes.
+    stage = project.stage
+    welder = add_role(stage.database, "SOUD", WEEKDAYS)
+    fitter = add_role(stage.database, "MONT", WEEKEND)
+    making = node_labelled(project.tree, MAKING)
+    project.lines.made(making, label="Soudure", **labour(welder, "4"))
+    project.lines.made(making, label="Week-end", **labour(welder, "4"))
+    put_role(project.tree, "Week-end", fitter)
+    amendment = opened_amendment(api, project)
+    tree = on(project.tree, amendment)
+    if started:
+        set_progress(stage, str(project.tasks[MAKING]), "started", DAY)
+    assert delete(tree, node_labelled(tree, "Week-end"), stage.manager).status_code == 200
+    assert read_report(api, project, amendment)["refusals"] == []
+    assert merged(api, project, worker, amendment)["status"] == "succeeded"
+    assert "Week-end" not in lines_of(project, project.structure_id)
+
+
+@pytest.mark.requirement("WF-REV-0050-A")
+def test_the_engine_and_the_estimate_name_the_same_task_without_a_working_hour(
+    api: ContractClient, project: Costed, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # « le moteur de dates rejoué une fois juge […] la tâche sans heure » (conception): the replay
+    # of the engine leaves the task without a working hour to the estimate, which names it
+    # (``_replayed``), so that the two judgements are one: whenever the engine refuses a task of
+    # the structure the merge leaves, the report refuses that task and no other.
+    stage = project.stage
+    welder = add_role(stage.database, "SOUD", WEEKDAYS)
+    fitter = add_role(stage.database, "MONT", WEEKEND)
+    amendment = opened_amendment(api, project)
+    tree = on(project.tree, amendment)
+    tests = tree.made("Essais")
+    Lines(tree).made(tests, label="Contrôle", **labour(welder, "4"))
+    Lines(tree).made(tests, label="Contrôle week-end", **labour(welder, "4"))
+    put_role(tree, "Contrôle week-end", fitter)
+    refused: list[UUID] = []
+    real = merging_module.schedule
+
+    def watching(structure: Any) -> Any:
+        try:
+            return real(structure)
+        except TaskWithoutWorkingHoursError as error:
+            refused.append(error.task_id)
+            raise
+
+    monkeypatch.setattr(merging_module, "schedule", watching)
+    refusals = read_report(api, project, amendment)["refusals"]
+    assert len(refused) == 1
+    assert [each["code"] for each in refusals] == [HOURLESS]
+    named = refusals[0]["params"]["tasks"]
+    assert named == [{"lineage_id": tests["lineage_id"], "label": "Essais"}]
+    assert refused[0] in {UUID(tests["lineage_id"]), UUID(tests["node_id"])}
 
 
 # --- What the marking keeps -----------------------------------------------------------------------

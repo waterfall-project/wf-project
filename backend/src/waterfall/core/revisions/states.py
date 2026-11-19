@@ -35,6 +35,8 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.projects.interface import ProjectFacts
+
 
 def revision_state(session: Session, project_id: UUID, revision_id: UUID) -> RevisionState:
     """Read the state of a revision of a project as its commands judge it; or refuse (404)."""
@@ -61,13 +63,17 @@ def last_marked(session: Session, project_id: UUID) -> UUID | None:
     )
 
 
-def opening_of(session: Session, project_id: UUID) -> UUID | None:
+def opening_of(
+    session: Session, project_id: UUID, project: ProjectFacts | None = None
+) -> UUID | None:
     """Give the revision whose merge would open the current one: its last marked, if it has none.
 
     Read by every path that judges the commands of a revision (``source``, #790): the list and
-    the reading of the revisions as the list of the structures.
+    the reading of the revisions as the list of the structures. ``project`` is the facts of the
+    project when the caller has read them already.
     """
-    if project_facts(session, project_id).current_revision_id is not None:
+    project = project or project_facts(session, project_id)
+    if project.current_revision_id is not None:
         return None
     return last_marked(session, project_id)
 
