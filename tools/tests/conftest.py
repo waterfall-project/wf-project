@@ -8,11 +8,19 @@ the computation, which other tests try: they share one, computed once a session.
 """
 
 import json
-from typing import Any
+import os
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from wftools import mockdata
+from wftools import heavyturns, mockdata, mockvolumes
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+# A test that skips without declaring it by the mark ``unexecuted`` fails (US-2440); Pytester runs
+# the plugin on tests written for its own tests.
+pytest_plugins = ("pytester", "wftools.unexecuted")
 
 
 @pytest.fixture(autouse=True)
@@ -27,10 +35,37 @@ def no_process_table(
     monkeypatch.setenv("WATERFALL_SLOTS_PROC", str(empty))
 
 
+@pytest.fixture(autouse=True)
+def no_workstation_locks(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Point ``WATERFALL_RUNTIME_DIR`` at a temporary directory, inherited by the subprocesses.
+
+    No test, in process or not, can then take a lock or a slot of the workstation (US-2460). A test
+    that sets its own directory overrides it; ``user_runtime`` removes it to test the default.
+    """
+    monkeypatch.setenv(heavyturns.RUNTIME_VARIABLE, str(tmp_path_factory.mktemp("runtime")))
+
+
+@pytest.fixture
+def user_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Move ``/run/user`` under the test, and return the directory of the user in it, created.
+
+    A session without ``WATERFALL_RUNTIME_DIR`` then locks there, never in the directory of the
+    workstation (US-2460).
+    """
+    root = tmp_path / "run-user"
+    own = root / str(os.getuid())
+    own.mkdir(parents=True)
+    monkeypatch.setattr(heavyturns, "USER_RUNTIME_ROOT", root)
+    monkeypatch.delenv(heavyturns.RUNTIME_VARIABLE, raising=False)
+    return own
+
+
 @pytest.fixture(scope="session")
 def universe_computed() -> tuple[dict[str, Any], dict[str, Any]]:
     """Return the volumes and the named examples of the universe, computed once a session."""
-    return mockdata.volumes(), mockdata.named()
+    return mockvolumes.volumes(), mockdata.named()
 
 
 @pytest.fixture
@@ -43,7 +78,7 @@ def computed_once(
     must compute its own universe: it does not ask for this fixture.
     """
     volumes, named = universe_computed
-    monkeypatch.setattr(mockdata, "volumes", lambda: volumes)
+    monkeypatch.setattr(mockvolumes, "volumes", lambda: volumes)
     monkeypatch.setattr(mockdata, "named", lambda: named)
 
 

@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import YEAR, Costing, Lines, add_role, costing
+from estimate_support import YEAR, Costing, Lines, add_role, costing, task_in
 from history_support import delete, redone, undo, undone
 from nodes_support import Tree, entries, faults, opened, refusal, signed_in
 from projects_support import PROJECTS, Person, Scene
@@ -40,7 +40,12 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
     return make_scene(api, owner, database, realm)
 
@@ -226,18 +231,13 @@ def test_the_lines_of_a_task_redated_are_priced_again_and_given_back(
     first = tree.made("Études")
     second = tree.made(
         "Exploitation",
-        task={
-            "scheduling_mode": "manual",
-            "start": {"date": f"{YEAR}-12-07"},
-            "finish": {"date": f"{YEAR}-12-08"},
-        },
+        task=task_in(YEAR),
     )
     line = lines.made(second, **worked(costs.role))["nodes"][0]
     assert line["estimate_line"]["consumption_year"] == YEAR
+    next_year = task_in(YEAR + 1)
     moved = tree.changed(
-        tree.node(second["node_id"]),
-        start={"date": f"{YEAR + 1}-12-06"},
-        finish={"date": f"{YEAR + 1}-12-07"},
+        tree.node(second["node_id"]), start=next_year["start"], finish=next_year["finish"]
     )
     assert [each["node_id"] for each in moved["nodes"]] == [second["node_id"]]
     assert moved["reinflated"] == [

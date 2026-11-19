@@ -101,7 +101,12 @@ def api(contract: OpenAPI, services: Services) -> ContractClient:
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+) -> Scene:
     """Give a platform whose reference is complete, its sessions, and a project its manager made."""
     return make_scene(api, owner, database, realm)
 

@@ -295,8 +295,10 @@ def test_an_administrator_given_a_password_another_way_is_given_no_link_and_its_
 def run_at_once(owner: Engine, settings: InstallationSettings) -> list[tuple[str, str]]:
     """Run two bootstraps at once, in two processes; give what each wrote, once both ended.
 
-    The test holds the lock itself until both wait on it, so that they do run at once: without a
-    lock in the code, none ever waits, and the test fails at the end of its delay.
+    The test holds the lock itself until both wait on it, so that they do run at once. Without a
+    lock in the code, none ever waits: a bootstrap that ends while the lock is held fails the test
+    at once, as "a bootstrap ended unlocked", and if both go on, the test fails at the end of its
+    delay of 60 seconds. The error carries the stderr of each bootstrap.
     """
     command = [
         sys.executable,
@@ -310,16 +312,23 @@ def run_at_once(owner: Engine, settings: InstallationSettings) -> list[tuple[str
         "AND database = (SELECT oid FROM pg_database WHERE datname = current_database()) "
         "AND classid = 0 AND objid = :key AND objsubid = 1"
     ).bindparams(key=bootstrap.INSTALL_LOCK)
+    runs: list[subprocess.Popen[str]] = []
     with owner.connect() as holder:
-        holder.execute(select(func.pg_advisory_lock(bootstrap.INSTALL_LOCK)))
-        holder.commit()
-        runs = [
-            subprocess.Popen(
-                command, env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-            )
-            for _ in range(2)
-        ]
         try:
+            # Taking the lock is bounded: a lock another session holds fails the test, not hangs it.
+            holder.execute(text("SET lock_timeout = '30s'"))
+            holder.execute(select(func.pg_advisory_lock(bootstrap.INSTALL_LOCK)))
+            holder.commit()
+            runs.extend(
+                subprocess.Popen(
+                    command,
+                    env=environment,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+                for _ in range(2)
+            )
             deadline = time.monotonic() + 60
             with owner.connect() as watcher:
                 while watcher.execute(waiting).scalar_one() < 2:
@@ -327,10 +336,11 @@ def run_at_once(owner: Engine, settings: InstallationSettings) -> list[tuple[str
                     assert time.monotonic() < deadline, "the bootstraps never waited on the lock"
                     assert all(run.poll() is None for run in runs), "a bootstrap ended unlocked"
                     time.sleep(0.1)
-        except BaseException:
+        except BaseException as error:
             for run in runs:
                 run.kill()
-                run.communicate()
+                _, errors = run.communicate()
+                error.add_note(f"stderr of a bootstrap: {errors.strip() or '(nothing)'}")
             raise
         finally:
             holder.rollback()

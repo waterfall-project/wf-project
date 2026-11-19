@@ -98,11 +98,12 @@ jobs:
       # PGDG repository: `apt-get install` said "already the newest version" on 2026-11-13). The job
       # installs nothing, so that no mirror of Ubuntu (azure.archive.ubuntu.com) can fail it
       # (US-1900); should the image drop the client, the job stops here and says so.
-      # /usr/bin/pg_dump and pg_restore, which the backups call, are the wrapper of Debian, which
+      # /usr/bin/pg_dump, pg_restore and psql (the last runs the production script, psql 15 or later),
+      # which the backups and the tests call, are the wrapper of Debian, which
       # keeps the major of the cluster the image holds: they are pointed at the 18, which the last
       # lines check.
       - run: |
-          for tool in pg_dump pg_restore; do
+          for tool in pg_dump pg_restore psql; do
             test -x "/usr/lib/postgresql/18/bin/$tool" || {
               echo "::error::the runner image no longer carries /usr/lib/postgresql/18/bin/$tool (postgresql-client-18)"
               exit 1

@@ -16,9 +16,9 @@ import pytest
 from wftools import (
     mockcore,
     mockcurves,
-    mockdata,
     mockhistory,
     mockplanning,
+    mockrates,
     mocksnapshot,
     mocktoday,
     mockwitness,
@@ -174,7 +174,7 @@ def test_the_workload_of_a_marked_revision_is_calculated_at_its_marking() -> Non
 @pytest.fixture(scope="module")
 def snapshots() -> dict[str, Node]:
     """Return the reference and the offer as getRevision reads them, with their snapshot."""
-    return cast("dict[str, Node]", mocksnapshot.revisions(mockdata.categories()))
+    return cast("dict[str, Node]", mocksnapshot.revisions(mockrates.categories()))
 
 
 @pytest.mark.requirement("WF-REV-0030-A")

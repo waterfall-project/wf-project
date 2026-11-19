@@ -35,7 +35,10 @@ deux EPICs fonctionnels, ou se joue par lots d'appoint.
 - les outils des exemples du contrat (#1007, #2457) : US-2520 ;
 - les gardes de sources et les parcours du front (#839, #3149, #3431, #3472) : US-2530 ;
 - le guide, la politique de sécurité et les licences (#851, #3041, #3057, #3161, PLC-12, PLC-15) :
-  US-2540.
+  US-2540 ;
+- les finitions des constats mineurs que les revues des lots ont laissés ouverts avant la livraison
+  — #3924, #3911, #3943, #3898, #3807, #3958, #3952 (point 2), #3968 : US-2800 (décision de
+  l'auteur du 2026-11-19).
 
 ## Ce qui n'en fait pas partie
 
@@ -49,7 +52,11 @@ deux EPICs fonctionnels, ou se joue par lots d'appoint.
   (décision de l'auteur du 2026-11-16) : il touche le déploiement ;
 - la restriction de `gh api graphql` aux mutations de la file (PLC-07) — rien : sa largeur est une
   décision consignée (`docs/dev/agents.md`, « La mise en file »), que l'auteur maintient le
-  2026-11-16 ; le cadreur et les livreurs s'en servent aussi pour les sous-issues.
+  2026-11-16 ; le cadreur et les livreurs s'en servent aussi pour les sous-issues ;
+- parmi les constats mineurs ouverts le 2026-11-19, ceux que l'auteur n'a pas pris dans US-2800 :
+  #3808 et #3934 (laissés à trancher), #3925 (clos), #3967 (un livreur le traite), #3724 et la
+  décision d'US-2490 (l'auteur), #4000 (rattaché à un autre EPIC), et le point 1 de #3952
+  (l'empreinte de `NUMBERED`, écartée).
 
 ## Exigences réalisées
 
@@ -219,11 +226,35 @@ Le relevé reste **lu dans les fichiers de test, sans les lancer** — c'est le 
 à ce qu'il déclare, pas à un rapport d'exécution.
 
 - **TypeScript.** `typescript_citations` ne lit plus tout le fichier : elle cherche les appels
-  `it(`, `test(` et leurs variantes, et lit les citations dans leur titre seul. Un appel
+  `it(`, `test(` et leurs variantes, et lit les citations dans leur titre — ou dans celui du
+  `describe(` qui les englobe, tenue pour exécutée si un test du groupe l'est (#3751). Un appel
   `.skip(`, `.fixme(` ou `.todo(`, ou un appel sous un `describe.skip(` ou `describe.fixme(`, donne
-  une citation « non exécuté ». Un saut conditionnel dans le corps d'un test (`test.skip(condition,
-  …)`) n'est pas reconnu : le lot recense ceux qui existent, et s'il en trouve un dont le test cite
-  une exigence, il en fait un constat `à trancher`.
+  une citation « non exécuté ».
+- **Un saut dans le corps d'un test** (US-2440/L3, décision de l'auteur du 2026-11-17, #3749). Le
+  premier lot ne le reconnaissait pas : `test.skip(condition, …)` écrit dans le corps d'un test
+  laissait sa citation « exécutée », et soixante-six tests de `frontend/e2e/` qui citent une
+  exigence se sautent ainsi selon la plateforme. Le relevé le lit désormais, toujours dans les
+  fichiers : un appel `test.skip(` ou `test.fixme(` dont le premier argument n'est pas un titre,
+  et qui se trouve dans un test (ou, à défaut, dans le groupe qui le tient), est un saut
+  conditionnel. Dont le premier argument est exactement `inService` ou `!inService` (le drapeau de
+  `frontend/e2e/mode.ts`), le test reste « exécuté » : il se joue dans l'un des deux parcours,
+  `make e2e` (`ci.yml`, famille `end-to-end`) ou `make e2e-service` (`service.yml`, famille
+  `end-to-end-service`), et les deux tournent dans la chaîne ; sa citation est donc vraie pour la
+  chaîne entière. Tout autre premier argument — `true`, `!inService || manager === undefined`, une
+  autre condition — rend la citation « non exécuté » : un test qui se saute pour une raison
+  que la chaîne ne tient pas ne prouve rien. `test.fail(` reste ce qu'il est, une annotation qui
+  n'empêche pas le test de se jouer ; `it.skipIf(` et `it.runIf(` restent non vus, aucun test du
+  dépôt n'en porte, et le guide le dit. Les trois tests qui sautent aujourd'hui par `test.skip(true,
+  SERVICE_ONLY)` sous un `if (!inService || manager === undefined)` (`revision-cycle.spec.ts`,
+  `projects.spec.ts`, deux fois) écrivent le saut sous la forme reconnue, `test.skip(!inService,
+  SERVICE_ONLY)`, suivi de la garde de `manager` : le lot ne laisse pas trois citations devenir
+  « non exécuté » par la seule écriture. *Option écartée* : ne rien changer (option 1 de #3749) —
+  une citation vraie pour la chaîne, mais le relevé n'attraperait jamais un saut futur qui ne
+  dépend pas du parcours. *Option écartée* : tenir les soixante-six tests pour « non exécuté »
+  (option 3) — la citation y serait fausse, chacun s'exécute dans l'un des parcours de la chaîne.
+  Un test `!inService` n'a de parcours de service que s'il porte `@shared` (`playwright.config.ts`,
+  projet `shared`) : les soixante-trois d'aujourd'hui le portent ; le lot ne contrôle pas
+  l'étiquette, l'écart est noté ici.
 - **Python.** Un test qui peut se sauter porte la marque `@pytest.mark.unexecuted("<raison>")`, sur
   le test, sa classe ou son module, lue par `ast` comme `requirement`. Un crochet des `conftest.py`
   du back et des outils fait **échouer** un test qui se saute sans la porter : la marque ne peut
@@ -340,7 +371,9 @@ Le relevé reste **lu dans les fichiers de test, sans les lancer** — c'est le 
   gardent leur identifiant : leurs noms sont figés dans une liste, et un test tient que tout exemple
   hors de cette liste porte l'identifiant dérivé.
 - **`mockdata.py` (US-2520).** La part des volumes — `volumes()` et ses aides, environ 170 lignes —
-  passe dans un module voisin.
+  passe dans `mockvolumes.py` ; les catégories, les taux et leur grille, que `volumes()` lit et que
+  `named()` écrit, passent dans `mockrates.py`, pour que `volumes()` et `named()` ne s'importent
+  pas l'un l'autre (import circulaire).
 
 ### Tables et migrations
 
@@ -350,7 +383,8 @@ Aucune.
 
 - `tools/src/wftools/` : `coverage`, `guard` et son module extrait, `launch` (nouveau), `slots`,
   `heavyturns`, `tracking`, `mergequeue`, `sources`, `roadmap`, `mirror`, `gate`, `e2eparts`,
-  `mockdata` et son module extrait, `mockrefusals` ; `tools/paths.toml` ; les tests des outils ;
+  `mockdata` et ses modules extraits (`mockvolumes`, `mockrates`), `mockrefusals` ;
+  `tools/paths.toml` ; les tests des outils ;
 - le Makefile ; `.github/workflows/` (`ci.yml`, `service.yml`, `e2e.yml`, `front-cache.yml`),
   `.github/dependabot.yml`, `.github/rulesets/merge-queue.json` ;
 - `.claude/settings.json`, `.claude/agents/epic-deliverer.md`, le skill `pilote` ;
@@ -373,6 +407,45 @@ Aucun module du noyau.
 EP-26 et EP-27 touchent le Makefile, `slots.py`, `mirror.py`, `ci.yml`, `service.yml` et
 `tools/paths.toml` ; EP-10, `mockdata.py` et `tools/paths.toml`. Leurs conflits avec EP-28 se
 règlent à chaque reprise de `main` dans `epic/EP-28`.
+
+### Le complément du 2026-11-19 (US-2800)
+
+L'auteur a décidé de solder, avant la livraison d'EP-28, une série de constats mineurs que les
+revues des lots ont laissés ouverts. Rien ne change dans les tables, le contrat, le noyau ni les
+migrations. Le lot L1 (Python et Markdown) touche `tools/tests/` (`test_e2eimage.py`,
+`test_families.py`, `test_e2eparts.py`, `test_mockcorrelations.py`),
+`backend/tests/test_migrations_as_owner.py`, `docs/dev/README-fr.md`, `docs/dev/README.md` et
+`docs/dev/typescript.md` ; le lot L2 (TypeScript), trois gardes de sources du front
+(`dialog-command-guard.test.ts`, `fields-guard.test.ts`, `sobriety.test.ts`). Les deux lots sont
+indépendants, sans « Pas avec » : aucun fichier commun, et aucun autre lot d'EP-28 n'est en cours.
+
+- **`NUMBERED` exige tous ses noms** (`NUMBERED <= errors.keys()`) — écartés : un seuil, qui
+  laisserait un renommage partiel invisible ; et une empreinte de la liste triée (#3952, point 1,
+  décision de l'auteur du 2026-11-19), qui demanderait une mise à jour à chaque reprise d'une branche
+  d'EPIC. Un nom numéroté à la main reste arrêté par la seule relecture. Le test de preuve retire un
+  nom ordinaire de la fixture et doit échouer ; à la reprise de `main`, l'échec dit quoi faire.
+- **`mounted()`** : l'expression reconnaît `ro` à toute place des options, dans une fonction qui
+  prend un texte, pour le cas sur une ligne fabriquée ; `makefile()` expose le texte brut que
+  `reached` réemploie — écarté : lire le fichier Compose en YAML, qui n'attrape pas mieux une ligne
+  qu'un cas construit à la main.
+- **Masquage du mot de passe** (#3898) : `if password:`, un test du cas plein et un du cas vide —
+  écarté : supprimer le masquage, qui ferait fuir le mot de passe dans le message d'échec.
+- **Lignes refluées** : le texte est inchangé, les pendants anglais le sont s'ils ont le même défaut
+  — écarté : un contrôle de la longueur des lignes, que les écarts d'US-2530 refusent déjà.
+- **Les trois gardes du front** importent `uncommented` sans la modifier — écarté : étendre
+  `uncommented`, hors du périmètre de la fonction et de son test d'US-2530. Une garde qui échoue sur
+  une source du dépôt a trouvé un vrai défaut : un constat `à trancher`, non une correction dans le lot.
+- **`test_e2eimage.py` et `SHARD=lint`** : le test lie `'full'` à `merge_group`, `"lint"` entre dans
+  la liste paramétrée du test de `SHARD`, que couvre déjà `SHARD_BAD` — écarté : réécrire la garde du
+  palier ou du `SHARD`, qui sont justes.
+- **La voie du fichier** (décision de l'auteur du 2026-11-19) : ce complément s'écrit sur
+  `roadmap/EP-28-complement`, tirée d'`epic/EP-28`, dont le fichier d'EPIC a évolué (statuts, lots),
+  et sa pull request vise `epic/EP-28` ; le livreur lit le fichier de l'EPIC dans son worktree, tiré
+  d'`epic/EP-28`. Contre la table « Branches » du README de la roadmap, qui range dans `main` une
+  modification de la roadmap qui ne sert aucun EPIC en cours : celle-ci en sert un. Écartée : la voie
+  par `main`, dont le fichier d'EP-28 est resté à l'état du cadrage — sa fusion dans `epic/EP-28`
+  ferait un conflit sur ce fichier, et demanderait en plus une reprise de `main`. Une personne
+  fusionne la pull request, et aucun lot d'US-2800 ne se lance avant.
 
 ### Décisions
 
@@ -420,7 +493,7 @@ règlent à chaque reprise de `main` dans `epic/EP-28`.
 
 ## US-2440 — Le relevé de couverture ne compte que ce qui s'exécute, et un critère propre à une US se cite `[US-nnnn]`
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3681
@@ -433,7 +506,8 @@ couverte que l'exigence qu'un test exécuté vérifie (#975, #3291, PLC-02).
 **Critères d'acceptation.**
 
 - propre à l'US : `typescript_citations` (`tools/src/wftools/coverage.py`) ne lit une citation que
-  dans le titre d'un `it(` ou d'un `test(` ; une citation dans un commentaire ne compte plus — les
+  dans le titre d'un `it(` ou d'un `test(`, ou du `describe(` qui les englobe ; une citation dans un
+  commentaire ne compte plus — les
   huit d'aujourd'hui (dont `frontend/e2e/admin.spec.ts` et `frontend/e2e/service/session.spec.ts`)
   sortent du relevé (PLC-02) ;
 - propre à l'US : une citation dans le titre d'un `test.fixme`, `test.skip`, `it.skip` ou `it.todo`
@@ -450,7 +524,7 @@ couverte que l'exigence qu'un test exécuté vérifie (#975, #3291, PLC-02).
 - propre à l'US : un test qui porte un critère propre à une US cite `[US-nnnn]` dans son titre, ou
   par une marque en Python ; `make requirements` reconnaît la forme, ne la compte pas comme la
   couverture d'une exigence, et refuse une US qu'aucun fichier de `docs/roadmap` ne porte (#3291) ;
-- propre à l'US : les quatre tests de présentation des graphiques d'US-2160
+- propre à l'US : les sept tests de présentation des graphiques d'US-2160
   (`indicators/charts.dom.test.tsx`, `portfolio/portfolio.dom.test.tsx`,
   `risks/risk-bubble-chart.dom.test.tsx`) citent `[US-2160]` et perdent leur mention « not the Vérif
   of WF-IHM-0070-A » ; WF-IHM-0070-A reste couverte par les tests qui portent son Vérif ;
@@ -467,7 +541,7 @@ WF-QUA-0010-A.
 
 ## US-2450 — Le garde refuse quand il ne peut pas juger, et voit les formes écrites en clair
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3682
@@ -515,7 +589,7 @@ partie »).
 
 ## US-2460 — Un créneau abandonné se reprend, et les verrous du poste ne se scindent pas
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3690
@@ -548,7 +622,7 @@ que** deux exécutions ne se croient jamais seules sur le poste et qu'aucune n'a
 
 ## US-2470 — Les contrôles du dépôt vérifient ce que le guide affirme
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3683
@@ -580,7 +654,7 @@ un mot (PLC-01, PLC-05, PLC-14).
 
 ## US-2480 — Un changement réveille les contrôles qu'il peut casser
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3684
@@ -611,7 +685,7 @@ pull request qui le porte, et non celle du lot suivant ou de `main` après la fu
 
 ## US-2490 — La chaîne : caches, veille, droits, traces et miroir
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3685
@@ -674,7 +748,7 @@ L'épinglage de la production par empreinte : EP-13.
 
 ## US-2500 — Les gardes du Makefile sur `SHARD` et `WATERFALL_PROCESSORS`
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3686
@@ -701,7 +775,7 @@ qu'**une valeur fautive soit refusée partout de la même façon (#3104, #3108).
 
 ## US-2510 — Les tests du back et leurs supports
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3680
@@ -745,7 +819,7 @@ n'échoue sans régression ni ne laisse croire à une preuve qu'il ne fait pas (
 
 ## US-2520 — Les exemples du contrat : identifiants de corrélation et taille de `mockdata.py`
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3687
@@ -770,7 +844,7 @@ docstring pour passer le plafond (#1007, #2457).
 
 ## US-2530 — Les gardes de sources et les parcours du front
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3688
@@ -807,7 +881,7 @@ tromper par une chaîne, et que le parcours du thème de connexion mesure tout c
 
 ## US-2540 — Le guide, la politique de sécurité et les licences disent le dépôt d'aujourd'hui
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3689
@@ -838,3 +912,64 @@ dépôt dément (#851, #3041, #3057, #3161, PLC-12, PLC-15).
   Bitstream, Inc. (2003) et Tavmjong Bah (2006), que la police elle-même déclare — et le texte de
   licence versionné sous `LICENSES/` porte la notice d'Arev ; `make reuse` passe (PLC-15) ;
 - propre à l'US : `make readmes` et `make roadmap` passent.
+
+---
+
+## US-2800 — Les finitions des constats mineurs : tests plus stricts, lignes refluées, gardes du front
+
+- **statut** : fini
+- **exigences** : aucune — outil du dépôt
+- **opérations** : aucune
+- **issue** : #4047
+
+**En tant que** développeur, **je veux** que les tests et les gardes que des revues ont jugés trop
+faibles ou trop lâches tiennent ce qu'ils disent, et que les lignes refluées à moitié du guide le
+soient jusqu'au bout, **afin que** ces mineurs, ouverts depuis les revues d'US-2470 à US-2540, soient
+soldés avant la livraison d'EP-28 (#3924, #3911, #3943, #3898, #3807, #3958, #3952, #3968).
+
+**Critères d'acceptation.**
+
+Aucun Vérif n'est repris : l'US ne réalise aucune exigence. Les critères 1 à 6 sont ceux du lot L1
+(#4048), le dernier celui du lot L2 (#4049).
+
+- propre à l'US : `test_a_pull_request_runs_in_the_fast_tier` (`tools/tests/test_e2eimage.py`)
+  affirme aussi `"event_name == 'merge_group' && 'full'" in tier`, de sorte qu'une expression
+  inversée qui donnerait le palier complet à une pull request le fait échouer ; un cas sur une copie
+  du workflow à l'expression inversée le prouve (#3924) ;
+- propre à l'US : `mounted()` (`tools/tests/test_families.py`) reconnaît `ro` à toute place des
+  options d'un montage (`:z,ro`, `:delegated,ro`), prouvé par un cas sur une ligne fabriquée ;
+  `reached` n'ouvre plus le Makefile une seconde fois, `makefile()` en expose le texte (#3911) ;
+- propre à l'US : le test paramétré de la forme de `SHARD` (`tools/tests/test_e2eparts.py`) compte
+  `"lint"` parmi ses valeurs, pour `e2e`, `e2e-service` et les buts des parcours, dont `check`,
+  `check-front` et `check-all` que le guide cite (#3943) ;
+- propre à l'US : `run_production_script` (`backend/tests/test_migrations_as_owner.py`) ne masque le
+  mot de passe que s'il n'est pas vide ; un test, `subprocess.run` en `monkeypatch`, rend un stderr
+  qui contient le mot de passe et vérifie que le message d'échec ne le contient pas et porte `***` ;
+  un autre, mot de passe vide, vérifie que rien ne s'insère et que le message reste lisible (#3898) ;
+- propre à l'US : la ligne de `merge-queue-check` du guide (« `fnmatch` avec `FNM_PATHNAME` … un `*`
+  ou un `?` s'arrête ») tient en 100 colonnes ; le paragraphe du miroir des images est refluée
+  jusqu'à sa fin ; le début du défaut n° 22 de `docs/dev/typescript.md` (« jugée ligne à ligne ») est
+  refluée à 100 caractères, le texte inchangé ; `docs/dev/README.md` de même quand il a le même défaut
+  (#3807, #3958) ; `make readmes` passe ;
+- propre à l'US : `test_the_examples_numbered_before_the_rule_keep_their_number`
+  (`tools/tests/test_mockcorrelations.py`) exige tous les noms de `NUMBERED`
+  (`NUMBERED <= errors.keys()`), non plus un seul ; le test qui le prouve retire un nom ordinaire de la
+  fixture et doit échouer ; le commentaire « A frozen name may be missing here » et la docstring de
+  `mockcorrelations.py` sont mis d'accord (#3952, point 2) ;
+- propre à l'US : `dialog-command-guard.test.ts`, `fields-guard.test.ts` et `sobriety.test.ts`
+  importent `uncommented` de `frontend/src/test/uncommented.ts` et n'ont plus leur retrait de
+  commentaires par expression régulière ; pour chacune, une chaîne qui contient `/*` ou `//` ne laisse
+  plus passer la source fautive qui la suit, prouvé par un test ; `make check-front` passe (#3968) ;
+- écart : `NUMBERED` n'est pas figé par une empreinte (#3952, point 1) — l'auteur l'écarte le
+  2026-11-19 ; seule la relecture arrête un nom numéroté à la main. L'issue #3952 se ferme avec cette
+  raison, à la fusion du lot L1.
+
+**Notes de réalisation.**
+
+Le lot L2 ne modifie pas `uncommented`. Une garde qui échoue sur une source du dépôt une fois
+`uncommented` adoptée a trouvé un vrai défaut : constat `à trancher`, jamais une correction dans le
+lot.
+
+**Hors périmètre.**
+
+#3808, #3934, #3925, #3967, #3724, #4000, US-2490, et le point 1 de #3952.

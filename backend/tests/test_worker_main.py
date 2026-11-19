@@ -185,7 +185,7 @@ def test_a_schedule_that_cannot_reach_the_database_ends_in_failure_said_in_its_l
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    unreachable = "postgresql+psycopg://waterfall:s3cret-of-the-schedule@127.0.0.1:9/waterfall"
+    unreachable = "postgresql+psycopg://waterfall@127.0.0.1:9/waterfall"
     for name, value in {**service_environment, "WATERFALL_DATABASE_URL": unreachable}.items():
         monkeypatch.setenv(name, value)
     assert worker_main.main(SCHEDULE) == 1

@@ -76,6 +76,7 @@ from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Base, Database
 from waterfall.platform.installation import Installation
+from waterfall.platform.settings import SettingsError, load_platform_settings, load_settings
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.platform.uploads import FileUpload
 
@@ -87,12 +88,11 @@ HEAD = ScriptDirectory.from_config(alembic_config()).get_current_head()
 
 
 def start_migration(engine: Engine) -> subprocess.Popen[str]:
-    """Start the command that applies the migrations, as an instance of the service does."""
+    """Start the command that applies the migrations, with the database alone in its environment."""
     return subprocess.Popen(
         [sys.executable, "-m", "waterfall.migrations.runner"],
         env={
             "WATERFALL_DATABASE_URL": engine.url.render_as_string(hide_password=False),
-            "WATERFALL_REDIS_URL": "redis://redis:6379/0",
         },
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -177,6 +177,26 @@ def test_the_command_applies_the_migrations_to_the_database_of_the_settings(
     assert (result.returncode, errors) == (0, "")
     with empty_engine.connect() as connection:
         assert applied(connection) == [HEAD]
+
+
+@pytest.mark.requirement("WF-DAT-0140-A")
+def test_the_command_applies_the_migrations_without_the_address_of_redis(
+    empty_engine: Engine,
+) -> None:
+    # The migrations need the database alone: the command runs on an environment that names nothing
+    # else, and the settings it reads are those of the platform, not those of the service, which
+    # ask for Redis.
+    result = start_migration(empty_engine)
+    _, errors = result.communicate(timeout=60)
+    assert (result.returncode, errors) == (0, "")
+    with empty_engine.connect() as connection:
+        assert applied(connection) == [HEAD]
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("WATERFALL_DATABASE_URL", "postgresql://u@127.0.0.1:9/x")
+        patch.delenv("WATERFALL_REDIS_URL", raising=False)
+        assert load_platform_settings().database_url.get_secret_value().endswith("/x")
+        with pytest.raises(SettingsError, match="WATERFALL_REDIS_URL"):
+            load_settings()
 
 
 def test_each_migration_is_undone_by_its_mirror_and_applied_again(empty_engine: Engine) -> None:

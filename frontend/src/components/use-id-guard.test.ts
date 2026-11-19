@@ -14,6 +14,8 @@ import { join, relative } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { uncommented } from "@/test/uncommented";
+
 const SOURCES = join(import.meta.dirname, "..");
 
 /** Every module of the front: the `.ts` and `.tsx` files of `src/`, tests and types left out. */
@@ -35,11 +37,6 @@ function isClient(source: string): boolean {
   // Each alternative opens on its own character, and a block comment ends at its first `*/`: no
   // string can be matched two ways, so the test runs in linear time (CodeQL, inefficient regex).
   return /^(?:\s|\/\/[^\n]*\n|\/\*(?:[^*]|\*(?!\/))*\*\/)*["']use client["']/.test(source);
-}
-
-/** A source without its comments: a comment that names `useId` is no use of it. */
-function uncommented(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/[^\n]*/g, "$1");
 }
 
 /**

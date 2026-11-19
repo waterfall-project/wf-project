@@ -92,3 +92,12 @@ jobs:
       # here, on every change of the front, without building the image (US-0430).
       - if: matrix.part == 'measure'
         run: make prerendered-front
+      # What Playwright kept of a path that failed (named by its index: a part has a slash) —
+      # traces, screenshots, error-context.md — which is lost with the runner otherwise (#3447).
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results-e2e-${{ strategy.job-index }}
+          path: frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 7

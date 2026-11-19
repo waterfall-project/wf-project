@@ -62,12 +62,15 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # The measure of the core (``measure/``, US-2210) is no part of the package: its tests import it from here.
-pythonpath = ["."]
+# The plugin that fails a test which skips without the mark `unexecuted` (wftools.unexecuted, US-2440),
+# which the conftest loads, comes from the tools: one implementation, shared with their tests.
+pythonpath = [".", "../tools/src"]
 # The tests of Keycloak need its platform: `make test-keycloak` selects them, `-m keycloak`
 # overriding the selection below.
 addopts = ["--strict-markers", "--strict-config", "-m", "not keycloak"]
 markers = [
     "requirement(identifier): the requirement this test covers, cited by its full identifier (WF-QUA-0010)",
+    "story(identifier): the story whose own criterion this test carries, cited as US-nnnn (US-2440)",
     "keycloak: runs against the Keycloak of the service platform (make test-keycloak)",
 ]
 xfail_strict = true
