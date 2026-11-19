@@ -17,11 +17,18 @@ structure, and a differential does not take them up at its opening; one a differ
 hold is ignored. A provision line whose task the merge removes goes to another task, and the report
 signals it by an update of its parent (WF-RIS-0010; #789).
 
-Written by US-2560/L1.
+The application (``StructureMerging.applying``) writes what the same computation finds
+(``merged``): the nodes of the lines by the planning, their facets here — a line added a copy of
+the differential's, a line designated its columns, its figures of reference and its budgeted
+amount, its current figures too while its task is not started and nobody re-estimated it —, and
+the lines of the started tasks the merge keeps and completes brought to a remaining of nought.
+
+Written by US-2560/L1; the application by US-2560/L2.
 """
 
 from typing import TYPE_CHECKING, Any
 
+from waterfall.core.estimate.merged import LineMerged, write_lines
 from waterfall.core.estimate.reading import line_rows
 from waterfall.core.planning.interface import merged_lines
 from waterfall.core.revisions.interface import MergePart
@@ -78,15 +85,21 @@ def merge_lines(merging: StructureMerging) -> MergePart:
     held = {each.lineage_id: each for each in where.main if not each.is_provision}
     sent = {each.lineage_id: each for each in where.amendment if not each.is_provision}
     differences: list[Json] = []
+    written: list[LineMerged] = []
     for lineage, line in sent.items():
         found = held.get(lineage)
         new = rows[line.node_id]
         if found is None:
             differences.append(_difference("added", None, new.label, []))
+            written.append(LineMerged(line.node_id, None, frozenset(), line.task_lineage_id))
             continue
         fields = _fields((found, rows[found.node_id]), (line, new))
         if fields:
             differences.append(_difference("updated", found, new.label, fields))
+            designated = frozenset(fields)
+            written.append(
+                LineMerged(line.node_id, found.node_id, designated, line.task_lineage_id)
+            )
     for line in where.main:
         label = rows[line.node_id].label
         if line.is_provision:
@@ -94,4 +107,6 @@ def merge_lines(merging: StructureMerging) -> MergePart:
                 differences.append(_difference("updated", line, label, ["parent"]))
         elif line.lineage_id not in sent and line.task_lineage_id not in where.kept:
             differences.append(_difference("removed", line, label, []))
+    if merging.applying:
+        write_lines(merging, where, written)
     return MergePart(differences=tuple(differences))

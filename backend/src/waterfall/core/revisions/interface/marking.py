@@ -146,14 +146,24 @@ def _name_taken(revision_id: UUID) -> ConflictError:
 
 def _judge_name(session: Session, revision: Revision, version_name: str) -> None:
     """Refuse a name of version another marked revision of the same project bears."""
-    holder = session.scalar(
-        select(Revision.id).where(
-            Revision.project_id == revision.project_id,
-            Revision.status == "marked",
-            Revision.version_name == version_name,
-            Revision.id != revision.id,
-        )
-    )
+    judge_version_name(session, revision.project_id, version_name, revision.id)
+
+
+def judge_version_name(
+    session: Session, project_id: UUID, version_name: str, besides: UUID | None
+) -> None:
+    """Refuse a name of version a marked revision of a project bears but ``besides`` (409).
+
+    ``besides`` the revision to be marked, none for one a merge will create (US-2560/L2).
+    """
+    criteria = [
+        Revision.project_id == project_id,
+        Revision.status == "marked",
+        Revision.version_name == version_name,
+    ]
+    if besides is not None:
+        criteria.append(Revision.id != besides)
+    holder = session.scalar(select(Revision.id).where(*criteria))
     if holder is not None:
         raise _name_taken(holder)
 

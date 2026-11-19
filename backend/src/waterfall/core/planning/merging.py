@@ -21,7 +21,7 @@ structure every part leaves (``ReportRefusal``): an order item taken out of the 
 work package, then the engine replayed once — a loop, a link across the hierarchy, the horizon —,
 each task named by its node in the main structure and its label, a node null for a task added.
 
-Written by US-2560/L1.
+Written by US-2560/L1; what the application writes of it, by US-2560/L2 (``merging_writing``).
 """
 
 from dataclasses import dataclass, field
@@ -194,7 +194,7 @@ def _difference(
     }
 
 
-def _task_fields(plan: MergePlan, task_id: UUID) -> list[str]:
+def task_fields(plan: MergePlan, task_id: UUID) -> list[str]:
     """Name the columns the differential changes of a task, in the order of the grid, then parent.
 
     A summary's mode, duration and dates are derived; an automatic task's dates are computed.
@@ -278,7 +278,7 @@ def task_differences(
         if task_id not in plan.main.nodes:
             differences.append(_difference("added", "task", (None, plan.label_of(task_id)), []))
             continue
-        fields = _task_fields(plan, task_id)
+        fields = task_fields(plan, task_id)
         if fields:
             named = (plan.lineage_of(task_id), plan.label_of(task_id))
             differences.append(_difference("updated", "task", named, fields))

@@ -45,6 +45,7 @@ from waterfall.worker import exchanges
 from waterfall.worker.backup import BackupTask
 from waterfall.worker.identity_sync import IdentitySync
 from waterfall.worker.marking import mark
+from waterfall.worker.merge import merge
 from waterfall.worker.occurrence import occur
 from waterfall.worker.runner import Worker
 
@@ -74,7 +75,8 @@ EXTENDING = (
 def handlers(settings: WorkerSettings) -> dict[str, TaskHandler]:
     """Give what the worker runs, by kind of task: a backup, the reading of the accounts, a marking.
 
-    The marking is the first task of the trade (US-0970); the analysis and the application of an
+    The marking is the first task of the trade (US-0970); the merge of a differential (US-2560/L2)
+    and the occurrence of a risk (US-2620/L2) are EP-08's; the analysis and the application of an
     import and an export are the exchanges' (EP-06).
     """
     imports = exchanges.ImportTasks.of(settings)
@@ -82,6 +84,7 @@ def handlers(settings: WorkerSettings) -> dict[str, TaskHandler]:
         "backup": BackupTask.of(settings),
         "identity_sync": IdentitySync.of(settings),
         "revision_mark": mark,
+        "structure_merge": merge,
         "risk_occurrence": occur,
         "import_analysis": imports.analyse,
         "import_apply": imports.apply,
