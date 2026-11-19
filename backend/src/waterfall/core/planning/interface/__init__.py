@@ -555,10 +555,21 @@ from waterfall.core.planning.interface.progress import (
     write_remaining as write_remaining,
 )
 
+# ``rebased`` (US-3050/L4): a differential updated from the main structure, and for the witness.
+from waterfall.core.planning.interface.rebased import (
+    load_rebase as load_rebase,
+)
+from waterfall.core.planning.interface.rebased import (
+    rebase_differential as rebase_differential,
+)
+
 # ``rebasing`` (US-3050/L3): the part of the planning in the update of a differential, its end,
 # what a structure designates, and where the lines stand for the estimate's.
 from waterfall.core.planning.interface.rebasing import (
     Gap as Gap,
+)
+from waterfall.core.planning.interface.rebasing import (
+    LinesPlaced as LinesPlaced,
 )
 from waterfall.core.planning.interface.rebasing import (
     RebasedLines as RebasedLines,
@@ -571,6 +582,9 @@ from waterfall.core.planning.interface.rebasing import (
 )
 from waterfall.core.planning.interface.rebasing import (
     hand_calendars as hand_calendars,
+)
+from waterfall.core.planning.interface.rebasing import (
+    place_rebased_lines as place_rebased_lines,
 )
 from waterfall.core.planning.interface.rebasing import (
     rebase_end as rebase_end,

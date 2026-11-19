@@ -1003,7 +1003,7 @@ d'un différentiel et sa mise à jour (US-3050).
 
 ## US-3050 — La base d'un différentiel et sa mise à jour depuis la structure principale
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-REV-0100-A`
 - **opérations** : `getStructureRebaseReport`, `rebaseCostStructure` (nouvelles, écrites par la
   conception), `createCostStructure`, `listCostStructures`, `deleteCostStructure`, `createRevision`,

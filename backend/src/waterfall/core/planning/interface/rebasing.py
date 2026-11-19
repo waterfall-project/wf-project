@@ -17,9 +17,13 @@ adds to the task does not. It hands the end the calendars its lines will name
 ``designated`` gives what a structure designates against its base, by lineage; neither it nor the
 update names the nature of the differential (EP-30).
 
-The report reads; the application (US-3050/L4) writes what the same plan finds.
+The report reads; the application (US-3050/L4) writes what the same plan finds
+(``StructureRebasing.applying``): the tasks and the links in the part of the planning, the nodes of
+the lines by ``place_rebased_lines``, which the estimate asks once it has judged where each goes,
+and, at the end, the tasks that leave, the base taken again and the dates replayed once
+(``rebasing_writing``).
 
-Written by US-3050/L3.
+Written by US-3050/L3; the application by US-3050/L4.
 """
 
 from dataclasses import dataclass
@@ -36,6 +40,7 @@ from waterfall.core.planning.rebasing import (
     task_differences,
 )
 from waterfall.core.planning.rebasing import designated as _designated
+from waterfall.core.planning.rebasing_writing import LinesPlaced, finish, write_lines, write_tasks
 from waterfall.core.revisions.interface import RebasePart
 
 if TYPE_CHECKING:
@@ -85,13 +90,32 @@ def designated(session: Session, project_id: UUID, structures: tuple[UUID, UUID]
 
 
 def rebase_tasks(rebasing: StructureRebasing) -> RebasePart:
-    """Give the part of the planning in an update: the tasks and the links carried or kept."""
+    """Give the part of the planning in an update: the tasks and the links carried or kept.
+
+    The application writes them first: the tasks that leave stay until its end (``rebase_end``).
+    """
+    if rebasing.applying:
+        write_tasks(rebasing, rebase_plan(rebasing))
     return RebasePart(differences=task_differences(rebasing))
 
 
 def rebase_end(rebasing: StructureRebasing) -> RebasePart:
-    """Judge the differential an update leaves, once every part is given; give its refusals."""
+    """Judge the differential an update leaves, once every part is given; give its refusals.
+
+    The application has judged it before it writes anything: it finishes instead.
+    """
+    if rebasing.applying:
+        finish(rebasing, rebase_plan(rebasing))
+        return RebasePart()
     return RebasePart(refusals=rebase_refusals(rebasing))
+
+
+def place_rebased_lines(rebasing: StructureRebasing, lines: LinesPlaced) -> Mapping[UUID, UUID]:
+    """Write the nodes of the lines of an update where the estimate says they go; give the new ones.
+
+    By lineage, as the estimate judged them; the facet of each line is the estimate's to write.
+    """
+    return write_lines(rebasing, rebase_plan(rebasing), lines)
 
 
 def rebased_lines(rebasing: StructureRebasing) -> RebasedLines:
