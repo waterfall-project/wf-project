@@ -115,10 +115,10 @@ def test_the_amendment_2_is_opened_in_the_reference_while_the_amendment_1_is_ope
     assert (created["is_merged"], listed["is_merged"], first["is_merged"]) == (False, False, True)
     assert created["lock_version"] == listed["lock_version"]
     # Up to date at its opening, its update has nothing to carry over (#4034).
-    assert all(
-        each["is_available"] != (each["command"] == "rebase")
-        for each in created["available_commands"]
-    )
+    commands = {each["command"]: each for each in created["available_commands"]}
+    assert not commands["rebase"]["is_available"]
+    assert commands["rebase"]["missing_conditions"] == ["structure_out_of_date"]
+    assert all(each["is_available"] for name, each in commands.items() if name != "rebase")
     journal = mockwitness.fixture("audit_events")["items"]
     merge = mockhistory.stamp(AMENDMENT_MERGED.instant)
     assert any(

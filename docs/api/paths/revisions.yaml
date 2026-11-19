@@ -983,7 +983,8 @@
         description: >-
           This structure has no merge report: `STATE_FORBIDS_OPERATION`,
           `params.missing_condition` the first missing condition, as in the 409 of its merge
-          (`mergeCostStructure`).
+          (`mergeCostStructure`) — `structure_up_to_date` for a differential out of date, which
+          is first updated (`rebaseCostStructure`).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1076,19 +1077,23 @@
           `may_create_revision`, after `unmerged_amendment_exists`, and the merge is refused
           likewise, `params.missing_condition` set to `may_create_revision` — a 409 and not a
           403, as for imports and `declare_risk`, the permission being refused only where it
-          would create the revision (WF-REV-0050, WF-REV-0010). Or a version name already used
-          by a marked revision of the project, as for `markRevision`: `ALREADY_EXISTS`, `fields`
-          designating `/version_name` with `ALREADY_EXISTS`,
+          would create the revision (WF-REV-0050, WF-REV-0010). After the conditions of the
+          command, last of the conditions, `structure_up_to_date` for a differential out of
+          date, which the main structure has passed since its base
+          (`CostStructure.is_up_to_date`), `params.missing_condition` set to
+          `structure_up_to_date`: the merge applies only what the differential designates, and
+          requires it up to date; it does not update it itself (`rebaseCostStructure`, #4034) —
+          on the last marked revision of a project without a current revision, the differential
+          waits for that revision to be created, where it is updated. No command states it in
+          advance: the structure says it, and its `rebase` command. These conditions are all
+          judged before the name of version, as `markRevision` judges the state of its revision
+          before its name: a differential out of date whose version name is already taken is
+          refused with `structure_up_to_date`, not with `ALREADY_EXISTS`. Or a version name
+          already used by a marked revision of the project, as for `markRevision`:
+          `ALREADY_EXISTS`, `fields` designating `/version_name` with `ALREADY_EXISTS`,
           `fields[].params.conflicting_object_id` the revision that carries it (WF-REV-0020);
           judged at submission, nothing is queued, and no current revision is created only to
-          fail at the marking (E-05, US-0702/L2). After the conditions of the command, last,
-          `structure_up_to_date` for a differential out of date, which the main structure has
-          passed since its base (`CostStructure.is_up_to_date`): the merge applies only what the
-          differential designates, and requires it up to date; it does not update it itself
-          (`rebaseCostStructure`, #4034) — on the last marked revision of a project without a
-          current revision, the differential waits for that revision to be created, where it is
-          updated. No command states it in advance: the structure says it, and its `rebase`
-          command. The check of the state and the submission of
+          fail at the marking (E-05, US-0702/L2). The check of the state and the submission of
           the task are done under the lock of the project, which holds its current revision.
         content:
           application/problem+json:
