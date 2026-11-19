@@ -286,6 +286,11 @@ from waterfall.core.estimate.interface.lines import (
     update_line as update_line,
 )
 
+# ``merging`` (US-2560/L1): the part of the estimate in the merge of a differential.
+from waterfall.core.estimate.interface.merging import (
+    merge_lines as merge_lines,
+)
+
 # ``rates`` (US-1490/L1; US-1500): the rates of a revision and what it keeps of the reference.
 from waterfall.core.estimate.interface.rates import (
     apply_rate_update as apply_rate_update,
@@ -561,6 +566,7 @@ from waterfall.core.revisions.interface import (
     register_copy,
     register_designation,
     register_marking,
+    register_merge,
     register_rate_update,
     register_tasks_and_lines,
 )
@@ -576,7 +582,7 @@ from waterfall.core.revisions.interface import (
 # review before is written by the copy of the lines since US-2240/L2), each without effect until
 # its story (US-1580/L1); the own lines that hold a summary task open, which the planning asks at
 # the reading (US-1590/L1), and when they were set to nought, which a summary completed again reads
-# (US-1650/L2, #2803).
+# (US-1650/L2, #2803). Its part of the merge of a differential, after the planning's (US-2560/L1).
 register_facet("estimate_line", LINE_FACET)
 register_tasks_and_lines("lines", revision_has_lines)
 register_copy(copy_rates)
@@ -603,3 +609,4 @@ register_format("remaining", REMAINING_FORMAT)
 register_exporter("remaining", REMAINING_EXPORTER)
 register_open_lines(open_lines)
 register_zeroed_at(zeroed_lines)
+register_merge(merge_lines)

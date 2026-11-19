@@ -15,6 +15,7 @@ from sqlalchemy import Integer, Uuid, case, insert, literal, null, select
 
 from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.tables import Node, Task, TaskLink
+from waterfall.core.planning.tallying import provision_lines
 from waterfall.core.projects.interface import work_breakdown_items
 from waterfall.platform.database import Base, UtcDateTime, among, copied_columns, copies
 from waterfall.platform.identifiers import new_id
@@ -122,14 +123,14 @@ def _copy_links(copy: RevisionCopy, nodes: dict[UUID, UUID], structures: dict[UU
     session.execute(insert(LINK).from_select(names, rows))
 
 
-def _copy(copy: RevisionCopy, *, attached: bool) -> None:
+def _copy(copy: RevisionCopy, *, attached: bool, left_out: frozenset[UUID] = frozenset()) -> None:
     """Copy the nodes of the source, their facet task and their links (WF-DAT-0010).
 
     The nodes of each structure copied, under identifiers of their own and their lineage, at their
     place, at their first version, their dates as computed, their attachment to the work breakdown
     but to an element marked deleted, which the revision opened does not take up (WF-PLA-0170); the
     facets the later modules register after them (``register_facet``). The inscriptions follow the
-    lineage, and stay.
+    lineage, and stay. The nodes ``left_out`` are not copied: leaves, no node names them.
     """
     session, ids = copy.session, copy.identifiers
     sources = session.execute(
@@ -137,7 +138,11 @@ def _copy(copy: RevisionCopy, *, attached: bool) -> None:
             Node.project_id == copy.project_id, Node.revision_id == copy.source
         )
     ).all()
-    nodes = {each: new_id() for each, structure_id in sources if structure_id in ids}
+    nodes = {
+        each: new_id()
+        for each, structure_id in sources
+        if structure_id in ids and each not in left_out
+    }
     if not nodes:
         return
     structures = {
@@ -185,6 +190,13 @@ def copy_structure_nodes(copy: RevisionCopy) -> None:
     As the copy of a revision does, the source being the revision itself (``source`` and ``target``
     are one): the nodes keep their lineage, and the facets their figures as they are — a line its
     budgeted amount, not the reference's again. The tasks copied bear no attachment to the work
-    breakdown, which the main structure alone carries (WF-PLA-0170).
+    breakdown, which the main structure alone carries (WF-PLA-0170), and the lines of provision are
+    left out: a risk alone writes them, on the main structure, and a differential that held one
+    would present it, stale, to its merge (#4008).
     """
-    _copy(copy, attached=False)
+    provisions = frozenset(
+        each
+        for structure_id in list(copy.identifiers)
+        for each in provision_lines(copy.session, copy.project_id, structure_id)
+    )
+    _copy(copy, attached=False, left_out=provisions)

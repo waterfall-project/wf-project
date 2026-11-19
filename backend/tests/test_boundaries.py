@@ -132,6 +132,8 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "kept_readings",
         "lines",
         "loading",
+        # Its part of the merge of a differential, and its end (US-2560/L1, EP-08).
+        "merging",
         "milestone_dates",
         "msproject",
         # The deletion of a node, moved out of ``nodes`` (US-2580/L1).
