@@ -48,6 +48,11 @@ UNMERGED_AMENDMENT_EXISTS = "unmerged_amendment_exists"
 MAY_CREATE_REVISION = "may_create_revision"
 MAIN_STRUCTURE = "main_structure"
 STRUCTURE_OUT_OF_DATE = "structure_out_of_date"
+STRUCTURE_UP_TO_DATE = "structure_up_to_date"
+# The merge of a differential (WF-REV-0050), a command of the revision; and whoever may create a
+# revision, which the merge of a differential of a marked revision does.
+MERGE_STRUCTURE = "merge_structure"
+CREATE_REVISION = "revisions.write"
 # What the commands of a structure read of its nature: the main one, a differential not merged.
 MAIN_NATURE: Final = "main"
 DIFFERENTIAL_NATURE: Final = "differential"
@@ -83,6 +88,10 @@ REVISION_RULES: tuple[Rule, ...] = (
     # update and its creation are, by the management of the revisions, and lacking the conditions
     # of the state of the revision alone (``createCostStructure``).
     Rule("create_structure", "revisions.write"),
+    # The merge of a differential, a structuring action of its own permission, reserved to the
+    # project managers (WF-ADM-0100, WF-PRJ-0060), whose conditions are those of the merge itself
+    # (``merge_conditions``, US-2560/L2).
+    Rule(MERGE_STRUCTURE, "structure_merge", manager=True),
     # A write of the revision, guarded by the permission to manage the revisions, that of
     # ``createRevision``, which applies it at the creation (WF-REV-0060; US-1500).
     Rule("apply_rate_update", "revisions.write"),
@@ -123,7 +132,9 @@ class RevisionState:
     ``rate_update_available`` whether its proposal of rates presents a category (US-1500), judged
     on a current revision alone; ``provision_category_active`` whether an active category of the
     provision kind exists, which the declaration of a risk asks (WF-RIS-0010), read for a revision
-    in progress alone.
+    in progress alone. ``source`` whether it is the last marked revision of a project without a
+    current revision, and ``unmerged_differential`` whether it holds a differential not merged:
+    what the merge of one of its differentials asks (``merge_structure``, US-2560/L2).
     """
 
     marked: bool
@@ -133,6 +144,8 @@ class RevisionState:
     has_main_task: bool = False
     rate_update_available: bool = False
     provision_category_active: bool = True
+    source: bool = False
+    unmerged_differential: bool = False
 
 
 def quality_conditions(kind: str | None, *, manager: bool) -> list[str]:
@@ -212,7 +225,11 @@ def revision_commands(
                 rule.command,
                 (
                     *quality_conditions(kind, manager=rule.manager),
-                    *revision_conditions(rule.command, revision),
+                    *(
+                        _merge_conditions_of(revision, permissions)
+                        if rule.command == MERGE_STRUCTURE
+                        else revision_conditions(rule.command, revision)
+                    ),
                 ),
             )
             for rule in REVISION_RULES
@@ -221,6 +238,23 @@ def revision_commands(
         ),
         *exports,
     ]
+
+
+def _merge_conditions_of(revision: RevisionState, permissions: Collection[str]) -> list[str]:
+    """Name the conditions the merge of a differential of a revision lacks, as the merge names them.
+
+    The command is the revision's: ``unmerged_amendment_exists`` while it holds no differential
+    to merge; whether one is up to date, its structure says (``structure_up_to_date``, #4186).
+    """
+    state = MergeState(
+        terminal=False,
+        current=not revision.marked,
+        source=revision.source,
+        no_task_running=revision.no_task_running,
+        mergeable=revision.unmerged_differential,
+        creates=CREATE_REVISION in permissions,
+    )
+    return merge_conditions(state)
 
 
 def structure_commands_of(
@@ -272,7 +306,9 @@ class MergeState:
     ``current`` whether the revision is the current one; ``source`` whether it is the last marked
     revision of a project without a current revision, whose merge creates the current revision
     (#790); ``mergeable`` whether the structure is a differential not merged; ``creates`` whether
-    the caller may create a revision (``revisions.write``).
+    the caller may create a revision (``revisions.write``); ``up_to_date`` whether the differential
+    is up to date with the main structure (US-3050), which the command of the revision does not
+    judge.
     """
 
     terminal: bool
@@ -281,6 +317,7 @@ class MergeState:
     no_task_running: bool
     mergeable: bool
     creates: bool
+    up_to_date: bool = True
 
 
 def merge_conditions(state: MergeState) -> list[str]:
@@ -289,7 +326,9 @@ def merge_conditions(state: MergeState) -> list[str]:
     ``project_not_terminal`` first; on a marked revision but the last of a project without a
     current revision, ``revision_draft`` alone; else ``no_background_task_running``,
     ``unmerged_amendment_exists``, then ``may_create_revision`` where the merge would create the
-    current revision (``RevisionCommand.merge_structure``, WF-REV-0050; #790).
+    current revision (``RevisionCommand.merge_structure``, WF-REV-0050; #790), and last
+    ``structure_up_to_date`` for a differential out of date, which the merge requires up to date
+    (US-3050/L1, #4186).
     """
     if state.terminal:
         return [PROJECT_NOT_TERMINAL]
@@ -300,6 +339,8 @@ def merge_conditions(state: MergeState) -> list[str]:
         missing.append(UNMERGED_AMENDMENT_EXISTS)
     if not state.current and not state.creates:
         missing.append(MAY_CREATE_REVISION)
+    if state.mergeable and not state.up_to_date:
+        missing.append(STRUCTURE_UP_TO_DATE)
     return missing
 
 

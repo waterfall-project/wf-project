@@ -19,11 +19,14 @@ the contract, the report of a merge taking up those of an import (``ImportDiffer
 ``ImportCompletedTask``, ``ReportRefusal``): the API validates them against its models.
 
 ``merge_report`` gives the report before a merge (``getStructureMergeReport``, US-2560/L1): the
-structure judged as its merge is (``merge_conditions``), the parts asked, writing nothing, and the
-counters of the two structures read, which the confirmation sends back.
+structure judged as its merge is (``merging_of``, ``merge_conditions``), the parts asked, writing
+nothing, and the counters of the two structures read, which the confirmation sends back. A
+differential out of date has none (``structure_up_to_date``, US-2560/L2): the merge applies only
+what it designates, its gap to its base, which is its gap to the main structure once it is up to
+date (#4034).
 
 Declared by US-2550/L1, the socle of EP-08, with nothing registered; filled by US-2560/L1 (the
-report, the end) and US-2560/L2 (the application), which adds here the merge itself.
+report, the end) and US-2560/L2 (the judgement shared with the application, ``merge_applying``).
 """
 
 from dataclasses import dataclass, field
@@ -36,7 +39,12 @@ from waterfall.core.projects.interface import (
     no_background_task_running,
     project_facts,
 )
-from waterfall.core.revisions.commands import MergeState, merge_conditions
+from waterfall.core.revisions.commands import (
+    CREATE_REVISION,
+    STRUCTURE_UP_TO_DATE,
+    MergeState,
+    merge_conditions,
+)
 from waterfall.core.revisions.interface.revisions import last_marked_revision
 from waterfall.core.revisions.interface.shared import refuse
 from waterfall.core.revisions.interface.structures import AMENDMENT, BASE, MAIN
@@ -53,8 +61,6 @@ if TYPE_CHECKING:
     from waterfall.core.projects.interface import Viewer
     from waterfall.platform.audit import Act
 
-# Whoever may create a revision, which the merge of a differential of a marked revision does.
-CREATE_REVISION = "revisions.write"
 # The order the report gives the differences in, each change in the order of the parts.
 _CHANGES = ("added", "updated", "removed", "kept")
 
@@ -180,16 +186,40 @@ def _structures(session: Session, project_id: UUID, revision_id: UUID) -> dict[U
     return {row.id: row for row in rows}
 
 
-def merge_report(
-    session: Session, structure: tuple[UUID, UUID, UUID], viewer: Viewer, act: Act
-) -> MergeReport:
-    """Give what the merge of a structure would do, writing nothing (``getStructureMergeReport``).
+@dataclass(frozen=True, slots=True)
+class MergeJudged:
+    """A merge judged: the frame of its parts, the rows of its two structures, what it does.
+
+    ``creates`` whether the merge creates the current revision (``creates_current_revision``);
+    ``up_to_date`` whether the differential is, which the caller judges where its order puts it.
+    """
+
+    merging: StructureMerging
+    main: CostStructure
+    amendment: CostStructure
+    creates: bool
+    up_to_date: bool
+
+
+def merging_of(
+    session: Session,
+    structure: tuple[UUID, UUID, UUID],
+    act: Act,
+    *,
+    creates: bool,
+    besides: UUID | None = None,
+) -> MergeJudged:
+    """Judge the merge of a structure and give it, writing nothing; or refuse (404, 409).
 
     ``structure`` is the project, the revision and the structure the path names; 404 for a
-    revision or a structure that is not of them. Refused, as its merge is, by the first condition
-    the command ``merge_structure`` lacks (409, ``merge_conditions``): only a differential not
-    merged of the current revision has a report, or one of the last marked revision of a project
-    without a current revision, whose merge creates it (``creates_current_revision``, #790).
+    revision or a structure that is not of them. Refused by the first condition the command
+    ``merge_structure`` lacks (409, ``merge_conditions``) — ``creates`` whether the caller may
+    create a revision, ``besides`` the task of the merge itself, which does not count as a task
+    that writes —, but ``structure_up_to_date``, which the caller judges where its order puts it:
+    the report at once, the confirmation once it has judged the counters it read. Only a
+    differential not merged of the current revision is merged, or one of the last marked revision
+    of a project without a current revision, whose merge creates it (#790). The rows are read as
+    they are: the application locks them before.
     """
     project_id, revision_id, structure_id = structure
     status = session.scalar(
@@ -205,24 +235,40 @@ def merge_report(
         and last_marked_revision(session, project_id) == revision_id
     )
     amendment = held[structure_id]
+    [main] = [row for row in held.values() if row.kind == MAIN]
     state = MergeState(
         terminal=project.state in TERMINAL,
         current=current,
         source=source,
-        no_task_running=no_background_task_running(session, project_id),
+        no_task_running=no_background_task_running(session, project_id, besides),
         mergeable=amendment.kind == AMENDMENT and not amendment.is_merged,
-        creates=CREATE_REVISION in viewer.permissions,
+        creates=creates,
+        up_to_date=amendment.main_lock_version == main.lock_version,
     )
     missing = merge_conditions(state)
-    if missing:
+    if missing and missing[0] != STRUCTURE_UP_TO_DATE:
         raise refuse(missing[0])
-    [main] = [row for row in held.values() if row.kind == MAIN]
     merging = StructureMerging(
         session, project_id, revision_id, main.id, amendment.id, act, applying=False
     )
+    return MergeJudged(merging, main, amendment, creates=not current, up_to_date=not missing)
+
+
+def merge_report(
+    session: Session, structure: tuple[UUID, UUID, UUID], viewer: Viewer, act: Act
+) -> MergeReport:
+    """Give what the merge of a structure would do, writing nothing (``getStructureMergeReport``).
+
+    Judged as its merge is (``merging_of``), the differential out of date refused at once by
+    ``structure_up_to_date``, the last condition (409, #4034): only on a differential up to date
+    is its gap to the main structure what it designates.
+    """
+    judged = merging_of(session, structure, act, creates=CREATE_REVISION in viewer.permissions)
+    if not judged.up_to_date:
+        raise refuse(STRUCTURE_UP_TO_DATE)
     return MergeReport(
-        main_structure_lock_version=main.lock_version,
-        amendment_lock_version=amendment.lock_version,
-        creates_current_revision=not current,
-        found=merge_parts(merging),
+        main_structure_lock_version=judged.main.lock_version,
+        amendment_lock_version=judged.amendment.lock_version,
+        creates_current_revision=judged.creates,
+        found=merge_parts(judged.merging),
     )

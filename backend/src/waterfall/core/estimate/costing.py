@@ -40,7 +40,7 @@ from waterfall.core.revisions.interface import reference_year_of
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Mapping
+    from collections.abc import Collection, Iterator, Mapping
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -192,6 +192,37 @@ def calendar_hours(
 ) -> dict[UUID, tuple[Decimal, ...]]:
     """Give the hours of each calendar named, Monday first."""
     return {each: week_of(read_calendar(session, each).weekly_hours) for each in set(calendar_ids)}
+
+
+def hourless_tasks[K](
+    session: Session, roles: Mapping[K, Collection[UUID]], calendars: Mapping[UUID, UUID]
+) -> Iterator[tuple[K, list[dict[str, str]]]]:
+    """Give each task whose roles' calendars share no hour in the week, with its roles named.
+
+    What the update and the merge of a differential judge of the structure they leave (EP-08):
+    ``roles`` the roles of the lines each task bears, in the order the refusals name the tasks, a
+    task without one not judged; ``calendars`` the calendar of each role. The calendars intersected
+    day by day, as an entry judges them (WF-PLA-0010); the roles named by their identifier, their
+    code and their label (``resource_roles``).
+    """
+    weeks = calendar_hours(session, set(calendars.values()))
+    for task, held in roles.items():
+        if not held:
+            continue
+        days = [weeks[calendars[role]] for role in held if role in calendars]
+        if any(min(day) > 0 for day in zip(*days, strict=True)):
+            continue
+        yield (
+            task,
+            [
+                {
+                    "resource_role_id": str(role.resource_role_id),
+                    "code": role.code,
+                    "label": role.label,
+                }
+                for role in read_roles(session, set(held), may_change=False)
+            ],
+        )
 
 
 def judge_working_hours(

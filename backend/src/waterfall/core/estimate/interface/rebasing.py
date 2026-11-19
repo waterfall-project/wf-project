@@ -41,7 +41,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from waterfall.core.estimate.costing import TASK_WITHOUT_WORKING_HOURS, calendar_hours
+from waterfall.core.estimate.costing import TASK_WITHOUT_WORKING_HOURS, hourless_tasks
 from waterfall.core.estimate.interface.merging import COLUMNS, LINE
 from waterfall.core.estimate.reading import line_rows, rows_of
 from waterfall.core.estimate.tables import EstimateLine
@@ -51,7 +51,7 @@ from waterfall.core.planning.interface import (
     place_rebased_lines,
     rebased_lines,
 )
-from waterfall.core.resource_settings.interface import read_roles, role_calendars
+from waterfall.core.resource_settings.interface import role_calendars
 from waterfall.core.revisions.interface import RebasePart
 
 if TYPE_CHECKING:
@@ -275,22 +275,13 @@ def _refusals(
     """Refuse each task the update leaves whose roles' calendars share no hour in the week.
 
     The roles of its lines, once updated, intersected day by day, as an entry judges them
-    (WF-PLA-0010); the task by its node in the differential, or by its lineage when the main
-    structure adds it, as the report names its objects. ``calendars`` the calendar of each role.
+    (WF-PLA-0010; ``hourless_tasks``, which the merge shares); the task by its node in the
+    differential, or by its lineage when the main structure adds it, as the report names its
+    objects. ``calendars`` the calendar of each role.
     """
-    session = rebasing.session
-    weeks = calendar_hours(session, set(calendars.values()))
-    for task, named in found.where.tasks.items():
-        held = found.roles.get(task, set())
-        if not held:
-            continue
-        days = [weeks[calendars[role]] for role in held if role in calendars]
-        if any(min(day) > 0 for day in zip(*days, strict=True)):
-            continue
-        roles = [
-            {"resource_role_id": str(role.resource_role_id), "code": role.code, "label": role.label}
-            for role in read_roles(session, held, may_change=False)
-        ]
+    held = {task: found.roles.get(task, set()) for task in found.where.tasks}
+    for task, roles in hourless_tasks(rebasing.session, held, calendars):
+        named = found.where.tasks[task]
         if named.node_id is None:
             bearer: Json = {"lineage_id": str(task), "label": named.label}
         else:

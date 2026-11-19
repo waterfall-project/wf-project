@@ -10,25 +10,40 @@ columns the differential designates — its label, its category, its role, its q
 its unit disbursement, its subproject, its delay of payment, in the order of ``NodeColumn`` — and by
 its parent when it changes task. They become its reference figures, and its current ones when its
 task is not started and nobody re-estimated it: the report does not tell the two apart (US-0701/L1,
-M-08).
+M-08). What refuses the merge, of the lines: a task whose lines, once merged, would name roles whose
+calendars share no hour in the week (``TASK_WITHOUT_WORKING_HOURS``, WF-PLA-0010), judged as the
+update of a differential judges it (``hourless_tasks``), before the end of the planning replays the
+engine; the application, which judged the report before it wrote, judges none.
 
 The provision lines stay out of the comparison (#4008): a risk alone writes them, on the main
 structure, and a differential does not take them up at its opening; one a differential would still
 hold is ignored. A provision line whose task the merge removes goes to another task, and the report
 signals it by an update of its parent (WF-RIS-0010; #789).
 
-Written by US-2560/L1.
+The application (``StructureMerging.applying``) writes what the same computation finds
+(``merged``): the nodes of the lines by the planning, their facets here — a line added a copy of
+the differential's, a line designated its columns, its figures of reference and its budgeted
+amount, its current figures too while its task is not started and nobody re-estimated it —, and
+the lines of the started tasks the merge keeps and completes brought to a remaining of nought.
+
+Written by US-2560/L1; the application by US-2560/L2.
 """
 
 from typing import TYPE_CHECKING, Any
 
+from waterfall.core.estimate.costing import TASK_WITHOUT_WORKING_HOURS, hourless_tasks
+from waterfall.core.estimate.merged import LineMerged, write_lines
 from waterfall.core.estimate.reading import line_rows
 from waterfall.core.planning.interface import merged_lines
+from waterfall.core.resource_settings.interface import role_calendars
 from waterfall.core.revisions.interface import MergePart
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator, Mapping
+    from uuid import UUID
+
     from waterfall.core.estimate.reading import LineRow
-    from waterfall.core.planning.interface import MergedLine
+    from waterfall.core.planning.interface import MergedLine, MergedLines
     from waterfall.core.revisions.interface import StructureMerging
 
 type Json = dict[str, Any]
@@ -70,7 +85,8 @@ def _fields(held: tuple[MergedLine, LineRow], sent: tuple[MergedLine, LineRow]) 
 def merge_lines(merging: StructureMerging) -> MergePart:
     """Give the part of the estimate in a merge: lines added, updated, removed, provisions moved.
 
-    In the order of the plan of the differential, then those of the main structure.
+    In the order of the plan of the differential, then those of the main structure; and, for the
+    report, the tasks the merge would leave without a working hour.
     """
     where = merged_lines(merging)
     nodes = [each.node_id for each in (*where.main, *where.amendment)]
@@ -78,15 +94,21 @@ def merge_lines(merging: StructureMerging) -> MergePart:
     held = {each.lineage_id: each for each in where.main if not each.is_provision}
     sent = {each.lineage_id: each for each in where.amendment if not each.is_provision}
     differences: list[Json] = []
+    written: list[LineMerged] = []
     for lineage, line in sent.items():
         found = held.get(lineage)
         new = rows[line.node_id]
         if found is None:
             differences.append(_difference("added", None, new.label, []))
+            written.append(LineMerged(line.node_id, None, frozenset(), line.task_lineage_id))
             continue
         fields = _fields((found, rows[found.node_id]), (line, new))
         if fields:
             differences.append(_difference("updated", found, new.label, fields))
+            designated = frozenset(fields)
+            written.append(
+                LineMerged(line.node_id, found.node_id, designated, line.task_lineage_id)
+            )
     for line in where.main:
         label = rows[line.node_id].label
         if line.is_provision:
@@ -94,4 +116,48 @@ def merge_lines(merging: StructureMerging) -> MergePart:
                 differences.append(_difference("updated", line, label, ["parent"]))
         elif line.lineage_id not in sent and line.task_lineage_id not in where.kept:
             differences.append(_difference("removed", line, label, []))
-    return MergePart(differences=tuple(differences))
+    if merging.applying:
+        write_lines(merging, where, written)
+        return MergePart(differences=tuple(differences))
+    return MergePart(
+        differences=tuple(differences), refusals=tuple(_hourless(merging, where, rows))
+    )
+
+
+def _hourless(
+    merging: StructureMerging, where: MergedLines, rows: Mapping[UUID, LineRow]
+) -> Iterator[Json]:
+    """Refuse each task the merge leaves whose roles' calendars share no hour in the week.
+
+    The roles of the lines each task bears once merged — the differential's lines of its task, the
+    own lines of a started task kept —, intersected day by day as the update judges them
+    (``hourless_tasks``, WF-PLA-0010); in the order of the plan, each task by its node in the main
+    structure, or by its lineage for a task the differential adds, as the update names a task the
+    main structure adds (``ProblemImportedTask``).
+    """
+    sent = {each.lineage_id for each in where.amendment}
+    roles: dict[UUID, set[UUID]] = {task: set() for task in where.tasks}
+    borne = [each for each in where.amendment if not each.is_provision]
+    borne += [
+        each
+        for each in where.main
+        if each.task_lineage_id in where.kept
+        and not each.is_provision
+        and each.lineage_id not in sent
+    ]
+    for line in borne:
+        role = rows[line.node_id].resource_role_id
+        if role is not None and line.task_lineage_id in roles:
+            roles[line.task_lineage_id].add(role)
+    calendars = role_calendars(merging.session, {role for held in roles.values() for role in held})
+    for task, named in hourless_tasks(merging.session, roles, calendars):
+        node, label = where.tasks[task]
+        bearer: Json = (
+            {"lineage_id": str(task), "label": label}
+            if node is None
+            else {"project_id": str(merging.project_id), "node_id": str(node), "label": label}
+        )
+        yield {
+            "code": TASK_WITHOUT_WORKING_HOURS,
+            "params": {"resource_roles": named, "tasks": [bearer]},
+        }
