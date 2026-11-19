@@ -3387,13 +3387,13 @@ that targets it — the same or another, like « epic protection », which targe
 the `gate` check (`required_status_checks`): a queue that merges with no required check merges what
 nothing has tried. It also says the gap between the rule types of the queue's ruleset and those of
 the model (`required_signatures`, which the rulesets of EP-10, EP-26 and EP-27 carry, is in it).
-A ruleset that excludes the branch does not target it. The references of `include` and `exclude`
-are read as patterns, by `fnmatch` with `FNM_PATHNAME`, as GitHub reads them (`refs/heads/epic/*`, `~ALL`): a `*` or a `?` stops at
-a `/`, so `refs/heads/*` does not target `refs/heads/epic/EP-nn`; only a `**/` that starts a
-segment crosses directories, zero or more (`refs/heads/**/*`), any other `**` is a `*`, and
-`refs/heads/**` does not target the branch either; braces are read as they stand, GitHub not
-supporting `FNM_EXTGLOB`; `~DEFAULT_BRANCH` is not resolved.
-`make merge-queue EPIC=EP-nn` creates that ruleset, « merge queue epic/EP-nn », from the model
+A ruleset that excludes the branch does not target it. The references of `include` and `exclude` are
+read as patterns, by `fnmatch` with `FNM_PATHNAME`, as GitHub reads them (`refs/heads/epic/*`,
+`~ALL`): a `*` or a `?` stops at a `/`, so `refs/heads/*` does not target `refs/heads/epic/EP-nn`;
+only a `**/` that starts a segment crosses directories, zero or more (`refs/heads/**/*`), any other
+`**` is a `*`, and `refs/heads/**` does not target the branch either; braces are read as they stand,
+GitHub not supporting `FNM_EXTGLOB`; `~DEFAULT_BRANCH` is not resolved. `make merge-queue
+EPIC=EP-nn` creates that ruleset, « merge queue epic/EP-nn », from the model
 `.github/rulesets/merge-queue.json` (the copy of the EP-05 ruleset, without identifiers or dates),
 and refuses when a ruleset already targets the branch or when `EPIC` is missing or not of the form
 `EP-nn`. It is reserved to a person: a deliverer never runs it, it runs the check and, when it
@@ -3835,24 +3835,24 @@ after), under a tag that carries the start of the digest: one tag of Docker Hub 
 digests in our files (Caddy, before the manifest). A copy ghcr.io refuses (`denied`) is tried again
 once before it fails: it once refused the creation of a package it accepted on the next run (#3028).
 When it refuses to answer, the message names its two causes: the login to ghcr.io, or a package not
-copied yet (`make mirror PUSH=yes`). The job `mirror` of `ci.yml`, which every job that pulls an image waits for,
-does it at each run, in the fast tier as in the full one: `images.yml` runs after a merge, so after
-the first run that needs an image added or a digest raised (`images.yml` does it again before
-building, a lookup). Each request is tried again four times at most (`wftools.registry`, #2530); an
-image neither the mirror nor Docker Hub gives fails that job, naming Docker Hub, and skips the jobs
-that depend on it, which the gate counts. To change a third-party image: change its line of the
-manifest, then `make mirror-sync`; the first run copies the new digest. A new image takes its line
-in the manifest, and its reference in the files behind `${WATERFALL_MIRROR:-}`. The jobs
-that pull from the mirror ask for `packages: read` and log in to it (`docker/login-action`, or the
-`credentials:` of a service): a package GitHub creates is private, and nothing outside the chain
-reads it. The job `mirror`, for its part, keeps `packages: write`, in the fast tier too: it needs it
-to fill the mirror before the merge, since the first run that needs an image added or a digest
-raised is that of the pull request that changes it, and neither the queue nor `images.yml` comes
-before. It is the only job of a pull request that keeps it, and it runs the code of the pull request
-— the tools and their dependencies of `tools/uv.lock` — with a token that can write every package of
-the repository, published images included (PLC-10); the token of a pull request from a fork can
-only read. The publication of the work image of the paths, for its part, happens in the full tier
-alone (below).
+copied yet (`make mirror PUSH=yes`). The job `mirror` of `ci.yml`, which every job that pulls an
+image waits for, does it at each run, in the fast tier as in the full one: `images.yml` runs after a
+merge, so after the first run that needs an image added or a digest raised (`images.yml` does it
+again before building, a lookup). Each request is tried again four times at most
+(`wftools.registry`, #2530); an image neither the mirror nor Docker Hub gives fails that job, naming
+Docker Hub, and skips the jobs that depend on it, which the gate counts. To change a third-party
+image: change its line of the manifest, then `make mirror-sync`; the first run copies the new
+digest. A new image takes its line in the manifest, and its reference in the files behind
+`${WATERFALL_MIRROR:-}`. The jobs that pull from the mirror ask for `packages: read` and log in to
+it (`docker/login-action`, or the `credentials:` of a service): a package GitHub creates is private,
+and nothing outside the chain reads it. The job `mirror`, for its part, keeps `packages: write`, in
+the fast tier too: it needs it to fill the mirror before the merge, since the first run that needs
+an image added or a digest raised is that of the pull request that changes it, and neither the queue
+nor `images.yml` comes before. It is the only job of a pull request that keeps it, and it runs the
+code of the pull request — the tools and their dependencies of `tools/uv.lock` — with a token that
+can write every package of the repository, published images included (PLC-10); the token of a pull
+request from a fork can only read. The publication of the work image of the paths, for its part,
+happens in the full tier alone (below).
 
 Four other network sources of the chain, which the original inventory of US-1900 did not name
 (#2981, #3015), are each dealt with in its own way:

@@ -3401,16 +3401,16 @@ vise — le même ou un autre, comme « epic protection », qui vise `epic/*` �
 n'a éprouvé. Elle dit aussi l'écart entre les types de règles du jeu de la file et ceux du
 modèle (`required_signatures`, que portent les jeux d'EP-10, d'EP-26 et d'EP-27, y est).
 Un jeu qui exclut la branche ne la vise pas. Les références de `include` et d'`exclude` se lisent
-comme des motifs, par `fnmatch` avec `FNM_PATHNAME`, comme GitHub les lit (`refs/heads/epic/*`, `~ALL`) : un `*` ou un `?` s'arrête
-à un `/`, donc `refs/heads/*` ne vise pas `refs/heads/epic/EP-nn` ; seul un `**/` en début de
-segment franchit des répertoires, zéro ou plus (`refs/heads/**/*`), un autre `**` vaut `*`, et
-`refs/heads/**` ne vise pas plus la branche ; les accolades se lisent telles quelles, GitHub
-n'acceptant pas `FNM_EXTGLOB` ; `~DEFAULT_BRANCH` n'est pas résolu. `make merge-queue EPIC=EP-nn` crée ce jeu, « merge queue
-epic/EP-nn », depuis le modèle `.github/rulesets/merge-queue.json` (la copie du jeu d'EP-05, sans
-identifiants ni dates), et refuse quand un jeu vise déjà la branche ou quand `EPIC` manque ou n'a
-pas la forme `EP-nn`. Elle est réservée à une personne : un livreur ne la lance jamais, il lance la
-vérification et, en échec, pose la question ; le garde (`guard.py`) refuse la cible `merge-queue` à
-un agent.
+comme des motifs, par `fnmatch` avec `FNM_PATHNAME`, comme GitHub les lit (`refs/heads/epic/*`,
+`~ALL`) : un `*` ou un `?` s'arrête à un `/`, donc `refs/heads/*` ne vise pas
+`refs/heads/epic/EP-nn` ; seul un `**/` en début de segment franchit des répertoires, zéro ou plus
+(`refs/heads/**/*`), un autre `**` vaut `*`, et `refs/heads/**` ne vise pas plus la branche ; les
+accolades se lisent telles quelles, GitHub n'acceptant pas `FNM_EXTGLOB` ; `~DEFAULT_BRANCH` n'est
+pas résolu. `make merge-queue EPIC=EP-nn` crée ce jeu, « merge queue epic/EP-nn », depuis le modèle
+`.github/rulesets/merge-queue.json` (la copie du jeu d'EP-05, sans identifiants ni dates), et refuse
+quand un jeu vise déjà la branche ou quand `EPIC` manque ou n'a pas la forme `EP-nn`. Elle est
+réservée à une personne : un livreur ne la lance jamais, il lance la vérification et, en échec, pose
+la question ; le garde (`guard.py`) refuse la cible `merge-queue` à un agent.
 
 `make queue-report BRANCH=epic/EP-nn [LAST=<n>] [SINCE=AAAA-MM-JJ]` relève, du poste et jamais
 dans la chaîne, les passages de la file de fusion d'une branche (`chain`, événement `merge_group`,
@@ -3856,29 +3856,28 @@ ghcr.io si l'empreinte y est — présente, rien d'autre n'est lu, Docker Hub no
 celles qui manquent de Docker Hub, par empreinte (`docker buildx imagetools create` écrit le
 manifeste tel quel, l'empreinte est vérifiée après), sous une étiquette qui porte le début de
 l'empreinte : une même étiquette de Docker Hub a pu avoir deux empreintes dans nos fichiers (Caddy,
-avant le manifeste). Une
-copie que ghcr.io refuse (`denied`) est refaite une fois avant d'échouer : il a refusé une fois la
-création d'un paquet qu'il a acceptée au passage suivant (#3028). Quand il refuse de répondre, le
-message nomme ses deux causes : la connexion à ghcr.io, ou un paquet pas encore copié (`make mirror
-PUSH=yes`). Le travail `mirror` de
-`ci.yml`, que tout travail qui tire une image attend, le fait à chaque passage, au palier rapide
-comme au complet : `images.yml` passe après la fusion, donc après le premier passage qui a besoin
-d'une image ajoutée ou d'une empreinte relevée (`images.yml` le refait avant de construire, une
-consultation). Chaque demande est refaite quatre fois au plus (`wftools.registry`, #2530) ; une
-image que ni le miroir ni Docker Hub ne donnent fait échouer ce travail en nommant Docker Hub, et
-saute les travaux qui en dépendent, ce que la porte compte. Pour changer une image tierce : changer
-sa ligne du manifeste, puis `make mirror-sync` ; le premier passage copie la nouvelle empreinte. Une
-image nouvelle prend sa ligne dans le manifeste, et sa référence dans les fichiers derrière
-`${WATERFALL_MIRROR:-}`. Les travaux qui tirent du miroir demandent `packages: read` et s'y
-connectent (`docker/login-action`, ou `credentials:` d'un service) : un paquet que GitHub crée est
-privé, et rien hors de la chaîne ne le lit. Le travail `mirror`, lui, garde `packages: write`, au
-palier rapide aussi : il lui faut pour remplir le miroir avant la fusion, puisque le premier passage
-qui a besoin d'une image ajoutée ou d'une empreinte relevée est celui de la pull request qui la
-change, et que ni la file ni `images.yml` ne viennent avant. C'est le seul travail d'une pull request
-qui le garde, et il exécute le code de la pull request — les outils et leurs dépendances de
-`tools/uv.lock` — avec un jeton qui peut écrire tous les paquets du dépôt, images publiées
-comprises (PLC-10) ; le jeton d'une pull request venue d'un fork n'a que la lecture. La publication
-de l'image de travail des parcours, elle, ne se fait qu'au palier complet (plus bas).
+avant le manifeste). Une copie que ghcr.io refuse (`denied`) est refaite une fois avant d'échouer :
+il a refusé une fois la création d'un paquet qu'il a acceptée au passage suivant (#3028). Quand il
+refuse de répondre, le message nomme ses deux causes : la connexion à ghcr.io, ou un paquet pas
+encore copié (`make mirror PUSH=yes`). Le travail `mirror` de `ci.yml`, que tout travail qui tire
+une image attend, le fait à chaque passage, au palier rapide comme au complet : `images.yml` passe
+après la fusion, donc après le premier passage qui a besoin d'une image ajoutée ou d'une empreinte
+relevée (`images.yml` le refait avant de construire, une consultation). Chaque demande est refaite
+quatre fois au plus (`wftools.registry`, #2530) ; une image que ni le miroir ni Docker Hub ne
+donnent fait échouer ce travail en nommant Docker Hub, et saute les travaux qui en dépendent, ce que
+la porte compte. Pour changer une image tierce : changer sa ligne du manifeste, puis `make
+mirror-sync` ; le premier passage copie la nouvelle empreinte. Une image nouvelle prend sa ligne
+dans le manifeste, et sa référence dans les fichiers derrière `${WATERFALL_MIRROR:-}`. Les travaux
+qui tirent du miroir demandent `packages: read` et s'y connectent (`docker/login-action`, ou
+`credentials:` d'un service) : un paquet que GitHub crée est privé, et rien hors de la chaîne ne le
+lit. Le travail `mirror`, lui, garde `packages: write`, au palier rapide aussi : il lui faut pour
+remplir le miroir avant la fusion, puisque le premier passage qui a besoin d'une image ajoutée ou
+d'une empreinte relevée est celui de la pull request qui la change, et que ni la file ni
+`images.yml` ne viennent avant. C'est le seul travail d'une pull request qui le garde, et il exécute
+le code de la pull request — les outils et leurs dépendances de `tools/uv.lock` — avec un jeton qui
+peut écrire tous les paquets du dépôt, images publiées comprises (PLC-10) ; le jeton d'une pull
+request venue d'un fork n'a que la lecture. La publication de l'image de travail des parcours, elle,
+ne se fait qu'au palier complet (plus bas).
 
 Quatre autres sources réseau de la chaîne, que l'inventaire d'origine d'US-1900 ne nommait pas
 (#2981, #3015), sont traitées chacune à sa mesure :

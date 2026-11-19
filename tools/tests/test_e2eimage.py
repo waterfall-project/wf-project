@@ -169,16 +169,35 @@ def test_the_image_is_published_in_the_full_tier_alone() -> None:
     assert "e2e-image-publish" in chain["gate"]["needs"]
 
 
+def assert_fast_for_a_pull_request(tier: str) -> None:
+    """Fail unless the expression of the tier gives `full` to the merge queue alone, or by hand."""
+    assert "pull_request" not in tier
+    assert "event_name == 'merge_group' && 'full'" in tier
+    assert "inputs.tier" in tier
+    assert tier.count("'full'") == 1
+    assert tier.rstrip(" }").endswith("|| 'fast'")
+
+
 @pytest.mark.story("US-2490")
 def test_a_pull_request_runs_in_the_fast_tier() -> None:
     # What keeps the publication off a pull request: the tier, full in the merge queue or when
     # chosen by hand, which a pull request cannot do (PLC-10).
-    tier = workflow("ci.yml")["jobs"]["changes"]["outputs"]["tier"]
-    assert "pull_request" not in tier
+    assert_fast_for_a_pull_request(workflow("ci.yml")["jobs"]["changes"]["outputs"]["tier"])
+
+
+@pytest.mark.story("US-2800")
+def test_a_tier_expression_inverted_gives_the_full_tier_to_a_pull_request() -> None:
+    # [US-2800] #3924: a copy of ci.yml whose expression reads `!=` names the merge queue still,
+    # and would give `full` to a pull request; the test of the tier must fail on it.
+    text = (WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
+    inverted = text.replace(
+        "event_name == 'merge_group' && 'full'", "event_name != 'merge_group' && 'full'"
+    )
+    assert inverted != text
+    tier = yaml.safe_load(inverted)["jobs"]["changes"]["outputs"]["tier"]
     assert "merge_group" in tier
-    assert "inputs.tier" in tier
-    assert tier.count("'full'") == 1
-    assert tier.rstrip(" }").endswith("|| 'fast'")
+    with pytest.raises(AssertionError):
+        assert_fast_for_a_pull_request(tier)
 
 
 @pytest.mark.story("US-2490")
