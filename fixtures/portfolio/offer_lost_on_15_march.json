@@ -1,0 +1,7 @@
+{
+  "summary": "Une offre passée à Perdu le 15 mars 2026 à 9 h, en temps universel, compte parmi les offres closes de mars et d'aucun autre mois : une statistique de période retient une transition par sa date, bornes comprises (WF-CYC-0130).",
+  "examples": ["WF-CYC-0130-A#72d37d732212"],
+  "lost_at": "2026-03-15T09:00:00+00:00",
+  "year": 2026,
+  "closed_in": [3]
+}

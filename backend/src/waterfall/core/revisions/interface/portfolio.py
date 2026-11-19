@@ -14,6 +14,11 @@ Declared by US-2670/L1, the socle of EP-11; filled by US-2670/L3.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from sqlalchemy import or_, select
+from sqlalchemy.dialects.postgresql import distinct_on
+
+from waterfall.core.revisions.tables import Revision
+
 if TYPE_CHECKING:
     from collections.abc import Collection
     from datetime import datetime
@@ -30,6 +35,7 @@ class RetainedRevisions:
     ``last_marked_id``, ``marked_at`` and ``win_probability`` — the probability of winning that
     marking kept (``Revision.win_probability``) — are null for a project none of whose revisions
     was marked before the instant; ``current_id`` for one that has no current revision.
+    ``win_probability`` is null too for a revision marked before EP-07, which kept none.
     """
 
     last_marked_id: UUID | None
@@ -41,6 +47,50 @@ class RetainedRevisions:
 def last_marked_at_instant(
     session: Session, project_ids: Collection[UUID], before: datetime
 ) -> dict[UUID, RetainedRevisions]:
-    """Give, for each project, its last revision marked before ``before`` and its current one."""
-    msg = "last_marked_at_instant is filled by US-2670/L3"
-    raise NotImplementedError(msg)
+    """Give, for each project, its last revision marked before ``before`` and its current one.
+
+    Every project asked has its entry, empty for one that has neither. Two markings of one instant
+    are ordered by identifier, as the indicators order them. One query for all the projects: their
+    current revisions and the latest of their revisions marked before the instant, chosen by the
+    database (``DISTINCT ON``).
+    """
+    if not project_ids:
+        return {}
+    # A project has at most one revision in progress, and its marked ones are ranked by instant:
+    # the first of each (project, status) is its current revision, and its last marked.
+    rows = session.execute(
+        select(
+            Revision.project_id,
+            Revision.id,
+            Revision.status,
+            Revision.marked_at,
+            Revision.win_probability,
+        )
+        .ext(distinct_on(Revision.project_id, Revision.status))
+        .where(
+            Revision.project_id.in_(list(project_ids)),
+            or_(
+                Revision.status == "draft",
+                (Revision.status == "marked") & (Revision.marked_at < before),
+            ),
+        )
+        .order_by(
+            Revision.project_id,
+            Revision.status,
+            Revision.marked_at.desc().nulls_last(),
+            Revision.id.desc(),
+        )
+    )
+    current: dict[UUID, UUID] = {}
+    marked: dict[UUID, tuple[UUID, datetime | None, Decimal | None]] = {}
+    for row in rows:
+        if row.status == "draft":
+            current[row.project_id] = row.id
+        else:
+            marked[row.project_id] = (row.id, row.marked_at, row.win_probability)
+    return {
+        project_id: RetainedRevisions(
+            *marked.get(project_id, (None, None, None)), current.get(project_id)
+        )
+        for project_id in project_ids
+    }
