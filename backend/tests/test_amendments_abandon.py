@@ -424,7 +424,7 @@ def test_the_command_delete_is_listed_on_a_differential_not_merged_alone(
         )
     held = {each["structure_id"]: commands_of(each) for each in listed(api, project)}
     assert held[first]["delete"] == (True, [])
-    assert list(held[first]) == ["edit_planning", "edit_estimate", "delete"]
+    assert list(held[first]) == ["edit_planning", "edit_estimate", "delete", "rebase"]
     for structure_id in (project.tree.structure_id, str(risk.structure_id), merged):
         assert "delete" not in held[structure_id]
     mark(project.stage, project.tree.revision)
@@ -454,15 +454,14 @@ def test_the_opening_answers_the_commands_of_the_example_of_the_contract(
     api: ContractClient, project: Costed
 ) -> None:
     # The example ``amendment_created``, « qui s'abandonne tant qu'il n'est pas fusionné » : the
-    # commands the opening answers are its, ``delete`` included, in its order.
+    # commands the opening answers are its, ``delete`` and ``rebase`` included, in its order, and
+    # its state, up to date (US-3050/L2, #4173).
     example = json.loads((FIXTURES / "amendment_created.json").read_text())["value"]
     answer = open_amendment(api, project, example["label"])
     assert answer.status_code == 201, answer.text
     created = answer.json()
-    # The contract lists ``rebase`` since US-3050/L1; the service lists it from US-3050/L2, which
-    # removes this filter.
-    served = [each for each in example["available_commands"] if each["command"] != "rebase"]
-    assert created["available_commands"] == served
+    assert created["available_commands"] == example["available_commands"]
+    assert created["is_up_to_date"] is example["is_up_to_date"] is True
     assert created["lock_version"] == example["lock_version"]
     assert abandoned(api, project, created["structure_id"]).status_code == 204
 

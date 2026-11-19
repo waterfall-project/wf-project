@@ -28,7 +28,7 @@ import pytest
 from estimate_support import YEAR, Costing, Lines
 from nodes_support import Tree, opened
 from planning_support import insert_task, node_row
-from project_rows import AT, STAMP, risk_row, structure_row
+from project_rows import AT, STAMP, base_row, risk_row, structure_row
 from projects_support import PROJECTS
 from sqlalchemy import delete, func, insert, select, text, update
 from sqlalchemy.exc import DBAPIError
@@ -402,14 +402,19 @@ def declared(costed: Costed, label: str = "Retard du fournisseur") -> Declared:
 def differential(costed: Costed, label: str = "Avenant 1") -> UUID:
     """Open an empty differential in the current revision of a project costed, around the service.
 
-    A structure of the kind ``amendment``; a test writes its nodes. The copy of the main structure
-    the service makes (``createCostStructure``, US-2550/L3) is ``amendments_support``'s.
+    A structure of the kind ``amendment``, with its base, empty too (US-3050); a test writes its
+    nodes. The copy of the main structure the service makes (``createCostStructure``, US-2550/L3)
+    is ``amendments_support``'s.
     """
-    row = structure_row(costed.project_id, costed.revision_id, kind="amendment", label=label)
+    project_id, revision_id = costed.project_id, costed.revision_id
+    row = structure_row(project_id, revision_id, kind="amendment", label=label)
     structure_id = row["id"]
     assert isinstance(structure_id, UUID)
     with costed.stage.owner.begin() as connection:
         connection.execute(insert(CostStructure).values(**row))
+        connection.execute(
+            insert(CostStructure).values(**base_row(project_id, revision_id, structure_id))
+        )
     return structure_id
 
 

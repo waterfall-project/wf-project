@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The rows of a differential as the API numbers them (WF-REV-0080, WF-REV-0100).
 
-A differential is read as the tree it holds, each node the main structure of its revision has and
-it lacks returned in its place, read-only: ``row_number``, ``level`` and ``position`` count that
+A differential is read as the tree it holds, each node its base has and it lacks returned in its
+place, read-only (US-3050): ``row_number``, ``level`` and ``position`` count that
 tree, the removed nodes included (``Node``), and the number of a predecessor is as well the row of
 the whole structure (``Predecessor``). The tree the planning reads of a differential does not hold
 the removed nodes, so that it numbers the nodes without them: this module is the one place that
@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 from waterfall.core.estimate.interface import differential_rows
 from waterfall.core.planning.interface import Place, describe_row, resolve_row_number
-from waterfall.core.revisions.interface import aimed_structure, structure_facts
+from waterfall.core.revisions.interface import differential_base, structure_facts
 from waterfall.platform.errors import NOT_FOUND, NotFoundError
 
 if TYPE_CHECKING:
@@ -53,7 +53,7 @@ def resolved(session: Session, place: Place, row_number: int, written: Written) 
     """Give the node of a row of a structure (``resolveRowNumber``), in the numbering it is read in.
 
     A differential is numbered with the nodes it removes in their place: the row of one is that of
-    the main structure's node, described there. Beyond its last row, not found (404).
+    the node of its base, described there (US-3050). Beyond its last row, not found (404).
     """
     rows = rows_of(session, place, written)
     if rows is None:
@@ -63,10 +63,10 @@ def resolved(session: Session, place: Place, row_number: int, written: Written) 
         raise NotFoundError(NOT_FOUND)
     holder = place
     if row.removed:
-        main_id = aimed_structure(session, place.project_id, place.revision_id, None)
-        if main_id is None:
+        base_id = differential_base(session, place.project_id, place.structure_id)
+        if base_id is None:
             raise NotFoundError(NOT_FOUND)
-        holder = Place(place.project_id, place.revision_id, main_id)
+        holder = Place(place.project_id, place.revision_id, base_id)
     return describe_row(session, holder, row.node_id, row_number)
 
 

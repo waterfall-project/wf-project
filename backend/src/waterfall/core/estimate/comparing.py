@@ -62,7 +62,11 @@ from waterfall.core.planning.interface import (
     read_structure,
 )
 from waterfall.core.projects.interface import subproject_labels
-from waterfall.core.revisions.interface import aimed_structure, read_revision_for
+from waterfall.core.revisions.interface import (
+    aimed_structure,
+    differential_base,
+    read_revision_for,
+)
 from waterfall.platform.errors import (
     NOT_FOUND,
     STATE_FORBIDS_OPERATION,
@@ -447,22 +451,25 @@ def compare_differential(
     differences: tuple[str, ...] | None,
     written: Written,
 ) -> Comparison:
-    """Read a differential as a diff with the main structure of its revision (``listNodes``).
+    """Read a differential as a diff with its base (``listNodes``).
 
-    As ``compare`` reads two revisions, the base being the main structure of the revision of the
-    differential, current and not marked, which the union matches by lineage (WF-REV-0100,
-    WF-DAT-0030): a node of the differential that the main structure lacks is added, a node of the
-    main structure that the differential lacks removed, at its place, read-only, and every other
-    node unchanged or modified (C-361). The totals are the differential's, the removed nodes left
-    out of them; ``differences`` the marks ``difference`` keeps, none to keep them all.
+    As ``compare`` reads two revisions, the base being the base of the differential, in its
+    revision — the copy of the main structure it keeps, and not the main structure, which may have
+    moved since (US-3050) —, which the union matches by lineage (WF-REV-0100, WF-DAT-0030): a node
+    of the differential that its base lacks is added, a node of the base that the differential
+    lacks removed, at its place, read-only, and every other node unchanged or modified (C-361).
+    The base holds no provision line, which the differential does not present removed (#4035). A
+    differential merged is read so in the revision its merge marked, against the base it had. The
+    totals are the differential's, the removed nodes left out of them; ``differences`` the marks
+    ``difference`` keeps, none to keep them all.
     """
     project_id, revision_id = place.project_id, place.revision_id
     read = read_revision_for(session, project_id, revision_id)
-    main_id = aimed_structure(session, project_id, revision_id, None)
-    if main_id is None:
+    base_id = differential_base(session, project_id, place.structure_id)
+    if base_id is None:
         raise NotFoundError(NOT_FOUND)
     asked = ComparisonAsked(revision_id, revision_id, filters, differences)
-    places = (Place(project_id, revision_id, main_id), place)
+    places = (Place(project_id, revision_id, base_id), place)
     return _compare(session, project_id, asked, ((read, read), places), written)
 
 
@@ -473,14 +480,19 @@ def _compare(
     revisions: tuple[tuple[RevisionRead, RevisionRead], tuple[Place, Place]],
     written: Written,
 ) -> Comparison:
-    """Compare two structures read as ``listNodes`` reads them, the base one first."""
+    """Compare two structures read as ``listNodes`` reads them, the base one first.
+
+    The base one may be the base of a differential, which a request never names: the places are
+    the caller's, which reads the base of a differential (``compare_differential``) or the main
+    structure of a revision (``compared_places``).
+    """
     reads, (base_place, compared_place) = revisions
     filters = asked.filters
     widened = asked.include_differences and filters.progress is not None
     reading = replace(filters, progress=None) if widened else filters
     compared = read_structure(session, compared_place, reading)
     # The window is the union's: a removed node is held in the base structure whole.
-    base = read_structure(session, base_place, replace(reading, subtree_of=None))
+    base = read_structure(session, base_place, replace(reading, subtree_of=None), base=True)
     union = unite(
         [_united(each, written) for each in base.nodes],
         [_united(each, written) for each in compared.nodes],

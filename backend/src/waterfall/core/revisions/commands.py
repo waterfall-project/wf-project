@@ -47,11 +47,16 @@ RATE_UPDATE_AVAILABLE = "rate_update_available"
 UNMERGED_AMENDMENT_EXISTS = "unmerged_amendment_exists"
 MAY_CREATE_REVISION = "may_create_revision"
 MAIN_STRUCTURE = "main_structure"
+STRUCTURE_OUT_OF_DATE = "structure_out_of_date"
 # What the commands of a structure read of its nature: the main one, a differential not merged.
 MAIN_NATURE: Final = "main"
 DIFFERENTIAL_NATURE: Final = "differential"
+# A differential not merged and up to date, which has nothing to carry over (US-3050).
+UP_TO_DATE_NATURE: Final = "up_to_date_differential"
 # The natures a structure is read as: the main one, a differential not merged, else its kind.
-StructureNature = Literal["main", "differential", "amendment", "risk"]
+StructureNature = Literal["main", "differential", "up_to_date_differential", "amendment", "risk"]
+# The natures of a differential that is not merged.
+DIFFERENTIAL_NATURES = frozenset({DIFFERENTIAL_NATURE, UP_TO_DATE_NATURE})
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,14 +102,18 @@ EXPORT_RULES: tuple[Rule, ...] = (
     Rule("export_task_tree_image", "planning.read"),
 )
 # In the order of ``StructureCommand``: each guarded by the permission of the command of the same
-# name of the revision; the abandonment of a differential (``delete``) by that of the opening of
-# one (``create_structure``), listed on a differential that is not merged alone (US-2550/L4).
+# name of the revision; the abandonment of a differential (``delete``, US-2550/L4) and its update
+# from the main structure (``rebase``, US-3050/L2) by that of the opening of one
+# (``create_structure``), listed on a differential that is not merged alone.
 STRUCTURE_RULES: tuple[Rule, ...] = (
     Rule("edit_planning", "planning.write"),
     Rule("edit_estimate", "estimate.write"),
     Rule("edit_remaining", "remaining.write"),
     Rule("delete", "revisions.write"),
+    Rule("rebase", "revisions.write"),
 )
+# The commands listed on a differential that is not merged alone.
+DIFFERENTIAL_COMMANDS = frozenset({"delete", "rebase"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,10 +233,13 @@ def structure_commands_of(
 ) -> list[tuple[str, tuple[str, ...]]]:
     """List the commands a caller holds on a structure, each with the conditions it lacks.
 
-    ``nature`` is ``MAIN_NATURE``, ``DIFFERENTIAL_NATURE`` — a differential that is not merged — or
-    the kind of the structure otherwise. Only the main structure has a remaining to commit
+    ``nature`` is ``MAIN_NATURE``, ``DIFFERENTIAL_NATURE`` — a differential that is not merged —,
+    ``UP_TO_DATE_NATURE`` — one that is up to date besides — or the kind of the structure
+    otherwise. Only the main structure has a remaining to commit
     (WF-RAE-0040): the other kinds, EP-08's, never list it. Only a differential not merged lists
-    its abandonment: it would never become available on another structure (WF-REV-0100).
+    its abandonment and its update: they would never become available on another structure
+    (WF-REV-0100). The update lacks, last, ``structure_out_of_date`` on a differential up to date,
+    which has nothing to carry over (US-3050).
     """
     main = nature == MAIN_NATURE
     if state in TERMINAL:
@@ -239,12 +251,17 @@ def structure_commands_of(
                 *quality_conditions(kind, manager=rule.manager),
                 *phase_conditions(rule.command, state, main=main),
                 *revision_conditions(rule.command, revision),
+                *(
+                    [STRUCTURE_OUT_OF_DATE]
+                    if rule.command == "rebase" and nature == UP_TO_DATE_NATURE
+                    else []
+                ),
             ),
         )
         for rule in STRUCTURE_RULES
         if rule.permission in permissions
         and (main or rule.command != "edit_remaining")
-        and (nature == DIFFERENTIAL_NATURE or rule.command != "delete")
+        and (nature in DIFFERENTIAL_NATURES or rule.command not in DIFFERENTIAL_COMMANDS)
     ]
 
 

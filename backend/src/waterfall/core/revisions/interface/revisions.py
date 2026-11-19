@@ -52,6 +52,7 @@ from waterfall.core.projects.interface import (
 )
 from waterfall.core.resource_settings.interface import share_reference
 from waterfall.core.revisions.commands import NO_CURRENT_REVISION, REVISION_DRAFT, revision_commands
+from waterfall.core.revisions.interface.bases import keep_differential_states
 from waterfall.core.revisions.interface.closing import close_revision
 from waterfall.core.revisions.interface.reference import reference_correctable
 from waterfall.core.revisions.interface.shared import (
@@ -592,7 +593,8 @@ def copy_revision(
     The structures here, but the merged ones, each under an identifier of its own and the lineage
     of the one it copies (#1759); the copies bear the stamp of the creation of ``target``, which is
     written already. Each epic adds its tables by ``register_copy``; ``apply_rate_update`` tells the
-    copy of the rates whether the update is accepted (EP-07).
+    copy of the rates whether the update is accepted (EP-07). Once every table is copied, each
+    differential taken up is given the state it had, up to date or out of date (US-3050).
     """
     revision = session.get_one(Revision, target)
     copy = RevisionCopy(
@@ -607,6 +609,7 @@ def copy_revision(
     )
     for copier in _COPIES.entries():
         copier(copy)
+    keep_differential_states(copy)
 
 
 def abandon_revision(

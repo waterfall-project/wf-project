@@ -39,7 +39,7 @@ from waterfall.core.projects.interface import (
 from waterfall.core.revisions.commands import MergeState, merge_conditions
 from waterfall.core.revisions.interface.revisions import last_marked_revision
 from waterfall.core.revisions.interface.shared import refuse
-from waterfall.core.revisions.interface.structures import AMENDMENT, MAIN
+from waterfall.core.revisions.interface.structures import AMENDMENT, BASE, MAIN
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.errors import NOT_FOUND, NotFoundError
@@ -159,10 +159,12 @@ def merge_parts(merging: StructureMerging) -> MergePart:
 
 
 def _structures(session: Session, project_id: UUID, revision_id: UUID) -> dict[UUID, CostStructure]:
-    """Read the structures of a revision of a project, by their identifier."""
+    """Read the structures of a revision of a project, by their identifier; not its bases."""
     rows = session.scalars(
         select(CostStructure).where(
-            CostStructure.project_id == project_id, CostStructure.revision_id == revision_id
+            CostStructure.project_id == project_id,
+            CostStructure.revision_id == revision_id,
+            CostStructure.kind != BASE,
         )
     )
     return {row.id: row for row in rows}

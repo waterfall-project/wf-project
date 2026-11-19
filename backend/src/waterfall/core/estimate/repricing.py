@@ -76,7 +76,7 @@ def refresh_budgeted(designation: ReferenceDesignated) -> None:
     if current is None:
         return
     for structure_id in revision_structures(session, project_id, current):
-        structure_facts(session, project_id, structure_id, lock=True)
+        structure_facts(session, project_id, structure_id, lock=True, base=True)
     # Read under the locks: a line created meanwhile is there, a line deleted is not.
     held = lines_of_revision(session, project_id, current)
     reference = lines_of_revision(session, project_id, designation.revision_id)

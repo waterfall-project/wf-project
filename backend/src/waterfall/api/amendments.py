@@ -11,11 +11,12 @@ commands, at its first version.
 
 ``listNodes`` is served here (US-2550/L3): the tree of a structure, read by whoever may consult the
 planning, as ``nodes`` reads it for every structure but a differential. A differential is read as a
-diff with the main structure of its revision, which the server computes: each node carries its
-difference — added, removed, modified, unchanged — and what changes about it (``NodeDifference``,
-``NodeChange``), the nodes it removes returned at the place they had, read-only, and not counted in
-the totals; ``difference`` keeps the marks it names (``NodeDifferenceFilter``) and has no effect on
-another structure.
+diff with its base, the copy of the main structure it keeps (US-3050/L2), which the server
+computes: each node carries its difference — added, removed, modified, unchanged — and what changes
+about it (``NodeDifference``, ``NodeChange``), the nodes it removes returned at the place they had,
+read-only, and not counted in the totals; ``difference`` keeps the marks it names
+(``NodeDifferenceFilter``) and has no effect on another structure. A base is a structure no
+operation serves: named by its identifier, it is not found (404).
 
 Registered by the application from US-2550/L1; the opening served by US-2550/L3.
 """

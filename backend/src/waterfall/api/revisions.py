@@ -108,6 +108,8 @@ def structure_body(view: StructureView) -> dict[str, Any]:
             "label": view.label,
             "planning_start_on": view.planning_start_on,
             "is_merged": view.is_merged,
+            # Whether a differential not merged is up to date, null for any other (US-3050).
+            "is_up_to_date": view.is_up_to_date,
             "available_commands": _commands(view.commands),
             "lock_version": view.lock_version,
             # The risk of an own estimate, absent from the other kinds, as the examples have it.

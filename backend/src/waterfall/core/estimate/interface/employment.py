@@ -110,7 +110,7 @@ def subproject_estimate_lines(
         return {}
     rows = node_rows(session, project_id, [node for node, _, _ in held])
     structures = {
-        each: structure_facts(session, project_id, each, lock=False)
+        each: structure_facts(session, project_id, each, lock=False, base=True)
         for each in {row.structure_id for row in rows.values()}
     }
 

@@ -24,7 +24,7 @@ written (``RecordedChange.node_ids`` empty); the structure after is built from w
 holds, read once under the lock (#2492), at the counter of its redating, not read again.
 
 ``open_differential`` opens a differential, the copy of the main structure of a revision
-(``createCostStructure``, US-2550/L3).
+(``createCostStructure``, US-2550/L3), and its base, a second copy (US-3050/L2).
 
 Declared by US-1380/L1; ``reschedule`` filled by US-1380/L2, handed what a write already holds by
 US-1380/L3, ``update_cost_structure`` filled by US-1390/L2, its structure after built by US-1380/L5.
@@ -170,7 +170,9 @@ def open_differential(
     is read against the main structure by that lineage, every node ``unchanged`` (WF-REV-0100,
     WF-REV-0050, C-361). Its tasks bear no attachment to the work breakdown, the main structure's
     alone (WF-PLA-0170). Not an entry of the history: nothing of a differential opened is undone,
-    it is abandoned (``deleteCostStructure``).
+    it is abandoned (``deleteCostStructure``). Its base is copied likewise under the same lock, the
+    main structure as the differential copied it, which the differential is read against and which
+    no operation serves (US-3050).
     """
     project_id, revision_id = revision
     # A revision of another project is unknown before it is judged: it has no main structure here.
@@ -180,16 +182,17 @@ def open_differential(
     judge_revision(session, project_id, revision_id)
     main = facts_of(session, Place(project_id, revision_id, main_id), lock=True)
     act = writer.act
-    structure_id = create_differential(session, revision, main, label, act)
-    copy = RevisionCopy(
-        session,
-        project_id,
-        revision_id,
-        revision_id,
-        act.at,
-        act.author,
-        {main_id: structure_id},
-        within_revision=True,
-    )
-    copy_structure_nodes(copy)
-    return structure_id
+    opened = create_differential(session, revision, main, label, act)
+    for target in (opened.structure_id, opened.base_id):
+        copy = RevisionCopy(
+            session,
+            project_id,
+            revision_id,
+            revision_id,
+            act.at,
+            act.author,
+            {main_id: target},
+            within_revision=True,
+        )
+        copy_structure_nodes(copy)
+    return opened.structure_id

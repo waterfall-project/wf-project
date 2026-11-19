@@ -170,12 +170,12 @@ def reprice_revision(
             if each not in held_structures
         ]
         for structure_id in missing:
-            structure_facts(session, project_id, structure_id, lock=True)
+            structure_facts(session, project_id, structure_id, lock=True, base=True)
             held_structures.add(structure_id)
         nodes = list(lines_of_revision(session, project_id, revision_id).values())
         strangers = sorted(set(structures_of(session, project_id, nodes)) - held_structures)
         for structure_id in strangers:
-            structure_facts(session, project_id, structure_id, lock=True)
+            structure_facts(session, project_id, structure_id, lock=True, base=True)
             held_structures.add(structure_id)
         if not missing and not strangers:
             break

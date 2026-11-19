@@ -7,8 +7,9 @@ differential that is not merged, in the current revision, at the counter read. I
 and outside of the undoable history, as that of a revision is: the entries of the stacks that
 touch the structure and the plans of a paste that aim at it go with it (WF-IHM-0110), its nodes
 with their facets and their links, then the structure itself, which the journal inscribes
-(``structure_abandon``). The other structures of the revision, the main one first, are not read nor
-written; the inscriptions of the tracking, which the lineage keeps, stay with the main structure.
+(``structure_abandon``). Its base goes with it, its nodes and their facets, then the structure
+(US-3050). The other structures of the revision, the main one first, are not read nor written; the
+inscriptions of the tracking, which the lineage keeps, stay with the main structure.
 """
 
 from typing import TYPE_CHECKING
@@ -25,7 +26,12 @@ from waterfall.core.planning.writing import (
     hold_before_lock,
     judge_revision,
 )
-from waterfall.core.revisions.interface import UNMERGED_AMENDMENT_EXISTS, abandon_structure
+from waterfall.core.revisions.interface import (
+    UNMERGED_AMENDMENT_EXISTS,
+    abandon_structure,
+    differential_base,
+    structure_facts,
+)
 from waterfall.platform.errors import (
     STALE_LOCK_VERSION,
     STATE_FORBIDS_OPERATION,
@@ -60,7 +66,8 @@ def abandon_differential(session: Session, place: Place, lock_version: int, writ
     then the structure locked, as every write of its tree does, and judged: a structure that is not
     a differential that is not merged — the main structure, the own estimate of a risk, a merged
     differential — is refused (409 ``unmerged_amendment_exists``), then the counter (412).
-    Nothing is deleted then.
+    Nothing is deleted then. Its base is locked after it, as the update of a differential takes
+    them, and deleted with it (US-3050).
     """
     hold_before_lock(session)
     facts_of(session, place, lock=False)
@@ -78,6 +85,11 @@ def abandon_differential(session: Session, place: Place, lock_version: int, writ
             Node.project_id == place.project_id, Node.structure_id == place.structure_id
         )
     ).all()
+    base_id = differential_base(session, place.project_id, place.structure_id)
+    if base_id is not None:
+        structure_facts(session, place.project_id, base_id, lock=True, base=True)
     forget_structure(session, place.revision_id, place.structure_id, node_ids)
     _delete_nodes(session, place)
+    if base_id is not None:
+        _delete_nodes(session, Place(place.project_id, place.revision_id, base_id))
     abandon_structure(session, place.project_id, facts, writer.act)
