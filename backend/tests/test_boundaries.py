@@ -156,6 +156,8 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "curves",
         "documents",
         "estimate_documents",
+        # The formulas of the indices, which the portfolio applies to sums (US-2670/L2, EP-11).
+        "formulas",
         "index_history",
         "milestone_tracking",
         "physical_progress",

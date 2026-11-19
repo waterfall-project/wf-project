@@ -1,0 +1,8 @@
+{
+  "summary": "Sur dix offres sorties de l'état Chiffrage dans la période vers En cours ou vers Perdu, dont quatre passées à En cours, le taux de transformation vaut 40 % ; une onzième, abandonnée dans la période, ne le change pas (WF-PTF-0050).",
+  "examples": ["WF-PTF-0050-A#82adcb588823"],
+  "won": 4,
+  "lost": 6,
+  "abandoned": 1,
+  "conversion_rate": "0.4"
+}

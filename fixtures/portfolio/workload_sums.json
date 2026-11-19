@@ -1,0 +1,15 @@
+{
+  "summary": "Sur deux projets en cours dont les restes à engager portent 100 et 150 heures d'un même rôle le même mois, le plan agrégé porte 250 heures ; une offre à 50 % avec 100 heures ajoute 50 heures quand le chiffrage est inclus, rien sinon ; un mois à 120 % de la capacité est signalé (WF-PTF-0060).",
+  "examples": [
+    "WF-PTF-0060-A#45748fe78d7c",
+    "WF-PTF-0060-A#dd1733488885",
+    "WF-PTF-0060-A#9bd0b92b0168"
+  ],
+  "in_progress_hours": ["100.00", "150.00"],
+  "offer": {"win_probability": "0.5", "hours": "100.00"},
+  "aggregated_hours": "250.00",
+  "offer_hours": "50.00",
+  "with_offer_hours": "300.00",
+  "overloaded": {"capacity": "100.00", "hours": "120.00", "load_ratio": "1.2", "zone": "alert"},
+  "under_load_threshold": "0.5"
+}
