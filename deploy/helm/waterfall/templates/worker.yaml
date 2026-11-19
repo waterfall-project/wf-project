@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The worker (compose.prod.yaml, worker), a deployment of its own, of worker.replicas replicas: it
+# runs the background tasks of the queue (WF-ARC-0090). A backup dumps both databases as the role of
+# the backup (#895) into the bucket of the backups.
+{{- $host := include "waterfall.postgresHost" . }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "waterfall.name" (list . "worker") }}
+  labels:
+    {{- include "waterfall.labels" (list . "worker") | nindent 4 }}
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  selector:
+    matchLabels:
+      {{- include "waterfall.selector" (list . "worker") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "worker") | nindent 8 }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      initContainers:
+        {{- include "waterfall.waitForDatabase" (list . "waterfall_service" "waterfall" "WATERFALL_SERVICE_DATABASE_PASSWORD") | nindent 8 }}
+      containers:
+        - name: worker
+          image: {{ include "waterfall.image" (list . "waterfall") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command: [waterfall-worker]
+          env:
+            {{- include "waterfall.backEnvironment" (list . "service") | nindent 12 }}
+            {{- include "waterfall.keycloakClientEnvironment" . | nindent 12 }}
+            {{- include "waterfall.storageEnvironment" . | nindent 12 }}
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_BACKUP_DATABASE_PASSWORD") | nindent 12 }}
+            - name: WATERFALL_BACKUP_DATABASE_URL
+              value: {{ printf "postgresql://waterfall_backup:$(WATERFALL_BACKUP_DATABASE_PASSWORD)@%s:5432/waterfall" $host | quote }}
+            - name: WATERFALL_KEYCLOAK_DATABASE_URL
+              value: {{ printf "postgresql://waterfall_backup:$(WATERFALL_BACKUP_DATABASE_PASSWORD)@%s:5432/keycloak" $host | quote }}
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}

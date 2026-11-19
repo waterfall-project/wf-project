@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Waterfall on a Kubernetes cluster (US-2800, WF-ARC-0050): what deploy/compose/compose.prod.yaml
+# deploys on one machine, from the same images, every template written here — no dependency on a
+# chart of a third party nor on an operator (EP-13, « Décisions »). Every setting is in values.yaml,
+# with what it does.
+apiVersion: v2
+name: waterfall
+description: Waterfall, the management of projects by their estimate, on Kubernetes
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

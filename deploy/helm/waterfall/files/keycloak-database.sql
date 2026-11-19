@@ -1,0 +1,1 @@
+../../../compose/keycloak-database.sql

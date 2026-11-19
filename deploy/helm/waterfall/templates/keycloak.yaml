@@ -1,0 +1,88 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Keycloak behind the ingress, under /auth (compose.prod.yaml, keycloak): the issuer of every token
+# is the address of the browser; the services reach it at its service, on the back channel, and its
+# management port, 9000, answers its health. No mail server: the links that set a password are
+# handed over by createPasswordSetupLink (WF-CMP-0030). Its realm is applied by a hook (hooks.yaml).
+{{- $name := include "waterfall.name" (list . "keycloak") }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "keycloak") | nindent 4 }}
+spec:
+  selector:
+    {{- include "waterfall.selector" (list . "keycloak") | nindent 4 }}
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+    - name: management
+      port: 9000
+      targetPort: management
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "keycloak") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "waterfall.selector" (list . "keycloak") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "keycloak") | nindent 8 }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      initContainers:
+        {{- include "waterfall.waitForDatabase" (list . "keycloak" "keycloak" "WATERFALL_KEYCLOAK_DATABASE_PASSWORD") | nindent 8 }}
+      containers:
+        - name: keycloak
+          image: {{ include "waterfall.image" (list . "keycloak") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          env:
+            {{- include "waterfall.keycloakDatabase" . | nindent 12 }}
+            # The administrator of the realm master, read at the first start alone.
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              value: admin
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_KEYCLOAK_ADMIN_PASSWORD" "KC_BOOTSTRAP_ADMIN_PASSWORD") | nindent 12 }}
+            - name: KC_HOSTNAME
+              value: {{ printf "%s/auth" (include "waterfall.address" .) | quote }}
+            - name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC
+              value: "true"
+            - name: KC_HTTP_ENABLED
+              value: "true"
+            - name: KC_PROXY_HEADERS
+              value: xforwarded
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: management
+              containerPort: 9000
+          # Readiness answers 503 while the schema migrates (#1079): the status is what counts.
+          readinessProbe:
+            httpGet:
+              path: /auth/health/ready
+              port: management
+            periodSeconds: 5
+            timeoutSeconds: 3
+          startupProbe:
+            httpGet:
+              path: /auth/health/started
+              port: management
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /auth/health/live
+              port: management
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            {{- toYaml .Values.keycloak.resources | nindent 12 }}

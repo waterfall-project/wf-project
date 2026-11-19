@@ -56,6 +56,7 @@ jobs:
       keycloak: ${{ steps.families.outputs.keycloak }}
       service: ${{ steps.families.outputs.service }}
       production: ${{ steps.families.outputs.production }}
+      chart: ${{ steps.families.outputs.chart }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -107,7 +108,7 @@ jobs:
     if: >-
       needs.changes.outputs.back == 'true' || needs.changes.outputs.front == 'true' ||
       needs.changes.outputs.front-image == 'true' || needs.changes.outputs.keycloak == 'true' ||
-      needs.changes.outputs.service == 'true' ||
+      needs.changes.outputs.service == 'true' || needs.changes.outputs.chart == 'true' ||
       (needs.changes.outputs.production == 'true' && needs.changes.outputs.tier == 'full')
     runs-on: ubuntu-26.04
     # About thirteen lookups; a copy, a few seconds each, on the first run after a digest changed.
@@ -314,6 +315,19 @@ jobs:
     if: needs.changes.outputs.production == 'true' && needs.changes.outputs.tier == 'full'
     uses: ./.github/workflows/production.yml
 
+  # The chart (US-2800): linted and rendered in both tiers, installed on a cluster of kind from the
+  # three images built here in the full tier only. Its job waits for the mirror in both, which reads
+  # nothing in the fast tier but is the same condition to keep.
+  chart:
+    needs: [changes, mirror]
+    permissions:
+      contents: read
+      packages: read
+    if: needs.changes.outputs.chart == 'true'
+    uses: ./.github/workflows/chart.yml
+    with:
+      tier: ${{ needs.changes.outputs.tier }}
+
   gate:
     # Every job of the chain, each part of the end-to-end paths included: the result of e2e is
     # a failure as soon as one of its parts failed or was cancelled. A build of the front, or a
@@ -337,6 +351,7 @@ jobs:
       - keycloak
       - service
       - production
+      - chart
     if: always()
     runs-on: ubuntu-26.04
     timeout-minutes: 5

@@ -1,0 +1,147 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The settings of the chart: one section per component, each written by the lot that makes it
+# (EP-13, « L'empaquetage »). A section a later lot fills is here already, empty, saying which: the
+# others never touch it. What compose.prod.yaml reads from its .env is read here under the same
+# meaning; an empty value the chart cannot do without stops the rendering, naming it.
+
+# Where the browser reaches the platform: the domain, and the port of HTTPS when it is not 443.
+platform:
+  domain: ""
+  httpsPort: ""
+
+# The images the chain publishes, front, waterfall and keycloak, under the same tag (images.yml).
+images:
+  registry: ghcr.io/waterfall-project
+  tag: ""
+  pullPolicy: IfNotPresent
+  # The secrets of the registries the cluster pulls from, by their names.
+  pullSecrets: []
+  # Where the images of third parties are read from: empty, Docker Hub; the chain gives the
+  # registry of its mirror and a slash (WATERFALL_MIRROR, US-1900).
+  mirror: ""
+
+# The passwords and the secrets of the platform, under the names of production.env.example: a
+# Secret the chart makes from `values`, or the one `existingSecret` names, which holds the same keys.
+# A password written in a URL — PostgreSQL's, Redis's — holds letters and digits only.
+secrets:
+  existingSecret: ""
+  values: {}
+  # WATERFALL_POSTGRES_ADMIN_PASSWORD, WATERFALL_POSTGRES_PASSWORD,
+  # WATERFALL_SERVICE_DATABASE_PASSWORD, WATERFALL_BACKUP_DATABASE_PASSWORD,
+  # WATERFALL_KEYCLOAK_DATABASE_PASSWORD, WATERFALL_REDIS_PASSWORD,
+  # WATERFALL_KEYCLOAK_ADMIN_PASSWORD, WATERFALL_FRONT_CLIENT_SECRET,
+  # WATERFALL_SERVICE_CLIENT_SECRET, WATERFALL_INSTALLATION_CLIENT_SECRET,
+  # WATERFALL_SERVER_ACTIONS_KEY, WATERFALL_STORAGE_SECRET, WATERFALL_STORAGE_RPC_SECRET
+
+# The only door: the routes of the front at the root and under /auth, those of the realm waterfall
+# under /auth. The console of Keycloak and its realm master are not routed: the front answers 404.
+ingress:
+  className: ""
+  annotations: {}
+  # The Secret of type kubernetes.io/tls that holds the certificate of the domain.
+  tlsSecret: ""
+
+# The front: its replicas, and the hosts its pods resolve otherwise than the cluster does — the
+# server of Next reaches Keycloak at the published address, in HTTPS, through the ingress.
+front:
+  replicas: 1
+  hostAliases: []
+  resources: {}
+
+# The API: its replicas (WF-ARC-0050), and the processes of each (WATERFALL_API_PROCESSES), which
+# PostgreSQL counts fifteen connections for.
+api:
+  replicas: 1
+  processes: 1
+  indicatorsCacheTtl: 600
+  resources: {}
+
+# The worker, which runs the background tasks of the queue (WF-ARC-0090).
+worker:
+  replicas: 1
+  resources: {}
+
+# The service of the restoration (WF-ADM-0160), one alone, with the application of the realm beside
+# it, which applies it again over a database of Keycloak it has restored (#955).
+restore:
+  resources: {}
+  realm:
+    resources: {}
+
+# The tasks planned, which the service scheduler of the Compose deposits: one CronJob each, which
+# runs a command of the worker and stops (PBS-5.3). US-2830 replaces them by a single one.
+scheduler:
+  undoRetentionHours: 12
+  jobs:
+    purge:
+      schedule: "*/10 * * * *"
+      command: [waterfall-worker, purge]
+    identity-sync:
+      schedule: "0 3 * * *"
+      command: [waterfall-worker, enqueue, identity_sync]
+  resources: {}
+
+# The bootstrap (US-0420), run once after the installation: the link of the first administrator is
+# in the log of its Job.
+bootstrap:
+  adminEmail: ""
+  defaultLanguage: fr
+  currency: ""
+  companyName: ""
+  timeZone: ""
+
+# Keycloak, behind the ingress under /auth, and the application of its realm after each
+# installation and each upgrade.
+keycloak:
+  resources: {}
+  realm:
+    resources: {}
+
+# PostgreSQL, with Waterfall's database and Keycloak's. US-2800/L2 lets the operator provide it.
+postgresql:
+  image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+  persistence:
+    size: 10Gi
+    className: ""
+  resources: {}
+
+# Redis: nothing durable is kept in it. US-2800/L2 lets the operator provide it.
+redis:
+  image: redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
+  resources: {}
+
+# The object storage, Garage on one node, its memory bounded (WF-CMP-0020), and the buckets the
+# platform makes. US-2800/L2 lets the operator provide it.
+storage:
+  image: dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
+  bucketsImage: curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93
+  accessKey: GK000000000000000000000001
+  persistence:
+    size: 10Gi
+    className: ""
+  resources:
+    limits:
+      memory: 256Mi
+
+# The encryption between the services, and the authority that signs their certificates (US-2840).
+# Until then, `authority` names a Secret whose key ca.crt is a root the front trusts besides the
+# usual ones, to reach Keycloak through the ingress: that of a certificate of a local name.
+transport:
+  authority: ""
+
+# The metrics of the front, the API and the worker (US-2870).
+metrics: {}
+
+# Prometheus, which collects the metrics and evaluates the alerts (US-2880).
+prometheus: {}
+
+# Alertmanager, which notifies the alerts (US-2880).
+alertmanager: {}
+
+# Grafana, the dashboard of the operator (US-2880).
+grafana: {}
+
+# The backups planned, kept and copied outside the platform (US-2910).
+backups: {}

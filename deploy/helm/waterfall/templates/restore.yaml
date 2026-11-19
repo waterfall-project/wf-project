@@ -1,0 +1,75 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The service of the restoration (compose.prod.yaml, restore), a deployment of its own, one alone:
+# it runs the restorations the API deposits in their stream, and nothing else (WF-ADM-0160, #953).
+# The only one that holds the owners of both databases; with them, the client of the bootstrap,
+# which clears the caches of Keycloak (#954), and the service account, which closes the sessions.
+# Beside it, the application of the realm, as the service keycloak-realm of the Compose: it applies
+# the realm at its start, then again whenever the restoration asks it through the folder they alone
+# share, in memory (#955). It opens no port.
+{{- $host := include "waterfall.postgresHost" . }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "waterfall.name" (list . "restore") }}
+  labels:
+    {{- include "waterfall.labels" (list . "restore") | nindent 4 }}
+spec:
+  replicas: 1
+  # Never two at once, not even for the length of a rollout.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "waterfall.selector" (list . "restore") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "restore") | nindent 8 }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      initContainers:
+        {{- include "waterfall.waitForDatabase" (list . "waterfall_service" "waterfall" "WATERFALL_SERVICE_DATABASE_PASSWORD") | nindent 8 }}
+        {{- /* The hook applies the realm first: two applications that both found no realm would both make it. */}}
+        {{- include "waterfall.waitForKeycloak" (list . "8080" "/auth/realms/waterfall") | nindent 8 }}
+      containers:
+        - name: restore
+          image: {{ include "waterfall.image" (list . "waterfall") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command: [waterfall-restore]
+          env:
+            {{- include "waterfall.backEnvironment" (list . "owner") | nindent 12 }}
+            {{- include "waterfall.keycloakClientEnvironment" . | nindent 12 }}
+            {{- include "waterfall.storageEnvironment" . | nindent 12 }}
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_KEYCLOAK_DATABASE_PASSWORD") | nindent 12 }}
+            - name: WATERFALL_KEYCLOAK_DATABASE_URL
+              value: {{ printf "postgresql://keycloak:$(WATERFALL_KEYCLOAK_DATABASE_PASSWORD)@%s:5432/keycloak" $host | quote }}
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_INSTALLATION_CLIENT_SECRET") | nindent 12 }}
+            - name: WATERFALL_REALM_REQUESTS
+              value: /realm-requests
+          volumeMounts:
+            - name: realm-requests
+              mountPath: /realm-requests
+          resources:
+            {{- toYaml .Values.restore.resources | nindent 12 }}
+        - name: realm
+          image: {{ include "waterfall.image" (list . "keycloak") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command: [/opt/keycloak/bin/realm-service, /opt/keycloak/bin/apply-realm]
+          env:
+            {{- include "waterfall.realmEnvironment" . | nindent 12 }}
+          readinessProbe:
+            exec:
+              command: [test, -f, /tmp/realm-applied]
+            periodSeconds: 5
+          volumeMounts:
+            - name: realm-requests
+              mountPath: /realm-requests
+          resources:
+            {{- toYaml .Values.restore.realm.resources | nindent 12 }}
+      volumes:
+        - name: realm-requests
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi

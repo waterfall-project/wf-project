@@ -1,0 +1,71 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The API (compose.prod.yaml, api), a deployment of its own, of api.replicas replicas
+# (WF-ARC-0050), each of api.processes processes. As the role of the service, which holds only what
+# the tables grant it (#701): it waits until that role signs in, which it can once the migrations
+# have run (hooks.yaml).
+{{- $name := include "waterfall.name" (list . "api") }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "api") | nindent 4 }}
+spec:
+  selector:
+    {{- include "waterfall.selector" (list . "api") | nindent 4 }}
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "api") | nindent 4 }}
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      {{- include "waterfall.selector" (list . "api") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "api") | nindent 8 }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      initContainers:
+        {{- include "waterfall.waitForDatabase" (list . "waterfall_service" "waterfall" "WATERFALL_SERVICE_DATABASE_PASSWORD") | nindent 8 }}
+      containers:
+        - name: api
+          image: {{ include "waterfall.image" (list . "waterfall") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          env:
+            {{- include "waterfall.backEnvironment" (list . "service") | nindent 12 }}
+            {{- include "waterfall.keycloakClientEnvironment" . | nindent 12 }}
+            {{- include "waterfall.storageEnvironment" . | nindent 12 }}
+            - name: WATERFALL_INDICATORS_CACHE_TTL
+              value: {{ .Values.api.indicatorsCacheTtl | quote }}
+            - name: WATERFALL_API_PROCESSES
+              value: {{ .Values.api.processes | quote }}
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            periodSeconds: 2
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}

@@ -1,0 +1,54 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The chart of Waterfall (US-2800): linted and rendered in both tiers, its tests holding it against
+# the Compose of production; in the full tier, the three images built as images.yml publishes them,
+# never pushed, then the chart installed on a cluster of kind made for the job, bootstrapped, its
+# API's liveness and the sign-in of its first administrator held (make check-chart). Helm, kind and
+# kubectl are downloaded at the versions and digests wftools.kubetools pins.
+name: chart
+
+on:
+  workflow_call:
+    inputs:
+      tier:
+        type: string
+        required: true
+
+# Reading packages is what pulling the mirror of the images of Docker Hub is (ci.yml, mirror).
+permissions:
+  contents: read
+  packages: read
+
+# The Dockerfiles and the chart pull Docker Hub's images from the mirror (ci.yml, mirror): the node
+# of kind with the credentials of Docker the job logs in with.
+env:
+  WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/
+
+jobs:
+  check:
+    runs-on: ubuntu-26.04
+    # The three images and the first start of Keycloak on the cluster are the longest of it.
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The cache of the builds of images, written after a merge (images.yml).
+      - if: inputs.tier == 'full'
+        uses: ./.github/actions/build-cache
+      - if: inputs.tier == 'full'
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
+          cache-dependency-glob: tools/uv.lock
+      - run: make check-chart
+        env:
+          TIER: ${{ inputs.tier }}
