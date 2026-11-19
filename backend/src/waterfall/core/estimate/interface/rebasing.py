@@ -66,6 +66,10 @@ PARENT = "parent"
 # The fields of a line, as the differences name them: its columns, then its task.
 FIELDS = (*(name for name, _ in COLUMNS), PARENT)
 _COLUMN = dict(COLUMNS)
+# The columns the constraints of a line tie (``hours_of_a_role``,
+# ``unit_disbursement_without_role``): a labour line has its role and its hours, any other its
+# disbursement. They go together.
+COUPLED = frozenset({"resource_role", "hours", "unit_disbursement"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,12 +198,19 @@ class _Update:
         """Carry what the main structure changes of a line, keep what the differential changes.
 
         A task the differential moves the line to and that leaves keeps its parent, named (rule 3).
+        The coupled columns (``COUPLED``) are carried together or kept together.
         """
         designates, received = _fields(old, own), _fields(old, new)
         carried = received - designates
         kept = frozenset(
             name for name in received & designates if new.value(name) != own.value(name)
         )
+        if designates & COUPLED and received & COUPLED:
+            # The differential designates one of the coupled columns: it keeps the three, and the
+            # report names them all, the main structure having changed one of them.
+            carried -= COUPLED
+            if any(new.value(name) != own.value(name) for name in COUPLED):
+                kept |= COUPLED
         task = (new if PARENT in carried else own).task
         if PARENT in designates and task not in self.where.tasks:
             kept |= {PARENT}

@@ -301,6 +301,7 @@ def test_a_value_both_change_keeps_the_differential_s_and_the_report_names_it(
     # garde la valeur du différentiel, et le compte rendu la nomme (kept, ses champs) »: the label
     # of a task both rename, the unit disbursement of a line both change — the main structure's
     # re-estimate kept there, the differential's figure the reference of the merge (WF-REV-0050);
+    # the coupled columns of a line (role, hours, unit disbursement) are kept together, named all;
     # a value both change alike is no conflict, and is not named.
     main, own = late.project.tree, late.amendment
     main.changed(node_labelled(main, OWN_RENAMED[0]), label="Formation interne")
@@ -315,7 +316,7 @@ def test_a_value_both_change_keeps_the_differential_s_and_the_report_names_it(
             "kept",
             "estimate_line",
             (lineage(own, MAIN_REESTIMATED[0]), MAIN_REESTIMATED[0]),
-            ["unit_disbursement"],
+            ["resource_role", "hours", "unit_disbursement"],
         ),
     ]
     updated = [each["label"] for each in found if each["change"] == "updated"]
