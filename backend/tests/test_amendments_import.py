@@ -12,7 +12,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from amendments_support import on, opened_amendment
+from amendments_support import listed, on, opened_amendment, structures_path
 from estimate_import_support import STATE, entry_of, opening, row, workbook
 from estimate_support import Costing, costing
 from fastapi.testclient import TestClient
@@ -187,3 +187,38 @@ def test_an_import_aimed_at_a_structure_the_revision_does_not_hold_is_not_found(
         },
     )
     assert answer.status_code == 404, answer.text
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+def test_an_import_analysed_on_a_differential_abandoned_since_is_not_applied(
+    api: ContractClient, project: Costed, worker: Worker
+) -> None:
+    # The import is kept by the structure it aims at, which no key binds: abandoned since its
+    # analysis, the structure is unknown at the application, refused with 404 as at the opening
+    # (I-03, #1789), not a failure; the import ends refused and nothing is written.
+    stage = project.stage
+    aimed = opened_amendment(api, project)
+    amendment = on(project.tree, aimed)
+    upload_id = deposited(api, stage.manager, exported(project, amendment, {"Débours unitaire": 750}))
+    opened = api.post(
+        f"{PROJECTS}/{project.project_id}/imports",
+        headers=stage.manager.headers,
+        json={"kind": "estimate", "upload_id": upload_id, "structure_id": aimed},
+    )
+    assert opened.status_code == 202, opened.text
+    import_id = opened.json()["import_id"]
+    run(worker)
+    assert read(api, stage, import_id)["status"] == "analysed"
+    held = next(each for each in listed(api, project) if each["structure_id"] == aimed)
+    gone = api.delete(
+        f"{structures_path(project)}/{aimed}?lock_version={held['lock_version']}",
+        headers=stage.manager.headers,
+    )
+    assert gone.status_code == 204, gone.text
+    before = project.tree.read().json()
+    answer = apply(api, stage, import_id)
+    assert answer.status_code == 404, answer.text
+    assert read(api, stage, import_id)["status"] == "refused"
+    run(worker)
+    assert read(api, stage, import_id)["status"] == "refused"
+    assert project.tree.read().json() == before
