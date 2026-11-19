@@ -197,7 +197,6 @@ def read_register(
         return RiskList([], 0, empty)
     founds = found_in(session, project_id, revision_id, filters.search)
     views: list[RiskView] = []
-    reference_id = None
     if founds:
         context = read_context(session, project_id, founds)
         reference_id = context.facts.reference_revision_id
@@ -206,7 +205,7 @@ def read_register(
             for view in (risk_view(session, project_id, found, viewer, context) for found in founds)
             if _kept(view, filters)
         ]
-    if not founds:
+    else:
         reference_id = project_facts(session, project_id).reference_revision_id
     ordered = _sorted(views, sort)
     totals = provision_totals(views, session, project_id, reference_id)

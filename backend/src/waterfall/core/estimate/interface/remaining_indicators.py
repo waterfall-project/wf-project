@@ -11,9 +11,10 @@ the tree again (#3569, #3802). ``remaining_indicators`` reads the indicators of 
 (``getRemainingIndicators``), their coverage of the risks by ``risk_coverage`` (EP-09, "Les
 indicateurs du reste à engager").
 
-The coverage is a registry the estimate declares and the risks fill (``register_coverage``, EP-08):
-until then none is registered, and the coverage is zero — no reserve, no provision left, no cost of
-a risk occurred, no variance —, what is true of a project without risk.
+The coverage is a registry the estimate declares and the risks fill (``register_coverage``, EP-08,
+US-2610/L1): the risks answer it at the import of their interface; where none is registered, the
+coverage is zero — no reserve, no provision left, no cost of a risk occurred, no variance —, what
+is true of a project without risk.
 
 Declared by US-1580/L1 with their results, the coverage served from then on;
 ``remaining_of_revision`` filled by US-1580/L2 (EP-09, "Ce que le cadrage laisse à EP-10"; #2708),

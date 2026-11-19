@@ -8,7 +8,9 @@ occurred ones, their signed variance, and the re-estimated amount of the lines t
 beside, outside the variance (#1761). The revision named, else the current one, else the last one
 marked; a marked revision gives the coverage its marking kept in the document of the remaining to
 commit, never computed again (WF-DAT-0040), and one marked before the indicators were kept, the
-coverage computed at the reading.
+coverage computed at the reading. The reserve of a marked revision is not one of the figures the
+marking keeps: it is read of the reference of the project, as everywhere else, and the variance
+deduced (docs/api/DECISIONS.md, "La réserve d'une révision marquée se lit de la référence").
 
 Registered by the application from US-2550/L1; served by US-2610/L1.
 """
@@ -25,6 +27,7 @@ from waterfall.core.costs.interface import PROJECT
 from waterfall.core.estimate.interface import CalculationContext, risk_coverage
 from waterfall.core.indicators.interface import risk_coverage_document
 from waterfall.core.revisions.interface import read_revision_for
+from waterfall.core.risks.interface import kept_coverage
 from waterfall.platform.database import utc_now
 
 router = APIRouter(tags=["risks"])
@@ -46,7 +49,8 @@ def get_project_risk_coverage(
     if read.marked:
         kept = kept_document(session, read.revision_id, "remaining", PROJECT)
         if kept is not None:
-            return {"context": kept["context"], **kept["coverage"]}
+            coverage = kept_coverage(session, project_id, kept["coverage"])
+            return {"context": kept["context"], **coverage}
     context = CalculationContext(
         read.revision_id, "marked" if read.marked else "draft", utc_now(), PROJECT, is_stored=False
     )

@@ -42,6 +42,9 @@ from waterfall.core.risks.following import (
     name_provision_owners,
 )
 from waterfall.core.risks.interface.coverage import (
+    kept_coverage as kept_coverage,
+)
+from waterfall.core.risks.interface.coverage import (
     risk_coverage_of as risk_coverage_of,
 )
 

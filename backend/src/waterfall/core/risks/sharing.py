@@ -15,26 +15,27 @@ evaluates, the provision the risk bears in that reference (``risk_reference_shar
 The reserve is their sum, and nothing writes it again: a review, a variance, an occurrence, the
 entry of an own estimate do not move it. A designation that corrects the previous one (WF-REV-0040:
 no revision was marked since) takes its shares back and writes the revision's own, from the
-reference before the one it replaces; a revision designated again writes its shares anew.
+reference before the one it replaces (the order of their inscriptions in the journal, not the
+instants, which may be equal); a revision designated again writes its shares anew.
 """
 
-from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import delete, func, select
 
 from waterfall.core.estimate.interface import round_to_cent, structure_amounts
 from waterfall.core.risks.commands import IDENTIFIED
+from waterfall.core.risks.reading import NOUGHT
 from waterfall.core.risks.tables import RiskEvaluation, RiskReferenceShare
+from waterfall.platform.audit import AuditEntry
 
 if TYPE_CHECKING:
+    from decimal import Decimal
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
     from waterfall.core.revisions.interface import ReferenceDesignated
-
-NOUGHT = Decimal("0.00")
 
 
 def _delete_shares(session: Session, project_id: UUID, revision_id: UUID) -> None:
@@ -48,13 +49,22 @@ def _delete_shares(session: Session, project_id: UUID, revision_id: UUID) -> Non
     )
 
 
-def _last_reference(session: Session, project_id: UUID) -> UUID | None:
-    """Give the reference that holds shares and was designated last, none if no one does."""
+def _reference_before(session: Session, project_id: UUID, revision_id: UUID) -> UUID | None:
+    """Give the reference that holds shares and was designated last, other than a revision.
+
+    Only a correction needs it, the reference it replaces being gone: the order is that of the
+    inscriptions of the designations in the journal, whose identifiers are drawn in time order,
+    never the instants of the designations, which the witness may impose twice the same.
+    """
     return session.scalar(
         select(RiskReferenceShare.revision_id)
-        .where(RiskReferenceShare.project_id == project_id)
-        .group_by(RiskReferenceShare.revision_id)
-        .order_by(func.max(RiskReferenceShare.created_at).desc(), RiskReferenceShare.revision_id)
+        .join(AuditEntry, AuditEntry.object_id == RiskReferenceShare.revision_id)
+        .where(
+            RiskReferenceShare.project_id == project_id,
+            RiskReferenceShare.revision_id != revision_id,
+            AuditEntry.action == "reference_designate",
+        )
+        .order_by(AuditEntry.id.desc())
         .limit(1)
     )
 
@@ -94,17 +104,23 @@ def write_shares(designation: ReferenceDesignated) -> None:
     session, project_id = designation.session, designation.project_id
     revision_id = designation.revision_id
     _delete_shares(session, project_id, revision_id)
-    if designation.corrects and designation.previous_id is not None:
-        _delete_shares(session, project_id, designation.previous_id)
+    before = designation.previous_id
+    if designation.corrects and before is not None:
+        _delete_shares(session, project_id, before)
+        session.flush()
+        before = _reference_before(session, project_id, revision_id)
     session.flush()
     evaluations = session.scalars(
         select(RiskEvaluation)
         .where(RiskEvaluation.project_id == project_id, RiskEvaluation.revision_id == revision_id)
         .order_by(RiskEvaluation.risk_id)
     ).all()
+    # A revision without evaluation writes no share and loses none: the evaluations of a reference
+    # are copied to each revision after it, and a risk occurred or dismissed is never deleted
+    # (``risk_not_cited``, ``risk_not_occurred``), so no share held by the reference before is left
+    # without an evaluation to carry it.
     if not evaluations:
         return
-    before = _last_reference(session, project_id)
     held = {} if before is None else shares_of(session, project_id, before)
     identified = {each.structure_id for each in evaluations if each.state == IDENTIFIED}
     amounts = structure_amounts(session, project_id, identified)

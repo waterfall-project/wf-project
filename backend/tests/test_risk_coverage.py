@@ -12,7 +12,7 @@ marked as its marking kept it (WF-DAT-0040). The provisions the remaining to com
 """
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -167,7 +167,9 @@ def making_of(project: Costed, revision_id: object) -> UUID:
     return found
 
 
-def refer_as_a_merge(project: Costed, previous: UUID, revision_id: UUID) -> None:
+def refer_as_a_merge(
+    project: Costed, previous: UUID, revision_id: UUID, at: datetime | None = None
+) -> None:
     """Make a marked revision the reference after another, as the merge of an amendment does.
 
     The designation is no command here — the project has been marked since the last one, and the
@@ -188,7 +190,13 @@ def refer_as_a_merge(project: Costed, previous: UUID, revision_id: UUID) -> None
         )
     with project.stage.database.transaction() as session:
         designation = ReferenceDesignated(
-            session, project.project_id, revision_id, utc_now(), None, previous, corrects=False
+            session,
+            project.project_id,
+            revision_id,
+            utc_now() if at is None else at,
+            None,
+            previous,
+            corrects=False,
         )
         write_shares(designation)
 
@@ -267,6 +275,8 @@ def test_a_risk_identified_after_the_reference_of_a_null_reserve_is_a_variance_o
 def test_the_completion_of_the_tasks_of_an_occurred_risk_changes_neither_cost_nor_variance(
     risks: Risks, project: Costed, reading: Reading
 ) -> None:
+    # The occurrence is emulated (``occur``, ``put_risk``): the example of the Vérif, on the real
+    # occurrence, is US-2610/L2's (#3837), not acquired here.
     # « La terminaison des tâches issues d'un risque survenu ne change ni le coût des survenus ni
     # l'écart de couverture. » The task of the making stands for the one the occurrence merged; the
     # lines it bears are reestimated beside the cost at occurrence, never in the variance (#1761).
@@ -286,6 +296,8 @@ def test_the_completion_of_the_tasks_of_an_occurred_risk_changes_neither_cost_no
 def test_the_reestimation_of_the_lines_of_an_occurred_risk_is_beside_its_cost_not_in_the_variance(
     risks: Risks, project: Costed, reading: Reading
 ) -> None:
+    # The occurrence is emulated (``occur``, ``put_risk``): the example of the Vérif, on the real
+    # occurrence, is US-2610/L2's (#3837), not acquired here.
     # The variant of the contract (``risk_coverage_reestimated``, #2002): the lines that came from
     # the occurred risk are reestimated at 300 against 400, their cost at occurrence 200 stays, and
     # the variance with it.
@@ -316,6 +328,8 @@ def test_the_reestimation_of_the_lines_of_an_occurred_risk_is_beside_its_cost_no
 def test_the_reserve_is_written_at_the_designation_and_moved_by_nothing_after(
     risks: Risks, project: Costed, reading: Reading
 ) -> None:
+    # The occurrence is emulated (``occur``, ``put_risk``): the example of the Vérif, on the real
+    # occurrence, is US-2610/L2's (#3837), not acquired here.
     # « … la réserve est conservée par la révision de référence au moment où elle le devient […] et
     # ne change plus : ni un réexamen, ni un écart, ni une survenance, ni une saisie dans un devis
     # propre ne la déplacent (M-01). »
@@ -344,6 +358,8 @@ def test_the_reserve_is_written_at_the_designation_and_moved_by_nothing_after(
 def test_a_new_reference_keeps_the_provision_of_the_risks_that_left_the_identified_state(
     risks: Risks, project: Costed, reading: Reading
 ) -> None:
+    # The occurrence and the merge are emulated (``occur``, ``refer_as_a_merge``): the example of
+    # the Vérif, on the real ones, is US-2610/L2's (#3837), not acquired here.
     # « … la réserve de la nouvelle référence conserve la provision que portaient dans la précédente
     # les risques survenus ou écartés avant elle, et s'augmente de celle des risques identifiés
     # qu'elle porte » : the first risk occurred and the second dismissed keep their 60 and 40; a
@@ -410,31 +426,63 @@ def test_a_project_without_a_reference_has_no_reserve(
 
 
 @pytest.mark.requirement("WF-DAT-0040-A")
-def test_the_coverage_of_a_marked_revision_is_the_one_its_marking_kept(
+@pytest.mark.requirement("WF-RIS-0050-A")
+def test_a_marked_revision_keeps_the_figures_of_its_risks_and_reads_the_reserve_of_the_reference(
     risks: Risks, project: Costed, reading: Reading
 ) -> None:
     # « La couverture d'une révision marquée est conservée à son marquage […] et rendue telle
-    # quelle » : marked before it was the reference, the revision keeps a reserve of nought, which
-    # the designation does not change; the revision opened after it reads the reserve.
-    declare(risks, project.revision_id, "Retard du fournisseur", "0.3", "200.00")
+    # quelle », sauf la réserve, que la référence conserve : v1.0 marquée puis désignée — le chemin
+    # normal — rend, des deux lectures de la couverture, la réserve de 60 que le registre rend, et
+    # les grandeurs des risques que son marquage a conservées, qu'une saisie postérieure ne change
+    # pas.
+    first = declare(risks, project.revision_id, "Retard du fournisseur", "0.3", "200.00")
     mark_and_designate(risks, project.revision_id)
     kept = reading.body(project.revision_id)
-    assert figures(kept) == ("0.00", "60.00", "0.00", "0.00", "-60.00")
+    assert figures(kept) == ("60.00", "60.00", "0.00", "0.00", "0.00")
     assert kept["context"]["revision_status"] == "marked"
     assert kept["context"]["is_stored"] is True
     assert figures(reading.remaining(project.revision_id)["coverage"]) == figures(kept)
-    risks.revision()
+    registry = risks.api.get(
+        f"{risks.base}/risks?revision_id={project.revision_id}", headers=risks.headers
+    ).json()
+    assert registry["totals"]["reserve"] == kept["reserve"] == "60.00"
+    # A later entry in the current revision moves neither the figures kept nor the reserve.
+    following = UUID(risks.revision()["revision_id"])
+    risks.costed_at(first, following, "100.00")
     assert reading.body()["reserve"] == "60.00"
     assert reading.figures(project.revision_id) == figures(kept)
+    assert figures(reading.remaining(project.revision_id)["coverage"]) == figures(kept)
 
 
-# --- The remaining to commit ------------------------------------------------------------------
+@pytest.mark.requirement("WF-RIS-0050-A")
+def test_two_designations_at_the_same_instant_take_the_shares_of_the_one_before(
+    risks: Risks, project: Costed
+) -> None:
+    # The shares taken back are those of the reference the designation replaces, whatever the
+    # instants (the loader of the witness imposes them): two designations at the same one, the
+    # second takes the share the first conserved for a risk occurred since. The occurrence and the
+    # merge are emulated (``occur``, ``refer_as_a_merge``): the example of the Vérif, on the real
+    # ones, is US-2610/L2's (#3837), not acquired here.
+    first = declare(risks, project.revision_id, "Retard du fournisseur", "0.3", "200.00")
+    mark_and_designate(risks, project.revision_id)
+    following = UUID(risks.revision()["revision_id"])
+    occur(project.stage, first["risk_id"], following)
+    mark(project.stage, {"revision_id": str(following)}, label="v2.0")
+    at = utc_now()
+    refer_as_a_merge(project, project.revision_id, following, at)
+    assert share_rows(project.stage, following) == {UUID(first["risk_id"]): Decimal("60.00")}
+    again = UUID(risks.revision()["revision_id"])
+    mark(project.stage, {"revision_id": str(again)}, label="v3.0")
+    refer_as_a_merge(project, following, again, at)
+    assert share_rows(project.stage, again) == {UUID(first["risk_id"]): Decimal("60.00")}
 
 
 @pytest.mark.requirement("WF-RAE-0020-A")
 def test_the_coverage_of_the_remaining_to_commit_is_the_one_of_the_risk_coverage(
     risks: Risks, project: Costed, reading: Reading
 ) -> None:
+    # The occurrence is emulated (``occur``, ``put_risk``): the example of the Vérif, on the real
+    # occurrence, is US-2610/L2's (#3837), not acquired here.
     # « La couverture des risques présente la réserve de référence, les provisions restantes, le
     # coût des risques survenus et l'écart de couverture. » The coverage of
     # ``getRemainingIndicators`` and ``getProjectRiskCoverage``, a risk occurred and one identified.

@@ -12534,6 +12534,19 @@ réalise ainsi (conception d'EP-08, « Ce qui reconnaît une ligne de provision 
   quatre genres de saisie d'un risque s'y inscrivent avec US-2590/L2. L'abandon de la révision
   défait la saisie, l'évaluation et la ligne étant de la révision.
 
+### La réserve d'une révision marquée se lit de la référence (US-2610/L1)
+
+Aucune forme du contrat ne change. `getProjectRiskCoverage` et `coverage` de `getRemainingIndicators`
+sur une révision marquée rendent les grandeurs des risques telles que le marquage les a conservées
+(`remaining_provisions`, `occurred_cost`, `occurred_reestimated` ; WF-DAT-0040), mais la réserve est
+lue de la référence du projet, comme `ProvisionTotals.reserve`, et l'écart se déduit
+`reserve − (remaining_provisions + occurred_cost)`. Raison : la réserve est une donnée que la
+référence conserve (`risk_reference_share`, écrite une fois à la désignation, jamais recalculée) et
+non un calcul sur les risques de la révision ; or le chemin normal marque v1.0 *puis* la désigne, et
+le marquage ne peut avoir conservé que la réserve d'avant, 0 (écart −60 pour une provision de 60),
+quand le registre rend 60 sur la même révision (WF-RIS-0050-A). Les deux lectures restent égales
+(WF-RAE-0020-A).
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

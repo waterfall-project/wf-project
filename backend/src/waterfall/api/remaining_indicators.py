@@ -4,8 +4,8 @@
 
 ``getRemainingIndicators`` (US-1600), under ``remaining.read``: the revision named, else the
 current one, else the last one marked — a marked one as its marking kept it, ``is_stored`` true
-(US-1670/L2). The server classifies the overrun of each subproject
-(``zone``); the front deduces nothing from the margins.
+(US-1670/L2), but for the reserve of its coverage, that of the reference (US-2610/L1). The server
+classifies the overrun of each subproject (``zone``); the front deduces nothing from the margins.
 """
 
 from typing import Annotated, Any
@@ -20,6 +20,7 @@ from waterfall.core.costs.interface import PROJECT
 from waterfall.core.estimate.interface import remaining_indicators
 from waterfall.core.indicators.interface import remaining_document
 from waterfall.core.revisions.interface import read_revision_for
+from waterfall.core.risks.interface import kept_coverage
 from waterfall.platform.database import utc_now
 
 router = APIRouter(tags=["remaining"])
@@ -47,6 +48,7 @@ def get_remaining_indicators(
         # Kept on the project alone: the document carries the balance of each subproject.
         kept = kept_document(session, read.revision_id, "remaining", PROJECT)
         if kept is not None:
-            return kept
+            # The reserve is the reference's, never the marking's (as ``getProjectRiskCoverage``).
+            return {**kept, "coverage": kept_coverage(session, project_id, kept["coverage"])}
     found = remaining_indicators(session, project_id, read.revision_id, utc_now())
     return remaining_document(found)

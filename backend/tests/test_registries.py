@@ -21,6 +21,7 @@ the work breakdown, the facets, the formats and the exporters, the coverage of t
 the fillers of the witness.
 """
 
+import importlib
 import json
 import subprocess
 import sys
@@ -47,6 +48,7 @@ from waterfall.core.estimate.interface import (
     REMAINING_FORMAT,
     Coverage,
     register_coverage,
+    risk_coverage,
 )
 from waterfall.core.exchanges.interface import (
     exporters,
@@ -114,6 +116,7 @@ from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.logs import logging_context
+from waterfall.platform.registry import Registry
 from waterfall.witness.revisions import OpenedRevision, register_revision_filler
 
 if TYPE_CHECKING:
@@ -790,6 +793,40 @@ def test_the_coverage_of_the_risks_has_the_answer_of_the_risks_alone() -> None:
 
     with pytest.raises(ValueError, match="has its answer already"):
         register_coverage(cover)
+
+
+def test_the_coverage_of_the_risks_is_zero_until_something_answers_it_once(
+    session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The registry the estimate declares, without the answer of the risks, which this test sets
+    # aside for its duration: zero before an answer and after its withdrawal, the arguments passed
+    # to the answer, a second answer refused.
+    empty: Registry[Callable[[Session, UUID, UUID], Coverage]] = Registry()
+    # ``interface.remaining_indicators`` is the function the package re-exports: the module by name.
+    module = importlib.import_module("waterfall.core.estimate.interface.remaining_indicators")
+    monkeypatch.setattr(module, "_COVERAGE", empty)
+    project_id, revision_id = uuid4(), uuid4()
+    asked: list[tuple[UUID, UUID]] = []
+    answered = Coverage(
+        Decimal("1000.00"),
+        Decimal("400.00"),
+        Decimal("250.00"),
+        Decimal("260.00"),
+        Decimal("350.00"),
+    )
+
+    def cover(_session: Session, project: UUID, revision: UUID) -> Coverage:
+        asked.append((project, revision))
+        return answered
+
+    assert risk_coverage(session, project_id, revision_id) == NO_COVERAGE
+    with ExitStack() as registered:
+        registered.callback(register_coverage(cover))
+        assert risk_coverage(session, project_id, revision_id) == answered
+        with pytest.raises(ValueError, match="has its answer already"):
+            register_coverage(cover)
+    assert risk_coverage(session, project_id, revision_id) == NO_COVERAGE
+    assert asked == [(project_id, revision_id)]
 
 
 def test_the_planning_then_the_estimate_take_their_part_of_a_merge_and_the_planning_its_end(
