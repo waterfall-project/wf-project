@@ -289,6 +289,9 @@ from waterfall.core.planning.interface.msproject import (
 from waterfall.core.planning.interface.msproject import (
     MS_PROJECT_FORMAT as MS_PROJECT_FORMAT,
 )
+from waterfall.core.planning.interface.node_deletion import (
+    delete_node as delete_node,
+)
 
 # ``nodes`` (US-1380/L1; US-1380/L2, L3; US-1480/L2; US-1450/L5): the nodes of a structure.
 from waterfall.core.planning.interface.nodes import (
@@ -329,9 +332,6 @@ from waterfall.core.planning.interface.nodes import (
 )
 from waterfall.core.planning.interface.nodes import (
     create_node as create_node,
-)
-from waterfall.core.planning.interface.nodes import (
-    delete_node as delete_node,
 )
 from waterfall.core.planning.interface.nodes import (
     describe_row as describe_row,
