@@ -163,6 +163,7 @@ def test_every_volume_is_an_example_of_the_contract(volumes: dict[str, Any]) -> 
         "portfolio_cost_structure.json",
         "portfolio_performance.json",
         "portfolio_projects.json",
+        "portfolio_projects_filtered.json",
         "portfolio_projects_page.json",
         "portfolio_risks.json",
         "portfolio_value.json",

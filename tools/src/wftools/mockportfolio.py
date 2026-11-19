@@ -146,6 +146,65 @@ def portfolio_page(answer: JsonObject) -> JsonObject:
     return page
 
 
+FILTERED_COST_INDEX_MAX = Decimal("0.9")
+FILTERED_DELTA_MIN = Decimal(0)
+FILTERED_MARKED_BEFORE = "2026-04-01T00:00:00Z"
+"""The column filters of `portfolio_projects_filtered` (US-2690): the projects whose cost index
+is at most the watch threshold, whose projection reaches their budget, and whose last revision
+was marked before April — the drifting projects not reviewed since."""
+
+
+def _index_number(row: JsonObject, name: str) -> Decimal | None:
+    index = row[name]
+    if index is None:
+        return None
+    value = cast("JsonObject", cast("JsonObject", index)["value"])["value"]
+    return None if value is None else Decimal(cast("str", value))
+
+
+def filtered_rows(rows: list[JsonObject]) -> list[JsonObject]:
+    """Return the rows the three column filters retain, sorted by the cost index ascending.
+
+    A null column, or an index not computed, is retained by no bound (US-2690). A tie is broken
+    by the order of the unsorted list, the label compared by its code points, then by the
+    identifier (README of the contract, "A tie in a sort…").
+    """
+    kept: list[tuple[Decimal, JsonObject]] = []
+    for row in rows:
+        cost = _index_number(row, "cost_index")
+        delta = row["delta_to_reference"]
+        marked = row["last_marked_at"]
+        if cost is None or delta is None or marked is None:
+            continue
+        if (
+            cost <= FILTERED_COST_INDEX_MAX
+            and Decimal(cast("str", delta)) >= FILTERED_DELTA_MIN
+            and cast("str", marked) < FILTERED_MARKED_BEFORE
+        ):
+            kept.append((cost, row))
+    kept.sort(key=lambda pair: (pair[0], str(pair[1]["label"]), str(pair[1]["project_id"])))
+    return [row for _, row in kept]
+
+
+def portfolio_filtered(answer: JsonObject) -> JsonObject:
+    """Return the example of the list read with column filters, from the whole list (US-2690)."""
+    kept = filtered_rows(cast("list[JsonObject]", answer["items"]))
+    value: JsonObject = dict(answer)
+    value["items"] = cast("list[JsonValue]", kept)
+    value["meta"] = {"limit": PAGE, "offset": 0, "total": len(kept)}
+    return mocktext.example(
+        f"La liste du portefeuille du §4.6.2 lue avec cost_index_max={FILTERED_COST_INDEX_MAX}, "
+        f"delta_to_reference_min={FILTERED_DELTA_MIN}, last_marked_at_to={FILTERED_MARKED_BEFORE} "
+        f"et sort_by=cost_index : les {mocktext.count(len(kept))} projets en cours dont l'indice "
+        f"de coût ne dépasse pas {mocktext.amount(FILTERED_COST_INDEX_MAX, 1)}, dont la "
+        f"projection atteint ou dépasse le budget de référence et dont la dernière révision a "
+        f"été marquée avant le {mocktext.day(date(2026, 4, 1))}, le plus bas indice en tête. "
+        f"Les offres, sans indice ni écart, ne sont retenues par aucune borne de ces colonnes, "
+        f"et meta.total compte les seuls projets retenus (WF-IHM-0130, WF-PTF-0040).",
+        value,
+    )
+
+
 def universe_rows() -> list[JsonObject]:
     """Return the rows of the witness project and of the offer, from their fixtures.
 

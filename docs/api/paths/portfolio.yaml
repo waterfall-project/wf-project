@@ -11,9 +11,19 @@
       Label, code, state, reference budget or current estimate and probability, project
       manager's projection and, for a project in progress, its variance to the reference
       budget, indices with their zone, and date of the last marked revision (WF-PTF-0040).
-      The list is filtered by state, by period, by zone and by a search on the label; the
-      sort is done by the server, and `meta.total` counts the projects retained
-      (WF-IHM-0130).
+      The list is filtered by state, by period, by zone and by a search on the label, and each
+      of its columns by its own filter, following the convention of the contract's README: the
+      code by the text it contains, each number column — reference budget, current estimate,
+      win probability, project manager's projection, variance to the reference, cost index and
+      schedule index — by its two inclusive bounds, `<column>_min` and `<column>_max`, and the
+      instant of the last marked revision by its period, `last_marked_at_from` and
+      `last_marked_at_to`, end excluded (the author's decision of 2026-11-17, against the freeze
+      of EP-16). The filters apply together, to the values the row returns at the calculation
+      date; a project whose column is null — an offer has no reference budget nor index, a
+      project in progress no current estimate — or whose index is not computed is retained by
+      no bound of that column. The sort is done by the server, and `meta.total` counts the
+      projects that every filter retains (WF-IHM-0130). The organisation node changes no row
+      (`PortfolioOrgNode`).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/PortfolioFrom
@@ -33,6 +43,23 @@
           type: array
           items: { $ref: ../components/schemas/reference.yaml#/AlertZone }
         explode: false
+      - $ref: ../components/parameters.yaml#/PortfolioCode
+      - $ref: ../components/parameters.yaml#/PortfolioReferenceBudgetMin
+      - $ref: ../components/parameters.yaml#/PortfolioReferenceBudgetMax
+      - $ref: ../components/parameters.yaml#/PortfolioCurrentEstimateMin
+      - $ref: ../components/parameters.yaml#/PortfolioCurrentEstimateMax
+      - $ref: ../components/parameters.yaml#/PortfolioWinProbabilityMin
+      - $ref: ../components/parameters.yaml#/PortfolioWinProbabilityMax
+      - $ref: ../components/parameters.yaml#/PortfolioProjectionMin
+      - $ref: ../components/parameters.yaml#/PortfolioProjectionMax
+      - $ref: ../components/parameters.yaml#/PortfolioDeltaToReferenceMin
+      - $ref: ../components/parameters.yaml#/PortfolioDeltaToReferenceMax
+      - $ref: ../components/parameters.yaml#/PortfolioCostIndexMin
+      - $ref: ../components/parameters.yaml#/PortfolioCostIndexMax
+      - $ref: ../components/parameters.yaml#/PortfolioScheduleIndexMin
+      - $ref: ../components/parameters.yaml#/PortfolioScheduleIndexMax
+      - $ref: ../components/parameters.yaml#/PortfolioLastMarkedAtFrom
+      - $ref: ../components/parameters.yaml#/PortfolioLastMarkedAtTo
       - name: sort_by
         in: query
         description: Sort column; when absent, the label.
@@ -69,9 +96,26 @@
               volume: { $ref: ../../../fixtures/api/volume/portfolio_projects.json }
               page: { $ref: ../../../fixtures/api/volume/portfolio_projects_page.json }
               empty: { $ref: ../../../fixtures/api/portfolio_projects_empty.json }
+              filtered: { $ref: ../../../fixtures/api/volume/portfolio_projects_filtered.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '422': { $ref: ../components/responses.yaml#/PortfolioPeriodRefused }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`. The period (`from`, `to`) refused by the rule of every period of
+          the portfolio (`PortfolioPeriodRefused`). Or a column filter refused, following the
+          convention of the README, `fields` on the parameter: a malformed bound with
+          `NUMBER_INVALID`, a malformed instant with `DATE_INVALID`; an upper bound lower than
+          the lower one with `VALUE_OUT_OF_RANGE` on `/query/<column>_max`, `params.minimum` the
+          lower bound given; an end of the period of the last marked revision earlier than its
+          start with `VALUE_OUT_OF_RANGE` on `/query/last_marked_at_to`, `params.minimum` the
+          start given (WF-IHM-0130). No empty list stands in for a refusal.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              period_inverted: { $ref: ../../../fixtures/api/portfolio_period_inverted.json }
+              open_period_inverted:
+                $ref: ../../../fixtures/api/portfolio_open_period_inverted.json
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

@@ -26,7 +26,7 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
   automatic mode it redates (``wftools.mockplanning``, WF-PLA-0020);
 - ``portfolio_projects.json``, ``getPortfolioProjects``: the projects of the portfolio, the
   witness project and the offer of the other examples first, and ``portfolio_projects_page.json``,
-  its second page of fifty;
+  its second page of fifty, and ``portfolio_projects_filtered.json``, read with column filters;
 - ``portfolio_value.json``, ``portfolio_performance.json``, ``portfolio_cost_structure.json``
   and ``portfolio_risks.json``, of ``getPortfolioValue``, ``getPortfolioPerformance``,
   ``getPortfolioCostStructure`` and ``getPortfolioRisks``: the views of the same projects,
@@ -136,6 +136,7 @@ from wftools.mockportfolio import (
     WATCH_THRESHOLD,
     portfolio,
     portfolio_cost_structure,
+    portfolio_filtered,
     portfolio_page,
     portfolio_performance,
     portfolio_risks,
@@ -729,6 +730,7 @@ def volumes() -> dict[str, JsonObject]:
             f"{_count(PAGE + 1)} à {_count(2 * PAGE)} sur {_count(PROJECT_COUNT)} (WF-PTF-0040).",
             portfolio_page(projects),
         ),
+        "portfolio_projects_filtered.json": portfolio_filtered(projects),
         "portfolio_value.json": _example(
             f"La valeur du portefeuille du §4.6.2 au {_day(TODAY.date())}, les projets en "
             "chiffrage ajoutés par la requête au périmètre par défaut, les projets en cours "

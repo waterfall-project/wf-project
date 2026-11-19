@@ -12453,6 +12453,61 @@ citées, qui diront les formes et la version.
 Le contrat, le service, le front, le témoin et la reprise des codes déjà saisis suivent par
 #3966.
 
+### Les filtres par colonne de la liste du portefeuille, le nœud qui ne change aucun montant, les révisions marquées avant EP-11 (US-2690/L1, #3874)
+
+Trois décisions de l'auteur du 2026-11-17, prises au cadrage d'EP-11 (conception, « Ce que le
+cadrage décide », « Le contrat »), écrites ici avant le code qui les sert (US-2690, US-2680).
+`info.version` reste `1.0.0` : des paramètres de requête facultatifs de plus et un exemple ; aucun
+schéma de réponse ne change, aucune propriété n'est exigée de plus.
+
+- **`getPortfolioProjects` reçoit un filtre par colonne, contre le gel d'EP-16** (décision du
+  2026-10-22, « La règle d'après le gel ») : WF-IHM-0130 veut une liste filtrée par le serveur sur
+  chacune de ses colonnes, et la liste n'avait que l'état, la période, la zone et la recherche sur
+  le libellé. Chaque filtre est nommé d'après sa colonne, comme ceux des tables plates (README,
+  « A column of numbers… », « A period… ») : `code`, le texte que le code contient, comparé comme
+  la recherche, comme le code d'un nœud d'organisation ; `<colonne>_min` et `<colonne>_max`,
+  bornes incluses, pour `reference_budget`, `current_estimate`, `win_probability`,
+  `project_manager_projection`, `delta_to_reference` (`Money`, une borne négative admise),
+  `cost_index` et `schedule_index` (`Decimal`, la valeur de l'indice) ; `last_marked_at_from` et
+  `last_marked_at_to`, la période de l'instant du dernier marquage, fin exclue comme tout instant —
+  la liste porte déjà `from` et `to`, la période du périmètre, d'où le nom préfixé de la colonne,
+  comme les colonnes d'audit. Les filtres s'appliquent ensemble, aux valeurs que la ligne rend à la
+  date de calcul ; `meta.total` compte les projets que tous retiennent. **Un projet dont la colonne
+  est nulle n'est retenu par aucune borne de cette colonne** — une offre n'a ni budget de référence
+  ni indice, un projet en cours n'a pas de devis courant, un projet sans code n'est retenu par aucun
+  `code` —, et **un indice non calculé non plus** (`is_computable` faux) : sa valeur est nulle, et
+  le classer serait lui en inventer une, comme une colonne nulle d'une grille. Refus : une borne
+  haute inférieure à la basse, 422 `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_max`,
+  `params.minimum` la borne basse donnée ; une fin de la période du marquage antérieure à son
+  début, `/query/last_marked_at_to`, `params.minimum` le début ; égale, la période est vide ; une
+  borne ou un instant mal formé, `NUMBER_INVALID` ou `DATE_INVALID`. Le 422 de l'opération, qui
+  renvoyait à `PortfolioPeriodRefused`, s'écrit en propre : il dit la règle des périodes du
+  portefeuille, dont il garde les deux exemples, et les refus des colonnes. Exemple :
+  `portfolio_projects_filtered`, engendré par `wftools.mockportfolio` depuis les trois cents
+  projets — `cost_index_max=0.9`, `delta_to_reference_min=0`,
+  `last_marked_at_to=2026-04-01T00:00:00Z`, triés par l'indice de coût : 49 projets en cours, aucune
+  offre —, tenu par `tools/tests/test_mockportfoliofilter.py`. Écartés : tenir le seul Vérif de
+  WF-IHM-0130 par un constat de spécification ; filtrer dans le front une liste que le serveur
+  pagine, qui ne filtrerait que la page lue.
+- **Le nœud d'organisation ne change aucun montant de la liste, de la valeur ni de la
+  performance.** `PortfolioOrgNode` ne restreint que les lignes de main-d'œuvre dont le rôle
+  relève du nœud, et un projet n'appartient à aucun département (WF-PTF-0010) : il restreint donc
+  le plan de charge agrégé et la main-d'œuvre de la structure des coûts, et rien d'autre.
+  `getPortfolioProjects`, `getPortfolioValue` et `getPortfolioPerformance` le gardent dans le
+  périmètre rendu (`scope.org_node_id`, `scope.org_node_label`), et rendent les mêmes projets et
+  les mêmes montants avec ou sans lui. La description de `PortfolioOrgNode` le dit ; la question
+  restait ouverte depuis la revue du contrat avant le gel (« `getPortfolioProjects` prend
+  `PortfolioOrgNode` », non tranché). Écartés : restreindre ce qui se ventile par ligne, qui
+  rapporterait une valeur acquise restreinte à la main-d'œuvre à un coût réel entier ; retirer le
+  paramètre de ces trois vues, un changement d'écran de plus.
+- **Une révision marquée avant EP-11 ne reçoit rien** : ni reprise des documents que le marquage
+  conserve désormais pour le portefeuille, ni repli sur un calcul à la lecture. À une date passée,
+  elle ne contribue que par ce qu'elle a conservé (US-2680, US-2670). Le contrat ne change pas pour
+  elle. Écartés : étendre au portefeuille le repli d'EP-10 (« Une révision marquée avant EP-10, sans
+  document conservé, est calculée à la lecture », #3612), qui ferait lire des lignes de tâche et de
+  devis à une date passée, contre le Vérif de WF-DAT-0040 ; une reprise au déploiement, qui
+  écrirait dans `revision_indicator` hors d'un marquage et calculerait sur les coûts d'aujourd'hui.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
