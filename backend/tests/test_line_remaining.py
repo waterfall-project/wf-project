@@ -24,7 +24,7 @@ from estimate_support import YEAR, Costing, Lines, costing, give_a_line
 from history_support import undo
 from nodes_support import Tree, entries, faults, mark, opened, refusal, set_progress, signed_in
 from planning_support import DAY, insert_task
-from project_rows import delete_structure, structure_row
+from project_rows import base_row, delete_structure, structure_row
 from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
 from remaining_support import Review, in_progress, line_named, review_marked, task_named
@@ -618,6 +618,9 @@ def test_the_last_line_set_to_nought_of_a_completed_task_of_a_differential_compl
     try:
         with owner.begin() as connection:
             connection.execute(insert(CostStructure).values(**row))
+            connection.execute(
+                insert(CostStructure).values(**base_row(project_id, revision_id, structure_id))
+            )
             bearer = insert_task(
                 connection,
                 project_id,

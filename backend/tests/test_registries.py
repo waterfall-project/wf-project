@@ -274,6 +274,7 @@ FACTS = (
     f"{ESTIMATE}.employment.subproject_is_cited",
     f"{ESTIMATE}.employment.subproject_is_estimated",
     f"{ESTIMATE}.employment.subproject_estimate_lines",
+    f"{ESTIMATE}.employment.forget_subproject",
     f"{ESTIMATE}.contributors.roles_employed",
     f"{ESTIMATE}.contributors.marked_revision_has_lines",
     f"{ESTIMATE}.rates.reinflate_project",

@@ -99,7 +99,9 @@ def test_a_revision_created_from_a_marked_one_takes_up_its_differentials_and_ris
     # « une révision créée à partir d'une révision marquée en reprend toutes les structures,
     # différentielles et propres des risques comprises, hors les structures différentielles déjà
     # fusionnées »: the main structure, the differentials not merged, with their tasks, lines and
-    # lineages, and the own estimates of the risks, one identified, one dismissed.
+    # lineages, and the own estimates of the risks, one identified, one dismissed. With each
+    # differential not merged, its base, naming its copy; not the base of the merged one, and the
+    # rows of each table but those of the merged one and of its base (US-3050/L2).
     stage = project.stage
     first = on(project.tree, opened_amendment(api, project, "Avenant 1"))
     second_id = opened_amendment(api, project, "Avenant 2")
@@ -125,13 +127,18 @@ def test_a_revision_created_from_a_marked_one_takes_up_its_differentials_and_ris
         taken = structures_of(session, new_id)
         by_lineage = {each.lineage_id: each for each in taken}
         merged = next(each for each in marked if each.id == UUID(merged_id))
-        # Every structure of the revision marked but the one merged is in the new one, under an
-        # identifier of its own and its lineage, its label, its kind and its risk.
-        assert len(marked) == 6
-        assert len(taken) == 5
+        merged_base = next(each for each in marked if each.differential_id == merged.id)
+        left = (merged, merged_base)
+        # Every structure of the revision marked but the one merged and its base is in the new
+        # one, under an identifier of its own and its lineage, its label, its kind and its risk; a
+        # base names the copy of its differential.
+        assert len(marked) == 9
+        assert len(taken) == 7
         assert merged.lineage_id not in by_lineage
+        assert merged_base.lineage_id not in by_lineage
+        lineage_of = {each.id: each.lineage_id for each in (*marked, *taken)}
         for source in marked:
-            if source is merged:
+            if source in left:
                 continue
             copy = by_lineage[source.lineage_id]
             assert copy.id != source.id
@@ -141,14 +148,18 @@ def test_a_revision_created_from_a_marked_one_takes_up_its_differentials_and_ris
                 source.risk_id,
             )
             assert (copy.planning_start_on, copy.is_merged) == (source.planning_start_on, False)
-        assert {each.kind for each in taken} == {"main", "amendment", "risk"}
+            if source.differential_id is not None:
+                assert copy.differential_id is not None
+                named = (lineage_of[copy.differential_id], copy.revision_id)
+                assert named == (lineage_of[source.differential_id], new_id)
+        assert {each.kind for each in taken} == {"main", "amendment", "risk", "base"}
         assert {each.risk_id for each in taken if each.kind == "risk"} == {
             identified.risk_id,
             dismissed.risk_id,
         }
         # The nodes of each structure taken up: the lineages of its source, in the same shape.
         for source in marked:
-            if source is merged:
+            if source in left:
                 continue
             copy = by_lineage[source.lineage_id]
             shapes = [
@@ -160,8 +171,9 @@ def test_a_revision_created_from_a_marked_one_takes_up_its_differentials_and_ris
             ]
             assert shapes[0] == shapes[1]
         # Every table that bears the revision: as many rows as in the revision marked, but those
-        # of the structure merged (WF-DAT-0010).
-        assert counts(session, new_id, []) == counts(session, project.revision_id, [merged.id])
+        # of the structure merged and of its base (WF-DAT-0010).
+        excluded = [each.id for each in left]
+        assert counts(session, new_id, []) == counts(session, project.revision_id, excluded)
     listed_in_new = [
         (each["kind"], each["label"])
         for each in api.get(
@@ -170,6 +182,7 @@ def test_a_revision_created_from_a_marked_one_takes_up_its_differentials_and_ris
         ).json()
     ]
     assert ("amendment", "Avenant fusionné") not in listed_in_new
+    assert "base" not in {kind for kind, _ in listed_in_new}
     assert listed_in_new.count(("amendment", "Avenant 1")) == 1
     assert listed_in_new.count(("amendment", "Avenant 2")) == 1
     assert second_id != merged_id

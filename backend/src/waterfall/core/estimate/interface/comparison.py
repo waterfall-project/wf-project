@@ -11,7 +11,7 @@ nothing, and prices nothing again: the lines of a marked revision are read on th
 images it kept (US-1500), those of the current one as they are.
 
 ``read_differential`` (``listNodes`` of a differential, US-2550/L3) reads the same union between a
-differential and the main structure of its revision, the structure read being the differential.
+differential and its base, the structure read being the differential (US-3050/L2).
 ``differential_rows`` gives its numbering alone, the one calculation of the rows of a differential,
 removed nodes included, which every other operation that names a row of it takes
 (``resolveRowNumber``, the numbers of a write, the anchor of a paste).
@@ -50,7 +50,7 @@ def read_differential(
     differences: tuple[str, ...] | None,
     written: Written,
 ) -> Comparison:
-    """Read a differential as a diff with the main structure of its revision (``listNodes``).
+    """Read a differential as a diff with its base (``listNodes``, US-3050).
 
     ``differences`` the marks ``difference`` keeps, none to keep them all; ``written`` how the
     reader writes a node whole, whose values the union compares. The totals are the differential's,
@@ -64,7 +64,7 @@ class DifferentialRow:
     """A row of the tree a differential is read as: a node, its place, and whether it is removed.
 
     ``row_number``, ``level`` and ``position`` count the whole tree returned, the nodes the
-    differential removes included (``Node``, WF-REV-0080); a removed node is the main structure's.
+    differential removes included (``Node``, WF-REV-0080); a removed node is its base's.
     """
 
     node_id: UUID
@@ -79,8 +79,8 @@ def differential_rows(
 ) -> tuple[DifferentialRow, ...]:
     """Give the rows of a differential as ``listNodes`` returns it, in their order.
 
-    The union of the differential and of the main structure of its revision, no filter retaining a
-    part of it: each node of it, a node removed at its place, with the row it is read at.
+    The union of the differential and of its base, no filter retaining a part of it: each node of
+    it, a node removed at its place, with the row it is read at.
     """
     found = read_differential(session, place, NodeFilters(), None, written)
     return tuple(

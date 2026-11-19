@@ -103,8 +103,11 @@ def test_the_merge_names_the_state_of_the_differential_after_its_conditions() ->
     )
     assert description.index("`structure_up_to_date`") > description.index("`may_create_revision`")
     # The state of the differential is a condition: judged before the name of version (as
-    # markRevision judges its state before its name), so that ALREADY_EXISTS comes after it.
-    assert description.index("`structure_up_to_date`") < description.index("`ALREADY_EXISTS`")
+    # markRevision judges its state before its name), so that the clause of ALREADY_EXISTS comes
+    # after it — the clause itself, not the sentence that names it beside structure_up_to_date
+    # (#4185).
+    clause = description.index("Or a version name already used")
+    assert description.index("`structure_up_to_date`") < clause
     report = _operations()["getStructureMergeReport"]["responses"]["409"]["description"]
     assert "`structure_up_to_date`" in report
     for operation in ("getStructureMergeReport", "mergeCostStructure"):

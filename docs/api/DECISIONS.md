@@ -12474,7 +12474,10 @@ exemples de plus ; aucune propriété existante ne change, aucune n'est exigée 
 - **Deux conditions, en miroir**, rangées après `main_structure` : **`structure_up_to_date`** manque
   à la fusion d'un différentiel en retard — `getStructureMergeReport` et `mergeCostStructure` la
   nomment dans leur 409 après celles de la fusion (`unmerged_amendment_exists`, `revision_draft`,
-  `may_create_revision`) ; aucune commande ne la dit d'avance, `merge_structure` étant une commande
+  `may_create_revision`), et se juge avant le nom de version, comme `markRevision` juge l'état de
+  sa révision avant son nom : un différentiel en retard dont le nom de version est déjà pris est
+  refusé par `structure_up_to_date`, non par `ALREADY_EXISTS` (#4186) ; aucune commande ne la dit
+  d'avance, `merge_structure` étant une commande
   de la révision et non du différentiel : la structure le dit, et sa commande `rebase`. La fusion
   d'un différentiel en retard de la dernière révision marquée, sans révision en cours, la nomme
   aussi : il attend que la révision soit créée. **`structure_out_of_date`** manque à la mise à jour d'un

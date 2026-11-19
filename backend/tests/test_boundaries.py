@@ -109,6 +109,8 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "rates",
         # The parts of the modules in the merge of an amendment (US-2550/L1).
         "merging",
+        # The base of a differential (US-3050/L2).
+        "bases",
     },
 }
 # The modules of the planning, the history and the exchanges (EP-06), of the indicators (EP-10) and

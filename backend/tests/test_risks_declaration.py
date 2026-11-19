@@ -567,7 +567,7 @@ def task_outside_the_main_structure(stage: Scene, revision_id: object) -> None:
         session.execute(
             update(CostStructure)
             .where(CostStructure.project_id == held.project_id, CostStructure.id == held.id)
-            .values(kind="amendment", label="Avenant")
+            .values(kind="amendment", label="Avenant", main_lock_version=held.lock_version)
         )
         session.add(CostStructure(**{**columns, "id": new_id(), "lineage_id": new_id()}))
 

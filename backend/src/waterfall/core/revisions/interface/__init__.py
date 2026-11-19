@@ -37,6 +37,13 @@ from waterfall.core.revisions.commands import (
     UNMERGED_AMENDMENT_EXISTS,
 )
 
+# ``bases`` (US-3050/L2): the base of a differential; the bases left out of a count, of a reading.
+from waterfall.core.revisions.interface.bases import (
+    differential_base,
+    holds_its_lineages,
+    not_a_base,
+)
+
 # ``closing`` (US-1380/L1): what the later modules do before a revision is marked or abandoned.
 from waterfall.core.revisions.interface.closing import (
     CLOSING_STAGES,
@@ -138,6 +145,7 @@ from waterfall.core.revisions.interface.shared import MAIN, hold_current_revisio
 # ``structures`` (US-0960; the facts the planning reads, US-1380/L2; written, US-1390/L2).
 from waterfall.core.revisions.interface.structures import (
     CurrentStructure,
+    OpenedDifferential,
     OwnEstimateCounted,
     StructureFacts,
     StructureView,
@@ -178,6 +186,7 @@ __all__ = [
     "MergePart",
     "MergePartError",
     "MergeReport",
+    "OpenedDifferential",
     "OwnEstimateCounted",
     "RatesToUpdate",
     "ReferenceDesignated",
@@ -214,7 +223,9 @@ __all__ = [
     "current_structures",
     "delete_own_estimate",
     "designate_reference",
+    "differential_base",
     "hold_current_revision",
+    "holds_its_lineages",
     "keep_project_ratios",
     "last_marked_revision",
     "last_marked_revisions",
@@ -229,6 +240,7 @@ __all__ = [
     "marked_revisions_at",
     "merge_parts",
     "merge_report",
+    "not_a_base",
     "open_revision_by_task",
     "rate_update_available",
     "read_cost_structure",
