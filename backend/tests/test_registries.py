@@ -107,6 +107,7 @@ from waterfall.core.revisions.interface import (
     register_indicators,
     register_marking,
     register_merge,
+    register_merge_end,
 )
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act
@@ -194,9 +195,10 @@ DECLARED = {
     "exchanges.exporters",
     "witness.revision_fillers",
     "estimate.coverage",
-    # EP-08 (US-2550/L1): the parts of a merge, the kinds of entry another module undoes; what
-    # follows the counter of an own estimate (US-2570/L1).
+    # EP-08 (US-2550/L1): the parts of a merge, and its end (US-2560/L1, #3946), the kinds of
+    # entry another module undoes; what follows the counter of an own estimate (US-2570/L1).
     "revisions.merge",
+    "revisions.merge_end",
     "history.undoable",
     "revisions.own_estimate_counted",
 }
@@ -797,44 +799,72 @@ def test_the_coverage_of_the_risks_is_zero_until_the_risks_answer_it_once(
     assert asked == [(project_id, revision_id)]
 
 
-def test_the_parts_of_a_merge_are_those_of_each_module_registered_in_their_order(
-    session: Session,
+def test_the_planning_then_the_estimate_take_their_part_of_a_merge_and_the_planning_its_end(
+    everything: dict[str, list[str]],
 ) -> None:
-    # A tool of the registries, which covers no requirement: what the planning and the estimate
-    # find of a merge (EP-08, US-2560) — nothing before either registers; then their differences,
-    # their completed tasks and their refusals, the planning's before the estimate's; nothing once
-    # withdrawn.
-    merging = StructureMerging(
-        session, uuid4(), uuid4(), uuid4(), uuid4(), Act(None, utc_now()), applying=False
-    )
-    asked: list[tuple[str, StructureMerging]] = []
+    # What the planning and the estimate find of a merge, the planning's first, whose plan the
+    # estimate reads; what the planning judges at its end, once (US-2560/L1, #3946).
+    assert everything["revisions.merge"] == [
+        f"{PLANNING}.merging.merge_tasks",
+        f"{ESTIMATE}.merging.merge_lines",
+    ]
+    assert everything["revisions.merge_end"] == [f"{PLANNING}.merging.merge_end"]
 
-    def part(name: str, *, refused: bool) -> Callable[[StructureMerging], MergePart]:
+
+def test_the_end_of_a_merge_is_judged_once_after_every_part_whatever_their_order(
+    api: ContractClient, stage: Scene
+) -> None:
+    # A tool of the registries, which covers no requirement: the parts of a merge, each in the order
+    # of its registration, then its ends, called once after every part, even a part registered after
+    # an end (#3946); the differences in the order of their change, each change in the order of the
+    # parts, the completed tasks and the refusals in the order of the parts, the ends' after; the
+    # merge on structures without a node, which the planning and the estimate find nothing of.
+    revision_id = UUID(open_revision(api, stage)["revision_id"])
+    path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{revision_id}/structures"
+    opened = api.post(
+        path, headers=stage.manager.headers, json={"kind": "amendment", "label": "Avenant"}
+    )
+    assert opened.status_code == 201, opened.text
+    main = api.get(path, headers=stage.manager.headers).json()[0]
+    asked: list[str] = []
+
+    def part(name: str, change: str) -> Callable[[StructureMerging], MergePart]:
         def found(given: StructureMerging) -> MergePart:
-            asked.append((name, given))
-            refusals = ({"code": "LINK_CYCLE", "params": {"by": name}},) if refused else ()
+            assert given.applying is False
+            asked.append(name)
             return MergePart(
-                differences=({"change": "added", "target": name},),
-                completed_tasks=({"lineage_id": name},) if name == "task" else (),
-                refusals=refusals,
+                differences=({"change": change, "target": name},),
+                completed_tasks=({"lineage_id": name},),
+                refusals=({"code": "LINK_CYCLE", "params": {"by": name}},),
             )
 
         return found
 
-    assert merge_parts(merging) == MergePart()
-    with ExitStack() as registered:
-        registered.callback(register_merge(part("task", refused=False)))
-        registered.callback(register_merge(part("estimate_line", refused=True)))
-        assert merge_parts(merging) == MergePart(
-            differences=(
-                {"change": "added", "target": "task"},
-                {"change": "added", "target": "estimate_line"},
-            ),
-            completed_tasks=({"lineage_id": "task"},),
-            refusals=({"code": "LINK_CYCLE", "params": {"by": "estimate_line"}},),
+    with ExitStack() as registered, Session(stage.owner) as session:
+        merging = StructureMerging(
+            session,
+            UUID(stage.project["project_id"]),
+            revision_id,
+            UUID(main["structure_id"]),
+            UUID(opened.json()["structure_id"]),
+            Act(None, utc_now()),
+            applying=False,
         )
-    assert merge_parts(merging) == MergePart()
-    assert asked == [("task", merging), ("estimate_line", merging)]
+        assert merge_parts(merging) == MergePart()
+        registered.callback(register_merge_end(part("end", "updated")))
+        registered.callback(register_merge(part("task", "removed")))
+        registered.callback(register_merge(part("estimate_line", "added")))
+        found = merge_parts(merging)
+    assert asked == ["task", "estimate_line", "end"]
+    assert found == MergePart(
+        differences=(
+            {"change": "added", "target": "estimate_line"},
+            {"change": "updated", "target": "end"},
+            {"change": "removed", "target": "task"},
+        ),
+        completed_tasks=tuple({"lineage_id": name} for name in asked),
+        refusals=tuple({"code": "LINK_CYCLE", "params": {"by": name}} for name in asked),
+    )
 
 
 def test_a_kind_of_entry_is_undone_by_one_module_at_most() -> None:

@@ -9,7 +9,7 @@ few the design leaves silent. A name a story adds besides joins the import of it
 comment that names it, in the order Ruff keeps. Another module imports them from here, never from
 the file.
 
-The later epics extend the revisions through eight ordered registries, without this module
+The later epics extend the revisions through nine ordered registries, without this module
 importing theirs: ``register_copy`` the copy of a revision opened from a marked one (EP-06 the
 tasks and their links, EP-07 the lines and the rates, EP-08 the structures it adds),
 ``register_tasks_and_lines`` the questions the designation asks, the tasks (EP-06) and the lines
@@ -17,7 +17,7 @@ tasks and their links, EP-07 the lines and the rates, EP-08 the structures it ad
 and the rates), ``register_indicators`` the indicators kept at the marking (EP-10),
 ``register_designation`` what follows the designation of a reference (EP-07, the budgeted amounts),
 ``register_merge`` the part of the planning and of the estimate in the merge of an amendment
-(EP-08),
+(EP-08), and ``register_merge_end`` what is judged once all the parts are given (US-2560/L1),
 ``register_rate_update`` whether the proposal of the rates of a revision presents a category
 (EP-07), and ``register_closing`` what a module does before a revision is marked or abandoned,
 under its stage (EP-06). Each registers its own by a call in the ``__init__`` of its module's
@@ -58,9 +58,12 @@ from waterfall.core.revisions.interface.marking import (
 # ``merging`` (US-2550/L1; US-2560): the parts of the modules in the merge of an amendment.
 from waterfall.core.revisions.interface.merging import (
     MergePart,
+    MergeReport,
     StructureMerging,
     merge_parts,
+    merge_report,
     register_merge,
+    register_merge_end,
 )
 
 # ``rates`` (US-1500/L1): the update of the rates of a revision, as the revision frames it.
@@ -158,6 +161,7 @@ __all__ = [
     "CurrentStructure",
     "MarkingRequest",
     "MergePart",
+    "MergeReport",
     "OwnEstimateCounted",
     "RatesToUpdate",
     "ReferenceDesignated",
@@ -204,6 +208,7 @@ __all__ = [
     "marked_revisions",
     "marked_revisions_at",
     "merge_parts",
+    "merge_report",
     "open_revision_by_task",
     "rate_update_available",
     "read_cost_structure",
@@ -218,6 +223,7 @@ __all__ = [
     "register_main_task_question",
     "register_marking",
     "register_merge",
+    "register_merge_end",
     "register_own_estimate_counted",
     "register_rate_update",
     "register_tasks_and_lines",

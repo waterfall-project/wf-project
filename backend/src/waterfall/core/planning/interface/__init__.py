@@ -270,6 +270,24 @@ from waterfall.core.planning.interface.loading import (
     load_tasks as load_tasks,
 )
 
+# ``merging`` (US-2560/L1): the part of the planning in the merge of a differential, its end, and
+# where the lines stand for the estimate's.
+from waterfall.core.planning.interface.merging import (
+    MergedLine as MergedLine,
+)
+from waterfall.core.planning.interface.merging import (
+    MergedLines as MergedLines,
+)
+from waterfall.core.planning.interface.merging import (
+    merge_end as merge_end,
+)
+from waterfall.core.planning.interface.merging import (
+    merge_tasks as merge_tasks,
+)
+from waterfall.core.planning.interface.merging import (
+    merged_lines as merged_lines,
+)
+
 # ``milestone_dates`` (US-1660/L3; US-1710): the dates of the milestones in the revisions.
 from waterfall.core.planning.interface.milestone_dates import (
     milestone_forecasts as milestone_forecasts,
@@ -695,12 +713,15 @@ from waterfall.core.revisions.interface import (
     register_closing,
     register_copy,
     register_main_task_question,
+    register_merge,
+    register_merge_end,
     register_tasks_and_lines,
 )
 
 # The registrations, once, at the import: the copy of the nodes after the structures', whose
 # module this one imports first, and their redating after them; the nodes deleted after the
-# history, by the stage of their part.
+# history, by the stage of their part; its part of a merge, before the estimate's, and the end of
+# a merge, judged on the structure all the parts leave (US-2560/L1).
 register_copy(copy_nodes)
 register_copy(redate_copy)
 register_tasks_and_lines("tasks", revision_has_tasks)
@@ -720,3 +741,5 @@ register_main_task_question(structures_have_task)
 register_format("ms_project_schedule", MS_PROJECT_FORMAT)
 register_exporter("ms_project_schedule", MS_PROJECT_EXPORTER)
 register_exporter("task_tree_image", TASK_TREE_EXPORTER)
+register_merge(merge_tasks)
+register_merge_end(merge_end)

@@ -24,6 +24,7 @@ from waterfall.core.projects.interface import (
     BEFORE_IN_PROGRESS,
     NO_BACKGROUND_TASK_RUNNING,
     PROJECT_BEFORE_IN_PROGRESS,
+    PROJECT_NOT_TERMINAL,
     TERMINAL,
 )
 
@@ -42,6 +43,8 @@ REVISION_MARKED = "revision_marked"
 REVISION_HAS_TASKS_AND_LINES = "revision_has_tasks_and_lines"
 REFERENCE_CORRECTABLE = "reference_correctable"
 RATE_UPDATE_AVAILABLE = "rate_update_available"
+UNMERGED_AMENDMENT_EXISTS = "unmerged_amendment_exists"
+MAY_CREATE_REVISION = "may_create_revision"
 
 
 @dataclass(frozen=True, slots=True)
@@ -231,3 +234,41 @@ def structure_commands_of(
         for rule in STRUCTURE_RULES
         if rule.permission in permissions and (main or rule.command != "edit_remaining")
     ]
+
+
+@dataclass(frozen=True, slots=True)
+class MergeState:
+    """What the merge of a structure judges: its project, its revision, the structure, the caller.
+
+    ``current`` whether the revision is the current one; ``source`` whether it is the last marked
+    revision of a project without a current revision, whose merge creates the current revision
+    (#790); ``mergeable`` whether the structure is a differential not merged; ``creates`` whether
+    the caller may create a revision (``revisions.write``).
+    """
+
+    terminal: bool
+    current: bool
+    source: bool
+    no_task_running: bool
+    mergeable: bool
+    creates: bool
+
+
+def merge_conditions(state: MergeState) -> list[str]:
+    """Name the conditions the merge of a structure lacks, in the order of ``merge_structure``.
+
+    ``project_not_terminal`` first; on a marked revision but the last of a project without a
+    current revision, ``revision_draft`` alone; else ``no_background_task_running``,
+    ``unmerged_amendment_exists``, then ``may_create_revision`` where the merge would create the
+    current revision (``RevisionCommand.merge_structure``, WF-REV-0050; #790).
+    """
+    if state.terminal:
+        return [PROJECT_NOT_TERMINAL]
+    if not state.current and not state.source:
+        return [REVISION_DRAFT]
+    missing = [] if state.no_task_running else [NO_BACKGROUND_TASK_RUNNING]
+    if not state.mergeable:
+        missing.append(UNMERGED_AMENDMENT_EXISTS)
+    if not state.current and not state.creates:
+        missing.append(MAY_CREATE_REVISION)
+    return missing
