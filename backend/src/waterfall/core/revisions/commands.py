@@ -18,7 +18,7 @@ rates — US-1500 —), with their conditions, and the exports to ``EXPORT_RULES
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final, Literal
 
 from waterfall.core.projects.interface import (
     BEFORE_IN_PROGRESS,
@@ -45,8 +45,10 @@ RATE_UPDATE_AVAILABLE = "rate_update_available"
 UNMERGED_AMENDMENT_EXISTS = "unmerged_amendment_exists"
 MAIN_STRUCTURE = "main_structure"
 # What the commands of a structure read of its nature: the main one, a differential not merged.
-MAIN_NATURE = "main"
-DIFFERENTIAL_NATURE = "differential"
+MAIN_NATURE: Final = "main"
+DIFFERENTIAL_NATURE: Final = "differential"
+# The natures a structure is read as: the main one, a differential not merged, or its kind otherwise.
+StructureNature = Literal["main", "differential", "amendment", "risk"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -217,12 +219,12 @@ def structure_commands_of(
     state: str,
     revision: RevisionState,
     *,
-    nature: str,
+    nature: StructureNature,
 ) -> list[tuple[str, tuple[str, ...]]]:
     """List the commands a caller holds on a structure, each with the conditions it lacks.
 
     ``nature`` is ``MAIN_NATURE``, ``DIFFERENTIAL_NATURE`` — a differential that is not merged — or
-    any other. Only the main structure has a remaining to commit (WF-RAE-0040): the other kinds,
+    the kind of the structure otherwise. Only the main structure has a remaining to commit (WF-RAE-0040): the other kinds,
     EP-08's, never list it. Only a differential not merged lists its abandonment: it would never
     become available on another structure (WF-REV-0100).
     """

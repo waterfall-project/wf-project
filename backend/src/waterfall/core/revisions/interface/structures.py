@@ -51,6 +51,7 @@ from waterfall.core.projects.interface import (
 from waterfall.core.revisions.commands import (
     DIFFERENTIAL_NATURE,
     MAIN_NATURE,
+    StructureNature,
     phase_conditions,
     structure_commands_of,
 )
@@ -342,11 +343,13 @@ def revision_structures(session: Session, project_id: UUID, revision_id: UUID) -
     )
 
 
-def _nature(row: CostStructure) -> str:
+def _nature(row: CostStructure) -> StructureNature:
     """Tell what the commands of a structure read of it: the main one, a differential not merged."""
     if row.kind == MAIN:
         return MAIN_NATURE
-    return DIFFERENTIAL_NATURE if row.kind == AMENDMENT and not row.is_merged else row.kind
+    if row.kind == AMENDMENT:
+        return "amendment" if row.is_merged else DIFFERENTIAL_NATURE
+    return "risk"
 
 
 def list_cost_structures(
@@ -465,7 +468,7 @@ def abandon_structure(
     """Delete the row of a differential and inscribe its abandonment (``structure_abandon``).
 
     To be called under the lock of the structure, once the modules that hold rows of its own
-    (``delete_differential``: the history, the nodes and their facets) have deleted them; the
+    (``abandon_differential``: the history, the nodes and their facets) have deleted them; the
     inscription names the structure by its label of the moment, in its revision, which is current
     and bears no name yet (WF-SEC-0030).
     """
