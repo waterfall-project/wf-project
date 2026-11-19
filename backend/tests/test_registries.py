@@ -258,6 +258,8 @@ LINE_HOOKS = (
     f"{CORE}.reading.line_columns",
     f"{CORE}.tallying.line_tallies",
     f"{CORE}.tallying.line_provisions",
+    f"{CORE}.grafting.judge_grafted_lines",
+    f"{CORE}.grafting.graft_lines",
     # The inert fields of a line (US-2250), a tuple, its names joined.
     "estimate_line.label:estimate_line.payment_delay_days:estimate_line.subproject_id",
 )

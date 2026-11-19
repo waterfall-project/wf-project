@@ -18,9 +18,10 @@ application).
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from waterfall.core.risks.occurring import OccurrenceReport, report_occurrence
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
-    from decimal import Decimal
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -29,21 +30,8 @@ if TYPE_CHECKING:
     from waterfall.platform.audit import Act
     from waterfall.platform.queue import TaskQueue
 
-
-@dataclass(frozen=True, slots=True)
-class OccurrenceReport:
-    """What the occurrence of a risk would do (``RiskOccurrenceReport``), and the counters read.
-
-    ``differences`` as ``ImportDifference``, ``refusals`` as ``ReportRefusal``; the provision line
-    the occurrence removes, by its amount.
-    """
-
-    main_structure_lock_version: int
-    risk_lock_version: int
-    creates_current_revision: bool
-    differences: tuple[Mapping[str, object], ...]
-    provision_amount: Decimal
-    refusals: tuple[Mapping[str, object], ...]
+# The report, as the interface hands it on (``risks.interface`` re-exports it from here).
+__all__ = ["OccurrenceReport"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,9 +48,12 @@ class OccurrenceRequest:
 def occurrence_report(
     session: Session, project_id: UUID, risk_id: UUID, viewer: Viewer
 ) -> OccurrenceReport:
-    """Tell what the occurrence of an identified risk would do, writing nothing."""
-    msg = "occurrence_report is filled by US-2620/L1"
-    raise NotImplementedError(msg)
+    """Tell what the occurrence of an identified risk would do, writing nothing; or refuse (409).
+
+    In the order of the 409 of the occurrence: the conditions of the project, then, the risk read
+    (404), those of the risk (``occurring``).
+    """
+    return report_occurrence(session, project_id, risk_id, viewer)
 
 
 def submit_occurrence(

@@ -117,6 +117,9 @@ from waterfall.core.planning.interface.facets import (
     FacetCreation as FacetCreation,
 )
 from waterfall.core.planning.interface.facets import (
+    FacetGraft as FacetGraft,
+)
+from waterfall.core.planning.interface.facets import (
     FacetHooks as FacetHooks,
 )
 from waterfall.core.planning.interface.facets import (
@@ -154,6 +157,17 @@ from waterfall.core.planning.interface.facets import (
 )
 from waterfall.core.planning.interface.facets import (
     register_facet as register_facet,
+)
+
+# ``grafts`` (US-2620/L1): the tasks of a structure grafted into another (EP-08).
+from waterfall.core.planning.interface.grafts import (
+    Graft as Graft,
+)
+from waterfall.core.planning.interface.grafts import (
+    Grafted as Grafted,
+)
+from waterfall.core.planning.interface.grafts import (
+    graft as graft,
 )
 
 # ``indicator_stamps`` (US-1660/L3; US-1720/L2): what the key of the cache of the indicators reads.

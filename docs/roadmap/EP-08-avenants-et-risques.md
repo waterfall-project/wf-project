@@ -1639,7 +1639,7 @@ portefeuille (EP-11).
 
 ## US-2620 — La survenance d'un risque
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-RIS-0060-A`
 - **opérations** : `getRiskOccurrenceReport`, `declareRiskOccurrence`, `getBackgroundTask`,
   `listNodes` et `compareRevisions` (`is_from_risk`, `origin_risk_ids`), `getRisk`

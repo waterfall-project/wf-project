@@ -124,6 +124,8 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         # The abandonment of a differential: its nodes and facets deleted (US-2550/L4).
         "differential_deletion",
         "facets",
+        # The tasks of an own estimate grafted into the main structure (US-2620/L1, EP-08).
+        "grafts",
         # What the indicators read of the planning, laid by US-1660/L3 (EP-10, "Modules").
         "indicator_stamps",
         "indicator_tasks",

@@ -9111,6 +9111,14 @@ ni le cas du jalon.
   `risk_occurrence_report_stale`, le 412, un compte rendu lu avant le réexamen du 2 mars.
   `tools/tests/test_mockriskwrites.py` les tient contre le registre, les structures et la
   structure principale.
+- **Une tâche greffée est nommée par son nœud du devis propre, dans les deux motifs** (US-2620/L1,
+  #4151, constat de contrat à trancher). `TASK_WITHOUT_WORKING_HOURS` nomme ses tâches par
+  `ProblemTask`, dont `node_id` est requis et non nul : elle ne peut pas nommer par un nœud nul la
+  tâche que la greffe crée. Pour que les deux motifs d'un même compte rendu nomment la même tâche
+  de la même façon, `PROJECT_HORIZON_EXCEEDED`, dont `params.task` admet un nœud nul pour une tâche
+  que l'entrée crée, nomme aussi la tâche greffée par son nœud du devis propre ; seule une tâche de
+  la structure principale est nommée par son nœud. Le contrat n'est pas modifié ; #4151 reste à
+  trancher (nœud nul à l'import, nœud du devis propre ici).
 
 **Corrélation** 1591 et 1592.
 
