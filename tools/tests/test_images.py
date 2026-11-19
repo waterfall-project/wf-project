@@ -119,6 +119,7 @@ def test_no_job_with_services_turns_the_cache_of_the_builds_on() -> None:
                 assert "services" not in job, f"{path.name}: {name}"
                 assert "container" not in job, f"{path.name}: {name}"
     assert taking == [
+        "chart.yml:check",
         "front-image.yml:check",
         "images.yml:cache",
         "keycloak.yml:check",
