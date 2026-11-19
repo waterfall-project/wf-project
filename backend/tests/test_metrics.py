@@ -16,7 +16,7 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi.testclient import TestClient
 from metrics_reading import Samples, samples, value
-from sqlalchemy import delete, insert
+from sqlalchemy import delete, insert, update
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import QueuePool
 from support import PLATFORM_SECRETS, ContractClient, raw_account
@@ -45,6 +45,7 @@ from waterfall.platform.metrics import (
     STORAGE_AVAILABLE,
     STORAGE_USED,
     Capacities,
+    Flights,
     MetricsRegistry,
     PlatformState,
     Probe,
@@ -83,6 +84,7 @@ class Platform:
         capacities: Capacities = CAPACITIES,
     ) -> None:
         app = create_app(services, capacities=capacities)
+        self.observed = app.state.observed
         self.api = ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
     def collect(self) -> Samples:
@@ -389,6 +391,25 @@ def test_a_scheduled_backup_that_succeeded_stays_succeeded_once_the_rotation_rem
     assert value(read, LAST_RUN_TIMESTAMP, run="scheduled_backup") == now.timestamp()
 
 
+def test_a_scheduled_backup_whose_archive_failed_its_verification_is_still_succeeded(
+    platform: MakePlatform, database: Database
+) -> None:
+    # Proper to US-2870: the gauge follows the contract, where the failure of a backup is that of
+    # its task (``OperationOutcome.problem``): a task that ended with its archive unverified
+    # (``{"verification": "failed"}``) succeeded. Whether an unverified archive is a failure of the
+    # gauge is for the author to decide (#4230); this test then changes with that decision.
+    now = utc_now().replace(microsecond=0)
+    task_id = ended_task(database, "backup", now, succeeded=True)
+    with database.transaction() as session:
+        session.execute(
+            update(BackgroundTask)
+            .where(BackgroundTask.id == task_id)
+            .values(result={"verification": "failed"})
+        )
+    read = platform().collect()
+    assert value(read, LAST_RUN_SUCCESS, run="scheduled_backup") == 1
+
+
 @pytest.mark.requirement("WF-OBS-0010-A")
 def test_the_space_of_the_object_storage_is_the_sum_of_its_objects(
     platform: MakePlatform, backups_bucket: Bucket
@@ -536,6 +557,23 @@ def test_the_probes_and_the_collection_answer_while_every_connection_of_the_requ
     assert value(read, STORAGE_USED, component="database") is not None
 
 
+def test_a_slow_reading_of_the_state_does_not_make_a_request_of_availability_fail(
+    platform: MakePlatform,
+) -> None:
+    # Proper to US-2870: the observation has two connections; one held by a collection that is slow
+    # leaves the other to the probe of ``getReadiness``, which would else wait and say the database
+    # down.
+    served = platform()
+    reading = served.observed.database.engine.connect()
+    try:
+        started = time.monotonic()
+        ready = served.api.get(READINESS)
+        assert time.monotonic() - started < PROBE_SECONDS
+    finally:
+        reading.close()
+    assert ready.status_code == 200
+
+
 class SleepingBucket(Bucket):
     """A bucket whose listing of the objects takes longer than a collection waits."""
 
@@ -561,3 +599,44 @@ def test_a_listing_of_the_storage_that_outlasts_the_budget_leaves_the_space_out(
     assert time.monotonic() - started < 1
     assert value(read, COMPONENT_UP, component="object_storage") == 1
     assert value(read, STORAGE_USED, component="object_storage") is None
+
+
+class CountingBucket(SleepingBucket):
+    """A sleeping bucket that counts the listings it was asked."""
+
+    listings = 0
+
+    def used_bytes(self) -> int:
+        """List the objects, slowly, counting."""
+        type(self).listings += 1
+        return super().used_bytes()
+
+
+def test_a_storage_that_does_not_answer_holds_one_listing_however_often_it_is_collected(
+    database: Database, backups_bucket: Bucket
+) -> None:
+    # Proper to US-2870: the listing left to end alone is not started again by the next collection:
+    # a storage that sleeps holds one thread, and its space stays out.
+    sleeping = CountingBucket(backups_bucket.client, backups_bucket.name)
+    CountingBucket.listings = 0
+    state = PlatformState(database, {}, sleeping, {}, Capacities())
+    state.budget = 0.1
+    assert state.storage_used() is None
+    assert state.storage_used() is None
+    assert CountingBucket.listings == 1
+
+
+def test_a_probe_that_does_not_answer_is_not_asked_again_while_it_runs() -> None:
+    # Proper to US-2870: the same bound for the probes, which share their flights.
+    asked: list[int] = []
+
+    def hanging() -> str | None:
+        asked.append(1)
+        time.sleep(1)
+        return None
+
+    flights = Flights()
+    for _ in range(2):
+        found = probe({"cache": hanging}, 0.1, flights)
+        assert [each.is_available for each in found] == [False]
+    assert asked == [1]

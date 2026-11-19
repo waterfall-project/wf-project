@@ -168,12 +168,13 @@ class UtcDateTime(TypeDecorator[datetime]):
 
 
 # The reserve of connections of a process, fifteen in all (deploy/compose/README.md, « Les
-# processus de l'API »): five kept and nine more while they are all taken, for the requests; one
-# for what observes the platform (``create_observation_engine``). The calculation of
+# processus de l'API »): five kept and eight more while they are all taken, for the requests; two
+# for what observes the platform (``create_observation_engine``): a slow reading of the state does
+# not make a request of availability fail. The calculation of
 # ``max_connections`` counts fifteen per process.
 POOL_SIZE = 5
-POOL_OVERFLOW = 9
-OBSERVATION_CONNECTIONS = 1
+POOL_OVERFLOW = 8
+OBSERVATION_CONNECTIONS = 2
 CONNECTIONS_PER_ENGINE = POOL_SIZE + POOL_OVERFLOW + OBSERVATION_CONNECTIONS
 # How long what observes the platform waits for a connection to open or to be lent, in whole
 # seconds: a pool of the requests saturated must not make the database look down.
@@ -197,7 +198,7 @@ def create_database_engine(address: str) -> Engine:
     """Open the engine on the database, whose sessions keep time in universal time.
 
     Its reserve holds ``POOL_SIZE`` connections, and opens ``POOL_OVERFLOW`` more while they are
-    all taken; with the one of the observation, ``CONNECTIONS_PER_ENGINE`` at most, which
+    all taken; with the two of the observation, ``CONNECTIONS_PER_ENGINE`` at most, which
     ``max_connections`` of the server carries for each process of the platform (US-2230).
     """
     return create_engine(
@@ -210,7 +211,7 @@ def create_database_engine(address: str) -> Engine:
 
 
 def create_observation_engine(url: URL) -> Engine:
-    """Open an engine of one connection, apart from the pool of the requests, on the same database.
+    """Open an engine of two connections, apart from the pool of the requests, on the same database.
 
     What observes the platform — the probe of the database, the reading of its state at a
     collection — must answer when every connection of the requests is taken: it waits

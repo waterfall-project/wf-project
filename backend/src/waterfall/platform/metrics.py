@@ -29,11 +29,12 @@ imported: a process imported before it was set — the API on one process — co
 import os
 import shutil
 import tempfile
+import threading
 from collections.abc import Callable, Generator, Iterator, Mapping
-from concurrent.futures import Future, ThreadPoolExecutor, wait
+from concurrent.futures import Future, wait
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, Protocol, cast, get_args
+from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, get_args
 
 from prometheus_client import CollectorRegistry, Counter, Histogram, generate_latest
 from prometheus_client.exposition import CONTENT_TYPE_PLAIN_0_0_4, start_http_server
@@ -231,22 +232,54 @@ class Health:
     checked_at: datetime
 
 
-def probe(probes: Mapping[str, Probe], timeout: float = PROBE_SECONDS) -> list[Health]:
+class Flights:
+    """What runs beside a collection, in daemon threads, one at a time for each name.
+
+    A call that outlasts what a collection waits for is left to end alone, and the process does not
+    wait for it at exit. While it runs, a caller that asks for the same name is given the same call
+    and starts none: a component that no longer answers holds one thread, however often it is asked.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._running: dict[str, Future[Any]] = {}
+
+    def start(self, name: str, call: Callable[[], Any]) -> Future[Any]:
+        """Give the call running under ``name``, or start ``call`` in a thread of its own."""
+        with self._lock:
+            running = self._running.get(name)
+            if running is not None and not running.done():
+                return running
+            future: Future[Any] = Future()
+            self._running[name] = future
+
+        def run() -> None:
+            try:
+                future.set_result(call())
+            except Exception as fault:
+                logger.debug("flight.failed", name=name, exc_info=True)
+                future.set_exception(fault)
+
+        threading.Thread(target=run, name=f"flight-{name}", daemon=True).start()
+        return future
+
+
+def probe(
+    probes: Mapping[str, Probe], timeout: float = PROBE_SECONDS, flights: Flights | None = None
+) -> list[Health]:
     """Ask every component at once; one that fails, or has not answered within ``timeout``, is down.
 
-    A probe that has not answered is left to end alone: the collection does not wait for it.
+    A probe that has not answered is left to end alone: the collection does not wait for it, and
+    ``flights`` starts no other while it runs.
     """
     checked_at = utc_now()
-    pool = ThreadPoolExecutor(max_workers=max(len(probes), 1), thread_name_prefix="probe")
-    try:
-        asked = {component: pool.submit(probed) for component, probed in probes.items()}
-        wait(asked.values(), timeout=timeout)
-    finally:
-        pool.shutdown(wait=False, cancel_futures=True)
+    started = flights or Flights()
+    asked = {component: started.start(f"probe-{component}", p) for component, p in probes.items()}
+    wait(asked.values(), timeout=timeout)
     return [_health(component, answer, checked_at) for component, answer in asked.items()]
 
 
-def _health(component: str, answer: Future[str | None], checked_at: datetime) -> Health:
+def _health(component: str, answer: Future[Any], checked_at: datetime) -> Health:
     if not answer.done():
         logger.warning("probe.timed_out", component=component)
         return Health(component, is_available=False, version=None, checked_at=checked_at)
@@ -340,10 +373,11 @@ class PlatformState:
         self.storage = storage
         self.outcomes = outcomes
         self.capacities = capacities
+        self.flights = Flights()
 
     def probe(self) -> list[Health]:
         """Ask every component whether it answers."""
-        return probe(self.probes)
+        return probe(self.probes, flights=self.flights)
 
     def collect(self) -> Iterator[Metric]:
         """Probe, then read what the components that answered give; leave out what they do not."""
@@ -395,14 +429,11 @@ class PlatformState:
         """Sum the objects of the bucket; ``None`` if the listing fails or outlasts the budget.
 
         The listing reads every object: once the budget of the probes is spent it is left to end
-        alone, as a probe is, so that a large bucket does not hold the collection.
+        alone, as a probe is, in a thread that does not hold the exit of the process: while it runs,
+        no other listing starts, and the space is left out if it outlasts the budget.
         """
-        pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="storage-used")
-        try:
-            listing = pool.submit(self.storage.used_bytes)
-            wait([listing], timeout=self.budget)
-        finally:
-            pool.shutdown(wait=False, cancel_futures=True)
+        listing = self.flights.start("storage-used", self.storage.used_bytes)
+        wait([listing], timeout=self.budget)
         if not listing.done():
             logger.warning("metrics.storage_unread", reason="timed_out")
             return None

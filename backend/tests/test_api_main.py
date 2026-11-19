@@ -136,8 +136,9 @@ def test_each_process_closes_the_services_it_opened_when_it_stops(
     with TestClient(app) as client:
         assert client.get("/api/v1/health").status_code == 200
         assert closed == []
-    # The last opened first: nothing closed is still used by what was opened after it.
-    assert closed == ["cache", "storage", "redis", "keycloak", "database"]
+    # The last opened first: nothing closed is still used by what was opened after it. The
+    # connections of the observation, opened by the application, close before all.
+    assert closed == ["database", "cache", "storage", "redis", "keycloak", "database"]
     events = [json.loads(line)["event"] for line in capsys.readouterr().err.splitlines()]
     assert events[-1] == "service.stopped"
 

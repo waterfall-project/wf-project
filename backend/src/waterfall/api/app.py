@@ -8,6 +8,7 @@ interface (WF-ARC-0060). A path with a slash the contract does not write is not 
 """
 
 import weakref
+from contextlib import AsyncExitStack, asynccontextmanager
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
@@ -75,7 +76,7 @@ from waterfall.core.planning import interface as planning_interface
 from waterfall.platform.metrics import Capacities
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import AsyncGenerator, Callable
     from contextlib import AbstractAsyncContextManager
 
     from waterfall.api.authentication import Services
@@ -110,6 +111,16 @@ def create_app(
     """
     schema.declared()
     observed = system.observed(services, capacities or Capacities())
+
+    @asynccontextmanager
+    async def around(application: FastAPI) -> AsyncGenerator[None]:
+        # The connections of the observation close first, before the services' lifespan ends.
+        async with AsyncExitStack() as stack:
+            if lifespan is not None:
+                await stack.enter_async_context(lifespan(application))
+            stack.callback(observed.close)
+            yield
+
     app = FastAPI(
         title="Waterfall API",
         version=__version__,
@@ -117,9 +128,9 @@ def create_app(
         redoc_url=None,
         openapi_url=None,
         redirect_slashes=False,
-        lifespan=lifespan,
+        lifespan=around,
     )
-    # The connection of the observation is closed with the application, at the latest at exit.
+    # An application served without its lifespan (tests) closes them when it is collected.
     weakref.finalize(app, observed.close)
     # Added first, run second: a refusal in maintenance carries the correlation of its request.
     app.add_middleware(MaintenanceMiddleware, maintenance=services.maintenance)
