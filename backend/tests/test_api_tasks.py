@@ -21,7 +21,14 @@ from task_handlers import REQUEST, deposit
 from waterfall.api.contract.models import BackgroundTaskStatus, Kind
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.errors import ConflictError, FieldError, UnprocessableError
-from waterfall.platform.tasks import KINDS, STATUSES, BackgroundTask, Task
+from waterfall.platform.tasks import (
+    CONTRACT_KINDS,
+    KINDS,
+    SCHEDULED_KINDS,
+    STATUSES,
+    BackgroundTask,
+    Task,
+)
 from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
@@ -70,7 +77,9 @@ def finish(database: Database, task_id: UUID, status: str, at: datetime) -> None
 
 
 def test_the_kinds_and_the_states_of_a_task_are_those_of_the_contract() -> None:
-    assert tuple(kind.value for kind in Kind) == KINDS
+    # The kinds the platform schedules follow, the contract's: requested by nobody, never listed.
+    assert tuple(kind.value for kind in Kind) == CONTRACT_KINDS
+    assert (*CONTRACT_KINDS, *SCHEDULED_KINDS) == KINDS
     assert tuple(status.value for status in BackgroundTaskStatus) == STATUSES
 
 

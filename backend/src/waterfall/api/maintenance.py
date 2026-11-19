@@ -4,13 +4,16 @@
 
 While a restoration holds the platform in maintenance, every operation but the probe of liveness
 and the metrics answers 503 ``COMPONENT_UNAVAILABLE``, the database being replaced; the probe says
-the maintenance, and its end. A Redis out of reach says no maintenance: the operations that need it
-say so themselves, and the others are served.
+the maintenance, and its end. The maintenance is read in the schema ``platform`` of the database,
+which the restoration leaves in place (``waterfall.platform.maintenance``): Redis emptied lifts
+nothing (#956). A database out of reach — refusing, mute, or its pool spent — says no
+maintenance: the operations that need it say so themselves, and the probe of liveness answers.
 """
 
 from typing import TYPE_CHECKING
 
-from redis.exceptions import RedisError
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 
@@ -33,13 +36,17 @@ logger = get_logger(__name__)
 
 
 def in_maintenance(maintenance: Maintenance | None) -> bool:
-    """Tell whether a restoration holds the platform in maintenance; not if Redis does not say."""
+    """Tell whether a restoration holds the platform in maintenance; not if the database is mute."""
     if maintenance is None:
         return False
     try:
         return maintenance.current() is not None
-    except RedisError:
-        logger.warning("maintenance.unread", exc_info=True)
+    except (DBAPIError, PoolTimeoutError) as error:
+        # The cause in a line, not its traceback: rendered with its locals, it held the probe for
+        # seconds, longer than the healthcheck waits.
+        logger.warning(
+            "maintenance.unread", error=type(error).__name__, reason=str(error).splitlines()[0]
+        )
         return False
 
 

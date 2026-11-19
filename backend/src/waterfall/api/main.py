@@ -14,7 +14,8 @@ requests is the same in every process, or lives in PostgreSQL or Redis (WF-ARC-0
 - the time zone of the installation (``platform.installation``), fixed by the bootstrap;
 - the registries of the modules (``platform.registry``), filled at the import of their interface;
 - what the image holds, read once: the font of the images of a tree, the names of the time zones;
-- the maintenance of a restoration lives in Redis, read at each request (``platform.maintenance``);
+- the maintenance of a restoration lives in PostgreSQL, read at each request
+  (``platform.maintenance``);
 - the indicators of the day are cached in Redis, not in the process (``platform.cache``);
 - the counters of the metrics, in a folder the processes share when there are several, which the
   exposition of any of them merges (``platform.metrics``, WF-OBS-0010).
@@ -151,7 +152,7 @@ def open_services(settings: ServiceSettings) -> tuple[Services, ExitStack]:
             KeycloakAdmin(keycloak, settings),
             queue,
             backups,
-            Maintenance.of(queue),
+            Maintenance.of(database, queue),
             cache,
         )
         TIME_ZONE.read_from(stored_in(database))

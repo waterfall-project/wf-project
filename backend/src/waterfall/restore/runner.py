@@ -27,7 +27,6 @@ from sqlalchemy import ColumnElement, inspect, select
 
 from waterfall.platform.errors import ServiceError
 from waterfall.platform.logs import get_logger, logging_context
-from waterfall.platform.maintenance import Maintenance, Restoring
 from waterfall.platform.tasks import BackgroundTask, Task, TaskHandler
 from waterfall.worker.runner import (
     INTERNAL_ERROR,
@@ -46,6 +45,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.platform.database import Database
+    from waterfall.platform.maintenance import Restoring
     from waterfall.platform.queue import Entry, TaskQueue
 
 KIND = "restore"
@@ -66,11 +66,10 @@ class Restorer(Worker):
     ) -> None:
         """Run the restorations ``queue`` holds, beside it, by ``handler``, on ``database``.
 
-        ``queue`` is the stream of the tasks of the worker: the restorations have theirs beside it,
-        and the maintenance its key.
+        ``queue`` is the stream of the tasks of the worker: the restorations have theirs beside it.
+        ``database`` is reached as its owner, who alone writes the maintenance.
         """
         super().__init__(database, queue.restores(), {KIND: handler}, consumer, timing)
-        self.maintenance = Maintenance.of(queue)
         self.succeeded = False
 
     def kinds(self) -> ColumnElement[bool]:
@@ -123,8 +122,8 @@ class Restorer(Worker):
     def start(self, task_id: UUID) -> Task | None:
         """Start one more attempt of a restoration: counted in the maintenance once it holds one.
 
-        A restoration whose task has succeeded already, the maintenance not lifted after — Redis
-        out of reach, the process stopped —, lifts it and runs nothing again.
+        A restoration whose task has succeeded already, the maintenance not lifted after — the
+        database out of reach, the process stopped —, lifts it and runs nothing again.
         """
         restoring = self.restoring()
         if restoring is not None and restoring.task_id == task_id:

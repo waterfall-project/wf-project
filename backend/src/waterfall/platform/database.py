@@ -179,6 +179,9 @@ CONNECTIONS_PER_ENGINE = POOL_SIZE + POOL_OVERFLOW + OBSERVATION_CONNECTIONS
 # How long what observes the platform waits for a connection to open or to be lent, in whole
 # seconds: a pool of the requests saturated must not make the database look down.
 OBSERVATION_SECONDS = 3
+# The seconds a connection to the server may take, libpq's shortest: a server that answers no more
+# holds its caller, the probe of liveness first, for that long and not for ever.
+CONNECT_TIMEOUT = 2
 
 
 def utc_now() -> datetime:
@@ -203,7 +206,7 @@ def create_database_engine(address: str) -> Engine:
     """
     return create_engine(
         engine_url(address),
-        connect_args={"options": "-c timezone=UTC"},
+        connect_args={"options": "-c timezone=UTC", "connect_timeout": CONNECT_TIMEOUT},
         pool_pre_ping=True,
         pool_size=POOL_SIZE,
         max_overflow=POOL_OVERFLOW,

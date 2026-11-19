@@ -179,10 +179,17 @@ by a typed exception of the core, whose code becomes the reason of the failure. 
 task, it leaves nothing of its work: another takes it up from the start, and it fails after three
 attempts; a task of a kind that no handler runs fails without running. A restore (`restore`) is
 never the worker's: `startRestore` deposits it in a second stream, `waterfall:tasks:restores`,
-which the restore service alone reads, in its consumer group; it sets the maintenance, a Redis key
-beside the worker's stream that the API reads (503 except the liveness probe), and the worker runs
-nothing while it is there (EP-03, « Sauvegarde et
-restauration »). Scheduled
+which the restore service alone reads, in its consumer group; it sets the maintenance, which the API
+reads (503 except the liveness probe), and the worker runs nothing while it is there (EP-03,
+« Sauvegarde et restauration »). The maintenance and the state of the restore that holds it live in
+the `platform` schema of the Waterfall database, at most one row in each of its two tables, which
+the service role reads and the owner alone writes (`waterfall.platform.maintenance`, migration
+`0035`): a backup dumps only `public`, and a restore replaces only it, so emptying Redis during a
+restore does not lift the maintenance (EP-13, US-2830, #956). Every request of the API thus reads
+the maintenance in the database, one more read per request (the liveness probe reads it to say it),
+bounded by `CONNECT_TIMEOUT`; a database that does not answer or whose pool is spent says "no
+maintenance" and the probe answers. A maintenance held whose state is missing stays held, as an
+abandoned restore. Scheduled
 tasks are deposited by `waterfall-worker enqueue <genre>`, which deposits none when a task of the
 same kind is queued or running: the `scheduler` service of Compose calls it at the interval of
 `WATERFALL_IDENTITY_SYNC_INTERVAL`, in seconds, one day by default; its second loop calls

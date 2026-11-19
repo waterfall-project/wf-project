@@ -144,7 +144,7 @@ def platform(contract: OpenAPI, reached: Services, service_database_url: str) ->
             else reached.database,
             queue=stopped_queue() if stopped == "cache" else reached.queue,
             backups=stopped_bucket() if stopped == "object_storage" else reached.backups,
-            maintenance=Maintenance.of(reached.queue) if maintenance else None,
+            maintenance=Maintenance.of(reached.database, reached.queue) if maintenance else None,
         )
         return Platform(contract, services, capacities)
 
@@ -515,12 +515,12 @@ def test_an_instance_stays_ready_without_what_it_serves_without_and_says_it_unav
 
 
 def test_in_maintenance_the_metrics_are_served_and_the_instance_is_not_ready(
-    platform: MakePlatform, queue: TaskQueue
+    platform: MakePlatform, queue: TaskQueue, owner: Engine
 ) -> None:
     # Proper to US-2870: the metrics depend on no component, and say each one; a restoration that
     # holds the platform refuses the rest, the readiness with it (WF-ADM-0160).
     served = platform(maintenance=True)
-    Maintenance.of(queue).hold(Restoring(uuid4(), {}, None, REQUEST, 1))
+    Maintenance.of(Database(owner), queue).hold(Restoring(uuid4(), {}, None, REQUEST, 1))
     assert value(served.collect(), COMPONENT_UP, component="database") == 1
     refused = served.api.get(READINESS)
     assert refused.status_code == 503
