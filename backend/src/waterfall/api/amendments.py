@@ -49,7 +49,12 @@ from waterfall.api.projects import viewer_of
 from waterfall.api.queries import listed
 from waterfall.api.revisions import structure_body
 from waterfall.core.estimate.interface import Comparison, read_differential
-from waterfall.core.planning.interface import NodeFilters, list_records, open_differential
+from waterfall.core.planning.interface import (
+    NodeFilters,
+    abandon_differential,
+    list_records,
+    open_differential,
+)
 from waterfall.core.revisions.interface import read_cost_structure, structure_facts
 from waterfall.platform.errors import (
     NOT_FOUND,
@@ -101,6 +106,30 @@ def post_structure(
     structure_id = open_differential(session, revision, body.label, writer)
     view = read_cost_structure(session, project_id, revision_id, structure_id, viewer_of(actor))
     return structure_body(view)
+
+
+@router.delete(
+    STRUCTURE,
+    operation_id="deleteCostStructure",
+    dependencies=[Depends(RequiresProject(CONSULT_REVISIONS, CHANGE))],
+    status_code=204,
+)
+def delete_structure(
+    place: Placed,
+    lock_version: Annotated[int, Query(ge=0, le=2147483647)],
+    writer: Writing,
+    session: Transaction,
+) -> Response:
+    """Abandon a differential that is not merged, at the counter read (WF-REV-0100).
+
+    Under the command ``delete`` of the structure, guarded as the opening of a differential is:
+    its nodes, their lines and their images are deleted with it, the history of its entries and
+    the plans of its pastes forgotten; irreversible, inscribed in the journal. Refused on the main
+    structure, the own estimate of a risk and a merged differential, on a marked revision and
+    while a background task writes (409), and at another counter (412).
+    """
+    abandon_differential(session, place, lock_version, writer)
+    return Response(status_code=204)
 
 
 def differential_body(found: Comparison, fields: frozenset[str] | None) -> dict[str, Any]:

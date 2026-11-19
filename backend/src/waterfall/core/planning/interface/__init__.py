@@ -88,6 +88,11 @@ from waterfall.core.planning.interface.copying import (
     copy_structure_nodes as copy_structure_nodes,
 )
 
+# ``differential_deletion`` (US-2550/L4): a differential abandoned.
+from waterfall.core.planning.interface.differential_deletion import (
+    abandon_differential as abandon_differential,
+)
+
 # ``facets`` (US-1380/L1; read by US-1380/L2; completed by US-1490/L3, US-2260/L3, US-2280/L1,
 # US-2400/L1): the facets of a node other than the task (EP-07).
 from waterfall.core.planning.interface.facets import (

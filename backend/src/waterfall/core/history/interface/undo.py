@@ -36,7 +36,7 @@ from sqlalchemy import func, select
 from waterfall.core.history.snapshots import decoded, encoded, with_versions
 from waterfall.core.history.stacks import lock_stack, of_stack
 from waterfall.core.history.tables import UndoEntry
-from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError, NotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -193,7 +193,13 @@ def _turned(
         raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": condition})
     left, wanted = (entry.after, entry.before) if undoing else (entry.before, entry.after)
     expected, restored = decoded(left), decoded(wanted)
-    lock(expected + restored)
+    try:
+        lock(expected + restored)
+    except NotFoundError:
+        # The structure was deleted while the entry waited for its lock — a differential abandoned
+        # by another stack: its objects are gone, which is a conflict as any object absent.
+        _judge(expected, read)
+        raise
     _judge(expected, read)
     available = depth(session, stack)
     restoring = Restoring(

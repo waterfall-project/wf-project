@@ -30,6 +30,13 @@ explicitly.
 ``RevisionCopy`` is what a copy receives.
 """
 
+# ``commands`` (US-2550/L4): the conditions a structure that is not a differential to abandon, or
+# not the main one, lacks.
+from waterfall.core.revisions.commands import (
+    MAIN_STRUCTURE,
+    UNMERGED_AMENDMENT_EXISTS,
+)
+
 # ``closing`` (US-1380/L1): what the later modules do before a revision is marked or abandoned.
 from waterfall.core.revisions.interface.closing import (
     CLOSING_STAGES,
@@ -134,6 +141,7 @@ from waterfall.core.revisions.interface.structures import (
     OwnEstimateCounted,
     StructureFacts,
     StructureView,
+    abandon_structure,
     aimed_structure,
     create_differential,
     create_own_estimate,
@@ -159,6 +167,8 @@ __all__ = [
     "CLOSING_STAGES",
     "KEPT",
     "MAIN",
+    "MAIN_STRUCTURE",
+    "UNMERGED_AMENDMENT_EXISTS",
     "ClosingKind",
     "ClosingStage",
     "CurrentStructure",
@@ -187,6 +197,7 @@ __all__ = [
     "StructureMerging",
     "StructureView",
     "abandon_revision",
+    "abandon_structure",
     "aimed_structure",
     "closers",
     "compute_indicators",

@@ -52,6 +52,7 @@ type AuditAction = Literal[
     "revision_abandon",
     "reference_designate",
     "amendment_merge",
+    "structure_abandon",
     "risk_occurrence",
     "project_exit",
     "cost_line_exclude",

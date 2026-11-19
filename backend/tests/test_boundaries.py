@@ -121,6 +121,8 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "closing",
         # The copy of the nodes of a revision, moved out of ``nodes`` (US-2240/L2).
         "copying",
+        # The abandonment of a differential: its nodes and facets deleted (US-2550/L4).
+        "differential_deletion",
         "facets",
         # What the indicators read of the planning, laid by US-1660/L3 (EP-10, "Modules").
         "indicator_stamps",

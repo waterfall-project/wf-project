@@ -39,7 +39,7 @@ revision, the others are EP-06's and EP-07's.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import case, func, select, update
+from sqlalchemy import case, delete, func, select, update
 from sqlalchemy.orm import aliased
 
 from waterfall.core.projects.interface import (
@@ -48,8 +48,14 @@ from waterfall.core.projects.interface import (
     current_day,
     project_facts,
 )
-from waterfall.core.revisions.commands import phase_conditions, structure_commands_of
-from waterfall.core.revisions.interface.shared import MAIN
+from waterfall.core.revisions.commands import (
+    DIFFERENTIAL_NATURE,
+    MAIN_NATURE,
+    StructureNature,
+    phase_conditions,
+    structure_commands_of,
+)
+from waterfall.core.revisions.interface.shared import MAIN, inscribe_structure
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.states import revision_state
 from waterfall.core.revisions.tables import CostStructure, Revision
@@ -354,6 +360,15 @@ def revision_structures(session: Session, project_id: UUID, revision_id: UUID) -
     )
 
 
+def _nature(row: CostStructure) -> StructureNature:
+    """Tell what the commands of a structure read of it: the main one, a differential not merged."""
+    if row.kind == MAIN:
+        return MAIN_NATURE
+    if row.kind == AMENDMENT:
+        return "amendment" if row.is_merged else DIFFERENTIAL_NATURE
+    return "risk"
+
+
 def list_cost_structures(
     session: Session, project_id: UUID, revision_id: UUID, viewer: Viewer
 ) -> list[StructureView]:
@@ -372,7 +387,11 @@ def list_cost_structures(
             commands=tuple(
                 CommandAvailability(command, missing)
                 for command, missing in structure_commands_of(
-                    viewer.permissions, kind, state, revision, main=row.kind == MAIN
+                    viewer.permissions,
+                    kind,
+                    state,
+                    revision,
+                    nature=_nature(row),
                 )
             ),
             lock_version=row.lock_version,
@@ -460,6 +479,25 @@ def structure_phase_conditions(command: str, state: str, *, main: bool) -> tuple
     return tuple(phase_conditions(command, state, main=main))
 
 
+def abandon_structure(
+    session: Session, project_id: UUID, structure: StructureFacts, act: Act
+) -> None:
+    """Delete the row of a differential and inscribe its abandonment (``structure_abandon``).
+
+    To be called under the lock of the structure, once the modules that hold rows of its own
+    (``abandon_differential``: the history, the nodes and their facets) have deleted them; the
+    inscription names the structure by its label of the moment, in its revision, which is current
+    and bears no name yet (WF-SEC-0030).
+    """
+    inscribe_structure(session, project_id, structure, act)
+    session.execute(
+        delete(CostStructure)
+        .where(CostStructure.project_id == project_id, CostStructure.id == structure.structure_id)
+        .execution_options(synchronize_session=False)
+    )
+    session.flush()
+
+
 @dataclass(frozen=True, slots=True)
 class StructureFacts:
     """What the planning reads of a structure: its revision, its kind, its start, its instant.
@@ -477,6 +515,7 @@ class StructureFacts:
     lock_version: int
     label: str
     kind: str = MAIN
+    is_merged: bool = False
 
     @property
     def is_differential(self) -> bool:
@@ -509,7 +548,15 @@ def structure_facts(
         )
         start = (origin or row.created_at).date()
     return StructureFacts(
-        row.id, row.revision_id, row.kind == MAIN, start, at, row.lock_version, row.label, row.kind
+        row.id,
+        row.revision_id,
+        row.kind == MAIN,
+        start,
+        at,
+        row.lock_version,
+        row.label,
+        row.kind,
+        row.is_merged,
     )
 
 

@@ -12,9 +12,9 @@ nodes a write gives back, the number of a predecessor, and the anchor of a paste
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from amendments_support import on, opened_amendment
+from amendments_support import contributor_with, on, opened_amendment
 from estimate_support import Costing, Lines, costing
-from history_support import counter, delete, link, redone, undone
+from history_support import counter, delete, link, plans, redone, undone
 from nodes_support import signed_in
 from paste_support import apply, planned, preview
 from projects_support import Scene
@@ -132,6 +132,27 @@ def test_the_rows_of_the_main_structure_are_resolved_as_they_were(
     assert row(project.tree, 5).status_code == 404
 
 
+@pytest.mark.requirement("WF-REV-0080-A")
+def test_the_rows_a_computed_value_depends_on_are_numbered_as_the_list_numbers_them(
+    api: ContractClient, project: Costed
+) -> None:
+    # #4015: the dependencies of a value computed behind a removed node name their rows in the
+    # numbering of the tree returned, the removed node counted — the task added is the row 5, its
+    # line the row 6 —, not in the numbering of the tree the differential holds (4 and 5).
+    tree = removing(api, project)
+    tests = node_of(tree, "Essais")
+    path = f"{tree.path}/nodes/{tests['node_id']}/dependencies?field=task.base_amount"
+    answer = api.get(path, headers=project.stage.manager.headers)
+    assert answer.status_code == 200, answer.text
+    named = answer.json()["rows"]
+    assert [each["label"] for each in named] == ["Banc d'essai"]
+    listed = {each["node_id"]: each["row_number"] for each in tree.items()}
+    assert {each["node_id"]: each["row_number"] for each in named} == {
+        each["node_id"]: listed[each["node_id"]] for each in named
+    }
+    assert [each["row_number"] for each in named] == [6]
+
+
 # --- The numbers of a write ----------------------------------------------------------------------
 
 
@@ -217,6 +238,71 @@ def test_a_paste_aimed_at_a_removed_node_is_refused_whole_at_the_row_0_and_write
     assert pasted.json()["nodes"] == []
     assert pasted.json()["rejected"] == [refusal]
     assert (counter(tree), tree.read().json()) == before
+
+
+@pytest.mark.requirement("WF-ADM-0100-A")
+@pytest.mark.parametrize("column", ["label", "duration"])
+def test_a_paste_aimed_at_a_removed_task_is_refused_to_whoever_may_not_write_the_planning(
+    api: ContractClient, project: Costed, realm: TestRealm, column: str
+) -> None:
+    # #4016: the short-circuit of a removed anchor does not pass before the judgement of the
+    # request — a reader who writes the estimate alone obtains 403 ``planning.write``, as for any
+    # other task, not a plan refused whole — and nothing is kept.
+    tree = removing(api, project)
+    gone = delete(tree, node_of(tree, MAKING), project.stage.manager)
+    assert gone.status_code == 200, gone.text
+    removed = node_of(tree, MAKING)
+    assert removed["difference"] == "removed"
+    estimating = contributor_with(project, realm, "estimate.write")
+    before = (counter(tree), plans(project.stage))
+    answer = preview(tree, removed, column, [["Un"]], estimating)
+    assert (answer.status_code, answer.json()["code"]) == (403, "PERMISSION_MISSING")
+    assert answer.json()["params"] == {"missing_permission": "planning.write"}
+    assert (counter(tree), plans(project.stage)) == before
+    # A writer of the planning obtains the plan refused whole, as before.
+    planning = contributor_with(project, realm, "planning.write")
+    plan = planned(tree, removed, column, [["Un"]], planning)
+    assert (plan["accepted"], plan["created"]) == (0, 0)
+    assert [each["code"] for each in plan["rejected"]] == ["PASTE_TARGET_REMOVED"]
+
+
+@pytest.mark.requirement("WF-ADM-0100-A")
+def test_a_paste_aimed_at_a_removed_line_asks_for_no_permission_of_the_planning_as_on_a_line(
+    api: ContractClient, project: Costed, realm: TestRealm
+) -> None:
+    # The permission of the columns of a task is asked of a task alone: a line is pasted on by
+    # whoever writes the estimate, kept or removed — the removed path is that of the ordinary one.
+    tree = removing(api, project)
+    estimating = contributor_with(project, realm, "estimate.write")
+    kept = preview(tree, node_of(tree, "Plans"), "label", [["Plans 2"]], estimating)
+    assert kept.status_code == 200, kept.text
+    removed = preview(tree, node_of(tree, "Fabrication"), "label", [["Un"]], estimating)
+    assert removed.status_code == 200, removed.text
+    assert [each["code"] for each in removed.json()["rejected"]] == ["PASTE_TARGET_REMOVED"]
+
+
+@pytest.mark.requirement("WF-IHM-0050-A")
+def test_a_paste_aimed_at_a_removed_node_judges_its_column_its_width_and_its_existence_first(
+    api: ContractClient, project: Costed
+) -> None:
+    # #4016: the refusals of the request come before the refusal whole of a removed anchor — the
+    # column no column of the node (422 ``FIELD_NOT_ACCEPTED`` on ``/target_column``), the block
+    # wider than the columns from it (422 ``PASTE_TOO_WIDE``), the node unknown (404) — and keep no
+    # plan; only a request that is sound is refused whole, its plan kept.
+    tree = removing(api, project)
+    removed = node_of(tree, "Fabrication")
+    before = (counter(tree), plans(project.stage))
+    wrong = preview(tree, removed, "duration", [["1"]])
+    assert wrong.status_code == 422, wrong.text
+    assert [each["pointer"] for each in wrong.json()["fields"]] == ["/target_column"]
+    wide = preview(tree, removed, "quantity", [["1"] * 40])
+    assert (wide.status_code, wide.json()["code"]) == (422, "PASTE_TOO_WIDE")
+    assert wide.json()["params"]["max_columns"] >= 1
+    assert (counter(tree), plans(project.stage)) == before
+    sound = preview(tree, removed, "label", [["Un"]])
+    assert sound.status_code == 200, sound.text
+    assert [each["code"] for each in sound.json()["rejected"]] == ["PASTE_TARGET_REMOVED"]
+    assert len(plans(project.stage)) == len(before[1]) + 1
 
 
 @pytest.mark.requirement("WF-IHM-0050-A")

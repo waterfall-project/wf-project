@@ -62,7 +62,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
-from sqlalchemy import inspect
+from sqlalchemy import inspect, select
 
 from waterfall.core.history.interface import PlanToKeep, drop_plan, keep_plan, read_plan
 from waterfall.core.planning.carrying import (
@@ -97,11 +97,19 @@ from waterfall.core.planning.interface.nodes import (
     write_cell,
     write_creation,
 )
+from waterfall.core.planning.paste_columns import (
+    ALL_COLUMNS,
+    COLUMNS_OF,
+    EXECUTION_COLUMNS,
+    TASK_COLUMNS,
+    given_cells,
+    own_columns,
+)
 from waterfall.core.planning.rescheduling import Named
 from waterfall.core.planning.scheduling import Duration
 from waterfall.core.planning.shaping import stamp
 from waterfall.core.planning.tables import DURATION_UNITS, Node
-from waterfall.core.planning.tree import LINE, TASK, Tree, read_tree
+from waterfall.core.planning.tree import TASK, Tree, read_tree
 from waterfall.core.planning.views import COMPLETED, state_of
 from waterfall.core.planning.writing import NodesWritten, facts_of, judge_revision, writing
 from waterfall.core.projects.interface import work_breakdown_items
@@ -142,49 +150,6 @@ DATE_INVALID = "DATE_INVALID"
 VALUE_TOO_LONG = "VALUE_TOO_LONG"
 UNKNOWN_WORK_BREAKDOWN_ITEM = "UNKNOWN_WORK_BREAKDOWN_ITEM"
 LABEL_LENGTH = 300
-# The columns of the facet task, in the order of ``NodeColumn``: the others are the estimate line's.
-TASK_COLUMNS: tuple[NodeColumn, ...] = (
-    "label",
-    "description",
-    "scheduling_mode",
-    "duration",
-    "start",
-    "finish",
-    "physical_progress",
-    "total_float",
-    "is_critical",
-    "started_on",
-    "completed_on",
-    "predecessors",
-    "work_breakdown",
-)
-# The columns of a task that its execution writes, which ``setTaskProgress`` writes under
-# ``remaining.write`` (EP-09): the others of ``TASK_COLUMNS`` are the planning's.
-EXECUTION_COLUMNS: frozenset[str] = frozenset(("physical_progress", "started_on", "completed_on"))
-# The columns of the estimate line, after its label, in the order of ``NodeColumn`` (EP-07).
-LINE_COLUMNS: tuple[NodeColumn, ...] = (
-    "cost_category",
-    "resource_role",
-    "quantity",
-    "hours",
-    "unit_disbursement",
-    "subproject",
-    "payment_delay_days",
-    "consumption_year",
-    "base_amount",
-    "budgeted_amount",
-    "reestimated_amount",
-    "previous_quantity",
-    "previous_hours",
-    "previous_unit_disbursement",
-    "previous_reestimated_amount",
-)
-# The columns a block aimed at a node of a kind fills, by kind; the order of the refusals.
-COLUMNS_OF: dict[str, tuple[NodeColumn, ...]] = {
-    TASK: TASK_COLUMNS,
-    LINE: ("label", *LINE_COLUMNS),
-}
-ALL_COLUMNS: tuple[NodeColumn, ...] = (*TASK_COLUMNS, *LINE_COLUMNS)
 # The columns the server computes for a task; those that no write of the facet carries.
 COMPUTED = frozenset({"physical_progress", "total_float", "is_critical"})
 NOT_CARRIED = frozenset({"started_on", "completed_on", "predecessors"})
@@ -677,8 +642,8 @@ def _task_columns(tree: Tree, target: UUID, row: _Row) -> set[str]:
     kept: set[str] = set()
     if row.creates and tree.nodes[target].kind == TASK:
         kept = columns - {"label"}
-    elif not row.creates and row.node_id in tree.tasks:
-        kept = columns & set(TASK_COLUMNS)
+    elif not row.creates:
+        kept = own_columns(columns, is_task=row.node_id in tree.tasks)
     return kept
 
 
@@ -699,6 +664,11 @@ def _refuse_task_columns(
     written: set[str] = set()
     for each in rows:
         written |= _task_columns(tree, target, each)
+    _refuse_written(written, permissions)
+
+
+def _refuse_written(written: set[str], permissions: Collection[str]) -> None:
+    """Refuse the columns of a task a block writes to whoever holds not the permission of each."""
     asked = (
         (PLANNING_WRITE, bool(written - EXECUTION_COLUMNS)),
         (REMAINING_WRITE, bool(written & EXECUTION_COLUMNS)),
@@ -737,17 +707,11 @@ def preview_paste(
     """
     facts = facts_of(session, place, lock=False)
     if block.target_node_id in block.removed:
-        return _refused_whole(session, place, block, writer, facts)
+        return _refused_whole(session, place, block, facts, (writer, permissions))
     tree = read_tree(session, place.project_id, place.structure_id)
     if block.target_node_id not in tree.nodes:
         raise NotFoundError(NOT_FOUND)
-    borne = COLUMNS_OF.get(tree.nodes[block.target_node_id].kind, ())
-    if block.target_column not in borne:
-        fault = FieldError("/target_column", FIELD_NOT_ACCEPTED)
-        raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
-    columns: tuple[NodeColumn, ...] = borne[borne.index(block.target_column) :]
-    if max(map(len, block.rows)) > len(columns):
-        raise UnprocessableError(PASTE_TOO_WIDE, {"max_columns": len(columns)})
+    columns = _columns_from(tree.nodes[block.target_node_id].kind, block)
     ground = traced(Ground(session, place.project_id, tree, facts.is_main))
     held = (place, writer.act, facts.planning_start_on)
     board = _Board(
@@ -761,9 +725,7 @@ def preview_paste(
     start = tree.order.index(block.target_node_id)
     given_rows: list[_Row] = []
     for index, cells in enumerate(block.rows):
-        given: tuple[tuple[NodeColumn, str], ...] = tuple(
-            (columns[at], text) for at, text in enumerate(cells) if text.strip()
-        )
+        given = given_cells(columns, cells)
         if given:
             given_rows.append(_row_at(tree.order, start + index, index, given))
     _refuse_task_columns(tree, block.target_node_id, given_rows, permissions)
@@ -790,14 +752,52 @@ def preview_paste(
     return PastePlanned(kept.plan_id, len(accepted), created, tuple(rejected))
 
 
+def _columns_from(kind: str, block: PasteBlock) -> tuple[NodeColumn, ...]:
+    """Give the columns a block covers from the one it targets, those of its node's kind.
+
+    Refused if the column is none of the node's (422 ``FIELD_NOT_ACCEPTED`` on ``/target_column``)
+    or the block is wider than the columns from it (422 ``PASTE_TOO_WIDE``).
+    """
+    borne = COLUMNS_OF.get(kind, ())
+    if block.target_column not in borne:
+        fault = FieldError("/target_column", FIELD_NOT_ACCEPTED)
+        raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
+    columns: tuple[NodeColumn, ...] = borne[borne.index(block.target_column) :]
+    if max(map(len, block.rows)) > len(columns):
+        raise UnprocessableError(PASTE_TOO_WIDE, {"max_columns": len(columns)})
+    return columns
+
+
 def _refused_whole(
     session: Session,
     place: Place,
     block: PasteBlock,
-    writer: Writer,
     facts: StructureFacts,
+    asking: tuple[Writer, Collection[str]],
 ) -> PastePlanned:
-    """Keep the plan of a block aimed at a removed node, refused whole, and give it (#1361)."""
+    """Keep the plan of a block aimed at a removed node, refused whole, and give it (#1361).
+
+    ``facts`` are those ``preview_paste`` read; ``asking`` is who writes and their permissions.
+
+    The request is judged first, as for any node (#4016): the node, as the main structure holds
+    it (404), the column and the width (422), the permission of a task's columns (403, by the
+    columns ``own_columns`` gives, as a block on any task); no plan. A line asks for no
+    permission here, nor at an ordinary paste: whoever may write a grid pastes on it (#2601).
+    """
+    writer, permissions = asking
+    kind = session.scalar(
+        select(Node.kind).where(
+            Node.project_id == place.project_id, Node.id == block.target_node_id
+        )
+    )
+    if kind is None:
+        raise NotFoundError(NOT_FOUND)
+    columns = _columns_from(kind, block)
+    written: set[str] = set()
+    for cells in block.rows:
+        given = {column for column, _ in given_cells(columns, cells)}
+        written |= own_columns(given, is_task=kind == TASK)
+    _refuse_written(written, permissions)
     refusal = PasteRefusal(0, block.target_column, PASTE_TARGET_REMOVED, {})
     plan = PlanToKeep(
         project_id=place.project_id,

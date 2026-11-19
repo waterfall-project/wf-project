@@ -11,12 +11,20 @@ one is the copy of the main structure the service makes.
 
 import copy
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
+from access_rows import role
 from estimate_support import Lines
+from nodes_support import signed_in
 from projects_support import PROJECTS
+from sqlalchemy import delete, insert
+
+from waterfall.core.access_roles.tables import UserAccessRole
 
 if TYPE_CHECKING:
     from nodes_support import Tree
+    from projects_support import Person
+    from realm import TestRealm
     from risks_support import Costed
     from support import ContractClient
 
@@ -95,3 +103,24 @@ def started_marking(api: ContractClient, project: Costed) -> None:
         json={"version_name": "v1.0", "lock_version": held["lock_version"]},
     )
     assert asked.status_code == 202, asked.text
+
+
+def contributor_with(project: Costed, realm: TestRealm, *permissions: str) -> Person:
+    """Give a contributor of the project, with a session of sign-in, who holds ``permissions``.
+
+    The three readings of the grids come with them: such a contributor reads the structure and
+    writes only what it is granted.
+    """
+    stage = project.stage
+    who = signed_in(stage, realm)
+    held = role(
+        stage.database,
+        f"Rôle {uuid4().hex}",
+        permissions=("planning.read", "estimate.read", "remaining.read", *permissions),
+    )
+    with stage.database.transaction() as session:
+        session.execute(delete(UserAccessRole).where(UserAccessRole.user_account_id == who.user_id))
+        session.execute(
+            insert(UserAccessRole).values(user_account_id=who.user_id, access_role_id=held)
+        )
+    return who

@@ -501,7 +501,7 @@ def test_the_conditions_a_card_names_are_those_the_entry_of_the_remaining_can_la
                     reference_correctable=True,
                 )
                 for command, lacking in structure_commands_of(
-                    {"remaining.write"}, kind, state, revision, main=True
+                    {"remaining.write"}, kind, state, revision, nature="main"
                 ):
                     if command == "edit_remaining":
                         found.update(lacking)
