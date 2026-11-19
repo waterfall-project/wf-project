@@ -117,6 +117,7 @@ def test_the_report_adds_the_own_estimate_changes_its_bearer_and_removes_the_pro
     assert (report["provision_amount"], report["refusals"]) == (PROVISION, [])
 
 
+@pytest.mark.requirement("WF-RIS-0060-A")
 def test_the_report_returns_the_counters_read_and_writes_nothing(ready: Occurring) -> None:
     # The counter of the main structure and of the risk as read; the current revision exists. The
     # report read twice gives the same, the structures and the risk untouched.
@@ -130,6 +131,7 @@ def test_the_report_returns_the_counters_read_and_writes_nothing(ready: Occurrin
     assert after == before
 
 
+@pytest.mark.requirement("WF-RIS-0060-A")
 def test_without_a_current_revision_the_report_is_judged_on_the_last_marked_one(
     ready: Occurring,
 ) -> None:
@@ -144,6 +146,7 @@ def test_without_a_current_revision_the_report_is_judged_on_the_last_marked_one(
     assert report["provision_amount"] == PROVISION
 
 
+@pytest.mark.requirement("WF-RIS-0060-A")
 @pytest.mark.parametrize("state", ["occurred", "dismissed"])
 def test_a_risk_that_is_not_identified_is_refused(ready: Occurring, state: str) -> None:
     # Only an identified risk occurs (WF-RIS-0020): 409, ``risk_identified`` missing.
@@ -164,6 +167,7 @@ def test_a_risk_that_is_not_identified_is_refused(ready: Occurring, state: str) 
     assert refusal(answer) == (409, CONDITION, {"missing_condition": "risk_identified"})
 
 
+@pytest.mark.requirement("WF-RIS-0060-A")
 def test_a_project_without_a_reference_is_refused_before_the_risk(
     api: ContractClient, project: Costed
 ) -> None:
@@ -180,12 +184,14 @@ def test_a_project_without_a_reference_is_refused_before_the_risk(
     )
 
 
+@pytest.mark.requirement("WF-RIS-0060-A")
 def test_an_unknown_risk_is_not_found(ready: Occurring) -> None:
     path = f"{ready.risks.base}/risks/{ready.project.tasks[STUDY]}/occurrence"
     answer = ready.api.get(path, headers=ready.risks.headers)
     assert answer.status_code == 404
 
 
+@pytest.mark.requirement("WF-RIS-0060-A")
 def test_a_task_its_roles_leave_without_hours_refuses_the_occurrence(ready: Occurring) -> None:
     # The diagnostic bears two labour lines, a welder and a fitter both on weekdays; the fitter's
     # calendar then moved to the weekend around the service, as a change of the reference after the

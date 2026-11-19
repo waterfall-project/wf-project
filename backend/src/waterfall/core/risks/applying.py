@@ -136,7 +136,8 @@ def _locked(
     """Lock the two structures and the risk of a revision, in order; read them under their locks.
 
     The own estimate, the main structure, then the risk. Give the risk, its evaluation in the
-    revision, the main structure and its counter.
+    revision, the main structure and its counter. The risk is refused (409) once no longer
+    identified, read under its lock: a dismissal between the request and the task ends there.
     """
     pending = evaluation_of(session, project_id, risk_id, revision_id)
     if pending is None:
@@ -150,6 +151,8 @@ def _locked(
     evaluation = evaluation_of(session, project_id, risk_id, revision_id)
     if evaluation is None:
         raise NotFoundError(NOT_FOUND)
+    if evaluation.state != IDENTIFIED:
+        raise refuse(RISK_IDENTIFIED)
     return risk, evaluation, main, main_counter
 
 
@@ -179,16 +182,12 @@ def _opened(
     """Open the current revision the occurrence creates, the counters judged on the marked one.
 
     ``revision_id`` the revision marked the risk is read in, ``running`` the act and the task that
-    open it. The risk locked first, as ``enter`` does for a revision it creates: the counter judged
-    is the one the opening starts from, which advances it. The structure marked is frozen.
+    open it. The locks in the order of the request, the counter judged being the one the opening
+    starts from, which advances it. The structure marked is frozen.
     """
     project_id = request.project_id
     act, task_id = running
-    risk = found_risk(session, project_id, request.risk_id, lock=True)
-    main = aimed_structure(session, project_id, revision_id, None)
-    if main is None:
-        raise NotFoundError(NOT_FOUND)
-    main_counter = structure_facts(session, project_id, main, lock=False).lock_version
+    risk, _, _, main_counter = _locked(session, project_id, request.risk_id, revision_id)
     _judge_counters(request, main_counter, risk)
     return open_revision_by_task(session, project_id, act, task_id)
 
@@ -210,8 +209,6 @@ def run_occurrence_task(
     found = read_found(session, project_id, risk_id, None)
     current = facts.current_revision_id
     _judge_creation(request, current, found.risk)
-    if found.evaluation.state != IDENTIFIED:
-        raise refuse(RISK_IDENTIFIED)
     if current is None:
         revision_id = _opened(session, request, found.evaluation.revision_id, (act, task_id))
     else:

@@ -1675,7 +1675,8 @@ autre — planifié, réestimé, terminé —, sans budget, et que ce qu'il coû
   issue de ce risque dans la révision suivante, et après son déplacement sous une autre tâche ; une
   ligne ajoutée ensuite sous une tâche issue du risque ne l'est pas. » : `origin_risk_id` est posé
   sur chaque tâche et chaque ligne fusionnée, conservé par la copie d'une révision, les
-  déplacements, les imports rapprochés par la lignée et la fusion d'un avenant ; une création le
+  déplacements, les imports rapprochés par la lignée et la fusion d'un avenant (ce dernier point est tenu
+  par US-2560) ; une création le
   laisse nul, même sous une tâche issue du risque (#1762) ;
 - `WF-RIS-0060-A` — « Les grilles de planning et de devis se filtrent sur les tâches et les lignes
   issues d'un risque, ou d'un risque donné (WF-IHM-0130). » : `is_from_risk` et `origin_risk_ids`

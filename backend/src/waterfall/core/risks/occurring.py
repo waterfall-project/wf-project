@@ -37,6 +37,7 @@ from waterfall.core.projects.interface import (
 )
 from waterfall.core.revisions.interface import aimed_structure, structure_facts
 from waterfall.core.risks.commands import (
+    OCCURRED,
     RiskStanding,
     is_terminal,
     risk_conditions,
@@ -166,7 +167,7 @@ def occurred_among(
             .where(
                 RiskEvaluation.project_id == project_id,
                 RiskEvaluation.risk_id.in_(list(risk_ids)),
-                RiskEvaluation.state == "occurred",
+                RiskEvaluation.state == OCCURRED,
             )
             .distinct()
         )

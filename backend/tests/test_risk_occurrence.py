@@ -32,7 +32,7 @@ from occurrence_support import (
 from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
 from risks_support import STUDY, Costed, costed, material
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from support import ContractClient, nowhere
 
 from waterfall.api.app import create_app
@@ -353,6 +353,7 @@ def test_a_failing_occurrence_leaves_nothing(ready: Occurring, worker: Worker) -
         assert list(written) == []
 
 
+@pytest.mark.requirement("WF-RIS-0060-A")
 def test_the_occurrence_is_inscribed_in_the_journal(ready: Occurring, worker: Worker) -> None:
     assert occurred(ready, worker)["status"] == "succeeded"
     with ready.project.stage.database.transaction() as session:
@@ -364,6 +365,7 @@ def test_the_occurrence_is_inscribed_in_the_journal(ready: Occurring, worker: Wo
     ]
 
 
+@pytest.mark.requirement("WF-RIS-0060-A")
 def test_an_identified_risk_only_occurs_and_a_second_confirmation_is_refused(
     ready: Occurring, worker: Worker
 ) -> None:
@@ -380,6 +382,33 @@ def test_an_identified_risk_only_occurs_and_a_second_confirmation_is_refused(
         },
     )
     assert refusal(answer) == (409, CONDITION, {"missing_condition": "risk_identified"})
+
+
+@pytest.mark.requirement("WF-RIS-0060-A")
+def test_a_risk_dismissed_between_the_request_and_the_task_fails_it_by_409_and_writes_nothing(
+    ready: Occurring, worker: Worker
+) -> None:
+    # The risk read identified by the request, dismissed before the worker runs: judged again under
+    # the lock of the risk, the task fails with the condition, not by a stale counter (412).
+    answer = confirm(ready)
+    assert answer.status_code == 202, answer.text
+    # The API refuses a review while the task is pending: the dismissal is written as it would be.
+    with ready.project.stage.owner.begin() as connection:
+        connection.execute(
+            update(RiskEvaluation)
+            .where(
+                RiskEvaluation.risk_id == UUID(ready.risk["risk_id"]),
+                RiskEvaluation.revision_id == UUID(ready.revision["revision_id"]),
+            )
+            .values(state="dismissed", provision_node_id=None, occurrence_cost=None)
+        )
+    before = (ready.main(), ready.own(), counted(ready.project.stage))
+    assert worker.step()
+    task = ready.api.get(f"{TASKS}/{answer.json()['task_id']}", headers=ready.risks.headers).json()
+    assert task["status"] == "failed"
+    assert task["problem"]["code"] == CONDITION
+    assert task["problem"]["params"] == {"missing_condition": "risk_identified"}
+    assert (ready.main(), ready.own(), counted(ready.project.stage)) == before
 
 
 def origins(nodes: list[dict[str, Any]]) -> dict[str, str | None]:
