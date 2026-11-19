@@ -481,6 +481,25 @@ def revision_structures(session: Session, project_id: UUID, revision_id: UUID) -
     )
 
 
+def structure_counters(
+    session: Session, project_id: UUID, revision_id: UUID
+) -> tuple[tuple[UUID, int], ...]:
+    """Give the counter of every structure of a revision, by identifier, bases and estimates too.
+
+    What the key of the cache of the indicators reads: every write of a structure advances its
+    counter under its lock, a differential or the own estimate of a risk as the main structure
+    (``structure_counted``), and one that opens or ends moves the list (US-2630/L1, #3629).
+    """
+    return tuple(
+        (row[0], row[1])
+        for row in session.execute(
+            select(CostStructure.id, CostStructure.lock_version)
+            .where(CostStructure.project_id == project_id, CostStructure.revision_id == revision_id)
+            .order_by(CostStructure.id)
+        )
+    )
+
+
 def _up_to_date(row: CostStructure, main_counter: int | None) -> bool | None:
     """Tell whether a differential not merged is up to date; ``None`` for any other structure.
 

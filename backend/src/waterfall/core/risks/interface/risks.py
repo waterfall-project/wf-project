@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.risks.declaring import change_identity, declare
 from waterfall.core.risks.reading import read_found, risk_view
+from waterfall.core.risks.stamping import stamp_of_risks
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
 
     from waterfall.core.planning.interface import Writer
     from waterfall.core.projects.interface import Viewer
+    from waterfall.core.risks.stamping import RisksStamp
     from waterfall.core.risks.views import RiskEntry, RiskIdentityChange, RiskView
 
 
@@ -74,3 +76,13 @@ def update_risk(
     """
     change_identity(session, project_id, change, writer.act)
     return read_risk(session, project_id, change.risk_id, None, viewer)
+
+
+def risks_stamp(session: Session, project_id: UUID) -> RisksStamp:
+    """Give the number of the risks of a project and the sum of their counters.
+
+    What the key of the cache of the indicators reads (EP-08, "Les indicateurs et le cache"; #3629):
+    a declaration or a deletion moves the first, every write of a risk — a review, an occurrence, a
+    change of its identity or of its provision — the second. Filled by US-2630/L1.
+    """
+    return stamp_of_risks(session, project_id)
