@@ -178,7 +178,10 @@ La sauvegarde de Waterfall (WF-ADM-0150) est une tâche du worker, que demande u
 (`startBackup`) et qu'il télécharge ensuite (`downloadBackup`) : le worker vide les deux bases par
 le rôle de sauvegarde, membre de `pg_read_all_data`, qui ne peut ni écrire ni couper un déclencheur
 (#895), et range l'archive dans le compartiment `backups` de Garage, dans le volume
-`storage-data`. Une copie hors de la machine se fait en téléchargeant l'archive. L'écran des
+`storage-data`. De chaque base, il ne vide que le schéma `public`, avec les extensions et les
+grands objets : le schéma `platform` de Waterfall, où la restauration tient la maintenance, reste à
+l'installation (US-2830). Keycloak doit donc garder ses tables dans `public`, où il les met par
+défaut : ne réglez pas `KC_DB_SCHEMA`, ou ses tables manqueraient à la sauvegarde. Une copie hors de la machine se fait en téléchargeant l'archive. L'écran des
 sauvegardes de l'administration la demande et la télécharge une fois branché sur le service
 (US-0440/L3).
 

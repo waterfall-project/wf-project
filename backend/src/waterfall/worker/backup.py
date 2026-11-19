@@ -5,12 +5,14 @@
 Each database is dumped by ``pg_dump``, in its custom format and in one consistent snapshot of its
 own, as the role of the backup, a member of ``pg_read_all_data`` that can neither write nor turn a
 trigger off (#701, #895): Waterfall's, the journal of audit included (WF-SEC-0030, #705), and the
-identity provider's. Only the schema ``public`` of each is dumped, with the extensions it uses: the
-schema ``platform``, where a restoration holds the maintenance, is the installation's and not the
-backup's, and a restoration replaces ``public`` alone (EP-13, US-2830). The archive — the two
-dumps, and a manifest that gives the date, the version of the application, the revision of the
-schema and the digest of each dump — is written to the bucket of the backups under a key the task
-names, so that a task taken up again writes over what an attempt left. It is then read back from
+identity provider's. Only the schema ``public`` of each is dumped, with the extensions it uses and
+the large objects of the database: the schema ``platform``, where a restoration holds the
+maintenance, is the installation's and not the backup's, and a restoration replaces ``public``
+alone (EP-13, US-2830); Keycloak keeps its tables in ``public``, as long as ``KC_DB_SCHEMA`` is
+not set. The archive — the two dumps, and a manifest that gives the date, the version of the
+application, the revision of the schema and the digest of each dump — is written to the bucket of
+the backups under a key the task names, so that a task taken up again writes over what an attempt
+left. It is then read back from
 the bucket and verified: the manifest read, each dump against its digest, each dump listed by
 ``pg_restore``. The backup is recorded with the outcome of that verification, and inscribed in the
 journal at its date.
@@ -135,10 +137,12 @@ def dump(name: str, address: str, folder: Path) -> Dumped:
                 "/usr/bin/pg_dump",
                 "--format=custom",
                 "--no-password",
-                # The schema the restoration replaces, and the extensions it uses, which a dump of
-                # one schema leaves out but those named.
+                # The schema the restoration replaces, and the extensions it uses and the large
+                # objects, which a dump of one schema leaves out but those named: a column of the
+                # database of Keycloak holds the identifiers of some (``cluster_event``).
                 "--schema=public",
                 "--extension=*",
+                "--large-objects",
             ],
             stdout=written,
             stderr=subprocess.PIPE,

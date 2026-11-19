@@ -6,27 +6,37 @@ Its two tables hold one row each at most, which the owner alone writes and the r
 reads (migration 0035, ``waterfall.platform.maintenance``). A backup dumps ``public`` alone, and a
 restoration replaces it alone: the maintenance it holds is there once ``public`` is replaced, and a
 backup taken before the schema was made is restored with the migration applied again, without
-effect on it. The same migration admits the tasks the platform schedules, and lets the report of a
-reading of the accounts go with its task (#921).
+effect on it, as is one of whole databases, which the backups dumped before EP-13. Nothing of the
+database of the identity provider is lost on the way. The same migration admits the tasks the
+platform schedules, and lets the report of a reading of the accounts go with its task (#921).
 """
 
 import dataclasses
 import subprocess
-from typing import TYPE_CHECKING, Any
-from uuid import uuid4
+from typing import TYPE_CHECKING, Any, LiteralString
+from uuid import UUID, uuid4
 
 import psycopg
 import pytest
+from access_rows import role
 from alembic.script import ScriptDirectory
 from fastapi.testclient import TestClient
 from installations import Installation, Take, restore, written_task
+from psycopg import sql
 from sqlalchemy import Engine, delete, func, insert, select, text
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
 from waterfall.api.app import create_app
+from waterfall.core.access_roles.tables import AccessRole
 from waterfall.core.users.tables import IdentitySyncReport
 from waterfall.migrations.runner import alembic_config, downgrade, upgrade
-from waterfall.platform.database import Base, Database, create_database_engine, utc_now
+from waterfall.platform.database import (
+    Base,
+    Database,
+    create_database_engine,
+    engine_url,
+    utc_now,
+)
 from waterfall.platform.maintenance import (
     HeldMaintenance,
     Maintenance,
@@ -34,7 +44,15 @@ from waterfall.platform.maintenance import (
     Restoring,
 )
 from waterfall.platform.tasks import BackgroundTask
-from waterfall.worker.backup import DATABASES
+from waterfall.worker.backup import (
+    DATABASES,
+    Dumped,
+    archive,
+    connect,
+    connection,
+    digest,
+    manifest,
+)
 from waterfall.worker.restore import extracted
 
 if TYPE_CHECKING:
@@ -214,6 +232,159 @@ def test_a_backup_taken_before_the_schema_platform_is_restored_and_the_migration
     assert revision == HEAD
     assert Maintenance.of(installation.database, queue).current() == HELD
     assert written_task(installation.database, "purge", "queued")
+
+
+def whole(name: str, address: str, folder: Path) -> Dumped:
+    """Dump a whole database as the backups did before EP-13: every schema, nothing named."""
+    path = folder / f"{name}.dump"
+    with path.open("wb") as written:
+        subprocess.run(
+            ["/usr/bin/pg_dump", "--format=custom", "--no-password"],
+            stdout=written,
+            env=connection(address, folder / f"{name}.service"),
+            check=True,
+        )
+    return Dumped(name, path, path.stat().st_size, digest(path))
+
+
+def taken_whole(installation: Installation, folder: Path) -> UUID:
+    """Store a backup of whole databases, as one taken before EP-13; give the task it names."""
+    folder.mkdir()
+    dumps = [whole(name, installation.backup[name], folder) for name in DATABASES]
+    path = folder / "backup.tar"
+    archive(path, manifest(utc_now(), "0034", dumps), dumps)
+    backup_task = uuid4()
+    installation.bucket.upload(f"backup-{backup_task}.tar", path)
+    return backup_task
+
+
+def provided(installation: Installation, *statements: LiteralString) -> None:
+    """Run statements on the database of the identity provider, as its owner, and commit them."""
+    with connect(installation.owner["identity_provider"]) as session:
+        for statement in statements:
+            session.execute(statement)
+
+
+def labels(installation: Installation) -> list[str]:
+    """Give the labels of the roles of the database of Waterfall, sorted."""
+    with installation.database.transaction() as session:
+        return sorted(session.scalars(select(AccessRole.label)).all())
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
+def test_a_backup_of_whole_databases_taken_before_ep13_is_restored_with_the_maintenance_in_place(
+    installation: Installation, queue: TaskQueue, held_on: Maintenance, tmp_path: Path
+) -> None:
+    # The backups taken before EP-13 dumped each database whole, at 0034: no schema ``platform``,
+    # and ``public`` left to the database. Restored, each database holds what it held then and
+    # nothing written since; the maintenance held in ``platform`` stays, and the service reads it.
+    owner = create_database_engine(installation.owner["waterfall"])
+    downgrade(owner, "0034")
+    before = labels(installation)
+    role(installation.database, "Sauvegardé")
+    provided(installation, "INSERT INTO realm VALUES ('backed-up')")
+    backup_task = taken_whole(installation, tmp_path / "whole")
+    upgrade(owner)
+    role(installation.database, "Écrit après")
+    provided(
+        installation,
+        "DELETE FROM realm WHERE id = 'waterfall'",
+        "INSERT INTO realm VALUES ('after')",
+    )
+    held_on.hold(HELD)
+    restore(installation, backup_task, tmp_path)
+    with owner.connect() as connected:
+        revision = connected.scalar(text("SELECT version_num FROM alembic_version"))
+    owner.dispose()
+    with connect(installation.owner["identity_provider"]) as session:
+        realms = sorted(str(row[0]) for row in session.execute("SELECT id FROM realm"))
+    assert revision == HEAD
+    assert labels(installation) == sorted([*before, "Sauvegardé"])
+    assert realms == ["backed-up", "waterfall"]
+    assert Maintenance.of(installation.database, queue).current() == HELD
+    installation.bucket.remove(f"backup-{backup_task}.tar")
+
+
+# What the database of Keycloak holds beside its tables: a column of large objects, as its
+# ``cluster_event``, a sequence, a column of identity and an extension, made before the backup.
+KEYCLOAK = (
+    "CREATE EXTENSION citext",
+    "CREATE TABLE client (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, name citext UNIQUE)",
+    "CREATE SEQUENCE event_order START 40",
+    "CREATE TABLE cluster_event (id text PRIMARY KEY, event_data oid NOT NULL)",
+    "INSERT INTO client (name) VALUES ('waterfall-front'), ('waterfall-api')",
+    "SELECT nextval('event_order')",
+    "INSERT INTO cluster_event VALUES ('sessions', lo_from_bytea(0, '\\x7b2273223a317d'))",
+)
+# What Keycloak changes after the backup, which the restoration undoes.
+CHANGED = (
+    "INSERT INTO client (name) VALUES ('written-after')",
+    "SELECT nextval('event_order')",
+    "SELECT lo_unlink(event_data) FROM cluster_event",
+    "UPDATE cluster_event SET event_data = lo_from_bytea(0, '\\x7b7d')",
+    "CREATE TABLE made_after (id text)",
+    "DROP EXTENSION citext CASCADE",
+)
+
+
+def readable_by_the_backup(installation: Installation) -> None:
+    """Let the role of the backup read the large objects, which ``pg_read_all_data`` does not.
+
+    The platform does not give that right yet (#4170): a backup of a database that holds one fails.
+    """
+    backup = engine_url(installation.backup["identity_provider"]).username or ""
+    with connect(installation.owner["identity_provider"]) as session:
+        held = session.execute("SELECT oid::bigint FROM pg_largeobject_metadata").fetchall()
+        for (oid,) in held:
+            granted = sql.SQL("GRANT SELECT ON LARGE OBJECT {} TO {}")
+            session.execute(granted.format(sql.Literal(oid), sql.Identifier(backup)))
+
+
+# What is read of the database of the identity provider, compared before and after.
+STATE: dict[str, LiteralString] = {
+    "schemas": "SELECT nspname FROM pg_namespace"
+    " WHERE nspname NOT LIKE 'pg\\_%' AND nspname <> 'information_schema' ORDER BY 1",
+    "tables": "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY 1",
+    "columns": "SELECT table_name, column_name, data_type, is_identity"
+    " FROM information_schema.columns WHERE table_schema = 'public' ORDER BY 1, 2",
+    "sequences": "SELECT schemaname, sequencename, last_value FROM pg_sequences ORDER BY 1, 2",
+    "extensions": "SELECT extname, extversion, extnamespace::regnamespace::text"
+    " FROM pg_extension ORDER BY 1",
+    "large_objects": "SELECT oid::bigint, lo_get(oid) FROM pg_largeobject_metadata ORDER BY 1",
+}
+
+
+def provider_state(installation: Installation) -> dict[str, list[tuple[Any, ...]]]:
+    """Read the database of the identity provider whole, its large objects included.
+
+    Its schemas, its tables, their columns and their rows, its sequences and its extensions.
+    """
+    with connect(installation.owner["identity_provider"]) as session:
+        state = {name: session.execute(query).fetchall() for name, query in STATE.items()}
+        for (table,) in state["tables"]:
+            read = sql.SQL("SELECT * FROM {} ORDER BY 1").format(sql.Identifier("public", table))
+            state[f"rows of {table}"] = session.execute(read).fetchall()
+    return state
+
+
+@pytest.mark.requirement("WF-ADM-0150-A")
+@pytest.mark.requirement("WF-ADM-0160-A")
+def test_the_database_of_the_identity_provider_is_restored_without_a_loss(
+    installation: Installation, take: Take, tmp_path: Path
+) -> None:
+    # A backup dumps ``public`` alone, where Keycloak keeps its tables: its sequences, its
+    # extensions and its large objects, which belong to no schema, come with it. Restored after
+    # Keycloak has changed all of them, the database is as it was at the backup.
+    provided(installation, *KEYCLOAK)
+    readable_by_the_backup(installation)
+    backed_up = provider_state(installation)
+    backup_task = take()
+    provided(installation, *CHANGED)
+    assert provider_state(installation) != backed_up
+    restore(installation, backup_task, tmp_path)
+    restored = provider_state(installation)
+    assert backed_up["large_objects"]
+    assert restored == backed_up
 
 
 def test_the_probe_of_liveness_answers_when_the_maintenance_cannot_be_read(
