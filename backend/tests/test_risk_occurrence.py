@@ -531,7 +531,8 @@ def test_the_confirmation_is_refused_by_the_conditions_of_the_project_and_of_the
     ready: Occurring, queue: TaskQueue
 ) -> None:
     # In the order of the 409 the report names: a project writing in a task — here a marking queued
-    # around the service —, then a terminal project, both before the risk is read; a risk unknown is not found.
+    # around the service —, then a terminal project, both before the risk is read; a risk unknown
+    # is not found.
     stage = ready.project.stage
     report = ready.reported()
     sent = {
