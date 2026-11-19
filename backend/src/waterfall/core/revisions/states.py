@@ -69,10 +69,12 @@ def opening_of(
     """Give the revision whose merge would open the current one: its last marked, if it has none.
 
     Read by every path that judges the commands of a revision (``source``, #790): the list and
-    the reading of the revisions as the list of the structures. ``project`` is the facts of the
-    project when the caller has read them already.
+    the reading of the revisions as the list of the structures. Pass ``project`` when the caller
+    has read the facts of the project already (the views do): the default reads them again, which
+    is right for a caller that has not (``revision_state``, which reads the revision alone).
     """
-    project = project or project_facts(session, project_id)
+    if project is None:
+        project = project_facts(session, project_id)
     if project.current_revision_id is not None:
         return None
     return last_marked(session, project_id)

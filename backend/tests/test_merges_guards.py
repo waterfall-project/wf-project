@@ -103,7 +103,8 @@ def test_a_manager_who_marks_without_the_merge_permission_is_not_offered_the_mer
     assert commands.get("merge_structure", (False, []))[0] is False
     sent = confirmation(read_report(api, project, amendment))
     refused = api.post(merge_path(project, amendment), headers=marker.headers, json=sent)
-    assert refused.status_code == 403, refused.text
+    status, code, _ = refusal(refused)
+    assert (status, code) == (403, "PERMISSION_MISSING")
     assert revision_of(api, project, project.revision_id)["status"] == "draft"
     allowed = person(stage.database, realm, *MARKING, "structure_merge", name="Sam")
     contribute(stage.database, stage.project["project_id"], allowed, "project_manager")
@@ -192,6 +193,14 @@ def test_the_skeleton_is_written_in_the_main_structure_alone_never_in_a_quote_or
     after = counted(project, (amendment, own, project.structure_id))
     assert after[project.structure_id] > 0
     assert (after[amendment], after[own]) == (before[amendment], before[own])
+    # the operation names a revision alone, no structure: a second generation, now that the main
+    # structure holds tasks, is refused and writes nowhere, the differential and the quote included.
+    again = api.post(
+        f"{PROJECTS}/{project.project_id}/revisions/{project.revision_id}/skeleton",
+        headers=project.stage.manager.headers,
+    )
+    assert refusal(again) == (409, REFUSED, {"missing_condition": "main_structure_without_tasks"})
+    assert counted(project, (amendment, own, project.structure_id)) == after
     structures = listed(api, project)
     assert {each["structure_id"] for each in structures} >= {str(amendment), str(own)}
     for each in structures:
