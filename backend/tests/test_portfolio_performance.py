@@ -12,6 +12,7 @@ validated against the contract by the client of the tests.
 
 import json
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -23,6 +24,7 @@ from portfolio_support import (
     READ_ON,
     REVIEW,
     Portfolio,
+    another_in_progress,
     at,
     current_of,
     portfolio,
@@ -33,6 +35,7 @@ from sqlalchemy import select, text, update
 
 from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.projects.interface import Viewer
+from waterfall.core.resource_settings.tables import OrgNode, ResourceRole
 from waterfall.core.revisions.interface import create_revision, mark_revision
 from waterfall.platform.audit import Act
 from waterfall.platform.logs import logging_context
@@ -315,6 +318,18 @@ def test_the_evolution_has_a_point_by_quarter_each_read_at_its_last_day_and_neve
         create_revision(session, running, act, viewer)
         mark_revision(session, current_of(session, running), "Revue de juin", None, act)
     assert read(api, fabrics, f"?as_of={READ_ON}") == body
+    # « org_node_id ne restreint que la main-d'œuvre » : the past quarters are read without the
+    # node, which changes no figure — a node that exists, asked, leaves the past quarters as they
+    # are (the one that holds the date is the top of the answer).
+    with database.transaction() as session:
+        node_id = session.scalar(
+            select(OrgNode.id)
+            .join(ResourceRole, ResourceRole.org_node_id == OrgNode.id)
+            .where(ResourceRole.id == fabrics.costs.role)
+        )
+    on_node = read(api, fabrics, f"?as_of={READ_ON}&org_node_id={node_id}")
+    assert on_node["scope"]["org_node_id"] == str(node_id)
+    assert on_node["quarterly"][:4] == quarterly[:4]
     later = read(api, fabrics, "?as_of=2026-06-10")
     assert later["cost_index"] != body["cost_index"]
 
@@ -331,19 +346,28 @@ def test_the_current_day_sums_the_indicators_of_the_day_of_the_projects_in_progr
     thresholds(fabrics.stage, WATCH, ALERT)
     running = fabrics.in_progress.project_id
     load_import(fabrics.stage, running, [cost("FA-1001", None, "100.00")])
-    path = INDICATORS.format(project_id=running)
-    own = api.get(path, headers=fabrics.stage.manager.headers).json()
+    # A second project In progress, with a cost imported too: the portfolio reads the sums of the
+    # two as the screen reads them, the answers of ``getProjectIndicators`` of each.
+    second = another_in_progress(api, fabrics, "Second chantier", "PRJ-2673")
+    load_import(fabrics.stage, second, [cost("FA-1002", None, "250.00")])
+    own, other = (
+        api.get(INDICATORS.format(project_id=each), headers=fabrics.stage.manager.headers).json()
+        for each in (running, second)
+    )
     body = read(api, fabrics)
     assert body["scope"]["as_of"] == "2026-11-19"
-    assert body["scope"]["project_count"] == 1
-    assert body["reference_budget"] == own["reference_budget"]
-    assert body["cost_index"] == own["cost_index"]
-    assert body["schedule_index"] == own["schedule_index"]
-    assert (body["cost_variance"], body["schedule_variance"]) == (
-        own["cost_variance"],
-        own["schedule_variance"],
-    )
-    assert body["projections"] == own["projections"]
+    assert body["scope"]["project_count"] == 2
+    budget = Decimal(own["reference_budget"]) + Decimal(other["reference_budget"])
+    assert body["reference_budget"] == f"{budget:.2f}"
+    earned = Decimal(own["earned_value"]) + Decimal(other["earned_value"])
+    spent = Decimal(own["actual_cost"]) + Decimal(other["actual_cost"])
+    assert spent > 0
+    assert body["cost_index"]["value"] == {
+        "is_computable": True,
+        "value": f"{(earned / spent).quantize(Decimal('0.0001')).normalize():f}",
+        "reason": None,
+    }
+    assert body["cost_variance"] == f"{earned - spent:.2f}"
     assert body["cost_index"]["value"]["is_computable"] is True
     last = body["quarterly"][-1]
     assert last["quarter"] == "2026-Q4"
