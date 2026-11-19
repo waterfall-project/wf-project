@@ -543,7 +543,7 @@ partie »).
 
 ## US-2460 — Un créneau abandonné se reprend, et les verrous du poste ne se scindent pas
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3690

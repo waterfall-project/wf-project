@@ -21,11 +21,14 @@ not see it, and is waited for like any heavy run in progress — but it does not
 in turn, and may take a turn back before the exclusive run gets it: a measure holds the
 workstation against the other deliverers once their branches have this tool.
 
-The command of an exclusive run is given ``WATERFALL_SLOTS_HELD=exclusive``: a heavy or exclusive
-run it starts in turn — a ``make`` behind ``$(heavy)`` — takes no turn, as the turns are its
-parent's and waiting for them would never end, and says so. The mark is believed only while an
-exclusive run holds the gate: one that outlived its measure, in a server the measure left, is
-dropped and the run takes its turn as any other.
+The command of an exclusive run is given ``WATERFALL_SLOTS_HELD=exclusive:<token>``: a heavy or
+exclusive run it starts in turn — a ``make`` behind ``$(heavy)`` — takes no turn, as the turns are
+its parent's and waiting for them would never end, and says so. The token, the PID of the exclusive
+run and the instant it took the gate, is written in the gate file. The mark is believed only while
+an exclusive run holds the gate and the file bears its token (US-2460): one that outlived its
+measure, in a server the measure left, is dropped — even when another measure holds the gate by
+then — and the run takes its turn as any other. A mark without a token, from a tool that predates
+it, is believed while the gate is held.
 """
 
 import fcntl
@@ -161,11 +164,13 @@ def lock_waiting(path: Path, reason: str, *, said: bool, patience: float = 0.0) 
         raise
 
 
-def take_workstation(environment: Mapping[str, str]) -> list[int]:
-    """Take the gate, then every turn of the heavy runs in their order; return the descriptors.
+def take_workstation(environment: Mapping[str, str]) -> tuple[list[int], str]:
+    """Take the gate, then every turn of the heavy runs in their order; return them and the mark.
 
     The fixed order keeps two exclusive runs from each holding a part: the gate makes them one
-    after the other. Whatever is taken is freed if the wait is interrupted.
+    after the other. The token goes in the gate as soon as it is held, before the wait for the
+    turns: a survivor of the measure before, with its token, is not believed in the meantime.
+    Whatever is taken is freed if the wait is interrupted.
     """
     descriptors: list[int] = []
     other = "Another exclusive run holds the workstation; waiting."
@@ -173,6 +178,7 @@ def take_workstation(environment: Mapping[str, str]) -> list[int]:
     try:
         gate = lock_waiting(gate_path(environment), other, said=False, patience=GATE_PATIENCE)
         descriptors.append(gate[0])
+        mark = write_token(gate[0])
         said = False
         for path in lock_paths(environment, MAX_SLOTS):
             descriptor, said = lock_waiting(path, heavy, said=said)
@@ -181,21 +187,38 @@ def take_workstation(environment: Mapping[str, str]) -> list[int]:
         for descriptor in descriptors:
             os.close(descriptor)
         raise
-    return descriptors
+    return descriptors, mark
+
+
+def write_token(descriptor: int) -> str:
+    """Write the token of the exclusive run in the gate it holds; return the mark to give."""
+    token = f"{os.getpid()}:{time.time_ns()}"
+    os.ftruncate(descriptor, 0)
+    os.pwrite(descriptor, token.encode(), 0)
+    return f"{HELD_EXCLUSIVE}:{token}"
 
 
 def held_above(environment: Mapping[str, str]) -> bool:
     """Tell whether an exclusive run above this one holds the workstation: its mark, its gate held.
 
-    A shared lock of the gate is refused only while an exclusive run holds it.
+    A shared lock of the gate is refused only while an exclusive run holds it. A mark that carries
+    a token is believed only if the gate file bears the same one: another measure holds it else.
     """
-    if environment.get(HELD_VARIABLE) != HELD_EXCLUSIVE:
+    mark = environment.get(HELD_VARIABLE, "")
+    prefix = f"{HELD_EXCLUSIVE}:"
+    if mark == HELD_EXCLUSIVE:
+        token = None
+    elif mark.startswith(prefix):
+        token = mark[len(prefix) :].encode()
+        if not token:
+            return False
+    else:
         return False
     descriptor = open_lock(gate_path(environment))
     try:
         fcntl.flock(descriptor, fcntl.LOCK_SH | fcntl.LOCK_NB)
     except BlockingIOError:
-        return True
+        return token is None or os.pread(descriptor, 256, 0) == token
     finally:
         os.close(descriptor)
     return False

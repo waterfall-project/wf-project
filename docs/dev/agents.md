@@ -51,15 +51,16 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
   créneaux sont le verrou commun à tous les pilotes et à tous les dépôts du poste (un pilote par
   EPIC) : le pilote lit `make slots` à chaque réveil, lance autant de livreurs qu'il a de lots
   prêts et de créneaux libres (un créneau tenu pour un lot ne s'y ajoute pas : il ne compte que
-  s'il n'y en a aucun libre, pour le lot prêt qui le tient), nomme toujours le lot qu'il confie, et signale plus de N + 1
-  worktrees dans son dépôt, dépôt principal compris. Un livreur prend son créneau au nom de son
-  lot, `make slot LOT=<identifiant>` : il prend d'abord un créneau libre, et ne reprend, les N
-  pris, que celui qu'un autre worktree tient pour le même lot — un livreur arrêté par une limite d'usage, ou planté, avant `make
-  slot-release` —, en retire ce qui y reste, puis l'écrit au nom de son worktree ; le créneau
-  d'un autre lot n'est jamais repris (US-2460). Quand un libre a été pris, le créneau de l'arrêté
-  reste pris, au nom de son ancien worktree, jusqu'au retrait de ce worktree, qui se signale
-  comme un worktree de trop. Un livreur sans créneau rend la main sans rien
-  faire, avec le relevé « aucun créneau libre », que le pilote traite comme une limite d'usage.
+  s'il n'y en a aucun libre, pour le lot prêt qui le tient), nomme toujours le lot qu'il confie,
+  et signale plus de N + 1 worktrees dans son dépôt, dépôt principal compris. Un livreur prend son
+  créneau au nom de son lot, `make slot LOT=<identifiant>` : il prend d'abord un créneau libre, et
+  ne reprend, les N pris, que celui qu'un autre worktree tient pour le même lot — un livreur
+  arrêté par une limite d'usage, ou planté, avant `make slot-release` —, en retire ce qui y
+  reste, puis l'écrit au nom de son worktree ; le créneau d'un autre lot n'est jamais repris
+  (US-2460). Quand un libre a été pris, le créneau de l'arrêté reste pris, au nom de son ancien
+  worktree, jusqu'au retrait de ce worktree, qui se signale comme un worktree de trop. Un livreur
+  sans créneau rend la main sans rien faire, avec le relevé « aucun créneau libre », que le pilote
+  traite comme une limite d'usage.
 - **Une mesure prend le poste** (US-2210). Une commande lancée en mode exclusif
   (`slots.py run --exclusive`, la variable `exclusive` du Makefile ; guide, « Commandes ») attend
   la fin des exécutions lourdes en cours puis retient toutes les suivantes, de tous les livreurs et

@@ -15,6 +15,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -342,7 +343,7 @@ def test_a_run_started_by_the_command_of_an_exclusive_run_takes_no_turn(
         finish(run)
     assert run.returncode == 0
     given = json.loads(output)
-    assert given["held"] == heavyturns.HELD_EXCLUSIVE
+    assert given["held"].startswith(f"{heavyturns.HELD_EXCLUSIVE}:")
     assert given["gate"]
     assert given["processors"] == slots.processor_share(1)
     assert "above this one holds the workstation; no turn to take" in said(tmp_path, "run")
@@ -382,7 +383,7 @@ def test_an_exclusive_run_with_services_holds_the_workstation_and_has_them(tmp_p
     assert given["database"] == given_url
     assert given["gate"]
     assert given["first"]
-    assert given["held"] == heavyturns.HELD_EXCLUSIVE
+    assert given["held"].startswith(f"{heavyturns.HELD_EXCLUSIVE}:")
 
 
 def test_heavy_and_exclusive_together_are_refused(tmp_path: Path) -> None:
@@ -407,3 +408,115 @@ def test_the_makefile_gives_the_exclusive_mode_to_a_target(tmp_path: Path) -> No
     rule = "probe-exclusive: ; $(exclusive) true"
     planned = plan(tmp_path, "--eval", rule, "probe-exclusive", "TESTS=tests/test_guard.py")
     assert "launch.py slots run --exclusive -- env true" in planned.stdout
+
+
+def hold_gate(directory: Path, token: str) -> int:
+    """Hold the gate as another exclusive run does, its token in the file; return the descriptor."""
+    environment = {"WATERFALL_RUNTIME_DIR": str(directory)}
+    descriptor = heavyturns.open_lock(heavyturns.gate_path(environment))
+    fcntl.flock(descriptor, fcntl.LOCK_EX)
+    os.pwrite(descriptor, token.encode(), 0)
+    return descriptor
+
+
+def test_a_mark_with_the_token_of_another_exclusive_run_takes_its_turn(tmp_path: Path) -> None:
+    """US-2460 (#3343): a mark of a measure gone, the gate held by another, waits for its turn."""
+    other = hold_gate(tmp_path, "200:2")
+    stale = {heavyturns.HELD_VARIABLE: f"{heavyturns.HELD_EXCLUSIVE}:100:1"}
+    run = start(tmp_path, "--heavy", probe(tmp_path), "2", **stale)
+    try:
+        wait_until_said(tmp_path, "run", "An exclusive run holds the workstation; waiting")
+        assert "above this one" not in said(tmp_path, "run")
+        assert run.poll() is None
+        os.close(other)
+        output, _ = run.communicate(timeout=60)
+    finally:
+        finish(run)
+    assert run.returncode == 0
+    assert json.loads(output)["first"], "the run took a turn"
+
+
+def test_a_mark_with_the_token_of_the_gate_is_believed(tmp_path: Path) -> None:
+    """US-2460 (#3343): the token the gate bears is the mark's: no turn to take."""
+    holder = hold_gate(tmp_path, "100:1")
+    environment = {
+        "WATERFALL_RUNTIME_DIR": str(tmp_path),
+        heavyturns.HELD_VARIABLE: f"{heavyturns.HELD_EXCLUSIVE}:100:1",
+    }
+    try:
+        assert heavyturns.held_above(environment)
+    finally:
+        os.close(holder)
+    assert not heavyturns.held_above(environment), "the gate is free: the mark is dropped"
+
+
+def test_a_mark_without_a_token_is_believed_while_the_gate_is_held(tmp_path: Path) -> None:
+    """US-2460 (#3343): the mark of a tool that predates the token is believed as before."""
+    holder = hold_gate(tmp_path, "100:1")
+    environment = {
+        "WATERFALL_RUNTIME_DIR": str(tmp_path),
+        heavyturns.HELD_VARIABLE: heavyturns.HELD_EXCLUSIVE,
+    }
+    try:
+        assert heavyturns.held_above(environment)
+    finally:
+        os.close(holder)
+
+
+def test_a_mark_with_an_empty_token_is_not_believed(tmp_path: Path) -> None:
+    """US-2460 (#3343): `exclusive:` alone must not equal an empty gate file."""
+    holder = heavyturns.open_lock(heavyturns.gate_path({"WATERFALL_RUNTIME_DIR": str(tmp_path)}))
+    fcntl.flock(holder, fcntl.LOCK_EX)
+    environment = {
+        "WATERFALL_RUNTIME_DIR": str(tmp_path),
+        heavyturns.HELD_VARIABLE: f"{heavyturns.HELD_EXCLUSIVE}:",
+    }
+    try:
+        assert not heavyturns.held_above(environment)
+    finally:
+        os.close(holder)
+
+
+def test_a_gate_with_bytes_that_are_not_text_does_not_raise(tmp_path: Path) -> None:
+    """US-2460 (#3343): invalid UTF-8 in the gate file is a token that differs, not an error."""
+    holder = hold_gate(tmp_path, "100:1")
+    os.ftruncate(holder, 0)
+    os.pwrite(holder, b"\xff\xfe", 0)
+    environment = {
+        "WATERFALL_RUNTIME_DIR": str(tmp_path),
+        heavyturns.HELD_VARIABLE: f"{heavyturns.HELD_EXCLUSIVE}:100:1",
+    }
+    try:
+        assert not heavyturns.held_above(environment)
+    finally:
+        os.close(holder)
+
+
+def test_the_token_is_in_the_gate_while_the_exclusive_run_waits_for_the_turns(
+    tmp_path: Path,
+) -> None:
+    """US-2460 (#3343): a survivor of the measure before is not believed during the wait."""
+    environment = {"WATERFALL_RUNTIME_DIR": str(tmp_path)}
+    previous = hold_gate(tmp_path, "100:1")
+    os.close(previous)
+    survivor = {**environment, heavyturns.HELD_VARIABLE: f"{heavyturns.HELD_EXCLUSIVE}:100:1"}
+    turn = heavyturns.open_lock(heavyturns.lock_paths(environment, 1)[0])
+    fcntl.flock(turn, fcntl.LOCK_EX)
+
+    def take_then_free() -> None:
+        for descriptor in heavyturns.take_workstation(environment)[0]:
+            os.close(descriptor)
+
+    taking = threading.Thread(target=take_then_free, daemon=True)
+    taking.start()
+    try:
+        deadline = time.monotonic() + 30
+        gate = heavyturns.gate_path(environment)
+        while gate.read_bytes() in {b"", b"100:1"} and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert gate.read_bytes() not in {b"", b"100:1"}, "the gate bears the token of the new run"
+        assert taking.is_alive(), "the run still waits for the turn"
+        assert not heavyturns.held_above(survivor)
+    finally:
+        os.close(turn)
+        taking.join(timeout=30)

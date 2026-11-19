@@ -3468,10 +3468,14 @@ attendre, le temps de chercher un tour. Un outil plus ancien, qui ignore la barr
 comme toute exécution en cours, mais il n'attend pas la barrière à son tour : il sonde les tours
 chaque seconde et peut en reprendre un avant la mesure, sans fin. Une mesure ne tient donc le poste
 contre les autres livreurs qu'une fois ce mode repris par leurs branches, et le pilote ne la lance
-pas avant. La commande reçoit le marqueur `WATERFALL_SLOTS_HELD=exclusive` : un `make` qu'elle lance
-et qui passe par `$(heavy)`, ou une autre commande exclusive, ne prend aucun tour — ce sont ceux de
-la mesure —, le dit, et s'exécute ; sans cela il attendrait sans fin la barrière que tient son
-parent. Le marqueur n'est cru que tant qu'une exécution exclusive tient la barrière. La commande
+pas avant. La commande reçoit le marqueur `WATERFALL_SLOTS_HELD=exclusive:<jeton>` : un `make`
+qu'elle lance et qui passe par `$(heavy)`, ou une autre commande exclusive, ne prend aucun tour — ce
+sont ceux de la mesure —, le dit, et s'exécute ; sans cela il attendrait sans fin la barrière que
+tient son parent. Le jeton — le PID de l'exécution exclusive et l'instant où elle a pris la
+barrière — s'écrit dans le fichier de la barrière. Le marqueur n'est cru que tant qu'une exécution
+exclusive tient la barrière **et** que son fichier porte ce jeton : celui d'une mesure finie n'est
+pas cru quand une autre mesure tient la barrière (US-2460). Un marqueur sans jeton, posé par un
+outil d'avant, est cru tant que la barrière est tenue. La commande
 reçoit aussi `WATERFALL_PROCESSORS` du poste entier, mais une recette qui l'écrit après
 `$(exclusive)`, comme `WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS)`, l'emporte avec la part de N
 que make a calculée avant : une cible de mesure tire la variable du mode, sans la réécrire. Les

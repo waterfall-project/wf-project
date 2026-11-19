@@ -212,6 +212,7 @@ def run_prepared(
     slots = slot_count(environment)
     above = heavyturns.held_above(environment)
     descriptors: list[int] = []
+    mark = environment.get(heavyturns.HELD_VARIABLE, heavyturns.HELD_EXCLUSIVE)
     if above and (heavy or exclusive):
         print(
             "An exclusive run above this one holds the workstation; no turn to take.",
@@ -219,7 +220,7 @@ def run_prepared(
             flush=True,
         )
     elif exclusive:
-        descriptors = heavyturns.take_workstation(environment)
+        descriptors, mark = heavyturns.take_workstation(environment)
     elif heavy:
         paths = heavyturns.lock_paths(environment, slots)
         descriptors = [heavyturns.wait_for_slot(paths, heavyturns.gate_path(environment))]
@@ -228,7 +229,7 @@ def run_prepared(
         held = heavyturns.HELD_VARIABLE
         child_environment = {name: value for name, value in environment.items() if name != held}
         if above or exclusive:
-            child_environment[held] = heavyturns.HELD_EXCLUSIVE
+            child_environment[held] = mark
         if heavy or exclusive:
             share = processor_share(1 if above or exclusive else slots)
             child_environment["WATERFALL_PROCESSORS"] = str(share)
