@@ -1047,8 +1047,10 @@ les mêmes lectures à chaque version.
   par `make mock-data`, par un calcul que le back ne réemploie pas, et comparées aux réponses du
   service ; un désaccord est arbitré par la spécification ;
 - écart : les exemples du contrat à trois cents projets (`volume/portfolio_*`, `portfolio_workload`,
-  `portfolio_cost_curve`, `pilot_health`) ne sont pas comparés ici : EP-13 charge les trois cents
-  projets et les compare ;
+  `portfolio_cost_curve`, `pilot_health`) ne sont pas comparés ici, et ne le seront pas : EP-13
+  charge les trois cents projets, mais le témoin reste l'oracle des valeurs, et ces exemples
+  restent ceux du faux back (décision de l'auteur du 2026-11-18, au cadrage d'EP-13, « Conception »,
+  qui remplace « EP-13 […] les compare ») ;
 - propre à l'US : le README de la roadmap nomme cette tranche (« Le jeu de données de référence »).
 
 **Notes de réalisation.** La tranche s'insère dans la marche des événements du chargeur
