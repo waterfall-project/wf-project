@@ -49,6 +49,7 @@ from waterfall.core.projects.interface import (
     project_facts,
 )
 from waterfall.core.revisions.commands import phase_conditions, structure_commands_of
+from waterfall.core.revisions.interface.shared import MAIN
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.states import revision_state
 from waterfall.core.revisions.tables import CostStructure, Revision
@@ -66,7 +67,6 @@ if TYPE_CHECKING:
     from waterfall.core.revisions.interface.revisions import RevisionCopy
     from waterfall.platform.audit import Act
 
-MAIN = "main"
 # The kind of a differential, the amendment a negotiation prepares (``StructureKind``).
 AMENDMENT = "amendment"
 # The kind of the own estimate of a risk (``StructureKind``).
@@ -539,6 +539,28 @@ def write_structure(
         update(CostStructure)
         .where(CostStructure.project_id == project_id, CostStructure.id == structure_id)
         .values(**values)
+        .execution_options(synchronize_session=False)
+    )
+
+
+def rename_own_estimate(
+    session: Session, project_id: UUID, structure_id: UUID, label: str, act: Act
+) -> None:
+    """Write the label of the own estimate of a risk, its counter advancing; tell no follower.
+
+    The risks rename it with their risk (``updateRisk``, #3980), and advance the counter of the
+    risk themselves, so that the followers of the own estimate (``register_own_estimate_counted``)
+    are not told a second time. To be called under the lock of the structure (``structure_facts``).
+    """
+    session.execute(
+        update(CostStructure)
+        .where(CostStructure.project_id == project_id, CostStructure.id == structure_id)
+        .values(
+            label=label,
+            lock_version=CostStructure.lock_version + 1,
+            updated_at=act.at,
+            updated_by=act.author,
+        )
         .execution_options(synchronize_session=False)
     )
 

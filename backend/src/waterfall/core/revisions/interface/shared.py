@@ -50,6 +50,11 @@ if TYPE_CHECKING:
     from waterfall.platform.audit import Act, AuditAction
 
 
+# The kind of the main structure of a revision (``StructureKind``), read by the modules of this
+# package that cannot import ``structures``, which imports them (#4003).
+MAIN = "main"
+
+
 def refuse(condition: str) -> ConflictError:
     """Refuse an operation a condition forbids (409 ``STATE_FORBIDS_OPERATION``)."""
     return ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": condition})

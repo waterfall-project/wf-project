@@ -10823,6 +10823,15 @@ la révision ; celui d'`updateRiskProvision` nomme `project_not_terminal`,
 `risk_updated_without_current_revision` modifie l'identité d'un risque sur le projet sans révision
 en cours (`project_without_current_revision`) : aucune révision n'est créée.*
 
+*Décision de l'utilisateur du 2026-11-18 (US-2570/L2, #3980) : **renommer un risque renomme son devis
+propre et sa ligne de provision** dans la révision en cours, du libellé de la déclaration — « Provision —
+<libellé> » pour la ligne —, hors de l'historique annulable et sans que l'abandon le défasse, comme
+l'identité qui le commande. Les révisions marquées gardent les noms qu'elles figent (WF-DAT-0020) ; sans
+révision en cours, `updateRisk` n'écrit que l'identité. Le compteur de la structure propre et celui de la
+structure principale avancent, celui du risque une seule fois. Écarté : laisser au devis propre et à la
+ligne le libellé de la déclaration, qui aurait fait lire un ancien nom dans `listCostStructures` et dans la
+grille de la structure principale.*
+
 ### Le registre des risques se filtre sur chacune de ses colonnes (US-0704, #1735, H-01, #1785)
 
 Décision de l'auteur du 2026-11-01 : le contrat suit WF-IHM-0130. `listRisks` se triait sur ses six

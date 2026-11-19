@@ -13,7 +13,8 @@ share of its task, as for any line; its budgeted amount is nought on a project t
 The risks ask for it at the declaration (``ProvisionEntry``, by ``create_borne_line`` of the
 planning, whose facet hook ``create_line`` addresses here), and write its amount again each time
 the severity or the probability changes (``set_provision``), under the lock of the main structure,
-whose counter advances.
+whose counter advances. They write its label again when their risk is renamed
+(``rename_provision``, #3980).
 
 Filled by US-2570/L1.
 """
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.interface import FacetCreation, Place
+    from waterfall.platform.audit import Act
 
 # The label of a provision line, before the label of its risk.
 PROVISION_LABEL = "Provision — {label}"
@@ -85,6 +87,30 @@ def create_provision(creation: FacetCreation, entry: ProvisionEntry) -> None:
         )
     )
     session.flush()
+
+
+def rename_provision(
+    session: Session, place: Place, node_id: UUID, risk_label: str, act: Act
+) -> None:
+    """Write the label of a provision line again from its risk's, under the lock of its structure.
+
+    ``place`` is the main structure that bears the line. A line already so named is left as it is;
+    one that is renamed advances the counter of the structure, and not its own, as its amount
+    does (``set_provision``): the risks rename it, never the grid (#3980).
+    """
+    structure_facts(session, place.project_id, place.structure_id, lock=True)
+    line = session.scalars(
+        select(EstimateLine)
+        .where(EstimateLine.project_id == place.project_id, EstimateLine.node_id == node_id)
+        .execution_options(populate_existing=True)
+    ).one()
+    label = PROVISION_LABEL.format(label=risk_label)
+    if line.label == label:
+        return
+    line.label = label
+    line.updated_at, line.updated_by = act.at, act.author
+    session.flush()
+    structure_counted(session, place.project_id, place.structure_id)
 
 
 def set_provision(session: Session, place: Place, node_id: UUID, amount: Decimal) -> bool:

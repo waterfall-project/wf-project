@@ -38,8 +38,16 @@ def register_opening_main_question(
 
 
 def opening_main_with_tasks(session: Session, project_ids: Collection[UUID]) -> frozenset[UUID]:
-    """Tell which of the projects would open a revision whose main structure carries a task."""
-    found: set[UUID] = set()
-    for question in _OPENING_MAIN.entries():
-        found |= question(session, project_ids)
-    return frozenset(found)
+    """Tell which of the projects would open a revision whose main structure carries a task.
+
+    The questions registered are combined as ``main_structure_has_task`` combines its own, of a
+    revision: by AND, a project every question retains, none while no question is registered
+    (#4004). The planning is the only one today.
+    """
+    questions = _OPENING_MAIN.entries()
+    if not questions:
+        return frozenset()
+    found = frozenset(project_ids)
+    for question in questions:
+        found &= question(session, project_ids)
+    return found

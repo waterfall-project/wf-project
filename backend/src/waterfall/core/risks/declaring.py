@@ -37,9 +37,11 @@ from waterfall.core.cost_settings.interface import (
     category_labels,
     provision_category_active,
 )
-from waterfall.core.estimate.interface import ProvisionEntry
+from waterfall.core.estimate.interface import ProvisionEntry, rename_provision
 from waterfall.core.planning.interface import Place, create_borne_line, first_task, task_of
 from waterfall.core.projects.interface import (
+    ACTIVE_PROVISION_CATEGORY,
+    AT_LEAST_ONE_TASK,
     NO_BACKGROUND_TASK_RUNNING,
     PROJECT_NOT_TERMINAL,
     current_day,
@@ -54,7 +56,9 @@ from waterfall.core.revisions.interface import (
     create_revision,
     last_marked_revision,
     main_structure_has_task,
+    rename_own_estimate,
     revision_draft,
+    structure_facts,
 )
 from waterfall.core.risks.commands import (
     IDENTIFIED,
@@ -64,7 +68,13 @@ from waterfall.core.risks.commands import (
     RISK_NOT_OCCURRED,
     is_terminal,
 )
-from waterfall.core.risks.reading import NOUGHT, PROVISION_KIND, found_risk, read_found
+from waterfall.core.risks.reading import (
+    NOUGHT,
+    PROVISION_KIND,
+    evaluation_of,
+    found_risk,
+    read_found,
+)
 from waterfall.core.risks.tables import PROBABILITY_SCALE, Risk, RiskEvaluation, RiskReview
 from waterfall.core.risks.views import Omitted
 from waterfall.platform.errors import (
@@ -88,8 +98,6 @@ if TYPE_CHECKING:
     from waterfall.core.risks.views import RiskEntry, RiskIdentityChange
     from waterfall.platform.audit import Act
 
-AT_LEAST_ONE_TASK = "at_least_one_task"
-ACTIVE_PROVISION_CATEGORY = "active_provision_category"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 UNKNOWN_COST_CATEGORY = "UNKNOWN_COST_CATEGORY"
 INACTIVE_REFERENCE_OBJECT = "INACTIVE_REFERENCE_OBJECT"
@@ -285,8 +293,20 @@ def change_identity(
     Refused if the risk is unknown or has no evaluation to read (404), at another version (412),
     on a terminal project, then on a risk occurred in the revision read (409). A change that
     changes nothing writes nothing; a description or notes not sent stay the risk's.
+
+    A new label renames the own estimate and the provision line of the risk in the current
+    revision, if the risk is evaluated there, as the declaration named them: outside the history,
+    like the identity (H-02), the revisions marked keeping the names they were marked with (#3980).
+    The own estimate is locked before the risk, as every write of its tree locks them.
     """
     facts = lock_project(session, project_id)
+    current = (
+        None
+        if facts.current_revision_id is None
+        else evaluation_of(session, project_id, change.risk_id, facts.current_revision_id)
+    )
+    if current is not None:
+        structure_facts(session, project_id, current.structure_id, lock=True)
     risk = found_risk(session, project_id, change.risk_id, lock=True)
     evaluation = read_found(session, project_id, risk.id, None).evaluation
     if risk.lock_version != change.lock_version:
@@ -308,10 +328,25 @@ def change_identity(
     )
     if written == (risk.label, risk.description, risk.mitigation_notes):
         return
+    renamed = written[0] != risk.label
     risk.label, risk.description, risk.mitigation_notes = written
     risk.updated_at, risk.updated_by = act.at, act.author
     risk.lock_version += 1
     session.flush()
+    if renamed and current is not None:
+        _rename_in_revision(session, (project_id, current), written[0], act)
+
+
+def _rename_in_revision(
+    session: Session, held: tuple[UUID, RiskEvaluation], label: str, act: Act
+) -> None:
+    """Name the own estimate and the provision line an evaluation holds by the label of its risk."""
+    project_id, evaluation = held
+    rename_own_estimate(session, project_id, evaluation.structure_id, label, act)
+    line = evaluation.provision_node_id
+    main = aimed_structure(session, project_id, evaluation.revision_id, None)
+    if line is not None and main is not None:
+        rename_provision(session, Place(project_id, evaluation.revision_id, main), line, label, act)
 
 
 def _stamp(act: Act) -> dict[str, object]:
