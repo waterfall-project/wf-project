@@ -317,6 +317,9 @@ from waterfall.core.planning.interface.merging import (
     MergedLines as MergedLines,
 )
 from waterfall.core.planning.interface.merging import (
+    lines_in_order as lines_in_order,
+)
+from waterfall.core.planning.interface.merging import (
     merge_end as merge_end,
 )
 from waterfall.core.planning.interface.merging import (
@@ -538,6 +541,33 @@ from waterfall.core.planning.interface.progress import (
 )
 from waterfall.core.planning.interface.progress import (
     write_remaining as write_remaining,
+)
+
+# ``rebasing`` (US-3050/L3): the part of the planning in the update of a differential, its end,
+# what a structure designates, and where the lines stand for the estimate's.
+from waterfall.core.planning.interface.rebasing import (
+    Gap as Gap,
+)
+from waterfall.core.planning.interface.rebasing import (
+    RebasedLines as RebasedLines,
+)
+from waterfall.core.planning.interface.rebasing import (
+    RebasedTask as RebasedTask,
+)
+from waterfall.core.planning.interface.rebasing import (
+    designated as designated,
+)
+from waterfall.core.planning.interface.rebasing import (
+    hand_calendars as hand_calendars,
+)
+from waterfall.core.planning.interface.rebasing import (
+    rebase_end as rebase_end,
+)
+from waterfall.core.planning.interface.rebasing import (
+    rebase_tasks as rebase_tasks,
+)
+from waterfall.core.planning.interface.rebasing import (
+    rebased_lines as rebased_lines,
 )
 
 # ``reference`` (US-1380/L1; US-1390/L2): what the planning answers to the reference.
@@ -764,13 +794,16 @@ from waterfall.core.revisions.interface import (
     register_main_task_question,
     register_merge,
     register_merge_end,
+    register_rebase,
+    register_rebase_end,
     register_tasks_and_lines,
 )
 
 # The registrations, once, at the import: the copy of the nodes after the structures', whose
 # module this one imports first, and their redating after them; the nodes deleted after the
 # history, by the stage of their part; its part of a merge, before the estimate's, and the end of
-# a merge, judged on the structure all the parts leave (US-2560/L1).
+# a merge, judged on the structure all the parts leave (US-2560/L1); likewise for the update of a
+# differential (US-3050/L3).
 register_copy(copy_nodes)
 register_copy(redate_copy)
 register_tasks_and_lines("tasks", revision_has_tasks)
@@ -792,3 +825,5 @@ register_exporter("ms_project_schedule", MS_PROJECT_EXPORTER)
 register_exporter("task_tree_image", TASK_TREE_EXPORTER)
 register_merge(merge_tasks)
 register_merge_end(merge_end)
+register_rebase(rebase_tasks)
+register_rebase_end(rebase_end)

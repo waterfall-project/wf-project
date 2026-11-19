@@ -301,3 +301,40 @@ def merge_conditions(state: MergeState) -> list[str]:
     if not state.current and not state.creates:
         missing.append(MAY_CREATE_REVISION)
     return missing
+
+
+@dataclass(frozen=True, slots=True)
+class RebaseState:
+    """What the update of a structure judges: its project, its revision, the structure.
+
+    ``current`` whether the revision is the current one; ``differential`` whether the structure is
+    a differential not merged; ``out_of_date`` whether the main structure has moved since its base
+    was taken (US-3050).
+    """
+
+    terminal: bool
+    current: bool
+    no_task_running: bool
+    differential: bool
+    out_of_date: bool
+
+
+def rebase_conditions(state: RebaseState) -> list[str]:
+    """Name the conditions the update of a structure lacks, in the order of its command ``rebase``.
+
+    Those of the abandonment of a differential, in its order — ``project_not_terminal``, then
+    ``revision_draft`` on a revision that is not the current one, ``no_background_task_running``,
+    ``unmerged_amendment_exists`` —, then ``structure_out_of_date`` for a differential up to date,
+    which has nothing to carry over (``rebaseCostStructure``, US-3050). The update is offered on
+    the current revision alone, as the opening of a differential is.
+    """
+    if state.terminal:
+        return [PROJECT_NOT_TERMINAL]
+    if not state.current:
+        return [REVISION_DRAFT]
+    missing = [] if state.no_task_running else [NO_BACKGROUND_TASK_RUNNING]
+    if not state.differential:
+        missing.append(UNMERGED_AMENDMENT_EXISTS)
+    elif not state.out_of_date:
+        missing.append(STRUCTURE_OUT_OF_DATE)
+    return missing

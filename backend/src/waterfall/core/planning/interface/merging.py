@@ -69,7 +69,7 @@ def merge_end(merging: StructureMerging) -> MergePart:
     return MergePart(refusals=merge_refusals(merging))
 
 
-def _lines(tree: Tree[NodeRow, TaskRow]) -> tuple[MergedLine, ...]:
+def lines_in_order(tree: Tree[NodeRow, TaskRow]) -> tuple[MergedLine, ...]:
     """Give the lines of a structure in the order of its plan, by the lineage of their task."""
     found: list[MergedLine] = []
     for node_id in tree.order:
@@ -91,4 +91,4 @@ def merged_lines(merging: StructureMerging) -> MergedLines:
         if target is not None:
             moved[plan.main.nodes[task_id].lineage_id] = target
     kept = frozenset(plan.main.nodes[each].lineage_id for each in plan.kept)
-    return MergedLines(_lines(plan.main), _lines(plan.amendment), kept, moved)
+    return MergedLines(lines_in_order(plan.main), lines_in_order(plan.amendment), kept, moved)

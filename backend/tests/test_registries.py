@@ -206,6 +206,9 @@ DECLARED = {
     "history.undoable",
     "revisions.own_estimate_counted",
     "planning.provision_owners",
+    # EP-08 (US-3050/L3): the parts of the update of a differential, and its end.
+    "revisions.rebase",
+    "revisions.rebase_end",
 }
 PLANNING = "waterfall.core.planning.interface"
 # What EP-06 registers (US-1380/L1, US-1390/L2), the copy of the nodes after the structures', and
@@ -840,6 +843,19 @@ def test_the_planning_then_the_estimate_take_their_part_of_a_merge_and_the_plann
         f"{ESTIMATE}.merging.merge_lines",
     ]
     assert everything["revisions.merge_end"] == [f"{PLANNING}.merging.merge_end"]
+
+
+def test_the_planning_then_the_estimate_take_their_part_of_an_update_and_the_planning_its_end(
+    everything: dict[str, list[str]],
+) -> None:
+    # What the planning and the estimate find of the update of a differential, the planning's
+    # first, whose plan the estimate reads; what the planning judges at its end, once, with the
+    # calendars the estimate hands it (US-3050/L3).
+    assert everything["revisions.rebase"] == [
+        f"{PLANNING}.rebasing.rebase_tasks",
+        f"{ESTIMATE}.rebasing.rebase_lines",
+    ]
+    assert everything["revisions.rebase_end"] == [f"{PLANNING}.rebasing.rebase_end"]
 
 
 def test_the_end_of_a_merge_is_judged_once_after_every_part_whatever_their_order(
