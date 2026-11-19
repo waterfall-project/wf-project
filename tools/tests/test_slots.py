@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The admission of the heavy runs: N at a time, on a share of the processors (US-1090).
 
-The tool is run as the Makefile runs it, ``python3 slots.py run --heavy -- <command>``, with
-``XDG_RUNTIME_DIR`` on a temporary directory: no test touches the locks of the workstation.
+The tool is run as ``python3 slots.py run --heavy -- <command>``, the arguments the Makefile gives
+it through ``launch.py slots`` (US-2450), with ``WATERFALL_RUNTIME_DIR`` on a temporary directory:
+no test touches the locks of the workstation.
 """
 
 import contextlib
@@ -39,7 +40,7 @@ def start(
     directory: Path, command: list[str], slot_count: str | None = "1"
 ) -> subprocess.Popen[str]:
     """Start the tool on a command, its locks in the directory."""
-    environment = {**os.environ, "XDG_RUNTIME_DIR": str(directory)}
+    environment = {**os.environ, "WATERFALL_RUNTIME_DIR": str(directory)}
     environment.pop("WATERFALL_SLOTS", None)
     if slot_count is not None:
         environment["WATERFALL_SLOTS"] = slot_count
@@ -133,9 +134,10 @@ def test_slots_one_to_nine_and_absent_are_accepted(value: str | None) -> None:
 
 def test_the_locks_are_numbered_from_the_first_of_before(tmp_path: Path) -> None:
     """US-1090: waterfall-heavy.lock, then waterfall-heavy.2.lock to waterfall-heavy.<N>.lock."""
-    names = [path.name for path in heavyturns.lock_paths({"XDG_RUNTIME_DIR": str(tmp_path)}, 3)]
+    environment = {"WATERFALL_RUNTIME_DIR": str(tmp_path)}
+    names = [path.name for path in heavyturns.lock_paths(environment, 3)]
     assert names == ["waterfall-heavy.lock", "waterfall-heavy.2.lock", "waterfall-heavy.3.lock"]
-    assert heavyturns.lock_paths({}, 1) == [Path(os.sep, "tmp", "waterfall-heavy.lock")]
+    assert heavyturns.lock_paths(environment, 1) == [tmp_path / "waterfall-heavy.lock"]
 
 
 def test_a_process_left_behind_does_not_keep_the_slot(tmp_path: Path) -> None:
@@ -276,7 +278,7 @@ def plan(
     return subprocess.run(
         ["make", "--dry-run", *arguments],
         cwd=REPOSITORY,
-        env={**environment, "XDG_RUNTIME_DIR": str(tmp_path)},
+        env={**environment, "WATERFALL_RUNTIME_DIR": str(tmp_path)},
         capture_output=True,
         text=True,
         check=False,
@@ -289,18 +291,18 @@ def test_make_waits_for_a_slot_unless_a_single_file_is_selected(
 ) -> None:
     """US-1090: a heavy run waits for a slot, and a run of one file (TESTS) does not (#1892)."""
     heavy = (
-        "slots.py run --heavy --services"
+        "launch.py slots run --heavy --services"
         if target in SERVICES_TARGETS
-        else "slots.py run --heavy --"
+        else "launch.py slots run --heavy --"
     )
     assert heavy in plan(tmp_path, target).stdout
     if HEAVY_TARGETS[target]:
         one_file = plan(tmp_path, target, "TESTS=tests/test_guard.py").stdout
         if target in SERVICES_TARGETS:
-            assert "slots.py run --services" in one_file, "no wait, but the services of the tests"
+            assert "launch.py slots run --services" in one_file, "no wait, but the services"
             assert "--heavy" not in one_file
         else:
-            assert "slots.py run" not in one_file
+            assert "launch.py slots run" not in one_file
         assert one_file.rstrip().endswith("tests/test_guard.py")
 
 
@@ -666,7 +668,7 @@ def service_workers(processors: int, tmp_path: Path) -> str:
     outer = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TESTS", "WATERFALL_SLOTS", "E2E_WORKERS")
     environment = {k: v for k, v in os.environ.items() if k not in outer}
     environment |= slots.variables(0) | {"WATERFALL_PROCESSORS": str(processors)}
-    environment |= {"XDG_RUNTIME_DIR": str(tmp_path)}
+    environment |= {"WATERFALL_RUNTIME_DIR": str(tmp_path)}
     printing = "print: ; @echo $(E2E_SERVICE_WORKERS)"
     done = subprocess.run(
         ["make", "--no-print-directory", "--eval", printing, "print"],
@@ -697,7 +699,7 @@ def service_target(
     outer = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TESTS", "WATERFALL_SLOTS", "E2E_WORKERS")
     environment = {k: v for k, v in os.environ.items() if k not in outer}
     environment |= slots.variables(0) | {"WATERFALL_PROCESSORS": processors}
-    environment |= {"XDG_RUNTIME_DIR": str(tmp_path)} | (given or {})
+    environment |= {"WATERFALL_RUNTIME_DIR": str(tmp_path)} | (given or {})
     return subprocess.run(
         [
             "make",

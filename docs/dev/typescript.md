@@ -58,8 +58,10 @@ n'a aucune fermeture à chiffrer (#825) ; celles du mode brouillon y feraient en
 si le front en avait un. `previewModeId` laisse en outre contourner le cache des pages
 prérendues, sans objet tant qu'aucune ne porte autre chose que du public, ce que tient
 `make prerendered-front`.
-*Contrôle* : `src/next-config.test.ts` (`make test-front`), qui lit chaque source du build hors
-des commentaires.
+*Contrôle* : `src/next-config.test.ts` (`make test-front`), qui lit chaque source TypeScript du
+build hors des commentaires et refuse les dossiers `pages/` et `src/pages/` ; ESLint refuse tout
+`.js` sous `src/`, hors `src/api/generated/` (`allowJs` est faux : le fichier n'est pas dans le
+projet, et le linter le rejette).
 
 ### Le front affiche, il ne calcule pas
 
@@ -391,17 +393,21 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     recalculées et ses totaux, que leur propre compteur ne départage pas. Comparer la ligne relue à
     la précédente ne vient qu'en repli, quand le compteur ne dit rien : seule, cette comparaison
     jetait la réponse de la seconde cellule d'une ligne dès qu'une relecture portait la première ;
-    jugée ligne à ligne, elle ramenait la récapitulative et les totaux à la première réponse. Le rendu ne change rien de ce que l'état tient : il pose une
-    copie des réponses sur la relecture ; seuls les rappels changent celles qu'ils écrivent.
-    `cell-writes.dom.test.tsx`, `answers.test.ts`, `rate-cells.test.ts` et `entry.dom.test.tsx`
-    relisent la page pendant l'écriture ; aucun outil ne le tient : la revue le cherche. Une
-    exception est admise, et une seule : la liste des sauvegardes (`BackupCommands`) ajuste son état
-    pendant le rendu quand les sauvegardes lues changent, le motif que React admet pour un état tiré
-    d'une prop qui change. Une sauvegarde n'a pas de compteur, et le repli doit comparer chaque
-    relecture à la précédente, pas à celle du clic : le faire dans le rendu, sur une copie, laisserait
-    reparaître une réponse qu'une relecture intermédiaire a démentie (le marquage d'un autre, puis
-    sa démarque). L'état n'y change que lorsqu'une nouvelle lecture arrive, jamais d'un rendu à
-    l'autre de la même ; la limite du repli est dite en #588.
+    jugée ligne à ligne, elle ramenait la récapitulative et les totaux à la première réponse. Le
+    rendu ne change rien de ce que l'état tient : il pose une copie des réponses sur la relecture ;
+    seuls les rappels changent celles qu'ils écrivent. `cell-writes.dom.test.tsx`,
+    `answers.test.ts`, `rate-cells.test.ts` et `entry.dom.test.tsx` relisent la page pendant
+    l'écriture ; aucun outil ne le tient : la revue le cherche. Une exception est admise, et une
+    seule, pour l'état des réponses, celui d'une grille ou celui de la liste des sauvegardes
+    (`BackupCommands`, qui garde les réponses aux marquages) : elle ajuste son état pendant le rendu
+    quand les sauvegardes lues changent, le motif que React admet pour un état tiré d'une prop qui
+    change. Une sauvegarde n'a pas de compteur, et le repli doit comparer chaque relecture à la
+    précédente, pas à celle du clic : le faire dans le rendu, sur une copie, laisserait reparaître
+    une réponse qu'une relecture intermédiaire a démentie (le marquage d'un autre, puis sa
+    démarque). L'état n'y change que lorsqu'une nouvelle lecture arrive, jamais d'un rendu à l'autre
+    de la même ; la limite du repli est dite en #588. Remettre à zéro un état du composant quand une
+    prop change, sous une garde qui se referme d'elle-même (`DurationRule`, qui vide un état local
+    quand `props.task` le relaie), reste permis : l'exception ne vise que la copie des réponses.
 23. **Test du front qui fait le travail de plusieurs.** Sous happy-dom et le React de développement,
     chaque touche, chaque clic sur une grille la rend à nouveau entière — près d'une centaine de
     millisecondes de calcul —, le premier contrôle d'axe d'un fichier coûte trois fois les suivants,

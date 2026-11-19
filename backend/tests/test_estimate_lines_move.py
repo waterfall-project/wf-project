@@ -14,13 +14,12 @@ Laid by US-1490/L1, the socle of EP-07, so that no two stories create the same f
 US-1490/L4 ("Les tests du back").
 """
 
-from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
-from estimate_support import YEAR, Costing, Lines, add_role, costing, give_a_line
+from estimate_support import YEAR, Costing, Lines, add_role, costing, give_a_line, task_in
 from nodes_support import Tree, faults, mark, opened, refusal, set_progress
 from planning_support import insert_link, insert_task
 from project_rows import delete_structure, lifted_kind_check, structure_row
@@ -50,7 +49,12 @@ CATEGORIES = "/api/v1/reference/cost-categories"
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
     return make_scene(api, owner, database, realm)
 
@@ -127,12 +131,6 @@ def stored(stage: Scene) -> int:
     """Count the lines the base keeps."""
     with stage.database.transaction() as session:
         return session.scalar(select(func.count()).select_from(EstimateLine)) or 0
-
-
-def first_monday(year: int) -> date:
-    """Give the first Monday of March of a year: a working day of every calendar of the scene."""
-    day = date(year, 3, 1)
-    return day + timedelta(days=-day.weekday() % 7)
 
 
 # --- The deletion ------------------------------------------------------------------------------
@@ -274,16 +272,8 @@ def test_a_line_moved_to_a_task_two_years_later_is_priced_on_it_and_given_back(
         path, headers=stage.manager.headers, json={"inflation_rate": "0.03", "lock_version": held}
     )
     assert changed.status_code == 200, changed.text
-    now = tree.made("Études")
-    start = first_monday(YEAR + 2)
-    later = tree.made(
-        "Exploitation",
-        task={
-            "scheduling_mode": "manual",
-            "start": {"date": start.isoformat()},
-            "finish": {"date": (start + timedelta(days=1)).isoformat()},
-        },
-    )
+    now = tree.made("Études", task=task_in(YEAR))
+    later = tree.made("Exploitation", task=task_in(YEAR + 2))
     line = lines.made(now, **labour(costs.role))["nodes"][0]
     assert line["estimate_line"]["consumption_year"] == YEAR
     assert line["estimate_line"]["reestimated_amount"] == "650.00"

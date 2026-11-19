@@ -5941,7 +5941,7 @@ que le 409 de `setCostCategoryActivation`, nouveau, nomme ; exemple
 le résumé dit la cascade. La définition provisoire de L42p disparaît : `active_provision_category`
 est une catégorie active de type provision pour risques, une catégorie active l'étant toujours sous
 une nature active ; `CostCategoryImage.cost_type_is_active` reste, une information de lecture. Les
-générateurs suivent (`mockdata.categories_of`, `mockreference.category_commands`,
+générateurs suivent (`mockrates.categories_of`, `mockreference.category_commands`,
 `mockhistory.is_active_provision`) ; les natures du témoin sont actives, et aucun exemple engendré
 ne change. Écartés : rendre les catégories désactivées dans la réponse, comme `setOrgNodeActivation`
 — le schéma de la réponse aurait changé pour un écran qui lit une nature, et qui relit ses

@@ -3,11 +3,13 @@
 """Tests of the report of requirement coverage by tests."""
 
 import subprocess
+import sys
+import tomllib
 from pathlib import Path
 
 import pytest
 
-from wftools import coverage, paths, projection, roadmap
+from wftools import REPOSITORY, coverage, marks, paths, projection, roadmap
 from wftools.coverage import Citation
 
 pytestmark = pytest.mark.requirement("WF-QUA-0010-A")
@@ -318,3 +320,307 @@ def test_the_report_goes_to_the_job_summary(
     assert "## Couverture des exigences par les tests" in text
     assert "| Exigence | Flex | Titre | Familles | Tests |" in text
     assert "WF-QUA-0010-A" in text
+
+
+# US-2440: the report counts only what runs.
+
+TS_RUN_AND_NOT = """\
+// A comment cites nothing: [WF-QUA-0020-A].
+/* Nor does a block [WF-QUA-0020-A]. */
+test("reads a grid [WF-QUA-0050-A]", async () => {});
+test.fixme("writes in a grid [WF-QUA-0050-A]", async () => {});
+it.skip("sorts a grid [WF-QUA-0030-A]", () => {});
+it.todo("filters a grid [WF-QUA-0040-A]");
+"""
+
+
+def test_a_typescript_test_declared_not_run_covers_nothing_and_a_comment_cites_nothing() -> None:
+    found = coverage.typescript_citations("frontend/e2e/g.spec.ts", TS_RUN_AND_NOT, "end-to-end")
+    assert [(c.requirement, c.test, c.executed) for c in found] == [
+        ("WF-QUA-0050-A", "frontend/e2e/g.spec.ts:3", True),
+        ("WF-QUA-0050-A", "frontend/e2e/g.spec.ts:4", False),
+        ("WF-QUA-0030-A", "frontend/e2e/g.spec.ts:5", False),
+        ("WF-QUA-0040-A", "frontend/e2e/g.spec.ts:6", False),
+    ]
+    requirements = document(("WF-QUA-0050-A", "F0"), ("WF-QUA-0030-A", "F0"))
+    result = coverage.report(requirements, found, DECLARATION, frozenset({"WF-QUA-0050-A"}))
+    assert [c.test for c in result.covered["WF-QUA-0050-A"]] == ["frontend/e2e/g.spec.ts:3"]
+    assert result.uncovered == ["WF-QUA-0030-A"]
+    markdown = result.markdown(list(requirements))
+    assert "| `frontend/e2e/g.spec.ts:3`<br>`frontend/e2e/g.spec.ts:4` (non exécuté) |" in markdown
+    assert "| **non couverte**<br>`frontend/e2e/g.spec.ts:5` (non exécuté) |" in markdown
+
+
+def test_a_group_declared_not_run_holds_tests_that_do_not_run() -> None:
+    source = """\
+describe.skip("the grid [WF-QUA-0010-A]", () => {
+  it("reads [WF-QUA-0020-A]", () => {});
+});
+test.describe.fixme("the plan", () => {
+  test.describe("its rows [WF-QUA-0030-A]", () => {
+    test("walks [WF-QUA-0040-A]", async () => {});
+  });
+});
+describe("the board [WF-QUA-0050-A]", () => {
+  it.skip("drags [WF-QUA-0060-A]", () => {});
+  it("drops", () => {});
+});
+describe("the list [WF-QUA-0070-A]", () => {
+  it.skip("scrolls", () => {});
+});
+"""
+    found = coverage.typescript_citations("frontend/src/g.test.ts", source, "front")
+    assert [(c.requirement, c.executed) for c in found] == [
+        ("WF-QUA-0010-A", False),
+        ("WF-QUA-0020-A", False),
+        ("WF-QUA-0030-A", False),
+        ("WF-QUA-0040-A", False),
+        ("WF-QUA-0050-A", True),
+        ("WF-QUA-0060-A", False),
+        ("WF-QUA-0070-A", False),
+    ]
+
+
+@pytest.mark.story("US-2440")
+def test_a_platform_skip_in_the_body_leaves_the_citation_executed_and_another_stops_it() -> None:
+    source = """\
+test("imports [WF-QUA-0010-A]", async ({ page }) => {
+  test.skip(!inService, "the fake back keeps nothing");
+});
+test("exports [WF-QUA-0020-A]", async ({ page }) => {
+  test.skip(true, "service only");
+});
+"""
+    found = coverage.typescript_citations("frontend/e2e/i.spec.ts", source, "end-to-end")
+    assert [(c.requirement, c.executed) for c in found] == [
+        ("WF-QUA-0010-A", True),
+        ("WF-QUA-0020-A", False),
+    ]
+    assert found[0] == Citation("WF-QUA-0010-A", "frontend/e2e/i.spec.ts:1", "end-to-end")
+
+
+PYTHON_RUN_AND_NOT = f"""
+import pytest
+
+
+{MARK}("WF-QUA-0080-A")
+def test_written() -> None: ...
+
+
+{MARK}("WF-QUA-0080-A")
+@pytest.mark.unexecuted("skipped without the schema")
+def test_valid(schema: object) -> None: ...
+
+
+@pytest.mark.unexecuted("skipped without docker")
+class TestEntrypoint:
+    {MARK}("WF-QUA-0010-A")
+    def test_seeds(self) -> None: ...
+"""
+
+
+def test_a_python_test_marked_unexecuted_covers_nothing() -> None:
+    found = coverage.python_citations("backend/tests/t.py", PYTHON_RUN_AND_NOT, "back")
+    assert [(c.test, c.requirement, c.executed) for c in found] == [
+        ("backend/tests/t.py::test_written", "WF-QUA-0080-A", True),
+        ("backend/tests/t.py::test_valid", "WF-QUA-0080-A", False),
+        ("backend/tests/t.py::TestEntrypoint::test_seeds", "WF-QUA-0010-A", False),
+    ]
+    module = 'import pytest\n\npytestmark = pytest.mark.unexecuted("no docker")\n'
+    marked = coverage.python_citations("t.py", module + PYTHON_RUN_AND_NOT, "back")
+    assert [c.executed for c in marked] == [False, False, False]
+    requirements = document(("WF-QUA-0080-A", "F0"))
+    result = coverage.report(requirements, found, DECLARATION)
+    assert result.uncovered == []
+    assert [c.test for c in result.covered["WF-QUA-0080-A"]] == ["backend/tests/t.py::test_written"]
+    assert [c.test for c in result.unexecuted["WF-QUA-0080-A"]] == [
+        "backend/tests/t.py::test_valid"
+    ]
+
+
+def test_a_release_with_an_f0_requirement_only_tests_not_run_cite_fails_naming_it(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+
+    def skipped(_declaration: paths.Declaration, _repository: Path = Path()) -> list[Citation]:
+        return [Citation("WF-QUA-0080-A", "backend/tests/t.py::test_valid", "back", executed=False)]
+
+    monkeypatch.setattr(coverage, "citations", skipped)
+    monkeypatch.setattr(roadmap, "read", lambda: ())
+    monkeypatch.setattr(projection, "read", lambda: document(("WF-QUA-0080-A", "F0")))
+    assert coverage.main([]) == 0
+    assert "WF-QUA-0080-A: cited by tests not run alone" in capsys.readouterr().out
+    assert coverage.main(["--release"]) == 1
+    err = capsys.readouterr().err
+    assert "not covered: WF-QUA-0080-A (cited by tests not run alone)" in err
+
+
+def test_the_mark_the_report_reads_is_the_one_the_plugin_requires() -> None:
+    skip = f"@pytest.mark.{marks.MARK}('r')"
+    source = f"import pytest\n\n{MARK}('WF-QUA-0010-A')\n{skip}\ndef test_a(): ...\n"
+    assert [c.executed for c in coverage.python_citations("t.py", source, "back")] == [False]
+
+
+def test_the_mark_unexecuted_is_read_in_every_form_the_plugin_accepts() -> None:
+    source = """
+import pytest
+
+REASON = "no docker"
+CASES = [pytest.param(1, marks=pytest.mark.unexecuted("no schema")), 2]
+pytestmark: list[object] = [pytest.mark.requirement("WF-QUA-0010-A")]
+
+
+@pytest.mark.unexecuted(REASON)
+def test_constant() -> None: ...
+
+
+@pytest.mark.parametrize(
+    "x", [pytest.param(1, marks=pytest.mark.unexecuted("no docker")), 2]
+)
+def test_param(x: int) -> None: ...
+
+
+@pytest.mark.parametrize("x", CASES)
+def test_cases_built_apart(x: int) -> None: ...
+
+
+@pytest.mark.parametrize("x", [1, 2])
+def test_run(x: int) -> None: ...
+"""
+    found = coverage.python_citations("backend/tests/t.py", source, "back")
+    assert [(c.test.split("::")[1], c.executed) for c in found] == [
+        ("test_constant", False),
+        ("test_param", False),
+        ("test_cases_built_apart", False),
+        ("test_run", True),
+    ]
+
+
+# US-2440: a criterion of a story is cited by the story.
+
+STORY_EPIC = roadmap.Epic("EP-02", "en cours", (), (roadmap.Story("US-2160", (), ""),), ("front",))
+
+
+def test_a_story_cited_in_a_title_or_by_a_mark_is_listed_apart_from_the_requirements() -> None:
+    source = """\
+test("draws a chart [US-2160]", () => {});
+test.fixme("draws it again [US-2160]", () => {});
+test("walks [WF-QUA-0010-A] [US-2160]", () => {});
+"""
+    typescript = coverage.typescript_citations("frontend/src/a.test.tsx", source, "front")
+    python = coverage.python_citations(
+        "backend/tests/t.py",
+        'import pytest\n\n@pytest.mark.story("US-2160")\ndef test_a(): ...\n',
+        "back",
+    )
+    assert [(c.requirement, c.is_story, c.executed) for c in typescript] == [
+        ("US-2160", True, True),
+        ("US-2160", True, False),
+        ("WF-QUA-0010-A", False, True),
+        ("US-2160", True, True),
+    ]
+    assert [(c.requirement, c.is_story) for c in python] == [("US-2160", True)]
+    requirements = document(("WF-QUA-0010-A", "F0"))
+    result = coverage.report(
+        requirements, [*typescript, *python], DECLARATION, known_stories=frozenset({"US-2160"})
+    )
+    assert result.unknown_stories == []
+    assert result.unknown == []
+    assert [c.test for c in result.covered["WF-QUA-0010-A"]] == ["frontend/src/a.test.tsx:3"]
+    assert len(result.stories["US-2160"]) == 4
+    text = result.markdown(list(requirements))
+    assert "## Critères propres aux US" in text
+    assert "`frontend/src/a.test.tsx:2` (non exécuté)" in text
+
+
+def test_a_story_no_file_of_the_roadmap_holds_fails_the_report(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+
+    def two_stories(_declaration: paths.Declaration, _repository: Path = Path()) -> list[Citation]:
+        return [front("US-2160"), front("US-9999", "frontend/src/b.test.ts:4")]
+
+    monkeypatch.setattr(coverage, "citations", two_stories)
+    monkeypatch.setattr(roadmap, "read", lambda: (STORY_EPIC,))
+    monkeypatch.setattr(projection, "read", lambda: document(("WF-QUA-0010-A", "F0")))
+    assert coverage.main([]) == 1
+    captured = capsys.readouterr()
+    assert "frontend/src/b.test.ts:4: cites US-9999, a story no file of docs/roadmap holds" in (
+        captured.err
+    )
+    assert "US-2160: own criteria of the story" in captured.out
+    assert "US-2160" not in captured.err
+
+
+def test_the_mark_story_is_declared_where_pytest_declares_its_marks() -> None:
+    for package in ("backend", "tools"):
+        text = (REPOSITORY / package / "pyproject.toml").read_text(encoding="utf-8")
+        declared = tomllib.loads(text)["tool"]["pytest"]["ini_options"]["markers"]
+        assert any(entry.startswith(f"{marks.STORY}(") for entry in declared), package
+
+
+def test_a_mark_takes_only_the_kind_of_identifier_it_names() -> None:
+    source = (
+        "import pytest\n\n"
+        '@pytest.mark.story("WF-QUA-0010-A")\ndef test_a(): ...\n\n'
+        '@pytest.mark.requirement("US-2160")\ndef test_b(): ...\n'
+    )
+    found = coverage.python_citations("backend/tests/t.py", source, "back")
+    result = coverage.report(
+        document(("WF-QUA-0010-A", "F0")),
+        found,
+        DECLARATION,
+        known_stories=frozenset({"US-2160"}),
+    )
+    assert [c.requirement for c in result.unknown] == ["WF-QUA-0010-A", "US-2160"]
+    assert "WF-QUA-0010-A" not in result.covered
+    assert result.unknown_stories == []
+    messages = [coverage.unknown_message(c) for c in result.unknown]
+    assert messages[0].endswith("unknown (a requirement goes under `requirement`, not `story`)")
+    assert messages[1].endswith("unknown (a story goes under `story`, not `requirement`)")
+
+
+def test_importing_the_report_does_not_load_pytest() -> None:
+    # #3752: the names of the marks live in a module of their own, shared with the plugin.
+    code = "import sys, wftools.coverage; sys.exit('pytest' in sys.modules)"
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, check=False)
+    assert result.returncode == 0, result.stderr
+
+
+def test_a_pytestmark_in_the_body_of_a_class_is_read_as_its_decorators() -> None:
+    source = """
+import pytest
+
+
+class TestAlone:
+    pytestmark = pytest.mark.unexecuted("no schema")
+
+    def test_a(self) -> None: ...
+
+
+class TestListed:
+    pytestmark = [pytest.mark.requirement("WF-QUA-0010-A"), pytest.mark.unexecuted("no")]
+
+    def test_b(self) -> None: ...
+
+
+class TestCited:
+    pytestmark: list[object] = [pytest.mark.story("US-2160")]
+
+    @pytest.mark.requirement("WF-QUA-0020-A")
+    def test_c(self) -> None: ...
+
+
+class TestPlain:
+    @pytest.mark.requirement("WF-QUA-0030-A")
+    def test_d(self) -> None: ...
+"""
+    found = coverage.python_citations("backend/tests/t.py", source, "back")
+    assert [(c.test.split("::")[2], c.requirement, c.executed) for c in found] == [
+        ("test_b", "WF-QUA-0010-A", False),
+        ("test_c", "WF-QUA-0020-A", True),
+        ("test_c", "US-2160", True),
+        ("test_d", "WF-QUA-0030-A", True),
+    ]

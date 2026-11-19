@@ -129,14 +129,14 @@ make build-doc            # regenerate the Markdown projection from Word and dra
 make generate-client      # regenerate the front's API client from the contract
 ```
 
-Prerequisites: [uv](https://docs.astral.sh/uv/), which brings Python 3.14 for the back and
-the tools; a Python 3.14 or later on the `PATH` as `python3`, which builds the projection;
-Node 26 and pnpm (`npm install --global pnpm`, once); Docker, for `make dev`, the test services
-and the service platform, which also needs its secrets; the PostgreSQL 18 client, for the backup
-tests; `pandoc` 3.13, the version the projection is generated with;
-`openssl`, to draw another Garage secret than the workflow's; and, to validate the diagrams, `mmdc`,
-installed through npm. [`INSTALL.md`](INSTALL.md) (in French) says where to find pandoc 3.13 on
-Ubuntu 26.04, how to install `mmdc` and what to put in `~/.bashrc`.
+Prerequisites: [uv](https://docs.astral.sh/uv/), which brings Python 3.14 for the back and the
+tools; a Python 3.14 or later on the `PATH` as `python3`, which builds the projection; Node 26 and
+pnpm (`npm install --global pnpm`, once); Docker, for `make dev`, the test services and the service
+platform, which also needs its secrets; the PostgreSQL 18 client (the archive of Ubuntu 26.04 on a
+workstation, the PGDG repository on the runner), for the backup tests; `pandoc` 3.13, the version
+the projection is generated with; `openssl`, to draw another Garage secret than the workflow's; and,
+to validate the diagrams, `mmdc`, installed through npm. [`INSTALL.md`](INSTALL.md) (in French) says
+where to find pandoc 3.13 on Ubuntu 26.04, how to install `mmdc` and what to put in `~/.bashrc`.
 
 ## Stack
 

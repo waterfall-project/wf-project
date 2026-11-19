@@ -109,7 +109,12 @@ class Site:
             return planned_value(session, project, asked, at)
 
 
-def make_site(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Site:
+def make_site(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+) -> Site:
     """Give a platform, a project its manager made, its revision opened, and a role to load."""
     stage = make_scene(api, owner, database, realm)
     tree = Tree(api, stage, opened(api, stage))

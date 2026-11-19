@@ -32,6 +32,7 @@ MARKER = ".seeding"
 pytestmark = [
     pytest.mark.openldap,
     pytest.mark.skipif(shutil.which("docker") is None, reason="docker is not installed"),
+    pytest.mark.unexecuted("skipped where docker is not installed"),
 ]
 
 
