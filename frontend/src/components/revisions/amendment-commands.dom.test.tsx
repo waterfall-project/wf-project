@@ -138,6 +138,7 @@ describe("the abandon of an amendment", () => {
     if (merged === undefined) {
       throw new Error("structures_amendments lists no amendment merged");
     }
+    expect(listedAvailable(merged)).not.toContain("delete");
     commands(merged, listedAvailable(merged));
     expect(screen.queryByRole("button", { name: "Abandonner l’avenant" })).toBeNull();
   });

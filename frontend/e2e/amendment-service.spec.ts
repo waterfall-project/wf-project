@@ -124,7 +124,9 @@ test("says an amendment in arrears is late, updates it from the report, and offe
     await expect(merge).toHaveCount(0, { timeout: WORKING });
     // The worker ends: the screen tells the reference, and no more offers the merge of what is merged.
     await expect(
-      page.getByText("« Avenant contractualisé » est la nouvelle révision de référence"),
+      page
+        .getByRole("status")
+        .filter({ hasText: "« Avenant contractualisé » est la nouvelle révision de référence" }),
     ).toBeVisible({ timeout: WORKING });
     await expect(page.getByRole("button", { name: "Contractualiser l’avenant" })).toHaveCount(0);
   } finally {
