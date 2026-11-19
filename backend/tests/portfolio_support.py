@@ -233,6 +233,13 @@ def rated(stage: Scene, costs: Costing) -> None:
         set_hourly_rate(session, rate, Decimal("65.00"), None, Act(None, OPENED))
 
 
+def another_in_progress(api: ContractClient, fabrics: Portfolio, label: str, code: str) -> UUID:
+    """Write one more project In progress on the platform of the fabrics, as they are; give it."""
+    writer = _Writer(api, fabrics.stage, fabrics.costs)
+    with logging_context(correlation_id="portfolio-another"):
+        return writer.under_way(label, code)[0]
+
+
 def portfolio(api: ContractClient, stage: Scene) -> Portfolio:
     """Write the four projects of the fabrics on the platform of a scene, as its manager.
 
