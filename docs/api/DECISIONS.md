@@ -9042,8 +9042,8 @@ ni le cas du jalon.
   - la tâche porteuse, devenue la récapitulative des tâches placées sous elle, est un `updated`
     dont `fields` nomme ce qui change de ses dates et de sa durée (`duration`, `start`, `finish`,
     dans l'ordre de `NodeColumn`) : elle couvre désormais les dates de ses subordonnées
-    (WF-PLA-0040), qui gardent celles du devis propre (WF-RIS-0060). Les tâches que ce changement
-    redate ailleurs ne sont pas des écarts, comme au compte rendu d'une fusion ;
+    (WF-PLA-0040), qui gardent celles du devis propre (WF-RIS-0060). *Les tâches que ce changement
+    redate ailleurs sont des écarts de plus, depuis la décision du 2026-11-19 (#4134, ci-dessous).*
   - un jalon porteur reste un jalon sans sous-tâche (Vérif de WF-RIS-0060) : il n'est pas modifié,
     et les tâches sont ajoutées après lui.
 - **Le refus.** Un risque qui n'est pas identifié — survenu ou écarté — : 409
@@ -9119,6 +9119,57 @@ ni le cas du jalon.
   que l'entrée crée, nomme aussi la tâche greffée par son nœud du devis propre ; seule une tâche de
   la structure principale est nommée par son nœud. Le contrat n'est pas modifié ; #4151 reste à
   trancher (nœud nul à l'import, nœud du devis propre ici).
+- **Les tâches que la greffe redate sont des différences de plus** (US-2620/L2, #4134, décision de
+  l'auteur du 2026-11-19, la variante « deux champs au compte rendu » d'un commentaire antérieur
+  écartée). Chaque tâche de la structure principale, autre que la tâche porteuse, dont les dates
+  calculées changent par la greffe est une différence `updated` de `differences`, après la tâche
+  porteuse et avant la ligne retirée, dans l'ordre du plan, `fields` nommant ses dates par les
+  colonnes de la grille (`start`, `finish`, dans l'ordre de `NodeColumn`). Les dates sont celles du
+  moteur, rejoué une fois sur la structure que la survenance laisse — le passage même qui juge les
+  motifs de refus —, comparées à celles que la tâche porte. Une tâche qu'aucune liaison ne rattache à
+  la greffe n'y figure pas. Aucun schéma ne change : la description de `differences` le dit. La
+  règle est provisoire, EP-30 la reprenant pour le devis propre préparé comme un différentiel.
+- **Le devis propre qui commence avant le jour de la déclaration est signalé, non refusé** (US-2620/L2,
+  #4133, décision de l'auteur du 2026-11-19, la variante « la survenance redate » écartée). Les
+  tâches fusionnées gardent les dates qu'elles avaient dans le devis propre (WF-RIS-0060) ; un
+  devis propre dont le début de planning précède le jour de la déclaration les placerait dans le
+  passé. `RiskOccurrenceReport.own_estimate_past_planning_start_on`, facultatif et nul quand il n'y a
+  rien à dire, est la date de début de planning du devis propre quand elle précède le jour de la
+  lecture, dans le fuseau de l'installation (`current_day`). Ce n'est pas un motif de refus
+  (`refusals` reste vide) et la survenance ne redate rien. Une saisie du début du devis propre
+  (`updateCostStructure`) fait avancer le compteur du risque : le compte rendu lu avant elle est
+  périmé (412 à la confirmation), celui qui suit, avec un début au jour ou après, ne signale rien.
+  Le nom du champ dit ce qu'il porte, la date et non un booléen, pour que l'écran la nomme ; `_on`
+  suit `planning_start_on`. Écartés : un `ReportRefusal`, qui bloquerait la survenance d'un devis
+  que personne ne peut redater sans le saisir ; un booléen, qui ne nomme pas la date.
+- **L'application de la survenance** (US-2620/L2, `declareRiskOccurrence`). Une seule tâche
+  `risk_occurrence`, une seule transaction, sous le verrou du projet puis du devis propre, de la
+  structure principale et du risque : la requête juge les 409 dans l'ordre du contrat, puis les deux
+  compteurs lus et `creates_current_revision` (412 `STALE_LOCK_VERSION`, `params.expected_lock_version`
+  le compteur du risque) ; le worker les juge de nouveau, la tâche elle-même ne comptant pas comme
+  une tâche qui écrit. Sans révision en cours, il la crée d'abord, par copie de la dernière marquée
+  aux taux conservés, projetés, après avoir jugé les compteurs sur la structure marquée, que le
+  marquage a figée. L'évaluation passe à `occurred` avant que la greffe ne supprime la ligne de
+  provision, que sa clé et sa contrainte refuseraient sinon ; le coût à la survenance est le total du
+  devis propre avant la greffe ; le réexamen de survenance garde la probabilité de l'évaluation, qui ne
+  change pas, et la gravité ; le devis propre est marqué `is_merged`. Rien n'est marqué, la référence
+  ne bouge pas, rien n'entre à l'historique annulable ; le journal reçoit `risk_occurrence` sur le
+  risque, dans sa révision.
+- **La révision qui suit une survenance garde l'évaluation du risque et une structure vide**
+  (US-2620/L2). La copie d'une révision ne reprend pas le devis propre fusionné, ni ses nœuds,
+  ses lignes, ses liaisons et ses images. Mais l'évaluation du risque survenu, avec son coût à la
+  survenance, est reprise (WF-RIS-0030), et elle nomme une structure de sa révision et de son risque
+  (`Risk.structure_id`, exigé ; clé de `risk_evaluation`) : la structure est donc copiée comme ligne,
+  fusionnée et vide, sa lignée et son début de planning gardés. `listCostStructures` la rend
+  `is_merged`, sans nœud. Écarté : ne pas reprendre l'évaluation, qui ferait disparaître un risque
+  survenu du registre, de la matrice et de la couverture dès la révision suivante.
+- **L'abandon d'une révision où le risque a été déclaré puis est survenu** (US-2620/L2) supprime le
+  risque avec elle, les nœuds fusionnés qui le nomment (`origin_risk_id`) lâchés avant sa suppression
+  et supprimés avec la révision.
+- **`UNKNOWN_RISK`** (US-2620/L2, `NodeOriginRiskFilter`) : un risque est connu du filtre quand il est
+  survenu, dans une révision du projet ou dans une autre ; l'abandon qui défait la survenance le
+  rend inconnu. Le refus nomme chaque identifiant fautif par sa place (`/query/origin_risk_ids/<n>`),
+  à `listNodes` comme à `compareRevisions`.
 
 **Corrélation** 1591 et 1592.
 

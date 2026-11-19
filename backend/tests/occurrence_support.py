@@ -187,6 +187,24 @@ def occurring(api: ContractClient, project: Costed) -> Occurring:
     return Occurring(api, project, risks, risks.risk(risk), first, second)
 
 
+def start_own_estimate(ready: Occurring, day: date) -> None:
+    """Move the start of the planning of the own estimate of the risk to a day, as its manager does.
+
+    Through ``updateCostStructure``, at the counter read: the own estimate counts it, and so does
+    the risk (``Risk.lock_version``).
+    """
+    held = ready.read()["structure_id"]
+    base = f"{PROJECTS}/{ready.project.project_id}/revisions/{ready.revision['revision_id']}"
+    listed = ready.api.get(f"{base}/structures", headers=ready.risks.headers).json()
+    counter = next(each for each in listed if each["structure_id"] == held)["lock_version"]
+    answer = ready.api.patch(
+        f"{base}/structures/{held}",
+        headers=ready.risks.headers,
+        json={"planning_start_on": day.isoformat(), "lock_version": counter},
+    )
+    assert answer.status_code == 200, answer.text
+
+
 def idle_diagnostic(ready: Occurring) -> tuple[UUID, UUID, UUID]:
     """Leave the diagnostic of the current revision without an hour; give its roles and its node.
 

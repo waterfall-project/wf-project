@@ -159,7 +159,7 @@ from waterfall.core.planning.interface.facets import (
     register_facet as register_facet,
 )
 
-# ``grafts`` (US-2620/L1): the tasks of a structure grafted into another (EP-08).
+# ``grafts`` (US-2620/L1; US-2620/L2): the tasks of a structure grafted into another (EP-08).
 from waterfall.core.planning.interface.grafts import (
     Graft as Graft,
 )
@@ -168,6 +168,9 @@ from waterfall.core.planning.interface.grafts import (
 )
 from waterfall.core.planning.interface.grafts import (
     graft as graft,
+)
+from waterfall.core.planning.interface.grafts import (
+    release_origin as release_origin,
 )
 
 # ``indicator_stamps`` (US-1660/L3; US-1720/L2): what the key of the cache of the indicators reads.

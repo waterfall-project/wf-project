@@ -230,6 +230,65 @@ def delete_own_estimate(session: Session, project_id: UUID, structure_id: UUID) 
     session.flush()
 
 
+def consume_own_estimate(session: Session, project_id: UUID, structure_id: UUID) -> None:
+    """Mark the own estimate of a risk occurred merged, its counter advanced (WF-RIS-0060).
+
+    The occurrence consumes it: it is read ``is_merged`` in the revision it occurred in, and the
+    next revision does not take its content up (``copy_structures``, ``copy_consumed_estimate``).
+    Under the lock of the structure, which the caller holds; the followers of an own estimate
+    counted (``register_own_estimate_counted``) are not told, the risk being written by the caller.
+    """
+    session.execute(
+        update(CostStructure)
+        .where(
+            CostStructure.project_id == project_id,
+            CostStructure.id == structure_id,
+            CostStructure.kind == RISK,
+        )
+        .values(is_merged=True, lock_version=CostStructure.lock_version + 1)
+        .execution_options(synchronize_session=False)
+    )
+
+
+def copy_consumed_estimate(copy: RevisionCopy, structure_id: UUID) -> UUID:
+    """Copy the own estimate of a risk occurred into the revision opened, empty; give its copy.
+
+    The evaluation of a risk occurred is taken up by the next revision, with its cost at occurrence,
+    and it names a structure of its own revision and of its risk: the structure is copied as the
+    row it is — merged, its lineage and its start kept — but not its content, which the occurrence
+    consumed and which is read in the revision it occurred in (WF-REV-0100, WF-RIS-0060). Its nodes,
+    its lines and its images are not taken up: ``copy_structures`` leaves it out of the identifiers
+    the copies of the planning and of the estimate follow.
+    """
+    row = copy.session.scalars(
+        select(CostStructure).where(
+            CostStructure.project_id == copy.project_id, CostStructure.id == structure_id
+        )
+    ).one()
+    copied = new_id()
+    copy.session.add(
+        CostStructure(
+            project_id=copy.project_id,
+            id=copied,
+            revision_id=copy.target,
+            kind=row.kind,
+            label=row.label,
+            is_merged=True,
+            lineage_id=row.lineage_id,
+            risk_id=row.risk_id,
+            planning_start_on=row.planning_start_on,
+            scheduled_at=row.scheduled_at or row.created_at,
+            lock_version=FIRST_VERSION,
+            created_at=copy.at,
+            created_by=copy.author,
+            updated_at=copy.at,
+            updated_by=copy.author,
+        )
+    )
+    copy.session.flush()
+    return copied
+
+
 def create_differential(
     session: Session,
     revision: tuple[UUID, UUID],

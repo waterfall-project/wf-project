@@ -59,6 +59,7 @@ from waterfall.api.contract.models import (
     WorkInstantWrite,
 )
 from waterfall.api.evaluation import Acting, RequiresProject
+from waterfall.api.node_risks import unknown_risks
 from waterfall.api.numbering import renumbered, resolved, rows_of
 from waterfall.api.queries import read_list, refuse_query
 from waterfall.api.wire import instant_of, text_of
@@ -283,6 +284,7 @@ def node_reading(
             faults += wrong
     subproject, wrong = _subproject_asked(session, project_id, query.subproject_id)
     faults += wrong
+    faults += unknown_risks(session, project_id, risks)
     refuse_query(faults)
     fields = None if query.fields is None else frozenset(query.fields.split(","))
     if fields is not None and not all(_known(name) for name in fields):

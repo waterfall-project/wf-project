@@ -64,6 +64,9 @@ from waterfall.core.risks.interface.occurrence import (
     OccurrenceRequest as OccurrenceRequest,
 )
 from waterfall.core.risks.interface.occurrence import (
+    occurred_risk_ids as occurred_risk_ids,
+)
+from waterfall.core.risks.interface.occurrence import (
     occurrence_report as occurrence_report,
 )
 from waterfall.core.risks.interface.occurrence import (
