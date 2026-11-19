@@ -1526,7 +1526,7 @@ couple (probabilité, gravité) est exposée par `core/risk_settings` (EP-05).
 
 ## US-2610 — La réserve pour risques et la couverture
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-RIS-0050-A`, `WF-RAE-0020-A`, `WF-RAE-0010-A`
 - **opérations** : `getProjectRiskCoverage`, `getRemainingIndicators`, `listNodes` (`totals`),
   `listRisks` (`ProvisionTotals`)

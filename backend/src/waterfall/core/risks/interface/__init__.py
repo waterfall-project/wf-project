@@ -25,10 +25,12 @@ that none lacks their part once a story registers it (#2180).
 
 # ``coverage`` (US-2550/L1; US-2610/L1): the reserve and the coverage of the risks.
 # The registries the risks fill (US-2570/L1).
+from waterfall.core.estimate.interface import register_coverage
 from waterfall.core.planning.interface import ProvisionOwners, register_provision_owners
 from waterfall.core.revisions.interface import (
     register_closing,
     register_copy,
+    register_designation,
     register_own_estimate_counted,
 )
 from waterfall.core.risks.commands import state_named as state_named
@@ -102,6 +104,7 @@ from waterfall.core.risks.interface.risks import (
 from waterfall.core.risks.interface.risks import (
     update_risk as update_risk,
 )
+from waterfall.core.risks.sharing import write_shares
 from waterfall.core.risks.views import (
     OMITTED as OMITTED,
 )
@@ -176,8 +179,11 @@ from waterfall.core.risks.views import (
 # nodes whose copies they name, the interfaces of the revisions and of the planning imported first;
 # their deletion at an abandonment before the nodes and the structures they name (``evaluations``);
 # the counter and the provision of a risk following its own estimate (US-2570/L1), and the risks
-# that own the provision lines a deletion or an import moves (US-2580/L1).
+# that own the provision lines a deletion or an import moves (US-2580/L1), the shares of the reserve
+# a designation writes and the coverage of the remaining to commit (US-2610/L1).
 register_copy(copy_evaluations)
 register_closing("evaluations", close_evaluations)
 register_own_estimate_counted(follow_own_estimate)
 register_provision_owners(ProvisionOwners(name_provision_owners, follow_provision_lines))
+register_designation(write_shares)
+register_coverage(risk_coverage_of)

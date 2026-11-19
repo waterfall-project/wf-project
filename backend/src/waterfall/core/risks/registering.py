@@ -11,7 +11,7 @@ provision, zone, reestimated amount) and so is in no column of a table.
 
 - the provisions are summed by state: the identified at their current provision, the occurred and
   the dismissed at the share they held in the reference (WF-RIS-0040, H-03), and the reserve beside
-  them is that of the coverage of the revision read (WF-RIS-0050), which US-2610 answers;
+  them is the one the reference of the project conserves (WF-RIS-0050, M-01);
 - a risk with neither a cost at occurrence nor a reestimated amount, as one identified or dismissed
   is, is retained by no bound of these columns, and sorts like a null: after the others in the
   ascending order, before them in the descending one (#1761);
@@ -25,13 +25,14 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
-from waterfall.core.estimate.interface import risk_coverage
+from waterfall.core.projects.interface import project_facts
 from waterfall.core.revisions.interface import (
     current_revision,
     last_marked_revision,
     read_revision_for,
 )
 from waterfall.core.risks.reading import NOUGHT, Found, read_context, risk_view
+from waterfall.core.risks.sharing import reserve_of
 from waterfall.core.risks.tables import Risk, RiskEvaluation
 from waterfall.core.risks.views import ProvisionTotals, RiskList
 from waterfall.platform.database import contains
@@ -123,9 +124,13 @@ def _sorted(views: list[RiskView], sort: RiskSort) -> list[RiskView]:
 
 
 def provision_totals(
-    views: list[RiskView], session: Session, project_id: UUID, revision_id: UUID
+    views: list[RiskView], session: Session, project_id: UUID, reference_id: UUID | None
 ) -> ProvisionTotals:
-    """Sum the provisions of the risks retained by state, and give the reserve beside them."""
+    """Sum the provisions of the risks retained by state, and give the reserve beside them.
+
+    The reserve is the one the reference revision of the project conserves (``reference_id``),
+    whichever revision the register reads (M-01).
+    """
     by_state = dict.fromkeys(STATE_ORDER, NOUGHT)
     for view in views:
         by_state[view.state] += view.provision_amount
@@ -134,7 +139,7 @@ def provision_totals(
         occurred=by_state["occurred"],
         dismissed=by_state["dismissed"],
         total=sum(by_state.values(), NOUGHT),
-        reserve=risk_coverage(session, project_id, revision_id).reserve,
+        reserve=reserve_of(session, project_id, reference_id),
     )
 
 
@@ -192,13 +197,17 @@ def read_register(
         return RiskList([], 0, empty)
     founds = found_in(session, project_id, revision_id, filters.search)
     views: list[RiskView] = []
+    reference_id = None
     if founds:
         context = read_context(session, project_id, founds)
+        reference_id = context.facts.reference_revision_id
         views = [
             view
             for view in (risk_view(session, project_id, found, viewer, context) for found in founds)
             if _kept(view, filters)
         ]
+    if not founds:
+        reference_id = project_facts(session, project_id).reference_revision_id
     ordered = _sorted(views, sort)
-    totals = provision_totals(views, session, project_id, revision_id)
+    totals = provision_totals(views, session, project_id, reference_id)
     return RiskList(ordered[page.offset : page.offset + page.limit], len(ordered), totals)

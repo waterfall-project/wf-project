@@ -105,7 +105,7 @@ def read_matrix(
     totals = (
         ProvisionTotals(NOUGHT, NOUGHT, NOUGHT, NOUGHT, NOUGHT)
         if read is None
-        else provision_totals(views, session, project_id, read)
+        else provision_totals(views, session, project_id, context.facts.reference_revision_id)
     )
     return RiskMatrix(
         _levels(context.matrix.probability_bounds),

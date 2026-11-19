@@ -37,11 +37,9 @@ from waterfall.core.cost_settings.interface import (
 from waterfall.core.costs.interface import UNASSIGNED
 from waterfall.core.estimate.interface import (
     CalculationContext,
-    Coverage,
     RemainingIndicators,
     RevisionRemaining,
     SubprojectBalance,
-    register_coverage,
     remaining_indicators,
     remaining_of_revision,
 )
@@ -58,7 +56,6 @@ from waterfall.platform.database import utc_now
 if TYPE_CHECKING:
     from realm import TestRealm
     from sqlalchemy import Engine
-    from sqlalchemy.orm import Session
     from support import ContractClient
 
     from waterfall.platform.database import Database
@@ -624,34 +621,17 @@ def test_a_revision_unknown_or_of_another_project_is_not_found(
 
 @pytest.mark.requirement("WF-RAE-0020-A")
 @pytest.mark.usefixtures("reviewed")
-def test_the_coverage_is_nought_until_the_risks_answer_and_then_what_they_say(
+def test_the_coverage_of_a_project_without_a_risk_is_nought(
     api: ContractClient, stage: Scene
 ) -> None:
-    # « La couverture des risques présente la réserve de référence, … » : an écart vers EP-08. The
-    # coverage is nought while nothing answers, whatever the project holds; the answer registered
-    # is served as it is, then withdrawn.
+    # « La couverture des risques présente la réserve de référence, … » : the risks answer it
+    # (``test_risk_coverage``); with none declared, the reserve and the provisions are nought, the
+    # variance too, whatever the project holds.
     nought = {
         "reserve": "0.00",
         "remaining_provisions": "0.00",
         "occurred_cost": "0.00",
         "occurred_reestimated": "0.00",
         "coverage_variance": "0.00",
-    }
-    assert indicators(api, stage)["coverage"] == nought
-
-    def answer(_session: Session, _project_id: UUID, _revision_id: UUID) -> Coverage:
-        return Coverage(D("850.00"), D("750.00"), D("200.00"), D("210.00"), D("-100.00"))
-
-    withdraw = register_coverage(answer)
-    try:
-        served = indicators(api, stage)["coverage"]
-    finally:
-        withdraw()
-    assert served == {
-        "reserve": "850.00",
-        "remaining_provisions": "750.00",
-        "occurred_cost": "200.00",
-        "occurred_reestimated": "210.00",
-        "coverage_variance": "-100.00",
     }
     assert indicators(api, stage)["coverage"] == nought

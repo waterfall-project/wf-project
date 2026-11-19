@@ -201,7 +201,7 @@ def _reviews(
     return found
 
 
-def _occurred_amounts(session: Session, project_id: UUID, revision_id: UUID) -> dict[UUID, Decimal]:
+def occurred_amounts(session: Session, project_id: UUID, revision_id: UUID) -> dict[UUID, Decimal]:
     """Give the re-estimated amount of the lines each risk's occurrence merged, in a revision.
 
     The lines of the revision read whose task names the risk (``origin_risk_id``), which the
@@ -241,7 +241,7 @@ def read_context(session: Session, project_id: UUID, founds: Sequence[Found]) ->
         subprojects=subproject_labels(session, project_id, subprojects),
         tasks=bearing_of(session, project_id, lines),
         bases={each: risk_base(session, project_id, each) for each in revisions},
-        reestimated={each: _occurred_amounts(session, project_id, each) for each in occurred},
+        reestimated={each: occurred_amounts(session, project_id, each) for each in occurred},
         reviews=_reviews(session, project_id, marked, founds),
     )
 
