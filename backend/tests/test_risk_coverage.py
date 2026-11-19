@@ -25,6 +25,7 @@ from projects_support import scene as make_scene
 from risks_support import MAKING, Costed, Risks, costed, occur
 from sqlalchemy import func, select, update
 
+from waterfall.api.scopes import kept_document
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.tables import Node, Task
 from waterfall.core.projects.tables import Project
@@ -284,7 +285,7 @@ def test_the_completion_of_the_tasks_of_an_occurred_risk_changes_neither_cost_no
     risks: Risks, project: Costed, reading: Reading
 ) -> None:
     # The occurrence is emulated (``occur``, ``put_risk``): the example of the Vérif, on the real
-    # occurrence, is US-2610/L2's (#3837), not acquired here.
+    # occurrence, is that of test_risk_coverage_merged.py (US-2610/L2).
     # « La terminaison des tâches issues d'un risque survenu ne change ni le coût des survenus ni
     # l'écart de couverture. » The task of the making stands for the one the occurrence merged; the
     # lines it bears are reestimated beside the cost at occurrence, never in the variance (#1761).
@@ -305,7 +306,7 @@ def test_the_reestimation_of_the_lines_of_an_occurred_risk_is_beside_its_cost_no
     risks: Risks, project: Costed, reading: Reading
 ) -> None:
     # The occurrence is emulated (``occur``, ``put_risk``): the example of the Vérif, on the real
-    # occurrence, is US-2610/L2's (#3837), not acquired here.
+    # occurrence, is that of test_risk_coverage_merged.py (US-2610/L2).
     # The variant of the contract (``risk_coverage_reestimated``, #2002): the lines that came from
     # the occurred risk are reestimated at 300 against 400, their cost at occurrence 200 stays, and
     # the variance with it.
@@ -337,7 +338,7 @@ def test_the_reserve_is_written_at_the_designation_and_moved_by_nothing_after(
     risks: Risks, project: Costed, reading: Reading
 ) -> None:
     # The occurrence is emulated (``occur``, ``put_risk``): the example of the Vérif, on the real
-    # occurrence, is US-2610/L2's (#3837), not acquired here.
+    # occurrence, is that of test_risk_coverage_merged.py (US-2610/L2).
     # « … la réserve est conservée par la révision de référence au moment où elle le devient […] et
     # ne change plus : ni un réexamen, ni un écart, ni une survenance, ni une saisie dans un devis
     # propre ne la déplacent (M-01). »
@@ -367,7 +368,7 @@ def test_a_new_reference_keeps_the_provision_of_the_risks_that_left_the_identifi
     risks: Risks, project: Costed, reading: Reading
 ) -> None:
     # The occurrence and the merge are emulated (``occur``, ``refer_as_a_merge``): the example of
-    # the Vérif, on the real ones, is US-2610/L2's (#3837), not acquired here.
+    # the Vérif, on the real ones, is that of test_risk_coverage_merged.py (US-2610/L2).
     # « … la réserve de la nouvelle référence conserve la provision que portaient dans la précédente
     # les risques survenus ou écartés avant elle, et s'augmente de celle des risques identifiés
     # qu'elle porte » : the first risk occurred and the second dismissed keep their 60 and 40; a
@@ -462,6 +463,38 @@ def test_a_marked_revision_keeps_the_figures_of_its_risks_and_reads_the_reserve_
     assert figures(reading.remaining(project.revision_id)["coverage"]) == figures(kept)
 
 
+@pytest.mark.requirement("WF-DAT-0040-A")
+@pytest.mark.parametrize("coverage", [None, {}, {"reserve": "0.00"}])
+def test_a_marked_revision_whose_document_kept_no_coverage_gets_it_computed_at_the_reading(
+    risks: Risks,
+    project: Costed,
+    reading: Reading,
+    monkeypatch: pytest.MonkeyPatch,
+    coverage: dict[str, str] | None,
+) -> None:
+    # A document kept before the coverage entered it, or without its figures (#4183), is no 500: the
+    # revision is read as one whose marking kept nothing, the coverage computed at the reading,
+    # ``is_stored`` false, by both readings alike. A row of a marked revision is never written (the
+    # trigger refuses it): the document the readings find is the one damaged.
+    declare(risks, project.revision_id, "Retard du fournisseur", "0.3", "200.00")
+    mark_and_designate(risks, project.revision_id)
+    kept = kept_document
+
+    def damaged(*asked: Any) -> dict[str, Any] | None:
+        found = kept(*asked)
+        if found is None:
+            return None
+        without = {name: each for name, each in found.items() if name != "coverage"}
+        return without if coverage is None else {**without, "coverage": coverage}
+
+    monkeypatch.setattr("waterfall.api.risk_coverage.kept_document", damaged)
+    monkeypatch.setattr("waterfall.api.remaining_indicators.kept_document", damaged)
+    body = reading.body(project.revision_id)
+    assert figures(body) == ("60.00", "60.00", "0.00", "0.00", "0.00")
+    assert body["context"]["is_stored"] is False
+    assert figures(reading.remaining(project.revision_id)["coverage"]) == figures(body)
+
+
 @pytest.mark.requirement("WF-RIS-0050-A")
 def test_two_designations_at_the_same_instant_take_the_shares_of_the_previous_reference(
     risks: Risks, project: Costed
@@ -471,7 +504,7 @@ def test_two_designations_at_the_same_instant_take_the_shares_of_the_previous_re
     # one, the second takes the share the first conserved for a risk occurred since. The order of
     # the journal, which a correction needs, is proved by the test below. The occurrence and the
     # merge are emulated (``occur``, ``refer_as_a_merge``): the example of the Vérif, on the real
-    # ones, is US-2610/L2's (#3837), not acquired here.
+    # ones, is that of test_risk_coverage_merged.py (US-2610/L2).
     first = declare(risks, project.revision_id, "Retard du fournisseur", "0.3", "200.00")
     mark_and_designate(risks, project.revision_id)
     following = UUID(risks.revision()["revision_id"])
@@ -530,7 +563,7 @@ def test_the_coverage_of_the_remaining_to_commit_is_the_one_of_the_risk_coverage
     risks: Risks, project: Costed, reading: Reading
 ) -> None:
     # The occurrence is emulated (``occur``, ``put_risk``): the example of the Vérif, on the real
-    # occurrence, is US-2610/L2's (#3837), not acquired here.
+    # occurrence, is that of test_risk_coverage_merged.py (US-2610/L2).
     # « La couverture des risques présente la réserve de référence, les provisions restantes, le
     # coût des risques survenus et l'écart de couverture. » The coverage of
     # ``getRemainingIndicators`` and ``getProjectRiskCoverage``, a risk occurred and one identified.
