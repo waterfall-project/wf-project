@@ -25,6 +25,7 @@ that none lacks their part once a story registers it (#2180).
 
 # ``coverage`` (US-2550/L1; US-2610/L1): the reserve and the coverage of the risks.
 # The registries the risks fill (US-2570/L1).
+from waterfall.core.planning.interface import ProvisionOwners, register_provision_owners
 from waterfall.core.revisions.interface import (
     register_closing,
     register_copy,
@@ -34,6 +35,8 @@ from waterfall.core.risks.following import (
     close_evaluations,
     copy_evaluations,
     follow_own_estimate,
+    follow_provision_lines,
+    name_provision_owners,
 )
 from waterfall.core.risks.interface.coverage import (
     risk_coverage_of as risk_coverage_of,
@@ -48,18 +51,6 @@ from waterfall.core.risks.interface.deletion import (
 )
 
 # ``matrix`` (US-2550/L1; US-2600/L2): the matrix of the risks of a project.
-from waterfall.core.risks.interface.matrix import (
-    MatrixCell as MatrixCell,
-)
-from waterfall.core.risks.interface.matrix import (
-    MatrixLevel as MatrixLevel,
-)
-from waterfall.core.risks.interface.matrix import (
-    MatrixPoint as MatrixPoint,
-)
-from waterfall.core.risks.interface.matrix import (
-    RiskMatrix as RiskMatrix,
-)
 from waterfall.core.risks.interface.matrix import (
     risk_matrix as risk_matrix,
 )
@@ -126,6 +117,15 @@ from waterfall.core.risks.views import (
     Bounds as Bounds,
 )
 from waterfall.core.risks.views import (
+    MatrixCell as MatrixCell,
+)
+from waterfall.core.risks.views import (
+    MatrixLevel as MatrixLevel,
+)
+from waterfall.core.risks.views import (
+    MatrixPoint as MatrixPoint,
+)
+from waterfall.core.risks.views import (
     Omitted as Omitted,
 )
 from waterfall.core.risks.views import (
@@ -153,6 +153,9 @@ from waterfall.core.risks.views import (
     RiskList as RiskList,
 )
 from waterfall.core.risks.views import (
+    RiskMatrix as RiskMatrix,
+)
+from waterfall.core.risks.views import (
     RiskMatrixCell as RiskMatrixCell,
 )
 from waterfall.core.risks.views import (
@@ -171,7 +174,9 @@ from waterfall.core.risks.views import (
 # The registrations, once, at the import: the copy of the evaluations after the structures and the
 # nodes whose copies they name, the interfaces of the revisions and of the planning imported first;
 # their deletion at an abandonment before the nodes and the structures they name (``evaluations``);
-# the counter and the provision of a risk following its own estimate (US-2570/L1).
+# the counter and the provision of a risk following its own estimate (US-2570/L1), and the risks
+# that own the provision lines a deletion or an import moves (US-2580/L1).
 register_copy(copy_evaluations)
 register_closing("evaluations", close_evaluations)
 register_own_estimate_counted(follow_own_estimate)
+register_provision_owners(ProvisionOwners(name_provision_owners, follow_provision_lines))

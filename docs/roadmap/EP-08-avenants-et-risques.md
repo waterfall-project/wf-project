@@ -863,7 +863,7 @@ Les révisions et les structures » (E-09 : le devis propre naît et disparaît 
 
 ## US-2580 — La ligne de provision d'un risque identifié
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-RIS-0010-A`, `WF-DEV-0010-A`, `WF-DEV-0030-A`, `WF-PRJ-0040-A`,
   `WF-PRJ-0050-A`, `WF-PLA-0040-A`, `WF-PLA-0050-A`, `WF-INTF-0120-A`
 - **opérations** : `createRisk`, `updateRiskProvision`, `reviewRisk`, `listNodes`, `deleteNode`,

@@ -195,10 +195,12 @@ DECLARED = {
     "witness.revision_fillers",
     "estimate.coverage",
     # EP-08 (US-2550/L1): the parts of a merge, the kinds of entry another module undoes; what
-    # follows the counter of an own estimate (US-2570/L1).
+    # follows the counter of an own estimate (US-2570/L1), who owns the provision lines a deletion
+    # or an import moves (US-2580/L1).
     "revisions.merge",
     "history.undoable",
     "revisions.own_estimate_counted",
+    "planning.provision_owners",
 }
 PLANNING = "waterfall.core.planning.interface"
 # What EP-06 registers (US-1380/L1, US-1390/L2), the copy of the nodes after the structures', and
@@ -315,11 +317,15 @@ REGISTERED_BY_EP09 = {
 RISKS = "waterfall.core.risks.following"
 # What the risks register (US-2570/L1): the copy of their evaluations after the copies of the rows
 # they name, their deletion at an abandonment before the content of the revision, and what follows
-# the counter of an own estimate.
+# the counter of an own estimate; and what names the risks of the provision lines a deletion or an
+# import moves, and follows them (US-2580/L1).
 REGISTERED_BY_EP08 = {
     "revisions.copy": [f"{RISKS}.copy_evaluations"],
     CLOSING: [f"evaluations:{RISKS}.close_evaluations"],
     "revisions.own_estimate_counted": [f"{RISKS}.follow_own_estimate"],
+    "planning.provision_owners": [
+        f"ProvisionOwners({RISKS}.name_provision_owners, {RISKS}.follow_provision_lines)"
+    ],
 }
 INDICATORS = "waterfall.core.indicators.interface"
 # What the socle of EP-10 registers (US-1660/L1): what a marking keeps of the indicators, which

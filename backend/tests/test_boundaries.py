@@ -130,6 +130,8 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "loading",
         "milestone_dates",
         "msproject",
+        # The deletion of a node, moved out of ``nodes`` (US-2580/L1).
+        "node_deletion",
         "nodes",
         "open_lines",
         "paste",

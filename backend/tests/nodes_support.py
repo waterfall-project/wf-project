@@ -187,15 +187,15 @@ def set_progress(stage: Scene, node_id: str, progress: str, on: date) -> None:
         )
 
 
-def mark(stage: Scene, revision: dict[str, Any], name: str = "v1.0") -> None:
-    """Mark a revision by the transaction of the worker (US-0970), under the name given."""
+def mark(stage: Scene, revision: dict[str, Any], label: str = "v1.0") -> None:
+    """Mark a revision by the transaction of the worker (US-0970), under a label of the project."""
     with (
         logging_context(correlation_id="marking"),
         Session(stage.owner) as session,
         session.begin(),
     ):
         marked = UUID(revision["revision_id"])
-        mark_revision(session, marked, name, None, Act(None, utc_now()))
+        mark_revision(session, marked, label, None, Act(None, utc_now()))
 
 
 def put_facts(stage: Scene, node_id: str, **facts: object) -> None:

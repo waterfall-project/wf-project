@@ -30,6 +30,7 @@ from waterfall.core.estimate.interface import (
     lines_for_indicators,
     risk_base,
     round_to_cent,
+    share_of,
     structure_amounts,
 )
 from waterfall.core.planning.interface import bearing_of
@@ -240,6 +241,15 @@ def _cell(
         level_of(ratio, matrix.severity_bounds),
         zone_of(matrix, probability, ratio),
     )
+
+
+def severity_share(context: ReadContext, revision_id: UUID, severity: Decimal) -> Decimal | None:
+    """Give a severity as a share of the base of the project, to four places; none on a base of 0.
+
+    The share the matrix draws; the cell of the risk is that of the exact share (``_cell``).
+    """
+    base = context.bases[revision_id]
+    return share_of(severity, base) if base > 0 else None
 
 
 def _provision_task(context: ReadContext, evaluation: RiskEvaluation) -> ProvisionTask | None:

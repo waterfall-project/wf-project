@@ -495,14 +495,16 @@ def reference_with(
 
 
 @pytest.mark.requirement("WF-RAE-0020-A")
-def test_the_nature_provision_is_served_at_nought_and_left_out_of_the_total(
+@pytest.mark.requirement("WF-RAE-0010-A")
+def test_the_nature_provision_counts_the_provisions_whatever_the_state_of_their_task(
     api: ContractClient, stage: Scene, reviewed: Tree, costs: Costing
 ) -> None:
-    # « … la nature provision à zéro » : a provision line of the revision (its category of the
+    # « … plus les provisions des risques identifiés, quel que soit l'état de la tâche qui les
+    # porte » (WF-RAE-0010, EP-08/US-2580): a provision line of the revision (its category of the
     # provision kind, put around the service as the risks of EP-08 will), in a task started or not,
-    # figures with an amount of nought and a share of nought, and the total leaves it out. A second
-    # one, of another nature, under a task completed, is served at nought too, whatever the state
-    # of its task.
+    # counts its amount under the nature of its category, and the total with it. A second one, of
+    # another nature, under a task completed, counts its amount too — nought here, as it was
+    # reestimated — whatever the state of its task.
     Lines(reviewed).made(reviewed.made("Risques"), **supplies(costs, "Aléa", "900", None))
     Lines(reviewed).made(reviewed.made("Clos"), **supplies(costs, "Réserve", "700", None))
     # The task is completed while its line is still of material: a line of provision is no longer
@@ -517,13 +519,14 @@ def test_the_nature_provision_is_served_at_nought_and_left_out_of_the_total(
                 .values(cost_category_id=category)
             )
     body = indicators(api, stage)
-    assert body["total"] == "550.00"
+    assert body["total"] == "1450.00"
     by_type = {each["label"]: each for each in body["by_cost_type"]}
     assert len(by_type) == 3
     held = [each for label, each in by_type.items() if label != "Matériel"]
-    assert [each["amount"] for each in held] == ["0.00", "0.00"]
+    assert by_type["Matériel"]["amount"] == "550.00"
+    assert sorted(each["amount"] for each in held) == ["0.00", "900.00"]
     shares = [D(each["share"]["value"]) for each in (by_type["Matériel"], *held)]
-    assert shares == [D(1), D(0), D(0)]
+    assert sum(shares) == D(1)
     assert sum(D(each["amount"]) for each in body["by_cost_type"]) == D(body["total"])
 
 

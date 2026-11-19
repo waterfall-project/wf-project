@@ -10,7 +10,8 @@ of the last review by its period — sorted, paginated, and given with the total
 filters retain, not of the page (WF-IHM-0130, #1367; H-01, #1785). Every fault of a filter is named
 at once (422): a bound that is no number, a day that is none, an upper bound under the lower one.
 
-Registered by the application, empty until US-2600 serves it (US-2550/L1).
+The matrix is read in the same revision (``revision_id``), with the levels of the reference
+settings and the risks of the register as points, placed on the bounds of the matrix.
 """
 
 import re
@@ -29,15 +30,19 @@ from waterfall.api.evaluation import Acting, RequiresProject
 from waterfall.api.projects import viewer_of
 from waterfall.api.queries import Search, read_list, refuse_query
 from waterfall.api.risks import authors_of, described
+from waterfall.api.wire import text_of
 from waterfall.core.cost_settings.interface import Page
 from waterfall.core.risks.interface import (
     Bounds,
+    MatrixLevel,
+    MatrixPoint,
     RiskColumn,
     RiskFilters,
     RiskPage,
     RiskSort,
     RiskState,
     list_risks,
+    risk_matrix,
 )
 from waterfall.platform.errors import FieldError
 
@@ -220,4 +225,78 @@ def get_risks(
         "meta": PaginationMeta(limit=page.limit, offset=page.offset, total=read.total).model_dump(
             mode="json"
         ),
+    }
+
+
+class MatrixQuery(BaseModel):
+    """The parameter of ``getProjectRiskMatrix``: the revision read."""
+
+    revision_id: UUID | None = None
+
+
+def _level(level: MatrixLevel) -> dict[str, object]:
+    """Write a level of an axis as the contract does (``RiskMatrixLevel``)."""
+    return {
+        "level": level.level,
+        "lower": text_of(level.lower),
+        "upper": None if level.upper is None else text_of(level.upper),
+    }
+
+
+def _ratio(share: Decimal | None) -> dict[str, object]:
+    """Write the severity share of a point (``Computable``): none on a zero base (#1240)."""
+    if share is None:
+        return {"is_computable": False, "value": None, "reason": "no_reference_budget"}
+    return {"is_computable": True, "value": text_of(share), "reason": None}
+
+
+def _point(point: MatrixPoint) -> dict[str, object]:
+    """Write a risk the matrix places (``RiskMatrixPoint``)."""
+    return {
+        "risk_id": str(point.risk_id),
+        "label": point.label,
+        "probability": text_of(point.probability),
+        "severity_amount": _money(point.severity_amount),
+        "severity_ratio": _ratio(point.severity_ratio),
+        "provision_amount": _money(point.provision_amount),
+        "state": point.state,
+        "zone": point.zone,
+    }
+
+
+@router.get(
+    "/projects/{project_id}/risks/matrix",
+    operation_id="getProjectRiskMatrix",
+    dependencies=[Depends(RequiresProject(CONSULT))],
+    response_model=None,
+)
+def get_risk_matrix(
+    project_id: UUID,
+    actor: Acting,
+    session: Transaction,
+    query: Annotated[MatrixQuery, Query()],
+) -> dict[str, object]:
+    """Give the matrix of a project: its levels, its cells, its risks as points, their totals."""
+    read = risk_matrix(session, project_id, query.revision_id, viewer_of(actor))
+    totals = read.totals
+    return {
+        "probability_levels": [_level(each) for each in read.probability_levels],
+        "severity_levels": [_level(each) for each in read.severity_levels],
+        "cells": [
+            {
+                "probability_level": each.probability_level,
+                "severity_level": each.severity_level,
+                "count": each.count,
+                "zone": each.zone,
+            }
+            for each in read.cells
+        ],
+        "points": [_point(each) for each in read.points],
+        "totals": {
+            "identified": _money(totals.identified),
+            "occurred": _money(totals.occurred),
+            "dismissed": _money(totals.dismissed),
+            "total": _money(totals.total),
+            "reserve": _money(totals.reserve),
+        },
     }

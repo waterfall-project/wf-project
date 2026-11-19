@@ -8,8 +8,9 @@ Registered at the import of the interface of the risks (EP-08, "Modules"):
   own estimate of a risk — a cell, a paste, a move, a creation, a deletion, an import, an undoing —
   advances the counter of its risk with the structure's (#1453), and, the risk identified in that
   revision, writes its provision line again at the severity, the new total of the structure,
-  weighted by its probability, to the cent (WF-RIS-0010). The locks come in one order: the own
-  estimate, held by the write, then the risk, then the main structure that bears the line;
+  weighted by its probability, to the cent (WF-RIS-0010). The locks come in the order of
+  ``update_provision``: the own estimate, held by the write, then the main structure that bears the
+  line, then the risk;
 - **the copy of a revision** (``register_copy``): each evaluation of the source is taken up, its own
   estimate and its provision line by their copies, after the structures and the nodes whose copies
   it names; the reviews and the shares are not (EP-08, "Tables et migrations"). The own estimate of
@@ -18,6 +19,10 @@ Registered at the import of the interface of the risks (EP-08, "Modules"):
   advances at the opening because the planning redates each copied structure that holds a node
   (``redate_copy``), which counts it as any write of its tree — the own estimate of a risk that
   holds none is not redated, and its risk keeps its counter;
+- **the provision lines moved** (``register_provision_owners``): the risk a line a deletion of its
+  task, or an import that no longer carries it, moves under another task, is named when the
+  deletion would leave the structure without a task, and its counter advances once the line is
+  moved (US-2580/L1; the planning does not know the risks);
 - **the closing of a revision abandoned** (``register_closing``, ``evaluations``): its reviews and
   its evaluations are deleted before its nodes and its structures, which they name, and the counter
   of each risk it evaluated advances, never going back (H-02, #1783). A risk the revision declared
@@ -37,8 +42,12 @@ from waterfall.core.estimate.interface import (
     set_provision,
     structure_amount,
 )
-from waterfall.core.planning.interface import Place
-from waterfall.core.revisions.interface import aimed_structure, rename_own_estimates
+from waterfall.core.planning.interface import Place, ProvisionOwner
+from waterfall.core.revisions.interface import (
+    aimed_structure,
+    rename_own_estimates,
+    structure_facts,
+)
 from waterfall.core.risks.commands import IDENTIFIED
 from waterfall.core.risks.reading import evaluation_of
 from waterfall.core.risks.tables import Risk, RiskEvaluation, RiskReview
@@ -70,17 +79,52 @@ def advance_risks(session: Session, project_id: UUID, risk_ids: Collection[UUID]
 def follow_own_estimate(counted: OwnEstimateCounted) -> None:
     """Advance the counter of the risk of an own estimate written; write its provision again."""
     session, project_id = counted.session, counted.project_id
+    main = aimed_structure(session, project_id, counted.revision_id, None)
+    if main is not None:
+        # The main structure before the risk: the order of ``update_provision``, which says why.
+        structure_facts(session, project_id, main, lock=True)
     advance_risks(session, project_id, [counted.risk_id])
     evaluation = evaluation_of(session, project_id, counted.risk_id, counted.revision_id)
     if evaluation is None or evaluation.state != IDENTIFIED:
         return
     line = evaluation.provision_node_id
-    main = aimed_structure(session, project_id, counted.revision_id, None)
     if line is None or main is None:
         return
     severity = structure_amount(session, project_id, counted.structure_id)
     amount = round_to_cent(severity * evaluation.probability)
     set_provision(session, Place(project_id, counted.revision_id, main), line, amount)
+
+
+def name_provision_owners(
+    session: Session, project_id: UUID, revision_id: UUID, lines: Collection[UUID]
+) -> tuple[ProvisionOwner, ...]:
+    """Name the risks that bear these provision lines in a revision, by label then identifier."""
+    rows = session.execute(
+        select(Risk.id, Risk.label)
+        .join(
+            RiskEvaluation,
+            (RiskEvaluation.project_id == Risk.project_id) & (RiskEvaluation.risk_id == Risk.id),
+        )
+        .where(
+            RiskEvaluation.project_id == project_id,
+            RiskEvaluation.revision_id == revision_id,
+            RiskEvaluation.provision_node_id.in_(list(lines)),
+        )
+        .order_by(Risk.label, Risk.id)
+    )
+    return tuple(ProvisionOwner(risk_id, label) for risk_id, label in rows)
+
+
+def follow_provision_lines(
+    session: Session, project_id: UUID, revision_id: UUID, lines: Collection[UUID]
+) -> None:
+    """Advance the counter of the risks whose provision line a deletion or an import moved.
+
+    Their provision task changes with the line (WF-RIS-0010; ``provision_moved``, #1665), and the
+    counter a client carries with the risk (``updateRiskProvision``) with it.
+    """
+    named = name_provision_owners(session, project_id, revision_id, lines)
+    advance_risks(session, project_id, [each.risk_id for each in named])
 
 
 def copy_evaluations(copy: RevisionCopy) -> None:
