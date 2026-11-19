@@ -43,6 +43,7 @@ from waterfall.core.estimate.interface import (
     set_provision,
     structure_amount,
 )
+from waterfall.core.history.interface import moved_aside
 from waterfall.core.planning.interface import Place, ProvisionOwner, release_origin
 from waterfall.core.revisions.interface import (
     aimed_structure,
@@ -69,14 +70,24 @@ if TYPE_CHECKING:
 
 
 def advance_risks(session: Session, project_id: UUID, risk_ids: Collection[UUID]) -> None:
-    """Advance the counter of each risk named, in the order of their identifiers, locked by it."""
+    """Advance the counter of each risk named, in the order of their identifiers, locked by it.
+
+    The history is told the counters moved (``moved_aside``): a write of the planning that moves
+    them — the own estimate written, a provision line carried — restores no risk, and the frame of
+    an undoing carries them to the entries of the risks of its stack (US-2590/L2).
+    """
+    moved: dict[UUID, int] = {}
     for risk_id in sorted(risk_ids):
-        session.execute(
+        counter = session.scalar(
             update(Risk)
             .where(Risk.project_id == project_id, Risk.id == risk_id)
             .values(lock_version=Risk.lock_version + 1)
+            .returning(Risk.lock_version)
             .execution_options(synchronize_session=False)
         )
+        if counter is not None:
+            moved[risk_id] = counter
+    moved_aside(session, moved)
 
 
 def follow_own_estimate(counted: OwnEstimateCounted) -> None:

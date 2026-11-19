@@ -91,6 +91,9 @@ from waterfall.core.history.interface.undo import (
     StructureLocker as StructureLocker,
 )
 from waterfall.core.history.interface.undo import (
+    carry_everywhere as carry_everywhere,
+)
+from waterfall.core.history.interface.undo import (
     depth as depth,
 )
 from waterfall.core.history.interface.undo import (
@@ -105,7 +108,13 @@ from waterfall.core.history.interface.undoable import (
     Undoable as Undoable,
 )
 from waterfall.core.history.interface.undoable import (
+    moved_aside as moved_aside,
+)
+from waterfall.core.history.interface.undoable import (
     register_undoable as register_undoable,
+)
+from waterfall.core.history.interface.undoable import (
+    taken_aside as taken_aside,
 )
 from waterfall.core.history.interface.undoable import (
     undoables as undoables,

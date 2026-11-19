@@ -204,16 +204,22 @@ def create_main_structure(session: Session, project_id: UUID, revision_id: UUID,
 
 
 def create_own_estimate(
-    session: Session, revision: tuple[UUID, UUID], risk: tuple[UUID, str], act: Act
+    session: Session,
+    revision: tuple[UUID, UUID],
+    risk: tuple[UUID, str],
+    act: Act,
+    kept: tuple[UUID, date] | None = None,
 ) -> UUID:
     """Create the own estimate of a risk in a revision, empty, labelled as it is; give it (E-09).
 
     ``revision`` is the project and its current revision, ``risk`` the risk and its label. Its
     planning starts on the day of its creation, as the main structure's; the risks judge the
-    revision before.
+    revision before. ``kept`` the identifier and the start of an own estimate deleted with its risk,
+    which the undoing of the deletion, or the redoing of the declaration, creates again
+    (US-2590/L2).
     """
     (project_id, revision_id), (risk_id, label) = revision, risk
-    structure_id = new_id()
+    structure_id, start = (new_id(), current_day(act.at)) if kept is None else kept
     session.add(
         CostStructure(
             project_id=project_id,
@@ -224,7 +230,7 @@ def create_own_estimate(
             is_merged=False,
             lineage_id=structure_id,
             risk_id=risk_id,
-            planning_start_on=current_day(act.at),
+            planning_start_on=start,
             scheduled_at=act.at,
             lock_version=FIRST_VERSION,
             created_at=act.at,

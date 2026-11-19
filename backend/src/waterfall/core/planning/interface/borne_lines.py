@@ -10,10 +10,10 @@ name, as it reads them — the first of the first level (``first_task``), a task
 the tree — its revision judged, the structure locked and read under the lock, redated once written
 —, but under a task whatever its state, a provision entering no state of its task (WF-PLA-0040), and
 kept out of the history, whose entry the module that asks frames for all it writes (EP-08,
-US-2590/L2). Its facet is written by the hooks of its kind, which the module that asks addresses
-(``FacetCreation.entry``). It moves the line under another task (``move_borne_line``) the same
-way, and tells which module owns the lines a deletion or an import moves under another task
-(``register_provision_owners``, US-2580/L1).
+US-2590/L2), and which brings a line back under its identifier. Its facet is written by the hooks
+of its kind, which the module that asks addresses (``FacetCreation.entry``). It moves the line
+under another task (``move_borne_line``) the same way, and tells which module owns the lines a
+deletion or an import moves under another task (``register_provision_owners``, US-2580/L1).
 
 Filled by US-2570/L1; completed by US-2580/L1.
 """
@@ -143,7 +143,18 @@ def create_borne_line(
     history is kept: the module that asks keeps its own. The structure is redated, and the lines of
     the task priced again.
     """
-    node_id = new_id()
+    return recreate_borne_line(session, place, (task_id, new_id()), entry, writer)
+
+
+def recreate_borne_line(
+    session: Session, place: Place, borne: tuple[UUID, UUID], entry: object, writer: Writer
+) -> UUID:
+    """Create a line under a task as ``create_borne_line`` does, under the identifier given.
+
+    ``borne`` the task and the line: one deleted and brought back by the undoing or the redoing of
+    the entry of the module that asks (US-2590/L2).
+    """
+    task_id, node_id = borne
     unrecorded = Writer(writer.act, None, writer.running)
     with writing(session, place, unrecorded, ("node_create", (node_id,))) as write:
         tree = write.tree

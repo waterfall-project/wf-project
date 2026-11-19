@@ -112,6 +112,7 @@ from waterfall.core.revisions.interface import (
     register_merge_end,
 )
 from waterfall.core.revisions.tables import Revision
+from waterfall.core.risks.interface import RISK_KINDS
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import UnprocessableError
@@ -934,27 +935,27 @@ def test_a_part_of_a_merge_with_a_change_unknown_is_a_defect_named_by_its_error(
 
 
 def test_a_kind_of_entry_is_undone_by_one_module_at_most() -> None:
-    # A tool of the registries, which covers no requirement: how the risks undo their four kinds
-    # (EP-08, US-2590/L2) — none before they register, the planning's then; a second module for the
-    # same kind refused; none once withdrawn.
+    # A tool of the registries, which covers no requirement: the risks undo their four kinds (EP-08,
+    # US-2590/L2), registered at the import of their interface; another kind is the planning's until
+    # a module registers it; a second module for the same kind refused; none once withdrawn.
     def lock(_session: Session, _project: UUID, _states: Snapshot) -> None:
         return None
 
     def read(_session: Session, _project: UUID, _ids: tuple[UUID, ...]) -> Snapshot:
         return ()
 
-    def restore(_session: Session, _project: UUID, _restoring: Restoring) -> None:
+    def restore(_session: Session, _project: UUID, _restoring: Restoring, _act: Act) -> None:
         return None
 
-    undoable = Undoable(lock, read, restore)
-    assert undoables() == {}
+    risks = undoables()
+    assert set(risks) == set(RISK_KINDS)
+    undoable = Undoable(("planning.write",), lock, read, restore)
     with ExitStack() as registered:
-        registered.callback(register_undoable("risk_create", undoable))
-        registered.callback(register_undoable("risk_review", undoable))
-        assert undoables() == {"risk_create": undoable, "risk_review": undoable}
+        registered.callback(register_undoable("node_move", undoable))
+        assert undoables() == {**risks, "node_move": undoable}
         with pytest.raises(ValueError, match="undone by a module already"):
             register_undoable("risk_create", undoable)
-    assert undoables() == {}
+    assert undoables() == risks
 
 
 @pytest.fixture

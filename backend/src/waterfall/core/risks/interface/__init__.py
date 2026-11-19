@@ -26,6 +26,7 @@ that none lacks their part once a story registers it (#2180).
 # ``coverage`` (US-2550/L1; US-2610/L1): the reserve and the coverage of the risks.
 # The registries the risks fill (US-2570/L1).
 from waterfall.core.estimate.interface import register_coverage
+from waterfall.core.history.interface import register_undoable
 from waterfall.core.planning.interface import ProvisionOwners, register_provision_owners
 from waterfall.core.revisions.interface import (
     register_closing,
@@ -111,6 +112,12 @@ from waterfall.core.risks.interface.risks import (
     update_risk as update_risk,
 )
 from waterfall.core.risks.sharing import write_shares
+
+# ``undoing``, beside the interface (US-2590/L2): the kinds of entry of the history the risks undo.
+from waterfall.core.risks.undoing import (
+    RISK_KINDS as RISK_KINDS,
+)
+from waterfall.core.risks.undoing import UNDOABLE
 from waterfall.core.risks.views import (
     OMITTED as OMITTED,
 )
@@ -193,3 +200,6 @@ register_own_estimate_counted(follow_own_estimate)
 register_provision_owners(ProvisionOwners(name_provision_owners, follow_provision_lines))
 register_designation(write_shares)
 register_coverage(risk_coverage_of)
+# The four kinds of entry of the history the risks undo and redo (US-2590/L2).
+for _kind in RISK_KINDS:
+    register_undoable(_kind, UNDOABLE)

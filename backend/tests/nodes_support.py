@@ -154,10 +154,13 @@ def instant(day: date, hours: str) -> dict[str, str]:
     return {"date": day.isoformat(), "hours": hours}
 
 
-def signed_in(stage: Scene, realm: TestRealm) -> Person:
-    """Write a contributor of the project whose token carries a session of sign-in (``sid``)."""
+def signed_in(stage: Scene, realm: TestRealm, permissions: tuple[str, ...] = MANAGING) -> Person:
+    """Write a contributor of the project whose token carries a session of sign-in (``sid``).
+
+    The role it holds carries ``permissions``, those of a project manager by default.
+    """
     account = raw_account(email=f"{uuid4().hex}@example.org", first_name="Léa")
-    held = role(stage.database, f"Rôle {uuid4().hex}", permissions=MANAGING)
+    held = role(stage.database, f"Rôle {uuid4().hex}", permissions=permissions)
     with stage.database.transaction() as session:
         session.execute(insert(UserAccount).values(**account))
         session.execute(

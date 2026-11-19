@@ -43,8 +43,9 @@ from waterfall.core.planning.filters import (
     NodeFilters as NodeFilters,
 )
 
-# ``borne_lines`` (US-2570/L1; US-2580/L1): the tasks a risk names, the provision line it asks for
-# and moves, and the module that owns the lines a deletion or an import moves (EP-08).
+# ``borne_lines`` (US-2570/L1; US-2580/L1; US-2590/L2): the tasks a risk names, the provision line
+# it asks for, brings back and moves, and the module that owns the lines a deletion or an import
+# moves (EP-08).
 from waterfall.core.planning.interface.borne_lines import (
     TaskNamed as TaskNamed,
 )
@@ -64,6 +65,9 @@ from waterfall.core.planning.interface.borne_lines import (
     move_borne_line as move_borne_line,
 )
 from waterfall.core.planning.interface.borne_lines import (
+    recreate_borne_line as recreate_borne_line,
+)
+from waterfall.core.planning.interface.borne_lines import (
     structures_have_task as structures_have_task,
 )
 from waterfall.core.planning.interface.borne_lines import (
@@ -77,6 +81,14 @@ from waterfall.core.planning.interface.closing import (
 )
 from waterfall.core.planning.interface.closing import (
     delete_structure_nodes as delete_structure_nodes,
+)
+
+# ``closing`` (US-2590/L2): the nodes of a structure kept whole, and written back.
+from waterfall.core.planning.interface.closing import (
+    restore_structure_nodes as restore_structure_nodes,
+)
+from waterfall.core.planning.interface.closing import (
+    structure_nodes as structure_nodes,
 )
 
 # ``copying`` (US-1380/L2; moved out of ``nodes`` and written as one statement a table by

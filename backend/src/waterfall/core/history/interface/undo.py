@@ -24,7 +24,11 @@ not undone that holds the object in its ``after``, the nearest undone one in its
 that fifty entries on the same task undo one by one, then redo in order, and only a change made
 outside the stack is a conflict.
 
-Declared by US-1380/L1; filled by US-1450/L1.
+An entry of a kind another module registers (``register_undoable``, EP-08) is locked and read by
+that module, which restores it in the block; the versions a write moved aside in the transaction
+(``moved_aside``) are carried with the ones the restoring left.
+
+Declared by US-1380/L1; filled by US-1450/L1; the kinds of another module by US-2590/L2.
 """
 
 from contextlib import contextmanager
@@ -33,6 +37,8 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import func, select
 
+from waterfall.core.history.interface.recording import UndoStack
+from waterfall.core.history.interface.undoable import taken_aside, undoables
 from waterfall.core.history.snapshots import decoded, encoded, with_versions
 from waterfall.core.history.stacks import lock_stack, of_stack
 from waterfall.core.history.tables import UndoEntry
@@ -44,7 +50,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.history.interface.recording import UndoneKind, UndoStack
+    from waterfall.core.history.interface.recording import UndoneKind
     from waterfall.core.history.snapshots import Snapshot
 
 UNDO_CONFLICT = "UNDO_CONFLICT"
@@ -180,6 +186,8 @@ def _turned(
     block has restored them.
     """
     lock_stack(session, stack)
+    # What a write before this frame moved aside is none of its business.
+    taken_aside(session)
     # The last entry not undone, for an undoing; the last one undone — the lowest — for a redoing.
     edge = UndoEntry.rank.desc() if undoing else UndoEntry.rank.asc()
     entry = session.scalars(
@@ -193,6 +201,7 @@ def _turned(
         raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": condition})
     left, wanted = (entry.after, entry.before) if undoing else (entry.before, entry.after)
     expected, restored = decoded(left), decoded(wanted)
+    lock, read = _by_kind(session, entry, lock, read)
     try:
         lock(expected + restored)
     except NotFoundError:
@@ -213,7 +222,31 @@ def _turned(
     present = restoring.present()
     entry.undone = undoing
     session.flush()
-    _follow(session, stack, {state.object_id: state.lock_version for state in present})
+    moved = taken_aside(session)
+    moved.update({state.object_id: state.lock_version for state in present})
+    _follow(session, stack, moved)
+
+
+def _by_kind(
+    session: Session, entry: UndoEntry, lock: StructureLocker, read: SnapshotReader
+) -> tuple[StructureLocker, SnapshotReader]:
+    """Give the lock and the reading of an entry: its module's for a kind it registers, else these.
+
+    A module above the planning locks and reads the objects of its kinds itself
+    (``register_undoable``), in the project of the entry.
+    """
+    undoable = undoables().get(cast("UndoneKind", entry.kind))
+    if undoable is None:
+        return lock, read
+    project_id = entry.project_id
+
+    def locked(states: Snapshot) -> None:
+        undoable.lock(session, project_id, states)
+
+    def reading(object_ids: tuple[UUID, ...]) -> Snapshot:
+        return undoable.read(session, project_id, object_ids)
+
+    return locked, reading
 
 
 def _judge(expected: Snapshot, read: SnapshotReader) -> None:
@@ -229,12 +262,18 @@ def _judge(expected: Snapshot, read: SnapshotReader) -> None:
             )
 
 
-def _follow(session: Session, stack: UndoStack, versions: dict[UUID, int]) -> None:
+def _follow(
+    session: Session,
+    stack: UndoStack,
+    versions: dict[UUID, int],
+    only_from: dict[UUID, int] | None = None,
+) -> None:
     """Carry the versions a restoring left to the entries that will be judged on them next.
 
     For each object, the nearest entry not undone that holds it in its ``after`` — the next
     undoing judges it there —, and the nearest entry undone that holds it in its ``before`` — the
-    next redoing does.
+    next redoing does. With ``only_from``, an object is carried only if the entry holds it at that
+    counter: an entry already behind another write keeps its counter, and its conflict with it.
     """
     for undone in (False, True):
         pending = dict(versions)
@@ -249,9 +288,37 @@ def _follow(session: Session, stack: UndoStack, versions: dict[UUID, int]) -> No
             found = {s.object_id: pending.pop(s.object_id) for s in side if s.object_id in pending}
             if not found:
                 continue
+            if only_from is not None:
+                held = {s.object_id: s.lock_version for s in side}
+                found = {o: v for o, v in found.items() if held[o] == only_from[o]}
+                if not found:
+                    continue
             carried = encoded(with_versions(side, found))
             if undone:
                 entry.before = carried
             else:
                 entry.after = carried
     session.flush()
+
+
+def carry_everywhere(
+    session: Session, project_id: UUID, moved: dict[UUID, tuple[int, int]]
+) -> None:
+    """Carry the versions a write moved, of objects no entry restores, to every stack of a project.
+
+    A datum an entry keeps the version of but does not restore — the identity of a risk, H-02 —
+    moves its counter without being what an entry judges: each stack follows it as it follows the
+    versions of a restoring (``_follow``), so that the change is no conflict of an undoing.
+    ``moved`` gives, by object, the counter before the write and the one after: an entry that does
+    not hold the former is already in conflict with another write, which the carrying does not
+    erase.
+    """
+    old = {o: v[0] for o, v in moved.items()}
+    new = {o: v[1] for o, v in moved.items()}
+    stacks = session.execute(
+        select(UndoEntry.revision_id, UndoEntry.user_account_id, UndoEntry.session_id)
+        .where(UndoEntry.project_id == project_id)
+        .distinct()
+    ).all()
+    for revision_id, account_id, session_id in stacks:
+        _follow(session, UndoStack(revision_id, account_id, session_id), new, old)

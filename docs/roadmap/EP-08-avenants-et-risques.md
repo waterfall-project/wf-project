@@ -1384,7 +1384,7 @@ d'aucune tâche » (F-02).
 
 ## US-2590 — Les états d'un risque, ses réexamens et sa suppression ; ce que l'abandon et l'annulation en défont
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-RIS-0020-A`, `WF-IHM-0110-A`
 - **opérations** : `reviewRisk`, `listRiskReviews`, `deleteRisk`, `listRisks` (`last_review_on_to`),
   `abandonRevision`, `undoLastChange`, `redoLastUndo`
@@ -1403,8 +1403,10 @@ registre dise ce qu'on pense des risques aujourd'hui et garde ce qu'on en pensai
   reste aucune ; sous la tâche qu'il désignait si elle est encore une tâche de la structure
   principale, sinon sous la première tâche de premier niveau (WF-RIS-0010) ;
 - `WF-RIS-0020-A` — « Toute transition depuis l'état survenu est refusée. » : 409
-  `STATE_FORBIDS_OPERATION`, `risk_not_occurred` manquante, pour `reviewRisk`, `updateRiskProvision`
-  et `deleteRisk` ; l'état survenu ne s'atteint que par la survenance (US-2620) ;
+  `STATE_FORBIDS_OPERATION`, `risk_not_occurred` manquante, pour `reviewRisk` et `deleteRisk`, et
+  `risk_identified` manquante pour `updateRiskProvision`, qui ne nomme que cette condition, pour un
+  risque survenu comme pour un écarté (`RiskCommand`, #4044) ; l'état survenu ne s'atteint que par
+  la survenance (US-2620) ;
 - `WF-RIS-0020-A` — « La suppression d'un risque cité par une révision marquée est refusée. » : 409,
   `risk_not_cited` manquante ; un risque qu'aucune révision marquée ne cite est supprimé avec son
   devis propre et sa ligne de provision ;
