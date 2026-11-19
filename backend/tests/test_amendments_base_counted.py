@@ -289,10 +289,11 @@ def base_line_with_subproject(api: ContractClient, project: Costed) -> tuple[str
 def test_the_base_a_merged_differential_keeps_in_its_marked_revision_cites_its_subproject(
     api: ContractClient, project: Costed
 ) -> None:
-    # « sous-projet cité par une ligne d'une révision marquée, non supprimable » (#4212): the base a
+    # « Celle d'un sous-projet référencé par une révision marquée est refusée » (#4212): the base a
     # merged differential keeps in the revision its merge marks is never written, and its line
-    # holds the key of the subproject — the subproject is cited, though no line any operation
-    # serves names it; while the revision is current, the base does not cite it.
+    # holds the key of the subproject — the subproject is cited, its deletion unavailable, though
+    # no line any operation serves names it; while the revision is current, the base does not
+    # cite it.
     stage = project.stage
     subproject, structure_id, _ = base_line_with_subproject(api, project)
     with stage.database.transaction() as session:
@@ -322,9 +323,9 @@ def test_the_base_a_merged_differential_keeps_in_its_marked_revision_cites_its_s
 def test_a_line_of_a_base_held_by_the_session_keeps_its_subproject_forgotten_at_its_flush(
     api: ContractClient, project: Costed
 ) -> None:
-    # « la ligne de la base ne porte plus le sous-projet » (#4212): a line of the base loaded in the
-    # transaction that forgets the subproject is synchronised with it, and a change of another of
-    # its columns, flushed after, does not write the key back.
+    # #4212: the deletion of a subproject a line of a base alone bears forgets it on that line; a
+    # line of the base loaded in the transaction that forgets the subproject is synchronised with
+    # it, and a change of another of its columns, flushed after, does not write the key back.
     subproject, _, base = base_line_with_subproject(api, project)
     with project.stage.database.transaction() as session:
         loaded = session.scalars(
