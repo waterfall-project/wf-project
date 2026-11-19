@@ -1,0 +1,25 @@
+{
+  "summary": "Ce que getPortfolioCostStructure doit répondre sur le témoin chargé avec la tranche du portefeuille, lu au 2026-06-03 par as_of : chaque projet par ce que sa dernière révision marquée à cette date a conservé (WF-PTF-0010, WF-DAT-0040, WF-QUA-0040).",
+  "description": "Lecture attendue engendrée par `make mock-data` (`wftools.mocksliceviews`) : elle ne se retouche pas.",
+  "operation": "getPortfolioCostStructure",
+  "query": {
+    "as_of": "2026-06-03",
+    "states": "in_progress,pricing,completed"
+  },
+  "value": {
+    "scope": {"states":["in_progress","pricing","completed"],"as_of":"2026-06-03","from":"2025-06-04","to":"2026-06-03","org_node_id":null,"org_node_label":null,"project_count":10},
+    "budget_by_cost_type": [
+      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"9692035.67","share":{"is_computable":true,"value":"0.1375","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"60792285.89","share":{"is_computable":true,"value":"0.8625","reason":null}}
+    ],
+    "remaining_by_cost_type": [
+      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"9562435.31","share":{"is_computable":true,"value":"0.1378","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"58953738.74","share":{"is_computable":true,"value":"0.8499","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":"855360.00","share":{"is_computable":true,"value":"0.0123","reason":null}}
+    ],
+    "labor_by_org_node": [
+      {"key":"01926f3a-7c00-7000-8000-000000000471","label":"Bureau d'études électricité","amount":"8568269.75","share":{"is_computable":true,"value":"0.8841","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000472","label":"Atelier de câblage","amount":"1123765.92","share":{"is_computable":true,"value":"0.1159","reason":null}}
+    ]
+  }
+}

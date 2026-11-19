@@ -15,6 +15,7 @@ from wftools import (
     REPOSITORY,
     mockdata,
     mockportfolio,
+    mocksliceviews,
     mockstructure,
     mocktoday,
     mockwitness,
@@ -847,6 +848,7 @@ def test_writing_removes_a_file_the_generator_no_longer_makes(tmp_path: Path) ->
     assert mockdata.check(tmp_path / "absent") == [
         *(f"volume/{name} is missing" for name in mockdata.volumes()),
         *(f"{name} is missing" for name in mockdata.named()),
+        *(f"witness/portfolio/{name} is missing" for name in mocksliceviews.documents()),
     ]
 
 

@@ -3050,6 +3050,14 @@ What the same command generates is never re-read from the disk: the indicators, 
 curves of the witness, which the portfolio sums, are passed to it in memory, so that one single run
 of `make mock-data` reaches its fixed point.
 
+**The slice of the portfolio**, out of the contract, is written under `fixtures/witness/portfolio/`:
+the description of the ten projects the loader of the witness adds to PRJ-001 and PRJ-002, each
+write in the form of its schema of the contract (`projects/`, `wftools.mockslice`), and the expected
+readings of the eight views of the portfolio on 3 June 2026, read by `as_of` (`readings/`,
+`wftools.mockslicereadings` and `wftools.mocksliceviews`), computed without importing anything of
+the back (EP-11, US-2770; held by `tools/tests/test_mockslice.py` and
+`backend/tests/test_witness_portfolio_slice.py`).
+
 **What stays written by hand** — sessions, accounts and roles, reference data (resource roles and
 their headcounts, calendars, organisation nodes), the project, its revisions and its transitions,
 imports and their reports, background tasks, state of the system and backups, counterfactual

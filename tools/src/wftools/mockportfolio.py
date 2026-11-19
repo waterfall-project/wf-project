@@ -99,6 +99,22 @@ label and code, without a link (WF-ADM-0110).
 """
 
 
+def generated_label(subject: str, thing: str, site: str) -> str:
+    """Return a label the witness generates: a subject, an object and a site (WF-QUA-0040).
+
+    The subject and the object are of the vocabulary of the generator, never a real project's.
+    """
+    if subject not in _SUBJECTS or thing not in _OBJECTS:
+        message = f"{subject} {thing} is not of the vocabulary of the generated labels"
+        raise ValueError(message)
+    return f"{subject} {thing} — {site}"
+
+
+def generated_labels() -> set[str]:
+    """Return the labels the generator gives the projects of the portfolio of §4.6.2."""
+    return {str(row["label"]) for row in cast("list[JsonObject]", portfolio()["items"])}
+
+
 def can_open(n: int) -> bool:
     """Return whether the reader can open the n-th generated project of the portfolio."""
     return n % UNOPENABLE_EVERY != 0
@@ -112,14 +128,14 @@ def portfolio() -> JsonObject:
     # Each generated label is a subject, an object and a site; the witness project and the
     # offer keep theirs, and no other project takes their subject and object.
     names = [
-        f"{subject} {thing}"
+        (subject, thing)
         for thing in _OBJECTS
         for subject in _SUBJECTS
         if f"{subject} {thing}" not in taken
     ]
     for n in range(len(universe) + 1, PROJECT_COUNT + 1):
         rank = n - len(universe) - 1
-        label = f"{names[rank % len(names)]} — {_SITES[rank // len(names)]}"
+        label = generated_label(*names[rank % len(names)], _SITES[rank // len(names)])
         rows.append(_portfolio_row(n, label))
     return {
         "scope": {

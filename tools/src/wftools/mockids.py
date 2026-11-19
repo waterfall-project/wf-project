@@ -68,6 +68,14 @@ audit, its inscriptions and the correlations of their requests (``mockaudit``, E
 lines of actual cost of the tasks drawn about the core (``mockcosts``, EP-14/L45a); and the nodes
 the amendment 2 copies of those drawn (``mockamendment``, #421)."""
 
+SLICE_PROJECTS, SLICE_REVISIONS, SLICE_NODES, SLICE_RISKS, SLICE_COST_LINES, SLICE_IMPORTS = range(
+    11, 17
+)
+"""The families of the slice of the portfolio, the ten projects the witness loads beside PRJ-001
+and PRJ-002 (``mockslice``, EP-11/US-2770): their projects, revisions, nodes — tasks, lines and
+those of the own estimates of their risks —, risks, lines of actual cost and imports, each
+numbered from the rank of its project, so that two loadings give the same ones."""
+
 _GENERATED = 99_999_999
 
 IDENTIFIERS = (
@@ -108,6 +116,12 @@ IDENTIFIERS = (
     Family("corrélations engendrées", 1, _GENERATED, CORRELATIONS),
     Family("lignes de coût réel engendrées", 1, _GENERATED, COST_LINES),
     Family("nœuds engendrés de l'avenant 2", 1, _GENERATED, AMENDMENT_NODES),
+    Family("projets de la tranche du portefeuille", 1, _GENERATED, SLICE_PROJECTS),
+    Family("révisions de la tranche du portefeuille", 1, _GENERATED, SLICE_REVISIONS),
+    Family("nœuds de la tranche du portefeuille", 1, _GENERATED, SLICE_NODES),
+    Family("risques de la tranche du portefeuille", 1, _GENERATED, SLICE_RISKS),
+    Family("lignes de coût réel de la tranche du portefeuille", 1, _GENERATED, SLICE_COST_LINES),
+    Family("imports de coûts réels de la tranche du portefeuille", 1, _GENERATED, SLICE_IMPORTS),
 )
 """Every family of identifier, on disjoint ranges: an identifier names one kind of object.
 

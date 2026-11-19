@@ -118,6 +118,7 @@ from wftools import (
     mockrevisionminors,
     mockriskwrites,
     mockservedrefusals,
+    mocksliceviews,
     mocksnapshot,
     mocksort,
     mockspendingrefusals,
@@ -873,7 +874,8 @@ def write(fixtures: Path) -> list[Path]:
         written.append(_write(directory / name, text))
     for name, example in named().items():
         written.append(_write(fixtures / name, render(example)))
-    return written
+    # The slice of the portfolio, its description and its readings, beside the examples (US-2770).
+    return [*written, *mocksliceviews.write(mocksliceviews.directory_of(fixtures))]
 
 
 def _write(path: Path, text: str) -> Path:
@@ -902,7 +904,7 @@ def check(fixtures: Path, declared: Iterable[str] | None = None) -> list[str]:
         for name in (declared_names() if declared is None else declared)
         if name not in examples
     )
-    return problems
+    return [*problems, *mocksliceviews.check(mocksliceviews.directory_of(fixtures))]
 
 
 BY = "make mock-data"

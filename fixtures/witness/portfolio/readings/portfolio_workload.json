@@ -1,0 +1,35 @@
+{
+  "summary": "Ce que getPortfolioWorkload doit répondre sur le témoin chargé avec la tranche du portefeuille, lu au 2026-06-03 par as_of : chaque projet par ce que sa dernière révision marquée à cette date a conservé (WF-PTF-0010, WF-DAT-0040, WF-QUA-0040).",
+  "description": "Lecture attendue engendrée par `make mock-data` (`wftools.mocksliceviews`) : elle ne se retouche pas.",
+  "operation": "getPortfolioWorkload",
+  "query": {
+    "as_of": "2026-06-03",
+    "states": "in_progress,pricing,completed"
+  },
+  "value": {
+    "scope": {"states":["in_progress","pricing","completed"],"as_of":"2026-06-03","from":null,"to":null,"org_node_id":null,"org_node_label":null,"project_count":9},
+    "under_load_threshold": "0.5",
+    "capacity_monthly_hours": "1360666.67",
+    "months": [
+      "2026-06",
+      "2026-07",
+      "2026-08",
+      "2026-09",
+      "2026-10",
+      "2026-11"
+    ],
+    "monthly_totals": [
+      {"month":"2026-06","hours":"2229.79"},
+      {"month":"2026-07","hours":"3746.9"},
+      {"month":"2026-08","hours":"2560.83"},
+      {"month":"2026-09","hours":"3493.46"},
+      {"month":"2026-10","hours":"3151.74"},
+      {"month":"2026-11","hours":"4046.81"}
+    ],
+    "roles": [
+      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000451","label":"Ingénieur électricien","capacity_monthly_hours":"658666.67","months":[{"month":"2026-06","hours":"1466.5","load_ratio":{"is_computable":true,"value":"0.0022","reason":null},"zone":"watch"},{"month":"2026-07","hours":"2622.41","load_ratio":{"is_computable":true,"value":"0.004","reason":null},"zone":"watch"},{"month":"2026-08","hours":"1715.61","load_ratio":{"is_computable":true,"value":"0.0026","reason":null},"zone":"watch"},{"month":"2026-09","hours":"2335.28","load_ratio":{"is_computable":true,"value":"0.0035","reason":null},"zone":"watch"},{"month":"2026-10","hours":"2125.28","load_ratio":{"is_computable":true,"value":"0.0032","reason":null},"zone":"watch"},{"month":"2026-11","hours":"2680.89","load_ratio":{"is_computable":true,"value":"0.0041","reason":null},"zone":"watch"}]},
+      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000452","label":"Technicien de mise en service","capacity_monthly_hours":"485333.33","months":[{"month":"2026-06","hours":"763.29","load_ratio":{"is_computable":true,"value":"0.0016","reason":null},"zone":"watch"},{"month":"2026-07","hours":"1124.49","load_ratio":{"is_computable":true,"value":"0.0023","reason":null},"zone":"watch"},{"month":"2026-08","hours":"845.22","load_ratio":{"is_computable":true,"value":"0.0017","reason":null},"zone":"watch"},{"month":"2026-09","hours":"1158.18","load_ratio":{"is_computable":true,"value":"0.0024","reason":null},"zone":"watch"},{"month":"2026-10","hours":"1026.46","load_ratio":{"is_computable":true,"value":"0.0021","reason":null},"zone":"watch"},{"month":"2026-11","hours":"1365.92","load_ratio":{"is_computable":true,"value":"0.0028","reason":null},"zone":"watch"}]},
+      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000454","label":"Monteur câbleur","capacity_monthly_hours":"216666.67","months":[{"month":"2026-06","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-07","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-08","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-09","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-10","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"},{"month":"2026-11","hours":"0","load_ratio":{"is_computable":true,"value":"0","reason":null},"zone":"watch"}]}
+    ]
+  }
+}
