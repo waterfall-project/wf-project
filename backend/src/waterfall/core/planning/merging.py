@@ -91,6 +91,7 @@ class MergePlan:
     kept: list[UUID] = field(default_factory=list[UUID])
     removed: list[UUID] = field(default_factory=list[UUID])
     links: dict[Pair, LinkRow] = field(default_factory=dict[Pair, LinkRow])
+    summaries: set[UUID] = field(default_factory=set[UUID])
 
     def facet(self, task_id: UUID) -> TaskRow:
         """Give the facet of a task: the differential's for a task merged from it, else its own."""
@@ -113,7 +114,7 @@ class MergePlan:
 
     def is_summary(self, task_id: UUID) -> bool:
         """Tell whether a task merged bears a subtask in the structure the merge leaves."""
-        return task_id in self.parents.values()
+        return task_id in self.summaries
 
     def staying(self, task_id: UUID) -> UUID | None:
         """Give the nearest ancestor of a task removed that the merge leaves; none at the top."""
@@ -146,6 +147,7 @@ def _placed(plan: MergePlan, amendment_links: list[LinkRow]) -> None:
     children: dict[UUID | None, list[UUID]] = {}
     for task_id, parent in plan.parents.items():
         children.setdefault(parent, []).append(task_id)
+    plan.summaries.update(each for each in children if each is not None)
     pending = list(reversed(children.get(None, [])))
     while pending:
         task_id = pending.pop()
