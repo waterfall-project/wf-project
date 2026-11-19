@@ -20,7 +20,7 @@ from estimate_support import Costing, costing
 from nodes_support import mark, put_risk
 from projects_support import PROJECTS, Scene, create, designate
 from projects_support import scene as make_scene
-from risks_support import Costed, Risks, costed, share_row
+from risks_support import MOST_STATEMENTS_OF_REGISTER, Costed, Risks, costed, share_row
 from sqlalchemy import delete, event, insert, select, update
 
 from waterfall.core.cost_settings.interface import read_reference_settings
@@ -665,6 +665,8 @@ def test_the_register_costs_the_same_statements_whatever_the_number_of_its_risks
     declare(10, 5)
     many = measure()
     assert counts == [5, 15]
+    # A count of nought would hold the equality for nothing; the bound is the reading's own.
+    assert 0 < few <= MOST_STATEMENTS_OF_REGISTER
     assert many == few
 
 
@@ -694,7 +696,7 @@ def test_without_a_current_revision_the_last_marked_one_is_read(register: Regist
     assert body["totals"]["identified"] == "410.00"
 
 
-@pytest.mark.requirement("WF-RIS-0030-A")
+@pytest.mark.requirement("WF-RIS-0040-A")
 def test_a_revision_of_another_project_or_unknown_is_not_found(
     register: Registered, api: ContractClient, stage: Scene
 ) -> None:

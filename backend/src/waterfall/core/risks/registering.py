@@ -122,7 +122,7 @@ def _sorted(views: list[RiskView], sort: RiskSort) -> list[RiskView]:
     return sorted(views, key=_keys()[sort.key], reverse=sort.descending)
 
 
-def _totals(
+def provision_totals(
     views: list[RiskView], session: Session, project_id: UUID, revision_id: UUID
 ) -> ProvisionTotals:
     """Sum the provisions of the risks retained by state, and give the reserve beside them."""
@@ -138,7 +138,7 @@ def _totals(
     )
 
 
-def _found(
+def found_in(
     session: Session, project_id: UUID, revision_id: UUID, search: str | None
 ) -> list[Found]:
     """Read the risks a revision holds, in the order of their declaration, the label searched."""
@@ -157,6 +157,21 @@ def _found(
     return [Found(risk, evaluation) for risk, evaluation in session.execute(query)]
 
 
+def revision_read(session: Session, project_id: UUID, requested: UUID | None) -> UUID | None:
+    """Give the revision a reading reads: the one named, else the current, else the last marked.
+
+    ``None`` for a project that has none and names none; the revision named is refused (404) when
+    it is of another project.
+    """
+    if (
+        requested is None
+        and current_revision(session, project_id) is None
+        and last_marked_revision(session, project_id) is None
+    ):
+        return None
+    return read_revision_for(session, project_id, requested).revision_id
+
+
 def read_register(
     session: Session,
     project_id: UUID,
@@ -166,24 +181,24 @@ def read_register(
     """Read a page of the register of a project in a revision, and the totals of those retained.
 
     The revision named, else the current, else the last marked (404 for one of another project); a
-    project with none holds no risk, and its register is empty, its totals nought.
+    project with none holds no risk, and its register is empty, its totals nought. A revision that
+    holds no risk, or none the search names, is read without the reference settings, which a
+    register of no risk has no use for (#4012).
     """
     filters, sort, page = query
-    if (
-        filters.revision_id is None
-        and current_revision(session, project_id) is None
-        and last_marked_revision(session, project_id) is None
-    ):
+    revision_id = revision_read(session, project_id, filters.revision_id)
+    if revision_id is None:
         empty = ProvisionTotals(NOUGHT, NOUGHT, NOUGHT, NOUGHT, NOUGHT)
         return RiskList([], 0, empty)
-    revision_id = read_revision_for(session, project_id, filters.revision_id).revision_id
-    founds = _found(session, project_id, revision_id, filters.search)
-    context = read_context(session, project_id, founds)
-    views = [
-        view
-        for view in (risk_view(session, project_id, found, viewer, context) for found in founds)
-        if _kept(view, filters)
-    ]
+    founds = found_in(session, project_id, revision_id, filters.search)
+    views: list[RiskView] = []
+    if founds:
+        context = read_context(session, project_id, founds)
+        views = [
+            view
+            for view in (risk_view(session, project_id, found, viewer, context) for found in founds)
+            if _kept(view, filters)
+        ]
     ordered = _sorted(views, sort)
-    totals = _totals(views, session, project_id, revision_id)
+    totals = provision_totals(views, session, project_id, revision_id)
     return RiskList(ordered[page.offset : page.offset + page.limit], len(ordered), totals)

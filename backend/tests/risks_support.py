@@ -52,6 +52,12 @@ COSTED = ((STUDY, "Plans", "600.00"), (MAKING, "Fabrication", "400.00"))
 
 # --- The rows, around the service ----------------------------------------------------------------
 
+# The statements a reading of the risks sends at most, whatever the number of its risks (#4013): the
+# cost measured of each, 34, 23 and 24, and two of margin.
+MOST_STATEMENTS_OF_REGISTER = 36
+MOST_STATEMENTS_OF_MATRIX = 25
+MOST_STATEMENTS_OF_DETAIL = 26
+
 
 def evaluation_row(
     project_id: UUID,

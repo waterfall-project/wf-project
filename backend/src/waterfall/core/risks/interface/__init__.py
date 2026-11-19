@@ -49,18 +49,6 @@ from waterfall.core.risks.interface.deletion import (
 
 # ``matrix`` (US-2550/L1; US-2600/L2): the matrix of the risks of a project.
 from waterfall.core.risks.interface.matrix import (
-    MatrixCell as MatrixCell,
-)
-from waterfall.core.risks.interface.matrix import (
-    MatrixLevel as MatrixLevel,
-)
-from waterfall.core.risks.interface.matrix import (
-    MatrixPoint as MatrixPoint,
-)
-from waterfall.core.risks.interface.matrix import (
-    RiskMatrix as RiskMatrix,
-)
-from waterfall.core.risks.interface.matrix import (
     risk_matrix as risk_matrix,
 )
 
@@ -126,6 +114,15 @@ from waterfall.core.risks.views import (
     Bounds as Bounds,
 )
 from waterfall.core.risks.views import (
+    MatrixCell as MatrixCell,
+)
+from waterfall.core.risks.views import (
+    MatrixLevel as MatrixLevel,
+)
+from waterfall.core.risks.views import (
+    MatrixPoint as MatrixPoint,
+)
+from waterfall.core.risks.views import (
     Omitted as Omitted,
 )
 from waterfall.core.risks.views import (
@@ -151,6 +148,9 @@ from waterfall.core.risks.views import (
 )
 from waterfall.core.risks.views import (
     RiskList as RiskList,
+)
+from waterfall.core.risks.views import (
+    RiskMatrix as RiskMatrix,
 )
 from waterfall.core.risks.views import (
     RiskMatrixCell as RiskMatrixCell,
