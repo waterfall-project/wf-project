@@ -95,6 +95,7 @@ from waterfall.core.resource_settings.interface import (
 from waterfall.core.revisions.interface import (
     CLOSING_STAGES,
     MergePart,
+    MergePartError,
     ReferenceDesignated,
     RevisionClosing,
     RevisionMarking,
@@ -871,6 +872,41 @@ def test_the_end_of_a_merge_is_judged_once_after_every_part_whatever_their_order
         completed_tasks=tuple({"lineage_id": name} for name in asked),
         refusals=tuple({"code": "LINK_CYCLE", "params": {"by": name}} for name in asked),
     )
+
+
+def test_a_part_of_a_merge_with_a_change_unknown_is_a_defect_named_by_its_error(
+    api: ContractClient, stage: Scene
+) -> None:
+    # A tool of the registries, which covers no requirement: a part that gives a change the report
+    # does not know is a defect of the module that registered it (#3948), named by a
+    # ``MergePartError`` and not by the index of the sort; withdrawn, the merge gives its parts.
+    revision_id = UUID(open_revision(api, stage)["revision_id"])
+    path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{revision_id}/structures"
+    opened = api.post(
+        path, headers=stage.manager.headers, json={"kind": "amendment", "label": "Avenant"}
+    )
+    assert opened.status_code == 201, opened.text
+    main = api.get(path, headers=stage.manager.headers).json()[0]
+
+    def faulty(_given: StructureMerging) -> MergePart:
+        return MergePart(differences=({"change": "moved", "target": "task"},))
+
+    with ExitStack() as registered, Session(stage.owner) as session:
+        merging = StructureMerging(
+            session,
+            UUID(stage.project["project_id"]),
+            revision_id,
+            UUID(main["structure_id"]),
+            UUID(opened.json()["structure_id"]),
+            Act(None, utc_now()),
+            applying=False,
+        )
+        withdraw = register_merge(faulty)
+        registered.callback(withdraw)
+        with pytest.raises(MergePartError, match="'moved'"):
+            merge_parts(merging)
+        withdraw()
+        assert merge_parts(merging) == MergePart()
 
 
 def test_a_kind_of_entry_is_undone_by_one_module_at_most() -> None:

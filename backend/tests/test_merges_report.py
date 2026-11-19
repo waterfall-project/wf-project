@@ -13,7 +13,7 @@ merge removes goes to another task (WF-RIS-0010). Every answer is checked agains
 """
 
 from dataclasses import replace
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -24,7 +24,7 @@ from estimate_support import Costing, Lines, costing
 from history_support import delete, link
 from nodes_support import Tree, mark, opened, put_facts, set_progress, work_breakdown
 from planning_support import insert_link
-from projects_support import PROJECTS, Scene, contribute, person
+from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
 from risks_support import MAKING, STUDY, Costed, costed, declared, material, material_line
 from sqlalchemy import select, update
@@ -489,6 +489,69 @@ def test_a_structure_that_is_no_differential_to_merge_has_the_409_of_its_merge(
     started_marking(api, project)
     running = {"missing_condition": "no_background_task_running"}
     assert refusal(asked(api, project, amendment)) == (409, REFUSED, running)
+
+
+@pytest.mark.requirement("WF-REV-0050-A")
+def test_the_report_of_a_terminal_project_has_the_409_project_not_terminal(
+    api: ContractClient, project: Costed
+) -> None:
+    # « les conditions de la commande merge_structure sont nommées dans l'ordre du contrat »: a
+    # completed project is no more merged into, whatever its differential.
+    amendment = opened_amendment(api, project)
+    put_in_state(project.stage.owner, str(project.project_id), "completed")
+    terminal = {"missing_condition": "project_not_terminal"}
+    assert refusal(asked(api, project, amendment)) == (409, REFUSED, terminal)
+
+
+@pytest.mark.requirement("WF-REV-0050-A")
+def test_the_report_names_the_columns_of_a_task_the_differential_changes(
+    api: ContractClient, project: Costed
+) -> None:
+    # « les écarts du différentiel à la principale (ImportDifference) »: the description, the
+    # scheduling mode and the dates of a task are named beside its label, in the order of the grid;
+    # the dates of an automatic task are computed, not named.
+    amendment = opened_amendment(api, project)
+    tree = on(project.tree, amendment)
+    start, finish = DAY + timedelta(days=7), DAY + timedelta(days=9)
+    tree.changed(
+        node_of(tree, STUDY),
+        description="Étude détaillée",
+        scheduling_mode="manual",
+        start={"date": start.isoformat()},
+        finish={"date": finish.isoformat()},
+    )
+    tree.changed(node_of(tree, MAKING), description="Atelier")
+    found = report(api, project, amendment)["differences"]
+    assert found == [
+        difference(
+            "updated",
+            "task",
+            (lineage(project, STUDY), STUDY),
+            ["description", "scheduling_mode", "duration", "start", "finish"],
+        ),
+        difference("updated", "task", (lineage(project, MAKING), MAKING), ["description"]),
+    ]
+
+
+@pytest.mark.requirement("WF-REV-0050-A")
+def test_the_report_leaves_out_the_derived_columns_of_a_summary_task(
+    api: ContractClient, project: Costed
+) -> None:
+    # « les écarts du différentiel à la principale (ImportDifference) »: a manual task of the main
+    # structure that receives a subtask in the differential becomes an automatic summary, whose
+    # mode, duration and dates are derived: the report names the subtask added and none of them.
+    start, finish = DAY + timedelta(days=7), DAY + timedelta(days=9)
+    project.tree.changed(
+        node_of(project.tree, MAKING),
+        scheduling_mode="manual",
+        start={"date": start.isoformat()},
+        finish={"date": finish.isoformat()},
+    )
+    amendment = opened_amendment(api, project)
+    tree = on(project.tree, amendment)
+    assert tree.create("Usinage", parent_id=node_of(tree, MAKING)["node_id"]).status_code == 201
+    found = report(api, project, amendment)["differences"]
+    assert found == [difference("added", "task", (None, "Usinage"))]
 
 
 @pytest.mark.requirement("WF-REV-0050-A")

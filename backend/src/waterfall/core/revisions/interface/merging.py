@@ -59,6 +59,14 @@ CREATE_REVISION = "revisions.write"
 _CHANGES = ("added", "updated", "removed", "kept")
 
 
+class MergePartError(ValueError):
+    """A part of a merge gives what the contract does not: a defect of the module that gave it.
+
+    Raised by ``merge_parts`` for a difference whose change is none the report knows, so that the
+    module at fault is named, instead of an index that fails in the sort (#3948).
+    """
+
+
 @dataclass(frozen=True, slots=True)
 class StructureMerging:
     """A merge of an amendment into the main structure of its revision, in its transaction.
@@ -132,11 +140,16 @@ def merge_parts(merging: StructureMerging) -> MergePart:
     """Give what every module registered finds of a merge, the parts then the ends; empty if none.
 
     The differences in the order of their change — added, updated, removed, kept —, each in the
-    order of the parts; the completed tasks and the refusals in the order of the parts.
+    order of the parts; the completed tasks and the refusals in the order of the parts. A difference
+    of a change unknown is a defect of the module that gave it: ``MergePartError``.
     """
     found = [part(merging) for part in _MERGES.entries()]
     found += [end(merging) for end in _ENDS.entries()]
     differences = [each for part in found for each in part.differences]
+    for each in differences:
+        if each.get("change") not in _CHANGES:
+            msg = f"a merge part gives the change {each.get('change')!r}, none of {_CHANGES}"
+            raise MergePartError(msg)
     differences.sort(key=lambda each: _CHANGES.index(str(each.get("change"))))
     return MergePart(
         differences=tuple(differences),

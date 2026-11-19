@@ -58,6 +58,7 @@ from waterfall.core.revisions.interface.marking import (
 # ``merging`` (US-2550/L1; US-2560): the parts of the modules in the merge of an amendment.
 from waterfall.core.revisions.interface.merging import (
     MergePart,
+    MergePartError,
     MergeReport,
     StructureMerging,
     merge_parts,
@@ -163,6 +164,7 @@ __all__ = [
     "CurrentStructure",
     "MarkingRequest",
     "MergePart",
+    "MergePartError",
     "MergeReport",
     "OwnEstimateCounted",
     "RatesToUpdate",
