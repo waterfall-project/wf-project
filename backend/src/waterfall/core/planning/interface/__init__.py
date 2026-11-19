@@ -55,6 +55,9 @@ from waterfall.core.planning.interface.borne_lines import (
     create_borne_line as create_borne_line,
 )
 from waterfall.core.planning.interface.borne_lines import (
+    delete_borne_line as delete_borne_line,
+)
+from waterfall.core.planning.interface.borne_lines import (
     first_task as first_task,
 )
 from waterfall.core.planning.interface.borne_lines import (
@@ -71,6 +74,9 @@ from waterfall.core.planning.interface.borne_lines import (
 )
 from waterfall.core.planning.interface.closing import (
     delete_nodes as delete_nodes,
+)
+from waterfall.core.planning.interface.closing import (
+    delete_structure_nodes as delete_structure_nodes,
 )
 
 # ``copying`` (US-1380/L2; moved out of ``nodes`` and written as one statement a table by

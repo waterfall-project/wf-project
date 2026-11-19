@@ -1060,7 +1060,7 @@ d'aucune tâche » (F-02).
 
 ## US-2590 — Les états d'un risque, ses réexamens et sa suppression ; ce que l'abandon et l'annulation en défont
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-RIS-0020-A`, `WF-IHM-0110-A`
 - **opérations** : `reviewRisk`, `listRiskReviews`, `deleteRisk`, `listRisks` (`last_review_on_to`),
   `abandonRevision`, `undoLastChange`, `redoLastUndo`
@@ -1137,7 +1137,7 @@ revue (US-2640).
 
 ## US-2600 — Le registre des risques et la matrice
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-RIS-0040-A`, `WF-REF-0160-A`
 - **opérations** : `listRisks`, `getRisk`, `listRiskReviews`, `getProjectRiskMatrix`,
   `getReferenceSettings`

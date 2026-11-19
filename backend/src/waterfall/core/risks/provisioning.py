@@ -23,7 +23,6 @@ and the line back with it (WF-RIS-0020).
 
 from typing import TYPE_CHECKING
 
-from waterfall.core.cost_settings.interface import share_natures
 from waterfall.core.estimate.interface import set_provision_bearing
 from waterfall.core.planning.interface import (
     Place,
@@ -33,28 +32,8 @@ from waterfall.core.planning.interface import (
     task_of,
     task_of_lineage,
 )
-from waterfall.core.projects.interface import (
-    NO_BACKGROUND_TASK_RUNNING,
-    PROJECT_NOT_TERMINAL,
-    lock_project,
-    no_background_task_running,
-    project_facts,
-    subproject_labels,
-)
-from waterfall.core.resource_settings.interface import share_reference
-from waterfall.core.revisions.interface import (
-    aimed_structure,
-    create_revision,
-    revision_draft,
-    structure_facts,
-)
-from waterfall.core.risks.commands import (
-    IDENTIFIED,
-    MAY_CREATE_REVISION,
-    REVISIONS_WRITE,
-    RISK_IDENTIFIED,
-    is_terminal,
-)
+from waterfall.core.projects.interface import subproject_labels
+from waterfall.core.risks.commands import IDENTIFIED, RISK_IDENTIFIED
 from waterfall.core.risks.declaring import (
     SUBPROJECT,
     TASK,
@@ -63,15 +42,13 @@ from waterfall.core.risks.declaring import (
     designated_category,
     refuse,
 )
-from waterfall.core.risks.reading import evaluation_of, found_risk, read_found
+from waterfall.core.risks.entering import Held, enter
 from waterfall.core.risks.views import OMITTED, Omitted
 from waterfall.platform.errors import (
     NOT_FOUND,
-    STALE_LOCK_VERSION,
     VALIDATION_FAILED,
     FieldError,
     NotFoundError,
-    PreconditionFailedError,
     UnprocessableError,
 )
 
@@ -83,32 +60,11 @@ if TYPE_CHECKING:
     from waterfall.core.planning.interface import Writer
     from waterfall.core.projects.interface import Viewer
     from waterfall.core.risks.interface.provisions import RiskProvisionChange
-    from waterfall.core.risks.tables import Risk, RiskEvaluation
+    from waterfall.core.risks.tables import RiskEvaluation
 
 
-def _read_before(
-    session: Session, project_id: UUID, change: RiskProvisionChange, viewer: Viewer
-) -> None:
-    """Judge a change that would create the revision, on the risk of the last marked one.
-
-    The risk unknown or held by no revision (404), the counter read (412), a risk that is not
-    identified (``risk_identified``), the creation of the revision a permission of its own
-    (``may_create_revision``). The risk is locked first, and held until the commit, so that the
-    counter judged is the one the opening of the revision starts from.
-    """
-    found_risk(session, project_id, change.risk_id, lock=True)
-    found = read_found(session, project_id, change.risk_id, None)
-    _judge_held(change, found.risk, found.evaluation)
-    if REVISIONS_WRITE not in viewer.permissions:
-        raise refuse(MAY_CREATE_REVISION)
-
-
-def _judge_held(change: RiskProvisionChange, risk: Risk, evaluation: RiskEvaluation) -> None:
-    """Judge the counter and the state of the risk read under its lock (412, 409)."""
-    if risk.lock_version != change.lock_version:
-        raise PreconditionFailedError(
-            STALE_LOCK_VERSION, {"expected_lock_version": risk.lock_version}
-        )
+def _judge(evaluation: RiskEvaluation, _revision_id: UUID) -> None:
+    """Judge the state of the risk the provision of which is changed (409, ``risk_identified``)."""
     if evaluation.state != IDENTIFIED:
         raise refuse(RISK_IDENTIFIED)
 
@@ -173,55 +129,14 @@ def update_provision(
 ) -> UUID:
     """Change the provision of an identified risk in the current revision; give the revision.
 
-    The order of the locks, which every write that touches a risk and its line follows (a deletion,
-    an import, a write of the own estimate; see ``follow_own_estimate``): the lock of the natures
-    of cost first, as every write of the tree does (#2615); the main structure that bears the
-    line; then the risk, whose counter advances under it. The opening of a revision by this entry is
-    the one exception: the reference, shared, then the project, as every opening does, then the
-    risk, then the main structure of the revision opened, which no other transaction sees before
-    the commit. The current revision is created, if the
-    project has none, a copy of the last marked one that copies the evaluation of the risk and its
-    line; the counter and the state of the risk are judged under its lock, in both cases.
+    Entered as every write of a risk is (``enter``, which says the order of the locks and the
+    revision created): the counter and the state of the risk are judged under its lock.
     """
     act = writer.act
-    share_natures(session)
-    facts = project_facts(session, project_id)
-    if is_terminal(facts.state):
-        raise refuse(PROJECT_NOT_TERMINAL)
-    revision_id = facts.current_revision_id
-    if revision_id is not None:
-        revision_draft(session, revision_id)
-    if not no_background_task_running(session, project_id, writer.running):
-        raise refuse(NO_BACKGROUND_TASK_RUNNING)
-    if revision_id is None:
-        # The reference shared, then the project, as the opening of a revision does (``_open``
-        # shares it again, to no effect): another opening waits for the project before it advances
-        # this risk, and the revision it opened is the one we write in. The project first would
-        # close an interlock with a writer of the reference that waits behind an opening.
-        share_reference(session)
-        facts = lock_project(session, project_id)
-        if is_terminal(facts.state):
-            raise refuse(PROJECT_NOT_TERMINAL)
-        revision_id = facts.current_revision_id
-        if revision_id is not None:
-            revision_draft(session, revision_id)
-    created = revision_id is None
-    if revision_id is None:
-        _read_before(session, project_id, change, viewer)
-        revision_id = create_revision(session, project_id, act, viewer).revision_id
-    main = aimed_structure(session, project_id, revision_id, None)
-    if main is None:
-        raise NotFoundError(NOT_FOUND)
-    place = Place(project_id, revision_id, main)
-    structure_facts(session, project_id, main, lock=True)
-    risk = found_risk(session, project_id, change.risk_id, lock=True)
-    evaluation = evaluation_of(session, project_id, risk.id, revision_id)
-    if evaluation is None:
-        raise NotFoundError(NOT_FOUND)
-    if not created:
-        # A revision we created advanced the counter at its opening, which was judged before it,
-        # under the lock of the risk held since.
-        _judge_held(change, risk, evaluation)
+    held_risk = Held(change.risk_id, change.lock_version, _judge)
+    entered = enter(session, project_id, held_risk, writer, viewer)
+    place, risk, evaluation = entered.place, entered.risk, entered.evaluation
+    revision_id, created = entered.revision_id, entered.created
     line = evaluation.provision_node_id
     if line is None:
         raise NotFoundError(NOT_FOUND)

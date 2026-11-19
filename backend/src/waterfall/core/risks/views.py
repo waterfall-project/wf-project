@@ -7,9 +7,10 @@ read and write a risk build them without importing the interface, which imports 
 ``RiskView`` is what a reading gives, which the register, the matrix and the portfolio read too;
 a ``RiskEntry`` what a declaration sends, a ``RiskIdentityChange`` what a change of the identity
 sends, a field not sent ``OMITTED``. The objects of ``interface/register.py`` follow, moved here by
-US-2600/L1 for the same reason: what the register asks for and gives; and those of
-``interface/matrix.py``, moved by US-2600/L2: what the matrix gives. Another module names them
-through the interface.
+US-2600/L1 for the same reason: what the register asks for and gives; those of
+``interface/matrix.py``, moved by US-2600/L2: what the matrix gives; and those of
+``interface/reviews.py``, moved by US-2590/L1: what a review sends and what the history gives.
+Another module names them through the interface.
 """
 
 from dataclasses import dataclass
@@ -123,6 +124,36 @@ class RiskIdentityChange:
     lock_version: int
     description: str | Omitted | None = OMITTED
     mitigation_notes: str | Omitted | None = OMITTED
+
+
+@dataclass(frozen=True, slots=True)
+class RiskReviewEntry:
+    """A review sent (``RiskReviewWrite``), at the counter of the risk read.
+
+    ``provision_cost_category_id`` the category a dismissed risk identified again takes when the one
+    it designated is no longer active and of the provision kind; ``None`` when not sent.
+    """
+
+    risk_id: UUID
+    probability: Decimal
+    state: RiskState
+    lock_version: int
+    provision_cost_category_id: UUID | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RiskReviewView:
+    """A review as it is read (``RiskReview``): its day, what it retained, who made it and when.
+
+    ``actor`` is the account that made it, or the platform when null.
+    """
+
+    reviewed_on: date
+    probability: Decimal
+    severity: Decimal
+    state: RiskState
+    actor: UUID | None
+    created_at: datetime
 
 
 # The columns the register sorts on (``listRisks``, ``sort_by``).

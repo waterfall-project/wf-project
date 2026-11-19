@@ -206,6 +206,24 @@ def create_own_estimate(
     return structure_id
 
 
+def delete_own_estimate(session: Session, project_id: UUID, structure_id: UUID) -> None:
+    """Delete the own estimate of a risk deleted with it, its nodes already deleted (US-2590/L1).
+
+    The structure is locked by the caller, which has deleted the evaluation that names it and the
+    nodes it holds; nothing else names it.
+    """
+    session.delete(
+        session.scalars(
+            select(CostStructure).where(
+                CostStructure.project_id == project_id,
+                CostStructure.id == structure_id,
+                CostStructure.kind == RISK,
+            )
+        ).one()
+    )
+    session.flush()
+
+
 def create_differential(
     session: Session,
     revision: tuple[UUID, UUID],

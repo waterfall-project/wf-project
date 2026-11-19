@@ -29,7 +29,7 @@ from waterfall.core.planning.interface.lines import (
     write_line_node,
 )
 from waterfall.core.planning.interface.nodes import NodeCreation
-from waterfall.core.planning.shaping import Placing, placed
+from waterfall.core.planning.shaping import Placing, deleted, placed
 from waterfall.core.planning.shaping import place as place_nodes
 from waterfall.core.planning.tables import Node, Task
 from waterfall.core.planning.tree import LINE, TASK
@@ -182,3 +182,25 @@ def move_borne_line(
         write.redate((task_id, tree.tasks[task_id].label), None, entered=("/provision_task_id",))
         write.after((line_id,))
         return True
+
+
+def delete_borne_line(session: Session, place: Place, line_id: UUID, writer: Writer) -> None:
+    """Delete a line another module bears under a task of its structure (US-2590/L1).
+
+    Framed as a write of the tree, as ``create_borne_line`` is: refused as one (404, 409), then if
+    the node is no line of the structure (404); the line and its facet deleted, the structure
+    redated and the lines of its task priced again, whatever the state of the task. It is not
+    carried to the parent as the provision line a deletion of its task leaves (``delete_node``):
+    the module that asks deletes it for good — a risk dismissed or deleted. No entry of the
+    history is kept.
+    """
+    unrecorded = Writer(writer.act, None, writer.running)
+    with writing(session, place, unrecorded, ("node_delete", (line_id,))) as write:
+        tree = write.tree
+        node = tree.nodes.get(line_id)
+        if node is None or node.kind != LINE:
+            raise NotFoundError(NOT_FOUND)
+        write.before((line_id,))
+        deleted(session, place.project_id, tree, [line_id])
+        write.redate(None)
+        write.after((line_id,))
