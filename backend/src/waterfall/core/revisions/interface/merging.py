@@ -145,17 +145,27 @@ def merge_parts(merging: StructureMerging) -> MergePart:
     """
     found = [part(merging) for part in _MERGES.entries()]
     found += [end(merging) for end in _ENDS.entries()]
-    differences = [each for part in found for each in part.differences]
-    for each in differences:
-        if each.get("change") not in _CHANGES:
-            msg = f"a merge part gives the change {each.get('change')!r}, none of {_CHANGES}"
-            raise MergePartError(msg)
-    differences.sort(key=lambda each: _CHANGES.index(str(each.get("change"))))
     return MergePart(
-        differences=tuple(differences),
+        differences=by_change([each for part in found for each in part.differences], "merge"),
         completed_tasks=tuple(each for part in found for each in part.completed_tasks),
         refusals=tuple(each for part in found for each in part.refusals),
     )
+
+
+def by_change(
+    differences: list[Mapping[str, object]], operation: str
+) -> tuple[Mapping[str, object], ...]:
+    """Order differences by their change — added, updated, removed, kept —, stably.
+
+    A difference of a change unknown is a defect of the module that gave it, named by the
+    operation whose part it is (``MergePartError``, #3948): the update of a differential orders its
+    parts likewise (US-3050/L3).
+    """
+    for each in differences:
+        if each.get("change") not in _CHANGES:
+            msg = f"a {operation} part gives the change {each.get('change')!r}, none of {_CHANGES}"
+            raise MergePartError(msg)
+    return tuple(sorted(differences, key=lambda each: _CHANGES.index(str(each.get("change")))))
 
 
 def _structures(session: Session, project_id: UUID, revision_id: UUID) -> dict[UUID, CostStructure]:

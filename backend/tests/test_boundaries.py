@@ -111,6 +111,8 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "merging",
         # The base of a differential (US-3050/L2).
         "bases",
+        # The parts of the modules in the update of a differential (US-3050/L3).
+        "rebasing",
     },
 }
 # The modules of the planning, the history and the exchanges (EP-06), of the indicators (EP-10) and
@@ -146,6 +148,8 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "physical_progress",
         "predecessors",
         "progress",
+        # Its part of the update of a differential, and its end (US-3050/L3, EP-08).
+        "rebasing",
         "reference",
         "skeleton",
         "snapshots",

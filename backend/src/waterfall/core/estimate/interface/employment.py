@@ -165,7 +165,9 @@ def forget_subproject(session: Session, project_id: UUID, subproject_id: UUID) -
 
     What the deletion of a subproject asks once nothing refuses it (``deleteSubproject``): a line of
     a base, which no operation serves, neither refuses it nor keeps its key (US-3050). The base
-    says the main structure as it was, but for a subproject that no longer is.
+    says the main structure as it was, but for a subproject that no longer is. The lines the
+    session holds are synchronised with the statement (``fetch``): a line of a base loaded and
+    changed in the same transaction would otherwise write the key back at its flush (#4212).
     """
     current = project_facts(session, project_id).current_revision_id
     if current is None:
@@ -183,5 +185,5 @@ def forget_subproject(session: Session, project_id: UUID, subproject_id: UUID) -
             among(EstimateLine.node_id, nodes),
         )
         .values(subproject_id=None)
-        .execution_options(synchronize_session=False)
+        .execution_options(synchronize_session="fetch")
     )

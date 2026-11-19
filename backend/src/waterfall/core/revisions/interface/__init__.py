@@ -9,7 +9,7 @@ few the design leaves silent. A name a story adds besides joins the import of it
 comment that names it, in the order Ruff keeps. Another module imports them from here, never from
 the file.
 
-The later epics extend the revisions through nine ordered registries, without this module
+The later epics extend the revisions through eleven ordered registries, without this module
 importing theirs: ``register_copy`` the copy of a revision opened from a marked one (EP-06 the
 tasks and their links, EP-07 the lines and the rates, EP-08 the structures it adds),
 ``register_tasks_and_lines`` the questions the designation asks, the tasks (EP-06) and the lines
@@ -18,6 +18,8 @@ and the rates), ``register_indicators`` the indicators kept at the marking (EP-1
 ``register_designation`` what follows the designation of a reference (EP-07, the budgeted amounts),
 ``register_merge`` the part of the planning and of the estimate in the merge of an amendment
 (EP-08), and ``register_merge_end`` what is judged once all the parts are given (US-2560/L1),
+``register_rebase`` and ``register_rebase_end`` the same for the update of a differential from the
+main structure (US-3050/L3),
 ``register_rate_update`` whether the proposal of the rates of a revision presents a category
 (EP-07), and ``register_closing`` what a module does before a revision is marked or abandoned,
 under its stage (EP-06). Each registers its own by a call in the ``__init__`` of its module's
@@ -89,6 +91,18 @@ from waterfall.core.revisions.interface.rates import (
     register_rate_update,
     revision_rating,
     update_rates,
+)
+
+# ``rebasing`` (US-3050/L3): the parts of the modules in the update of a differential.
+from waterfall.core.revisions.interface.rebasing import (
+    RebasePart,
+    RebaseReport,
+    StructureRebasing,
+    rebase_parts,
+    rebase_report,
+    rebasing_of,
+    register_rebase,
+    register_rebase_end,
 )
 
 # ``reference`` (US-0980/L2; what follows a designation, US-1490/L1): the reference revision.
@@ -189,6 +203,8 @@ __all__ = [
     "OpenedDifferential",
     "OwnEstimateCounted",
     "RatesToUpdate",
+    "RebasePart",
+    "RebaseReport",
     "ReferenceDesignated",
     "ReferenceToDesignate",
     "RevisionAsked",
@@ -206,6 +222,7 @@ __all__ = [
     "RevisionView",
     "StructureFacts",
     "StructureMerging",
+    "StructureRebasing",
     "StructureView",
     "abandon_revision",
     "abandon_structure",
@@ -246,6 +263,9 @@ __all__ = [
     "read_cost_structure",
     "read_revision",
     "read_revision_for",
+    "rebase_parts",
+    "rebase_report",
+    "rebasing_of",
     "reference_correctable",
     "reference_year_of",
     "register_closing",
@@ -258,6 +278,8 @@ __all__ = [
     "register_merge_end",
     "register_own_estimate_counted",
     "register_rate_update",
+    "register_rebase",
+    "register_rebase_end",
     "register_tasks_and_lines",
     "rename_own_estimate",
     "rename_own_estimates",

@@ -25,11 +25,11 @@ from nodes_support import Tree, mark
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from risks_support import MAKING, STUDY, Costed, Risks, costed, material
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 
 from waterfall.core.cost_settings.interface import set_hourly_rate
 from waterfall.core.cost_settings.tables import HourlyRate
-from waterfall.core.estimate.interface import lines_stamp
+from waterfall.core.estimate.interface import forget_subproject, lines_stamp, subproject_is_cited
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
 from waterfall.core.planning.interface import revision_content_stamp
 from waterfall.core.planning.tables import Node, Task, TaskLink
@@ -266,6 +266,82 @@ def test_a_subproject_a_base_alone_bears_is_deleted(api: ContractClient, project
             select(EstimateLine.subproject_id)
             .join(Node, Node.id == EstimateLine.node_id)
             .where(Node.structure_id == base, EstimateLine.label == "Grue")
+        )
+    assert kept is None
+
+
+def base_line_with_subproject(api: ContractClient, project: Costed) -> tuple[str, str, UUID]:
+    """Leave a subproject borne by the line of a base alone; give it, the differential, the base.
+
+    The line is written in the main structure before the differential opens, then removed from
+    the main structure and from the differential: the base still holds it.
+    """
+    subproject = Risks(api, project).subproject("SP1")
+    line = {**material(project.costs, "Grue", "50.00"), "subproject_id": subproject}
+    project.lines.made(node_labelled(project.tree, MAKING), **line)
+    structure_id = opened_amendment(api, project)
+    deleted(project.tree, "Grue", project.stage.manager)
+    deleted(on(project.tree, structure_id), "Grue", project.stage.manager)
+    return subproject, structure_id, base_id(project, structure_id)
+
+
+@pytest.mark.requirement("WF-DAT-0080-A")
+def test_the_base_a_merged_differential_keeps_in_its_marked_revision_cites_its_subproject(
+    api: ContractClient, project: Costed
+) -> None:
+    # « Celle d'un sous-projet référencé par une révision marquée est refusée » (#4212): the base a
+    # merged differential keeps in the revision its merge marks is never written, and its line
+    # holds the key of the subproject — the subproject is cited, its deletion unavailable, though
+    # no line any operation serves names it; while the revision is current, the base does not
+    # cite it.
+    stage = project.stage
+    subproject, structure_id, _ = base_line_with_subproject(api, project)
+    with stage.database.transaction() as session:
+        cited = subproject_is_cited(session, project.project_id, [UUID(subproject)])
+    assert cited == frozenset()
+    with stage.database.transaction() as session:
+        session.execute(
+            update(CostStructure)
+            .where(CostStructure.id == UUID(structure_id))
+            .values(is_merged=True)
+        )
+    mark(stage, project.tree.revision)
+    with stage.database.transaction() as session:
+        cited = subproject_is_cited(session, project.project_id, [UUID(subproject)])
+    assert cited == {UUID(subproject)}
+    path = f"{PROJECTS}/{project.project_id}/subprojects"
+    held = api.get(path, headers=stage.manager.headers).json()
+    found = next(each for each in held if each["subproject_id"] == subproject)
+    command = next(each for each in found["available_commands"] if each["command"] == "delete")
+    assert (command["is_available"], command["missing_conditions"]) == (
+        False,
+        ["subproject_not_cited"],
+    )
+
+
+@pytest.mark.requirement("WF-DAT-0080-A")
+def test_a_line_of_a_base_held_by_the_session_keeps_its_subproject_forgotten_at_its_flush(
+    api: ContractClient, project: Costed
+) -> None:
+    # #4212: the deletion of a subproject a line of a base alone bears forgets it on that line; a
+    # line of the base loaded in the transaction that forgets the subproject is synchronised with
+    # it, and a change of another of its columns, flushed after, does not write the key back.
+    subproject, _, base = base_line_with_subproject(api, project)
+    with project.stage.database.transaction() as session:
+        loaded = session.scalars(
+            select(EstimateLine)
+            .join(Node, Node.id == EstimateLine.node_id)
+            .where(Node.structure_id == base, EstimateLine.label == "Grue")
+        ).one()
+        assert loaded.subproject_id == UUID(subproject)
+        forget_subproject(session, project.project_id, UUID(subproject))
+        assert loaded.subproject_id is None
+        loaded.label = "Grue mobile"
+        session.flush()
+    assert base_amounts(project, base).keys() == {"Plans", "Fabrication", "Grue mobile"}
+    with project.stage.database.transaction() as session:
+        kept = session.scalar(
+            select(EstimateLine.subproject_id).where(EstimateLine.node_id == loaded.node_id)
         )
     assert kept is None
 
