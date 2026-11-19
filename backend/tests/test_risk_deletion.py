@@ -235,10 +235,10 @@ def test_a_deletion_takes_the_own_estimate_then_the_main_structure_before_the_ri
     # another, the deletion waits for it holding both structures already.
     risk = risks.declared_costed()
     stage = project.stage
-    with stage.owner.connect() as holder:
+    with concurrently() as start, stage.owner.connect() as holder:
         holder.execute(select(Risk.id).where(Risk.id == UUID(risk["risk_id"])).with_for_update())
-        asking = concurrently(lambda: risks.remove(risk))
-        waiting_for_a_lock(stage)
+        asking = start(lambda: risks.remove(risk))
+        waiting_for_a_lock(stage, holder)
         assert lock_held(stage, UUID(risk["structure_id"]))
         assert lock_held(stage, project.structure_id)
         holder.rollback()
@@ -337,16 +337,16 @@ def test_the_abandonment_against_a_change_of_the_risk_it_created_answers_cleanly
     created = risks.declared(label="Créé")
     risks.costed_at(created, opened["revision_id"], "50.00")
     stage = project.stage
-    with stage.owner.connect() as holder:
+    with concurrently() as start, stage.owner.connect() as holder:
         holder.execute(
             select(CostStructure.id)
             .where(CostStructure.id == UUID(risks.risk(created)["structure_id"]))
             .with_for_update()
         )
-        abandoning = concurrently(lambda: risks.abandon(opened))
-        waiting_for_a_lock(stage)
-        changing = concurrently(lambda: risks.update(created, label="Changé"))
-        waiting_for_a_lock(stage, count=2)
+        abandoning = start(lambda: risks.abandon(opened))
+        waiting_for_a_lock(stage, holder)
+        changing = start(lambda: risks.update(created, label="Changé"))
+        waiting_for_a_lock(stage, holder, count=2)
         holder.rollback()
     abandoning.result(timeout=30)
     assert changing.result(timeout=30).status_code == 404

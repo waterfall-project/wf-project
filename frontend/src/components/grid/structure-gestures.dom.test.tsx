@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { problemMessage } from "@/i18n/problem";
 import {
   example,
   type FakeAnswers,
@@ -49,8 +50,8 @@ const STRUCTURE = {
   revision_id: "01926f3a-7c00-7000-8000-000000000102",
   structure_id: "01926f3a-7c00-7000-8000-000000000201",
 };
-// The rows of the estimate, found by their label in the example (#400): the summary « Poste de
-// commande », the task « Câblage des armoires » and its line of labour, a task completed and its line.
+// The rows of the estimate, found by their label in the example (#400): a summary, a task and its
+// line, a task completed.
 const estimate = example("nodes_estimate") as NodeList;
 /** The index of a row of the estimate. */
 function rowOf(label: string): number {
@@ -449,8 +450,8 @@ describe("the refusal of the first task of a grid with no row", () => {
 });
 
 describe("the gestures that delete tasks and lines", () => {
-  // The estimate, each node read at a counter of its own — the example has them all at 1 —, so
-  // that the counter a deletion sends names the node it was read from (WF-IHM-0110, #1210).
+  // The estimate, each node read at a counter of its own (the example has them all at 1): the one a
+  // deletion sends names the node it was read from (WF-IHM-0110, #1210).
   const counted: NodeList = {
     ...estimate,
     items: estimate.items.map((item, index) => ({ ...item, lock_version: 10 + index })),
@@ -720,7 +721,6 @@ describe("the refusal of a gesture, said to the row in cause", () => {
   });
 
   it("gives the focus back to the grid when the reading a node that is no sibling asks removes the cell that had it", async () => {
-    // The refusal comes from a reading gone stale: the reading anew may no longer hold the row.
     holdReading(router.refresh);
     serve({
       [MOVE]: { problem: example("nodes_move_after_not_sibling") as Problem & { status: 422 } },
@@ -748,8 +748,7 @@ describe("the refusal of a gesture, said to the row in cause", () => {
   });
 
   it("passes every write of the hook, the deletion too, through the reading of the reason of a field, which leaves a refusal without field as it is", async () => {
-    // `byField` holds for `deleteNode` as for `createNode` and `moveNodes`; the contract cites no
-    // field for a deletion, so its refusal is told by its own code.
+    // `byField` holds for `deleteNode` too; the contract cites no field for it: told by its own code.
     serve({ [DELETE]: COMPLETED_REFUSED });
     render(estimateGrid());
     await choose(LINE, "Supprimer");
@@ -761,18 +760,19 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     expect(router.refresh).not.toHaveBeenCalled();
   });
 
-  it("names the risks whose provision a deletion would leave without a task, from the refusal of the contract (H-05)", async () => {
-    // The refusal is the main structure's; the row it is told at is the one the deletion was asked from.
-    serve({
-      [DELETE]: {
-        problem: example("node_delete_last_provision_task_refused") as Problem & { status: 409 },
-      },
-    });
+  it.each([
+    "node_delete_last_provision_task_refused",
+    "node_delete_provision_line_refused",
+  ] as const)("names the risks of %s, in both languages [WF-RIS-0010-A]", async (name) => {
+    const problem = example(name) as Problem & { status: 409 };
+    serve({ [DELETE]: { problem } });
     render(estimateGrid());
     await choose(LINE, "Supprimer");
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /Risque concerné\s: «\sRisque de reprise du câblage\s»\./,
     );
+    const en = problemMessage(problem, { locale: "en", messages: CATALOGUES.en });
+    expect(en).toMatch(/Risk at issue\s*:\s*“Risque de reprise du câblage”\./);
   });
 
   it("marks the row it was asked from, though the active row changed while the write was under way", async () => {

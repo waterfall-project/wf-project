@@ -19,6 +19,7 @@ the risks through the service (``Risks``), which the tests of the provision (US-
 
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
+from contextlib import contextmanager
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -49,7 +50,7 @@ from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
 
     from projects_support import Person, Scene
     from sqlalchemy.engine import Connection
@@ -242,28 +243,45 @@ def another_provision(stage: Scene, code: str = "ALE") -> UUID:
         return create_cost_category(session, draft, act).cost_category_id
 
 
-def concurrently(call: Callable[[], Any]) -> Future[Any]:
-    """Start a call in a thread of its own; give its future, whose result joins it."""
-    pool = ThreadPoolExecutor(max_workers=1)
-    future = pool.submit(call)
-    pool.shutdown(wait=False)
-    return future
+@contextmanager
+def concurrently() -> Generator[Callable[[Callable[[], Any]], Future[Any]]]:
+    """Give what starts a call in a thread of its own, its future's result joining it.
+
+    Every thread started is waited for when the scene leaves the block, a failure included (#4018):
+    a holder opened inside the block has let its locks go by then, and no call outlives its test.
+    """
+    pool = ThreadPoolExecutor(max_workers=2)
+    try:
+        yield pool.submit
+    finally:
+        pool.shutdown(wait=True)
 
 
-def waiting_for_a_lock(stage: Scene, count: int = 1) -> None:
-    """Wait until ``count`` transactions of the database wait for a lock another holds."""
+# The sessions that wait, directly or behind another that waits, for a lock the holder holds.
+WAITING_ON = text(
+    "WITH RECURSIVE blocked(pid) AS ("
+    " SELECT pid FROM pg_stat_activity WHERE :holder = ANY(pg_blocking_pids(pid))"
+    " UNION"
+    " SELECT waiting.pid FROM pg_stat_activity AS waiting, blocked"
+    " WHERE blocked.pid = ANY(pg_blocking_pids(waiting.pid))"
+    ") SELECT count(*) FROM blocked"
+)
+
+
+def waiting_for_a_lock(stage: Scene, holder: Connection, count: int = 1) -> None:
+    """Wait until ``count`` sessions wait for a lock the holder holds, or one held behind it.
+
+    Asked of the server by ``pg_blocking_pids`` (#4018): a session of the base that waits for
+    anything else — another test, another lock — is not counted.
+    """
+    pid = holder.scalar(text("SELECT pg_backend_pid()"))
     for _ in range(150):
         with stage.owner.connect() as connection:
-            waiting = connection.scalar(
-                text(
-                    "SELECT count(*) FROM pg_stat_activity"
-                    " WHERE wait_event_type = 'Lock' AND datname = current_database()"
-                )
-            )
+            waiting = connection.scalar(WAITING_ON.bindparams(holder=pid))
         if waiting and waiting >= count:
             return
         time.sleep(0.1)
-    pytest.fail(f"fewer than {count} transactions wait for a lock")
+    pytest.fail(f"fewer than {count} sessions wait for a lock the holder holds")
 
 
 def lock_held(stage: Scene, structure_id: UUID) -> bool:

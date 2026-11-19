@@ -513,10 +513,10 @@ def test_a_review_takes_the_main_structure_before_the_risk(risks: Risks, project
     # round it would close an interlock (40P01) with a write of the own estimate.
     risk = risks.declared_costed()
     stage = project.stage
-    with stage.owner.connect() as holder:
+    with concurrently() as start, stage.owner.connect() as holder:
         holder.execute(select(Risk.id).where(Risk.id == UUID(risk["risk_id"])).with_for_update())
-        asking = concurrently(lambda: risks.review(risk, probability="0.5"))
-        waiting_for_a_lock(stage)
+        asking = start(lambda: risks.review(risk, probability="0.5"))
+        waiting_for_a_lock(stage, holder)
         assert lock_held(stage, project.structure_id)
         holder.rollback()
     assert asking.result(timeout=30).status_code == 201
@@ -532,10 +532,10 @@ def test_the_counter_of_a_review_is_judged_under_the_lock_of_the_risk(
     # judged on the counter read before the lock.
     risk = risks.declared_costed()
     stage = project.stage
-    with stage.owner.connect() as holder:
+    with concurrently() as start, stage.owner.connect() as holder:
         holder.execute(select(Risk.id).where(Risk.id == UUID(risk["risk_id"])).with_for_update())
-        asking = concurrently(lambda: risks.review(risk, state="dismissed"))
-        waiting_for_a_lock(stage)
+        asking = start(lambda: risks.review(risk, state="dismissed"))
+        waiting_for_a_lock(stage, holder)
         holder.execute(
             update(Risk)
             .where(Risk.id == UUID(risk["risk_id"]))

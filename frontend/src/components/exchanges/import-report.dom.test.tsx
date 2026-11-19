@@ -119,6 +119,42 @@ describe("the report of an import, a line that puts a task under a milestone", (
   });
 });
 
+describe("the report of an import, a file that would leave a line of provision without a task", () => {
+  it("is rejected whole, naming the risks whose line of provision would have no task, in both languages [WF-RIS-0010-A]", () => {
+    const rejected = example("import_planning_rejected") as Import & {
+      report: NonNullable<Import["report"]>;
+    };
+    const entry: Import = {
+      ...rejected,
+      report: {
+        ...rejected.report,
+        refusals: [
+          {
+            code: "PROVISION_WITHOUT_TASK",
+            params: {
+              risks: [
+                {
+                  risk_id: "01926f3a-7c00-7000-8000-000000000751",
+                  label: "Risque de reprise du câblage",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    };
+    const { unmount } = open(entry);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /ligne de provision se range sous une tâche\.\s*Risque concerné\s:\s*«\s*Risque de reprise du câblage\s*»\./,
+    );
+    unmount();
+    open(entry, "en");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /stands under a task\.\s*Risk at issue\s*:\s*“Risque de reprise du câblage”\./,
+    );
+  });
+});
+
 /** An import applied, read whole: both commands it lists are unavailable, each with its condition. */
 function applied(): Import {
   const { items } = example("imports") as { items: Listed[] };

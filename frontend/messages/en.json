@@ -3165,6 +3165,7 @@
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "A task bears a work package or an order item, never both.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This work package or order item is already borne by another task.",
     "ORDER_ITEM_OUTSIDE_WORK_PACKAGE": "The task of an order item must stay within the subtree of the task of its work package.",
+    "PROVISION_WITHOUT_TASK": "The file would leave no task under the line of provision of a risk: a line of provision stands under a task.",
     "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Only a task of the main structure bears a work package or an order item.",
     "DUPLICATE_WORK_BREAKDOWN_ITEM": "This item already appears earlier in the work breakdown entered: each is written once.",
     "PROJECT_HORIZON_EXCEEDED": "The duration of the project would exceed fifteen years.",

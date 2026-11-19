@@ -534,10 +534,10 @@ def test_a_write_of_the_own_estimate_takes_the_main_structure_before_the_risk(
     # (an interlock, 40P01). The risk held here by the owner, the write stands still on it.
     risk = risks.declared_costed()
     stage = project.stage
-    with stage.owner.connect() as holder:
+    with concurrently() as start, stage.owner.connect() as holder:
         holder.execute(select(Risk.id).where(Risk.id == UUID(risk["risk_id"])).with_for_update())
-        writing = concurrently(lambda: risks.costed_in(risk, "300.00"))
-        waiting_for_a_lock(stage)
+        writing = start(lambda: risks.costed_in(risk, "300.00"))
+        waiting_for_a_lock(stage, holder)
         assert lock_held(stage, project.structure_id)
         holder.rollback()
     assert writing.result(timeout=30) is None
@@ -567,10 +567,10 @@ def test_a_provision_that_would_create_the_revision_waits_for_the_reference_befo
     risk = risks.declared_costed()
     stage = project.stage
     mark(stage, {"revision_id": str(project.revision_id)})
-    with stage.owner.connect() as holder:
+    with concurrently() as start, stage.owner.connect() as holder:
         holder.execute(select(func.pg_advisory_xact_lock(REFERENCE_LOCK)))
-        asking = concurrently(lambda: risks.provision(risk, provision_task_id=None))
-        waiting_for_a_lock(stage)
+        asking = start(lambda: risks.provision(risk, provision_task_id=None))
+        waiting_for_a_lock(stage, holder)
         assert not project_lock_held(stage, project.project_id)
         holder.rollback()
     assert asking.result(timeout=30).status_code == 200
@@ -600,10 +600,10 @@ def test_the_counter_of_a_provision_that_would_create_the_revision_is_judged_und
     risk = risks.declared_costed()
     stage = project.stage
     mark(stage, {"revision_id": str(project.revision_id)})
-    with stage.owner.connect() as holder:
+    with concurrently() as start, stage.owner.connect() as holder:
         holder.execute(select(Risk.id).where(Risk.id == UUID(risk["risk_id"])).with_for_update())
-        asking = concurrently(lambda: risks.provision(risk, provision_task_id=None))
-        waiting_for_a_lock(stage)
+        asking = start(lambda: risks.provision(risk, provision_task_id=None))
+        waiting_for_a_lock(stage, holder)
         holder.execute(
             update(Risk)
             .where(Risk.id == UUID(risk["risk_id"]))
