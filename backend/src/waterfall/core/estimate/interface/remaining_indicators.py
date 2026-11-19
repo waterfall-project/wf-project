@@ -184,9 +184,9 @@ def remaining_of_lines(
 
     ``tasks`` are those of the main structure of the revision (``tasks_for_indicators``), ``lines``
     its lines on them (``lines_for_indicators``): the re-estimated amount of each line whose task is
-    not completed, in their order — what ``remaining_of_revision`` gives on the same revision,
-    without reading it. The provisions are left out there as in ``remaining_of_revision``; read with
-    them, they count whatever the state of their task, as ``getRemainingIndicators`` counts them
+    not completed, in their order. Read without the provisions, it is what ``remaining_of_revision``
+    gives on the same revision, without reading it; read with them, they count whatever the state
+    of their task, as ``getRemainingIndicators`` counts them
     (``remaining_indicators``; WF-IND-0100-A, US-2630/L1).
     """
     completed = {task.node_id for task in tasks if task.progress == COMPLETED}

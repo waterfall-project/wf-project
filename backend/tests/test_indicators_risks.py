@@ -11,6 +11,7 @@ estimate of a risk identified moves its provision, the remaining and the project
 the reference. Every answer is checked against the contract (``ContractClient``).
 """
 
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from itertools import pairwise
@@ -44,7 +45,7 @@ from support import ContractClient, nowhere
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.core.costs.interface import PROJECT
+from waterfall.core.costs.interface import PROJECT, UNASSIGNED
 from waterfall.core.estimate.interface import IndicatorLine, Placement
 from waterfall.core.indicators.caching import day_key
 from waterfall.core.indicators.computing import LinesRead, amounts_from
@@ -354,6 +355,30 @@ def test_a_completed_task_issued_from_a_risk_adds_nothing_to_the_earned_value(
         reading = curves_of_scope(session, project_id, sources, TODAY, PROJECT)
     assert (found.reference_budget, found.earned_value) == (D("1200.00"), D("1000.00"))
     assert sum((amount for _, amount in reading.earned), D(0)) == D("1000.00")
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_the_curves_of_a_subproject_read_the_provisions_attached_to_it_only(
+    database: Database,
+) -> None:
+    # Propre à l'US (US-2630/L1) : les provisions entrent dans les lignes lues par les courbes ; le
+    # périmètre d'un sous-projet garde celle qui lui est rattachée, et celle sans sous-projet tombe
+    # hors de lui (elle reste dans le projet et dans « non affecté »).
+    sub = uuid4()
+    plain = line_of("100.00", None)
+    attached = replace(line_of("60.00", None), subproject_id=sub, is_provision=True)
+    loose = replace(line_of("30.00", None), is_provision=True)
+    remaining = {attached.node_id: D("60.00"), loose.node_id: D("30.00")}
+    sources = CurveSources((plain,), (plain, attached, loose), remaining, {})
+    with database.transaction() as session:
+        read_of = {
+            scope: curves_of_scope(session, uuid4(), sources, TODAY, scope)
+            for scope in (sub, PROJECT, UNASSIGNED)
+        }
+    assert [line for line, _ in read_of[sub].lines] == [attached]
+    assert [line for line, _ in read_of[PROJECT].lines] == [plain, attached, loose]
+    assert [line for line, _ in read_of[UNASSIGNED].lines] == [plain, loose]
+    assert sum((rest for _, rest in read_of[sub].lines), D(0)) == D("60.00")
 
 
 @pytest.mark.requirement("WF-IND-0030-A")

@@ -4,8 +4,8 @@
 
 What ``interface.indicator_lines`` offers is read here, so that the estimate reads it without
 importing its own interface (#3591): ``lines_for_indicators`` gives each line of the main structure
-of a revision, the provisions left out, on the task that bears it; ``planned_value_at`` the planned
-value of lines at the end of a day.
+of a revision, the provisions left out unless asked for (``provisions=True``), on the task that
+bears it; ``planned_value_at`` the planned value of lines at the end of a day.
 """
 
 from dataclasses import dataclass

@@ -3,8 +3,9 @@
 """The lines of a revision as the indicators read them (EP-10, "Modules"; US-1660/L3).
 
 ``lines_for_indicators`` gives each line of the main structure of a revision, the provisions left
-out: its node, the task that bears it — its node, its lineage, the risk it comes from —, its
-subproject in that revision, its budgeted and re-estimated amounts, its payment delay, and its task
+out unless asked for (``provisions=True``): its node, the task that bears it — its node, its
+lineage, the risk it comes from —, its subproject in that revision, its budgeted and re-estimated
+amounts, its payment delay, and its task
 as a spreading sees it, on the calendar it is worked on, its role's for a labour line, its task's
 otherwise. A marked revision is read on the images its marking kept of the calendars of the roles
 (``kept_reference``); its dates are those its marking froze. ``planned_value_at`` is the planned
