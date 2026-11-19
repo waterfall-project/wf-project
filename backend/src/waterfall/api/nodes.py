@@ -97,6 +97,7 @@ from waterfall.core.planning.interface import (
     update_task_facet,
 )
 from waterfall.core.projects.interface import subproject_labels
+from waterfall.core.risks.interface import occurred_risk_ids
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import (
@@ -250,6 +251,23 @@ def _subproject_asked(
     return found, []
 
 
+def _unknown_risks(
+    session: Session, project_id: UUID, asked: tuple[UUID, ...] | None
+) -> list[FieldError]:
+    """Name each risk of ``origin_risk_ids`` that is not an occurred risk of the project (#1761).
+
+    ``UNKNOWN_RISK`` on the place of the identifier in the list (``/query/origin_risk_ids/<n>``).
+    """
+    if asked is None:
+        return []
+    known = occurred_risk_ids(session, project_id, asked)
+    return [
+        FieldError(f"/query/origin_risk_ids/{place}", ErrorCode.UNKNOWN_RISK)
+        for place, each in enumerate(asked)
+        if each not in known
+    ]
+
+
 def node_reading(
     request: Request,
     query: Annotated[NodeQuery, Query()],
@@ -283,6 +301,7 @@ def node_reading(
             faults += wrong
     subproject, wrong = _subproject_asked(session, project_id, query.subproject_id)
     faults += wrong
+    faults += _unknown_risks(session, project_id, risks)
     refuse_query(faults)
     fields = None if query.fields is None else frozenset(query.fields.split(","))
     if fields is not None and not all(_known(name) for name in fields):

@@ -45,6 +45,7 @@ from waterfall.worker import exchanges
 from waterfall.worker.backup import BackupTask
 from waterfall.worker.identity_sync import IdentitySync
 from waterfall.worker.marking import mark
+from waterfall.worker.occurrence import occur
 from waterfall.worker.runner import Worker
 
 if TYPE_CHECKING:
@@ -81,6 +82,7 @@ def handlers(settings: WorkerSettings) -> dict[str, TaskHandler]:
         "backup": BackupTask.of(settings),
         "identity_sync": IdentitySync.of(settings),
         "revision_mark": mark,
+        "risk_occurrence": occur,
         "import_analysis": imports.analyse,
         "import_apply": imports.apply,
         "export": exchanges.ExportTask.of(settings),

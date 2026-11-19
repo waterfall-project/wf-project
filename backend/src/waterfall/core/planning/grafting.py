@@ -26,9 +26,9 @@ found, under the lock of the two structures, so that what the report presented i
 - **The report.** The differences in the form of the contract (``ImportDifference``): each node
   copied, added, in the order of the plan of the structure grafted; the task named, updated by the
   fields that change of it — the summary of the tasks grafted, its dates and its duration now
-  spanning theirs (WF-PLA-0040), its mode automatic —, a milestone being left as it is; each node
-  removed. The tasks the dates of the tasks grafted move elsewhere are not differences, as at the
-  report of a merge. The reasons that refuse the whole graft (``ReportRefusal``): those the facets
+  spanning theirs (WF-PLA-0040), its mode automatic —, a milestone being left as it is; each task
+  of the structure grafted into whose dates the engine moves, updated by its dates, after it, in
+  the order of the plan (#4134); each node removed. The reasons that refuse the whole graft (``ReportRefusal``): those the facets
   give (``FacetHooks.judge_graft``), then a planning beyond fifteen years
   (``PROJECT_HORIZON_EXCEEDED``, WF-PLA-0150), the engine replayed on the structure the graft
   leaves.
@@ -94,6 +94,8 @@ if TYPE_CHECKING:
 type Json = dict[str, Any]
 # The fields of the task named a graft changes, in the order of ``NodeColumn``.
 FIELDS = ("scheduling_mode", "duration", "start", "finish")
+# The dates of another task of the structure grafted into, which the graft moves, in the same order.
+DATE_FIELDS = ("start", "finish")
 
 
 @dataclass(frozen=True, slots=True)
@@ -377,6 +379,33 @@ def _bearer_fields(plan: GraftPlan, computed: Schedule) -> list[str]:
     return [each for each in FIELDS if changed.get(each)]
 
 
+def _redated(plan: GraftPlan, computed: Schedule) -> list[Json]:
+    """Name the tasks of the structure grafted into, but the one named, that the graft redates.
+
+    Each task whose dates the engine, replayed on the structure the graft leaves, gives otherwise
+    than it carries, in the order of the plan, as an ``updated`` difference whose fields name its
+    dates by the columns of the grid (``start``, ``finish``; #4134). The dates of a planning refused
+    beyond the horizon are not given: none then.
+    """
+    target, bearer = plan.target, plan.asked.bearer_id
+    named: list[Json] = []
+    for node_id in target.order:
+        placed = computed.tasks.get(node_id)
+        if node_id not in target.tasks or node_id == bearer or placed is None:
+            continue
+        task = target.tasks[node_id]
+        changed = {
+            "start": WorkInstant(task.start_date, task.start_hours) != placed.start,
+            "finish": WorkInstant(task.finish_date, task.finish_hours) != placed.finish,
+        }
+        fields = [each for each in DATE_FIELDS if changed[each]]
+        if fields:
+            named.append(
+                _difference("updated", TASK, (target.nodes[node_id].lineage_id, task.label), fields)
+            )
+    return named
+
+
 def _bearers(session: Session, plan: GraftPlan) -> dict[UUID, BearingTask]:
     """Give the task that bears each line of the structure grafted, as it stands there."""
     source = plan.source
@@ -433,6 +462,7 @@ def _report(session: Session, plan: GraftPlan) -> None:
     if fields:
         named = (target.nodes[asked.bearer_id].lineage_id, target.tasks[asked.bearer_id].label)
         plan.differences.append(_difference("updated", TASK, named, fields))
+    plan.differences.extend(_redated(plan, computed))
     removed = _labels(session, asked.project_id, target, list(asked.removed))
     plan.differences.extend(
         _difference(

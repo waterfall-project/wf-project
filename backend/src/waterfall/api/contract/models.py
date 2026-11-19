@@ -6108,7 +6108,7 @@ class RiskOccurrenceReport(ContractModel):
     differences: Annotated[
         list[ImportDifference],
         Field(
-            description="The differences that the occurrence would make in the main structure, like those of a merge (`ImportDifference`), in this order: the tasks and the lines of the own estimate, added (`added`) in the order of its plan — its top-level tasks in last position under the task that carries the provision line, or, when that is a milestone, immediately after it, under its parent task or at the top level; an addition has no lineage yet, and the internal links of the own estimate come with its tasks —; the carrying task changed (`updated`), now the summary task of these tasks, `fields` naming what changes about it, its dates and its duration now covering those of its subordinates (WF-PLA-0040) — a milestone, which remains a milestone without subtasks, is not changed —; the provision line removed (`removed`). The added tasks keep their subordinates, their internal links, their durations and their modes, a task without a predecessor in the own estimate switching to manual mode at the dates it had there; the added lines take a zero budgeted amount (WF-RIS-0060)."
+            description="The differences that the occurrence would make in the main structure, like those of a merge (`ImportDifference`), in this order: the tasks and the lines of the own estimate, added (`added`) in the order of its plan — its top-level tasks in last position under the task that carries the provision line, or, when that is a milestone, immediately after it, under its parent task or at the top level; an addition has no lineage yet, and the internal links of the own estimate come with its tasks —; the carrying task changed (`updated`), now the summary task of these tasks, `fields` naming what changes about it, its dates and its duration now covering those of its subordinates (WF-PLA-0040) — a milestone, which remains a milestone without subtasks, is not changed —; the provision line removed (`removed`). The added tasks keep their subordinates, their internal links, their durations and their modes, a task without a predecessor in the own estimate switching to manual mode at the dates it had there; the added lines take a zero budgeted amount (WF-RIS-0060). Each other task of the main structure whose calculated dates the graft changes — a task linked to the carrying task, now a summary task, or to one of its ancestors —, is one more `updated` difference, after the carrying task and in the order of the plan, `fields` naming its dates by the columns of the grid (`start`, `finish`, in the order of `NodeColumn`): the dates are those the scheduling engine gives, replayed once on the structure the occurrence leaves, the very pass that judges the grounds for refusal; a task that nothing links to the graft does not appear (#4134)."
         ),
     ]
     provision_amount: Annotated[
@@ -6123,6 +6123,12 @@ class RiskOccurrenceReport(ContractModel):
             description="The grounds that refuse the whole occurrence, each with the parameters it carries when the background task fails (`ReportRefusal`) — such as `TASK_WITHOUT_WORKING_HOURS`, a merged task one of whose labour lines has a role without any working hour in the week (WF-PLA-0010). Empty when the occurrence applies."
         ),
     ]
+    own_estimate_past_planning_start_on: Annotated[
+        PlanningDate | None,
+        Field(
+            description="The planning start date of the own estimate (`CostStructure.planning_start_on`) when it precedes the day of the declaration — the day of the read, in the time zone of the installation —; null otherwise, and when absent. A warning, not a refusal: it is not in `refusals`, the occurrence applies, and it redates nothing — the tasks keep the dates they had in the own estimate (WF-RIS-0060, WF-PLA-0020), which then lie in the past (#4133). A change of the start date of the own estimate (`updateCostStructure`) advances `risk_lock_version`, so that a report read before it is stale."
+        ),
+    ] = None
 
 
 class RiskOccurrence(ContractModel):

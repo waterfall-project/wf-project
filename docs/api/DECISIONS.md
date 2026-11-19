@@ -9042,8 +9042,8 @@ ni le cas du jalon.
   - la tâche porteuse, devenue la récapitulative des tâches placées sous elle, est un `updated`
     dont `fields` nomme ce qui change de ses dates et de sa durée (`duration`, `start`, `finish`,
     dans l'ordre de `NodeColumn`) : elle couvre désormais les dates de ses subordonnées
-    (WF-PLA-0040), qui gardent celles du devis propre (WF-RIS-0060). Les tâches que ce changement
-    redate ailleurs ne sont pas des écarts, comme au compte rendu d'une fusion ;
+    (WF-PLA-0040), qui gardent celles du devis propre (WF-RIS-0060). *Les tâches que ce changement
+    redate ailleurs sont des écarts de plus, depuis la décision du 2026-11-19 (#4134, ci-dessous).*
   - un jalon porteur reste un jalon sans sous-tâche (Vérif de WF-RIS-0060) : il n'est pas modifié,
     et les tâches sont ajoutées après lui.
 - **Le refus.** Un risque qui n'est pas identifié — survenu ou écarté — : 409
@@ -9119,6 +9119,29 @@ ni le cas du jalon.
   que l'entrée crée, nomme aussi la tâche greffée par son nœud du devis propre ; seule une tâche de
   la structure principale est nommée par son nœud. Le contrat n'est pas modifié ; #4151 reste à
   trancher (nœud nul à l'import, nœud du devis propre ici).
+- **Les tâches que la greffe redate sont des différences de plus** (US-2620/L2, #4134, décision de
+  l'auteur du 2026-11-19, la variante « deux champs au compte rendu » d'un commentaire antérieur
+  écartée). Chaque tâche de la structure principale, autre que la tâche porteuse, dont les dates
+  calculées changent par la greffe est une différence `updated` de `differences`, après la tâche
+  porteuse et avant la ligne retirée, dans l'ordre du plan, `fields` nommant ses dates par les
+  colonnes de la grille (`start`, `finish`, dans l'ordre de `NodeColumn`). Les dates sont celles du
+  moteur, rejoué une fois sur la structure que la survenance laisse — le passage même qui juge les
+  motifs de refus —, comparées à celles que la tâche porte. Une tâche qu'aucune liaison ne rattache à
+  la greffe n'y figure pas. Aucun schéma ne change : la description de `differences` le dit. La
+  règle est provisoire, EP-30 la reprenant pour le devis propre préparé comme un différentiel.
+- **Le devis propre qui commence avant le jour de la déclaration est signalé, non refusé** (US-2620/L2,
+  #4133, décision de l'auteur du 2026-11-19, la variante « la survenance redate » écartée). Les
+  tâches fusionnées gardent les dates qu'elles avaient dans le devis propre (WF-RIS-0060) ; un
+  devis propre dont le début de planning précède le jour de la déclaration les placerait dans le
+  passé. `RiskOccurrenceReport.own_estimate_past_planning_start_on`, facultatif et nul quand il n'y a
+  rien à dire, est la date de début de planning du devis propre quand elle précède le jour de la
+  lecture, dans le fuseau de l'installation (`current_day`). Ce n'est pas un motif de refus
+  (`refusals` reste vide) et la survenance ne redate rien. Une saisie du début du devis propre
+  (`updateCostStructure`) fait avancer le compteur du risque : le compte rendu lu avant elle est
+  périmé (412 à la confirmation), celui qui suit, avec un début au jour ou après, ne signale rien.
+  Le nom du champ dit ce qu'il porte, la date et non un booléen, pour que l'écran la nomme ; `_on`
+  suit `planning_start_on`. Écartés : un `ReportRefusal`, qui bloquerait la survenance d'un devis
+  que personne ne peut redater sans le saisir ; un booléen, qui ne nomme pas la date.
 
 **Corrélation** 1591 et 1592.
 
