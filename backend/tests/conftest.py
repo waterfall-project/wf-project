@@ -514,10 +514,10 @@ def witness_loaded(database: Database, owner: Engine, service_database_url: str)
     """Give the database the witness was loaded on by the command in this very test.
 
     For a test that changes how the command loads it, a filler registered for instance: one that
-    only reads what the command says asks for ``witness_logged``.
+    only reads what the command says asks for ``witness_logged``. Its loading is never shared: a
+    modified one would be the witness the other tests find laid again.
     """
-    held = loaded(owner, service_database_url)
-    WITNESS_ROWS.setdefault(service_database_url, held)
+    loaded(owner, service_database_url)
     return database
 
 
