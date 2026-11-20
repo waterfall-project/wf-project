@@ -96,6 +96,9 @@ SECURITY_HEADERS = {
 """The headers Caddy sets on every answer in HTTPS (Caddyfile.prod)."""
 HIDDEN = ("/auth/admin/", "/auth/realms/master/")
 """The console of Keycloak and its realm master, which Caddy does not serve."""
+METRICS = ("/metrics", "/api/v1/metrics")
+"""The point of metrics of the front, and `getMetrics` under the prefix of the API: the public door
+answers 404 to both, the metrics being served on a port of their own inside the network (TFX-09)."""
 TIMEOUT = 30.0
 _LINK = re.compile(r"^https://\S+$", re.MULTILINE)
 _FORM_ACTION = re.compile(r'<form[^>]*\baction="([^"]*)"')
@@ -266,6 +269,18 @@ def check_console_hidden(browser: Browser, platform: Platform) -> None:
             raise ProductionError(message)
 
 
+def check_metrics_hidden(browser: Browser, platform: Platform) -> None:
+    """Hold that the public door answers 404 to the point of metrics, at both of its addresses."""
+    for path in METRICS:
+        answer = browser.request("GET", f"{platform.address}{path}")
+        if answer.status != NOT_FOUND:
+            message = f"{path} answered {answer.status}, not {NOT_FOUND}: the metrics are served"
+            raise ProductionError(message)
+        if "NOT_FOUND" not in answer.body:
+            message = f"{path} answered {NOT_FOUND} without the NOT_FOUND of the contract"
+            raise ProductionError(message)
+
+
 def set_password(browser: Browser, link: str, password: str) -> None:
     """Open the link of the bootstrap, confirm it, and set the password in the form it opens."""
     confirmation, url = browser.open(link)
@@ -352,6 +367,8 @@ def trial(
         print(f"  HTTPS answers with {', '.join(SECURITY_HEADERS)}")
         check_console_hidden(Browser(sent), platform)
         print(f"  {' and '.join(HIDDEN)} answer {NOT_FOUND}")
+        check_metrics_hidden(Browser(sent), platform)
+        print(f"  {' and '.join(METRICS)} answer {NOT_FOUND}")
         browser = Browser(sent)
         password = f"Trial-{secrets.token_urlsafe(18)}"
         set_password(browser, link, password)

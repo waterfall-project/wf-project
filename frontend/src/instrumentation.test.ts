@@ -33,6 +33,7 @@ beforeEach(() => {
   vi.stubEnv("WATERFALL_AUTH", undefined);
   vi.stubEnv("WATERFALL_E2E", undefined);
   vi.stubEnv("WATERFALL_API_CONNECTIONS", undefined);
+  vi.stubEnv("WATERFALL_METRICS_PORT", undefined);
   for (const [name, value] of Object.entries(PRODUCTION)) {
     vi.stubEnv(name, value);
   }
@@ -185,5 +186,11 @@ describe("the start of the server of the front", () => {
     vi.stubEnv("WATERFALL_API_CONNECTIONS", "closed");
     await register();
     expectGoesOn();
+  });
+
+  it("stops on a port of the metrics that is none, naming the variable [WF-OBS-0010-A]", async () => {
+    vi.stubEnv("WATERFALL_METRICS_PORT", "nine");
+    await register();
+    expectStopped("WATERFALL_METRICS_PORT must be a port between 1 and 65535: nine");
   });
 });

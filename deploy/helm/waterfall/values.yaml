@@ -137,7 +137,10 @@ transport:
   authority: ""
 
 # The metrics of the front, the API and the worker (US-2870).
-metrics: {}
+# `port` is that of the front (WATERFALL_METRICS_PORT, the worker's variable): a port of its own on
+# the pod, which the Service and the ingress do not route.
+metrics:
+  port: 9100
 
 # Prometheus, which collects the metrics and evaluates the alerts (US-2880).
 prometheus: {}

@@ -436,6 +436,28 @@ export default defineConfig([
     },
   },
   {
+    // The point of metrics of the front (src/metrics/serve.ts, US-2870/L2): Prometheus collects
+    // the metrics over HTTP on a port of their own, so the module is a server of HTTP, and it
+    // observes the servers of Node, Next's among them; its test stands up the servers it observes.
+    // It calls no API: node:http passes, and no other module of the network — not fetch, nor a
+    // client of npm, nor the libraries of the session.
+    files: ["src/metrics/serve.ts", "src/metrics/serve.test.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex: modulePattern(NETWORK_MODULES.filter((m) => m !== "node:http")),
+              message: NETWORK,
+            },
+            { regex: SESSION_MODULE, message: SESSION_NETWORK },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // A non-breaking space written as itself is invisible in a test, and an expectation with one
     // cannot be told from one with an ordinary space: a test writes it as its escape, and the
     // rule, which skips strings by default, reads strings and templates too (#905).

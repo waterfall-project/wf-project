@@ -65,7 +65,8 @@ FROM node AS production
 
 ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
-    PORT=3000
+    PORT=3000 \
+    WATERFALL_METRICS_PORT=9100
 
 COPY --from=build --chown=root:root /app/.next/standalone ./
 COPY --from=build --chown=root:root /app/.next/static ./.next/static
@@ -73,5 +74,6 @@ COPY --from=build --chown=root:root /app/public ./public
 RUN mkdir -p .next/cache && chown 1000:1000 .next/cache
 USER 1000:1000
 
-EXPOSE 3000
+# The metrics, on a port of their own that no door routes (WF-OBS-0010, TFX-09).
+EXPOSE 3000 9100
 CMD ["node", "server.js"]

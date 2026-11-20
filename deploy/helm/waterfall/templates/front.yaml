@@ -63,6 +63,9 @@ spec:
               value: {{ include "waterfall.redisUrl" . | quote }}
             # The key of the server actions, the same for every start and every replica (#825).
             {{- include "waterfall.secretEnv" (list . "WATERFALL_SERVER_ACTIONS_KEY" "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY") | nindent 12 }}
+            # The metrics, on a port the Service and the ingress do not route (TFX-09).
+            - name: WATERFALL_METRICS_PORT
+              value: {{ .Values.metrics.port | quote }}
             {{- if .Values.transport.authority }}
             - name: NODE_EXTRA_CA_CERTS
               value: /authority/ca.crt
@@ -70,6 +73,8 @@ spec:
           ports:
             - name: http
               containerPort: 3000
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
           readinessProbe:
             httpGet:
               path: /

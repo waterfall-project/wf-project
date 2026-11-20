@@ -171,7 +171,13 @@ def test_the_trial_holds_that_the_console_and_the_master_realm_are_not_served(
     def hidden(_browser: object, platform: Platform) -> None:
         seen.append(platform.domain)
 
-    for name in ("check_liveness", "set_password", "sign_in", "check_signed_in"):
+    for name in (
+        "check_liveness",
+        "check_metrics_hidden",
+        "set_password",
+        "sign_in",
+        "check_signed_in",
+    ):
         monkeypatch.setattr(charttrial, name, nothing)
     monkeypatch.setattr(charttrial, "installation_link", link)
     monkeypatch.setattr(charttrial, "sender", sender)

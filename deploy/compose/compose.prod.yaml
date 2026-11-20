@@ -107,6 +107,9 @@ services:
       # client of the realm admits no address in HTTP.
       WATERFALL_KEYCLOAK_BACKCHANNEL: https://${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}/auth
       WATERFALL_FRONT_CLIENT_SECRET: ${WATERFALL_FRONT_CLIENT_SECRET:?set WATERFALL_FRONT_CLIENT_SECRET in .env}
+      # The port of the metrics of the front (WF-OBS-0010), the worker's variable: published nowhere,
+      # and Caddy sends to port 3000 alone, which answers 404 to /metrics (TFX-09).
+      WATERFALL_METRICS_PORT: ${WATERFALL_METRICS_PORT:-9100}
       WATERFALL_REDIS_URL: redis://:${WATERFALL_REDIS_PASSWORD:?set WATERFALL_REDIS_PASSWORD in .env}@redis:6379/0
       # The key of the server actions, the same for every start and every instance (#825).
       NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${WATERFALL_SERVER_ACTIONS_KEY:?set WATERFALL_SERVER_ACTIONS_KEY in .env}
