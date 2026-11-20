@@ -5941,7 +5941,7 @@ que le 409 de `setCostCategoryActivation`, nouveau, nomme ; exemple
 le résumé dit la cascade. La définition provisoire de L42p disparaît : `active_provision_category`
 est une catégorie active de type provision pour risques, une catégorie active l'étant toujours sous
 une nature active ; `CostCategoryImage.cost_type_is_active` reste, une information de lecture. Les
-générateurs suivent (`mockdata.categories_of`, `mockreference.category_commands`,
+générateurs suivent (`mockrates.categories_of`, `mockreference.category_commands`,
 `mockhistory.is_active_provision`) ; les natures du témoin sont actives, et aucun exemple engendré
 ne change. Écartés : rendre les catégories désactivées dans la réponse, comme `setOrgNodeActivation`
 — le schéma de la réponse aurait changé pour un écran qui lit une nature, et qui relit ses
@@ -6407,6 +6407,16 @@ dépose toujours une tâche `restore`, que la sonde de vie suit. Après le rempl
 royaume de l'installation qui restaure est réappliqué : la description de `startRestore` dit que
 ses clients et ses adresses restent ceux de la cible, ses comptes et leurs mots de passe ceux de
 la sauvegarde (#955).
+
+Décision de l'auteur du 2026-11-19 (#4168, conception d'EP-13) : la maintenance et l'état de la
+restauration vivent dans le schéma `platform` de la base de Waterfall, que la restauration laisse en
+place, plus dans Redis (#956). La sonde de vie lit donc cette seule donnée dans PostgreSQL : la
+description de `getLiveness` dit « Answers as soon as the process has started; the only data it
+reads is the maintenance, held in the schema `platform` of the database, which a restore leaves in
+place », à la place de « without touching any data component ». Aucune forme ne change, aucun
+exemple non plus : seule la description. Une modification du contrat figé (« La règle d'après le
+gel »). Non écrit : que la base inaccessible se lise comme une absence de maintenance, la sonde
+répondant 200 ; la conception d'EP-13 ne le dit pas, et l'auteur doit le confirmer d'abord.
 
 ## Le compte rendu de la lecture des comptes (EP-03/US-0370/L2, #707, #811)
 

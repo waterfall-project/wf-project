@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Protocol, cast
 from urllib.parse import parse_qs, urljoin, urlsplit
 from uuid import uuid4
 from weakref import WeakKeyDictionary
@@ -112,6 +112,17 @@ def nowhere() -> tuple[TaskQueue, Bucket]:
         STORAGE_CREDENTIAL,
     )
     return queue, bucket
+
+
+class Emptied(Protocol):
+    """What a test asks of the client of Redis of a queue it empties: ``FLUSHDB``."""
+
+    def flushdb(self) -> bool: ...
+
+
+def emptied(queue: TaskQueue) -> None:
+    """Empty the database of Redis of a queue, as ``FLUSHDB`` does."""
+    cast("Emptied", queue.client).flushdb()
 
 
 def service_role(database: URL) -> str:
@@ -409,6 +420,69 @@ BINARY_TYPES = {
     "image/jpeg": binary_text,
     "application/octet-stream": binary_text,
 }
+
+
+type Pointer = tuple[str | int, ...]
+
+
+def below(value: object, pointer: Pointer) -> Iterator[tuple[Pointer, object]]:
+    """Give a value and each value it holds, with where it is, but in its examples."""
+    yield pointer, value
+    if isinstance(value, dict):
+        for key, each in cast("dict[str, object]", value).items():
+            if key not in UNRESOLVED:
+                yield from below(each, (*pointer, key))
+    elif isinstance(value, list):
+        for index, each in enumerate(cast("list[object]", value)):
+            yield from below(each, (*pointer, index))
+
+
+def target(address: str, reference: str) -> tuple[str, Pointer]:
+    """Give the document and the pointer a ``$ref`` written in a document designates."""
+    where, _, fragment = urljoin(address, reference).partition("#")
+    parts = tuple(part.replace("~1", "/").replace("~0", "~") for part in fragment.split("/")[1:])
+    return where, parts
+
+
+def compositions(contract: OpenAPI) -> Iterator[tuple[str, SchemaPath]]:
+    """Give each node that composes by ``anyOf`` or ``oneOf`` in the whole contract.
+
+    Each node of each document the contract reaches by its references, the schemas of ``components``
+    and the bodies of the requests as well as the answers, examples left out. Each comes as a
+    schema path that resolves its references in its own document: where it is, then the node.
+    """
+    root = contract.spec.base_uri
+    found = documents(root, contract.spec.read_value())
+    registry = Registry[Any](retrieve=retrieved).with_resources(
+        (address, DRAFT202012.create_resource(each)) for address, each in found.items()
+    )
+    crawled = registry.crawl()
+    for address, each in found.items():
+        for pointer, node in below(each, ()):
+            if isinstance(node, dict) and ("anyOf" in node or "oneOf" in node):
+                accessor = SchemaAccessor(each, crawled.resolver(base_uri=address))
+                schema = SchemaPath(accessor, separator=SPEC_SEPARATOR)
+                for part in pointer:
+                    schema = schema / part
+                yield f"{address}#/{'/'.join(segment(str(part)) for part in pointer)}", schema
+
+
+def ambiguous_compositions(contract: OpenAPI) -> list[str]:
+    """Give where the contract composes by ``anyOf`` or ``oneOf`` what a value cannot follow.
+
+    A composition more than one of whose branches describes an object, or a list, and whose
+    objects are not each closed and apart, raises ``AmbiguousCompositionError`` at the first answer
+    the client reads: this finds it without an answer.
+    """
+    found: list[str] = []
+    for where, schema in compositions(contract):
+        try:
+            branches([schema])
+        except AmbiguousCompositionError:
+            found.append(where)
+    return found
+
+
 # The paths of the contract whose resolution is kept: the walk of an answer asks each of its values
 # what its schema holds, and a schema is reached again from the root at each question.
 RESOLVED_PATHS = 1 << 16

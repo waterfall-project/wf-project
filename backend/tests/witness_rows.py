@@ -38,11 +38,14 @@ class WitnessRows:
 
 
 def _tables() -> list[tuple[str, tuple[str, ...]]]:
-    """Name the tables the rows of a test go in, those the migrations fill left out."""
+    """Name the tables the rows of a test go in, those the migrations fill left out.
+
+    So are those of the schema ``platform``, a maintenance, which no witness writes.
+    """
     return [
         (table.name, tuple(column.name for column in table.columns))
         for table in Base.metadata.sorted_tables
-        if not table.info.get(WRITTEN_BY_MIGRATION)
+        if not table.info.get(WRITTEN_BY_MIGRATION) and table.schema is None
     ]
 
 

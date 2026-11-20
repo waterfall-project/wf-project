@@ -173,6 +173,9 @@ class UtcDateTime(TypeDecorator[datetime]):
 POOL_SIZE = 5
 POOL_OVERFLOW = 10
 CONNECTIONS_PER_ENGINE = POOL_SIZE + POOL_OVERFLOW
+# The seconds a connection to the server may take, libpq's shortest: a server that answers no more
+# holds its caller, the probe of liveness first, for that long and not for ever.
+CONNECT_TIMEOUT = 2
 
 
 def utc_now() -> datetime:
@@ -197,7 +200,7 @@ def create_database_engine(address: str) -> Engine:
     """
     return create_engine(
         engine_url(address),
-        connect_args={"options": "-c timezone=UTC"},
+        connect_args={"options": "-c timezone=UTC", "connect_timeout": CONNECT_TIMEOUT},
         pool_pre_ping=True,
         pool_size=POOL_SIZE,
         max_overflow=POOL_OVERFLOW,

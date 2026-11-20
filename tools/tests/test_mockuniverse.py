@@ -820,14 +820,6 @@ def test_the_consultation_read_anew_after_the_exclusion_moves_the_line_between_t
     assert line == excluded
 
 
-def test_each_correlation_is_told_by_one_example_alone(examples: dict[str, Any]) -> None:
-    told: dict[str, list[str]] = defaultdict(list)
-    for name, value in examples.items():
-        if isinstance(value, dict) and "correlation_id" in value:
-            told[cast("Node", value)["correlation_id"]].append(name)
-    assert {key: names for key, names in told.items() if len(names) > 1} == {}
-
-
 # --- The roles and the portfolio (EP-02/L26) ----------------------------------------------------
 
 

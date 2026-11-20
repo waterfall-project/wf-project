@@ -20,14 +20,20 @@ import json
 import os
 import subprocess
 import sys
+from typing import TYPE_CHECKING
 
 import pytest
 
 from wftools import REPOSITORY, guard
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 GUARD = REPOSITORY / "tools" / "src" / "wftools" / "guard.py"
+GUARDGIT = GUARD.with_name("guardgit.py")
+GUARDOPTIONS = GUARD.with_name("guardoptions.py")
 SETTINGS = REPOSITORY / ".claude" / "settings.json"
-HOOK = 'python3 "$CLAUDE_PROJECT_DIR/tools/src/wftools/guard.py"'
+HOOK = 'python3 "$CLAUDE_PROJECT_DIR/tools/src/wftools/launch.py" guard || exit 2'
 
 
 def refused(command: str) -> bool:
@@ -380,16 +386,38 @@ def test_the_hook_runs_the_guard_as_claude_code_does(command: str, code: int) ->
     assert ("`pkill`" in ran.stderr) == (code == 2)
 
 
-def test_the_guard_imports_the_standard_library_alone() -> None:
-    """US-1310: the guard stays a script of the standard library, under 1,000 lines."""
-    text = GUARD.read_text(encoding="utf-8")
-    nodes = list(ast.walk(ast.parse(text)))
+def imported_by(path: Path) -> set[str]:
+    """Return the modules a file imports, each by its full name, ``from`` imports included."""
+    nodes = list(ast.walk(ast.parse(path.read_text(encoding="utf-8"))))
     imports = [node for node in nodes if isinstance(node, ast.Import)]
     imported = {alias.name for node in imports for alias in node.names}
     imported |= {node.module or "" for node in nodes if isinstance(node, ast.ImportFrom)}
-    assert imported
-    assert {name.split(".")[0] for name in imported} <= sys.stdlib_module_names
-    assert len(text.splitlines()) <= 1000
+    # `from wftools import guardgit` imports the module beside it.
+    imported |= {
+        f"{node.module}.{alias.name}"
+        for node in nodes
+        if isinstance(node, ast.ImportFrom) and node.module == "wftools"
+        for alias in node.names
+    }
+    return imported - {"wftools"}
+
+
+def test_the_guard_imports_the_standard_library_and_the_module_beside_it_alone() -> None:
+    """US-1310: the guard stays a script of the standard library; US-2450: under 1,000 lines.
+
+    The forms that reach `.git` are judged by `guardgit.py`, and the options of the prefixes read
+    by `guardoptions.py`, beside it (US-2450): the guard imports them by the package, or by their
+    own names when the hook runs the guard by its path. Those modules import the standard library
+    alone, and each file stays under 1,000 lines.
+    """
+    beside = {"guardgit", "wftools.guardgit", "guardoptions", "wftools.guardoptions"}
+    imported = imported_by(GUARD)
+    assert beside <= imported
+    assert {name.split(".")[0] for name in imported - beside} <= sys.stdlib_module_names
+    for path in (GUARDGIT, GUARDOPTIONS):
+        assert {name.split(".")[0] for name in imported_by(path)} <= sys.stdlib_module_names
+    for path in (GUARD, GUARDGIT, GUARDOPTIONS):
+        assert len(path.read_text(encoding="utf-8").splitlines()) <= 1000, path.name
 
 
 @pytest.mark.parametrize(
@@ -664,6 +692,12 @@ def test_a_cd_up_resets_the_state_even_from_below_git() -> None:
     assert not refused("cd .git/refs/heads; cd ..; rm main.lock")
 
 
+@pytest.mark.parametrize("operand", ["/dev/stdin", "/dev/fd/0"])
+def test_a_shell_reading_its_script_from_the_input_is_not_judged(operand: str) -> None:
+    """US-2500: known limit, `bash /dev/stdin` takes the operand for a script: the input passes."""
+    assert not refused(f"echo 'pkill x' | bash {operand}")
+
+
 @pytest.mark.parametrize(
     "command",
     [
@@ -694,7 +728,6 @@ def test_xargs_rm_of_what_names_git_and_rm_r_of_git_are_refused(command: str) ->
         "rm -rf build",
         "rm -rf .gitignore",
         "rm -rf frontend/.github",
-        "rm .git",
         "rm -rf -- -r .git-old",
         "git status --porcelain | xargs ls",
     ],
@@ -752,3 +785,115 @@ def test_the_merge_queue_target_is_refused_to_an_agent(command: str) -> None:
 def test_the_merge_queue_check_and_the_other_targets_pass(command: str) -> None:
     """#2294: `merge-queue-check` only reads, and the other targets of `make` always pass."""
     assert not refused(command)
+
+
+@pytest.mark.story("US-2450")
+@pytest.mark.parametrize(
+    "command",
+    [
+        "make -j2 merge-queue EPIC=EP-28 'open",
+        "make EPIC=x merge-queue 'open",
+        'make -j 2 -s merge-queue "open',
+        "make -C . merge-queue 'open",
+        "make --no-print-directory EPIC=EP-28 merge-queue 'open",
+        'make -f "a b" merge-queue \'open',
+        "make -f 'a b' EPIC=\"x y\" merge-queue 'open",
+        'make "x y" merge-queue \'open',
+        "make -sC merge-queue 'open",
+        "make -- merge-queue 'open",
+    ],
+)
+def test_make_merge_queue_not_adjacent_in_a_line_not_cut_is_refused(command: str) -> None:
+    """#2417: in a line the scanner cannot cut, options and assignments before `merge-queue`."""
+    said = guard.refusal(command)
+    assert said is not None
+    assert said.startswith("a line it cannot cut, which names `make ")
+    assert said.endswith("merge-queue`")
+
+
+@pytest.mark.story("US-2450")
+@pytest.mark.parametrize(
+    "command",
+    [
+        "make -C merge-queue check",
+        "make --directory merge-queue check",
+        "make --dir=merge-queue check",
+        "make -f merge-queue all",
+        "make -C merge-queue check 'open",
+        "make merge-queue-check 'open",
+        "make -Cmerge-queue check",
+        "make -Cmerge-queue check 'open",
+        "make -f 'merge-queue x' check 'open",
+    ],
+)
+def test_merge_queue_as_the_argument_of_an_option_of_make_passes(command: str) -> None:
+    """#2417: in `make -C merge-queue …`, `merge-queue` is a directory, not a target."""
+    assert not refused(command)
+
+
+@pytest.mark.story("US-2450")
+@pytest.mark.parametrize(
+    "command",
+    [
+        "make -j2 merge-queue EPIC=EP-28",
+        "make -j 2 merge-queue",
+        "make check -C . merge-queue",
+        "make --dir . merge-queue",
+        "env EPIC=x make -s merge-queue",
+        "make -- merge-queue",
+    ],
+)
+def test_make_merge_queue_past_options_is_refused(command: str) -> None:
+    """#2417: the target is read among the operands, past the options that take an argument."""
+    assert refused(command)
+
+
+@pytest.mark.story("US-2450")
+@pytest.mark.parametrize(
+    "command",
+    [
+        "find .git -name x; ls | xargs rm",
+        "find .git -name x && ls | xargs rm",
+        "find .git -name x || ls | xargs rm",
+        "find .git -name x & ls | xargs rm",
+        "find .git -name x\nls | xargs rm",
+        "(find .git -name x); ls | xargs rm",
+        "if true; then ls .git; fi; ls | xargs rm",
+        "find .git -name x &&\nls | xargs rm",
+        "find .git -name x ||\nls | xargs rm",
+        "find .git -name x &\nls | xargs rm",
+        "find .git -name x # |\nls | xargs rm",
+    ],
+)
+def test_xargs_rm_in_a_pipe_that_names_no_git_passes(command: str) -> None:
+    """#2417: `.git` named in another pipeline of the line does not feed this `xargs rm`."""
+    assert not refused(command)
+
+
+@pytest.mark.story("US-2450")
+@pytest.mark.parametrize(
+    "command",
+    [
+        "ls; find .git -name x | xargs rm",
+        "find .git -name x |& xargs rm",
+        "find .git -name x | sort | xargs rm",
+        "(cd /tmp; find .git) | xargs rm",
+        "{ ls; find .git -name x; } | xargs rm",
+        "for f in a b; do echo .git/$f; done | xargs rm",
+        "while read f; do echo .git/$f; done < list | xargs rm",
+        "if true; then find .git; fi | xargs rm",
+        "ls $(echo .git) | xargs rm",
+        "ls; echo $(find .git; ls) | xargs rm",
+        "find .git -name x |\n xargs rm",
+        "find .git | cat |\nxargs rm",
+        "find .git -name x |\n cat | xargs rm",
+        "echo 'a.lock' |\n xargs rm",
+        "git ls-files | grep .lock |\n xargs rm",
+        "find .git |&\nxargs rm",
+        "find .git |\n # c\n xargs rm",
+        "find .git |\n\n xargs rm",
+    ],
+)
+def test_xargs_rm_fed_by_what_names_git_in_its_pipe_stays_refused(command: str) -> None:
+    """#2417: a group, a loop or a substitution of the pipe that names `.git` feeds it."""
+    assert refused(command)

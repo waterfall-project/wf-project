@@ -9,7 +9,7 @@ is marked and whose current revision is open (``remaining_support``); each answe
 the contract. The export, and the round trip with it, are US-1630/L4's.
 """
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -17,7 +17,7 @@ from uuid import UUID
 import pytest
 from costs_support import cost, load_import
 from estimate_import_support import entry_of, project_of
-from estimate_support import YEAR, Costing, Lines, add_role, costing
+from estimate_support import LAST_INSTANT, YEAR, Costing, Lines, add_role, costing
 from fastapi.testclient import TestClient
 from imports_trial import apply, import_worker, refusal, run, stored
 from nodes_support import Tree, entries, put_facts, set_progress
@@ -47,6 +47,7 @@ from waterfall.core.cost_settings.interface import set_hourly_rate
 from waterfall.core.estimate.remaining.analysing import same_cell
 from waterfall.core.estimate.remaining.excel.layout import tab_subprojects
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
+from waterfall.core.exchanges import running
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.planning.tables import Node
 from waterfall.core.projects.tables import Project
@@ -97,7 +98,12 @@ def api(contract: OpenAPI, import_services: Services) -> ContractClient:
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
     return make_scene(api, owner, database, realm)
 
@@ -493,6 +499,30 @@ def test_a_project_left_in_progress_with_a_task_writing_is_refused_by_the_phase_
 
 
 @pytest.mark.requirement("WF-REV-0060-A")
+def test_a_remaining_imported_after_the_new_year_run_keeps_the_year_the_test_was_pinned_to(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    scene: Rows,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The revision an import opens takes its year from the clock of ``running``, which ``pin_year``
+    # holds near the end of ``YEAR``: a clock that reads a year later, as a run that crosses New
+    # Year would, still gives the revision ``YEAR``.
+    review_marked(stage, scene.tree.revision, "Revue 1")
+    rows = scene.exported()
+    rows[0][3] = 3
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    monkeypatch.setattr("estimate_support.utc_now", lambda: LATER)
+    assert LAST_INSTANT - timedelta(seconds=2) < running.utc_now() <= LAST_INSTANT
+    applied(api, stage, worker, import_id)
+    created = project_of(api, stage)["current_revision_id"]
+    assert created != scene.tree.revision["revision_id"]
+    base = f"{PROJECTS}/{stage.project['project_id']}/revisions/{created}"
+    assert api.get(base, headers=stage.manager.headers).json()["reference_year"] == YEAR
+
+
+@pytest.mark.requirement("WF-REV-0060-A")
 def test_a_remaining_imported_in_the_next_year_creates_a_revision_at_the_rates_projected(
     api: ContractClient,
     stage: Scene,
@@ -800,6 +830,13 @@ def inflating(stage: Scene, tree: Tree, start: date, finish: date, days: int = 1
     )
 
 
+def new_year_days() -> tuple[date, date]:
+    """Give the ten working days of the tests over two years: the last four of YEAR, then six."""
+    december = [date(YEAR, 12, day) for day in range(1, 32) if date(YEAR, 12, day).weekday() < 5]
+    january = [date(NEXT, 1, day) for day in range(1, 32) if date(NEXT, 1, day).weekday() < 5]
+    return december[-4], january[5]
+
+
 @pytest.mark.requirement("WF-INTF-0120-A")
 def test_an_amount_left_is_converted_at_the_inflation_of_the_year_the_task_is_consumed_in(
     api: ContractClient, stage: Scene, worker: Worker, scene: Rows
@@ -835,7 +872,7 @@ def test_an_amount_left_on_a_task_over_two_years_is_given_back_as_typed(
     # years of the task, weighted by their shares (the next year six days of ten: 1.018), as the
     # projection shares the unit over the two years — the amount re-estimated is the one typed,
     # on a line created as on a line known (103 typed, never 101.80).
-    inflating(stage, scene.tree, date(YEAR, 12, 28), date(NEXT, 1, 8), days=10)
+    inflating(stage, scene.tree, *new_year_days(), days=10)
     rows = scene.exported()
     rows[2][4] = 103
     rows.append([scene.task("Essais"), scene.stuff, "Rallonge", None, 103, None])
@@ -855,7 +892,7 @@ def test_a_remaining_over_two_years_reimported_as_exported_is_unchanged(
     # Round trip without a gap (#2797): the amount left a line of disbursement shows in the file is
     # the one the base holds; read again at the mean of the coefficients weighted by the shares of
     # the two years, it comes to the same line: no row is modified.
-    inflating(stage, scene.tree, date(YEAR, 12, 28), date(NEXT, 1, 8), days=10)
+    inflating(stage, scene.tree, *new_year_days(), days=10)
     rows = scene.exported()
     for each in rows:
         if each[1] == scene.stuff:

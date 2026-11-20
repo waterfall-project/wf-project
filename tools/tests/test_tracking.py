@@ -4,7 +4,7 @@
 
 The tool runs as the Makefile runs it, ``python -m wftools.tracking``, with a fake ``gh`` first on
 the ``PATH``: an executable that keeps the body of the issue in a file. No test touches a real
-issue, and ``XDG_RUNTIME_DIR`` is a temporary directory.
+issue, and ``WATERFALL_RUNTIME_DIR`` is a temporary directory.
 """
 
 import json
@@ -114,7 +114,7 @@ class Issue:
         environment = {
             **os.environ,
             "PATH": f"{self.bin}{os.pathsep}{os.environ['PATH']}",
-            "XDG_RUNTIME_DIR": str(self.directory),
+            "WATERFALL_RUNTIME_DIR": str(self.directory),
             "FAKE_GH_DIR": str(self.directory),
             "FAKE_GH_DELAY": delay,
         }
@@ -338,12 +338,14 @@ def test_two_simultaneous_calls_each_keep_their_change(issue: Issue) -> None:
     assert issue.writes == 2
 
 
-def test_the_lock_is_the_one_of_the_issue_in_the_runtime_directory(issue: Issue) -> None:
-    """US-1120: waterfall-tracking-<issue>.lock in XDG_RUNTIME_DIR, /tmp where it is not set."""
-    assert tracking.lock_path({"XDG_RUNTIME_DIR": "/run/x"}, 7) == Path(
+def test_the_lock_is_the_one_of_the_issue_in_the_runtime_directory(
+    issue: Issue, user_runtime: Path
+) -> None:
+    """US-1120, US-2460: waterfall-tracking-<issue>.lock in the directory of the locks."""
+    assert tracking.lock_path({"WATERFALL_RUNTIME_DIR": "/run/x"}, 7) == Path(
         "/run/x/waterfall-tracking-7.lock"
     )
-    assert tracking.lock_path({}, 7) == Path(os.sep, "tmp", "waterfall-tracking-7.lock")
+    assert tracking.lock_path({}, 7) == user_runtime / "waterfall-tracking-7.lock"
     issue.run("--us", "US-1080", "--status", "x")
     assert (issue.directory / "waterfall-tracking-7.lock").exists()
 
@@ -425,7 +427,7 @@ def make_tracking(issue: Issue, variables: list[str], environment: dict[str, str
             **os.environ,
             "PATH": f"{issue.bin}{os.pathsep}{os.environ['PATH']}",
             "PYTHONPATH": str(REPOSITORY / "tools" / "src"),
-            "XDG_RUNTIME_DIR": str(issue.directory),
+            "WATERFALL_RUNTIME_DIR": str(issue.directory),
             "FAKE_GH_DIR": str(issue.directory),
             **environment,
         },

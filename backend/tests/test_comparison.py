@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import YEAR, Costing, Lines, costing
+from estimate_support import YEAR, Costing, Lines, costing, task_in
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from nodes_support import Tree, faults, opened, refusal, set_progress
@@ -64,7 +64,12 @@ LATER = datetime(YEAR + 1, 1, 12, 10, tzinfo=UTC)
 
 
 @pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
+def stage(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+) -> Scene:
     """Give a platform, its sessions, and the project its manager made."""
     return make_scene(api, owner, database, realm)
 
@@ -625,14 +630,7 @@ def test_between_two_reference_years_a_disbursement_line_differs_by_its_projecte
     # are projected all the same when it is opened (#3126).
     offer = opened(api, stage)
     tree = Tree(api, stage, offer)
-    wiring = tree.made(
-        "Câblage",
-        task={
-            "scheduling_mode": "manual",
-            "start": {"date": f"{YEAR + 2}-03-02"},
-            "finish": {"date": f"{YEAR + 2}-03-03"},
-        },
-    )
+    wiring = tree.made("Câblage", task=task_in(YEAR + 2))
     Lines(tree).made(wiring, **material(costs, "Câbles", "200.00"))
     mark(stage, offer, "v1.0")
     designate(api, stage, offer)

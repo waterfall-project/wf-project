@@ -78,7 +78,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap check-measures e2e e2e-durations e2e-measure e2e-browsers e2e-image mirror lot-size measure-reference tracking merge-queue merge-queue-check queue-report \
+	coverage-back coverage-front roadmap check-roadmap check-measures e2e e2e-durations e2e-measure e2e-browsers e2e-image mirror mirror-sync lot-size measure-reference tracking merge-queue merge-queue-check queue-report \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -98,11 +98,14 @@ TESTS ?=
 # §4.6.2 on one more (e2e.yml). Empty, it plays them all. `make e2e-service SHARD=i/N` plays a
 # part of the paths against the service, each on a platform of its own (service.yml).
 SHARD ?=
+# SHARD=lint is the part of check-front-tests and test-front alone: the guard below refuses it on the
+# other goals.
 # A part of the paths does not combine with a file of them: the file may be in another part.
 # Refused as the Makefile is read, before the installation and the build of the front, which the
 # recipe would otherwise wait for to say so (#3026). Every goal that reaches the paths is named,
 # the families that run them included.
-ifneq ($(and $(SHARD),$(TESTS),$(filter e2e e2e-service check-service check-front-e2e check-front check-all check,$(MAKECMDGOALS))),)
+E2E_PATH_GOALS := e2e e2e-service check-service check-front-e2e check-front check-all check
+ifneq ($(and $(SHARD),$(TESTS),$(filter $(E2E_PATH_GOALS),$(MAKECMDGOALS))),)
 $(error SHARD and TESTS do not combine for the end-to-end paths: the file may be in another part)
 endif
 # How many workers `make e2e` plays the paths on (E2E_WORKERS, frontend/playwright.config.ts), each
@@ -113,11 +116,13 @@ WORKERS ?=
 # N heavy runs at a time on the workstation (WATERFALL_SLOTS, 1 by default): the whole tests of a
 # side, their coverage, the production build of the front, the end-to-end paths. Several agents
 # running them side by side ran out of memory (2026-10). tools/src/wftools/slots.py admits them
-# (a free slot among N lock files of XDG_RUNTIME_DIR, the first the one of before N existed),
-# keeps the slot until the run ends and sets WATERFALL_PROCESSORS, the share of the processors of
-# one run. A run of one file (TESTS) does not wait; on a runner of the chain, alone, a slot is
-# always free. `env` keeps the variables set before the command a command of their own.
-SLOTS = python3 $(CURDIR)/tools/src/wftools/slots.py
+# (a free slot among N lock files of the directory of the locks of the workstation, the first the
+# one of before N existed), keeps the slot until the run ends and sets WATERFALL_PROCESSORS, the
+# share of the processors of one run. A run of one file (TESTS) does not wait; on a runner of the
+# chain, alone, a slot is always free. `env` keeps the variables set before the command a command
+# of their own. It runs by tools/src/wftools/launch.py, which says the version it expects under a
+# python3 older than the one of the tools, instead of their SyntaxError (US-2450).
+SLOTS = python3 $(CURDIR)/tools/src/wftools/launch.py slots
 heavy = $(if $(TESTS),,$(SLOTS) run --heavy -- env)
 # A measure takes the workstation for itself alone (US-2210): every slot of the heavy runs, in a
 # fixed order, once those in progress have ended; the heavy runs started meanwhile wait for it. The
@@ -147,7 +152,19 @@ TESTING_FRONT = $(testing) redis -- env
 # (#3029): WATERFALL_PROCESSORS_READING tells E2E_SERVICE_PROCESSORS not to read it meanwhile. The
 # rule from now on: an exported variable that reads the share goes through E2E_SERVICE_PROCESSORS
 # (or tests the flag), and tools/tests/test_e2eworkers.py keeps it under 4.4.
-WATERFALL_PROCESSORS ?= $(eval WATERFALL_PROCESSORS_READING = 1)$(eval WATERFALL_PROCESSORS_SHARE := $(shell $(if $(filter-out undefined,$(origin WATERFALL_SLOTS)),WATERFALL_SLOTS='$(subst ','\'',$(WATERFALL_SLOTS))') $(SLOTS) processors 2>/dev/null))$(eval WATERFALL_PROCESSORS_READING =)$(or $(WATERFALL_PROCESSORS_SHARE),$(error WATERFALL_SLOTS must be an integer from 1 to 9, not '$(WATERFALL_SLOTS)'))
+# The share is the one word of digits the tool prints on its standard output, when it ends by 0: a
+# warning on its error output does not spoil it. Without a share, make relays what the tool said on
+# its error output instead: the setting it refuses, or why it did not run (US-2450). The tool runs
+# once: its standard output goes to s, its error output to e by the descriptor 3, and the share to
+# make by the descriptor 5. What the tool said on its standard output instead of a share is relayed
+# after its error output, and the final point of the reason is dropped: make's own closes it. The
+# words of the tool are not read again as make: the $(shell) is escaped ($$) in the eval, which
+# assigns its output as it is, so that a `$` or a `#` it says (in the path of python3, say) stays a
+# letter.
+SLOTS_PROCESSORS = $(if $(filter-out undefined,$(origin WATERFALL_SLOTS)),WATERFALL_SLOTS='$(subst ','\'',$(WATERFALL_SLOTS))') $(SLOTS) processors
+SHARE_OR_REASON = { e=$$( { s=$$($(SLOTS_PROCESSORS) 2>&3 3>&-); if [ $$? -eq 0 ] && [ -n "$$s" ] && [ -z "$$(printf %s "$$s" | tr -d 0-9)" ]; then printf '%s\n' "$$s" >&5; else [ -z "$$s" ] || printf '%s\n' "$$s"; false; fi; } 3>&1 ) || printf '%s\n' "$${e%.}"; } 5>&1
+nondigits = $(subst 0,,$(subst 1,,$(subst 2,,$(subst 3,,$(subst 4,,$(subst 5,,$(subst 6,,$(subst 7,,$(subst 8,,$(subst 9,,$(1)))))))))))
+WATERFALL_PROCESSORS ?= $(eval WATERFALL_PROCESSORS_READING = 1)$(eval WATERFALL_PROCESSORS_SHARE := $$(shell $$(SHARE_OR_REASON)))$(eval WATERFALL_PROCESSORS_READING =)$(if $(and $(filter 1,$(words $(WATERFALL_PROCESSORS_SHARE))),$(if $(call nondigits,$(WATERFALL_PROCESSORS_SHARE)),,share)),$(WATERFALL_PROCESSORS_SHARE),$(error no share of the processors from the tool of the slots: $(or $(WATERFALL_PROCESSORS_SHARE),it said nothing)))
 
 # The slot of the worktree (US-1100): its ports, its projects of Compose and the tags of its images,
 # so that two worktrees play the paths, try Keycloak or run the service platform side by side. The
@@ -180,11 +197,22 @@ full-only = $(if $(filter full,$(TIER)),$(1))
 # The coverage run executes the same tests: in the full tier it replaces the plain run.
 full-else = $(if $(filter full,$(TIER)),$(1),$(2))
 WFTOOLS := uv run --frozen --project $(TOOLS) python -m wftools
-# A part of the paths against the service of a shape the plan refuses (i/N, N >= 2) is refused as the
-# Makefile is read too, before the installation and the build of the front.
-ifneq ($(and $(SHARD),$(filter e2e-service check-service,$(MAKECMDGOALS))),)
-ifneq ($(shell $(WFTOOLS).e2eparts service-part '$(SHARD)' >/dev/null 2>&1 || echo refused),)
-$(error SHARD must be i/N with 1 <= i <= N and N >= 2 for the paths against the service: $(SHARD))
+# A part of the paths of a shape the plan refuses (i/N, N >= 2) is refused as the Makefile is read
+# too, before the installation and the build of the front, whichever goal of the paths asks for it
+# (#3108): one guard for all of E2E_PATH_GOALS. Two things keep the value from a shell. SHARD_BAD
+# judges the characters first: a value that is not digits and one slash never gets further (an
+# apostrophe closed the quotes the value was between). What passes reaches the tool by the
+# shell variable the command sets itself, not in the quotes of its text: WATERFALL_SHARD_ASKED is set
+# and exported inside the $(shell) command, so nothing depends on make handing its exported
+# variables to $(shell) (GNU make 4.4 does, the 4.3 of the e2e image does not). Interpolating
+# $(SHARD) there is safe: $(or) does not expand its later arguments once one is non-empty, so a
+# value that reaches the $(shell) passed SHARD_BAD, and is digits and one slash alone.
+# `nondigits` is the one above. SHARD=lint is the part of check-front-tests and test-front alone:
+# check, check-front, check-all and e2e refuse it here.
+SHARD_BAD = $(or $(word 2,$(SHARD)),$(call nondigits,$(subst /,,$(SHARD))))
+ifneq ($(and $(SHARD),$(filter $(E2E_PATH_GOALS),$(MAKECMDGOALS))),)
+ifneq ($(or $(SHARD_BAD),$(shell WATERFALL_SHARD_ASKED=$(SHARD); export WATERFALL_SHARD_ASKED; $(WFTOOLS).e2eparts service-part "$$WATERFALL_SHARD_ASKED" >/dev/null 2>&1 || echo refused)),)
+$(error SHARD must be i/N with 1 <= i <= N and N >= 2 for the paths: $(SHARD))
 endif
 endif
 
@@ -688,6 +716,11 @@ e2e-image: ## Find the work image of the end-to-end paths in the registry by the
 mirror: ## Check that ghcr.io holds the images of Docker Hub the files name under mirror/, by their digest — PUSH=yes copies those it does not hold (wftools.mirror, US-1900)
 	@$(WFTOOLS).mirror $(if $(filter yes,$(PUSH)),--push)
 
+# Dependabot follows the images of Docker Hub in their manifest, deploy/images/Dockerfile, which it
+# reads where it does not read the references behind the prefix of the mirror (US-2490).
+mirror-sync: ## Copy the manifest of the images of Docker Hub (deploy/images/Dockerfile) into the Dockerfiles, the Compose files and the workflows, their prefix kept (wftools.mirror, US-2490)
+	@$(WFTOOLS).mirror sync
+
 # E2E_IMAGE, the reference of that image, plays the browser of the paths against the service in it
 # (service.yml): Playwright's server (run-server) runs in the image, on the network of the host, and
 # `playwright test` connects to it from the runner (PW_TEST_CONNECT_WS_ENDPOINT), where Node, the front
@@ -919,9 +952,11 @@ measure-version: measure-cache-present measure-secrets install-front $(call e2e-
 		docker stop --time 60 $(LOAD_CONTAINER) > /dev/null 2>&1; exit $$status; }
 
 # The slot of the worktree, among the N of WATERFALL_SLOTS, in the register of the workstation
-# ($XDG_RUNTIME_DIR/waterfall-slots, /tmp/waterfall-slots without it), whatever the repository.
-slot: ## Take a slot of 1 to N for this worktree of a lot — its ports and its names —, or say the one it holds; fails, naming the holders, when all are taken
-	@$(SLOTS) claim
+# (waterfall-slots of /run/user/<uid>, of /tmp without it), whatever the repository and the session.
+# LOT=<identifier> writes the lot in the slot: a deliverer stopped without make slot-release holds
+# back no other, the next one of its lot taking its slot over when all are taken (US-2460).
+slot: ## Take a slot of 1 to N for this worktree of a lot — its ports and its names —, or say the one it holds; all taken, takes over the one another worktree holds for the same LOT=<identifier>, else fails, naming the holders
+	@$(SLOTS) claim$(if $(LOT), --lot '$(subst ','\'',$(LOT))')
 
 slot-release: ## Stop the servers of the e2e paths, remove the containers and volumes of the slot of this worktree — the service platform, the services of the tests —, then free it
 	@$(SLOTS) release
@@ -930,7 +965,7 @@ e2e-down: ## Stop the servers of the end-to-end paths of the slot of this worktr
 	@$(SLOTS) stop-servers
 	@docker stop --time 60 $(LOAD_CONTAINER) > /dev/null 2>&1 || true
 
-slots: ## Print N, then the slots taken on the workstation and their worktrees
+slots: ## Print N, then the slots taken on the workstation, their worktrees and their lots
 	@$(SLOTS) list
 
 # PostgreSQL 18, Redis and Garage of the platform, in memory, on the ports of the slot of the worktree
@@ -995,7 +1030,7 @@ check-tools: ## Report which prerequisites are missing
 	@if [ ! -f $(TOOLS)/.python-version ]; then echo "  missing  $(TOOLS)/.python-version"; else \
 		v=$$(cut -d. -f1,2 $(TOOLS)/.python-version); \
 		python3 --version 2>/dev/null | grep -q "^Python $$(echo "$$v" | sed 's/\./\\./g')\." \
-		|| echo "  warning  python3 is not $$v, the version of $(TOOLS)/.python-version: the guard and the slots would run by another"; \
+		|| echo "  warning  python3 is not $$v, the version of $(TOOLS)/.python-version: the guard would refuse every command and the slots would not run"; \
 	fi
 	@command -v pandoc >/dev/null && pandoc --version | head -1 | grep -q " 3.13$$" \
 		|| echo "  warning  pandoc is not 3.13: the projection would differ from the chain's"

@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * Liveness probe, and the maintenance of a restore
-         * @description Answers as soon as the process has started, without touching any data component. It also reports the maintenance of a restore (`startRestore`, WF-ADM-0160): `status` is `maintenance` as long as the platform is in maintenance, every other operation then answering 503 `COMPONENT_UNAVAILABLE`, and `ok` once the maintenance is lifted, the restore completed. The front polls it to know when the restore has completed: the maintenance state does not depend on the database that the restore recreates, and the restore's task cannot be read during the maintenance (#604). A platform in maintenance is alive: the probe answers 200.
+         * @description Answers as soon as the process has started; the only data it reads is the maintenance, held in the schema `platform` of the database, which a restore leaves in place. It also reports the maintenance of a restore (`startRestore`, WF-ADM-0160): `status` is `maintenance` as long as the platform is in maintenance, every other operation then answering 503 `COMPONENT_UNAVAILABLE`, and `ok` once the maintenance is lifted, the restore completed. The front polls it to know when the restore has completed: the maintenance state does not depend on the database that the restore recreates, and the restore's task cannot be read during the maintenance (#604). A platform in maintenance is alive: the probe answers 200.
          */
         get: operations["getLiveness"];
         put?: never;

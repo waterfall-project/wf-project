@@ -143,9 +143,9 @@ class IdentitySyncReport(Base):
         CheckConstraint("jsonb_typeof(removed) = 'array'", name="removed_array"),
     )
 
-    # One report per task, however many attempts it took.
+    # One report per task, however many attempts it took; purged with its task (EP-13, #921).
     task_id: Mapped[UUID] = mapped_column(
-        ForeignKey(BackgroundTask.id, ondelete="RESTRICT"), primary_key=True
+        ForeignKey(BackgroundTask.id, ondelete="CASCADE"), primary_key=True
     )
     # The latest is read first.
     finished_at: Mapped[datetime] = mapped_column(UtcDateTime, index=True)

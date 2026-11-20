@@ -183,9 +183,16 @@ ne laisse rien de son travail : un autre la reprend depuis le début, et elle é
 tentatives ; une tâche d'un genre qu'aucun traitement n'exécute échoue sans s'exécuter. Une
 restauration (`restore`) n'est jamais celle du worker : `startRestore` la dépose dans un second
 flux, `waterfall:tasks:restores`, que le service de la restauration lit seul, dans son groupe de
-consommateurs ; il pose la maintenance, une clé de Redis à côté du flux du worker que l'API lit (503
-sauf la sonde de vie), et le worker n'exécute rien tant qu'elle y est (EP-03, « Sauvegarde et
-restauration »). Les tâches planifiées se déposent par `waterfall-worker enqueue <genre>`, qui n'en
+consommateurs ; il pose la maintenance, que l'API lit (503 sauf la sonde de vie), et le worker
+n'exécute rien tant qu'elle y est (EP-03, « Sauvegarde et restauration »). La maintenance et l'état
+de la restauration qui la tient vivent dans le schéma `platform` de la base de Waterfall, une ligne
+au plus dans chacune de ses deux tables, que le rôle du service lit et que le propriétaire seul
+écrit (`waterfall.platform.maintenance`, migration `0035`) : une sauvegarde ne vide que `public`, et
+une restauration ne remplace que lui, si bien que vider Redis pendant une restauration ne lève pas
+la maintenance (EP-13, US-2830, #956). Chaque requête de l'API lit donc la maintenance en base, une
+lecture de plus par requête (la sonde de vie la lit pour la dire), bornée par `CONNECT_TIMEOUT` ; une
+base qui ne répond pas ou dont le réservoir est épuisé dit « pas de maintenance » et la sonde répond.
+Une maintenance posée dont l'état manque reste posée, comme une restauration abandonnée. Les tâches planifiées se déposent par `waterfall-worker enqueue <genre>`, qui n'en
 dépose pas une quand une tâche du même genre est en file ou en cours : le service `scheduler` de
 Compose l'appelle à l'intervalle de `WATERFALL_IDENTITY_SYNC_INTERVAL`, en secondes, un jour par
 défaut ; sa seconde boucle appelle `waterfall-worker purge`, qui ramasse ce qui a expiré — comptes
@@ -3194,6 +3201,8 @@ commande.
 | `make test-chart` | rend le chart par Helm et affirme ce que ses objets disent, contre le Compose de production : les déploiements distincts, la multiplication de l'API et du worker par une valeur, les services, l'ingress, le secret et les volumes, les crochets, les CronJobs, les mêmes images et les mêmes fichiers, `HOSTNAME` posé pour le front (#826) ; les tests du marqueur `chart`, que `make test-tools` écarte |
 | `make chart-trial` | installe le chart sur un cluster kind jetable, `WATERFALL_CHART_CLUSTER` (`waterfall-chart-s<créneau>`), avec Traefik pour l'ingress, à partir des images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit par défaut, `make images` d'abord —, sous `waterfall.localhost` sur un port libre de la boucle locale ; affirme que l'installation aboutit, ses crochets compris — migrations, royaume, amorçage —, que la sonde de vie de l'API répond et que le premier administrateur se connecte, par les fonctions de `wftools.production`, puis supprime le cluster (`wftools.charttrial`) ; une exécution lourde, qui attend son tour |
 | `make check-chart` | la famille `chart` : `lint-chart` et `test-chart` à chaque palier ; au palier complet, `make images`, sans poussée, puis `make chart-trial` |
+| `make mirror`                                                           | vérifie que ghcr.io tient, par leur empreinte, les images de Docker Hub que les fichiers nomment derrière le miroir ; `PUSH=yes` copie celles qui manquent (`wftools.mirror`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `make mirror-sync`                                                      | recopie le manifeste des images de Docker Hub, `deploy/images/Dockerfile`, que Dependabot suit, dans les `Dockerfile`, les fichiers Compose et les workflows, étiquette et empreinte, sans toucher au préfixe du miroir, ancres YAML comprises ; relancée, elle ne change rien ; échoue en nommant ce que la recopie ne règle pas (image absente du manifeste, ligne du manifeste inutilisée ou mal formée ; `wftools.mirror sync`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
 
@@ -3392,24 +3401,28 @@ cible refuse, code non nul et corps inchangé, une ligne qu'elle ne trouve pas, 
 saut de ligne et une ligne du tableau plus courte que son en-tête ; un `|` d'une valeur est
 échappé. Elle ne prend une variable que sur la ligne de commande de make (une `PR` exportée sur le
 poste ne change rien), et ignore une valeur vide (`STATE=`). Elle relit le corps sous un verrou du
-poste propre à l'issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
-(`/tmp` à défaut), juste avant de l'écrire : deux appels simultanés gardent chacun leur changement.
+poste propre à l'issue, `waterfall-tracking-<issue>.lock` du répertoire des verrous du poste (plus
+bas), juste avant de l'écrire : deux appels simultanés gardent chacun leur changement.
 
 `make merge-queue-check EPIC=EP-nn` vérifie qu'un jeu de règles actif vise `refs/heads/epic/EP-nn`
 avec une règle `merge_queue` (`wftools.mergequeue`, par `gh api`), et échoue en disant ce qui
-manque : aucun jeu, pas de règle de file, jeu inactif. Elle passe dès qu'un des jeux visant la
-branche est actif avec une règle `merge_queue` ; un jeu qui exclut la branche ne la vise pas. Les
-références de `include` et d'`exclude` se lisent comme des motifs, par `fnmatch`
-avec `FNM_PATHNAME`, comme GitHub les lit (`refs/heads/epic/*`, `~ALL`) : un `*` ou un `?` s'arrête
-à un `/`, donc `refs/heads/*` ne vise pas `refs/heads/epic/EP-nn` ; seul un `**/` en début de
-segment franchit des répertoires, zéro ou plus (`refs/heads/**/*`), un autre `**` vaut `*`, et
-`refs/heads/**` ne vise pas plus la branche ; les accolades se lisent telles quelles, GitHub
-n'acceptant pas `FNM_EXTGLOB` ; `~DEFAULT_BRANCH` n'est pas résolu. `make merge-queue EPIC=EP-nn` crée ce jeu, « merge queue
-epic/EP-nn », depuis le modèle `.github/rulesets/merge-queue.json` (la copie du jeu d'EP-05, sans
-identifiants ni dates), et refuse quand un jeu vise déjà la branche ou quand `EPIC` manque ou n'a
-pas la forme `EP-nn`. Elle est réservée à une personne : un livreur ne la lance jamais, il lance la
-vérification et, en échec, pose la question ; le garde (`guard.py`) refuse la cible `merge-queue` à
-un agent.
+manque : aucun jeu, pas de règle de file, jeu inactif, ou aucun contrôle exigé. Elle passe dès
+qu'un des jeux visant la branche est actif avec une règle `merge_queue` et qu'un jeu actif qui la
+vise — le même ou un autre, comme « epic protection », qui vise `epic/*` — exige le contrôle
+`gate` (`required_status_checks`) : une file qui fusionne sans contrôle exigé fusionne ce que rien
+n'a éprouvé. Elle dit aussi l'écart entre les types de règles du jeu de la file et ceux du
+modèle (`required_signatures`, que portent les jeux d'EP-10, d'EP-26 et d'EP-27, y est).
+Un jeu qui exclut la branche ne la vise pas. Les références de `include` et d'`exclude` se lisent
+comme des motifs, par `fnmatch` avec `FNM_PATHNAME`, comme GitHub les lit (`refs/heads/epic/*`,
+`~ALL`) : un `*` ou un `?` s'arrête à un `/`, donc `refs/heads/*` ne vise pas
+`refs/heads/epic/EP-nn` ; seul un `**/` en début de segment franchit des répertoires, zéro ou plus
+(`refs/heads/**/*`), un autre `**` vaut `*`, et `refs/heads/**` ne vise pas plus la branche ; les
+accolades se lisent telles quelles, GitHub n'acceptant pas `FNM_EXTGLOB` ; `~DEFAULT_BRANCH` n'est
+pas résolu. `make merge-queue EPIC=EP-nn` crée ce jeu, « merge queue epic/EP-nn », depuis le modèle
+`.github/rulesets/merge-queue.json` (la copie du jeu d'EP-05, sans identifiants ni dates), et refuse
+quand un jeu vise déjà la branche ou quand `EPIC` manque ou n'a pas la forme `EP-nn`. Elle est
+réservée à une personne : un livreur ne la lance jamais, il lance la vérification et, en échec, pose
+la question ; le garde (`guard.py`) refuse la cible `merge-queue` à un agent.
 
 `make queue-report BRANCH=epic/EP-nn [LAST=<n>] [SINCE=AAAA-MM-JJ]` relève, du poste et jamais
 dans la chaîne, les passages de la file de fusion d'une branche (`chain`, événement `merge_group`,
@@ -3440,12 +3453,15 @@ les parcours de bout en bout —, tous dépôts et worktrees confondus. Cette va
 l'environnement, celle du profil de l'utilisateur, est un entier de 1 à 9 ; absente, elle vaut 1 ;
 toute autre valeur est refusée, en le disant. L'admission est
 `tools/src/wftools/slots.py run --heavy -- <commande>` (bibliothèque standard seule, et
-`heavyturns.py` à côté, qui prend les tours ; lancée par `python3` sans `uv`), que le Makefile
-place devant chaque exécution lourde : elle prend le premier de N fichiers de verrou de
-`$XDG_RUNTIME_DIR` (`/tmp` à défaut) — `waterfall-heavy.lock`, puis
-`waterfall-heavy.2.lock` à `waterfall-heavy.<N>.lock` —, dit une fois que tous sont pris et réessaie
-chaque seconde, garde le verrou jusqu'à la fin de la commande, sans le transmettre à ses enfants (un
-serveur resté derrière ne garde pas le créneau), relaie les signaux et rend le code de la commande.
+`heavyturns.py` à côté, qui prend les tours ; lancée par `python3` sans `uv`, au travers de
+`tools/src/wftools/launch.py slots` : sous un `python3` antérieur à 3.14, le lanceur dit que l'outil
+n'a pas tourné et quelle version il attend, et le Makefile relaie ce message au lieu de refuser
+`WATERFALL_SLOTS`, US-2450), que le Makefile place devant chaque exécution lourde : elle prend le
+premier de N fichiers de verrou du répertoire des verrous du poste (plus bas) —
+`waterfall-heavy.lock`, puis `waterfall-heavy.2.lock` à `waterfall-heavy.<N>.lock` —, dit une fois
+que tous sont pris et réessaie chaque seconde, garde le verrou jusqu'à la fin de la commande, sans le
+transmettre à ses enfants (un serveur resté derrière ne garde pas le créneau), relaie les signaux et
+rend le code de la commande.
 Une exécution d'un seul fichier (`TESTS`) n'attend pas. Elle pose aussi `WATERFALL_PROCESSORS`, les
 processeurs divisés par N, au moins 1 : les workers de pytest (`-n`, huit au plus pour le back), de
 Vitest et de Playwright s'y règlent, sauf `WORKERS`. À N = 1, la part est le poste entier : rien ne
@@ -3464,10 +3480,14 @@ attendre, le temps de chercher un tour. Un outil plus ancien, qui ignore la barr
 comme toute exécution en cours, mais il n'attend pas la barrière à son tour : il sonde les tours
 chaque seconde et peut en reprendre un avant la mesure, sans fin. Une mesure ne tient donc le poste
 contre les autres livreurs qu'une fois ce mode repris par leurs branches, et le pilote ne la lance
-pas avant. La commande reçoit le marqueur `WATERFALL_SLOTS_HELD=exclusive` : un `make` qu'elle lance
-et qui passe par `$(heavy)`, ou une autre commande exclusive, ne prend aucun tour — ce sont ceux de
-la mesure —, le dit, et s'exécute ; sans cela il attendrait sans fin la barrière que tient son
-parent. Le marqueur n'est cru que tant qu'une exécution exclusive tient la barrière. La commande
+pas avant. La commande reçoit le marqueur `WATERFALL_SLOTS_HELD=exclusive:<jeton>` : un `make`
+qu'elle lance et qui passe par `$(heavy)`, ou une autre commande exclusive, ne prend aucun tour — ce
+sont ceux de la mesure —, le dit, et s'exécute ; sans cela il attendrait sans fin la barrière que
+tient son parent. Le jeton — le PID de l'exécution exclusive et l'instant où elle a pris la
+barrière — s'écrit dans le fichier de la barrière. Le marqueur n'est cru que tant qu'une exécution
+exclusive tient la barrière **et** que son fichier porte ce jeton : celui d'une mesure finie n'est
+pas cru quand une autre mesure tient la barrière (US-2460). Un marqueur sans jeton, posé par un
+outil d'avant, est cru tant que la barrière est tenue. La commande
 reçoit aussi `WATERFALL_PROCESSORS` du poste entier, mais une recette qui l'écrit après
 `$(exclusive)`, comme `WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS)`, l'emporte avec la part de N
 que make a calculée avant : une cible de mesure tire la variable du mode, sans la réécrire. Les
@@ -3484,24 +3504,50 @@ est au créneau 0 : ses ports et ses noms sont ceux d'avant les créneaux.
 sous le dépôt (`.claude/worktrees/`) ou ailleurs sur le disque, jamais dans `/tmp` ni dans un
 scratchpad. Aucun outil ne le contrôle : `make slot` et `make slots` ne comptent pas les inodes.
 
-| Commande            | Ce qu'elle fait                                                                                                                                                                                                                                                                                                                           |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `make slot`         | prend pour le worktree où elle est lancée le premier créneau libre de 1 à N, ou dit le sien ; si N sont pris, elle échoue, porteurs nommés ; dans le dépôt principal (son `.git` est un répertoire), elle dit le créneau 0, sans en prendre                                                                                               |
-| `make slot-release` | arrête les serveurs de l'e2e du créneau, retire ses conteneurs et ses volumes — la plateforme de service, les services de test —, puis le libère ; si Docker ne peut les retirer, le créneau reste pris, et elle le dit                                                                                                                   |
-| `make e2e-down`     | arrête les processus de l'utilisateur qui écoutent sur les ports de l'e2e du créneau — le faux back, les fronts des parcours (au créneau 0, 4110 et 3100 à 3139) —, chacun trouvé par son port dans `/proc`, arrêté par son PID : `SIGTERM`, puis `SIGKILL` après cinq secondes ; elle dit ce qu'elle arrête, et rien quand rien n'écoute |
-| `make slots`        | écrit N, puis chaque créneau pris sur le poste, tous dépôts confondus, avec son worktree et l'instant de sa prise                                                                                                                                                                                                                         |
+| Commande            | Ce qu'elle fait                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `make slot`         | prend pour le worktree où elle est lancée le premier créneau libre de 1 à N, ou dit le sien ; avec `LOT=<identifiant>`, elle y écrit le lot, et si N sont pris, elle reprend celui qu'un autre worktree tient pour ce même lot, jamais celui d'un autre ; si N sont pris et qu'aucun n'est à reprendre, elle échoue, porteurs nommés ; dans le dépôt principal (son `.git` est un répertoire), elle dit le créneau 0, sans en prendre |
+| `make slot-release` | arrête les serveurs de l'e2e du créneau, retire ses conteneurs et ses volumes — la plateforme de service, les services de test —, puis le libère ; si Docker ne peut les retirer, le créneau reste pris, et elle le dit                                                                                                                                                                                                               |
+| `make e2e-down`     | arrête les processus de l'utilisateur qui écoutent sur les ports de l'e2e du créneau — le faux back, les fronts des parcours (au créneau 0, 4110 et 3100 à 3139) —, chacun trouvé par son port dans `/proc`, arrêté par son PID : `SIGTERM`, puis `SIGKILL` après cinq secondes ; elle dit ce qu'elle arrête, et rien quand rien n'écoute                                                                                             |
+| `make slots`        | écrit N, puis chaque créneau pris sur le poste, tous dépôts confondus, avec son worktree, son lot s'il a été pris avec `LOT`, et l'instant de sa prise                                                                                                                                                                                                                                                                                |
 
-Le registre du poste est `$XDG_RUNTIME_DIR/waterfall-slots/` — `/tmp/waterfall-slots/` sans
-`XDG_RUNTIME_DIR`, comme les verrous des exécutions lourdes : un fichier `<i>` par créneau pris,
-qui porte le chemin du worktree (`git rev-parse --show-toplevel`) et l'instant de la prise, écrit
-sous un verrou exclusif du registre (`tools/src/wftools/slots.py claim`, `release`, `list`). Un
-créneau dont le worktree n'existe plus est libre ; celui qui prend un créneau en retire d'abord
-ce qu'un porteur y a laissé (`docker compose -p <projet> down --volumes`, pour chacun de ses deux
-projets), le verrou du registre tenu jusqu'à ce que ce retrait ait réussi, comme le tient
-`make slot-release` : un `make slot` lancé entre-temps attend, en le disant, et si Docker échoue,
-le créneau n'est pas pris, et le `make slot` suivant refait le retrait. Avant ce retrait, l'un et
-l'autre arrêtent les serveurs de l'e2e que le créneau a laissés (`make e2e-down`). `slots.py which` dit le
-créneau du worktree courant.
+**Le répertoire des verrous du poste** porte le registre des créneaux, les verrous des exécutions
+lourdes, ceux des services de test et ceux du tableau de suivi : `/run/user/<uid>` s'il existe,
+`/tmp` sinon (WSL, un runner) ; une seule fonction de `tools/src/wftools/heavyturns.py`
+(`runtime_directory`) le donne à `slots.py` et à `tracking.py` (US-2460). `XDG_RUNTIME_DIR` n'est
+pas lue : une session sans elle — une tâche planifiée, `su`, le terminal d'un éditeur — verrouillait
+sous `/tmp` pendant que les autres verrouillaient sous `/run/user/<uid>`, et deux exécutions se
+croyaient chacune seules sur le poste (PLC-13). Sous une session systemd, `XDG_RUNTIME_DIR` vaut
+`/run/user/<uid>` : le répertoire est celui d'avant, et les outils d'une branche qui n'a pas
+US-2460 s'excluent encore avec ceux qui l'ont. Là où elle pointe ailleurs (WSLg,
+`/mnt/wslg/runtime-dir` ; une session sans systemd), un outil d'une branche qui n'a pas ce lot
+verrouille sous `XDG_RUNTIME_DIR`, un outil qui l'a sous `/run/user/<uid>` ou `/tmp` : ils ne
+s'excluent pas tant que la branche n'a pas repris le lot. `WATERFALL_RUNTIME_DIR`, que seuls les
+tests posent, le remplace : aucun test ne touche les verrous du poste.
+
+Le registre du poste est `waterfall-slots/` de ce répertoire, comme les verrous des exécutions
+lourdes : un fichier `<i>` par créneau pris, qui porte le chemin du worktree (`git rev-parse
+--show-toplevel`), l'instant de la prise et, pris avec `LOT`, le lot en troisième ligne, écrit
+sous un verrou exclusif du registre (`tools/src/wftools/slots.py claim`, `release`, `list`) ; un
+fichier de deux lignes, écrit sans `LOT` ou par l'outil d'une branche plus ancienne, n'a pas de lot.
+Un créneau dont le worktree n'existe plus est libre. Les N pris, `make slot LOT=<identifiant>`
+reprend celui qu'un autre worktree, même encore là, tient pour le même lot : le pilote ne lance
+qu'un livreur par lot, et l'autre s'est arrêté sans `make slot-release` — une limite d'usage, un
+livreur planté (US-2460) ; le créneau d'un autre lot, ou sans lot, n'est jamais repris. Celui qui
+prend un créneau, libre ou repris, en retire d'abord ce qu'un porteur y a laissé (`docker
+compose -p <projet> down --volumes`, pour chacun de ses deux projets), le verrou du registre tenu
+jusqu'à ce que ce retrait ait réussi, comme le tient `make slot-release` : un `make slot` lancé
+entre-temps attend, en le disant, et si Docker échoue, le créneau n'est pas pris, et le `make slot`
+suivant refait le retrait. Avant ce retrait, l'un et l'autre arrêtent les serveurs de l'e2e que le
+créneau a laissés (`make e2e-down`). `slots.py which` dit le créneau du worktree courant.
+
+Un créneau libre se prend avant tout : la reprise n'a lieu que si les N sont pris, et un créneau
+tenu pour un lot ne s'ajoute donc pas aux créneaux libres que le pilote compte. Celui que l'arrêté
+tenait, quand un libre a été pris, reste pris, au nom de son ancien worktree, jusqu'au retrait de
+ce worktree. Limites connues : la clé de la reprise n'est que l'identifiant du lot, alors que le
+registre est commun à tous les dépôts du poste — deux dépôts qui portent un même identifiant de lot
+pourraient se reprendre un créneau — ; et la reprise ne regarde pas si l'ancien worktree a encore
+un livreur vivant : elle suppose, comme le pilote le garantit, un seul livreur vivant par lot.
 
 Au créneau i de 1 à 9, les ports sont ceux du bloc `20000 + 100·i`, sous la plage des ports
 éphémères de Linux ; au créneau 0, ceux d'avant :
@@ -3545,9 +3591,9 @@ n'est pas posée, et la pose sur leur port ; une variable que l'environnement do
 son service n'est pas démarré, et le travail de la chaîne, qui pose les trois, n'en est pas changé.
 `make slot-release` les retire avec la plateforme de service. Deux exécutions lancées ensemble
 dans un worktree ne font qu'un `make test-services` à la fois, sous un verrou du créneau
-(`$XDG_RUNTIME_DIR/waterfall-test-services.<créneau>.lock`) : la seconde attend, en le disant, puis
-trouve les services démarrés. Dans un worktree lié sans créneau, ces cibles et `make e2e-down`
-échouent en disant `make slot`.
+(`waterfall-test-services.<créneau>.lock` du répertoire des verrous du poste) : la seconde attend,
+en le disant, puis trouve les services démarrés. Dans un worktree lié sans créneau, ces cibles et
+`make e2e-down` échouent en disant `make slot`.
 
 **Les serveurs de l'e2e.** `make e2e`, `make e2e-service` et `make check-front` lancent un faux back
 et des fronts (`next-server`) qu'un arrêt brutal peut laisser à l'écoute, un cœur occupé, des
@@ -3738,7 +3784,11 @@ connexion au registre, et aucune construction ne reçoit d'argument ni de secret
   version, ne la pose jamais ; le label `org.opencontainers.image.version` d'une image qui ne
   prend pas l'étiquette de version le dit (`0.1.0+epic-EP-03` hors de `main`, `0.1.0+main` sur
   `main` une fois la version publiée). Chaque image porte aussi son propre `title` et son `url`,
-  qui remplacent ceux de son image de base.
+  qui remplacent ceux de son image de base. Cette immuabilité est tenue par l'outil, non par le
+  registre : ghcr.io ne la garantit pas, et laisse réécrire une étiquette à tout jeton qui peut
+  écrire les paquets du dépôt — celui d'`images.yml`, mais aussi celui du travail `mirror` d'une
+  pull request (plus bas) —, par un code qui n'appellerait pas l'outil (PLC-10). L'épinglage de la
+  production par empreinte, qui ne dépendrait plus de l'étiquette, est reporté à EP-13.
 - **Ce qui refuse une poussée.** Une branche autre que `main` ou `epic/…` ; un dépôt dont le
   commit n'est pas celui que nomme `IMAGE_COMMIT`, ou qui n'est pas propre dans les contextes des
   images (`git status --porcelain -- frontend backend deploy/keycloak`) ; une image construite
@@ -3805,28 +3855,50 @@ un pull de Docker Hub (« failed to fetch oauth token », `toomanyrequests`) a f
 passages de la file avant leur premier test (US-1900). Les fichiers lisent le préfixe du miroir dans
 `WATERFALL_MIRROR` (`${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:…` en Compose, `ARG
 WATERFALL_MIRROR=` avant le `FROM` dans un `Dockerfile`, que `--build-arg WATERFALL_MIRROR` ou
-`args: [WATERFALL_MIRROR]` remplit depuis l'environnement) ; vide, c'est Docker Hub. Dependabot ne lit peut-être plus ces
-références paramétrées (`${WATERFALL_MIRROR:-}…`, `FROM ${WATERFALL_MIRROR}…`) : une montée de version
-d'image demande que le miroir tienne la nouvelle empreinte (`make mirror PUSH=yes`, par une personne
-si le jeton de la pull request ne peut pas écrire). Les workflows
-qui construisent ou lancent Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`,
-`production.yml`, `chart.yml`, `images.yml`) posent `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` et s'y connectent ; les
-services de `back.yml` et de `front.yml` nomment le miroir en toutes lettres. Le miroir est tenu par
-`make mirror PUSH=yes` (`wftools.mirror`) : il lit ces références, demande à ghcr.io si l'empreinte
-y est — présente, rien d'autre n'est lu, Docker Hub non plus —, et copie celles qui manquent de
-Docker Hub, par empreinte (`docker buildx imagetools create` écrit le manifeste tel quel,
-l'empreinte est vérifiée après), sous une étiquette qui porte le début de l'empreinte : une même
-étiquette de Docker Hub a deux empreintes dans nos fichiers (Caddy). Le travail `mirror` de
-`ci.yml`, que tout travail qui tire une image attend, le fait à chaque passage, au palier rapide
-comme au complet : `images.yml` passe après la fusion, donc après le premier passage qui a besoin
-d'une image ajoutée ou d'une empreinte relevée (`images.yml` le refait avant de construire, une
-consultation). Chaque demande est refaite quatre fois au plus (`wftools.registry`, #2530) ; une
-image que ni le miroir ni Docker Hub ne donnent fait échouer ce travail en nommant Docker Hub, et
-saute les travaux qui en dépendent, ce que la porte compte. Pour changer une image tierce : changer
-sa référence et son empreinte dans les fichiers, derrière `${WATERFALL_MIRROR:-}` ; le premier
-passage copie la nouvelle. Les travaux qui tirent du miroir demandent `packages: read` et s'y
-connectent (`docker/login-action`, ou `credentials:` d'un service) : un paquet que GitHub crée est
-privé, et rien hors de la chaîne ne le lit.
+`args: [WATERFALL_MIRROR]` remplit depuis l'environnement) ; vide, c'est Docker Hub. Dependabot ne lit
+pas une référence préfixée (`${WATERFALL_MIRROR:-}…`, `FROM ${WATERFALL_MIRROR}…`) : sa veille des
+images ne trouvait plus rien depuis le miroir (#3025). Il suit à la place le **manifeste des images**,
+`deploy/images/Dockerfile`, qu'aucune construction ne lit : une ligne `FROM <image>:<étiquette>@sha256:…`
+sans préfixe par image de Docker Hub que le dépôt épingle (US-2490) : une image, une version dans le
+dépôt, le manifeste refuse un chemin nommé deux fois. Un test des outils
+(`tools/tests/test_mirror_manifest.py`) échoue quand une référence des `Dockerfile`, des fichiers
+Compose ou des workflows, préfixée ou non, n'est pas celle du manifeste, étiquette et empreinte, ou
+quand le manifeste porte une image que rien n'emploie. Une montée de Dependabot ne change que le
+manifeste, et sa chaîne échoue sur ce test jusqu'aux deux gestes d'une personne, poussés sur la
+branche de sa pull request : `make mirror-sync`, qui recopie le manifeste dans les références sans
+toucher au préfixe, ancres YAML comprises, puis `make mirror PUSH=yes`, qui copie la nouvelle
+empreinte dans le miroir. Le repli sur Docker Hub quand le miroir ne tient pas toutes les empreintes
+(#3025) n'est pas fait : la pull request d'une montée attend ces gestes. Les workflows qui
+construisent ou lancent Compose (`back.yml`, `keycloak.yml`, `front-image.yml`, `service.yml`,
+`production.yml`, `chart.yml`, `images.yml`) posent `WATERFALL_MIRROR: ghcr.io/waterfall-project/mirror/` et s'y
+connectent ; les services de `back.yml` et de `front.yml` nomment le miroir en toutes lettres.
+Le miroir est tenu par `make mirror PUSH=yes` (`wftools.mirror`) : il lit ces références, demande à
+ghcr.io si l'empreinte y est — présente, rien d'autre n'est lu, Docker Hub non plus —, et copie
+celles qui manquent de Docker Hub, par empreinte (`docker buildx imagetools create` écrit le
+manifeste tel quel, l'empreinte est vérifiée après), sous une étiquette qui porte le début de
+l'empreinte : une même étiquette de Docker Hub a pu avoir deux empreintes dans nos fichiers (Caddy,
+avant le manifeste). Une copie que ghcr.io refuse (`denied`) est refaite une fois avant d'échouer :
+il a refusé une fois la création d'un paquet qu'il a acceptée au passage suivant (#3028). Quand il
+refuse de répondre, le message nomme ses deux causes : la connexion à ghcr.io, ou un paquet pas
+encore copié (`make mirror PUSH=yes`). Le travail `mirror` de `ci.yml`, que tout travail qui tire
+une image attend, le fait à chaque passage, au palier rapide comme au complet : `images.yml` passe
+après la fusion, donc après le premier passage qui a besoin d'une image ajoutée ou d'une empreinte
+relevée (`images.yml` le refait avant de construire, une consultation). Chaque demande est refaite
+quatre fois au plus (`wftools.registry`, #2530) ; une image que ni le miroir ni Docker Hub ne
+donnent fait échouer ce travail en nommant Docker Hub, et saute les travaux qui en dépendent, ce que
+la porte compte. Pour changer une image tierce : changer sa ligne du manifeste, puis `make
+mirror-sync` ; le premier passage copie la nouvelle empreinte. Une image nouvelle prend sa ligne
+dans le manifeste, et sa référence dans les fichiers derrière `${WATERFALL_MIRROR:-}`. Les travaux
+qui tirent du miroir demandent `packages: read` et s'y connectent (`docker/login-action`, ou
+`credentials:` d'un service) : un paquet que GitHub crée est privé, et rien hors de la chaîne ne le
+lit. Le travail `mirror`, lui, garde `packages: write`, au palier rapide aussi : il lui faut pour
+remplir le miroir avant la fusion, puisque le premier passage qui a besoin d'une image ajoutée ou
+d'une empreinte relevée est celui de la pull request qui la change, et que ni la file ni
+`images.yml` ne viennent avant. C'est le seul travail d'une pull request qui le garde, et il exécute
+le code de la pull request — les outils et leurs dépendances de `tools/uv.lock` — avec un jeton qui
+peut écrire tous les paquets du dépôt, images publiées comprises (PLC-10) ; le jeton d'une pull
+request venue d'un fork n'a que la lecture. La publication de l'image de travail des parcours, elle,
+ne se fait qu'au palier complet (plus bas).
 
 Quatre autres sources réseau de la chaîne, que l'inventaire d'origine d'US-1900 ne nommait pas
 (#2981, #3015), sont traitées chacune à sa mesure :
@@ -3865,27 +3937,30 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   Docker : Chromium et ses paquets système y sont, rien ne vient du miroir d'Ubuntu, dont le débit
   et la réponse ne sont pas les nôtres (#472, #2913). Elle est construite pour amd64 seulement,
   l'architecture des runners et des postes. Elle est publiée sur `ghcr.io/waterfall-project/e2e`,
-  étiquetée par l'empreinte de son répertoire : le travail `e2e-image` de `ci.yml`, qui tourne dès
-  qu'`e2e` ou `service` peuvent tourner, à côté de `front-build`, la demande au registre
-  (`make e2e-image`). Présente, il en donne la référence par l'empreinte que le registre lui
-  connaît, que les morceaux (`container:` d'`e2e.yml`) et `service.yml` tirent. Absente, il la
-  construit ; au palier complet (`PUSH=yes`), il la publie, une fois, au premier passage qui en a
-  besoin — celui de la file, ou du palier complet lancé à la main sur une branche —, d'où ses
-  `packages: write` ; au palier rapide, il la construit sans la publier, pour qu'une construction
-  qui échoue arrête la pull request avant la file. `images.yml` ne la publie pas : il passe après
-  la fusion, donc après le premier passage de la file qui en a besoin.
+  étiquetée par l'empreinte de son répertoire, et demandée au registre (`make e2e-image`), dès
+  qu'`e2e` ou `service` peuvent tourner, à côté de `front-build`, par l'un de deux travaux de
+  `ci.yml`, un par palier (US-2490). Au palier rapide, `e2e-image` n'a que `packages: read` :
+  présente, il la trouve ; absente, il la construit sans la publier, pour qu'une construction qui
+  échoue arrête la pull request avant la file. Au palier complet — la file, ou le palier complet
+  lancé à la main sur une branche, jamais une pull request —, `e2e-image-publish` en donne la
+  référence par l'empreinte que le registre lui connaît, que les morceaux (`container:` d'`e2e.yml`)
+  et `service.yml` tirent ; absente, il la construit et la publie (`PUSH=yes`), une fois, au premier
+  passage qui en a besoin, d'où ses `packages: write`. `e2e` et `service`, tous deux du palier
+  complet, ne nomment que lui. `images.yml` ne la publie pas : il passe après la fusion, donc après
+  le premier passage de la file qui en a besoin.
 
   Chaque demande au registre, la construction et la publication se refont quatre fois au plus,
   à vingt secondes d'intervalle (#2530) ; une construction refaite repart des couches déjà
-  construites. Un registre qui ne répond toujours pas fait échouer ce travail en le nommant, et
-  saute les parcours, ce que la porte compte ; une image qui ne se tire pas fait échouer
+  construites. Un registre qui ne répond toujours pas fait échouer l'un ou l'autre travail en le
+  nommant, et saute les parcours, ce que la porte compte ; une image qui ne se tire pas fait échouer
   l'initialisation du morceau, en nommant le registre, avant toute étape. Deux passages de la
   file qui ne trouvent pas l'étiquette peuvent la publier chacun : la construction n'est pas
   reproductible à l'octet, mais chacun tire l'image qu'il a publiée, par son empreinte, et le
   contenu que nomme l'étiquette est le même.
 
-  `tools/tests/test_e2eimage.py` tient les versions de l'image, ses sources épinglées, et
-  l'absence de paquet d'Ubuntu dans `ci.yml`, `e2e.yml` et `service.yml`.
+  `tools/tests/test_e2eimage.py` tient les versions de l'image, ses sources épinglées,
+  l'absence de paquet d'Ubuntu dans `ci.yml`, `e2e.yml` et `service.yml`, et les droits des deux
+  travaux ; `tools/tests/test_gate.py`, que la porte attend chaque travail de `ci.yml`.
 
   Le travail appelle `make e2e`, qui trouve le navigateur de
   l'image (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), et non `make check-front-e2e`, qui en
@@ -3981,18 +4056,27 @@ Règles des workflows :
 - un outil téléchargé hors d'une action est épinglé par sa version et vérifié par son
   empreinte, comme pandoc dans `spec.yml`.
 - Dependabot propose chaque mois, par une pull request par écosystème, les mises à jour de
-  ce qu'il suit : les Actions, uv (`/backend`, `/tools`), npm (`/frontend`), Maven (l'extension de
-  Keycloak) et les images des Dockerfiles et des fichiers Compose ; les mineures et les
+  ce qu'il suit : les Actions — celles des workflows et celles des actions locales,
+  `.github/actions/*` —, uv (`/backend`, `/tools`), npm (`/frontend`), Maven (l'extension de
+  Keycloak) et les images de Docker Hub par leur manifeste, `deploy/images` (plus haut) — avec
+  `deploy/e2e`, l'image de travail des parcours, qui n'a pas de préfixe — ; les mineures et les
   correctifs d'un écosystème arrivent groupés, chaque majeure dans la sienne, sous le préfixe
   `Chaîne :`. Les dépendances `org.keycloak` et `jakarta.ws.rs-api` de l'extension sont
   ignorées : elles suivent l'image de Keycloak. La majeure de TypeScript n'a pas de règle
   d'ignorance : l'auteur ferme sa pull request tant que `typescript-eslint` ne la tient pas.
 - Dependabot ne suit pas, et l'auteur relève à la main, à la pull request mensuelle de
-  Dependabot : `packageManager` du front, l'uv et le client PostgreSQL de l'image `waterfall`
+  Dependabot : une action ou une image épinglée dans un répertoire qu'aucune entrée de
+  `.github/dependabot.yml` ne nomme (un test des outils tient que ceux des actions et de
+  `deploy/e2e` le sont, et qu'une action a la même empreinte partout), `packageManager` du
+  front, l'uv et le client PostgreSQL de l'image `waterfall`
   (et sa clé, `backend/pgdg.asc`), les runners et le pandoc de la chaîne, et
   `maven.compiler.release` du `pom.xml` de l'extension,
   qui reste à 21 exprès (le Java de l'image de Keycloak, pas le JDK de construction) : il se
   relève quand cette image change de Java.
+- Un parcours de bout en bout ou de service qui échoue verse ce que Playwright a gardé
+  (`frontend/test-results/` : traces, captures, `error-context.md`) en artefact, sur échec
+  seulement, pour sept jours, sous le nom `test-results-e2e-<n>` ou `test-results-service-<n>`
+  (`<n>` est l'indice de la part).
 
 _Contrôle_ : `make lint-workflows` (actionlint) ; l'épinglage et les permissions, la revue.
 
@@ -4055,6 +4139,27 @@ normalisation — apostrophes et espaces typographiques rendus simples —, et d
 phrases. L'exemple du §1.3.1, `WF-EXA-0010-A`, n'est pas une exigence du produit : les outils
 l'excluent.
 
+Le garde des commandes des agents (`tools/src/wftools/guard.py`, avec `guardgit.py` et
+`guardoptions.py`, lancé par le hook `PreToolUse` de `.claude/settings.json`) refuse les formes
+que dit [`agents.md`](agents.md), « Un agent n'arrête que ce qu'il a lancé ». Il lit le texte de
+la commande, non ce que le shell en calcule. Ses limites connues, qu'il ne code pas (US-2450) :
+
+- une cible calculée : `rm -rf $(git rev-parse --git-dir)`, `find "$GIT" | xargs rm`, ou une liste
+  écrite dans un fichier puis relue, `find .git … > liste; xargs rm < liste` ;
+- le script de `xargs sh -c`, dont les arguments viennent du tube ;
+- après un `cd .git`, il ne garde que les verrous : `cd .git && rm -rf *` passe ;
+- le texte lu par un autre interpréteur, ou encodé : `source /dev/stdin`, `. /dev/stdin`,
+  `while read l; do eval "$l"`, `python <<EOF` qui appelle `os.system`, `uvx` et `uv tool run`,
+  les shells hors de la liste (`fish`…), le texte obscurci (`printf '\x70kill'`, `base64 | bash`) ;
+- `bash /dev/stdin` et `bash /dev/fd/0` : l'opérande est pris pour un script, et l'entrée fournie
+  n'est pas jugée (`echo 'pkill x' | bash /dev/stdin` passe) (US-2500) ;
+- les écritures destructrices autres que `rm`, `mv`, `truncate` et `find` : `shred`,
+  `rsync --delete`, `cp /dev/null .git/index`, `: > .git/index`, `ln -sf x .git` ;
+- un événement qu'il ne sait pas lire — JSON illisible, entrée vide, sans `command` — sort en
+  code 0, et la commande passe sans être jugée ; le hook n'a pas de `timeout` ;
+- `gh api graphql` est permis plus largement que la seule mise en file : décision consignée, et
+  maintenue le 2026-11-16 ([`agents.md`](agents.md), « La mise en file »).
+
 _Contrôle_ : `make test-tools`.
 
 ## La roadmap et les exigences
@@ -4077,11 +4182,11 @@ mesure que les US des EPIC suivants s'écrivent. L'outil ne lit que le dépôt :
 issues n'est pas son affaire.
 
 Il échoue aussi sur une commande `make` que cite un agent (`.claude/agents/`,
-`docs/dev/agents.md`) et que le Makefile n'a pas : une cible renommée ne laisse pas un agent
-appeler une commande disparue.
+`docs/dev/agents.md`, `.claude/skills/`, dont le skill `pilote`) et que le Makefile n'a pas : une
+cible renommée ne laisse pas un agent appeler une commande disparue.
 
 _Contrôle_ : `make roadmap`, famille `roadmap` de la chaîne, réveillée aussi par un
-changement de la projection ou des agents.
+changement de la projection, des agents ou d'un skill.
 
 ## Commentaires
 
@@ -4114,8 +4219,10 @@ raison. Aucun fichier source ne dépasse 1 000 lignes, lignes vides et commentai
 les fichiers engendrés en sont exclus.
 
 _Contrôles_ : `make lint-back`, `make typecheck-back`, `make lint-tools`,
-`make typecheck-tools` ; `make sources` pour les commentaires d'exemption et la taille des
-fichiers, sur tout le dépôt. Les outils de `docs/spec/tools` et `docs/api/tools` suivent
+`make typecheck-tools` ; `make sources` pour les commentaires d'exemption — ceux de flake8, de
+Ruff, d'isort, de couverture (`pragma`, avec ou sans deux-points, `no cover` et `no branch`) et,
+dans un `Dockerfile` ou un `*.Dockerfile`, de hadolint — et la taille des fichiers, sur tout le
+dépôt. Les outils de `docs/spec/tools` et `docs/api/tools` suivent
 les mêmes règles que ceux de `tools/` ; une exception, s'il en faut une, se déclare dans
 `tools/paths.toml`, avec sa raison et ce qui la lèvera.
 
@@ -4203,6 +4310,28 @@ indice de révision compris (WF-QUA-0010).
 Un test cite l'exigence dont il éprouve le Vérif, pas celle dont il parle. Un test qui ne
 couvre aucune exigence — un outil, un détail de réalisation — n'en cite aucune.
 
+**Un critère propre à une US** — qu'aucune exigence ne porte, parce que le Vérif de l'exigence
+voisine n'est pas ce que le test éprouve — se cite par l'US : `[US-2160]` dans le titre d'un test
+TypeScript, `@pytest.mark.story("US-2160")` en Python (marque déclarée dans `backend/pyproject.toml`
+et `tools/pyproject.toml`). Le relevé range ces citations à part, « Critères propres aux US », hors
+du compte des exigences, et échoue sur une US qu'aucun fichier de `docs/roadmap` ne porte, comme sur
+un identifiant d'exigence inconnu.
+
+**Un test non exécuté** ne couvre rien, et le relevé le sait sans lancer les tests, à ce que le test
+déclare : en TypeScript, un `.skip`, `.fixme` ou `.todo`, ou un appel sous un `describe.skip` ou un
+`describe.fixme` ; en Python, la marque `@pytest.mark.unexecuted("<raison>")`, sur le test, sa
+classe (`pytestmark` compris) ou son module, qu'un test qui peut se sauter — faute du XSD MSPDI,
+d'un service — porte, et qu'un crochet des `conftest.py` rend obligatoire : un test qui se saute
+sans la porter échoue. Le relevé liste ses citations sous leur exigence, « non exécuté », sans les
+compter : une exigence que seuls des tests non exécutés citent est non couverte, et `make
+requirements-release` la nomme. Un `test.skip(` ou `test.fixme(` sans titre, appelé dans le corps
+d'un test (dans le groupe, à défaut), laisse le test exécuté quand son premier argument est
+`inService` ou `!inService`, et le sort « non exécuté » pour tout autre (`true`, `!inService ||
+manager === undefined`…), comme un test qui porte les deux formes ; `it.skipIf(` et `it.runIf(` ne
+sont pas vus : le test compte comme exécuté. Une citation dans un commentaire n'est pas une citation
+: seuls les titres des `it(` et `test(` sont lus, et une forme d'appel que le relevé ne connaît pas
+le fait échouer en nommant le fichier et la ligne.
+
 _Contrôles_ : `make requirements` lit les citations dans les fichiers de test, sans les lancer, et
 publie le relevé — chaque exigence F0 avec les tests qui la couvrent et leur famille, celle que
 `tools/paths.toml` déclare pour leur chemin dans sa table `[tests]` : bout en bout contre le service
@@ -4246,8 +4375,9 @@ test défait.
   le retire aussi. Aucun `docker run` à la main. Une variable que l'environnement pose déjà
   l'emporte, et son service n'est pas démarré : la chaîne n'est pas changée.
 - **Le client PostgreSQL du poste** est celui de la majeure du serveur, 18 : `pg_dump` et
-  `pg_restore` dans `/usr/bin` (`postgresql-client-18`, celui d'Ubuntu 26.04), que les tests des
-  sauvegardes et des restaurations appellent ; `make check-tools` avertit d'un autre. Un client
+  `pg_restore` dans `/usr/bin` (`postgresql-client-18` : celui de l'archive d'Ubuntu 26.04 sur un
+  poste, celui du dépôt PGDG sur le runner, que l'image `ubuntu-26.04` porte déjà), que les tests
+  des sauvegardes et des restaurations appellent ; `make check-tools` avertit d'un autre. Un client
   plus récent que le serveur lui pose des réglages qu'il ne connaît pas, et aucune restauration
   n'aboutit (#982) ; un client plus ancien refuse de vider la base.
 - **Sans la variable**, un test qui a besoin de la base **échoue** en le disant, et ne passe pas
@@ -4423,7 +4553,9 @@ parcours en prend autant qu'il a de workers, à partir de lui (ci-dessous), quar
 un bloc ; un port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
 navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, répartis par durée
 mesurée (`tools/e2e-durations.json`, que rafraîchit `make e2e-durations`) — `SHARD` ne se combine pas
-avec `TESTS=<fichier>`, que la recette refuse : le fichier peut être dans un autre morceau —, comme
+avec `TESTS=<fichier>`, que la recette refuse : le fichier peut être dans un autre morceau ;
+`SHARD=lint` ne vaut que pour `make check-front-tests` et `make test-front`, et `check`,
+`check-front`, `check-all` et `e2e` le refusent —, comme
 chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les joue sur `n` workers
 (`E2E_WORKERS`, que lit `playwright.config.ts` ; un entier de 1 à 40, rien d'autre : un front par
 worker, et le bloc d'un créneau n'en porte que quarante), moins que Playwright n'en prend de
@@ -5812,8 +5944,10 @@ lot, et seules les révisions qu'un outil engendre seul seraient déclarées dan
 
 _Contrôles_ : `make test-back` (`tests/test_migrations.py` : une seule tête, une migration
 appliquée ne se rejoue pas, la descente est le miroir de la montée, le schéma — contraintes de
-vérification et défauts compris — est celui des tables du code, quatre instances ensemble),
-contre PostgreSQL (voir « Tests ») ; la compatibilité
+vérification et défauts compris — est celui des tables du code, quatre instances ensemble ;
+`tests/test_migrations_as_owner.py` : toutes s'appliquent en tant que le propriétaire `NOSUPERUSER`
+que fait le script de la production, `deploy/compose/waterfall-database.sql`, et une migration qui
+exige le superutilisateur y échoue, #958), contre PostgreSQL (voir « Tests ») ; la compatibilité
 avec le code voisin, la revue.
 
 ## Agents

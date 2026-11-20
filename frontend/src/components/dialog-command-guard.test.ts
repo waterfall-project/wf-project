@@ -19,6 +19,8 @@ import { join, relative } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { uncommented } from "@/test/uncommented";
+
 const SOURCES = join(import.meta.dirname, "..");
 const PRIMITIVES = join(SOURCES, "components", "ui");
 const SAYS = 'aria-haspopup="dialog"';
@@ -62,7 +64,7 @@ function dialogsOf(text: string): number {
 
 /** How many commands of the source say they open a dialog, its comments left out. */
 function sayings(text: string): number {
-  const code = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const code = uncommented(text);
   return code.split(SAYS).length - 1;
 }
 
@@ -80,6 +82,11 @@ describe("the commands that open a dialog", () => {
           `${name}: ${String(dialogs)} dialogs, ${String(says)} commands`,
       );
     expect(silent).toEqual([]);
+  });
+
+  it("counts a command that follows a string holding a comment opener [US-2800]", () => {
+    expect(sayings('const a = "/*";\n<Button aria-haspopup="dialog" />\n// */')).toBe(1);
+    expect(sayings('/* aria-haspopup="dialog" */ // aria-haspopup="dialog"')).toBe(0);
   });
 
   it("the list holds only sources that render more dialogs than they say [WF-IHM-0100-A]", () => {

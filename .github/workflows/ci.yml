@@ -209,25 +209,61 @@ jobs:
   # The work image of the end-to-end paths (deploy/e2e, US-1900), whenever e2e or service could run,
   # beside the build of the front: Playwright's image with make, the Python of the tools, pnpm and
   # Docker's client, so that no job of the paths downloads a package of Ubuntu (#2913). Found in the
-  # registry by the hash of its directory, or built here. In the full tier — the merge queue and a run
-  # by hand — the image built is published, once, by the first run that needs it: images.yml, after a
-  # merge, would come after the merge queue. In the fast tier, an image that changed is built and not
-  # published, so that a build that fails stops the pull request before the queue; an image that did
-  # not change is a lookup. Each request to the registry, the build and its publication are tried
-  # again (wftools.e2eimage, #2530); a registry that still does not answer fails this job, naming it,
-  # and skips the paths, which the gate counts. The build alone, when the image changed, pulls
-  # Playwright's image from mcr.microsoft.com and downloads the package of make from
-  # archive.ubuntu.com: a run whose image is in the registry downloads from neither.
+  # registry by the hash of its directory, or built here, by one of two jobs, one per tier, so that a
+  # pull request never holds a token that writes the packages (US-2490, PLC-10): e2e-image, here, in
+  # the fast tier, reads the registry and nothing more; e2e-image-publish, below, in the full tier,
+  # publishes. In the fast tier, an image that changed is built and not published, so that a build
+  # that fails stops the pull request before the queue; an image that did not change is a lookup.
+  # Each request to the registry, the build and its publication are tried again (wftools.e2eimage,
+  # #2530); a registry that still does not answer fails the job, naming it, which the gate counts.
+  # The build alone, when the image changed, pulls Playwright's image from mcr.microsoft.com and
+  # downloads the package of make from archive.ubuntu.com: a run whose image is in the registry
+  # downloads from neither.
   e2e-image:
     needs: changes
-    if: needs.changes.outputs.front == 'true' || needs.changes.outputs.service == 'true'
+    if: >-
+      needs.changes.outputs.tier == 'fast'
+      && (needs.changes.outputs.front == 'true' || needs.changes.outputs.service == 'true')
+    runs-on: ubuntu-26.04
+    # A lookup in the registry; a build when the image changed: about three minutes, most of it the
+    # pull of Playwright's image.
+    timeout-minutes: 15
+    # The image may be private: reading it is all this job does with the registry.
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          save-cache: false
+          cache-local-path: /tmp/setup-uv-cache
+          cache-dependency-glob: tools/uv.lock
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: make e2e-image
+
+  # The image the paths play in, in the full tier — the merge queue and a run by hand —, never on a
+  # pull request: found in the registry, or built and published, once, by the first run that needs
+  # it; images.yml, after a merge, would come after the merge queue. Every job that reads the image
+  # is of this tier too, and names this job alone. A registry that still does not answer fails the
+  # job and skips the paths, which the gate counts.
+  e2e-image-publish:
+    needs: changes
+    if: >-
+      needs.changes.outputs.tier == 'full' && github.event_name != 'pull_request'
+      && (needs.changes.outputs.front == 'true' || needs.changes.outputs.service == 'true')
     runs-on: ubuntu-26.04
     # A lookup in the registry; a build, and its publication, when the image changed: about three
     # minutes, most of it the pull of Playwright's image.
     timeout-minutes: 15
-    # Write only publishes the image, in the full tier; the fast one, which pushes nothing, holds it
-    # too: an expression is not admitted in `permissions`, and the job is not split in two (every
-    # job that needs the image would then name two).
+    # Write publishes the image; no job of a pull request holds it.
     permissions:
       contents: read
       packages: write
@@ -249,14 +285,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: image
-        env:
-          PUSH: ${{ needs.changes.outputs.tier == 'full' && 'yes' || 'no' }}
-        run: make e2e-image PUSH="$PUSH" >> "$GITHUB_OUTPUT"
+        run: make e2e-image PUSH=yes >> "$GITHUB_OUTPUT"
 
   # The other half of the front family: skipped in the fast tier as when the front is not
   # touched, which the gate does not count as a failure.
   e2e:
-    needs: [changes, front-build, e2e-image]
+    needs: [changes, front-build, e2e-image-publish]
     if: needs.changes.outputs.front == 'true' && needs.changes.outputs.tier == 'full'
     # The image is read from the registry, where it may be private.
     permissions:
@@ -264,7 +298,7 @@ jobs:
       packages: read
     uses: ./.github/workflows/e2e.yml
     with:
-      image: ${{ needs.e2e-image.outputs.image }}
+      image: ${{ needs.e2e-image-publish.outputs.image }}
 
   # The production image of the front, built and started when a pull request changes what makes
   # it (US-0430): images.yml publishes it after the merge alone.
@@ -296,14 +330,14 @@ jobs:
 
   # Skipped in the fast tier as when nothing it traverses is touched.
   service:
-    needs: [changes, mirror, front-build, e2e-image]
+    needs: [changes, mirror, front-build, e2e-image-publish]
     if: needs.changes.outputs.service == 'true' && needs.changes.outputs.tier == 'full'
     permissions:
       contents: read
       packages: read
     uses: ./.github/workflows/service.yml
     with:
-      image: ${{ needs.e2e-image.outputs.image }}
+      image: ${{ needs.e2e-image-publish.outputs.image }}
 
   # The production platform on the three images built here (US-0430): in the full tier only, as
   # when nothing it is made of is touched; images.yml holds it again on the images it publishes.
@@ -331,8 +365,8 @@ jobs:
   gate:
     # Every job of the chain, each part of the end-to-end paths included: the result of e2e is
     # a failure as soon as one of its parts failed or was cancelled. A build of the front, or a
-    # work image of the paths, that failed skips e2e and service, which front-build or e2e-image
-    # here says.
+    # work image of the paths, that failed skips e2e and service, which front-build or
+    # e2e-image-publish here says; e2e-image, the work image in the fast tier, is judged too.
     needs:
       - changes
       - repo
@@ -344,6 +378,7 @@ jobs:
       - front
       - front-build
       - e2e-image
+      - e2e-image-publish
       - e2e
       - front-image
       - roadmap

@@ -14,10 +14,11 @@ router = APIRouter(tags=["system"])
 
 @router.get("/health", operation_id="getLiveness")
 def get_liveness(services: ServicesOf) -> dict[str, str]:
-    """Answer as soon as the process is up, touching no component of data; say a maintenance.
+    """Answer as soon as the process is up; say a maintenance.
 
     A restoration that holds the platform in maintenance is said, and its end, which the front
-    waits for (#604): the process is alive all the same.
+    waits for (#604): the process is alive all the same. The maintenance is the one row of the
+    database it reads; a database out of reach says none (``waterfall.api.maintenance``).
     """
     return {"status": "maintenance" if in_maintenance(services.maintenance) else "ok"}
 
