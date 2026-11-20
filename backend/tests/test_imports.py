@@ -607,14 +607,14 @@ def test_an_application_refused_by_a_condition_of_its_kind_refuses_the_import(
 
 @pytest.mark.requirement("WF-ARC-0100-A")
 @pytest.mark.usefixtures("trial")
-def test_an_application_whose_structure_is_gone_from_the_current_revision_refuses_the_import(
-    api: ContractClient, stage: Scene, worker: Worker, database: Database, backups_bucket: Bucket
+def test_an_import_goes_with_the_revision_abandoned_it_was_analysed_in(
+    api: ContractClient, stage: Scene, worker: Worker, database: Database
 ) -> None:
-    # The revision analysed abandoned, another opened from no marked one: the structure aimed at
-    # has no copy there, and the import is refused for good, not found (#2475).
+    # The revision analysed abandoned, the import goes with it (``CASCADE``, US-3060, #4139): the
+    # revision opened after it knows it no more, and its application is refused as unknown (404,
+    # #2475). Its file goes with the sweep of the purge, as an object no row names.
     revision = open_revision(api, stage)
     import_id = analysed(api, stage, worker)["import_id"]
-    key = stored(database, import_id).object_key
     revisions = f"{PROJECTS}/{stage.project['project_id']}/revisions"
     abandoned = api.delete(
         f"{revisions}/{revision['revision_id']}?lock_version={revision['lock_version']}",
@@ -623,8 +623,8 @@ def test_an_application_whose_structure_is_gone_from_the_current_revision_refuse
     assert abandoned.status_code == 204, abandoned.text
     open_revision(api, stage)
     assert refusal(apply(api, stage, import_id))[:2] == (404, "NOT_FOUND")
-    assert stored(database, import_id).status == "refused"
-    assert backups_bucket.size(key) is None
+    with database.transaction() as session:
+        assert session.get(ImportReport, UUID(import_id)) is None
 
 
 def open_revision(api: ContractClient, stage: Scene) -> dict[str, Any]:

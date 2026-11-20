@@ -7,14 +7,24 @@ its report in codes and parameters (``ImportReport``), the last background task 
 and, for a planning of MS Project in calendar gap, the rule its durations are converted by
 (``duration_rule``, US-2000; null otherwise).
 A deposit serves one import; the report outlives the file, which the purge or the abandonment
-deletes (WF-DAT-0120). It is deleted at its expiry or its abandonment.
+deletes (WF-DAT-0120). It is deleted at its expiry or its abandonment, and with the structure it
+aims at or the revision it writes in (``CASCADE``, US-3060): the structure of the current revision,
+or of the last marked one when there is no current revision yet, and that revision is null then.
 """
 
 from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, Date, ForeignKey, Index, Text, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -65,6 +75,18 @@ class ImportReport(Base):
         ),
         # A deposit serves one import.
         UniqueConstraint("upload_id"),
+        # The structure aimed at and the revision written in, with their project: the import goes
+        # with either, a differential abandoned or a revision abandoned (US-3060, #4139).
+        ForeignKeyConstraint(
+            ["project_id", "structure_id"],
+            ["cost_structure.project_id", "cost_structure.id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["project_id", "revision_id"],
+            ["revision.project_id", "revision.id"],
+            ondelete="CASCADE",
+        ),
         Index(None, "project_id"),
     )
 
