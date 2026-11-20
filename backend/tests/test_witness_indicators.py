@@ -964,8 +964,7 @@ def test_two_platforms_loaded_with_the_witness_keep_the_same_documents_for_the_1
     install(owner)
     assert load(service_database_url) == 0
     assert kept(witness, REVISION_101) == first
-    # The workload, the costs and the milestones (US-2680/L2), and the risks (US-2680/L3).
-    assert len(first) == 21 + 4
+    assert len(first) == 21 + 4  # the workload, the costs, the risks, the milestones (US-2680)
     held = [json.loads(row[4]) for row in first if row[0] not in PORTFOLIO]
     assert {each["context"]["is_stored"] for each in held} == {True}
     assert kinds_of(witness, REVISION_101) == {"estimate", "remaining", "project", *CURVES}
