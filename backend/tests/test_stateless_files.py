@@ -69,13 +69,13 @@ ALLOWED = {
     # die with the process of the API (held below). Whether a state of a service that serves
     # several instances, which the metrics of the instances sum up, fits WF-ARC-0080-A is a finding
     # of the specification, to be decided: issue #4351.
-    "platform/metrics.py": "the counters of the processes of the API, in a folder made at its start "
-    "and removed at its end, in the mode of several processes alone: what is measured, which only "
-    "``getMetrics`` reads, not what a request answers (exception of #4351, to be decided)",
+    "platform/metrics.py": "the counters of the processes of the API, in a folder made at its "
+    "start and removed at its end, in the mode of several processes alone: what is measured, which "
+    "only ``getMetrics`` reads, not what a request answers (exception of #4351, to be decided)",
 }
 # What a ``with`` must wrap: a temporary folder that a ``finally`` or the end of a block removes.
-# ``worker/restore.py`` makes none and ``restore/provider.py`` neither: the first writes in the folder
-# of its caller, held below; the second in the folder of the chart, not of the code.
+# ``worker/restore.py`` makes none and ``restore/provider.py`` neither: the first writes in the
+# folder of its caller, held below; the second in the folder of the chart, not of the code.
 LIVES = ("worker/backup.py", "restore/task.py", "platform/metrics.py")
 # What starts a process, or opens a file by what a call does not name.
 INDIRECT = {"subprocess", "FileHandler", "RotatingFileHandler", "WatchedFileHandler", "pickle"}
@@ -216,19 +216,30 @@ def test_what_the_control_does_not_see_is_named_too() -> None:
         found = sorted(names_of(tree) & INDIRECT)
         for node in ast.walk(tree):
             if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "open":
-                modes = [*node.args[1:2], *(each.value for each in node.keywords if each.arg == "mode")]
+                modes = [
+                    *node.args[1:2],
+                    *(each.value for each in node.keywords if each.arg == "mode"),
+                ]
                 if any(not isinstance(mode, ast.Constant) for mode in modes):
                     found.append(f"open:{node.lineno}")
         if found:
             unseen[module] = found
     outside = {module: found for module, found in unseen.items() if module not in ALLOWED}
-    assert not outside, f"a service starts a process or opens a file by what no call names: {outside}"
+    assert not outside, (
+        f"a service starts a process or opens a file by what no call names: {outside}"
+    )
 
 
 def test_the_control_sees_a_subprocess_and_a_mode_that_is_not_a_literal() -> None:
-    kept = ast.parse("import subprocess\ndef f(mode):\n    subprocess.run(['x'])\n    open('a', mode)\n")
+    kept = ast.parse(
+        "import subprocess\ndef f(mode):\n    subprocess.run(['x'])\n    open('a', mode)\n"
+    )
     assert names_of(kept) & INDIRECT == {"subprocess"}
-    opens = [node for node in ast.walk(kept) if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "open"]
+    opens = [
+        node
+        for node in ast.walk(kept)
+        if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "open"
+    ]
     assert [not isinstance(call.args[1], ast.Constant) for call in opens] == [True]
 
 
@@ -262,7 +273,9 @@ def test_the_realm_request_removes_the_answer_of_an_earlier_one_before_it_writes
     # must not be read as the answer of this one.
     tree = parsed()["restore/provider.py"]
     apply = next(
-        node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == "apply"
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and node.name == "apply"
     )
     lines = {
         name: [
@@ -285,7 +298,8 @@ def test_the_counters_folder_is_read_by_no_route_but_the_metrics_and_dies_with_i
     mentions = {
         module: [
             name
-            for name in names_of(tree) | {
+            for name in names_of(tree)
+            | {
                 str(node.value)
                 for node in ast.walk(tree)
                 if isinstance(node, ast.Constant) and isinstance(node.value, str)
@@ -295,14 +309,33 @@ def test_the_counters_folder_is_read_by_no_route_but_the_metrics_and_dies_with_i
         for module, tree in parsed().items()
     }
     assert {module for module, nodes in mentions.items() if nodes} == {"platform/metrics.py"}
-    sources = {
-        str(path.relative_to(SOURCE)): path.read_text(encoding="utf-8")
-        for path in SOURCE.rglob("*.py")
+    trees = parsed()
+    exposing = {
+        module
+        for module, tree in trees.items()
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and getattr(node.func, "attr", "") == "expose"
     }
-    exposing = {module for module, text in sources.items() if re.search(r"\.expose\(", text)}
     assert exposing == {"api/system.py"}
-    assert "operation_id=\"getMetrics\"" in sources["api/system.py"]
-    assert "if settings.api_processes > 1 else nullcontext()" in sources["api/main.py"]
+    operations = {
+        keyword.value.value
+        for node in ast.walk(trees["api/system.py"])
+        if isinstance(node, ast.Call)
+        for keyword in node.keywords
+        if keyword.arg == "operation_id" and isinstance(keyword.value, ast.Constant)
+    }
+    assert "getMetrics" in operations
+    # ``shared_between_processes()`` when there are several processes, ``nullcontext()`` if not.
+    choices = [
+        node
+        for node in ast.walk(trees["api/main.py"])
+        if isinstance(node, ast.IfExp)
+        and isinstance(node.test, ast.Compare)
+        and ast.unparse(node.test) == "settings.api_processes > 1"
+    ]
+    assert [(ast.unparse(choice.body), ast.unparse(choice.orelse)) for choice in choices] == [
+        ("shared_between_processes()", "nullcontext()")
+    ]
     # The folder, made and removed with the context of the process that serves.
     monkeypatch.delenv(MULTIPROCESS, raising=False)
     with shared_between_processes():

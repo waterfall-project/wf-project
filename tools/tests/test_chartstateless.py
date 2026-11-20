@@ -32,6 +32,9 @@ class Platform:
         self.ends = "succeeded|2"  # how the task ends
         self.snapshot_changes = False  # a table is written when the worker dies
         self.resumed_by = "waterfall-worker-b"  # the pod whose logs say it took the task again
+        self.stopped_logs = False  # the pod to kill logged worker.stopped: it was stopped
+        self.replacement = False  # the ReplicaSet keeps the pod it made, with the other worker
+        self.labelled = False
         self.marks = "1"  # the inscriptions of the marking
         self.lock_taken = True
         self.held = True  # a marking waits on the lock
@@ -56,9 +59,16 @@ class Platform:
     def read(self, command: list[str]) -> tuple[int, str]:
         self.asked.append(command)
         line = " ".join(command)
+        if "label" in command:
+            self.labelled = True
         if "--selector" in command:
             component = next(each for each in self.pods if f"component={each}" in line)
-            return 0, self.pods[component]
+            listed = self.pods[component]
+            if component == "worker" and self.labelled:
+                # The pod to kill is no longer selected; the pod made may stay.
+                listed = "".join(each for each in listed.splitlines(True) if "worker-b" in each)
+                listed += "pod/waterfall-worker-c\n" * self.replacement
+            return 0, listed
         if "XPENDING" in command:
             return 0, "1-0\nwaterfall-worker-a\n31000\n1\n"
         if "logs" in command:
@@ -70,6 +80,8 @@ class Platform:
     def logs(self, pod: str) -> str:
         """Give the logs of a pod: JSON lines, the one that took the task up again among them."""
         noise = json.dumps({"event": "worker.started"})
+        if pod == "pod/waterfall-worker-a":
+            return json.dumps({"event": "worker.stopped"}) * self.stopped_logs + "\n"
         if pod != f"pod/{self.resumed_by}":
             return f"{noise}\nnot json\n"
         again = {"event": "task.started", "task_id": TASK, "attempt": 2}
@@ -207,15 +219,25 @@ def test_a_worker_killed_in_a_marking_leaves_the_database_and_another_marks() ->
     assert [command[-3:] for command in killed] == [
         ["pod/waterfall-worker-a", "--grace-period=0", "--force"]
     ]
-    # No pod is made in its place: the Deployment is scaled to one worker, the killed one marked the
-    # one to remove, before the kill; it is scaled back once the task is done. The pod is awaited
-    # gone before the sessions it leaves are ended.
+    # No pod is made in its place, and no controller stops the pod: it is taken out of its
+    # ReplicaSet by its label, the Deployment is scaled to one worker, and the pod is killed, the
+    # other worker alone in the ReplicaSet; it is scaled back once the task is done. The pod is
+    # awaited gone before the sessions it leaves are ended.
     steps = [" ".join(command) for command in platform.asked]
     scaled = [i for i, step in enumerate(steps) if "scale deployment/waterfall-worker" in step]
-    marked = next(i for i, step in enumerate(steps) if "annotate pod/waterfall-worker-a" in step)
+    marked = next(
+        i
+        for i, step in enumerate(steps)
+        if "label pod/waterfall-worker-a app.kubernetes.io/component=killed" in step
+    )
     assert [steps[i].rsplit(" ", 1)[1] for i in scaled] == ["--replicas=1", "--replicas=2"]
     killing = next(i for i, step in enumerate(steps) if "--grace-period=0" in step)
     assert marked < scaled[0] < killing
+    assert not [step for step in steps if "annotate" in step], "no deletion cost: no SIGTERM"
+    # The logs of the pod to kill are read after the scale and just before the kill.
+    read = [i for i, step in enumerate(steps) if "logs pod/waterfall-worker-a" in step]
+    assert read
+    assert scaled[0] < read[0] < killing
     gone = next(i for i, step in enumerate(steps) if "--for=delete pod/waterfall-worker-a" in step)
     ended = next(
         i for i, step in enumerate(steps) if "wait_event_type" in step and "terminate" in step
@@ -224,6 +246,28 @@ def test_a_worker_killed_in_a_marking_leaves_the_database_and_another_marks() ->
     assert platform.stopped == 1
     released = [" ".join(command) for command in platform.asked if "pg_locks" in " ".join(command)]
     assert any("pg_terminate_backend" in command for command in released)
+
+
+def test_a_worker_that_logged_its_stop_was_not_killed_and_is_not_deleted() -> None:
+    platform = Platform(stopped_logs=True)
+    with pytest.raises(ProductionError, match="worker.stopped"):
+        platform.trial().hold("token")
+    assert not [command for command in platform.asked if "delete" in command]
+
+
+def test_the_replica_set_that_keeps_the_pod_made_is_refused_after_the_patience() -> None:
+    platform = Platform(replacement=True)
+    with pytest.raises(ProductionError, match="alone"):
+        platform.trial().hold("token")
+    assert not [command for command in platform.asked if "delete" in command]
+
+
+def test_a_worker_that_logged_its_stop_is_read_in_its_logs() -> None:
+    stop = json.dumps({"event": "worker.stopped"})
+    started = json.dumps({"event": "task.started"})
+    chartstateless.check_not_stopped(f"{started}\nnot json\n", "a")
+    with pytest.raises(ProductionError, match="worker.stopped"):
+        chartstateless.check_not_stopped(f"not json\n{stop}\n", "a")
 
 
 def test_a_marking_that_changed_the_database_when_its_worker_died_is_refused_and_unlocked() -> None:

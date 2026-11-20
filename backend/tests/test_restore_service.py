@@ -755,9 +755,7 @@ def test_an_answer_an_earlier_request_left_in_the_pod_is_not_the_answer_of_this_
     (tmp_path / "again.done").write_text("")
     (tmp_path / "again.failed").write_text("")
     ticks = iter([0.0, 0.0, 10.0])
-    requests = RealmRequests(
-        tmp_path, patience=5, clock=lambda: next(ticks), sleep=lambda _: None
-    )
+    requests = RealmRequests(tmp_path, patience=5, clock=lambda: next(ticks), sleep=lambda _: None)
     with pytest.raises(RealmNotAppliedError, match="did not answer"):
         requests.apply("again")
     assert not (tmp_path / "again.done").exists()

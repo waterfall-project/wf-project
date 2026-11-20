@@ -39,8 +39,10 @@ PAUSE = 1.0
 RETAKEN = 2
 """The attempt a task is taken up at by the worker that claims it after the first one was killed."""
 WAIT_FOR_DELETE = "--timeout=120s"
-DELETION_COST = "controller.kubernetes.io/pod-deletion-cost"
-"""The annotation by which a Deployment, scaled down, removes the lowest first."""
+COMPONENT = "app.kubernetes.io/component"
+"""The label by which the Deployment of the worker selects its pods."""
+ORPHAN = "killed"
+"""The value the label is given on the pod to kill: no ReplicaSet selects it any more."""
 LEAST_INSTANCES = 2
 """The fewest instances of the API, or of the worker, the trial is held on."""
 SETTLED = "draft|t|t"
@@ -77,7 +79,10 @@ SNAPSHOT = (
 )
 """One line a table, ``name|digest of its rows``: the revisions, the projects (their counter), the
 journal, and every table that keeps rows of a revision, the indicators among them. The task is left
-out: its attempt is committed apart, before the marking."""
+out: its attempt is committed apart, before the marking. The revision of the trial is a new one and
+empty: the tables by ``revision_id`` hold no row of it, before as after, so that the snapshot has its
+real strength on ``revision``, ``project`` and ``audit_entry`` alone; the others are held in case the
+marking comes to write them."""
 HELD_REVISION = (
     "SELECT r.status, r.marked_at IS NULL, p.current_revision_id = r.id "
     "FROM revision r JOIN project p ON p.id = r.project_id WHERE r.id = :id"
@@ -165,6 +170,18 @@ def check_marked_once(count: str) -> None:
     if count.strip() != "1":
         message = f"{count.strip()!r} inscriptions of the marking in the journal, not one"
         raise ProductionError(message)
+
+
+def check_not_stopped(logs: str, worker: str) -> None:
+    """Hold that a worker's logs, a JSON object a line, hold no ``worker.stopped``: no one stopped it."""
+    for line in logs.splitlines():
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        if as_object(entry).get("event") == "worker.stopped":
+            message = f"the worker {worker} was stopped, not killed: it logged worker.stopped"
+            raise ProductionError(message)
 
 
 def started_again(logs: str, task_id: str) -> bool:
@@ -374,22 +391,31 @@ class Stateless:
         message = "no worker is held in a marking by the lock of the journal"
         raise ProductionError(message)
 
-    def kill(self, worker: str) -> None:
+    def kill(self, worker: str, others: list[str]) -> None:
         """Kill a worker with no warning, no pod made in its place, and end the sessions it leaves.
 
         The Deployment makes a pod when one is removed, and that pod, up after the kill, could be
         the one that claims the entry: the claim of the *other* worker would be deduced, not held.
-        The Deployment is scaled to one worker first, the pod to kill marked the one to remove
-        (``pod-deletion-cost``), so that it makes none; the pod is then removed with no grace period
-        and awaited gone. A client that dies leaves its sessions to the server, which ends them once
-        it finds the connection dead: ``pg_terminate_backend`` plays the server that detects it, at
-        once, so that the transaction of the marking is rolled back before the database is read.
+        And a pod the controller removes is sent ``SIGTERM`` first, which the worker answers by
+        undoing its task as a client: no brutal death. The pod to kill is taken out of the
+        ReplicaSet by the change of the label it is selected by; the ReplicaSet makes a pod, not
+        ready, in its place, and the Deployment is scaled to one worker at once: the ReplicaSet
+        removes the pod not ready and keeps the other worker, awaited alone in the ReplicaSet. No
+        controller has touched the orphan: its logs, read just before, hold no ``worker.stopped``,
+        and it is removed with no grace period and awaited gone. The worker is served by no Service,
+        and works on Redis and the database whatever its labels. A client that dies leaves its
+        sessions to the server, which ends them once it finds the connection dead:
+        ``pg_terminate_backend`` plays the server that detects it, at once, so that the transaction
+        of the marking is rolled back before the database is read.
         """
         self.output(
-            [*self.kubectl, "annotate", f"pod/{worker}", f"{DELETION_COST}=-100", "--overwrite"],
-            f"mark the worker {worker} the one to remove",
+            [*self.kubectl, "label", f"pod/{worker}", f"{COMPONENT}={ORPHAN}", "--overwrite"],
+            f"take the worker {worker} out of its ReplicaSet",
         )
         self.scale(1)
+        self.alone(others)
+        logs = self.output([*self.kubectl, "logs", f"pod/{worker}"], f"read the logs of {worker}")
+        check_not_stopped(logs, worker)
         self.output(
             [*self.kubectl, "delete", f"pod/{worker}", "--grace-period=0", "--force"],
             f"kill the worker {worker}",
@@ -399,6 +425,16 @@ class Stateless:
             f"wait for the worker {worker} to be gone",
         )
         self.sql(WAITING_ENDED, "end the sessions of the worker killed")
+
+    def alone(self, others: list[str]) -> None:
+        """Wait until the ReplicaSet holds the workers of the start that were not killed, alone."""
+        deadline = self.clock.now() + PATIENCE
+        while self.clock.now() < deadline:
+            if self.pods("worker") == sorted(others):
+                return
+            self.clock.pause(PAUSE)
+        message = f"the ReplicaSet does not come to hold {others} alone: the pod made is not gone"
+        raise ProductionError(message)
 
     def scale(self, replicas: int) -> None:
         """Set the number of the instances of the worker."""
@@ -433,7 +469,7 @@ class Stateless:
                 message = f"the entry is held by {worker}, which is no worker of the platform"
                 raise ProductionError(message)
             others = [pod for pod in workers if pod != f"pod/{worker}"]
-            self.kill(worker)
+            self.kill(worker, others)
             check_same_snapshot(before, self.sql(SNAPSHOT, "read the tables of the marking"))
             check_unchanged(self.sql(asked(HELD_REVISION, revision_id), "read the revision"))
             check_attempted_once(self.sql(asked(TASK, task_id), "read the task"))
