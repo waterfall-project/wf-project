@@ -42,6 +42,7 @@ from waterfall.core.planning.rescheduling import Holding, replayed
 from waterfall.core.planning.writing import Place, facts_of, judge_revision, writing
 from waterfall.core.revisions.interface import (
     CopyImposed,
+    DifferentialName,
     RevisionCopy,
     aimed_structure,
     create_differential,
@@ -221,7 +222,7 @@ def _opened(
     judge_revision(session, project_id, revision_id)
     main = facts_of(session, Place(project_id, revision_id, main_id), lock=True)
     imposed = None if load is None else load.structure_id
-    opened = create_differential(session, revision, main, (label, imposed), act)
+    opened = create_differential(session, revision, main, DifferentialName(label, imposed), act)
     for target in (opened.structure_id, opened.base_id):
         nodes = {} if load is None or target != imposed else {target: load.nodes}
         copy = RevisionCopy(

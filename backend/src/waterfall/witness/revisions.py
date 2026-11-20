@@ -258,7 +258,7 @@ class _Walk:
         """Give the lineages of every task and line the witness describes."""
         return frozenset(lineage for _, _, lineage in self.nodes())
 
-    def _imposed(self, number: int) -> CopyImposed:
+    def _imposed(self, project_id: UUID, number: int) -> CopyImposed:
         """Give the identifiers the copy into a revision imposes: those the examples name there.
 
         The main structure, its nodes by their lineage and the copies of the provision lines; the
@@ -278,17 +278,20 @@ class _Walk:
         if main is not None:
             own = {
                 **risks.provision_copies(self.risks),
-                **self._file_nodes(number),
+                **self._file_nodes(project_id, number),
             }
             nodes[main] = own
         return CopyImposed(main, structures, nodes)
 
-    def _file_nodes(self, number: int) -> dict[UUID, UUID]:
+    def _file_nodes(self, project_id: UUID, number: int) -> dict[UUID, UUID]:
         """Give the identifier of each node the files give a revision, by its lineage.
 
-        Only the revision in progress keeps the files' identifiers; another derives its own.
+        Only the revision in progress of the project, the last it has, keeps the files'
+        identifiers; another derives its own.
         """
-        current = max(each for _, each in self.numbered if each is not None)
+        current = max(
+            each for project, each in self.numbered if project == project_id and each is not None
+        )
         if number != current:
             return {}
         return {lineage: node for each, node, lineage in self.nodes() if each == number}
@@ -302,7 +305,7 @@ class _Walk:
         """
         revision = self.revision(write)
         project_id, revision_id = revision.project_id.root, revision.revision_id.root
-        imposed = self._imposed(write.revision)
+        imposed = self._imposed(project_id, write.revision)
         load_revision(self.session, project_id, revision_id, act, imposed)
         self.current[project_id] = (revision_id, write.revision)
         if not self.structures.carries(write.revision):

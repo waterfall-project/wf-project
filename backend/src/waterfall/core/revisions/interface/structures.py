@@ -117,6 +117,17 @@ class StructureView:
 
 
 @dataclass(frozen=True, slots=True)
+class DifferentialName:
+    """What names the differential to create: its label, and the identifier the witness imposes.
+
+    The identifier is none for the service, which draws it (US-2650/L1).
+    """
+
+    label: str
+    imposed: UUID | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class OpenedDifferential:
     """A differential just created, and its base: two structures the caller copies the main into."""
 
@@ -324,7 +335,7 @@ def create_differential(
     session: Session,
     revision: tuple[UUID, UUID],
     main: StructureFacts,
-    named: tuple[str, UUID | None],
+    named: DifferentialName,
     act: Act,
 ) -> OpenedDifferential:
     """Create a differential in a revision and its base, copies of its main structure; give them.
@@ -340,8 +351,7 @@ def create_differential(
     is drawn.
     """
     project_id, revision_id = revision
-    label, imposed = named
-    structure_id, base_id = imposed or new_id(), new_id()
+    structure_id, base_id = named.imposed or new_id(), new_id()
     for each, kind, differential in (
         (structure_id, AMENDMENT, None),
         (base_id, BASE, structure_id),
@@ -352,7 +362,7 @@ def create_differential(
                 id=each,
                 revision_id=revision_id,
                 kind=kind,
-                label=label,
+                label=named.label,
                 is_merged=False,
                 lineage_id=each,
                 differential_id=differential,

@@ -172,6 +172,7 @@ from waterfall.core.revisions.interface.shared import MAIN, hold_current_revisio
 # ``structures`` (US-0960; the facts the planning reads, US-1380/L2; written, US-1390/L2).
 from waterfall.core.revisions.interface.structures import (
     CurrentStructure,
+    DifferentialName,
     OpenedDifferential,
     OwnEstimateCounted,
     StructureFacts,
@@ -211,6 +212,7 @@ __all__ = [
     "ClosingStage",
     "CopyImposed",
     "CurrentStructure",
+    "DifferentialName",
     "MarkingRequest",
     "MergePart",
     "MergePartError",
