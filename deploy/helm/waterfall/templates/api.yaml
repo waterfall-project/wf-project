@@ -51,6 +51,8 @@ spec:
               value: {{ .Values.api.indicatorsCacheTtl | quote }}
             - name: WATERFALL_API_PROCESSES
               value: {{ .Values.api.processes | quote }}
+            # The capacities of the spaces, of which the metrics say what is left (#4229).
+            {{- include "waterfall.capacities" . | nindent 12 }}
           ports:
             - name: http
               containerPort: 8000

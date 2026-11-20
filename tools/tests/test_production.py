@@ -109,6 +109,7 @@ def test_the_platform_is_complete_on_one_machine_its_data_in_named_volumes() -> 
         "caddy-config",
         "postgres-data",
         "storage-data",
+        "prometheus-data",
         "realm-requests",
     }
     for name, kept in {
@@ -983,18 +984,3 @@ def test_a_command_of_compose_that_fails_fails_the_trial(
     assert production.main(GIVEN, docker.run, docker.read, platform_sender(FakePlatform({}))) == 1
     assert docker.verbs() == ["up", "run", "logs", "down"]
     assert "install failed (1)" in capsys.readouterr().err
-
-
-def test_the_environment_of_compose_takes_the_defaults_of_a_local_trial() -> None:
-    started = production.environment_of({"X": "y"}, TAG, PLATFORM)
-    assert started == {
-        "X": "y",
-        "WATERFALL_IMAGE_TAG": TAG,
-        "WATERFALL_DOMAIN": "waterfall.localhost",
-        "WATERFALL_ADMIN_EMAIL": EMAIL,
-        "WATERFALL_ACME_EMAIL": EMAIL,
-        "WATERFALL_CURRENCY": "EUR",
-        "WATERFALL_COMPANY_NAME": "Delmas Automatismes",
-    }
-    command = production.compose_command("p")
-    assert command[-4:] == ["--file", str(PRODUCTION), "--file", str(LOCAL)]

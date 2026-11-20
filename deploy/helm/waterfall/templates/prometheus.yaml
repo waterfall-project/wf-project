@@ -1,0 +1,134 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Prometheus (compose.prod.yaml, prometheus; US-2880, WF-OBS-0030): it collects the front, the API
+# and the worker, and evaluates the rules of the alerts, one instance, its series in a volume of its
+# own. Each of the three is found by a headless Service of its own, every pod of it, ready or not: a
+# pod that does not answer is one Prometheus sees down. The rules are those of the Compose
+# (files/prometheus-alerts.yml), the three thresholds of the values written in their place: a
+# threshold changed changes the ConfigMap, and the pod starts again on it. prometheus.enabled false
+# leaves the collection to a Prometheus of the operator: the ConfigMap and the Services stay, for it
+# to read.
+{{- $name := include "waterfall.name" (list . "prometheus") }}
+{{- $configuration := include "waterfall.prometheusConfiguration" . }}
+{{- $rules := include "waterfall.alertRules" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "prometheus") | nindent 4 }}
+data:
+  prometheus.yml: |-
+    {{- $configuration | nindent 4 }}
+  alerts.yml: |-
+    {{- $rules | nindent 4 }}
+{{- range $component, $port := dict "front" (list "metrics" .Values.metrics.port) "api" (list "http" 8000) "worker" (list "metrics" .Values.metrics.port) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "waterfall.name" (list $ (printf "%s-metrics" $component)) }}
+  labels:
+    {{- include "waterfall.labels" (list $ (printf "%s-metrics" $component)) | nindent 4 }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    {{- include "waterfall.selector" (list $ $component) | nindent 4 }}
+  ports:
+    - name: {{ index $port 0 }}
+      port: {{ index $port 1 }}
+      targetPort: {{ index $port 0 }}
+{{- end }}
+{{- if .Values.prometheus.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "prometheus") | nindent 4 }}
+spec:
+  selector:
+    {{- include "waterfall.selector" (list . "prometheus") | nindent 4 }}
+  ports:
+    - name: http
+      port: 9090
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "prometheus") | nindent 4 }}
+spec:
+  serviceName: {{ $name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "waterfall.selector" (list . "prometheus") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "prometheus") | nindent 8 }}
+      annotations:
+        # A threshold or a target changed starts the pod again, on the new rules.
+        checksum/configuration: {{ printf "%s%s" $configuration $rules | sha256sum }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      # The user of the image, nobody, who writes its series in the volume.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+      containers:
+        - name: prometheus
+          image: {{ include "waterfall.thirdParty" (list . .Values.prometheus.image) }}
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time={{ .Values.prometheus.retention }}
+          ports:
+            - name: http
+              containerPort: 9090
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: data
+              mountPath: /prometheus
+            - name: configuration
+              mountPath: /etc/prometheus
+              readOnly: true
+          resources:
+            {{- toYaml .Values.prometheus.resources | nindent 12 }}
+      volumes:
+        - name: configuration
+          configMap:
+            name: {{ $name }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with .Values.prometheus.persistence.className }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.prometheus.persistence.size }}
+{{- end }}

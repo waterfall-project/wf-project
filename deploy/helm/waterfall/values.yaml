@@ -142,8 +142,32 @@ transport:
 metrics:
   port: 9100
 
-# Prometheus, which collects the metrics and evaluates the alerts (US-2880).
-prometheus: {}
+# Prometheus (US-2880, WF-OBS-0030): it collects the metrics of the front, the API and the worker,
+# and evaluates the rules of the alerts. `enabled: false` leaves both to a Prometheus of the
+# operator: the chart still renders the rules, the key alerts.yml of the ConfigMap
+# <release>-prometheus, and the headless Services <release>-front-metrics, -api-metrics and
+# -worker-metrics its collection finds the instances by, as prometheus.yml beside them does.
+prometheus:
+  enabled: true
+  image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
+  # How long the series are kept.
+  retention: 15d
+  persistence:
+    size: 10Gi
+    className: ""
+  # The three thresholds of WF-OBS-0030, operating parameters, shipped at fifteen minutes, 85 % and
+  # 5 % over five minutes, which the rules are written with: a threshold changed changes the value at
+  # which its alert appears. The wait of the oldest task queued, in seconds; the occupancy of a space
+  # and the share of the requests in error, ratios above 0, at most 1; the window of that share, in
+  # seconds. compose.prod.yaml reads them as WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS,
+  # WATERFALL_STORAGE_USAGE_THRESHOLD, WATERFALL_ERROR_RATE_THRESHOLD and
+  # WATERFALL_ERROR_RATE_WINDOW_SECONDS.
+  thresholds:
+    taskQueueAgeSeconds: 900
+    storageUsage: "0.85"
+    errorRate: "0.05"
+    errorRateWindowSeconds: 300
+  resources: {}
 
 # Alertmanager, which notifies the alerts (US-2880).
 alertmanager: {}

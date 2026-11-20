@@ -319,7 +319,7 @@ lint-docker: ## Lint the Dockerfiles
 
 # Helm, kind and kubectl, which PyPI does not hold as it holds the linters above: downloaded at the
 # versions and digests wftools.kubetools pins, kept under the cache of the user, shared by worktrees.
-kube-tools: ## Install Helm, kind and kubectl at their pinned versions, under ~/.cache/waterfall/bin
+kube-tools: ## Install Helm, kind, kubectl and promtool at their pinned versions, under ~/.cache/waterfall/bin
 	@$(WFTOOLS).kubetools
 
 lint-chart: kube-tools ## Lint the chart strictly, with the values of the chain (US-2800)
@@ -431,6 +431,7 @@ lint-compose: ## Validate the Compose files
 	@WATERFALL_DOMAIN=waterfall.localhost WATERFALL_ACME_EMAIL=stand-in WATERFALL_IMAGE_TAG=stand-in \
 		WATERFALL_ADMIN_EMAIL=stand-in WATERFALL_SERVER_ACTIONS_KEY=stand-in \
 		WATERFALL_CURRENCY=EUR WATERFALL_COMPANY_NAME=stand-in \
+		WATERFALL_DATABASE_CAPACITY_BYTES=1 WATERFALL_STORAGE_CAPACITY_BYTES=1 \
 		WATERFALL_POSTGRES_ADMIN_PASSWORD=stand-in WATERFALL_POSTGRES_PASSWORD=stand-in WATERFALL_SERVICE_DATABASE_PASSWORD=stand-in \
 		WATERFALL_BACKUP_DATABASE_PASSWORD=stand-in \
 		WATERFALL_REDIS_PASSWORD=stand-in WATERFALL_KEYCLOAK_DATABASE_PASSWORD=stand-in WATERFALL_KEYCLOAK_ADMIN_PASSWORD=stand-in \

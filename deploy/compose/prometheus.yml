@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# What Prometheus collects under Compose (US-2880, WF-OBS-0010): the front, the API and the worker,
+# each found by its name in the network of the platform — every instance of it, the API's included
+# when it has several —, over HTTP, on ports no door routes (TFX-09). The front and the worker serve
+# their metrics on the port WATERFALL_METRICS_PORT says, which prometheus.sh writes in its place, as
+# it writes the thresholds in the rules beside this file. The chart collects the same
+# (templates/_prometheus.tpl).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+rule_files:
+  - alerts.yml
+scrape_configs:
+  - job_name: front
+    dns_sd_configs:
+      - names: [front]
+        type: A
+        port: ${WATERFALL_METRICS_PORT}
+  - job_name: api
+    metrics_path: /api/v1/metrics
+    dns_sd_configs:
+      - names: [api]
+        type: A
+        port: 8000
+  - job_name: worker
+    dns_sd_configs:
+      - names: [worker]
+        type: A
+        port: ${WATERFALL_METRICS_PORT}

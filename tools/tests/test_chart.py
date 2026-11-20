@@ -162,6 +162,11 @@ def test_the_chart_describes_the_services_the_ingress_the_secrets_and_the_volume
         "postgres": {"postgres": 5432},
         "redis": {"redis": 6379},
         "storage": {"s3": 3900},
+        "prometheus": {"http": 9090},
+        # Headless, by which Prometheus finds every instance (US-2880).
+        "front-metrics": {"metrics": 9100},
+        "api-metrics": {"http": 8000},
+        "worker-metrics": {"metrics": 9100},
     }
     (secret,) = of_kind(objects, "Secret").values()
     assert set(secret["stringData"]) == set(chart.SECRET_KEYS)
@@ -169,7 +174,7 @@ def test_the_chart_describes_the_services_the_ingress_the_secrets_and_the_volume
         component: [claim["metadata"]["name"] for claim in item["spec"]["volumeClaimTemplates"]]
         for component, item in of_kind(objects, "StatefulSet").items()
     }
-    assert volumes == {"postgres": ["data"], "storage": ["data"]}
+    assert volumes == {"postgres": ["data"], "storage": ["data"], "prometheus": ["data"]}
 
 
 def test_the_ingress_serves_keycloak_under_auth_and_the_front_elsewhere(objects: Objects) -> None:
@@ -273,7 +278,7 @@ def test_the_chart_reads_the_images_of_the_compose(objects: Objects) -> None:
 
 
 def test_the_files_the_chart_mounts_are_those_of_the_compose(objects: Objects) -> None:
-    (files,) = of_kind(objects, "ConfigMap").values()
+    files = of_kind(objects, "ConfigMap")["files"]
     for name, content in files["data"].items():
         assert content == (COMPOSE / name).read_text(encoding="utf-8").rstrip("\n"), name
 

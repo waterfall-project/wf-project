@@ -1,0 +1,108 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The rules of the alerts of the platform (WF-OBS-0030, US-2880), which Prometheus evaluates: one
+# alert per situation that has a consequence for the users, named by its code in the contract
+# (`Alert.code`), its zone in `severity` (`AlertZone`). Each alert ends as soon as its cause ceases.
+#
+# A model, not the rules themselves: the three thresholds are operating parameters, set in the
+# values of the chart or in the .env of the Compose, and written in their place — by the chart
+# (templates/prometheus.yaml), by the start of Prometheus under Compose (prometheus.sh). A threshold
+# changed changes the value at which its alert appears. Shipped at fifteen minutes, 85 % and 5 % over
+# five minutes:
+# - ${WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS}, the wait of the oldest task queued, in seconds;
+# - ${WATERFALL_STORAGE_USAGE_THRESHOLD}, the occupancy of a space, a ratio from 0 to 1;
+# - ${WATERFALL_ERROR_RATE_THRESHOLD}, the share of the requests answered with a status of 500 or
+#   more, a ratio from 0 to 1, over ${WATERFALL_ERROR_RATE_WINDOW_SECONDS}, in seconds.
+#
+# The metrics are those of waterfall.platform.metrics and of the front (src/metrics). What the API
+# reads at each collection — the components, the queue, the spaces, the latest outcomes — every
+# replica of it exposes alike: the rules take the highest of them, `max`. What a process counts, its
+# requests, the rules add up, `sum`.
+groups:
+  - name: waterfall
+    rules:
+      # A component stopped: the API or the worker that no collection reaches — one instance
+      # answering is enough —, or a component the API probes and no replica finds answering. For a
+      # minute, so that one collection missed does not raise it. The front is collected, and not
+      # named here: the contract has no such component (PlatformComponent), and the status screen
+      # is its own. Prometheus does not alert on itself: the API says it unavailable.
+      - alert: component_unavailable
+        expr: (max(up{job="api"}) or vector(0)) < 1
+        for: 1m
+        labels:
+          component: api
+          severity: alert
+      - alert: component_unavailable
+        expr: (max(up{job="worker"}) or vector(0)) < 1
+        for: 1m
+        labels:
+          component: worker
+          severity: alert
+      - alert: component_unavailable
+        expr: max by (component) (waterfall_component_up) < 1
+        for: 1m
+        labels:
+          severity: alert
+
+      # A task queued longer than the threshold; taken before, the age falls back, and no alert.
+      - alert: task_queue_stalled
+        expr: max(waterfall_oldest_queued_task_age_seconds) > ${WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS}
+        labels:
+          severity: alert
+
+      # A space — the database, the object storage — used up to the threshold of the capacity the
+      # deployment declares: the used, over the used and what is left of it.
+      - alert: storage_nearly_full
+        expr: >-
+          max by (component) (waterfall_storage_used_bytes)
+          / (max by (component) (waterfall_storage_used_bytes)
+             + max by (component) (waterfall_storage_available_bytes))
+          >= ${WATERFALL_STORAGE_USAGE_THRESHOLD}
+        labels:
+          severity: watch
+
+      # The share of the requests answered with a status of 500 or more over the window, above the
+      # threshold, for the API and for the front: the probes of health and the collections of the
+      # metrics are no request of a user, and are left out.
+      - alert: error_rate_abnormal
+        expr: >-
+          sum(rate(waterfall_api_requests_total{status=~"5..",operation!~"getLiveness|getReadiness|getMetrics"}[${WATERFALL_ERROR_RATE_WINDOW_SECONDS}s]))
+          / sum(rate(waterfall_api_requests_total{operation!~"getLiveness|getReadiness|getMetrics"}[${WATERFALL_ERROR_RATE_WINDOW_SECONDS}s]))
+          > ${WATERFALL_ERROR_RATE_THRESHOLD}
+        labels:
+          component: api
+          severity: alert
+      - alert: error_rate_abnormal
+        expr: >-
+          sum(rate(waterfall_front_requests_total{status=~"5..",kind!="probe"}[${WATERFALL_ERROR_RATE_WINDOW_SECONDS}s]))
+          / sum(rate(waterfall_front_requests_total{kind!="probe"}[${WATERFALL_ERROR_RATE_WINDOW_SECONDS}s]))
+          > ${WATERFALL_ERROR_RATE_THRESHOLD}
+        labels:
+          component: front
+          severity: alert
+
+      # The latest run of what the platform runs on a schedule failed, until the next succeeds. The
+      # outcome is read from the database: while no replica reads it — PostgreSQL down —, the last
+      # outcome read within the hour holds, and the alert does not end with the database.
+      - alert: scheduled_backup_failed
+        expr: >-
+          max(waterfall_last_run_success{run="scheduled_backup"}) == 0
+          or (max(last_over_time(waterfall_last_run_success{run="scheduled_backup"}[1h])) == 0
+              unless max(waterfall_last_run_success{run="scheduled_backup"}))
+        labels:
+          severity: alert
+      - alert: scheduled_backup_copy_failed
+        expr: >-
+          max(waterfall_last_run_success{run="scheduled_backup_copy"}) == 0
+          or (max(last_over_time(waterfall_last_run_success{run="scheduled_backup_copy"}[1h])) == 0
+              unless max(waterfall_last_run_success{run="scheduled_backup_copy"}))
+        labels:
+          severity: alert
+      - alert: identity_sync_failed
+        expr: >-
+          max(waterfall_last_run_success{run="identity_sync"}) == 0
+          or (max(last_over_time(waterfall_last_run_success{run="identity_sync"}[1h])) == 0
+              unless max(waterfall_last_run_success{run="identity_sync"}))
+        labels:
+          severity: alert

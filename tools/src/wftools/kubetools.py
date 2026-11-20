@@ -1,15 +1,17 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Install Helm, kind and kubectl at the versions the chain pins, and find them (US-2800).
+"""Install Helm, kind, kubectl and promtool at the versions the chain pins, and find them (US-2800).
 
 Usage: ``python -m wftools.kubetools``.
 
-PyPI holds none of the three, as it holds actionlint, hadolint and shellcheck, which the tools take
-as their packages: each is downloaded once from where its project publishes it, checked against the
-digest written here, and kept under the cache of the user — ``$XDG_CACHE_HOME/waterfall/bin``,
-``~/.cache/waterfall/bin`` by default —, a folder per version, which the worktrees share. A download
-whose digest is not the one written is refused and removed: raise a version here, with its digest,
-and nowhere else. For Linux on x86-64 alone, the workstation's and the runners' of the chain.
+promtool is that of the release of Prometheus the platform runs (US-2880): the tests of the chart
+check its configuration and play its rules of alert by it. PyPI holds none of the four, as it holds
+actionlint, hadolint and shellcheck, which the tools take as their packages: each is downloaded
+once from where its project publishes it, checked against the digest written here, and kept under
+the cache of the user — ``$XDG_CACHE_HOME/waterfall/bin``, ``~/.cache/waterfall/bin`` by default —,
+a folder per version, which the worktrees share. A download whose digest is not the one written is
+refused and removed: raise a version here, with its digest, and nowhere else. For Linux on x86-64
+alone, the workstation's and the runners' of the chain.
 """
 
 import hashlib
@@ -70,6 +72,14 @@ BINARIES = {
             "1.37.2",
             "https://dl.k8s.io/release/v1.37.2/bin/linux/amd64/kubectl",
             "c04487523e7aa7d1493f7808174c899db93d7a9cf57531420cd76b9bd415f8f4",
+        ),
+        # The version of Prometheus the Compose and the chart run (prom/prometheus).
+        Binary(
+            "promtool",
+            "3.16.0",
+            "https://github.com/prometheus/prometheus/releases/download/v3.16.0/prometheus-3.16.0.linux-amd64.tar.gz",
+            "68727009472a2c02e1ff7f062fd5b3e637285bffc8fc2d340c76fb449d6e0f34",
+            "prometheus-3.16.0.linux-amd64/promtool",
         ),
     )
 }

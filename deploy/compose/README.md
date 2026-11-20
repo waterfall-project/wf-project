@@ -9,14 +9,16 @@ Cette notice installe Waterfall sur une machine seule, à partir des images que 
 sur `ghcr.io/waterfall-project`, derrière un frontal HTTPS (US-0430, WF-ARC-0050). Le fichier
 Compose est `compose.prod.yaml` ; les autres fichiers de ce répertoire servent la plateforme de
 développement et la plateforme de service, sauf ceux qu'il monte : `Caddyfile.prod`,
-`garage.toml`, `storage-buckets.sh`, `postgres-volume.sh` et les scripts SQL des rôles et des
-bases.
+`garage.toml`, `storage-buckets.sh`, `postgres-volume.sh`, les scripts SQL des rôles et des
+bases, et ceux de Prometheus : `prometheus.sh`, `prometheus.yml` et `prometheus-alerts.yml`.
 
 La plateforme compte un frontal Caddy, seul port ouvert, qui obtient ses certificats de Let's
 Encrypt et sert le front à la racine et Keycloak sous `/auth`, hors sa console ; le front, l'API, le worker et le
 planificateur de ses tâches ; PostgreSQL, qui porte deux bases, celle de Waterfall et celle de
 Keycloak ; Redis ; Garage, le stockage objet, et ses compartiments `backups` et `imports` ;
-Keycloak et l'application de son royaume. Les données vivent dans des volumes nommés.
+Keycloak et l'application de son royaume ; Prometheus, qui collecte les métriques du front, de
+l'API et du worker et évalue les règles des alertes (« Superviser »). Les données vivent dans des
+volumes nommés.
 
 Redis est employé sous la licence AGPLv3, comme Waterfall lui-même, depuis sa version 8 ; le dépôt
 ne redistribue pas Redis : la plateforme tire son image du registre public.
@@ -55,8 +57,10 @@ Puis :
    (`WATERFALL_CURRENCY`, trois lettres majuscules, qui ne change plus ensuite) et le nom de
    l'entreprise (`WATERFALL_COMPANY_NAME`, que portent les fichiers exportés), son fuseau horaire
    (`WATERFALL_TIME_ZONE`, un nom de la base IANA comme `Europe/Paris`, `UTC` si on le laisse vide, dans
-   lequel s'entend le jour courant, et qui ne change plus ensuite), et chaque secret, tiré au hasard
-   comme le modèle l'indique. Git ignore `.env` ; en garder une copie à part.
+   lequel s'entend le jour courant, et qui ne change plus ensuite), la capacité en octets de l'espace
+   où PostgreSQL et le stockage objet gardent leurs données (`WATERFALL_DATABASE_CAPACITY_BYTES`,
+   `WATERFALL_STORAGE_CAPACITY_BYTES`, sans lesquelles l'alerte d'un stockage plein ne pourrait pas
+   apparaître), et chaque secret, tiré au hasard comme le modèle l'indique. Git ignore `.env` ; en garder une copie à part.
 4. Démarrer :
 
    ```sh
@@ -171,6 +175,31 @@ Garage ne se reprennent pas non plus. Si on l'oublie, la plateforme refuse de d�
 des données trouvées et celle attendue, 18, et renvoie ici
 (`docker compose -f compose.prod.yaml logs postgres-volume`). Il refuse de même les données de
 toute autre majeure que celle de la plateforme.
+
+Depuis l'arrivée de Prometheus (US-2880), `.env` déclare les deux capacités de l'étape 3 de
+« Installer » : sans elles, la plateforme ne démarre plus, et le dit.
+
+## Superviser
+
+Prometheus collecte, dans le réseau de la plateforme et sur des ports qu'aucune porte ne sert, les
+métriques du front et du worker (`WATERFALL_METRICS_PORT`) et celles de l'API ; il garde ses séries
+quinze jours dans le volume `prometheus-data`, et ne publie aucun port. Il évalue les règles des sept
+alertes de WF-OBS-0030 — un composant arrêté, une tâche en file depuis plus que le seuil, l'échec
+d'une sauvegarde planifiée, de sa copie externe et d'une lecture des comptes, un espace occupé au-delà
+du seuil, un taux d'erreur des requêtes au-delà du seuil sur sa fenêtre —, chacune nommée par son
+code du contrat, et qui cesse avec sa cause.
+
+Les trois seuils sont des réglages de `.env`, livrés à quinze minutes, 85 % et 5 % sur cinq
+minutes : `WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS`, `WATERFALL_STORAGE_USAGE_THRESHOLD`,
+`WATERFALL_ERROR_RATE_THRESHOLD` et `WATERFALL_ERROR_RATE_WINDOW_SECONDS`. `prometheus.sh` les
+écrit dans les règles à chaque démarrage de Prometheus, et refuse de démarrer, en la nommant, une
+valeur qui n'en est pas une. Pour en changer un : le modifier dans `.env`, puis
+`docker compose -f compose.prod.yaml up --detach --wait`, qui recrée Prometheus. Les alertes en
+cours se lisent dans Prometheus lui-même :
+
+```sh
+docker compose -f compose.prod.yaml exec prometheus wget -qO- http://127.0.0.1:9090/api/v1/alerts
+```
 
 ## Sauvegarder
 
