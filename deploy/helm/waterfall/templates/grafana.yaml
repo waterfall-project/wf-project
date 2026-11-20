@@ -1,0 +1,144 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Grafana (compose.prod.yaml, grafana; US-2880, WF-OBS-0030): the dashboard of the operator, which the
+# chart delivers (files/grafana-dashboard.json), on the one source that is the Prometheus of the chart
+# or the one grafana.prometheusUrl names. It has an account of its own, outside Keycloak (TFX-15),
+# whose password is the key WATERFALL_GRAFANA_ADMIN_PASSWORD of the Secret of the platform. It reads
+# neither PostgreSQL nor Redis, and keeps nothing: its account is written at each start, so that the
+# password of the Secret is the one that opens it. The ingress serves it under /grafana.
+{{- $name := include "waterfall.name" (list . "grafana") }}
+{{- $source := .Values.grafana.prometheusUrl | default (printf "http://%s:9090" (include "waterfall.name" (list . "prometheus"))) }}
+{{- $providers := .Files.Get "files/grafana-dashboards.yml" | trimSuffix "\n" }}
+{{- $dashboard := .Files.Get "files/grafana-dashboard.json" | trimSuffix "\n" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "grafana") | nindent 4 }}
+data:
+  datasource.yml: |-
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: {{ $source | quote }}
+        isDefault: true
+        editable: false
+  dashboards.yml: |-
+    {{- $providers | nindent 4 }}
+  waterfall.json: |-
+    {{- $dashboard | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "grafana") | nindent 4 }}
+spec:
+  selector:
+    {{- include "waterfall.selector" (list . "grafana") | nindent 4 }}
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "grafana") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "waterfall.selector" (list . "grafana") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "grafana") | nindent 8 }}
+      annotations:
+        checksum/configuration: {{ printf "%s%s%s" $source $providers $dashboard | sha256sum }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      # The user grafana of the image.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        runAsGroup: 472
+        fsGroup: 472
+      containers:
+        - name: grafana
+          image: {{ include "waterfall.thirdParty" (list . .Values.grafana.image) }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: {{ required "grafana.adminUser: the account of the dashboard" .Values.grafana.adminUser | quote }}
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_GRAFANA_ADMIN_PASSWORD" "GF_SECURITY_ADMIN_PASSWORD") | nindent 12 }}
+            - name: GF_SERVER_ROOT_URL
+              value: {{ printf "%s/grafana/" (include "waterfall.address" .) | quote }}
+            - name: GF_SERVER_SERVE_FROM_SUB_PATH
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "false"
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            # Nothing leaves the platform: no check of updates, no report, no news, no plugin to install.
+            - name: GF_ANALYTICS_REPORTING_ENABLED
+              value: "false"
+            - name: GF_ANALYTICS_CHECK_FOR_UPDATES
+              value: "false"
+            - name: GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES
+              value: "false"
+            - name: GF_NEWS_NEWS_FEED_ENABLED
+              value: "false"
+            - name: GF_SECURITY_DISABLE_GRAVATAR
+              value: "true"
+            - name: GF_PLUGINS_PLUGIN_ADMIN_ENABLED
+              value: "false"
+            - name: GF_PLUGINS_PREINSTALL_DISABLED
+              value: "true"
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /grafana/api/health
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /grafana/api/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: configuration
+              mountPath: /etc/grafana/provisioning/datasources/waterfall.yml
+              subPath: datasource.yml
+              readOnly: true
+            - name: configuration
+              mountPath: /etc/grafana/provisioning/dashboards/waterfall.yml
+              subPath: dashboards.yml
+              readOnly: true
+            - name: configuration
+              mountPath: /var/lib/waterfall-dashboards/waterfall.json
+              subPath: waterfall.json
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/grafana
+          resources:
+            {{- toYaml .Values.grafana.resources | nindent 12 }}
+      volumes:
+        - name: configuration
+          configMap:
+            name: {{ $name }}
+        - name: data
+          emptyDir: {}

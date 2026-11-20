@@ -5,9 +5,9 @@
 # certificates of WATERFALL_DOMAIN from Let's Encrypt, and sends every request in HTTP to HTTPS, at
 # the address the platform is published at, WATERFALL_ADDRESS: the browser speaks HTTPS alone
 # (WF-SEC-0010). The front is served at the root, Keycloak under /auth, but its console and its
-# realm master. The metrics are served on a port of their own that this door does not reach: /metrics
-# and /api/v1/metrics fall to the front, which answers 404 (TFX-09). A local name — localhost,
-# *.localhost, *.internal, an address — gets its certificate
+# realm master, Grafana under /grafana (US-2880). The metrics are served on a port of their own that
+# this door does not reach: /metrics and /api/v1/metrics fall to the front, which answers 404
+# (TFX-09). A local name — localhost, *.localhost, *.internal, an address — gets its certificate
 # from Caddy's own authority instead, whose root is kept in its volume (compose.prod.local.yaml).
 {
 	# The account Let's Encrypt writes to before a certificate expires.
@@ -58,6 +58,12 @@ http://{$WATERFALL_DOMAIN} {
 	@keycloak-admin path /auth/admin /auth/admin/* /auth/realms/master /auth/realms/master/*
 	handle @keycloak-admin {
 		respond 404
+	}
+
+	# The dashboard of the operator, Grafana, built under /grafana, with its own account outside
+	# Keycloak (TFX-15).
+	handle /grafana /grafana/* {
+		reverse_proxy grafana:3000
 	}
 
 	# Keycloak, built under /auth: its pages and its endpoints, those of the realm waterfall.

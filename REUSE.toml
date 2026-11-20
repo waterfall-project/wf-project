@@ -37,6 +37,8 @@ path = [
     "tools/e2e-durations.json",
     "tools/e2e-service-durations.json",
     "docs/measures/*.json",
+    # The dashboard of the operator, JSON, which carries no comment (US-2880).
+    "deploy/compose/grafana-dashboard.json",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 waterfall-project"

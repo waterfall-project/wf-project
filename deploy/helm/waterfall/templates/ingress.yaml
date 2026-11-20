@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# The only door (Caddyfile.prod, here as an ingress): Keycloak under /auth, the front everywhere
+# The only door (Caddyfile.prod, here as an ingress): Keycloak under /auth, Grafana, the dashboard of
+# the operator, under /grafana (US-2880), the front everywhere
 # else and at its own routes under /auth — the return from the realm and the end of its session.
 # The console of Keycloak and its realm master, whose administrator holds every realm, are sent to
 # the front, which has no page there: Keycloak never serves them through the ingress. The back
@@ -9,6 +10,7 @@
 # served here either. The longest path wins, whatever the order (networking.k8s.io/v1).
 {{- $front := include "waterfall.name" (list . "front") }}
 {{- $keycloak := include "waterfall.name" (list . "keycloak") }}
+{{- $grafana := include "waterfall.name" (list . "grafana") }}
 {{- $domain := required "platform.domain: where the browser reaches the platform" .Values.platform.domain }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -51,6 +53,13 @@ spec:
                 port:
                   name: http
           {{- end }}
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $grafana }}
+                port:
+                  name: http
           - path: /auth
             pathType: Prefix
             backend:
