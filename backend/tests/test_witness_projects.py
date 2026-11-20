@@ -363,14 +363,14 @@ def test_the_revisions_100_101_and_102_each_hold_their_main_cost_structure(
 
 @pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_designation_of_the_offer_succeeds_and_is_noted_in_the_output(
-    logs: Logs, witness_loaded: Database
+    logs: Logs, witness_logged: Database
 ) -> None:
     # Refused for the lack of tasks and lines until EP-07 loaded them; now made, the only reference.
     assert not logs.named("witness.designation_refused")
     noted = logs.named("witness.reference_designated")
     assert [(each["project"], each["revision"]) for each in noted] == [("PRJ-001", 100)]
     assert len(logs.named("witness.loaded")) == 1
-    with witness_loaded.transaction() as session:
+    with witness_logged.transaction() as session:
         assert session.scalar(select(func.count()).where(Revision.is_reference)) == 1
 
 

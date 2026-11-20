@@ -336,9 +336,8 @@ def test_the_offer_is_designated_the_reference_at_the_order_and_the_project_pass
         ("created", "pricing", instant(OPENED[100])),
         ("pricing", "in_progress", order),
     ]
-    # The loader notes the designation it made, which a test of the projects reads on a loading of
-    # its own (``test_the_designation_of_the_offer_succeeds_and_is_noted_in_the_output``): a
-    # loading costs a minute and more, and this one reads only the rows, laid again (#2157).
+    # The loader notes the designation it made, which a test of the projects reads
+    # (``test_the_designation_of_the_offer_succeeds_and_is_noted_in_the_output``).
 
 
 def figures(line: EstimateLine) -> tuple[object, ...]:

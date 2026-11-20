@@ -376,7 +376,7 @@ def test_the_dates_differ_from_the_file_only_for_the_tasks_a_calendar_of_a_line_
     # task of the three revisions as the file does, the tasks the 4x10 calendars of the lines reach,
     # their successors and their summaries included (#2594). Before them, at the stage of the
     # tasks, TASKS_OF_2594 of them were dated otherwise, which the loader notes: the next test reads
-    # it, on a loading of its own; this one reads the rows, on the witness shared (#2157).
+    # it.
     volume = example("volume/nodes_thousand")["items"]
     reached = closure(volume)
     lineages_reached = {item["lineage_id"] for item in volume if item["node_id"] in reached}
@@ -404,11 +404,11 @@ def core_items() -> list[dict[str, Any]]:
 
 
 def test_the_loading_notes_for_each_revision_how_many_tasks_the_engine_dated_otherwise(
-    logs: Logs, witness_loaded: Database
+    logs: Logs, witness_logged: Database
 ) -> None:
     # Structure after structure: the offer, filled from nothing; the others, copies of a structure
     # whose lines gave its tasks their calendars, none (EP-08).
-    del witness_loaded
+    del witness_logged
     noted = logs.named("witness.tasks_dated_before_the_lines")
     assert [(each["revision"], each["structure"], each["tasks"]) for each in noted] == FILLED
 
