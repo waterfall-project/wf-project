@@ -7,6 +7,15 @@
 # transaction; the connections are a value of their own (postgresql.maxConnections), never computed
 # from the replicas: a flag that followed them would change the template of this pod and restart it
 # when the API scales (WF-ARC-0050-A).
+{{- if .Values.postgresql.enabled }}
+{{- /* The connections PostgreSQL must accept: fifteen for each process of each instance of the API,
+and two hundred for the others, Keycloak's hundred included. A value that falls short stops the
+rendering, naming what to raise; the flag never follows the replicas, which would restart the pod
+when the API scales. */ -}}
+{{- $needed := add (mul 15 (int .Values.api.replicas) (int .Values.api.processes)) 200 }}
+{{- if gt $needed (int .Values.postgresql.maxConnections) }}
+{{- fail (printf "postgresql.maxConnections: %d connections do not cover %d replicas of %d processes of the API, which need 15 each and 200 for the others (%d): raise it, which restarts PostgreSQL once" (int .Values.postgresql.maxConnections) (int .Values.api.replicas) (int .Values.api.processes) $needed) }}
+{{- end }}
 {{- $name := include "waterfall.name" (list . "postgres") }}
 apiVersion: v1
 kind: Service
@@ -104,3 +113,4 @@ spec:
         resources:
           requests:
             storage: {{ .Values.postgresql.persistence.size }}
+{{- end }}

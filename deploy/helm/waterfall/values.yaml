@@ -99,8 +99,16 @@ keycloak:
   realm:
     resources: {}
 
-# PostgreSQL, with Waterfall's database and Keycloak's. US-2800/L2 lets the operator provide it.
+# PostgreSQL, with Waterfall's database and Keycloak's. `enabled: false` leaves it to the operator's,
+# at `host` and `port`: the chart then makes no PostgreSQL, and runs the steps of the database and the
+# migrations before the installation (hooks.yaml) as `adminUser`, whose password is the key
+# WATERFALL_POSTGRES_ADMIN_PASSWORD of the Secret — `secrets.existingSecret`, which the operator makes
+# beforehand, is required then. What the server must have is in docs/exploitation/postgresql-fourni.md.
 postgresql:
+  enabled: true
+  host: ""
+  port: 5432
+  adminUser: postgres
   image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
   persistence:
     size: 10Gi
@@ -108,18 +116,26 @@ postgresql:
   # The connections PostgreSQL accepts, whatever the replicas: changing it restarts the database, which
   # scaling the API must not. It covers fifteen for each process of each instance of the API (three
   # instances of two processes at most: 90), the worker, and two hundred for the others, Keycloak's
-  # hundred included.
+  # hundred included. The rendering stops when 15 x api.replicas x api.processes + 200 exceeds it,
+  # naming it. Without effect when the operator provides PostgreSQL.
   maxConnections: 300
   resources: {}
 
-# Redis: nothing durable is kept in it. US-2800/L2 lets the operator provide it.
+# Redis: nothing durable is kept in it. `enabled: false` leaves it to the operator's, at `host` and
+# `port`, with the password WATERFALL_REDIS_PASSWORD of the Secret.
 redis:
+  enabled: true
+  host: ""
+  port: 6379
   image: redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
   resources: {}
 
 # The object storage, Garage on one node, its memory bounded (WF-CMP-0020), and the buckets the
-# platform makes. US-2800/L2 lets the operator provide it.
+# platform makes. `enabled: false` leaves it to the operator's, an S3 at `address` (a URL), with the
+# key `accessKey` and the secret WATERFALL_STORAGE_SECRET of the Secret.
 storage:
+  enabled: true
+  address: ""
   image: dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
   bucketsImage: curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93
   accessKey: GK000000000000000000000001

@@ -95,26 +95,55 @@ WATERFALL_POSTGRES_ADMIN_PASSWORD WATERFALL_POSTGRES_PASSWORD WATERFALL_SERVICE_
       key: {{ index . 1 }}
 {{- end -}}
 
-{{/* The hosts of the data components, by their services. */}}
-{{- define "waterfall.postgresHost" -}}{{ include "waterfall.name" (list . "postgres") }}{{- end -}}
+{{/* The data components: the service of the chart's own, or the address of the operator's. A
+component the operator provides (enabled: false) is reached at its host and port, with the
+passwords of the Secret, which holds the same keys. */}}
+{{- define "waterfall.postgresHost" -}}
+{{- if .Values.postgresql.enabled -}}
+{{- include "waterfall.name" (list . "postgres") -}}
+{{- else -}}
+{{- required "postgresql.host: the address of the PostgreSQL the operator provides (postgresql.enabled is false)" .Values.postgresql.host -}}
+{{- end -}}
+{{- end -}}
+{{- define "waterfall.postgresPort" -}}
+{{- if .Values.postgresql.enabled -}}5432{{- else -}}{{- .Values.postgresql.port | default 5432 | int -}}{{- end -}}
+{{- end -}}
+{{/* The host and the port, as a URL writes them. */}}
+{{- define "waterfall.postgresAddress" -}}
+{{- printf "%s:%s" (include "waterfall.postgresHost" .) (include "waterfall.postgresPort" .) -}}
+{{- end -}}
+{{- define "waterfall.redisAddress" -}}
+{{- if .Values.redis.enabled -}}
+{{- printf "%s:6379" (include "waterfall.name" (list . "redis")) -}}
+{{- else -}}
+{{- printf "%s:%d" (required "redis.host: the address of the Redis the operator provides (redis.enabled is false)" .Values.redis.host) (.Values.redis.port | default 6379 | int) -}}
+{{- end -}}
+{{- end -}}
 {{- define "waterfall.redisUrl" -}}
-{{- printf "redis://:$(WATERFALL_REDIS_PASSWORD)@%s:6379/0" (include "waterfall.name" (list . "redis")) -}}
+{{- printf "redis://:$(WATERFALL_REDIS_PASSWORD)@%s/0" (include "waterfall.redisAddress" .) -}}
+{{- end -}}
+{{- define "waterfall.storageAddress" -}}
+{{- if .Values.storage.enabled -}}
+{{- printf "http://%s:3900" (include "waterfall.name" (list . "storage")) -}}
+{{- else -}}
+{{- required "storage.address: the address of the object storage the operator provides (storage.enabled is false)" .Values.storage.address -}}
+{{- end -}}
 {{- end -}}
 
 {{/* The database of Waterfall and Redis, as the role of the service — or as the owner of the
 tables, waterfall, with (list $ "owner") — (x-back-environment, #701). */}}
 {{- define "waterfall.backEnvironment" -}}
 {{- $ := index . 0 -}}
-{{- $host := include "waterfall.postgresHost" $ -}}
+{{- $host := include "waterfall.postgresAddress" $ -}}
 {{ include "waterfall.secretEnv" (list $ "WATERFALL_REDIS_PASSWORD") }}
 {{- if eq (index . 1) "owner" }}
 {{ include "waterfall.secretEnv" (list $ "WATERFALL_POSTGRES_PASSWORD") }}
 - name: WATERFALL_DATABASE_URL
-  value: {{ printf "postgresql://waterfall:$(WATERFALL_POSTGRES_PASSWORD)@%s:5432/waterfall" $host | quote }}
+  value: {{ printf "postgresql://waterfall:$(WATERFALL_POSTGRES_PASSWORD)@%s/waterfall" $host | quote }}
 {{- else }}
 {{ include "waterfall.secretEnv" (list $ "WATERFALL_SERVICE_DATABASE_PASSWORD") }}
 - name: WATERFALL_DATABASE_URL
-  value: {{ printf "postgresql://waterfall_service:$(WATERFALL_SERVICE_DATABASE_PASSWORD)@%s:5432/waterfall" $host | quote }}
+  value: {{ printf "postgresql://waterfall_service:$(WATERFALL_SERVICE_DATABASE_PASSWORD)@%s/waterfall" $host | quote }}
 {{- end }}
 - name: WATERFALL_REDIS_URL
   value: {{ include "waterfall.redisUrl" $ | quote }}
@@ -133,7 +162,7 @@ administration API, as its service account (x-keycloak-client-environment). */}}
 {{/* The object storage, and the bucket of the backups (x-storage-environment). */}}
 {{- define "waterfall.storageEnvironment" -}}
 - name: WATERFALL_STORAGE_ADDRESS
-  value: {{ printf "http://%s:3900" (include "waterfall.name" (list . "storage")) | quote }}
+  value: {{ include "waterfall.storageAddress" . | quote }}
 - name: WATERFALL_STORAGE_ACCESS_KEY
   value: {{ .Values.storage.accessKey | quote }}
 {{ include "waterfall.secretEnv" (list . "WATERFALL_STORAGE_SECRET") }}
@@ -144,7 +173,7 @@ administration API, as its service account (x-keycloak-client-environment). */}}
 {{/* The database of Keycloak, as its owner (x-keycloak-database). */}}
 {{- define "waterfall.keycloakDatabase" -}}
 - name: KC_DB_URL
-  value: {{ printf "jdbc:postgresql://%s:5432/keycloak" (include "waterfall.postgresHost" .) | quote }}
+  value: {{ printf "jdbc:postgresql://%s/keycloak" (include "waterfall.postgresAddress" .) | quote }}
 - name: KC_DB_USERNAME
   value: keycloak
 {{ include "waterfall.secretEnv" (list . "WATERFALL_KEYCLOAK_DATABASE_PASSWORD" "KC_DB_PASSWORD") }}
@@ -175,8 +204,10 @@ the service of the restoration asks for it again (#955). */}}
 {{- define "waterfall.administrator" -}}
 - name: PGHOST
   value: {{ include "waterfall.postgresHost" . }}
+- name: PGPORT
+  value: {{ include "waterfall.postgresPort" . | quote }}
 - name: PGUSER
-  value: postgres
+  value: {{ .Values.postgresql.adminUser | quote }}
 {{ include "waterfall.secretEnv" (list . "WATERFALL_POSTGRES_ADMIN_PASSWORD" "PGPASSWORD") }}
 {{- end -}}
 
@@ -200,6 +231,8 @@ dependencies of compose.prod.yaml on service-database-role and keycloak-database
   env:
     - name: PGHOST
       value: {{ include "waterfall.postgresHost" $ }}
+    - name: PGPORT
+      value: {{ include "waterfall.postgresPort" $ | quote }}
     - name: PGUSER
       value: {{ index . 1 }}
     - name: PGDATABASE
@@ -232,6 +265,13 @@ schema migrates (#1079): (list $ "9000" "/auth/health/ready"). */}}
       value: {{ index . 1 | quote }}
     - name: KEYCLOAK_PATH
       value: {{ index . 2 | quote }}
+{{- end -}}
+
+{{/* When the steps of the database and the migrations run at the installation: after it, for the
+PostgreSQL of the chart, which the cluster has not before; before it, for the operator's, which is
+there already. Before each upgrade in both cases. */}}
+{{- define "waterfall.migrationEvents" -}}
+{{- if .Values.postgresql.enabled -}}post-install,pre-upgrade{{- else -}}pre-install,pre-upgrade{{- end -}}
 {{- end -}}
 
 {{/* The annotations of a hook: (list "post-install,pre-upgrade" weight). The Job of the last run is

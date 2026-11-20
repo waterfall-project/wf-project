@@ -4,6 +4,7 @@
 # The object storage (PBS-3.3, compose.prod.yaml, storage): Garage on one node, its layout made at
 # its start and the key of the platform taken from the environment (garage.toml), its data in a
 # volume of its own. The buckets are made by a step of the hooks (hooks.yaml).
+{{- if .Values.storage.enabled }}
 {{- $name := include "waterfall.name" (list . "storage") }}
 apiVersion: v1
 kind: Service
@@ -84,3 +85,4 @@ spec:
         resources:
           requests:
             storage: {{ .Values.storage.persistence.size }}
+{{- end }}
