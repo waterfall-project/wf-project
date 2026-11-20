@@ -1,0 +1,115 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Alertmanager (compose.prod.yaml, alertmanager; US-2880, WF-OBS-0030): it notifies each alert of
+# Prometheus by e-mail, through the mail server of alertmanager.smtp; without one, nothing. One
+# instance. It starts as the Compose starts it, by the same script (alertmanager.sh), which writes its
+# configuration from the environment and refuses, naming it, a value that is not what it must be: the
+# pod does not start on it. The password of the mail server, if it asks one, is read from the Secret
+# of the platform, where nothing requires it.
+{{- $name := include "waterfall.name" (list . "alertmanager") }}
+{{- $smtp := .Values.alertmanager.smtp }}
+{{- $script := .Files.Get "files/alertmanager.sh" | trimSuffix "\n" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "alertmanager") | nindent 4 }}
+data:
+  alertmanager.sh: |-
+    {{- $script | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "alertmanager") | nindent 4 }}
+spec:
+  selector:
+    {{- include "waterfall.selector" (list . "alertmanager") | nindent 4 }}
+  ports:
+    - name: http
+      port: 9093
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "alertmanager") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "waterfall.selector" (list . "alertmanager") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "alertmanager") | nindent 8 }}
+      annotations:
+        checksum/script: {{ $script | sha256sum }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      # The user of the image, nobody, who writes its configuration and its silences in /alertmanager.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+      containers:
+        - name: alertmanager
+          image: {{ include "waterfall.thirdParty" (list . .Values.alertmanager.image) }}
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, /etc/waterfall/alertmanager.sh]
+          # Alone: no cluster of replicas to join.
+          args: [--storage.path=/alertmanager, --cluster.listen-address=]
+          env:
+            - name: WATERFALL_ALERT_SMTP_HOST
+              value: {{ $smtp.host | quote }}
+            - name: WATERFALL_ALERT_SMTP_FROM
+              value: {{ $smtp.from | quote }}
+            - name: WATERFALL_ALERT_RECIPIENT
+              value: {{ $smtp.recipient | quote }}
+            - name: WATERFALL_ALERT_SMTP_REQUIRE_TLS
+              value: {{ $smtp.requireTls | toString | quote }}
+            - name: WATERFALL_ALERT_SMTP_USER
+              value: {{ $smtp.user | quote }}
+            - name: WATERFALL_ALERT_SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "waterfall.secret" . }}
+                  key: WATERFALL_ALERT_SMTP_PASSWORD
+                  optional: true
+          ports:
+            - name: http
+              containerPort: 9093
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: script
+              mountPath: /etc/waterfall
+              readOnly: true
+            - name: state
+              mountPath: /alertmanager
+          resources:
+            {{- toYaml .Values.alertmanager.resources | nindent 12 }}
+      volumes:
+        - name: script
+          configMap:
+            name: {{ $name }}
+        - name: state
+          emptyDir: {}

@@ -39,6 +39,7 @@ SECRET_KEYS = (
     "WATERFALL_SERVER_ACTIONS_KEY",
     "WATERFALL_STORAGE_SECRET",
     "WATERFALL_STORAGE_RPC_SECRET",
+    "WATERFALL_GRAFANA_ADMIN_PASSWORD",
 )
 """The keys of the Secret of the platform: the names of production.env.example."""
 # Helm says, on its standard error, that it follows each link of files/ to deploy/compose.

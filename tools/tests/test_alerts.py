@@ -226,8 +226,11 @@ def test_a_failure_unread_for_over_an_hour_ends_its_alert_and_a_live_replica_tha
         {failed: "0x1 stale _x80"},
         [
             (1, "scheduled_backup_failed", [ALERT]),
-            (59, "scheduled_backup_failed", [ALERT]),
-            (63, "scheduled_backup_failed", []),
+            # The last sample read is at 1: the window of an hour, (0, 60], holds it at 60, and
+            # (1, 61] no more at 61: [59m] ends it at 60, [61m] and [62m] hold it at 61.
+            (60, "scheduled_backup_failed", [ALERT]),
+            (61, "scheduled_backup_failed", []),
+            (62, "scheduled_backup_failed", []),
         ],
     )
     play(rules, {failed: "0x5", other: "1x5"}, [(3, "scheduled_backup_failed", [])])

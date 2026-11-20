@@ -163,6 +163,8 @@ def test_the_chart_describes_the_services_the_ingress_the_secrets_and_the_volume
         "redis": {"redis": 6379},
         "storage": {"s3": 3900},
         "prometheus": {"http": 9090},
+        "alertmanager": {"http": 9093},
+        "grafana": {"http": 3000},
         # Headless, by which Prometheus finds every instance (US-2880).
         "front-metrics": {"metrics": 9100},
         "api-metrics": {"http": 8000},
@@ -188,6 +190,8 @@ def test_the_ingress_serves_keycloak_under_auth_and_the_front_elsewhere(objects:
     assert routes == {
         ("/", "Prefix"): "waterfall-front",
         ("/auth", "Prefix"): "waterfall-keycloak",
+        # The dashboard of the operator, with an account of its own (US-2880, TFX-15).
+        ("/grafana", "Prefix"): "waterfall-grafana",
         ("/auth/callback", "Exact"): "waterfall-front",
         ("/auth/sign-out", "Exact"): "waterfall-front",
         # The console and the realm master, which the front has no page for, never Keycloak.

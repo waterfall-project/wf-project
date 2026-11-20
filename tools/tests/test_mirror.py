@@ -167,6 +167,8 @@ def test_every_image_of_docker_hub_the_files_name_is_pinned_by_a_digest() -> Non
         "adorsys/keycloak-config-cli",
         "keycloak/keycloak",
         "prom/prometheus",
+        "prom/alertmanager",
+        "grafana/grafana",
     }
     for image in images:
         assert re.fullmatch(r"sha256:[0-9a-f]{64}", image.digest)

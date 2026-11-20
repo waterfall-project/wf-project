@@ -12,6 +12,11 @@ global:
   evaluation_interval: 15s
 rule_files:
   - alerts.yml
+# Where the alerts are sent: the Alertmanager of the platform, which notifies them (US-2880).
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: [alertmanager:9093]
 scrape_configs:
   - job_name: front
     dns_sd_configs:

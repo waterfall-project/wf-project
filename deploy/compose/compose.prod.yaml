@@ -7,7 +7,8 @@
 # worker and the schedule of its tasks, the service of the restoration; PostgreSQL with two
 # databases, Waterfall's and Keycloak's; Redis; Garage, the object storage, and the buckets it
 # makes; Keycloak and the application of its realm; Prometheus, which collects the metrics and
-# evaluates the alerts; the data in named volumes. How to install, bootstrap, update, back up and
+# evaluates the alerts, Alertmanager, which notifies them, and Grafana, the dashboard of the
+# operator; the data in named volumes. How to install, bootstrap, update, back up and
 # stop it: README.md.
 #
 # The third-party images are Docker Hub's: only the chain poses WATERFALL_MIRROR (its mirror on
@@ -503,12 +504,73 @@ services:
       timeout: 3s
       retries: 30
 
+  # Alertmanager (US-2880, WF-OBS-0030): it notifies each alert of Prometheus by e-mail, through the
+  # mail server .env names — none, nothing is notified —, its configuration written at each start
+  # (alertmanager.sh). It publishes no port: Prometheus reaches it inside the network of the platform.
+  alertmanager:
+    image: ${WATERFALL_MIRROR:-}prom/alertmanager:v0.35.0@sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c
+    entrypoint: ["/bin/sh", "/etc/waterfall/alertmanager.sh"]
+    # Alone: no cluster of replicas to join.
+    command: ["--storage.path=/alertmanager", "--cluster.listen-address="]
+    environment:
+      WATERFALL_ALERT_SMTP_HOST: ${WATERFALL_ALERT_SMTP_HOST:-}
+      WATERFALL_ALERT_SMTP_FROM: ${WATERFALL_ALERT_SMTP_FROM:-}
+      WATERFALL_ALERT_RECIPIENT: ${WATERFALL_ALERT_RECIPIENT:-}
+      WATERFALL_ALERT_SMTP_REQUIRE_TLS: ${WATERFALL_ALERT_SMTP_REQUIRE_TLS:-true}
+      WATERFALL_ALERT_SMTP_USER: ${WATERFALL_ALERT_SMTP_USER:-}
+      WATERFALL_ALERT_SMTP_PASSWORD: ${WATERFALL_ALERT_SMTP_PASSWORD:-}
+    volumes:
+      - ./alertmanager.sh:/etc/waterfall/alertmanager.sh:ro
+      - alertmanager-data:/alertmanager
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9093/-/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # Grafana (US-2880, WF-OBS-0030): the dashboard of the operator, delivered, on the one source that
+  # is the Prometheus of the platform. It has its own account, outside Keycloak (TFX-15), whose password
+  # .env must hold — it does not start without. It reads neither PostgreSQL nor Redis, and keeps nothing
+  # in a volume: its account is written at each start, so that the password of .env is the one that
+  # opens it. Served under /grafana by the door.
+  grafana:
+    image: ${WATERFALL_MIRROR:-}grafana/grafana:13.1.0@sha256:121a7a9ece6dc10b969f1f96eed64b4f07dfac0d0b8abc070f7cb83bbde86f63
+    environment:
+      GF_SECURITY_ADMIN_USER: ${WATERFALL_GRAFANA_ADMIN_USER:-operator}
+      GF_SECURITY_ADMIN_PASSWORD: ${WATERFALL_GRAFANA_ADMIN_PASSWORD:?set WATERFALL_GRAFANA_ADMIN_PASSWORD in .env}
+      GF_SERVER_ROOT_URL: https://${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}${WATERFALL_HTTPS_PORT:+:${WATERFALL_HTTPS_PORT}}/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      # The door serves the platform in HTTPS alone: the cookie of the session never goes in the clear.
+      GF_SECURITY_COOKIE_SECURE: "true"
+      # Nothing leaves the platform: no check of updates, no report, no news, no plugin to install.
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_PLUGINS_PLUGIN_ADMIN_ENABLED: "false"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+    volumes:
+      - ./grafana-datasource.yml:/etc/grafana/provisioning/datasources/waterfall.yml:ro
+      - ./grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/waterfall.yml:ro
+      - ./grafana-dashboard.json:/var/lib/waterfall-dashboards/waterfall.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/grafana/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
 volumes:
   caddy-data:
   caddy-config:
   postgres-data:
   storage-data:
   prometheus-data:
+  alertmanager-data:
   # Where the service of the restoration asks keycloak-realm to apply the realm again, and reads the
   # answer: in memory, theirs alone, written by the user of both images.
   realm-requests:
