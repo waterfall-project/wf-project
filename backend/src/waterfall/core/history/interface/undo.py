@@ -315,8 +315,8 @@ def carry_everywhere(
 
     Limit (#4214): it writes into the stacks of other contributors without taking their lock; a
     concurrent write of one of them may be missed by the carrying, and the worst effect is a false
-    conflict (409) on a later undoing, never an overwriting. Cost accepted (#4215): it walks every
-    stack of the project at each change of the identity of a risk, which is rare.
+    conflict (409) on a later undoing or redoing, never an overwriting. Cost accepted (#4215): it
+    walks every stack of the project at each change of the identity of a risk, which is rare.
     """
     old = {o: v[0] for o, v in moved.items()}
     new = {o: v[1] for o, v in moved.items()}

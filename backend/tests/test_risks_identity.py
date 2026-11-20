@@ -396,9 +396,9 @@ def test_a_risk_renamed_renames_its_own_estimate_and_its_provision_line_outside_
     risks: Risks, project: Costed, realm: TestRealm
 ) -> None:
     # Cites no requirement: a decision of #3980, no Vérif of an exigence. Option (a): the current
-    # revision follows the label, as the declaration named them
-    # (« Provision — <libellé> »); the severity and the provision stay, and no entry of the history
-    # is written, the identity being the project's (H-02).
+    # revision follows the label, as the declaration named them (« Provision — <libellé> »); the
+    # severity and the provision stay, and no entry of the history is written, the identity being
+    # the project's (H-02).
     writer = signed_in(project.stage, realm)
     risk = risks.declared()
     risks.costed_at(risk, project.revision_id, "200.00")
@@ -445,9 +445,9 @@ def test_a_risk_renamed_without_a_current_revision_names_the_revision_opened_aft
     risks: Risks, project: Costed
 ) -> None:
     # Cites no requirement: a decision of #3980, a detail of the copy. Nothing is written but the
-    # identity, the marked revision keeping its names; the copy
-    # that opens the next revision names the own estimate and the line by the label of the risk,
-    # not by those of the last revision marked.
+    # identity, the marked revision keeping its names; the copy that opens the next revision names
+    # the own estimate and the line by the label of the risk, not by those of the last revision
+    # marked.
     risk = risks.declared()
     mark(project.stage, {"revision_id": str(project.revision_id)})
     before = revisions_of(project)
