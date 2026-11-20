@@ -264,8 +264,12 @@ def check_security_headers(browser: Browser, platform: Platform) -> None:
             raise ProductionError(message)
 
 
-def check_console_hidden(browser: Browser, platform: Platform) -> None:
-    """Hold that the console of Keycloak and its realm master are not served."""
+def check_console_answers_not_found(browser: Browser, platform: Platform) -> None:
+    """Hold that Caddy answers 404, at the first request, to the console and the realm master.
+
+    Not ``wftools.charttrial.check_console_not_served``, which follows the redirection of the front
+    and admits its screen "not found": behind Caddy the front is never reached.
+    """
     for path in HIDDEN:
         answer = browser.request("GET", f"{platform.address}{path}")
         if answer.status != NOT_FOUND:
@@ -380,7 +384,7 @@ def trial(
         print(f"  HTTP sends to {platform.address}")
         check_security_headers(Browser(sent), platform)
         print(f"  HTTPS answers with {', '.join(SECURITY_HEADERS)}")
-        check_console_hidden(Browser(sent), platform)
+        check_console_answers_not_found(Browser(sent), platform)
         print(f"  {' and '.join(HIDDEN)} answer {NOT_FOUND}")
         check_metrics_hidden(Browser(sent), platform)
         print(f"  {' and '.join(METRICS)} answer {NOT_FOUND}")

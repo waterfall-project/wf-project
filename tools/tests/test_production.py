@@ -756,10 +756,10 @@ def test_an_answer_in_https_without_hsts_or_a_header_of_caddy_fails(
 
 
 def test_the_console_of_keycloak_and_its_realm_master_must_not_be_served() -> None:
-    production.check_console_hidden(Browser(FakePlatform({}).send), PLATFORM)
+    production.check_console_answers_not_found(Browser(FakePlatform({}).send), PLATFORM)
     served = FakePlatform({path: fixed(200) for path in production.HIDDEN})
     with pytest.raises(ProductionError, match="/auth/admin/ answered 200, not 404"):
-        production.check_console_hidden(Browser(served.send), PLATFORM)
+        production.check_console_answers_not_found(Browser(served.send), PLATFORM)
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")

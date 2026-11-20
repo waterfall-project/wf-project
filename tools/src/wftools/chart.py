@@ -18,6 +18,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
 
+import yaml
+
 from wftools import REPOSITORY, kubetools
 
 TOOL = "wftools.chart"
@@ -60,6 +62,12 @@ def chain_values() -> dict[str, Any]:
         },
         "secrets": {"values": {key: f"chainonly{index}" for index, key in enumerate(SECRET_KEYS)}},
     }
+
+
+def defaults() -> dict[str, Any]:
+    """Return the values the chart ships with: the images it pins, the key of its storage."""
+    shipped: Any = yaml.safe_load((CHART / "values.yaml").read_text(encoding="utf-8"))
+    return cast("dict[str, Any]", shipped)
 
 
 def merged(base: Mapping[str, Any], given: Mapping[str, Any]) -> dict[str, Any]:

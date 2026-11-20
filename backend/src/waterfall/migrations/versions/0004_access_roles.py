@@ -8,6 +8,11 @@ the service reads the catalogue and writes nothing in it (WF-ADM-0100); it creat
 role but never deletes one, which is marked deleted (WF-DAT-0080); it adds and removes the rows of
 the two associations, which hold nothing but their keys. The extension ``unaccent`` serves the
 search of a label, which ignores the accents (contract, README).
+
+The search also lowers a text in the collation ``und-x-icu``, which only a PostgreSQL built with ICU
+has. A server without it would let this migration pass, then answer 500 to every search: the
+migration refuses it first, saying what the server lacks (docs/exploitation/postgresql-fourni.md,
+#742).
 """
 
 from typing import TYPE_CHECKING, Any
@@ -18,10 +23,37 @@ from alembic import op
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from sqlalchemy.engine import Connection
+
 revision: str = "0004"
 down_revision: str | None = "0003"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
+# The collation the search lowers a text in (``waterfall.platform.database.EVERY_LETTER``, copied:
+# a migration never follows the code).
+COLLATION = "und-x-icu"
+
+
+class CollationMissingError(RuntimeError):
+    """The server has no ICU collation the search needs."""
+
+
+def require_collation(connection: Connection, name: str = COLLATION) -> None:
+    """Fail, saying what to install, when the server does not know the collation ``name``."""
+    found = connection.execute(
+        sa.text("SELECT 1 FROM pg_collation WHERE collname = :name"), {"name": name}
+    ).first()
+    if found is None:
+        message = (
+            f"the collation {name!r} is not in pg_collation: "
+            "this PostgreSQL was built without ICU. "
+            "The search of Waterfall lowers a text in it, and would answer 500 to every request. "
+            "Use a PostgreSQL built with ICU, as the official image is "
+            "(docs/exploitation/postgresql-fourni.md)."
+        )
+        raise CollationMissingError(message)
+
 
 GRANT = """
 DO $$
@@ -49,6 +81,7 @@ def _audited() -> list[sa.Column[Any]]:
 
 def upgrade() -> None:
     """Create the four tables and the extension, and grant the service what it needs."""
+    require_collation(op.get_bind())
     op.execute("CREATE EXTENSION unaccent")
     op.create_table(
         "permission",

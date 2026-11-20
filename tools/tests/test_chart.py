@@ -213,6 +213,7 @@ def test_the_realm_is_applied_by_a_hook_after_each_installation_and_upgrade(
     }
     assert hooks == {
         "migrate": ("post-install,pre-upgrade", -10),
+        "buckets": ("post-install,pre-upgrade", -10),
         "realm": ("post-install,post-upgrade", 0),
         "install": ("post-install", 10),
     }
@@ -234,10 +235,13 @@ def test_the_migrations_run_in_the_order_of_the_compose_as_the_roles_it_names(
         "waterfall-database",
         "keycloak-database",
         "backup-database-role",
-        "storage-buckets",
         "migrate",
         "service-database-role",
     ]
+    # The buckets are a hook of their own, which the storage of the chart may not precede.
+    (buckets,) = containers(of_kind(objects, "Job")["buckets"])
+    assert buckets["name"] == "storage-buckets"
+    assert environment(buckets)["STORAGE_ADDRESS"] == "http://waterfall-storage:3900"
     assert environment(steps["migrate"])["WATERFALL_DATABASE_URL"].startswith(
         "postgresql://waterfall:$(WATERFALL_POSTGRES_PASSWORD)@"
     )
@@ -282,9 +286,12 @@ def test_the_chart_reads_the_images_of_the_compose(objects: Objects) -> None:
 
 
 def test_the_files_the_chart_mounts_are_those_of_the_compose(objects: Objects) -> None:
-    files = of_kind(objects, "ConfigMap")["files"]
-    for name, content in files["data"].items():
-        assert content == (COMPOSE / name).read_text(encoding="utf-8").rstrip("\n"), name
+    configmaps = of_kind(objects, "ConfigMap")
+    # The hook has its own, of the steps of the database alone (hooks.yaml).
+    assert set(configmaps["hook-files"]["data"]) < set(configmaps["files"]["data"])
+    for files in (configmaps["files"], configmaps["hook-files"]):
+        for name, content in files["data"].items():
+            assert content == (COMPOSE / name).read_text(encoding="utf-8").rstrip("\n"), name
 
 
 def test_no_pod_reads_the_variables_of_the_services_of_its_namespace(objects: Objects) -> None:

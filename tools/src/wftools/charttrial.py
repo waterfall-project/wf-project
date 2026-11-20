@@ -4,20 +4,31 @@
 
 Usage: ``python -m wftools.charttrial``.
 
-The chart of ``deploy/helm/waterfall`` is installed on an empty cluster, with its data components
-(WF-ARC-0050), from the images tagged ``WATERFALL_IMAGE_TAG`` — the commit of the checkout unless it
-names another —, which the chain has just built (``make check-chart``) and which are loaded into the
-cluster. The cluster, ``WATERFALL_CHART_CLUSTER`` (``waterfall-chart``), is made by kind, with
-Traefik as its controller of ingresses, the one k3s ships, and is reached on a free port of the
-loopback; under a local name, ``waterfall.localhost``, whose certificate an authority of the trial
-signs, which the front and this tool alone trust. Every secret of the platform is drawn for it. Then
-it holds, as ``wftools.production`` holds the Compose, and by its functions, that:
+The chart of ``deploy/helm/waterfall`` is installed on an empty cluster, twice (WF-ARC-0050-A): with
+its data components, then with those an operator provides — PostgreSQL, Redis and the object storage
+posed beside it by ``wftools.chartdata``, at addresses and with a Secret the operator gives —, on
+the one cluster, the first installation removed before the second. The images are tagged
+``WATERFALL_IMAGE_TAG`` — the commit of the checkout unless it names another —, which the chain
+has just built (``make check-chart``) and which are loaded into the cluster. The cluster,
+``WATERFALL_CHART_CLUSTER`` (``waterfall-chart``), is made by kind, with Traefik as its controller
+of ingresses, the one k3s ships, and is reached on a free port of the loopback; under a local name,
+``waterfall.localhost``, whose certificate an authority of the trial signs, which the front and
+this tool alone trust. Every secret of the platform is drawn for it. Then it holds, as
+``wftools.production`` holds the Compose, and by its functions, that, in each case:
 
 - the installation ends, its hooks included: the migrations, the realm applied, and the bootstrap,
   whose Job wrote the link of the first administrator;
 - the API answers its liveness probe, ``status`` ``ok``;
 - the first administrator sets their password by the link, signs in through the front and Keycloak
-  under ``/auth``, behind the ingress, and the front names them.
+  under ``/auth``, behind the ingress, and the front names them;
+
+and, once more:
+
+- on the components of the chart, the API goes from one instance to three by one value,
+  ``api.replicas``, under requests held for the whole of the upgrade, none of which fails, and no
+  pod that was there — PostgreSQL's included — is replaced or restarted (``wftools.chartload``);
+- on the components of the operator's, the chart makes none of its own, and the migrations ended
+  before the installation began.
 
 The cluster is deleted at the end, whatever the outcome; what the pods said is printed first when it
 fails. The third-party images are read from the mirror when ``WATERFALL_MIRROR`` gives it, with the
@@ -39,7 +50,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from wftools import REPOSITORY, chart, kubetools
+from wftools import REPOSITORY, chart, chartdata, chartload, kubetools
 from wftools.images import REGISTRY
 from wftools.production import (
     HIDDEN,
@@ -50,6 +61,7 @@ from wftools.production import (
     Browser,
     Platform,
     ProductionError,
+    Send,
     check_liveness,
     check_metrics_hidden,
     check_signed_in,
@@ -88,13 +100,18 @@ IMAGES = ("front", "waterfall", "keycloak")
 INSTALLATION = "20m"
 """How long Helm waits for the hooks: the first start of Keycloak and its realm are the longest."""
 ROLLOUT = "10m"
+SCALED_TO = 3
+"""The instances of the API the trial takes it to, from one: the most the chart is sized for."""
 
 Run = Callable[[list[str]], int]
 Read = Callable[[list[str]], tuple[int, str]]
 
 
-def check_console_hidden(browser: Browser, platform: Platform) -> None:
+def check_console_not_served(browser: Browser, platform: Platform) -> None:
     """Hold that the console of Keycloak and its realm master are not served behind the front.
+
+    Not ``wftools.production.check_console_answers_not_found``, which holds the 404 of Caddy at the
+    first request: the ingress sends these paths to the front, which answers as follows.
 
     The ingress sends these paths to the front, which answers 308 to the address without its
     slash, then shows its screen "not found" with the status 200 and `noindex` (a soft 404, as its
@@ -165,13 +182,17 @@ def cluster_configuration(port: int, docker_config: Path | None) -> dict[str, An
 
 
 def chart_values(
-    tag: str, platform: Platform, ingress_address: str, given: Mapping[str, str]
+    tag: str,
+    platform: Platform,
+    ingress_address: str,
+    given: Mapping[str, str],
+    drawn: Mapping[str, str],
 ) -> dict[str, Any]:
-    """Return the values the chart is installed with on the cluster of the trial."""
+    """Return the values the chart is installed with on the cluster of the trial, its own data."""
     return {
         "platform": {"domain": platform.domain, "httpsPort": str(platform.https_port)},
         "images": {"tag": tag, "mirror": given.get("WATERFALL_MIRROR", "")},
-        "secrets": {"values": drawn_secrets()},
+        "secrets": {"values": dict(drawn)},
         "bootstrap": {"adminEmail": ADMIN, "currency": "EUR", "companyName": "Delmas Automatismes"},
         "ingress": {"className": "traefik", "tlsSecret": CERTIFICATE},
         "transport": {"authority": AUTHORITY},
@@ -189,16 +210,18 @@ def free_port() -> int:
         return port
 
 
-def _must(run: Run, command: list[str]) -> None:
+def _must(run: Run, command: list[str], what: str) -> None:
+    """Run a command that must succeed; fail naming what it was for — its words say not."""
     if code := run(command):
-        message = f"{Path(command[0]).name} {' '.join(command[-4:])} failed ({code})"
+        message = f"{what} failed ({code})"
         raise TrialError(message)
 
 
-def _output(read: Read, command: list[str]) -> str:
+def _output(read: Read, command: list[str], what: str) -> str:
+    """Run a command that must succeed and return what it wrote; fail naming what it was for."""
     code, output = read(command)
     if code != 0:
-        message = f"{Path(command[0]).name} {' '.join(command[-4:])} failed ({code})"
+        message = f"{what} failed ({code})"
         raise TrialError(message)
     return output
 
@@ -234,6 +257,7 @@ def make_authority(read: Read, folder: Path, domain: str) -> None:
             "-addext",
             "keyUsage=critical,keyCertSign,cRLSign",
         ],
+        "make the authority of the trial",
     )
     _output(
         read,
@@ -248,6 +272,7 @@ def make_authority(read: Read, folder: Path, domain: str) -> None:
             "-out",
             f"{certificate}.csr",
         ],
+        "make the key and the request of the certificate",
     )
     _output(
         read,
@@ -268,6 +293,7 @@ def make_authority(read: Read, folder: Path, domain: str) -> None:
             "-extfile",
             str(extensions),
         ],
+        "sign the certificate",
     )
 
 
@@ -285,6 +311,11 @@ class Trial:
     def kubeconfig(self) -> str:
         """Return the file kind writes the access to the cluster to: never the user's own."""
         return str(self.folder / "kubeconfig")
+
+    @property
+    def kubectl(self) -> list[str]:
+        """Return kubectl on the namespace of the platform."""
+        return [*self.tools.kubectl, "--namespace", NAMESPACE]
 
     def create(self, name: str, docker_config: Path | None) -> None:
         """Make the cluster, publishing HTTPS on the loopback."""
@@ -310,6 +341,7 @@ class Trial:
                 "--wait",
                 "5m",
             ],
+            "create the cluster",
         )
 
     def load(self, name: str, tag: str) -> None:
@@ -319,7 +351,11 @@ class Trial:
             if self.run(["docker", "image", "inspect", "--format", "{{.Id}}", reference]):
                 message = f"{reference} is not built here: make images first"
                 raise TrialError(message)
-        _must(self.run, [*self.tools.kind, "load", "docker-image", "--name", name, *references])
+        _must(
+            self.run,
+            [*self.tools.kind, "load", "docker-image", "--name", name, *references],
+            "load the images into the cluster",
+        )
 
     def ingress(self) -> str:
         """Install Traefik, serving HTTPS on the port of the node; return its address inside."""
@@ -340,19 +376,28 @@ class Trial:
                 "--timeout",
                 "5m",
             ],
+            "install Traefik",
         )
         command = [*self.tools.kubectl, "--namespace", "traefik", "get", "service", "traefik"]
-        return _output(self.read, [*command, "--output", "jsonpath={.spec.clusterIP}"]).strip()
+        found = _output(
+            self.read,
+            [*command, "--output", "jsonpath={.spec.clusterIP}"],
+            "read the address of Traefik",
+        )
+        return found.strip()
 
-    def install(self, values: Mapping[str, Any]) -> None:
-        """Give the cluster the certificate and the authority, then install the chart."""
-        kubectl = [*self.tools.kubectl, "--namespace", NAMESPACE]
-        _must(self.run, [*self.tools.kubectl, "create", "namespace", NAMESPACE])
+    def prepare(self) -> None:
+        """Make the namespace of the platform, with its certificate and the authority."""
+        _must(
+            self.run,
+            [*self.tools.kubectl, "create", "namespace", NAMESPACE],
+            "create the namespace",
+        )
         certificate = self.folder / "tls"
         _must(
             self.run,
             [
-                *kubectl,
+                *self.kubectl,
                 "create",
                 "secret",
                 "tls",
@@ -362,18 +407,65 @@ class Trial:
                 "--key",
                 f"{certificate}.key",
             ],
+            "make the secret of the certificate",
         )
         _must(
             self.run,
             [
-                *kubectl,
+                *self.kubectl,
                 "create",
                 "secret",
                 "generic",
                 AUTHORITY,
                 f"--from-file=ca.crt={self.folder / 'ca.crt'}",
             ],
+            "make the secret of the authority",
         )
+
+    def provide(self, drawn: Mapping[str, str], mirror: str) -> None:
+        """Pose the data components of an operator, and the Secret of the platform it gives.
+
+        The Secret holds the keys of the platform, as the operator makes it before the installation:
+        from a file, never the command line, which the processes of the workstation list.
+        """
+        manifests = self.folder / "data.json"
+        manifests.write_text(
+            json.dumps(
+                {"apiVersion": "v1", "kind": "List", "items": chartdata.manifests(drawn, mirror)}
+            ),
+            encoding="utf-8",
+        )
+        _must(
+            self.run,
+            [*self.tools.kubectl, "apply", "--filename", str(manifests)],
+            "pose the data components of the operator",
+        )
+        data = [*self.tools.kubectl, "--namespace", chartdata.NAMESPACE]
+        _must(
+            self.run,
+            [*data, "rollout", "status", "deployment", "--timeout", ROLLOUT],
+            "wait for the data components of the operator",
+        )
+        environment = self.folder / "secret.env"
+        environment.write_text(
+            "".join(f"{key}={value}\n" for key, value in drawn.items()), encoding="utf-8"
+        )
+        _must(
+            self.run,
+            [
+                *self.kubectl,
+                "create",
+                "secret",
+                "generic",
+                chartdata.KEYS,
+                f"--from-env-file={environment}",
+            ],
+            "make the secret of the operator",
+        )
+        print("  PostgreSQL, Redis and the object storage are posed beside the chart", flush=True)
+
+    def install(self, values: Mapping[str, Any]) -> None:
+        """Install the chart, with its hooks, and wait for what it deploys."""
         given = self.folder / "values.json"
         given.write_text(json.dumps(values), encoding="utf-8")
         _must(
@@ -390,23 +482,43 @@ class Trial:
                 "--timeout",
                 INSTALLATION,
             ],
+            "install the chart",
         )
         print("  the chart is installed, its hooks done: migrations, realm, bootstrap", flush=True)
+        self.rolled_out()
+
+    def rolled_out(self) -> None:
+        """Wait until every deployment and statefulset of the platform is rolled out."""
         for kind in ("deployment", "statefulset"):
-            _must(self.run, [*kubectl, "rollout", "status", kind, "--timeout", ROLLOUT])
+            _must(
+                self.run,
+                [*self.kubectl, "rollout", "status", kind, "--timeout", ROLLOUT],
+                f"wait for the rollout of the {kind}s",
+            )
         print("  every deployment and statefulset is rolled out", flush=True)
 
-    def hold(self, email: str) -> None:
-        """Hold the bootstrap, the liveness of the API, the sign-in of the first administrator."""
-        kubectl = [*self.tools.kubectl, "--namespace", NAMESPACE]
-        logs = _output(self.read, [*kubectl, "logs", f"job/{chart.RELEASE}-install"])
+    def hold(self, email: str) -> Browser:
+        """Hold the bootstrap, the liveness of the API, the sign-in of the first administrator.
+
+        Return the browser, signed in, which holds the session the requests of an upgrade reuse.
+        """
+        logs = _output(
+            self.read,
+            [*self.kubectl, "logs", f"job/{chart.RELEASE}-install"],
+            "read the log of the bootstrap",
+        )
         link = installation_link(logs, self.platform)
         print("  the bootstrap wrote the link of the first administrator", flush=True)
         api = f"deployment/{chart.RELEASE}-api"
-        check_liveness(_output(self.read, [*kubectl, "exec", api, "--", "python", "-c", LIVENESS]))
+        alive = _output(
+            self.read,
+            [*self.kubectl, "exec", api, "--", "python", "-c", LIVENESS],
+            "ask the API for its liveness",
+        )
+        check_liveness(alive)
         print("  the API answers its liveness probe: ok", flush=True)
-        browser = Browser(sender(self.platform)(self.folder / "ca.crt"))
-        check_console_hidden(browser, self.platform)
+        browser = Browser(self.sender())
+        check_console_not_served(browser, self.platform)
         print("  the console of Keycloak and its realm master are not served: ok", flush=True)
         check_metrics_hidden(browser, self.platform)
         print(f"  {' and '.join(METRICS)} answer {NOT_FOUND} at the ingress: ok", flush=True)
@@ -419,24 +531,157 @@ class Trial:
             f"  the first administrator signs in at {self.platform.address}; the front names them",
             flush=True,
         )
+        return browser
+
+    def sender(self) -> Send:
+        """Return the sender of the requests: it trusts the authority of the trial alone."""
+        return sender(self.platform)(self.folder / "ca.crt")
+
+    def pods(self) -> dict[str, tuple[str, int]]:
+        """Return the pods of the platform that run, by name: their identifier and restarts."""
+        selector = f"app.kubernetes.io/instance={chart.RELEASE}"
+        listing = _output(
+            self.read,
+            [*self.kubectl, "get", "pods", "--selector", selector, "--output", "json"],
+            "list the pods of the platform",
+        )
+        return chartload.pods_of(json.loads(listing))
+
+    def scale(self, values: Mapping[str, Any], browser: Browser, email: str, replicas: int) -> None:
+        """Take the API to ``replicas`` instances by its one value, under requests none may fail.
+
+        The chart is upgraded with the same values but that one. Requests of the first
+        administrator, signed in, are held from before the upgrade until every instance is ready;
+        none may fail, and no pod there was before may be replaced or restarted.
+        """
+        before = self.pods()
+        scaled = {**values, "api": {**values.get("api", {}), "replicas": replicas}}
+        given = self.folder / "values.json"
+        given.write_text(json.dumps(scaled), encoding="utf-8")
+        with chartload.requests_held(self.sender(), browser, self.platform, email) as held:
+            _must(
+                self.run,
+                [
+                    *self.tools.helm,
+                    "upgrade",
+                    chart.RELEASE,
+                    str(chart.CHART),
+                    "--namespace",
+                    NAMESPACE,
+                    "--values",
+                    str(given),
+                    "--wait",
+                    "--timeout",
+                    INSTALLATION,
+                ],
+                "upgrade the chart to the new number of instances",
+            )
+            self.rolled_out()
+        chartload.check_uninterrupted(held)
+        print(f"  {held.sent} requests were held through the upgrade, none failed", flush=True)
+        chartload.check_untouched(before, self.pods())
+        ready = _output(
+            self.read,
+            [
+                *self.kubectl,
+                "get",
+                f"deployment/{chart.RELEASE}-api",
+                "--output",
+                "jsonpath={.status.readyReplicas}",
+            ],
+            "count the instances of the API that are ready",
+        )
+        if ready.strip() != str(replicas):
+            message = f"{ready.strip() or 'none'} instances of the API are ready, not {replicas}"
+            raise TrialError(message)
+        print(
+            f"  the API goes from one instance to {replicas} by api.replicas; "
+            f"the {len(before)} pods there were are the same, none restarted",
+            flush=True,
+        )
+
+    def hold_provided(self) -> None:
+        """Hold that the chart made no data component, and that it migrated before it installed."""
+        found = _output(
+            self.read,
+            [
+                *self.kubectl,
+                "get",
+                "pods",
+                "--selector",
+                f"app.kubernetes.io/component in ({','.join(chartdata.COMPONENTS)})",
+                "--output",
+                "name",
+            ],
+            "list the data components of the chart",
+        ).split()
+        if found:
+            message = f"the chart made its own {', '.join(found)}, the operator providing them"
+            raise TrialError(message)
+        print("  the chart made no PostgreSQL, Redis or storage of its own: ok", flush=True)
+        migrate = f"job/{chart.RELEASE}-migrate"
+        api = f"deployment/{chart.RELEASE}-api"
+        done = _output(
+            self.read,
+            [*self.kubectl, "get", migrate, "--output", "jsonpath={.status.completionTime}"],
+            "read when the migrations ended",
+        ).strip()
+        began = _output(
+            self.read,
+            [*self.kubectl, "get", api, "--output", "jsonpath={.metadata.creationTimestamp}"],
+            "read when the installation began",
+        ).strip()
+        chartload.check_before(done, began)
+        print(
+            f"  the migrations ended at {done}, before the installation began at {began}",
+            flush=True,
+        )
+
+    def remove(self) -> None:
+        """Remove the installation and its namespaces, to make the next one on the cluster."""
+        _must(
+            self.run,
+            [*self.tools.helm, "uninstall", chart.RELEASE, "--namespace", NAMESPACE],
+            "uninstall the chart",
+        )
+        for namespace in (NAMESPACE, chartdata.NAMESPACE):
+            _must(
+                self.run,
+                [
+                    *self.tools.kubectl,
+                    "delete",
+                    "namespace",
+                    namespace,
+                    "--ignore-not-found",
+                    "--timeout",
+                    ROLLOUT,
+                ],
+                f"delete the namespace {namespace}",
+            )
 
     def report(self) -> None:
         """Print what the pods of the platform are and said, when the trial fails."""
-        kubectl = [*self.tools.kubectl, "--namespace", NAMESPACE]
         self.run([*self.tools.kubectl, "get", "pods", "--all-namespaces", "--output", "wide"])
-        self.run([*kubectl, "get", "events", "--sort-by", ".lastTimestamp"])
-        self.run(
-            [
-                *kubectl,
-                "logs",
-                "--all-containers",
-                "--prefix",
-                "--tail",
-                "100",
-                "--selector",
-                f"app.kubernetes.io/instance={chart.RELEASE}",
-            ]
+        self.run([*self.kubectl, "get", "events", "--sort-by", ".lastTimestamp"])
+        selectors = (
+            (NAMESPACE, f"app.kubernetes.io/instance={chart.RELEASE}"),
+            (chartdata.NAMESPACE, f"app.kubernetes.io/managed-by={chartdata.MANAGER}"),
         )
+        for namespace, selector in selectors:
+            self.run(
+                [
+                    *self.tools.kubectl,
+                    "--namespace",
+                    namespace,
+                    "logs",
+                    "--all-containers",
+                    "--prefix",
+                    "--tail",
+                    "100",
+                    "--selector",
+                    selector,
+                ]
+            )
 
 
 def docker_config_of(environment: Mapping[str, str]) -> Path | None:
@@ -449,7 +694,7 @@ def docker_config_of(environment: Mapping[str, str]) -> Path | None:
 
 
 def main(environment: Mapping[str, str] | None = None) -> int:
-    """Make the cluster, install the chart and hold it, then delete the cluster."""
+    """Make the cluster, install the chart on both footings and hold it, then delete the cluster."""
     given = dict(os.environ if environment is None else environment)
     name = given.get("WATERFALL_CHART_CLUSTER") or CLUSTER
     platform = Platform(DOMAIN, free_port(), 0)
@@ -469,8 +714,20 @@ def main(environment: Mapping[str, str] | None = None) -> int:
             trial.create(name, docker_config_of(given))
             trial.load(name, tag)
             address = trial.ingress()
-            trial.install(chart_values(tag, platform, address, given))
+            drawn = drawn_secrets()
+            values = chart_values(tag, platform, address, given, drawn)
+            print("the chart, on the data components it makes:", flush=True)
+            trial.prepare()
+            trial.install(values)
+            browser = trial.hold(ADMIN)
+            trial.scale(values, browser, ADMIN, SCALED_TO)
+            trial.remove()
+            print("the chart, on the data components of an operator:", flush=True)
+            trial.prepare()
+            trial.provide(drawn, given.get("WATERFALL_MIRROR", ""))
+            trial.install(chartdata.provided_values(values))
             trial.hold(ADMIN)
+            trial.hold_provided()
             failed = False
         except (TrialError, ProductionError, OSError) as error:
             print(f"{TOOL}: {error}", file=sys.stderr)

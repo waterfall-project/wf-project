@@ -4,7 +4,7 @@
 # The worker (compose.prod.yaml, worker), a deployment of its own, of worker.replicas replicas: it
 # runs the background tasks of the queue (WF-ARC-0090). A backup dumps both databases as the role of
 # the backup (#895) into the bucket of the backups.
-{{- $host := include "waterfall.postgresHost" . }}
+{{- $host := include "waterfall.postgresAddress" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -35,9 +35,9 @@ spec:
             {{- include "waterfall.storageEnvironment" . | nindent 12 }}
             {{- include "waterfall.secretEnv" (list . "WATERFALL_BACKUP_DATABASE_PASSWORD") | nindent 12 }}
             - name: WATERFALL_BACKUP_DATABASE_URL
-              value: {{ printf "postgresql://waterfall_backup:$(WATERFALL_BACKUP_DATABASE_PASSWORD)@%s:5432/waterfall" $host | quote }}
+              value: {{ printf "postgresql://waterfall_backup:$(WATERFALL_BACKUP_DATABASE_PASSWORD)@%s/waterfall" $host | quote }}
             - name: WATERFALL_KEYCLOAK_DATABASE_URL
-              value: {{ printf "postgresql://waterfall_backup:$(WATERFALL_BACKUP_DATABASE_PASSWORD)@%s:5432/keycloak" $host | quote }}
+              value: {{ printf "postgresql://waterfall_backup:$(WATERFALL_BACKUP_DATABASE_PASSWORD)@%s/keycloak" $host | quote }}
             # The metrics, on every interface of the pod, on a port no Service but the headless one
             # of Prometheus routes (prometheus.yaml, TFX-09).
             - name: WATERFALL_HOST

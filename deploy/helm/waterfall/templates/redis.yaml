@@ -3,6 +3,7 @@
 
 # Redis (compose.prod.yaml, redis): nothing durable is kept in it, the queue and the sessions are
 # lost with it, not the data; no volume, nothing saved.
+{{- if .Values.redis.enabled }}
 {{- $name := include "waterfall.name" (list . "redis") }}
 apiVersion: v1
 kind: Service
@@ -62,3 +63,4 @@ spec:
             timeoutSeconds: 3
           resources:
             {{- toYaml .Values.redis.resources | nindent 12 }}
+{{- end }}

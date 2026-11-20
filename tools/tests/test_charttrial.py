@@ -7,11 +7,13 @@ chart-trial`` in the full tier of the chain; these tests hold what the trial and
 Helm, kind and kubectl decide by themselves, without a cluster nor a download.
 """
 
+import ast
 import base64
 import hashlib
 import io
 import re
 import tarfile
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -23,7 +25,8 @@ from wftools.production import HIDDEN, Answer, Browser, Platform, ProductionErro
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from pathlib import Path
+
+pytestmark = [pytest.mark.requirement("WF-ARC-0050-A"), pytest.mark.story("US-2800")]
 
 PLATFORM = Platform("waterfall.localhost", 41443, 0)
 
@@ -104,7 +107,11 @@ def test_the_node_pulls_with_the_credentials_of_docker_only_from_the_mirror(tmp_
 
 
 def test_the_front_reaches_the_published_name_at_the_ingress_inside_the_cluster() -> None:
-    values = charttrial.chart_values("abc", PLATFORM, "10.96.0.7", {"WATERFALL_MIRROR": "m/"})
+    drawn = charttrial.drawn_secrets()
+    values = charttrial.chart_values(
+        "abc", PLATFORM, "10.96.0.7", {"WATERFALL_MIRROR": "m/"}, drawn
+    )
+    assert values["secrets"] == {"values": drawn}
     assert values["platform"] == {"domain": "waterfall.localhost", "httpsPort": "41443"}
     assert values["images"] == {"tag": "abc", "mirror": "m/"}
     assert values["front"]["hostAliases"] == [
@@ -131,20 +138,45 @@ def test_an_image_not_built_here_stops_the_trial_before_the_cluster_loads_any(
     assert not any(command[0] == "kind" for command in ran)
 
 
-def test_a_failed_command_is_named_by_what_it_did_not_by_its_flag(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("tool", "method", "what"),
+    [
+        ("kubectl", "prepare", "create the namespace"),
+        ("helm", "install", "install the chart"),
+        ("kind", "create", "create the cluster"),
+        ("helm", "ingress", "install Traefik"),
+        ("kubectl", "provide", "pose the data components of the operator"),
+        ("kubectl", "pods", "list the pods of the platform"),
+        ("kind", "load", "load the images into the cluster"),
+    ],
+    ids=["namespace", "helm install", "kind create", "traefik", "operator data", "pods", "load"],
+)
+def test_a_failed_command_is_named_by_what_it_was_for_not_by_its_words(
+    tmp_path: Path, tool: str, method: str, what: str
+) -> None:
+    arguments: dict[str, tuple[object, ...]] = {
+        "install": ({},),
+        "create": ("cluster", None),
+        "provide": (charttrial.drawn_secrets(), ""),
+        "load": ("cluster", "abc"),
+    }
+
     def run(command: list[str]) -> int:
-        return 1 if command[0] == "kubectl" else 0
+        return 1 if command[0] == tool else 0
+
+    def read(command: list[str]) -> tuple[int, str]:
+        return (1, "") if command[0] == tool else (0, "")
 
     trial = Trial(
-        Tools(["kind"], ["kubectl", "--kubeconfig", "k"], ["helm"]),
+        Tools(["kind"], ["kubectl", "--kubeconfig", "k"], ["helm", "--kubeconfig", "k"]),
         run,
-        lambda _: (0, ""),
+        read,
         tmp_path,
         PLATFORM,
     )
-    # The second word of a command of kubectl is its flag: the message names what it did.
-    with pytest.raises(TrialError, match=r"^kubectl k create namespace waterfall failed \(1\)$"):
-        trial.install({})
+    # The last words of a command are its flags and its values: the message says what it was for.
+    with pytest.raises(TrialError, match=rf"^{what} failed \(1\)$"):
+        getattr(trial, method)(*arguments.get(method, ()))
 
 
 def test_traefik_is_pulled_by_the_digest_of_its_artifact() -> None:
@@ -185,7 +217,7 @@ def test_the_trial_holds_that_the_console_and_the_master_realm_are_not_served(
     monkeypatch.setattr(charttrial, "installation_link", link)
     monkeypatch.setattr(charttrial, "sender", sender)
     monkeypatch.setattr(charttrial, "Browser", browser)
-    monkeypatch.setattr(charttrial, "check_console_hidden", hidden)
+    monkeypatch.setattr(charttrial, "check_console_not_served", hidden)
     monkeypatch.setattr(charttrial, "check_metrics_hidden", metrics_hidden)
     trial = Trial(
         Tools(["kind"], ["kubectl"], ["helm"]), lambda _: 0, lambda _: (0, "x"), tmp_path, PLATFORM
@@ -240,7 +272,7 @@ def test_the_console_behind_the_front_is_hidden_once_its_redirection_is_followed
         (where.replace("{bare}", bare) or path, _fill(answer, bare)) for where, answer in steps
     ]
     answers = _answers(path, *filled)
-    charttrial.check_console_hidden(_console_browser(answers), PLATFORM)
+    charttrial.check_console_not_served(_console_browser(answers), PLATFORM)
 
 
 def _fill(answer: Answer, bare: str) -> Answer:
@@ -251,22 +283,111 @@ def _fill(answer: Answer, bare: str) -> Answer:
 
 @pytest.mark.parametrize("path", HIDDEN)
 @pytest.mark.parametrize(
-    "steps",
+    ("steps", "ends"),
     [
-        [
-            ("", _moved(LOGIN)),
-            (LOGIN, Answer(200, (), '<meta name="robots" content="noindex, nofollow">')),
-        ],
-        [("", _moved(CONSOLE)), (CONSOLE, Answer(200, (), SOFT))],
-        [("", Answer(200, (), "console"))],
-        [("", Answer(500, (), ""))],
+        (
+            [
+                ("", _moved(LOGIN)),
+                (LOGIN, Answer(200, (), '<meta name="robots" content="noindex, nofollow">')),
+            ],
+            f"ends on 200 at {PLATFORM.address}{LOGIN}",
+        ),
+        (
+            [("", _moved(CONSOLE)), (CONSOLE, Answer(200, (), SOFT))],
+            f"ends on 200 at {PLATFORM.address}{CONSOLE}",
+        ),
+        (
+            [("", _moved(LOGIN)), (LOGIN, Answer(404, (), ""))],
+            f"ends on 404 at {PLATFORM.address}{LOGIN}",
+        ),
+        ([("", Answer(200, (), "console"))], "ends on 200 at"),
+        ([("", Answer(200, (), "<p>noindex</p>"))], "ends on 200 at"),
+        (
+            [("", Answer(200, (), '<meta name="description" content="noindex">'))],
+            "ends on 200 at",
+        ),
+        ([("", Answer(200, (), '<meta name="robots" content="index, follow">'))], "ends on 200 at"),
+        ([("", Answer(401, (), ""))], "ends on 401 at"),
+        ([("", Answer(403, (), SOFT))], "ends on 403 at"),
+        ([("", Answer(500, (), ""))], "ends on 500 at"),
     ],
-    ids=["login of master", "console", "200 without noindex", "500"],
+    ids=[
+        "redirected to the login of master",
+        "redirected to the console",
+        "redirected elsewhere then 404",
+        "200 without noindex",
+        "noindex in the text",
+        "noindex of another meta",
+        "robots that index",
+        "401",
+        "403 with noindex",
+        "500",
+    ],
 )
 def test_the_console_served_or_the_redirection_elsewhere_is_refused(
-    path: str, steps: list[tuple[str, Answer]]
+    path: str, steps: list[tuple[str, Answer]], ends: str
 ) -> None:
     filled = [(where or path, answer) for where, answer in steps]
     answers = _answers(path, *filled)
-    with pytest.raises(ProductionError, match="it is served"):
-        charttrial.check_console_hidden(_console_browser(answers), PLATFORM)
+    with pytest.raises(ProductionError, match=rf"^{re.escape(path)} {ends}.*it is served$"):
+        charttrial.check_console_not_served(_console_browser(answers), PLATFORM)
+
+
+@pytest.mark.parametrize("path", HIDDEN)
+@pytest.mark.parametrize(
+    "ending", [Answer(404, (), ""), Answer(200, (), SOFT)], ids=["404", "soft"]
+)
+def test_a_redirection_to_another_host_is_refused_whatever_it_ends_on(
+    path: str, ending: Answer
+) -> None:
+    # The same path on another host: only the host tells it from the platform.
+    other = f"https://elsewhere.example:41443{path}"
+    answers = _answers(path, (path, _moved(other)))
+    answers[other] = ending
+    with pytest.raises(ProductionError, match=r"at https://elsewhere\.example.*it is served$"):
+        charttrial.check_console_not_served(_console_browser(answers), PLATFORM)
+
+
+@pytest.mark.parametrize("path", HIDDEN)
+def test_a_soft_404_at_the_path_asked_is_accepted_without_any_redirection(path: str) -> None:
+    answers = _answers(path, (path, Answer(200, (), SOFT)))
+    charttrial.check_console_not_served(_console_browser(answers), PLATFORM)
+
+
+LABEL_AT = 2
+LEAST_COMMANDS = 20
+LEAST_WORDS = 2
+
+
+def _labelled_calls() -> list[tuple[int, ast.expr | None]]:
+    """List every call of `_must` and `_output` of the module, with the label it passes."""
+    tree = ast.parse(Path(charttrial.__file__).read_text(encoding="utf-8"))
+    calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in {"_must", "_output"}
+    ]
+    return [
+        (call.lineno, call.args[LABEL_AT] if len(call.args) > LABEL_AT else None)
+        for call in sorted(calls, key=lambda each: each.lineno)
+    ]
+
+
+def test_every_command_of_the_trial_is_named_by_what_it_is_for() -> None:
+    calls = _labelled_calls()
+    # A guard against the walk finding nothing: the module runs more than twenty such commands.
+    assert len(calls) >= LEAST_COMMANDS
+    for line, label in calls:
+        assert label is not None, f"line {line}: the command has no label"
+        # A literal, or an f-string whose literal parts are the words of the label.
+        if isinstance(label, ast.Constant):
+            words = str(label.value).split()
+        else:
+            assert isinstance(label, ast.JoinedStr), f"line {line}: the label is computed"
+            words = " ".join(
+                str(part.value) for part in label.values if isinstance(part, ast.Constant)
+            ).split()
+        assert len(words) >= LEAST_WORDS, f"line {line}: {words} does not say what it is for"
+        assert words[0] not in {"kubectl", "helm", "kind", "openssl", "docker"}, f"line {line}"

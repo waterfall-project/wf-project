@@ -8,7 +8,7 @@
 # Beside it, the application of the realm, as the service keycloak-realm of the Compose: it applies
 # the realm at its start, then again whenever the restoration asks it through the folder they alone
 # share, in memory (#955). It opens no port.
-{{- $host := include "waterfall.postgresHost" . }}
+{{- $host := include "waterfall.postgresAddress" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -44,7 +44,7 @@ spec:
             {{- include "waterfall.storageEnvironment" . | nindent 12 }}
             {{- include "waterfall.secretEnv" (list . "WATERFALL_KEYCLOAK_DATABASE_PASSWORD") | nindent 12 }}
             - name: WATERFALL_KEYCLOAK_DATABASE_URL
-              value: {{ printf "postgresql://keycloak:$(WATERFALL_KEYCLOAK_DATABASE_PASSWORD)@%s:5432/keycloak" $host | quote }}
+              value: {{ printf "postgresql://keycloak:$(WATERFALL_KEYCLOAK_DATABASE_PASSWORD)@%s/keycloak" $host | quote }}
             {{- include "waterfall.secretEnv" (list . "WATERFALL_INSTALLATION_CLIENT_SECRET") | nindent 12 }}
             - name: WATERFALL_REALM_REQUESTS
               value: /realm-requests

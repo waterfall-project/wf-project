@@ -79,6 +79,13 @@ autre. Les deux collations et la recherche s'écrivent une fois, dans `waterfall
 en `C` — l'adresse d'un compte — met en minuscules dans `und-x-icu` lui aussi : en `C`, `Élodie` et
 `élodie` seraient deux adresses.
 
+Cette collation suppose un PostgreSQL bâti avec ICU, que l'image officielle est et qu'un PostgreSQL
+fourni par l'exploitant peut ne pas être : la migration `0004` vérifie `pg_collation` avant
+d'écrire, et échoue en disant ce qui manque, au lieu de laisser passer puis de rendre 500 à chaque
+recherche (`require_collation`, `tests/test_migration_icu.py`). Les prérequis d'un PostgreSQL
+fourni — ICU, l'extension `unaccent`, le rôle de service — sont dans
+[`docs/exploitation/postgresql-fourni.md`](../exploitation/postgresql-fourni.md) (#742).
+
 *Contrôle* : les tests des tables qui cherchent (`tests/test_access_roles.py`,
 `tests/test_users.py`) et de l'unicité des adresses (`tests/test_database_constraints.py`) ; la
 revue.

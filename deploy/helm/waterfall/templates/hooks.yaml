@@ -4,15 +4,43 @@
 # The hooks (EP-13, « L'empaquetage »), what compose.prod.yaml runs once and stops, in its order:
 #
 # - the steps of the database and the migrations, before each upgrade, and at the installation as
-#   soon as PostgreSQL is there — before it, the cluster has none to migrate. The services wait for
-#   them: they sign in as the role of the service, which may once they have run (#701);
+#   soon as PostgreSQL is there: after it, for the PostgreSQL of the chart, which the cluster has not
+#   before — a hook post-install —, and before it, for the PostgreSQL of the operator, which is there
+#   already — a hook pre-install, so that the platform starts on a database migrated. The services
+#   wait for them: they sign in as the role of the service, which may once they have run (#701).
+#   Before the installation neither the Secret nor the ConfigMap of the chart exist: the Secret is
+#   the operator's then (`secrets.existingSecret`, required), and the files the steps read are a
+#   ConfigMap of the hook itself, made before it and removed after;
+# - the buckets of the object storage, once it is there, after the installation and before each
+#   upgrade;
 # - the application of the realm, after the installation and after each upgrade, as the service
 #   keycloak-realm applies it at each start of the Compose;
 # - the bootstrap, after the installation alone, once the realm is applied: the link of the first
 #   administrator is in the log of its Job, which stays until the next installation.
 #
 # Helm waits for each hook, by its weight, and fails the installation with the first that fails.
+{{- if and (not .Values.postgresql.enabled) (not .Values.secrets.existingSecret) }}
+{{- fail "secrets.existingSecret: the Secret of the operator is required when PostgreSQL is provided (postgresql.enabled is false): the migrations run before the installation, which has not made the Secret of the chart yet" }}
+{{- end }}
 {{- $files := include "waterfall.name" (list . "files") }}
+{{- $hookFiles := include "waterfall.name" (list . "hook-files") }}
+{{- $events := include "waterfall.migrationEvents" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $hookFiles }}
+  labels:
+    {{- include "waterfall.labels" (list . "hook-files") | nindent 4 }}
+  annotations:
+    helm.sh/hook: {{ $events }}
+    helm.sh/hook-weight: "-20"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+data:
+  {{- range $name := list "waterfall-database.sql" "keycloak-database.sql" "backup-database-role.sql" "service-database-role.sql" }}
+  {{ $name }}: |-
+    {{- $.Files.Get (printf "files/%s" $name) | trimSuffix "\n" | nindent 4 }}
+  {{- end }}
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -20,7 +48,7 @@ metadata:
   labels:
     {{- include "waterfall.labels" (list . "migrate") | nindent 4 }}
   annotations:
-    {{- include "waterfall.hook" (list "post-install,pre-upgrade" -10) | nindent 4 }}
+    {{- include "waterfall.hook" (list $events -10) | nindent 4 }}
 spec:
   backoffLimit: 6
   template:
@@ -76,22 +104,6 @@ spec:
           volumeMounts:
             - name: files
               mountPath: /files
-        # The buckets of the platform, the backups and the imports, created when missing.
-        - name: storage-buckets
-          image: {{ include "waterfall.thirdParty" (list . .Values.storage.bucketsImage) }}
-          imagePullPolicy: IfNotPresent
-          command: [/bin/sh, /files/storage-buckets.sh]
-          env:
-            - name: STORAGE_ADDRESS
-              value: {{ printf "http://%s:3900" (include "waterfall.name" (list . "storage")) | quote }}
-            - name: STORAGE_ACCESS_KEY
-              value: {{ .Values.storage.accessKey | quote }}
-            {{- include "waterfall.secretEnv" (list . "WATERFALL_STORAGE_SECRET" "STORAGE_SECRET") | nindent 12 }}
-            - name: STORAGE_BUCKETS
-              value: backups imports
-          volumeMounts:
-            - name: files
-              mountPath: /files
         # The migrations, as the owner of the tables (#701, WF-DAT-0140).
         - name: migrate
           image: {{ include "waterfall.image" (list . "waterfall") }}
@@ -110,6 +122,49 @@ spec:
             - name: PGDATABASE
               value: waterfall
             {{- include "waterfall.secretEnv" (list . "WATERFALL_SERVICE_DATABASE_PASSWORD" "SERVICE_DATABASE_PASSWORD") | nindent 12 }}
+          volumeMounts:
+            - name: files
+              mountPath: /files
+      volumes:
+        - name: files
+          configMap:
+            name: {{ $hookFiles }}
+---
+# The buckets of the platform, the backups and the imports, created when missing: on the storage of
+# the chart, once it is there, or on the operator's, at its address. A Job of its own, not a step of
+# the migrations: these run before the installation on a PostgreSQL of the operator's, when the
+# storage of the chart does not exist yet.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "waterfall.name" (list . "buckets") }}
+  labels:
+    {{- include "waterfall.labels" (list . "buckets") | nindent 4 }}
+  annotations:
+    {{- include "waterfall.hook" (list "post-install,pre-upgrade" -10) | nindent 4 }}
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "buckets") | nindent 8 }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      # The storage not ready yet is run again.
+      restartPolicy: OnFailure
+      containers:
+        - name: storage-buckets
+          image: {{ include "waterfall.thirdParty" (list . .Values.storage.bucketsImage) }}
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, /files/storage-buckets.sh]
+          env:
+            - name: STORAGE_ADDRESS
+              value: {{ include "waterfall.storageAddress" . | quote }}
+            - name: STORAGE_ACCESS_KEY
+              value: {{ .Values.storage.accessKey | quote }}
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_STORAGE_SECRET" "STORAGE_SECRET") | nindent 12 }}
+            - name: STORAGE_BUCKETS
+              value: backups imports
           volumeMounts:
             - name: files
               mountPath: /files
@@ -179,7 +234,7 @@ spec:
             {{- include "waterfall.keycloakClientEnvironment" . | nindent 12 }}
             {{- include "waterfall.secretEnv" (list . "WATERFALL_POSTGRES_PASSWORD") | nindent 12 }}
             - name: WATERFALL_DATABASE_URL
-              value: {{ printf "postgresql://waterfall:$(WATERFALL_POSTGRES_PASSWORD)@%s:5432/waterfall" (include "waterfall.postgresHost" .) | quote }}
+              value: {{ printf "postgresql://waterfall:$(WATERFALL_POSTGRES_PASSWORD)@%s/waterfall" (include "waterfall.postgresAddress" .) | quote }}
             {{- include "waterfall.secretEnv" (list . "WATERFALL_INSTALLATION_CLIENT_SECRET") | nindent 12 }}
             - name: WATERFALL_ADMIN_EMAIL
               value: {{ required "bootstrap.adminEmail: the address of the first administrator" .Values.bootstrap.adminEmail | quote }}
