@@ -37,6 +37,7 @@ for parameter in \
 	rest=${parameter#*:}
 	pattern=${rest%%:*}
 	meaning=${rest#*:}
+	value=""
 	eval "value=\${$name-}"
 	printf '%s\n' "$value" | grep -Eq "$pattern" || refuse "$name" "$meaning" "$value"
 	if [ "$name" = WATERFALL_METRICS_PORT ] && [ "$value" -gt 65535 ]; then
