@@ -101,17 +101,22 @@ def test_the_copy_of_a_revision_sends_fewer_statements_than_its_bound(
             session, PRJ_001, RevisionToAbandon(REVISION_102, current.lock_version), act, viewer
         )
         session.flush()
+        # Joined on the project too, the key of the partitions: joined on the node alone, the rows
+        # laid again unanalysed, PostgreSQL scanned every partition for each node, a minute or more.
         in_source = (Node.project_id == PRJ_001, Node.revision_id == REVISION_101)
         tasks = session.scalar(
             select(func.count())
             .select_from(Task)
-            .join(Node, Node.id == Task.node_id)
+            .join(Node, (Node.project_id == Task.project_id) & (Node.id == Task.node_id))
             .where(*in_source)
         )
         lines = session.scalar(
             select(func.count())
             .select_from(EstimateLine)
-            .join(Node, Node.id == EstimateLine.node_id)
+            .join(
+                Node,
+                (Node.project_id == EstimateLine.project_id) & (Node.id == EstimateLine.node_id),
+            )
             .where(*in_source)
         )
         assert tasks is not None
