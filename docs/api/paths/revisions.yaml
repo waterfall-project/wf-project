@@ -1016,14 +1016,15 @@
       of the main structure a labour line whose role would leave it without any worked hour
       in the week fails without merging anything: the background task ends in failure,
       `problem.code` set to `TASK_WITHOUT_WORKING_HOURS`, its `params` naming the roles and
-      tasks concerned (WF-PLA-0010), a task that the differential adds by its lineage and its
-      label, having no node in the main structure (`ProblemImportedTask`; #4245). "A merge
-      that would move the task of an item out of the subtree of the task of its work package is
-      refused, naming the task" (WF-PLA-0170): it likewise fails without merging anything,
-      `problem.code` set to
-      `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `params.work_package_task` naming the task of the
-      work package and `order_item_tasks` those of the items that would leave it, each one by
-      its node and its label (`Problem.params`), like `TASK_WITHOUT_WORKING_HOURS`
+      tasks concerned (WF-PLA-0010); a task that the differential adds, having no node in the
+      main structure, is named by its lineage and its label (`ProblemImportedTask`; #4245).
+      "A merge that would move the task of an item out of the subtree of the task of its work
+      package is refused, naming the task" (WF-PLA-0170): it likewise fails without merging
+      anything, `problem.code` set to `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
+      `params.work_package_task` naming the task of the work package and `order_item_tasks`
+      those of the items that would leave it, each one by its node in the main structure and
+      its label, the node null for a task that the differential adds (`Problem.params`), not
+      by its lineage as `TASK_WITHOUT_WORKING_HOURS` does
       (WF-IHM-0080; `task_merge_outside_work_package`). A merge that would close a loop of
       links in the main structure likewise fails, `problem.code` set to `LINK_CYCLE`,
       `params.cycle` naming the tasks of the loop (WF-PLA-0030; `task_merge_link_cycle`); a
@@ -1260,9 +1261,9 @@
           horizon, `PROJECT_HORIZON_EXCEEDED`, `params.task` (WF-PLA-0150); a task without any
           worked hour, `TASK_WITHOUT_WORKING_HOURS` (WF-PLA-0010) — the first reason of the
           report, `problem.code` its code and `params` its parameters, each task named by its
-          node in the differential and its label; `TASK_WITHOUT_WORKING_HOURS` names a task
-          that the main structure adds by its lineage and its label (`ProblemImportedTask`;
-          #4245). Nothing is written. Or a body that is not a confirmation
+          node in the differential and its label, except that `TASK_WITHOUT_WORKING_HOURS`
+          names a task that the main structure adds, having no node in the differential, by
+          its lineage and its label (`ProblemImportedTask`; #4245). Nothing is written. Or a body that is not a confirmation
           (`VALIDATION_FAILED`).
         content:
           application/problem+json:
