@@ -236,6 +236,11 @@ def read_context(session: Session, project_id: UUID, founds: Sequence[Found]) ->
         matrix=read_reference_settings(session).risk_matrix,
         cited=frozenset(cited),
         amounts=structure_amounts(session, project_id, {each.structure_id for each in evaluations}),
+        # The shares are read on the reference of the project as it stands: while a merge marks its
+        # revision and designates it the reference, that is still the one before. The value a
+        # risk occurred or dismissed there keeps is the same on both, because ``write_shares``
+        # carries ``held`` over from the previous reference to the new one for such a risk; the
+        # share of an identified risk is not read here, its provision is its severity weighted.
         shares=_shares(session, project_id, facts.reference_revision_id, risk_ids),
         categories=category_labels(session, categories),
         subprojects=subproject_labels(session, project_id, subprojects),

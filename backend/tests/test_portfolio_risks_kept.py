@@ -30,7 +30,7 @@ from projects_support import scene as make_scene
 from remaining_support import task_named
 from risks_support import Costed, costed, material
 from risks_support import occur as made_occurred
-from sqlalchemy import select
+from sqlalchemy import select, text, update
 
 from waterfall.core.indicators.contributions import contribution_key
 from waterfall.core.indicators.interface import (
@@ -46,6 +46,7 @@ from waterfall.core.projects.interface import current_day, project_facts
 from waterfall.core.resource_settings.interface import roles_stamp
 from waterfall.core.revisions.tables import Revision
 from waterfall.core.risks.interface import outcomes_between, reviewed_since
+from waterfall.core.risks.tables import RiskReview
 from waterfall.platform.cache import PREFIX, IndicatorsCache
 from waterfall.platform.database import utc_now
 from waterfall.worker.merge import merge
@@ -248,13 +249,18 @@ def test_the_merge_of_a_differential_keeps_every_document_of_the_portfolio_risks
     # (#4282). A differential of the current revision adds a task of 200 and is merged: the
     # revision the merge marks keeps every document of a project In progress, at the instant of
     # its marking, and its risk is related to the budget of the reference it becomes at that
-    # instant, 1 200, not to the one before, 1 000.
+    # instant, 1 200, not to the one before, 1 000. The risk of the reference, identified there at a
+    # share of 60, is dismissed before the merge (#4296): the share it keeps is the one it held in
+    # the reference before, which the merge, marking, reads on the reference it replaces.
     project = current(ready)
     occurred_risk = ready.risks.declared("0.4", "Panne de la grue")
     ready.risks.costed_at(occurred_risk, project.revision_id, "300.00")
     made_occurred(project.stage, occurred_risk["risk_id"], project.revision_id, "300.00")
     left = ready.risks.declared("0.2", "Gel des sols")
     ready.risks.reviewed(ready.risks.risk(left), state="dismissed")
+    ready.risks.reviewed(ready.read(), state="dismissed")
+    still = ready.risks.declared("0.5", "Grève des transporteurs")
+    ready.risks.costed_at(still, project.revision_id, "100.00")
     amendment = opened_amendment(ready.api, project)
     branch = on(project.tree, amendment)
     task = branch.made("Extension")
@@ -279,16 +285,25 @@ def test_the_merge_of_a_differential_keeps_every_document_of_the_portfolio_risks
     risks = kept[RISKS]
     assert risks["base"] == "1200.00"
     by_id = {each["risk_id"]: each for each in risks["risks"]}
-    assert set(by_id) == {ready.risk["risk_id"], occurred_risk["risk_id"], left["risk_id"]}
-    risk = by_id[ready.risk["risk_id"]]
-    assert (risk["state"], risk["probability"], risk["severity"], risk["provision_amount"]) == (
-        "identified",
-        "0.3000",
-        "200.00",
-        "60.00",
-    )
+    assert set(by_id) == {
+        ready.risk["risk_id"],
+        occurred_risk["risk_id"],
+        left["risk_id"],
+        still["risk_id"],
+    }
+    # Identified at 50 % of 100: its severity weighted. Dismissed in the revision, the risk of the
+    # reference keeps the share it held there, 60, not nought; the one declared and dismissed in
+    # the revision never held one.
+    identified = by_id[still["risk_id"]]
+    assert (identified["state"], identified["provision_amount"]) == ("identified", "50.00")
+    kept_share = by_id[ready.risk["risk_id"]]
+    assert (kept_share["state"], kept_share["provision_amount"]) == ("dismissed", "60.00")
+    assert (kept_share["probability"], kept_share["severity"]) == ("0.3000", "200.00")
     assert by_id[occurred_risk["risk_id"]]["state"] == "occurred"
-    assert by_id[left["risk_id"]]["state"] == "dismissed"
+    assert (by_id[left["risk_id"]]["state"], by_id[left["risk_id"]]["provision_amount"]) == (
+        "dismissed",
+        "0.00",
+    )
     # What the merge keeps is what the register gives once the revision is designated, and what
     # the day computes on it: neither the part of the reference before, nor a part unwritten yet.
     register = register_of(ready, project.revision_id)
@@ -513,6 +528,39 @@ def test_the_outcomes_of_projects_are_ordered_and_a_risk_dismissed_keeps_its_sha
     keys = [(each.project_id, each.reviewed_on, each.risk_id) for each in read]
     assert keys == sorted(keys)
     assert len({project for project, _, _ in keys}) == 2
+
+
+@pytest.mark.story("US-2680")
+def test_the_outcomes_of_a_project_come_out_by_day_before_risk(ready: Occurring) -> None:
+    # Le lot : ``outcomes_between`` rend ses résultats « par projet, jour, risque » (#4296). Two
+    # risks dismissed of one project, the one of the greater identifier reviewed three days ago and
+    # the other yesterday: the order is that of the days, not of the identifiers; a period that
+    # ends before yesterday holds the first alone.
+    ready.risks.reviewed(ready.read(), state="dismissed")
+    later = ready.risks.declared("0.2", "Gel des sols")
+    ready.risks.reviewed(ready.risks.risk(later), state="dismissed")
+    today = current_day(utc_now())
+    day = timedelta(days=1)
+    early, late = sorted((UUID(ready.risk["risk_id"]), UUID(later["risk_id"])), reverse=True)
+    with ready.project.stage.owner.begin() as connection:
+        connection.execute(text("SET LOCAL session_replication_role = replica"))
+        for risk_id, reviewed_on in ((early, today - 3 * day), (late, today - day)):
+            connection.execute(
+                update(RiskReview)
+                .where(RiskReview.risk_id == risk_id)
+                .values(reviewed_on=reviewed_on)
+            )
+    project_id = ready.project.project_id
+
+    def found(first: date, last: date) -> list[tuple[UUID, date]]:
+        with ready.project.stage.database.transaction() as session:
+            read = outcomes_between(session, [project_id], first, last)
+        return [(each.risk_id, each.reviewed_on) for each in read]
+
+    assert early > late
+    assert found(today - 5 * day, today) == [(early, today - 3 * day), (late, today - day)]
+    assert found(today - 5 * day, today - 2 * day) == [(early, today - 3 * day)]
+    assert found(today - 2 * day, today) == [(late, today - day)]
 
 
 @pytest.mark.story("US-2680")
