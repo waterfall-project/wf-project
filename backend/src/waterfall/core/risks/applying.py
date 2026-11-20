@@ -23,6 +23,9 @@ what the report presented is what is written (WF-RIS-0060; EP-08, "La fusion et 
   that can be undone. A refusal, or any failure, leaves nothing written.
 - **The locks**, in one order: the natures of cost, the project, the own estimate, the main
   structure, then the risk.
+- **The witness** (``load_occurrence``) declares the occurrence of one of its risks at the instant
+  it imposes, as the worker applies it, without a report to confirm, the copies of the nodes
+  grafted under the identifiers and the lineages it imposes (US-2650/L1).
 """
 
 from dataclasses import dataclass
@@ -217,11 +220,48 @@ def run_occurrence_task(
     risk, evaluation, main, main_counter = _locked(session, project_id, risk_id, revision_id)
     if current is not None:
         _judge_counters(request, main_counter, risk)
-    _apply(session, (risk, evaluation, main), act)
+    _apply(session, (risk, evaluation, main), act, None)
     _inscribe(session, risk, revision_id, act)
 
 
-def _apply(session: Session, held: tuple[Risk, RiskEvaluation, UUID], act: Act) -> None:
+@dataclass(frozen=True, slots=True)
+class OccurrenceLoad:
+    """The occurrence of a risk of the witness: the risk, and the copies of the nodes grafted.
+
+    ``imposed`` the identifier and the lineage of the copy of each node of its own estimate, by its
+    lineage (US-2650/L1).
+    """
+
+    risk_id: UUID
+    imposed: Mapping[UUID, tuple[UUID, UUID]]
+
+
+def load_occurrence_at(session: Session, project_id: UUID, load: OccurrenceLoad, act: Act) -> None:
+    """Apply the occurrence of a risk of the witness at the instant it imposes, as the worker does.
+
+    Judged as the worker judges it, no report confirmed: the conditions of the project, the risk
+    identified; the project without a current revision has one opened first.
+    """
+    share_natures(session)
+    facts = lock_project(session, project_id)
+    judge_project(session, project_id)
+    current = facts.current_revision_id
+    if current is None:
+        revision_id = open_revision_by_task(session, project_id, act, None)
+    else:
+        revision_draft(session, current)
+        revision_id = current
+    risk, evaluation, main, _ = _locked(session, project_id, load.risk_id, revision_id)
+    _apply(session, (risk, evaluation, main), act, load.imposed)
+    _inscribe(session, risk, revision_id, act)
+
+
+def _apply(
+    session: Session,
+    held: tuple[Risk, RiskEvaluation, UUID],
+    act: Act,
+    imposed: Mapping[UUID, tuple[UUID, UUID]] | None,
+) -> None:
     """Write the occurrence of a risk judged, under the locks of its structures and of the risk.
 
     The cost at occurrence is the total of the own estimate before it is grafted; the evaluation
@@ -242,7 +282,7 @@ def _apply(session: Session, held: tuple[Risk, RiskEvaluation, UUID], act: Act) 
     evaluation.occurrence_cost = cost
     evaluation.updated_at, evaluation.updated_by = act.at, act.author
     session.flush()
-    graft(session, Graft(project_id, own, main, bearer, (line,), risk.id), act)
+    graft(session, Graft(project_id, own, main, bearer, (line,), risk.id, imposed), act)
     consume_own_estimate(session, project_id, own)
     risk.updated_at, risk.updated_by = act.at, act.author
     risk.lock_version += 1

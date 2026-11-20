@@ -112,6 +112,20 @@ class RiskEntry:
 
 
 @dataclass(frozen=True, slots=True)
+class RiskLoad:
+    """A risk of the witness declared under the identifiers it imposes (US-2650/L1).
+
+    The risk, its own estimate and its provision line, whose lineage is its identifier: the copies
+    of the next revision find it by that lineage.
+    """
+
+    entry: RiskEntry
+    risk_id: UUID
+    structure_id: UUID
+    provision_node_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
 class RiskIdentityChange:
     """The identity of a risk written at the counter read (``RiskUpdate``).
 

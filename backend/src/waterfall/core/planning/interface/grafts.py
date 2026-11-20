@@ -38,7 +38,9 @@ class Graft:
     ``bearer_id`` the task of the structure grafted into: its tasks go last under it, or right after
     it when it is a milestone (WF-RIS-0060); ``removed`` the lines of that structure the graft
     removes, which move no date — the provision line of a risk —; ``origin_risk_id`` the risk each
-    node grafted comes from (``Node.origin_risk_id``), none for a graft that comes from none.
+    node grafted comes from (``Node.origin_risk_id``), none for a graft that comes from none;
+    ``imposed`` the identifier and the lineage of the copy of a node the witness imposes, by the
+    lineage of the node grafted (US-2650/L1), none for the service.
     """
 
     project_id: UUID
@@ -47,6 +49,7 @@ class Graft:
     bearer_id: UUID
     removed: tuple[UUID, ...] = ()
     origin_risk_id: UUID | None = None
+    imposed: Mapping[UUID, tuple[UUID, UUID]] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +83,7 @@ def graft(session: Session, asked: Graft, act: Act | None = None) -> Grafted:
             asked.bearer_id,
             asked.removed,
             asked.origin_risk_id,
+            {} if asked.imposed is None else asked.imposed,
         ),
         lock=act is not None,
     )

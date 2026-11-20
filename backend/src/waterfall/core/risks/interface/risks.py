@@ -18,7 +18,8 @@ writes them. The objects live in ``views``, which the files that read and write 
 from (``declaring``, ``reading``); the conditions of its commands in ``commands``, which the lots
 of its other operations judge their refusals by.
 
-Declared by US-2550/L1, the socle of EP-08; filled by US-2570/L1.
+Declared by US-2550/L1, the socle of EP-08; filled by US-2570/L1. ``load_risk`` declares a risk of
+the witness as ``create_risk`` does, under the identifiers the witness imposes (US-2650/L1).
 """
 
 from typing import TYPE_CHECKING
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
     from waterfall.core.planning.interface import Writer
     from waterfall.core.projects.interface import Viewer
     from waterfall.core.risks.stamping import RisksStamp
-    from waterfall.core.risks.views import RiskEntry, RiskIdentityChange, RiskView
+    from waterfall.core.risks.views import RiskEntry, RiskIdentityChange, RiskLoad, RiskView
 
 
 def create_risk(
@@ -51,6 +52,17 @@ def create_risk(
     return risk_view(
         session, project_id, read_found(session, project_id, risk_id, revision_id), viewer
     )
+
+
+def load_risk(
+    session: Session, project_id: UUID, load: RiskLoad, writer: Writer, viewer: Viewer
+) -> None:
+    """Declare a risk of the witness as ``create_risk`` does, under the identifiers it imposes.
+
+    The risk, its own estimate and its provision line, by the rules of the declaration, at the
+    instant and by the author of ``writer`` (US-2650/L1).
+    """
+    declare(session, project_id, load, writer, viewer)
 
 
 def read_risk(

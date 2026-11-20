@@ -133,6 +133,7 @@ from waterfall.core.revisions.interface.reference import (
 
 # ``revisions`` (US-0960; the partitions, US-0910/L1): the revisions of a project.
 from waterfall.core.revisions.interface.revisions import (
+    CopyImposed,
     RevisionAsked,
     RevisionCopy,
     RevisionFilters,
@@ -208,6 +209,7 @@ __all__ = [
     "UNMERGED_AMENDMENT_EXISTS",
     "ClosingKind",
     "ClosingStage",
+    "CopyImposed",
     "CurrentStructure",
     "MarkingRequest",
     "MergePart",

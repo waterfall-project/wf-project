@@ -324,7 +324,7 @@ def create_differential(
     session: Session,
     revision: tuple[UUID, UUID],
     main: StructureFacts,
-    label: str,
+    named: tuple[str, UUID | None],
     act: Act,
 ) -> OpenedDifferential:
     """Create a differential in a revision and its base, copies of its main structure; give them.
@@ -335,11 +335,17 @@ def create_differential(
     The differential keeps the counter of the main structure read: it is up to date while the main
     structure bears it (US-3050). The lineage of each structure is its own: the next revision copies
     them under it (WF-REV-0100, WF-DAT-0030). The label is not unique: several differentials
-    coexist; the base bears its differential's, which nothing reads.
+    coexist; the base bears its differential's, which nothing reads. ``named`` the label, and the
+    identifier the witness imposes on the differential, none for the service (US-2650/L1); the base
+    is drawn.
     """
     project_id, revision_id = revision
-    structure_id, base_id = new_id(), new_id()
-    for each, kind, named in ((structure_id, AMENDMENT, None), (base_id, BASE, structure_id)):
+    label, imposed = named
+    structure_id, base_id = imposed or new_id(), new_id()
+    for each, kind, differential in (
+        (structure_id, AMENDMENT, None),
+        (base_id, BASE, structure_id),
+    ):
         session.add(
             CostStructure(
                 project_id=project_id,
@@ -349,7 +355,7 @@ def create_differential(
                 label=label,
                 is_merged=False,
                 lineage_id=each,
-                differential_id=named,
+                differential_id=differential,
                 main_lock_version=main.lock_version if kind == AMENDMENT else None,
                 planning_start_on=main.planning_start_on,
                 scheduled_at=main.scheduled_at,
@@ -375,7 +381,9 @@ def copy_structures(copy: RevisionCopy) -> None:
     each differential is given once every table is copied and the main structure redated
     (``keep_differential_states``).
 
-    Each keeps the date its planning starts on and the instant its dates were computed (#2170): a
+    Each is copied under an identifier of its own, the one the witness imposes if it does
+    (``RevisionCopy.imposed``, US-2650/L1). Each keeps the date its planning starts on and the
+    instant its dates were computed (#2170): a
     null date stays null, read by the lineage the copy keeps; a null instant is the creation of the
     structure copied. The planning then redates, at the opening, those that hold a node, with the
     reference of the day (``redate_copy``, EP-06).
@@ -394,7 +402,7 @@ def copy_structures(copy: RevisionCopy) -> None:
     for row in sorted(rows, key=lambda row: row.kind == BASE):
         if row.differential_id is not None and row.differential_id not in taken:
             continue
-        copied = new_id()
+        copied = copy.imposed.structure(row.kind, row.lineage_id) or new_id()
         copy.identifiers[row.id] = copied
         copy.session.add(
             CostStructure(
