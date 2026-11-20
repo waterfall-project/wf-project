@@ -594,7 +594,7 @@ def test_a_rate_set_after_a_reading_that_lacked_it_is_not_served_from_the_entry_
 ) -> None:
     # A reading of the day, cached, that names the rate missing; the rate set, the second reading
     # through the same cache computes the labour again instead of serving the entry that lacked it.
-    project_id, revision_id = offer_being_priced(api, fabrics, "Halle 4", OFFER_PROBABILITY)
+    _, revision_id = offer_being_priced(api, fabrics, "Halle 4", OFFER_PROBABILITY)
     with fabrics.stage.database.transaction() as session:
         year = reference_year_of(session, revision_id)
     unrate(fabrics, year)
@@ -615,7 +615,6 @@ def test_a_rate_set_after_a_reading_that_lacked_it_is_not_served_from_the_entry_
     rated = read_day()
     assert all(each["share"]["is_computable"] for each in rated["budget_by_cost_type"])
     assert all(each["share"]["is_computable"] for each in rated["labor_by_org_node"])
-    assert project_id
 
 
 @pytest.mark.requirement("WF-DEV-0010-A")
@@ -632,8 +631,10 @@ def test_a_project_in_progress_whose_current_revision_lacks_a_rate_keeps_its_bud
         year = reference_year_of(session, revision_of(fabrics, "running"))
     unrate(fabrics, year)
     current = revision_opened(api, fabrics, fabrics.in_progress.project_id, NOW)
-    # The revision opened keeps the rate of its copy; one that has not fixed its rate yet is that
-    # revision with none kept, which the day prices on the reference as it stands.
+    # Deleting the RevisionRate rows of the open revision reproduces the real state of a labour
+    # category kept without a rate: in production, a line added in the current revision for a
+    # category the marked revision did not hold, since opening copies only the rates already held
+    # (core/estimate/keeping.py, imaging.py) and held_rates falls back on the reference.
     with fabrics.stage.owner.begin() as connection:
         connection.execute(delete(RevisionRate).where(RevisionRate.revision_id == current))
     body = structure(api, fabrics, "states=in_progress")
