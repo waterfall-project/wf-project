@@ -10,6 +10,10 @@ A deposit serves one import; the report outlives the file, which the purge or th
 deletes (WF-DAT-0120). It is deleted at its expiry or its abandonment, and with the structure it
 aims at or the revision it writes in (``CASCADE``, US-3060): the structure of the current revision,
 or of the last marked one when there is no current revision yet, and that revision is null then.
+The cascade takes the report alone: the file stays, and goes with the sweep of the purge once the
+life of a deposit is past (a gap from WF-ARC-0100-A, followed by #4331). The keys make
+``create_project_partitions`` lock this table through the keys that name ``cost_structure`` and
+``revision``: a write of an import is kept short, or it makes the creation of a project wait.
 """
 
 from datetime import date, datetime

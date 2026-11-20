@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The keys of an import to its structure and its revision: migration 0040 (US-3060/L5, #4139)."""
+"""The keys of an import to its structure and its revision: 0040, 0041 (US-3060/L5, #4139)."""
 
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
@@ -39,9 +39,9 @@ def test_the_imports_of_what_is_gone_are_deleted_and_the_others_follow_their_str
 ) -> None:
     # Propre à l'US (#4139) : une migration traite les pointeurs morts déjà en base — l'import
     # d'une structure disparue, d'une révision disparue, ou de celles d'un autre projet, est
-    # supprimé ; celui qui ne nomme rien, ou ce qui existe, reste. Les partitions d'un projet
-    # d'avant ont alors les clés de celles d'un projet d'après, et l'import suit sa structure. La
-    # descente retire les clés, et un pointeur mort s'écrit de nouveau.
+    # supprimé (0040) ; celui qui ne nomme rien, ou ce qui existe, reste. Avec les clés (0041), les
+    # partitions d'un projet d'avant ont celles d'un projet d'après, et l'import suit sa structure.
+    # La descente de 0041 retire les clés, et un pointeur mort s'écrit de nouveau.
     upgrade(empty_engine, "0039")
     project, other, created = uuid4(), uuid4(), uuid4()
     revision, structure = uuid4(), uuid4()
@@ -61,13 +61,15 @@ def test_the_imports_of_what_is_gone_are_deleted_and_the_others_follow_their_str
         imported(connection, other, revision_id=revision)
     upgrade(empty_engine, "0040")
     assert imports(empty_engine) == kept
+    upgrade(empty_engine, "0041")
     with empty_engine.begin() as connection:
         connection.execute(insert_project(id=created))
         connection.execute(select(func.create_project_partitions(created)))
         assert partition_parts(connection, project) == partition_parts(connection, created)
         connection.execute(delete(CostStructure).where(CostStructure.id == structure))
     assert len(imports(empty_engine)) == 1
-    downgrade(empty_engine, "0039")
+    downgrade(empty_engine, "0040")
     with empty_engine.begin() as connection:
         imported(connection, project, structure_id=uuid4(), revision_id=uuid4())
     assert len(imports(empty_engine)) == 2
+    downgrade(empty_engine, "0039")
