@@ -1982,7 +1982,7 @@ US-2640.
 
 ## US-3060 — Le ménage de fin d'EPIC : les constats mineurs soldés
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par les US qui les
   réalisent
 - **opérations** : aucune nouvelle ; `mergeCostStructure`, `getStructureMergeReport`,

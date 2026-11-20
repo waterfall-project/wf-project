@@ -947,6 +947,7 @@ def test_a_part_of_a_merge_with_a_change_unknown_is_a_defect_named_by_its_error(
         registered.callback(withdraw)
         with pytest.raises(MergePartError, match="'moved'"):
             merge_parts(merging)
+        registered.pop_all()  # disarms all `registered` holds (this one callback)
         withdraw()
         assert merge_parts(merging) == MergePart()
 

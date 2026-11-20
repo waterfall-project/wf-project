@@ -418,3 +418,41 @@ describe("the own estimate of a risk", () => {
     expect(written).toEqual([`/projects/${PROJECT}/revisions/${REVISION}/structures/${OWN}/nodes`]);
   });
 });
+
+describe("the note of an amendment in arrears (US-2640)", () => {
+  // The amendment 2 of the reference revision, opened before the merge of the amendment 1 wrote the
+  // main structure: `is_up_to_date` is false (`structures_amendments`).
+  const LATE = "01926f3a-7c00-7000-8000-000000000213";
+  const GESTURES = ["Mettre à jour l’avenant", "Abandonner l’avenant", "Contractualiser l’avenant"];
+
+  it.each([PLANNING, ESTIMATE])(
+    "says on the $name that the amendment read is late [US-2640]",
+    async (shown) => {
+      server.answers = {
+        ...server.answers,
+        "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures_amendments",
+      };
+      render(await tree({ ...shown, nodes: "nodes_amendment" }, `structure=${LATE}`));
+      expect(screen.getByRole("note")).toHaveTextContent(/L’avenant .* est en retard/);
+    },
+  );
+
+  it("offers none of the gestures of the amendment on the estimate, which stay at the planning [US-2640]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures_amendments",
+    };
+    render(await tree({ ...ESTIMATE, nodes: "nodes_amendment" }, `structure=${LATE}`));
+    for (const gesture of GESTURES) {
+      expect(screen.queryByRole("button", { name: gesture })).not.toBeInTheDocument();
+    }
+  });
+
+  it.each([PLANNING, ESTIMATE])(
+    "says nothing on the $name of an amendment up to date, nor of the main structure [US-2640]",
+    async (shown) => {
+      render(await tree({ ...shown, nodes: "nodes_amendment" }, `structure=${AMENDMENT}`));
+      expect(screen.queryByRole("note")).not.toBeInTheDocument();
+    },
+  );
+});

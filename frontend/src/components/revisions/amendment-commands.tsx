@@ -9,13 +9,12 @@
  *
  * A server component: it reads nothing, hands the client commands their data.
  */
-import { useTranslations } from "next-intl";
-
 import type { components } from "@/api/generated/schema";
 import type { CommandOffer } from "@/components/commands/offer";
 import type { ListedStructure } from "@/components/context/structure";
 
 import { AbandonAmendmentCommand } from "./abandon-amendment-command";
+import { AmendmentLateNote, isAmendmentLate } from "./amendment-late-note";
 import { MergeAmendmentCommand } from "./merge-amendment-command";
 import { RebaseAmendmentCommand } from "./rebase-amendment-command";
 
@@ -54,12 +53,11 @@ export function AmendmentCommands({
   readonly mergeOffer: CommandOffer | undefined;
   readonly revision: AmendmentAddress;
 }) {
-  const t = useTranslations("amendmentLate");
   const amendment = structure?.kind === "amendment" ? structure : undefined;
   if (amendment === undefined) {
     return null;
   }
-  const late = !amendment.is_merged && amendment.is_up_to_date === false;
+  const late = isAmendmentLate(amendment);
   const names = { [amendment.structure_id]: amendment.label };
   const where = {
     projectId: revision.projectId,
@@ -69,11 +67,7 @@ export function AmendmentCommands({
   };
   return (
     <div className="flex flex-wrap items-start gap-x-2 gap-y-2">
-      {late ? (
-        <p role="note" className="basis-full">
-          {t("note", { label: amendment.label })}
-        </p>
-      ) : null}
+      <AmendmentLateNote structure={amendment} />
       <MergeAmendmentCommand
         key={`merge:${amendment.structure_id}`}
         offer={late ? undefined : mergeOffer}

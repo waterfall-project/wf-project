@@ -28,11 +28,10 @@ from merges_support import (
     read_report,
     revision_of,
 )
-from nodes_support import mark, opened, refusal
+from nodes_support import lotted, mark, opened, refusal
 from projects_support import PROJECTS, contribute, designate, person
 from risks_support import Costed, declared
 from sqlalchemy import delete, func, select
-from test_skeleton import lotted
 
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.tables import Node
