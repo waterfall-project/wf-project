@@ -175,6 +175,8 @@ def test_a_slot_has_the_ports_of_its_block(slot: int) -> None:
         "WATERFALL_PROXY_PORT": first + 15,
         "E2E_API_PORT": first + 20,
         "E2E_FRONT_PORT": first + 40,
+        "E2E_METRICS_FRONT_PORT": first + 80,
+        "E2E_METRICS_PORT": first + 81,
     }
     assert slots.front_ports(slot) == range(first + 40, first + 80)
     assert slots.names(slot) == {
@@ -200,6 +202,8 @@ def test_slot_0_keeps_the_ports_and_names_of_before() -> None:
         "WATERFALL_PROXY_PORT": 4210,
         "E2E_API_PORT": 4110,
         "E2E_FRONT_PORT": 3100,
+        "E2E_METRICS_FRONT_PORT": 3180,
+        "E2E_METRICS_PORT": 3181,
     }
     assert slots.names(0) == {
         "WATERFALL_SERVICE_PROJECT": "waterfall-service",
@@ -746,6 +750,8 @@ def test_the_targets_of_a_slot_get_its_ports_and_names(workstation: Workstation)
     said = workstation.logged()
     assert "E2E_API_PORT=20120" in said.splitlines()
     assert "E2E_FRONT_PORT=20140" in said.splitlines()
+    assert "E2E_METRICS_FRONT_PORT=20180" in said.splitlines()
+    assert "E2E_METRICS_PORT=20181" in said.splitlines()
     assert workstation.make(tree, "check-front-image").returncode == 0
     assert "WATERFALL_FRONT_CHECK_IMAGE=waterfall-front:check-s1" in workstation.logged()
     assert workstation.make(tree, "build-keycloak").returncode == 0

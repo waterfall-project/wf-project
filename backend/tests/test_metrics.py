@@ -8,7 +8,9 @@ at an address where nothing listens; the realm of test is stopped for real, betw
 """
 
 import dataclasses
+import threading
 import time
+from concurrent.futures import wait
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
@@ -640,3 +642,78 @@ def test_a_probe_that_does_not_answer_is_not_asked_again_while_it_runs() -> None
         found = probe({"cache": hanging}, 0.1, flights)
         assert [each.is_available for each in found] == [False]
     assert asked == [1]
+
+
+@pytest.mark.requirement("WF-OBS-0010-A")
+def test_a_call_that_raises_a_base_exception_does_not_keep_its_name() -> None:
+    # Proper to US-2870: a SystemExit ends the flight, and the next start asks again.
+    asked: list[int] = []
+
+    def leaving() -> None:
+        asked.append(1)
+        raise SystemExit
+
+    flights = Flights()
+    first = flights.start("probe-cache", leaving)
+    wait([first], timeout=1)
+    assert isinstance(first.exception(), SystemExit)
+    second = flights.start("probe-cache", leaving)
+    wait([second], timeout=1)
+    assert second is not first
+    assert asked == [1, 1]
+
+
+@pytest.mark.requirement("WF-OBS-0010-A")
+def test_a_thread_that_does_not_start_does_not_keep_its_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Proper to US-2870: no thread left to start is a failed flight, not a name held forever.
+    class ExhaustedError(RuntimeError):
+        """Stand for the error of a process that can start no more threads."""
+
+    class Refusing(threading.Thread):
+        def start(self) -> None:
+            raise ExhaustedError
+
+    flights = Flights()
+    with monkeypatch.context() as patch:
+        patch.setattr(threading, "Thread", Refusing)
+        failed = flights.start("probe-cache", lambda: "7")
+    assert failed.done()
+    assert isinstance(failed.exception(), ExhaustedError)
+    again = flights.start("probe-cache", lambda: "7")
+    assert again.result(timeout=1) == "7"
+
+
+@pytest.mark.requirement("WF-OBS-0010-A")
+def test_a_thread_that_fails_to_start_with_a_memory_error_does_not_keep_its_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Proper to US-2870: whatever the start raises, not only a RuntimeError, frees the name.
+    class Refusing(threading.Thread):
+        def start(self) -> None:
+            raise MemoryError
+
+    flights = Flights()
+    with monkeypatch.context() as patch:
+        patch.setattr(threading, "Thread", Refusing)
+        failed = flights.start("probe-cache", lambda: "7")
+    assert isinstance(failed.exception(), MemoryError)
+    assert flights.start("probe-cache", lambda: "8").result(timeout=5) == "8"
+
+
+@pytest.mark.requirement("WF-OBS-0010-A")
+def test_an_interrupt_while_the_thread_starts_reaches_the_caller_and_frees_the_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Proper to US-2870: an interrupt of the calling thread is not swallowed by the flight.
+    class Refusing(threading.Thread):
+        def start(self) -> None:
+            raise KeyboardInterrupt
+
+    flights = Flights()
+    with monkeypatch.context() as patch:
+        patch.setattr(threading, "Thread", Refusing)
+        with pytest.raises(KeyboardInterrupt):
+            flights.start("probe-cache", lambda: "7")
+    assert flights.start("probe-cache", lambda: "8").result(timeout=5) == "8"

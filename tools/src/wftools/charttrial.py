@@ -44,12 +44,14 @@ from wftools.images import REGISTRY
 from wftools.production import (
     HIDDEN,
     LIVENESS,
+    METRICS,
     NOT_FOUND,
     OK,
     Browser,
     Platform,
     ProductionError,
     check_liveness,
+    check_metrics_hidden,
     check_signed_in,
     installation_link,
     sender,
@@ -406,6 +408,8 @@ class Trial:
         browser = Browser(sender(self.platform)(self.folder / "ca.crt"))
         check_console_hidden(browser, self.platform)
         print("  the console of Keycloak and its realm master are not served: ok", flush=True)
+        check_metrics_hidden(browser, self.platform)
+        print(f"  {' and '.join(METRICS)} answer {NOT_FOUND} at the ingress: ok", flush=True)
         password = f"Trial-{secrets.token_urlsafe(18)}"
         set_password(browser, link, password)
         print("  the first administrator sets their password by the link", flush=True)

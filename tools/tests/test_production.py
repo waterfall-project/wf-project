@@ -553,8 +553,10 @@ class FakePlatform:
         parts = urlsplit(url)
         if parts.scheme == "http":
             return answer(308, Location=f"{self.address}{parts.path}")
-        if parts.path in production.HIDDEN and parts.path not in self.routes:
-            return self.secure(answer(404))
+        if (parts.path in production.HIDDEN or parts.path in production.METRICS) and (
+            parts.path not in self.routes
+        ):
+            return self.secure(answer(404, body='{"code":"NOT_FOUND","status":404}'))
         form = {key: values[0] for key, values in parse_qs((body or b"").decode()).items()}
         self.requests.append((method, parts.path, dict(headers)))
         asked = Asked(method, parts.query, form, headers.get("Cookie", ""))
@@ -755,6 +757,40 @@ def test_the_console_of_keycloak_and_its_realm_master_must_not_be_served() -> No
     served = FakePlatform({path: fixed(200) for path in production.HIDDEN})
     with pytest.raises(ProductionError, match="/auth/admin/ answered 200, not 404"):
         production.check_console_hidden(Browser(served.send), PLATFORM)
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_the_point_of_metrics_must_answer_404_at_both_addresses_of_the_public_door() -> None:
+    # US-2870: the metrics are served on a port of their own, which the door does not route.
+    production.check_metrics_hidden(Browser(FakePlatform({}).send), PLATFORM)
+    served = FakePlatform({"/metrics": fixed(200)})
+    with pytest.raises(ProductionError, match="/metrics answered 200, not 404"):
+        production.check_metrics_hidden(Browser(served.send), PLATFORM)
+    other = FakePlatform({"/api/v1/metrics": fixed(200)})
+    with pytest.raises(ProductionError, match="/api/v1/metrics answered 200, not 404"):
+        production.check_metrics_hidden(Browser(other.send), PLATFORM)
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+@pytest.mark.parametrize(
+    "body",
+    ["", '{"code":"OTHER"}', "<html><h1>404 NOT_FOUND</h1></html>", '["NOT_FOUND"]'],
+    ids=["empty", "other-code", "html-with-the-word", "not-an-object"],
+)
+def test_a_404_without_the_not_found_code_is_not_the_door_of_the_platform(body: str) -> None:
+    bare = FakePlatform({path: fixed(404, body) for path in production.METRICS})
+    with pytest.raises(ProductionError, match="without the NOT_FOUND of the contract"):
+        production.check_metrics_hidden(Browser(bare.send), PLATFORM)
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_the_trial_fails_when_the_point_of_metrics_is_served(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    docker = Docker()
+    fake = FakePlatform({**realm_routes(), "/metrics": fixed(200), "/api/v1/metrics": fixed(200)})
+    assert production.main(GIVEN, docker.run, docker.read, platform_sender(fake)) == 1
+    assert "/metrics answered 200, not 404" in capsys.readouterr().err
 
 
 class Docker:

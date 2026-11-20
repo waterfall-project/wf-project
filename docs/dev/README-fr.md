@@ -3559,6 +3559,7 @@ Au créneau i de 1 à 9, les ports sont ceux du bloc `20000 + 100·i`, sous la p
 | l'API, Keycloak, Mailpit, le mandataire de Prism | `WATERFALL_API_PORT`, `WATERFALL_KEYCLOAK_PORT`, `WATERFALL_MAILPIT_PORT`, `WATERFALL_PROXY_PORT` | 8000, 8443, 8025, 4210 | `+ 12`, `+ 13`, `+ 14`, `+ 15` |
 | le faux back des parcours                        | `E2E_API_PORT`                                                                                    | 4110                   | `+ 20`                         |
 | les fronts des parcours, un par worker           | `E2E_FRONT_PORT`, le premier                                                                      | 3100 et les suivants   | `+ 40` à `+ 79`                |
+| le front et le point de métriques du parcours des métriques | `E2E_METRICS_FRONT_PORT`, `E2E_METRICS_PORT` | 3180, 3181 | `+ 80`, `+ 81` |
 
 Les noms portent le numéro du créneau : au créneau i, les projets Compose `waterfall-service-s<i>`
 (`WATERFALL_SERVICE_PROJECT`) et `waterfall-test-s<i>` (`WATERFALL_TEST_PROJECT`), les images

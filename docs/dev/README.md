@@ -3544,6 +3544,7 @@ ephemeral ports of Linux; at slot 0, those of before:
 | the API, Keycloak, Mailpit, the Prism proxy               | `WATERFALL_API_PORT`, `WATERFALL_KEYCLOAK_PORT`, `WATERFALL_MAILPIT_PORT`, `WATERFALL_PROXY_PORT` | 8000, 8443, 8025, 4210 | `+ 12`, `+ 13`, `+ 14`, `+ 15` |
 | the fake back of the paths                                | `E2E_API_PORT`                                                                                    | 4110                   | `+ 20`                         |
 | the fronts of the paths, one per worker                   | `E2E_FRONT_PORT`, the first                                                                       | 3100 and the following | `+ 40` to `+ 79`               |
+| the front and the metrics point of the metrics path | `E2E_METRICS_FRONT_PORT`, `E2E_METRICS_PORT` | 3180, 3181 | `+ 80`, `+ 81` |
 
 The names carry the number of the slot: at slot i, the Compose projects `waterfall-service-s<i>`
 (`WATERFALL_SERVICE_PROJECT`) and `waterfall-test-s<i>` (`WATERFALL_TEST_PROJECT`), the images

@@ -23,6 +23,7 @@
 import "server-only";
 
 import { API_CONNECTIONS, apiConnections, isMockAuthentication } from "@/api/server";
+import { metricsPort } from "@/metrics/serve";
 import { SESSION_VARIABLES, isSet } from "@/session/settings";
 
 /** The key of the closures of the server actions, set at start in production. */
@@ -51,6 +52,7 @@ export function checkStart(): void {
     if (missing.length > 0) {
       throw new Error(`${missing.join(", ")} must be set: the front does not start without them`);
     }
+    metricsPort();
     if (apiConnections() === "closed" && process.env.WATERFALL_E2E !== "1") {
       console.warn(
         `${API_CONNECTIONS}=closed: each request to the API opens a connection of its own, as the end-to-end harness asks — never in production`,

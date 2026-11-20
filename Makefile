@@ -179,7 +179,7 @@ slot-export = $(foreach name,$(2),$(eval $(1): export $(name) ?= $$(call slot-va
 SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_OPENLDAP_IMAGE \
 	WATERFALL_POSTGRES_PORT WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT \
 	WATERFALL_MAILPIT_PORT WATERFALL_PROXY_PORT
-SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT
+SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT E2E_METRICS_FRONT_PORT E2E_METRICS_PORT
 $(call slot-export,service-up service-install service-witness service-purge keycloak-authority service-logs service-down service-api-processes \
 	test-keycloak e2e-service,$(SLOT_SERVICE))
 # e2e-down is not tolerant of a worktree without a slot, on purpose: its first command, stop-servers,

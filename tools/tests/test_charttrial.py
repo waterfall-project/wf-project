@@ -155,6 +155,7 @@ def test_the_trial_holds_that_the_console_and_the_master_realm_are_not_served(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     seen: list[str] = []
+    metrics: list[str] = []
 
     def nothing(*_: object, **__: object) -> None:
         return None
@@ -171,17 +172,27 @@ def test_the_trial_holds_that_the_console_and_the_master_realm_are_not_served(
     def hidden(_browser: object, platform: Platform) -> None:
         seen.append(platform.domain)
 
-    for name in ("check_liveness", "set_password", "sign_in", "check_signed_in"):
+    def metrics_hidden(_browser: object, platform: Platform) -> None:
+        metrics.append(platform.domain)
+
+    for name in (
+        "check_liveness",
+        "set_password",
+        "sign_in",
+        "check_signed_in",
+    ):
         monkeypatch.setattr(charttrial, name, nothing)
     monkeypatch.setattr(charttrial, "installation_link", link)
     monkeypatch.setattr(charttrial, "sender", sender)
     monkeypatch.setattr(charttrial, "Browser", browser)
     monkeypatch.setattr(charttrial, "check_console_hidden", hidden)
+    monkeypatch.setattr(charttrial, "check_metrics_hidden", metrics_hidden)
     trial = Trial(
         Tools(["kind"], ["kubectl"], ["helm"]), lambda _: 0, lambda _: (0, "x"), tmp_path, PLATFORM
     )
     trial.hold("a@b.test")
     assert seen == ["waterfall.localhost"]
+    assert metrics == ["waterfall.localhost"]
 
 
 def _console_browser(answers: dict[str, Answer]) -> Browser:

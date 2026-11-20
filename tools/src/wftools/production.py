@@ -47,6 +47,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from html import unescape
 from pathlib import Path
+from typing import cast
 from urllib.parse import urlencode, urljoin, urlsplit
 
 from wftools import REPOSITORY
@@ -87,6 +88,7 @@ REDIRECTIONS = frozenset({301, 302, 303, 307, 308})
 MOST_REDIRECTIONS = 20
 OK = 200
 NOT_FOUND = 404
+NOT_FOUND_CODE = "NOT_FOUND"
 SECURITY_HEADERS = {
     "Strict-Transport-Security": "max-age=31536000",
     "X-Content-Type-Options": "nosniff",
@@ -96,6 +98,9 @@ SECURITY_HEADERS = {
 """The headers Caddy sets on every answer in HTTPS (Caddyfile.prod)."""
 HIDDEN = ("/auth/admin/", "/auth/realms/master/")
 """The console of Keycloak and its realm master, which Caddy does not serve."""
+METRICS = ("/metrics", "/api/v1/metrics")
+"""The point of metrics of the front, and `getMetrics` under the prefix of the API: the public door
+answers 404 to both, the metrics being served on a port of their own inside the network (TFX-09)."""
 TIMEOUT = 30.0
 _LINK = re.compile(r"^https://\S+$", re.MULTILINE)
 _FORM_ACTION = re.compile(r'<form[^>]*\baction="([^"]*)"')
@@ -266,6 +271,29 @@ def check_console_hidden(browser: Browser, platform: Platform) -> None:
             raise ProductionError(message)
 
 
+def _code(body: str) -> object:
+    """Return the ``code`` of the error envelope in a body, or None when it is not one."""
+    try:
+        envelope: object = json.loads(body)
+    except ValueError:
+        return None
+    if not isinstance(envelope, dict):
+        return None
+    return cast("dict[str, object]", envelope).get("code")
+
+
+def check_metrics_hidden(browser: Browser, platform: Platform) -> None:
+    """Hold that the public door answers 404 to the point of metrics, at both of its addresses."""
+    for path in METRICS:
+        answer = browser.request("GET", f"{platform.address}{path}")
+        if answer.status != NOT_FOUND:
+            message = f"{path} answered {answer.status}, not {NOT_FOUND}: the metrics are served"
+            raise ProductionError(message)
+        if _code(answer.body) != NOT_FOUND_CODE:
+            message = f"{path} answered {NOT_FOUND} without the NOT_FOUND of the contract"
+            raise ProductionError(message)
+
+
 def set_password(browser: Browser, link: str, password: str) -> None:
     """Open the link of the bootstrap, confirm it, and set the password in the form it opens."""
     confirmation, url = browser.open(link)
@@ -352,6 +380,8 @@ def trial(
         print(f"  HTTPS answers with {', '.join(SECURITY_HEADERS)}")
         check_console_hidden(Browser(sent), platform)
         print(f"  {' and '.join(HIDDEN)} answer {NOT_FOUND}")
+        check_metrics_hidden(Browser(sent), platform)
+        print(f"  {' and '.join(METRICS)} answer {NOT_FOUND}")
         browser = Browser(sent)
         password = f"Trial-{secrets.token_urlsafe(18)}"
         set_password(browser, link, password)

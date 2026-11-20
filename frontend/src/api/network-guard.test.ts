@@ -152,8 +152,10 @@ const ALLOWED_IN_CLIENT: readonly string[] = [
 // (`allowedElements` of `help-panel.tsx`), its links being its own, followed in it. The session of
 // the front (US-0350) does reach the network, and is examined for its own lists,
 // IDENTITY_MODULES and REDIS_MODULES: openid-client and jose speak to the identity provider,
-// @redis/client to Redis.
+// @redis/client to Redis. @prometheus-io/client counts and writes metrics, and reaches nothing
+// (its gateway, which pushes over HTTP, is not used).
 const DEPENDENCIES = [
+  "@prometheus-io/client",
   "@redis/client",
   "@tanstack/react-table",
   "@tanstack/virtual-core",
@@ -341,6 +343,33 @@ describe("the network guard", { timeout: 60_000 }, () => {
       2,
       expect.stringContaining(NETWORK),
     ]);
+  });
+
+  it("lets the point of metrics reach node:http, and nothing else of the network", async () => {
+    const METRICS = "src/metrics/serve.ts";
+    expect(await lint('import * as http from "node:http";\nexport default http;', METRICS)).toEqual(
+      [],
+    );
+    await refused(
+      'import * as client from "node:https";\nexport default client;',
+      "no-restricted-imports",
+      METRICS,
+    );
+    await refused(
+      'import * as client from "axios";\nexport default client;',
+      "no-restricted-imports",
+      METRICS,
+    );
+    await refused(
+      'export const answer = fetch("/api/v1/projects");',
+      "no-restricted-globals",
+      METRICS,
+    );
+    await refused(
+      'import * as http from "node:http";\nexport default http;',
+      "no-restricted-imports",
+      "src/metrics/front-metrics.ts",
+    );
   });
 
   it.each(SESSION_CLIENTS)(

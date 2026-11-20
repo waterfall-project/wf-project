@@ -107,8 +107,11 @@ SLOT_OFFSETS = {
     "WATERFALL_PROXY_PORT": 15,
     "E2E_API_PORT": 20,
     "E2E_FRONT_PORT": 40,
+    "E2E_METRICS_FRONT_PORT": 80,
+    "E2E_METRICS_PORT": 81,
 }
-"""The service platform, the fake back and the first front of the paths, in the block of a slot."""
+"""The service platform, the fake back, the first front of the paths and the front of the path of
+the metrics with its point of metrics, in the block of a slot (the fronts take 40 to 79)."""
 TEST_SERVICES = {
     "db": ("postgres", "WATERFALL_TEST_DATABASE_URL", "WATERFALL_TEST_POSTGRES_PORT"),
     "redis": ("redis", "WATERFALL_TEST_REDIS_URL", "WATERFALL_TEST_REDIS_PORT"),
@@ -126,6 +129,8 @@ PORTS_OF_BEFORE = {
     "WATERFALL_PROXY_PORT": 4210,
     "E2E_API_PORT": 4110,
     "E2E_FRONT_PORT": 3100,
+    "E2E_METRICS_FRONT_PORT": 3180,
+    "E2E_METRICS_PORT": 3181,
 }
 """The same at slot 0, the ports of the main repository before the slots."""
 GIT_FATAL = 128
@@ -454,8 +459,18 @@ def process_table(environment: Mapping[str, str]) -> Path:
 
 
 def end_to_end_ports(slot: int) -> set[int]:
-    """Return the ports of the end-to-end paths of a slot: the fake back and the fronts."""
-    return {ports(slot)["E2E_API_PORT"], *front_ports(slot)}
+    """Return the ports of the end-to-end paths of a slot: the fake back, the fronts, the metrics.
+
+    The path of the metrics of the front starts a front of its own and its point of metrics, on
+    ``E2E_METRICS_FRONT_PORT`` and ``E2E_METRICS_PORT``, past the fronts of the others.
+    """
+    named = ports(slot)
+    return {
+        named["E2E_API_PORT"],
+        *front_ports(slot),
+        named["E2E_METRICS_FRONT_PORT"],
+        named["E2E_METRICS_PORT"],
+    }
 
 
 def stopper(environment: Mapping[str, str]) -> Callable[[int], None]:

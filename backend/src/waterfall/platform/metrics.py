@@ -256,11 +256,19 @@ class Flights:
         def run() -> None:
             try:
                 future.set_result(call())
-            except Exception as fault:
+            except BaseException as fault:
+                # Whatever ends the call ends the flight: a future left pending would hold the name
+                # for the life of the process.
                 logger.debug("flight.failed", name=name, exc_info=True)
                 future.set_exception(fault)
 
-        threading.Thread(target=run, name=f"flight-{name}", daemon=True).start()
+        try:
+            threading.Thread(target=run, name=f"flight-{name}", daemon=True).start()
+        except BaseException as fault:
+            logger.warning("flight.not_started", name=name, exc_info=True)
+            future.set_exception(fault)
+            if not isinstance(fault, Exception):
+                raise  # an interrupt of the calling thread is not ours to swallow
         return future
 
 

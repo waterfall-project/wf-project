@@ -57,6 +57,7 @@ SETTINGS = {
     "WATERFALL_KEYCLOAK_BACKCHANNEL": "https://waterfall.invalid/auth",
     "WATERFALL_FRONT_CLIENT_SECRET": "stand-in",
     "WATERFALL_REDIS_URL": "redis://:stand-in@redis:6379/0",
+    "WATERFALL_METRICS_PORT": "9100",
     "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "c3RhbmQtaW4ta2V5LW9mLXRoZS1hY3Rpb25zLTMyYnk=",
 }
 """The environment of the service ``front`` of ``compose.prod.yaml``, its secrets stood in for."""
