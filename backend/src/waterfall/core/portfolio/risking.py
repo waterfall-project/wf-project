@@ -142,6 +142,11 @@ def identified_of(risks: Iterable[HeldRisk]) -> list[HeldRisk]:
     return [each for each in risks if each.state == IDENTIFIED]
 
 
+def identified_total(risks: Iterable[HeldRisk]) -> Decimal:
+    """Give the total of the provisions of the identified risks, each as it is, unweighted."""
+    return total_of(each.provision for each in identified_of(risks))
+
+
 def heaviest_of(risks: Iterable[HeldRisk]) -> list[HeldRisk]:
     """Give the ten identified risks of greatest provision, all projects together.
 

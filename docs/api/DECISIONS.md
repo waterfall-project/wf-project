@@ -12908,6 +12908,38 @@ dialogue ; `row` nul hors d'un collage, qui l'aurait ajouté à tous les refus d
 exemples pour ne rien dire ; nommer la tâche créée par un identifiant provisoire, qu'aucune lecture
 ne connaît.
 
+### Les risques du portefeuille servis (US-2730, #3865)
+
+Ce que le service fait là où le contrat laissait un choix ; aucune forme du contrat ne change.
+
+- **Sans pondération, tous les états du périmètre.** Le total des provisions identifiées, les dix
+  plus lourds et la matrice comptent les risques identifiés de chaque projet retenu — une offre en
+  chiffrage pour sa provision entière (WF-PTF-0020), un projet terminé dans la période pour les
+  siens. La matrice classe chaque risque à la lecture, sur les bornes courantes et sur l'assiette de
+  son propre projet ; ses points sont les seuls risques identifiés, ses cases les comptent une fois.
+  `matrix.totals` compte chaque risque conservé une fois, dans l'état où le document le tient
+  (`identified`, `occurred`, `dismissed`, la provision d'un survenu ou d'un écarté étant la part
+  qu'il portait dans la référence), avec la réserve de la couverture à côté. Les égalités de
+  provision se départagent par le libellé du projet, son identifiant, le libellé du risque, son
+  identifiant.
+- **La couverture agrégée** (G-06) somme celles des projets en cours et terminés du périmètre, un
+  projet en chiffrage n'y entrant pas ; l'écart est la différence des sommes, et la somme des
+  réestimés des survenus est rendue à côté de leur coût, jamais à sa place (#2002). Au jour courant,
+  celle de la révision du jour de chaque projet, calculée comme `getRemainingIndicators` la donne ;
+  à une date passée, celle que le document `remaining` de la dernière révision marquée a conservée,
+  avec la réserve que la référence conserve (`kept_coverage`), et calculée sur la révision quand le
+  marquage n'en a conservé que des chiffres incomplets ; une révision qui n'a conservé aucun
+  `remaining` n'y ajoute rien.
+- **`period_outcome` ne vient d'aucun document conservé** (#4294, point 2). Les provisions des
+  survenus et des écartés de la période sont celles que `outcomes_between` donne, par la date du
+  réexamen qui a changé l'état du risque, tous les marquages confondus ; la provision d'une issue est
+  la part du risque dans la référence que le projet a **aujourd'hui** (WF-RIS-0040), nulle sans
+  référence. À un `as_of` passé, `period_outcome` suit donc la référence du jour, non celle que le
+  projet avait alors, et peut compter une issue que la matrice, lue sur les documents conservés,
+  tient encore pour identifiée ; la réserve de la couverture suit la même référence. Écarté :
+  conserver les issues au marquage, ce qu'aucune nature de `portfolio_risks` ne prévoit ; la lecture
+  groupée par projet d'`outcomes_between` reste à la mesure (#4165).
+
 ## Organisation des fichiers
 
 **Les schémas sont groupés par famille**, un fichier par famille, et non un fichier par schéma —
