@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The purge of the exchanges: the imports expired, the deposits expired, the exports old.
 
-``waterfall-worker purge`` calls ``purge`` in its transaction (EP-06, "La purge"): it moves to
+The task ``purge`` of the worker calls ``purge`` in its transaction (EP-06, "La purge"): it moves to
 ``expired`` the imports ``analysed`` whose report expired, and to ``failed`` those whose task failed
 without leaving its trace (the attempts spent, never abandoned) — the file of either goes —; it
 deletes the rows of the deposits expired — those of EP-03 included, a deposit left in parts being

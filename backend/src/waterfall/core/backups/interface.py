@@ -118,6 +118,14 @@ def read_backup(session: Session, backup_id: UUID) -> BackupView:
     return _view(row)
 
 
+def backup_task_ids(session: Session) -> frozenset[UUID]:
+    """Give the tasks of the backups still listed: the table refuses that they be deleted.
+
+    Only the rotation deletes a backup, and its task goes after it (EP-13, "La sauvegarde").
+    """
+    return frozenset(session.scalars(select(Backup.task_id)))
+
+
 def last_scheduled_outcome(session: Session) -> Outcome | None:
     """Give how the latest backup the platform scheduled ended; ``None`` if none has ended yet.
 

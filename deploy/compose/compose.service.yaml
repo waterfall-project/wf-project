@@ -227,6 +227,9 @@ services:
       <<: [*back-environment, *keycloak-client-environment, *storage-environment]
       WATERFALL_BACKUP_DATABASE_URL: postgresql://waterfall_backup:${WATERFALL_BACKUP_DATABASE_PASSWORD:?export WATERFALL_BACKUP_DATABASE_PASSWORD}@postgres:5432/waterfall
       WATERFALL_KEYCLOAK_DATABASE_URL: postgresql://waterfall_backup:${WATERFALL_BACKUP_DATABASE_PASSWORD:?export WATERFALL_BACKUP_DATABASE_PASSWORD}@postgres:5432/keycloak
+      # What its purge keeps: the undo history of a session, the result of a task ended (US-2830).
+      WATERFALL_UNDO_RETENTION_HOURS: ${WATERFALL_UNDO_RETENTION_HOURS:-12}
+      WATERFALL_BACKGROUND_TASK_RETENTION_DAYS: ${WATERFALL_BACKGROUND_TASK_RETENTION_DAYS:-30}
     command: ["waterfall-worker"]
     restart: unless-stopped
     depends_on:
@@ -241,39 +244,34 @@ services:
       storage-buckets:
         condition: service_completed_successfully
 
-  # Deposits the reading of the accounts at the end of each interval of the installation, in
-  # seconds, a day by default (PBS-5.3); a CronJob does it in EP-13. A second loop purges what
-  # expired at the end of each purge interval, ten minutes by default (EP-06, "La purge"): imports,
-  # deposits and exports past their term, history, which it deletes from the object storage too. An
-  # interval that is not a positive number stops the service, with 2. Its process 1 is an init,
-  # which passes the stop on to the shell.
+  # The one command the planners call, every five minutes (PBS-5.3; a CronJob does it under
+  # Kubernetes): `waterfall-worker schedule` deposits what is due — the reading of the accounts at
+  # the end of each interval, a day by default, the purge of what expired at the end of each purge
+  # interval, ten minutes by default (EP-06, "La purge") — unless a task of the kind is queued or
+  # running, and runs nothing: the worker does, the storage included. It reaches PostgreSQL and
+  # Redis alone (TFX-10). A schedule that says a setting is wrong, 2, stops the service with 2.
   scheduler:
     <<: *back
     environment:
-      <<: [*back-environment, *storage-environment]
+      <<: *back-environment
+      WATERFALL_SCHEDULE_INTERVAL: ${WATERFALL_SCHEDULE_INTERVAL:-300}
       WATERFALL_IDENTITY_SYNC_INTERVAL: ${WATERFALL_IDENTITY_SYNC_INTERVAL:-86400}
       WATERFALL_PURGE_INTERVAL: ${WATERFALL_PURGE_INTERVAL:-600}
-      WATERFALL_UNDO_RETENTION_HOURS: ${WATERFALL_UNDO_RETENTION_HOURS:-12}
     init: true
     command:
       - sh
       - -c
       - |
-        for interval in "$$WATERFALL_IDENTITY_SYNC_INTERVAL" "$$WATERFALL_PURGE_INTERVAL"; do
-          [ "$$interval" -gt 0 ] 2>/dev/null || exit 2
+        [ "$$WATERFALL_SCHEDULE_INTERVAL" -gt 0 ] 2>/dev/null || exit 2
+        while sleep "$$WATERFALL_SCHEDULE_INTERVAL"; do
+          waterfall-worker schedule || [ "$$?" -ne 2 ] || exit 2
         done
-        while sleep "$$WATERFALL_PURGE_INTERVAL"; do waterfall-worker purge; done &
-        purging=$$!
-        while sleep "$$WATERFALL_IDENTITY_SYNC_INTERVAL"; do waterfall-worker enqueue identity_sync; done
-        kill "$$purging"
         exit 2
     depends_on:
       service-database-role:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
-      storage-buckets:
-        condition: service_completed_successfully
 
   # Runs the restorations the API deposits in their stream (WF-ADM-0160, #953), as the owners of
   # both databases, the client of the bootstrap and the service account; it asks keycloak-realm to

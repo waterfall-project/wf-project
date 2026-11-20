@@ -15,7 +15,7 @@ from sqlalchemy import select
 from waterfall.platform.audit import AuditEntry, AuditObject, Inscription, record
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.logs import logging_context
-from waterfall.platform.tasks import BackgroundTask, Task, TaskKind, submit
+from waterfall.platform.tasks import BackgroundTask, ScheduledKind, Task, TaskKind, submit
 from waterfall.worker.runner import lock_run
 
 if TYPE_CHECKING:
@@ -49,7 +49,7 @@ def inscribe(session: Session, task: Task) -> None:
 def deposit(
     database: Database,
     queue: TaskQueue,
-    kind: TaskKind = "identity_sync",
+    kind: TaskKind | ScheduledKind = "identity_sync",
     requested_by: UUID | None = None,
     correlation_id: str = REQUEST,
 ) -> UUID:

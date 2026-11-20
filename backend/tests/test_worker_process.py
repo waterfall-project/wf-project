@@ -4,7 +4,7 @@
 
 A worker of the tests runs as ``waterfall-worker`` does (``worker_process``), on the queue of the
 test; the schedule is the command of the service ``scheduler`` of the Compose file of the
-platform, run as its shell runs it, with ``waterfall-worker enqueue``.
+platform, run as its shell runs it, with ``waterfall-worker schedule``.
 """
 
 import itertools
@@ -14,6 +14,7 @@ import subprocess
 import sys
 import time
 from contextlib import contextmanager
+from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from uuid import UUID, uuid4
@@ -21,7 +22,6 @@ from uuid import UUID, uuid4
 import pytest
 import yaml
 from access_rows import holder
-from purge_environment import storage_environment
 from sqlalchemy import insert, select
 from support import raw_account
 from task_handlers import REQUEST, Runs, deposit, inscriptions, task
@@ -31,6 +31,7 @@ from waterfall.platform.correlation import FORM
 from waterfall.platform.database import utc_now
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.platform.uploads import LIFETIME, FileUpload, Whole, object_key_of, record_whole
+from waterfall.worker.purge import PurgeTask
 from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
@@ -47,6 +48,7 @@ PRODUCTION = TESTS.parents[1] / "deploy" / "compose" / "compose.prod.yaml"
 PATIENCE = 30.0
 INTERVAL = 1
 PURGE = "WATERFALL_PURGE_INTERVAL"
+SCHEDULE = "WATERFALL_SCHEDULE_INTERVAL"
 
 
 def wait_for(condition: Callable[[], bool]) -> None:
@@ -130,12 +132,16 @@ def test_the_platform_deposits_the_reading_of_the_accounts_at_its_interval_as_an
     assert scheduled_with[variable] == f"${{{variable}:-86400}}"
     runs = Runs()
     platform_queue.prepare()
-    taker = Worker(database, platform_queue, {"identity_sync": runs}, "worker", Timing(block=0.1))
-    # The other loop of the schedule, the purge, sleeps through the test.
-    with started(shell, {**service_environment, variable: str(INTERVAL), PURGE: "3600"}):
+    handlers = {"identity_sync": runs, "purge": Runs()}
+    taker = Worker(database, platform_queue, handlers, "worker", Timing(block=0.1))
+    # The schedule looks at each second; the purge, deposited with the reading, waits for its hour.
+    environment = {**service_environment, SCHEDULE: str(INTERVAL), variable: str(INTERVAL)}
+    with started(shell, {**environment, PURGE: "3600"}):
         wait_for(lambda: taker.step() and len(runs) == 2)
     with database.transaction() as session:
-        scheduled = list(session.scalars(select(BackgroundTask).order_by(BackgroundTask.id)))
+        readings = BackgroundTask.kind == "identity_sync"
+        scheduled = list(session.scalars(select(BackgroundTask).where(readings)))
+    scheduled.sort(key=lambda row: row.submitted_at)
     assert [row.id for row in scheduled[:2]] == runs
     assert {(row.kind, row.requested_by) for row in scheduled} == {("identity_sync", None)}
     assert [row.status for row in scheduled[:2]] == ["succeeded", "succeeded"]
@@ -155,28 +161,40 @@ def test_the_platform_deposits_the_reading_of_the_accounts_at_its_interval_as_an
 
 
 @pytest.mark.requirement("WF-DAT-0120-A")
-def test_the_platform_purges_what_expired_at_its_interval_by_the_second_loop_of_its_schedule(
-    database: Database, backups_bucket: Bucket, service_environment: dict[str, str]
+@pytest.mark.story("US-2830")
+def test_the_platform_purges_what_expired_at_its_interval_by_the_task_its_schedule_deposits(
+    database: Database,
+    platform_queue: TaskQueue,
+    backups_bucket: Bucket,
+    service_environment: dict[str, str],
 ) -> None:
     # « Un fichier déposé et jamais confirmé disparaît au terme du délai d'expiration. » : the
-    # schedule purges at the interval of ``WATERFALL_PURGE_INTERVAL``, ten minutes by default, while
-    # the loop of the reading of the accounts waits for its day.
+    # schedule, which reaches neither the storage nor the tables of the exchanges, deposits the
+    # purge at the interval of ``WATERFALL_PURGE_INTERVAL``, ten minutes by default; the worker,
+    # which holds the storage, runs it.
     scheduled_with, shell = scheduler()
     assert scheduled_with[PURGE] == f"${{{PURGE}:-600}}"
+    assert not [name for name in scheduled_with if "STORAGE" in name]
     upload_id = uuid4()
     key = object_key_of(upload_id)
     backups_bucket.put(key, b"WF")
     user = holder(database)
     with database.transaction() as session:
         record_whole(session, upload_id, Whole("oublie.wft", 2, user), utc_now() - LIFETIME * 2)
+    platform_queue.prepare()
+    purging = PurgeTask(backups_bucket, timedelta(hours=12), timedelta(days=30))
+    handlers = {"purge": purging, "identity_sync": Runs()}
+    taker = Worker(database, platform_queue, handlers, "worker", Timing(block=0.1))
+    # The schedule is run by a process that holds no setting of the storage.
     environment = {
         **service_environment,
-        **storage_environment(backups_bucket),
-        "WATERFALL_IDENTITY_SYNC_INTERVAL": "3600",
+        SCHEDULE: str(INTERVAL),
         PURGE: str(INTERVAL),
+        "WATERFALL_IDENTITY_SYNC_INTERVAL": "3600",
     }
 
     def purged() -> bool:
+        taker.step()
         # The row and the object go each in its own step of the purge: both are waited for (#2566).
         with database.transaction() as session:
             if session.get(FileUpload, upload_id) is not None:
@@ -185,40 +203,61 @@ def test_the_platform_purges_what_expired_at_its_interval_by_the_second_loop_of_
 
     with started(shell, environment):
         wait_for(purged)
-    assert backups_bucket.size(key) is None
+    with database.transaction() as session:
+        ran = session.scalars(
+            select(BackgroundTask).where(
+                BackgroundTask.kind == "purge", BackgroundTask.status == "succeeded"
+            )
+        ).first()
+    assert ran is not None
+    assert ran.requested_by is None
 
 
+@pytest.mark.story("US-2830")
 @pytest.mark.parametrize("interval", ["0", "soon", ""])
-def test_a_schedule_whose_purge_interval_is_no_positive_number_stops_with_two(
+def test_a_schedule_whose_interval_is_no_positive_number_stops_with_two(
     interval: str, service_environment: dict[str, str]
 ) -> None:
-    # A purge scheduled at no interval would never come, so the schedule refuses to start. It
-    # guards the purge of WF-DAT-0120 without trying its Vérif, which the test above tries: it
-    # cites no requirement (#2533).
+    # A schedule at no interval would never come, so the service refuses to start. It guards the
+    # purge of WF-DAT-0120 without trying its Vérif, which the test above tries: it cites no
+    # requirement (#2533).
     _, shell = scheduler()
-    environment = {
-        **service_environment,
-        "WATERFALL_IDENTITY_SYNC_INTERVAL": "3600",
-        PURGE: interval,
-    }
+    with started(shell, {**service_environment, SCHEDULE: interval}) as process:
+        assert process.wait(timeout=PATIENCE) == 2
+
+
+@pytest.mark.story("US-2830")
+@pytest.mark.parametrize("variable", ["WATERFALL_IDENTITY_SYNC_INTERVAL", PURGE])
+def test_a_schedule_that_says_an_interval_is_wrong_stops_the_service_with_two(
+    variable: str, service_environment: dict[str, str]
+) -> None:
+    # The command returns 2 for a setting wrong, and the loop does not call it again.
+    _, shell = scheduler()
+    environment = {**service_environment, SCHEDULE: str(INTERVAL), variable: "soon"}
     with started(shell, environment) as process:
         assert process.wait(timeout=PATIENCE) == 2
 
 
-def test_the_two_compose_files_schedule_the_same_loops_with_the_same_settings() -> None:
+def test_the_two_compose_files_schedule_the_same_loop_with_the_same_settings() -> None:
     # The purge that makes a deposit never confirmed disappear must run in production as the tests
-    # run it: the same script of loops, the same intervals and retention by default. A comparison
-    # of two files, not the Vérif of WF-DAT-0120: it cites no requirement (#2533).
+    # run it: the same script of the loop, the same intervals and retentions by default. A
+    # comparison of two files, not the Vérif of WF-DAT-0120: it cites no requirement (#2533).
     service_settings, service_shell = scheduler(COMPOSE)
     production_settings, production_shell = scheduler(PRODUCTION)
     assert production_shell == service_shell
-    names = (
-        "WATERFALL_IDENTITY_SYNC_INTERVAL",
-        PURGE,
-        "WATERFALL_UNDO_RETENTION_HOURS",
-    )
-    retention = "WATERFALL_UNDO_RETENTION_HOURS"
-    assert service_settings[retention] == f"${{{retention}:-12}}"
+    assert [part for part in service_shell if "waterfall-worker" in part] == [
+        part for part in production_shell if "waterfall-worker" in part
+    ]
+    assert "waterfall-worker schedule" in service_shell[-1]
+    assert "waterfall-worker purge" not in service_shell[-1]
+    names = ("WATERFALL_SCHEDULE_INTERVAL", "WATERFALL_IDENTITY_SYNC_INTERVAL", PURGE)
+    assert service_settings[SCHEDULE] == f"${{{SCHEDULE}:-300}}"
     assert {each: production_settings[each] for each in names} == {
         each: service_settings[each] for each in names
     }
+    # What the purge keeps is the worker's, which runs it.
+    undo, tasks = "WATERFALL_UNDO_RETENTION_HOURS", "WATERFALL_BACKGROUND_TASK_RETENTION_DAYS"
+    retentions = {undo: f"${{{undo}:-12}}", tasks: f"${{{tasks}:-30}}"}
+    for compose in (COMPOSE, PRODUCTION):
+        worker = yaml.safe_load(compose.read_text(encoding="utf-8"))["services"]["worker"]
+        assert {name: worker["environment"][name] for name in retentions} == retentions

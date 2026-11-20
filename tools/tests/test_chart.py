@@ -77,6 +77,20 @@ def services() -> dict[str, Any]:
     return yaml.safe_load(PRODUCTION.read_text(encoding="utf-8"))["services"]
 
 
+@pytest.mark.story("US-2830")
+def test_the_worker_of_the_chart_keeps_what_the_worker_of_the_compose_keeps(
+    objects: Objects,
+) -> None:
+    # propre à US-2830 : « background_task_retention_days est un paramètre d'exploitation » :
+    # the two retentions of the purge are set on the worker of the chart as on the Compose's.
+    names = ("WATERFALL_UNDO_RETENTION_HOURS", "WATERFALL_BACKGROUND_TASK_RETENTION_DAYS")
+    compose = services()["worker"]["environment"]
+    (container,) = pod(of_kind(objects, "Deployment")["worker"])["containers"]
+    variables = environment(container)
+    for name in names:
+        assert variables[name] == re.sub(r"\$\{[A-Z_]+:-(.*)\}", r"\1", compose[name])
+
+
 def test_the_front_listens_on_every_interface_whatever_kubernetes_sets_hostname(
     objects: Objects,
 ) -> None:
@@ -253,15 +267,25 @@ def test_the_migrations_run_in_the_order_of_the_compose_as_the_roles_it_names(
         assert url["PGUSER"] == role, name
 
 
-def test_the_tasks_planned_are_cronjobs_that_run_the_commands_of_the_scheduler(
+@pytest.mark.story("US-2800")
+def test_the_tasks_planned_are_one_cronjob_that_runs_the_one_command_of_the_schedule(
     objects: Objects,
 ) -> None:
+    # propre à US-2800 : « les tâches planifiées (PBS-5.3) sont des CronJobs, qui n'exécutent que
+    # la commande du worker qui inscrit une tâche et la met en file (TFX-10) » : the command the
+    # loop of the Compose runs, every five minutes, never two at once, and no storage to reach.
     loop = services()["scheduler"]["command"][-1]
-    commands = {
-        " ".join(next(containers(item))["command"]) for item in objects if item["kind"] == "CronJob"
-    }
-    assert commands == {"waterfall-worker purge", "waterfall-worker enqueue identity_sync"}
-    assert all(command in loop for command in commands)
+    (job,) = [item for item in objects if item["kind"] == "CronJob"]
+    (container,) = containers(job)
+    assert container["command"] == ["waterfall-worker", "schedule"]
+    assert "waterfall-worker schedule" in loop
+    assert job["spec"]["schedule"] == "*/5 * * * *"
+    assert job["spec"]["concurrencyPolicy"] == "Forbid"
+    variables = environment(container)
+    assert not [name for name in variables if "STORAGE" in name or "KEYCLOAK" in name]
+    assert {"WATERFALL_DATABASE_URL", "WATERFALL_REDIS_URL"} <= variables.keys()
+    assert variables["WATERFALL_PURGE_INTERVAL"] == "600"
+    assert variables["WATERFALL_IDENTITY_SYNC_INTERVAL"] == "86400"
 
 
 def test_the_chart_reads_the_images_of_the_compose(objects: Objects) -> None:
