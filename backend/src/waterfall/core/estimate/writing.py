@@ -58,6 +58,7 @@ from waterfall.platform.errors import VALIDATION_FAILED, FieldError
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
+    from decimal import Decimal
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -480,3 +481,30 @@ def _write_priced(
             set_committed_value(row, "base_amount", each.base)
             set_committed_value(row, "reestimated_amount", each.reestimated)
             set_committed_value(row, "consumption_year", each.consumption_year)
+
+
+def write_budgeted(
+    session: Session, project_id: UUID, moved: Sequence[tuple[EstimateLine, Decimal]]
+) -> None:
+    """Write the budgeted amounts of the lines whose amount moves, by set; keep them on their rows.
+
+    As the amounts priced (``_write_priced``): one ``UPDATE ... FROM (VALUES ...)`` by batch, where
+    a flush sent one statement by line — the designation of the witness's offer gives some fifteen
+    thousand lines their budget. The rows take the amount written as that of the base: not dirty.
+    """
+    for start in range(0, len(moved), PRICED_BATCH):
+        batch = moved[start : start + PRICED_BATCH]
+        amounts = values(
+            column("node_id", Uuid), column("budgeted_amount", AMOUNT), name="budgeted"
+        ).data([(row.node_id, amount) for row, amount in batch])
+        session.execute(
+            update(EstimateLine)
+            .where(
+                EstimateLine.project_id == project_id,
+                EstimateLine.node_id == amounts.c.node_id,
+            )
+            .values(budgeted_amount=amounts.c.budgeted_amount)
+            .execution_options(synchronize_session=False)
+        )
+        for row, amount in batch:
+            set_committed_value(row, "budgeted_amount", amount)

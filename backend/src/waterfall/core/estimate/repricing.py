@@ -43,6 +43,7 @@ from sqlalchemy import select
 from waterfall.core.estimate.keeping import reprice_revision
 from waterfall.core.estimate.reading import budgeted_of, rows_of
 from waterfall.core.estimate.tables import RevisionRate
+from waterfall.core.estimate.writing import write_budgeted
 from waterfall.core.planning.interface import lines_of_revision, refused_at, revision_lines
 from waterfall.core.projects.interface import project_facts
 from waterfall.core.revisions.interface import (
@@ -59,6 +60,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.cost_settings.interface import RateWritten
+    from waterfall.core.estimate.tables import EstimateLine
     from waterfall.core.revisions.interface import ReferenceDesignated
 
 NOUGHT = Decimal("0.00")
@@ -88,11 +90,13 @@ def refresh_budgeted(designation: ReferenceDesignated) -> None:
         line.node_id: budgeted_of(line)
         for line in rows_of(session, project_id, list(reference.values()))
     }
+    moved: list[tuple[EstimateLine, Decimal]] = []
     for line in rows_of(session, project_id, list(lineages)):
         node = reference.get(lineages[line.node_id])
         budgeted = NOUGHT if node is None else budgets.get(node, NOUGHT)
         if line.budgeted_amount != budgeted:
-            line.budgeted_amount = budgeted
+            moved.append((line, budgeted))
+    write_budgeted(session, project_id, moved)
     session.flush()
 
 
