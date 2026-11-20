@@ -77,6 +77,10 @@ DATA = {
     "PortfolioProjectRow.code": "a code",
     # The label of the organisation node a view of the portfolio is asked for, kept as it was given.
     "PortfolioScope.org_node_label": "a label",
+    # The label of the project a signal of the health of the control names, and that of its overdue
+    # milestone, as a person gave them (``getPortfolioPilotHealth``, US-2750).
+    "PilotHealth.signals.project_label": "a label",
+    "PilotHealth.signals.params.milestone_label": "a label",
     # The label of a role of resources, as a person gave it (``getPortfolioWorkload``, US-2700).
     "PortfolioWorkload.roles.label": "a label",
     "CalculationContext.scope": "a scope",

@@ -121,21 +121,37 @@ def audit_column_filters(
     return FiltersRead(filters, faults)
 
 
-class ScopeQuery(BaseModel):
-    """What every view of the portfolio is asked, as its query names it (WF-PTF-0010).
+class StatesQuery(BaseModel):
+    """What a view of the portfolio that takes no node is asked: its states and its date.
 
-    ``states`` is a list in one parameter, its values separated by commas; the others as the
-    contract writes them. A view that retains no period (``getPortfolioWorkload``) asks no more
-    than this.
+    ``states`` is a list in one parameter, its values separated by commas; ``as_of`` as the contract
+    writes it. The health of the control of the projects asks no more than this (WF-PTF-0110).
     """
 
     states: str | None = None
     as_of: date | None = None
-    org_node_id: UUID | None = None
+
+    def node(self) -> UUID | None:
+        """Give the organisation node asked: none for a view that takes no node."""
+        return None
 
     def period(self) -> tuple[date | None, date | None]:
         """Give the period asked, its two bounds: none for a view that takes no period."""
         return None, None
+
+
+class ScopeQuery(StatesQuery):
+    """What every view of the portfolio is asked, as its query names it (WF-PTF-0010).
+
+    The states and the date, and the node the view is read for. A view that retains no period
+    (``getPortfolioWorkload``) asks no more than this.
+    """
+
+    org_node_id: UUID | None = None
+
+    def node(self) -> UUID | None:
+        """Give the organisation node asked, if any."""
+        return self.org_node_id
 
 
 class PortfolioQuery(ScopeQuery):
@@ -153,7 +169,7 @@ class PortfolioQuery(ScopeQuery):
 PORTFOLIO_READ = "portfolio_projects.read"
 
 
-def portfolio_asked(query: ScopeQuery, other_faults: Iterable[FieldError] = ()) -> PortfolioAsked:
+def portfolio_asked(query: StatesQuery, other_faults: Iterable[FieldError] = ()) -> PortfolioAsked:
     """Read what a view of the portfolio is asked; a state that is none of the six is refused (422).
 
     ``other_faults`` are those the view found in its own parameters: refused at once with the
@@ -171,5 +187,5 @@ def portfolio_asked(query: ScopeQuery, other_faults: Iterable[FieldError] = ()) 
         period_from=period_from,
         period_to=period_to,
         as_of=query.as_of,
-        org_node_id=query.org_node_id,
+        org_node_id=query.node(),
     )
