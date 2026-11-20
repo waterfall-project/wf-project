@@ -68,8 +68,12 @@ export function AmendmentCommands({
     label: amendment.label,
   };
   return (
-    <div className="space-y-2">
-      {late ? <p role="note">{t("note", { label: amendment.label })}</p> : null}
+    <div className="flex flex-wrap items-start gap-x-2 gap-y-2">
+      {late ? (
+        <p role="note" className="basis-full">
+          {t("note", { label: amendment.label })}
+        </p>
+      ) : null}
       <MergeAmendmentCommand
         key={`merge:${amendment.structure_id}`}
         offer={late ? undefined : mergeOffer}
