@@ -1444,6 +1444,14 @@
         "help": "Abandons the revision being drawn up, after confirmation."
       }
     },
+    "structure": {
+      "delete": {
+        "help": "Abandons the amendment, a differential not merged of the revision in progress: it is deleted, after confirmation, and the screen returns to the main structure."
+      },
+      "rebase": {
+        "help": "Updates the amendment: carries into the differential what the main structure has received since it was opened, after the report and a confirmation. It can then be merged."
+      }
+    },
     "deleteRisk": {
       "help": "Deletes the risk with its own estimate and its provision line, after confirmation."
     },
@@ -2110,6 +2118,30 @@
     "description": "Description (optional)",
     "submit": "Mark",
     "cancel": "Cancel"
+  },
+  "abandonAmendment": {
+    "label": "Abandon the amendment",
+    "statement": "The amendment and what it holds are deleted; the main structure is not touched, and the screen returns to it. The abandon is irreversible: it is not entered in the history that “Undo” reverses.",
+    "submit": "Confirm the abandon of the amendment",
+    "done": "The amendment “{label}” is abandoned."
+  },
+  "amendmentLate": {
+    "note": "The amendment “{label}” is late: the main structure has received writes since it was opened. Update it before making it contractual."
+  },
+  "rebaseReport": {
+    "label": "Update the amendment",
+    "statement": "The update carries into the amendment what the main structure has received since it was opened, changing nothing of what the amendment designates, then makes the main structure its new base. Abandoning here changes nothing.",
+    "submit": "Confirm the update",
+    "title": "Report of the update",
+    "reading": "Reading the report…",
+    "counts": "Differences by change",
+    "added": "{count, plural, one {# carried as an addition} other {# carried as additions}}",
+    "updated": "{count, plural, one {# carried as a modification} other {# carried as modifications}}",
+    "removed": "{count, plural, one {# carried as a removal} other {# carried as removals}}",
+    "kept": "{count, plural, one {# kept by the amendment} other {# kept by the amendment}}",
+    "refusals": "{count, plural, one {# reason refuses the update} other {# reasons refuse the update}}",
+    "reread": "Read the report anew",
+    "done": "The amendment “{label}” is up to date."
   },
   "mergeReport": {
     "label": "Contractualise the amendment",

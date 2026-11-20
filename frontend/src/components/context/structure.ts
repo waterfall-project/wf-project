@@ -27,6 +27,12 @@ export interface ListedStructure {
   readonly label: string;
   readonly kind: StructureKind;
   readonly is_merged: boolean;
+  /**
+   * Whether a differential not merged is up to date (`CostStructure.is_up_to_date`, #4034): false,
+   * it is late, the main structure having received writes it does not carry; null for any other
+   * structure, which has no base.
+   */
+  readonly is_up_to_date: boolean | null;
 }
 
 /** The structure a grid reads, and every structure of its revision, as the server lists them. */
@@ -41,8 +47,11 @@ export function listedStructure({
   label,
   kind,
   is_merged,
-}: ListedStructure): ListedStructure {
-  return { structure_id, label, kind, is_merged };
+  is_up_to_date,
+}: Omit<ListedStructure, "is_up_to_date"> & {
+  readonly is_up_to_date?: boolean | null | undefined;
+}): ListedStructure {
+  return { structure_id, label, kind, is_merged, is_up_to_date: is_up_to_date ?? null };
 }
 
 /**
