@@ -39,7 +39,9 @@ marking.
 
 The key does not cover the label of a nature of cost, which the structure of the costs of a
 revision not marked reads on the reference as it stands: a nature renamed is served under its former
-label until the entry expires, within the validity of the cache (``IndicatorsCache``).
+label until the entry expires, within the validity of the cache (``IndicatorsCache``). The labels
+of ``missing_rates[].label`` are in the same case: kept in the entry, which the key does not cover,
+a category renamed keeps its former label there until the entry expires.
 
 An entry answers every kind the caller names (``Contributing.kinds``), a document or ``null`` for a
 kind the state of the project does not call for: an entry that lacks one of them is partial —
