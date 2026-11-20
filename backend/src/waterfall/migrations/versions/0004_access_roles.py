@@ -46,12 +46,14 @@ def require_collation(connection: Connection, name: str = COLLATION) -> None:
     ).first()
     if found is None:
         message = (
-            f"the collation {name!r} is not in pg_collation: this PostgreSQL was built without ICU. "
+            f"the collation {name!r} is not in pg_collation: "
+            "this PostgreSQL was built without ICU. "
             "The search of Waterfall lowers a text in it, and would answer 500 to every request. "
             "Use a PostgreSQL built with ICU, as the official image is "
             "(docs/exploitation/postgresql-fourni.md)."
         )
         raise CollationMissingError(message)
+
 
 GRANT = """
 DO $$
