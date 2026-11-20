@@ -6,11 +6,14 @@ from importlib import import_module
 from typing import TYPE_CHECKING
 
 import pytest
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
+from sqlalchemy import inspect, text
 
 from waterfall.platform.database import EVERY_LETTER
 
 if TYPE_CHECKING:
-    from sqlalchemy import Engine
+    from sqlalchemy import Connection, Engine
 
 pytestmark = [pytest.mark.story("US-2800"), pytest.mark.requirement("WF-ARC-0050-A")]
 
@@ -39,3 +42,24 @@ def test_a_server_without_the_collation_is_refused_saying_what_it_lacks(
     assert "pg_collation" in said
     assert "built without ICU" in said
     assert "docs/exploitation/postgresql-fourni.md" in said
+
+
+def test_the_upgrade_refuses_the_server_before_writing_anything(
+    empty_engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    verified = ROLES.require_collation
+
+    def refuse(connection: Connection) -> None:
+        verified(connection, "absent-x-icu")
+
+    monkeypatch.setattr(ROLES, "require_collation", refuse)
+    # Autocommit: a write made before the refusal would stay, where a transaction would hide it.
+    with empty_engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
+        context = MigrationContext.configure(connection)
+        with Operations.context(context), pytest.raises(ROLES.CollationMissingError):
+            ROLES.upgrade()
+        assert inspect(connection).get_table_names() == []
+        extensions = connection.execute(
+            text("SELECT extname FROM pg_extension WHERE extname = 'unaccent'")
+        ).all()
+        assert extensions == []

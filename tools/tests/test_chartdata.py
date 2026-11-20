@@ -6,6 +6,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 import pytest
+import yaml
 
 from wftools import chart, chartdata, charttrial
 from wftools.charttrial import Tools, Trial, TrialError
@@ -88,6 +89,31 @@ def test_the_operator_values_render_the_chart_without_a_component_of_its_own() -
     assert "name: waterfall-redis" not in rendered
     assert "name: waterfall-storage" not in rendered
     assert "@postgres.data.svc.cluster.local:5432/waterfall" in rendered
+
+
+@pytest.mark.chart
+def test_the_components_are_started_as_the_chart_starts_its_own() -> None:
+    """The server and the cache of the operator run with the options of those of the chart."""
+    objects = [
+        item
+        for item in yaml.safe_load_all(chart.render(None, chart.RELEASE))
+        if item and item["kind"] in {"StatefulSet", "Deployment"}
+    ]
+    own = {
+        item["metadata"]["labels"]["app.kubernetes.io/component"]: item["spec"]["template"]["spec"][
+            "containers"
+        ][0]
+        for item in objects
+    }
+    provided = by_kind(chartdata.manifests(charttrial.drawn_secrets(), ""), "Deployment")
+
+    def container(component: str) -> dict[str, Any]:
+        return provided[component]["spec"]["template"]["spec"]["containers"][0]
+
+    chart_args = own["postgres"]["args"]
+    # The connections are the chart's default in both; the lock option is the one to compare.
+    assert container("postgres")["args"] == chart_args
+    assert container("redis")["command"] == own["redis"]["command"]
 
 
 def test_the_trial_poses_the_components_then_makes_the_secret_from_a_file(tmp_path: Path) -> None:

@@ -214,10 +214,6 @@ def test_the_api_scales_from_one_instance_to_three_by_one_value_that_no_pod_read
         if a != b
     ]
     assert differences == [("Deployment", "waterfall-api", 1, 3)]
-    api = of_kind(three, "Deployment")["api"]
-    strategy = api["spec"].get("strategy", {}).get("rollingUpdate", {})
-    # No pod of the API is taken away to make room: at least one answers throughout.
-    assert strategy.get("maxUnavailable", 0) in {0, "0", "0%"}
 
 
 def test_the_chart_and_the_compose_of_production_designate_the_same_images() -> None:

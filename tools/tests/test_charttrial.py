@@ -7,11 +7,13 @@ chart-trial`` in the full tier of the chain; these tests hold what the trial and
 Helm, kind and kubectl decide by themselves, without a cluster nor a download.
 """
 
+import ast
 import base64
 import hashlib
 import io
 import re
 import tarfile
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -23,7 +25,6 @@ from wftools.production import HIDDEN, Answer, Browser, Platform, ProductionErro
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from pathlib import Path
 
 PLATFORM = Platform("waterfall.localhost", 41443, 0)
 
@@ -331,11 +332,17 @@ def test_the_console_served_or_the_redirection_elsewhere_is_refused(
 
 
 @pytest.mark.parametrize("path", HIDDEN)
-def test_a_redirection_to_another_host_is_refused_whatever_it_ends_on(path: str) -> None:
-    other = "https://elsewhere.example:41443/auth/"
+@pytest.mark.parametrize(
+    "ending", [Answer(404, (), ""), Answer(200, (), SOFT)], ids=["404", "soft"]
+)
+def test_a_redirection_to_another_host_is_refused_whatever_it_ends_on(
+    path: str, ending: Answer
+) -> None:
+    # The same path on another host: only the host tells it from the platform.
+    other = f"https://elsewhere.example:41443{path}"
     answers = _answers(path, (path, _moved(other)))
-    answers[other] = Answer(404, (), "")
-    with pytest.raises(ProductionError, match=r"ends on 404 at https://elsewhere\.example"):
+    answers[other] = ending
+    with pytest.raises(ProductionError, match=r"at https://elsewhere\.example.*it is served$"):
         charttrial.check_console_not_served(_console_browser(answers), PLATFORM)
 
 
@@ -343,3 +350,42 @@ def test_a_redirection_to_another_host_is_refused_whatever_it_ends_on(path: str)
 def test_a_soft_404_at_the_path_asked_is_accepted_without_any_redirection(path: str) -> None:
     answers = _answers(path, (path, Answer(200, (), SOFT)))
     charttrial.check_console_not_served(_console_browser(answers), PLATFORM)
+
+
+LABEL_AT = 2
+LEAST_COMMANDS = 20
+LEAST_WORDS = 2
+
+
+def _labelled_calls() -> list[tuple[int, ast.expr | None]]:
+    """List every call of `_must` and `_output` of the module, with the label it passes."""
+    tree = ast.parse(Path(charttrial.__file__).read_text(encoding="utf-8"))
+    calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in {"_must", "_output"}
+    ]
+    return [
+        (call.lineno, call.args[LABEL_AT] if len(call.args) > LABEL_AT else None)
+        for call in sorted(calls, key=lambda each: each.lineno)
+    ]
+
+
+def test_every_command_of_the_trial_is_named_by_what_it_is_for() -> None:
+    calls = _labelled_calls()
+    # A guard against the walk finding nothing: the module runs more than twenty such commands.
+    assert len(calls) >= LEAST_COMMANDS
+    for line, label in calls:
+        assert label is not None, f"line {line}: the command has no label"
+        # A literal, or an f-string whose literal parts are the words of the label.
+        if isinstance(label, ast.Constant):
+            words = str(label.value).split()
+        else:
+            assert isinstance(label, ast.JoinedStr), f"line {line}: the label is computed"
+            words = " ".join(
+                str(part.value) for part in label.values if isinstance(part, ast.Constant)
+            ).split()
+        assert len(words) >= LEAST_WORDS, f"line {line}: {words} does not say what it is for"
+        assert words[0] not in {"kubectl", "helm", "kind", "openssl", "docker"}, f"line {line}"
