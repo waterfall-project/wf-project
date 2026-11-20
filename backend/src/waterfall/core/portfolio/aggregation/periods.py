@@ -32,6 +32,11 @@ def month_label(month: Month) -> str:
     return f"{month.year:04d}-{month.month:02d}"
 
 
+def last_day_of(month: Month) -> date:
+    """Give the last day of a civil month: 28 February 2026, 29 February 2028."""
+    return date(month.year, month.month, monthrange(month.year, month.month)[1])
+
+
 def _index_of(month: Month) -> int:
     return month.year * MONTHS_PER_YEAR + month.month - 1
 

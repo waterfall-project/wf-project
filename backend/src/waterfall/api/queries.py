@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The parameters of a query that several operations of the API share, typed once."""
 
+import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Annotated
@@ -20,6 +21,12 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
+NUMBER_INVALID = "NUMBER_INVALID"
+# The form of an integer, as the contract writes it.
+INTEGER = re.compile(r"-?\d+")
+# The horizon, in months, of the views that look ahead: its default and its greatest.
+DEFAULT_HORIZON = 6
+GREATEST_HORIZON = 240
 
 # The parameter ``search`` of the contract, absent by default; a text, which refuses a NUL.
 Search = Annotated[Text | None, Query(min_length=1, max_length=200)]
@@ -28,6 +35,20 @@ Search = Annotated[Text | None, Query(min_length=1, max_length=200)]
 GREATEST_OFFSET = 2147483647
 # The parameter ``offset`` of the contract, the items skipped before the page, 0 by default.
 Offset = Annotated[int, Query(ge=0, le=GREATEST_OFFSET)]
+
+
+def horizon_faults(text: str) -> list[FieldError]:
+    """Name the horizon that is malformed or out of its bounds, as every view that takes one does.
+
+    A malformed one is ``NUMBER_INVALID``; one outside its bounds is ``VALUE_OUT_OF_RANGE`` with
+    them.
+    """
+    if INTEGER.fullmatch(text) is None:
+        return [FieldError("/query/horizon_months", NUMBER_INVALID)]
+    if not 1 <= int(text) <= GREATEST_HORIZON:
+        bounds = {"minimum": 1, "maximum": GREATEST_HORIZON}
+        return [FieldError("/query/horizon_months", VALUE_OUT_OF_RANGE, bounds)]
+    return []
 
 
 def refuse_query(faults: Iterable[FieldError]) -> None:
@@ -122,12 +143,12 @@ def audit_column_filters(
 
 
 class DatedQuery(BaseModel):
-    """What a view of the portfolio that takes no node is asked: its states and its date.
+    """What every view of the portfolio is asked: its states and its date, no node and no period.
 
     ``states`` is a list in one parameter, its values separated by commas; ``as_of`` as the
     contract writes it. The view that takes a node (``ScopeQuery``) or a period (``PortfolioQuery``)
-    adds them; the one that takes neither (``getPortfolioCostCurve`` takes a period alone) says so
-    by what it overrides.
+    adds it; one that takes a period without a node (``getPortfolioCostCurve``) overrides
+    ``period`` alone.
     """
 
     states: str | None = None

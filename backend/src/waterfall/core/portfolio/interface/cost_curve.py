@@ -13,7 +13,8 @@ chooses the projects Completed (``resolve_scope``, G-05). Nothing is calculated 
 date, each rounded once.
 
 A curve of a project is cumulative and stepped at its points: its value at a date is that of its
-last point on or before it, nought before its first — a series without points, a project that kept
+last point on or before it (``value_at``), nought before its first and its final value after its
+last — a series without points, a project that kept
 no curves, adds nothing. The reference budget is read at the end of each month of the window; the
 actual cost at the end of each month before the date of calculation and at that date; the
 projection of the project manager at that date and at the end of each month after it. With the
@@ -24,7 +25,6 @@ null.
 Declared by US-2670/L1, the socle of EP-11; filled by US-2740.
 """
 
-from calendar import monthrange
 from dataclasses import dataclass, replace
 from datetime import date
 from decimal import Decimal
@@ -33,10 +33,13 @@ from typing import TYPE_CHECKING
 from waterfall.core.costs.interface import PROJECT
 from waterfall.core.indicators.interface import IndicatorKind, IndicatorsReading, cost_curve
 from waterfall.core.portfolio.aggregation import (
+    ZERO_AMOUNT,
+    last_day_of,
     month_label,
     months_window,
     sum_by_key,
     sum_by_month,
+    value_at,
     weighted_amount,
 )
 from waterfall.core.portfolio.contributing import OFFER_CURVES
@@ -62,7 +65,6 @@ if TYPE_CHECKING:
 COUNTED: frozenset[ProjectState] = frozenset({IN_PROGRESS, PRICING, COMPLETED})
 # The months before that of the date of calculation the curve always starts from (G-04).
 MONTHS_BEFORE = 12
-NOUGHT = Decimal("0.00")
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,11 +73,6 @@ class _Curve:
 
     document: Document
     weight: Decimal
-
-
-def _end_of(month: Month) -> date:
-    """Give the last day of a civil month."""
-    return date(month.year, month.month, monthrange(month.year, month.month)[1])
 
 
 def _curves(
@@ -128,18 +125,6 @@ def _series(document: Document, name: str) -> list[tuple[date, Decimal]]:
     return []
 
 
-def _value_at(points: Sequence[tuple[date, Decimal]], day: date) -> Decimal:
-    """Give a cumulative curve at a day: its last point on or before it, nought before its first.
-
-    Of two points at one date — a step of the reference budget — the later stands.
-    """
-    value = NOUGHT
-    for when, amount in points:
-        if when <= day:
-            value = amount
-    return value
-
-
 def _summed(
     curves: Sequence[_Curve], name: str, days: Sequence[date]
 ) -> list[dict[str, str | None]]:
@@ -147,9 +132,9 @@ def _summed(
     parts: list[dict[date, Decimal]] = []
     for each in curves:
         points = _series(each.document, name)
-        parts.append({day: weighted_amount(_value_at(points, day), each.weight) for day in days})
+        parts.append({day: weighted_amount(value_at(points, day), each.weight) for day in days})
     sums = sum_by_key(parts)
-    return [{"date": day.isoformat(), "amount": money(sums.get(day, NOUGHT))} for day in days]
+    return [{"date": day.isoformat(), "amount": money(sums.get(day, ZERO_AMOUNT))} for day in days]
 
 
 def _cash_out_of(curve: _Curve, window: Sequence[Month], field: str) -> Mapping[Month, Decimal]:
@@ -185,7 +170,7 @@ def read_portfolio_cost_curve(
     resolved = resolve_scope(session, asked, reading.at, counted=COUNTED, period=True)
     day = resolved.scope.as_of
     window = months_window(day, before=MONTHS_BEFORE, horizon=horizon_months)
-    ends = [_end_of(month) for month in window]
+    ends = [last_day_of(month) for month in window]
     kind: IndicatorKind = "cost_curve_payment_delays" if payment_delays else "cost_curve"
     curves = _curves(session, resolved, reading, kind)
     return {

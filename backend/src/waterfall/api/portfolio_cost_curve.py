@@ -20,8 +20,13 @@ from pydantic import Field
 
 from waterfall.api.authentication import ServicesOf, Transaction
 from waterfall.api.evaluation import Requires
-from waterfall.api.portfolio_workload import DEFAULT_HORIZON, GREATEST_HORIZON, horizon_faults
-from waterfall.api.queries import DatedQuery, portfolio_asked
+from waterfall.api.queries import (
+    DEFAULT_HORIZON,
+    GREATEST_HORIZON,
+    DatedQuery,
+    horizon_faults,
+    portfolio_asked,
+)
 from waterfall.core.portfolio.interface import PortfolioReading, read_portfolio_cost_curve
 from waterfall.platform.database import utc_now
 

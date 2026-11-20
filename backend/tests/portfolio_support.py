@@ -240,6 +240,15 @@ def another_in_progress(api: ContractClient, fabrics: Portfolio, label: str, cod
         return writer.under_way(label, code)[0]
 
 
+def another_offer(
+    api: ContractClient, fabrics: Portfolio, label: str, probability: Decimal
+) -> UUID:
+    """Write one more offer on the platform of the fabrics, marked; give the revision it marked."""
+    writer = _Writer(api, fabrics.stage, fabrics.costs)
+    with logging_context(correlation_id="portfolio-another-offer"):
+        return writer.offered(label, probability)[1][OFFER][0]
+
+
 def portfolio(api: ContractClient, stage: Scene) -> Portfolio:
     """Write the four projects of the fabrics on the platform of a scene, as its manager.
 

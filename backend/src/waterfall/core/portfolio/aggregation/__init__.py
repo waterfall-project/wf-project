@@ -14,9 +14,17 @@ from waterfall.core.portfolio.aggregation.conversion import (
     conversion_rate as conversion_rate,
 )
 
+# ``curves``.
+from waterfall.core.portfolio.aggregation.curves import (
+    value_at as value_at,
+)
+
 # ``periods``.
 from waterfall.core.portfolio.aggregation.periods import (
     Quarter as Quarter,
+)
+from waterfall.core.portfolio.aggregation.periods import (
+    last_day_of as last_day_of,
 )
 from waterfall.core.portfolio.aggregation.periods import (
     month_label as month_label,
@@ -55,6 +63,9 @@ from waterfall.core.portfolio.aggregation.ratios import (
 )
 
 # ``sums``.
+from waterfall.core.portfolio.aggregation.sums import (
+    ZERO_AMOUNT as ZERO_AMOUNT,
+)
 from waterfall.core.portfolio.aggregation.sums import (
     count_by_key as count_by_key,
 )

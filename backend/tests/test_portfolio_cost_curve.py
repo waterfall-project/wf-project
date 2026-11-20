@@ -17,7 +17,7 @@ from uuid import UUID
 
 import pytest
 from portfolio_listing_support import READ, example, kept_changed, read, revision_of, served
-from portfolio_support import Portfolio, another_in_progress, portfolio
+from portfolio_support import Portfolio, another_in_progress, another_offer, portfolio
 from projects_support import Scene
 from projects_support import scene as make_scene
 from sqlalchemy import delete, text, update
@@ -281,7 +281,7 @@ def test_with_the_payment_delays_the_series_are_the_cash_out_and_the_detail_is_b
     assert curves(api, fabrics, f"{READ}&payment_delays=false")["cash_out_by_month"] is None
 
 
-@pytest.mark.requirement("WF-PTF-0100-A")
+@pytest.mark.story("US-2740")
 def test_a_project_that_kept_no_curves_adds_nothing_and_is_not_an_error(
     api: ContractClient, owner: Engine, fabrics: Portfolio
 ) -> None:
@@ -320,21 +320,77 @@ def test_the_sum_is_that_of_the_curves_getcostcurve_gives_of_each_project_at_the
         for name in ("reference_budget", "actual_cost", "project_manager_projection"):
             held = points(body, name)
             assert held
-            for day, amount in held.items():
-                expected = sum(
-                    (Decimal(value_at(points(one, name), day)) for one in each_one), Decimal(0)
-                )
-                assert Decimal(amount) == expected, (name, day)
+            # At each day where every project has a point of its own, the sum of those points: no
+            # rule of reading between two points is assumed here (``value_at`` has its own tests).
+            common = [day for day in held if all(day in points(one, name) for one in each_one)]
+            assert common, name
+            for day in common:
+                expected = sum((Decimal(points(one, name)[day]) for one in each_one), Decimal(0))
+                assert Decimal(held[day]) == expected, (name, day)
         assert any(Decimal(amount) != 0 for amount in points(body, "reference_budget").values())
 
 
-def value_at(held: Points, day: str) -> str:
-    """Give a cumulative curve at a day: its last point on or before it, nought before."""
-    found = "0.00"
-    for when, amount in held.items():
-        if when <= day:
-            found = amount
-    return found
+@pytest.mark.story("US-2740")
+def test_a_curve_over_keeps_its_cumulative_and_one_that_starts_late_is_nought(
+    api: ContractClient, owner: Engine, fabrics: Portfolio
+) -> None:
+    # Propre à l'US : a curve is read at its last point on or before each day. A project whose
+    # curve ends in September 2025 keeps its cumulative to the end of the window; one whose curve
+    # starts in October 2026 is nought until then. The expected values are written by hand.
+    first, second = two_projects(api, owner, fabrics)
+    keep(owner, first, "cost_curve", curve({"2025-08-31": "50.00", "2025-09-30": "70.00"}, {}, {}))
+    keep(owner, second, "cost_curve", curve({"2026-10-31": "5.00"}, {}, {}))
+    budget = points(curves(api, fabrics), "reference_budget")
+    assert budget == {
+        "2025-06-30": "0.00",
+        "2025-07-31": "0.00",
+        "2025-08-31": "50.00",
+        **dict.fromkeys(ENDS[3:16], "70.00"),
+        "2026-10-31": "75.00",
+        "2026-11-30": "75.00",
+    }
+
+
+@pytest.mark.requirement("WF-PTF-0100-A")
+def test_a_project_completed_read_on_the_current_day_is_what_get_cost_curve_gives_it(
+    api: ContractClient, fabrics: Portfolio, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Without a date, a project Completed is read as the day computes it, whatever its state:
+    # the portfolio of the sole project Completed is, at each end of month its curve holds, the
+    # answer of ``getCostCurve``, and keeps its cumulative after its last point.
+    monkeypatch.setattr("waterfall.api.portfolio_cost_curve.utc_now", lambda: NOW)
+    monkeypatch.setattr("waterfall.api.indicator_curves.utc_now", lambda: NOW)
+    own = api.get(
+        f"/api/v1/projects/{fabrics.completed.project_id}/indicators/cost-curve",
+        headers=fabrics.stage.reader.headers,
+    ).json()
+    body = curves(api, fabrics, "states=completed")
+    assert body["scope"]["as_of"] == "2026-11-19"
+    assert body["scope"]["project_count"] == 1
+    for name in ("reference_budget", "actual_cost", "project_manager_projection"):
+        held, theirs = points(body, name), points(own, name)
+        shared = [day for day in held if day in theirs]
+        assert shared, name
+        assert all(held[day] == theirs[day] for day in shared), name
+    budget, theirs = points(body, "reference_budget"), points(own, "reference_budget")
+    assert Decimal(theirs[max(theirs)]) > 0
+    assert budget["2027-04-30"] == theirs[max(theirs)]
+
+
+@pytest.mark.story("US-2740")
+def test_each_project_is_rounded_once_before_the_sum_not_the_sum_once(
+    owner: Engine, api: ContractClient, fabrics: Portfolio
+) -> None:
+    # Two offers at a probability of 0.333, each with a budget of 0.50: each part is 0.1665, which
+    # rounds to 0.17, so the sum is 0.34; the sum, 1.00, weighted once would be 0.33.
+    other = another_offer(api, fabrics, "Seconde extension", Decimal("0.4"))
+    held = {"2026-07-31": "0.50"}
+    for revision in (revision_of(fabrics, "offer"), other):
+        keep_probability(owner, revision, Decimal("0.333"))
+        keep_offer(owner, revision, curve(held, {}, {}), curve(held, {}, {}, {}))
+    body = curves(api, fabrics, f"{READ}&states=pricing")
+    assert body["scope"]["project_count"] == 2
+    assert points(body, "reference_budget")["2026-07-31"] == "0.34"
 
 
 # --- The offers ----------------------------------------------------------------------------------
@@ -533,7 +589,12 @@ def test_on_the_current_day_the_curve_is_what_get_cost_curve_gives_and_an_offer_
         assert body["scope"]["project_count"] == 1
         budget = points(body, "reference_budget")
         assert (next(iter(budget)), list(budget)[-1]) == ("2025-11-30", "2027-04-30")
-        assert budget == {day: value_at(points(own, "reference_budget"), day) for day in budget}
+        held = points(own, "reference_budget")
+        shared = [day for day in budget if day in held]
+        assert shared
+        assert all(budget[day] == held[day] for day in shared)
+        # The project keeps the cumulative of its last point after it: its plateau to the horizon.
+        assert budget["2027-04-30"] == held[max(held)]
         assert Decimal(budget["2027-04-30"]) > 0
         offer = curves(api, fabrics, f"states=pricing&payment_delays={flag}")
         both = curves(api, fabrics, f"states=in_progress,pricing&payment_delays={flag}")
