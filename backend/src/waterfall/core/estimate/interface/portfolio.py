@@ -45,8 +45,8 @@ from waterfall.core.estimate.workloading import estimate_workload
 from waterfall.core.planning.interface import lines_of_structure
 from waterfall.core.revisions.interface import (
     aimed_structure,
-    designated_at_marking,
     read_revision_for,
+    reference_at_marking,
 )
 
 if TYPE_CHECKING:
@@ -127,9 +127,10 @@ def portfolio_totals(session: Session, project_id: UUID, revision_id: UUID) -> P
     natures = natures_of(
         session, project_id, read, {line.cost_category_id for line, _ in remaining}
     )
-    budget_id = read.reference_revision_id or read.revision_id
-    if designated_at_marking(session, read.revision_id):
-        budget_id = read.revision_id
+    budget_id = (
+        reference_at_marking(session, read.revision_id, read.reference_revision_id)
+        or read.revision_id
+    )
     budget_read = (
         read if budget_id == read.revision_id else read_revision_for(session, project_id, budget_id)
     )

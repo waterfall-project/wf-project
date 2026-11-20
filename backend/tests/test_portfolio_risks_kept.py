@@ -22,11 +22,14 @@ from amendments_support import on, opened_amendment
 from estimate_support import Lines, costing
 from indicators_support import marked
 from merges_support import client, merged
-from nodes_support import Tree
-from occurrence_support import Occurring, occurring
-from projects_support import PROJECTS, Scene
+from milestone_tracking_support import MILESTONE, START, TIME_TIME
+from nodes_support import Tree, put_facts
+from occurrence_support import SEARCH, Occurring, occurring
+from projects_support import PROJECTS, Scene, create
 from projects_support import scene as make_scene
+from remaining_support import task_named
 from risks_support import Costed, costed, material
+from risks_support import occur as made_occurred
 from sqlalchemy import select
 
 from waterfall.core.indicators.contributions import contribution_key
@@ -37,8 +40,9 @@ from waterfall.core.indicators.interface import (
     kept_documents_of,
 )
 from waterfall.core.indicators.tables import RevisionIndicator
+from waterfall.core.planning.interface import milestone_forecasts
 from waterfall.core.portfolio.contributing import DAY_KINDS, day_contribution
-from waterfall.core.projects.interface import current_day
+from waterfall.core.projects.interface import current_day, project_facts
 from waterfall.core.resource_settings.interface import roles_stamp
 from waterfall.core.revisions.tables import Revision
 from waterfall.core.risks.interface import outcomes_between, reviewed_since
@@ -246,6 +250,11 @@ def test_the_merge_of_a_differential_keeps_every_document_of_the_portfolio_risks
     # its marking, and its risk is related to the budget of the reference it becomes at that
     # instant, 1 200, not to the one before, 1 000.
     project = current(ready)
+    occurred_risk = ready.risks.declared("0.4", "Panne de la grue")
+    ready.risks.costed_at(occurred_risk, project.revision_id, "300.00")
+    made_occurred(project.stage, occurred_risk["risk_id"], project.revision_id, "300.00")
+    left = ready.risks.declared("0.2", "Gel des sols")
+    ready.risks.reviewed(ready.risks.risk(left), state="dismissed")
     amendment = opened_amendment(ready.api, project)
     branch = on(project.tree, amendment)
     task = branch.made("Extension")
@@ -269,13 +278,69 @@ def test_the_merge_of_a_differential_keeps_every_document_of_the_portfolio_risks
     assert kept["portfolio_cost_structure"]["budget_revision_id"] == str(project.revision_id)
     risks = kept[RISKS]
     assert risks["base"] == "1200.00"
-    (risk,) = risks["risks"]
-    assert (risk["risk_id"], risk["state"]) == (ready.risk["risk_id"], "identified")
-    assert (risk["probability"], risk["severity"], risk["provision_amount"]) == (
+    by_id = {each["risk_id"]: each for each in risks["risks"]}
+    assert set(by_id) == {ready.risk["risk_id"], occurred_risk["risk_id"], left["risk_id"]}
+    risk = by_id[ready.risk["risk_id"]]
+    assert (risk["state"], risk["probability"], risk["severity"], risk["provision_amount"]) == (
+        "identified",
         "0.3000",
         "200.00",
         "60.00",
     )
+    assert by_id[occurred_risk["risk_id"]]["state"] == "occurred"
+    assert by_id[left["risk_id"]]["state"] == "dismissed"
+    # What the merge keeps is what the register gives once the revision is designated, and what
+    # the day computes on it: neither the part of the reference before, nor a part unwritten yet.
+    register = register_of(ready, project.revision_id)
+    assert {key: figures(each) for key, each in by_id.items()} == {
+        key: figures(register[key]) for key in by_id
+    }
+    with project.stage.database.transaction() as session:
+        day = day_contribution(
+            session, project_id=project.project_id, revision_id=project.revision_id, at=marked_at
+        )
+    assert day[RISKS] == risks
+
+
+@pytest.mark.story("US-2680")
+def test_the_merge_of_a_differential_dates_a_milestone_in_the_reference_it_becomes(
+    ready: Occurring, worker: Worker
+) -> None:
+    # Propre à l'US : « la même fonction de calcul donne les mêmes documents » au jour courant
+    # (#4282). A milestone tracked and dated in the current revision is unknown to the reference
+    # before the merge; the merge designates its revision the reference at the instant it marks it,
+    # so the date kept for the milestone is its forecast in that revision, as the day gives it
+    # after, not none.
+    project = current(ready)
+    node = project.tree.made("Jalon de réception", task=MILESTONE)
+    held = task_named(project.tree, "Jalon de réception")
+    path = f"{project.tree.path}/nodes/{node['node_id']}/tracking"
+    body = {"entries": [TIME_TIME], "lock_version": held["lock_version"]}
+    answer = ready.api.put(path, headers=project.stage.manager.headers, json=body)
+    assert answer.status_code == 200, answer.text
+    put_facts(project.stage, node["node_id"], start_date=START, finish_date=START)
+    amendment = opened_amendment(ready.api, project)
+    branch = on(project.tree, amendment)
+    task = branch.made("Extension")
+    Lines(branch).made(task, **material(project.costs, "Matériel", "200.00"))
+    assert merged(ready.api, project, worker, amendment)["status"] == "succeeded"
+    kept = kept_of(project.stage.database, project.revision_id)
+    with project.stage.database.transaction() as session:
+        reference = project_facts(session, project.project_id).reference_revision_id
+        marked_at = session.scalar(
+            select(Revision.marked_at).where(Revision.id == project.revision_id)
+        )
+        assert marked_at is not None
+        day = day_contribution(
+            session, project_id=project.project_id, revision_id=project.revision_id, at=marked_at
+        )
+    assert reference == project.revision_id
+    (milestone,) = kept["portfolio_milestones"]["milestones"]
+    with project.stage.database.transaction() as session:
+        lineage = UUID(milestone["lineage_id"])
+        planned = milestone_forecasts(session, project.project_id, [lineage], [project.revision_id])
+    assert milestone["reference_date"] == planned[project.revision_id][lineage].isoformat()
+    assert day["portfolio_milestones"] == kept["portfolio_milestones"]
 
 
 # --- The current day, and the key of the cache ---------------------------------------------------
@@ -297,13 +362,15 @@ class Counted:
 
 @pytest.mark.requirement("WF-DAT-0130-A")
 def test_a_change_of_a_risk_is_not_served_from_the_entry_of_the_contribution_before(
-    ready: Occurring, cache: IndicatorsCache
+    ready: Occurring, cache: IndicatorsCache, worker: Worker
 ) -> None:
     # Propre à l'US : « l'empreinte sous laquelle le cache garde la contribution d'un projet couvre
     # ce que la contribution lit : […] les compteurs des risques ; un changement de l'une de ces
     # valeurs n'est pas servi d'après l'entrée ancienne » (#4158). The fingerprint of the day reads
     # them already: a review of the risk — its probability to 50 % — and a change of its label each
-    # change the part of the day of the key, and the next reading computes the risks again.
+    # change the part of the day of the key, and the next reading computes the risks again; so do
+    # the severity — a line added to its own estimate — and the occurrence, its state, then the
+    # re-estimated amount of a line it merged.
     project_id = ready.project.project_id
     revision_id = UUID(ready.revision["revision_id"])
     at = utc_now()
@@ -333,6 +400,31 @@ def test_a_change_of_a_risk_is_not_served_from_the_entry_of_the_contribution_bef
     keys.append(key())
     assert read()["label"] == "Retard du fournisseur principal"
     assert counted.calls == 3
+    # The severity — the own estimate — and the occurrence: its state, then the re-estimated amount
+    # of the lines it merged, each move the key as well.
+    ready.risks.costed_at(ready.read(), revision_id, "100.00")
+    keys.append(key())
+    assert (read()["severity"], read()["provision_amount"]) == ("300.00", "150.00")
+    assert counted.calls == 4
+    occurred(ready, worker)
+    keys.append(key())
+    assert read()["state"] == "occurred"
+    assert counted.calls == 5
+    before = read()["occurred_reestimated_amount"]
+    line = next(
+        each
+        for each in ready.main()
+        if each["kind"] == "estimate_line" and each["estimate_line"]["label"] == SEARCH
+    )
+    answer = ready.api.patch(
+        f"{ready.main_path()}/nodes/{line['node_id']}/estimate-line",
+        headers=ready.risks.headers,
+        json={"lock_version": line["lock_version"], "unit_disbursement": "500.00"},
+    )
+    assert answer.status_code == 200, answer.text
+    keys.append(key())
+    assert read()["occurred_reestimated_amount"] != before
+    assert counted.calls == 6
     days = [each.split(":portfolio:")[0] for each in keys]
     assert len(set(days)) == len(days)
 
@@ -374,6 +466,53 @@ def test_the_outcomes_of_a_period_are_the_risks_a_review_moved_with_their_share_
     assert found(today + day, today + 2 * day) == set()
     with ready.project.stage.database.transaction() as session:
         assert outcomes_between(session, [], today, today) == []
+
+
+def another_ready(ready: Occurring, api: ContractClient) -> Occurring:
+    """Give a second project of the platform, its risk identified in its second revision too."""
+    stage = ready.project.stage
+    other = create(api, stage.manager, label="Extension du poste de commande")
+    scene_two = replace(stage, project=other)
+    second = occurring(api, costed(api, scene_two, ready.project.costs))
+    path = f"{PROJECTS}/{second.project.project_id}"
+    counter = api.get(path, headers=stage.manager.headers).json()["lock_version"]
+    coded = api.patch(
+        path, headers=stage.manager.headers, json={"code": "PRJ-2680-B", "lock_version": counter}
+    )
+    assert coded.status_code == 200, coded.text
+    return second
+
+
+@pytest.mark.story("US-2680")
+def test_the_outcomes_of_projects_are_ordered_and_a_risk_dismissed_keeps_its_share(
+    ready: Occurring, api: ContractClient
+) -> None:
+    # Le lot : ``outcomes_between`` rend ses résultats « par projet, jour, risque ». A risk
+    # identified in the reference then dismissed bears the share it held there, 60 — not none —;
+    # two projects, each with a second risk declared and dismissed (no share), come out by project,
+    # then day, then risk.
+    second = another_ready(ready, api)
+    expected: set[tuple[UUID, str, str, Decimal]] = set()
+    for each, shares in ((ready, D("60.00")), (second, D("60.00"))):
+        each.risks.reviewed(each.read(), state="dismissed")
+        later = each.risks.declared("0.2", "Gel des sols")
+        each.risks.reviewed(each.risks.risk(later), state="dismissed")
+        expected |= {
+            (each.project.project_id, each.risk["risk_id"], "dismissed", shares),
+            (each.project.project_id, later["risk_id"], "dismissed", D("0.00")),
+        }
+    today = current_day(utc_now())
+    with ready.project.stage.database.transaction() as session:
+        read = outcomes_between(
+            session, [ready.project.project_id, second.project.project_id], today, today
+        )
+    assert len(read) == 4
+    assert {
+        (each.project_id, str(each.risk_id), each.state, each.provision_amount) for each in read
+    } == expected
+    keys = [(each.project_id, each.reviewed_on, each.risk_id) for each in read]
+    assert keys == sorted(keys)
+    assert len({project for project, _, _ in keys}) == 2
 
 
 @pytest.mark.story("US-2680")

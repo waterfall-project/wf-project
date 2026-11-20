@@ -50,6 +50,7 @@ from waterfall.core.planning.interface import (
 )
 from waterfall.core.portfolio.states import IN_PROGRESS, PRICING
 from waterfall.core.projects.interface import Viewer, project_facts
+from waterfall.core.revisions.interface import reference_at_marking
 from waterfall.core.risks.interface import portfolio_risks
 
 if TYPE_CHECKING:
@@ -203,7 +204,7 @@ def milestones_document(
         for each in tasks_for_indicators(session, project_id, revision_id)
         if each.is_milestone and each.lineage_id in tracked
     ]
-    reference = facts.reference_revision_id
+    reference = reference_at_marking(session, revision_id, facts.reference_revision_id)
     dates: Mapping[UUID, date] = {}
     if reference is not None:
         lineages = [each.lineage_id for each in tasks]
