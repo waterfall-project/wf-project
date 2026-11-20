@@ -410,35 +410,6 @@ function measureProjects(): Project[] {
   ];
 }
 
-// The front that serves its metrics (`e2e/metrics.spec.ts`, WF-OBS-0010-A): beside the fronts of the
-// paths, past the forty of a slot's block, at offsets 80 and 81. Only the built front has one — the
-// development server and the service have none — and only a run of the paths starts it: the path
-// reads its address in `E2E_METRICS_FRONT` and `E2E_METRICS_PORT`, which a worker reads here again.
-const METRICS_FRONT_PORT = FRONT_PORT + MAX_WORKERS * 2;
-const METRICS_PORT = METRICS_FRONT_PORT + 1;
-const HAS_METRICS_FRONT = PLAYS_PATHS && !PLAYS_SERVICE && !DEVELOPMENT && NAMED_API === undefined;
-if (HAS_METRICS_FRONT) {
-  process.env.E2E_METRICS_FRONT = `http://127.0.0.1:${String(METRICS_FRONT_PORT)}`;
-  process.env.E2E_METRICS_PORT = String(METRICS_PORT);
-}
-
-/** The front of the metrics: the built front, its metrics on a port of its own, after the others. */
-function metricsFront(): WebServer[] {
-  if (!HAS_METRICS_FRONT) {
-    return [];
-  }
-  return [
-    {
-      command: `pnpm start --hostname 127.0.0.1 --port ${String(METRICS_FRONT_PORT)}`,
-      url: `http://127.0.0.1:${String(METRICS_PORT)}/metrics`,
-      env: { ...FRONT_ENV, WATERFALL_METRICS_PORT: String(METRICS_PORT) },
-      reuseExistingServer: false,
-      timeout: 120_000,
-      gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
-    },
-  ];
-}
-
 /**
  * The fronts the parts play against, one for each worker of the paths (`FRONTS`): built for
  * production and started, or the development server when `E2E_DEV_SERVER=1` asks for it.
@@ -520,5 +491,5 @@ export default defineConfig({
     ...measureProjects(),
     ...serviceMeasureProjects(),
   ],
-  webServer: [...fakeBack(), ...fronts(), ...metricsFront()],
+  webServer: [...fakeBack(), ...fronts()],
 });
