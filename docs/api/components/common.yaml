@@ -903,8 +903,11 @@ ProblemParams:
         leave without a working hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010): by their
         project, their node and their label for an entry, a paste or a merge; by their
         lineage and their label in the report of an import, which names its objects this way
-        (`ImportDifference`) and may concern a project without a current revision, of which no node
-        exists yet (WF-INTF-0090; #768, point 2). Likewise, by their lineage and their label,
+        (`ImportDifference`) and may concern a project without a current revision, of which no
+        node exists yet (WF-INTF-0090; #768, point 2); by its lineage and its label also, for a
+        merge or the update of a differential, a task that the structure written does not hold
+        yet, which the differential or the main structure adds (`ReportRefusal`; #4245).
+        Likewise, by their lineage and their label,
         the tasks that carry the ambiguous label an imported line cites
         (`AMBIGUOUS_TASK_LABEL`, annex B). Each task follows one form only: both are closed,
         and each requires what the other does not declare — `project_id` and `node_id`, or
@@ -1003,7 +1006,9 @@ ProblemImportedTask:
   required: [lineage_id, label]
   description: >-
     A task named by the reason for an imported line (`ImportRejection.params.tasks`), by its
-    lineage, as `ImportDifference` names the objects of an import (#768, point 2). Closed: no
+    lineage, as `ImportDifference` names the objects of an import (#768, point 2); or, by a
+    merge or the update of a differential, a task that the structure written does not hold yet
+    (`ProblemParams.tasks`, #4245). Closed: no
     project nor node beside its lineage, which would make it a task of an entry as well
     (`ProblemTask`, #2635).
   properties:
