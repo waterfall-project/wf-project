@@ -496,17 +496,38 @@ def witness(database: Database, owner: Engine, service_database_url: str) -> Dat
 
 
 @pytest.fixture
-def witness_logged(witness: Database, service_database_url: str, logs: Logs) -> Database:
+def witness_logged(
+    database: Database, owner: Engine, service_database_url: str, logs: Logs
+) -> Database:
     """Give the witness and, in ``logs``, the records the command wrote when it loaded it.
 
     Those of the loading of this process, kept with its rows: the command, the description and
-    the platform are the same for every test, so are its records. A first loading in this very
-    test writes them in ``logs`` already.
+    the platform are the same for every test, so are its records. Kept records that do not say the
+    witness loaded — none, or those of a loading that found it there — are not taken on trust: the
+    command loads it again in this very test, under ``logs``, and its rows and records are kept in
+    their place.
     """
-    held = WITNESS_ROWS[service_database_url]
-    if held.records not in logs.text:
+    held = WITNESS_ROWS.get(service_database_url)
+    if held is not None and said_loaded(held.records):
+        laid(owner, held.rows)
         logs.stream.write(held.records)
-    return witness
+    else:
+        WITNESS_ROWS[service_database_url] = loaded(owner, service_database_url)
+    return database
+
+
+def said_loaded(records: str) -> bool:
+    """Tell whether records hold the one that says the command loaded the witness."""
+    for line in records.splitlines():
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(record, dict) and cast("dict[str, object]", record).get("event") == (
+            "witness.loaded"
+        ):
+            return True
+    return False
 
 
 @pytest.fixture
