@@ -7,10 +7,13 @@
  * module the hook loads is the one the startup shares, so that a request is counted once. A front
  * that observed nothing would answer 200 on its port with no series: the count is read here
  * (WF-OBS-0010-A, TFX-09). The front is one of this file's, started on the ports of the slot past
- * the forty of the fronts of the paths (offsets 80 and 81 of its block): no other path asks it, and
- * its count is its own. The image's `standalone` output is not played here (`check-front-image`).
+ * the slot owns for it (`E2E_METRICS_FRONT_PORT` and `E2E_METRICS_PORT`, offsets 80 and 81 of its
+ * block): no other path asks it, and its count is its own. The image's `standalone` output is not played here (`check-front-image`).
  */
 import { type ChildProcess, spawn } from "node:child_process";
+import { once } from "node:events";
+import { createServer } from "node:net";
+import { join } from "node:path";
 
 import { expect, test } from "@playwright/test";
 
@@ -20,9 +23,9 @@ function port(variable: string, own: number): number {
   return named === undefined ? own : Number(named);
 }
 
-// The fronts of the paths take up to forty ports from the first; this one, the next two.
-const FRONT_PORT = port("E2E_FRONT_PORT", 3100) + 80;
-const METRICS_PORT = FRONT_PORT + 1;
+// The two ports the slot gives this path, named by `make e2e`.
+const FRONT_PORT = port("E2E_METRICS_FRONT_PORT", 3180);
+const METRICS_PORT = port("E2E_METRICS_PORT", 3181);
 const FRONT = `http://127.0.0.1:${String(FRONT_PORT)}`;
 const METRICS = `http://127.0.0.1:${String(METRICS_PORT)}/metrics`;
 // The fake back of the harness: the front built for production reaches an API, which is not the
@@ -31,15 +34,41 @@ const NOT_BUILT =
   process.env.E2E_DEV_SERVER === "1" || process.env.WATERFALL_API_ADDRESS !== undefined;
 
 let front: ChildProcess | undefined;
+let failure: string | undefined;
+
+/** Whether nothing listens on the port: an orphan of another build would be judged in place of ours. */
+async function isFree(candidate: number): Promise<boolean> {
+  const probe = createServer();
+  probe.unref();
+  const outcome = Promise.race([
+    once(probe, "listening").then(() => true),
+    once(probe, "error").then(() => false),
+  ]);
+  probe.listen(candidate, "127.0.0.1");
+  const free = await outcome;
+  if (free) {
+    probe.close();
+    await once(probe, "close");
+  }
+  return free;
+}
 
 test.beforeAll(async ({ request }) => {
+  test.setTimeout(90_000);
   if (NOT_BUILT) {
     return;
   }
-  front = spawn(
-    "pnpm",
-    ["exec", "next", "start", "--hostname", "127.0.0.1", "--port", String(FRONT_PORT)],
+  for (const taken of [FRONT_PORT, METRICS_PORT]) {
+    expect(await isFree(taken), `port ${String(taken)} is already served: make e2e-down`).toBe(
+      true,
+    );
+  }
+  // `next` itself, in a group of processes of its own: `pnpm` would not pass the signal on.
+  const child = spawn(
+    join(import.meta.dirname, "../node_modules/.bin/next"),
+    ["start", "--hostname", "127.0.0.1", "--port", String(FRONT_PORT)],
     {
+      detached: true,
       stdio: "ignore",
       env: {
         ...process.env,
@@ -51,15 +80,38 @@ test.beforeAll(async ({ request }) => {
       },
     },
   );
+  front = child;
+  child.once("error", (error) => {
+    failure = `the front did not start: ${error.message}`;
+  });
+  child.once("exit", (code, signal) => {
+    failure ??= `the front exited before it answered (${String(code ?? signal)})`;
+  });
   await expect
-    .poll(async () => (await request.get(METRICS).catch(() => undefined))?.status(), {
-      timeout: 60_000,
-    })
+    .poll(
+      async () => {
+        if (failure !== undefined) {
+          throw new Error(failure);
+        }
+        return (await request.get(METRICS).catch(() => undefined))?.status();
+      },
+      { timeout: 60_000 },
+    )
     .toBe(200);
 });
 
-test.afterAll(() => {
-  front?.kill("SIGTERM");
+test.afterAll(async () => {
+  const child = front;
+  if (child?.pid === undefined || child.exitCode !== null || child.signalCode !== null) {
+    return;
+  }
+  const exited = once(child, "exit");
+  try {
+    process.kill(-child.pid, "SIGTERM");
+  } catch {
+    return;
+  }
+  await exited;
 });
 
 /** The requests the front counted under a kind. */

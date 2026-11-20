@@ -497,6 +497,8 @@ describe("the fronts of the harness, one for each worker of the paths (#1477)", 
       // Makefile takes them from the environment before it asks the registry of slots (US-1100).
       environment.E2E_API_PORT = "4110";
       environment.E2E_FRONT_PORT = "3100";
+      environment.E2E_METRICS_FRONT_PORT = "3180";
+      environment.E2E_METRICS_PORT = "3181";
       const run = execFileSync(
         "make",
         [
