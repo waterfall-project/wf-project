@@ -26,9 +26,12 @@ named with its cause where the test stands:
   the shapes and steps of the series are the examples'.
 
 ``SINCE`` names what the 101 read at its marking, 1 February, differs in from the example of the
-day, 3 June: each such path is pinned to the 101's own estimate and indicators by an equality; the
-``*_APART`` tables document only. Proved besides: the sums of the meshes, the projection of the
-project manager, the offer refused, the time/time diagram, the documents of the 101 twice loaded.
+day, 3 June, which holds the work since: each such path is pinned to the 101's own estimate and
+indicators by an equality, in the test that names it. The causes of the ``*_APART`` tables
+document only: the tests compare their paths, never their causes.
+
+The invariants the witness proves: the sums of the meshes, the projection of the project manager,
+the offer refused, the points of the time/time diagram, the documents of the 101 on two platforms.
 """
 
 import json
@@ -987,12 +990,9 @@ def test_no_address_and_no_project_but_the_witness_s_appear_in_the_documents_the
         for each in documents_of(document)
         if isinstance(each.get("label"), str)
     }
-    allowed = {
-        each["label"]
-        for each in example("remaining_indicators")["by_subproject"]
-        if "label" in each
-    }
-    allowed |= {each["label"] for each in example("remaining_indicators")["by_cost_type"]}
+    remaining = example("remaining_indicators")
+    allowed = {each["label"] for each in remaining["by_subproject"] if "label" in each}
+    allowed |= {each["label"] for each in remaining["by_cost_type"]}
     allowed |= {each["label"] for each in example("estimate_indicators")["by_work_package"]}
     allowed |= {each["label"] for each in example("milestone_tracking")["milestones"]}
     assert labels

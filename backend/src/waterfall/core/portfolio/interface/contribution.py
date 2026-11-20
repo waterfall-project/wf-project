@@ -17,10 +17,12 @@ The forms, which the views read (US-2700 to US-2750); every identifier and every
 amount or hours a decimal in a string, to the cent or the hundredth, never weighted:
 
 - ``portfolio_workload`` (US-2700): ``{"roles": [{"resource_role_id", "months": [{"month":
-  "2026-03", "hours": "8.00"}]}]}`` — the hours of each role loaded, by month loaded in order, on
-  the remaining to commit of the revision (``getProjectWorkload``: from the day of the computation
-  for the current revision, from the day of its marking for a marked one), the estimate being all
-  the remaining of an offer. A role without load is absent; a month without load too.
+  "2026-03", "hours": "8.00"}]}]}`` — the hours of each role loaded, by month loaded in order:
+  for a project that is not an offer, on the remaining to commit of the revision
+  (``getProjectWorkload``: from the day of the computation for the current revision, from the day
+  of its marking for a marked one); for an offer, on its estimate, the hours of each line whole
+  over the dates of its task, whatever the day (``offer_workload``). A role without load is
+  absent; a month without load too.
 - ``portfolio_cost_structure`` (US-2720): ``{"budget_revision_id", "budget_by_cost_type":
   [{"cost_type_id", "label", "amount"}], "remaining_by_cost_type": [same],
   "budget_labour_by_role": [{"resource_role_id", "amount"}], "remaining_labour_by_role": [same]}``
@@ -29,11 +31,14 @@ amount or hours a decimal in a string, to the cent or the hundredth, never weigh
   the remaining to commit of the revision, provisions included; the labour of each by role, which
   the view groups by the current node of the role (WF-PTF-0080, WF-REF-0070). Each list in the
   order of its identifiers, an entry without an amount absent; ``label`` names the cost type as the
-  revision read it.
+  revision of its total read it: the budget's on the images of ``budget_revision_id``, the
+  remaining's on the revision.
 - ``portfolio_milestones`` (US-2750): ``{"milestones": [{"lineage_id", "label", "reference_date",
   "completed_on"}]}`` — the milestones of the revision inscribed in the time/time tracking, in the
   order of the plan, their date in the reference, none when the reference does not hold them, and
-  the day each was completed, none while it is not (WF-PTF-0110). A project In progress only.
+  the day each was completed, none while it is not (WF-PTF-0110). Kept at the marking of a project
+  In progress only; on the current day, given for every project that is not an offer, a completed
+  one included.
 - ``portfolio_offer_curves`` (US-2740): ``{"cost_curve": CurveSeries, "cost_curve_payment_delays":
   CurveSeries}`` — the curves of the estimate of an offer, the reference budget without the
   provision lines and the projection provisions included, without and with the payment delays

@@ -16,9 +16,10 @@ reference. A marking keeps the kinds of the state of its project then: a project
 offer; a project in another state keeps none. The risks join with US-2680/L3.
 
 Each part reads through the interfaces of the modules, never their tables: the workload of the
-estimate (``workload``, EP-07), its totals (``portfolio_totals``), the tracked milestones of the
-planning and the curves of an offer of the indicators (``offer_curves``). Nothing is weighted:
-the views weigh an offer by its probability (EP-11, "La contribution d'un projet").
+estimate (``workload``, EP-07, on a remaining; ``offer_workload`` on the estimate of an offer), its
+totals (``portfolio_totals``), the tracked milestones of the planning and the curves of an offer of
+the indicators (``offer_curves``). Nothing is weighted: the views weigh an offer by its probability
+(EP-11, "La contribution d'un projet").
 """
 
 from typing import TYPE_CHECKING
@@ -31,6 +32,7 @@ from waterfall.core.estimate.interface import (
     WorkloadAsked,
     WorkloadBasis,
     estimate_indicators,
+    offer_workload,
     portfolio_totals,
 )
 from waterfall.core.indicators.interface import (
@@ -49,12 +51,13 @@ from waterfall.core.portfolio.states import IN_PROGRESS, PRICING
 from waterfall.core.projects.interface import Viewer, project_facts
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
     from datetime import date, datetime
     from decimal import Decimal
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.estimate.interface import RoleLoad
     from waterfall.core.indicators.interface import Document, IndicatorKind
     from waterfall.core.projects.interface import ProjectFacts
 
@@ -90,17 +93,23 @@ def _hours(value: Decimal) -> str:
 def workload_document(
     session: Session, facts: ProjectFacts, project_id: UUID, revision_id: UUID, at: datetime
 ) -> Document:
-    """Give the hours of each role by month of a revision, on its remaining to commit.
+    """Give the hours of each role by month of a revision: its remaining, or an offer's estimate.
 
-    The remaining of the current revision from the day of ``at``, that of a marked one from the day
-    of its marking (``getProjectWorkload``); for an offer, its estimate is all its remaining. Only
-    the roles loaded, in the order of the workload, each with its months loaded in order.
+    A project that is not an offer on its remaining to commit (``getProjectWorkload``): that of the
+    current revision from the day of ``at``, that of a marked one from the day of its marking. An
+    offer on its estimate, every line whole over its task, whatever the day (``offer_workload``;
+    EP-11, "Tables et migrations"). Only the roles loaded, in the order of the workload, each with
+    its months loaded in order.
     """
-    current = revision_id == facts.current_revision_id
-    basis = WorkloadBasis.CURRENT_REMAINING if current else WorkloadBasis.MARKED_REMAINING
-    asked = WorkloadAsked(basis, None if current else revision_id, None, at, NOBODY)
-    # Read on the interface itself: ``workload`` names a file of it too.
-    found = estimate.workload(session, project_id, asked)
+    roles: Sequence[RoleLoad]
+    if facts.state == PRICING:
+        roles = offer_workload(session, project_id, revision_id, at)
+    else:
+        current = revision_id == facts.current_revision_id
+        basis = WorkloadBasis.CURRENT_REMAINING if current else WorkloadBasis.MARKED_REMAINING
+        asked = WorkloadAsked(basis, None if current else revision_id, None, at, NOBODY)
+        # Read on the interface itself: ``workload`` names a file of it too.
+        roles = estimate.workload(session, project_id, asked).roles
     return {
         "roles": [
             {
@@ -109,7 +118,7 @@ def workload_document(
                     {"month": each.month, "hours": _hours(each.hours)} for each in role.months
                 ],
             }
-            for role in found.roles
+            for role in roles
             if role.months
         ]
     }
@@ -123,9 +132,10 @@ def _amounts(amounts: Mapping[UUID, Decimal], key: str) -> list[dict[str, str]]:
 def cost_structure_document(session: Session, project_id: UUID, revision_id: UUID) -> Document:
     """Give the totals by cost type of the budget and of the remaining, and their labour by role."""
     totals = portfolio_totals(session, project_id, revision_id)
-    labels = totals.cost_type_labels
 
-    def by_type(amounts: Mapping[UUID, Decimal]) -> list[dict[str, str]]:
+    def by_type(
+        amounts: Mapping[UUID, Decimal], labels: Mapping[UUID, str]
+    ) -> list[dict[str, str]]:
         return [
             {"cost_type_id": str(each), "label": labels[each], "amount": _hours(amounts[each])}
             for each in sorted(amounts)
@@ -133,8 +143,10 @@ def cost_structure_document(session: Session, project_id: UUID, revision_id: UUI
 
     return {
         "budget_revision_id": str(totals.budget_revision_id),
-        "budget_by_cost_type": by_type(totals.budget_by_cost_type),
-        "remaining_by_cost_type": by_type(totals.remaining_by_cost_type),
+        "budget_by_cost_type": by_type(totals.budget_by_cost_type, totals.budget_cost_type_labels),
+        "remaining_by_cost_type": by_type(
+            totals.remaining_by_cost_type, totals.remaining_cost_type_labels
+        ),
         "budget_labour_by_role": _amounts(totals.budget_labour_by_role, "resource_role_id"),
         "remaining_labour_by_role": _amounts(totals.remaining_labour_by_role, "resource_role_id"),
     }

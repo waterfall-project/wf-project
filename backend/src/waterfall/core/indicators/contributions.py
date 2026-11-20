@@ -20,11 +20,15 @@ lock, as for the scopes.
 
 The key covers, beyond the fingerprint of the day, what the contribution reads and the indicators of
 the day do not (#4158, decision of the author of 2026-11-19; WF-DAT-0130-A): the probability of
-winning of the project, which weighs an offer, and the stamp of the roles of the platform
-(``roles_stamp``) — their node, their calendar, which spreads the workload —, read once for all the
-projects of a reading; the counters of the risks, which the part of the risks reads, are those of
-the day already (US-2680/L3 says whether they suffice). ``FORM`` of the key changes with what an
-entry holds, so that an entry of a form before is never read again.
+winning of the project, which weighs an offer, and the stamp of the roles and of the calendars of
+the platform (``roles_stamp``) — the calendar of a role and its hours, which spread the workload —,
+read once for all the projects of a reading; the counters of the risks, which the part of the risks
+reads, are those of the day already (US-2680/L3 says whether they suffice). ``FORM`` of the key
+changes with what an entry holds, so that an entry of a form before is never read again.
+
+The key does not cover the label of a nature of cost, which the structure of the costs of a
+revision not marked reads on the reference as it stands: a nature renamed is served under its former
+label until the entry expires, within the validity of the cache (``IndicatorsCache``).
 
 An entry answers every kind the caller names (``Contributing.kinds``), a document or ``null`` for a
 kind the state of the project does not call for: an entry that lacks one of them is partial —
@@ -85,8 +89,10 @@ def contribution_key(
     The fingerprint of the day of the indicators (``day_key``), on that revision and the reference
     of the project, followed by ``portfolio`` and the fingerprint of what the contribution reads
     besides: the form of an entry, the probability of winning of the project, ``roles`` — the stamp
-    of the roles, read once by the caller for all the projects. The facts of the project are read
-    once, for the reference, the probability and the fingerprint.
+    of the roles and of the calendars, read once by the caller for all the projects. The facts of
+    the project are read once, for the reference, the probability and the fingerprint. The label of
+    a nature of cost is not covered: a nature renamed is served under its former label until the
+    entry expires.
     """
     facts = project_facts(session, project_id)
     basis = Basis(project_id, revision_id, facts.reference_revision_id)
@@ -95,15 +101,17 @@ def contribution_key(
     besides = (
         f"form={FORM}\n"
         f"win_probability={facts.win_probability}\n"
-        f"roles={roles.count},{roles.versions},{_instant(roles)}"
+        f"roles={roles.count},{roles.versions},{_instant(roles.updated_at)}\n"
+        f"calendars={roles.calendar_count},{roles.calendar_versions},"
+        f"{_instant(roles.calendar_updated_at)}"
     )
     fingerprint = hashlib.sha256(besides.encode()).hexdigest()[:FINGERPRINT_LENGTH]
     return f"{key}:{CONTRIBUTION}:{fingerprint}"
 
 
-def _instant(roles: RolesStamp) -> str:
-    """Write the last instant a role was written, ``-`` for none."""
-    return "-" if roles.updated_at is None else roles.updated_at.isoformat()
+def _instant(written: datetime | None) -> str:
+    """Write the last instant a row was written, ``-`` for none."""
+    return "-" if written is None else written.isoformat()
 
 
 def read_contribution(kept: str | None, kinds: Collection[IndicatorKind]) -> Contribution | None:
@@ -137,9 +145,10 @@ def _computed(
 ) -> dict[UUID, tuple[Contribution, str]]:
     """Compute the contribution of each project on its revision, in the order given, with its entry.
 
-    The entry names every kind of ``contributing``, ``null`` for one not given. A
-    document that is not JSON (a ``Decimal``, a ``datetime``, a ``NaN``) is refused here, whatever
-    the cache.
+    The entry names every kind of ``contributing``, ``null`` for one not given. A document that is
+    not JSON (a ``Decimal``, a ``datetime``, a ``NaN``) is refused here, whatever the cache. The
+    documents given are read back from the entry, so that a contribution computed and one read from
+    the cache are alike, to their types (a tuple a list, for one).
     """
     computed: dict[UUID, tuple[Contribution, str]] = {}
     for project_id, revision in revisions.items():
@@ -152,8 +161,15 @@ def _computed(
         except (TypeError, ValueError) as error:
             msg = f"the contribution of project {project_id} is not JSON: {error}"
             raise UnserializableContributionError(msg) from error
-        computed[project_id] = (documents, text)
+        # Served as the cache would serve it, after a round trip through JSON: the same types.
+        computed[project_id] = (_served(text), text)
     return computed
+
+
+def _served(text: str) -> Contribution:
+    """Give the documents of an entry just written, its kinds ``null`` left out."""
+    held = cast("dict[IndicatorKind, Document | None]", json.loads(text))
+    return {kind: each for kind, each in held.items() if each is not None}
 
 
 def _documents(computed: Mapping[UUID, tuple[Contribution, str]]) -> dict[UUID, Contribution]:

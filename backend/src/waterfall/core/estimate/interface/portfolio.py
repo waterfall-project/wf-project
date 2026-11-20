@@ -16,12 +16,19 @@ cadrage décide").
   (``remaining_indicators``, WF-RAE-0010; US-2580/L1): a line of a task not completed counts its
   re-estimated amount, a provision line counts whatever the state of its task.
 - The nature of a line is that of its category, on the images a marked revision kept, else on the
-  reference as it stands (``natures_of``); the label of each nature with it. The labour is the
+  reference as it stands (``natures_of``); the label of each nature with it, read on the revision
+  of each total: the budget names its natures as its revision kept them, the remaining as the
+  revision reads them, two labels of a nature kept apart. The labour is the
   lines that name a role, by that role: the portfolio groups the roles by their current node when
   it reads them (EP-11, "Ce que le cadrage décide"), so no node is kept here.
 
-The amounts of the lines are in cents, and their sums are exact: nothing is rounded again. Neither
-writes nor reads the clock.
+The amounts of the lines are in cents, and their sums are exact: nothing is rounded again.
+
+``offer_workload`` gives the load of the estimate of an offer, by role and by month: the
+portfolio reads it on the estimate, not on a remaining (EP-11, "Tables et migrations",
+``portfolio_workload``).
+
+Neither writes nor reads the clock.
 
 Declared by US-2670/L1, the socle of EP-11; filled by US-2680/L2.
 """
@@ -34,17 +41,20 @@ from waterfall.core.estimate.indicating import natures_of
 from waterfall.core.estimate.placing import placed_lines
 from waterfall.core.estimate.reading import budgeted_of, rows_of
 from waterfall.core.estimate.remaining.reviewing import provisions_of, remaining_of_placed
+from waterfall.core.estimate.workloading import estimate_workload
 from waterfall.core.planning.interface import lines_of_structure
 from waterfall.core.revisions.interface import aimed_structure, read_revision_for
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
+    from datetime import datetime
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
     from waterfall.core.estimate.indicating import Nature
     from waterfall.core.estimate.tables import EstimateLine
+    from waterfall.core.estimate.workloading import RoleLoad
 
 # An empty sum, to the cent.
 NOUGHT = Decimal("0.00")
@@ -56,8 +66,10 @@ class PortfolioTotals:
 
     ``budget`` leaves the provision lines out; ``remaining`` includes them. ``budget_revision_id``
     is the revision the budget is read on: the reference of the project, or the revision itself
-    for an offer. ``cost_type_labels`` names each cost type of either total, as the revisions read
-    it. A key without an amount is absent: no total holds a zero it did not sum.
+    for an offer. ``budget_cost_type_labels`` names each cost type of the budget as its revision
+    reads it — on the images it kept —, ``remaining_cost_type_labels`` each of the remaining as the
+    revision reads it: a nature renamed between the two keeps both. A key without an amount is
+    absent: no total holds a zero it did not sum.
     """
 
     budget_by_cost_type: Mapping[UUID, Decimal]
@@ -65,7 +77,8 @@ class PortfolioTotals:
     budget_labour_by_role: Mapping[UUID, Decimal]
     remaining_labour_by_role: Mapping[UUID, Decimal]
     budget_revision_id: UUID
-    cost_type_labels: Mapping[UUID, str]
+    budget_cost_type_labels: Mapping[UUID, str]
+    remaining_cost_type_labels: Mapping[UUID, str]
 
 
 def _summed(
@@ -120,9 +133,29 @@ def portfolio_totals(session: Session, project_id: UUID, revision_id: UUID) -> P
         ((line, budgeted_of(line)) for line in budgeted), budget_natures
     )
     remaining_by_type, remaining_by_role = _summed(remaining, natures)
-    labels = {
-        each.cost_type_id: each.label for each in (*budget_natures.values(), *natures.values())
-    }
     return PortfolioTotals(
-        budget_by_type, remaining_by_type, budget_by_role, remaining_by_role, budget_id, labels
+        budget_by_type,
+        remaining_by_type,
+        budget_by_role,
+        remaining_by_role,
+        budget_id,
+        _labels(budget_natures),
+        _labels(natures),
     )
+
+
+def _labels(natures: Mapping[UUID, Nature]) -> dict[UUID, str]:
+    """Name each cost type of the natures of a revision, as that revision reads it."""
+    return {each.cost_type_id: each.label for each in natures.values()}
+
+
+def offer_workload(
+    session: Session, project_id: UUID, revision_id: UUID, at: datetime
+) -> tuple[RoleLoad, ...]:
+    """Give the load of the estimate of an offer by role, each with its months loaded in order.
+
+    Every labour line whole over its task, on its own figures, whatever the day: the estimate is
+    the whole of an offer (``estimate_workload``). The roles in the order of the plan of workload,
+    a role without load with no month. A revision unknown is refused (404).
+    """
+    return estimate_workload(session, project_id, revision_id, at)

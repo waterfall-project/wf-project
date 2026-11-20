@@ -36,6 +36,7 @@ from sqlalchemy import (
     insert,
     or_,
     select,
+    true,
     update,
 )
 from sqlalchemy.exc import IntegrityError
@@ -733,28 +734,41 @@ def role_calendars(session: Session, role_ids: Collection[UUID]) -> dict[UUID, U
 
 @dataclass(frozen=True, slots=True)
 class RolesStamp:
-    """The number of the roles, the sum of their counters and the last instant one was written."""
+    """The roles, then the calendars: their number, the sum of their counters, the last write."""
 
     count: int
     versions: int
     updated_at: datetime | None
+    calendar_count: int
+    calendar_versions: int
+    calendar_updated_at: datetime | None
 
 
 def roles_stamp(session: Session) -> RolesStamp:
-    """Give the stamp of every role, deactivated ones too: what a key of a cache reads (EP-11).
+    """Give the stamp of every role and every calendar, deactivated ones too (EP-11, #4158).
 
-    A role created, or changed in any way — its calendar, its headcount, its activation — moves
-    it: each write advances the counter of the role (``_write``). Its node is fixed at its creation
-    (``FIELD_READ_ONLY``): the stamp covers it with the rest. One statement.
+    What a key of a cache reads when what it keeps spreads hours over the roles: the workload of
+    the portfolio spreads each line over the hours of the calendar of its role (``role_weeks``),
+    so a calendar changed — its hours, which ``update_calendar`` writes without touching a role —
+    moves the stamp as a role changed does (WF-DAT-0130-A). Each write of a role (``_write``, its
+    creation, the deactivation of its node) and of a calendar (``_write``, ``_retire_default``, its
+    creation) advances its counter and its instant; none is deleted. The node of a role is in its
+    row, but the contribution of the portfolio does not read it: the views group the roles by their
+    current node when they read them. One statement.
     """
-    count, versions, last = session.execute(
-        select(
-            func.count(),
-            func.coalesce(func.sum(ResourceRole.lock_version), 0),
-            func.max(ResourceRole.updated_at),
-        )
-    ).one()
-    return RolesStamp(count, int(versions), last)
+    roles = select(
+        func.count().label("roles"),
+        func.coalesce(func.sum(ResourceRole.lock_version), 0).label("role_versions"),
+        func.max(ResourceRole.updated_at).label("role_written"),
+    ).subquery()
+    calendars = select(
+        func.count().label("calendars"),
+        func.coalesce(func.sum(Calendar.lock_version), 0).label("calendar_versions"),
+        func.max(Calendar.updated_at).label("calendar_written"),
+    ).subquery()
+    # One row each: joined on nothing, they give one row of six columns.
+    row = session.execute(select(roles, calendars).join_from(roles, calendars, true())).one()
+    return RolesStamp(row[0], int(row[1]), row[2], row[3], int(row[4]), row[5])
 
 
 @dataclass(frozen=True, slots=True)
