@@ -170,12 +170,31 @@ class NodelessQuery(BaseModel):
         return self.period_from, self.period_to
 
 
+class PeriodlessQuery(BaseModel):
+    """What a view that takes neither a node nor a period is asked (``getPortfolioPilotHealth``).
+
+    ``from`` and ``to`` are not parameters of such a view: one sent is not read.
+    """
+
+    states: str | None = None
+    as_of: date | None = None
+
+    @property
+    def org_node_id(self) -> None:
+        """Give no node: the view is asked of the whole portfolio."""
+        return None
+
+    def period(self) -> tuple[None, None]:
+        """Give no period: the view takes none."""
+        return None, None
+
+
 # The permission of every view of the portfolio: that of its function alone (EP-11).
 PORTFOLIO_READ = "portfolio_projects.read"
 
 
 def portfolio_asked(
-    query: ScopeQuery | NodelessQuery, other_faults: Iterable[FieldError] = ()
+    query: ScopeQuery | NodelessQuery | PeriodlessQuery, other_faults: Iterable[FieldError] = ()
 ) -> PortfolioAsked:
     """Read what a view of the portfolio is asked; a state that is none of the six is refused (422).
 

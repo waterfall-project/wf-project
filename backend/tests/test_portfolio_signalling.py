@@ -34,8 +34,8 @@ def test_the_interval_runs_from_the_marking_before_the_last_to_the_last_marking(
 @pytest.mark.requirement("WF-PTF-0110-A")
 def test_without_a_marking_before_the_last_the_interval_starts_at_the_passage_in_progress() -> None:
     # « …ou, à défaut d'avant-dernière, depuis le passage à En cours »
-    assert review_interval([(FIRST, JANUARY)], JANUARY, ENTERED) == ReviewInterval(
-        FIRST, ENTERED, JANUARY
+    assert review_interval([(FIRST, MARCH)], MARCH, ENTERED) == ReviewInterval(
+        FIRST, ENTERED, MARCH
     )
 
 
@@ -44,7 +44,7 @@ def test_a_marking_after_the_date_of_calculation_is_not_read() -> None:
     # À une date passée : the last marking is that by the end of the day, the later ones are not
     # the project's last, nor its penultimate.
     markings = [(FIRST, JANUARY), (SECOND, MARCH), (THIRD, MAY)]
-    assert review_interval(markings, MARCH, ENTERED) == ReviewInterval(SECOND, JANUARY, MARCH)
+    assert review_interval(markings, MARCH, ENTERED) == ReviewInterval(SECOND, ENTERED, MARCH)
 
 
 @pytest.mark.story("US-2750")
