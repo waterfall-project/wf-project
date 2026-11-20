@@ -117,6 +117,8 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "bases",
         # The parts of the modules in the update of a differential (US-3050/L3).
         "rebasing",
+        # The merge applied, as a task of the worker and for the witness (US-2560/L2).
+        "merge_applying",
     },
 }
 # The modules of the planning, the history and the exchanges (EP-06), of the indicators (EP-10), of

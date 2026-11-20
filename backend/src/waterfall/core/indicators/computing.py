@@ -46,7 +46,7 @@ from waterfall.core.projects.interface import current_day
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Mapping
-    from datetime import date
+    from datetime import date, datetime
     from decimal import Decimal
     from uuid import UUID
 
@@ -62,11 +62,16 @@ COMPLETED = "completed"
 
 @dataclass(frozen=True, slots=True)
 class Basis:
-    """What a computation reads: a project, its revision computed, and its reference if any."""
+    """What a computation reads: a project, its revision computed, and its reference if any.
+
+    ``designated_at`` the instant of the marking when the revision computed is the reference being
+    designated by it, a merge, whose designation the journal does not yet say (US-2630/L2).
+    """
 
     project_id: UUID
     revision_id: UUID
     reference_id: UUID | None
+    designated_at: datetime | None = None
 
 
 def in_scope(scope: CostScope, subproject_id: UUID | None) -> bool:

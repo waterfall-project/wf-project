@@ -60,6 +60,19 @@ def delete_structure_nodes(session: Session, project_id: UUID, structure_id: UUI
     _delete_where(session, project_id, Node.structure_id == structure_id)
 
 
+def structure_node_ids(session: Session, project_id: UUID, structure_id: UUID) -> list[UUID]:
+    """Give the identifiers of the nodes of a structure about to go (#4154).
+
+    What the history needs to forget the entries that name them (``forget_structure``), before
+    ``delete_structure_nodes`` removes them.
+    """
+    return list(
+        session.scalars(
+            select(Node.id).where(Node.project_id == project_id, Node.structure_id == structure_id)
+        )
+    )
+
+
 def structure_nodes(session: Session, project_id: UUID, structure_id: UUID) -> Snapshot:
     """Give every node of a structure as the history keeps one, in the order of its plan.
 

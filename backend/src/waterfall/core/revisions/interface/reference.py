@@ -85,7 +85,11 @@ def reference_correctable(session: Session, project_id: UUID) -> bool:
     It is while the project has none, or while no revision was marked since the last designation,
     the moment of which is the last inscription ``reference_designate`` of the journal for the
     project (the revision it names is one of the project's; a project without a code is not named
-    by the journal). The actual costs, which also close it, are EP-09's.
+    by the journal). A revision marked at that very moment closes it too: the merge of a
+    differential marks a revision and makes it the reference in one act (US-2560/L2), and its
+    reference is no longer correctable (WF-REV-0040); a designation by the command is never at the
+    instant of a marking, each taken under its own locks. The actual costs, which also close it,
+    are EP-09's.
     """
     designated_at = session.scalar(
         select(func.max(AuditEntry.occurred_at)).where(
@@ -100,11 +104,32 @@ def reference_correctable(session: Session, project_id: UUID) -> bool:
         .where(
             Revision.project_id == project_id,
             Revision.status == "marked",
-            Revision.marked_at > designated_at,
+            Revision.marked_at >= designated_at,
         )
         .limit(1)
     )
     return later is None
+
+
+def reference_history(session: Session, project_id: UUID) -> list[tuple[UUID, datetime]]:
+    """Give the references the project had, in the order designated, each with its marking.
+
+    The journal says which revision was designated and in what order, by designation or by merge
+    (``reference_designate``); the revision says when it was marked, the instant from which it
+    stands as the reference (WF-IND-0100-A, US-2630/L2). The last is the reference of the project
+    now; none for a project that never designated one.
+    """
+    rows = session.execute(
+        select(Revision.id, Revision.marked_at)
+        .join(AuditEntry, AuditEntry.object_id == Revision.id)
+        .where(
+            Revision.project_id == project_id,
+            Revision.marked_at.is_not(None),
+            AuditEntry.action == "reference_designate",
+        )
+        .order_by(AuditEntry.occurred_at, AuditEntry.id)
+    ).all()
+    return [(revision_id, marked_at) for revision_id, marked_at in rows if marked_at is not None]
 
 
 def _write(revision: Revision, *, reference: bool, act: Act) -> None:
@@ -180,6 +205,17 @@ def designate_reference(
         raise refuse(lacking[0])
     if target.is_reference:
         return
+    _refer(session, (project_id, revision_id), act, corrects=state.reference_correctable)
+
+
+def _refer(session: Session, revision: tuple[UUID, UUID], act: Act, *, corrects: bool) -> None:
+    """Make a marked revision the reference, its project locked; tell the followers; inscribe it.
+
+    ``revision`` its project and itself; ``corrects`` whether the designation corrects the
+    previous one rather than follows it. The followers are told of the reference replaced
+    (``previous_id``), then ``reference_designate`` is inscribed after them.
+    """
+    project_id, revision_id = revision
     # Marked, both: nothing but their designation writes them, and no marking locks them.
     previous = session.scalars(
         select(Revision)
@@ -195,8 +231,8 @@ def designate_reference(
         _write(previous, reference=False, act=act)
         # The index admits one reference per project: the old one leaves before the new one comes.
         session.flush()
-    revision = found_revision(session, revision_id, project_id, lock=True)
-    _write(revision, reference=True, act=act)
+    designated = found_revision(session, revision_id, project_id, lock=True)
+    _write(designated, reference=True, act=act)
     session.flush()
     set_reference_revision(session, project_id, revision_id, act)
     designation = ReferenceDesignated(
@@ -206,13 +242,27 @@ def designate_reference(
         act.at,
         act.author,
         None if previous is None else previous.id,
-        corrects=state.reference_correctable,
+        corrects=corrects,
     )
     # The current revision, opened or marked since it was held, is held under the lock now.
     hold_current_revision(session, project_id)
     for follow in _DESIGNATIONS.entries():
         follow(designation)
-    inscribe_revision(session, revision, "reference_designate", revision.version_name, act)
+    inscribe_revision(session, designated, "reference_designate", designated.version_name, act)
+
+
+def refer_after_merge(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> None:
+    """Make the revision a merge has just marked the reference of its project (WF-REV-0040).
+
+    By the way of the designation, without its command (EP-08, "La fusion et la survenance"): in
+    the transaction of the merge, the project and the revision locked already, at the instant of
+    the merge. The followers of a designation are told the reference replaced (``previous_id``),
+    the merge following it rather than correcting it (``corrects`` false, #4175), and
+    ``reference_designate`` is inscribed in the journal after them, as the command does. The
+    reference is no longer correctable then: a revision was marked at the moment of its
+    designation (``reference_correctable``).
+    """
+    _refer(session, (project_id, revision_id), act, corrects=False)
 
 
 def register_designation(follow: Callable[[ReferenceDesignated], None]) -> Callable[[], None]:

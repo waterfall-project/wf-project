@@ -6,16 +6,19 @@ Its status, whether a background task writes in its project (``no_background_tas
 US-0970), whether it bears tasks and lines (``revision_has_tasks_and_lines``, EP-06, EP-07),
 whether the reference of its project is still correctable (``reference_correctable``, US-0980/L2)
 and, for a current revision, whether the proposal of its rates presents a category
-(``rate_update_available``, US-1500): the facts ``commands`` judges, read once for a revision and
-all its structures.
+(``rate_update_available``, US-1500); whether it holds a differential not merged, and whether it is
+the last marked revision of a project without a current revision, which its merge would open
+(``merge_structure``, US-2560/L2): the facts ``commands`` judges, read once for a revision and all
+its structures.
 """
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 
 from waterfall.core.cost_settings.interface import provision_category_active
-from waterfall.core.projects.interface import no_background_task_running
+from waterfall.core.projects.interface import no_background_task_running, project_facts
 from waterfall.core.revisions.commands import RevisionState
 from waterfall.core.revisions.interface.rates import rate_update_available
 from waterfall.core.revisions.interface.reference import (
@@ -23,13 +26,16 @@ from waterfall.core.revisions.interface.reference import (
     reference_correctable,
     revision_has_tasks_and_lines,
 )
-from waterfall.core.revisions.tables import Revision
+from waterfall.core.revisions.interface.shared import AMENDMENT
+from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.errors import NOT_FOUND, NotFoundError
 
 if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.orm import Session
+
+    from waterfall.core.projects.interface import ProjectFacts
 
 
 def revision_state(session: Session, project_id: UUID, revision_id: UUID) -> RevisionState:
@@ -39,34 +45,81 @@ def revision_state(session: Session, project_id: UUID, revision_id: UUID) -> Rev
     )
     if status is None:
         raise NotFoundError(NOT_FOUND)
-    idle = no_background_task_running(session, project_id)
-    correctable = reference_correctable(session, project_id)
-    return state_of(
-        session, (project_id, revision_id), status, no_task_running=idle, correctable=correctable
+    standing = ProjectStanding(
+        no_background_task_running(session, project_id),
+        reference_correctable(session, project_id),
+        opening_of(session, project_id),
+    )
+    return state_of(session, (project_id, revision_id), status, standing)
+
+
+def last_marked(session: Session, project_id: UUID) -> UUID | None:
+    """Give the last marked revision of a project, the source of the next one, if any."""
+    return session.scalar(
+        select(Revision.id)
+        .where(Revision.project_id == project_id, Revision.status == "marked")
+        .order_by(Revision.marked_at.desc(), Revision.id.desc())
+        .limit(1)
     )
 
 
+def opening_of(
+    session: Session, project_id: UUID, project: ProjectFacts | None = None
+) -> UUID | None:
+    """Give the revision whose merge would open the current one: its last marked, if it has none.
+
+    Read by every path that judges the commands of a revision (``source``, #790): the list and
+    the reading of the revisions as the list of the structures. Pass ``project`` when the caller
+    has read the facts of the project already (the views do): the default reads them again, which
+    is right for a caller that has not (``revision_state``, which reads the revision alone).
+    """
+    if project is None:
+        project = project_facts(session, project_id)
+    if project.current_revision_id is not None:
+        return None
+    return last_marked(session, project_id)
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectStanding:
+    """What the commands of the revisions of a project read of it, once for all of them.
+
+    Whether no background task writes in it, whether its reference is still correctable, and the
+    revision whose merge would open the current one — its last marked, when it has none (#790).
+    """
+
+    no_task_running: bool
+    correctable: bool
+    opening: UUID | None = None
+
+
 def state_of(
-    session: Session,
-    revision: tuple[UUID, UUID],
-    status: str,
-    *,
-    no_task_running: bool,
-    correctable: bool,
+    session: Session, revision: tuple[UUID, UUID], status: str, standing: ProjectStanding
 ) -> RevisionState:
     """Give the state of a revision whose status, and its project's facts, are read.
 
-    Whether a task writes in the project, and whether its reference is still correctable, are the
-    project's, read once for all its revisions. ``revision`` is its project and itself.
+    ``revision`` is its project and itself, ``standing`` what its project says of it.
     """
     project_id, revision_id = revision
+    unmerged = session.scalar(
+        select(
+            exists().where(
+                CostStructure.project_id == project_id,
+                CostStructure.revision_id == revision_id,
+                CostStructure.kind == AMENDMENT,
+                CostStructure.is_merged.is_(False),
+            )
+        )
+    )
     return RevisionState(
         marked=status == "marked",
-        no_task_running=no_task_running,
+        no_task_running=standing.no_task_running,
         has_tasks_and_lines=revision_has_tasks_and_lines(session, revision_id),
-        reference_correctable=correctable,
+        reference_correctable=standing.correctable,
         has_main_task=main_structure_has_task(session, project_id, revision_id),
         rate_update_available=status == "draft"
         and rate_update_available(session, project_id, revision_id),
         provision_category_active=status != "draft" or provision_category_active(session),
+        source=revision_id == standing.opening,
+        unmerged_differential=bool(unmerged),
     )

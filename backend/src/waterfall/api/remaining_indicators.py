@@ -47,8 +47,10 @@ def get_remaining_indicators(
     if read.marked:
         # Kept on the project alone: the document carries the balance of each subproject.
         kept = kept_document(session, read.revision_id, "remaining", PROJECT)
-        if kept is not None:
+        held = None if kept is None else kept.get("coverage")
+        coverage = None if kept is None else kept_coverage(session, project_id, held)
+        if kept is not None and coverage is not None:
             # The reserve is the reference's, never the marking's (as ``getProjectRiskCoverage``).
-            return {**kept, "coverage": kept_coverage(session, project_id, kept["coverage"])}
+            return {**kept, "coverage": coverage}
     found = remaining_indicators(session, project_id, read.revision_id, utc_now())
     return remaining_document(found)

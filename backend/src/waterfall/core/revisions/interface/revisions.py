@@ -66,7 +66,7 @@ from waterfall.core.revisions.interface.structures import (
     delete_structures,
 )
 from waterfall.core.revisions.registry import Registry
-from waterfall.core.revisions.states import state_of
+from waterfall.core.revisions.states import ProjectStanding, last_marked, opening_of, state_of
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
@@ -281,8 +281,13 @@ def _views(
     Whether a background task writes in the project is the project's: read once for them all.
     """
     project = project_facts(session, project_id)
-    idle = no_background_task_running(session, project_id)
-    correctable = reference_correctable(session, project_id)
+    # The revision whose merge would open the current one, if the project has none (#790), as the
+    # list of the structures reads it (``revision_state``).
+    standing = ProjectStanding(
+        no_background_task_running(session, project_id),
+        reference_correctable(session, project_id),
+        opening_of(session, project_id, project),
+    )
     kind = contributor_kind(session, project_id, viewer.user_id)
     sources = {row.source_revision_id for row in rows if row.source_revision_id is not None}
     names: dict[UUID, str | None] = {
@@ -317,13 +322,7 @@ def _views(
                     viewer.permissions,
                     kind,
                     project.state,
-                    state_of(
-                        session,
-                        (project_id, row.id),
-                        row.status,
-                        no_task_running=idle,
-                        correctable=correctable,
-                    ),
+                    state_of(session, (project_id, row.id), row.status, standing),
                 )
             ),
             created_at=row.created_at,
@@ -374,7 +373,7 @@ def read_revision_for(session: Session, project_id: UUID, revision_id: UUID | No
     marked, the reference of its project, and the marked revision before it.
     """
     if revision_id is None:
-        revision_id = current_revision(session, project_id) or _last_marked(session, project_id)
+        revision_id = current_revision(session, project_id) or last_marked(session, project_id)
         if revision_id is None:
             raise NotFoundError(NOT_FOUND)
     revision = found_revision(session, revision_id, project_id, lock=False)
@@ -418,7 +417,7 @@ def _judge_opening(
 
 def last_marked_revision(session: Session, project_id: UUID) -> UUID | None:
     """Give the last marked revision of a project, which the next current one copies, if any."""
-    return _last_marked(session, project_id)
+    return last_marked(session, project_id)
 
 
 def revision_project(session: Session, revision_id: UUID) -> UUID:
@@ -484,16 +483,6 @@ def last_marked_revisions(session: Session, project_ids: Collection[UUID]) -> di
     return {row[0]: row[1] for row in rows}
 
 
-def _last_marked(session: Session, project_id: UUID) -> UUID | None:
-    """Give the last marked revision of a project, the source of the next one, if any."""
-    return session.scalar(
-        select(Revision.id)
-        .where(Revision.project_id == project_id, Revision.status == "marked")
-        .order_by(Revision.marked_at.desc(), Revision.id.desc())
-        .limit(1)
-    )
-
-
 @dataclass(frozen=True, slots=True)
 class _Opening:
     """A revision to open: its identifier, its description, and the task that opens it, if one.
@@ -519,7 +508,7 @@ def _open(session: Session, project_id: UUID, act: Act, opening: _Opening) -> Re
     share_reference(session)
     project = lock_project(session, project_id)
     _judge_opening(session, project_id, project, opening.running)
-    source = _last_marked(session, project_id)
+    source = last_marked(session, project_id)
     revision = Revision(
         id=revision_id,
         project_id=project_id,
@@ -575,12 +564,15 @@ def create_revision(
     return _views(session, [revision], project_id, viewer)[0]
 
 
-def open_revision_by_task(session: Session, project_id: UUID, act: Act, running: UUID) -> UUID:
+def open_revision_by_task(
+    session: Session, project_id: UUID, act: Act, running: UUID | None
+) -> UUID:
     """Open the current revision of a project for the task ``running``, which writes in it.
 
     By the rules of ``create_revision``, the task that asks apart: the application of an import on
     a project without a current revision creates it (WF-INTF-0090, EP-06), which no other task
-    may then be writing in.
+    may then be writing in. ``running`` none for the loader of the witness, which runs no task
+    (``load_merge``, US-2560/L2).
     """
     return _open(session, project_id, act, _Opening(new_id(), running=running)).id
 

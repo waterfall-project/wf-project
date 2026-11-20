@@ -914,3 +914,30 @@ def test_the_descent_of_the_base_of_a_differential_fails_while_a_base_exists(
         assert applied(connection) == ["0038"]
         kinds = connection.scalars(select(CostStructure.kind).order_by(CostStructure.kind))
         assert list(kinds) == ["amendment", "base", "main"]
+
+
+def test_the_descent_of_the_name_of_the_merge_fails_while_the_journal_holds_a_merge(
+    empty_engine: Engine,
+) -> None:
+    # US-2560/L2: 0039 names the merge of a differential ``structure_merge``, as the contract does;
+    # its descent gives it its former name again, which a journal that holds a merge — never
+    # updated — forbids: the descent fails and the schema stays.
+    upgrade(empty_engine, "0039")
+    with empty_engine.begin() as connection:
+        connection.execute(
+            insert(AuditEntry).values(
+                id=uuid4(),
+                occurred_at=datetime(2026, 11, 19, tzinfo=UTC),
+                action="structure_merge",
+                object_kind="cost_structure",
+                object_id=uuid4(),
+                object_label="Avenant",
+                params={},
+                correlation_id="merge",
+            )
+        )
+    with pytest.raises(DBAPIError, match="action_known"):
+        downgrade(empty_engine, "0038")
+    with empty_engine.connect() as connection:
+        assert applied(connection) == ["0039"]
+        assert connection.scalar(select(func.count()).select_from(AuditEntry)) == 1

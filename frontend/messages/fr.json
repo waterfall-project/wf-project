@@ -1450,6 +1450,14 @@
         "help": "Abandonne la révision en cours d’élaboration, après confirmation."
       }
     },
+    "structure": {
+      "delete": {
+        "help": "Abandonne l’avenant, un différentiel non fusionné de la révision en cours : il est supprimé, après confirmation, et l’écran revient à la structure principale."
+      },
+      "rebase": {
+        "help": "Met l’avenant à jour : reporte dans le différentiel ce que la structure principale a reçu depuis son ouverture, après le compte rendu et confirmation. Il se fusionne ensuite."
+      }
+    },
     "deleteRisk": {
       "help": "Supprime le risque avec son devis propre et sa ligne de provision, après confirmation."
     },
@@ -2116,6 +2124,30 @@
     "description": "Description (facultative)",
     "submit": "Marquer",
     "cancel": "Annuler"
+  },
+  "abandonAmendment": {
+    "label": "Abandonner l’avenant",
+    "statement": "L’avenant et ce qu’il contient sont supprimés ; la structure principale n’est pas touchée, et l’écran y revient. L’abandon est irréversible : il ne s’inscrit pas à l’historique que « Annuler » défait.",
+    "submit": "Confirmer l’abandon de l’avenant",
+    "done": "L’avenant « {label} » est abandonné."
+  },
+  "amendmentLate": {
+    "note": "L’avenant « {label} » est en retard : la structure principale a reçu des écritures depuis son ouverture. Mettez-le à jour avant de le contractualiser."
+  },
+  "rebaseReport": {
+    "label": "Mettre à jour l’avenant",
+    "statement": "La mise à jour reporte dans l’avenant ce que la structure principale a reçu depuis son ouverture, sans rien changer de ce que l’avenant désigne, puis fait de la structure principale sa nouvelle base. Abandonner ici ne change rien.",
+    "submit": "Confirmer la mise à jour",
+    "title": "Compte rendu de la mise à jour",
+    "reading": "Lecture du compte rendu…",
+    "counts": "Écarts par changement",
+    "added": "{count, plural, one {# reportée comme ajout} other {# reportées comme ajouts}}",
+    "updated": "{count, plural, one {# reportée comme modification} other {# reportées comme modifications}}",
+    "removed": "{count, plural, one {# reportée comme retrait} other {# reportées comme retraits}}",
+    "kept": "{count, plural, one {# gardée par l’avenant} other {# gardées par l’avenant}}",
+    "refusals": "{count, plural, one {# motif refuse la mise à jour} other {# motifs refusent la mise à jour}}",
+    "reread": "Relire le compte rendu",
+    "done": "L’avenant « {label} » est à jour."
   },
   "mergeReport": {
     "label": "Contractualiser l’avenant",

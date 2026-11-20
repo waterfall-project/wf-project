@@ -48,8 +48,9 @@ def get_project_risk_coverage(
     read = read_revision_for(session, project_id, revision_id)
     if read.marked:
         kept = kept_document(session, read.revision_id, "remaining", PROJECT)
-        if kept is not None:
-            coverage = kept_coverage(session, project_id, kept["coverage"])
+        held = None if kept is None else kept.get("coverage")
+        coverage = None if kept is None else kept_coverage(session, project_id, held)
+        if kept is not None and coverage is not None:
             return {"context": kept["context"], **coverage}
     context = CalculationContext(
         read.revision_id, "marked" if read.marked else "draft", utc_now(), PROJECT, is_stored=False

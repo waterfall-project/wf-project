@@ -88,6 +88,9 @@ from waterfall.core.planning.interface.closing import (
     restore_structure_nodes as restore_structure_nodes,
 )
 from waterfall.core.planning.interface.closing import (
+    structure_node_ids as structure_node_ids,
+)
+from waterfall.core.planning.interface.closing import (
     structure_nodes as structure_nodes,
 )
 
@@ -321,7 +324,8 @@ from waterfall.core.planning.interface.loading import (
 )
 
 # ``merging`` (US-2560/L1): the part of the planning in the merge of a differential, its end, and
-# where the lines stand for the estimate's.
+# where the lines stand for the estimate's; the nodes of the lines it writes, and the merge of the
+# witness (US-2560/L2).
 from waterfall.core.planning.interface.merging import (
     MergedLine as MergedLine,
 )
@@ -332,6 +336,9 @@ from waterfall.core.planning.interface.merging import (
     lines_in_order as lines_in_order,
 )
 from waterfall.core.planning.interface.merging import (
+    load_merge as load_merge,
+)
+from waterfall.core.planning.interface.merging import (
     merge_end as merge_end,
 )
 from waterfall.core.planning.interface.merging import (
@@ -339,6 +346,9 @@ from waterfall.core.planning.interface.merging import (
 )
 from waterfall.core.planning.interface.merging import (
     merged_lines as merged_lines,
+)
+from waterfall.core.planning.interface.merging import (
+    place_merged_lines as place_merged_lines,
 )
 
 # ``milestone_dates`` (US-1660/L3; US-1710): the dates of the milestones in the revisions.

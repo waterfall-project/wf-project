@@ -428,7 +428,7 @@ retient ouverte. Écarté : un booléen sur `estimate_line`, une seconde source 
 | Module | Ce qu'il reçoit | Ce qu'il expose |
 |---|---|---|
 | `core/risks` (nouveau, FBS-4.6) | les tables des risques ; la déclaration, l'identité, la provision, le réexamen, la suppression ; le registre, la matrice, la couverture, la réserve ; le compte rendu et l'application d'une survenance | son interface, une fonction par opération ; il s'inscrit à `register_copy`, à la clôture d'une révision, à `register_designation`, à `register_coverage`, à l'historique annulable et aux registres ci-dessous |
-| `core/revisions` | les structures d'autres natures : ouvrir, lister, abandonner un différentiel ; sa base, créée, reprise et supprimée avec lui, jamais listée, et l'état « à jour » ; la mise à jour — son compte rendu, sa commande, la base reprise — et `register_rebase`, par lequel `core/planning` et `core/estimate` donnent chacun leur part ; la copie qui ne reprend pas une structure consommée ; la fusion — son compte rendu, sa commande, sa tâche de fond, le marquage et la référence qu'elle produit | `merge_report`, `submit_merge`, `run_merge`, `load_merge` pour le témoin ; `register_merge`, par lequel `core/planning` et `core/estimate` donnent chacun leur part des écarts et de l'application ; la question « structure principale » de `main_structure_without_tasks` (#2541) |
+| `core/revisions` | les structures d'autres natures : ouvrir, lister, abandonner un différentiel ; sa base, créée, reprise et supprimée avec lui, jamais listée, et l'état « à jour » ; la mise à jour — son compte rendu, sa commande, la base reprise — et `register_rebase`, par lequel `core/planning` et `core/estimate` donnent chacun leur part ; la copie qui ne reprend pas une structure consommée ; la fusion — son compte rendu, sa commande, sa tâche de fond, le marquage et la référence qu'elle produit | `merge_report`, `submit_merge`, `run_merge`, `load_merge_at` pour le témoin — `load_merge`, qui met l'avenant à jour (`load_rebase`) avant de l'appeler, est dans `core/planning` (`interface/merging.py`) : `core/revisions`, sous `core/planning` dans les couches (`make imports-back`), ne peut appeler `load_rebase` — ; `register_merge`, par lequel `core/planning` et `core/estimate` donnent chacun leur part des écarts et de l'application ; la question « structure principale » de `main_structure_without_tasks` (#2541) |
 | `core/planning` | la copie d'une structure dans une autre (un différentiel naît copie de la principale) ; les écarts d'un différentiel à la principale par la lignée, et leur application ; ce qu'une structure désigne par rapport à sa base, et le report dans le différentiel de ce que la principale a reçu, tâches et liaisons ; la greffe d'un sous-arbre sous une tâche ou après un jalon ; le report d'une ligne de provision dont la tâche disparaît ; le refus de `setNodeTracking` hors de la principale et le verrou de la lignée (#2497, #2499) | `graft`, que la survenance appelle ; sa part de `register_merge` |
 | `core/estimate` | la ligne de provision — créée, déplacée, rechiffrée, retirée par `core/risks` seul — ; les grandeurs de référence que la fusion donne aux lignes désignées ; la lecture d'un différentiel contre sa base ; la part des lignes dans la mise à jour ; les lignes greffées à budgété nul ; les imports sur une structure autre que la principale | la question « provision » ; l'écriture de la provision, réservée à `core/risks` ; sa part de `register_merge` |
 | `core/indicators` | les marches d'avenant, les provisions dans la projection et les décaissements, la couverture dans le document `remaining`, les compteurs des risques dans l'empreinte du cache | inchangé |
@@ -822,7 +822,7 @@ révision suivante ne reprend pas une structure fusionnée » (E-04), « Les ré
 
 ## US-2560 — La fusion d'un différentiel : compte rendu, confirmation, révision marquée et nouvelle référence
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-REV-0050-A`, `WF-REV-0040-A`, `WF-PLA-0170-A`, `WF-ADM-0100-A`,
   `WF-REV-0080-A`
 - **opérations** : `getStructureMergeReport`, `mergeCostStructure`, `getBackgroundTask`,
@@ -1528,7 +1528,7 @@ couple (probabilité, gravité) est exposée par `core/risk_settings` (EP-05).
 
 ## US-2610 — La réserve pour risques et la couverture
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-RIS-0050-A`, `WF-RAE-0020-A`, `WF-RAE-0010-A`
 - **opérations** : `getProjectRiskCoverage`, `getRemainingIndicators`, `listNodes` (`totals`),
   `listRisks` (`ProvisionTotals`)
@@ -1677,9 +1677,8 @@ autre — planifié, réestimé, terminé —, sans budget, et que ce qu'il coû
   issue de ce risque dans la révision suivante, et après son déplacement sous une autre tâche ; une
   ligne ajoutée ensuite sous une tâche issue du risque ne l'est pas. » : `origin_risk_id` est posé
   sur chaque tâche et chaque ligne fusionnée, conservé par la copie d'une révision, les
-  déplacements, les imports rapprochés par la lignée et la fusion d'un avenant (ce dernier point est tenu
-  par US-2560) ; une création le
-  laisse nul, même sous une tâche issue du risque (#1762) ;
+  déplacements, les imports rapprochés par la lignée et la fusion d'un avenant (ce dernier point est
+  tenu par US-2560) ; une création le laisse nul, même sous une tâche issue du risque (#1762) ;
 - `WF-RIS-0060-A` — « Les grilles de planning et de devis se filtrent sur les tâches et les lignes
   issues d'un risque, ou d'un risque donné (WF-IHM-0130). » : `is_from_risk` et `origin_risk_ids`
   filtrent `listNodes` et `compareRevisions` ; un identifiant qui n'est pas celui d'un risque
@@ -1733,7 +1732,7 @@ devant elle (US-2630) ; l'écran (US-2640).
 
 ## US-2630 — Les indicateurs devant une provision, une survenance et un avenant
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IND-0030-A`, `WF-IND-0100-A`, `WF-DEV-0080-A`
 - **opérations** : `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves`,
   `getRemainingIndicators`, `markRevision`, `mergeCostStructure` (la conservation)

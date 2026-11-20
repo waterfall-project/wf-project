@@ -25,7 +25,12 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import delete
 
-from waterfall.core.planning.interface import delete_borne_line, delete_structure_nodes
+from waterfall.core.history.interface import forget_structure
+from waterfall.core.planning.interface import (
+    delete_borne_line,
+    delete_structure_nodes,
+    structure_node_ids,
+)
 from waterfall.core.revisions.interface import delete_own_estimate, marked_revisions_at
 from waterfall.core.risks.commands import OCCURRED, RISK_NOT_CITED, RISK_NOT_OCCURRED
 from waterfall.core.risks.declaring import refuse
@@ -45,12 +50,19 @@ if TYPE_CHECKING:
     from waterfall.core.risks.interface.deletion import RiskDeletion
 
 
-def erase(session: Session, project_id: UUID, risk_id: UUID, structure_id: UUID) -> None:
+def erase(session: Session, project_id: UUID, revision_id: UUID, held: tuple[UUID, UUID]) -> None:
     """Delete a risk and its own estimate, no evaluation nor review naming them any more.
 
-    The nodes of the own estimate and its facets first, then the structure, which they name, then
-    the risk, which the structure names. The structure is locked by the caller.
+    ``held`` the risk and its own estimate. The entries of the stacks that name the nodes of the
+    own estimate go first (``forget_structure``, #4154): no undoing aims at a structure that is
+    gone, as the abandonment of a differential has it. Then the nodes of the own estimate and its
+    facets, then the structure, which they name, then the risk, which the structure names. The
+    structure is locked by the caller.
     """
+    risk_id, structure_id = held
+    forget_structure(
+        session, revision_id, structure_id, structure_node_ids(session, project_id, structure_id)
+    )
     delete_structure_nodes(session, project_id, structure_id)
     delete_own_estimate(session, project_id, structure_id)
     session.execute(
@@ -115,5 +127,5 @@ def remove(
         )
     if line is not None:
         delete_borne_line(session, place, line, writer)
-    erase(session, project_id, risk_id, structure_id)
+    erase(session, project_id, place.revision_id, (risk_id, structure_id))
     session.flush()

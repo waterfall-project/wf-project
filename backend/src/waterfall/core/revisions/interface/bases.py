@@ -9,9 +9,10 @@ deleted with it (``abandon_structure``), taken up with it by the copy of a revis
 the base of a differential, which its reading compares it to (``differential_base``); the
 conditions that a column of structures names no base (``not_a_base``), which what counts the nodes
 or the lines of a revision or of a project leaves out, and only structures that hold their
-lineages alone (``holds_its_lineages``), which a reading by lineage reads; and, at the end of the
-copy of a revision, the state of each differential it took up, up to date or out of date, as it
-was in the revision marked (``keep_differential_states``).
+lineages alone (``holds_its_lineages``), which a reading by lineage reads; whether a differential is
+up to date (``differential_up_to_date``), which the loader of the witness asks before a merge
+(US-2560/L2); and, at the end of the copy of a revision, the state of each differential it took
+up, up to date or out of date, as it was in the revision marked (``keep_differential_states``).
 
 Written by US-3050/L2.
 """
@@ -80,6 +81,24 @@ def holds_its_lineages(
             CostStructure.kind.in_((MAIN, RISK)),
         )
     )
+
+
+def differential_up_to_date(session: Session, project_id: UUID, structure_id: UUID) -> bool:
+    """Tell whether a differential is up to date; false for a structure that is no differential.
+
+    Up to date while the main structure of its revision bears the counter its base was taken at
+    (US-3050).
+    """
+    row = session.scalars(
+        select(CostStructure).where(
+            CostStructure.project_id == project_id,
+            CostStructure.id == structure_id,
+            CostStructure.kind == AMENDMENT,
+        )
+    ).first()
+    if row is None:
+        return False
+    return row.main_lock_version == _main_counter(session, project_id, row.revision_id)
 
 
 def _main_counter(session: Session, project_id: UUID, revision_id: UUID) -> int | None:

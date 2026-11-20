@@ -8,7 +8,7 @@ the history of their writer, which ``undoLastChange`` undoes and ``redoLastUndo`
 written; the change of the identity does not enter it. An undoing brings back the probability, the
 state, the line and the reviews of the risk; the declaration undone takes away the risk, its own
 estimate and its line (#3982); the deletion undone brings back the risk and its own estimate with
-their identifiers, under which the entries of the own estimate are valid again (#4154). The rules
+their identifiers, the entries of the own estimate having gone with the deletion (#4154). The rules
 of the entry refuse what they no longer admit, in the order of ``CommandCondition`` (#795, #732).
 The undoing of a deletion of a task that carried a provision line advances the counter of its risk
 (#4010); the undoing of a paste of the execution of a task asks for ``remaining.write`` (#2905).
@@ -22,7 +22,7 @@ from uuid import UUID
 import pytest
 from estimate_support import Costing, costing
 from history_support import delete
-from nodes_support import SESSION, refusal, signed_in
+from nodes_support import SESSION, entries, refusal, signed_in
 from project_rows import risk_row
 from projects_support import Scene
 from projects_support import scene as make_scene
@@ -286,12 +286,12 @@ def test_a_declaration_is_undone_after_the_entries_of_its_own_estimate_undone_be
 
 @pytest.mark.requirement("WF-IHM-0110-A")
 @pytest.mark.requirement("WF-RIS-0020-A")
-def test_a_deletion_undone_brings_back_the_risk_and_its_own_estimate_whose_entries_hold_again(
+def test_a_deletion_undone_brings_back_the_risk_and_its_own_estimate_and_redone_takes_them_again(
     risks: Risks, project: Costed, stage: Scene, who: Person
 ) -> None:
     # The deletion undone creates the risk again, its own estimate with its nodes and its line under
-    # their identifiers, at 60; the entries of the own estimate under it are then valid again
-    # (#4154): the line created there is undone. Redone, the deletion takes them all again.
+    # their identifiers, at 60; the entries of the own estimate went with the deletion (#4154), so
+    # the undoing that follows is not theirs. Redone, the deletion takes them all again.
     risk = declared_by(risks, who)
     nodes = costed_by(risks, who, risk, "200.00")
     held = risks.risk(risk)
@@ -305,17 +305,32 @@ def test_a_deletion_undone_brings_back_the_risk_and_its_own_estimate_whose_entri
     assert len(risks.reviews(back)) == len(risks.reviews(held))
     line = project.tree.node(held["provision_node_id"])
     assert line["estimate_line"]["reestimated_amount"] == "60.00"
-    # The line of the own estimate, created before the deletion, is undone in its turn.
-    assert undone(risks, who)["undone"] == {
-        "kind": "node_create",
-        "node_ids": [nodes[1]],
-        "risk_ids": [],
-    }
-    assert own_nodes(risks, held["structure_id"]) == [(nodes[0], "task")]
-    undone(risks, who, "redo")
     risk_undone(undone(risks, who, "redo"), "risk_delete", risk)
     assert risks.read(risk).status_code == 404
     assert not structure_held(stage, held["structure_id"])
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.requirement("WF-RIS-0020-A")
+def test_the_deletion_of_a_risk_takes_from_the_stacks_the_entries_that_name_its_own_estimate(
+    risks: Risks, stage: Scene, who: Person
+) -> None:
+    # The task and the line entered in the own estimate are two entries of the stack of the writer;
+    # ``deleteRisk`` forgets them, as the abandonment of a differential does (#4154), so that no
+    # undoing aims at nodes of a structure that is gone. What stays is the declaration of the risk
+    # and the deletion itself.
+    risk = declared_by(risks, who)
+    nodes = {UUID(each) for each in costed_by(risks, who, risk, "200.00")}
+    before = entries(stage)
+    assert [each.kind for each in before if nodes & set(each.node_ids)] == [
+        "node_create",
+        "node_create",
+    ]
+    removed = risks.remove(risks.risk(risk), who)
+    assert removed.status_code == 204, removed.text
+    left = entries(stage)
+    assert not [each for each in left if nodes & set(each.node_ids)]
+    assert [each.kind for each in left] == ["risk_create", "risk_delete"]
 
 
 # --- The provision -------------------------------------------------------------------------------

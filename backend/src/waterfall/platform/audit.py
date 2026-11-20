@@ -45,13 +45,13 @@ from waterfall.platform.logs import names_a_secret
 
 # The actions and the natures of objects of the contract (``AuditAction``, ``AuditObjectKind``),
 # in its order; a new one is a change of the contract, then a migration of the constraint. The
-# merge of a differential keeps its former name (K-04): test_audit_journal.py names the gap.
+# merge of a differential takes the name of the contract with its service (K-04, US-2560/L2).
 type AuditAction = Literal[
     "project_create",
     "revision_mark",
     "revision_abandon",
     "reference_designate",
-    "amendment_merge",
+    "structure_merge",
     "structure_abandon",
     "risk_occurrence",
     "project_exit",

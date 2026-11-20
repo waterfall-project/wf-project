@@ -42,6 +42,7 @@ from waterfall.core.revisions.commands import (
 # ``bases`` (US-3050/L2): the base of a differential; the bases left out of a count, of a reading.
 from waterfall.core.revisions.interface.bases import (
     differential_base,
+    differential_up_to_date,
     holds_its_lineages,
     not_a_base,
 )
@@ -62,6 +63,7 @@ from waterfall.core.revisions.interface.marking import (
     MarkingRequest,
     RevisionMarking,
     compute_indicators,
+    designated_at_marking,
     keep_project_ratios,
     load_marking,
     mark_revision,
@@ -69,6 +71,14 @@ from waterfall.core.revisions.interface.marking import (
     register_marking,
     run_marking,
     submit_marking,
+)
+
+# ``merge_applying`` (US-2560/L2): the merge applied, as a task of the worker, and for the witness.
+from waterfall.core.revisions.interface.merge_applying import (
+    MergeRequest,
+    load_merge_at,
+    run_merge,
+    submit_merge,
 )
 
 # ``merging`` (US-2550/L1; US-2560): the parts of the modules in the merge of an amendment.
@@ -120,6 +130,7 @@ from waterfall.core.revisions.interface.reference import (
     designate_reference,
     main_structure_has_task,
     reference_correctable,
+    reference_history,
     register_designation,
     register_main_task_question,
     register_tasks_and_lines,
@@ -208,6 +219,7 @@ __all__ = [
     "MergePart",
     "MergePartError",
     "MergeReport",
+    "MergeRequest",
     "OpenedDifferential",
     "OwnEstimateCounted",
     "RatesToUpdate",
@@ -249,7 +261,9 @@ __all__ = [
     "current_structures",
     "delete_own_estimate",
     "designate_reference",
+    "designated_at_marking",
     "differential_base",
+    "differential_up_to_date",
     "hold_current_revision",
     "holds_its_lineages",
     "keep_project_ratios",
@@ -259,6 +273,7 @@ __all__ = [
     "list_cost_structures",
     "list_revisions",
     "load_marking",
+    "load_merge_at",
     "load_revision",
     "main_structure_has_task",
     "main_structures_of",
@@ -278,6 +293,7 @@ __all__ = [
     "rebased_structure",
     "rebasing_of",
     "reference_correctable",
+    "reference_history",
     "reference_year_of",
     "register_closing",
     "register_copy",
@@ -303,6 +319,7 @@ __all__ = [
     "revision_version_names",
     "revisions_present",
     "run_marking",
+    "run_merge",
     "structure_commands",
     "structure_counted",
     "structure_counters",
@@ -311,6 +328,7 @@ __all__ = [
     "structure_phase_conditions",
     "structure_rescheduled",
     "submit_marking",
+    "submit_merge",
     "update_rates",
     "write_structure",
 ]
