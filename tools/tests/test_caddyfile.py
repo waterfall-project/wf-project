@@ -62,6 +62,7 @@ def routes(node: object) -> Iterator[dict[str, Any]]:
             yield from routes(item)
 
 
+@pytest.mark.story("US-2880")
 def test_the_caddyfile_of_production_is_adapted_and_sends_grafana_to_its_service() -> None:
     """Proper to US-2880: /grafana and /grafana/... reach grafana:3000 in the adapted file."""
     paths = {
