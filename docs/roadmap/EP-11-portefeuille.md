@@ -329,10 +329,10 @@ Les tests : `test_migrations.py` (le contrôle élargi), `test_database_constrai
 | `core/portfolio` (nouveau, FBS-2) | le périmètre et sa résolution ; la contribution d'un projet ; les huit vues ; le sous-paquet pur `aggregation/` — la pondération, les sommes, les rapports de sommes, les parts, le taux de transformation, la répartition par zone, les trimestres | son interface, un fichier par vue, réexportés par le module ; `store_contribution(session, revision_id, act)`, qu'il enregistre à `register_indicators` après `store_indicators` |
 | `core/indicators` | les cinq natures ; l'écriture d'un document conservé pour un autre module ; la lecture conservée et la lecture du jour de plusieurs projets à la fois ; l'entrée du cache de la contribution d'un projet, sous la même empreinte | `keep_document`, `kept_documents_of` (plusieurs révisions, une requête), `day_documents_of` (plusieurs projets, par le cache), `offer_curves` (les séries d'un devis, par `series/`) ; `formulas/` sert tel quel |
 | `core/estimate` | les totaux par nature et la main-d'œuvre par rôle d'une révision, dans un fichier nouveau de son interface | `portfolio_totals` ; `workload` (EP-07, EP-10) sert tel quel |
-| `core/risks` (EP-08) | les risques d'une révision tels que le portefeuille les lit, et les changements d'état d'une période, dans un fichier nouveau de son interface | `portfolio_risks`, `outcomes_between`, `reviewed_since` ; le registre, la matrice, la réserve et la couverture servent tels quels |
+| `core/risks` (EP-08) | les risques d'une révision tels que le portefeuille les lit, et les changements d'état d'une période, dans un fichier nouveau de son interface | `portfolio_risks`, `outcomes_between`, `not_reviewed_since` (groupé, #4294) ; le registre, la matrice, la réserve et la couverture servent tels quels |
 | `core/planning` | rien | `tracked_milestones`, `milestone_forecasts` (EP-10) servent tels quels |
 | `core/costs` | l'instant du dernier import de plusieurs projets, dans un fichier nouveau de son interface | `last_imports` |
-| `core/revisions` | la dernière révision marquée de plusieurs projets à un instant, et leur révision courante | `last_marked_at_instant`, en une requête |
+| `core/revisions` | la dernière révision marquée de plusieurs projets à un instant, et leur révision courante | `last_marked_at_instant`, en une requête ; `marked_revisions_of` (US-2750) |
 | `core/projects` | les projets retenus par leur état à une date ; les offres sorties du chiffrage dans une période ; ce que l'appelant peut ouvrir, pour plusieurs projets | `projects_in_states_on`, `offers_closed_between`, `openable` ; `ALL_PROJECTS_READ` relu d'une seule définition (#3341) |
 | `core/resource_settings`, `core/indicator_settings`, `core/risk_settings` | rien | les rôles, leur capacité calculée et leur nœud ; le sous-arbre d'un nœud ; les seuils, le délai entre deux revues ; la matrice |
 
@@ -393,7 +393,7 @@ contributions des projets retenus et rend `PortfolioScope`.
 - **La courbe en S** (US-2740) : les documents `cost_curve` et `cost_curve_payment_delays` d'EP-10,
   et `portfolio_offer_curves` pondéré, sommés mois par mois sur la fenêtre demandée.
 - **La santé du pilotage** (US-2750) : l'instant du dernier marquage face au délai du référentiel ;
-  `reviewed_since` ; `last_imports` ; `portfolio_milestones`.
+  `not_reviewed_since` ; `last_imports` ; `portfolio_milestones`.
 
 ### Le contrat
 
@@ -973,7 +973,7 @@ décaissements sont ceux de `series/` d'EP-10.
 
 ## US-2750 — La santé du pilotage
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PTF-0110-A`, `WF-REF-0180-A`
 - **opérations** : `getPortfolioPilotHealth`, `getReferenceSettings`, `updateReferenceSettings`
 - **issue** : #3866

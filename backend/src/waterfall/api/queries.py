@@ -206,6 +206,18 @@ class NodelessQuery(DatedQuery):
         return self.period_from, self.period_to
 
 
+class PeriodlessQuery(DatedQuery):
+    """What a view that takes neither a node nor a period is asked (``getPortfolioPilotHealth``).
+
+    ``from`` and ``to`` are not parameters of such a view: one sent is not read.
+    """
+
+    @property
+    def org_node_id(self) -> None:
+        """Give no node: the view is asked of the whole portfolio."""
+        return None
+
+
 # The permission of every view of the portfolio: that of its function alone (EP-11).
 PORTFOLIO_READ = "portfolio_projects.read"
 

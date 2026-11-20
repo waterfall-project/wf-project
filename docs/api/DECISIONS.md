@@ -12940,6 +12940,15 @@ Ce que le service fait là où le contrat laissait un choix ; aucune forme du co
   conserver les issues au marquage, ce qu'aucune nature de `portfolio_risks` ne prévoit ; la lecture
   groupée par projet d'`outcomes_between` reste à la mesure (#4165).
 
+**Les signaux de santé du pilotage jugent un intervalle de revue** (US-2750, #3866, décision de
+l'auteur du 2026-11-20). `risks_not_reviewed` et `no_actual_cost_since_last_review` se jugent de
+l'avant-dernière à la dernière révision marquée ; à la première revue marquée depuis le passage à
+En cours, de ce passage à cette revue. Un projet en cours sans révision marquée depuis ce passage —
+celle qu'il porte est la référence désignée par le passage, WF-CYC — ne porte ni l'un ni l'autre :
+son retard est dit par `review_overdue`. Un import de coûts de zéro ligne compte comme un import :
+sa date dit de quand datent les chiffres (WF-CRE-0050-A). Les deux bornes de l'intervalle sont
+incluses. `weeks_since_last_mark` est le plancher des jours écoulés divisé par sept.
+
 ## Organisation des fichiers
 
 **Les schémas sont groupés par famille**, un fichier par famille, et non un fichier par schéma —
