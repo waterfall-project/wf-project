@@ -23,7 +23,15 @@ from pydantic import Field
 
 from waterfall.api.authentication import ServicesOf, Transaction
 from waterfall.api.evaluation import Requires
-from waterfall.api.queries import ScopeQuery, portfolio_asked
+from waterfall.api.queries import (
+    DEFAULT_HORIZON,
+    GREATEST_HORIZON,
+    NUMBER_INVALID,
+    VALUE_OUT_OF_RANGE,
+    ScopeQuery,
+    horizon_faults,
+    portfolio_asked,
+)
 from waterfall.core.portfolio.interface import PortfolioReading, read_portfolio_workload
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import FieldError
@@ -31,13 +39,8 @@ from waterfall.platform.errors import FieldError
 router = APIRouter(tags=["portfolio"])
 
 READ = "portfolio_workload.read"
-VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
-DEFAULT_HORIZON = 6
-GREATEST_HORIZON = 240
 DEFAULT_THRESHOLD = "0.5"
-NUMBER_INVALID = "NUMBER_INVALID"
-# The forms of an integer and of a decimal, as the contract writes them (``Decimal``).
-INTEGER = re.compile(r"-?\d+")
+# The form of a decimal, as the contract writes it (``Decimal``).
 DECIMAL = re.compile(r"-?\d+(\.\d+)?")
 
 
@@ -63,12 +66,7 @@ def view_faults(query: WorkloadQuery) -> list[FieldError]:
     A malformed one is ``NUMBER_INVALID``; one outside its bounds is ``VALUE_OUT_OF_RANGE`` with
     its bounds. Both are judged, so that every fault of the view comes in one answer.
     """
-    faults: list[FieldError] = []
-    if INTEGER.fullmatch(query.horizon_months) is None:
-        faults.append(FieldError("/query/horizon_months", NUMBER_INVALID))
-    elif not 1 <= int(query.horizon_months) <= GREATEST_HORIZON:
-        bounds = {"minimum": 1, "maximum": GREATEST_HORIZON}
-        faults.append(FieldError("/query/horizon_months", VALUE_OUT_OF_RANGE, bounds))
+    faults = horizon_faults(query.horizon_months)
     if DECIMAL.fullmatch(query.under_load_threshold) is None:
         faults.append(FieldError("/query/under_load_threshold", NUMBER_INVALID))
     elif not 0 <= Decimal(query.under_load_threshold) <= 1:

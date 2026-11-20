@@ -931,7 +931,7 @@ réserve et la couverture.
 
 ## US-2740 — La courbe en S du portefeuille
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PTF-0100-A`
 - **opérations** : `getPortfolioCostCurve`
 - **issue** : #3864

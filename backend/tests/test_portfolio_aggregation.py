@@ -20,6 +20,7 @@ from waterfall.core.portfolio.aggregation import (
     aggregate,
     conversion_rate,
     count_by_key,
+    last_day_of,
     load_ratio,
     load_zone,
     month_label,
@@ -32,6 +33,7 @@ from waterfall.core.portfolio.aggregation import (
     sum_by_key,
     sum_by_month,
     total_of,
+    value_at,
     weight_of,
     weighted_amount,
     weighted_hours,
@@ -232,3 +234,31 @@ def test_a_quarter_is_read_on_its_last_day_and_the_one_holding_the_date_on_that_
     assert Quarter(2026, 4).last_day == date(2026, 12, 31)
     assert reading_day(Quarter(2026, 1), date(2026, 5, 20)) == date(2026, 3, 31)
     assert reading_day(Quarter(2026, 2), date(2026, 5, 20)) == date(2026, 5, 20)
+
+
+def test_a_cumulative_curve_is_read_at_its_last_point_on_or_before_the_day() -> None:
+    points = [
+        (date(2026, 4, 30), Decimal("100.00")),
+        (date(2026, 5, 31), Decimal("200.00")),
+        (date(2026, 6, 30), Decimal("300.00")),
+    ]
+    assert value_at(points, date(2026, 4, 29)) == Decimal("0.00")
+    assert value_at(points, date(2026, 4, 30)) == Decimal("100.00")
+    assert value_at(points, date(2026, 6, 15)) == Decimal("200.00")
+    assert value_at(points, date(2030, 1, 1)) == Decimal("300.00")
+    assert value_at([], date(2026, 6, 15)) == Decimal("0.00")
+
+
+def test_of_two_points_at_one_date_the_later_stands() -> None:
+    points = [
+        (date(2026, 5, 31), Decimal("200.00")),
+        (date(2026, 5, 31), Decimal("250.00")),
+        (date(2026, 6, 30), Decimal("300.00")),
+    ]
+    assert value_at(points, date(2026, 5, 31)) == Decimal("250.00")
+
+
+def test_the_last_day_of_a_month_is_civil() -> None:
+    assert last_day_of(Month(2026, 2)) == date(2026, 2, 28)
+    assert last_day_of(Month(2028, 2)) == date(2028, 2, 29)
+    assert last_day_of(Month(2026, 12)) == date(2026, 12, 31)
