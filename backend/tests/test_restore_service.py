@@ -746,6 +746,25 @@ def test_the_realm_applied_again_is_asked_in_a_folder_and_its_answer_read(tmp_pa
         late.apply("never")
 
 
+@pytest.mark.requirement("WF-ARC-0080-A")
+def test_an_answer_an_earlier_request_left_in_the_pod_is_not_the_answer_of_this_one(
+    tmp_path: Path,
+) -> None:
+    # The folder is the emptyDir of the pod, which passes from one request to the next: a ``.done``
+    # of an earlier request, left there, must not end this one, nor a ``.failed`` fail it.
+    (tmp_path / "again.done").write_text("")
+    (tmp_path / "again.failed").write_text("")
+    ticks = iter([0.0, 0.0, 10.0])
+    requests = RealmRequests(
+        tmp_path, patience=5, clock=lambda: next(ticks), sleep=lambda _: None
+    )
+    with pytest.raises(RealmNotAppliedError, match="did not answer"):
+        requests.apply("again")
+    assert not (tmp_path / "again.done").exists()
+    assert not (tmp_path / "again.failed").exists()
+    assert (tmp_path / "again.request").exists()
+
+
 @pytest.mark.requirement("WF-ARC-0090-A")
 def test_a_worker_whose_redis_is_out_of_reach_reads_the_maintenance_in_the_database(
     installation: Installation, service: Service

@@ -7,10 +7,12 @@ On a chart of three instances of the API and two of the worker, it holds that:
 - the same user, with the same token and no session of an instance, is answered the same by each
   instance of the API: what one wrote, the others read, without signing in again. Each instance is
   asked inside its own pod, so that which one served is not left to the Service;
-- a worker killed in the middle of a marking — held there by a lock of the table of the revisions,
-  taken by the administrator of the server — leaves the database as it was, and the other worker
-  claims the entry the killed one left unacknowledged (``XAUTOCLAIM``, after its delay) and runs
-  the task again from its start: the revision is marked, the task attempted twice.
+- a worker killed in the middle of a marking — held there, at the last write of its transaction
+  (the inscription of the journal), by a lock the administrator of the server takes on the table
+  of the journal — leaves the database as it was: a snapshot of every table the marking writes,
+  taken before and after, is the same. The other worker, which its logs name, claims the entry the
+  killed one left unacknowledged (``XAUTOCLAIM``, after its delay) and runs the task again from
+  its start: the revision is marked, the task attempted twice, the marking inscribed once.
 
 What no service reads of what it wrote on its own disk is held by a test of the back
 (``backend/tests/test_stateless_files.py``), which needs no cluster.
@@ -33,30 +35,51 @@ PATIENCE = 300.0
 """How long, in seconds, the other worker may take to claim the entry the killed one left: the
 delay of its claim is thirty seconds."""
 PAUSE = 1.0
+RETAKEN = 2
+"""The attempt a task is taken up at by the worker that claims it after the first one was killed."""
+WAIT_FOR_DELETE = "--timeout=120s"
 LEAST_INSTANCES = 2
 """The fewest instances of the API, or of the worker, the trial is held on."""
 SETTLED = "draft|t|t"
 """A revision unmarked and current, as ``HELD_REVISION`` reads it: its status, whether its moment of
 marking is absent, whether its project still has it as its current revision."""
-LOCK = "BEGIN; LOCK TABLE revision IN SHARE ROW EXCLUSIVE MODE; SELECT pg_sleep(900);"
-"""What holds up every write of the table of the revisions and no read: the marking blocks at its
-first write of a revision, having read, and written elsewhere, before."""
+LOCK = "BEGIN; LOCK TABLE audit_entry IN SHARE ROW EXCLUSIVE MODE; SELECT pg_sleep(900);"
+"""What holds up every inscription of the journal and no read. The worker inscribes
+``revision_mark`` last, after it wrote the revision, its project and its indicators in the one
+transaction of the task: it is held there, with all it wrote still to be undone. The request of the
+marking writes the task alone, no journal, and is answered under the lock."""
 WHERE_LOCKED = (
     "FROM pg_locks l JOIN pg_class c ON c.oid = l.relation "
-    "WHERE c.relname = 'revision' AND l.mode = 'ShareRowExclusiveLock' AND l.granted"
+    "WHERE c.relname = 'audit_entry' AND l.mode = 'ShareRowExclusiveLock' AND l.granted"
 )
 LOCK_HELD = f"SELECT count(*) {WHERE_LOCKED}"
 LOCK_RELEASED = f"SELECT count(pg_terminate_backend(l.pid)) {WHERE_LOCKED}"
 WHERE_WAITING = (
-    "FROM pg_stat_activity WHERE datname = 'waterfall' "
-    "AND wait_event_type = 'Lock' AND usename <> 'postgres'"
+    "FROM pg_stat_activity WHERE datname = 'waterfall' AND wait_event_type = 'Lock' "
+    "AND usename <> 'postgres' AND query ILIKE 'INSERT INTO audit_entry%'"
 )
 WAITING = f"SELECT count(*) {WHERE_WAITING}"
 WAITING_ENDED = f"SELECT count(pg_terminate_backend(pid)) {WHERE_WAITING}"
+"""The sessions that wait to inscribe the journal: the marking, held by the lock. Ending them is
+what the server does when it finds the client of a session dead: a pod removed with no grace says
+no goodbye, and the administrator tells the server of the trial."""
+SNAPSHOT = (
+    "SELECT c.relname || '|' || (xpath('/row/h/text()', query_to_xml(format("
+    "'SELECT coalesce(md5(string_agg(t::text, '','' ORDER BY t::text)), '''') AS h FROM %I t', "
+    "c.relname), false, true, '')))[1]::text "
+    "FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+    "WHERE n.nspname = 'public' AND c.relkind = 'r' AND (c.relname IN ('revision', 'project', "
+    "'audit_entry') OR EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.oid "
+    "AND a.attname = 'revision_id' AND NOT a.attisdropped)) ORDER BY c.relname"
+)
+"""One line a table, ``name|digest of its rows``: the revisions, the projects (their counter), the
+journal, and every table that keeps rows of a revision, the indicators among them. The task is left
+out: its attempt is committed apart, before the marking."""
 HELD_REVISION = (
     "SELECT r.status, r.marked_at IS NULL, p.current_revision_id = r.id "
     "FROM revision r JOIN project p ON p.id = r.project_id WHERE r.id = :id"
 )
+MARKS = "SELECT count(*) FROM audit_entry WHERE action = 'revision_mark' AND object_id = :id"
 TASK = "SELECT status, attempts FROM background_task WHERE id = :id"
 
 PERMISSIONS = (
@@ -115,24 +138,61 @@ def check_attempted_once(row: str) -> None:
         raise ProductionError(message)
 
 
-def found(body: Any, key: str, having: Mapping[str, Any] | None = None) -> str:
-    """Find the first ``key`` of an object, anywhere in a body, that has all of ``having``.
+def digests(snapshot: str) -> dict[str, str]:
+    """Read a snapshot: the digest of each table, by its name."""
+    read: dict[str, str] = {}
+    for line in snapshot.splitlines():
+        name, _, digest = line.partition("|")
+        read[name] = digest
+    return read
 
-    The body lists or nests objects; fail when none has it.
+
+def check_same_snapshot(before: str, after: str) -> None:
+    """Hold that no table the marking writes changed, naming those that did."""
+    if before == after:
+        return
+    kept, now = digests(before), digests(after)
+    changed = sorted(name for name in kept.keys() | now.keys() if kept.get(name) != now.get(name))
+    message = f"the worker killed in a marking changed the tables {changed}: not as they were"
+    raise ProductionError(message)
+
+
+def check_marked_once(count: str) -> None:
+    """Hold that the revision was inscribed ``revision_mark`` once: not by the killed, and again."""
+    if count.strip() != "1":
+        message = f"{count.strip()!r} inscriptions of the marking in the journal, not one"
+        raise ProductionError(message)
+
+
+def started_again(logs: str, task_id: str) -> bool:
+    """Tell whether a worker's logs, a JSON object a line, say it took the task up a second time."""
+    for line in logs.splitlines():
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        said = as_object(entry)
+        if (
+            said.get("event") == "task.started"
+            and said.get("task_id") == task_id
+            and said.get("attempt") == RETAKEN
+        ):
+            return True
+    return False
+
+
+def found(body: Any, key: str, having: Mapping[str, Any] | None = None) -> str | None:
+    """Find the first ``key`` of an object of a list that has all of ``having``; ``None`` if none.
+
+    The list is the body, or its ``items``: the reference lists answer either.
     """
     wanted = having or {}
-    pending = [body]
-    while pending:
-        item = pending.pop(0)
-        if isinstance(item, dict):
-            node = cast("dict[str, Any]", item)
-            if key in node and all(node.get(name) == value for name, value in wanted.items()):
-                return str(node[key])
-            pending.extend(node.values())
-        elif isinstance(item, list):
-            pending.extend(cast("list[Any]", item))
-    message = f"no {key} in what the platform listed, among {sorted(wanted)}"
-    raise ProductionError(message)
+    listed = as_object(body).get("items") if isinstance(body, dict) else body
+    for item in cast("list[Any]", listed) if isinstance(listed, list) else []:
+        node = as_object(item)
+        if key in node and all(node.get(name) == value for name, value in wanted.items()):
+            return str(node[key])
+    return None
 
 
 def asked(query: str, identifier: str) -> str:
@@ -228,9 +288,8 @@ class Stateless:
     def make_the_reference(self, api: Api, token: str) -> None:
         """Make a labour category and a role of the reference, as a project needs (WF-CYC-0120)."""
         types = self.expect(api, ("GET", "/reference/cost-types", token), OK)
-        try:
-            labour = found(types, "cost_type_id", {"kind": "labor", "is_active": True})
-        except ProductionError:
+        labour = found(types, "cost_type_id", {"kind": "labor", "is_active": True})
+        if labour is None:
             # A new installation holds only the cost type of the risk provision.
             kind = {"code": "ESS", "label": "Essai sans état", "kind": "labor"}
             made = self.expect(api, ("POST", "/reference/cost-types", token), CREATED, kind)
@@ -244,20 +303,23 @@ class Stateless:
         path = "/reference/cost-categories"
         made = self.expect(api, ("POST", path, token), CREATED, category)
         nodes = self.expect(api, ("GET", "/reference/org-nodes", token), OK)
-        try:
-            node = found(nodes, "org_node_id", {"is_active": True})
-        except ProductionError:
+        node = found(nodes, "org_node_id", {"is_active": True})
+        if node is None:
             # A new installation holds no department.
             root = {"code": "ESS", "label": "Essai sans état"}
             made_node = self.expect(api, ("POST", "/reference/org-nodes", token), CREATED, root)
             node = str(as_object(made_node)["org_node_id"])
         calendars = self.expect(api, ("GET", "/reference/calendars", token), OK)
+        calendar = found(calendars, "calendar_id", {"is_active": True})
+        if calendar is None:
+            message = "the platform holds no active calendar for a role of the reference"
+            raise ProductionError(message)
         role = {
             "code": "ESS",
             "label": "Essai sans état",
             "org_node_id": node,
             "cost_category_id": as_object(made)["cost_category_id"],
-            "calendar_id": found(calendars, "calendar_id", {"is_active": True}),
+            "calendar_id": calendar,
             "capacity": {"headcount": "1"},
         }
         self.expect(api, ("POST", "/reference/resource-roles", token), CREATED, role)
@@ -266,7 +328,10 @@ class Stateless:
         """Hold that each instance of the API answers the same to the same token.
 
         A project is made by the first, and read by every instance. Give its identifier and the
-        revision opened in it, for the marking.
+        revision opened in it, for the marking. It is read by its identifier (``getProject``), not
+        found in the list: ``listProjects`` answers the projects in progress alone unless it is
+        asked for others (``DEFAULT_STATES``, ``core/projects/interface/projects.py``), and a new
+        project is ``created``. That filter is the contract's, no state of an instance.
         """
         pods = self.pods("api")
         first = self.api_on(pods[0])
@@ -289,7 +354,11 @@ class Stateless:
         return project_id, str(as_object(opened)["revision_id"])
 
     def entry_held(self) -> str:
-        """Wait until a worker holds an entry the lock keeps from ending; give its consumer."""
+        """Wait until a worker holds an entry its marking, held by the lock, cannot end.
+
+        The marking is the session that waits, in the database, to inscribe the journal (``WAITING``
+        reads its query), and its entry the one pending in the stream. Give its consumer.
+        """
         redis = [*self.kubectl, "exec", f"deployment/{RELEASE}-redis", "--", "redis-cli", "--raw"]
         deadline = self.clock.now() + PATIENCE
         while self.clock.now() < deadline:
@@ -299,16 +368,35 @@ class Stateless:
             if waiting != "0" and len(consumers) == 1:
                 return next(iter(consumers.values()))
             self.clock.pause(PAUSE)
-        message = "no worker is held in a marking by the lock of the revisions"
+        message = "no worker is held in a marking by the lock of the journal"
         raise ProductionError(message)
+
+    def kill(self, worker: str) -> None:
+        """Kill a worker with no warning, and end the sessions it leaves in the database.
+
+        The pod is removed with no grace period, then awaited gone. A client that dies leaves its
+        sessions to the server, which ends them once it finds the connection dead:
+        ``pg_terminate_backend`` plays the server that detects it, at once, so that the transaction
+        of the marking is rolled back before the database is read.
+        """
+        self.output(
+            [*self.kubectl, "delete", f"pod/{worker}", "--grace-period=0", "--force"],
+            f"kill the worker {worker}",
+        )
+        self.output(
+            [*self.kubectl, "wait", "--for=delete", f"pod/{worker}", WAIT_FOR_DELETE],
+            f"wait for the worker {worker} to be gone",
+        )
+        self.sql(WAITING_ENDED, "end the sessions of the worker killed")
 
     def hold_the_task_taken_again(self, token: str, project_id: str, revision_id: str) -> None:
         """Kill a worker in the middle of a marking, and hold that the other one marks.
 
-        The lock keeps the marking from its first write of a revision. The worker is killed with no
-        warning (a pod removed with no grace), the sessions it leaves are ended, and the database
-        read while the lock is still held; then the lock is released, and the other worker, which
-        claims the entry, marks.
+        The lock keeps the marking at the inscription of the journal, its last write. The tables
+        the marking writes are read before it is asked, the worker is killed with no warning, the
+        sessions it leaves are ended, and the same tables read again while the lock is still held:
+        they are the same. The lock is then released, and the other worker, which claims the
+        entry, marks.
         """
         api = self.api_on(self.pods("api")[0])
         stop = self.start([*self.psql(), f"--command={LOCK}"])
@@ -318,41 +406,57 @@ class Stateless:
             read = self.expect(api, ("GET", path, token), OK)
             lock_version = as_object(read)["lock_version"]
             body = {"version_name": "v1.0", "lock_version": lock_version}
+            before = self.sql(SNAPSHOT, "read the tables of the marking")
             marking = self.expect(api, ("POST", f"{path}/mark", token), ACCEPTED, body)
             task_id = str(as_object(marking)["task_id"])
             worker = self.entry_held()
-            if f"pod/{worker}" not in self.pods("worker"):
+            workers = self.pods("worker")
+            if f"pod/{worker}" not in workers:
                 message = f"the entry is held by {worker}, which is no worker of the platform"
                 raise ProductionError(message)
-            self.output(
-                [*self.kubectl, "delete", f"pod/{worker}", "--grace-period=0", "--force"],
-                f"kill the worker {worker}",
-            )
-            self.sql(WAITING_ENDED, "end the sessions of the worker killed")
+            others = [pod for pod in workers if pod != f"pod/{worker}"]
+            self.kill(worker)
+            check_same_snapshot(before, self.sql(SNAPSHOT, "read the tables of the marking"))
             check_unchanged(self.sql(asked(HELD_REVISION, revision_id), "read the revision"))
             check_attempted_once(self.sql(asked(TASK, task_id), "read the task"))
             print(
-                f"  the worker {worker} killed in the middle of a marking leaves the revision a "
-                "draft, still the current one: the database is as it was",
+                f"  the worker {worker} killed in the middle of a marking leaves the tables it "
+                "wrote as they were: the revision a draft, still the current one",
                 flush=True,
             )
         finally:
-            self.sql(LOCK_RELEASED, "release the lock of the revisions")
+            self.sql(LOCK_RELEASED, "release the lock of the journal")
             stop()
-        self.marked_by_another(task_id, worker, revision_id)
+        self.marked_by_another(task_id, worker, others, revision_id)
 
     def locked(self) -> None:
-        """Wait until the lock of the revisions is held."""
+        """Wait until the lock of the journal is held."""
         deadline = self.clock.now() + PATIENCE
         while self.clock.now() < deadline:
-            if self.sql(LOCK_HELD, "look for the lock of the revisions") == "1":
+            if self.sql(LOCK_HELD, "look for the lock of the journal") == "1":
                 return
             self.clock.pause(PAUSE)
-        message = "the lock of the table of the revisions was not taken"
+        message = "the lock of the table of the journal was not taken"
         raise ProductionError(message)
 
-    def marked_by_another(self, task_id: str, killed: str, revision_id: str) -> None:
-        """Wait for the task to succeed on its second attempt, and for the revision to be marked."""
+    def took_it_up(self, task_id: str, killed: str, others: list[str]) -> str:
+        """Give the worker, among the others of the start, whose logs say it took the task again.
+
+        The Deployment makes a pod of its own when one is removed, which might be the one that
+        claims the entry: the logs of the workers the platform held before the kill name the one
+        that did, and a pod made after it is none of them.
+        """
+        for pod in others:
+            logs = self.output([*self.kubectl, "logs", pod], f"read the logs of {pod}")
+            if started_again(logs, task_id):
+                return pod
+        message = f"none of {others} took up the task of the worker {killed} again: see its logs"
+        raise ProductionError(message)
+
+    def marked_by_another(
+        self, task_id: str, killed: str, others: list[str], revision_id: str
+    ) -> None:
+        """Wait for the task to succeed on its second attempt, by the other worker, and the mark."""
         deadline = self.clock.now() + PATIENCE
         row = ""
         while self.clock.now() < deadline:
@@ -367,9 +471,11 @@ class Stateless:
         if not marked.startswith("marked|f"):
             message = f"the revision is {marked!r} after the task succeeded: not marked"
             raise ProductionError(message)
+        check_marked_once(self.sql(asked(MARKS, revision_id), "count the inscriptions"))
+        took = self.took_it_up(task_id, killed, others)
         print(
-            f"  the task was run again from its start and succeeded, by another worker than "
-            f"{killed}: attempted twice, the revision marked",
+            f"  the task was run again from its start and succeeded, by {took}, another worker "
+            f"than {killed}: attempted twice, the revision marked, inscribed once",
             flush=True,
         )
 
