@@ -191,8 +191,14 @@ test("the comparison of the current revision of PRJ-001 to its reference, from t
   await expect(estimate).toBeVisible({ timeout: WORKING });
 
   // A row marked, and the value its base held in the cell that differs, read at the keyboard: the
-  // focus on the cell says it, as the pointer does.
-  const marked = estimate.getByRole("row").filter({ hasText: "Modifié" }).first();
+  // focus on the cell says it, as the pointer does. The row is one with such a cell among the
+  // columns of the estimate: a task modified by its progress alone is marked without one
+  // (WF-IHM-0150), as the service reads the first rows of the 102 against the 101.
+  const marked = estimate
+    .getByRole("row")
+    .filter({ hasText: "Modifié" })
+    .filter({ hasText: "Δ" })
+    .first();
   await expect(marked).toBeVisible({ timeout: WORKING });
   const at = await columnsOf(estimate, { label: "Libellé" });
   const differing = marked.getByRole("gridcell").filter({ hasText: "Δ" }).first();
