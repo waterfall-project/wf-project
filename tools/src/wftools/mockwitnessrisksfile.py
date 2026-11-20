@@ -33,10 +33,10 @@ revisions 101 and 102, ``{"revision", "structure_id"}``, as ``structures_amendme
 whose tasks and lines ``witness_tasks.json`` and ``witness_lines.json`` give its content —,
 ``copies`` — its copy in each revision that takes it up, ``{"revision", "structure_id"}`` —, then
 what it changes of them: ``tasks`` and ``lines`` it adds or changes, as those files write them,
-``removed`` the lineages it withdraws; and ``node_ids``, the identifier of a node of it the examples
-name, by lineage. The amendment 1 holds the reference 101 entered whole, what separates
-the offer from the reference: its merge produces the reference; the amendment 2, the revision 102
-with its trials of the wiring resumed (``mockamendment``).
+``removed_lineage_ids`` the lineages it withdraws; and ``node_ids``, the nodes of it the examples
+name, ``{"lineage_id", "node_id"}``. The amendment 1 holds the reference 101 entered whole, what
+separates the offer from the reference: its merge produces the reference; the amendment 2, the
+revision 102 with its trials of the wiring resumed (``mockamendment``).
 
 No address and no label of a real project is here: the labels are the witness's, fictitious.
 """
@@ -256,11 +256,11 @@ def _second() -> JsonObject:
         for each in (*main_tasks, *main_lines)
         if cast("JsonObject", each)["lineage_id"] not in held
     )
-    named = {
-        lineage_id(row.number): mockamendment.own_id(row.number)
-        for row in mockamendment.rows()
+    named: list[JsonValue] = [
+        {"lineage_id": lineage_id(row.number), "node_id": mockamendment.own_id(row.number)}
+        for row in sorted(mockamendment.rows(), key=lambda row: lineage_id(row.number))
         if row.number < GENERATED
-    }
+    ]
     return {
         "structure_id": AMENDMENT_2,
         "label": mockamendment.LABEL,
@@ -269,8 +269,8 @@ def _second() -> JsonObject:
         "copies": [{"revision": CURRENT, "structure_id": universe(203)}],
         "tasks": _changed(main_tasks, tasks),
         "lines": _changed(main_lines, lines),
-        "removed": cast("list[JsonValue]", removed),
-        "node_ids": cast("JsonObject", dict(sorted(named.items()))),
+        "removed_lineage_ids": cast("list[JsonValue]", removed),
+        "node_ids": named,
     }
 
 
@@ -288,8 +288,8 @@ def structures() -> JsonObject:
         "copies": [],
         "tasks": [],
         "lines": [],
-        "removed": [],
-        "node_ids": {},
+        "removed_lineage_ids": [],
+        "node_ids": [],
     }
     main: list[JsonValue] = [
         {"revision": revision, "structure_id": universe(number)}

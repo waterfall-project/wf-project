@@ -51,6 +51,13 @@ class _Main(Strict):
     structure_id: UUID
 
 
+class _Named(Strict):
+    """A node of an amendment the examples name: its lineage and its identifier."""
+
+    lineage_id: UUID
+    node_id: UUID
+
+
 class AmendmentRow(Strict):
     """An amendment of the witness: where it is opened, what its content is made of.
 
@@ -65,8 +72,8 @@ class AmendmentRow(Strict):
     copies: list[_Main]
     tasks: list[TaskRow]
     lines: list[LineRow]
-    removed: list[UUID]
-    node_ids: dict[UUID, UUID]
+    removed_lineage_ids: list[UUID]
+    node_ids: list[_Named]
 
     def structure_in(self, revision: int) -> UUID | None:
         """Give the amendment in a revision: where it is opened, or its copy; none elsewhere."""
@@ -89,8 +96,10 @@ class AmendmentRow(Strict):
             structure_id,
             tuple(self.tasks),
             tuple(self.lines),
-            frozenset(self.removed),
-            self.node_ids if revision == self.rows_of else {},
+            frozenset(self.removed_lineage_ids),
+            {each.lineage_id: each.node_id for each in self.node_ids}
+            if revision == self.rows_of
+            else {},
         )
 
 

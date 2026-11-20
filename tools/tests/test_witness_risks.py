@@ -90,7 +90,7 @@ def test_the_occurrence_grafts_the_nodes_the_examples_read_under_their_lineages(
 def test_the_amendment_1_takes_the_reference_whole_and_the_amendment_2_its_trials_resumed() -> None:
     structures = _read(module.STRUCTURES_NAME)
     first, second = structures["amendments"]
-    assert (first["revision"], first["rows_of"], first["tasks"], first["removed"]) == (
+    assert (first["revision"], first["rows_of"], first["tasks"], first["removed_lineage_ids"]) == (
         101,
         101,
         [],
@@ -104,5 +104,5 @@ def test_the_amendment_1_takes_the_reference_whole_and_the_amendment_2_its_trial
         "Reprise des essais de câblage",
         "Mise en service",
     ]
-    assert len(second["removed"]) == 1
+    assert len(second["removed_lineage_ids"]) == 1
     assert [each["structure_id"][-3:] for each in structures["main"]] == ["211", "201"]
