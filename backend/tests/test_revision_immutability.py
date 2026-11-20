@@ -526,6 +526,7 @@ def test_the_indicators_a_marking_kept_are_never_written_again(
         ("estimate", "unassigned", at),
         ("portfolio_cost_structure", "project", at),
         ("portfolio_milestones", "project", at),
+        ("portfolio_risks", "project", at),
         ("portfolio_workload", "project", at),
         ("project", "project", at),
         ("project", "unassigned", at),
@@ -553,8 +554,13 @@ PORTFOLIO_KINDS = (
     "portfolio_milestones",
     "portfolio_offer_curves",
 )
-# The kinds the marking of an offer keeps for the portfolio itself (US-2680/L2).
-OFFER_KEEPS = ("portfolio_workload", "portfolio_cost_structure", "portfolio_offer_curves")
+# The kinds the marking of an offer keeps for the portfolio itself (US-2680/L2, the risks L3).
+OFFER_KEEPS = (
+    "portfolio_workload",
+    "portfolio_cost_structure",
+    "portfolio_risks",
+    "portfolio_offer_curves",
+)
 
 
 @pytest.mark.requirement("WF-DAT-0020-A")
@@ -616,6 +622,7 @@ def test_a_document_written_during_the_marking_waits_for_it_and_is_refused(
         ("estimate", "unassigned"),
         ("portfolio_cost_structure", "project"),
         ("portfolio_offer_curves", "project"),
+        ("portfolio_risks", "project"),
         ("portfolio_workload", "project"),
         ("remaining", "project"),
     ]

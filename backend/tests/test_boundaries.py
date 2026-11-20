@@ -191,6 +191,8 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "deletion",
         "matrix",
         "occurrence",
+        # The risks as the portfolio reads them (EP-11, US-2680/L3).
+        "portfolio",
         "provisions",
         "register",
         "reviews",
@@ -345,6 +347,10 @@ DESIGNED: dict[str, set[str]] = {
         "occurrence_report",
         "submit_occurrence",
         "run_occurrence",
+        # EP-11, "Modules": what the portfolio reads of the risks (US-2680/L3).
+        "portfolio_risks",
+        "outcomes_between",
+        "reviewed_since",
     },
     # EP-11, "Les vues" and "La contribution d'un projet": a function by view, which the API calls
     # before the story that fills each; the scope of the eight; what the marking keeps.

@@ -10,16 +10,17 @@ indicators (``day_contribution``). Their forms are those of the interface
 (``core/portfolio/interface/contribution.py``), which the views read.
 
 Which kinds a revision gives follows the state of its project: a project In progress or Completed
-gives the workload, the structure of the costs and the milestones; an offer the workload and the
-structure of the costs on its estimate, and its curves — not the milestones, which ask for a
-reference. A marking keeps the kinds of the state of its project then: a project In progress, or an
-offer; a project in another state keeps none. The risks join with US-2680/L3.
+gives the workload, the structure of the costs, the risks and the milestones; an offer the workload
+and the structure of the costs on its estimate, its risks and its curves — not the milestones,
+which ask for a reference. A marking keeps the kinds of the state of its project then: a project In
+progress, or an offer; a project in another state keeps none.
 
 Each part reads through the interfaces of the modules, never their tables: the workload of the
 estimate (``workload``, EP-07, on a remaining; ``offer_workload`` on the estimate of an offer), its
-totals (``portfolio_totals``), the tracked milestones of the planning and the curves of an offer of
-the indicators (``offer_curves``). Nothing is weighted: the views weigh an offer by its probability
-(EP-11, "La contribution d'un projet").
+totals (``portfolio_totals``), the risks of the revision (``portfolio_risks``, US-2680/L3), the
+tracked milestones of the planning and the curves of an offer of the indicators (``offer_curves``).
+Nothing is weighted: the views weigh an offer by its probability (EP-11, "La contribution d'un
+projet"); the risks never are.
 """
 
 from typing import TYPE_CHECKING
@@ -49,6 +50,8 @@ from waterfall.core.planning.interface import (
 )
 from waterfall.core.portfolio.states import IN_PROGRESS, PRICING
 from waterfall.core.projects.interface import Viewer, project_facts
+from waterfall.core.revisions.interface import reference_at_marking
+from waterfall.core.risks.interface import portfolio_risks
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -68,6 +71,7 @@ COMPLETED_TASK = "completed"
 
 WORKLOAD: IndicatorKind = "portfolio_workload"
 COST_STRUCTURE: IndicatorKind = "portfolio_cost_structure"
+RISKS: IndicatorKind = "portfolio_risks"
 MILESTONES: IndicatorKind = "portfolio_milestones"
 OFFER_CURVES: IndicatorKind = "portfolio_offer_curves"
 
@@ -78,6 +82,7 @@ DAY_KINDS: tuple[IndicatorKind, ...] = (
     "estimate",
     WORKLOAD,
     COST_STRUCTURE,
+    RISKS,
     MILESTONES,
     OFFER_CURVES,
 )
@@ -152,6 +157,39 @@ def cost_structure_document(session: Session, project_id: UUID, revision_id: UUI
     }
 
 
+def _amount(value: Decimal | None) -> str | None:
+    """Write an amount that may be null: ``None`` for none."""
+    return None if value is None else _hours(value)
+
+
+def risks_document(session: Session, project_id: UUID, revision_id: UUID) -> Document:
+    """Give the risks of a revision, in the order of their declaration, and the base of the project.
+
+    Each as the register reads it in the revision: its probability, its severity, its provision,
+    its state, and for an occurred one its cost at occurrence and the re-estimated amount of the
+    lines that came from it, null otherwise (WF-DAT-0040, WF-PTF-0090). Nothing is classed: the
+    portfolio places each risk in the matrix at the reading, from its probability, its severity and
+    the base, on the bounds of that day.
+    """
+    read = portfolio_risks(session, project_id, revision_id)
+    return {
+        "base": _hours(read.base),
+        "risks": [
+            {
+                "risk_id": str(each.risk_id),
+                "label": each.label,
+                "probability": _hours(each.probability),
+                "severity": _hours(each.severity),
+                "provision_amount": _hours(each.provision_amount),
+                "state": each.state,
+                "occurrence_cost": _amount(each.occurrence_cost),
+                "occurred_reestimated_amount": _amount(each.occurred_reestimated_amount),
+            }
+            for each in read.risks
+        ],
+    }
+
+
 def milestones_document(
     session: Session, facts: ProjectFacts, project_id: UUID, revision_id: UUID
 ) -> Document:
@@ -166,7 +204,7 @@ def milestones_document(
         for each in tasks_for_indicators(session, project_id, revision_id)
         if each.is_milestone and each.lineage_id in tracked
     ]
-    reference = facts.reference_revision_id
+    reference = reference_at_marking(session, revision_id, facts.reference_revision_id)
     dates: Mapping[UUID, date] = {}
     if reference is not None:
         lineages = [each.lineage_id for each in tasks]
@@ -201,6 +239,7 @@ def portfolio_documents(
         return {
             WORKLOAD: workload_document(session, facts, project_id, revision_id, at),
             COST_STRUCTURE: cost_structure_document(session, project_id, revision_id),
+            RISKS: risks_document(session, project_id, revision_id),
             OFFER_CURVES: offer_curves(session, revision_id, at, marking=marking),
         }
     if marking and facts.state != IN_PROGRESS:
@@ -208,6 +247,7 @@ def portfolio_documents(
     return {
         WORKLOAD: workload_document(session, facts, project_id, revision_id, at),
         COST_STRUCTURE: cost_structure_document(session, project_id, revision_id),
+        RISKS: risks_document(session, project_id, revision_id),
         MILESTONES: milestones_document(session, facts, project_id, revision_id),
     }
 

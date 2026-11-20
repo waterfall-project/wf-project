@@ -22,8 +22,12 @@ The key covers, beyond the fingerprint of the day, what the contribution reads a
 the day do not (#4158, decision of the author of 2026-11-19; WF-DAT-0130-A): the probability of
 winning of the project, which weighs an offer, and the stamp of the roles and of the calendars of
 the platform (``roles_stamp``) — the calendar of a role and its hours, which spread the workload —,
-read once for all the projects of a reading; the counters of the risks, which the part of the risks
-reads, are those of the day already (US-2680/L3 says whether they suffice). ``FORM`` of the key
+read once for all the projects of a reading. The part of the risks (US-2680/L3) needs nothing more:
+what it reads is in the fingerprint of the day already — the number of the risks and the sum of
+their counters, which a declaration, a deletion, a review, an occurrence, a change of the identity
+or of the provision of a risk, or of its own estimate, moves; the counters of the structures of the
+revision, own estimates included, the lines and the reference, from which its severity, the
+re-estimated amount of an occurred one, its share and the base are read. ``FORM`` of the key
 changes with what an entry holds, so that an entry of a form before is never read again.
 
 The key does not cover the label of a nature of cost, which the structure of the costs of a
@@ -66,8 +70,9 @@ CONTRIBUTION = "portfolio"
 # The status the key is read with: the key reads only the instant of the context, never its status.
 DRAFT = "draft"
 # The form of an entry of a contribution: a change of what an entry holds changes it. "2" since
-# US-2680/L2: every kind named, ``null`` for one the project does not give (#4193).
-FORM = "2"
+# US-2680/L2: every kind named, ``null`` for one the project does not give (#4193); "3" since
+# US-2680/L3, which adds ``portfolio_risks``.
+FORM = "3"
 # The length of what the key adds to the fingerprint of the day: 128 bits of a SHA-256.
 FINGERPRINT_LENGTH = 32
 

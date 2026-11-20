@@ -38,7 +38,7 @@ from remaining_support import line_named
 from sqlalchemy import event, func, select, text, update
 
 from waterfall.core.cost_settings.tables import CostType
-from waterfall.core.estimate.interface import portfolio_totals
+from waterfall.core.estimate.interface import offer_workload, portfolio_totals
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.indicators.contributions import contribution_key
 from waterfall.core.indicators.interface import (
@@ -67,6 +67,7 @@ from waterfall.core.resource_settings.interface import (
     set_role_activation,
     update_calendar,
 )
+from waterfall.core.resource_settings.tables import ResourceRole
 from waterfall.core.revisions.interface import create_revision, load_marking, mark_revision
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act
@@ -90,8 +91,11 @@ if TYPE_CHECKING:
 
 WORKLOAD, COST_STRUCTURE = "portfolio_workload", "portfolio_cost_structure"
 MILESTONES, OFFER_CURVES = "portfolio_milestones", "portfolio_offer_curves"
-# The kinds of the portfolio this lot keeps: the risks are US-2680/L3's.
-KEPT_HERE = (WORKLOAD, COST_STRUCTURE, MILESTONES, OFFER_CURVES)
+RISKS = "portfolio_risks"
+# The kinds of the portfolio a marking keeps: of a project In progress, of an offer, and all.
+PROJECT_KINDS = (WORKLOAD, COST_STRUCTURE, RISKS, MILESTONES)
+OFFER_KINDS = (WORKLOAD, COST_STRUCTURE, RISKS, OFFER_CURVES)
+KEPT_HERE = (WORKLOAD, COST_STRUCTURE, RISKS, MILESTONES, OFFER_CURVES)
 # The validity of an entry of the cache in these tests, in seconds.
 TTL = 300
 # The instant of the readings of the day: the date of the witness, after every fact of the fabrics.
@@ -177,7 +181,7 @@ def test_the_review_of_a_project_in_progress_keeps_its_workload_its_costs_and_it
     running = fabrics.in_progress
     review, offer = running.marked[REVIEW][0], running.marked[OFFER][0]
     kept = kept_of(fabrics.stage.database, review)
-    assert set(kept) == {"project", "estimate", WORKLOAD, COST_STRUCTURE, MILESTONES}
+    assert set(kept) == {"project", "estimate", *PROJECT_KINDS}
     assert hours_of(kept[WORKLOAD]) == {str(fabrics.costs.role): Decimal("8.00")}
     costs = kept[COST_STRUCTURE]
     assert costs["budget_revision_id"] == str(offer)
@@ -194,8 +198,10 @@ def test_the_review_of_a_project_in_progress_keeps_its_workload_its_costs_and_it
     assert labour[str(fabrics.costs.role)] == total - Decimal("1000.00")
     assert amounts(costs["remaining_labour_by_role"], "resource_role_id") == labour
     assert kept[MILESTONES] == {"milestones": []}
+    # No risk is declared: the risks are kept all the same, none, on the budget of the reference.
+    assert kept[RISKS] == {"base": f"{total:.2f}", "risks": []}
     assert instants_of(fabrics.stage.owner, review) == {
-        (kind, REVIEW_MARKED, REVIEW_MARKED) for kind in (WORKLOAD, COST_STRUCTURE, MILESTONES)
+        (kind, REVIEW_MARKED, REVIEW_MARKED) for kind in PROJECT_KINDS
     }
 
 
@@ -210,7 +216,7 @@ def test_an_offer_marked_keeps_its_estimate_for_the_portfolio_without_any_indica
     # that asks for a reference: no milestone.
     offer = fabrics.offer.marked[OFFER][0]
     kept = kept_of(fabrics.stage.database, offer)
-    assert set(kept) == {"estimate", WORKLOAD, COST_STRUCTURE, OFFER_CURVES}
+    assert set(kept) == {"estimate", *OFFER_KINDS}
     assert hours_of(kept[WORKLOAD]) == {str(fabrics.costs.role): Decimal("8.00")}
     costs = kept[COST_STRUCTURE]
     assert costs["budget_revision_id"] == str(offer)
@@ -228,7 +234,7 @@ def test_an_offer_marked_keeps_its_estimate_for_the_portfolio_without_any_indica
         named = {each["name"]: each for each in curve["series"]}
         assert named["actual_cost"]["points"] == []
     assert instants_of(fabrics.stage.owner, offer) == {
-        (kind, OFFERS_MARKED, OFFERS_MARKED) for kind in (WORKLOAD, COST_STRUCTURE, OFFER_CURVES)
+        (kind, OFFERS_MARKED, OFFERS_MARKED) for kind in OFFER_KINDS
     }
 
 
@@ -316,6 +322,64 @@ def test_an_offer_marked_after_its_task_keeps_its_hours_on_the_months_of_the_tas
 
 
 @pytest.mark.story("US-2680")
+def test_an_offer_read_on_a_day_long_after_its_task_keeps_its_hours_on_the_months_of_the_task(
+    stage: Scene, offer: tuple[UUID, Costing]
+) -> None:
+    # Propre à l'US : « au jour courant, la même fonction de calcul donne les mêmes documents »
+    # (EP-11, « La contribution d'un projet ») — the workload of an offer on its estimate, whatever
+    # the day (#4284). The offer is not marked, and the day read is seventy days after the end of
+    # its task: its eight hours stay on the months of the task, none on the month of the day.
+    revision_id, costs = offer
+    project_id = UUID(stage.project["project_id"])
+    with stage.database.transaction() as session:
+        tasks = tasks_for_indicators(session, project_id, revision_id)
+    (task,) = [each for each in tasks if each.label == "Études"]
+    months = {f"{each:%Y-%m}" for each in (task.start.day, task.finish.day)}
+    day = task.finish.day + timedelta(days=70)
+    at = datetime(day.year, day.month, day.day, 9, 0, tzinfo=UTC)
+    with stage.database.transaction() as session:
+        computed = day_contribution(session, project_id=project_id, revision_id=revision_id, at=at)
+    (role,) = computed[WORKLOAD]["roles"]
+    assert role["resource_role_id"] == str(costs.role)
+    held = {each["month"]: Decimal(each["hours"]) for each in role["months"]}
+    assert set(held) <= months
+    assert f"{day:%Y-%m}" not in held
+    assert sum(held.values(), Decimal(0)) == Decimal("8.00")
+
+
+@pytest.mark.story("US-2680")
+def test_the_workload_of_a_marked_offer_is_read_on_the_roles_its_marking_kept(
+    stage: Scene, offer: tuple[UUID, Costing]
+) -> None:
+    # Propre à l'US : le marquage conserve « la charge par rôle de ressource et par mois — sur le
+    # devis d'une offre » ; read again after it, the workload of the marked offer is read on the
+    # roles its images kept (``estimate_workload``, #4284): the role renamed after the marking keeps
+    # its label of then, and its hours, where a revision opened afterwards reads it renamed.
+    revision_id, costs = offer
+    project_id = UUID(stage.project["project_id"])
+    manager = stage.manager.user_id
+    mark(stage, revision_id, Act(manager, utc_now()))
+    with stage.database.transaction() as session:
+        before = offer_workload(session, project_id, revision_id, AT)
+    (former,) = [each.label for each in before if each.resource_role_id == costs.role]
+    with stage.owner.begin() as connection:
+        renamed = update(ResourceRole).where(ResourceRole.id == costs.role)
+        connection.execute(renamed.values(label=f"{former} (renommé)"))
+    with stage.database.transaction() as session:
+        after = offer_workload(session, project_id, revision_id, AT)
+        opened = create_revision(
+            session, project_id, Act(manager, utc_now()), Viewer(manager, MANAGING)
+        ).revision_id
+        current = offer_workload(session, project_id, opened, AT)
+    assert after == before
+    (held,) = [each for each in after if each.resource_role_id == costs.role]
+    assert held.label == former
+    assert sum((each.hours for each in held.months), Decimal(0)) == Decimal("8.00")
+    (read,) = [each for each in current if each.resource_role_id == costs.role]
+    assert read.label == f"{former} (renommé)"
+
+
+@pytest.mark.story("US-2680")
 def test_the_budget_names_its_natures_as_its_reference_kept_them_the_remaining_as_it_reads_them(
     fabrics: Portfolio,
 ) -> None:
@@ -390,9 +454,7 @@ def test_the_loader_of_the_witness_keeps_the_portfolio_by_load_marking(
     act = Act(None, datetime(2026, 2, 16, 9, 0, tzinfo=UTC))
     with logging_context(correlation_id="witness"), stage.database.transaction() as session:
         load_marking(session, revision_id, "Offre v1.0", None, act)
-    assert instants_of(stage.owner, revision_id) == {
-        (kind, act.at, act.at) for kind in (WORKLOAD, COST_STRUCTURE, OFFER_CURVES)
-    }
+    assert instants_of(stage.owner, revision_id) == {(kind, act.at, act.at) for kind in OFFER_KINDS}
 
 
 # --- The milestones, and the same computation on the current day ---------------------------------
@@ -436,9 +498,9 @@ def test_a_review_keeps_its_tracked_milestones_and_the_day_computes_the_same_doc
     for each in milestones:
         assert each["reference_date"] == planned[UUID(each["lineage_id"])].isoformat()
     assert [each["completed_on"] for each in milestones] == [None, START.isoformat()]
-    assert set(kept) & set(KEPT_HERE) == {WORKLOAD, COST_STRUCTURE, MILESTONES}
-    assert {kind: computed[kind] for kind in (WORKLOAD, COST_STRUCTURE, MILESTONES)} == {
-        kind: kept[kind] for kind in (WORKLOAD, COST_STRUCTURE, MILESTONES)
+    assert set(kept) & set(KEPT_HERE) == set(PROJECT_KINDS)
+    assert {kind: computed[kind] for kind in PROJECT_KINDS} == {
+        kind: kept[kind] for kind in PROJECT_KINDS
     }
     assert "project" in computed
 
@@ -515,7 +577,7 @@ def test_a_change_of_a_role_or_of_the_probability_is_not_served_from_the_entry_b
         return found[offer.project_id]
 
     first = read()
-    assert set(first) == {"estimate", WORKLOAD, COST_STRUCTURE, OFFER_CURVES}
+    assert set(first) == {"estimate", *OFFER_KINDS}
     # Served from the cache, the contribution is the one computed, to its types.
     assert read() == first
     assert counted.calls == [offer.project_id]
@@ -550,11 +612,15 @@ def test_a_change_of_the_hours_of_the_calendar_of_a_role_changes_the_key_of_the_
     # « WF-DAT-0130-A » : the workload is spread over the hours of the calendar of each role. The
     # calendar of a role of its own, not the default — whose change redates the structures —, gets
     # an hour less on Mondays: no role is written, the fingerprint of the day stays as it was, and
-    # the key of the contribution changes, by the stamp of the calendars.
+    # the key of the contribution changes, by the stamp of the calendars alone (#4284): the number,
+    # the counters and the last write of the roles stay as they were, the counters of the calendars
+    # advance, their number unchanged.
     role = add_role(fabrics.stage.database, "CAL", (8, 8, 8, 8, 8, 0, 0))
     offer = fabrics.offer
     revision_id = offer.marked[OFFER][0]
     before = key_of(fabrics, offer.project_id, revision_id)
+    with fabrics.stage.database.transaction() as session:
+        stamped = roles_stamp(session)
     with fabrics.stage.database.transaction() as session:
         calendar = read_calendar(session, read_role(session, role, may_change=False).calendar_id)
         eight, nought = Decimal(8), Decimal(0)
@@ -569,6 +635,15 @@ def test_a_change_of_the_hours_of_the_calendar_of_a_role_changes_the_key_of_the_
     after = key_of(fabrics, offer.project_id, revision_id)
     assert after != before
     assert after.split(":portfolio:")[0] == before.split(":portfolio:")[0]
+    with fabrics.stage.database.transaction() as session:
+        restamped = roles_stamp(session)
+    assert (restamped.count, restamped.versions, restamped.updated_at) == (
+        stamped.count,
+        stamped.versions,
+        stamped.updated_at,
+    )
+    assert restamped.calendar_count == stamped.calendar_count
+    assert restamped.calendar_versions == stamped.calendar_versions + 1
 
 
 # --- The PostgreSQL of the tests -----------------------------------------------------------------

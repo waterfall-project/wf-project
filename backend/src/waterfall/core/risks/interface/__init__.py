@@ -82,6 +82,17 @@ from waterfall.core.risks.interface.occurrence import (
     submit_occurrence as submit_occurrence,
 )
 
+# ``portfolio`` (EP-11, US-2680/L3): the risks as the portfolio reads them.
+from waterfall.core.risks.interface.portfolio import (
+    outcomes_between as outcomes_between,
+)
+from waterfall.core.risks.interface.portfolio import (
+    portfolio_risks as portfolio_risks,
+)
+from waterfall.core.risks.interface.portfolio import (
+    reviewed_since as reviewed_since,
+)
+
 # ``provisions`` (US-2550/L1; US-2580/L1): the provision of an identified risk changed.
 from waterfall.core.risks.interface.provisions import (
     RiskProvisionChange as RiskProvisionChange,
@@ -117,6 +128,17 @@ from waterfall.core.risks.interface.risks import (
 from waterfall.core.risks.sharing import write_shares
 from waterfall.core.risks.stamping import (
     RisksStamp as RisksStamp,
+)
+
+# ``surveying``, beside the interface (EP-11, US-2680/L3): what ``portfolio`` gives.
+from waterfall.core.risks.surveying import (
+    PortfolioRisk as PortfolioRisk,
+)
+from waterfall.core.risks.surveying import (
+    PortfolioRisks as PortfolioRisks,
+)
+from waterfall.core.risks.surveying import (
+    RiskOutcome as RiskOutcome,
 )
 
 # ``undoing``, beside the interface (US-2590/L2): the kinds of entry of the history the risks undo.

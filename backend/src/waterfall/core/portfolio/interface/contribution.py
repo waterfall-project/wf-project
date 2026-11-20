@@ -33,6 +33,15 @@ amount or hours a decimal in a string, to the cent or the hundredth, never weigh
   order of its identifiers, an entry without an amount absent; ``label`` names the cost type as the
   revision of its total read it: the budget's on the images of ``budget_revision_id``, the
   remaining's on the revision.
+- ``portfolio_risks`` (US-2730): ``{"base", "risks": [{"risk_id", "label", "probability",
+  "severity", "provision_amount", "state", "occurrence_cost", "occurred_reestimated_amount"}]}`` —
+  every risk of the revision, in the order of its declaration, each as the register reads it in
+  that revision (``portfolio_risks`` of the risks): its provision the severity weighted by the
+  probability while it is identified, else the share it held in the reference; its cost at
+  occurrence and the re-estimated amount of the lines that came from it, null out of the state
+  occurred. ``base`` is the base of the project the matrix relates a severity to (WF-REF-0160): the
+  view classes each risk at the reading, on the bounds of that day. Neither the reserve nor the
+  coverage: the document ``remaining`` of EP-08 keeps them.
 - ``portfolio_milestones`` (US-2750): ``{"milestones": [{"lineage_id", "label", "reference_date",
   "completed_on"}]}`` — the milestones of the revision inscribed in the time/time tracking, in the
   order of the plan, their date in the reference, none when the reference does not hold them, and
@@ -45,7 +54,8 @@ amount or hours a decimal in a string, to the cent or the hundredth, never weigh
   (``offer_curves`` of the indicators), their context that of the marking (``marked``,
   ``is_stored`` true) or of the day. An offer only.
 
-Declared by US-2670/L1, the socle of EP-11; filled by US-2680/L2, the risks by US-2680/L3.
+Declared by US-2670/L1, the socle of EP-11; filled by US-2680/L2, the risks by US-2680/L3. The
+merge of a differential (EP-08), which marks, keeps them the same way.
 """
 
 from typing import TYPE_CHECKING

@@ -43,7 +43,11 @@ from waterfall.core.estimate.reading import budgeted_of, rows_of
 from waterfall.core.estimate.remaining.reviewing import provisions_of, remaining_of_placed
 from waterfall.core.estimate.workloading import estimate_workload
 from waterfall.core.planning.interface import lines_of_structure
-from waterfall.core.revisions.interface import aimed_structure, read_revision_for
+from waterfall.core.revisions.interface import (
+    aimed_structure,
+    read_revision_for,
+    reference_at_marking,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -109,8 +113,10 @@ def _budget_lines(session: Session, project_id: UUID, revision_id: UUID) -> list
 def portfolio_totals(session: Session, project_id: UUID, revision_id: UUID) -> PortfolioTotals:
     """Give the totals by cost type and the labour by role of a revision of a project.
 
-    The budget on the reference of the project, or on the revision itself without one (an offer);
-    the remaining on the revision. A revision unknown is refused (404).
+    The budget on the reference of the project, or on the revision itself without one (an offer)
+    or while a merge marks it and designates it at once (``designated_at_marking``: it is the
+    reference from that instant, #4282); the remaining on the revision. A revision unknown is
+    refused (404).
     """
     read = read_revision_for(session, project_id, revision_id)
     placed = placed_lines(session, project_id, read.revision_id)
@@ -121,7 +127,10 @@ def portfolio_totals(session: Session, project_id: UUID, revision_id: UUID) -> P
     natures = natures_of(
         session, project_id, read, {line.cost_category_id for line, _ in remaining}
     )
-    budget_id = read.reference_revision_id or read.revision_id
+    budget_id = (
+        reference_at_marking(session, read.revision_id, read.reference_revision_id)
+        or read.revision_id
+    )
     budget_read = (
         read if budget_id == read.revision_id else read_revision_for(session, project_id, budget_id)
     )

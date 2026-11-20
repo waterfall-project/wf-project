@@ -13,7 +13,7 @@ from waterfall.core.estimate.reading import budgeted_of, rows_of
 from waterfall.core.estimate.remaining.reviewing import provisions_of
 from waterfall.core.planning.interface import lines_of_structure, lines_of_structures
 from waterfall.core.projects.interface import project_facts
-from waterfall.core.revisions.interface import aimed_structure
+from waterfall.core.revisions.interface import aimed_structure, reference_at_marking
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -57,9 +57,13 @@ def risk_base(session: Session, project_id: UUID, revision_id: UUID) -> Decimal:
 
     The budget of the reference of the project, the budgeted amounts of the lines of its main
     structure, provisions left out; before a reference, the total of the main structure of the
-    revision read, provisions left out.
+    revision read, provisions left out. A revision a merge marks and designates at once is the
+    reference from that instant (``designated_at_marking``): what its marking keeps is related to
+    its own budget (US-2680/L3).
     """
-    reference = project_facts(session, project_id).reference_revision_id
+    reference = reference_at_marking(
+        session, revision_id, project_facts(session, project_id).reference_revision_id
+    )
     read = revision_id if reference is None else reference
     structure_id = aimed_structure(session, project_id, read, None)
     if structure_id is None:
