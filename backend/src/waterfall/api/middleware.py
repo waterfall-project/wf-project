@@ -1,6 +1,10 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The correlation of a request: its identifier, bound to its logs, handed back in a header."""
+"""The correlation of a request: its identifier, bound to its logs, handed back in a header.
+
+The request is counted in the metrics of the process with its operation, its status and its
+duration (WF-OBS-0010): the operation by its identifier in the contract, never by its path.
+"""
 
 import time
 from typing import TYPE_CHECKING
@@ -15,11 +19,19 @@ from waterfall.platform.logs import ANONYMOUS, get_logger, logging_context
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+    from waterfall.platform.metrics import ApiMetrics
+
 logger = get_logger(__name__)
 
 
+def operation_of(scope: Scope) -> str | None:
+    """Name the operation of the contract a request reached, by its identifier; none if none."""
+    operation: object = getattr(scope.get("route"), "operation_id", None)
+    return operation if isinstance(operation, str) else None
+
+
 class CorrelationMiddleware:
-    """Take the identifier of the request, or make one; bind it; give it back; log the request.
+    """Take the identifier of the request, or make one; bind it; give it back; log and count it.
 
     The identifier is also kept in the scope, where the envelope of an error reads it. An
     exception nobody expected is caught here, inside the context of the request: it is logged
@@ -27,8 +39,9 @@ class CorrelationMiddleware:
     framework never re-raises it into a second trace that carries neither.
     """
 
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(self, app: ASGIApp, metrics: ApiMetrics | None = None) -> None:
         self.app = app
+        self.metrics = metrics
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Serve a request of the application inside its correlation."""
@@ -58,10 +71,13 @@ class CorrelationMiddleware:
                     response = internal_error_response(Request(scope))
                     await response(scope, receive, send_with_header)
             finally:
+                seconds = time.perf_counter() - started
                 logger.info(
                     "request.completed",
                     method=scope["method"],
                     path=scope["path"],
                     status=status,
-                    duration_ms=round((time.perf_counter() - started) * 1000, 1),
+                    duration_ms=round(seconds * 1000, 1),
                 )
+                if self.metrics is not None:
+                    self.metrics.request_ended(operation_of(scope), status, seconds)

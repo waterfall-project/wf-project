@@ -64,6 +64,7 @@ from waterfall.platform.logs import get_logger, logging_context
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from waterfall.platform.metrics import WorkerMetrics
     from waterfall.platform.settings import ServiceSettings
     from waterfall.platform.tasks import Task
 
@@ -84,18 +85,27 @@ logger = get_logger(__name__)
 class IdentitySync:
     """Read the accounts of the provider, as the worker runs a task ``identity_sync``."""
 
-    def __init__(self, admin: KeycloakAdmin, grace: timedelta = GRACE) -> None:
+    def __init__(
+        self, admin: KeycloakAdmin, grace: timedelta = GRACE, metrics: WorkerMetrics | None = None
+    ) -> None:
         self.admin = admin
         self.grace = grace
+        self.metrics = metrics
 
     @classmethod
-    def of(cls, settings: ServiceSettings) -> IdentitySync:
+    def of(cls, settings: ServiceSettings, metrics: WorkerMetrics | None = None) -> IdentitySync:
         """Reach the provider the settings name, as the service account of its realm."""
-        return cls(KeycloakAdmin(Keycloak(settings), settings))
+        return cls(KeycloakAdmin(Keycloak(settings), settings), metrics=metrics)
 
     def __call__(self, session: Session, task: Task) -> dict[str, Any]:
-        """Read, follow, deactivate; keep the report, remove the orphans once it is committed."""
-        self.admin.synchronize_directories()
+        """Read, follow, deactivate; keep the report, remove the orphans once it is committed.
+
+        The entries of the directories the provider failed to synchronise are counted in the
+        metrics of the worker as soon as it says them, whatever the reading becomes (#917).
+        """
+        failed = self.admin.synchronize_directories()
+        if self.metrics is not None:
+            self.metrics.directories_failed(failed)
         listed = self.admin.list_accounts()
         known = known_subjects(session)
         people: list[ProviderAccount] = []

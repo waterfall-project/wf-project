@@ -5,16 +5,19 @@
 import json
 import os
 import signal
+import socket
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+import httpx2
 import pytest
 import redis
 from access_rows import holder
 from purge_environment import storage_environment
 from sqlalchemy import update
 from task_handlers import task
+from test_api_processes import free_port
 
 import waterfall
 from waterfall.platform.correlation import FORM
@@ -113,6 +116,7 @@ def test_any_argument_but_the_version_or_a_kind_the_platform_schedules_is_refuse
 def test_with_its_secrets_the_worker_runs_the_kinds_it_has_a_handler_for(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("WATERFALL_METRICS_PORT", str(free_port()))
     served: list[Worker] = []
 
     def serve(worker: Worker) -> int:
@@ -134,6 +138,55 @@ def test_with_its_secrets_the_worker_runs_the_kinds_it_has_a_handler_for(
     # A read as long as the socket's wait would end in a timeout, and stop the worker.
     waits = worker.queue.client.connection_pool.connection_kwargs["socket_timeout"]
     assert worker.timing.block < waits == WORKER_TIMEOUT
+
+
+@pytest.mark.requirement("WF-OBS-0010-A")
+@pytest.mark.usefixtures("platform_environment", "logs")
+def test_the_worker_answers_on_its_metrics_endpoint_while_it_runs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # « Le front, l'API et le worker répondent sur leur point de métriques. » : the worker, on the
+    # port its settings name, while it runs, its tasks counted; the port is closed when it stops.
+    port = free_port()
+    monkeypatch.setenv("WATERFALL_METRICS_PORT", str(port))
+    answers: list[httpx2.Response] = []
+
+    def serve(worker: Worker) -> int:
+        assert worker.metrics is not None
+        answers.append(httpx2.get(f"http://127.0.0.1:{port}/metrics", timeout=10))
+        return 0
+
+    monkeypatch.setattr(worker_main, "serve", serve)
+    assert worker_main.main([]) == 0
+    (answer,) = answers
+    assert answer.status_code == 200
+    assert "# TYPE waterfall_worker_tasks_total counter" in answer.text
+    assert "waterfall_identity_directory_sync_failures_total 0.0" in answer.text
+    with pytest.raises(httpx2.TransportError):
+        httpx2.get(f"http://127.0.0.1:{port}/metrics", timeout=1)
+
+
+@pytest.mark.usefixtures("platform_environment", "logs")
+def test_a_metrics_port_already_taken_stops_the_worker_naming_the_variable(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Proper to US-2870: a port the worker cannot listen on is a setting wrong, said as the others
+    # are (2), not a bare error; the worker has opened nothing, and runs nothing.
+    with socket.socket() as taken:
+        taken.bind(("127.0.0.1", 0))
+        taken.listen()
+        monkeypatch.setenv("WATERFALL_HOST", "127.0.0.1")
+        monkeypatch.setenv("WATERFALL_METRICS_PORT", str(taken.getsockname()[1]))
+        served: list[Worker] = []
+
+        def serve(worker: Worker) -> int:
+            served.append(worker)
+            return 0
+
+        monkeypatch.setattr(worker_main, "serve", serve)
+        assert worker_main.main([]) == 2
+    assert "WATERFALL_METRICS_PORT" in capsys.readouterr().err
+    assert served == []
 
 
 def test_a_stop_of_the_platform_stops_the_worker_where_it_stands(

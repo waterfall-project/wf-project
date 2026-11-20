@@ -193,6 +193,57 @@ def pending_task(session: Session, kind: TaskKind) -> UUID | None:
     return session.scalar(select(BackgroundTask.id).where(pending).limit(1))
 
 
+@dataclass(frozen=True, slots=True)
+class Ended:
+    """The end of a task: which, when, and whether it succeeded."""
+
+    task_id: UUID
+    at: datetime
+    succeeded: bool
+
+
+@dataclass(frozen=True, slots=True)
+class Outcome:
+    """How the latest run of an operation the platform runs on a schedule ended, and when."""
+
+    at: datetime
+    succeeded: bool
+
+
+def last_ended(session: Session, kind: TaskKind, *, by_platform: bool = False) -> Ended | None:
+    """Give the latest task of a kind that has ended, or ``None`` if none has yet.
+
+    ``by_platform`` keeps only the tasks the platform deposited of itself, without a requester:
+    those it schedules (PBS-5.3).
+    """
+    kept = [BackgroundTask.kind == kind, BackgroundTask.status.in_(FINISHED)]
+    if by_platform:
+        kept.append(BackgroundTask.requested_by.is_(None))
+    latest = (BackgroundTask.finished_at.desc(), BackgroundTask.id.desc())
+    columns = (BackgroundTask.id, BackgroundTask.finished_at, BackgroundTask.status)
+    row = session.execute(select(*columns).where(*kept).order_by(*latest).limit(1)).first()
+    if row is None or row.finished_at is None:
+        return None
+    return Ended(row.id, row.finished_at, row.status == "succeeded")
+
+
+@dataclass(frozen=True, slots=True)
+class Waiting:
+    """The tasks queued that no worker has taken yet: how many, and since when the oldest waits."""
+
+    count: int
+    oldest_since: datetime | None
+
+
+def waiting(session: Session) -> Waiting:
+    """Count the tasks queued, and give the moment the oldest of them was submitted."""
+    queued = BackgroundTask.status == "queued"
+    count, oldest = session.execute(
+        select(func.count(), func.min(BackgroundTask.submitted_at)).where(queued)
+    ).one()
+    return Waiting(count, oldest)
+
+
 def project_task_pending(session: Session, project_id: UUID, besides: UUID | None = None) -> bool:
     """Tell whether a task that aims at a project is queued or running, ``besides`` apart.
 

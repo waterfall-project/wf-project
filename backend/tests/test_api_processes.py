@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx2
 import pytest
+from metrics_reading import samples, value
 from realm import KEY, TestRealm
 from sqlalchemy import insert
 from support import PLATFORM_ADDRESSES, PLATFORM_SECRETS, bearer, raw_account
@@ -146,6 +147,25 @@ def test_two_successive_requests_of_a_user_served_by_two_processes_give_the_same
     assert realm.reads == 2, f"{len(answers)} requests, all served by one process"
     assert answers[-2:] == [first, first]
     assert all(given == first for given in answers)
+
+
+def test_the_requests_served_by_two_processes_are_counted_together(
+    served: Served, database: Database, realm: TestRealm
+) -> None:
+    # Proper to US-2870: the API serves on several processes, and its metrics count the requests
+    # of them all, whichever process the collection reaches (WF-OBS-0010).
+    with database.transaction() as session:
+        session.execute(insert(UserAccount).values(**raw_account(idp_subject=SUBJECT)))
+    signed_in = bearer(realm.token(SUBJECT, KEY))
+    asked = 0
+    while realm.reads < 2 and asked < ATTEMPTS:
+        assert answer(served.port, "/api/v1/me", signed_in)[0] == 200
+        asked += 1
+    assert realm.reads == 2, f"{asked} requests, all served by one process"
+    for _ in range(4):
+        response = httpx2.get(f"http://127.0.0.1:{served.port}/api/v1/metrics", timeout=10)
+        read = samples(response.text)
+        assert value(read, "waterfall_api_requests_total", operation="getMe", status="200") == asked
 
 
 def test_each_process_closes_its_services_when_the_api_stops(served: Served) -> None:

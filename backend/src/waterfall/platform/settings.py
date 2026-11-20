@@ -74,8 +74,9 @@ class PlatformSettings(BaseSettings):
 
 
 class Settings(PlatformSettings):
-    """What a service of the platform reads besides: Redis, and where the API listens.
+    """What a service of the platform reads besides: Redis, and where it listens.
 
+    ``host`` is the address the API listens on, and the worker for its metrics.
     ``indicators_cache_ttl`` is how long an entry of the cache of the indicators stays valid, in
     seconds: ten minutes by default (WF-DAT-0130-A).
     """
@@ -121,14 +122,19 @@ class ServiceSettings(Settings, KeycloakSettings, StorageSettings):
 
 
 class ApiSettings(ServiceSettings):
-    """What the API reads besides: on how many processes it serves (US-2230).
+    """What the API reads besides: on how many processes it serves (US-2230), and its capacities.
 
     ``api_processes`` is the number of the processes of uvicorn that serve the requests, each with
     its own services and its own reserve of connections to the database: one by default, so that
     the tests and the workstation serve on the process that starts them.
+    ``database_capacity_bytes`` and ``storage_capacity_bytes`` are the space the deployment gives
+    PostgreSQL and the object storage, in bytes, of which the metrics say what is left
+    (WF-OBS-0010): none by default, and then they say only what is used.
     """
 
     api_processes: int = Field(default=1, ge=1)
+    database_capacity_bytes: int | None = Field(default=None, ge=1)
+    storage_capacity_bytes: int | None = Field(default=None, ge=1)
 
 
 class PurgeSettings(Settings, StorageSettings):
@@ -144,6 +150,7 @@ class PurgeSettings(Settings, StorageSettings):
 class WorkerSettings(ServiceSettings):
     """What the worker reads besides: the two databases a backup dumps, as the role of the backup.
 
+    ``metrics_port`` is where it serves its metrics, on the address of ``host`` (WF-OBS-0010).
     ``backup_database_url`` is the database of Waterfall, the journal of audit included, and
     ``keycloak_database_url`` the database of the identity provider, both as the role of the backup
     reaches them: a member of ``pg_read_all_data``, which reads every table and can neither write
@@ -154,6 +161,7 @@ class WorkerSettings(ServiceSettings):
 
     backup_database_url: SecretStr = Field(min_length=1)
     keycloak_database_url: SecretStr = Field(min_length=1)
+    metrics_port: int = Field(default=9100, ge=1, le=65535)
 
 
 @cache

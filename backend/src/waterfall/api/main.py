@@ -16,11 +16,13 @@ requests is the same in every process, or lives in PostgreSQL or Redis (WF-ARC-0
 - what the image holds, read once: the font of the images of a tree, the names of the time zones;
 - the maintenance of a restoration lives in PostgreSQL, read at each request
   (``platform.maintenance``);
-- the indicators of the day are cached in Redis, not in the process (``platform.cache``).
+- the indicators of the day are cached in Redis, not in the process (``platform.cache``);
+- the counters of the metrics, in a folder the processes share when there are several, which the
+  exposition of any of them merges (``platform.metrics``, WF-OBS-0010).
 """
 
 import sys
-from contextlib import ExitStack, asynccontextmanager
+from contextlib import ExitStack, asynccontextmanager, nullcontext
 from typing import TYPE_CHECKING
 
 import uvicorn
@@ -35,6 +37,7 @@ from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import configure_logging, get_logger
 from waterfall.platform.maintenance import Maintenance
+from waterfall.platform.metrics import Capacities, shared_between_processes
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
 from waterfall.platform.settings import SettingsError, load_api_settings
 from waterfall.platform.storage import Bucket
@@ -84,15 +87,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         port=settings.port,
         processes=settings.api_processes,
     )
-    uvicorn.run(
-        FACTORY,
-        factory=True,
-        workers=settings.api_processes,
-        host=settings.host,
-        port=settings.port,
-        log_config=None,
-        access_log=False,
-    )
+    # Several processes share their counters in a folder of their own (WF-OBS-0010); one keeps them.
+    shared = shared_between_processes() if settings.api_processes > 1 else nullcontext()
+    with shared:
+        uvicorn.run(
+            FACTORY,
+            factory=True,
+            workers=settings.api_processes,
+            host=settings.host,
+            port=settings.port,
+            log_config=None,
+            access_log=False,
+        )
     return 0
 
 
@@ -114,7 +120,8 @@ def application() -> FastAPI:
             opened.close()
             logger.info("service.stopped")
 
-    return create_app(services, lifespan)
+    capacities = Capacities(settings.database_capacity_bytes, settings.storage_capacity_bytes)
+    return create_app(services, lifespan, capacities)
 
 
 def open_services(settings: ServiceSettings) -> tuple[Services, ExitStack]:

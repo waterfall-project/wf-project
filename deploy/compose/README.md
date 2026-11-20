@@ -275,8 +275,11 @@ la base, Keycloak, Redis, le stockage — et les ferme quand il s'arrête ; aucu
 utilisateur ce qu'un autre ignorerait (WF-ARC-0080) : une requête est servie de même par n'importe
 lequel.
 
-Chaque processus garde une réserve de quinze connexions à PostgreSQL, cinq ouvertes et dix de plus
-quand elles sont toutes prises. Le serveur porte les deux bases, celle de Waterfall et celle de
+Chaque processus garde une réserve de quinze connexions à PostgreSQL : pour les requêtes, cinq
+ouvertes et huit de plus quand elles sont toutes prises ; deux de plus, à part, pour la sonde de la
+base et la lecture de son état (`/health/ready` et `/metrics`), qu'une lecture lente ne prive pas de
+la sonde, et qui répondent même quand toutes
+celles des requêtes sont prises. Le serveur porte les deux bases, celle de Waterfall et celle de
 Keycloak, et `max_connections` doit tenir toutes les connexions à la fois. Le fichier Compose le
 calcule au démarrage de PostgreSQL, à partir du même réglage :
 
