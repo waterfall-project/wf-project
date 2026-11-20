@@ -7315,7 +7315,12 @@ class Signal(ContractModel):
             description="`alert` for an overdue contractual milestone (`contractual_milestone_overdue`), `watch` for the three other signals (WF-PTF-0110, WF-IHM-0070)."
         ),
     ]
-    code: Code1
+    code: Annotated[
+        Code1,
+        Field(
+            description="`risks_not_reviewed` flags a project one of whose identified risks has no review between its last marked revision and the one before, and `no_actual_cost_since_last_review` a project that imported no actual cost in that same interval; without a revision marked before the last one, the interval starts when the project passed to In progress (WF-PTF-0110, specification 1.0.7)."
+        ),
+    ]
     params: Annotated[
         Params3 | None,
         Field(
