@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 import yaml
 from test_alerts import by_compose, promtool
-from test_supervision import COMPOSE, PRODUCTION, TEMPLATE, environment, services
+from test_supervision import COMPOSE, PRODUCTION, SERVICE, TEMPLATE, environment, services
 
 from wftools import kubetools
 
@@ -151,6 +151,7 @@ def test_the_password_of_the_mail_server_is_read_from_a_file_of_its_own(tmp_path
         ("WATERFALL_ALERT_RECIPIENT", ""),
         ("WATERFALL_ALERT_RECIPIENT", "a'b@example.test"),
         ("WATERFALL_ALERT_RECIPIENT", "a@example.test\nb@example.test"),
+        ("WATERFALL_ALERT_RECIPIENT", "a@example.test,b@example.test"),
         ("WATERFALL_ALERT_SMTP_REQUIRE_TLS", "yes"),
         ("WATERFALL_ALERT_SMTP_USER", "al ice"),
     ],
@@ -209,6 +210,24 @@ def test_alertmanager_is_a_service_of_the_platform_that_prometheus_sends_its_ale
 
 
 @pytest.mark.story("US-2880")
+def test_the_service_platform_runs_the_same_alertmanager_and_grafana_on_the_same_files() -> None:
+    # As for Prometheus (test_supervision.py): the same image, the same script, the same mounts,
+    # for the tests that read them (the profile supervision), the volumes of state left out.
+    for name in ("alertmanager", "grafana"):
+        production = services()[name]
+        beside = services(SERVICE)[name]
+        assert beside["image"] == production["image"], name
+        assert beside["profiles"] == ["supervision"], name
+        assert beside.get("entrypoint") == production.get("entrypoint"), name
+        kept = [
+            str(volume)
+            for volume in production["volumes"]
+            if str(volume).startswith("./") and not str(volume).startswith("./Caddyfile")
+        ]
+        assert [str(volume) for volume in beside["volumes"]] == kept, name
+
+
+@pytest.mark.story("US-2880")
 def test_prometheus_configuration_with_its_alertmanager_is_accepted_by_promtool(
     tmp_path: Path,
 ) -> None:
@@ -229,6 +248,8 @@ def test_grafana_does_not_start_without_the_password_of_its_own_account() -> Non
     # sign-up, and no variable of the realm nor of a database among what it reads.
     assert grafana["GF_AUTH_ANONYMOUS_ENABLED"] == "false"
     assert grafana["GF_USERS_ALLOW_SIGN_UP"] == "false"
+    # The door serves HTTPS alone: the cookie of the session is Secure.
+    assert grafana["GF_SECURITY_COOKIE_SECURE"] == "true"
     assert not [key for key in grafana if key.startswith(("GF_AUTH_GENERIC", "GF_AUTH_KEYCLOAK"))]
     assert not [key for key in grafana if "DATABASE" in key or "REDIS" in key or "KEYCLOAK" in key]
 
@@ -318,6 +339,9 @@ def test_the_alert_of_a_component_unavailable_is_on_the_dashboard_while_postgres
     # « Pendant l'arrêt de PostgreSQL, l'alerte d'indisponibilité est visible sur le tableau de bord
     # de l'exploitant. » : the panel of the alerts in progress reads the series ALERTS of Prometheus
     # alone, which its own rules write; evaluated, as Grafana asks, while the database is down.
+    # The series waterfall_component_up{component="database"} is injected by hand here: the API
+    # writes it (US-2870/L1), which its own tests hold. That Grafana loads this very panel, with
+    # this expression, is held by test_grafanalive.py, on the real image.
     dashboard = json.loads(DASHBOARD.read_text(encoding="utf-8"))
     (panel,) = [item for item in dashboard["panels"] if item["title"] == "Alertes en cours"]
     (target,) = panel["targets"]

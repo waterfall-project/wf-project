@@ -8,7 +8,12 @@
 # neither PostgreSQL nor Redis, and keeps nothing: its account is written at each start, so that the
 # password of the Secret is the one that opens it. The ingress serves it under /grafana.
 {{- $name := include "waterfall.name" (list . "grafana") }}
-{{- $source := .Values.grafana.prometheusUrl | default (printf "http://%s:9090" (include "waterfall.name" (list . "prometheus"))) }}
+{{- $source := .Values.grafana.prometheusUrl }}
+{{- if .Values.prometheus.enabled }}
+{{- $source = $source | default (printf "http://%s:9090" (include "waterfall.name" (list . "prometheus"))) }}
+{{- else }}
+{{- $source = required "grafana.prometheusUrl: the Prometheus the dashboard reads, since prometheus.enabled is false" $source }}
+{{- end }}
 {{- $providers := .Files.Get "files/grafana-dashboards.yml" | trimSuffix "\n" }}
 {{- $dashboard := .Files.Get "files/grafana-dashboard.json" | trimSuffix "\n" }}
 apiVersion: v1
@@ -88,6 +93,9 @@ spec:
               value: "false"
             - name: GF_USERS_ALLOW_SIGN_UP
               value: "false"
+            # The address of the platform is in HTTPS: the cookie of the session never goes in the clear.
+            - name: GF_SECURITY_COOKIE_SECURE
+              value: "true"
             # Nothing leaves the platform: no check of updates, no report, no news, no plugin to install.
             - name: GF_ANALYTICS_REPORTING_ENABLED
               value: "false"

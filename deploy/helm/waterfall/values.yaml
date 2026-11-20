@@ -182,6 +182,7 @@ alertmanager:
     # host:port of the mail server.
     host: ""
     from: ""
+    # One address alone: the script refuses a list.
     recipient: ""
     requireTls: true
     user: ""
@@ -191,7 +192,8 @@ alertmanager:
 # on the one source that is the Prometheus of the chart, served by the ingress under /grafana, with
 # an account of its own, outside Keycloak (TFX-15): `adminUser`, and the password that is the key
 # WATERFALL_GRAFANA_ADMIN_PASSWORD of the Secret of the platform (secrets), without which the chart
-# does not render. `prometheusUrl` names another Prometheus, when prometheus.enabled is false. It keeps
+# does not render. `prometheusUrl` names another Prometheus, and is required when prometheus.enabled
+# is false (the Alertmanager of the chart then stays, for the Prometheus of the operator). It keeps
 # nothing: its account is written at each start, with the password of the Secret.
 grafana:
   image: grafana/grafana:13.1.0@sha256:121a7a9ece6dc10b969f1f96eed64b4f07dfac0d0b8abc070f7cb83bbde86f63

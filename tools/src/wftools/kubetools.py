@@ -1,12 +1,13 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Install Helm, kind, kubectl, promtool and amtool at the versions the chain pins (US-2800).
+"""Install Helm, kind, kubectl and the tools of Prometheus and Alertmanager, as pinned (US-2800).
 
 Usage: ``python -m wftools.kubetools``.
 
-promtool and amtool are those of the releases of Prometheus and of Alertmanager the platform runs
-(US-2880): the tests check their configurations by them and play the rules of alert by promtool.
-PyPI holds none of the five, as it holds actionlint, hadolint and shellcheck, which the tools take
+promtool, amtool and alertmanager are those of the releases of Prometheus and of Alertmanager the
+platform runs (US-2880): the tests check their configurations by them, play the rules of alert by
+promtool and start Alertmanager, in front of a mail server of their own.
+PyPI holds none of the six, as it holds actionlint, hadolint and shellcheck, which the tools take
 as their packages: each is downloaded once from where its project publishes it, checked against the
 digest written here, and kept under the cache of the user — ``$XDG_CACHE_HOME/waterfall/bin``,
 ``~/.cache/waterfall/bin`` by default —, a folder per version, which the worktrees share. A download
@@ -88,6 +89,14 @@ BINARIES = {
             "https://github.com/prometheus/alertmanager/releases/download/v0.35.0/alertmanager-0.35.0.linux-amd64.tar.gz",
             "6c7752a903c40c8a749e0b29df9240437e4fbb8228068d0af8807377db32addd",
             "alertmanager-0.35.0.linux-amd64/amtool",
+        ),
+        # The same release holds the server itself: the tests start it (US-2880).
+        Binary(
+            "alertmanager",
+            "0.35.0",
+            "https://github.com/prometheus/alertmanager/releases/download/v0.35.0/alertmanager-0.35.0.linux-amd64.tar.gz",
+            "6c7752a903c40c8a749e0b29df9240437e4fbb8228068d0af8807377db32addd",
+            "alertmanager-0.35.0.linux-amd64/alertmanager",
         ),
     )
 }

@@ -543,6 +543,8 @@ services:
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       GF_USERS_ALLOW_SIGN_UP: "false"
+      # The door serves the platform in HTTPS alone: the cookie of the session never goes in the clear.
+      GF_SECURITY_COOKIE_SECURE: "true"
       # Nothing leaves the platform: no check of updates, no report, no news, no plugin to install.
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"

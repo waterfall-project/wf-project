@@ -176,6 +176,7 @@ def test_grafana_has_its_own_account_whose_password_is_a_secret_the_chart_cannot
     assert variables["GF_SECURITY_ADMIN_USER"] == "operator"
     assert variables["GF_AUTH_ANONYMOUS_ENABLED"] == "false"
     assert variables["GF_USERS_ALLOW_SIGN_UP"] == "false"
+    assert variables["GF_SECURITY_COOKIE_SECURE"] == "true"
     assert not [name for name in variables if name.startswith(("GF_AUTH_GENERIC", "GF_DATABASE"))]
     with pytest.raises(ChartError, match=rf"secrets\.values\.{DASHBOARD_KEY}"):
         rendered({"secrets": {"values": {DASHBOARD_KEY: ""}}})
@@ -193,3 +194,26 @@ def test_grafana_reads_neither_postgresql_nor_redis_and_keeps_nothing(
     assert "redis" not in text.lower()
     assert [volume for volume in pod["volumes"] if "emptyDir" in volume]
     assert "persistentVolumeClaim" not in text
+
+
+@pytest.mark.story("US-2880")
+def test_without_its_prometheus_grafana_reads_the_one_the_values_name_and_alertmanager_stays() -> (
+    None
+):
+    # prometheus.enabled false leaves the collection to a Prometheus of the operator: Grafana reads
+    # the one grafana.prometheusUrl names, and the chart refuses to render without it, as a source
+    # on a Service that does not exist would leave the dashboard empty. Alertmanager stays, and the
+    # ConfigMap the operator's Prometheus reads still sends its alerts to it.
+    with pytest.raises(ChartError, match=r"grafana\.prometheusUrl"):
+        rendered({"prometheus": {"enabled": False}})
+    url = "http://prometheus.operator:9090"
+    objects = rendered({"prometheus": {"enabled": False}, "grafana": {"prometheusUrl": url}})
+    (source,) = yaml.safe_load(named(objects, "ConfigMap", "grafana")["data"]["datasource.yml"])[
+        "datasources"
+    ]
+    assert source["url"] == url
+    alertmanager = named(objects, "Service", "alertmanager")["metadata"]["name"]
+    assert named(objects, "Deployment", "alertmanager")
+    sent = yaml.safe_load(named(objects, "ConfigMap", "prometheus")["data"]["prometheus.yml"])
+    (manager,) = sent["alerting"]["alertmanagers"]
+    assert manager["static_configs"] == [{"targets": [f"{alertmanager}:9093"]}]

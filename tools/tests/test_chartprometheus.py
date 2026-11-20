@@ -166,7 +166,9 @@ def test_a_threshold_that_is_not_one_stops_the_rendering_naming_it(value: str, g
 def test_without_its_prometheus_the_chart_leaves_the_rules_and_the_services_to_the_operator() -> (
     None
 ):
-    objects = rendered({"prometheus": {"enabled": False}})
+    objects = rendered(
+        {"prometheus": {"enabled": False}, "grafana": {"prometheusUrl": "http://operator:9090"}}
+    )
     components = {
         (item["kind"], item["metadata"]["labels"]["app.kubernetes.io/component"])
         for item in objects
