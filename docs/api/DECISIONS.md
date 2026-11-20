@@ -12927,9 +12927,9 @@ Ce que le service fait là où le contrat laissait un choix ; aucune forme du co
   réestimés des survenus est rendue à côté de leur coût, jamais à sa place (#2002). Au jour courant,
   celle de la révision du jour de chaque projet, calculée comme `getRemainingIndicators` la donne ;
   à une date passée, celle que le document `remaining` de la dernière révision marquée a conservée,
-  avec la réserve que la référence conserve (`kept_coverage`), et calculée sur la révision quand le
-  marquage n'en a conservé que des chiffres incomplets ; une révision qui n'a conservé aucun
-  `remaining` n'y ajoute rien.
+  avec la réserve que la référence conserve (`kept_coverage`) ; un marquage qui n'en a conservé que
+  des chiffres incomplets, comme une révision qui n'a conservé aucun `remaining`, n'y ajoute rien :
+  aucune vue à une date passée ne lit de ligne de devis ni ne recalcule (WF-DAT-0040).
 - **`period_outcome` ne vient d'aucun document conservé** (#4294, point 2). Les provisions des
   survenus et des écartés de la période sont celles que `outcomes_between` donne, par la date du
   réexamen qui a changé l'état du risque, tous les marquages confondus ; la provision d'une issue est

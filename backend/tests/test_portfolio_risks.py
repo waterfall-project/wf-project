@@ -13,7 +13,7 @@ contract by the client of the tests.
 from dataclasses import replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from portfolio_support import OFFER, READ_ON, REVIEW, Portfolio, portfolio
@@ -21,7 +21,7 @@ from project_rows import risk_row
 from projects_support import Person, Scene, contribute, person
 from projects_support import scene as make_scene
 from risks_support import share_row
-from sqlalchemy import insert, text, update
+from sqlalchemy import event, insert, text, update
 
 from waterfall.core.cost_settings.interface import (
     SettingsChange,
@@ -394,24 +394,37 @@ def test_the_reestimated_amount_is_the_sum_of_the_lines_apart_from_the_cost_of_t
     assert coverage["coverage_variance"] == f"{D('850.00') - D('60.00') - D('300.00')}"
 
 
-@pytest.mark.requirement("WF-PTF-0090-A")
+@pytest.mark.requirement("WF-DAT-0040-A")
 @pytest.mark.story("US-2730")
-def test_at_a_past_date_a_coverage_the_marking_kept_incomplete_is_computed_on_the_revision(
+def test_at_a_past_date_a_coverage_the_marking_kept_incomplete_adds_none_and_no_line_is_read(
     api: ContractClient, fabrics: Portfolio, owner: Engine
 ) -> None:
     # Propre à l'US : « à une date passée, la vue lit les risques que les révisions marquées ont
-    # conservés » : a marking whose coverage lacks a figure is computed on the revision, as the
-    # register of the project does — here nothing left, nothing occurred, the reserve conserved —,
-    # and a revision that kept no document ``remaining`` adds none (the offer is out of it).
+    # conservés » ; WF-DAT-0040 : aucune vue à une date passée ne lit de ligne de devis. A marking
+    # whose coverage lacks a figure adds none — as a revision that kept no document ``remaining``
+    # does (the offer is out of it) — and the view computes nothing anew: no statement reads the
+    # lines of an estimate.
     plant(owner, fabrics)
     running = fabrics.in_progress.marked[REVIEW][0]
     kept_remaining(owner, running, {"reserve": "1.00", "remaining_provisions": "60.00"})
-    body = read(api, fabrics.stage.reader, f"?{AT}")
-    assert body["coverage"]["reserve"] == "850.00"
+    engine = fabrics.stage.database.engine
+    sent: list[str] = []
+
+    def heard(*arguments: Any) -> None:
+        sent.append(str(arguments[2]))
+
+    event.listen(engine, "before_cursor_execute", heard)
+    try:
+        body = read(api, fabrics.stage.reader, f"?{AT}&{ALL}")
+    finally:
+        event.remove(engine, "before_cursor_execute", heard)
+    assert sent
+    assert not [each for each in sent if "estimate_line" in each]
+    # The project In progress adds none: only the project Completed (reserve 100) is summed.
+    assert body["coverage"]["reserve"] == "100.00"
     assert body["coverage"]["occurred_cost"] == "0.00"
-    assert body["coverage"]["coverage_variance"] == "850.00"
-    # Every one of the documents is read: the identified total is still the kept one.
-    assert body["identified_total"] == "60.00"
+    # Every one of the documents is read: the identified total is still the kept one, 60 + 250 + 20.
+    assert body["identified_total"] == "330.00"
 
 
 @pytest.mark.requirement("WF-PTF-0090-A")
@@ -448,3 +461,7 @@ def test_the_view_is_read_under_its_permission_and_refuses_an_inverted_period(
     assert [(each["pointer"], each["code"]) for each in inverted.json()["fields"]] == [
         ("/query/to", "VALUE_OUT_OF_RANGE")
     ]
+    # No node in the contract: an unknown one is no refusal, and changes nothing to the answer.
+    unknown = api.get(f"{RISKS}?{AT}&org_node_id={uuid4()}", headers=stage.reader.headers)
+    assert unknown.status_code == 200
+    assert unknown.json() == api.get(f"{RISKS}?{AT}", headers=stage.reader.headers).json()

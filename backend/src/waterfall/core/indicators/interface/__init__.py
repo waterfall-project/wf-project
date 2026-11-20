@@ -56,6 +56,9 @@ from waterfall.core.indicators.interface.estimate_documents import (
 # ``formulas`` (US-2670/L2): the formulas of the indices and the projections, which the portfolio
 # applies to sums.
 from waterfall.core.indicators.interface.formulas import (
+    NO_REFERENCE_BUDGET as NO_REFERENCE_BUDGET,
+)
+from waterfall.core.indicators.interface.formulas import (
     Computable as Computable,
 )
 from waterfall.core.indicators.interface.formulas import (

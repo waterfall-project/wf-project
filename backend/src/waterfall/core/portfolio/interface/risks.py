@@ -15,7 +15,8 @@ it (``documents_of``); the sums are those of the aggregation, and the forming of
 - On the current day the risks are those of the day, from the cache, and the coverage of each
   project that of its revision of the day, computed; at a past date they are those the last
   revision marked by the end of the day kept (``portfolio_risks``), and the coverage that its
-  document ``remaining`` kept (US-2680), with the reserve the reference conserves.
+  document ``remaining`` kept (US-2680), with the reserve the reference conserves; one kept
+  incomplete adds none, a past view reading no line of an estimate (WF-DAT-0040).
 - ``period_outcome`` is read by ``outcomes_between``, which no marking keeps: the provision of a
   risk that left the identified state is the share it holds in the reference the project has
   **today**, nought without one (WF-RIS-0040). At a past ``as_of``, the outcomes of the period are

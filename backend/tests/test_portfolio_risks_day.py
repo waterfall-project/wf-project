@@ -10,6 +10,7 @@ them; once the revision is marked, the date asked reads what the marking kept, t
 Every answer is validated against the contract by the client of the tests.
 """
 
+from dataclasses import replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -21,7 +22,7 @@ from indicators_support import marked
 from merges_support import client
 from nodes_support import Tree
 from occurrence_support import SEARCH, Occurring, occurring
-from projects_support import PROJECTS
+from projects_support import PROJECTS, create
 from projects_support import scene as make_scene
 from risks_support import Costed, Risks, costed
 from sqlalchemy import text, update
@@ -184,6 +185,46 @@ def test_the_current_day_reads_the_risks_and_the_coverage_of_the_project_as_it_g
     }
 
 
+def offered(ready: Occurring, label: str) -> dict[str, Any]:
+    """Write an offer In pricing on the platform of the scene, one risk identified of 150; give it.
+
+    The risk of 500 at 30 % on an estimate of 1 000, the offer holding no reference.
+    """
+    stage = ready.project.stage
+    made = create(ready.api, stage.manager, label=label)
+    project = costed(ready.api, replace(stage, project=made), ready.project.costs)
+    risks = Risks(ready.api, project)
+    risk = risks.declared("0.3", "Retard du fournisseur de l'offre")
+    risks.costed_at(risk, project.revision_id, "500.00")
+    return made
+
+
+@pytest.mark.requirement("WF-PTF-0090-A")
+@pytest.mark.story("US-2730")
+def test_the_current_day_counts_the_risks_of_an_offer_unweighted_and_adds_it_no_coverage(
+    ready: Occurring,
+) -> None:
+    # « Les risques d'une offre en chiffrage sont au total, sans pondération » (WF-PTF-0020) : the
+    # offer of 150 of provision is added to the 40 of the project In progress, and the coverage, a
+    # project In pricing having no reference (WF-PTF-0090), is the one it was. Two offers of the
+    # same label and the same provision are told apart by their identifier, the same way twice.
+    alone = read(ready, "?states=in_progress")
+    first = offered(ready, "Offre jumelle")
+    second = offered(ready, "Offre jumelle")
+    body = read(ready, "?states=in_progress,pricing")
+    assert body["scope"]["project_count"] == 3
+    assert body["identified_total"] == "340.00"
+    assert body["coverage"] == alone["coverage"]
+    ordered = sorted((first["project_id"], second["project_id"]))
+    assert [(each["project_id"], each["provision_amount"]) for each in body["heaviest"]] == [
+        (ordered[0], "150.00"),
+        (ordered[1], "150.00"),
+        (str(ready.project.project_id), "40.00"),
+    ]
+    assert body["matrix"]["totals"]["reserve"] == alone["matrix"]["totals"]["reserve"]
+    assert read(ready, "?states=in_progress,pricing") == body
+
+
 @pytest.mark.requirement("WF-PTF-0090-A")
 @pytest.mark.story("US-2730")
 def test_the_period_outcome_sums_the_provisions_of_the_risks_that_changed_state_in_the_period(
@@ -243,7 +284,7 @@ def test_at_a_past_date_the_outcomes_and_the_reserve_follow_the_reference_of_the
 ) -> None:
     # Constat de #4294 : ``outcomes_between`` ne vient d'aucun document conservé — la provision
     # d'une issue est la part du risque dans la référence actuelle (WF-RIS-0040) —, et la réserve
-    # est celle que la référence conserve (``kept_coverage``). Le matrice, elle, garde ce que le
+    # est celle que la référence conserve (``kept_coverage``). La matrice, elle, garde ce que le
     # marquage a conservé. The share the occurred risk bears in the reference moved from 60 to 75
     # after the marking: the date asked gives 75 and a reserve of 115, the matrix 60 as kept.
     marked(ready.project.stage, ready.revision, "v2")

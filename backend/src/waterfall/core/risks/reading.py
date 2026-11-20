@@ -240,7 +240,9 @@ def read_context(session: Session, project_id: UUID, founds: Sequence[Found]) ->
         # revision and designates it the reference, that is still the one before. The value a
         # risk occurred or dismissed there keeps is the same on both, because ``write_shares``
         # carries ``held`` over from the previous reference to the new one for such a risk; the
-        # share of an identified risk is not read here, its provision is its severity weighted.
+        # share of an identified risk is not read here, its provision is its severity weighted. A
+        # correction holds as well: the reference it replaces carried that value from the one
+        # before it, which is the one ``write_shares`` carries it from again.
         shares=_shares(session, project_id, facts.reference_revision_id, risk_ids),
         categories=category_labels(session, categories),
         subprojects=subproject_labels(session, project_id, subprojects),

@@ -26,11 +26,12 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from waterfall.core.estimate.interface import Coverage
+from waterfall.core.indicators.interface import NO_REFERENCE_BUDGET
 from waterfall.core.portfolio.aggregation import count_by_key, ratio_of, total_of
 from waterfall.core.portfolio.shaping import computable, money, percent
 from waterfall.core.portfolio.states import PRICING
-from waterfall.core.risk_settings.interface import LEVELS, level_of
-from waterfall.core.risks.interface import kept_coverage, risk_coverage_of
+from waterfall.core.risk_settings.interface import LEVELS, level_of, zone_of
+from waterfall.core.risks.interface import kept_coverage, levels_of, risk_coverage_of
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
@@ -45,7 +46,6 @@ if TYPE_CHECKING:
 
 # The heaviest risks the view gives: the first ten by provision.
 HEAVIEST = 10
-NO_REFERENCE_BUDGET = "no_reference_budget"
 IDENTIFIED: RiskState = "identified"
 OCCURRED: RiskState = "occurred"
 DISMISSED: RiskState = "dismissed"
@@ -127,12 +127,11 @@ def place(risk: HeldRisk, matrix: RiskMatrix) -> PlacedRisk:
     share = risk.severity / risk.base if risk.base > 0 else NOUGHT
     probability_level = level_of(risk.probability, matrix.probability_bounds)
     severity_level = level_of(share, matrix.severity_bounds)
-    zone = matrix.zones[LEVELS * (probability_level - 1) + (severity_level - 1)]
     return PlacedRisk(
         risk,
         probability_level,
         severity_level,
-        zone,
+        zone_of(matrix, risk.probability, share),
         ratio_of(risk.severity, risk.base, NO_REFERENCE_BUDGET),
     )
 
@@ -166,22 +165,11 @@ def heaviest_of(risks: Iterable[HeldRisk]) -> list[HeldRisk]:
     return ordered[:HEAVIEST]
 
 
-def _level_document(rank: int, lower: Decimal, upper: Decimal | None) -> Document:
-    """Write a level of an axis: its lower bound included, its upper excluded, none at the last."""
-    return {
-        "level": rank,
-        "lower": percent(lower),
-        "upper": percent(upper),
-    }
-
-
 def _levels(bounds: Sequence[Decimal]) -> list[Document]:
-    """Write the levels of an axis from its bounds, as the matrix of a project does."""
-    lowers = (NOUGHT, *bounds)
-    uppers = (*bounds, None)
+    """Write the levels of an axis, as the matrix of a project gives them (``levels_of``)."""
     return [
-        _level_document(rank, lower, upper)
-        for rank, (lower, upper) in enumerate(zip(lowers, uppers, strict=True), start=1)
+        {"level": each.level, "lower": percent(each.lower), "upper": percent(each.upper)}
+        for each in levels_of(bounds)
     ]
 
 
@@ -273,9 +261,9 @@ def project_coverage(
     On the current day (``documents`` is none) it is the coverage of the revision of the day,
     computed as ``getRemainingIndicators`` gives it. At a past date it is the one the document
     ``remaining`` of the last revision marked kept, with the reserve the reference conserves
-    (``kept_coverage``), computed on that revision when the marking kept none of it; a revision
-    that kept no document ``remaining`` — marked before EP-10 — adds none (EP-11, "La contribution
-    d'un projet").
+    (``kept_coverage``); a coverage kept incomplete, or a revision that kept no document
+    ``remaining`` — marked before EP-10 —, adds none: no past view reads a line of the estimate nor
+    computes anew (WF-DAT-0040; EP-11, "La contribution d'un projet").
     """
     if documents is None:
         return risk_coverage_of(session, project_id, revision_id)
@@ -283,9 +271,7 @@ def project_coverage(
     if remaining is None:
         return None
     conserved = kept_coverage(session, project_id, remaining.get("coverage"))
-    return (_kept(conserved) if conserved is not None else None) or risk_coverage_of(
-        session, project_id, revision_id
-    )
+    return _kept(conserved) if conserved is not None else None
 
 
 def coverages_of(
