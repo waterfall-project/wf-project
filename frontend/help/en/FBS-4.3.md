@@ -13,7 +13,9 @@ The dates of the tasks in automatic mode are calculated by the server, from thei
 At the top of the screen:
 
 - **Timelines**, **Imports and exports**, **Task tree** lead to the screens next to the planning, in the same context.
-- **Contractualise the amendment**, on the differential of an amendment only: reads the report of the merge — tasks, lines and links added, modified, removed, started tasks that will be completed, reasons that refuse it —, asks for the version name of the revision produced, then hands the merge to the background processing. Unavailable as long as the revision has no amendment to merge (“an unmerged amendment”); refused by the reasons the report names.
+- **Contractualise the amendment**, on the differential of an amendment only: reads the report of the merge — tasks, lines and links added, modified, removed, started tasks that will be completed, reasons that refuse it —, asks for the version name of the revision produced, then hands the merge to the background processing. Unavailable as long as the revision has no amendment to merge (“an unmerged amendment”); refused by the reasons the report names. It is offered on an up-to-date amendment only: a late amendment, whose main structure has received writes since it was opened, is updated first.
+- **Update the amendment**, on a late amendment only — the screen says so: presents the report of the update — what the main structure received and the amendment takes over (added, modified, removed), what the amendment keeps with its fields, and the reasons that refuse it —, then confirms it; the grid is read anew. A reason of refusal prevents the confirmation; a stale report is read anew.
+- **Abandon the amendment**, on a differential not merged of the revision in progress only: asks for a confirmation, deletes the amendment and returns to the main structure. It is offered only when the structure says it available; the abandon is irreversible.
 
 Above the grid:
 

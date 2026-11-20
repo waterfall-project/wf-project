@@ -822,7 +822,7 @@ révision suivante ne reprend pas une structure fusionnée » (E-04), « Les ré
 
 ## US-2560 — La fusion d'un différentiel : compte rendu, confirmation, révision marquée et nouvelle référence
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-REV-0050-A`, `WF-REV-0040-A`, `WF-PLA-0170-A`, `WF-ADM-0100-A`,
   `WF-REV-0080-A`
 - **opérations** : `getStructureMergeReport`, `mergeCostStructure`, `getBackgroundTask`,
