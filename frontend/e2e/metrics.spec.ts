@@ -6,9 +6,10 @@
  * `register()` in the process that serves, on the servers of `node:http` it observes, and that the
  * module the hook loads is the one the startup shares, so that a request is counted once. A front
  * that observed nothing would answer 200 on its port with no series: the count is read here
- * (WF-OBS-0010-A, TFX-09). The front is one of this file's, started on the ports of the slot past
- * the slot owns for it (`E2E_METRICS_FRONT_PORT` and `E2E_METRICS_PORT`, offsets 80 and 81 of its
- * block): no other path asks it, and its count is its own. The image's `standalone` output is not played here (`check-front-image`).
+ * (WF-OBS-0010-A, TFX-09). The front is one of this file's, started on the two ports the slot owns
+ * for it (`E2E_METRICS_FRONT_PORT`, `E2E_METRICS_PORT`, offsets 80 and 81 of its block): no other
+ * path asks it, and its count is its own.
+ * The image's `standalone` output is not played here (`check-front-image`).
  */
 import { type ChildProcess, spawn } from "node:child_process";
 import { once } from "node:events";
