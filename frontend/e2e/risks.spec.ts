@@ -77,7 +77,7 @@ test("reads the risks of a revision: the register and its totals, the detail of 
   await expect(detail).toContainText("Présente dans la structure principale");
   await expect(
     detail.getByRole("table", { name: "Historique des réexamens" }).getByRole("row"),
-  ).toHaveCount(4);
+  ).toHaveCount(5);
   await detail.getByRole("link", { name: "Fermer le détail du risque" }).click();
   await expect(page).toHaveURL(RISKS, { timeout: WORKING });
   await expect(detail).toHaveCount(0);
