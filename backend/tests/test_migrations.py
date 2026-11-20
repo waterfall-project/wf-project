@@ -396,9 +396,9 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     # Two associations of two keys: a row is added or removed, never changed.
     "access_role_permission": {"SELECT", "INSERT", "DELETE"},
     "user_access_role": {"SELECT", "INSERT", "DELETE"},
-    # Submitted, followed, run and ended; never deleted by the service until a rule of retention
-    # comes (§4.4.1).
-    "background_task": {"SELECT", "INSERT", "UPDATE"},
+    # Submitted, followed, run and ended; deleted by the purge once the retention of its result is
+    # past (§4.4.1, EP-13, migration 0036).
+    "background_task": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     # Recorded by the worker and read; neither marked nor deleted until EP-13 (WF-ADM-0170).
     "backup": {"SELECT", "INSERT"},
     # The report of a reading of the accounts, kept and read; neither changed nor deleted.

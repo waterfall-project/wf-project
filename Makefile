@@ -361,11 +361,11 @@ service-witness: ## Load the witness, the examples of the contract (fixtures/api
 	@$(COMPOSE_SERVICE) build --quiet witness
 	@$(COMPOSE_SERVICE) run --rm --no-TTY witness
 
-# The purge of what expired (EP-06, "La purge"), by hand: the verb the scheduler calls at each
-# interval of WATERFALL_PURGE_INTERVAL, run in the container of the scheduler, which holds its
-# settings. Two purges never run together: the verb takes a lock of its own.
-service-purge: ## Purge what expired on the service platform, started: imports, deposits, exports, history (`waterfall-worker purge`)
-	@$(COMPOSE_SERVICE) exec --no-TTY scheduler waterfall-worker purge
+# The purge of what expired (EP-06, "La purge"), by hand: the schedule the scheduler calls every five
+# minutes, run in its container with a purge interval of one second, so that the purge is due now;
+# the worker runs the task. No purge is deposited while one is queued or running.
+service-purge: ## Deposit the purge of what expired on the service platform, started: the worker runs it (`waterfall-worker schedule`)
+	@$(COMPOSE_SERVICE) exec --no-TTY --env WATERFALL_PURGE_INTERVAL=1 scheduler waterfall-worker schedule
 
 # The measure of the core in process (US-2210, EP-26, "La mesure"): backend/measure/, which calls the
 # core as the API does, on the database of the service platform of the slot, without HTTP or Keycloak;

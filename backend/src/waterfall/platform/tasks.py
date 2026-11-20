@@ -21,6 +21,7 @@ from sqlalchemy import (
     Connection,
     SmallInteger,
     Text,
+    delete,
     event,
     func,
     insert,
@@ -149,7 +150,7 @@ class UndoneError(Exception):
 def submit(
     session: Session,
     queue: TaskQueue,
-    kind: TaskKind,
+    kind: TaskKind | ScheduledKind,
     requested_by: UUID | None,
     payload: Mapping[str, Any] | None = None,
 ) -> UUID:
@@ -187,10 +188,35 @@ def submit(
     return task_id
 
 
-def pending_task(session: Session, kind: TaskKind) -> UUID | None:
+def pending_task(session: Session, kind: TaskKind | ScheduledKind) -> UUID | None:
     """Give a task of a kind that is queued or running, if there is one."""
     pending = (BackgroundTask.kind == kind) & BackgroundTask.status.in_(PENDING)
     return session.scalar(select(BackgroundTask.id).where(pending).limit(1))
+
+
+def last_submitted(session: Session, kind: TaskKind | ScheduledKind) -> datetime | None:
+    """Give when the latest task of a kind the platform deposited of itself was submitted.
+
+    Whatever its state: the schedule waits an interval from the last deposit, not from its end.
+    """
+    kept = (BackgroundTask.kind == kind, BackgroundTask.requested_by.is_(None))
+    return session.scalar(select(func.max(BackgroundTask.submitted_at)).where(*kept))
+
+
+def purge_ended(session: Session, before: datetime, spared: Collection[UUID]) -> int:
+    """Delete the tasks ended before ``before``, ``spared`` apart, and give how many went.
+
+    A task is kept for the retention of its result (§4.4.1, WF-DAT-0080); the report of a reading
+    of the accounts goes with its task (#921). ``spared`` are the tasks another table still names
+    and refuses to lose — the task of a backup — which the module of that table gives.
+    """
+    ended = BackgroundTask.status.in_(FINISHED) & (BackgroundTask.finished_at < before)
+    gone = session.execute(
+        delete(BackgroundTask)
+        .where(ended, BackgroundTask.id.not_in(spared))
+        .returning(BackgroundTask.id)
+    )
+    return len(gone.all())
 
 
 @dataclass(frozen=True, slots=True)

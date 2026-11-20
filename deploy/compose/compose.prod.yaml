@@ -301,6 +301,9 @@ services:
       # Prometheus collects them (TFX-09, #4229).
       WATERFALL_HOST: 0.0.0.0
       WATERFALL_METRICS_PORT: ${WATERFALL_METRICS_PORT:-9100}
+      # What its purge keeps: the undo history of a session, the result of a task ended (US-2830).
+      WATERFALL_UNDO_RETENTION_HOURS: ${WATERFALL_UNDO_RETENTION_HOURS:-12}
+      WATERFALL_BACKGROUND_TASK_RETENTION_DAYS: ${WATERFALL_BACKGROUND_TASK_RETENTION_DAYS:-30}
     command: ["waterfall-worker"]
     restart: unless-stopped
     depends_on:
@@ -310,34 +313,33 @@ services:
       redis: *healthy
       storage-buckets: *done
 
-  # Deposits the reading of the accounts at the end of each interval, in seconds, a day by default
-  # (PBS-5.3). A second loop purges what expired at the end of each purge interval, ten minutes by
-  # default (EP-06, "La purge"). An interval that is not a positive number stops the service, with 2.
+  # The one command the planners call, every five minutes (PBS-5.3; a CronJob does it under
+  # Kubernetes): `waterfall-worker schedule` deposits what is due — the reading of the accounts at
+  # the end of each interval, a day by default, the purge of what expired at the end of each purge
+  # interval, ten minutes by default (EP-06, "La purge") — unless a task of the kind is queued or
+  # running, and runs nothing: the worker does, the storage included. It reaches PostgreSQL and
+  # Redis alone (TFX-10). A schedule that says a setting is wrong, 2, stops the service with 2.
   scheduler:
     image: *waterfall-image
     environment:
-      <<: [*back-environment, *storage-environment]
+      <<: *back-environment
+      WATERFALL_SCHEDULE_INTERVAL: ${WATERFALL_SCHEDULE_INTERVAL:-300}
       WATERFALL_IDENTITY_SYNC_INTERVAL: ${WATERFALL_IDENTITY_SYNC_INTERVAL:-86400}
       WATERFALL_PURGE_INTERVAL: ${WATERFALL_PURGE_INTERVAL:-600}
-      WATERFALL_UNDO_RETENTION_HOURS: ${WATERFALL_UNDO_RETENTION_HOURS:-12}
     init: true
     command:
       - sh
       - -c
       - |
-        for interval in "$$WATERFALL_IDENTITY_SYNC_INTERVAL" "$$WATERFALL_PURGE_INTERVAL"; do
-          [ "$$interval" -gt 0 ] 2>/dev/null || exit 2
+        [ "$$WATERFALL_SCHEDULE_INTERVAL" -gt 0 ] 2>/dev/null || exit 2
+        while sleep "$$WATERFALL_SCHEDULE_INTERVAL"; do
+          waterfall-worker schedule || [ "$$?" -ne 2 ] || exit 2
         done
-        while sleep "$$WATERFALL_PURGE_INTERVAL"; do waterfall-worker purge; done &
-        purging=$$!
-        while sleep "$$WATERFALL_IDENTITY_SYNC_INTERVAL"; do waterfall-worker enqueue identity_sync; done
-        kill "$$purging"
         exit 2
     restart: unless-stopped
     depends_on:
       service-database-role: *done
       redis: *healthy
-      storage-buckets: *done
 
   # Runs the restorations the API deposits in their stream, and nothing else (WF-ADM-0160, #953),
   # and starts again if it stops: a restoration is asked for at the screen, where nobody runs a

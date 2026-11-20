@@ -70,17 +70,14 @@ restore:
   realm:
     resources: {}
 
-# The tasks planned, which the service scheduler of the Compose deposits: one CronJob each, which
-# runs a command of the worker and stops (PBS-5.3). US-2830 replaces them by a single one.
+# The tasks planned (PBS-5.3): one CronJob, as the loop of the service scheduler of the Compose is
+# one, which runs `waterfall-worker schedule` and stops. The command deposits what is due — the
+# reading of the accounts at the end of each interval, a day by default, the purge of what expired
+# at the end of each purge interval, ten minutes — and the worker runs it. Intervals in seconds.
 scheduler:
-  undoRetentionHours: 12
-  jobs:
-    purge:
-      schedule: "*/10 * * * *"
-      command: [waterfall-worker, purge]
-    identity-sync:
-      schedule: "0 3 * * *"
-      command: [waterfall-worker, enqueue, identity_sync]
+  schedule: "*/5 * * * *"
+  identitySyncInterval: 86400
+  purgeInterval: 600
   resources: {}
 
 # The bootstrap (US-0420), run once after the installation: the link of the first administrator is
