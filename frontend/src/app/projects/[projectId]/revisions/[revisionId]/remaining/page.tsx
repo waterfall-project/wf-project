@@ -53,6 +53,7 @@ import {
   RemainingSummaryLoading,
 } from "@/components/remaining/remaining-summary";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
+import { AmendmentLateNote } from "@/components/revisions/amendment-late-note";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { type PageSearchParams, searchQuery } from "@/navigation/context";
@@ -325,6 +326,7 @@ export default async function RemainingPage({
             <ExchangesLink project={screen.reading.project} kind="remaining" context={at.context} />
           }
         />
+        <AmendmentLateNote structure={screen.read} />
         <Suspense fallback={<RemainingSummaryLoading />}>
           <Streamed content={indicators} />
         </Suspense>

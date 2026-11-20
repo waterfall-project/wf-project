@@ -526,6 +526,18 @@ describe("the screen of the remaining to commit", () => {
   });
 });
 
+describe("the note of an amendment in arrears on the remaining to commit", () => {
+  it("reads the structure of its own, the main one, whichever amendment the address names: no note, none of its gestures [US-2640]", async () => {
+    // `structures_amendments`: the amendment 2 is in arrears; the remaining to commit reads the
+    // main structure alone (WF-RAE-0040), where the note stands mounted for the structure it reads.
+    server.answers = { ...server.answers, [STRUCTURES]: "structures_amendments" };
+    const page = await remainingAt({ structure: "01926f3a-7c00-7000-8000-000000000213" });
+    expect(page).not.toContain("is late");
+    expect(page).not.toContain("Update the amendment");
+    expect(page).not.toContain("Abandon the amendment");
+  });
+});
+
 describe("the note of the fake back on the remaining to commit", () => {
   it("shows none: the service serves the screen, its grid and its indicators", async () => {
     const page = await remainingAt();

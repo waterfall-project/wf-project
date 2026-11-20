@@ -6,7 +6,7 @@ Le devis d’une révision : les tâches de la structure lue et les lignes de d
 
 Au-dessus de la grille, les [indicateurs du devis](FBS-4.4.1.md) — son total, ses provisions, ses écarts, ses ventilations —, avec leur date de calcul ; et, quand il en manque, les taux horaires dont le calcul a besoin. Le bandeau dit le contexte de lecture et la structure lue — la structure principale, un différentiel d’avenant ou le devis propre d’un risque —, et offre d’en changer.
 
-Le devis se saisit tant que le projet est en chiffrage : sur la structure principale d’un projet En cours, il se lit seulement, et la dépense restante se réestime au [reste à engager](FBS-4.5.md). Le différentiel d’un avenant et le devis propre d’un risque se saisissent encore. Une ligne chiffre à l’année de référence de la révision ; le serveur la projette sur son année de consommation, que le planning donne, au taux d’inflation du projet.
+Le devis se saisit tant que le projet est en chiffrage : sur la structure principale d’un projet En cours, il se lit seulement, et la dépense restante se réestime au [reste à engager](FBS-4.5.md). Le différentiel d’un avenant et le devis propre d’un risque se saisissent encore. Un avenant en retard — la structure principale a reçu des écritures depuis son ouverture — le dit par une note au-dessus de la grille ; ses gestes (mettre à jour l’avenant, le contractualiser, l’abandonner) restent au [planning](FBS-4.3.md). Une ligne chiffre à l’année de référence de la révision ; le serveur la projette sur son année de consommation, que le planning donne, au taux d’inflation du projet.
 
 ## Ses commandes
 
