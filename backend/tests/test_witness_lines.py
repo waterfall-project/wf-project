@@ -44,7 +44,6 @@ from waterfall.platform.audit import Act
 
 if TYPE_CHECKING:
     from sqlalchemy import Engine
-    from support import Logs
 
     from waterfall.platform.database import Database
 
@@ -303,13 +302,13 @@ def test_the_labour_lines_of_the_two_categories_cost_more_on_the_101_than_on_the
 
 @pytest.mark.requirement("WF-CYC-0030-A")
 def test_the_offer_is_designated_the_reference_at_the_order_and_the_project_passes_in_progress(
-    logs: Logs, witness_loaded: Database
+    witness: Database,
 ) -> None:
     # A project whose reference is designated before its code is entered passes In progress at the
     # entry of the code: the designation is made at the instant of event 11 and succeeds, the
     # revision 100 bearing tasks and lines; the transitions say the passage. The merge of the
     # amendment 1 then makes the 101 the reference (EP-08).
-    with witness_loaded.transaction() as session:
+    with witness.transaction() as session:
         project = session.get(Project, PRJ_001)
         assert project is not None
         order = instant(ORDER_RECEIVED)
@@ -337,11 +336,9 @@ def test_the_offer_is_designated_the_reference_at_the_order_and_the_project_pass
         ("created", "pricing", instant(OPENED[100])),
         ("pricing", "in_progress", order),
     ]
-    # The loader notes the designation it made: the same loading, so the same test (a loading
-    # costs a minute and more, and the log is that of the loading this test asked for).
-    noted = logs.named("witness.reference_designated")
-    assert [(each["project"], each["revision"]) for each in noted] == [("PRJ-001", 100)]
-    assert not logs.named("witness.designation_refused")
+    # The loader notes the designation it made, which a test of the projects reads on a loading of
+    # its own (``test_the_designation_of_the_offer_succeeds_and_is_noted_in_the_output``): a
+    # loading costs a minute and more, and this one reads only the rows, laid again (#2157).
 
 
 def figures(line: EstimateLine) -> tuple[object, ...]:

@@ -370,12 +370,13 @@ def dated_otherwise(session: Session, number: int) -> list[str]:
 
 
 def test_the_dates_differ_from_the_file_only_for_the_tasks_a_calendar_of_a_line_reaches(
-    logs: Logs, witness_loaded: Database
+    witness: Database,
 ) -> None:
     # The computed is the expected: once the lines are loaded (US-1570/L2), the engine dates every
     # task of the three revisions as the file does, the tasks the 4x10 calendars of the lines reach,
     # their successors and their summaries included (#2594). Before them, at the stage of the
-    # tasks, TASKS_OF_2594 of them were dated otherwise, which the loader notes.
+    # tasks, TASKS_OF_2594 of them were dated otherwise, which the loader notes: the next test reads
+    # it, on a loading of its own; this one reads the rows, on the witness shared (#2157).
     volume = example("volume/nodes_thousand")["items"]
     reached = closure(volume)
     lineages_reached = {item["lineage_id"] for item in volume if item["node_id"] in reached}
@@ -383,7 +384,7 @@ def test_the_dates_differ_from_the_file_only_for_the_tasks_a_calendar_of_a_line_
     core_lineages = {item["lineage_id"] for item in volume if item["node_id"] in core}
     assert core_lineages
     differing_counts: dict[int, int] = {}
-    with witness_loaded.transaction() as session:
+    with witness.transaction() as session:
         for number in REVISIONS:
             differing = dated_otherwise(session, number)
             assert len(set(differing)) == len(differing)
@@ -391,13 +392,6 @@ def test_the_dates_differ_from_the_file_only_for_the_tasks_a_calendar_of_a_line_
             assert not set(differing) & core_lineages
             differing_counts[number] = len(differing)
     assert differing_counts == dict.fromkeys(REVISIONS, 0)
-    # The loader notes how many, structure after structure: the offer, filled from nothing; the
-    # others, copies of a structure whose lines gave its tasks their calendars, none (EP-08).
-    noted = [
-        (r["revision"], r["structure"], r["tasks"])
-        for r in logs.named("witness.tasks_dated_before_the_lines")
-    ]
-    assert noted == FILLED
 
 
 def core_items() -> list[dict[str, Any]]:
@@ -412,6 +406,8 @@ def core_items() -> list[dict[str, Any]]:
 def test_the_loading_notes_for_each_revision_how_many_tasks_the_engine_dated_otherwise(
     logs: Logs, witness_loaded: Database
 ) -> None:
+    # Structure after structure: the offer, filled from nothing; the others, copies of a structure
+    # whose lines gave its tasks their calendars, none (EP-08).
     del witness_loaded
     noted = logs.named("witness.tasks_dated_before_the_lines")
     assert [(each["revision"], each["structure"], each["tasks"]) for each in noted] == FILLED
