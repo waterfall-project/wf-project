@@ -413,6 +413,16 @@ développement, qui se recréent.
 la ligne du différentiel sans structure à elle, que ni la copie ni la lecture d'un arbre ne
 sauraient lire.
 
+Deux migrations encore, pour les clés d'`import_report` (US-3060, #4139), chaînées sur la dernière
+d'`epic/EP-08` : `0040` supprime les imports dont la structure ou la révision n'existe plus (sa
+descente est sans effet : ils ne reviennent pas), `0041` pose les clés.
+
+- **`import_report`** : les clés `(project_id, structure_id)` vers `cost_structure` et
+  `(project_id, revision_id)` vers `revision`, en cascade : l'abandon d'un différentiel ou d'une
+  révision emporte le rapport d'import qui la nomme, et lui seul. Le fichier suit le balayage de la
+  purge, qui retire l'objet de `uploads/` qu'aucune ligne ne nomme. `cost_import.import_report_id`
+  reste en refus (`RESTRICT`) : un import de coûts réels n'est jamais emporté.
+
 ### Ce qui reconnaît une ligne de provision
 
 Une ligne de provision est une ligne dont la catégorie relève d'une nature de type provision pour

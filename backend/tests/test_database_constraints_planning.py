@@ -321,6 +321,9 @@ REFUSALS: list[Refusal] = [
     (ImportReport, {"upload_id": TAKEN}, "uq_import_report_upload_id"),
     (ImportReport, {"project_id": uuid4()}, "fk_import_report_project_id_project"),
     (ImportReport, {"requested_by": uuid4()}, "fk_import_report_requested_by_user_account"),
+    # The structure aimed at and the revision written in, of its project (US-3060, #4139).
+    (ImportReport, {"structure_id": uuid4()}, "fk_import_report_project_id_cost_structure"),
+    (ImportReport, {"revision_id": uuid4()}, "fk_import_report_project_id_revision"),
     (UndoEntry, {"kind": "rename"}, "ck_undo_entry_kind_known"),
     (UndoEntry, {"rank": TAKEN}, "uq_undo_entry_revision_id"),
     (UndoEntry, {"revision_id": uuid4()}, "fk_undo_entry_project_id_revision"),
@@ -432,6 +435,9 @@ CASCADES = {
     "fk_estimate_line_project_id_node",
     # The reading kept of a structure with its structure (EP-26, "Tables et migrations").
     "fk_structure_reading_project_id_cost_structure",
+    # An import with the structure it aims at or the revision it writes in (US-3060, #4139).
+    "fk_import_report_project_id_cost_structure",
+    "fk_import_report_project_id_revision",
 }
 
 
