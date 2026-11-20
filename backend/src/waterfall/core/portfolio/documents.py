@@ -39,7 +39,10 @@ type Documents = Mapping[IndicatorKind, Document]
 
 
 def documents_of(
-    session: Session, resolved: ResolvedScope, reading: PortfolioReading
+    session: Session,
+    resolved: ResolvedScope,
+    reading: PortfolioReading,
+    kinds: tuple[IndicatorKind, ...] = KINDS,
 ) -> Mapping[UUID, Documents]:
     """Give the documents of the projects a scope retains and that contribute, by project.
 
@@ -47,7 +50,8 @@ def documents_of(
     entry: it figures in a list without a figure and adds to no sum. On the current day, the
     documents are those of the day, from the cache of ``reading`` if it has one — the whole
     contribution of each project, the documents of the portfolio with those the list reads
-    (``day_contribution``, #4193) —; at a past date, those kept of ``KINDS``.
+    (``day_contribution``, #4193) —; at a past date, those kept of ``kinds``, the two of the list
+    and the value by default (``KINDS``): a view that reads another kind names it.
     """
     revisions = {
         project_id: each.revision_id
@@ -56,5 +60,5 @@ def documents_of(
     }
     if resolved.on_current_day:
         return day_documents_of(session, revisions, reading.at, DAY_CONTRIBUTION, reading.cache)
-    kept = kept_documents_of(session, set(revisions.values()), KINDS)
+    kept = kept_documents_of(session, set(revisions.values()), kinds)
     return {project_id: kept[revision_id] for project_id, revision_id in revisions.items()}

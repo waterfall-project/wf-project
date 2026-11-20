@@ -21,7 +21,11 @@ from fastapi import APIRouter, Depends, Query
 from waterfall.api.evaluation import Requires
 from waterfall.api.project_indicators import Source
 from waterfall.api.queries import listed
-from waterfall.core.portfolio.interface import PortfolioAsked, read_portfolio_performance
+from waterfall.core.portfolio.interface import (
+    PortfolioAsked,
+    PortfolioReading,
+    read_portfolio_performance,
+)
 from waterfall.core.projects.interface import ProjectState
 from waterfall.platform.database import utc_now
 
@@ -68,4 +72,5 @@ def get_portfolio_performance(
     source: Source, asked: Annotated[PortfolioAsked, Depends(portfolio_asked)]
 ) -> dict[str, Any]:
     """Give the indices, the projections, the zones and the quarters of the projects In progress."""
-    return read_portfolio_performance(source.session, asked, utc_now(), source.cache)
+    reading = PortfolioReading(utc_now(), source.cache)
+    return read_portfolio_performance(source.session, asked, reading)
