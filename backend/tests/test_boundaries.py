@@ -249,6 +249,7 @@ DESIGNED: dict[str, set[str]] = {
         "load_revision",
         # EP-11, "Modules": the revisions the portfolio retains at an instant (US-2670/L3).
         "last_marked_at_instant",
+        "marked_revisions_of",
     },
     # EP-06, "Modules": what each story calls of another before it fills its own.
     "planning": {
@@ -350,7 +351,7 @@ DESIGNED: dict[str, set[str]] = {
         # EP-11, "Modules": what the portfolio reads of the risks (US-2680/L3).
         "portfolio_risks",
         "outcomes_between",
-        "reviewed_since",
+        "not_reviewed_since",
     },
     # EP-11, "Les vues" and "La contribution d'un projet": a function by view, which the API calls
     # before the story that fills each; the scope of the eight; what the marking keeps.

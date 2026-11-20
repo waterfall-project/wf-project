@@ -16,28 +16,29 @@ Three readings, offered by ``interface/portfolio.py``:
   dismissed, by its day — the occurrence writes one too —, with the provision the risk bears then:
   the share it holds in the reference of its project, as the register totals an occurred or a
   dismissed risk (WF-RIS-0040), nought without a reference;
-- the identified risks of a revision reviewed since an instant (``reviewed``), among the reviews
-  the revision presents: its own and those of the revisions marked before it (EP-08, "Tables et
-  migrations"), its declaration the first of them.
+- the identified risks of the revisions of several projects not reviewed since an instant each
+  (``unreviewed``), among the reviews the revision presents: its own and those of the revisions
+  marked before it (EP-08, "Tables et migrations"), its declaration the first of them.
 """
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import ARRAY, Uuid, and_, any_, column, func, literal, select, values
 
 from waterfall.core.estimate.interface import risk_base
 from waterfall.core.projects.interface import Viewer, project_facts
-from waterfall.core.revisions.interface import marked_revisions_at
+from waterfall.core.revisions.interface import marked_revisions_of
 from waterfall.core.risks.commands import DISMISSED, IDENTIFIED, OCCURRED, state_named
 from waterfall.core.risks.reading import NOUGHT, read_context, risk_view, seen_revisions
 from waterfall.core.risks.registering import found_in
 from waterfall.core.risks.sharing import shares_of
 from waterfall.core.risks.tables import RiskEvaluation, RiskReview
+from waterfall.platform.database import UtcDateTime
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Mapping
     from datetime import date, datetime
     from decimal import Decimal
 
@@ -85,6 +86,14 @@ class RiskOutcome:
     reviewed_on: date
     state: RiskState
     provision_amount: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewWindow:
+    """What is asked of the reviews of a project: its revision, and the instant they count from."""
+
+    revision_id: UUID
+    since: datetime
 
 
 def survey(session: Session, project_id: UUID, revision_id: UUID) -> PortfolioRisks:
@@ -167,33 +176,50 @@ def outcomes(
     ]
 
 
-def reviewed(
-    session: Session, project_id: UUID, revision_id: UUID, since: datetime
-) -> frozenset[UUID]:
-    """Give the risks a revision holds identified that a review it presents made since an instant.
+def unreviewed(
+    session: Session, windows: Mapping[UUID, ReviewWindow]
+) -> dict[UUID, frozenset[UUID]]:
+    """Give, by project, the risks its window's revision holds identified with no review since.
 
-    At ``since`` or after. The reviews of the revision and of those marked before it
-    (``seen_revisions``): a marked revision presents none made after its marking.
+    A review made at ``since`` or after, among those the revision presents: its own and those of
+    the revisions marked before it (``seen_revisions``), a marked revision presenting none made
+    after its marking. A project with no such risk has no entry. One statement for the marked
+    revisions of all the projects, one for their risks: never one by project.
     """
-    seen = seen_revisions(marked_revisions_at(session, project_id), revision_id)
-    identified = (
-        select(RiskEvaluation.risk_id)
+    if not windows:
+        return {}
+    marked = marked_revisions_of(session, list(windows))
+    seen: set[UUID] = set()
+    for project_id, window in windows.items():
+        seen |= seen_revisions(dict(marked[project_id]), window.revision_id)
+    bounds = values(
+        column("project_id", Uuid),
+        column("revision_id", Uuid),
+        column("since", UtcDateTime),
+        name="bounds",
+    ).data([(each, window.revision_id, window.since) for each, window in windows.items()])
+    reviewed = (
+        select(literal(1))
         .where(
-            RiskEvaluation.project_id == project_id,
-            RiskEvaluation.revision_id == revision_id,
-            RiskEvaluation.state == IDENTIFIED,
+            RiskReview.project_id == RiskEvaluation.project_id,
+            RiskReview.risk_id == RiskEvaluation.risk_id,
+            RiskReview.revision_id == any_(literal(sorted(seen), ARRAY(Uuid))),
+            RiskReview.created_at >= bounds.c.since,
         )
-        .scalar_subquery()
+        .exists()
     )
-    return frozenset(
-        session.scalars(
-            select(RiskReview.risk_id)
-            .where(
-                RiskReview.project_id == project_id,
-                RiskReview.revision_id.in_(list(seen)),
-                RiskReview.risk_id.in_(identified),
-                RiskReview.created_at >= since,
-            )
-            .distinct()
+    rows = session.execute(
+        select(RiskEvaluation.project_id, RiskEvaluation.risk_id)
+        .join(
+            bounds,
+            and_(
+                bounds.c.project_id == RiskEvaluation.project_id,
+                bounds.c.revision_id == RiskEvaluation.revision_id,
+            ),
         )
+        .where(RiskEvaluation.state == IDENTIFIED, ~reviewed)
     )
+    found: dict[UUID, set[UUID]] = {}
+    for project_id, risk_id in rows:
+        found.setdefault(project_id, set()).add(risk_id)
+    return {project_id: frozenset(risks) for project_id, risks in found.items()}

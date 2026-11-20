@@ -114,12 +114,16 @@ class RetainedProject:
     recalculated. ``marked_at`` is the instant of the last marking before the end of the date, null
     for a project none of whose revisions was marked by then: the column ``last_marked_at`` of the
     list (WF-PTF-0040), which is not that of ``revision_id``, a revision in progress on the day.
+    ``entered_at`` is the instant of the transition that brought the project to its state at the
+    date: for a project In progress, its passage to In progress, where the health of the control
+    starts an interval when no revision was marked before the last (WF-PTF-0110).
     """
 
     state: ProjectState
     revision_id: UUID | None
     weight: Decimal | None
     marked_at: datetime | None = None
+    entered_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -214,13 +218,13 @@ def _retained(
         revision_id = kept.last_marked_id
         probability = kept.win_probability
     if revision_id is None:
-        return RetainedProject(found.state, None, None, kept.marked_at)
+        return RetainedProject(found.state, None, None, kept.marked_at, found.entered_at)
     if probability is None:
         # A marking before EP-07 kept no probability: an offer by it weighs nothing known.
         weight = None if found.state == PRICING else weight_of(found.state, NOUGHT)
     else:
         weight = weight_of(found.state, probability)
-    return RetainedProject(found.state, revision_id, weight, kept.marked_at)
+    return RetainedProject(found.state, revision_id, weight, kept.marked_at, found.entered_at)
 
 
 def resolve_scope(
