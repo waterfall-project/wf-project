@@ -19,7 +19,7 @@ import pytest
 from wftools import chart, charttrial, kubetools
 from wftools.charttrial import Tools, Trial, TrialError
 from wftools.kubetools import Binary, ToolError
-from wftools.production import Platform
+from wftools.production import Answer, Browser, Platform, ProductionError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -182,3 +182,24 @@ def test_the_trial_holds_that_the_console_and_the_master_realm_are_not_served(
     )
     trial.hold("a@b.test")
     assert seen == ["waterfall.localhost"]
+
+
+def _console_browser(answers: dict[str, Answer]) -> Browser:
+    def send(_method: str, url: str, _body: object, _headers: object) -> Answer:
+        return answers[url]
+
+    return Browser(send)
+
+
+def test_the_console_behind_the_front_is_hidden_once_its_redirection_is_followed() -> None:
+    base = PLATFORM.address
+    answers = {
+        f"{base}/auth/admin/": Answer(308, (("Location", "/auth/admin"),), ""),
+        f"{base}/auth/admin": Answer(404, (), ""),
+        f"{base}/auth/realms/master/": Answer(308, (("Location", "/auth/realms/master"),), ""),
+        f"{base}/auth/realms/master": Answer(404, (), ""),
+    }
+    charttrial.check_console_hidden(_console_browser(answers), PLATFORM)
+    answers[f"{base}/auth/admin"] = Answer(200, (), "console")
+    with pytest.raises(ProductionError, match="/auth/admin/ ends on 200, not 404"):
+        charttrial.check_console_hidden(_console_browser(answers), PLATFORM)

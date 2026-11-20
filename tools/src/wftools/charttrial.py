@@ -40,11 +40,12 @@ from typing import Any
 from wftools import REPOSITORY, chart, kubetools
 from wftools.images import REGISTRY
 from wftools.production import (
+    HIDDEN,
     LIVENESS,
+    NOT_FOUND,
     Browser,
     Platform,
     ProductionError,
-    check_console_hidden,
     check_liveness,
     check_signed_in,
     installation_link,
@@ -54,6 +55,22 @@ from wftools.production import (
 )
 
 TOOL = "wftools.charttrial"
+
+
+def check_console_hidden(browser: Browser, platform: Platform) -> None:
+    """Hold that the console of Keycloak and its realm master end on a 404 once redirected.
+
+    The ingress sends these paths to the front, which sends back a path with its slash to the one
+    without (308) before it answers 404: the console is not served all the same.
+    """
+    for path in HIDDEN:
+        url = f"{platform.address}{path}"
+        answer, _ = browser.follow(browser.request("GET", url), url)
+        if answer.status != NOT_FOUND:
+            message = f"{path} ends on {answer.status}, not {NOT_FOUND}: it is served"
+            raise ProductionError(message)
+
+
 CLUSTER = "waterfall-chart"
 DOMAIN = "waterfall.localhost"
 NAMESPACE = "waterfall"
