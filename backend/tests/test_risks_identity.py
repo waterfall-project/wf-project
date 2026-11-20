@@ -395,7 +395,8 @@ def provision_label(risks: Risks, revision_id: object, risk: dict[str, Any]) -> 
 def test_a_risk_renamed_renames_its_own_estimate_and_its_provision_line_outside_the_history(
     risks: Risks, project: Costed, realm: TestRealm
 ) -> None:
-    # #3980, option (a): the current revision follows the label, as the declaration named them
+    # Cites no requirement: a decision of #3980, no Vérif of an exigence. Option (a): the current
+    # revision follows the label, as the declaration named them
     # (« Provision — <libellé> »); the severity and the provision stay, and no entry of the history
     # is written, the identity being the project's (H-02).
     writer = signed_in(project.stage, realm)
@@ -443,7 +444,8 @@ def test_a_risk_renamed_leaves_the_marked_revisions_with_the_names_they_were_mar
 def test_a_risk_renamed_without_a_current_revision_names_the_revision_opened_after_it(
     risks: Risks, project: Costed
 ) -> None:
-    # #3980: nothing is written but the identity, the marked revision keeping its names; the copy
+    # Cites no requirement: a decision of #3980, a detail of the copy. Nothing is written but the
+    # identity, the marked revision keeping its names; the copy
     # that opens the next revision names the own estimate and the line by the label of the risk,
     # not by those of the last revision marked.
     risk = risks.declared()
@@ -463,8 +465,9 @@ def test_a_risk_renamed_without_a_current_revision_names_the_revision_opened_aft
 def test_a_risk_renamed_in_a_revision_abandoned_names_the_revision_opened_after_it(
     risks: Risks, project: Costed
 ) -> None:
-    # #3980: the abandonment brings the names of the revision back no more than the identity; the
-    # revision opened next copies the last one marked and names its rows by the label of the risk.
+    # Cites no requirement: a decision of #3980, a detail of the copy. The abandonment brings the
+    # names of the revision back no more than the identity; the revision opened next copies the last
+    # one marked and names its rows by the label of the risk.
     risk = risks.declared()
     mark(project.stage, {"revision_id": str(project.revision_id)})
     opened = risks.revision()

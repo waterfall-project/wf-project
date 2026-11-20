@@ -135,6 +135,27 @@ def opened(api: ContractClient, stage: Scene) -> dict[str, Any]:
     return answer.json()
 
 
+def lotted(tree: Tree, *packages: tuple[str, list[tuple[str, list[str]]]]) -> None:
+    """Write the work breakdown of the project: packages of items of deliverables, by label."""
+    path = f"{PROJECTS}/{tree.stage.project['project_id']}/work-breakdown"
+    headers = tree.stage.manager.headers
+    read = tree.api.get(path, headers=headers).json()
+    sent = [
+        {
+            "label": label,
+            "order_items": [
+                {"label": item, "deliverables": [{"label": each} for each in deliverables]}
+                for item, deliverables in items
+            ],
+        }
+        for label, items in packages
+    ]
+    answer = tree.api.put(
+        path, headers=headers, json={"work_packages": sent, "lock_version": read["lock_version"]}
+    )
+    assert answer.status_code == 200, answer.text
+
+
 def refusal(answer: Any) -> tuple[int, str, dict[str, Any]]:
     """Give the status, the code and the parameters of a refusal."""
     body = answer.json()
