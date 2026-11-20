@@ -9,7 +9,8 @@ spread over the whole of each task; and the load of a marked revision, or of the
 is the remaining to commit — the lines of a completed task count for nothing, and the load of the
 others is spread over the part of the task that follows the date of calculation (the day for the
 current revision, the day of the marking for a marked one), the whole falling on the month of that
-date once the task is over.
+date once the task is over. The portfolio reads a fourth, the estimate of an offer, which is its
+whole load: each line whole over its task, on its own figures (``estimate_workload``, EP-11).
 
 The roles listed are the active ones, with the roles the revision employs, deactivated or not,
 restricted to the node asked and its descendants; each with its capacity in the reference. A month
@@ -47,7 +48,7 @@ from waterfall.core.resource_settings.interface import (
     list_roles,
     node_labels,
 )
-from waterfall.core.revisions.interface import read_revision
+from waterfall.core.revisions.interface import read_revision, read_revision_for
 from waterfall.platform.errors import (
     STATE_FORBIDS_OPERATION,
     VALIDATION_FAILED,
@@ -381,6 +382,36 @@ def read_workload(session: Session, project_id: UUID, asked: WorkloadAsked) -> W
     if reading is None or any(faults):
         named = tuple(each for each in faults if each is not None)
         raise UnprocessableError(VALIDATION_FAILED, fields=named)
+    remaining = reading.as_of is not None
+    shown, totals = _plan(session, project_id, reading, node_id, reference=not remaining)
+    return WorkloadView(
+        reading.revision_id,
+        reading.status,
+        reading.computed_at,
+        reading.is_stored,
+        asked.basis,
+        node_id,
+        label,
+        totals,
+        shown,
+    )
+
+
+def _plan(
+    session: Session,
+    project_id: UUID,
+    reading: Reading,
+    node_id: UUID | None,
+    *,
+    reference: bool,
+) -> tuple[tuple[RoleLoad, ...], tuple[tuple[str, Decimal], ...]]:
+    """Give the roles of a plan of workload, under a node, and its monthly totals.
+
+    On a remaining (``reading.as_of``), the lines of a completed task are left out and the others
+    spread after that day; without one, each line whole over its task, on its figures of the
+    reference if ``reference``, else on its own. The roles, calendars and capacities those a marked
+    revision kept (``reading.is_stored``), else the reference as it stands.
+    """
     placed = placed_lines(session, project_id, reading.revision_id)
     employed = {each.line.resource_role_id for each in placed if each.line.resource_role_id}
     kept = kept_reference(session, project_id, reading.revision_id) if reading.is_stored else None
@@ -392,13 +423,13 @@ def read_workload(session: Session, project_id: UUID, asked: WorkloadAsked) -> W
         if each.line.resource_role_id is not None
     }
     remaining = reading.as_of is not None
-    loads = loads_of(placed, placements, reference=not remaining, remaining=remaining)
-    kept = {role.resource_role_id for role in roles}
-    spread = spread_loads((load for load in loads if load.role_id in kept), reading.as_of)
+    loads = loads_of(placed, placements, reference=reference, remaining=remaining)
+    listed = {role.resource_role_id for role in roles}
+    spread = spread_loads((load for load in loads if load.role_id in listed), reading.as_of)
     # The months of a role sum those of its tasks, the totals those of the roles: parts rounded.
     hours = {role_id: summed_parts(tasks.values()) for role_id, tasks in spread.items()}
     bearers = {each.task_id: each for each in placed}
-    shown = [
+    shown = tuple(
         _load_of(
             role,
             hours.get(role.resource_role_id, {}),
@@ -406,16 +437,24 @@ def read_workload(session: Session, project_id: UUID, asked: WorkloadAsked) -> W
             bearers,
         )
         for role in roles
-    ]
-    totals = [(label_of(month), sum_) for month, sum_ in monthly_totals(hours.values())]
-    return WorkloadView(
-        reading.revision_id,
-        reading.status,
-        reading.computed_at,
-        reading.is_stored,
-        asked.basis,
-        node_id,
-        label,
-        tuple(totals),
-        tuple(shown),
     )
+    totals = tuple((label_of(month), sum_) for month, sum_ in monthly_totals(hours.values()))
+    return shown, totals
+
+
+def estimate_workload(
+    session: Session, project_id: UUID, revision_id: UUID, at: datetime
+) -> tuple[RoleLoad, ...]:
+    """Give the load of the estimate of a revision by role: each line whole over its task.
+
+    What the portfolio reads of an offer, whose estimate is its whole load (EP-11, "Tables et
+    migrations", ``portfolio_workload``): no day of calculation, the hours of each labour line, on
+    its own figures, spread over the whole of its task, a completed task's as any other. The
+    roles, calendars and capacities those a marked revision kept, else the reference as it stands;
+    every role listed, in the order of the plan. ``at``, the instant of the computation, changes
+    nothing of it. A revision unknown is refused (404).
+    """
+    read = read_revision_for(session, project_id, revision_id)
+    status = MARKED if read.marked else DRAFT
+    reading = Reading(revision_id, status, at, is_stored=read.marked, as_of=None)
+    return _plan(session, project_id, reading, None, reference=False)[0]

@@ -308,7 +308,7 @@ branche (celle de son socle), sans donnée à reprendre : le contrôle `kind_kno
 | Nature | Ce qu'elle conserve | Pour |
 |---|---|---|
 | `portfolio_workload` | les heures par rôle de ressource et par mois chargé — sur le reste à engager d'un projet en cours, sur le devis d'une offre —, sans pondération | US-2700 |
-| `portfolio_cost_structure` | les totaux par nature de coût du budget de référence, hors lignes de provision, et du reste à engager, provisions comprises ; la main-d'œuvre de l'un et de l'autre par rôle, avec le nœud du rôle au marquage ; pour une offre, son devis tient lieu des deux | US-2720 |
+| `portfolio_cost_structure` | les totaux par nature de coût du budget de référence, hors lignes de provision, et du reste à engager, provisions comprises ; la main-d'œuvre de l'un et de l'autre par rôle, groupée par nœud à la lecture, sur l'arbre courant ; pour une offre, son devis tient lieu des deux | US-2720 |
 | `portfolio_risks` | chaque risque de la révision : son identifiant, son libellé, sa probabilité, sa gravité, sa provision, son état, l'assiette de son projet ; le coût à la survenance et le réestimé d'un survenu | US-2730 |
 | `portfolio_milestones` | les jalons inscrits au suivi temps/temps : la lignée, le libellé, la date de référence, la date de terminaison | US-2750 |
 | `portfolio_offer_curves` | pour une offre : les séries au pas du mois de son devis, hors provisions et provisions comprises, sans et avec les délais de paiement | US-2740 |

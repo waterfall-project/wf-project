@@ -16,7 +16,7 @@ from installations import Installation, Take, installed, taker
 from installed_reference import install
 from migrations_support import scratch_database
 from openapi_core import Config, OpenAPI
-from project_rows import drop_partitions, unguarded
+from project_rows import drop_every_partition, unguarded
 from pydantic import SecretStr
 from realm import KEY, TestRealm
 from sqlalchemy import Engine, delete, insert, text
@@ -316,12 +316,13 @@ def database(database_url: str, service_database_url: str) -> Iterator[Database]
     yield db
     db.dispose()
     owner = create_database_engine(database_url)
+    # The partitions a project brings with it (WF-DAT-0050) outlive its rows: the witness imposes
+    # its identifiers, and a creation refuses a project that has its partitions. Dropped project
+    # after project, a transaction each, so that no transaction holds the locks of them all (#4051).
+    drop_every_partition(owner)
     with owner.begin() as connection:
-        # The guards of the journal and of the revised tables off for this transaction alone. The
-        # partitions a project brings with it (WF-DAT-0050) outlive its rows: the witness imposes
-        # its identifiers, and a creation refuses a project that has its partitions.
+        # The guards of the journal and of the revised tables off for this transaction alone.
         unguarded(connection)
-        drop_partitions(connection)
         for table in reversed(Base.metadata.sorted_tables):
             if not table.info.get(WRITTEN_BY_MIGRATION):
                 connection.execute(delete(table))

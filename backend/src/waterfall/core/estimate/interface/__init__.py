@@ -306,6 +306,9 @@ from waterfall.core.estimate.interface.portfolio import (
     PortfolioTotals as PortfolioTotals,
 )
 from waterfall.core.estimate.interface.portfolio import (
+    offer_workload as offer_workload,
+)
+from waterfall.core.estimate.interface.portfolio import (
     portfolio_totals as portfolio_totals,
 )
 
