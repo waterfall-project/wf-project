@@ -30,7 +30,7 @@ def last_imports(session: Session, before: Mapping[UUID, datetime]) -> dict[UUID
 
     ``before`` names each project with the instant its imports are read up to, itself included: an
     import applied at that very instant is counted, as the lower bound the caller compares it with
-    is. A project that imported nothing up to its instant has no entry. One query for all the projects.
+    is. A project that imported nothing up to its instant has no entry. One query for all of them.
     """
     if not before:
         return {}
