@@ -10,14 +10,17 @@ sur `ghcr.io/waterfall-project`, derrière un frontal HTTPS (US-0430, WF-ARC-005
 Compose est `compose.prod.yaml` ; les autres fichiers de ce répertoire servent la plateforme de
 développement et la plateforme de service, sauf ceux qu'il monte : `Caddyfile.prod`,
 `garage.toml`, `storage-buckets.sh`, `postgres-volume.sh`, les scripts SQL des rôles et des
-bases, et ceux de Prometheus : `prometheus.sh`, `prometheus.yml` et `prometheus-alerts.yml`.
+bases, ceux de Prometheus : `prometheus.sh`, `prometheus.yml` et `prometheus-alerts.yml`, celui d'Alertmanager,
+`alertmanager.sh`, et ceux de Grafana : `grafana-datasource.yml`, `grafana-dashboards.yml` et
+`grafana-dashboard.json`.
 
 La plateforme compte un frontal Caddy, seul port ouvert, qui obtient ses certificats de Let's
-Encrypt et sert le front à la racine et Keycloak sous `/auth`, hors sa console ; le front, l'API, le worker et le
+Encrypt et sert le front à la racine, Keycloak sous `/auth`, hors sa console, et Grafana sous `/grafana` ; le front, l'API, le worker et le
 planificateur de ses tâches ; PostgreSQL, qui porte deux bases, celle de Waterfall et celle de
 Keycloak ; Redis ; Garage, le stockage objet, et ses compartiments `backups` et `imports` ;
 Keycloak et l'application de son royaume ; Prometheus, qui collecte les métriques du front, de
-l'API et du worker et évalue les règles des alertes (« Superviser »). Les données vivent dans des
+l'API et du worker et évalue les règles des alertes, Alertmanager, qui les notifie par courriel, et Grafana, le tableau
+de bord de l'exploitant (« Superviser »). Les données vivent dans des
 volumes nommés.
 
 Redis est employé sous la licence AGPLv3, comme Waterfall lui-même, depuis sa version 8 ; le dépôt
@@ -60,7 +63,9 @@ Puis :
    lequel s'entend le jour courant, et qui ne change plus ensuite), la capacité en octets de l'espace
    où PostgreSQL et le stockage objet gardent leurs données (`WATERFALL_DATABASE_CAPACITY_BYTES`,
    `WATERFALL_STORAGE_CAPACITY_BYTES`, sans lesquelles l'alerte d'un stockage plein ne pourrait pas
-   apparaître), et chaque secret, tiré au hasard comme le modèle l'indique. Git ignore `.env` ; en garder une copie à part.
+   apparaître), le serveur de messagerie des alertes s'il y en a un (`WATERFALL_ALERT_SMTP_HOST` et
+   les valeurs qui le suivent dans le modèle), et chaque secret, dont le mot de passe du tableau de
+   bord (`WATERFALL_GRAFANA_ADMIN_PASSWORD`, sans lequel Grafana ne démarre pas), tiré au hasard comme le modèle l'indique. Git ignore `.env` ; en garder une copie à part.
 4. Démarrer :
 
    ```sh
@@ -200,6 +205,23 @@ cours se lisent dans Prometheus lui-même :
 ```sh
 docker compose -f compose.prod.yaml exec prometheus wget -qO- http://127.0.0.1:9090/api/v1/alerts
 ```
+
+Alertmanager notifie chaque alerte par courriel, par le serveur de messagerie que `.env` nomme :
+`WATERFALL_ALERT_SMTP_HOST` (`hôte:port`), l'expéditeur `WATERFALL_ALERT_SMTP_FROM` et le
+destinataire `WATERFALL_ALERT_RECIPIENT`, avec `WATERFALL_ALERT_SMTP_USER` et le secret
+`WATERFALL_ALERT_SMTP_PASSWORD` si le serveur demande de s'authentifier, et
+`WATERFALL_ALERT_SMTP_REQUIRE_TLS=false` s'il ne parle pas TLS. Sans serveur, il ne notifie rien :
+les alertes restent sur l'écran d'état et sur le tableau de bord. `alertmanager.sh` écrit sa
+configuration à chaque démarrage, et refuse de démarrer, en la nommant, une valeur qui n'en est pas
+une.
+
+Grafana porte le tableau de bord de l'exploitant, livré par `grafana-dashboard.json` : les composants,
+la file, les espaces, le taux d'erreur et les alertes en cours, lus sur la seule source Prometheus. Il
+se sert à `https://<domaine>/grafana`, par la porte, avec son compte propre, hors de Keycloak :
+`WATERFALL_GRAFANA_ADMIN_USER` (`operator` par défaut) et `WATERFALL_GRAFANA_ADMIN_PASSWORD`, sans
+lequel Grafana ne démarre pas. Il ne lit ni PostgreSQL ni Redis, et n'a pas de volume : son compte
+est réécrit à chaque démarrage, si bien que le mot de passe de `.env` est celui qui l'ouvre. Pendant
+l'arrêt de PostgreSQL, l'alerte d'indisponibilité s'y lit toujours.
 
 ## Sauvegarder
 

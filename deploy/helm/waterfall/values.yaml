@@ -169,11 +169,37 @@ prometheus:
     errorRateWindowSeconds: 300
   resources: {}
 
-# Alertmanager, which notifies the alerts (US-2880).
-alertmanager: {}
+# Alertmanager, which notifies each alert of Prometheus by e-mail (US-2880, WF-OBS-0030), through the
+# mail server `smtp` names; without a `host`, it notifies nothing, and the alerts stay on the status
+# screen and the dashboard. The values are those of compose.prod.yaml, read there as
+# WATERFALL_ALERT_SMTP_HOST, WATERFALL_ALERT_SMTP_FROM, WATERFALL_ALERT_RECIPIENT,
+# WATERFALL_ALERT_SMTP_REQUIRE_TLS and WATERFALL_ALERT_SMTP_USER. The password of that server, if it asks
+# to sign in, is the key WATERFALL_ALERT_SMTP_PASSWORD of the Secret of the platform (secrets), which
+# nothing requires. Its silences are kept as long as its pod.
+alertmanager:
+  image: prom/alertmanager:v0.35.0@sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c
+  smtp:
+    # host:port of the mail server.
+    host: ""
+    from: ""
+    # One address alone: the script refuses a list.
+    recipient: ""
+    requireTls: true
+    user: ""
+  resources: {}
 
-# Grafana, the dashboard of the operator (US-2880).
-grafana: {}
+# Grafana, the dashboard of the operator (US-2880, WF-OBS-0030): the dashboard the chart delivers,
+# on the one source that is the Prometheus of the chart, served by the ingress under /grafana, with
+# an account of its own, outside Keycloak (TFX-15): `adminUser`, and the password that is the key
+# WATERFALL_GRAFANA_ADMIN_PASSWORD of the Secret of the platform (secrets), without which the chart
+# does not render. `prometheusUrl` names another Prometheus, and is required when prometheus.enabled
+# is false (the Alertmanager of the chart then stays, for the Prometheus of the operator). It keeps
+# nothing: its account is written at each start, with the password of the Secret.
+grafana:
+  image: grafana/grafana:13.1.0@sha256:121a7a9ece6dc10b969f1f96eed64b4f07dfac0d0b8abc070f7cb83bbde86f63
+  adminUser: operator
+  prometheusUrl: ""
+  resources: {}
 
 # The backups planned, kept and copied outside the platform (US-2910).
 backups: {}

@@ -110,6 +110,7 @@ def test_the_platform_is_complete_on_one_machine_its_data_in_named_volumes() -> 
         "postgres-data",
         "storage-data",
         "prometheus-data",
+        "alertmanager-data",
         "realm-requests",
     }
     for name, kept in {
@@ -275,8 +276,9 @@ def test_every_secret_comes_from_the_file_of_settings_and_none_has_a_default() -
     secrets = {name for name in VARIABLE.findall(text) if SECRET.search(name)}
     assert secrets
     defaulted = {name for name, _ in DEFAULTED.findall(text)}
-    # The identifier of the key of the storage is no secret.
-    assert secrets & defaulted == {"WATERFALL_STORAGE_ACCESS_KEY"}
+    # The identifier of the key of the storage is no secret; the password of the mail server of the
+    # alerts is wanted of a server that asks to sign in alone (US-2880).
+    assert secrets & defaulted == {"WATERFALL_STORAGE_ACCESS_KEY", "WATERFALL_ALERT_SMTP_PASSWORD"}
     for name in secrets - defaulted:
         assert required(name) in text
 

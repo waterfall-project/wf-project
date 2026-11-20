@@ -1,17 +1,18 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Install Helm, kind, kubectl and promtool at the versions the chain pins, and find them (US-2800).
+"""Install Helm, kind, kubectl and the tools of Prometheus and Alertmanager, as pinned (US-2800).
 
 Usage: ``python -m wftools.kubetools``.
 
-promtool is that of the release of Prometheus the platform runs (US-2880): the tests of the chart
-check its configuration and play its rules of alert by it. PyPI holds none of the four, as it holds
-actionlint, hadolint and shellcheck, which the tools take as their packages: each is downloaded
-once from where its project publishes it, checked against the digest written here, and kept under
-the cache of the user — ``$XDG_CACHE_HOME/waterfall/bin``, ``~/.cache/waterfall/bin`` by default —,
-a folder per version, which the worktrees share. A download whose digest is not the one written is
-refused and removed: raise a version here, with its digest, and nowhere else. For Linux on x86-64
-alone, the workstation's and the runners' of the chain.
+promtool, amtool and alertmanager are those of the releases of Prometheus and of Alertmanager the
+platform runs (US-2880): the tests check their configurations by them, play the rules of alert by
+promtool and start Alertmanager, in front of a mail server of their own.
+PyPI holds none of the six, as it holds actionlint, hadolint and shellcheck, which the tools take
+as their packages: each is downloaded once from where its project publishes it, checked against the
+digest written here, and kept under the cache of the user — ``$XDG_CACHE_HOME/waterfall/bin``,
+``~/.cache/waterfall/bin`` by default —, a folder per version, which the worktrees share. A download
+whose digest is not the one written is refused and removed: raise a version here, with its digest,
+and nowhere else. For Linux on x86-64 alone, the workstation's and the runners' of the chain.
 """
 
 import hashlib
@@ -80,6 +81,22 @@ BINARIES = {
             "https://github.com/prometheus/prometheus/releases/download/v3.16.0/prometheus-3.16.0.linux-amd64.tar.gz",
             "68727009472a2c02e1ff7f062fd5b3e637285bffc8fc2d340c76fb449d6e0f34",
             "prometheus-3.16.0.linux-amd64/promtool",
+        ),
+        # The version of Alertmanager the Compose and the chart run: its configuration is checked.
+        Binary(
+            "amtool",
+            "0.35.0",
+            "https://github.com/prometheus/alertmanager/releases/download/v0.35.0/alertmanager-0.35.0.linux-amd64.tar.gz",
+            "6c7752a903c40c8a749e0b29df9240437e4fbb8228068d0af8807377db32addd",
+            "alertmanager-0.35.0.linux-amd64/amtool",
+        ),
+        # The same release holds the server itself: the tests start it (US-2880).
+        Binary(
+            "alertmanager",
+            "0.35.0",
+            "https://github.com/prometheus/alertmanager/releases/download/v0.35.0/alertmanager-0.35.0.linux-amd64.tar.gz",
+            "6c7752a903c40c8a749e0b29df9240437e4fbb8228068d0af8807377db32addd",
+            "alertmanager-0.35.0.linux-amd64/alertmanager",
         ),
     )
 }

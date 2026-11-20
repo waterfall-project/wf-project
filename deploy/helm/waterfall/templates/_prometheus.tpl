@@ -72,6 +72,10 @@ global:
   evaluation_interval: 15s
 rule_files:
   - alerts.yml
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: [{{ printf "%s:9093" (include "waterfall.name" (list $ "alertmanager")) }}]
 scrape_configs:
 {{- range $component := list "front" "api" "worker" }}
   - job_name: {{ $component }}

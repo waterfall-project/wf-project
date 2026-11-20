@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Where Grafana reads the dashboard the platform delivers (US-2880): the file mounted beside this
+# one, grafana-dashboard.json. Read-only: the dashboard of the operator is the one shipped, and a
+# change made in the browser is not kept.
+apiVersion: 1
+providers:
+  - name: waterfall
+    type: file
+    allowUiUpdates: false
+    options:
+      path: /var/lib/waterfall-dashboards
