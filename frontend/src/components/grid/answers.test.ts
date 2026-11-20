@@ -58,7 +58,7 @@ describe("what a write answers, as a grid reads it", () => {
       lengthened.rescheduled.map((each) => each.node_id),
     );
     expect(written.totals).toEqual(lengthened.totals);
-    expect(written.order).toBe(2);
+    expect(written.order).toBe(lengthened.structure_lock_version);
 
     // The schedule laid over the row shown, the rest of it as it was: less float, no date moved.
     const [file] = written.parts;

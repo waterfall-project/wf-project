@@ -386,7 +386,7 @@ describe("the body of the move a gesture asks", () => {
       node_ids: [LINE.node_id],
       after_node_id: row("Borniers").node_id,
     });
-    expect(moveOf("down", [row("Provision — risque de reprise du câblage")], offered())).toBe(
+    expect(moveOf("down", [row("Provision — Risque de reprise du câblage")], offered())).toBe(
       undefined,
     );
   });

@@ -179,6 +179,12 @@ describe("the preparation of an amendment", () => {
   });
 });
 
+/** The two counters the report of the merge reads, as the example of the contract gives them. */
+const counters = example("structure_merge_report") as {
+  main_structure_lock_version: number;
+  amendment_lock_version: number;
+};
+
 describe("the contractualisation of an amendment", () => {
   it("presents the report with the marks, asks the version name, and confirms with the two counters read [WF-REV-0050-A]", async () => {
     // La fusion demande un nom de version, et la révision produite le porte.
@@ -222,13 +228,13 @@ describe("the contractualisation of an amendment", () => {
       "Avenant 2",
     );
     await userEvent.click(confirm);
-    // The two counters of the report, which the fake back says are 1 and 2.
+    // The two counters of the report, as the example gives them.
     expect(bodies(client, MERGE)).toEqual([
       {
         confirmed: true,
         version_name: "Avenant 2",
-        main_structure_lock_version: 1,
-        amendment_lock_version: 2,
+        main_structure_lock_version: counters.main_structure_lock_version,
+        amendment_lock_version: counters.amendment_lock_version,
       },
     ]);
     expect(client.calls.find((call) => call.route === MERGE)?.path).toBe(
@@ -404,8 +410,8 @@ describe("the contractualisation of an amendment", () => {
         confirmed: true,
         version_name: "Avenant 2",
         description: "Essais sur site ajoutés par l’avenant 2",
-        main_structure_lock_version: 1,
-        amendment_lock_version: 2,
+        main_structure_lock_version: counters.main_structure_lock_version,
+        amendment_lock_version: counters.amendment_lock_version,
       },
     ]);
   });

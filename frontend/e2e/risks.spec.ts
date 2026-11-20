@@ -319,7 +319,7 @@ test("shows the report of the occurrence in the marks before confirming, and aba
       .first();
   await expect(markOf("Diagnostic des défauts de câblage")).toHaveAccessibleName("Ajouté");
   await expect(markOf("Câblage des armoires")).toHaveAccessibleName("Modifié");
-  await expect(markOf("Provision — risque de reprise du câblage")).toHaveAccessibleName("Retiré");
+  await expect(markOf("Provision — Risque de reprise du câblage")).toHaveAccessibleName("Retiré");
   await expect(declare).toContainText("500 000,00 € de provision en moins");
   // Abandoned: the form closes and nothing is declared.
   await declare.getByRole("button", { name: "Annuler" }).click();

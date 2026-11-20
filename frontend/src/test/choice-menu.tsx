@@ -92,7 +92,7 @@ export const AVAILABLE: CommandOffer = { is_available: true, missing_conditions:
 
 export const [STUDIES, DETAIL, , REVIEW, MILESTONE] = [0, 1, 2, 3, 4];
 export const LABOUR = indexOf(estimate, "Raccordement des borniers");
-export const PROVISION = indexOf(estimate, "Provision — risque de reprise du câblage");
+export const PROVISION = indexOf(estimate, "Provision — Risque de reprise du câblage");
 export const WIRING = indexOf(installation, "Câblage sur site");
 export const COMMISSIONING = indexOf(installation, "Mise en service sur site");
 export const THREE = [
