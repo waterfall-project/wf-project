@@ -19,6 +19,7 @@ judged again line by line, against a structure half written, a role given before
 refused that the end accepts (US-1550).
 """
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -272,11 +273,27 @@ def change_line(write: FacetWrite, sent: LineEntry | HoursJudged) -> None:
     The budgeted amount is left as it is (WF-DEV-0020); the hours of the task are judged only when
     the role changes, and not for an import, which judged them (``HoursJudged``).
     """
+    session = write.session
+    # Under a load of lines the changes are not flushed one by one, nor the reads that precede each
+    # of them, which would: the lines of a load are written together, by set, when it ends or when
+    # a statement that needs them comes (as ``create_line`` does).
+    with session.no_autoflush if remembers(session) else nullcontext():
+        _change_line(write, sent)
+    if not remembers(session):
+        session.flush()
+
+
+def _change_line(write: FacetWrite, sent: LineEntry | HoursJudged) -> None:
     session, project_id = write.session, write.project_id
     entry, judged = _sent(sent)
     line = read_line(session, project_id, write.node_id)
     draft = judged_line(session, (project_id, write.bearer), entry, line)
-    basis = basis_of(session, project_id, write.revision_id)
+    revision_id = write.revision_id
+    basis = recalled(
+        session,
+        ("basis", project_id, revision_id),
+        lambda: basis_of(session, project_id, revision_id),
+    )
     amounts = _priced_draft(
         session,
         (project_id, write.bearer, write.node_id),
@@ -297,7 +314,6 @@ def change_line(write: FacetWrite, sent: LineEntry | HoursJudged) -> None:
     line.consumption_year = amounts.consumption_year
     line.lock_version += 1
     line.updated_at, line.updated_by = write.act.at, write.act.author
-    session.flush()
 
 
 def reprice(
