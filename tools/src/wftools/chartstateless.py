@@ -10,8 +10,9 @@ On a chart of three instances of the API and two of the worker, it holds that:
 - a worker killed in the middle of a marking — held there, at the last write of its transaction
   (the inscription of the journal), by a lock the administrator of the server takes on the table
   of the journal — leaves the database as it was: a snapshot of every table the marking writes,
-  taken before and after, is the same. The other worker, which its logs name, claims the entry the
-  killed one left unacknowledged (``XAUTOCLAIM``, after its delay) and runs the task again from
+  taken before and after, is the same. No pod is made in place of the killed one (the Deployment
+  is scaled to one worker first), so that the other worker, which its logs name, claims the entry
+  the killed one left unacknowledged (``XAUTOCLAIM``, after its delay) and runs the task again from
   its start: the revision is marked, the task attempted twice, the marking inscribed once.
 
 What no service reads of what it wrote on its own disk is held by a test of the back
@@ -38,6 +39,8 @@ PAUSE = 1.0
 RETAKEN = 2
 """The attempt a task is taken up at by the worker that claims it after the first one was killed."""
 WAIT_FOR_DELETE = "--timeout=120s"
+DELETION_COST = "controller.kubernetes.io/pod-deletion-cost"
+"""The annotation by which a Deployment, scaled down, removes the lowest first."""
 LEAST_INSTANCES = 2
 """The fewest instances of the API, or of the worker, the trial is held on."""
 SETTLED = "draft|t|t"
@@ -372,13 +375,21 @@ class Stateless:
         raise ProductionError(message)
 
     def kill(self, worker: str) -> None:
-        """Kill a worker with no warning, and end the sessions it leaves in the database.
+        """Kill a worker with no warning, no pod made in its place, and end the sessions it leaves.
 
-        The pod is removed with no grace period, then awaited gone. A client that dies leaves its
-        sessions to the server, which ends them once it finds the connection dead:
-        ``pg_terminate_backend`` plays the server that detects it, at once, so that the transaction
-        of the marking is rolled back before the database is read.
+        The Deployment makes a pod when one is removed, and that pod, up after the kill, could be
+        the one that claims the entry: the claim of the *other* worker would be deduced, not held.
+        The Deployment is scaled to one worker first, the pod to kill marked the one to remove
+        (``pod-deletion-cost``), so that it makes none; the pod is then removed with no grace period
+        and awaited gone. A client that dies leaves its sessions to the server, which ends them once
+        it finds the connection dead: ``pg_terminate_backend`` plays the server that detects it, at
+        once, so that the transaction of the marking is rolled back before the database is read.
         """
+        self.output(
+            [*self.kubectl, "annotate", f"pod/{worker}", f"{DELETION_COST}=-100", "--overwrite"],
+            f"mark the worker {worker} the one to remove",
+        )
+        self.scale(1)
         self.output(
             [*self.kubectl, "delete", f"pod/{worker}", "--grace-period=0", "--force"],
             f"kill the worker {worker}",
@@ -388,6 +399,13 @@ class Stateless:
             f"wait for the worker {worker} to be gone",
         )
         self.sql(WAITING_ENDED, "end the sessions of the worker killed")
+
+    def scale(self, replicas: int) -> None:
+        """Set the number of the instances of the worker."""
+        self.output(
+            [*self.kubectl, "scale", f"deployment/{RELEASE}-worker", f"--replicas={replicas}"],
+            f"scale the worker to {replicas}",
+        )
 
     def hold_the_task_taken_again(self, token: str, project_id: str, revision_id: str) -> None:
         """Kill a worker in the middle of a marking, and hold that the other one marks.
@@ -428,6 +446,7 @@ class Stateless:
             self.sql(LOCK_RELEASED, "release the lock of the journal")
             stop()
         self.marked_by_another(task_id, worker, others, revision_id)
+        self.scale(len(workers))
 
     def locked(self) -> None:
         """Wait until the lock of the journal is held."""
@@ -442,9 +461,8 @@ class Stateless:
     def took_it_up(self, task_id: str, killed: str, others: list[str]) -> str:
         """Give the worker, among the others of the start, whose logs say it took the task again.
 
-        The Deployment makes a pod of its own when one is removed, which might be the one that
-        claims the entry: the logs of the workers the platform held before the kill name the one
-        that did, and a pod made after it is none of them.
+        No pod is made in place of the killed one (``kill``), and the logs name the worker that
+        claimed the entry all the same: a pod made after the kill is none of the others.
         """
         for pod in others:
             logs = self.output([*self.kubectl, "logs", pod], f"read the logs of {pod}")

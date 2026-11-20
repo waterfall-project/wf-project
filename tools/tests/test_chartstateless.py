@@ -207,8 +207,15 @@ def test_a_worker_killed_in_a_marking_leaves_the_database_and_another_marks() ->
     assert [command[-3:] for command in killed] == [
         ["pod/waterfall-worker-a", "--grace-period=0", "--force"]
     ]
-    # The pod is awaited gone before the sessions it leaves are ended.
+    # No pod is made in its place: the Deployment is scaled to one worker, the killed one marked the
+    # one to remove, before the kill; it is scaled back once the task is done. The pod is awaited
+    # gone before the sessions it leaves are ended.
     steps = [" ".join(command) for command in platform.asked]
+    scaled = [i for i, step in enumerate(steps) if "scale deployment/waterfall-worker" in step]
+    marked = next(i for i, step in enumerate(steps) if "annotate pod/waterfall-worker-a" in step)
+    assert [steps[i].rsplit(" ", 1)[1] for i in scaled] == ["--replicas=1", "--replicas=2"]
+    killing = next(i for i, step in enumerate(steps) if "--grace-period=0" in step)
+    assert marked < scaled[0] < killing
     gone = next(i for i, step in enumerate(steps) if "--for=delete pod/waterfall-worker-a" in step)
     ended = next(
         i for i, step in enumerate(steps) if "wait_event_type" in step and "terminate" in step
