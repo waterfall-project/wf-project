@@ -32,11 +32,14 @@ const rules = catalogue.enums.ImportDurationRule;
 
 /**
  * A pattern anchored at the start of a text of the catalogue, up to its first placeholder, escaped:
- * what the name of a control begins with, whatever follows (#3969). `rest` is a pattern too.
+ * what the name of a control begins with, whatever follows (#3969). `rest` is a pattern too. A
+ * no-break space of the catalogue (`«\u00a0`) is read by the browser as a plain space in a name:
+ * the pattern takes any white space there.
  */
 function beginning(text: string, rest = ""): RegExp {
   const [start = ""] = text.split("{", 1);
-  return new RegExp(`^${start.replaceAll(/[$()*+.?[\\\]^{|}]/g, String.raw`\$&`)}${rest}`);
+  const escaped = start.replaceAll(/[$()*+.?[\\\]^{|}]/g, String.raw`\$&`);
+  return new RegExp(`^${escaped.replaceAll(/[\u00a0\u202f]/g, String.raw`\s`)}${rest}`);
 }
 
 const tracker = catalogue.tasks;
