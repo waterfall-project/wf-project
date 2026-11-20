@@ -888,7 +888,7 @@ de référence agrégé sans nature « Provision »), M-07 (la contribution d'un
 
 ## US-2730 — Les risques du portefeuille
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PTF-0090-A`
 - **opérations** : `getPortfolioRisks`
 - **issue** : #3865

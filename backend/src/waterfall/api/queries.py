@@ -187,6 +187,25 @@ class PortfolioQuery(ScopeQuery):
         return self.period_from, self.period_to
 
 
+class NodelessQuery(DatedQuery):
+    """What a view that takes a period and no node is asked (``getPortfolioRisks``, the cost curve).
+
+    A node is not a parameter of such a view: one sent is not read, and ``org_node_id`` is none.
+    """
+
+    period_from: Annotated[date | None, Field(alias="from")] = None
+    period_to: Annotated[date | None, Field(alias="to")] = None
+
+    @property
+    def org_node_id(self) -> None:
+        """Give no node: the view is asked of the whole portfolio."""
+        return None
+
+    def period(self) -> tuple[date | None, date | None]:
+        """Give the period asked, each bound absent when the query leaves it out."""
+        return self.period_from, self.period_to
+
+
 # The permission of every view of the portfolio: that of its function alone (EP-11).
 PORTFOLIO_READ = "portfolio_projects.read"
 

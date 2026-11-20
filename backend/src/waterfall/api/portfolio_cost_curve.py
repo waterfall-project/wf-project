@@ -23,7 +23,7 @@ from waterfall.api.evaluation import Requires
 from waterfall.api.queries import (
     DEFAULT_HORIZON,
     GREATEST_HORIZON,
-    DatedQuery,
+    NodelessQuery,
     horizon_faults,
     portfolio_asked,
 )
@@ -35,23 +35,17 @@ router = APIRouter(tags=["portfolio"])
 READ = "portfolio_cost_curve.read"
 
 
-class PortfolioCostCurveQuery(DatedQuery):
+class PortfolioCostCurveQuery(NodelessQuery):
     """What ``getPortfolioCostCurve`` is asked: states, date, period, horizon, payment delays.
 
     It takes no node: the contract names none, a node restricting only the labour. The horizon is
     read as text and judged by ``horizon_faults``, as the workload's is.
     """
 
-    period_from: Annotated[date | None, Field(alias="from")] = None
-    period_to: Annotated[date | None, Field(alias="to")] = None
     horizon_months: Annotated[
         str, Field(json_schema_extra={"minimum": 1, "maximum": GREATEST_HORIZON})
     ] = str(DEFAULT_HORIZON)
     payment_delays: bool = False
-
-    def period(self) -> tuple[date | None, date | None]:
-        """Give the period asked, each bound absent when the query leaves it out."""
-        return self.period_from, self.period_to
 
 
 @router.get(

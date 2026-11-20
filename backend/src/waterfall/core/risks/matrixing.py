@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     from waterfall.core.risks.views import RiskView
 
 
-def _levels(bounds: Sequence[Decimal]) -> tuple[MatrixLevel, ...]:
+def levels_of(bounds: Sequence[Decimal]) -> tuple[MatrixLevel, ...]:
     """Give the levels of an axis: the lower bound included, the upper excluded, none last."""
     lowers = (NOUGHT, *bounds)
     uppers = (*bounds, None)
@@ -108,8 +108,8 @@ def read_matrix(
         else provision_totals(views, session, project_id, context.facts.reference_revision_id)
     )
     return RiskMatrix(
-        _levels(context.matrix.probability_bounds),
-        _levels(context.matrix.severity_bounds),
+        levels_of(context.matrix.probability_bounds),
+        levels_of(context.matrix.severity_bounds),
         _cells(context, views),
         tuple(_point(context, view) for view in views),
         totals,
