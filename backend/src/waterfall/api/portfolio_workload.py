@@ -9,9 +9,12 @@ guarded by the permission of its function alone: neither the quality of contribu
 The view takes no period: a ``from`` or a ``to`` sent is not read. The horizon is from 1 to 240
 months, six by default, and the threshold of under-load a ratio from 0 to 1, half by default; one
 outside its bounds is refused (422, ``VALUE_OUT_OF_RANGE``, its bounds named), with the state's if
-it is at fault, and the answer always gives the threshold retained.
+it is at fault, and the answer always gives the threshold retained. A horizon or a threshold that
+is no number is refused as well (``NUMBER_INVALID``), in the same answer as the other's fault. The
+roles come by label, then by identifier.
 """
 
+import re
 from decimal import Decimal
 from typing import Annotated, Any
 
@@ -32,8 +35,10 @@ VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 DEFAULT_HORIZON = 6
 GREATEST_HORIZON = 240
 DEFAULT_THRESHOLD = "0.5"
-# The form of a decimal, as the contract writes it (``Decimal``).
-DECIMAL = r"^-?\d+(\.\d+)?$"
+NUMBER_INVALID = "NUMBER_INVALID"
+# The forms of an integer and of a decimal, as the contract writes them (``Decimal``).
+INTEGER = re.compile(r"-?\d+")
+DECIMAL = re.compile(r"-?\d+(\.\d+)?")
 
 
 class WorkloadQuery(ScopeQuery):
@@ -42,22 +47,31 @@ class WorkloadQuery(ScopeQuery):
     The view takes no period. The bounds of the horizon are declared as the contract writes them
     and judged by ``view_faults`` — not by the model, whose refusal would name the bound crossed
     alone —, so that a refusal names both, as the contract's example does, with the state's in one
-    answer; the threshold is a decimal, read as text and refused beyond its bounds as well.
+    answer; the horizon and the threshold are read as text, so that one that is no number is
+    judged there too, as the bounds of the lists are (``_bound``).
     """
 
     horizon_months: Annotated[
-        int, Field(json_schema_extra={"minimum": 1, "maximum": GREATEST_HORIZON})
-    ] = DEFAULT_HORIZON
-    under_load_threshold: Annotated[str, Field(pattern=DECIMAL)] = DEFAULT_THRESHOLD
+        str, Field(json_schema_extra={"minimum": 1, "maximum": GREATEST_HORIZON})
+    ] = str(DEFAULT_HORIZON)
+    under_load_threshold: str = DEFAULT_THRESHOLD
 
 
 def view_faults(query: WorkloadQuery) -> list[FieldError]:
-    """Name the horizon and the threshold that are out of their bounds, each with its bounds."""
+    """Name the horizon and the threshold that are malformed or out of their bounds.
+
+    A malformed one is ``NUMBER_INVALID``; one outside its bounds is ``VALUE_OUT_OF_RANGE`` with
+    its bounds. Both are judged, so that every fault of the view comes in one answer.
+    """
     faults: list[FieldError] = []
-    if not 1 <= query.horizon_months <= GREATEST_HORIZON:
+    if INTEGER.fullmatch(query.horizon_months) is None:
+        faults.append(FieldError("/query/horizon_months", NUMBER_INVALID))
+    elif not 1 <= int(query.horizon_months) <= GREATEST_HORIZON:
         bounds = {"minimum": 1, "maximum": GREATEST_HORIZON}
         faults.append(FieldError("/query/horizon_months", VALUE_OUT_OF_RANGE, bounds))
-    if not 0 <= Decimal(query.under_load_threshold) <= 1:
+    if DECIMAL.fullmatch(query.under_load_threshold) is None:
+        faults.append(FieldError("/query/under_load_threshold", NUMBER_INVALID))
+    elif not 0 <= Decimal(query.under_load_threshold) <= 1:
         bounds = {"minimum": 0, "maximum": 1}
         faults.append(FieldError("/query/under_load_threshold", VALUE_OUT_OF_RANGE, bounds))
     return faults
@@ -78,6 +92,6 @@ def get_portfolio_workload(
         session,
         asked,
         PortfolioReading(utc_now(), services.indicators_cache),
-        horizon_months=query.horizon_months,
+        horizon_months=int(query.horizon_months),
         under_load_threshold=Decimal(query.under_load_threshold),
     )

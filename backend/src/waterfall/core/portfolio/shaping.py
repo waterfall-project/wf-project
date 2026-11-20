@@ -26,6 +26,11 @@ def money(amount: Decimal | None) -> str | None:
     return None if amount is None else format(amount, "f")
 
 
+def hours(amount: Decimal | None) -> str | None:
+    """Write hours, or a capacity in hours, to the hundredth; null stays null."""
+    return None if amount is None else format(amount, "f")
+
+
 def percent(share: Decimal | None) -> str | None:
     """Write a share or a ratio without a useless zero, as ``Percent`` or ``Decimal``."""
     return None if share is None else plain_decimal(share)

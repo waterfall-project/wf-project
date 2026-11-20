@@ -326,6 +326,24 @@ def test_a_filter_at_fault_is_refused_with_every_other_at_once_and_a_period_by_i
     ]
 
 
+@pytest.mark.story("US-2680")
+def test_a_state_unknown_and_an_inverted_period_are_refused_in_two_answers(
+    api: ContractClient, fabrics: Portfolio
+) -> None:
+    # #4199: the state is refused alone, on its parameter; once it is right, the period comes in a
+    # second answer, which needs the database (``resolve_scope``).
+    reader = fabrics.stage.reader
+    period = "from=2026-03-31&to=2026-01-01"
+    first = read(api, reader, "projects", f"{READ}&states=sleeping&{period}").json()
+    assert [(each["pointer"], each["code"]) for each in first["fields"]] == [
+        ("/query/states", "VALIDATION_FAILED")
+    ]
+    second = read(api, reader, "projects", f"{READ}&states=in_progress&{period}").json()
+    assert [(each["pointer"], each["code"]) for each in second["fields"]] == [
+        ("/query/to", "VALUE_OUT_OF_RANGE")
+    ]
+
+
 @pytest.mark.requirement("WF-PTF-0030-A")
 def test_a_reader_who_opens_no_project_still_sees_every_row_and_the_one_it_contributes_to_opens(
     api: ContractClient, realm: TestRealm, database: Database, fabrics: Portfolio

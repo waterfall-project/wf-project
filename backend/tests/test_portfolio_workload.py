@@ -24,18 +24,28 @@ from projects_support import scene as make_scene
 from sqlalchemy import delete, text, update
 
 from waterfall.core.indicators.tables import RevisionIndicator
+from waterfall.core.portfolio.interface import (
+    PortfolioAsked,
+    PortfolioReading,
+    read_portfolio_workload,
+)
 from waterfall.core.resource_settings.interface import NodeWrite, create_node, read_role
 from waterfall.core.resource_settings.tables import ResourceRole
 from waterfall.core.revisions.interface import last_marked_revision
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act
+from waterfall.platform.cache import PREFIX, IndicatorsCache
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator, Mapping
+
     from realm import TestRealm
+    from redis import Redis
     from sqlalchemy import Engine
     from support import ContractClient
 
     from waterfall.platform.database import Database
+    from waterfall.platform.queue import TaskQueue
 
 NODES = "/api/v1/reference/org-nodes"
 # The current day of the tests of the day, after the whole chronology of the fabrics.
@@ -334,6 +344,17 @@ def test_a_horizon_or_a_threshold_out_of_its_bounds_is_refused_with_its_bounds_n
         assert {name: Decimal(str(value)) for name, value in fields[0]["params"].items()} == {
             name: Decimal(value) for name, value in bounds.items()
         }
+    # A number malformed is refused as the lists refuse one, and every fault of the view with it.
+    refused = read(api, fabrics.stage.reader, "workload", f"{READ}&horizon_months=abc")
+    assert [(each["pointer"], each["code"]) for each in refused.json()["fields"]] == [
+        ("/query/horizon_months", "NUMBER_INVALID")
+    ]
+    query = f"{READ}&under_load_threshold=abc&horizon_months=0"
+    several = read(api, fabrics.stage.reader, "workload", query)
+    assert [(each["pointer"], each["code"]) for each in several.json()["fields"]] == [
+        ("/query/horizon_months", "VALUE_OUT_OF_RANGE"),
+        ("/query/under_load_threshold", "NUMBER_INVALID"),
+    ]
     query = f"{READ}&horizon_months=0&under_load_threshold=2"
     both = read(api, fabrics.stage.reader, "workload", query)
     assert [each["pointer"] for each in both.json()["fields"]] == [
@@ -473,7 +494,76 @@ def test_on_the_current_day_the_hours_are_those_the_day_computes_and_an_offer_co
     )
 
 
+class Written(IndicatorsCache):
+    """The cache of the indicators, which records the batches of documents it writes."""
+
+    def __init__(self, client: Redis, ttl: int) -> None:
+        """Record nothing yet."""
+        super().__init__(client, ttl)
+        self.batches: list[set[str]] = []
+
+    def write_many(self, documents: Mapping[str, str]) -> None:
+        """Record the keys, then write."""
+        self.batches.append(set(documents))
+        super().write_many(documents)
+
+
+@pytest.fixture
+def cache(queue: TaskQueue) -> Iterator[Written]:
+    """Give a cache of the indicators beside the queue; the entries it wrote deleted."""
+    opened = Written.of(queue, 300)
+    yield opened
+    keys = [PREFIX + key for batch in opened.batches for key in batch]
+    if keys:
+        opened.client.delete(*keys)
+    opened.close()
+
+
+@pytest.mark.requirement("WF-PTF-0060-A")
+def test_the_view_reads_the_cache_it_is_given_in_the_reading_of_the_day(
+    fabrics: Portfolio, cache: Written
+) -> None:
+    # The cache given in ``PortfolioReading`` is the one the day is read from: the first reading
+    # writes what it computed, the second is served from it and writes nothing.
+    reading = PortfolioReading(NOW, cache)
+
+    def read_day() -> dict[str, Any]:
+        with fabrics.stage.database.transaction() as session:
+            return dict(
+                read_portfolio_workload(
+                    session,
+                    PortfolioAsked(),
+                    reading,
+                    horizon_months=6,
+                    under_load_threshold=Decimal("0.5"),
+                )
+            )
+
+    first = read_day()
+    assert len(cache.batches) == 1
+    assert cache.batches[0]
+    assert read_day() == first
+    assert len(cache.batches) == 1
+
+
 # --- The node ------------------------------------------------------------------------------------
+
+
+@pytest.mark.story("US-2700")
+def test_the_roles_come_by_label_whatever_the_order_they_were_written_in(
+    api: ContractClient, database: Database, fabrics: Portfolio
+) -> None:
+    # Written as C, A, B: the answer lists them by label (« Rôle ZA », « Rôle ZB », « Rôle ZC »).
+    for code in ("ZC", "ZA", "ZB"):
+        placed(database, code, THIRTY, None)
+    body = workload(api, fabrics)
+    labels = [each["label"] for each in body["roles"]]
+    assert labels == sorted(labels)
+    assert [each for each in labels if each.startswith("Rôle Z")] == [
+        "Rôle ZA",
+        "Rôle ZB",
+        "Rôle ZC",
+    ]
 
 
 @pytest.mark.requirement("WF-REF-0070-A")

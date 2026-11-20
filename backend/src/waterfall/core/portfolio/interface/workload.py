@@ -35,7 +35,7 @@ from waterfall.core.portfolio.aggregation import (
 from waterfall.core.portfolio.contributing import WORKLOAD
 from waterfall.core.portfolio.documents import documents_of
 from waterfall.core.portfolio.interface.scope import resolve_scope
-from waterfall.core.portfolio.shaping import computable, money, percent, scope_document
+from waterfall.core.portfolio.shaping import computable, hours, percent, scope_document
 from waterfall.core.portfolio.states import IN_PROGRESS, PRICING
 from waterfall.core.resource_settings.interface import (
     RoleFilters,
@@ -110,7 +110,8 @@ def read_portfolio_workload(
     """Give the workload of the scope read by ``reading``, over its horizon, at its threshold.
 
     The months are those of ``horizon_months`` from the month of the date of calculation, without a
-    gap; each role retained has one for each, a role without load included. The zone of a month is
+    gap; each role retained has one for each, a role without load included, the roles by label then
+    by identifier. The zone of a month is
     the load against the capacity of its role and the threshold (``load_zone``); the capacity of
     the scope is the sum of those of the roles retained, and each month's total the sum of their
     hours. Refuses an unknown node as every view of the portfolio does (422, ``resolve_scope``).
@@ -128,21 +129,21 @@ def read_portfolio_workload(
     return {
         "scope": scope_document(resolved.scope),
         "under_load_threshold": percent(under_load_threshold),
-        "capacity_monthly_hours": money(total_of(role.capacity.monthly_hours for role in roles)),
+        "capacity_monthly_hours": hours(total_of(role.capacity.monthly_hours for role in roles)),
         "months": months,
         "monthly_totals": [
-            {"month": month, "hours": money(total_of(hours_of(role, month) for role in roles))}
+            {"month": month, "hours": hours(total_of(hours_of(role, month) for role in roles))}
             for month in months
         ],
         "roles": [
             {
                 "resource_role_id": str(role.resource_role_id),
                 "label": role.label,
-                "capacity_monthly_hours": money(role.capacity.monthly_hours),
+                "capacity_monthly_hours": hours(role.capacity.monthly_hours),
                 "months": [
                     {
                         "month": month,
-                        "hours": money(hours_of(role, month)),
+                        "hours": hours(hours_of(role, month)),
                         "load_ratio": computable(
                             load_ratio(hours_of(role, month), role.capacity.monthly_hours)
                         ),
