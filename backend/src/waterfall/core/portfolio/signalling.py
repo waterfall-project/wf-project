@@ -32,8 +32,9 @@ DAYS_IN_A_WEEK = 7
 class ReviewInterval:
     """The interval the risks and the costs of a project are judged over: its last marked revision.
 
-    From the marking before the last, or from the passage to In progress without one, to the last
-    marking (WF-PTF-0110, specification 1.0.7).
+    From the marking before the last, or from the passage to In progress if that marking is the
+    first since it (or the first is before it, the reference the passage designated), to the last
+    marking (WF-PTF-0110, specification 1.0.7; ``docs/api/DECISIONS.md``).
     """
 
     revision_id: UUID
@@ -46,20 +47,24 @@ def review_interval(
     marked_at: datetime | None,
     entered_at: datetime | None,
 ) -> ReviewInterval | None:
-    """Give the interval of the last marked revision of a project, or none if it has no marking.
+    """Give the interval of the last marked revision of a project, or none if it has no review.
 
     ``markings`` are the marked revisions of the project, the oldest first; those after
-    ``marked_at``, the last marking at the date of calculation, are not read. None too for a project
-    with a single marking whose passage to In progress is not known.
+    ``marked_at``, the last marking at the date of calculation, are not read. A project with no
+    marking since its passage to In progress has no interval: the revision it holds is the
+    reference the passage designated, not a review, and its delay is said by ``review_overdue``
+    alone. The first review since the passage is judged from the passage to it.
     """
-    if marked_at is None:
+    if marked_at is None or entered_at is None:
         return None
     seen = [each for each in markings if each[1] <= marked_at]
     if not seen:
         return None
     revision_id, end = seen[-1]
-    start = seen[-2][1] if len(seen) > 1 else entered_at
-    return None if start is None else ReviewInterval(revision_id, start, end)
+    if end <= entered_at:
+        return None
+    start = max(seen[-2][1], entered_at) if len(seen) > 1 else entered_at
+    return ReviewInterval(revision_id, start, end)
 
 
 def weeks_overdue(marked_at: datetime, as_of: date, delay_weeks: int) -> int | None:

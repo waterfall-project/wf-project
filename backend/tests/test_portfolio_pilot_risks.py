@@ -73,13 +73,17 @@ def test_a_project_whose_review_marked_today_re_examined_every_risk_and_imported
 ) -> None:
     # « Un projet dont la revue marquée ce jour a réexaminé chaque risque et importé des coûts
     # n'apparaît pour aucun de ces deux signaux » : the first revision was marked before the
-    # project passed In progress, and the risk it holds has no review since: both signals are
-    # there. The risk reviewed in the second revision, a cost imported, that revision marked: the
-    # interval from the first marking to the second holds both, and neither signal remains.
+    # project passed In progress, it is its reference and no review: until a review is marked
+    # after the passage, neither signal is raised (``review_overdue`` says its delay). The first
+    # review after the passage judged from the passage: the risk it did not re-examine and the
+    # cost it did not import are both signalled; re-examined and imported, neither remains.
+    assert codes(ready) == []
+    mark(ready.project.stage, ready.revision, "v2.0")
     assert codes(ready) == [RISKS_NOT_REVIEWED, NO_COST]
+    third = ready.risks.revision()
     ready.risks.reviewed(ready.read())
     imported(ready)
-    mark(ready.project.stage, ready.revision, "v2.0")
+    mark(ready.project.stage, third, "v3.0")
     assert codes(ready) == []
 
 

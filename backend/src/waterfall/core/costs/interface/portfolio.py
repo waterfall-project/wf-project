@@ -26,11 +26,11 @@ if TYPE_CHECKING:
 
 
 def last_imports(session: Session, before: Mapping[UUID, datetime]) -> dict[UUID, datetime]:
-    """Give the instant of the last import applied before the instant of each project, if any.
+    """Give the instant of the last import applied up to the instant of each project, if any.
 
-    ``before`` names each project with the instant its imports are read before, itself excluded:
-    an import applied at that very instant is not counted. A project that imported nothing before
-    its instant has no entry. One query for all the projects.
+    ``before`` names each project with the instant its imports are read up to, itself included: an
+    import applied at that very instant is counted, as the lower bound the caller compares it with
+    is. A project that imported nothing up to its instant has no entry. One query for all the projects.
     """
     if not before:
         return {}
@@ -40,7 +40,7 @@ def last_imports(session: Session, before: Mapping[UUID, datetime]) -> dict[UUID
     rows = session.execute(
         select(CostImport.project_id, func.max(CostImport.imported_at))
         .join(bounds, bounds.c.project_id == CostImport.project_id)
-        .where(CostImport.imported_at < bounds.c.before)
+        .where(CostImport.imported_at <= bounds.c.before)
         .group_by(CostImport.project_id)
     )
     return dict(rows.all())

@@ -20,6 +20,7 @@ import pytest
 from costs_support import load_import
 from portfolio_listing_support import EVERY, READ, kept_changed, read, revision_of, served
 from portfolio_support import (
+    DESIGNATED,
     REVIEW_MARKED,
     Portfolio,
     another_in_progress,
@@ -288,19 +289,31 @@ def test_a_project_whose_last_review_imported_no_cost_appears_and_one_that_impor
 def test_an_import_outside_the_interval_of_the_last_review_does_not_count_its_bounds_do_not_leave(
     api: ContractClient, fabrics: Portfolio
 ) -> None:
-    # The interval runs from the marking before the last, included, to the last marking, excluded:
-    # an import the day before the first, and one after the last — a later review's —, leave the
-    # signal; one at the very instant of the first marking takes it away, and so does the one of
-    # the interval when a later import follows the marking (the last of all is not the last of the
-    # interval).
+    # The interval runs from the passage to In progress (19 January: the marking before the last,
+    # the offer's of 12 January, is the reference the passage designated), included, to the last
+    # marking, included: an import before the passage, and one after the last marking — a later
+    # review's —, leave the signal; one at the very instant of the passage takes it away, and so
+    # does one at the very instant of the marking. Read at a date before the first review since
+    # the passage, the project has none of the signal (``review_overdue`` says its delay).
     project_id = fabrics.in_progress.project_id
     code = "no_actual_cost_since_last_review"
-    load_import(fabrics.stage, project_id, [], at=at(1, 12) - timedelta(seconds=1))
-    load_import(fabrics.stage, project_id, [], at=at(4, 1))
+    load_import(fabrics.stage, project_id, [], at=DESIGNATED - timedelta(seconds=1))
+    load_import(fabrics.stage, project_id, [], at=REVIEW_MARKED + timedelta(seconds=1))
     assert len(signals_of(health(api, fabrics), code)) == 1
-    load_import(fabrics.stage, project_id, [], at=at(1, 12))
+    load_import(fabrics.stage, project_id, [], at=DESIGNATED)
     assert signals_of(health(api, fabrics), code) == []
-    assert signals_of(health(api, fabrics, "as_of=2026-02-01"), code) != []
+    assert signals_of(health(api, fabrics, "as_of=2026-02-01"), code) == []
+
+
+@pytest.mark.requirement(REQUIREMENT)
+def test_an_import_at_the_very_instant_of_the_last_marking_counts(
+    api: ContractClient, fabrics: Portfolio
+) -> None:
+    # The upper bound of the interval is included, as the lower one is (a review's marking and an
+    # import written at the same instant).
+    project_id = fabrics.in_progress.project_id
+    load_import(fabrics.stage, project_id, [], at=REVIEW_MARKED)
+    assert signals_of(health(api, fabrics), "no_actual_cost_since_last_review") == []
 
 
 @pytest.mark.requirement(REQUIREMENT)
@@ -319,6 +332,13 @@ def test_the_last_imports_are_read_for_every_project_in_a_fixed_number_of_statem
         found = last_imports(session, {first: at(3, 2), second: at(3, 2)})
         marked = marked_revisions_of(session, [first, second, fabrics.offer.project_id])
     assert found == {first: at(2, 20)}
+    # The upper bound is included, as the lower one is: an import at the very instant of the end
+    # is the last (a marking and an import written at the same instant).
+    with fabrics.stage.database.transaction() as session:
+        assert last_imports(session, {first: at(2, 20)}) == {first: at(2, 20)}
+        assert last_imports(session, {first: at(2, 20) - timedelta(seconds=1)}) == {
+            first: at(2, 10)
+        }
     assert [instant for _, instant in marked[first]] == [at(1, 12), at(3, 2)]
     assert len(marked) == 3
     assert [instant for _, instant in marked[fabrics.offer.project_id]] == [at(2, 16)]

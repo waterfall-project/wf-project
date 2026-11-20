@@ -10,11 +10,13 @@ their parameters and ``can_open`` (WF-PTF-0110, WF-REF-0180).
 Only the projects In progress contribute: another state a request names, Completed included, has no
 effect, and the view retains no period (``resolve_scope``, #1714). The delay is that of the
 reference settings at the instant of the reading, a delay changed changing the signals at the next
-one. The
-risks and the costs are judged over the interval of the last marked revision of each project: from
-the marking before it, or from the passage to In progress without one, to that marking (WF-PTF-0110,
-specification 1.0.7). A past date reads the last marking by the end of that day, and the milestones
-the marking kept.
+one. The risks and the costs are judged over the interval of the last marked revision of each
+project: from the marking before it, or from the passage to In progress if it is the first since
+that passage, to that marking (WF-PTF-0110, specification 1.0.7). A project with no review marked
+since its passage carries neither of those two signals: its delay is said by ``review_overdue``
+(``docs/api/DECISIONS.md``). A project In progress always has a marked revision, its reference (the
+passage designates it, WF-CYC): a project never marked is not a case, and there is no silence for
+it. A past date reads the last marking by the end of that day, and the milestones the marking kept.
 
 Declared by US-2670/L1, the socle of EP-11; filled by US-2750.
 """
@@ -63,7 +65,7 @@ def read_pilot_health(
     The projects in the order of their identifier, each one's signals in the order of the contract:
     the review overdue, the risks not reviewed, no actual cost imported, then its overdue milestones
     in the order of the plan. A project with no marked revision by the date gives none: there is no
-    last marking to judge. Refuses an unknown node as every view of the portfolio does (422).
+    last marking to judge. The view takes no node, so it refuses none.
     """
     resolved = resolve_scope(session, asked, reading.at, counted=COUNTED, period=False)
     as_of = resolved.scope.as_of
@@ -85,21 +87,20 @@ def read_pilot_health(
     documents = documents_of(session, resolved, reading, (MILESTONES,))
     signals: list[Document] = []
     for project_id in identifiers:
-        if project_id not in names:
+        marked_at = resolved.projects[project_id].marked_at
+        if marked_at is None:
             continue
         label = names[project_id][1]
         interval = intervals.get(project_id)
-        if interval is None:
-            continue
 
         raised: list[tuple[str, Document | None]] = []
-        weeks = weeks_overdue(interval.end, as_of, delay)
+        weeks = weeks_overdue(marked_at, as_of, delay)
         if weeks is not None:
             raised.append((REVIEW_OVERDUE, {"weeks_since_last_mark": weeks}))
         if project_id in unreviewed:
             raised.append((RISKS_NOT_REVIEWED, None))
         last = imported.get(project_id)
-        if last is None or last < interval.start:
+        if interval is not None and (last is None or last < interval.start):
             raised.append((NO_ACTUAL_COST, None))
         held = documents.get(project_id, {}).get(MILESTONES)
         raised.extend((MILESTONE_OVERDUE, each) for each in overdue_milestones(held, as_of))
