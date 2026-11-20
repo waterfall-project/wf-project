@@ -13,7 +13,7 @@ conservation au marquage"):
   for the project, the lines out of any subproject (``unassigned``) and each subproject of the
   project;
 - ``remaining``, the indicators of its remaining to commit (``remaining_indicators``, EP-09), the
-  coverage of the risks nought until EP-08, once, for the project: the contract reads them on no
+  coverage of the risks included (EP-08), once, for the project: the contract reads them on no
   other scope, each subproject having its balance in the document;
 - ``project``, the project In progress alone, its earned value indicators on each of those scopes,
   computed in one pass on the day of the marking in the time zone of the installation, on the
@@ -62,7 +62,7 @@ from waterfall.core.projects.interface import (
     list_subprojects,
     project_facts,
 )
-from waterfall.core.revisions.interface import revision_project
+from waterfall.core.revisions.interface import designated_at_marking, revision_project
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
@@ -140,7 +140,11 @@ def _documents(session: Session, project_id: UUID, revision_id: UUID, act: Act) 
     remaining = estimate.remaining_indicators(session, project_id, revision_id, act.at)
     kept.append(Kept("remaining", PROJECT, _as_kept(remaining_document(remaining), act)))
     if facts.state == IN_PROGRESS:
-        basis = Basis(project_id, revision_id, facts.reference_revision_id)
+        if designated_at_marking(session, revision_id):
+            # A merge marks and designates at once: the document is drawn on the new reference.
+            basis = Basis(project_id, revision_id, revision_id, act.at)
+        else:
+            basis = Basis(project_id, revision_id, facts.reference_revision_id)
         context = Context(revision_id, MARKED, act.at, PROJECT, is_stored=True)
         documents = day_documents(session, basis, context, scopes)
         kept.extend(Kept("project", scope, documents[scope]) for scope in scopes)

@@ -111,6 +111,27 @@ def reference_correctable(session: Session, project_id: UUID) -> bool:
     return later is None
 
 
+def reference_history(session: Session, project_id: UUID) -> list[tuple[UUID, datetime]]:
+    """Give the references the project had, in the order designated, each with its marking.
+
+    The journal says which revision was designated and in what order, by designation or by merge
+    (``reference_designate``); the revision says when it was marked, the instant from which it
+    stands as the reference (WF-IND-0100-A, US-2630/L2). The last is the reference of the project
+    now; none for a project that never designated one.
+    """
+    rows = session.execute(
+        select(Revision.id, Revision.marked_at)
+        .join(AuditEntry, AuditEntry.object_id == Revision.id)
+        .where(
+            Revision.project_id == project_id,
+            Revision.marked_at.is_not(None),
+            AuditEntry.action == "reference_designate",
+        )
+        .order_by(AuditEntry.occurred_at, AuditEntry.id)
+    ).all()
+    return [(revision_id, marked_at) for revision_id, marked_at in rows if marked_at is not None]
+
+
 def _write(revision: Revision, *, reference: bool, act: Act) -> None:
     revision.is_reference = reference
     revision.updated_at = act.at
