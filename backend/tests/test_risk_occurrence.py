@@ -39,7 +39,7 @@ from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.tables import CostStructure, Revision
-from waterfall.core.risks.tables import RiskEvaluation, RiskReview
+from waterfall.core.risks.tables import Risk, RiskEvaluation, RiskReview
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
@@ -420,11 +420,17 @@ def test_a_risk_dismissed_between_the_request_and_the_task_fails_it_by_409_and_w
     ready: Occurring, worker: Worker
 ) -> None:
     # The risk read identified by the request, dismissed before the worker runs: judged again under
-    # the lock of the risk, the task fails with the condition, not by a stale counter (412).
+    # the lock of the risk, the task fails with the condition (409), not by a stale counter (412).
+    # The dismissal advances the counter of the risk, as a real one does (#4180): only the order of
+    # the judgments, the state under the lock before the counters, then gives the 409; a task that
+    # did not read the state again would fail by 412. Only the path with a current revision is
+    # reachable: with none, the risk is read in a marked revision, whose evaluation no write can
+    # change (the trigger refuses it), so that no dismissal comes between the request and the task.
+    stage = ready.project.stage
     answer = confirm(ready)
     assert answer.status_code == 202, answer.text
     # The API refuses a review while the task is pending: the dismissal is written as it would be.
-    with ready.project.stage.owner.begin() as connection:
+    with stage.owner.begin() as connection:
         connection.execute(
             update(RiskEvaluation)
             .where(
@@ -433,13 +439,18 @@ def test_a_risk_dismissed_between_the_request_and_the_task_fails_it_by_409_and_w
             )
             .values(state="dismissed", provision_node_id=None, occurrence_cost=None)
         )
-    before = (ready.main(), ready.own(), counted(ready.project.stage))
+        connection.execute(
+            update(Risk)
+            .where(Risk.id == UUID(ready.risk["risk_id"]))
+            .values(lock_version=Risk.lock_version + 1)
+        )
+    before = (ready.main(), ready.own(), counted(stage))
     assert worker.step()
     task = ready.api.get(f"{TASKS}/{answer.json()['task_id']}", headers=ready.risks.headers).json()
     assert task["status"] == "failed"
     assert task["problem"]["code"] == CONDITION
     assert task["problem"]["params"] == {"missing_condition": "risk_identified"}
-    assert (ready.main(), ready.own(), counted(ready.project.stage)) == before
+    assert (ready.main(), ready.own(), counted(stage)) == before
 
 
 def origins(nodes: list[dict[str, Any]]) -> dict[str, str | None]:

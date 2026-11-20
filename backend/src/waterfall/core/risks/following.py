@@ -240,6 +240,6 @@ def close_evaluations(closing: RevisionClosing) -> None:
             found_risk(session, project_id, risk_id, lock=True)
             # The tasks its occurrence merged name it: they go with the revision, after it.
             release_origin(session, project_id, revision_id, risk_id)
-            erase(session, project_id, risk_id, structure_id)
+            erase(session, project_id, revision_id, (risk_id, structure_id))
     advance_risks(session, project_id, kept)
     session.flush()

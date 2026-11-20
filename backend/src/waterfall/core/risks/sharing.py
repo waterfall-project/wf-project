@@ -55,7 +55,9 @@ def _reference_before(session: Session, project_id: UUID) -> UUID | None:
     Only a correction needs it, once the shares of the revision designated and of the reference it
     replaces are gone, so that neither is found: the order is that of the inscriptions of the
     designations in the journal, whose identifiers are drawn in time order, never the instants of
-    the designations, which the witness may impose twice the same.
+    the designations, which the witness may impose twice the same. The order of the identifiers
+    (uuid7) is strict only within one process: two processes drawing in the same millisecond are
+    not ordered. It is enough, the designations of a project being serialized by its lock (#4182).
     """
     return session.scalar(
         select(RiskReferenceShare.revision_id)

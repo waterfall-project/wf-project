@@ -88,6 +88,9 @@ from waterfall.core.planning.interface.closing import (
     restore_structure_nodes as restore_structure_nodes,
 )
 from waterfall.core.planning.interface.closing import (
+    structure_node_ids as structure_node_ids,
+)
+from waterfall.core.planning.interface.closing import (
     structure_nodes as structure_nodes,
 )
 
