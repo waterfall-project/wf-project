@@ -41,8 +41,10 @@ IDENTIFIED, OCCURRED, DISMISSED = "identified", "occurred", "dismissed"
 class Review:
     """A review of a risk: the instant it was made, the probability, severity and state retained.
 
-    The first review of a risk is its identification; the declaration of its occurrence is a
-    review too, the last (WF-RIS-0010, WF-RIS-0020).
+    The first review of a risk is its declaration, which keeps the severity of its own estimate
+    still empty; the second, the same instant, its identification once its own estimate is entered
+    (US-2650/L1); the declaration of its occurrence is a review too, the last (WF-RIS-0010,
+    WF-RIS-0020).
     """
 
     at: datetime
@@ -100,6 +102,7 @@ REWORK = Risk(
     "Contrôle du câblage en atelier avant expédition ; essais de continuité systématiques.",
     204,
     (
+        Review(RISKS_IDENTIFIED.instant, Decimal("0.25"), Decimal("0.00")),
         Review(RISKS_IDENTIFIED.instant, Decimal("0.25"), Decimal("1000.00") * RISK_SCALE),
         Review(RISK_751_REVIEWED.instant, Decimal("0.25"), Decimal("1250.00") * RISK_SCALE),
         Review(STUDIES_STARTED.instant, Decimal("0.4"), Decimal("1250.00") * RISK_SCALE),
@@ -114,6 +117,7 @@ DELIVERY_DELAY = Risk(
     "Relance hebdomadaire du fournisseur ; transport exceptionnel réservé.",
     205,
     (
+        Review(RISK_752_IDENTIFIED.instant, Decimal("0.3"), Decimal("0.00")),
         Review(RISK_752_IDENTIFIED.instant, Decimal("0.3"), Decimal("200.00")),
         Review(RISK_752_OCCURRED.instant, Decimal("0.3"), Decimal("200.00"), OCCURRED),
     ),
@@ -131,6 +135,7 @@ AUTOMATION_ENGINEER = Risk(
     None,
     206,
     (
+        Review(RISK_753_IDENTIFIED.instant, Decimal("0.05"), Decimal("0.00")),
         Review(RISK_753_IDENTIFIED.instant, Decimal("0.05"), Decimal("12000.00") * RISK_SCALE),
         Review(
             RISK_753_DISMISSED.instant,

@@ -910,12 +910,13 @@ def examples() -> dict[str, JsonObject]:
         ),
         "risk_reviews.json": mocktext.example(
             f"L'historique des réexamens de « {rework.label} », du plus récent au plus ancien : "
-            f"identifié le {_day(rework.reviews[0].at.date())} à "
-            f"{_percent(rework.reviews[0].probability)} et "
-            f"{_amount(rework.reviews[0].severity)} — sa provision de "
-            f"{_amount(reference_provision(rework))} au marquage de la référence —, sa gravité "
-            f"portée à {_amount(rework.last.severity)} avec son devis propre le "
-            f"{_day(rework.reviews[1].at.date())}, sa probabilité à "
+            f"déclaré le {_day(rework.reviews[0].at.date())} à "
+            f"{_percent(rework.reviews[0].probability)}, son devis propre encore vide, "
+            f"{_amount(rework.reviews[0].severity)}, puis identifié le même jour à "
+            f"{_amount(rework.reviews[1].severity)} une fois son devis propre saisi — sa "
+            f"provision de {_amount(reference_provision(rework))} au marquage de la référence —, "
+            f"sa gravité portée à {_amount(rework.last.severity)} avec son devis propre le "
+            f"{_day(rework.reviews[2].at.date())}, sa probabilité à "
             f"{_percent(rework.last.probability)} le {_day(rework.last.at.date())} "
             f"(WF-RIS-0010, WF-RIS-0040).",
             reviews(rework),

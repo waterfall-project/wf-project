@@ -133,7 +133,10 @@ def fill(session: Session, witness: Witness, filling: Filling) -> None:
     # (``estimate_lines``): at this step the engine dates on the default calendar the tasks the 4x10
     # calendars of the file reach, with their successors and their summaries. The computed is kept,
     # and the count noted for this step alone: the lines then date them as the file does.
-    logger.info("witness.tasks_dated_before_the_lines", revision=number, tasks=disagreeing)
+    kind = "main" if changes is None else "amendment"
+    logger.info(
+        "witness.tasks_dated_before_the_lines", revision=number, structure=kind, tasks=disagreeing
+    )
     if changes is None:
         inscribe(session, project_id, tasks, filling.act)
 

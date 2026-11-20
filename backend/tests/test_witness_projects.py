@@ -5,9 +5,10 @@
 ``load-witness`` writes, after the reference, the local accounts of the contributors of the
 witness, PRJ-002 and PRJ-001 with their client, the contributors, the subprojects, the work
 breakdown, then the events of the chronology (``project_state_transitions.json``) each at its
-instant: the offer 100 opened (Created to Pricing) and marked, the 101 opened, the designation of
-100 (made since EP-07 loads the tasks and the lines), the code entered with the order received,
-which moves the project In progress, the 101 marked, the 102 opened.
+instant: the offer 100 opened (Created to Pricing) and marked, the 101 opened by the declaration of
+the risks, the designation of 100 (made since EP-07 loads the tasks and the lines), the code entered
+with the order received, which moves the project In progress, the 101 marked by the merge of the
+amendment 1, which makes it the reference (EP-08), the 102 opened.
 
 What the service reads of the loaded witness is compared with the examples of the contract, but for
 what the slice does not reach, listed here (``UNREACHED``): each entry names the EPIC that lifts it.
@@ -77,7 +78,6 @@ CONTRIBUTORS = {
 # names; the counter of writes and the commands follow the writes and the state of the object.
 UNREACHED = {
     "project": {
-        "reference_revision_id": "the offer 100 is the reference until the amendment 1 (EP-08)",
         "state": "PRJ-002 has no event in the chronology: it stays created",
         "win_probability": "project.json gives PRJ-001's alone; PRJ-002 keeps the default",
         "inflation_rate": "project.json gives PRJ-001's alone; PRJ-002 keeps the default",
@@ -86,7 +86,6 @@ UNREACHED = {
         "available_commands": "the commands follow the state of the project",
     },
     "revision": {
-        "is_reference": "the offer 100 is the reference until the amendment 1 (EP-08)",
         "inflation_rate": "copied from the project, which the slice does not set",
         "win_probability": "copied from the project, which the slice does not set",
         "lock_version": "the counter follows the writes of the slice",
@@ -254,13 +253,13 @@ def test_the_revisions_read_are_the_examples_but_for_what_the_slice_does_not_rea
         (identifier[-3:], item["status"], item["version_name"])
         for identifier, item in sorted(read_revisions.items())
     ] == [("100", "marked", "Offre v1.0"), ("101", "marked", "Référence"), ("102", "draft", None)]
-    # The designation of the offer 100 succeeds at the order received (EP-07): it is the reference
-    # until the amendment 1 is merged (EP-08), where the example reads the 101.
+    # The designation of the offer 100 succeeds at the order received (EP-07); the merge of the
+    # amendment 1 makes the 101 the reference (EP-08), as the example reads it.
     assert {
         identifier[-3:]: item["is_reference"] for identifier, item in read_revisions.items()
     } == {
-        "100": True,
-        "101": False,
+        "100": False,
+        "101": True,
         "102": False,
     }
 
@@ -312,7 +311,7 @@ def test_the_dates_of_the_projects_revisions_and_transitions_are_those_of_the_ch
     witness: Database,
 ) -> None:
     created, opened_offer, marked_offer, opened_reference = (instant(n) for n in (2, 3, 4, 5))
-    marked_reference, opened_current = (instant(n) for n in (8, 9))
+    marked_reference, opened_current = (instant(n) for n in (12, 13))
     with witness.transaction() as session:
         projects_ = {p.id: p for p in session.scalars(select(Project))}
         revisions_ = {r.id: r for r in session.scalars(select(Revision))}
@@ -334,7 +333,7 @@ def test_the_dates_of_the_projects_revisions_and_transitions_are_those_of_the_ch
         (PRJ_001, None, "created", created),
         (PRJ_002, None, "created", created),
         (PRJ_001, "created", "pricing", opened_offer),
-        (PRJ_001, "pricing", "in_progress", instant(7)),
+        (PRJ_001, "pricing", "in_progress", instant(11)),
     ]
 
 

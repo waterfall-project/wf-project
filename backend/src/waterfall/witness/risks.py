@@ -11,9 +11,9 @@ instant of its event:
 - **the declaration** (``load_risk``) in the revision in progress, under the identifiers the
   witness imposes — the risk, its own estimate, its provision line, whose lineage is that
   identifier —, its provision under the task the description names by its lineage; then its own
-  estimate entered as the revision gives it, its tasks then its lines, and the risk reviewed at the
-  probability declared, which keeps the severity so entered: a declaration keeps the severity of an
-  own estimate still empty (WF-RIS-0010);
+  estimate entered as the revision gives it, its tasks then its lines: a declaration keeps the
+  severity of an own estimate still empty, the review that follows it in the chronology the one
+  so entered (WF-RIS-0010);
 - **a review** (``review_risk``) at the counter of the risk read, which may dismiss it;
 - **the occurrence** (``load_occurrence``), its own estimate grafted into the main structure under
   the identifiers and the lineages the examples give the nodes grafted, then their states laid as
@@ -63,7 +63,6 @@ if TYPE_CHECKING:
     from waterfall.witness.timeline import RiskDeclared, RiskOccurred, RiskReviewed
 
 RISKS_FILE = "witness_risks.json"
-IDENTIFIED: RiskState = "identified"
 NOT_STARTED = "not_started"
 # The namespace the nodes of an own estimate are derived in, in a revision the examples do not read
 # them in.
@@ -191,8 +190,7 @@ def declare(session: Session, risks: Risks, write: RiskDeclared, made: RiskWrite
     )
     load = RiskLoad(entry, risk.risk_id, structure_id, risk.provision_lineage_id)
     load_risk(session, project_id, load, made.writer, made.manager)
-    if enter_estimate(session, risk, made):
-        _reviewed(session, risk.risk_id, (risk.probability, IDENTIFIED), made)
+    enter_estimate(session, risk, made)
 
 
 def review(session: Session, write: RiskReviewed, made: RiskWrite) -> None:
@@ -220,7 +218,8 @@ def occur(
     """
     risk = risks.named(write.risk_id)
     imposed = {each.lineage_id: (each.node_id, each.copy_lineage_id) for each in risk.grafted}
-    load_occurrence(session, made.project_id, OccurrenceLoad(risk.risk_id, imposed), made.at)
+    occurrence = OccurrenceLoad(risk.risk_id, imposed)
+    load_occurrence(session, made.project_id, occurrence, made.writer.act)
     grafted = {each.copy_lineage_id for each in risk.grafted}
     rows = [task for task in tasks if task.lineage_id in grafted]
     summaries = {task.parent_lineage_id for task in rows}
@@ -228,7 +227,7 @@ def occur(
         if task.lineage_id in summaries or task.progress == NOT_STARTED:
             continue
         state = ProgressLoad(task.node_id, task.progress, task.started_on, task.completed_on)
-        load_progress(session, made.project_id, state, made.at)
+        load_progress(session, made.project_id, state, made.writer.act)
 
 
 def enter_estimate(session: Session, risk: RiskRow, made: RiskWrite) -> bool:

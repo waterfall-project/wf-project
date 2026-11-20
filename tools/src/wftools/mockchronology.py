@@ -28,7 +28,9 @@ the slice writes at that instant, in the order it writes it. A write is
   (the opening of the offer: Created to Pricing; the code entered, once the reference is
   designated: Pricing to In progress).
 - ``risk_declared``, ``risk_id``: a risk declared in the revision in progress, as
-  ``witness_risks.json`` describes it, its own estimate entered then (``mockwitnessrisksfile``);
+  ``witness_risks.json`` describes it, its own estimate entered then (``mockwitnessrisksfile``),
+  which a review at its probability follows, the same instant: the declaration keeps the severity
+  of an own estimate still empty, the review the one entered (WF-RIS-0010);
 - ``risk_reviewed``, ``risk_id``, ``probability``, ``state``: a review of a risk, which may dismiss
   it (WF-RIS-0020);
 - ``risk_occurred``, ``risk_id``: the occurrence of a risk, its own estimate grafted into the main
@@ -97,7 +99,8 @@ REFERENCE_VERSION = "Référence"
 def _risk_writes(into: JsonObject) -> dict[Event, list[JsonObject]]:
     """Return what the slice writes of the risks, at the event of each review of each risk.
 
-    The first review of a risk is its declaration, the occurrence its last; the others review it.
+    The first review of a risk is its declaration, the occurrence its last; the others review it,
+    the first of them its identification once its own estimate is entered.
     """
     events = {event.instant: event for event in mockwitness.CHRONOLOGY}
     writes: dict[Event, list[JsonObject]] = {}

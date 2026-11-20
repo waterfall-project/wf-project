@@ -126,8 +126,11 @@ def test_the_commands_of_a_category_are_those_of_a_caller_who_changes_the_cost_s
     ]
     # The witness rates every category of labour and attaches roles to two of them (US-0850): the
     # labour categories keep their kind for their rates, MO-001 and MO-002 for their roles too, the
-    # others can leave it. Its lines (US-1570) employ some categories, which keep their kind too.
-    employed = {line["cost_category_id"] for line in example("witness_lines")["lines"]}
+    # others can leave it. Its lines (US-1570) employ some categories, which keep their kind too,
+    # as the category of provision its risks employ by their provision lines (US-2650/L1) does.
+    employed = {line["cost_category_id"] for line in example("witness_lines")["lines"]} | {
+        risk["provision_cost_category_id"] for risk in example("witness_risks")["risks"]
+    }
     unused = "cost_category_unused"
     rated = [available[0], ("change_cost_type", False, ["cost_category_unrated"])]
     bound = [

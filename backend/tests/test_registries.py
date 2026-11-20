@@ -118,7 +118,7 @@ from waterfall.platform.database import utc_now
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.logs import logging_context
 from waterfall.platform.registry import Registry
-from waterfall.witness.revisions import OpenedRevision, register_revision_filler
+from waterfall.witness.revisions import register_revision_filler
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -131,6 +131,7 @@ if TYPE_CHECKING:
     from waterfall.core.revisions.interface import RevisionCopy
     from waterfall.platform.database import Database
     from waterfall.witness.description import Witness
+    from waterfall.witness.filling import Filling
 
 # Each entry point, by the module that holds it.
 ENTRY_POINTS = {
@@ -975,25 +976,34 @@ def test_a_kind_of_entry_is_undone_by_one_module_at_most() -> None:
 
 
 @pytest.fixture
-def fillers() -> Iterator[list[UUID]]:
-    """Register a filler of the revisions of the witness that notes each revision opened."""
-    opened: list[UUID] = []
+def fillers() -> Iterator[list[tuple[UUID, UUID | None]]]:
+    """Register a filler of the structures of the witness that notes each structure it fills."""
+    filled: list[tuple[UUID, UUID | None]] = []
 
-    def note(_session: Session, _witness: Witness, revision: OpenedRevision) -> None:
-        opened.append(revision.revision.revision_id.root)
+    def note(_session: Session, _witness: Witness, filling: Filling) -> None:
+        filled.append((filling.revision.revision_id.root, filling.structure_id))
 
     withdraw = register_revision_filler(note)
-    yield opened
+    yield filled
     withdraw()
 
 
-def test_the_witness_fills_each_revision_it_opens_before_the_next_event(
-    fillers: list[UUID], witness_loaded: Database
+def test_the_witness_fills_each_structure_it_opens_before_the_next_event(
+    fillers: list[tuple[UUID, UUID | None]], witness_loaded: Database
 ) -> None:
-    # The 100, the 101 and the 102 of PRJ-001, in the order the chronology opens them.
+    # The main structure of the 100, the amendment 1 of the 101, which carries its content, the
+    # main structure of the 102, then its amendment 2 once updated (US-2650/L1), in the order of
+    # the chronology.
     with witness_loaded.transaction() as session:
         revisions = session.scalars(
             select(Revision.id).order_by(Revision.created_at, Revision.id)
         ).all()
-    assert fillers == list(revisions)
-    assert len(fillers) == 3
+    amendment_1 = UUID("01926f3a-7c00-7000-8000-000000000212")
+    amendment_2 = UUID("01926f3a-7c00-7000-8000-000000000203")
+    offer, reference, current = revisions
+    assert fillers == [
+        (offer, None),
+        (reference, amendment_1),
+        (current, None),
+        (current, amendment_2),
+    ]
