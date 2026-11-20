@@ -13,7 +13,7 @@ conservation au marquage"):
   for the project, the lines out of any subproject (``unassigned``) and each subproject of the
   project;
 - ``remaining``, the indicators of its remaining to commit (``remaining_indicators``, EP-09), the
-  coverage of the risks nought until EP-08, once, for the project: the contract reads them on no
+  coverage of the risks included (EP-08), once, for the project: the contract reads them on no
   other scope, each subproject having its balance in the document;
 - ``project``, the project In progress alone, its earned value indicators on each of those scopes,
   computed in one pass on the day of the marking in the time zone of the installation, on the

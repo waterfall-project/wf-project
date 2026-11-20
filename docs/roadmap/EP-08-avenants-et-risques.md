@@ -1733,7 +1733,7 @@ devant elle (US-2630) ; l'écran (US-2640).
 
 ## US-2630 — Les indicateurs devant une provision, une survenance et un avenant
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IND-0030-A`, `WF-IND-0100-A`, `WF-DEV-0080-A`
 - **opérations** : `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves`,
   `getRemainingIndicators`, `markRevision`, `mergeCostStructure` (la conservation)

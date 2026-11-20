@@ -16,6 +16,12 @@ its parts rounded to the cent, as the estimate rounds them (WF-IND-0100, WF-IND-
 - ``project_manager_projection``, from the actual cost at the day, the remaining to commit of each
   line of R spread over the part of its task after the day.
 
+The reference budget reads, at each month-end, the reference then in force: each reference of the
+project is in force from its marking to the marking of the next, so that an amendment merged moves
+it by a step, at the point of the month of the merge, equal to the gap of the two references
+cumulated at that point (``steps``; WF-IND-0100-A, US-2630/L2). The planned value is that of the
+reference in force now alone: after an amendment, it totals the new budget (WF-DEV-0080-A).
+
 With the payment delays, the budget and the projection are those of the cash-out, each line shifted
 by its own delay, the actual cost not; ``cash_out_by_month`` details it. A scope without a line in
 Ref or in R and without cost has nothing to draw: its series have no point.
@@ -27,7 +33,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from waterfall.core.costs.interface import actual_cost_dates
-from waterfall.core.estimate.interface import remaining_of_lines
+from waterfall.core.estimate.interface import lines_for_indicators, remaining_of_lines
 from waterfall.core.indicators.computing import Basis, completions, in_scope, read_lines
 from waterfall.core.indicators.series import (
     CashOutMonth,
@@ -38,11 +44,16 @@ from waterfall.core.indicators.series import (
     cumulative,
     cumulative_from,
     cumulative_until,
+    end_of,
     events_by_month,
+    month_before,
     month_of,
+    months_between,
     spread_lines,
 )
 from waterfall.core.indicators.shaping import context_document, money
+from waterfall.core.projects.interface import current_day
+from waterfall.core.revisions.interface import reference_history
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
@@ -57,6 +68,23 @@ if TYPE_CHECKING:
     from waterfall.core.indicators.shaping import Context
 
 type Dated = Sequence[tuple[date, Decimal]]
+_TWO = 2
+
+
+@dataclass(frozen=True, slots=True)
+class InForce:
+    """A reference of the project and the day it stands from: its marking, in the installation."""
+
+    since: date
+    lines: tuple[IndicatorLine, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class Step:
+    """A step of the reference budget: the day of its point, and by how much the budget moves."""
+
+    day: date
+    amount: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +95,8 @@ class CurveReading:
     commit of each, ``earned`` the budgeted amounts of the lines of Ref earned, by day of
     completion, ``costs`` the tracked lines of the scope by day of document, up to the day;
     ``spreader`` that of the computation, which spreads each line once for all its curves.
+    ``earlier`` are the references the project had before this one, in the order they stood, and
+    ``since`` the day this one stands from: none while the project has had a single reference.
     """
 
     day: date
@@ -75,6 +105,8 @@ class CurveReading:
     earned: Dated
     costs: Dated
     spreader: Spreader = field(default_factory=Spreader, compare=False)
+    earlier: tuple[InForce, ...] = ()
+    since: date | None = None
 
     @property
     def is_drawn(self) -> bool:
@@ -96,13 +128,42 @@ class CurveSources:
     remaining: Mapping[UUID, Decimal]
     completed: Mapping[UUID, date]
     spreader: Spreader = field(default_factory=Spreader, compare=False)
+    earlier: tuple[InForce, ...] = ()
+    since: date | None = None
+
+
+def _earlier_references(session: Session, basis: Basis) -> tuple[tuple[InForce, ...], date | None]:
+    """Read the references the project had before its reference now, and the day this one stands.
+
+    The journal of the designations says them in order, the revision when each was marked; they
+    count only when the last is the reference of the basis. A project that has had a single
+    reference has none before it, and its curves are drawn as they always were.
+    """
+    history = reference_history(session, basis.project_id)
+    if len(history) < _TWO or history[-1][0] != basis.reference_id:
+        return (), None
+    kept: dict[UUID, tuple[IndicatorLine, ...]] = {}
+    earlier: list[InForce] = []
+    for revision_id, marked_at in history[:-1]:
+        if revision_id not in kept:
+            kept[revision_id] = tuple(lines_for_indicators(session, basis.project_id, revision_id))
+        earlier.append(InForce(current_day(marked_at), kept[revision_id]))
+    return tuple(earlier), current_day(history[-1][1])
 
 
 def read_curve_sources(session: Session, basis: Basis) -> CurveSources:
     """Read, once for all the scopes, the lines, the remaining and the completions of a basis."""
     tasks, lines, reference = read_lines(session, basis)
     remaining = remaining_of_lines(tasks, lines).by_line
-    return CurveSources(tuple(reference), tuple(lines), remaining, completions(tasks))
+    earlier, since = _earlier_references(session, basis)
+    return CurveSources(
+        tuple(reference),
+        tuple(lines),
+        remaining,
+        completions(tasks),
+        earlier=earlier,
+        since=since,
+    )
 
 
 def curves_of_scope(
@@ -130,6 +191,14 @@ def curves_of_scope(
         earned,
         actual_cost_dates(session, project_id, day, scope),
         sources.spreader,
+        tuple(
+            InForce(
+                each.since,
+                tuple(held for held in each.lines if in_scope(scope, held.subproject_id)),
+            )
+            for each in sources.earlier
+        ),
+        sources.since,
     )
 
 
@@ -139,29 +208,87 @@ def read_curves(session: Session, basis: Basis, day: date, scope: CostScope) -> 
     return curves_of_scope(session, basis.project_id, sources, day, scope)
 
 
-def _budget(reading: CurveReading, *, delayed: bool) -> tuple[dict[Month, Decimal], list[Point]]:
-    """Return the parts of the reference budget by month, and its cumulative series.
+def _spread(
+    lines: Iterable[IndicatorLine], reading: CurveReading, *, delayed: bool
+) -> tuple[dict[Month, Decimal], date | None]:
+    """Spread the budgeted amounts of lines by month; give the parts and the day the last one ends.
 
-    The series runs on to the month of the end of the last task, shifted by its delay: it reaches
-    the budget there and does not move after (WF-IND-0100, WF-IND-0110).
+    The end is that of the last task, shifted by its delay.
     """
+    held = list(lines)
     spreads = [
-        SpreadLine(line.budgeted_amount, line.placement, line.payment_delay_days)
-        for line in reading.reference
+        SpreadLine(line.budgeted_amount, line.placement, line.payment_delay_days) for line in held
     ]
     shares = spread_lines(spreads, delayed=delayed, spreader=reading.spreader)
     ends = [
         line.placement.finish.day + _delay(line.payment_delay_days, delayed=delayed)
-        for line in reading.reference
+        for line in held
     ]
-    return shares, cumulative(shares, through=max(ends, default=None))
+    return shares, max(ends, default=None)
+
+
+def _budget(reading: CurveReading, *, delayed: bool) -> tuple[dict[Month, Decimal], list[Point]]:
+    """Return the parts of the reference budget by month, and its cumulative series.
+
+    The series runs on to the month of the end of the last task, shifted by its delay: it reaches
+    the budget there and does not move after (WF-IND-0100, WF-IND-0110). It is that of the
+    reference now in force alone: the planned value of an amendment merged totals the new budget
+    (WF-DEV-0080-A).
+    """
+    shares, end = _spread(reading.reference, reading, delayed=delayed)
+    return shares, cumulative(shares, through=end)
+
+
+def _total_at(shares: Mapping[Month, Decimal], month: Month) -> Decimal:
+    """Add up the parts of a reference up to a month, that month included."""
+    return sum((part for each, part in shares.items() if each <= month), Decimal(0))
+
+
+def _in_force(since: Sequence[date], day: date) -> int:
+    """Give the rank of the reference in force at a day: the last marked by then, else the first."""
+    return max((rank for rank, each in enumerate(since) if each <= day), default=0)
+
+
+def _budget_with_amendments(
+    reading: CurveReading, *, delayed: bool
+) -> tuple[Month | None, list[Point], list[Step]]:
+    """Return the first month of the reference budget, its series and its steps.
+
+    Each month-end reads the reference then in force: each stands from its marking to the next's.
+    The step of a month where the reference changed is the gap of the two cumulated at that
+    month-end, on the point of that month (WF-IND-0100-A). Without an earlier reference, the series
+    of the reference now alone, and no step.
+    """
+    if not reading.earlier or reading.since is None:
+        shares, points = _budget(reading, delayed=delayed)
+        return (min(shares) if shares else None), points, []
+    versions = [*reading.earlier, InForce(reading.since, reading.reference)]
+    spread = [_spread(each.lines, reading, delayed=delayed) for each in versions]
+    shared = [shares for shares, _ in spread if shares]
+    if not shared:
+        return None, [], []
+    first = min(min(shares) for shares in shared)
+    ends = [month_of(end) for _, end in spread if end is not None]
+    last = max([*ends, *(max(shares) for shares in shared)])
+    since = [each.since for each in versions]
+    points = [Point(end_of(month_before(first)), Decimal("0.00"))]
+    steps: list[Step] = []
+    before = _in_force(since, points[0].day)
+    for month in months_between(first, last):
+        here = _in_force(since, end_of(month))
+        points.append(Point(end_of(month), _total_at(spread[here][0], month)))
+        gap = _total_at(spread[here][0], month) - _total_at(spread[before][0], month)
+        if here != before and gap != 0:
+            steps.append(Step(end_of(month), gap))
+        before = here
+    return first, points, steps
 
 
 def _delay(days: int, *, delayed: bool) -> timedelta:
     return timedelta(days=days if delayed else 0)
 
 
-def _costs(reading: CurveReading, shares: Mapping[Month, Decimal]) -> list[Point]:
+def _costs(reading: CurveReading, first: Month | None) -> list[Point]:
     """Return the actual cost up to the day, drawn from the origin of the budget when it has one.
 
     A scope that has lines and no document is drawn at zero (WF-IND-0100); one with nothing to
@@ -169,7 +296,7 @@ def _costs(reading: CurveReading, shares: Mapping[Month, Decimal]) -> list[Point
     """
     if not reading.is_drawn:
         return []
-    origin = min(shares) if shares else month_of(reading.day)
+    origin = first if first is not None else month_of(reading.day)
     return cumulative_until(reading.costs, reading.day, from_month=origin)
 
 
@@ -184,6 +311,14 @@ def _series(name: str, points: Iterable[Point]) -> dict[str, object]:
             {"date": point.day.isoformat(), "amount": money(point.amount)} for point in points
         ],
     }
+
+
+def _steps_document(steps: Iterable[Step]) -> list[dict[str, str]]:
+    """Write the steps as the contract writes them: only amendments move the reference budget."""
+    return [
+        {"date": step.day.isoformat(), "amount": money(step.amount), "cause": "amendment"}
+        for step in steps
+    ]
 
 
 def _cash_out_document(months: Iterable[CashOutMonth]) -> list[dict[str, str]]:
@@ -204,11 +339,11 @@ def cost_curve_document(
 
     The reference budget, the actual cost up to the day, then the projection of the project
     manager, which starts there and ends at the actual cost plus the remaining to commit; with the
-    payment delays, the cash-out by month besides (WF-IND-0100). No step: the amendments are
-    those of the risks and revisions of EP-08.
+    payment delays, the cash-out by month besides (WF-IND-0100). The steps are the amendments
+    merged, each at the point of the month of its merge (WF-IND-0100-A, US-2630/L2).
     """
     day = reading.day
-    shares, budget = _budget(reading, delayed=payment_delays)
+    first, budget, steps = _budget_with_amendments(reading, delayed=payment_delays)
     to_come = spread_lines(
         (
             SpreadLine(left, line.placement, line.payment_delay_days)
@@ -229,10 +364,10 @@ def cost_curve_document(
         "payment_delays": payment_delays,
         "series": [
             _series("reference_budget", budget),
-            _series("actual_cost", _costs(reading, shares)),
+            _series("actual_cost", _costs(reading, first)),
             _series("project_manager_projection", projection),
         ],
-        "steps": [],
+        "steps": _steps_document(steps),
         "cash_out_by_month": cash_out,
     }
 
@@ -254,7 +389,7 @@ def earned_value_curves_document(reading: CurveReading, context: Context) -> Doc
         "series": [
             _series("planned_value", planned),
             _series("earned_value", earned),
-            _series("actual_cost", _costs(reading, shares)),
+            _series("actual_cost", _costs(reading, min(shares) if shares else None)),
         ],
         "steps": [],
         "cash_out_by_month": None,
