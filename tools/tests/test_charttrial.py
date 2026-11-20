@@ -200,6 +200,9 @@ def test_the_console_behind_the_front_is_hidden_once_its_redirection_is_followed
         f"{base}/auth/realms/master": Answer(404, (), ""),
     }
     charttrial.check_console_hidden(_console_browser(answers), PLATFORM)
+    soft = '<meta name="robots" content="noindex"/>'
+    answers[f"{base}/auth/admin"] = Answer(200, (), soft)
+    charttrial.check_console_hidden(_console_browser(answers), PLATFORM)
     answers[f"{base}/auth/admin"] = Answer(200, (), "console")
-    with pytest.raises(ProductionError, match="/auth/admin/ ends on 200, not 404"):
+    with pytest.raises(ProductionError, match="/auth/admin/ ends on 200"):
         charttrial.check_console_hidden(_console_browser(answers), PLATFORM)

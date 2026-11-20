@@ -26,6 +26,7 @@ credentials of Docker, as the chain logs in.
 
 import json
 import os
+import re
 import secrets
 import socket
 import subprocess
@@ -43,6 +44,7 @@ from wftools.production import (
     HIDDEN,
     LIVENESS,
     NOT_FOUND,
+    OK,
     Browser,
     Platform,
     ProductionError,
@@ -55,19 +57,23 @@ from wftools.production import (
 )
 
 TOOL = "wftools.charttrial"
+NOINDEX = re.compile(r'<meta[^>]*name="robots"[^>]*content="[^"]*noindex')
+"""The mark Next puts on a page whose status it could not turn into 404."""
 
 
 def check_console_hidden(browser: Browser, platform: Platform) -> None:
-    """Hold that the console of Keycloak and its realm master end on a 404 once redirected.
+    """Hold that the console of Keycloak and its realm master are the front's "not found" screen.
 
     The ingress sends these paths to the front, which sends back a path with its slash to the one
-    without (308) before it answers 404: the console is not served all the same.
+    without (308), then shows its screen "not found" with the status 200 and `noindex` — a soft
+    404, as its pages stream — where Caddy answers 404: the console is not served all the same.
     """
     for path in HIDDEN:
         url = f"{platform.address}{path}"
         answer, _ = browser.follow(browser.request("GET", url), url)
-        if answer.status != NOT_FOUND:
-            message = f"{path} ends on {answer.status}, not {NOT_FOUND}: it is served"
+        soft = answer.status == OK and NOINDEX.search(answer.body) is not None
+        if answer.status != NOT_FOUND and not soft:
+            message = f"{path} ends on {answer.status}, not {NOT_FOUND} nor the screen of the front"
             raise ProductionError(message)
 
 
