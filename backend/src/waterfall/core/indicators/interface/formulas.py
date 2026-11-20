@@ -8,6 +8,7 @@ again; this file offers them to a module that may import nothing but an interfac
 """
 
 from waterfall.core.indicators.formulas import (
+    NO_REFERENCE_BUDGET,
     Computable,
     Projections,
     cost_index,
@@ -21,6 +22,7 @@ from waterfall.core.indicators.formulas import (
 # The types and the functions are the interface's own to give: only a name in ``__all__`` is
 # re-exported.
 __all__ = [
+    "NO_REFERENCE_BUDGET",
     "Computable",
     "Projections",
     "cost_index",

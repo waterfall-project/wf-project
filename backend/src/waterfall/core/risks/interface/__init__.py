@@ -125,6 +125,11 @@ from waterfall.core.risks.interface.risks import (
 from waterfall.core.risks.interface.risks import (
     update_risk as update_risk,
 )
+
+# ``matrix``: the levels of an axis, as the portfolio writes them.
+from waterfall.core.risks.matrixing import (
+    levels_of as levels_of,
+)
 from waterfall.core.risks.sharing import write_shares
 from waterfall.core.risks.stamping import (
     RisksStamp as RisksStamp,

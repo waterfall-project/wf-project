@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, Query
 
 from waterfall.api.authentication import ServicesOf, Transaction
 from waterfall.api.evaluation import Acting, Requires
-from waterfall.api.queries import StatesQuery, portfolio_asked
+from waterfall.api.queries import NodelessQuery, portfolio_asked
 from waterfall.core.portfolio.interface import PortfolioReading, read_pilot_health
 from waterfall.core.projects.interface import Viewer
 from waterfall.platform.database import utc_now
@@ -33,7 +33,7 @@ READ = "portfolio_pilot_health.read"
     response_model=None,
 )
 def get_portfolio_pilot_health(
-    query: Annotated[StatesQuery, Query()],
+    query: Annotated[NodelessQuery, Query()],
     actor: Acting,
     session: Transaction,
     services: ServicesOf,

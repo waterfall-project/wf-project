@@ -83,6 +83,10 @@ DATA = {
     "PilotHealth.signals.params.milestone_label": "a label",
     # The label of a role of resources, as a person gave it (``getPortfolioWorkload``, US-2700).
     "PortfolioWorkload.roles.label": "a label",
+    # The heaviest risks of the portfolio name the risk and its project as a person wrote them
+    # (``getPortfolioRisks``, US-2730).
+    "PortfolioRisks.heaviest.label": "a label",
+    "PortfolioRisks.heaviest.project_label": "a label",
     "CalculationContext.scope": "a scope",
     # The label a person gave an element of the work breakdown, and that of the task that bears it.
     "WorkPackageReading.label": "a label",
