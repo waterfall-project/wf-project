@@ -994,8 +994,7 @@ def test_the_witness_fills_each_structure_it_opens_before_the_next_event(
 ) -> None:
     # The offer's main structure, the amendment 1 of the 101, the 102's, its amendment 2 (EP-08).
     with witness_loaded.transaction() as session:
-        offer, reference, current = session.scalars(
-            select(Revision.id).order_by(Revision.created_at, Revision.id)
-        ).all()
+        opened = select(Revision.id).order_by(Revision.created_at, Revision.id)
+        offer, reference, current = session.scalars(opened).all()
     first, second = (UUID(f"01926f3a-7c00-7000-8000-000000000{n}") for n in (212, 203))
     assert fillers == [(offer, None), (reference, first), (current, None), (current, second)]
