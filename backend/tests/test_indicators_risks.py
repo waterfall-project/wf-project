@@ -51,8 +51,9 @@ from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.costs.interface import PROJECT, UNASSIGNED
 from waterfall.core.estimate.interface import IndicatorLine, Placement
+from waterfall.core.indicators import curving
 from waterfall.core.indicators.caching import day_key
-from waterfall.core.indicators.computing import LinesRead, amounts_from
+from waterfall.core.indicators.computing import Basis, LinesRead, amounts_from
 from waterfall.core.indicators.curving import (
     CurveReading,
     CurveSources,
@@ -77,6 +78,7 @@ if TYPE_CHECKING:
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
+    from sqlalchemy.orm import Session
 
     from waterfall.platform.database import Database
     from waterfall.platform.keycloak import Keycloak
@@ -655,6 +657,37 @@ def test_a_first_reference_standing_after_the_first_point_is_in_force_from_the_s
     body = cost_curve_document(reading, context, payment_delays=False)
     assert budget_of(body)["2026-11-30"] == "1000.00"
     assert body["steps"] == [{"date": "2026-12-31", "amount": "200.00", "cause": "amendment"}]
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+@pytest.mark.parametrize("inscribed", [False, True])
+def test_the_revision_a_merge_designates_is_in_force_once_whether_the_journal_says_it_or_not(
+    monkeypatch: pytest.MonkeyPatch, *, inscribed: bool
+) -> None:
+    # #4262 : la révision que la fusion marque et désigne au même instant est la dernière de
+    # l'historique une seule fois, que le journal dise déjà sa désignation ou non — sinon elle
+    # serait en vigueur deux fois, et la marche de l'avenant nulle sans erreur.
+    first, merged_one = uuid4(), uuid4()
+    marked_at = datetime(2026, 11, 3, 9, tzinfo=UTC)
+    merged_at = datetime(2026, 12, 10, 9, tzinfo=UTC)
+    journal = [(first, marked_at)] + ([(merged_one, merged_at)] if inscribed else [])
+
+    def history(*_: object) -> list[tuple[UUID, datetime]]:
+        return list(journal)
+
+    def no_lines(*_: object) -> list[IndicatorLine]:
+        return []
+
+    def day_of(at: datetime) -> date:
+        return at.date()
+
+    monkeypatch.setattr(curving, "reference_history", history)
+    monkeypatch.setattr(curving, "lines_for_indicators", no_lines)
+    monkeypatch.setattr(curving, "current_day", day_of)
+    basis = Basis(uuid4(), merged_one, merged_one, designated_at=merged_at)
+    earlier, since = curving.earlier_references(cast("Session", None), basis)
+    assert [each.since for each in earlier] == [date(2026, 11, 3)]
+    assert since == date(2026, 12, 10)
 
 
 @pytest.mark.requirement("WF-DEV-0080-A")
