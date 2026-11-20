@@ -2,8 +2,8 @@
   "summary": "Variante déclarée de structure_rebase_report : la structure principale a de plus fait suivre le « Montage des armoires sur site » à la « Mise en service », la liaison inverse retirée — que l'avenant retire aussi, et qui ne se signale donc pas. Reportée dans le différentiel, où la « Mise en service » suit la « Reprise des essais de câblage », qui suit le « Montage des armoires sur site », la liaison ajoutée fermerait une boucle : le motif la refuse, les tâches nommées par leur nœud dans le différentiel et leur libellé, « Montage des armoires sur site », « Reprise des essais de câblage » et « Mise en service », chacune précédant la suivante ; la confirmation n'est pas offerte. L'utilisateur retire la liaison fautive du différentiel, puis relance (WF-PLA-0030, WF-REV-0100, #4034).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
-    "main_structure_lock_version": 8,
-    "structure_lock_version": 2,
+    "main_structure_lock_version": 16,
+    "structure_lock_version": 6,
     "differences": [
       {"change":"added","target":"task","lineage_id":"01926f3a-7c00-7000-8000-000000000694","label":"Réception provisoire sur site","predecessor_label":null,"fields":[]},
       {"change":"added","target":"link","lineage_id":"01926f3a-7c00-7000-8000-000000000662","label":"Montage des armoires sur site","predecessor_label":"Mise en service","fields":[]},

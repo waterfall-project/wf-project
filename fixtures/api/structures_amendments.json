@@ -33,7 +33,7 @@
           ]
         }
       ],
-      "lock_version": 3
+      "lock_version": 11
     },
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000212",
@@ -59,7 +59,7 @@
           ]
         }
       ],
-      "lock_version": 2
+      "lock_version": 4
     },
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000213",
@@ -126,7 +126,7 @@
           ]
         }
       ],
-      "lock_version": 1
+      "lock_version": 3
     },
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000215",
@@ -153,7 +153,7 @@
           ]
         }
       ],
-      "lock_version": 1
+      "lock_version": 3
     },
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000216",
@@ -180,7 +180,7 @@
           ]
         }
       ],
-      "lock_version": 1
+      "lock_version": 3
     }
   ]
 }

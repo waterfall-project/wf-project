@@ -68,7 +68,10 @@ class Risk:
     ``merged`` the task of the core its occurrence merged its own estimate under (WF-RIS-0060);
     ``provision_category`` and ``provision_subproject`` the category of provision for risks and
     the subproject it designated for its provision, which its line of provision bears while it is
-    identified — the one category of provision of the universe, and no subproject (WF-RIS-0010).
+    identified — the one category of provision of the universe, and no subproject (WF-RIS-0010);
+    ``written`` the writes of the risk besides its reviews, its declaration included: its counter
+    is the number of its reviews, plus that (`Risk.lock_version`), as the loader of the witness
+    leaves it.
     """
 
     number: int
@@ -82,6 +85,12 @@ class Risk:
     merged: int | None = None
     provision_category: str = PROVISIONS
     provision_subproject: str | None = None
+    written: int = 1
+
+    @property
+    def lock_version(self) -> int:
+        """Return the counter of the risk, which each review and each other write raised."""
+        return len(self.reviews) + self.written
 
     @property
     def last(self) -> Review:
@@ -109,6 +118,7 @@ REWORK = Risk(
     ),
     reference_provision_line=N.PROVISION,
     provision_line=N.PROVISION,
+    written=6,
 )
 DELIVERY_DELAY = Risk(
     752,
@@ -123,6 +133,7 @@ DELIVERY_DELAY = Risk(
     ),
     reference_provision_line=N.REFERENCE_PROVISION_752,
     merged=N.MERGED,
+    written=4,
 )
 OCCURRENCE_EXAMPLE = "WF-RIS-0060-A#474d7bce167a"
 """The numeric example of the Vérif of WF-RIS-0060 the occurrence of the delay of the cabinets
@@ -145,6 +156,7 @@ AUTOMATION_ENGINEER = Risk(
         ),
     ),
     reference_provision_line=N.REFERENCE_PROVISION_753,
+    written=4,
 )
 REGISTER = (REWORK, DELIVERY_DELAY, AUTOMATION_ENGINEER)
 """The register of the witness, in the order of declaration: the rework of the wiring, still
@@ -165,7 +177,7 @@ REFERENCE_PROVISIONS = {
         N.CONTROL_STATION,
         Line(
             N.REFERENCE_PROVISION_752,
-            "Provision — retard de livraison des armoires",
+            "Provision — Retard de livraison des armoires",
             PROVISIONS,
             is_provision=True,
         ),
@@ -174,7 +186,7 @@ REFERENCE_PROVISIONS = {
         COMMISSIONING_TASK,
         Line(
             N.REFERENCE_PROVISION_753,
-            "Provision — indisponibilité de l'automaticien",
+            "Provision — Indisponibilité de l'automaticien",
             PROVISIONS,
             is_provision=True,
         ),

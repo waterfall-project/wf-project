@@ -51,12 +51,11 @@ COMPARISON_REQUIREMENT = "WF-REV-0080-A"
 CORE = "01926f3a-7c00-7000-8000-000000000551"
 # What the service reads of a line of provision otherwise than the examples, each with its issue:
 # computed, closed to the entry and to the remaining, its budgeted amount the provision of the
-# reference (#4274); its label, the risk's as the contract writes it (#4275).
+# reference (#4274).
 PROVISION_LABEL = "Provision — "
 PROVISION_APART = {
     "budgeted_amount",
     "is_computed",
-    "label",
     "payment_delay_days",
     "remaining_entry",
 }
@@ -125,14 +124,6 @@ def is_provision(item: dict[str, Any]) -> bool:
     return str(item["estimate_line"]["label"]).startswith(PROVISION_LABEL)
 
 
-def labelled(text: str) -> str:
-    """Give a label as both sides write it: a provision line without its first case (#4275)."""
-    if not text.startswith(PROVISION_LABEL):
-        return text
-    named = text.removeprefix(PROVISION_LABEL)
-    return PROVISION_LABEL + named[:1].lower() + named[1:]
-
-
 def line_differences(ours: dict[str, Any], theirs: dict[str, Any]) -> set[str]:
     """Name what a line read differs in from the example, but for what is read apart.
 
@@ -150,10 +141,6 @@ def line_differences(ours: dict[str, Any], theirs: dict[str, Any]) -> set[str]:
     kept = {k: v for k, v in ours["estimate_line"].items() if k not in apart}
     wanted = {k: v for k, v in theirs["estimate_line"].items() if k not in apart}
     found |= {f"estimate_line.{key}" for key in deviations(kept, wanted)}
-    if is_provision(theirs) and labelled(ours["estimate_line"]["label"]) != labelled(
-        theirs["estimate_line"]["label"]
-    ):
-        found.add("estimate_line./label")
     return found
 
 
@@ -432,7 +419,7 @@ def base_of(item: dict[str, Any]) -> Any:
 def label_of(item: dict[str, Any]) -> tuple[str, str]:
     """Give the kind and the label of a node of a comparison."""
     held: dict[str, Any] = item.get("task") or item.get("estimate_line") or {}
-    return item["kind"], labelled(str(held.get("label")))
+    return item["kind"], str(held.get("label"))
 
 
 @pytest.mark.parametrize("name", sorted(COMPARED))

@@ -11,6 +11,6 @@
     "rescheduled": [],
     "reinflated": [],
     "totals": {"task_count":1002,"estimate_line_count":5001,"hours":"116310","base_amount":"66108643.89","budgeted_amount":"70569768.99","reestimated_amount":"68954249.05"},
-    "structure_lock_version": 3
+    "structure_lock_version": 7
   }
 }

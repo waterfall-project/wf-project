@@ -500,7 +500,7 @@ def risk_item(risk: Risk, budget: Decimal, bearer: int | None = None) -> JsonObj
             "updated_at": stamp(last.at),
             "updated_by": actor,
         },
-        "lock_version": len(risk.reviews) + 1,
+        "lock_version": risk.lock_version,
     }
 
 

@@ -36,6 +36,13 @@ def fixture(name: str) -> Any:
     return json.loads((FIXTURES / f"{name}.json").read_text(encoding="utf-8"))["value"]
 
 
+FIRST_WRITE = (
+    next(each["lock_version"] for each in fixture("structures") if each["kind"] == "main") + 1
+)
+"""The counter the first write leaves on the main structure: one past the counter `structures`
+reads, which the loader of the witness advanced by each of its writes (US-2650/L1)."""
+
+
 def by_identifier(name: str, key: str) -> list[Any]:
     """Return the objects of a list of the reference, in the order of their identifier.
 
@@ -619,7 +626,7 @@ CONTROL_STATION = Task(
                 ),
                 Line(
                     N.PROVISION,
-                    "Provision — risque de reprise du câblage",
+                    "Provision — Risque de reprise du câblage",
                     PROVISIONS,
                     unit=Decimal("500.00") * RISK_SCALE,
                     budgeted=REFERENCE_PROVISION_751,

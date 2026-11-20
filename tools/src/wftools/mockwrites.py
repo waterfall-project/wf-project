@@ -39,6 +39,7 @@ from wftools.mockwitness import (
     FACTORY_ACCEPTANCE,
     FIRST_ITEM,
     FIRST_LOT,
+    FIRST_WRITE,
     GENERATED,
     LABOUR,
     SUBPROJECT_CONTROL,
@@ -69,7 +70,7 @@ def written(
     writes: Sequence[str],
     *,
     deleted: Sequence[str] = (),
-    structure_version: int = 2,
+    structure_version: int = FIRST_WRITE,
 ) -> JsonObject:
     """Return what a write answers, from the readings of the whole structure before and after.
 
@@ -205,16 +206,16 @@ def core_write(
     """Return what a write of the core answers: the structure read whole today, then as amended.
 
     The core amended, the thousand tasks drawn about it as they are: the tasks the write redates
-    and the totals are those of the whole structure, the core incrusted in it (#376).
-
-    A write that follows another reads the core as that one left it, the nodes it wrote one
-    version further, and leaves the structure one version further still: two answers never
-    render one node at one version with two contents (#421).
+    and the totals are those of the whole structure, the core incrusted in it (#376). A write that
+    follows another reads the core as that one left it, the nodes it wrote one version further,
+    and leaves the structure one version further still: two answers never render one node at one
+    version with two contents (#421).
     """
     if following is None:
-        before, version = mockcore.whole(mockcore.current()), 2
+        before, version = mockcore.whole(mockcore.current()), FIRST_WRITE
     else:
-        before, version = copy.deepcopy(mockcore.whole(mockcore.current(described(following)))), 3
+        before = copy.deepcopy(mockcore.whole(mockcore.current(described(following))))
+        version = FIRST_WRITE + 1
         for node in cast("list[Node]", before["items"]):
             if node["node_id"] in {universe(number) for number in writes}:
                 node["lock_version"] += 1
@@ -403,7 +404,7 @@ def volume_write(
     writes: Sequence[int],
     *,
     before: JsonObject | None = None,
-    structure_version: int = 2,
+    structure_version: int = FIRST_WRITE,
 ) -> JsonObject:
     """Return what a write of the structure answers: the whole structure read, then as amended."""
     read = mockcore.whole(mockcore.current()) if before is None else before
@@ -446,7 +447,7 @@ def estimate_line_entered() -> JsonObject:
     )
 
 
-ENTERED_VERSION = 3
+ENTERED_VERSION = FIRST_WRITE + 1
 """The version of the structure the label entered leaves: the paste follows it (#421)."""
 
 BLOCK = (
