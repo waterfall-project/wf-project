@@ -532,9 +532,13 @@ describe("the note of an amendment in arrears on the remaining to commit", () =>
     // main structure alone (WF-RAE-0040), where the note stands mounted for the structure it reads.
     server.answers = { ...server.answers, [STRUCTURES]: "structures_amendments" };
     const page = await remainingAt({ structure: "01926f3a-7c00-7000-8000-000000000213" });
-    expect(page).not.toContain("is late");
-    expect(page).not.toContain("Update the amendment");
-    expect(page).not.toContain("Abandon the amendment");
+    // The texts are read from the catalogue the page renders in (English here), so that the
+    // absence is of what the screen would show: the note after its label, and the two gestures.
+    const note = CATALOGUES.en.amendmentLate.note.split("}", 2)[1]?.split(".", 1)[0] ?? "";
+    expect(note).toContain("is late");
+    expect(page).not.toContain(note);
+    expect(page).not.toContain(CATALOGUES.en.rebaseReport.label);
+    expect(page).not.toContain(CATALOGUES.en.abandonAmendment.label);
   });
 });
 

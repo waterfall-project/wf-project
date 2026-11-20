@@ -4,8 +4,9 @@
  * The note that says an amendment is late (US-2640): a differential not merged whose base is no
  * longer the main structure as it stands (`is_up_to_date` false), as the structure lists it — the
  * front deduces none of it. It carries no command: the gestures of the amendment stay at the
- * planning (`amendment-commands.tsx`), where the note is shown with them; the estimate and the
- * remaining to commit, which read a differential too, show the note alone.
+ * planning (`amendment-commands.tsx`), where the note is shown with them; the estimate shows the
+ * note alone. The remaining to commit mounts it too, yet reads the main structure alone
+ * (WF-RAE-0040), never a differential: the note stays unshown there.
  *
  * A server component: it reads nothing.
  */
