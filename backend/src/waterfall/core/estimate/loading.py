@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.estimate.reading import budgeted_of, rows_of
 from waterfall.core.estimate.recalling import remembering
-from waterfall.core.estimate.writing import HoursJudged
+from waterfall.core.estimate.writing import HoursJudged, read_ahead
 from waterfall.core.planning.interface import (
     LineNodeLoad,
     lines_of_revision,
@@ -98,5 +98,6 @@ def load_lines(session: Session, place: Place, lines: tuple[LineLoad, ...], act:
         for each in lines
     )
     with remembering(session):
+        read_ahead(session, place.project_id, [each.node_id for each in lines])
         load_line_nodes(session, place, nodes, act)
     _budgeted(session, place.project_id, place.revision_id)

@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from sqlalchemy import delete, insert
+from sqlalchemy.orm.attributes import flag_modified
 
 from waterfall.core.planning.carrying import borne
 from waterfall.core.planning.interface.facets import (
@@ -481,6 +482,10 @@ def load_line_nodes(
             node.parent_id, node.rank = task_id, rank
             node.lock_version += 1
             node.updated_at, node.updated_by = act.at, act.author
+            # Every column written, those that stay included: the nodes kept then go out in one
+            # statement, which a flush splits wherever two neighbours move different columns.
+            for name in ("parent_id", "updated_at", "updated_by"):
+                flag_modified(node, name)
             write = FacetWrite(
                 session, project_id, place.revision_id, each.node_id, bearers[task_id], act
             )

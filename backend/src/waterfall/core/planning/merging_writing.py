@@ -46,7 +46,7 @@ from waterfall.platform.identifiers import new_id
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
-    from waterfall.core.planning.tree import NodeRow, Tree
+    from waterfall.core.planning.tree import NodeRow, TaskRow, Tree
     from waterfall.core.revisions.interface import StructureMerging
 
 # Where what the writing of the tasks leaves is kept for the lines and the end of the merge.
@@ -284,20 +284,27 @@ def write_tasks(merging: StructureMerging) -> None:
     _linked(merging, plan, tree, nodes)
 
 
-def _lines_of(plan: MergePlan, task_id: UUID, sent: Mapping[UUID, UUID]) -> list[UUID]:
+def _own_lines(tree: Tree[NodeRow, TaskRow]) -> dict[UUID, UUID]:
+    """Give the node of each line of a tree besides the provisions, by its lineage."""
+    return {
+        node.lineage_id: each
+        for each, node in tree.nodes.items()
+        if node.kind == LINE and each not in tree.provisions
+    }
+
+
+def _lines_of(
+    plan: MergePlan, task_id: UUID, lineages: tuple[Mapping[UUID, UUID], Mapping[UUID, UUID]]
+) -> list[UUID]:
     """Give the lines a task merged bears, by their node in the main structure or the differential.
 
     A task of the differential, its own lines in its order — the main structure's node of the same
     lineage when there is one —; a task kept, its own lines the differential holds nowhere; then the
-    provision lines of the task in the main structure. ``sent`` the node in the differential of each
-    own line it holds, by its lineage.
+    provision lines of the task in the main structure. ``lineages`` the node of each own line, by
+    its lineage: in the main structure, then in the differential (``_own_lines``).
     """
     main, amendment = plan.main, plan.amendment
-    own = {
-        main.nodes[each].lineage_id: each
-        for each in main.nodes
-        if main.nodes[each].kind == LINE and each not in main.provisions
-    }
+    own, sent = lineages
     found: list[UUID] = []
     source = plan.sources.get(task_id)
     if source is not None:
@@ -322,12 +329,10 @@ def place_lines(merging: StructureMerging) -> dict[UUID, UUID]:
     plan, written = merge_plan(merging), _written(merging)
     session, project_id = merging.session, merging.project_id
     amendment = plan.amendment
-    sent = {
-        amendment.nodes[each].lineage_id: each
-        for each in amendment.nodes
-        if amendment.nodes[each].kind == LINE and each not in amendment.provisions
-    }
-    lists = {written.nodes[each]: _lines_of(plan, each, sent) for each in plan.order}
+    # Read once for every task, not task by task: on a structure of thousands of lines, each task
+    # walking all the nodes made the merge of the witness's amendment quadratic.
+    lineages = (_own_lines(plan.main), _own_lines(amendment))
+    lists = {written.nodes[each]: _lines_of(plan, each, lineages) for each in plan.order}
     first = plan.order[0] if plan.order else None
     for task_id in plan.main.order:
         if task_id not in plan.removed:
