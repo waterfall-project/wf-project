@@ -32,7 +32,12 @@ amount or hours a decimal in a string, to the cent or the hundredth, never weigh
   the view groups by the current node of the role (WF-PTF-0080, WF-REF-0070). Each list in the
   order of its identifiers, an entry without an amount absent; ``label`` names the cost type as the
   revision of its total read it: the budget's on the images of ``budget_revision_id``, the
-  remaining's on the revision.
+  remaining's on the revision. An entry whose labour lines employ a category without an hourly
+  rate for the year of reference of a revision not marked has ``amount`` null and
+  ``missing_rates``, ``[{"cost_category_id", "label", "year"}]``, the rates it lacks, as the
+  document ``estimate`` names them (``hourly_rate_missing``, WF-DEV-0010): it is not computed,
+  never summed in silence (#4283, US-2720). Only the current day can give one: a marking refuses a
+  rate missing.
 - ``portfolio_risks`` (US-2730): ``{"base", "risks": [{"risk_id", "label", "probability",
   "severity", "provision_amount", "state", "occurrence_cost", "occurred_reestimated_amount"}]}`` —
   every risk of the revision, in the order of its declaration, each as the register reads it in

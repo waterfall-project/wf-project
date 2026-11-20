@@ -20,10 +20,10 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from estimate_support import YEAR, Costing, Lines, costing
+from estimate_support import YEAR, Costing, Lines, add_role, costing
 from nodes_support import Tree
 from projects_support import MANAGING
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from waterfall.core.cost_settings.interface import set_hourly_rate
 from waterfall.core.projects.interface import (
@@ -36,6 +36,7 @@ from waterfall.core.projects.interface import (
     stored_lock_version,
     update_project,
 )
+from waterfall.core.resource_settings.interface import NodeWrite, create_node
 from waterfall.core.resource_settings.tables import ResourceRole
 from waterfall.core.revisions.interface import (
     ReferenceToDesignate,
@@ -55,6 +56,7 @@ if TYPE_CHECKING:
     from support import ContractClient
 
     from waterfall.core.projects.interface import ExitState, ProjectState
+    from waterfall.platform.database import Database
 
 # The year of the chronology, whose rate the labour of the lines asks for (``reference_year``).
 CHRONOLOGY_YEAR = 2026
@@ -247,6 +249,41 @@ def another_offer(
     writer = _Writer(api, fabrics.stage, fabrics.costs)
     with logging_context(correlation_id="portfolio-another-offer"):
         return writer.offered(label, probability)[1][OFFER][0]
+
+
+def offer_being_priced(
+    api: ContractClient, fabrics: Portfolio, label: str, probability: Decimal
+) -> tuple[UUID, UUID]:
+    """Write one more offer, priced and not marked, on the platform of the fabrics; give it.
+
+    Its first revision is its current one, priced on the rates of the reference as they stand:
+    the project and that revision.
+    """
+    writer = _Writer(api, fabrics.stage, fabrics.costs)
+    with logging_context(correlation_id="portfolio-pricing"):
+        project_id = writer.created(label, OFFERS_OPENED)
+        writer.changed(project_id, OFFERS_OPENED, win_probability=probability)
+    with fabrics.stage.database.transaction() as session:
+        return project_id, current_of(session, project_id)
+
+
+def placed(database: Database, code: str, week: tuple[int, ...], node_id: UUID | None) -> UUID:
+    """Write a role of a calendar of its own, and put it under a node when one is given."""
+    role = add_role(database, code, week)
+    if node_id is not None:
+        with database.transaction() as session:
+            session.execute(
+                update(ResourceRole).where(ResourceRole.id == role).values(org_node_id=node_id)
+            )
+    return role
+
+
+def node(database: Database, code: str, parent: UUID | None = None) -> UUID:
+    """Create an active node, under its parent or a root without one."""
+    with database.transaction() as session:
+        return create_node(
+            session, NodeWrite(code, f"Nœud {code}", parent), Act(None, at(1, 4))
+        ).node_id
 
 
 def portfolio(api: ContractClient, stage: Scene) -> Portfolio:

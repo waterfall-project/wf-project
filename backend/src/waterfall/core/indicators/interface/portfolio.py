@@ -81,8 +81,8 @@ PORTFOLIO_KINDS: frozenset[IndicatorKind] = frozenset(
 # before the provisions and the occurrences of the risks (US-2630/L1, EP-08), eleven since.
 STATEMENTS_PER_PROJECT = 11
 # The statements a reading of the day reads once, whatever its projects: the stamp of the roles
-# (US-2680/L2, #4158).
-STATEMENTS_PER_READING = 1
+# (US-2680/L2, #4158), and that of the hourly rates (US-2720, #4283).
+STATEMENTS_PER_READING = 2
 
 
 class Contribute(Protocol):
@@ -187,10 +187,10 @@ def day_documents_of(
 
     Cost: the fingerprint of a project is read by about eleven statements, project after project,
     even when Redis answers all: a number of statements that grows with the number of projects,
-    bounded per project (``STATEMENTS_PER_PROJECT``), and one more for the reading, the stamp of
-    the roles (``STATEMENTS_PER_READING``); the exchanges with Redis do not grow (one to read, one
-    to write). A document that is not JSON, as computed — a ``NaN`` included —, raises
-    ``UnserializableContributionError``, with a cache or without.
+    bounded per project (``STATEMENTS_PER_PROJECT``), and two more for the reading, the stamps of
+    the roles and of the hourly rates (``STATEMENTS_PER_READING``); the exchanges with Redis do not
+    grow (one to read, one to write). A document that is not JSON, as computed — a ``NaN``
+    included —, raises ``UnserializableContributionError``, with a cache or without.
     """
     return contributions(session, revisions, at, contributing, cache)
 

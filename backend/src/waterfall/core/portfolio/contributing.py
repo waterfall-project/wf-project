@@ -23,7 +23,7 @@ Nothing is weighted: the views weigh an offer by its probability (EP-11, "La con
 projet"); the risks never are.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from waterfall.core.costs.interface import PROJECT
@@ -41,6 +41,7 @@ from waterfall.core.indicators.interface import (
     day_indicators,
     day_reading_of,
     estimate_document,
+    missing_rate_document,
     offer_curves,
 )
 from waterfall.core.planning.interface import (
@@ -60,7 +61,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.estimate.interface import RoleLoad
+    from waterfall.core.estimate.interface import Lacking, MissingRate, RoleLoad
     from waterfall.core.indicators.interface import Document, IndicatorKind
     from waterfall.core.projects.interface import ProjectFacts
 
@@ -129,31 +130,61 @@ def workload_document(
     }
 
 
-def _amounts(amounts: Mapping[UUID, Decimal], key: str) -> list[dict[str, str]]:
-    """Write amounts by key, in the order of their identifiers."""
-    return [{key: str(each), "amount": _hours(amounts[each])} for each in sorted(amounts)]
+def _entry(
+    key: tuple[str, UUID], amount: Decimal, lacking: Mapping[UUID, tuple[MissingRate, ...]]
+) -> dict[str, Any]:
+    """Write an amount by key; one a rate missing prevents from computing is null, the rates named.
+
+    As the document ``estimate`` writes an amount not computed (``hourly_rate_missing``,
+    WF-DEV-0010): no reader can sum it in silence (#4283).
+    """
+    name, identifier = key
+    missing = lacking.get(identifier, ())
+    if not missing:
+        return {name: str(identifier), "amount": _hours(amount)}
+    return {
+        name: str(identifier),
+        "amount": None,
+        "missing_rates": [missing_rate_document(each) for each in missing],
+    }
 
 
 def cost_structure_document(session: Session, project_id: UUID, revision_id: UUID) -> Document:
-    """Give the totals by cost type of the budget and of the remaining, and their labour by role."""
+    """Give the totals by cost type of the budget and of the remaining, and their labour by role.
+
+    An amount whose labour lines lack an hourly rate — a revision not marked only — is null, with
+    ``missing_rates`` naming the categories and the years (#4283).
+    """
     totals = portfolio_totals(session, project_id, revision_id)
 
     def by_type(
-        amounts: Mapping[UUID, Decimal], labels: Mapping[UUID, str]
-    ) -> list[dict[str, str]]:
+        amounts: Mapping[UUID, Decimal], labels: Mapping[UUID, str], lacking: Lacking
+    ) -> list[dict[str, Any]]:
         return [
-            {"cost_type_id": str(each), "label": labels[each], "amount": _hours(amounts[each])}
+            {
+                **_entry(("cost_type_id", each), amounts[each], lacking.by_cost_type),
+                "label": labels[each],
+            }
             for each in sorted(amounts)
         ]
 
+    def by_role(amounts: Mapping[UUID, Decimal], lacking: Lacking) -> list[dict[str, Any]]:
+        return [
+            _entry(("resource_role_id", each), amounts[each], lacking.by_role)
+            for each in sorted(amounts)
+        ]
+
+    budget, remaining = totals.budget_lacking, totals.remaining_lacking
     return {
         "budget_revision_id": str(totals.budget_revision_id),
-        "budget_by_cost_type": by_type(totals.budget_by_cost_type, totals.budget_cost_type_labels),
-        "remaining_by_cost_type": by_type(
-            totals.remaining_by_cost_type, totals.remaining_cost_type_labels
+        "budget_by_cost_type": by_type(
+            totals.budget_by_cost_type, totals.budget_cost_type_labels, budget
         ),
-        "budget_labour_by_role": _amounts(totals.budget_labour_by_role, "resource_role_id"),
-        "remaining_labour_by_role": _amounts(totals.remaining_labour_by_role, "resource_role_id"),
+        "remaining_by_cost_type": by_type(
+            totals.remaining_by_cost_type, totals.remaining_cost_type_labels, remaining
+        ),
+        "budget_labour_by_role": by_role(totals.budget_labour_by_role, budget),
+        "remaining_labour_by_role": by_role(totals.remaining_labour_by_role, remaining),
     }
 
 

@@ -12949,6 +12949,45 @@ son retard est dit par `review_overdue`. Un import de coûts de zéro ligne comp
 sa date dit de quand datent les chiffres (WF-CRE-0050-A). Les deux bornes de l'intervalle sont
 incluses. `weeks_since_last_mark` est le plancher des jours écoulés divisé par sept.
 
+### La structure des coûts du portefeuille servie (US-2720, #3863, #4283)
+
+Ce que le service fait là où le contrat laissait un choix ; seule la description de
+`PortfolioCostStructure` change, aucun schéma.
+
+- **Qui contribue, et comment.** Les projets en cours, les terminés de la période — celle par défaut
+  comprise — et les offres en chiffrage demandées, chacun par la révision que le périmètre retient ;
+  une offre pour son devis pondéré par sa probabilité (M-07), le budget hors lignes de provision
+  (G-15), le reste à engager avec elles. Chaque montant d'un projet est pondéré et arrondi une fois,
+  au centime ; la main-d'œuvre d'un projet est d'abord sommée par nœud, puis pondérée une fois.
+- **La main-d'œuvre par nœud** est celle du budget, par rôle, groupée par le nœud **courant** du rôle
+  à toute date (WF-REF-0070), comme le générateur du témoin la calcule. `org_node_id` la restreint aux
+  rôles du nœud et de ses descendants ; les ventilations par nature ne sont pas restreintes, la
+  main-d'œuvre comprise (`PortfolioOrgNode`). Écarté : restreindre aussi la nature « main-d'œuvre »,
+  que le document ne ventile pas par nœud et dont la part changerait avec le filtre.
+- **Les libellés** sont ceux du référentiel à la lecture (`AmountByKey.label`) ; une nature que le
+  référentiel n'a plus garde le libellé que le document a conservé. Les clés suivent l'ordre de leurs
+  identifiants.
+- **Un taux horaire manquant** (#4283, décision de l'auteur du 2026-11-20). Au jour courant, une
+  révision non marquée dont une ligne de main-d'œuvre emploie une catégorie sans taux pour son année
+  de référence écrit, dans son document `portfolio_cost_structure`, la nature et le rôle de ces lignes
+  sans montant (`amount` nul) et avec les taux manquants (`missing_rates`), comme le document
+  `estimate` les nomme. La vue n'ajoute pas cette part — un devis non calculé n'entre dans aucune somme
+  de la liste (US-2690/L2) — et rend la nature et le nœud concernés non calculés : leur part
+  `hourly_rate_missing`, `params.missing_rates` nommant les catégories et les années, leur montant la
+  somme de ce que les autres projets calculent ; toute autre part de la même ventilation est non
+  calculée, `hourly_rate_missing` sans `params`, son total ne l'étant pas (la règle des parts de
+  `EstimateIndicators`). Une révision marquée n'en a jamais : son marquage refuse un taux manquant.
+  Écartés : sommer le montant que les lignes gardent, ce que la décision refuse ; un montant à zéro
+  (`_remaining_by_key`), qui ne dit pas ce que les autres projets calculent ; ne marquer que la part de
+  la nature concernée et calculer les autres sur un total amputé, que le front montrerait sommant à
+  un ; `params` sur toutes les parts, comme le devis, qui ne dirait plus quelle nature manque, le
+  montant étant ici un `Money` exigé.
+- **L'empreinte** de la contribution du jour lit le tampon des taux horaires du référentiel (nombre,
+  somme des compteurs, dernière écriture : `rates_stamp`), une fois par lecture : un taux saisi ou
+  corrigé change la clé (WF-DAT-0130-A), et le document `estimate` d'une offre, qui en dépend aussi,
+  n'est plus servi périmé. Un taux n'est jamais supprimé ; ceux qu'une révision garde s'écrivent à son
+  ouverture et à son marquage, que l'empreinte voit déjà. La forme de l'entrée passe à « 4 ».
+
 ## Organisation des fichiers
 
 **Les schémas sont groupés par famille**, un fichier par famille, et non un fichier par schéma —

@@ -303,6 +303,9 @@ from waterfall.core.estimate.interface.merging import (
 # ``portfolio`` (US-2670/L1; US-2680/L2): the totals by nature and the labour by role the
 # portfolio sums (EP-11).
 from waterfall.core.estimate.interface.portfolio import (
+    Lacking as Lacking,
+)
+from waterfall.core.estimate.interface.portfolio import (
     PortfolioTotals as PortfolioTotals,
 )
 from waterfall.core.estimate.interface.portfolio import (

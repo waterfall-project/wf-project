@@ -16,9 +16,8 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import add_role
 from portfolio_listing_support import READ, example, kept_changed, read, revision_of, served
-from portfolio_support import Portfolio, another_in_progress, at, portfolio
+from portfolio_support import Portfolio, another_in_progress, node, placed, portfolio
 from projects_support import Scene, person
 from projects_support import scene as make_scene
 from sqlalchemy import delete, text, update
@@ -29,11 +28,10 @@ from waterfall.core.portfolio.interface import (
     PortfolioReading,
     read_portfolio_workload,
 )
-from waterfall.core.resource_settings.interface import NodeWrite, create_node, read_role
+from waterfall.core.resource_settings.interface import read_role
 from waterfall.core.resource_settings.tables import ResourceRole
 from waterfall.core.revisions.interface import last_marked_revision
 from waterfall.core.revisions.tables import Revision
-from waterfall.platform.audit import Act
 from waterfall.platform.cache import PREFIX, IndicatorsCache
 
 if TYPE_CHECKING:
@@ -136,25 +134,6 @@ def second_project(api: ContractClient, fabrics: Portfolio) -> UUID:
         revision = last_marked_revision(session, project_id)
     assert revision is not None
     return revision
-
-
-def placed(database: Database, code: str, week: tuple[int, ...], node_id: UUID | None) -> UUID:
-    """Write a role of a calendar of its own, and put it under a node when one is given."""
-    role = add_role(database, code, week)
-    if node_id is not None:
-        with database.transaction() as session:
-            session.execute(
-                update(ResourceRole).where(ResourceRole.id == role).values(org_node_id=node_id)
-            )
-    return role
-
-
-def node(database: Database, code: str, parent: UUID | None = None) -> UUID:
-    """Create an active node, a root without a parent."""
-    with database.transaction() as session:
-        return create_node(
-            session, NodeWrite(code, f"Nœud {code}", parent), Act(None, at(1, 4))
-        ).node_id
 
 
 def monthly_hours(fabrics: Portfolio, role: UUID) -> Decimal:

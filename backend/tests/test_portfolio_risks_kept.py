@@ -32,7 +32,7 @@ from risks_support import Costed, costed, material
 from risks_support import occur as made_occurred
 from sqlalchemy import select, text, update
 
-from waterfall.core.indicators.contributions import contribution_key
+from waterfall.core.indicators.contributions import contribution_key, stamps_of
 from waterfall.core.indicators.interface import (
     PORTFOLIO_KINDS,
     Contributing,
@@ -43,7 +43,6 @@ from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.planning.interface import milestone_forecasts
 from waterfall.core.portfolio.contributing import DAY_KINDS, day_contribution
 from waterfall.core.projects.interface import current_day, project_facts
-from waterfall.core.resource_settings.interface import roles_stamp
 from waterfall.core.revisions.tables import Revision
 from waterfall.core.risks.interface import ReviewWindow, not_reviewed_since, outcomes_between
 from waterfall.core.risks.tables import RiskReview
@@ -401,7 +400,7 @@ def test_a_change_of_a_risk_is_not_served_from_the_entry_of_the_contribution_bef
 
     def key() -> str:
         with ready.project.stage.database.transaction() as session:
-            return contribution_key(session, project_id, revision_id, at, roles_stamp(session))
+            return contribution_key(session, project_id, revision_id, at, stamps_of(session))
 
     assert (read()["probability"], read()["provision_amount"]) == ("0.3000", "60.00")
     assert counted.calls == 1

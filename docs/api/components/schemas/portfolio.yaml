@@ -292,7 +292,15 @@ PortfolioCostStructure:
     labour by organisation node. No breakdown of the actual cost by cost type
     (WF-PTF-0080). The projects in progress and completed of the scope contribute in full,
     a project in pricing included through its current estimate weighted by its win
-    probability (WF-PTF-0020, WF-PTF-0080).
+    probability (WF-PTF-0020, WF-PTF-0080). On the current day, the labour of a project whose
+    revision employs a labour category without an hourly rate for its reference year is not
+    computed, never summed as it stands (WF-DEV-0010): its part enters no amount, and the cost
+    type and the organisation node it falls under are not computed — their `share` not
+    computable, reason `hourly_rate_missing`, `params.missing_rates` naming the categories and
+    the years, their `amount` the sum of the parts the other projects compute —; every other
+    share of that breakdown, whose total is not computed, is not computable either, reason
+    `hourly_rate_missing` without `params`. A marked revision lacks no rate: a past date never
+    gives one (#4283).
   properties:
     scope: { $ref: '#/PortfolioScope' }
     budget_by_cost_type:

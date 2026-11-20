@@ -31,6 +31,7 @@ from waterfall.core.indicators.contributions import (
     UnserializableContributionError,
     contribution_key,
     read_contribution,
+    stamps_of,
 )
 from waterfall.core.indicators.interface import (
     PORTFOLIO_KINDS,
@@ -50,7 +51,6 @@ from waterfall.core.projects.interface import (
     stored_lock_version,
     update_project,
 )
-from waterfall.core.resource_settings.interface import roles_stamp
 from waterfall.core.revisions.interface import mark_revision, register_indicators
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act
@@ -434,7 +434,7 @@ def test_an_entry_unreadable_is_a_miss_computed_and_written_again(
     counted = Counted()
     first = read_day(fabrics, AT, counted, cache)
     with fabrics.stage.database.transaction() as session:
-        key = contribution_key(session, offer, revisions[offer], AT, roles_stamp(session))
+        key = contribution_key(session, offer, revisions[offer], AT, stamps_of(session))
     cache.client.set(PREFIX + key, damage, ex=TTL)
     counted.calls.clear()
     again = read_day(fabrics, AT, counted, cache)
@@ -541,7 +541,7 @@ def test_an_entry_that_lacks_a_kind_is_a_miss_computed_and_written_whole(
     revisions = of_the_day(fabrics)
     offer = fabrics.offer.project_id
     with fabrics.stage.database.transaction() as session:
-        key = contribution_key(session, offer, revisions[offer], AT, roles_stamp(session))
+        key = contribution_key(session, offer, revisions[offer], AT, stamps_of(session))
     cache.client.set(PREFIX + key, '{"estimate": {"total": "1"}}', ex=TTL)
     counted = Counted()
     with fabrics.stage.database.transaction() as session:

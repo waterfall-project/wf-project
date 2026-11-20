@@ -24,6 +24,13 @@ cadrage décide").
 
 The amounts of the lines are in cents, and their sums are exact: nothing is rounded again.
 
+A revision not marked whose labour lines employ a category without an hourly rate for its year of
+reference names, for each cost type and each role those lines fall under, the rates it lacks
+(``budget_lacking``, ``remaining_lacking``): a total that depends on them is not computed, never
+summed in silence (WF-DEV-0010; #4283, decision of the author of 2026-11-20). Their amounts are
+still summed here, as the lines keep them: the portfolio says them not computed. A marked revision
+lacks none: its marking refused a rate missing, and its amounts are frozen (WF-DAT-0040).
+
 ``offer_workload`` gives the load of the estimate of an offer, by role and by month: the
 portfolio reads it on the estimate, not on a remaining (EP-11, "Tables et migrations",
 ``portfolio_workload``).
@@ -37,7 +44,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from waterfall.core.estimate.indicating import natures_of
+from waterfall.core.estimate.indicating import missing_rates_of, natures_of
 from waterfall.core.estimate.placing import placed_lines
 from waterfall.core.estimate.reading import budgeted_of, rows_of
 from waterfall.core.estimate.remaining.reviewing import provisions_of, remaining_of_placed
@@ -56,12 +63,28 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.estimate.indicating import Nature
+    from waterfall.core.estimate.indicating import MissingRate, Nature
     from waterfall.core.estimate.tables import EstimateLine
     from waterfall.core.estimate.workloading import RoleLoad
+    from waterfall.core.revisions.interface import RevisionRead
 
 # An empty sum, to the cent.
 NOUGHT = Decimal("0.00")
+
+
+@dataclass(frozen=True, slots=True)
+class Lacking:
+    """The rates a total lacks, by the cost type and by the role of the labour lines that lack them.
+
+    A key absent lacks none; each tuple is in the order ``missing_rates`` gives, by label.
+    """
+
+    by_cost_type: Mapping[UUID, tuple[MissingRate, ...]]
+    by_role: Mapping[UUID, tuple[MissingRate, ...]]
+
+
+# What a total lacks when no rate is missing.
+LACKING_NONE = Lacking({}, {})
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +106,8 @@ class PortfolioTotals:
     budget_revision_id: UUID
     budget_cost_type_labels: Mapping[UUID, str]
     remaining_cost_type_labels: Mapping[UUID, str]
+    budget_lacking: Lacking = LACKING_NONE
+    remaining_lacking: Lacking = LACKING_NONE
 
 
 def _summed(
@@ -98,6 +123,43 @@ def _summed(
             role = line.resource_role_id
             by_role[role] = by_role.get(role, NOUGHT) + amount
     return by_type, by_role
+
+
+def _missing(session: Session, project_id: UUID, read: RevisionRead) -> dict[UUID, MissingRate]:
+    """Give the rates a revision not marked lacks, by category; a marked revision lacks none.
+
+    The rates ``getMissingRates`` names (``missing_rates_of``), in its order, by label. A marked
+    revision is priced on what its marking kept, whatever the reference became since.
+    """
+    if read.marked:
+        return {}
+    return {each.cost_category_id: each for each in missing_rates_of(session, project_id, read)}
+
+
+def _lacking(
+    lines: Iterable[EstimateLine],
+    natures: Mapping[UUID, Nature],
+    missing: Mapping[UUID, MissingRate],
+) -> Lacking:
+    """Name the rates the labour lines given lack, by the cost type and by the role of each."""
+    if not missing:
+        return LACKING_NONE
+    by_type: dict[UUID, set[UUID]] = {}
+    by_role: dict[UUID, set[UUID]] = {}
+    for line in lines:
+        if line.resource_role_id is None or line.cost_category_id not in missing:
+            continue
+        cost_type = natures[line.cost_category_id].cost_type_id
+        by_type.setdefault(cost_type, set()).add(line.cost_category_id)
+        by_role.setdefault(line.resource_role_id, set()).add(line.cost_category_id)
+
+    def named(categories: set[UUID]) -> tuple[MissingRate, ...]:
+        return tuple(rate for key, rate in missing.items() if key in categories)
+
+    return Lacking(
+        {key: named(each) for key, each in by_type.items()},
+        {key: named(each) for key, each in by_role.items()},
+    )
 
 
 def _budget_lines(session: Session, project_id: UUID, revision_id: UUID) -> list[EstimateLine]:
@@ -142,6 +204,8 @@ def portfolio_totals(session: Session, project_id: UUID, revision_id: UUID) -> P
         ((line, budgeted_of(line)) for line in budgeted), budget_natures
     )
     remaining_by_type, remaining_by_role = _summed(remaining, natures)
+    missing = _missing(session, project_id, read)
+    budget_missing = missing if budget_read is read else _missing(session, project_id, budget_read)
     return PortfolioTotals(
         budget_by_type,
         remaining_by_type,
@@ -150,6 +214,8 @@ def portfolio_totals(session: Session, project_id: UUID, revision_id: UUID) -> P
         budget_id,
         _labels(budget_natures),
         _labels(natures),
+        _lacking(budgeted, budget_natures, budget_missing),
+        _lacking((line for line, _ in remaining), natures, missing),
     )
 
 
