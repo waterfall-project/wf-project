@@ -286,7 +286,7 @@ def _views(
     standing = ProjectStanding(
         no_background_task_running(session, project_id),
         reference_correctable(session, project_id),
-        opening_of(session, project_id),
+        opening_of(session, project_id, project),
     )
     kind = contributor_kind(session, project_id, viewer.user_id)
     sources = {row.source_revision_id for row in rows if row.source_revision_id is not None}
@@ -373,7 +373,7 @@ def read_revision_for(session: Session, project_id: UUID, revision_id: UUID | No
     marked, the reference of its project, and the marked revision before it.
     """
     if revision_id is None:
-        revision_id = current_revision(session, project_id) or _last_marked(session, project_id)
+        revision_id = current_revision(session, project_id) or last_marked(session, project_id)
         if revision_id is None:
             raise NotFoundError(NOT_FOUND)
     revision = found_revision(session, revision_id, project_id, lock=False)
@@ -417,7 +417,7 @@ def _judge_opening(
 
 def last_marked_revision(session: Session, project_id: UUID) -> UUID | None:
     """Give the last marked revision of a project, which the next current one copies, if any."""
-    return _last_marked(session, project_id)
+    return last_marked(session, project_id)
 
 
 def revision_project(session: Session, revision_id: UUID) -> UUID:
@@ -483,11 +483,6 @@ def last_marked_revisions(session: Session, project_ids: Collection[UUID]) -> di
     return {row[0]: row[1] for row in rows}
 
 
-def _last_marked(session: Session, project_id: UUID) -> UUID | None:
-    """Give the last marked revision of a project, the source of the next one, if any."""
-    return last_marked(session, project_id)
-
-
 @dataclass(frozen=True, slots=True)
 class _Opening:
     """A revision to open: its identifier, its description, and the task that opens it, if one.
@@ -513,7 +508,7 @@ def _open(session: Session, project_id: UUID, act: Act, opening: _Opening) -> Re
     share_reference(session)
     project = lock_project(session, project_id)
     _judge_opening(session, project_id, project, opening.running)
-    source = _last_marked(session, project_id)
+    source = last_marked(session, project_id)
     revision = Revision(
         id=revision_id,
         project_id=project_id,
