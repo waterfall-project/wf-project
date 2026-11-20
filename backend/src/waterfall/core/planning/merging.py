@@ -19,9 +19,10 @@ work package or order item it bore named — or kept; the started tasks kept, wh
 completes (``ImportCompletedTask``, on the day it is applied). And what refuses it, judged on the
 structure every part leaves (``ReportRefusal``): an order item taken out of the subtree of its
 work package, then the engine replayed once — a loop, a link across the hierarchy, the horizon —,
-each task named by its node in the main structure and its label, a node null for a task added.
+each task named by its node in the main structure and its label, a node null for a task added. A
+task left without a working hour the estimate names, its lines' roles being its own.
 
-Written by US-2560/L1.
+Written by US-2560/L1; what the application writes of it, by US-2560/L2 (``merging_writing``).
 """
 
 from dataclasses import dataclass, field
@@ -45,6 +46,7 @@ from waterfall.core.planning.scheduling import (
     LinkCycleError,
     LinkForbiddenError,
     Structure,
+    TaskWithoutWorkingHoursError,
     WorkInstant,
     schedule,
 )
@@ -194,7 +196,7 @@ def _difference(
     }
 
 
-def _task_fields(plan: MergePlan, task_id: UUID) -> list[str]:
+def task_fields(plan: MergePlan, task_id: UUID) -> list[str]:
     """Name the columns the differential changes of a task, in the order of the grid, then parent.
 
     A summary's mode, duration and dates are derived; an automatic task's dates are computed.
@@ -278,7 +280,7 @@ def task_differences(
         if task_id not in plan.main.nodes:
             differences.append(_difference("added", "task", (None, plan.label_of(task_id)), []))
             continue
-        fields = _task_fields(plan, task_id)
+        fields = task_fields(plan, task_id)
         if fields:
             named = (plan.lineage_of(task_id), plan.label_of(task_id))
             differences.append(_difference("updated", "task", named, fields))
@@ -345,7 +347,8 @@ def _replayed(merging: StructureMerging, plan: MergePlan) -> list[Json]:
 
     A loop, named from the first of its tasks in the order of the plan, or a link between a summary
     and its subordinate, the summary first, leave the dates without a calculation: the horizon is
-    then not judged (#788). Beyond fifteen years, the task that finishes last is named.
+    then not judged (#788), nor when a task has no working hour, which the estimate names. Beyond
+    fifteen years, the task that finishes last is named.
     """
     if not plan.order:
         return []
@@ -372,6 +375,10 @@ def _replayed(merging: StructureMerging, plan: MergePlan) -> list[Json]:
     except LinkForbiddenError as forbidden:
         ends = (forbidden.summary_id, forbidden.subordinate_id)
         return [{"code": LINK_FORBIDDEN, "params": {"link": [plan.named(each) for each in ends]}}]
+    except TaskWithoutWorkingHoursError:
+        # The estimate names the task and its roles (``TASK_WITHOUT_WORKING_HOURS``), as for an
+        # update; the dates are not computed, and the horizon is not judged.
+        return []
     beyond = computed.horizon_exceeded_by
     if beyond is None:
         return []

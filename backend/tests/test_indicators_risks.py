@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The indicators of a project that carries a risk, identified or occurred (US-2630/L1).
+"""The indicators of a project that carries a risk, identified or occurred, or an amendment merged.
+
+US-2630/L1 for the risks, L2 for the amendments.
 
 The project of ``occurrence_support``: costed at 1 000 — ``Étude`` 600, ``Réalisation`` 400 —, a
 risk of severity 200 at 30 % whose provision, 60, is borne by ``Étude``, the first revision marked
@@ -19,12 +21,14 @@ from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
 import pytest
+from amendments_support import on, opened_amendment
 from costs_support import load_import
-from curves_support import COST_CURVE, curve
+from curves_support import COST_CURVE, EARNED_VALUE_CURVES, curve, series
 from day_indicators_support import dated, indicators
-from estimate_support import Costing, costing
+from estimate_support import Costing, Lines, costing
 from fastapi.testclient import TestClient
 from indicators_support import clock_setter, marked, progressed, zeroed
+from merges_support import merged
 from nodes_support import Tree
 from occurrence_support import (
     DIAGNOSTIC,
@@ -40,7 +44,7 @@ from planning_support import DAY
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from remaining_support import line_named, task_named
-from risks_support import costed
+from risks_support import Costed, costed, material
 from support import ContractClient, nowhere
 
 from waterfall.api.app import create_app
@@ -49,12 +53,20 @@ from waterfall.core.costs.interface import PROJECT, UNASSIGNED
 from waterfall.core.estimate.interface import IndicatorLine, Placement
 from waterfall.core.indicators.caching import day_key
 from waterfall.core.indicators.computing import LinesRead, amounts_from
-from waterfall.core.indicators.curving import CurveSources, curves_of_scope
+from waterfall.core.indicators.curving import (
+    CurveReading,
+    CurveSources,
+    InForce,
+    cost_curve_document,
+    curves_of_scope,
+)
 from waterfall.core.indicators.interface import IndicatorsReading, day_reading, offer_curves
+from waterfall.core.indicators.shaping import Context
 from waterfall.core.planning.interface import WorkInstant, weekly_calendar
 from waterfall.core.projects.interface import subproject_ids
 from waterfall.platform.cache import PREFIX, IndicatorsCache
 from waterfall.platform.keycloak_admin import KeycloakAdmin
+from waterfall.worker.merge import merge
 from waterfall.worker.occurrence import occur
 from waterfall.worker.runner import Timing, Worker
 
@@ -79,6 +91,8 @@ TTL = 300
 AT_ONCE = Timing(claim_after=0, block=0.01, redeposit_every=0)
 # The Thursday the indicators are read on: after the studies, in the middle of the own estimate.
 TODAY = date(2026, 11, 12)
+# The day the first revision is marked and designated, before the project is moved In progress.
+FIRST_DAY = date(2026, 11, 5)
 D = Decimal
 EIGHT = D(8)
 # The week of the task of the lines built by hand: eight hours from Monday to Friday.
@@ -129,15 +143,28 @@ def api(serve: Serve, queue: TaskQueue, cache: IndicatorsCache) -> ContractClien
 
 @pytest.fixture
 def worker(database: Database, queue: TaskQueue) -> Worker:
-    """Give a worker on the queue of the test that runs the occurrences."""
+    """Give a worker on the queue of the test that runs the occurrences and the merges."""
     queue.prepare()
-    return Worker(database, queue, {"risk_occurrence": occur}, "worker", AT_ONCE)
+    runs = {"risk_occurrence": occur, "structure_merge": merge}
+    return Worker(database, queue, runs, "worker", AT_ONCE)
 
 
 @pytest.fixture
 def clock(monkeypatch: pytest.MonkeyPatch) -> Clock:
     """Give the means to set the day the indicators are computed on."""
-    return clock_setter(monkeypatch)
+    set_day = clock_setter(monkeypatch)
+
+    def set_clock(day: date) -> datetime:
+        """Set the day of the routes and of the writes that take the instant under their locks."""
+        instant = set_day(day)
+        for place in ("marking", "reference", "merge_applying"):
+            path = f"waterfall.core.revisions.interface.{place}.utc_now"
+            monkeypatch.setattr(path, lambda: instant)
+        # The marking of the first revision, written around the service by the tests.
+        monkeypatch.setattr("nodes_support.utc_now", lambda: instant)
+        return instant
+
+    return set_clock
 
 
 @pytest.fixture
@@ -148,6 +175,7 @@ def ready(api: ContractClient, stage: Scene, clock: Clock) -> Occurring:
     become a summary task when the risk occurs: the making is the task that stays as it is.
     """
     costs: Costing = costing(stage.database)
+    clock(FIRST_DAY)
     ready = occurring(api, costed(api, stage, costs))
     path = f"{PROJECTS}/{ready.project.project_id}"
     counter = api.get(path, headers=stage.manager.headers).json()["lock_version"]
@@ -511,3 +539,251 @@ def test_no_entry_is_served_stale_after_an_entry_a_reexamination_or_an_occurrenc
     assert read(ready)["remaining"] == "750.00"
     occurred(ready, worker)
     assert read(ready)["remaining"] == "900.00"
+
+
+# --- An amendment merged -------------------------------------------------------------------------
+
+# The day an amendment is merged, after the marking of the revision it follows.
+MERGE_DAY = date(2026, 11, 16)
+EXTENSION = "Extension"
+
+
+def amended(
+    ready: Occurring,
+    worker: Worker,
+    clock: Clock,
+    *,
+    follow: bool = True,
+) -> Costed:
+    """Merge an amendment of 200 in the current revision; give the project costed as it stands.
+
+    With ``follow``, the current revision is marked first at ``TODAY`` (``v2``, which keeps its
+    indicators: the project is In progress) and the amendment is opened in the third, which copies
+    it. The amendment brings ``Extension``, a task of forty working days from the start of the
+    planning, bearing a line of 200. The merge is run by the worker on ``MERGE_DAY``, which marks
+    the revision and makes it the reference.
+    """
+    revision = ready.revision
+    if follow:
+        marked(ready.project.stage, ready.revision, "v2")
+        revision = ready.risks.revision()
+    tree = Tree(ready.api, ready.project.stage, revision)
+    project = replace(
+        ready.project,
+        tree=tree,
+        lines=Lines(tree),
+        revision_id=UUID(revision["revision_id"]),
+        structure_id=UUID(tree.structure_id),
+    )
+    amendment = opened_amendment(ready.api, project)
+    branch = on(tree, amendment)
+    task = branch.made(EXTENSION, task={"duration": {"value": "40", "unit": "d"}})
+    Lines(branch).made(task, **material(project.costs, "Matériel", "200.00"))
+    clock(MERGE_DAY)
+    assert merged(ready.api, project, worker, amendment)["status"] == "succeeded"
+    return project
+
+
+def remaining_of(ready: Occurring, revision_id: object) -> dict[str, Any]:
+    """Read the remaining to commit of a revision, as its marking kept it."""
+    path = f"{PROJECTS}/{ready.project.project_id}/remaining-indicators?revision_id={revision_id}"
+    answer = ready.api.get(path, headers=ready.risks.headers)
+    assert answer.status_code == 200, answer.text
+    return answer.json()
+
+
+def budget_of(body: dict[str, Any]) -> dict[str, str]:
+    """Give the reference budget of a curve by the day of its points."""
+    return dict(series(body, "reference_budget"))
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_an_amendment_merged_steps_the_budget_at_the_month_of_the_merge(
+    ready: Occurring, worker: Worker, clock: Clock
+) -> None:
+    # « Après contractualisation d'un avenant qui porte le budget de 1 000 à 1 200, la courbe du
+    # budget présente, au point du mois de l'avenant, une marche égale à l'écart des deux cumulés à
+    # cette date, et atteint 1 200 à la date de fin de la nouvelle référence. » The old reference
+    # (1 000) is spent in November; the amendment adds 200 over forty working days, 105 of them in
+    # November (21 days of 40): the step of the merge, on 30 November, is that gap; the series
+    # reads the new reference from the merge and reaches 1 200 at the end of its last task.
+    before = budget_of(curve(ready.api, ready.project.stage, COST_CURVE))
+    assert before == {"2026-10-31": "0.00", "2026-11-30": "1000.00"}
+    amended(ready, worker, clock)
+    for query in ("", "?payment_delays=true"):
+        body = curve(ready.api, ready.project.stage, COST_CURVE, query)
+        assert body["steps"] == [{"date": "2026-11-30", "amount": "105.00", "cause": "amendment"}]
+        assert budget_of(body) == {
+            "2026-10-31": "0.00",
+            "2026-11-30": "1105.00",
+            "2026-12-31": "1200.00",
+        }
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_the_budget_reads_at_each_month_the_reference_in_force_and_steps_at_each_change() -> None:
+    # Propre à l'US : trois références successives, chacune en vigueur de son marquage à celui de
+    # la suivante — 1 000 en novembre, 1 200 en décembre, 1 300 en janvier : la série lit à chaque
+    # fin de mois celle en vigueur, une marche à chaque changement, égale à l'écart des deux
+    # cumulés à ce point, et la série atteint 1 300 à la fin de la dernière.
+    def on_day(day: date, budgeted: str) -> tuple[IndicatorLine, ...]:
+        held = Placement(WEEK, WorkInstant(day), WorkInstant(day, EIGHT))
+        task, amount = uuid4(), D(budgeted)
+        return (IndicatorLine(uuid4(), task, task, None, None, amount, amount, 0, held),)
+
+    november, december, january = (
+        on_day(date(2026, 11, 3), "1000.00"),
+        on_day(date(2026, 12, 14), "1200.00"),
+        on_day(date(2027, 1, 12), "1300.00"),
+    )
+    earlier = (InForce(date(2026, 10, 1), november), InForce(date(2026, 12, 10), december))
+    reading = CurveReading(
+        date(2027, 1, 20), january, (), (), (), earlier=earlier, since=date(2027, 1, 5)
+    )
+    at = datetime(2027, 1, 20, 9, tzinfo=UTC)
+    context = Context(uuid4(), "marked", at, PROJECT, is_stored=False)
+    body = cost_curve_document(reading, context, payment_delays=False)
+    assert budget_of(body) == {
+        "2026-10-31": "0.00",
+        "2026-11-30": "1000.00",
+        "2026-12-31": "1200.00",
+        "2027-01-31": "1300.00",
+    }
+    assert body["steps"] == [
+        {"date": "2026-12-31", "amount": "200.00", "cause": "amendment"},
+        {"date": "2027-01-31", "amount": "100.00", "cause": "amendment"},
+    ]
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_a_first_reference_standing_after_the_first_point_is_in_force_from_the_start() -> None:
+    # Propre à l'US : le `since` de la première référence, le 20 novembre, suit le premier point,
+    # fin octobre : le rang 0 est en vigueur par défaut, sans marche avant la seconde référence.
+    def on_day(day: date, budgeted: str) -> tuple[IndicatorLine, ...]:
+        held = Placement(WEEK, WorkInstant(day), WorkInstant(day, EIGHT))
+        task, amount = uuid4(), D(budgeted)
+        return (IndicatorLine(uuid4(), task, task, None, None, amount, amount, 0, held),)
+
+    earlier = (InForce(date(2026, 11, 20), on_day(date(2026, 11, 3), "1000.00")),)
+    reading = CurveReading(
+        date(2027, 1, 20),
+        on_day(date(2026, 12, 14), "1200.00"),
+        (),
+        (),
+        (),
+        earlier=earlier,
+        since=date(2026, 12, 10),
+    )
+    at = datetime(2027, 1, 20, 9, tzinfo=UTC)
+    context = Context(uuid4(), "marked", at, PROJECT, is_stored=False)
+    body = cost_curve_document(reading, context, payment_delays=False)
+    assert budget_of(body)["2026-11-30"] == "1000.00"
+    assert body["steps"] == [{"date": "2026-12-31", "amount": "200.00", "cause": "amendment"}]
+
+
+@pytest.mark.requirement("WF-DEV-0080-A")
+def test_after_an_amendment_the_planned_value_totals_the_new_budget(
+    ready: Occurring, worker: Worker, clock: Clock
+) -> None:
+    # « Après contractualisation d'un avenant, la valeur planifiée totalise le nouveau budget de
+    # référence. » The planned value is that of the new reference, not of the references of
+    # before: 1 105 at the end of November, 1 200 — the new budget — at the end of its last task,
+    # in the curve and in the indicators read the day after.
+    amended(ready, worker, clock)
+    body = curve(ready.api, ready.project.stage, EARNED_VALUE_CURVES)
+    assert dict(series(body, "planned_value")) == {
+        "2026-10-31": "0.00",
+        "2026-11-30": "1105.00",
+        "2026-12-31": "1200.00",
+    }
+    assert body["steps"] == []
+    clock(date(2027, 1, 4))
+    found = read(ready)
+    assert (found["reference_budget"], found["planned_value"]) == ("1200.00", "1200.00")
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_a_reading_as_of_a_day_before_the_amendment_reads_the_reference_of_then(
+    ready: Occurring, worker: Worker, clock: Clock
+) -> None:
+    # Propre à l'US : une lecture à une date antérieure à l'avenant lit la référence d'alors : le
+    # 13 novembre, la révision marquée le 12 — budget de 1 000, aucune marche —, quand la lecture
+    # du jour, après la fusion du 16, lit 1 200 et la marche de l'avenant.
+    amended(ready, worker, clock)
+    then = curve(ready.api, ready.project.stage, COST_CURVE, "?as_of=2026-11-13")
+    assert (then["steps"], budget_of(then)["2026-11-30"]) == ([], "1000.00")
+    assert "2026-12-31" not in budget_of(then)
+    kept = indicators(ready.api, ready.project.stage, "?as_of=2026-11-13")
+    assert (kept["reference_budget"], kept["remaining"]) == ("1000.00", "660.00")
+    now = curve(ready.api, ready.project.stage, COST_CURVE)
+    assert (len(now["steps"]), budget_of(now)["2026-12-31"]) == (1, "1200.00")
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+def test_no_entry_is_served_stale_after_a_merge(
+    ready: Occurring, worker: Worker, clock: Clock
+) -> None:
+    # Propre à l'US (#3629, #4243) : lue une fois — l'entrée du jour est écrite —, la courbe se
+    # relit juste après la fusion d'un avenant, au même jour : la référence a changé, l'empreinte
+    # aussi, et le budget de 1 200 et la marche sont servis, non l'entrée d'avant.
+    assert read(ready)["reference_budget"] == "1000.00"
+    before = key_of(ready)
+    amended(ready, worker, clock)
+    clock(TODAY)
+    assert key_of(ready) != before
+    found = read(ready)
+    assert (found["reference_budget"], found["remaining"]) == ("1200.00", "860.00")
+    body = curve(ready.api, ready.project.stage, COST_CURVE)
+    assert [each["amount"] for each in body["steps"]] == ["105.00"]
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_the_documents_kept_at_a_merge_count_the_provision_and_carry_the_coverage(
+    ready: Occurring, worker: Worker, clock: Clock
+) -> None:
+    # Propre à l'US : les documents conservés par la fusion comptent les provisions et portent la
+    # couverture : le reste à engager de la révision qu'elle marque est 860 — les études, 600, leur
+    # provision, 60, l'avenant, 200 — et la couverture garde la provision de 60 et la réserve.
+    project = amended(ready, worker, clock, follow=False)
+    kept = remaining_of(ready, project.revision_id)
+    assert (kept["context"]["is_stored"], kept["total"]) == (True, "860.00")
+    assert kept["coverage"] == {
+        "reserve": "60.00",
+        "remaining_provisions": "60.00",
+        "occurred_cost": "0.00",
+        "occurred_reestimated": "0.00",
+        "coverage_variance": "0.00",
+    }
+    assert read(ready)["remaining"] == "860.00"
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_the_documents_kept_at_a_merge_read_the_new_reference_and_its_step(
+    ready: Occurring, worker: Worker, clock: Clock
+) -> None:
+    # Propre à l'US : la révision que la fusion marque est la référence dès cet instant : le
+    # lendemain de la fusion, une lecture `as_of` lit le document conservé et rend 1 200 et la
+    # marche, comme la lecture du jour.
+    amended(ready, worker, clock)
+    then = curve(ready.api, ready.project.stage, COST_CURVE, "?as_of=2026-11-17")
+    assert [each["amount"] for each in then["steps"]] == ["105.00"]
+    assert budget_of(then)["2026-12-31"] == "1200.00"
+    kept = indicators(ready.api, ready.project.stage, "?as_of=2026-11-17")
+    assert kept["reference_budget"] == "1200.00"
+
+
+@pytest.mark.requirement("WF-IND-0030-A")
+def test_the_documents_kept_at_a_merge_leave_the_occurrence_out_of_the_earned_value(
+    ready: Occurring, worker: Worker, clock: Clock
+) -> None:
+    # Propre à l'US : la tâche qu'une survenance a créée, terminée avant la fusion, n'ajoute rien à
+    # la valeur acquise du document que la fusion conserve — 400, la fabrication —, et la
+    # couverture conservée compte le coût du risque survenu, 200, et son réestimé, 80.
+    occurred(ready, worker)
+    finish(main_tree(ready), DIAGNOSTIC, SEARCH)
+    project = amended(ready, worker, clock, follow=False)
+    kept = indicators(ready.api, ready.project.stage, f"?revision_id={project.revision_id}")
+    assert (kept["context"]["is_stored"], kept["earned_value"]) == (True, "400.00")
+    coverage = remaining_of(ready, project.revision_id)["coverage"]
+    assert (coverage["occurred_cost"], coverage["occurred_reestimated"]) == ("200.00", "80.00")
+    assert coverage["remaining_provisions"] == "0.00"

@@ -54,6 +54,7 @@ test("writes the risk after a cell of its own estimate was entered and the detai
     // Left for the own estimate in the same tab, by the links of the shell; a cell is entered.
     await page.getByRole("link", { name: "Chiffrage et devis", exact: true }).click();
     await expect(page).toHaveURL(/\/estimate/, { timeout: WORKING });
+    // #1369: the structure of the own estimate of the risk created is listed, and opens (against the service).
     await page.getByRole("button", { name: /^Changer de structure/ }).click();
     await page.getByRole("menuitemradio", { name: /Fuite du toit/ }).click();
     await expect(page).toHaveURL(/structure=/, { timeout: WORKING });

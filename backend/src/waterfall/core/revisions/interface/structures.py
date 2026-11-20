@@ -65,7 +65,7 @@ from waterfall.core.revisions.commands import (
     phase_conditions,
     structure_commands_of,
 )
-from waterfall.core.revisions.interface.shared import MAIN, inscribe_structure
+from waterfall.core.revisions.interface.shared import AMENDMENT, MAIN, inscribe_structure
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.states import revision_state
 from waterfall.core.revisions.tables import CostStructure, Revision
@@ -83,8 +83,8 @@ if TYPE_CHECKING:
     from waterfall.core.revisions.interface.revisions import RevisionCopy
     from waterfall.platform.audit import Act
 
-# The kind of a differential, the amendment a negotiation prepares (``StructureKind``).
-AMENDMENT = "amendment"
+# The kind of a differential, the amendment a negotiation prepares (``StructureKind``), is
+# ``AMENDMENT``, which ``shared`` holds for the modules that cannot import this one.
 # The kind of the own estimate of a risk (``StructureKind``).
 RISK = "risk"
 # The kind of the base of a differential, which no operation serves (US-3050).

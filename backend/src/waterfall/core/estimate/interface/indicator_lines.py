@@ -5,13 +5,13 @@
 ``lines_for_indicators`` gives each line of the main structure of a revision, the provisions left
 out unless asked for (``provisions=True``): its node, the task that bears it — its node, its
 lineage, the risk it comes from —, its subproject in that revision, its budgeted and re-estimated
-amounts, its payment delay, and its task
-as a spreading sees it, on the calendar it is worked on, its role's for a labour line, its task's
-otherwise. A marked revision is read on the images its marking kept of the calendars of the roles
-(``kept_reference``); its dates are those its marking froze. ``planned_value_at`` is the planned
-value of lines at the end of a day, by the pure spreading of EP-07, the share of each line rounded
-to the cent, so that the planned value of a scope is the sum of those of its lines; the
-``planned_value`` of EP-07 is this one on the lines of the reference (#3566).
+amounts, its payment delay, and its task as a spreading sees it, on the calendar it is worked on,
+its role's for a labour line, its task's otherwise. A marked revision is read on the images its
+marking kept of the calendars of the roles (``kept_reference``); its dates are those its marking
+froze. ``planned_value_at`` is the planned value of lines at the end of a day, by the pure spreading
+of EP-07, the share of each line rounded to the cent, so that the planned value of a scope is the
+sum of those of its lines; the ``planned_value`` of EP-07 is this one on the lines of the reference
+(#3566).
 
 The lines and their planned value are read by ``lining``, private to the module, which this file
 re-exports: the estimate does not import its own interface (#3591).

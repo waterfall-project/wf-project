@@ -31,6 +31,7 @@ applies neither, and the project keeps its state and its revision.
 transaction as the worker.
 """
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -71,7 +72,7 @@ from waterfall.platform.errors import (
 from waterfall.platform.tasks import PROJECT, submit
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import Callable, Generator, Mapping
     from datetime import datetime
     from typing import Any
 
@@ -90,6 +91,8 @@ EXIT_STATE = "exit_state"
 EXIT_REASON = "exit_reason"
 EXIT_LOCK_VERSION = "exit_lock_version"
 
+# The key of the session telling which revision being marked is designated at the same instant.
+_DESIGNATES = "revision_designated_at_marking"
 # What computes and keeps the indicators of a revision being marked, in their order, given the act
 # of the marking — its instant and its requester: EP-10's.
 _INDICATORS: Registry[Callable[[Session, UUID, Act], None]] = Registry("revisions.indicators")
@@ -146,14 +149,24 @@ def _name_taken(revision_id: UUID) -> ConflictError:
 
 def _judge_name(session: Session, revision: Revision, version_name: str) -> None:
     """Refuse a name of version another marked revision of the same project bears."""
-    holder = session.scalar(
-        select(Revision.id).where(
-            Revision.project_id == revision.project_id,
-            Revision.status == "marked",
-            Revision.version_name == version_name,
-            Revision.id != revision.id,
-        )
-    )
+    judge_version_name(session, revision.project_id, version_name, revision.id)
+
+
+def judge_version_name(
+    session: Session, project_id: UUID, version_name: str, besides: UUID | None
+) -> None:
+    """Refuse a name of version a marked revision of a project bears but ``besides`` (409).
+
+    ``besides`` the revision to be marked, none for one a merge will create (US-2560/L2).
+    """
+    criteria = [
+        Revision.project_id == project_id,
+        Revision.status == "marked",
+        Revision.version_name == version_name,
+    ]
+    if besides is not None:
+        criteria.append(Revision.id != besides)
+    holder = session.scalar(select(Revision.id).where(*criteria))
     if holder is not None:
         raise _name_taken(holder)
 
@@ -284,6 +297,25 @@ def mark_revision(
     set_current_revision(session, revision.project_id, None, act)
     inscribe_revision(session, revision, "revision_mark", revision.version_name, act)
     session.flush()
+
+
+@contextmanager
+def designating(session: Session, revision_id: UUID) -> Generator[None]:
+    """Tell the indicators that the revision being marked becomes the reference at the same instant.
+
+    A merge marks and designates at once: the documents its marking keeps are drawn on it as the
+    reference, its budget stepped from the one before (``designated_at_marking``, US-2630/L2).
+    """
+    session.info[_DESIGNATES] = revision_id
+    try:
+        yield
+    finally:
+        session.info.pop(_DESIGNATES, None)
+
+
+def designated_at_marking(session: Session, revision_id: UUID) -> bool:
+    """Tell whether the revision being marked is designated the reference at the same instant."""
+    return session.info.get(_DESIGNATES) == revision_id
 
 
 def register_marking(keep: Callable[[RevisionMarking], None]) -> Callable[[], None]:

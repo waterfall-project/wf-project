@@ -41,8 +41,7 @@ import { useTranslations } from "next-intl";
 import { readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
-import { type CommandOffer, findOffer } from "@/components/commands/offer";
-import type { ListedStructure } from "@/components/context/structure";
+import { findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
 import { TreeFilters } from "@/components/grid/tree-filters";
@@ -60,7 +59,7 @@ import { hoursOfDay } from "@/components/gantt/scale";
 import { PlanningGrid, type PlanningGridProps } from "@/components/grid/planning-grid";
 import { targetTask } from "@/components/grid/planning-target";
 import type { ChoiceOption } from "@/components/grid/row-choices";
-import { MergeAmendmentCommand } from "@/components/revisions/merge-amendment-command";
+import { AmendmentCommands } from "@/components/revisions/amendment-commands";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -150,40 +149,6 @@ async function readTimelines(projectId: string): Promise<readonly ChoiceOption[]
 }
 
 /**
- * The contractualisation of the amendment the grid reads, as the revision lists it (US-0510); nothing
- * on any other structure.
- */
-function AmendmentMerge({
-  structure,
-  offer,
-  revision,
-}: {
-  /** The structure read, when it is an amendment's differential. */
-  readonly structure: ListedStructure | undefined;
-  readonly offer: CommandOffer | undefined;
-  readonly revision: RevisionParams;
-}) {
-  const amendment = structure?.kind === "amendment" ? structure : undefined;
-  if (amendment === undefined) {
-    return null;
-  }
-  return (
-    <MergeAmendmentCommand
-      key={`merge:${amendment.structure_id}`}
-      offer={offer}
-      amendment={{
-        projectId: revision.projectId,
-        revisionId: revision.revisionId,
-        structureId: amendment.structure_id,
-        label: amendment.label,
-      }}
-      merged={amendment.is_merged}
-      names={{ [amendment.structure_id]: amendment.label }}
-    />
-  );
-}
-
-/**
  * The grid of the planning and its Gantt, which zooms down to the hours of a day of the installation
  * and names the project, the revision and the date of calculation in its exported image.
  */
@@ -254,9 +219,14 @@ export default async function PlanningPage({
       />
       <Screen density={FUNCTION_DENSITY.planning} fill>
         <PlanningHeader label={screen.label} totals={screen.nodes.totals} context={at.context} />
-        <AmendmentMerge
+        <AmendmentCommands
           structure={screen.structures?.read}
-          offer={findOffer(screen.reading.revision?.available_commands ?? [], "merge_structure")}
+          version={screen.structureVersion}
+          commands={screen.commands}
+          mergeOffer={findOffer(
+            screen.reading.revision?.available_commands ?? [],
+            "merge_structure",
+          )}
           revision={revision}
         />
         <GridCard fill>

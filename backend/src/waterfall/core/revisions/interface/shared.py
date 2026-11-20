@@ -58,8 +58,9 @@ if TYPE_CHECKING:
 
 
 # The kind of the main structure of a revision (``StructureKind``), read by the modules of this
-# package that cannot import ``structures``, which imports them (#4003).
+# package that cannot import ``structures``, which imports them (#4003); and that of a differential.
 MAIN = "main"
+AMENDMENT = "amendment"
 
 
 def refuse(condition: str) -> ConflictError:
@@ -101,16 +102,25 @@ def inscribe_revision(
 
 
 def inscribe_structure(
-    session: Session, project_id: UUID, structure: StructureFacts, act: Act
+    session: Session,
+    project_id: UUID,
+    structure: StructureFacts,
+    act: Act,
+    merged: tuple[UUID, str] | None = None,
 ) -> None:
-    """Inscribe the abandonment of a differential: it, its revision, its project."""
+    """Inscribe the abandonment of a differential, or its merge: it, its revision, its project.
+
+    ``merged`` the revision a merge marks and the name it marks it under (US-2560/L2): the merge
+    is inscribed then (``structure_merge``), the abandonment otherwise, its revision unnamed.
+    """
     code = project_code(session, project_id)
     label = project_label(session, project_id)
     named = None if label is None else AuditProject(project_id, code, label)
-    revision = AuditRevision(structure.revision_id, None)
+    revision = AuditRevision(*(merged or (structure.revision_id, None)))
     audited = AuditObject("cost_structure", structure.structure_id, structure.label, revision)
     actor = inscribed_actor(session, act.author)
-    record(session, Inscription("structure_abandon", actor, audited, act.at, project=named))
+    action: AuditAction = "structure_abandon" if merged is None else "structure_merge"
+    record(session, Inscription(action, actor, audited, act.at, project=named))
 
 
 def hold_current_revision(session: Session, project_id: UUID) -> UUID | None:

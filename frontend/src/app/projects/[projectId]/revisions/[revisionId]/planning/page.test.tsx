@@ -404,14 +404,32 @@ describe("the structure the planning reads", () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked_merge_offered",
-      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures_amendments",
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
     };
-    const page = await planning({ structure: "01926f3a-7c00-7000-8000-000000000213" });
+    const page = await planning({ structure: AMENDMENT });
     const command = /<button(?:(?!<button).)*?Contractualise the amendment<\/button>/.exec(
       page,
     )?.[0];
     expect(command).toBeDefined();
     expect(command).not.toContain(" aria-disabled=");
+  });
+
+  it("says an amendment in arrears is late and does not offer its merge, which the service refuses before its update [US-2640]", async () => {
+    // `structures_amendments`: the amendment 2, opened before the merge of the amendment 1 wrote the
+    // main structure, is out of date (`is_up_to_date` false) — whatever the revision lists.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked_merge_offered",
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures_amendments",
+    };
+    const page = await planning({ structure: "01926f3a-7c00-7000-8000-000000000213" });
+    expect(page).toContain("is late");
+    expect(page).not.toContain("Contractualise the amendment</button>");
+  });
+
+  it("offers the abandon of the amendment where its structure lists `delete` available, and not on the main structure [US-2640]", async () => {
+    expect(await planning({ structure: AMENDMENT })).toContain("Abandon the amendment");
+    expect(await planning()).not.toContain("Abandon the amendment");
   });
 
   it("lists every differential of the revision, two coexisting in it [WF-REV-0100-A]", async () => {

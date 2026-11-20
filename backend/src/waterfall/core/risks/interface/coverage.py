@@ -35,6 +35,12 @@ def risk_coverage_of(session: Session, project_id: UUID, revision_id: UUID) -> C
     return coverage_of(session, project_id, revision_id)
 
 
-def kept_coverage(session: Session, project_id: UUID, kept: Mapping[str, Any]) -> dict[str, Any]:
-    """Give the coverage a marked revision kept, with the reserve the reference conserves now."""
+def kept_coverage(
+    session: Session, project_id: UUID, kept: Mapping[str, Any] | None
+) -> dict[str, Any] | None:
+    """Give the coverage a marked revision kept, with the reserve the reference conserves now.
+
+    None when the marking kept no coverage (``kept`` absent or without its figures): the reading
+    computes it then.
+    """
     return conserved_coverage(session, project_id, kept)
