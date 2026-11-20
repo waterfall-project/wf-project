@@ -23,12 +23,16 @@ read nor change.
 - ``day_documents_of`` gives the documents of the day of several projects, each on the revision
   of its day that the caller selected, from the cache of the indicators under the fingerprint of the
   project, those not kept computed by ``contribute`` and written (``contributions``).
-- ``offer_curves`` (US-2680/L1b, #4156), the series of the month of the estimate of an offer,
-  provision lines apart and included: still declared, the reading of the provision lines of an
-  estimate being undecided (no interface of ``core/estimate`` gives them with their task).
+- ``offer_curves`` (US-2680/L1b, #4156) gives the series of the month of the estimate of an offer,
+  as the two ``CurveSeries`` of a project, ``cost_curve`` and ``cost_curve_payment_delays``: the
+  reference budget on its lines without the provision lines, no actual cost, the projection of the
+  project manager provisions included, spread from the day of the computation on a base of nought,
+  the cash-out by month with the delays only. The provision lines are read as EP-08 reads them for
+  the curves of a project (``lines_for_indicators(provisions=True)``, US-2630/L1): one rule of the
+  provisions in the curves. The portfolio sums an offer as a project (US-2740).
 
-Declared by US-2670/L1, the socle of EP-11; filled by US-2680/L1, except ``offer_curves``, filled by
-US-2680/L1b (#4156).
+Declared by US-2670/L1, the socle of EP-11; filled by US-2680/L1, and by US-2680/L1b (#4156) for
+``offer_curves``.
 """
 
 from typing import TYPE_CHECKING, Protocol, cast
@@ -36,9 +40,14 @@ from typing import TYPE_CHECKING, Protocol, cast
 from sqlalchemy import select
 
 from waterfall.core.costs.interface import PROJECT
+from waterfall.core.estimate.interface import remaining_of_lines
+from waterfall.core.indicators.computing import Basis, read_lines
 from waterfall.core.indicators.contributions import contributions
+from waterfall.core.indicators.offering import offer_curves_document
+from waterfall.core.indicators.shaping import Context
 from waterfall.core.indicators.tables import RevisionIndicator
-from waterfall.core.revisions.interface import revision_project
+from waterfall.core.projects.interface import current_day
+from waterfall.core.revisions.interface import revision_marked_at, revision_project
 from waterfall.platform.database import among
 from waterfall.platform.identifiers import new_id
 
@@ -167,6 +176,14 @@ def day_documents_of(
 
 
 def offer_curves(session: Session, revision_id: UUID, at: datetime) -> Document:
-    """Give the series of the month of the estimate of an offer, provisions and delays apart."""
-    msg = "offer_curves is filled by US-2680/L1b"
-    raise NotImplementedError(msg)
+    """Give the series of the month of the estimate of an offer, provisions apart and included.
+
+    The document has two ``CurveSeries``, ``cost_curve`` and ``cost_curve_payment_delays``, on the
+    day of ``at``: see ``offer_curves_document``.
+    """
+    project_id = revision_project(session, revision_id)
+    tasks, lines, reference = read_lines(session, Basis(project_id, revision_id, revision_id))
+    marked = revision_marked_at(session, revision_id) is not None
+    context = Context(revision_id, "marked" if marked else "draft", at, PROJECT, is_stored=False)
+    remaining = remaining_of_lines(tasks, lines).by_line
+    return offer_curves_document(reference, lines, remaining, current_day(at), context)

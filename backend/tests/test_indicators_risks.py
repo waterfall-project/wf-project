@@ -50,7 +50,7 @@ from waterfall.core.estimate.interface import IndicatorLine, Placement
 from waterfall.core.indicators.caching import day_key
 from waterfall.core.indicators.computing import LinesRead, amounts_from
 from waterfall.core.indicators.curving import CurveSources, curves_of_scope
-from waterfall.core.indicators.interface import IndicatorsReading, day_reading
+from waterfall.core.indicators.interface import IndicatorsReading, day_reading, offer_curves
 from waterfall.core.planning.interface import WorkInstant, weekly_calendar
 from waterfall.core.projects.interface import subproject_ids
 from waterfall.platform.cache import PREFIX, IndicatorsCache
@@ -328,6 +328,29 @@ def test_the_documents_a_marking_keeps_count_the_provisions(ready: Occurring) ->
     assert (kept["context"]["is_stored"], kept["remaining"]) == (True, "660.00")
     body = curve(ready.api, ready.project.stage, COST_CURVE, f"{query}&payment_delays=true")
     assert sum((D(each["forecast"]) for each in body["cash_out_by_month"]), D(0)) == D("660.00")
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_the_curves_of_an_offer_read_the_provision_lines_as_the_curves_of_a_project(
+    ready: Occurring,
+) -> None:
+    # [US-2680] « les courbes d'une offre » (US-2680/L1b): the estimate of the revision read as an
+    # offer's, by ``offer_curves``: one rule of the provisions in the curves, that of a project. The
+    # budget is that of the lines without the provision, 1 000; the projection, from nought, the
+    # remaining, provision of 60 included, 660, as the cash-out to come of the project.
+    revision_id = UUID(ready.revision["revision_id"])
+    with ready.project.stage.database.transaction() as session:
+        document = offer_curves(session, revision_id, datetime(2026, 11, 12, 9, tzinfo=UTC))
+    with_delays = document["cost_curve_payment_delays"]
+    delayed = {each["name"]: each["points"] for each in with_delays["series"]}
+    plain = {each["name"]: each["points"] for each in document["cost_curve"]["series"]}
+    assert plain["reference_budget"][-1]["amount"] == "1000.00"
+    assert plain["project_manager_projection"][-1]["amount"] == "660.00"
+    assert plain["actual_cost"] == delayed["actual_cost"] == []
+    forecast_of_offer = sum(
+        (D(each["forecast"]) for each in with_delays["cash_out_by_month"]), D(0)
+    )
+    assert forecast_of_offer == forecast(ready) == D("660.00")
 
 
 def line_of(budgeted: str, origin: UUID | None) -> IndicatorLine:
