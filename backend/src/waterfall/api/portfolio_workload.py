@@ -57,18 +57,27 @@ class WorkloadQuery(ScopeQuery):
     under_load_threshold: str = DEFAULT_THRESHOLD
 
 
+def horizon_faults(text: str) -> list[FieldError]:
+    """Name the horizon that is malformed or out of its bounds, as every view that takes one does.
+
+    A malformed one is ``NUMBER_INVALID``; one outside its bounds is ``VALUE_OUT_OF_RANGE`` with
+    them (the S-curve, ``getPortfolioCostCurve``, judges its own the same way).
+    """
+    if INTEGER.fullmatch(text) is None:
+        return [FieldError("/query/horizon_months", NUMBER_INVALID)]
+    if not 1 <= int(text) <= GREATEST_HORIZON:
+        bounds = {"minimum": 1, "maximum": GREATEST_HORIZON}
+        return [FieldError("/query/horizon_months", VALUE_OUT_OF_RANGE, bounds)]
+    return []
+
+
 def view_faults(query: WorkloadQuery) -> list[FieldError]:
     """Name the horizon and the threshold that are malformed or out of their bounds.
 
     A malformed one is ``NUMBER_INVALID``; one outside its bounds is ``VALUE_OUT_OF_RANGE`` with
     its bounds. Both are judged, so that every fault of the view comes in one answer.
     """
-    faults: list[FieldError] = []
-    if INTEGER.fullmatch(query.horizon_months) is None:
-        faults.append(FieldError("/query/horizon_months", NUMBER_INVALID))
-    elif not 1 <= int(query.horizon_months) <= GREATEST_HORIZON:
-        bounds = {"minimum": 1, "maximum": GREATEST_HORIZON}
-        faults.append(FieldError("/query/horizon_months", VALUE_OUT_OF_RANGE, bounds))
+    faults = horizon_faults(query.horizon_months)
     if DECIMAL.fullmatch(query.under_load_threshold) is None:
         faults.append(FieldError("/query/under_load_threshold", NUMBER_INVALID))
     elif not 0 <= Decimal(query.under_load_threshold) <= 1:
