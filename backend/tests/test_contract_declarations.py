@@ -691,6 +691,11 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
         "declared pattern='^(display_name|kind|is_active)$', "
         "contract enum={'display_name', 'is_active', 'kind'}"
     ),
+    # The threshold of the workload, read as text and judged by the route with the horizon, every
+    # fault of the view named at once (``NUMBER_INVALID``, ``getPortfolioWorkload``, US-2700).
+    ("getPortfolioWorkload", "query", "under_load_threshold"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d+)?$'"
+    ),
 }
 
 

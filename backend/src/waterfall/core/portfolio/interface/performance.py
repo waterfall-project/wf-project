@@ -57,6 +57,7 @@ if TYPE_CHECKING:
     from waterfall.core.portfolio.aggregation import Aggregate
     from waterfall.core.portfolio.interface.scope import (
         PortfolioAsked,
+        PortfolioReading,
         PortfolioScope,
         ResolvedScope,
     )
@@ -210,17 +211,17 @@ def _evolution(
 
 
 def read_portfolio_performance(
-    session: Session, asked: PortfolioAsked, at: datetime, cache: IndicatorsCache | None = None
+    session: Session, asked: PortfolioAsked, reading: PortfolioReading
 ) -> Document:
-    """Give the performance of the scope at the instant ``at``; the day is read in ``cache``.
+    """Give the performance of the scope read by ``reading``; the day is read in its cache.
 
     Refuses a period or a node as every view of the portfolio does (422, ``resolve_scope``).
     """
-    resolved = resolve_scope(session, asked, at, counted=COUNTED, period=True)
+    resolved = resolve_scope(session, asked, reading.at, counted=COUNTED, period=True)
     scope = resolved.scope
-    reading = _Reading(session, at, cache)
+    source = _Reading(session, reading.at, reading.cache)
     thresholds = read_reference_settings(session).index_thresholds
-    documents = reading.documents(resolved)
+    documents = source.documents(resolved)
     total = aggregate(_figures(each) for each in documents)
     return {
         "scope": _scope(scope),
@@ -233,5 +234,5 @@ def read_portfolio_performance(
         "schedule_variance": _money(total.schedule_variance),
         "projections": _projections(total),
         "zone_distribution": _distribution(documents, thresholds),
-        "quarterly": _evolution(reading, asked, scope, documents),
+        "quarterly": _evolution(source, asked, scope, documents),
     }

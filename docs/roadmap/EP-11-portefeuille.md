@@ -732,7 +732,7 @@ portefeuille disent si le projet s'ouvre » (#389). Le filtre par colonne suit l
 
 ## US-2700 — Le plan de charge agrégé
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PTF-0060-A`, `WF-REF-0100-A`, `WF-REF-0070-A`
 - **opérations** : `getPortfolioWorkload`, `updateOrgNode`, `getMe`, `updateMyPreferences`
 - **issue** : #3861

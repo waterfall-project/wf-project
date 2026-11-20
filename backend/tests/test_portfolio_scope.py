@@ -13,6 +13,8 @@ projects at its end, and a dozen doing so at once, one per process, exhaust the 
 server of the tests (``max_locks_per_transaction``).
 """
 
+import inspect
+from annotationlib import Format
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -35,6 +37,7 @@ from projects_support import MANAGING, Scene, contribute, create
 from projects_support import scene as make_scene
 from sqlalchemy import event, select, text, update
 
+from waterfall.core.portfolio import interface
 from waterfall.core.portfolio.interface import (
     PortfolioAsked,
     ResolvedScope,
@@ -469,3 +472,31 @@ def test_the_state_at_an_instant_is_that_of_the_last_transition_ranked_by_the_st
         both = projects_in_states_on(session, ["created", "pricing"], at(2, 3))
         assert both[offer].state == "pricing"
         assert offer not in projects_in_states_on(session, ["created"], at(2, 3))
+
+
+@pytest.mark.story("US-2700")
+@pytest.mark.parametrize(
+    "view",
+    [
+        "read_portfolio_projects",
+        "read_portfolio_value",
+        "read_portfolio_workload",
+        "read_portfolio_performance",
+        "read_portfolio_cost_structure",
+        "read_portfolio_risks",
+        "read_portfolio_cost_curve",
+        "read_pilot_health",
+    ],
+)
+def test_every_view_of_the_portfolio_is_read_by_a_portfolio_reading_and_by_no_loose_instant(
+    view: str,
+) -> None:
+    # Décision de l'auteur du 2026-11-19 (#4194), portée par US-2700 : toute vue lit par
+    # ``PortfolioReading(at, cache)``, l'instant et le cache passés ensemble, ni un ``at`` ni un
+    # ``cache`` à part.
+    # The annotations are read as text: those of the views name their types under ``TYPE_CHECKING``.
+    signature = inspect.signature(getattr(interface, view), annotation_format=Format.STRING)
+    parameters = signature.parameters
+    assert "reading" in parameters
+    assert parameters["reading"].annotation == "PortfolioReading"
+    assert not {"at", "cache"} & set(parameters)
