@@ -171,7 +171,8 @@ from waterfall.core.resource_settings.interface.readiness import (
     share_reference as share_reference,
 )
 
-# ``resource_roles`` (US-0850): the roles of resources and their capacity.
+# ``resource_roles`` (US-0850; US-2680/L2 for ``roles_stamp``): the roles of resources and their
+# capacity.
 from waterfall.core.resource_settings.interface.resource_roles import (
     Capacity as Capacity,
 )
@@ -204,6 +205,9 @@ from waterfall.core.resource_settings.interface.resource_roles import (
 )
 from waterfall.core.resource_settings.interface.resource_roles import (
     RoleSort as RoleSort,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    RolesStamp as RolesStamp,
 )
 from waterfall.core.resource_settings.interface.resource_roles import (
     RoleView as RoleView,
@@ -243,6 +247,9 @@ from waterfall.core.resource_settings.interface.resource_roles import (
 )
 from waterfall.core.resource_settings.interface.resource_roles import (
     roles_present as roles_present,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    roles_stamp as roles_stamp,
 )
 from waterfall.core.resource_settings.interface.resource_roles import (
     set_role_activation as set_role_activation,

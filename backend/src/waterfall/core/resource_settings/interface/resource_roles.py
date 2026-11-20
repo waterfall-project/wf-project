@@ -732,6 +732,32 @@ def role_calendars(session: Session, role_ids: Collection[UUID]) -> dict[UUID, U
 
 
 @dataclass(frozen=True, slots=True)
+class RolesStamp:
+    """The number of the roles, the sum of their counters and the last instant one was written."""
+
+    count: int
+    versions: int
+    updated_at: datetime | None
+
+
+def roles_stamp(session: Session) -> RolesStamp:
+    """Give the stamp of every role, deactivated ones too: what a key of a cache reads (EP-11).
+
+    A role created, or changed in any way — its calendar, its headcount, its activation — moves
+    it: each write advances the counter of the role (``_write``). Its node is fixed at its creation
+    (``FIELD_READ_ONLY``): the stamp covers it with the rest. One statement.
+    """
+    count, versions, last = session.execute(
+        select(
+            func.count(),
+            func.coalesce(func.sum(ResourceRole.lock_version), 0),
+            func.max(ResourceRole.updated_at),
+        )
+    ).one()
+    return RolesStamp(count, int(versions), last)
+
+
+@dataclass(frozen=True, slots=True)
 class RoleOfCategory:
     """A role attached to a category, as a refusal names it: active or not (WF-IHM-0090)."""
 

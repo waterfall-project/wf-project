@@ -16,6 +16,7 @@ import json
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -33,11 +34,15 @@ from waterfall.core.indicators.contributions import (
 )
 from waterfall.core.indicators.interface import (
     PORTFOLIO_KINDS,
+    Contributing,
     day_documents_of,
     keep_document,
     kept_documents_of,
 )
-from waterfall.core.indicators.interface.portfolio import STATEMENTS_PER_PROJECT
+from waterfall.core.indicators.interface.portfolio import (
+    STATEMENTS_PER_PROJECT,
+    STATEMENTS_PER_READING,
+)
 from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.projects.interface import (
     ProjectChange,
@@ -45,6 +50,7 @@ from waterfall.core.projects.interface import (
     stored_lock_version,
     update_project,
 )
+from waterfall.core.resource_settings.interface import roles_stamp
 from waterfall.core.revisions.interface import mark_revision, register_indicators
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act
@@ -139,22 +145,18 @@ def test_a_document_of_the_portfolio_is_kept_at_the_act_of_the_marking_in_its_tr
     # Propre à l'US : the documents of the portfolio are computed at the instant of the marking and
     # written in its transaction, under the kinds of the portfolio: the scope of the project, the
     # instant of the marking its ``computed_at``, its requester the author, the document as given.
+    # The kind is one the marking of an offer does not keep itself (``store_contribution``): the
+    # milestones, which ask for a reference.
     revision_id = open_revision(api, stage)
     act = Act(stage.manager.user_id, utc_now())
     milestones: Document = {"milestones": []}
-    keep: dict[IndicatorKind, Document] = {
-        "portfolio_workload": WORKLOAD,
-        "portfolio_milestones": milestones,
-    }
-    marked_keeping(stage, revision_id, act, keep, act)
+    marked_keeping(stage, revision_id, act, {"portfolio_milestones": milestones}, act)
     with stage.database.transaction() as session:
         marked_at = session.scalar(select(Revision.marked_at).where(Revision.id == revision_id))
     assert marked_at == act.at
     author = stage.manager.user_id
-    assert rows_of(owner, revision_id) == [
-        ("portfolio_milestones", "project", act.at, act.at, author, milestones),
-        ("portfolio_workload", "project", act.at, act.at, author, WORKLOAD),
-    ]
+    kept = [row for row in rows_of(owner, revision_id) if row[0] == "portfolio_milestones"]
+    assert kept == [("portfolio_milestones", "project", act.at, act.at, author, milestones)]
 
 
 @pytest.mark.requirement("WF-DAT-0040-A")
@@ -167,7 +169,7 @@ def test_a_document_kept_at_another_instant_than_the_marking_fails_the_marking_w
     act = Act(stage.manager.user_id, utc_now())
     later = Act(act.author, act.at + timedelta(seconds=1))
     with pytest.raises(DBAPIError, match=OUTSIDE):
-        marked_keeping(stage, revision_id, act, {"portfolio_workload": WORKLOAD}, later)
+        marked_keeping(stage, revision_id, act, {"portfolio_milestones": WORKLOAD}, later)
     with stage.database.transaction() as session:
         revision = session.get(Revision, revision_id)
         assert revision is not None
@@ -195,7 +197,7 @@ def test_a_document_of_the_portfolio_is_never_kept_again_once_its_revision_is_ma
     # once: what the marking kept stays as it was.
     revision_id = open_revision(api, stage)
     act = Act(None, utc_now())
-    marked_keeping(stage, revision_id, act, {"portfolio_workload": WORKLOAD}, act)
+    marked_keeping(stage, revision_id, act, {"portfolio_milestones": WORKLOAD}, act)
     before = rows_of(owner, revision_id)
     for kind in ("portfolio_workload", "portfolio_risks"):
         refused = pytest.raises(IntegrityError, match=ROW_REFUSED)
@@ -247,17 +249,23 @@ def test_the_documents_several_marked_revisions_kept_are_read_in_one_statement(
 ) -> None:
     # Propre à l'US : a view at a past date reads, for every project of its scope, the documents its
     # retained revision kept, in one statement. The review of the project In progress kept the
-    # indicators of the project and its estimate; an offer, its estimate alone; a revision that kept
-    # none of the kinds, or that does not exist, has its entry, empty.
+    # indicators of the project, its estimate and its milestones; an offer, its estimate and its
+    # curves, no indicator of a project; a revision that kept none of the kinds, or that does not
+    # exist, has its entry, empty.
     review = fabrics.in_progress.marked[REVIEW][0]
     offer = fabrics.offer.marked[OFFER][0]
     unknown = uuid4()
-    kinds: list[IndicatorKind] = ["project", "estimate", "portfolio_workload"]
+    kinds: list[IndicatorKind] = [
+        "project",
+        "estimate",
+        "portfolio_milestones",
+        "portfolio_offer_curves",
+    ]
     with fabrics.stage.database.transaction() as session, statements_on(session) as seen:
         kept = kept_documents_of(session, [review, offer, unknown], kinds)
     assert set(kept) == {review, offer, unknown}
-    assert set(kept[review]) == {"project", "estimate"}
-    assert set(kept[offer]) == {"estimate"}
+    assert set(kept[review]) == {"project", "estimate", "portfolio_milestones"}
+    assert set(kept[offer]) == {"estimate", "portfolio_offer_curves"}
     assert kept[unknown] == {}
     assert kept[review]["estimate"]["context"]["revision_id"] == str(review)
     assert kept[review]["estimate"]["context"]["scope"] == "project"
@@ -278,6 +286,8 @@ def test_no_revision_or_no_kind_reads_nothing(fabrics: Portfolio) -> None:
 
 # The instant of the readings of the day: the date of the witness, after every fact of the fabrics.
 AT = datetime(READ_ON.year, READ_ON.month, READ_ON.day, 9, 0, tzinfo=UTC)
+# The kinds every entry of these readings answers.
+KINDS: tuple[IndicatorKind, ...] = ("portfolio_workload",)
 
 
 @dataclass
@@ -355,7 +365,8 @@ def read_day(
 ) -> dict[UUID, dict[IndicatorKind, Document]]:
     """Read the documents of the day of the four projects, at an instant."""
     with fabrics.stage.database.transaction() as session:
-        return day_documents_of(session, of_the_day(fabrics), at, counted, cache)
+        contributing = Contributing(counted, KINDS)
+        return day_documents_of(session, of_the_day(fabrics), at, contributing, cache)
 
 
 @pytest.mark.requirement("WF-DAT-0130-A")
@@ -423,7 +434,7 @@ def test_an_entry_unreadable_is_a_miss_computed_and_written_again(
     counted = Counted()
     first = read_day(fabrics, AT, counted, cache)
     with fabrics.stage.database.transaction() as session:
-        key = contribution_key(session, offer, revisions[offer], AT)
+        key = contribution_key(session, offer, revisions[offer], AT, roles_stamp(session))
     cache.client.set(PREFIX + key, damage, ex=TTL)
     counted.calls.clear()
     again = read_day(fabrics, AT, counted, cache)
@@ -469,7 +480,7 @@ def statements_of_day(
         bind = session.get_bind()
         event.listen(bind, "before_cursor_execute", capture)
         try:
-            day_documents_of(session, revisions, AT, Counted(), cache)
+            day_documents_of(session, revisions, AT, Contributing(Counted(), KINDS), cache)
         finally:
             event.remove(bind, "before_cursor_execute", capture)
     return len(seen)
@@ -481,7 +492,8 @@ def test_the_statements_of_a_warm_reading_of_the_day_are_bounded_per_project(
 ) -> None:
     # Propre à l'US : the fingerprint of a project is read by statements, project after project,
     # even when Redis answers all; the cost per project is bounded (STATEMENTS_PER_PROJECT,
-    # documented by ``day_documents_of``), and the exchanges with Redis do not grow with them.
+    # documented by ``day_documents_of``), the stamp of the roles once by reading, and the
+    # exchanges with Redis do not grow with them.
     revisions = of_the_day(fabrics)
     read_day(fabrics, AT, Counted(), cache)
     lookups = cache.lookups
@@ -492,28 +504,54 @@ def test_the_statements_of_a_warm_reading_of_the_day_are_bounded_per_project(
     assert cache.lookups == lookups + 2
     assert len(cache.writes) == 1
     for size, count in counts.items():
-        assert count <= STATEMENTS_PER_PROJECT * size
+        assert count <= STATEMENTS_PER_PROJECT * size + STATEMENTS_PER_READING
 
 
 @pytest.mark.requirement("WF-DAT-0130-A")
 @pytest.mark.parametrize("with_cache", [True, False])
+@pytest.mark.parametrize("value", [AT, Decimal("1.00"), float("nan"), float("inf")])
 def test_a_document_that_is_not_json_is_refused_with_a_cache_or_without(
-    fabrics: Portfolio, cache: Exchanges, *, with_cache: bool
+    fabrics: Portfolio, cache: Exchanges, value: object, *, with_cache: bool
 ) -> None:
-    # Propre à l'US : a Decimal or a datetime in a document fails the same way in both paths.
+    # Propre à l'US : a datetime, a Decimal, a NaN or an infinity in a document fails the same way
+    # in both paths: never kept as a JSON that is not standard (#4166).
     def contribute(
         session: Session, *, project_id: UUID, revision_id: UUID, at: datetime
     ) -> Mapping[IndicatorKind, Document]:
-        del session, project_id, revision_id
-        return {"portfolio_workload": {"at": at}}
+        del session, project_id, revision_id, at
+        return {"portfolio_workload": {"x": value}}
 
     revisions = of_the_day(fabrics)
+    contributing = Contributing(contribute, KINDS)
     with (
         fabrics.stage.database.transaction() as session,
         pytest.raises(UnserializableContributionError),
     ):
-        day_documents_of(session, revisions, AT, contribute, cache if with_cache else None)
+        day_documents_of(session, revisions, AT, contributing, cache if with_cache else None)
     assert cache.writes == []
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+def test_an_entry_that_lacks_a_kind_is_a_miss_computed_and_written_whole(
+    fabrics: Portfolio, cache: Exchanges
+) -> None:
+    # Propre à l'US : an entry written by a computation that gave fewer kinds — the list of US-2690
+    # before this lot, its ``project`` alone (#4193) — is not served as complete: the project is
+    # computed again and its entry written with every kind, ``null`` for one it does not give.
+    revisions = of_the_day(fabrics)
+    offer = fabrics.offer.project_id
+    with fabrics.stage.database.transaction() as session:
+        key = contribution_key(session, offer, revisions[offer], AT, roles_stamp(session))
+    cache.client.set(PREFIX + key, '{"estimate": {"total": "1"}}', ex=TTL)
+    counted = Counted()
+    with fabrics.stage.database.transaction() as session:
+        kinds: tuple[IndicatorKind, ...] = ("portfolio_workload", "portfolio_milestones")
+        found = day_documents_of(session, revisions, AT, Contributing(counted, kinds), cache)
+    assert (offer, revisions[offer]) in counted.calls
+    assert set(found[offer]) == {"portfolio_workload"}
+    entry = json.loads(cache.read(key) or "null")
+    assert entry["portfolio_milestones"] is None
+    assert entry["portfolio_workload"] == found[offer]["portfolio_workload"]
 
 
 def test_no_project_asks_no_exchange(fabrics: Portfolio, cache: Exchanges) -> None:
@@ -521,7 +559,7 @@ def test_no_project_asks_no_exchange(fabrics: Portfolio, cache: Exchanges) -> No
     # nothing.
     counted = Counted()
     with fabrics.stage.database.transaction() as session:
-        assert day_documents_of(session, {}, AT, counted, cache) == {}
+        assert day_documents_of(session, {}, AT, Contributing(counted, KINDS), cache) == {}
     assert (counted.calls, cache.lookups, cache.writes) == ([], 0, [])
 
 
@@ -532,13 +570,20 @@ def test_no_project_asks_no_exchange(fabrics: Portfolio, cache: Exchanges) -> No
         ("not JSON", None),
         ('["portfolio_workload"]', None),
         ('{"portfolio_workload": []}', None),
-        ("{}", {}),
+        ("{}", None),
+        ('{"project": {"rows": []}}', None),
+        ('{"portfolio_workload": null}', {}),
         ('{"portfolio_workload": {"rows": []}}', {"portfolio_workload": {"rows": []}}),
+        (
+            '{"portfolio_workload": {"rows": []}, "estimate": null}',
+            {"portfolio_workload": {"rows": []}},
+        ),
     ],
 )
-def test_an_entry_of_a_contribution_is_read_when_it_is_an_object_of_documents(
+def test_an_entry_of_a_contribution_is_read_when_it_answers_every_kind(
     kept: str | None, read: dict[str, object] | None
 ) -> None:
-    # Covers no requirement: the form of an entry, without Redis. An object without a document is a
-    # contribution that gives nothing, served as it is; anything else is a miss.
-    assert read_contribution(kept) == read
+    # Covers no requirement: the form of an entry, without Redis (#4193). An entry that answers
+    # every kind asked, a document or ``null``, is served without its ``null``; one that lacks a
+    # kind is partial, and a miss, as anything that is not an object of documents.
+    assert read_contribution(kept, KINDS) == read

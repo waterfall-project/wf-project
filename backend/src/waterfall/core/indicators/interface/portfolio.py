@@ -22,7 +22,8 @@ read nor change.
   entry, empty when it kept none.
 - ``day_documents_of`` gives the documents of the day of several projects, each on the revision
   of its day that the caller selected, from the cache of the indicators under the fingerprint of the
-  project, those not kept computed by ``contribute`` and written (``contributions``).
+  project, those not kept computed by ``contributing`` and written (``contributions``); an entry
+  answers every kind the caller names, and one that lacks one is computed again (#4193).
 - ``offer_curves`` (US-2680/L1b, #4156) gives the series of the month of the estimate of an offer,
   as the two ``CurveSeries`` of a project, ``cost_curve`` and ``cost_curve_payment_delays``: the
   reference budget on its lines without the provision lines, no actual cost, the projection of the
@@ -32,9 +33,10 @@ read nor change.
   provisions in the curves. The portfolio sums an offer as a project (US-2740).
 
 Declared by US-2670/L1, the socle of EP-11; filled by US-2680/L1, and by US-2680/L1b (#4156) for
-``offer_curves``.
+``offer_curves``, whose context a marking keeps since US-2680/L2.
 """
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, cast
 
 from sqlalchemy import select
@@ -78,6 +80,9 @@ PORTFOLIO_KINDS: frozenset[IndicatorKind] = frozenset(
 # The bound of the statements the fingerprint of one project reads (``day_documents_of``): nine
 # before the provisions and the occurrences of the risks (US-2630/L1, EP-08), eleven since.
 STATEMENTS_PER_PROJECT = 11
+# The statements a reading of the day reads once, whatever its projects: the stamp of the roles
+# (US-2680/L2, #4158).
+STATEMENTS_PER_READING = 1
 
 
 class Contribute(Protocol):
@@ -92,6 +97,19 @@ class Contribute(Protocol):
     ) -> Mapping[IndicatorKind, Document]:
         """Give the documents of the portfolio of ``revision_id``, a revision of ``project_id``."""
         ...
+
+
+@dataclass(frozen=True, slots=True)
+class Contributing:
+    """What gives the contribution of a project of the day: its computation, the kinds it answers.
+
+    ``kinds`` are the kinds every entry of the cache answers, a document or none: an entry kept that
+    lacks one of them is partial, and is computed again (#4193). A kind ``compute`` does not give
+    for a project is absent from what is served for it.
+    """
+
+    compute: Contribute
+    kinds: tuple[IndicatorKind, ...]
 
 
 def keep_document(
@@ -152,7 +170,7 @@ def day_documents_of(
     session: Session,
     revisions: Mapping[UUID, UUID],
     at: datetime,
-    contribute: Contribute,
+    contributing: Contributing,
     cache: IndicatorsCache | None = None,
 ) -> dict[UUID, dict[IndicatorKind, Document]]:
     """Give the documents of the day of projects, by project, from the cache or computed.
@@ -163,28 +181,36 @@ def day_documents_of(
     The caller drops the projects with no retained revision (``RetainedProject.revision_id`` is
     then null): they contribute to no sum. ``at`` is the instant of the reading, its day that of
     the key. Given ``cache``, the cache of the process, the entries of the projects are read in one
-    exchange and those missing computed by ``contribute`` and written; without it, every project is
-    computed. Every project asked has its entry, in the order given.
+    exchange and those missing computed by ``contributing`` and written; without it, every project
+    is computed. Every project asked has its entry, in the order given; an entry kept that lacks one
+    of the kinds of ``contributing`` is computed again (#4193).
 
     Cost: the fingerprint of a project is read by about eleven statements, project after project,
     even when Redis answers all: a number of statements that grows with the number of projects,
-    bounded per project (``STATEMENTS_PER_PROJECT``); the exchanges with Redis do not (one to read,
-    one to write). A document that is not JSON, as computed, raises
+    bounded per project (``STATEMENTS_PER_PROJECT``), and one more for the reading, the stamp of
+    the roles (``STATEMENTS_PER_READING``); the exchanges with Redis do not grow (one to read, one
+    to write). A document that is not JSON, as computed — a ``NaN`` included —, raises
     ``UnserializableContributionError``, with a cache or without.
     """
-    return contributions(session, revisions, at, contribute, cache)
+    return contributions(session, revisions, at, contributing, cache)
 
 
-def offer_curves(session: Session, revision_id: UUID, at: datetime) -> Document:
+def offer_curves(
+    session: Session, revision_id: UUID, at: datetime, *, marking: bool = False
+) -> Document:
     """Give the series of the month of the estimate of an offer, provisions apart and included.
 
     The document has two ``CurveSeries``, ``cost_curve`` and ``cost_curve_payment_delays``, on the
-    day of ``at``: see ``offer_curves_document``.
+    day of ``at``: see ``offer_curves_document``. Of the day, the context is ``marked`` for a
+    revision marked, ``draft`` otherwise, ``is_stored`` false; for ``marking``, the revision being
+    marked at ``at``, the instant of its act, the context is the one a marking keeps — ``marked``,
+    ``is_stored`` true —, as ``store_indicators`` writes its curves (US-2680/L2).
     """
     project_id = revision_project(session, revision_id)
     sources = read_curve_sources(session, Basis(project_id, revision_id, revision_id))
-    marked = revision_marked_at(session, revision_id) is not None
-    context = Context(revision_id, "marked" if marked else "draft", at, PROJECT, is_stored=False)
+    marked = marking or revision_marked_at(session, revision_id) is not None
+    status = "marked" if marked else "draft"
+    context = Context(revision_id, status, at, PROJECT, is_stored=marking)
     return offer_curves_document(
         sources.reference, sources.lines, sources.remaining, current_day(at), context
     )

@@ -92,3 +92,10 @@ from waterfall.core.portfolio.interface.value import (
 from waterfall.core.portfolio.interface.workload import (
     read_portfolio_workload as read_portfolio_workload,
 )
+
+# The registries the portfolio fills.
+from waterfall.core.revisions.interface import register_indicators
+
+# The registration, once, at the import: what a marking keeps for the portfolio, after the
+# indicators, whose interface ``contribution`` imports first (US-2680/L2).
+register_indicators(store_contribution)

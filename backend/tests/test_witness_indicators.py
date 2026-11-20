@@ -26,12 +26,9 @@ named with its cause where the test stands:
   the shapes and steps of the series are the examples'.
 
 ``SINCE`` names what the 101 read at its marking, 1 February, differs in from the example of the
-day, 3 June, which holds the work since: each such path is pinned to the 101's own estimate and
-indicators by an equality, in the test that names it. The causes of the ``*_APART`` tables
-document only: the tests compare their paths, never their causes.
-
-The invariants the witness proves: the sums of the meshes, the projection of the project manager,
-the offer refused, the points of the time/time diagram, the documents of the 101 on two platforms.
+day, 3 June: each such path is pinned to the 101's own estimate and indicators by an equality; the
+``*_APART`` tables document only. Proved besides: the sums of the meshes, the projection of the
+project manager, the offer refused, the time/time diagram, the documents of the 101 twice loaded.
 """
 
 import json
@@ -66,6 +63,7 @@ D = Decimal
 QUA = pytest.mark.requirement("WF-QUA-0040-A")
 
 CURVES = {"cost_curve", "cost_curve_payment_delays", "earned_value_curves"}
+PORTFOLIO = indicators_interface.PORTFOLIO_KINDS
 # The subprojects of the witness, "Poste de commande" and "Essais et mise en service", and the
 # meshes the indicators are computed on: the project, each subproject, "out of any subproject".
 COMMAND_POST = "01926f3a-7c00-7000-8000-000000000801"
@@ -286,12 +284,12 @@ def names_of(body: dict[str, Any]) -> list[str]:
 
 
 def kinds_of(database: Database, revision_id: UUID) -> set[str]:
-    """Give the kinds of document a revision of the witness kept."""
+    """Give the kinds of document a revision of the witness kept for EP-10, not the portfolio."""
     with database.transaction() as session:
         found = session.scalars(
             select(RevisionIndicator.kind).where(RevisionIndicator.revision_id == revision_id)
         )
-        return set(found)
+        return set(found) - PORTFOLIO
 
 
 def kept(database: Database, revision_id: UUID) -> list[tuple[Any, ...]]:
@@ -333,13 +331,13 @@ def test_the_witness_has_one_extending_the_loader_s_and_it_names_the_indicators(
 def test_the_101_keeps_its_documents_for_the_project_each_subproject_and_out_of_any(
     witness: Database,
 ) -> None:
-    # The estimate and the indicators of the project and the three curves, on each mesh; the
-    # remaining once, on the project, which its document spreads over the subprojects; all at the
-    # marking, 1 February at 9:00, by the platform.
+    # The estimate, the project indicators and the three curves on each mesh, the remaining once on
+    # the project; all at the marking, 1 February at 9:00, by the platform (the portfolio's apart).
     with witness.transaction() as session:
-        found = session.scalars(
+        every = session.scalars(
             select(RevisionIndicator).where(RevisionIndicator.revision_id == REVISION_101)
         ).all()
+    found = [row for row in every if row.kind not in PORTFOLIO]
     assert sorted((row.kind, row.scope) for row in found) == sorted(
         [(kind, mesh) for kind in ("estimate", "project", *CURVES) for mesh in MESHES]
         + [("remaining", "project")]
@@ -963,8 +961,9 @@ def test_two_platforms_loaded_with_the_witness_keep_the_same_documents_for_the_1
     install(owner)
     assert load(service_database_url) == 0
     assert kept(witness, REVISION_101) == first
-    assert len(first) == 21
-    assert {json.loads(row[4])["context"]["is_stored"] for row in first} == {True}
+    assert len(first) == 21 + 3  # the workload, the costs and the milestones (US-2680/L2)
+    held = [json.loads(row[4]) for row in first if row[0] not in PORTFOLIO]
+    assert {each["context"]["is_stored"] for each in held} == {True}
     assert kinds_of(witness, REVISION_101) == {"estimate", "remaining", "project", *CURVES}
 
 
@@ -973,8 +972,8 @@ def test_no_address_and_no_project_but_the_witness_s_appear_in_the_documents_the
     witness: Database,
 ) -> None:
     # « Aucune adresse électronique ni aucun libellé de projet réel n'y figure » : the documents
-    # add nothing to the witness — their labels are those of its subprojects and natures, and no
-    # text holds an address.
+    # add nothing to the witness — their labels are those of its subprojects, natures and milestones
+    # (US-2680/L2), and no text holds an address.
     with witness.transaction() as session:
         found = [
             row.document
@@ -995,6 +994,7 @@ def test_no_address_and_no_project_but_the_witness_s_appear_in_the_documents_the
     }
     allowed |= {each["label"] for each in example("remaining_indicators")["by_cost_type"]}
     allowed |= {each["label"] for each in example("estimate_indicators")["by_work_package"]}
+    allowed |= {each["label"] for each in example("milestone_tracking")["milestones"]}
     assert labels
     assert labels <= allowed
     assert "@" not in json.dumps(found)

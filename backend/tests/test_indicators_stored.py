@@ -46,7 +46,7 @@ from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.costs.interface import PROJECT, UNASSIGNED
 from waterfall.core.costs.tables import CostLine
-from waterfall.core.indicators.interface import stored_document
+from waterfall.core.indicators.interface import PORTFOLIO_KINDS, stored_document
 from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.projects.interface import current_day
 from waterfall.core.revisions.interface import mark_revision
@@ -181,7 +181,11 @@ def kept(database: Database, revision_id: str) -> dict[tuple[str, str], Any]:
                 RevisionIndicator.computed_at,
                 RevisionIndicator.created_at,
                 RevisionIndicator.created_by,
-            ).where(RevisionIndicator.revision_id == UUID(revision_id))
+            ).where(
+                RevisionIndicator.revision_id == UUID(revision_id),
+                # Those of EP-10: the portfolio's are test_portfolio_contribution's (US-2680/L2).
+                RevisionIndicator.kind.not_in(sorted(PORTFOLIO_KINDS)),
+            )
         ).all()
     return {(row.kind, row.scope): tuple(row[2:]) for row in rows}
 

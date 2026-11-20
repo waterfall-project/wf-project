@@ -5,20 +5,35 @@
 The portfolio sums documents a project gives by revision; on the current day, they are computed once
 and kept by the cache of the indicators of EP-10, under the fingerprint of the project (EP-11, "La
 contribution d'un projet"). The entry of a project is one JSON object, a document by kind, under
-the key of the day of the project (``day_key``) followed by ``portfolio``: a scope is a subproject,
-``project`` or ``unassigned``, never that word, so the entry of the contribution shares no key with
-the entry of a scope. The fingerprint is the one of the indicators of the day — the counters of the
-risks join it with EP-08 —: a write that changes it leaves the contribution with the scopes, and an
-entry is never served for a revision, a reference or a day that is no longer the project's.
+the key of the day of the project (``day_key``) followed by ``portfolio`` and a fingerprint of its
+own: a scope is a subproject, ``project`` or ``unassigned``, never that word, so the entry of the
+contribution shares no key with the entry of a scope. The fingerprint of the day is the one of the
+indicators, the counters of the risks in it (US-2630/L1): a write that changes it leaves the
+contribution with the scopes, and an entry is never served for a revision, a reference or a day
+that is no longer the project's.
 
 The entries of every project asked are read in one exchange; those not kept, or unreadable, are
-computed by the computation the caller gives (``Contribute``, that of ``core/portfolio``) and
+computed by the computation the caller gives (``Contributing``, that of ``core/portfolio``) and
 written together, none other. A Redis that does not answer is a miss for all: each project is
 computed, nothing is written. Two readings of an entry absent compute it both and write the same: no
-lock, as for the scopes. What the entry holds is what the computation gives: a change of its form
-is left behind by the validity period of an entry, or by ``FORM`` of the key.
+lock, as for the scopes.
+
+The key covers, beyond the fingerprint of the day, what the contribution reads and the indicators of
+the day do not (#4158, decision of the author of 2026-11-19; WF-DAT-0130-A): the probability of
+winning of the project, which weighs an offer, and the stamp of the roles of the platform
+(``roles_stamp``) — their node, their calendar, which spreads the workload —, read once for all the
+projects of a reading; the counters of the risks, which the part of the risks reads, are those of
+the day already (US-2680/L3 says whether they suffice). ``FORM`` of the key changes with what an
+entry holds, so that an entry of a form before is never read again.
+
+An entry answers every kind the caller names (``Contributing.kinds``), a document or ``null`` for a
+kind the state of the project does not call for: an entry that lacks one of them is partial —
+written by a computation that gave fewer kinds, or by a form before — and is a miss, computed and
+written again, never served as complete (#4193). A document that is not JSON — a ``Decimal``, a
+``datetime``, a ``NaN`` or an infinity — is refused (``UnserializableContributionError``, #4166).
 """
 
+import hashlib
 import json
 from typing import TYPE_CHECKING, cast
 
@@ -27,23 +42,30 @@ from waterfall.core.indicators.caching import day_key
 from waterfall.core.indicators.computing import Basis
 from waterfall.core.indicators.shaping import Context
 from waterfall.core.projects.interface import project_facts, subproject_ids
+from waterfall.core.resource_settings.interface import roles_stamp
 from waterfall.platform.cache import Unavailable
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Collection, Mapping
     from datetime import datetime
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
     from waterfall.core.indicators.interface.documents import Document, IndicatorKind
-    from waterfall.core.indicators.interface.portfolio import Contribute
+    from waterfall.core.indicators.interface.portfolio import Contributing
+    from waterfall.core.resource_settings.interface import RolesStamp
     from waterfall.platform.cache import IndicatorsCache
 
 # What follows the key of the day of a project for the entry of its contribution.
 CONTRIBUTION = "portfolio"
 # The status the key is read with: the key reads only the instant of the context, never its status.
 DRAFT = "draft"
+# The form of an entry of a contribution: a change of what an entry holds changes it. "2" since
+# US-2680/L2: every kind named, ``null`` for one the project does not give (#4193).
+FORM = "2"
+# The length of what the key adds to the fingerprint of the day: 128 bits of a SHA-256.
+FINGERPRINT_LENGTH = 32
 
 type Contribution = dict[IndicatorKind, Document]
 
@@ -55,26 +77,42 @@ class UnserializableContributionError(TypeError):
     """
 
 
-def contribution_key(session: Session, project_id: UUID, revision_id: UUID, at: datetime) -> str:
+def contribution_key(
+    session: Session, project_id: UUID, revision_id: UUID, at: datetime, roles: RolesStamp
+) -> str:
     """Give the key of the contribution of a project on the day of ``at``, on one of its revisions.
 
     The fingerprint of the day of the indicators (``day_key``), on that revision and the reference
-    of the project, followed by ``portfolio``. The facts of the project are read once, for the
-    reference and for the fingerprint.
+    of the project, followed by ``portfolio`` and the fingerprint of what the contribution reads
+    besides: the form of an entry, the probability of winning of the project, ``roles`` — the stamp
+    of the roles, read once by the caller for all the projects. The facts of the project are read
+    once, for the reference, the probability and the fingerprint.
     """
     facts = project_facts(session, project_id)
     basis = Basis(project_id, revision_id, facts.reference_revision_id)
     context = Context(revision_id, DRAFT, at, PROJECT, is_stored=False)
     key = day_key(session, basis, context, subproject_ids(session, project_id), facts)
-    return f"{key}:{CONTRIBUTION}"
+    besides = (
+        f"form={FORM}\n"
+        f"win_probability={facts.win_probability}\n"
+        f"roles={roles.count},{roles.versions},{_instant(roles)}"
+    )
+    fingerprint = hashlib.sha256(besides.encode()).hexdigest()[:FINGERPRINT_LENGTH]
+    return f"{key}:{CONTRIBUTION}:{fingerprint}"
 
 
-def read_contribution(kept: str | None) -> Contribution | None:
-    """Give the documents of an entry of a contribution, or none for one absent or unreadable.
+def _instant(roles: RolesStamp) -> str:
+    """Write the last instant a role was written, ``-`` for none."""
+    return "-" if roles.updated_at is None else roles.updated_at.isoformat()
 
-    An entry is unreadable when it is not JSON, is not an object, or holds a value that is not an
-    object (a document): it is a miss, and is written again. An object without a kind is a
-    contribution that gives nothing, and is served as it is.
+
+def read_contribution(kept: str | None, kinds: Collection[IndicatorKind]) -> Contribution | None:
+    """Give the documents of an entry of a contribution; none for one absent, unreadable or partial.
+
+    An entry is unreadable when it is not JSON, is not an object, or holds a value that is neither
+    an object (a document) nor ``null``; partial when one of ``kinds`` is not a key of it. Either is
+    a miss, and is written again. The kinds ``null`` are left out of what is served: an object of
+    every kind, all ``null``, is a contribution that gives nothing, served as it is.
     """
     if kept is None:
         return None
@@ -85,23 +123,32 @@ def read_contribution(kept: str | None) -> Contribution | None:
     if not isinstance(held, dict):
         return None
     documents = cast("dict[str, object]", held)
-    if any(not isinstance(document, dict) for document in documents.values()):
+    if any(each is not None and not isinstance(each, dict) for each in documents.values()):
         return None
-    return cast("Contribution", documents)
+    if any(kind not in documents for kind in kinds):
+        return None
+    return cast(
+        "Contribution", {kind: each for kind, each in documents.items() if each is not None}
+    )
 
 
 def _computed(
-    session: Session, revisions: Mapping[UUID, UUID], at: datetime, contribute: Contribute
+    session: Session, revisions: Mapping[UUID, UUID], at: datetime, contributing: Contributing
 ) -> dict[UUID, tuple[Contribution, str]]:
-    """Compute the contribution of each project on its revision, in the order given, with its JSON.
+    """Compute the contribution of each project on its revision, in the order given, with its entry.
 
-    A document that is not JSON (a ``Decimal``, a ``datetime``) is refused here, whatever the cache.
+    The entry names every kind of ``contributing``, ``null`` for one not given. A
+    document that is not JSON (a ``Decimal``, a ``datetime``, a ``NaN``) is refused here, whatever
+    the cache.
     """
     computed: dict[UUID, tuple[Contribution, str]] = {}
     for project_id, revision in revisions.items():
-        documents = dict(contribute(session, project_id=project_id, revision_id=revision, at=at))
+        documents = dict(
+            contributing.compute(session, project_id=project_id, revision_id=revision, at=at)
+        )
+        entry: dict[str, Document | None] = {**dict.fromkeys(contributing.kinds), **documents}
         try:
-            text = json.dumps(documents, separators=(",", ":"))
+            text = json.dumps(entry, separators=(",", ":"), allow_nan=False)
         except (TypeError, ValueError) as error:
             msg = f"the contribution of project {project_id} is not JSON: {error}"
             raise UnserializableContributionError(msg) from error
@@ -110,7 +157,7 @@ def _computed(
 
 
 def _documents(computed: Mapping[UUID, tuple[Contribution, str]]) -> dict[UUID, Contribution]:
-    """Keep the documents of what ``_computed`` gave, without their JSON."""
+    """Keep the documents of what ``_computed`` gave, without their entry."""
     return {project_id: documents for project_id, (documents, _) in computed.items()}
 
 
@@ -118,31 +165,33 @@ def contributions(
     session: Session,
     revisions: Mapping[UUID, UUID],
     at: datetime,
-    contribute: Contribute,
+    contributing: Contributing,
     cache: IndicatorsCache | None,
 ) -> dict[UUID, Contribution]:
     """Give the contribution of each project on its revision, from its entry or computed.
 
-    Without a cache, every project is computed. With one, the entries are read in one exchange, and
-    those missing computed then written, in one pass of writes.
+    Without a cache, every project is computed. With one, the stamp of the roles is read once, the
+    entries in one exchange, and those missing — absent, unreadable or partial — computed then
+    written, in one pass of writes.
     """
     if cache is None or not revisions:
-        return _documents(_computed(session, revisions, at, contribute))
+        return _documents(_computed(session, revisions, at, contributing))
+    roles = roles_stamp(session)
     keys = {
-        project_id: contribution_key(session, project_id, revision, at)
+        project_id: contribution_key(session, project_id, revision, at, roles)
         for project_id, revision in revisions.items()
     }
     found = cache.lookup_many(list(keys.values()))
     if isinstance(found, Unavailable):
         # Redis fails: the write would fail too.
-        return _documents(_computed(session, revisions, at, contribute))
+        return _documents(_computed(session, revisions, at, contributing))
     held: dict[UUID, Contribution] = {}
     for project_id, kept in zip(keys, found, strict=True):
-        entry = read_contribution(kept)
+        entry = read_contribution(kept, contributing.kinds)
         if entry is not None:
             held[project_id] = entry
     missing = {each: revision for each, revision in revisions.items() if each not in held}
-    computed = _computed(session, missing, at, contribute)
+    computed = _computed(session, missing, at, contributing)
     if computed:
         cache.write_many({keys[project_id]: text for project_id, (_, text) in computed.items()})
     held.update(_documents(computed))

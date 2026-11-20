@@ -18,8 +18,13 @@ services:
     # of the workstation, as the service of the chain does: the role is a superuser who may create
     # the database of each run. The health check asks by TCP, as the platform's (US-1130).
     image: ${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    # The locks a transaction may hold, four times the default: the fixture `database` drops the
+    # partitions of the projects of a test, fourteen tables each, and the fabrics of the portfolio
+    # write five projects, while two runs of the slot may share the server (#4051). Written in the
+    # configuration by initdb, as the service of the chain, which takes no command, writes it too.
     environment:
       POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_INITDB_ARGS: "--set=max_locks_per_transaction=256"
     tmpfs:
       - /var/lib/postgresql
     ports:

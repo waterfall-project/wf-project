@@ -507,8 +507,8 @@ def test_the_indicators_a_marking_kept_are_never_written_again(
     # à une révision marquée, quel que soit le client qui la tente. » : a document the marking of a
     # review kept is neither changed, deleted nor joined by another, its owner refused, nor
     # truncated with its table or its partition. The documents are those the indicators keep
-    # (US-1670/L1, US-1690/L3); another, of a kind and a scope kept already, is refused as any
-    # would be.
+    # (US-1670/L1, US-1690/L3), and those of the portfolio (US-2680/L2); another, of a kind and a
+    # scope kept already, is refused as any would be.
     project = under_way(api, stage, clock_setter(monkeypatch))
     revision = project.tree.revision
     at = marked(stage, revision, "Revue de novembre")
@@ -524,6 +524,9 @@ def test_the_indicators_a_marking_kept_are_never_written_again(
         ("earned_value_curves", "unassigned", at),
         ("estimate", "project", at),
         ("estimate", "unassigned", at),
+        ("portfolio_cost_structure", "project", at),
+        ("portfolio_milestones", "project", at),
+        ("portfolio_workload", "project", at),
         ("project", "project", at),
         ("project", "unassigned", at),
         ("remaining", "project", at),
@@ -550,6 +553,8 @@ PORTFOLIO_KINDS = (
     "portfolio_milestones",
     "portfolio_offer_curves",
 )
+# The kinds the marking of an offer keeps for the portfolio itself (US-2680/L2).
+OFFER_KEEPS = ("portfolio_workload", "portfolio_cost_structure", "portfolio_offer_curves")
 
 
 @pytest.mark.requirement("WF-DAT-0020-A")
@@ -567,7 +572,9 @@ def test_a_document_of_the_portfolio_a_marking_kept_is_never_written_again(
     at = utc_now()
     kept = indicator_row(project_id, revision_id, kind=kind, computed_at=at, created_at=at)
     with logging_context(correlation_id="marking"), Session(owner) as session, session.begin():
-        session.execute(insert(RevisionIndicator).values(**kept))
+        # The marking of an offer keeps some itself (US-2680/L2): the others are written beside it.
+        if kind not in OFFER_KEEPS:
+            session.execute(insert(RevisionIndicator).values(**kept))
         mark_revision(session, revision_id, "v1.0", None, Act(None, at))
     of_it = (RevisionIndicator.revision_id == revision_id) & (RevisionIndicator.kind == kind)
     before = [row[:3] for row in documents_of(owner, revision_id) if row[0] == kind]
@@ -607,5 +614,8 @@ def test_a_document_written_during_the_marking_waits_for_it_and_is_refused(
     assert [kept[:2] for kept in documents_of(owner, revision_id)] == [
         ("estimate", "project"),
         ("estimate", "unassigned"),
+        ("portfolio_cost_structure", "project"),
+        ("portfolio_offer_curves", "project"),
+        ("portfolio_workload", "project"),
         ("remaining", "project"),
     ]
