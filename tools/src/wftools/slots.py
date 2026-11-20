@@ -454,8 +454,13 @@ def process_table(environment: Mapping[str, str]) -> Path:
 
 
 def end_to_end_ports(slot: int) -> set[int]:
-    """Return the ports of the end-to-end paths of a slot: the fake back and the fronts."""
-    return {ports(slot)["E2E_API_PORT"], *front_ports(slot)}
+    """Return the ports of the end-to-end paths of a slot: the fake back, the fronts, the metrics.
+
+    The path of the metrics of the front starts a front of its own and its point of metrics, at the
+    offsets 80 and 81 of the first port of the fronts, past the forty of the others.
+    """
+    first = ports(slot)["E2E_FRONT_PORT"]
+    return {ports(slot)["E2E_API_PORT"], *front_ports(slot), first + 80, first + 81}
 
 
 def stopper(environment: Mapping[str, str]) -> Callable[[int], None]:

@@ -47,6 +47,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from html import unescape
 from pathlib import Path
+from typing import cast
 from urllib.parse import urlencode, urljoin, urlsplit
 
 from wftools import REPOSITORY
@@ -87,6 +88,7 @@ REDIRECTIONS = frozenset({301, 302, 303, 307, 308})
 MOST_REDIRECTIONS = 20
 OK = 200
 NOT_FOUND = 404
+NOT_FOUND_CODE = "NOT_FOUND"
 SECURITY_HEADERS = {
     "Strict-Transport-Security": "max-age=31536000",
     "X-Content-Type-Options": "nosniff",
@@ -269,6 +271,17 @@ def check_console_hidden(browser: Browser, platform: Platform) -> None:
             raise ProductionError(message)
 
 
+def _code(body: str) -> object:
+    """Return the ``code`` of the error envelope in a body, or None when it is not one."""
+    try:
+        envelope: object = json.loads(body)
+    except ValueError:
+        return None
+    if not isinstance(envelope, dict):
+        return None
+    return cast("dict[str, object]", envelope).get("code")
+
+
 def check_metrics_hidden(browser: Browser, platform: Platform) -> None:
     """Hold that the public door answers 404 to the point of metrics, at both of its addresses."""
     for path in METRICS:
@@ -276,7 +289,7 @@ def check_metrics_hidden(browser: Browser, platform: Platform) -> None:
         if answer.status != NOT_FOUND:
             message = f"{path} answered {answer.status}, not {NOT_FOUND}: the metrics are served"
             raise ProductionError(message)
-        if "NOT_FOUND" not in answer.body:
+        if _code(answer.body) != NOT_FOUND_CODE:
             message = f"{path} answered {NOT_FOUND} without the NOT_FOUND of the contract"
             raise ProductionError(message)
 

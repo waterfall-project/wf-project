@@ -264,7 +264,7 @@ class Flights:
 
         try:
             threading.Thread(target=run, name=f"flight-{name}", daemon=True).start()
-        except RuntimeError as fault:
+        except BaseException as fault:
             logger.warning("flight.not_started", name=name, exc_info=True)
             future.set_exception(fault)
         return future

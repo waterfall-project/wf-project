@@ -759,8 +759,9 @@ def test_the_console_of_keycloak_and_its_realm_master_must_not_be_served() -> No
         production.check_console_hidden(Browser(served.send), PLATFORM)
 
 
+@pytest.mark.requirement("WF-SEC-0010-A")
 def test_the_point_of_metrics_must_answer_404_at_both_addresses_of_the_public_door() -> None:
-    # TFX-09: the metrics are served on a port of their own, which the door does not route.
+    # US-2870: the metrics are served on a port of their own, which the door does not route.
     production.check_metrics_hidden(Browser(FakePlatform({}).send), PLATFORM)
     served = FakePlatform({"/metrics": fixed(200)})
     with pytest.raises(ProductionError, match="/metrics answered 200, not 404"):
@@ -770,10 +771,26 @@ def test_the_point_of_metrics_must_answer_404_at_both_addresses_of_the_public_do
         production.check_metrics_hidden(Browser(other.send), PLATFORM)
 
 
-def test_a_404_that_is_not_the_not_found_of_the_contract_is_not_the_door_of_the_platform() -> None:
-    bare = FakePlatform({path: fixed(404) for path in production.METRICS})
+@pytest.mark.requirement("WF-SEC-0010-A")
+@pytest.mark.parametrize(
+    "body",
+    ["", '{"code":"OTHER"}', "<html><h1>404 NOT_FOUND</h1></html>", '["NOT_FOUND"]'],
+    ids=["empty", "other-code", "html-with-the-word", "not-an-object"],
+)
+def test_a_404_without_the_not_found_code_is_not_the_door_of_the_platform(body: str) -> None:
+    bare = FakePlatform({path: fixed(404, body) for path in production.METRICS})
     with pytest.raises(ProductionError, match="without the NOT_FOUND of the contract"):
         production.check_metrics_hidden(Browser(bare.send), PLATFORM)
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_the_trial_fails_when_the_point_of_metrics_is_served(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    docker = Docker()
+    fake = FakePlatform({**realm_routes(), "/metrics": fixed(200), "/api/v1/metrics": fixed(200)})
+    assert production.main(GIVEN, docker.run, docker.read, platform_sender(fake)) == 1
+    assert "/metrics answered 200, not 404" in capsys.readouterr().err
 
 
 class Docker:

@@ -440,10 +440,10 @@ def test_stop_servers_kills_what_ignores_sigterm_and_says_so(
         reap(child)
 
 
-def test_the_ports_of_a_slot_are_the_fake_back_and_the_forty_fronts() -> None:
-    """US-1300: slot 2 has 20220 and 20240 to 20279; slot 0 the ports of before, 4110, 3100-3139."""
-    assert slots.end_to_end_ports(2) == {20220, *range(20240, 20280)}
-    assert slots.end_to_end_ports(0) == {4110, *range(3100, 3140)}
+def test_the_ports_of_a_slot_are_the_fake_back_the_forty_fronts_and_the_metrics_front() -> None:
+    """US-1300, US-2870: slot 2 has 20220, 20240-20279, 20320-20321; slot 0 the ports of before."""
+    assert slots.end_to_end_ports(2) == {20220, *range(20240, 20280), 20320, 20321}
+    assert slots.end_to_end_ports(0) == {4110, *range(3100, 3140), 3180, 3181}
 
 
 def fake_table(root: Path, sockets: dict[int, dict[int, int]]) -> Path:

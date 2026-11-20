@@ -683,3 +683,20 @@ def test_a_thread_that_does_not_start_does_not_keep_its_name(
     assert isinstance(failed.exception(), ExhaustedError)
     again = flights.start("probe-cache", lambda: "7")
     assert again.result(timeout=1) == "7"
+
+
+@pytest.mark.requirement("WF-OBS-0010-A")
+def test_a_thread_that_fails_to_start_with_a_memory_error_does_not_keep_its_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Proper to US-2870: whatever the start raises, not only a RuntimeError, frees the name.
+    class Refusing(threading.Thread):
+        def start(self) -> None:
+            raise MemoryError
+
+    flights = Flights()
+    with monkeypatch.context() as patch:
+        patch.setattr(threading, "Thread", Refusing)
+        failed = flights.start("probe-cache", lambda: "7")
+    assert isinstance(failed.exception(), MemoryError)
+    assert flights.start("probe-cache", lambda: "8").result(timeout=5) == "8"
