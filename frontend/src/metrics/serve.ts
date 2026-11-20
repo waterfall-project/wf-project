@@ -10,7 +10,9 @@
  *
  * The requests are counted as the server of Next receives them: no hook of Next gives the status
  * of an answer, so the `request` event of the servers of Node is observed — the metrics' own
- * excepted — and the answer is counted when it ends.
+ * excepted — and the answer is counted when its response closes: finished, under its status, or
+ * cut short — a client that hung up, a rendering that failed after its headers —, under
+ * `INTERRUPTED`, a status no server sends.
  */
 import "server-only";
 
@@ -23,6 +25,12 @@ export const METRICS_PORT = "WATERFALL_METRICS_PORT";
 
 /** The header Next reads to tell a server action from a page. */
 const ACTION_HEADER = "next-action";
+
+/**
+ * The status an answer is counted under when its response closed before it finished: the
+ * conventional « client closed request », which the error rate (500 and above) leaves out.
+ */
+export const INTERRUPTED = 499;
 
 /** The port the metrics are served on; `undefined` when the environment says none. */
 export function metricsPort(
@@ -47,11 +55,20 @@ function pathOf(request: IncomingMessage): string {
 /** Count the answer of a request when it ends, its duration from now. */
 function track(metrics: FrontMetrics, request: IncomingMessage, response: ServerResponse): void {
   const started = performance.now();
-  const kind = requestKind(pathOf(request), request.headers[ACTION_HEADER] !== undefined);
-  response.once("finish", () => {
-    metrics.requestEnded(kind, response.statusCode, (performance.now() - started) / 1000);
+  const kind = requestKind(
+    pathOf(request),
+    request.headers[ACTION_HEADER] !== undefined,
+    request.headers["user-agent"],
+  );
+  // `close` ends every response, finished or not, once; `finish` ends only the ones that went through.
+  response.once("close", () => {
+    const status = response.writableFinished ? response.statusCode : INTERRUPTED;
+    metrics.requestEnded(kind, status, (performance.now() - started) / 1000);
   });
 }
+
+/** Whether the servers are observed: `emit` of their prototype is shadowed. */
+let observing = false;
 
 /** Whether a value is the response of a server of HTTP. */
 function isResponse(value: unknown): value is ServerResponse {
@@ -61,9 +78,13 @@ function isResponse(value: unknown): value is ServerResponse {
 /**
  * Observe every request the servers of HTTP of the process receive, but the ones in `ignored`.
  * Give what restores the servers as they were: `emit` is the `EventEmitter`'s, so it is shadowed
- * on the prototype of the servers, and the shadow removed.
+ * on the prototype of the servers, and the shadow removed. A second observation while one is
+ * active is refused: removing the shadow would take the first one's layer away with the second's.
  */
 export function observeRequests(metrics: FrontMetrics, ignored: ReadonlySet<Server>): () => void {
+  if (observing) {
+    throw new Error("the requests of the servers of HTTP are observed already");
+  }
   const original: unknown = Reflect.get(Server.prototype, "emit");
   if (typeof original !== "function") {
     throw new TypeError("the servers of HTTP have no emit");
@@ -86,8 +107,12 @@ export function observeRequests(metrics: FrontMetrics, ignored: ReadonlySet<Serv
     configurable: true,
     writable: true,
   });
+  observing = true;
   return () => {
-    Reflect.deleteProperty(Server.prototype, "emit");
+    if (observing) {
+      Reflect.deleteProperty(Server.prototype, "emit");
+      observing = false;
+    }
   };
 }
 
@@ -154,8 +179,12 @@ export async function startMetrics(): Promise<void> {
   let port: number | undefined;
   try {
     port = metricsPort();
-  } catch {
-    // A port that is none stopped the server at its check (`checkStart`): nothing to serve.
+  } catch (error) {
+    // In production, a port that is none stopped the server at its check (`checkStart`). Elsewhere
+    // nothing checked it: the front goes on without metrics, and says why.
+    if (process.env.NODE_ENV !== "production") {
+      console.error(String(error));
+    }
     return;
   }
   if (port === undefined || started !== undefined) {
