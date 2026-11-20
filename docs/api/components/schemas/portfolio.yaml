@@ -444,6 +444,12 @@ PilotHealth:
               `watch` for the three other signals (WF-PTF-0110, WF-IHM-0070).
           code:
             type: string
+            description: >-
+              `risks_not_reviewed` flags a project one of whose identified risks has no review
+              between its last marked revision and the one before, and
+              `no_actual_cost_since_last_review` a project that imported no actual cost in that
+              same interval; without a revision marked before the last one, the interval starts
+              when the project passed to In progress (WF-PTF-0110, specification 1.0.7).
             enum:
               - review_overdue
               - risks_not_reviewed

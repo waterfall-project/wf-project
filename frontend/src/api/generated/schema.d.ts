@@ -6340,7 +6340,10 @@ export interface components {
                 can_open: boolean;
                 /** @description `alert` for an overdue contractual milestone (`contractual_milestone_overdue`), `watch` for the three other signals (WF-PTF-0110, WF-IHM-0070). */
                 zone: components["schemas"]["AlertZone"];
-                /** @enum {string} */
+                /**
+                 * @description `risks_not_reviewed` flags a project one of whose identified risks has no review between its last marked revision and the one before, and `no_actual_cost_since_last_review` a project that imported no actual cost in that same interval; without a revision marked before the last one, the interval starts when the project passed to In progress (WF-PTF-0110, specification 1.0.7).
+                 * @enum {string}
+                 */
                 code: "review_overdue" | "risks_not_reviewed" | "no_actual_cost_since_last_review" | "contractual_milestone_overdue";
                 /** @description What the signal names, according to its code: `review_overdue`, `weeks_since_last_mark`, the weeks elapsed since the last marked revision, beyond the maximum interval set in the reference data (WF-REF-0180); `contractual_milestone_overdue`, the overdue milestone — `lineage_id`, `milestone_label` — and its reference date, `reference_date`. The other two name only their project, and carry none. */
                 params?: {
