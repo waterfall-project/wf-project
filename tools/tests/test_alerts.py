@@ -211,6 +211,29 @@ def test_a_reading_of_the_accounts_that_failed_produces_an_alert(tmp_path: Path)
     outcome_played(tmp_path, "identity_sync", "identity_sync_failed")
 
 
+@pytest.mark.requirement("WF-OBS-0030-A")
+def test_a_failure_unread_for_over_an_hour_ends_its_alert_and_a_live_replica_that_succeeded_holds(
+    tmp_path: Path,
+) -> None:
+    # The outcome last read holds for an hour while no replica reads it (PostgreSQL down), no more:
+    # the alert ends then. And the highest outcome of the replicas holds: one that reads a success
+    # is enough, whatever the other read.
+    rules = by_compose(tmp_path)
+    failed = 'waterfall_last_run_success{run="scheduled_backup",instance="a"}'
+    other = 'waterfall_last_run_success{run="scheduled_backup",instance="b"}'
+    play(
+        rules,
+        {failed: "0x1 stale _x80"},
+        [
+            (1, "scheduled_backup_failed", [ALERT]),
+            (59, "scheduled_backup_failed", [ALERT]),
+            (63, "scheduled_backup_failed", []),
+        ],
+    )
+    play(rules, {failed: "0x5", other: "1x5"}, [(3, "scheduled_backup_failed", [])])
+    play(rules, {failed: "0x2 stale _x3", other: "1x5"}, [(4, "scheduled_backup_failed", [])])
+
+
 def queue_played(rules: Path, threshold: int) -> None:
     """Play a task that waits past the threshold, then is taken; and one taken a minute before it.
 
@@ -309,6 +332,28 @@ def test_an_error_rate_above_the_threshold_for_five_minutes_produces_an_alert(
             (9, "error_rate_abnormal", []),
             (16, "error_rate_abnormal", [API]),
             (27, "error_rate_abnormal", []),
+        ],
+    )
+
+
+@pytest.mark.requirement("WF-OBS-0030-A")
+def test_an_error_rate_of_the_front_above_the_threshold_produces_an_alert_that_ends_with_it(
+    tmp_path: Path,
+) -> None:
+    # The same rule for the front: 6 % of its pages in error over the five minutes, one alert, for
+    # the front alone; none once the errors have stopped for five minutes. Its probes, failing
+    # apart, are no request of a user.
+    series = {
+        'waterfall_front_requests_total{kind="page",status="200"}': "0+94x10 940+100x20",
+        'waterfall_front_requests_total{kind="page",status="500"}': "0+6x10 60x20",
+        'waterfall_front_requests_total{kind="probe",status="503"}': "0+1000x30",
+    }
+    play(
+        by_compose(tmp_path),
+        series,
+        [
+            (9, "error_rate_abnormal", [{"component": "front", **ALERT}]),
+            (20, "error_rate_abnormal", []),
         ],
     )
 

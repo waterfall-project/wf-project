@@ -39,6 +39,11 @@ for parameter in \
 	meaning=${rest#*:}
 	value=""
 	eval "value=\${$name-}"
+	# grep reads line by line: a value of several lines, one of them valid, would pass it.
+	case $value in
+	*'
+'*) refuse "$name" "$meaning" "$value" ;;
+	esac
 	printf '%s\n' "$value" | grep -Eq "$pattern" || refuse "$name" "$meaning" "$value"
 	if [ "$name" = WATERFALL_METRICS_PORT ] && [ "$value" -gt 65535 ]; then
 		refuse "$name" "$meaning" "$value"

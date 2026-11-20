@@ -169,6 +169,8 @@ def test_the_start_writes_the_thresholds_and_the_port_in_place_then_hands_over(
         ("WATERFALL_ERROR_RATE_THRESHOLD", "1.5"),
         ("WATERFALL_ERROR_RATE_THRESHOLD", ""),
         ("WATERFALL_ERROR_RATE_THRESHOLD", "0.05|g;s|x"),
+        ("WATERFALL_ERROR_RATE_THRESHOLD", "0.05\nx|g;s|y"),
+        ("WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS", "900\n"),
         ("WATERFALL_METRICS_PORT", "70000"),
     ],
 )

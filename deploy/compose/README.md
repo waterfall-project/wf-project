@@ -189,7 +189,7 @@ d'une sauvegarde planifiée, de sa copie externe et d'une lecture des comptes, u
 du seuil, un taux d'erreur des requêtes au-delà du seuil sur sa fenêtre —, chacune nommée par son
 code du contrat, et qui cesse avec sa cause.
 
-Les trois seuils sont des réglages de `.env`, livrés à quinze minutes, 85 % et 5 % sur cinq
+Les seuils et la fenêtre sont des réglages de `.env`, livrés à quinze minutes, 85 % et 5 % sur cinq
 minutes : `WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS`, `WATERFALL_STORAGE_USAGE_THRESHOLD`,
 `WATERFALL_ERROR_RATE_THRESHOLD` et `WATERFALL_ERROR_RATE_WINDOW_SECONDS`. `prometheus.sh` les
 écrit dans les règles à chaque démarrage de Prometheus, et refuse de démarrer, en la nommant, une
