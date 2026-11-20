@@ -242,6 +242,17 @@ def another_in_progress(api: ContractClient, fabrics: Portfolio, label: str, cod
         return writer.under_way(label, code)[0]
 
 
+def revision_opened(
+    api: ContractClient, fabrics: Portfolio, project_id: UUID, instant: datetime
+) -> UUID:
+    """Open the current revision of a project of the fabrics, a copy of its last marked; give it."""
+    writer = _Writer(api, fabrics.stage, fabrics.costs)
+    with logging_context(correlation_id="portfolio-reopened"):
+        writer.opened(project_id, instant)
+    with fabrics.stage.database.transaction() as session:
+        return current_of(session, project_id)
+
+
 def another_offer(
     api: ContractClient, fabrics: Portfolio, label: str, probability: Decimal
 ) -> UUID:

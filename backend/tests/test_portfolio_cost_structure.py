@@ -23,29 +23,39 @@ from portfolio_support import (
     offer_being_priced,
     placed,
     portfolio,
+    revision_opened,
 )
 from projects_support import Scene
 from projects_support import scene as make_scene
 from sqlalchemy import delete, select, text, update
 
-from waterfall.core.cost_settings.interface import set_hourly_rate
+from waterfall.core.cost_settings.interface import rates_stamp, set_hourly_rate
 from waterfall.core.cost_settings.tables import CostCategory, HourlyRate
+from waterfall.core.estimate.tables import EstimateLine, RevisionRate
 from waterfall.core.indicators.contributions import contribution_key, stamps_of
 from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.portfolio.contributing import cost_structure_document
+from waterfall.core.portfolio.interface import (
+    PortfolioAsked,
+    PortfolioReading,
+    read_portfolio_cost_structure,
+)
 from waterfall.core.resource_settings.tables import ResourceRole
 from waterfall.core.revisions.interface import reference_year_of
 from waterfall.platform.audit import Act
+from waterfall.platform.cache import PREFIX, IndicatorsCache
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterator, Mapping
     from uuid import UUID
 
     from realm import TestRealm
+    from redis import Redis
     from sqlalchemy import Engine
     from support import ContractClient
 
     from waterfall.platform.database import Database
+    from waterfall.platform.queue import TaskQueue
 
 COST_STRUCTURE = "portfolio_cost_structure"
 # The current day of the tests of the day, after the whole chronology of the fabrics.
@@ -134,7 +144,10 @@ def shares(entries: list[dict[str, Any]]) -> dict[str, str]:
 def offer_kept(data: dict[str, Any], types: Mapping[str, UUID]) -> dict[str, Any]:
     """Write what the marking of the offer of a sentence keeps: its quote stands for both totals.
 
-    The budget leaves the provision lines out, the remaining keeps them (``portfolio_totals``).
+    The budget leaves the provision lines out, the remaining keeps them (``portfolio_totals``): the
+    rule is written here by hand, as a marking of EP-11 keeps it; that the document itself leaves
+    them out is held by the test of the current day below, which prices a real provision line, and
+    by ``test_portfolio_contribution``.
     """
     budget: dict[UUID, Decimal] = {}
     remaining: dict[UUID, Decimal] = {}
@@ -204,6 +217,35 @@ def test_a_line_of_50_of_another_nature_adds_20_to_its_nature_in_the_budget_and_
     other = str(types["other"])
     assert amounts(body["budget_by_cost_type"])[other] == data["aggregated_budget"]["other"]
     assert amounts(body["remaining_by_cost_type"])[other] == data["aggregated_remaining"]["other"]
+
+
+@pytest.mark.requirement("WF-PTF-0080-A")
+def test_on_the_current_day_a_provision_line_of_an_offer_adds_to_the_remaining_never_to_the_budget(
+    api: ContractClient, fabrics: Portfolio, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The sentence of the provision line end to end, with no document written by hand: an offer
+    # priced at 40 % whose line of 1 000.00 is of the category of the provisions adds nothing to the
+    # budget, under any nature, and 400.00 to the remaining, under the nature of the provisions.
+    monkeypatch.setattr("waterfall.api.portfolio_cost_structure.utc_now", lambda: NOW)
+    project_id, _ = offer_being_priced(api, fabrics, "Halle 4", OFFER_PROBABILITY)
+    with fabrics.stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(
+                EstimateLine.project_id == project_id,
+                EstimateLine.cost_category_id == fabrics.costs.material,
+            )
+            .values(cost_category_id=fabrics.costs.provision)
+        )
+    types = natures(fabrics)
+    provision, other = str(types["risk_provision"]), str(types["other"])
+    body = structure(api, fabrics, "states=in_progress,pricing")
+    # The material is the 1 000.00 of the project In progress and the 400.00 of the offer of the
+    # fabrics, as without the offer written here: its line adds none.
+    assert amounts(body["budget_by_cost_type"])[other] == "1400.00"
+    assert provision not in amounts(body["budget_by_cost_type"])
+    assert amounts(body["remaining_by_cost_type"])[provision] == "400.00"
+    assert amounts(body["remaining_by_cost_type"])[other] == "1400.00"
 
 
 # --- The shares and the labour ------------------------------------------------------------------
@@ -446,11 +488,11 @@ def test_on_the_current_day_a_labour_without_a_rate_is_a_nature_not_computed_nev
     project_id, revision_id = offer_being_priced(api, fabrics, "Halle 4", OFFER_PROBABILITY)
     with fabrics.stage.database.transaction() as session:
         year = reference_year_of(session, revision_id)
-        before = contribution_key(session, project_id, revision_id, NOW, stamps_of(session))
     unrate(fabrics, year)
     types = natures(fabrics)
     labour, other = str(types["labour"]), str(types["other"])
     with fabrics.stage.database.transaction() as session:
+        lacking_key = contribution_key(session, project_id, revision_id, NOW, stamps_of(session))
         kept = cost_structure_document(session, project_id, revision_id)
     lacking = {each["cost_type_id"]: each for each in kept["budget_by_cost_type"]}[labour]
     category = {"cost_category_id": str(fabrics.costs.labour), "year": year}
@@ -482,10 +524,128 @@ def test_on_the_current_day_a_labour_without_a_rate_is_a_nature_not_computed_nev
         )
     with fabrics.stage.database.transaction() as session:
         after = contribution_key(session, project_id, revision_id, NOW, stamps_of(session))
-    assert after != before
+    # The key read while the rate was lacking is not the one read once it is set.
+    assert lacking_key != after
     rated = structure(api, fabrics, "states=in_progress,pricing")
     assert amounts(rated["budget_by_cost_type"]) == {labour: "936.00", other: "1800.00"}
     assert sum(Decimal(each) for each in shares(rated["budget_by_cost_type"]).values()) == 1
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+def test_the_stamp_of_the_rates_moves_with_a_rate_set_and_with_a_rate_corrected(
+    fabrics: Portfolio,
+) -> None:
+    # The stamp the key reads alone: a rate set adds one to the count, the instant of the write
+    # moving; a rate corrected leaves the count and moves the sum of the counters of the rows.
+    category = fabrics.costs.labour
+    year = 2090
+    with fabrics.stage.database.transaction() as session:
+        start = rates_stamp(session)
+    with fabrics.stage.database.transaction() as session:
+        set_hourly_rate(session, (category, year), Decimal("70.00"), None, Act(None, NOW))
+    with fabrics.stage.database.transaction() as session:
+        added = rates_stamp(session)
+        version = session.scalar(
+            select(HourlyRate.lock_version).where(
+                HourlyRate.cost_category_id == category, HourlyRate.year == year
+            )
+        )
+    assert added.count == start.count + 1
+    assert added.versions > start.versions
+    assert added.updated_at is not None
+    assert start.updated_at is None or added.updated_at >= start.updated_at
+    assert version is not None
+    with fabrics.stage.database.transaction() as session:
+        set_hourly_rate(session, (category, year), Decimal("71.00"), version, Act(None, NOW))
+    with fabrics.stage.database.transaction() as session:
+        corrected = rates_stamp(session)
+    assert corrected.count == added.count
+    assert corrected.versions > added.versions
+    assert corrected != added
+
+
+class Written(IndicatorsCache):
+    """The cache of the indicators, which records the keys it writes."""
+
+    def __init__(self, client: Redis, ttl: int) -> None:
+        """Record nothing yet."""
+        super().__init__(client, ttl)
+        self.written: set[str] = set()
+
+    def write_many(self, documents: Mapping[str, str]) -> None:
+        """Record the keys, then write."""
+        self.written.update(documents)
+        super().write_many(documents)
+
+
+@pytest.fixture
+def cache(queue: TaskQueue) -> Iterator[Written]:
+    """Give the cache of the indicators beside the queue; the entries it wrote deleted."""
+    opened = Written.of(queue, 300)
+    yield opened
+    if opened.written:
+        opened.client.delete(*(PREFIX + key for key in opened.written))
+    opened.close()
+
+
+@pytest.mark.requirement("WF-DAT-0130-A")
+def test_a_rate_set_after_a_reading_that_lacked_it_is_not_served_from_the_entry_before(
+    api: ContractClient, fabrics: Portfolio, cache: Written
+) -> None:
+    # A reading of the day, cached, that names the rate missing; the rate set, the second reading
+    # through the same cache computes the labour again instead of serving the entry that lacked it.
+    project_id, revision_id = offer_being_priced(api, fabrics, "Halle 4", OFFER_PROBABILITY)
+    with fabrics.stage.database.transaction() as session:
+        year = reference_year_of(session, revision_id)
+    unrate(fabrics, year)
+    asked = PortfolioAsked(states=("in_progress", "pricing"))
+    reading = PortfolioReading(NOW, cache)
+
+    def read_day() -> dict[str, Any]:
+        with fabrics.stage.database.transaction() as session:
+            return dict(read_portfolio_cost_structure(session, asked, reading))
+
+    lacking = read_day()
+    assert cache.written
+    assert any(not each["share"]["is_computable"] for each in lacking["budget_by_cost_type"])
+    with fabrics.stage.database.transaction() as session:
+        set_hourly_rate(
+            session, (fabrics.costs.labour, year), Decimal("65.00"), None, Act(None, NOW)
+        )
+    rated = read_day()
+    assert all(each["share"]["is_computable"] for each in rated["budget_by_cost_type"])
+    assert all(each["share"]["is_computable"] for each in rated["labor_by_org_node"])
+    assert project_id
+
+
+@pytest.mark.requirement("WF-DEV-0010-A")
+def test_a_project_in_progress_whose_current_revision_lacks_a_rate_keeps_its_budget_computed(
+    api: ContractClient, fabrics: Portfolio, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The reference of a project In progress is marked, so its budget is never lacking; its
+    # remaining to commit is read on the current revision, whose labour lacks a rate: the budget
+    # stays computed, the remaining of the labour is not, naming the rate.
+    monkeypatch.setattr("waterfall.api.portfolio_cost_structure.utc_now", lambda: NOW)
+    types = natures(fabrics)
+    labour, other = str(types["labour"]), str(types["other"])
+    with fabrics.stage.database.transaction() as session:
+        year = reference_year_of(session, revision_of(fabrics, "running"))
+    unrate(fabrics, year)
+    current = revision_opened(api, fabrics, fabrics.in_progress.project_id, NOW)
+    # The revision opened keeps the rate of its copy; one that has not fixed its rate yet is that
+    # revision with none kept, which the day prices on the reference as it stands.
+    with fabrics.stage.owner.begin() as connection:
+        connection.execute(delete(RevisionRate).where(RevisionRate.revision_id == current))
+    body = structure(api, fabrics, "states=in_progress")
+    budget = {each["key"]: each for each in body["budget_by_cost_type"]}
+    assert budget[labour]["amount"] == "520.00"
+    assert budget[labour]["share"]["is_computable"] is True
+    remaining = {each["key"]: each for each in body["remaining_by_cost_type"]}
+    share = remaining[labour]["share"]
+    assert share["is_computable"] is False
+    assert share["reason"] == MISSING
+    assert share["params"]["missing_rates"][0]["year"] == year
+    assert remaining[other]["share"]["reason"] == MISSING
 
 
 # --- The permission -----------------------------------------------------------------------------
