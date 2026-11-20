@@ -50,12 +50,13 @@ reportUnnecessaryTypeIgnoreComment = "error"
 testpaths = ["tests"]
 pythonpath = ["../docs/api/tools", "../docs/spec/tools"]
 # The tests of the entrypoint of the directory start containers: `make test-openldap` selects them,
-# `-m openldap` overriding the selection below.
-addopts = ["--strict-markers", "--strict-config", "-m", "not openldap"]
+# `-m openldap` overriding the selection below; those of the chart need Helm: `make test-chart`.
+addopts = ["--strict-markers", "--strict-config", "-m", "not openldap and not chart"]
 markers = [
     "requirement(identifier): the requirement this test covers, cited by its full identifier (WF-QUA-0010)",
     "story(identifier): the story whose own criterion this test carries, cited as US-nnnn (US-2440)",
     "openldap: tries the entrypoint of the directory in Docker (make test-openldap)",
+    "chart: renders the chart by Helm (make test-chart)",
 ]
 xfail_strict = true
 filterwarnings = ["error"]

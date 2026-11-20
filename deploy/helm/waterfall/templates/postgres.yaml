@@ -1,0 +1,106 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# PostgreSQL, its data in a volume of its own (compose.prod.yaml, postgres). Its administrator,
+# postgres, is made at the first start alone, as is its password, and serves the steps of the
+# database alone (hooks.yaml). One lock table per project at restoration, hence 1 024 locks per
+# transaction; the connections are a value of their own (postgresql.maxConnections), never computed
+# from the replicas: a flag that followed them would change the template of this pod and restart it
+# when the API scales (WF-ARC-0050-A).
+{{- $name := include "waterfall.name" (list . "postgres") }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "postgres") | nindent 4 }}
+spec:
+  selector:
+    {{- include "waterfall.selector" (list . "postgres") | nindent 4 }}
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "postgres") | nindent 4 }}
+spec:
+  serviceName: {{ $name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "waterfall.selector" (list . "postgres") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "postgres") | nindent 8 }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      initContainers:
+        # Refuses a volume that holds the data of another major version (US-1130), read-only.
+        - name: postgres-volume
+          image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - /files/postgres-volume.sh
+            - "Uninstall the release, remove the PersistentVolumeClaim of PostgreSQL, then install and bootstrap it again."
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql
+              readOnly: true
+            - name: files
+              mountPath: /files
+      containers:
+        - name: postgres
+          image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
+          imagePullPolicy: IfNotPresent
+          args:
+            - postgres
+            - -c
+            - max_locks_per_transaction=1024
+            - -c
+            - max_connections={{ int .Values.postgresql.maxConnections }}
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_POSTGRES_ADMIN_PASSWORD" "POSTGRES_PASSWORD") | nindent 12 }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+          # By TCP: the server of the first initialisation listens on the socket alone (US-1130).
+          readinessProbe:
+            exec:
+              command: [pg_isready, --host, 127.0.0.1, --username, postgres, --dbname, postgres]
+            periodSeconds: 2
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command: [pg_isready, --host, 127.0.0.1, --username, postgres, --dbname, postgres]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql
+          resources:
+            {{- toYaml .Values.postgresql.resources | nindent 12 }}
+      volumes:
+        - name: files
+          configMap:
+            name: {{ include "waterfall.name" (list . "files") }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with .Values.postgresql.persistence.className }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.postgresql.persistence.size }}

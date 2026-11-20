@@ -1,0 +1,86 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The object storage (PBS-3.3, compose.prod.yaml, storage): Garage on one node, its layout made at
+# its start and the key of the platform taken from the environment (garage.toml), its data in a
+# volume of its own. The buckets are made by a step of the hooks (hooks.yaml).
+{{- $name := include "waterfall.name" (list . "storage") }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "storage") | nindent 4 }}
+spec:
+  selector:
+    {{- include "waterfall.selector" (list . "storage") | nindent 4 }}
+  ports:
+    - name: s3
+      port: 3900
+      targetPort: s3
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "storage") | nindent 4 }}
+spec:
+  serviceName: {{ $name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "waterfall.selector" (list . "storage") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "storage") | nindent 8 }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      containers:
+        - name: storage
+          image: {{ include "waterfall.thirdParty" (list . .Values.storage.image) }}
+          imagePullPolicy: IfNotPresent
+          command: [/garage, server, --single-node, --default-access-key]
+          env:
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_STORAGE_RPC_SECRET" "GARAGE_RPC_SECRET") | nindent 12 }}
+            - name: GARAGE_DEFAULT_ACCESS_KEY
+              value: {{ .Values.storage.accessKey | quote }}
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_STORAGE_SECRET" "GARAGE_DEFAULT_SECRET_KEY") | nindent 12 }}
+          ports:
+            - name: s3
+              containerPort: 3900
+          readinessProbe:
+            exec:
+              command: [/garage, status]
+            periodSeconds: 2
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command: [/garage, status]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/garage
+            - name: files
+              mountPath: /etc/garage.toml
+              subPath: garage.toml
+          resources:
+            {{- toYaml .Values.storage.resources | nindent 12 }}
+      volumes:
+        - name: files
+          configMap:
+            name: {{ include "waterfall.name" (list . "files") }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with .Values.storage.persistence.className }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.persistence.size }}

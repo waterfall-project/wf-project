@@ -1,0 +1,102 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The front (compose.prod.yaml, front), a deployment of its own. Its server reaches Keycloak at the
+# published address, in HTTPS, through the ingress: its client of the realm admits no address in
+# HTTP. HOSTNAME is set here: Kubernetes sets it to the name of the pod over the ENV of the image,
+# and the standalone server of Next would listen on the address of the pod alone (#826).
+{{- $name := include "waterfall.name" (list . "front") }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "front") | nindent 4 }}
+spec:
+  selector:
+    {{- include "waterfall.selector" (list . "front") | nindent 4 }}
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "front") | nindent 4 }}
+spec:
+  replicas: {{ .Values.front.replicas }}
+  selector:
+    matchLabels:
+      {{- include "waterfall.selector" (list . "front") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "front") | nindent 8 }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      {{- with .Values.front.hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: front
+          image: {{ include "waterfall.image" (list . "front") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          env:
+            - name: HOSTNAME
+              value: 0.0.0.0
+            - name: WATERFALL_API_ADDRESS
+              value: {{ printf "http://%s:8000" (include "waterfall.name" (list . "api")) | quote }}
+            - name: WATERFALL_FRONT_ADDRESS
+              value: {{ include "waterfall.address" . | quote }}
+            - name: WATERFALL_KEYCLOAK_ADDRESS
+              value: {{ printf "%s/auth" (include "waterfall.address" .) | quote }}
+            # The ingress answers inside the cluster on 443, whatever port the browser reaches it on.
+            - name: WATERFALL_KEYCLOAK_BACKCHANNEL
+              value: {{ printf "https://%s/auth" .Values.platform.domain | quote }}
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_FRONT_CLIENT_SECRET") | nindent 12 }}
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_REDIS_PASSWORD") | nindent 12 }}
+            - name: WATERFALL_REDIS_URL
+              value: {{ include "waterfall.redisUrl" . | quote }}
+            # The key of the server actions, the same for every start and every replica (#825).
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_SERVER_ACTIONS_KEY" "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY") | nindent 12 }}
+            {{- if .Values.transport.authority }}
+            - name: NODE_EXTRA_CA_CERTS
+              value: /authority/ca.crt
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          {{- if .Values.transport.authority }}
+          volumeMounts:
+            - name: authority
+              mountPath: /authority
+              readOnly: true
+          {{- end }}
+          resources:
+            {{- toYaml .Values.front.resources | nindent 12 }}
+      {{- if .Values.transport.authority }}
+      volumes:
+        - name: authority
+          secret:
+            secretName: {{ .Values.transport.authority }}
+            items:
+              - key: ca.crt
+                path: ca.crt
+      {{- end }}

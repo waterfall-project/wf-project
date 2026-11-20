@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Redis (compose.prod.yaml, redis): nothing durable is kept in it, the queue and the sessions are
+# lost with it, not the data; no volume, nothing saved.
+{{- $name := include "waterfall.name" (list . "redis") }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "redis") | nindent 4 }}
+spec:
+  selector:
+    {{- include "waterfall.selector" (list . "redis") | nindent 4 }}
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "waterfall.labels" (list . "redis") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "waterfall.selector" (list . "redis") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "redis") | nindent 8 }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      # The user redis of the image.
+      securityContext:
+        runAsUser: 999
+        runAsNonRoot: true
+      containers:
+        - name: redis
+          image: {{ include "waterfall.thirdParty" (list . .Values.redis.image) }}
+          imagePullPolicy: IfNotPresent
+          command: [sh, -c, exec redis-server --requirepass "$REDISCLI_AUTH" --save '']
+          env:
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_REDIS_PASSWORD" "REDISCLI_AUTH") | nindent 12 }}
+          ports:
+            - name: redis
+              containerPort: 6379
+          readinessProbe:
+            exec:
+              command: [sh, -c, redis-cli ping | grep -q PONG]
+            periodSeconds: 2
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command: [sh, -c, redis-cli ping | grep -q PONG]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}

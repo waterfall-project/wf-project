@@ -281,6 +281,38 @@ paths = [
 ]
 target = "check-production"
 
+[families.chart]
+# The chart of Waterfall (US-2800): linted and rendered in every tier, its tests holding it against
+# the Compose of production, whose files it mounts (deploy/helm/waterfall/files/ links to them) and
+# whose images and scheduler it reads; installed on a cluster of kind from the three images built
+# here, in the full tier only, as the production family starts the Compose. What its checks run: the
+# pinned Helm, kind and kubectl, the lint, the trial and what it takes from the production trial.
+paths = [
+    "deploy/helm/**",
+    "deploy/compose/compose.prod.yaml",
+    "deploy/compose/garage.toml",
+    "deploy/compose/storage-buckets.sh",
+    "deploy/compose/postgres-volume.sh",
+    "deploy/compose/keycloak-database.sql",
+    "deploy/compose/service-database-role.sql",
+    "deploy/compose/backup-database-role.sql",
+    "deploy/compose/waterfall-database.sql",
+    # The launcher the Makefile starts the slots by, and the turns of the heavy runs the trial waits for.
+    "tools/src/wftools/launch.py",
+    "tools/src/wftools/slots.py",
+    "tools/src/wftools/heavyturns.py",
+    "tools/src/wftools/kubetools.py",
+    "tools/src/wftools/chart.py",
+    "tools/src/wftools/charttrial.py",
+    "tools/src/wftools/production.py",
+    "tools/src/wftools/restoration_trial.py",
+    "tools/src/wftools/images.py",
+    "tools/tests/test_chart.py",
+    ".github/workflows/chart.yml",
+    ".github/actions/**",
+]
+target = "check-chart"
+
 [families.front]
 # The client of the front is generated from the contract: a contract change checks it. The
 # examples of the contract are what the fake back serves to the end-to-end paths, and what

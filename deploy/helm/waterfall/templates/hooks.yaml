@@ -1,0 +1,193 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The hooks (EP-13, « L'empaquetage »), what compose.prod.yaml runs once and stops, in its order:
+#
+# - the steps of the database and the migrations, before each upgrade, and at the installation as
+#   soon as PostgreSQL is there — before it, the cluster has none to migrate. The services wait for
+#   them: they sign in as the role of the service, which may once they have run (#701);
+# - the application of the realm, after the installation and after each upgrade, as the service
+#   keycloak-realm applies it at each start of the Compose;
+# - the bootstrap, after the installation alone, once the realm is applied: the link of the first
+#   administrator is in the log of its Job, which stays until the next installation.
+#
+# Helm waits for each hook, by its weight, and fails the installation with the first that fails.
+{{- $files := include "waterfall.name" (list . "files") }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "waterfall.name" (list . "migrate") }}
+  labels:
+    {{- include "waterfall.labels" (list . "migrate") | nindent 4 }}
+  annotations:
+    {{- include "waterfall.hook" (list "post-install,pre-upgrade" -10) | nindent 4 }}
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "migrate") | nindent 8 }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      # A step that fails — PostgreSQL or the storage not ready yet — is run again where it stopped.
+      restartPolicy: OnFailure
+      initContainers:
+        # The database of Waterfall and its owner, no superuser, and the role of the service,
+        # without the right to sign in yet; the database of Keycloak and its role; the role of the
+        # backup — each created when missing.
+        - name: waterfall-database
+          image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |-
+              until pg_isready --quiet; do sleep 2; done
+              exec psql --no-psqlrc --set=ON_ERROR_STOP=1 --file=/files/waterfall-database.sql
+          env:
+            {{- include "waterfall.administrator" . | nindent 12 }}
+            - name: PGDATABASE
+              value: postgres
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_POSTGRES_PASSWORD" "OWNER_DATABASE_PASSWORD") | nindent 12 }}
+          volumeMounts:
+            - name: files
+              mountPath: /files
+        - name: keycloak-database
+          image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
+          imagePullPolicy: IfNotPresent
+          command: [psql, --no-psqlrc, --set=ON_ERROR_STOP=1, --file=/files/keycloak-database.sql]
+          env:
+            {{- include "waterfall.administrator" . | nindent 12 }}
+            - name: PGDATABASE
+              value: postgres
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_KEYCLOAK_DATABASE_PASSWORD" "KEYCLOAK_DATABASE_PASSWORD") | nindent 12 }}
+          volumeMounts:
+            - name: files
+              mountPath: /files
+        - name: backup-database-role
+          image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
+          imagePullPolicy: IfNotPresent
+          command: [psql, --no-psqlrc, --set=ON_ERROR_STOP=1, --file=/files/backup-database-role.sql]
+          env:
+            {{- include "waterfall.administrator" . | nindent 12 }}
+            - name: PGDATABASE
+              value: waterfall
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_BACKUP_DATABASE_PASSWORD" "BACKUP_DATABASE_PASSWORD") | nindent 12 }}
+          volumeMounts:
+            - name: files
+              mountPath: /files
+        # The buckets of the platform, the backups and the imports, created when missing.
+        - name: storage-buckets
+          image: {{ include "waterfall.thirdParty" (list . .Values.storage.bucketsImage) }}
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, /files/storage-buckets.sh]
+          env:
+            - name: STORAGE_ADDRESS
+              value: {{ printf "http://%s:3900" (include "waterfall.name" (list . "storage")) | quote }}
+            - name: STORAGE_ACCESS_KEY
+              value: {{ .Values.storage.accessKey | quote }}
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_STORAGE_SECRET" "STORAGE_SECRET") | nindent 12 }}
+            - name: STORAGE_BUCKETS
+              value: backups imports
+          volumeMounts:
+            - name: files
+              mountPath: /files
+        # The migrations, as the owner of the tables (#701, WF-DAT-0140).
+        - name: migrate
+          image: {{ include "waterfall.image" (list . "waterfall") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command: [waterfall-migrate]
+          env:
+            {{- include "waterfall.backEnvironment" (list . "owner") | nindent 12 }}
+      containers:
+        # The role of the service, which the migrations create, may now sign in with its password.
+        - name: service-database-role
+          image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
+          imagePullPolicy: IfNotPresent
+          command: [psql, --no-psqlrc, --set=ON_ERROR_STOP=1, --file=/files/service-database-role.sql]
+          env:
+            {{- include "waterfall.administrator" . | nindent 12 }}
+            - name: PGDATABASE
+              value: waterfall
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_SERVICE_DATABASE_PASSWORD" "SERVICE_DATABASE_PASSWORD") | nindent 12 }}
+          volumeMounts:
+            - name: files
+              mountPath: /files
+      volumes:
+        - name: files
+          configMap:
+            name: {{ $files }}
+---
+# The realm of the image applied to Keycloak, once it is ready: a setting changed by hand in the
+# console comes back to what the realm says. As the administrator of master, whose password the
+# application beside the service of the restoration gives back after each restoration (#955).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "waterfall.name" (list . "realm") }}
+  labels:
+    {{- include "waterfall.labels" (list . "realm") | nindent 4 }}
+  annotations:
+    {{- include "waterfall.hook" (list "post-install,post-upgrade" 0) | nindent 4 }}
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "realm") | nindent 8 }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      restartPolicy: OnFailure
+      initContainers:
+        {{- include "waterfall.waitForKeycloak" (list . "9000" "/auth/health/ready") | nindent 8 }}
+      containers:
+        - name: realm
+          image: {{ include "waterfall.image" (list . "keycloak") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command: [/opt/keycloak/bin/apply-realm]
+          env:
+            {{- include "waterfall.realmEnvironment" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.keycloak.realm.resources | nindent 12 }}
+---
+# The bootstrap (US-0420): the migrations, then what nobody may enter without, and the link of the
+# first administrator, alone on its standard output. As the owner of the tables (#701), with the
+# secret of the client of the bootstrap (#652). Once: a second run would write a second link.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "waterfall.name" (list . "install") }}
+  labels:
+    {{- include "waterfall.labels" (list . "install") | nindent 4 }}
+  annotations:
+    {{- include "waterfall.hook" (list "post-install" 10) | nindent 4 }}
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "install") | nindent 8 }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      restartPolicy: Never
+      containers:
+        - name: install
+          image: {{ include "waterfall.image" (list . "waterfall") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command: [waterfall-api, install]
+          env:
+            {{- include "waterfall.keycloakClientEnvironment" . | nindent 12 }}
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_POSTGRES_PASSWORD") | nindent 12 }}
+            - name: WATERFALL_DATABASE_URL
+              value: {{ printf "postgresql://waterfall:$(WATERFALL_POSTGRES_PASSWORD)@%s:5432/waterfall" (include "waterfall.postgresHost" .) | quote }}
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_INSTALLATION_CLIENT_SECRET") | nindent 12 }}
+            - name: WATERFALL_ADMIN_EMAIL
+              value: {{ required "bootstrap.adminEmail: the address of the first administrator" .Values.bootstrap.adminEmail | quote }}
+            - name: WATERFALL_DEFAULT_LANGUAGE
+              value: {{ .Values.bootstrap.defaultLanguage | quote }}
+            - name: WATERFALL_CURRENCY
+              value: {{ required "bootstrap.currency: the currency of the company" .Values.bootstrap.currency | quote }}
+            - name: WATERFALL_COMPANY_NAME
+              value: {{ required "bootstrap.companyName: the name of the company" .Values.bootstrap.companyName | quote }}
+            - name: WATERFALL_TIME_ZONE
+              value: {{ .Values.bootstrap.timeZone | quote }}

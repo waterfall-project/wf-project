@@ -70,7 +70,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
 	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-purge service-logs service-down measure-core migrate \
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
-	production-trial check-production \
+	production-trial check-production kube-tools lint-chart test-chart chart-trial check-chart \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens readmes reuse lint-workflows \
 	lint-shell check slot slot-release e2e-down slots test-services test-services-down \
@@ -270,6 +270,11 @@ test-tools: install-front ## Run the tests of the repository tools (TESTS=<file>
 test-openldap: ## Try the entrypoint of the directory of test on throwaway volumes (needs Docker)
 	@cd $(TOOLS) && uv run --frozen pytest -m openldap -n $(WATERFALL_PROCESSORS) --dist worksteal
 
+# The tests of the chart (deploy/helm/waterfall, US-2800), which render it by Helm: the tools leave
+# them out (the marker chart), the chart family runs them.
+test-chart: kube-tools ## Render the chart and hold what its objects say (US-2800)
+	@cd $(TOOLS) && uv run --frozen pytest -m chart -n $(WATERFALL_PROCESSORS) --dist worksteal
+
 lint-tools: ## Lint and format check of the repository tools
 	@cd $(TOOLS) && uv run --frozen ruff check . $(DOC_TOOLS) \
 		&& uv run --frozen ruff format --check . $(DOC_TOOLS)
@@ -311,6 +316,22 @@ lint-shell: ## Lint the shell scripts
 
 lint-docker: ## Lint the Dockerfiles
 	@git ls-files '*Dockerfile' | xargs -r uv run --frozen --project $(TOOLS) hadolint
+
+# Helm, kind and kubectl, which PyPI does not hold as it holds the linters above: downloaded at the
+# versions and digests wftools.kubetools pins, kept under the cache of the user, shared by worktrees.
+kube-tools: ## Install Helm, kind and kubectl at their pinned versions, under ~/.cache/waterfall/bin
+	@$(WFTOOLS).kubetools
+
+lint-chart: kube-tools ## Lint the chart strictly, with the values of the chain (US-2800)
+	@$(WFTOOLS).chart
+
+# The chart installed on a cluster of kind made for it, from the images of WATERFALL_IMAGE_TAG (the
+# commit by default) built here, bootstrapped, its liveness and the sign-in of its first
+# administrator held, then deleted (wftools.charttrial). A heavy run: a cluster, Keycloak twice and
+# PostgreSQL. The cluster is named after the slot, so that two worktrees never share one.
+chart-trial: export WATERFALL_CHART_CLUSTER ?= waterfall-chart-s$(call slot-value,WATERFALL_SLOT)
+chart-trial: kube-tools ## Install the chart on a throwaway cluster of kind from the images of WATERFALL_IMAGE_TAG (the commit by default, make images first), bootstrap it, hold its liveness and the sign-in of its first administrator, then delete the cluster
+	@$(heavy) $(WFTOOLS).charttrial
 
 # Keycloak answers before its realm is applied: the application starts once it does, anew at each
 # start, and stays, to apply it again after a restoration (#955). The root of the authority of its
@@ -493,7 +514,7 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 		echo "== $$target"; $(MAKE) --no-print-directory $$target || exit 1; \
 	done
 
-check-all: check-repo check-repo-tools check-spec check-contract check-back check-front check-front-image check-roadmap check-measures check-keycloak check-service check-production ## Run every family of checks
+check-all: check-repo check-repo-tools check-spec check-contract check-back check-front check-front-image check-roadmap check-measures check-keycloak check-service check-production check-chart ## Run every family of checks
 
 check-repo: reuse lint-workflows lint-shell lint-docker lint-compose sources check-fixtures \
 	requirements screens readmes ## Checks that run on any change
@@ -672,6 +693,10 @@ check-service: $(call full-only,e2e-service) ## The paths against the real servi
 # The three images built as the chain publishes them, never pushed, then the production platform on
 # them (production-trial): in the full tier only, as images.yml does again on the images it published.
 check-production: $(call full-only,images production-trial) ## The production platform starts on the images built here, bootstraps and lets its first administrator in, in the full tier only (US-0430)
+
+# The chart linted and rendered in every tier; installed on a cluster of kind from the three images
+# built here, in the full tier only, as check-production starts the Compose (US-2800).
+check-chart: lint-chart test-chart $(call full-only,images chart-trial) ## The chart lints and says what it must; in the full tier, it installs on a throwaway cluster, bootstraps and lets its first administrator in (US-2800)
 
 roadmap: ## Confront the stories of docs/roadmap with the requirements of the document
 	@$(WFTOOLS).roadmap

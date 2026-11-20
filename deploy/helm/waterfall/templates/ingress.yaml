@@ -1,0 +1,60 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The only door (Caddyfile.prod, here as an ingress): Keycloak under /auth, the front everywhere
+# else and at its own routes under /auth — the return from the realm and the end of its session.
+# The console of Keycloak and its realm master, whose administrator holds every realm, are sent to
+# the front, which has no page there: Keycloak never serves them through the ingress. The back
+# channel of the front, which Keycloak reaches inside the cluster, falls under /auth and is not
+# served here either. The longest path wins, whatever the order (networking.k8s.io/v1).
+{{- $front := include "waterfall.name" (list . "front") }}
+{{- $keycloak := include "waterfall.name" (list . "keycloak") }}
+{{- $domain := required "platform.domain: where the browser reaches the platform" .Values.platform.domain }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "waterfall.name" (list . "ingress") }}
+  labels:
+    {{- include "waterfall.labels" (list . "ingress") | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with .Values.ingress.tlsSecret }}
+  tls:
+    - hosts: [{{ $domain | quote }}]
+      secretName: {{ . }}
+  {{- end }}
+  rules:
+    - host: {{ $domain | quote }}
+      http:
+        paths:
+          {{- range $path := list "/auth/callback" "/auth/sign-out" }}
+          - path: {{ $path }}
+            pathType: Exact
+            backend:
+              service:
+                name: {{ $front }}
+                port:
+                  name: http
+          {{- end }}
+          {{- range $path := list "/auth/admin" "/auth/realms/master" "/" }}
+          - path: {{ $path }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $front }}
+                port:
+                  name: http
+          {{- end }}
+          - path: /auth
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $keycloak }}
+                port:
+                  name: http
