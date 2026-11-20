@@ -267,6 +267,8 @@ class Flights:
         except BaseException as fault:
             logger.warning("flight.not_started", name=name, exc_info=True)
             future.set_exception(fault)
+            if not isinstance(fault, Exception):
+                raise  # an interrupt of the calling thread is not ours to swallow
         return future
 
 

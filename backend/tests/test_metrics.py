@@ -700,3 +700,20 @@ def test_a_thread_that_fails_to_start_with_a_memory_error_does_not_keep_its_name
         failed = flights.start("probe-cache", lambda: "7")
     assert isinstance(failed.exception(), MemoryError)
     assert flights.start("probe-cache", lambda: "8").result(timeout=5) == "8"
+
+
+@pytest.mark.requirement("WF-OBS-0010-A")
+def test_an_interrupt_while_the_thread_starts_reaches_the_caller_and_frees_the_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Proper to US-2870: an interrupt of the calling thread is not swallowed by the flight.
+    class Refusing(threading.Thread):
+        def start(self) -> None:
+            raise KeyboardInterrupt
+
+    flights = Flights()
+    with monkeypatch.context() as patch:
+        patch.setattr(threading, "Thread", Refusing)
+        with pytest.raises(KeyboardInterrupt):
+            flights.start("probe-cache", lambda: "7")
+    assert flights.start("probe-cache", lambda: "8").result(timeout=5) == "8"

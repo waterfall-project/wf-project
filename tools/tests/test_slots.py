@@ -441,9 +441,20 @@ def test_stop_servers_kills_what_ignores_sigterm_and_says_so(
 
 
 def test_the_ports_of_a_slot_are_the_fake_back_the_forty_fronts_and_the_metrics_front() -> None:
-    """US-1300, US-2870: slot 2 has 20220, 20240-20279, 20320-20321; slot 0 the ports of before."""
-    assert slots.end_to_end_ports(2) == {20220, *range(20240, 20280), 20320, 20321}
+    """US-1300, US-2870: slot 2 has 20220, 20240-20279, 20280-20281; slot 0 the ports of before."""
+    assert slots.end_to_end_ports(2) == {20220, *range(20240, 20280), 20280, 20281}
     assert slots.end_to_end_ports(0) == {4110, *range(3100, 3140), 3180, 3181}
+
+
+def test_the_ports_of_a_slot_stay_in_its_block_and_two_slots_share_none() -> None:
+    """US-1100, US-1300, US-2870: a slot stops its own servers: no port is in the next block."""
+    for slot in range(1, 6):
+        low = slots.block(slot)
+        for port in {*slots.ports(slot).values(), *slots.end_to_end_ports(slot)}:
+            assert low <= port < low + slots.BLOCK_SIZE, f"slot {slot}: {port} is out of its block"
+    for slot in range(5):
+        assert not set(slots.ports(slot).values()) & set(slots.ports(slot + 1).values())
+        assert not slots.end_to_end_ports(slot) & slots.end_to_end_ports(slot + 1)
 
 
 def fake_table(root: Path, sockets: dict[int, dict[int, int]]) -> Path:
