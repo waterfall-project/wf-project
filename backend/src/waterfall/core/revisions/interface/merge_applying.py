@@ -47,7 +47,11 @@ from waterfall.core.projects.interface import (
     require_project_manager,
 )
 from waterfall.core.revisions.commands import CREATE_REVISION, STRUCTURE_UP_TO_DATE
-from waterfall.core.revisions.interface.marking import judge_version_name, mark_revision
+from waterfall.core.revisions.interface.marking import (
+    designating,
+    judge_version_name,
+    mark_revision,
+)
 from waterfall.core.revisions.interface.merging import MergeJudged, merge_parts, merging_of
 from waterfall.core.revisions.interface.reference import refer_after_merge
 from waterfall.core.revisions.interface.revisions import open_revision_by_task
@@ -223,7 +227,8 @@ def _merged(session: Session, request: MergeRequest, act: Act, task_id: UUID | N
     merge_parts(replace(merging, applying=True))
     _consumed(session, merging, act)
     _inscribe(session, merging, request.version_name, act)
-    mark_revision(session, merging.revision_id, request.version_name, request.description, act)
+    with designating(session, merging.revision_id):
+        mark_revision(session, merging.revision_id, request.version_name, request.description, act)
     refer_after_merge(session, project_id, merging.revision_id, act)
 
 

@@ -17,7 +17,8 @@ its parts rounded to the cent, as the estimate rounds them (WF-IND-0100, WF-IND-
   line of R spread over the part of its task after the day.
 
 The reference budget reads, at each month-end, the reference then in force: each reference of the
-project is in force from its marking to the marking of the next, so that an amendment merged moves
+project is in force from the marking of the revision it designates (a merge marking and designating
+at once) to that of the next, so that an amendment merged moves
 it by a step, at the point of the month of the merge, equal to the gap of the two references
 cumulated at that point (``steps``; WF-IND-0100-A, US-2630/L2). The planned value is that of the
 reference in force now alone: after an amendment, it totals the new budget (WF-DEV-0080-A).
@@ -68,12 +69,11 @@ if TYPE_CHECKING:
     from waterfall.core.indicators.shaping import Context
 
 type Dated = Sequence[tuple[date, Decimal]]
-_TWO = 2
 
 
 @dataclass(frozen=True, slots=True)
 class InForce:
-    """A reference of the project and the day it stands from: its marking, in the installation."""
+    """A reference of the project and the day it stands from: the marking of its revision."""
 
     since: date
     lines: tuple[IndicatorLine, ...]
@@ -96,7 +96,8 @@ class CurveReading:
     completion, ``costs`` the tracked lines of the scope by day of document, up to the day;
     ``spreader`` that of the computation, which spreads each line once for all its curves.
     ``earlier`` are the references the project had before this one, in the order they stood, and
-    ``since`` the day this one stands from: none while the project has had a single reference.
+    ``since`` the day this one stands from, the marking of the revision it designates (a merge
+    marks and designates at once): none while the project has had a single reference.
     """
 
     day: date
@@ -136,11 +137,15 @@ def _earlier_references(session: Session, basis: Basis) -> tuple[tuple[InForce, 
     """Read the references the project had before its reference now, and the day this one stands.
 
     The journal of the designations says them in order, the revision when each was marked; they
-    count only when the last is the reference of the basis. A project that has had a single
-    reference has none before it, and its curves are drawn as they always were.
+    count only when the last is the reference of the basis. The revision a merge marks and
+    designates at once (``basis.designated_at``) is the last, its designation not yet inscribed. A
+    project that has had a single reference has none before it, and its curves are drawn as they
+    always were.
     """
     history = reference_history(session, basis.project_id)
-    if len(history) < _TWO or history[-1][0] != basis.reference_id:
+    if basis.designated_at is not None:
+        history.append((basis.revision_id, basis.designated_at))
+    if len(history) <= 1 or history[-1][0] != basis.reference_id:
         return (), None
     kept: dict[UUID, tuple[IndicatorLine, ...]] = {}
     earlier: list[InForce] = []
@@ -254,7 +259,8 @@ def _budget_with_amendments(
 ) -> tuple[Month | None, list[Point], list[Step]]:
     """Return the first month of the reference budget, its series and its steps.
 
-    Each month-end reads the reference then in force: each stands from its marking to the next's.
+    Each month-end reads the reference then in force: each stands from the marking of the revision
+    it designates to the next's.
     The step of a month where the reference changed is the gap of the two cumulated at that
     month-end, on the point of that month (WF-IND-0100-A). Without an earlier reference, the series
     of the reference now alone, and no step.

@@ -631,6 +631,32 @@ def test_the_budget_reads_at_each_month_the_reference_in_force_and_steps_at_each
     ]
 
 
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_a_first_reference_standing_after_the_first_point_is_in_force_from_the_start() -> None:
+    # Propre à l'US : le `since` de la première référence, le 20 novembre, suit le premier point,
+    # fin octobre : le rang 0 est en vigueur par défaut, sans marche avant la seconde référence.
+    def on_day(day: date, budgeted: str) -> tuple[IndicatorLine, ...]:
+        held = Placement(WEEK, WorkInstant(day), WorkInstant(day, EIGHT))
+        task, amount = uuid4(), D(budgeted)
+        return (IndicatorLine(uuid4(), task, task, None, None, amount, amount, 0, held),)
+
+    earlier = (InForce(date(2026, 11, 20), on_day(date(2026, 11, 3), "1000.00")),)
+    reading = CurveReading(
+        date(2027, 1, 20),
+        on_day(date(2026, 12, 14), "1200.00"),
+        (),
+        (),
+        (),
+        earlier=earlier,
+        since=date(2026, 12, 10),
+    )
+    at = datetime(2027, 1, 20, 9, tzinfo=UTC)
+    context = Context(uuid4(), "marked", at, PROJECT, is_stored=False)
+    body = cost_curve_document(reading, context, payment_delays=False)
+    assert budget_of(body)["2026-11-30"] == "1000.00"
+    assert body["steps"] == [{"date": "2026-12-31", "amount": "200.00", "cause": "amendment"}]
+
+
 @pytest.mark.requirement("WF-DEV-0080-A")
 def test_after_an_amendment_the_planned_value_totals_the_new_budget(
     ready: Occurring, worker: Worker, clock: Clock
@@ -707,6 +733,21 @@ def test_the_documents_kept_at_a_merge_count_the_provision_and_carry_the_coverag
     assert read(ready)["remaining"] == "860.00"
 
 
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_the_documents_kept_at_a_merge_read_the_new_reference_and_its_step(
+    ready: Occurring, worker: Worker, clock: Clock
+) -> None:
+    # Propre à l'US : la révision que la fusion marque est la référence dès cet instant : le
+    # lendemain de la fusion, une lecture `as_of` lit le document conservé et rend 1 200 et la
+    # marche, comme la lecture du jour.
+    amended(ready, worker, clock)
+    then = curve(ready.api, ready.project.stage, COST_CURVE, "?as_of=2026-11-17")
+    assert [each["amount"] for each in then["steps"]] == ["105.00"]
+    assert budget_of(then)["2026-12-31"] == "1200.00"
+    kept = indicators(ready.api, ready.project.stage, "?as_of=2026-11-17")
+    assert kept["reference_budget"] == "1200.00"
+
+
 @pytest.mark.requirement("WF-IND-0030-A")
 def test_the_documents_kept_at_a_merge_leave_the_occurrence_out_of_the_earned_value(
     ready: Occurring, worker: Worker, clock: Clock
@@ -719,7 +760,6 @@ def test_the_documents_kept_at_a_merge_leave_the_occurrence_out_of_the_earned_va
     project = amended(ready, worker, clock, follow=False)
     kept = indicators(ready.api, ready.project.stage, f"?revision_id={project.revision_id}")
     assert (kept["context"]["is_stored"], kept["earned_value"]) == (True, "400.00")
-    assert kept["reference_budget"] == "1000.00"
     coverage = remaining_of(ready, project.revision_id)["coverage"]
     assert (coverage["occurred_cost"], coverage["occurred_reestimated"]) == ("200.00", "80.00")
     assert coverage["remaining_provisions"] == "0.00"
