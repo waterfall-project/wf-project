@@ -288,11 +288,13 @@ class KeycloakAdmin:
         expect(written, HTTPStatus.NO_CONTENT)
         return True
 
-    def synchronize_directories(self) -> None:
+    def synchronize_directories(self) -> int:
         """Have the realm read again, whole, each directory it federates and has enabled.
 
-        A person the directory no longer holds is then no longer an account of the realm.
+        A person the directory no longer holds is then no longer an account of the realm. Give how
+        many entries the realm says it failed to synchronise, over every directory (#917).
         """
+        failed = 0
         listed = self._as_service("GET", f"{self._admin}/components", params={"type": USER_STORAGE})
         for component in cast("list[Mapping[str, Any]]", expect(listed, HTTPStatus.OK).json()):
             config = cast("Mapping[str, list[str]]", component.get("config") or {})
@@ -307,6 +309,9 @@ class KeycloakAdmin:
                 updated=outcome.get("updated"),
                 failed=outcome.get("failed"),
             )
+            count = outcome.get("failed")
+            failed += count if isinstance(count, int) else 0
+        return failed
 
     def list_accounts(self) -> list[RealmAccount]:
         """Read every account of the realm, by pages; the service accounts of its clients aside."""

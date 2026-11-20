@@ -5,7 +5,8 @@
 The tokens it signs go through the validation of the service as they are, against keys read
 over HTTP: what is tried is the code that validates, not a stand-in of it. What depends on
 Keycloak itself — its administration API, its sessions — is tried against the platform
-(``test_keycloak_*.py``).
+(``test_keycloak_*.py``); the realm of test answers only the few calls of the administration API
+by which a test says what the realm answers (``synchronization``).
 """
 
 import json
@@ -24,6 +25,9 @@ if TYPE_CHECKING:
 
 REALM = "waterfall"
 KEYS_PATH = f"/auth/realms/{REALM}/protocol/openid-connect/certs"
+TOKEN_PATH = f"/auth/realms/{REALM}/protocol/openid-connect/token"
+ADMIN_PATH = f"/auth/admin/realms/{REALM}"
+DIRECTORY_ID = "directory-1"
 AUDIENCE = "waterfall-api"
 # The key the realm of test signs its tokens with, unless a test asks for another.
 KEY = "key-1"
@@ -50,12 +54,43 @@ class TestRealm:
         # How long the keys take to be served: a longer delay than the client waits plays a
         # Keycloak that does not answer.
         self.delay = 0.0
+        # What the realm answers to the synchronisation of its one directory: until a test sets it,
+        # the realm answers none of the calls of the administration API.
+        self.synchronization: bytes | None = None
         self._stopping = threading.Event()
         self._encryption = new_key()
         realm = self
 
         class Handler(BaseHTTPRequestHandler):
+            def _answer(self, body: bytes) -> None:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def do_POST(self) -> None:
+                self.rfile.read(int(self.headers.get("Content-Length", 0)))
+                if realm.synchronization is None:
+                    self.send_error(501)
+                elif self.path == TOKEN_PATH:
+                    self._answer(b'{"access_token": "service", "expires_in": 300}')
+                elif self.path.startswith(f"{ADMIN_PATH}/user-storage/{DIRECTORY_ID}/sync"):
+                    self._answer(realm.synchronization)
+                else:
+                    self.send_error(404)
+
             def do_GET(self) -> None:
+                if realm.synchronization is not None and self.path.startswith(
+                    f"{ADMIN_PATH}/components"
+                ):
+                    directory: dict[str, Any] = {
+                        "id": DIRECTORY_ID,
+                        "providerId": "ldap",
+                        "config": {},
+                    }
+                    self._answer(json.dumps([directory]).encode())
+                    return
                 if self.path != KEYS_PATH:
                     self.send_error(404)
                     return

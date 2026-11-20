@@ -486,6 +486,8 @@ INDICATORS = (
 # The permissions each served operation asks for, in the order they are evaluated.
 ASKED: dict[str, tuple[str, ...]] = {
     "getLiveness": (),
+    "getReadiness": (),
+    "getMetrics": (),
     "getInstallation": (),
     "getMe": (),
     "updateMyPreferences": (),
@@ -556,6 +558,9 @@ BY_FIELD = asked_reference_settings.BY_FIELD
 # the task another account asked for does not exist for the caller, nor the avatar of an account
 # without one.
 PATH_OBJECTS = {"getBackgroundTask", "getBackgroundTaskResult", "getUserAvatar"}
+# The operations whose 404 is no refusal of the service, but of the public entry, which does not
+# route them: the metrics, which only the internal network reaches (TFX-09, WF-SEC-0010).
+UNROUTED = {"getMetrics"}
 # The operations whose route asks for no permission because the command of a revision judges it:
 # the export refuses by a 403 naming the permission of its kind (WF-CYC-0110).
 BY_COMMAND = {"requestExport"}
@@ -666,7 +671,8 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
             # the deactivated ones (``INACTIVE``), tried below; that of a writing judged field by
             # field, its guard of each field (``BY_FIELD``).
             refusals = {"403", "404"}
-            allowed_404: set[str] = {"404"} if name in PATH_OBJECTS | set(ON_PROJECT) else set()
+            public_404 = PATH_OBJECTS | UNROUTED | set(ON_PROJECT)
+            allowed_404: set[str] = {"404"} if name in public_404 else set()
             guarded = name in INACTIVE or name in BY_FIELD or name in BY_COMMAND
             allowed_403: set[str] = {"403"} if guarded else set()
             refused = refusals - allowed_404 - allowed_403
