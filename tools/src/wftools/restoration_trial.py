@@ -120,12 +120,14 @@ class Api:
 
     compose: list[str]
     ask: Ask
+    target: tuple[str, ...] = ("exec", "-T", "api")
+    """What follows ``compose`` to reach the container of the API: a pod, by kubectl, names it."""
 
     def call(
         self, method: str, path: str, token: str, body: Mapping[str, Any] | None = None
     ) -> tuple[int, Any]:
         """Ask one operation; give its status and its body, read as JSON when it is."""
-        command = [*self.compose, "exec", "-T", "api", "python", "-c", API_CALL]
+        command = [*self.compose, *self.target, "python", "-c", API_CALL]
         asked = json.dumps({"method": method, "path": path, "token": token, "body": body})
         code, output = self.ask(command, asked)
         if code != 0:

@@ -27,6 +27,10 @@ and, once more:
 - on the components of the chart, the API goes from one instance to three by one value,
   ``api.replicas``, under requests held for the whole of the upgrade, none of which fails, and no
   pod that was there — PostgreSQL's included — is replaced or restarted (``wftools.chartload``);
+- then, on three instances of the API and two of the worker, the services keep no state
+  (WF-ARC-0080-A, US-2820): each instance of the API answers the same to the same token, and a
+  worker killed in the middle of a marking leaves the database as it was, the other taking the
+  task again (``wftools.chartstateless``);
 - on the components of the operator's, the chart makes none of its own, and the migrations ended
   before the installation began.
 
@@ -50,7 +54,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from wftools import REPOSITORY, chart, chartdata, chartload, kubetools
+from wftools import REPOSITORY, chart, chartdata, chartload, chartstateless, kubetools
 from wftools.images import REGISTRY
 from wftools.production import (
     HIDDEN,
@@ -70,6 +74,7 @@ from wftools.production import (
     set_password,
     sign_in,
 )
+from wftools.restoration_trial import access_token
 
 TOOL = "wftools.charttrial"
 NOINDEX = re.compile(
@@ -102,9 +107,12 @@ INSTALLATION = "20m"
 ROLLOUT = "10m"
 SCALED_TO = 3
 """The instances of the API the trial takes it to, from one: the most the chart is sized for."""
+WORKERS = 2
+"""The instances of the worker the trial of the services without state holds."""
 
 Run = Callable[[list[str]], int]
 Read = Callable[[list[str]], tuple[int, str]]
+Ask = Callable[[list[str], str], tuple[int, str]]
 
 
 def check_console_not_served(browser: Browser, platform: Platform) -> None:
@@ -306,6 +314,7 @@ class Trial:
     read: Read
     folder: Path
     platform: Platform
+    ask: Ask | None = None
 
     @property
     def kubeconfig(self) -> str:
@@ -547,6 +556,25 @@ class Trial:
         )
         return chartload.pods_of(json.loads(listing))
 
+    def upgrade(self, values: Mapping[str, Any]) -> None:
+        """Upgrade the installed chart to ``values``, and wait for Helm to see it through."""
+        given = self.folder / "values.json"
+        given.write_text(json.dumps(values), encoding="utf-8")
+        command = [
+            *self.tools.helm,
+            "upgrade",
+            chart.RELEASE,
+            str(chart.CHART),
+            "--namespace",
+            NAMESPACE,
+            "--values",
+            str(given),
+            "--wait",
+            "--timeout",
+            INSTALLATION,
+        ]
+        _must(self.run, command, "upgrade the chart to the values given")
+
     def scale(self, values: Mapping[str, Any], browser: Browser, email: str, replicas: int) -> None:
         """Take the API to ``replicas`` instances by its one value, under requests none may fail.
 
@@ -556,26 +584,8 @@ class Trial:
         """
         before = self.pods()
         scaled = {**values, "api": {**values.get("api", {}), "replicas": replicas}}
-        given = self.folder / "values.json"
-        given.write_text(json.dumps(scaled), encoding="utf-8")
         with chartload.requests_held(self.sender(), browser, self.platform, email) as held:
-            _must(
-                self.run,
-                [
-                    *self.tools.helm,
-                    "upgrade",
-                    chart.RELEASE,
-                    str(chart.CHART),
-                    "--namespace",
-                    NAMESPACE,
-                    "--values",
-                    str(given),
-                    "--wait",
-                    "--timeout",
-                    INSTALLATION,
-                ],
-                "upgrade the chart to the new number of instances",
-            )
+            self.upgrade(scaled)
             self.rolled_out()
         chartload.check_uninterrupted(held)
         print(f"  {held.sent} requests were held through the upgrade, none failed", flush=True)
@@ -599,6 +609,25 @@ class Trial:
             f"the {len(before)} pods there were are the same, none restarted",
             flush=True,
         )
+
+    def hold_stateless(self, values: Mapping[str, Any], browser: Browser) -> None:
+        """Hold the services stateless, on three instances of the API and two of the worker.
+
+        The worker goes to two instances by its one value, ``worker.replicas``; the first
+        administrator, signed in, gives a token of their own as the front takes one
+        (``wftools.chartstateless``).
+        """
+        grown = {
+            **values,
+            "api": {**values.get("api", {}), "replicas": SCALED_TO},
+            "worker": {**values.get("worker", {}), "replicas": WORKERS},
+        }
+        self.upgrade(grown)
+        self.rolled_out()
+        secret = values["secrets"]["values"]["WATERFALL_FRONT_CLIENT_SECRET"]
+        token = access_token(browser, self.sender(), self.platform.address, secret)
+        ask = self.ask or _ask
+        chartstateless.Stateless(self.kubectl, self.read, ask, chartstateless.started).hold(token)
 
     def hold_provided(self) -> None:
         """Hold that the chart made no data component, and that it migrated before it installed."""
@@ -721,6 +750,7 @@ def main(environment: Mapping[str, str] | None = None) -> int:
             trial.install(values)
             browser = trial.hold(ADMIN)
             trial.scale(values, browser, ADMIN, SCALED_TO)
+            trial.hold_stateless(values, browser)
             trial.remove()
             print("the chart, on the data components of an operator:", flush=True)
             trial.prepare()
@@ -747,6 +777,15 @@ def _head() -> str:
 
 def _run(command: list[str]) -> int:
     return subprocess.run(command, cwd=REPOSITORY, check=False).returncode
+
+
+def _ask(command: list[str], given: str) -> tuple[int, str]:
+    done = subprocess.run(
+        command, cwd=REPOSITORY, input=given, capture_output=True, text=True, check=False
+    )
+    if done.returncode != 0:
+        print(done.stderr, file=sys.stderr)
+    return done.returncode, done.stdout
 
 
 def _read(command: list[str]) -> tuple[int, str]:
