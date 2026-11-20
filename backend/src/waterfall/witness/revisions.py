@@ -37,7 +37,8 @@ amendments opened and the risks declared bear the identifiers of the examples; w
 names is drawn in order (``drawn_in_order``), the same at every loading. The actual costs come
 after the lines, at the instants of their events (``witness.costs``, EP-09): the imports applied,
 the line excluded and the extraction expired, by the project manager, the account an import is
-requested by. A marking keeps the
+requested by; their description is checked against the chronology before its first event, so that
+one that strays writes nothing at all (``check``). A marking keeps the
 indicators of its revision as the worker's does (EP-10): the loader imports their interface
 (``loader.EXTENDING``).
 """
@@ -160,7 +161,7 @@ class _Walk:
         }
         self.manager = self._manager(witness)
         self.designated: set[UUID] = set()
-        # What the slice of the costs reads of the description, at its first write.
+        # What the slice of the costs reads of the description, before the first event (``check``).
         self.costs: costs.Costs | None = None
         # The risks and the structures of the witness, and the revision in progress of each
         # project, with its number, which their writes read (US-2650/L1).
@@ -238,6 +239,18 @@ class _Walk:
                 self._check(write, event)
             case CostImportApplied() | CostLineExcluded() | ImportExpired():
                 self._cost(write, act)
+
+    def check(self) -> None:
+        """Refuse, before anything is written, a description of the costs the chronology belies.
+
+        The costs come last in the chronology: checked at their events, a description that strays
+        was refused only once the whole witness before them had been written, then rolled back.
+        """
+        for event, write in timeline.read(self.witness).writes():
+            if isinstance(write, CostImportApplied | CostLineExcluded | ImportExpired):
+                if self.costs is None:
+                    self.costs = costs.Costs.read(self.witness)
+                costs.check(self.costs, write, timeline.at(self.witness, event.occurred_at).at)
 
     def _fill(self, filling: Filling) -> None:
         """Write the content of a structure, by the fillers registered, in their order."""
@@ -489,6 +502,7 @@ def load(session: Session, witness: Witness) -> bool:
     imposed = walk.opened()
     if is_loaded(imposed, revisions_present(session, imposed)):
         return False
+    walk.check()
     for event, write in timeline.read(witness).writes():
         walk.write(event, write)
     return bool(imposed)
