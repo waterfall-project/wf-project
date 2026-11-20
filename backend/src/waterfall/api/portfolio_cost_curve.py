@@ -12,7 +12,6 @@ horizon is from 1 to 240 months, six by default; one outside its bounds is refus
 the same answer as the state's fault. The twelve months before that of the date always precede it.
 """
 
-from datetime import date
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
