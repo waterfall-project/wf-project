@@ -617,6 +617,31 @@ services:
     # The time k6 is given, once asked to stop, to end its users and write its summary.
     stop_grace_period: 60s
 
+  # Prometheus, as the production platform runs it (US-2880): it collects the API and the worker —
+  # there is no front here —, and evaluates the rules of the alerts at their shipped thresholds,
+  # unless the environment says others. Started by none of the targets of the Makefile, for the
+  # tests that read it (the profile supervision); its series are lost with the container.
+  prometheus:
+    profiles: [supervision]
+    image: ${WATERFALL_MIRROR:-}prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
+    entrypoint: ["/bin/sh", "/etc/waterfall/prometheus.sh"]
+    command: ["--storage.tsdb.path=/prometheus"]
+    environment:
+      WATERFALL_METRICS_PORT: 9100
+      WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS: ${WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS:-900}
+      WATERFALL_STORAGE_USAGE_THRESHOLD: ${WATERFALL_STORAGE_USAGE_THRESHOLD:-0.85}
+      WATERFALL_ERROR_RATE_THRESHOLD: ${WATERFALL_ERROR_RATE_THRESHOLD:-0.05}
+      WATERFALL_ERROR_RATE_WINDOW_SECONDS: ${WATERFALL_ERROR_RATE_WINDOW_SECONDS:-300}
+    volumes:
+      - ./prometheus.sh:/etc/waterfall/prometheus.sh:ro
+      - ./prometheus.yml:/etc/waterfall/prometheus.yml:ro
+      - ./prometheus-alerts.yml:/etc/waterfall/prometheus-alerts.yml:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9090/-/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
 volumes:
   postgres-data:
   storage-data:

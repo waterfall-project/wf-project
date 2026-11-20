@@ -38,5 +38,14 @@ spec:
               value: {{ printf "postgresql://waterfall_backup:$(WATERFALL_BACKUP_DATABASE_PASSWORD)@%s:5432/waterfall" $host | quote }}
             - name: WATERFALL_KEYCLOAK_DATABASE_URL
               value: {{ printf "postgresql://waterfall_backup:$(WATERFALL_BACKUP_DATABASE_PASSWORD)@%s:5432/keycloak" $host | quote }}
+            # The metrics, on every interface of the pod, on a port no Service but the headless one
+            # of Prometheus routes (prometheus.yaml, TFX-09).
+            - name: WATERFALL_HOST
+              value: 0.0.0.0
+            - name: WATERFALL_METRICS_PORT
+              value: {{ .Values.metrics.port | quote }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}

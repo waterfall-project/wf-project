@@ -228,6 +228,10 @@ paths = [
     "deploy/compose/keycloak-database.sql",
     "deploy/compose/service-database-role.sql",
     "deploy/compose/backup-database-role.sql",
+    # Those of its Prometheus, which the tests that read it start (US-2880).
+    "deploy/compose/prometheus.sh",
+    "deploy/compose/prometheus.yml",
+    "deploy/compose/prometheus-alerts.yml",
     "deploy/keycloak/**",
     "deploy/openldap/**",
     ".github/workflows/service.yml",
@@ -267,6 +271,9 @@ paths = [
     "deploy/compose/service-database-role.sql",
     "deploy/compose/backup-database-role.sql",
     "deploy/compose/waterfall-database.sql",
+    "deploy/compose/prometheus.sh",
+    "deploy/compose/prometheus.yml",
+    "deploy/compose/prometheus-alerts.yml",
     # The launcher the Makefile starts the slots by, and the slot guard of production-trial (PLC-06).
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",
@@ -297,6 +304,11 @@ paths = [
     "deploy/compose/service-database-role.sql",
     "deploy/compose/backup-database-role.sql",
     "deploy/compose/waterfall-database.sql",
+    # The rules of the alerts the chart renders, and what the Compose starts Prometheus with, which its
+    # tests play against it (US-2880).
+    "deploy/compose/prometheus.sh",
+    "deploy/compose/prometheus.yml",
+    "deploy/compose/prometheus-alerts.yml",
     # The launcher the Makefile starts the slots by, and the turns of the heavy runs the trial waits for.
     "tools/src/wftools/launch.py",
     "tools/src/wftools/slots.py",
@@ -308,6 +320,8 @@ paths = [
     "tools/src/wftools/restoration_trial.py",
     "tools/src/wftools/images.py",
     "tools/tests/test_chart.py",
+    "tools/tests/test_chartprometheus.py",
+    "tools/tests/test_alerts.py",
     ".github/workflows/chart.yml",
     ".github/actions/**",
 ]

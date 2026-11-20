@@ -71,6 +71,8 @@ ADMIN = "administrateur@waterfall.test"
 # others: those of the witness (EP-05).
 CURRENCY = "EUR"
 COMPANY_NAME = "Delmas Automatismes"
+# The capacity a local trial declares of each space, unless the environment says another: 10 GiB.
+CAPACITY = str(10 * 1024**3)
 AUTHORITY = "caddy:/data/caddy/pki/authorities/local/root.crt"
 LIVENESS = (
     "import urllib.request; "
@@ -494,6 +496,10 @@ def environment_of(environment: Mapping[str, str], tag: str, platform: Platform)
         "WATERFALL_ACME_EMAIL": environment.get("WATERFALL_ACME_EMAIL") or email,
         "WATERFALL_CURRENCY": environment.get("WATERFALL_CURRENCY") or CURRENCY,
         "WATERFALL_COMPANY_NAME": environment.get("WATERFALL_COMPANY_NAME") or COMPANY_NAME,
+        **{
+            name: environment.get(name) or CAPACITY
+            for name in ("WATERFALL_DATABASE_CAPACITY_BYTES", "WATERFALL_STORAGE_CAPACITY_BYTES")
+        },
     }
 
 
