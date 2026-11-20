@@ -34,6 +34,10 @@ spec:
             {{- include "waterfall.keycloakClientEnvironment" . | nindent 12 }}
             {{- include "waterfall.storageEnvironment" . | nindent 12 }}
             {{- include "waterfall.secretEnv" (list . "WATERFALL_BACKUP_DATABASE_PASSWORD") | nindent 12 }}
+            - name: WATERFALL_UNDO_RETENTION_HOURS
+              value: {{ .Values.worker.undoRetentionHours | quote }}
+            - name: WATERFALL_BACKGROUND_TASK_RETENTION_DAYS
+              value: {{ .Values.worker.backgroundTaskRetentionDays | quote }}
             - name: WATERFALL_BACKUP_DATABASE_URL
               value: {{ printf "postgresql://waterfall_backup:$(WATERFALL_BACKUP_DATABASE_PASSWORD)@%s:5432/waterfall" $host | quote }}
             - name: WATERFALL_KEYCLOAK_DATABASE_URL

@@ -144,7 +144,10 @@ class ScheduleSettings(Settings):
     in seconds, a day by default (PBS-5.3; US-3040 replaces it by the planning the administrator
     sets), and ``purge_interval`` between two purges of what expired, ten minutes by default (EP-06,
     "La purge"). A task is deposited when the latest of its kind was submitted at least that long
-    ago.
+    ago. The purge spares the latest task of each planned kind, however old, so that an interval
+    longer than the retention of the tasks does not make a reading due again at each purge. Under
+    Helm the first reading may leave before the realm of Keycloak is applied (a hook after the
+    installation): it then fails and the next is due an interval later.
     """
 
     identity_sync_interval: int = Field(default=86_400, ge=1)

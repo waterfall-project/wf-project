@@ -77,6 +77,20 @@ def services() -> dict[str, Any]:
     return yaml.safe_load(PRODUCTION.read_text(encoding="utf-8"))["services"]
 
 
+@pytest.mark.story("US-2830")
+def test_the_worker_of_the_chart_keeps_what_the_worker_of_the_compose_keeps(
+    objects: Objects,
+) -> None:
+    # propre à US-2830 : « background_task_retention_days est un paramètre d'exploitation » :
+    # the two retentions of the purge are set on the worker of the chart as on the Compose's.
+    names = ("WATERFALL_UNDO_RETENTION_HOURS", "WATERFALL_BACKGROUND_TASK_RETENTION_DAYS")
+    compose = services()["worker"]["environment"]
+    (container,) = pod(of_kind(objects, "Deployment")["worker"])["containers"]
+    variables = environment(container)
+    for name in names:
+        assert variables[name] == re.sub(r"\$\{[A-Z_]+:-(.*)\}", r"\1", compose[name])
+
+
 def test_the_front_listens_on_every_interface_whatever_kubernetes_sets_hostname(
     objects: Objects,
 ) -> None:

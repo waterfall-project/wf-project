@@ -27,6 +27,7 @@ from waterfall.platform.uploads import LIFETIME, FileUpload, Whole, object_key_o
 from waterfall.worker import purge as purge_module
 from waterfall.worker.purge import PurgeTask
 from waterfall.worker.runner import Timing, Worker
+from waterfall.worker.schedule import every
 
 if TYPE_CHECKING:
     from waterfall.platform.database import Database
@@ -160,6 +161,20 @@ def test_the_report_of_a_reading_of_the_accounts_goes_with_its_task(
     with database.transaction() as session:
         assert list(session.scalars(select(IdentitySyncReport.task_id))) == [recent]
     assert kept(database, old, recent) == [False, True]
+
+
+@pytest.mark.story("US-2830")
+def test_the_last_reading_purged_with_a_longer_interval_does_not_become_due_again(
+    database: Database, queue: TaskQueue, backups_bucket: Bucket
+) -> None:
+    # propre à US-2830 : la purge épargne la dernière tâche d'un genre planifié, dont
+    # l'ordonnancement lit la date : une lecture de 40 jours, un intervalle de 45 jours, ne
+    # redevient pas due.
+    old = ended_task(database, utc_now() - timedelta(days=40), kind="identity_sync")
+    purge_run(database, queue, backups_bucket)
+    assert kept(database, old) == [True]
+    with database.transaction() as session:
+        assert not every("identity_sync", 45 * 86_400).due(session, utc_now())
 
 
 @pytest.mark.story("US-2830")

@@ -363,7 +363,9 @@ service-witness: ## Load the witness, the examples of the contract (fixtures/api
 
 # The purge of what expired (EP-06, "La purge"), by hand: the schedule the scheduler calls every five
 # minutes, run in its container with a purge interval of one second, so that the purge is due now;
-# the worker runs the task. No purge is deposited while one is queued or running.
+# the worker runs the task. No purge is deposited while one is queued or running. The interval of one
+# second is that of the purge alone: a reading of the accounts whose last is older than a day is
+# deposited as well, the schedule depositing whatever is due.
 service-purge: ## Deposit the purge of what expired on the service platform, started: the worker runs it (`waterfall-worker schedule`)
 	@$(COMPOSE_SERVICE) exec --no-TTY --env WATERFALL_PURGE_INTERVAL=1 scheduler waterfall-worker schedule
 
