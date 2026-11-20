@@ -40,9 +40,9 @@ from typing import TYPE_CHECKING, Protocol, cast
 from sqlalchemy import select
 
 from waterfall.core.costs.interface import PROJECT
-from waterfall.core.estimate.interface import remaining_of_lines
-from waterfall.core.indicators.computing import Basis, read_lines
+from waterfall.core.indicators.computing import Basis
 from waterfall.core.indicators.contributions import contributions
+from waterfall.core.indicators.curving import read_curve_sources
 from waterfall.core.indicators.offering import offer_curves_document
 from waterfall.core.indicators.shaping import Context
 from waterfall.core.indicators.tables import RevisionIndicator
@@ -182,8 +182,9 @@ def offer_curves(session: Session, revision_id: UUID, at: datetime) -> Document:
     day of ``at``: see ``offer_curves_document``.
     """
     project_id = revision_project(session, revision_id)
-    tasks, lines, reference = read_lines(session, Basis(project_id, revision_id, revision_id))
+    sources = read_curve_sources(session, Basis(project_id, revision_id, revision_id))
     marked = revision_marked_at(session, revision_id) is not None
     context = Context(revision_id, "marked" if marked else "draft", at, PROJECT, is_stored=False)
-    remaining = remaining_of_lines(tasks, lines).by_line
-    return offer_curves_document(reference, lines, remaining, current_day(at), context)
+    return offer_curves_document(
+        sources.reference, sources.lines, sources.remaining, current_day(at), context
+    )

@@ -331,6 +331,7 @@ def test_the_documents_a_marking_keeps_count_the_provisions(ready: Occurring) ->
 
 
 @pytest.mark.requirement("WF-IND-0100-A")
+@pytest.mark.story("US-2680")
 def test_the_curves_of_an_offer_read_the_provision_lines_as_the_curves_of_a_project(
     ready: Occurring,
 ) -> None:

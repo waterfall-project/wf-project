@@ -24,6 +24,8 @@ from waterfall.core.indicators.offering import offer_curves_document
 from waterfall.core.indicators.shaping import Context
 from waterfall.core.planning.interface import WorkInstant, weekly_calendar
 
+pytestmark = pytest.mark.story("US-2680")
+
 D = Decimal
 EIGHT = D(8)
 WEEK = weekly_calendar((EIGHT, EIGHT, EIGHT, EIGHT, EIGHT, D(0), D(0)))
@@ -59,7 +61,6 @@ def last_day(document: dict[str, Any], kind: str) -> str:
     return series(document, kind, "reference_budget")[-1]["date"]
 
 
-@pytest.mark.requirement("WF-IND-0100-A")
 def test_the_offer_budget_leaves_the_provisions_out_and_the_projection_counts_them() -> None:
     # [US-2680] « les courbes d'une offre » : a devis of 100 and a provision of 50: 100 at the final
     # budget, 150 at the final projection, the base of the projection being nought.
@@ -84,10 +85,8 @@ def test_the_offer_has_no_actual_cost_and_the_cash_out_only_with_the_payment_del
     assert sum((D(each["forecast"]) for each in cash_out), D(0)) == D("150.00")
 
 
-@pytest.mark.requirement("WF-IND-0100-A")
-def test_the_payment_delay_shifts_the_budget_of_the_offer_not_its_provision() -> None:
-    # A delay of 60 days moves the 100 of the devis to the end of the budget a later month; a
-    # provision line has none, whatever the delay it would carry (WF-IND-0100-A).
+def test_the_payment_delay_shifts_the_budget_of_the_offer() -> None:
+    # A delay of 60 days moves the 100 of the devis to the end of the budget a later month.
     plain = curves(line_of("100.00"))
     delayed = curves(line_of("100.00", delay=60))
     assert last_day(delayed, "cost_curve") == last_day(plain, "cost_curve")
@@ -96,12 +95,13 @@ def test_the_payment_delay_shifts_the_budget_of_the_offer_not_its_provision() ->
     )
 
 
-@pytest.mark.requirement("WF-IND-0100-A")
 def test_an_offer_without_lines_has_no_point() -> None:
     document = curves()
     for kind in document:
-        for name in ("reference_budget", "actual_cost"):
+        for name in ("reference_budget", "project_manager_projection", "actual_cost"):
             assert series(document, kind, name) == []
+    assert document["cost_curve"]["cash_out_by_month"] is None
+    assert document["cost_curve_payment_delays"]["cash_out_by_month"] == []
 
 
 def test_the_context_of_the_offer_is_the_one_given() -> None:
