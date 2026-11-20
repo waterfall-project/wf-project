@@ -13,6 +13,7 @@ same; what the service reads of them is compared with the examples of the contra
 the slice does not reach, listed here (``UNREACHED``), each with its cause.
 """
 
+import json
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
@@ -176,7 +177,7 @@ def test_the_occurrence_grafts_the_own_estimate_of_752_under_the_identifiers_of_
         nodes = {
             str(row.id): row
             for row in session.scalars(
-                select(Node).where(Node.revision_id == REVISION_102, Node.origin_risk_id == DELAY)
+                select(Node).where(Node.structure_id == MAIN_102, Node.origin_risk_id == DELAY)
             )
         }
     assert {each: str(row.lineage_id) for each, row in nodes.items()} == grafted
@@ -296,15 +297,50 @@ def test_the_structures_of_the_101_and_of_the_102_read_are_the_examples(
             assert ours == theirs, identifier
 
 
+PROVISION = "Provision — "
+
+
+def labelled(text: str) -> str:
+    """Give a label as both sides write it: a provision line without its first case (#4275)."""
+    if not text.startswith(PROVISION):
+        return text
+    named = text.removeprefix(PROVISION)
+    return PROVISION + named[:1].lower() + named[1:]
+
+
+def described(difference: dict[str, Any]) -> str:
+    """Give a difference of a report as what it says, in any order."""
+    return json.dumps({**difference, "label": labelled(difference["label"])}, sort_keys=True)
+
+
 @pytest.mark.story("US-2650")
 def test_the_reports_of_the_merge_and_of_the_occurrence_read_are_the_examples(
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
+    # The merge of the amendment 2 and the occurrence of 751, as the reader who would confirm them
+    # reads them today. The examples lack what #4276 names: the link of the task the amendment adds
+    # and the order of the report; the tasks the graft redates (#4134), the provision and the start
+    # of the own estimate (#4133).
     read = managing(api, witness, realm)
-    unreached = set(UNREACHED["report"])
+    unreached = {*UNREACHED["report"], "differences"}
     merge = read(f"{BASE}/revisions/{REVISION_102}/structures/{AMENDMENT_2}/merge")
-    ours, theirs = compared(merge, example("structure_merge_report"), unreached)
+    expected = example("structure_merge_report")
+    ours, theirs = compared(merge, expected, unreached)
     assert ours == theirs
+    wanted = {described(each) for each in expected["differences"]}
+    extra = [each for each in merge["differences"] if described(each) not in wanted]
+    assert [(each["change"], each["label"], each["predecessor_label"]) for each in extra] == [
+        ("added", "Reprise des essais de câblage", "Montage des armoires sur site")
+    ]
+    assert wanted <= {described(each) for each in merge["differences"]}
     occurrence = read(f"{BASE}/risks/{REWORK}/occurrence")
-    ours, theirs = compared(occurrence, example("risk_occurrence_report"), unreached)
+    expected = example("risk_occurrence_report")
+    unreached |= {"provision_amount", "own_estimate_past_planning_start_on"}
+    ours, theirs = compared(occurrence, expected, unreached)
     assert ours == theirs
+    wanted = {described(each) for each in expected["differences"]}
+    redated = [each for each in occurrence["differences"] if described(each) not in wanted]
+    assert {(each["change"], each["target"]) for each in redated} == {("updated", "task")}
+    assert wanted <= {described(each) for each in occurrence["differences"]}
+    assert len(occurrence["differences"]) == len(wanted) + len(redated)
+    assert occurrence["own_estimate_past_planning_start_on"] == "2026-01-12"

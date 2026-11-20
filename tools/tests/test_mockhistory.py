@@ -337,15 +337,21 @@ def test_751_and_753_are_at_the_scale_of_the_structure_and_752_at_its_verif() ->
     budget = mockhistory.reference_budget(mockhistory.reference_rows())
     rework, delay, engineer = REGISTER
     assert mockwitness.RISK_SCALE == 1000
+    # The first review, the declaration, keeps the severity of an own estimate still empty.
     assert [review.severity for review in rework.reviews] == [
+        Decimal(0),
         Decimal(1_000_000),
         Decimal(1_250_000),
         Decimal(1_250_000),
     ]
-    assert [review.severity for review in engineer.reviews] == [Decimal(12_000_000)] * 2
+    assert [review.severity for review in engineer.reviews] == [
+        Decimal(0),
+        *[Decimal(12_000_000)] * 2,
+    ]
     assert [(review.probability, review.severity) for review in delay.reviews] == [
-        (Decimal("0.3"), Decimal(200))
-    ] * 2
+        (Decimal("0.3"), Decimal(0)),
+        *[(Decimal("0.3"), Decimal(200))] * 2,
+    ]
     # At the figures of the core, 751 and 753 would fall to the first level of severity, as 752.
     for risk in (rework, engineer):
         core = replace(
