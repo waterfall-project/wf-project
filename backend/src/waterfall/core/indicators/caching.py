@@ -5,7 +5,9 @@
 The key of the day of a project is the fingerprint of what its indicators of the day depend on,
 read at each reading by the interfaces of the modules (EP-10, "Le cache"): the state, the current
 revision, the reference and the counter of the project; the revision computed and its reference;
-the counter and the instant of the dates of its main structure; the number of its nodes, of its
+the counter and the instant of the dates of its main structure, and the counter of every structure
+of the revision; the number of the risks of the project and the sum of their counters (a review,
+an occurrence, a change of the provision of a risk, US-2630/L1); the number of its nodes, of its
 tasks, of its links and of its lines, and the last instant one was written; the number of the
 imports of the actual costs of the project and the last, the number of its lines of cost, the
 last one written and the sum of their counters; its subprojects; the day, in the time zone of the
@@ -51,7 +53,8 @@ from waterfall.core.projects.interface import (
     stored_lock_version,
     subproject_ids,
 )
-from waterfall.core.revisions.interface import aimed_structure, structure_facts
+from waterfall.core.revisions.interface import aimed_structure, structure_counters, structure_facts
+from waterfall.core.risks.interface import risks_stamp
 from waterfall.platform.cache import Unavailable
 
 if TYPE_CHECKING:
@@ -69,7 +72,7 @@ if TYPE_CHECKING:
 
 # The form of an entry: a change of what an entry holds changes it, and the entries of the form
 # before are no longer read, without waiting for their validity to end.
-FORM = "2"
+FORM = "3"
 # The length of the fingerprint kept in the key: 128 bits of the SHA-256 of the canonical text.
 FINGERPRINT_LENGTH = 32
 
@@ -108,11 +111,14 @@ def day_key(
     content = revision_content_stamp(session, project_id, revision_id)
     lines = lines_stamp(session, project_id, revision_id)
     costs = costs_stamp(session, project_id)
+    counters = structure_counters(session, project_id, revision_id)
+    risks = risks_stamp(session, project_id)
     # The instants are those of the start of each act, not of its commit: a write that started
     # first and commits last leaves their maximum where it was. The key holds by the counters
     # that grow in the transaction of each write, in the order of the commits: every write of the
     # tree, a line and its remaining to commit included, advances the counter of its structure
-    # under its lock (``structure_rescheduled``) — the main one is the only structure until EP-08 —;
+    # under its lock (``structure_rescheduled``), whatever the structure — the main one, a
+    # differential, the own estimate of a risk —, every one of which the key reads;
     # an import adds its entry; a change of state, a marking, an abandonment, a designation
     # advance the counter of the project; an exclusion, a reinstatement or an imputation advances
     # the counter of the lines of cost, whose sum the key reads (``costs_stamp``); a line an import
@@ -126,6 +132,8 @@ def day_key(
             "structure",
             (None, None) if structure is None else (structure.lock_version, structure.scheduled_at),
         ),
+        ("structures", tuple(f"{each}:{counter}" for each, counter in counters)),
+        ("risks", (risks.count, risks.versions)),
         ("content", (content.nodes, content.tasks, content.links, content.updated_at)),
         ("lines", (lines.count, lines.updated_at)),
         (

@@ -66,8 +66,9 @@ PORTFOLIO_KINDS: frozenset[IndicatorKind] = frozenset(
 )
 
 
-# The bound of the statements the fingerprint of one project reads (``day_documents_of``).
-STATEMENTS_PER_PROJECT = 9
+# The bound of the statements the fingerprint of one project reads (``day_documents_of``): nine
+# before the provisions and the occurrences of the risks (US-2630/L1, EP-08), eleven since.
+STATEMENTS_PER_PROJECT = 11
 
 
 class Contribute(Protocol):
@@ -156,11 +157,11 @@ def day_documents_of(
     exchange and those missing computed by ``contribute`` and written; without it, every project is
     computed. Every project asked has its entry, in the order given.
 
-    Cost: the fingerprint of a project is read by about nine statements, project after project, even
-    when Redis answers all: a number of statements that grows with the number of projects, bounded
-    per project (``STATEMENTS_PER_PROJECT``); the exchanges with Redis do not (one to read, one to
-    write). A document that is not JSON, as computed, raises ``UnserializableContributionError``,
-    with a cache or without.
+    Cost: the fingerprint of a project is read by about eleven statements, project after project,
+    even when Redis answers all: a number of statements that grows with the number of projects,
+    bounded per project (``STATEMENTS_PER_PROJECT``); the exchanges with Redis do not (one to read,
+    one to write). A document that is not JSON, as computed, raises
+    ``UnserializableContributionError``, with a cache or without.
     """
     return contributions(session, revisions, at, contribute, cache)
 
