@@ -26,6 +26,8 @@ from wftools.production import HIDDEN, Answer, Browser, Platform, ProductionErro
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+pytestmark = [pytest.mark.requirement("WF-ARC-0050-A"), pytest.mark.story("US-2800")]
+
 PLATFORM = Platform("waterfall.localhost", 41443, 0)
 
 
