@@ -81,6 +81,9 @@ from waterfall.core.risks.interface.occurrence import (
 from waterfall.core.risks.interface.occurrence import (
     submit_occurrence as submit_occurrence,
 )
+from waterfall.core.risks.interface.portfolio import (
+    not_reviewed_since as not_reviewed_since,
+)
 
 # ``portfolio`` (EP-11, US-2680/L3): the risks as the portfolio reads them.
 from waterfall.core.risks.interface.portfolio import (
@@ -88,9 +91,6 @@ from waterfall.core.risks.interface.portfolio import (
 )
 from waterfall.core.risks.interface.portfolio import (
     portfolio_risks as portfolio_risks,
-)
-from waterfall.core.risks.interface.portfolio import (
-    reviewed_since as reviewed_since,
 )
 
 # ``provisions`` (US-2550/L1; US-2580/L1): the provision of an identified risk changed.
@@ -141,6 +141,9 @@ from waterfall.core.risks.surveying import (
 )
 from waterfall.core.risks.surveying import (
     PortfolioRisks as PortfolioRisks,
+)
+from waterfall.core.risks.surveying import (
+    ReviewWindow as ReviewWindow,
 )
 from waterfall.core.risks.surveying import (
     RiskOutcome as RiskOutcome,

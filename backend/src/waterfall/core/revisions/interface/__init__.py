@@ -98,6 +98,7 @@ from waterfall.core.revisions.interface.merging import (
 from waterfall.core.revisions.interface.portfolio import (
     RetainedRevisions,
     last_marked_at_instant,
+    marked_revisions_of,
 )
 
 # ``rates`` (US-1500/L1): the update of the rates of a revision, as the revision frames it.
@@ -281,6 +282,7 @@ __all__ = [
     "mark_revision",
     "marked_revisions",
     "marked_revisions_at",
+    "marked_revisions_of",
     "merge_parts",
     "merge_report",
     "not_a_base",

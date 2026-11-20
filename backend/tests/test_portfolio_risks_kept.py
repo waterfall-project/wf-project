@@ -8,7 +8,7 @@ project moved In progress. ``store_contribution`` keeps the document ``portfolio
 other documents of the portfolio, at a marking as at the merge of a differential (EP-08, #4282);
 the current day computes it the same, kept by the cache under a key the counters of the risks move
 (#4158). The interface of the risks gives besides the outcomes of a period (``outcomes_between``)
-and the risks reviewed since an instant (``reviewed_since``).
+and the risks not reviewed since an instant (``not_reviewed_since``).
 """
 
 from dataclasses import replace
@@ -45,7 +45,7 @@ from waterfall.core.portfolio.contributing import DAY_KINDS, day_contribution
 from waterfall.core.projects.interface import current_day, project_facts
 from waterfall.core.resource_settings.interface import roles_stamp
 from waterfall.core.revisions.tables import Revision
-from waterfall.core.risks.interface import outcomes_between, reviewed_since
+from waterfall.core.risks.interface import ReviewWindow, not_reviewed_since, outcomes_between
 from waterfall.core.risks.tables import RiskReview
 from waterfall.platform.cache import PREFIX, IndicatorsCache
 from waterfall.platform.database import utc_now
@@ -564,29 +564,31 @@ def test_the_outcomes_of_a_project_come_out_by_day_before_risk(ready: Occurring)
 
 
 @pytest.mark.story("US-2680")
-def test_the_risks_reviewed_since_an_instant_are_the_identified_ones_the_revision_presents(
+def test_the_risks_not_reviewed_since_an_instant_are_the_identified_ones_the_revision_presents(
     ready: Occurring,
 ) -> None:
-    # Le lot : ``reviewed_since`` donne « les risques identifiés réexaminés depuis un instant »
-    # (US-2750, ``risks_not_reviewed``). The current revision presents the declaration of the risk,
-    # made in the first one before its marking, and its confirmation made since: the risk is
-    # reviewed since an instant before the declaration, and since the instant before the
-    # confirmation. The first revision, marked, presents no review made after its marking. A risk
-    # reviewed dismissed is not identified, and is not given.
+    # Le lot : ``not_reviewed_since`` donne « les risques identifiés non réexaminés depuis un
+    # instant » (US-2750, ``risks_not_reviewed``), en peu de requêtes pour plusieurs projets
+    # (#4294 point 1). The current revision presents the declaration of the risk, made in the first
+    # one before its marking, and its confirmation made since: the risk is re-examined since an
+    # instant before the declaration, and since the instant before the confirmation. The first
+    # revision, marked, presents no review made after its marking. A risk reviewed dismissed is not
+    # identified, and is not given.
     project_id = ready.project.project_id
     first, second = UUID(ready.first["revision_id"]), UUID(ready.revision["revision_id"])
     risk_id = UUID(ready.risk["risk_id"])
     since = utc_now()
 
-    def reviewed(revision_id: UUID, instant: datetime) -> frozenset[UUID]:
+    def not_reviewed(revision_id: UUID, instant: datetime) -> frozenset[UUID]:
         with ready.project.stage.database.transaction() as session:
-            return reviewed_since(session, project_id, revision_id, instant)
+            found = not_reviewed_since(session, {project_id: ReviewWindow(revision_id, instant)})
+        return found.get(project_id, frozenset())
 
-    assert reviewed(second, since) == frozenset()
-    assert reviewed(second, since - timedelta(days=1)) == {risk_id}
+    assert not_reviewed(second, since) == {risk_id}
+    assert not_reviewed(second, since - timedelta(days=1)) == frozenset()
     ready.risks.reviewed(ready.read())
     left = ready.risks.declared("0.2", "Gel des sols")
     ready.risks.reviewed(ready.risks.risk(left), state="dismissed")
-    assert reviewed(second, since) == {risk_id}
-    assert reviewed(first, since) == frozenset()
-    assert reviewed(first, since - timedelta(days=1)) == {risk_id}
+    assert not_reviewed(second, since) == frozenset()
+    assert not_reviewed(first, since) == {risk_id}
+    assert not_reviewed(first, since - timedelta(days=1)) == frozenset()

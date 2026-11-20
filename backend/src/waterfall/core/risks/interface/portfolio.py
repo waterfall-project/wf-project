@@ -11,24 +11,24 @@ the risks of a project, the register, the matrix, the reserve and the coverage s
   ``portfolio_risks``, and the current day computes the same;
 - ``outcomes_between``, the provisions occurred and dismissed of a period, by the day of the review
   that changed the state of the risk (US-2730, ``period_outcome``);
-- ``reviewed_since``, the identified risks of a revision reviewed since an instant (US-2750, the
-  signal ``risks_not_reviewed``).
+- ``not_reviewed_since``, the identified risks of the revision of each of several projects that no
+  review has re-examined since an instant of its own (US-2750, the signal ``risks_not_reviewed``).
 
 The objects live in ``surveying``, which reads them. Filled by US-2680/L3.
 """
 
 from typing import TYPE_CHECKING
 
-from waterfall.core.risks.surveying import outcomes, reviewed, survey
+from waterfall.core.risks.surveying import outcomes, survey, unreviewed
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
-    from datetime import date, datetime
+    from collections.abc import Collection, Mapping
+    from datetime import date
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.risks.surveying import PortfolioRisks, RiskOutcome
+    from waterfall.core.risks.surveying import PortfolioRisks, ReviewWindow, RiskOutcome
 
 
 def portfolio_risks(session: Session, project_id: UUID, revision_id: UUID) -> PortfolioRisks:
@@ -53,12 +53,15 @@ def outcomes_between(
     return outcomes(session, project_ids, first, last)
 
 
-def reviewed_since(
-    session: Session, project_id: UUID, revision_id: UUID, since: datetime
-) -> frozenset[UUID]:
-    """Give the risks a revision holds identified that were reviewed at ``since`` or after.
+def not_reviewed_since(
+    session: Session, windows: Mapping[UUID, ReviewWindow]
+) -> dict[UUID, frozenset[UUID]]:
+    """Give, by project, the risks its revision holds identified that no review re-examined since.
 
+    Each project has its window: the revision it is read in, and the instant its reviews count from.
     Among the reviews the revision presents — its own, and those of the revisions marked before it
-    —, the declaration of a risk its first review.
+    —, the declaration of a risk its first review; one made at the instant or after re-examines it.
+    A project with no such risk has no entry. Read for all the projects in a fixed number of
+    queries, never one by project.
     """
-    return reviewed(session, project_id, revision_id, since)
+    return unreviewed(session, windows)

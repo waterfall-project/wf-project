@@ -8,7 +8,8 @@ its last marked (WF-PTF-0010, WF-IND-0010). Both are read for every project of a
 (EP-11, "La contribution d'un projet"), with the probability of winning the last marked kept, the
 weight of an offer at a past date (EP-07).
 
-Declared by US-2670/L1, the socle of EP-11; filled by US-2670/L3.
+Declared by US-2670/L1, the socle of EP-11; filled by US-2670/L3; ``marked_revisions_of`` by
+US-2750, the intervals between two markings the health of the control reads.
 """
 
 from dataclasses import dataclass
@@ -94,3 +95,30 @@ def last_marked_at_instant(
         )
         for project_id in project_ids
     }
+
+
+def marked_revisions_of(
+    session: Session, project_ids: Collection[UUID]
+) -> dict[UUID, list[tuple[UUID, datetime]]]:
+    """Give the marked revisions of each project, with their marking, the oldest first.
+
+    Ordered by instant then identifier, as ``last_marked_at_instant`` ranks them: the last of a list
+    is the last revision marked. Every project asked has its entry, empty for one none of whose
+    revisions was marked. One query for all the projects.
+    """
+    found: dict[UUID, list[tuple[UUID, datetime]]] = {each: [] for each in project_ids}
+    if not found:
+        return found
+    rows = session.execute(
+        select(Revision.project_id, Revision.id, Revision.marked_at)
+        .where(
+            Revision.project_id.in_(list(found)),
+            Revision.status == "marked",
+            Revision.marked_at.is_not(None),
+        )
+        .order_by(Revision.project_id, Revision.marked_at, Revision.id)
+    )
+    for project_id, revision_id, marked_at in rows:
+        if marked_at is not None:
+            found[project_id].append((revision_id, marked_at))
+    return found
