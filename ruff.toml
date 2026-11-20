@@ -94,6 +94,7 @@ convention = "pep257"
 "backend/src/waterfall/api/audit.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/authentication.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/avatars.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/backup_schedule.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/backups.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/calendars.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/comparison.py" = ["TC001", "TC002", "TC003"]

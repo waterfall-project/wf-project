@@ -31,7 +31,7 @@ from waterfall.core.access_roles.tables import (
     Permission,
     UserAccessRole,
 )
-from waterfall.core.backups.tables import Backup
+from waterfall.core.backups.tables import Backup, BackupSchedule, RestoreTest
 from waterfall.core.cost_settings.tables import (
     ActualCostMapping,
     ActualCostMappingLabel,
@@ -70,7 +70,7 @@ from waterfall.core.projects.tables import (
 )
 from waterfall.core.resource_settings.tables import Calendar, DurationUnit, OrgNode, ResourceRole
 from waterfall.core.revisions.tables import CostStructure, Revision
-from waterfall.core.users.tables import IdentitySyncReport, UserAccount
+from waterfall.core.users.tables import IdentitySyncReport, IdentitySyncSchedule, UserAccount
 from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Base, Database
@@ -319,6 +319,9 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         RevisionIndicator.__tablename__,
         HeldMaintenance.__tablename__,
         RestorationState.__tablename__,
+        BackupSchedule.__tablename__,
+        IdentitySyncSchedule.__tablename__,
+        RestoreTest.__tablename__,
     }
     upgrade(empty_engine)
     compared: dict[str, object] = {
@@ -399,8 +402,15 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     # Submitted, followed, run and ended; deleted by the purge once the retention of its result is
     # past (§4.4.1, EP-13, migration 0036).
     "background_task": {"SELECT", "INSERT", "UPDATE", "DELETE"},
-    # Recorded by the worker and read; neither marked nor deleted until EP-13 (WF-ADM-0170).
-    "backup": {"SELECT", "INSERT"},
+    # Recorded by the worker and read; marked, and given the outcome of its copy, and deleted by the
+    # rotation (WF-ADM-0170, EP-13, migration 0037).
+    "backup": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    # The schedules (EP-13, migrations 0037 and 0038): one row each, written by the migrations and
+    # changed by the service, which neither inserts nor deletes one.
+    "backup_schedule": {"SELECT", "UPDATE"},
+    "identity_sync_schedule": {"SELECT", "UPDATE"},
+    # A test of a restoration, inscribed once its outcome is given back, and read (WF-EXP-0060).
+    "restore_test": {"SELECT", "INSERT"},
     # The report of a reading of the accounts, kept and read; neither changed nor deleted.
     "identity_sync_report": {"SELECT", "INSERT"},
     # A deposit opened, read and completed; deleted by the purge of the files in transit, once its

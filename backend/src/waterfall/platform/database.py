@@ -55,6 +55,11 @@ NAMING_CONVENTION = {
 }
 
 
+# The key, in the ``info`` of a table, of the values of the one row the migrations write and the
+# service then changes — a schedule (EP-13) —: the tests, which empty every other table after each,
+# write that row back at these values.
+SHIPPED_ROW = "shipped_row"
+
 # The collation of a text a table sorts: the order of the code points, accents and case included.
 CODE_POINTS = "C"
 # The collation a search lowers a text in: one that knows every letter, where ``C`` lowers the

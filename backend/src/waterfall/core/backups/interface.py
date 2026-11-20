@@ -7,10 +7,12 @@ recorded with the outcome of its verification and inscribed in the journal of au
 the instant of the state it copies (WF-SEC-0030). Around the replacement of the databases, a
 restoration keeps the journal, the list of the backups and their tasks, and the deposits, and
 writes back what the restored database lacks: the archives of the backups taken since stay in the
-bucket, and stay listed (#893); the deposits are those of the installation, not the source's;
-the accounts the journal says anonymised since are anonymised again (#988). The date a backup
-deposited from elsewhere says is read from the head of its archive (#350). The outcome of the latest
-backup the platform scheduled is a gauge of the metrics, which its alert reads (WF-OBS-0030).
+bucket, and stay listed (#893), under the schedule set before the restoration (#1743); the
+deposits are those of the installation, not the source's; the accounts the journal says anonymised
+since are anonymised again (#988). The date a backup deposited from elsewhere says is read from the
+head of its archive (#350). The outcome of the latest backup the platform scheduled is a gauge of
+the metrics, which its alert reads (WF-OBS-0030). The schedule of the backups, read and written
+whole (``waterfall.core.backups.schedule``, US-2910), is offered here.
 """
 
 import io
@@ -24,7 +26,16 @@ from uuid import UUID
 from sqlalchemy import Connection, func, insert, select
 from sqlalchemy.orm import Session
 
-from waterfall.core.backups.tables import Backup
+from waterfall.core.backups.schedule import (
+    BackupScheduleView,
+    ExternalCopy,
+    Schedule,
+    ScheduleWriting,
+    judged_schedule,
+    read_backup_schedule,
+    write_backup_schedule,
+)
+from waterfall.core.backups.tables import Backup, BackupSchedule
 from waterfall.core.users.interface import anonymize_again, inscribed_actor
 from waterfall.platform.audit import (
     Act,
@@ -58,10 +69,37 @@ from waterfall.platform.uploads import FileUpload
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+__all__ = [
+    "MANIFEST",
+    "MANIFEST_HEAD",
+    "BackupScheduleView",
+    "BackupView",
+    "ExternalCopy",
+    "Schedule",
+    "ScheduleWriting",
+    "TakenBackup",
+    "add_backup",
+    "archive_taken_at",
+    "backup_task_ids",
+    "confirmed_taken_at",
+    "inscribe_restoration",
+    "judged_schedule",
+    "keep_for_restoration",
+    "last_scheduled_outcome",
+    "list_backups",
+    "read_backup",
+    "read_backup_schedule",
+    "restored_object",
+    "write_back_after_restoration",
+    "write_backup_schedule",
+]
+
 # The member an archive of a backup holds first: what it holds, and when it was taken.
 MANIFEST = "manifest.json"
 # How many bytes of the head of an archive hold its manifest: its header, then the manifest.
 MANIFEST_HEAD = 64 * 1024
+# The authors of the schedule, accounts the restored database may not hold.
+AUTHORS = frozenset({"created_by", "updated_by"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -219,7 +257,8 @@ def inscribe_restoration(
 def keep_for_restoration(connection: Connection, restoration: UUID) -> None:
     """Keep, once, what a restoration writes back once it has replaced the databases.
 
-    The journal of audit (WF-ADM-0160, #894), the list of the backups (#893), the deposits — the
+    The journal of audit (WF-ADM-0160, #894), the list of the backups (#893) and their schedule —
+    its retention and its external copy included (#1743) —, the deposits — the
     one restored among them, whose object the purge finds by its row (#350) —, the task of the
     restoration and those of the backups, and the rights of the role of the service, copied aside
     in the database the restoration replaces; a restoration taken up finds them kept already, and
@@ -243,6 +282,7 @@ def keep_for_restoration(connection: Connection, restoration: UUID) -> None:
     begin_keeping(connection)
     keep(connection, AuditEntry)
     keep(connection, Backup)
+    keep(connection, BackupSchedule)
     keep(connection, FileUpload)
     keep_tasks(connection, [restoration, *connection.scalars(select(Backup.task_id))])
     keep_grants(connection, restoration)
@@ -255,7 +295,10 @@ def write_back_after_restoration(
 
     The tasks first, which the backups name, in their state kept (#987); the backups, which the
     restored database holds only as kept, so that none names an archive of another installation
-    (#2230); the inscriptions the restored database lacks, by their identifier — an inscription
+    (#2230); the schedule kept in place of the backup's, so that a retention the backup held
+    smaller deletes nothing more of the list kept (#1743), without its authors where the restored
+    database lacks their accounts; the inscriptions the restored database lacks, by their
+    identifier — an inscription
     made while the database was dumped is in the dump already, and is not written twice —; the
     deposits kept in place of those of the source, without their account where the restored
     database lacks it, so that none names an object of another installation; the tasks restored
@@ -270,6 +313,7 @@ def write_back_after_restoration(
     """
     write_back_tasks(connection, restoration, at)
     replace_by_kept(connection, Backup)
+    replace_by_kept(connection, BackupSchedule, unsure=AUTHORS)
     write_back(connection, AuditEntry)
     replace_by_kept(connection, FileUpload, unsure={"uploaded_by"})
     with Session(bind=connection) as session:

@@ -18,18 +18,18 @@ from cost_settings_examples import LABOUR, NON_LABOUR, PROVISION, UNSHARED
 from installed_reference import install
 from project_rows import (
     drop_partitions,
+    empty_database,
     insert_project,
     partition_of,
     projects_with_partitions,
     unguarded,
 )
 from pydantic import SecretStr, ValidationError
-from sqlalchemy import delete, func, insert, select, text
+from sqlalchemy import func, insert, select, text
 from support import WITNESS
 
 from waterfall import __version__
 from waterfall.api.contract.models import DurationUnits
-from waterfall.core.access_roles.tables import WRITTEN_BY_MIGRATION
 from waterfall.core.cost_settings.interface import (
     read_actual_cost_mapping,
     read_reference_settings,
@@ -520,10 +520,7 @@ def wipe(owner: Engine) -> None:
     """
     with owner.begin() as connection:
         unguarded(connection)
-        drop_partitions(connection)
-        for table in reversed(Base.metadata.sorted_tables):
-            if not table.info.get(WRITTEN_BY_MIGRATION):
-                connection.execute(delete(table))
+        empty_database(connection)
 
 
 def test_the_witness_holds_the_volumes_of_the_tranche_of_the_reference(witness: Database) -> None:
