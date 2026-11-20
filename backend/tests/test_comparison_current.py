@@ -243,8 +243,9 @@ def test_a_finish_pushed_back_five_days_is_modified_and_brought_back_is_no_longe
     # « une tâche dont la fin y est repoussée de cinq jours est présentée modifiée, avec la date de
     # fin de la base ; la date ramenée à celle de la base, la tâche n'est plus présentée
     # modifiée. » : the first leaf of the current revision, not started and in automatic mode, that
-    # the comparison with the 101 presents unchanged — the mounting on site is modified by a line
-    # since the reference is the 101 the amendment 1 produced (EP-08).
+    # the comparison with the 101 presents unchanged, whose finish five days later is a working day
+    # — the mounting on site is modified by a line since the reference is the 101 the amendment 1
+    # produced (EP-08).
     who = writer(witness, realm)
     path, _ = current_structure(witness)
     whole = read(api, witness, realm, comparing(REVISION_101, REVISION_102))["items"]
@@ -256,6 +257,7 @@ def test_a_finish_pushed_back_five_days_is_modified_and_brought_back_is_no_longe
         and not each["task"]["is_summary"]
         and each["task"]["scheduling_mode"] == "automatic"
         and each["task"]["progress"] == "not_started"
+        and (date.fromisoformat(each["task"]["finish"]["date"]) + timedelta(days=5)).weekday() < 5
     )
     url = comparing(REVISION_101, REVISION_102, f"&subtree_of={target}")
 

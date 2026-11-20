@@ -349,9 +349,12 @@ def test_the_reports_of_the_merge_and_of_the_occurrence_read_are_the_examples(
 
 # What the own estimate of a risk reads otherwise than the examples (#4278): the budgeted amount of
 # its lines, nought where the examples read their amount, what follows from it, and the previous
-# figures the 101 gives the 102, which the examples do not; the counters follow the writes of the
-# loading.
+# figures the 101 gives the 102, which the examples do not; the counters and the instant the engine
+# dated the structure follow the writes of the loading, and the service names the default calendar
+# the examples leave out, as for the tasks of the main structure (``test_witness_tasks``).
 OWN_ESTIMATE_APART = {
+    "/meta/scheduled_at",
+    "/items[]/task/calendar_id",
     "/items[]/lock_version",
     "/items[]/task/budgeted_amount",
     "/items[]/task/physical_progress/is_computable",
