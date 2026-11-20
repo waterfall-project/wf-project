@@ -12713,7 +12713,7 @@ quand le registre rend 60 sur la même révision (WF-RIS-0050-A). Les deux lectu
 
 La réserve rendue pour une révision marquée suit la référence désignée ensuite, non celle qui l'était
 à son marquage : désigner une autre référence change la réserve que les deux lectures rendent pour
-toutes les révisions marquées (M-01, #4184). C'est voulu : la réserve est celle du projet. Un
+toutes les révisions marquées (M-01, #4184). C'est voulu : la réserve est celle du projet. Le budget d'une révision marquée, lui, est celui qu'elle a conservé à son marquage (WF-DAT-0040) — pour la révision marquée par une fusion, celui de la référence d'avant — ; seule la réserve suit la référence désignée ensuite. Un
 marquage qui n'a pas conservé la couverture, ou dont le document n'en porte pas les grandeurs, est
 lu comme une révision marquée sans document : la couverture se calcule à la lecture (#4183).
 

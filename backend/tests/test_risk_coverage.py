@@ -32,6 +32,7 @@ from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.interface import ReferenceDesignated
 from waterfall.core.revisions.interface.shared import inscribe_revision
 from waterfall.core.revisions.tables import Revision
+from waterfall.core.risks.covering import conserved_coverage
 from waterfall.core.risks.sharing import write_shares
 from waterfall.core.risks.tables import RiskReferenceShare
 from waterfall.platform.audit import Act
@@ -463,14 +464,22 @@ def test_a_marked_revision_keeps_the_figures_of_its_risks_and_reads_the_reserve_
     assert figures(reading.remaining(project.revision_id)["coverage"]) == figures(kept)
 
 
+MALFORMED: list[dict[str, Any]] = [
+    {"remaining_provisions": None, "occurred_cost": "0.00"},
+    {"remaining_provisions": "0.00", "occurred_cost": None},
+    {"remaining_provisions": "n/a", "occurred_cost": "0.00"},
+    {"remaining_provisions": "0.00", "occurred_cost": "NaN"},
+]
+
+
 @pytest.mark.requirement("WF-DAT-0040-A")
-@pytest.mark.parametrize("coverage", [None, {}, {"reserve": "0.00"}])
+@pytest.mark.parametrize("coverage", [None, {}, {"reserve": "0.00"}, *MALFORMED])
 def test_a_marked_revision_whose_document_kept_no_coverage_gets_it_computed_at_the_reading(
     risks: Risks,
     project: Costed,
     reading: Reading,
     monkeypatch: pytest.MonkeyPatch,
-    coverage: dict[str, str] | None,
+    coverage: dict[str, Any] | None,
 ) -> None:
     # A document kept before the coverage entered it, or without its figures (#4183), is no 500: the
     # revision is read as one whose marking kept nothing, the coverage computed at the reading,
@@ -493,6 +502,17 @@ def test_a_marked_revision_whose_document_kept_no_coverage_gets_it_computed_at_t
     assert figures(body) == ("60.00", "60.00", "0.00", "0.00", "0.00")
     assert body["context"]["is_stored"] is False
     assert figures(reading.remaining(project.revision_id)["coverage"]) == figures(body)
+
+
+@pytest.mark.requirement("WF-DAT-0040-A")
+@pytest.mark.parametrize("kept", [None, {}, *MALFORMED])
+def test_the_conserved_coverage_of_a_malformed_document_is_none_without_any_patch(
+    project: Costed, kept: dict[str, Any] | None
+) -> None:
+    # The figures null or not decimal are no 500 (#4183): the function itself answers none, so that
+    # the caller computes the coverage at the reading, whatever route reaches it.
+    with project.stage.database.transaction() as session:
+        assert conserved_coverage(session, project.project_id, kept) is None
 
 
 @pytest.mark.requirement("WF-RIS-0050-A")
