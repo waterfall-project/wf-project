@@ -9122,13 +9122,18 @@ ni le cas du jalon.
   `tools/tests/test_mockriskwrites.py` les tient contre le registre, les structures et la
   structure principale.
 - **Une tâche greffée est nommée par son nœud du devis propre, dans les deux motifs** (US-2620/L1,
-  #4151, constat de contrat à trancher). `TASK_WITHOUT_WORKING_HOURS` nomme ses tâches par
-  `ProblemTask`, dont `node_id` est requis et non nul : elle ne peut pas nommer par un nœud nul la
-  tâche que la greffe crée. Pour que les deux motifs d'un même compte rendu nomment la même tâche
-  de la même façon, `PROJECT_HORIZON_EXCEEDED`, dont `params.task` admet un nœud nul pour une tâche
-  que l'entrée crée, nomme aussi la tâche greffée par son nœud du devis propre ; seule une tâche de
-  la structure principale est nommée par son nœud. Le contrat n'est pas modifié ; #4151 reste à
-  trancher (nœud nul à l'import, nœud du devis propre ici).
+  #4151 ; décision de l'utilisateur du 2026-11-19, gardée). `TASK_WITHOUT_WORKING_HOURS`
+  nomme ses tâches par `ProblemTask`, dont `node_id` est requis et non nul : elle ne peut pas
+  nommer par un nœud nul la tâche que la greffe crée. Pour que les deux motifs d'un même compte
+  rendu nomment la même tâche de la même façon, `PROJECT_HORIZON_EXCEEDED`, dont `params.task`
+  admet un nœud nul pour une tâche que l'entrée crée, nomme aussi la tâche greffée par son nœud du
+  devis propre ; une tâche de la structure principale — une tâche que la greffe redate au-delà de
+  l'horizon — l'est par son nœud de la structure principale. Ce nœud n'est pas résolu dans la
+  structure principale, où la tâche n'existe pas encore : le libellé le dit à l'utilisateur. La
+  description de `ReportRefusal` le dit (US-3060/L1). Écartées : un nœud nul et le libellé, comme
+  à l'import, où deux tâches de même libellé ne se distinguent plus, et la forme par lignée
+  (`ProblemImportedTask`), qui changeait le contrat ; EP-30, qui fera du devis propre un
+  différentiel, garde ce nœud valable.
 - **Les tâches que la greffe redate sont des différences de plus** (US-2620/L2, #4134, décision de
   l'auteur du 2026-11-19, la variante « deux champs au compte rendu » d'un commentaire antérieur
   écartée). Chaque tâche de la structure principale, autre que la tâche porteuse, dont les dates
@@ -12705,8 +12710,9 @@ précédents du contrat.
 - **Les imports du devis et du reste à engager ne touchent pas une ligne de provision** : une ligne
   du fichier qui porte sa lignée est ignorée et nommée par sa désignation
   (`ImportIgnored.kind` `provision_lines`, hors de `unchanged_count`) ; le devis qui ne la porte
-  plus la garde et la signale (`kept`, WF-INTF-0100), le reste à engager la laisse sans la signaler comme toute
-  ligne absente (WF-INTF-0100, WF-INTF-0120). Le contrat le disait déjà ; le service le réalise.
+  plus la garde et la signale (`kept`, WF-INTF-0100), le reste à engager la laisse sans la
+  signaler comme toute ligne absente (WF-INTF-0120). Le contrat le disait déjà ; le service le
+  réalise.
 
 ### La réserve d'une révision marquée se lit de la référence (US-2610/L1)
 
@@ -12723,9 +12729,37 @@ quand le registre rend 60 sur la même révision (WF-RIS-0050-A). Les deux lectu
 
 La réserve rendue pour une révision marquée suit la référence désignée ensuite, non celle qui l'était
 à son marquage : désigner une autre référence change la réserve que les deux lectures rendent pour
-toutes les révisions marquées (M-01, #4184). C'est voulu : la réserve est celle du projet. Le budget d'une révision marquée, lui, est celui qu'elle a conservé à son marquage (WF-DAT-0040) — pour la révision marquée par une fusion, celui de la référence d'avant — ; seule la réserve suit la référence désignée ensuite. Un
-marquage qui n'a pas conservé la couverture, ou dont le document n'en porte pas les grandeurs, est
-lu comme une révision marquée sans document : la couverture se calcule à la lecture (#4183).
+toutes les révisions marquées (M-01, #4184). C'est voulu : la réserve est celle du projet. Le
+budget d'une révision marquée, lui, est celui qu'elle a conservé à son marquage (WF-DAT-0040) —
+pour la révision marquée par une fusion, celui de la référence d'avant — ; seule la réserve suit la
+référence désignée ensuite. Un marquage qui n'a pas conservé la couverture, ou dont le document
+n'en porte pas les grandeurs, est lu comme une révision marquée sans document : la couverture se
+calcule à la lecture (#4183).
+
+### Le contrat dit la lignée, les grandeurs gardées et la case d'un point (US-3060/L1)
+
+Décisions de l'utilisateur du 2026-11-19 et du 2026-11-20 sur des constats de la livraison d'EP-08.
+Aucun schéma ne change : les descriptions disent ce que le service fait déjà.
+
+- **Une tâche qui n'a pas encore de nœud dans la structure écrite est nommée par sa lignée**
+  (#4245, option 1). Le refus `TASK_WITHOUT_WORKING_HOURS` d'une fusion nomme une tâche que le
+  différentiel ajoute par sa lignée et son libellé (`ProblemImportedTask`), comme la mise à jour
+  d'un différentiel nomme une tâche que la structure principale ajoute (`ProblemParams.tasks`,
+  `ProblemImportedTask`, `ReportRefusal`, `mergeCostStructure`, `rebaseCostStructure`). Écarté :
+  son nœud dans le différentiel, qu'un client ne résout pas dans la structure principale.
+- **Les grandeurs courantes d'une ligne gardée le restent quand la fusion en change le rôle**
+  (#4246, option 1 ; conception d'EP-08, « Ce que la fusion fait d'une ligne gardée… »). Une
+  ligne réestimée depuis la référence, ou d'une tâche démarrée, garde ses grandeurs courantes ; son
+  réestimé suit le taux du rôle désigné, et change donc quand la catégorie du rôle change
+  (`mergeCostStructure`, `StructureMerge`). La lettre de WF-REV-0050-A garde aussi le montant
+  réestimé : l'écart est l'issue de spécification #4271. Écarté : garder ce montant en ajustant
+  les heures, une règle que ni la spécification ni la conception ne disent.
+- **Le niveau d'un point de la matrice est celui de sa case, jamais recalculé depuis la part
+  arrondie** (#4027). `severity_ratio` est arrondi à quatre décimales, la case est classée sur la
+  part exacte : une part juste sous une borne, arrondie sur elle, reste au niveau d'en dessous
+  (`RiskMatrixPoint.severity_ratio`).
+- **La tâche greffée d'une survenance** est nommée par son nœud du devis propre (#4151, décision
+  gardée) : « Le compte rendu préalable de la survenance d'un risque », ci-dessus.
 
 ## Collage et annulation
 

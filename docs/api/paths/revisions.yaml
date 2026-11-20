@@ -1002,8 +1002,12 @@
       carries, from which their budgeted amount is derived; a designated line of a task not
       started, which nobody has re-estimated since the reference, also takes these quantities as
       its current quantities; the current quantities and the re-estimated amount of all other
-      lines are kept (WF-REV-0050, WF-DEV-0020). The marked revision receives the version name
-      and the description of the confirmation, as at any marking (WF-REV-0020). A task already
+      lines are kept (WF-REV-0050, WF-DEV-0020). The current quantities of a kept line — one
+      re-estimated since the reference, or one of a task already started — stay kept even when
+      the differential changes its role; its re-estimated amount then follows the hourly rate
+      of the role designated, which changes it when the category of the role changes (#4246).
+      The marked revision receives the version name and the description of the confirmation,
+      as at any marking (WF-REV-0020). A task already
       started is never removed: its remaining to commit is brought to zero. The resulting
       marked revision becomes the reference (WF-REV-0050). A task that the merge adds carries
       no attachment to the work breakdown, the differential carrying none, and an existing
@@ -1012,9 +1016,11 @@
       of the main structure a labour line whose role would leave it without any worked hour
       in the week fails without merging anything: the background task ends in failure,
       `problem.code` set to `TASK_WITHOUT_WORKING_HOURS`, its `params` naming the roles and
-      tasks concerned (WF-PLA-0010). "A merge that would move the task of an item out of the
-      subtree of the task of its work package is refused, naming the task" (WF-PLA-0170): it
-      likewise fails without merging anything, `problem.code` set to
+      tasks concerned (WF-PLA-0010), a task that the differential adds by its lineage and its
+      label, having no node in the main structure (`ProblemImportedTask`; #4245). "A merge
+      that would move the task of an item out of the subtree of the task of its work package is
+      refused, naming the task" (WF-PLA-0170): it likewise fails without merging anything,
+      `problem.code` set to
       `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `params.work_package_task` naming the task of the
       work package and `order_item_tasks` those of the items that would leave it, each one by
       its node and its label (`Problem.params`), like `TASK_WITHOUT_WORKING_HOURS`
@@ -1254,8 +1260,10 @@
           horizon, `PROJECT_HORIZON_EXCEEDED`, `params.task` (WF-PLA-0150); a task without any
           worked hour, `TASK_WITHOUT_WORKING_HOURS` (WF-PLA-0010) — the first reason of the
           report, `problem.code` its code and `params` its parameters, each task named by its
-          node in the differential and its label. Nothing is written. Or a body that is not a
-          confirmation (`VALIDATION_FAILED`).
+          node in the differential and its label; `TASK_WITHOUT_WORKING_HOURS` names a task
+          that the main structure adds by its lineage and its label (`ProblemImportedTask`;
+          #4245). Nothing is written. Or a body that is not a confirmation
+          (`VALIDATION_FAILED`).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
