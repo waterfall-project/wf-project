@@ -273,7 +273,11 @@ def test_grafana_reads_neither_postgresql_nor_redis_and_keeps_its_account_from_i
 @pytest.mark.story("US-2880")
 def test_the_door_serves_grafana_under_its_own_path_and_the_address_is_the_platforms() -> None:
     caddyfile = CADDYFILE.read_text(encoding="utf-8")
-    assert re.search(r"handle /grafana /grafana/\* \{\s*reverse_proxy grafana:3000\s*\}", caddyfile)
+    assert re.search(
+        r"@grafana path /grafana /grafana/\*\s+handle @grafana \{\s*"
+        r"reverse_proxy grafana:3000\s*\}",
+        caddyfile,
+    )
     grafana = environment("grafana")
     assert grafana["GF_SERVER_SERVE_FROM_SUB_PATH"] == "true"
     root = grafana["GF_SERVER_ROOT_URL"]

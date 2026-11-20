@@ -62,7 +62,8 @@ http://{$WATERFALL_DOMAIN} {
 
 	# The dashboard of the operator, Grafana, built under /grafana, with its own account outside
 	# Keycloak (TFX-15).
-	handle /grafana /grafana/* {
+	@grafana path /grafana /grafana/*
+	handle @grafana {
 		reverse_proxy grafana:3000
 	}
 
