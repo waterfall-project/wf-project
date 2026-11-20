@@ -13,22 +13,20 @@ Declared by US-2670/L1, the socle of EP-11; filled by US-2740.
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from sqlalchemy.orm import Session
 
     from waterfall.core.indicators.interface import Document
-    from waterfall.core.portfolio.interface.scope import PortfolioAsked
+    from waterfall.core.portfolio.interface.scope import PortfolioAsked, PortfolioReading
 
 
 def read_portfolio_cost_curve(
     session: Session,
     asked: PortfolioAsked,
-    at: datetime,
+    reading: PortfolioReading,
     *,
     horizon_months: int,
     payment_delays: bool,
 ) -> Document:
-    """Give the S-curve of the scope at the instant ``at``, over its horizon."""
+    """Give the S-curve of the scope read by ``reading``, over its horizon."""
     msg = "read_portfolio_cost_curve is filled by US-2740"
     raise NotImplementedError(msg)

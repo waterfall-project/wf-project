@@ -122,20 +122,13 @@ def _bound(text: str | None, form: re.Pattern[str]) -> tuple[Decimal | None, boo
 
 
 def _texts(query: ProjectsQuery, column: str) -> tuple[str | None, str | None]:
-    """Give the two texts of the bounds of a column, as the query holds them."""
-    texts: dict[str, tuple[str | None, str | None]] = {
-        "reference_budget": (query.reference_budget_min, query.reference_budget_max),
-        "current_estimate": (query.current_estimate_min, query.current_estimate_max),
-        "win_probability": (query.win_probability_min, query.win_probability_max),
-        "project_manager_projection": (
-            query.project_manager_projection_min,
-            query.project_manager_projection_max,
-        ),
-        "delta_to_reference": (query.delta_to_reference_min, query.delta_to_reference_max),
-        "cost_index": (query.cost_index_min, query.cost_index_max),
-        "schedule_index": (query.schedule_index_min, query.schedule_index_max),
-    }
-    return texts[column]
+    """Give the two texts of the bounds of a column, as the query holds them.
+
+    Each column of ``BOUNDED`` has its two parameters on the query, named after it: a test holds it.
+    """
+    low: str | None = getattr(query, f"{column}_min")
+    high: str | None = getattr(query, f"{column}_max")
+    return low, high
 
 
 def _bounds(query: ProjectsQuery, column: str, faults: list[FieldError]) -> Bounds:

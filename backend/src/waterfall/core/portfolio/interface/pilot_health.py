@@ -13,18 +13,16 @@ Declared by US-2670/L1, the socle of EP-11; filled by US-2750.
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from sqlalchemy.orm import Session
 
     from waterfall.core.indicators.interface import Document
-    from waterfall.core.portfolio.interface.scope import PortfolioAsked
+    from waterfall.core.portfolio.interface.scope import PortfolioAsked, PortfolioReading
     from waterfall.core.projects.interface import Viewer
 
 
 def read_pilot_health(
-    session: Session, asked: PortfolioAsked, at: datetime, viewer: Viewer
+    session: Session, asked: PortfolioAsked, reading: PortfolioReading, viewer: Viewer
 ) -> Document:
-    """Give the signals of the projects of the scope at the instant ``at``."""
+    """Give the signals of the projects of the scope read by ``reading``."""
     msg = "read_pilot_health is filled by US-2750"
     raise NotImplementedError(msg)

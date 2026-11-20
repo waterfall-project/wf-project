@@ -37,10 +37,10 @@ from projects_support import scene as make_scene
 from remaining_support import in_progress, line_named, review_marked
 from support import CONTRACT
 
-from waterfall.api.portfolio_projects import DECIMAL, MONEY
+from waterfall.api.portfolio_projects import BOUNDED, DECIMAL, MONEY, ProjectsQuery
 from waterfall.core.costs.interface import PROJECT
 from waterfall.core.indicators.contributions import contribution_key
-from waterfall.core.indicators.interface import current_day_reading, day_indicators
+from waterfall.core.indicators.interface import current_day_reading, day_indicators, day_reading_of
 from waterfall.core.portfolio.contributing import day_contribution
 from waterfall.core.portfolio.interface import (
     PortfolioAsked,
@@ -51,6 +51,7 @@ from waterfall.core.portfolio.interface import (
 from waterfall.core.projects.interface import Viewer
 from waterfall.core.resource_settings.interface import roles_stamp
 from waterfall.platform.cache import PREFIX, IndicatorsCache, Unavailable
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError, NotFoundError
 
 if TYPE_CHECKING:
     from estimate_support import Lines
@@ -325,6 +326,24 @@ def test_a_filter_at_fault_is_refused_with_every_other_at_once_and_a_period_by_i
     ]
 
 
+@pytest.mark.story("US-2680")
+def test_a_state_unknown_and_an_inverted_period_are_refused_in_two_answers(
+    api: ContractClient, fabrics: Portfolio
+) -> None:
+    # #4199: the state is refused alone, on its parameter; once it is right, the period comes in a
+    # second answer, which needs the database (``resolve_scope``).
+    reader = fabrics.stage.reader
+    period = "from=2026-03-31&to=2026-01-01"
+    first = read(api, reader, "projects", f"{READ}&states=sleeping&{period}").json()
+    assert [(each["pointer"], each["code"]) for each in first["fields"]] == [
+        ("/query/states", "VALIDATION_FAILED")
+    ]
+    second = read(api, reader, "projects", f"{READ}&states=in_progress&{period}").json()
+    assert [(each["pointer"], each["code"]) for each in second["fields"]] == [
+        ("/query/to", "VALUE_OUT_OF_RANGE")
+    ]
+
+
 @pytest.mark.requirement("WF-PTF-0030-A")
 def test_a_reader_who_opens_no_project_still_sees_every_row_and_the_one_it_contributes_to_opens(
     api: ContractClient, realm: TestRealm, database: Database, fabrics: Portfolio
@@ -520,3 +539,33 @@ def test_a_contribution_is_computed_on_the_revision_it_is_given_not_on_the_curre
         assert chosen.basis.revision_id == review
         assert on_review["project"] == day_indicators(session, chosen, (PROJECT,), None)[PROJECT]
     assert on_offer["project"] != on_review["project"]
+
+
+@pytest.mark.requirement("WF-IND-0010-A")
+def test_the_day_on_a_revision_given_refuses_a_project_never_in_progress_and_a_foreign_revision(
+    fabrics: Portfolio,
+) -> None:
+    # « Au jour courant, chaque projet contribue par sa révision courante et ses indicateurs au
+    # jour courant (WF-IND-0010) » : the revision is given, never chosen (#4199) — an offer, which
+    # never was In progress, has no indicators of a project (409 ``STATE_FORBIDS_OPERATION``), and
+    # a revision that is another project's is a 404, whatever the project.
+    now = datetime(2026, 11, 19, 12, tzinfo=UTC)
+    offer, running = fabrics.offer, fabrics.in_progress
+    database = fabrics.stage.database
+    with database.transaction() as session, pytest.raises(ConflictError) as never:
+        day_reading_of(session, offer.project_id, offer.marked[OFFER][0], now)
+    assert never.value.code == STATE_FORBIDS_OPERATION
+    with database.transaction() as session, pytest.raises(NotFoundError):
+        day_reading_of(session, running.project_id, offer.marked[OFFER][0], now)
+    with database.transaction() as session:
+        own = day_reading_of(session, running.project_id, running.marked[REVIEW][0], now)
+    assert own.basis.revision_id == running.marked[REVIEW][0]
+
+
+@pytest.mark.requirement("WF-PTF-0040-A")
+def test_every_column_of_numbers_filtered_by_two_bounds_has_both_parameters_on_the_query() -> None:
+    # « Chaque colonne de nombres se filtre par ses deux bornes » : the two texts of a column are
+    # read by name from the query (``_texts``), so a column added to ``BOUNDED`` without its two
+    # parameters is found here, not by a request (#4199).
+    fields = set(ProjectsQuery.model_fields)
+    assert {f"{column}_{bound}" for column in BOUNDED for bound in ("min", "max")} <= fields

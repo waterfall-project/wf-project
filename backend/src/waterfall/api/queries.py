@@ -121,41 +121,55 @@ def audit_column_filters(
     return FiltersRead(filters, faults)
 
 
-class PortfolioQuery(BaseModel):
+class ScopeQuery(BaseModel):
     """What every view of the portfolio is asked, as its query names it (WF-PTF-0010).
 
     ``states`` is a list in one parameter, its values separated by commas; the others as the
-    contract writes them. A view that retains no period reads no ``from`` nor ``to`` of it.
+    contract writes them. A view that retains no period (``getPortfolioWorkload``) asks no more
+    than this.
     """
 
     states: str | None = None
-    period_from: Annotated[date | None, Field(alias="from")] = None
-    period_to: Annotated[date | None, Field(alias="to")] = None
     as_of: date | None = None
     org_node_id: UUID | None = None
+
+    def period(self) -> tuple[date | None, date | None]:
+        """Give the period asked, its two bounds: none for a view that takes no period."""
+        return None, None
+
+
+class PortfolioQuery(ScopeQuery):
+    """What a view that retains a period is asked: the scope, and its ``from`` and ``to``."""
+
+    period_from: Annotated[date | None, Field(alias="from")] = None
+    period_to: Annotated[date | None, Field(alias="to")] = None
+
+    def period(self) -> tuple[date | None, date | None]:
+        """Give the period asked, each bound absent when the query leaves it out."""
+        return self.period_from, self.period_to
 
 
 # The permission of every view of the portfolio: that of its function alone (EP-11).
 PORTFOLIO_READ = "portfolio_projects.read"
 
 
-def portfolio_asked(
-    query: PortfolioQuery, other_faults: Iterable[FieldError] = ()
-) -> PortfolioAsked:
+def portfolio_asked(query: ScopeQuery, other_faults: Iterable[FieldError] = ()) -> PortfolioAsked:
     """Read what a view of the portfolio is asked; a state that is none of the six is refused (422).
 
     ``other_faults`` are those the view found in its own parameters: refused at once with the
-    state's, every parameter at fault named in one answer.
+    state's, the parameters read here named in one answer.
 
     The refusals of the period and of the node are the portfolio's own, one rule for every view
-    (``resolve_scope``).
+    (``resolve_scope``), which needs the database: they come in a second answer, once the states
+    and the view's own parameters are right.
     """
     states, faults = read_list("states", query.states, ProjectState)
     refuse_query((*faults, *other_faults))
+    period_from, period_to = query.period()
     return PortfolioAsked(
         states=() if states is None else tuple(state.value for state in states),
-        period_from=query.period_from,
-        period_to=query.period_to,
+        period_from=period_from,
+        period_to=period_to,
         as_of=query.as_of,
         org_node_id=query.org_node_id,
     )

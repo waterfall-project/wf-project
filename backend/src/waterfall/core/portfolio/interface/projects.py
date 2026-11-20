@@ -143,18 +143,14 @@ def read_portfolio_projects(
     can_open = openable(session, identifiers, viewer)
     documents = documents_of(session, resolved, reading)
     thresholds = read_reference_settings(session).index_thresholds
-    # ``projects_named`` gives (code, label) by project: unpacked once, so that no index says which.
-    rows = [
-        row_of(
-            Named(project_id, label, code, project_id in can_open),
-            retained,
-            documents.get(project_id),
-            thresholds,
-        )
-        for project_id, retained in resolved.projects.items()
-        if project_id in names
-        for code, label in [names[project_id]]
-    ]
+    rows: list[ProjectRow] = []
+    for project_id, retained in resolved.projects.items():
+        if project_id not in names:
+            continue
+        # ``projects_named`` gives (code, label) by project.
+        code, label = names[project_id]
+        named = Named(project_id, label, code, project_id in can_open)
+        rows.append(row_of(named, retained, documents.get(project_id), thresholds))
     kept = _text_filter(session, rows, listing)
     found = filter_rows(rows, listing, lambda row: kept[row.project_id])
     ordered = sort_rows(found, listing.sort_by, descending=listing.descending)

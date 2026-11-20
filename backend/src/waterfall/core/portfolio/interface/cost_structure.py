@@ -12,17 +12,15 @@ Declared by US-2670/L1, the socle of EP-11; filled by US-2720.
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from sqlalchemy.orm import Session
 
     from waterfall.core.indicators.interface import Document
-    from waterfall.core.portfolio.interface.scope import PortfolioAsked
+    from waterfall.core.portfolio.interface.scope import PortfolioAsked, PortfolioReading
 
 
 def read_portfolio_cost_structure(
-    session: Session, asked: PortfolioAsked, at: datetime
+    session: Session, asked: PortfolioAsked, reading: PortfolioReading
 ) -> Document:
-    """Give the structure of the costs of the scope at the instant ``at``."""
+    """Give the structure of the costs of the scope read by ``reading``."""
     msg = "read_portfolio_cost_structure is filled by US-2720"
     raise NotImplementedError(msg)

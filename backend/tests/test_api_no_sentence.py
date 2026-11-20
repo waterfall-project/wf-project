@@ -77,6 +77,8 @@ DATA = {
     "PortfolioProjectRow.code": "a code",
     # The label of the organisation node a view of the portfolio is asked for, kept as it was given.
     "PortfolioScope.org_node_label": "a label",
+    # The label of a role of resources, as a person gave it (``getPortfolioWorkload``, US-2700).
+    "PortfolioWorkload.roles.label": "a label",
     "CalculationContext.scope": "a scope",
     # The label a person gave an element of the work breakdown, and that of the task that bears it.
     "WorkPackageReading.label": "a label",
