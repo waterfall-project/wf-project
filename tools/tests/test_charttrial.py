@@ -19,7 +19,7 @@ import pytest
 from wftools import chart, charttrial, kubetools
 from wftools.charttrial import Tools, Trial, TrialError
 from wftools.kubetools import Binary, ToolError
-from wftools.production import Answer, Browser, Platform, ProductionError
+from wftools.production import HIDDEN, Answer, Browser, Platform, ProductionError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -191,18 +191,71 @@ def _console_browser(answers: dict[str, Answer]) -> Browser:
     return Browser(send)
 
 
-def test_the_console_behind_the_front_is_hidden_once_its_redirection_is_followed() -> None:
+SOFT = '<meta name="robots" content="noindex"/>'
+LOGIN = "/auth/realms/master/protocol/openid-connect/auth"
+CONSOLE = "/auth/admin/master/console/"
+
+
+def _answers(path: str, *steps: tuple[str, Answer]) -> dict[str, Answer]:
     base = PLATFORM.address
-    answers = {
-        f"{base}/auth/admin/": Answer(308, (("Location", "/auth/admin"),), ""),
-        f"{base}/auth/admin": Answer(404, (), ""),
-        f"{base}/auth/realms/master/": Answer(308, (("Location", "/auth/realms/master"),), ""),
-        f"{base}/auth/realms/master": Answer(404, (), ""),
+    return {f"{base}{where}": answer for where, answer in steps} | {
+        f"{base}{other}": Answer(404, (), "") for other in HIDDEN if other != path
     }
+
+
+def _moved(to: str) -> Answer:
+    return Answer(308, (("Location", to),), "")
+
+
+@pytest.mark.parametrize("path", HIDDEN)
+@pytest.mark.parametrize(
+    "steps",
+    [
+        [("", Answer(404, (), ""))],
+        [("", _moved("{bare}")), ("{bare}", Answer(404, (), ""))],
+        [("", _moved("{bare}")), ("{bare}", Answer(200, (), SOFT))],
+        [
+            ("", _moved("{bare}")),
+            ("{bare}", Answer(200, (), '<meta content="noindex" name="robots">')),
+        ],
+    ],
+    ids=["404", "308 then 404", "308 then soft 404", "attributes in any order"],
+)
+def test_the_console_behind_the_front_is_hidden_once_its_redirection_is_followed(
+    path: str, steps: list[tuple[str, Answer]]
+) -> None:
+    bare = path.rstrip("/")
+    filled = [
+        (where.replace("{bare}", bare) or path, _fill(answer, bare)) for where, answer in steps
+    ]
+    answers = _answers(path, *filled)
     charttrial.check_console_hidden(_console_browser(answers), PLATFORM)
-    soft = '<meta name="robots" content="noindex"/>'
-    answers[f"{base}/auth/admin"] = Answer(200, (), soft)
-    charttrial.check_console_hidden(_console_browser(answers), PLATFORM)
-    answers[f"{base}/auth/admin"] = Answer(200, (), "console")
-    with pytest.raises(ProductionError, match="/auth/admin/ ends on 200"):
+
+
+def _fill(answer: Answer, bare: str) -> Answer:
+    return Answer(
+        answer.status, tuple((k, v.replace("{bare}", bare)) for k, v in answer.headers), answer.body
+    )
+
+
+@pytest.mark.parametrize("path", HIDDEN)
+@pytest.mark.parametrize(
+    "steps",
+    [
+        [
+            ("", _moved(LOGIN)),
+            (LOGIN, Answer(200, (), '<meta name="robots" content="noindex, nofollow">')),
+        ],
+        [("", _moved(CONSOLE)), (CONSOLE, Answer(200, (), SOFT))],
+        [("", Answer(200, (), "console"))],
+        [("", Answer(500, (), ""))],
+    ],
+    ids=["login of master", "console", "200 without noindex", "500"],
+)
+def test_the_console_served_or_the_redirection_elsewhere_is_refused(
+    path: str, steps: list[tuple[str, Answer]]
+) -> None:
+    filled = [(where or path, answer) for where, answer in steps]
+    answers = _answers(path, *filled)
+    with pytest.raises(ProductionError, match="it is served"):
         charttrial.check_console_hidden(_console_browser(answers), PLATFORM)

@@ -37,6 +37,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from wftools import REPOSITORY, chart, kubetools
 from wftools.images import REGISTRY
@@ -57,25 +58,11 @@ from wftools.production import (
 )
 
 TOOL = "wftools.charttrial"
-NOINDEX = re.compile(r'<meta[^>]*name="robots"[^>]*content="[^"]*noindex')
-"""The mark Next puts on a page whose status it could not turn into 404."""
-
-
-def check_console_hidden(browser: Browser, platform: Platform) -> None:
-    """Hold that the console of Keycloak and its realm master are the front's "not found" screen.
-
-    The ingress sends these paths to the front, which sends back a path with its slash to the one
-    without (308), then shows its screen "not found" with the status 200 and `noindex` — a soft
-    404, as its pages stream — where Caddy answers 404: the console is not served all the same.
-    """
-    for path in HIDDEN:
-        url = f"{platform.address}{path}"
-        answer, _ = browser.follow(browser.request("GET", url), url)
-        soft = answer.status == OK and NOINDEX.search(answer.body) is not None
-        if answer.status != NOT_FOUND and not soft:
-            message = f"{path} ends on {answer.status}, not {NOT_FOUND} nor the screen of the front"
-            raise ProductionError(message)
-
+NOINDEX = re.compile(
+    r'<meta(?=[^>]*\bname="robots")(?=[^>]*\bcontent="[^"]*noindex)[^>]*>', re.IGNORECASE
+)
+"""The mark Next puts on a page whose status it could not turn into 404, whatever the order of the
+attributes of the tag."""
 
 CLUSTER = "waterfall-chart"
 DOMAIN = "waterfall.localhost"
@@ -102,6 +89,30 @@ ROLLOUT = "10m"
 
 Run = Callable[[list[str]], int]
 Read = Callable[[list[str]], tuple[int, str]]
+
+
+def check_console_hidden(browser: Browser, platform: Platform) -> None:
+    """Hold that the console of Keycloak and its realm master are not served behind the front.
+
+    The ingress sends these paths to the front, which answers 308 to the address without its
+    slash, then shows its screen "not found" with the status 200 and `noindex` (a soft 404, as its
+    pages stream), where Caddy answers 404. Either is accepted, if the redirections end on the path
+    asked for, the slash apart, on the same host: a redirection to the console or to the sign-in
+    page of Keycloak, itself a 200, is the console served. The front renders no stable marker of
+    its screen (its texts are translated), so the path reached and `noindex` are what is held.
+    """
+    for path in HIDDEN:
+        url = f"{platform.address}{path}"
+        answer, final = browser.follow(browser.request("GET", url), url)
+        reached, asked = urlsplit(final), urlsplit(url)
+        same = reached.netloc == asked.netloc and reached.path.rstrip("/") == path.rstrip("/")
+        soft = answer.status == OK and NOINDEX.search(answer.body) is not None
+        if not same or (answer.status != NOT_FOUND and not soft):
+            message = (
+                f"{path} ends on {answer.status} at {final}, "
+                f"not {NOT_FOUND} nor the screen of the front: it is served"
+            )
+            raise ProductionError(message)
 
 
 class TrialError(Exception):
