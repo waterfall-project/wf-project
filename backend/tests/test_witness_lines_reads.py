@@ -138,7 +138,7 @@ def line_differences(ours: dict[str, Any], theirs: dict[str, Any]) -> set[str]:
 
     Its counter follows the writes of the loading; a line of provision is read apart (#4274).
     """
-    apart = PROVISION_APART if is_provision(theirs) else set()
+    apart: set[str] = PROVISION_APART if is_provision(theirs) else set()
     beside = {"estimate_line", "row_number", "editable_fields", "lock_version", "task"}
     if is_provision(theirs):
         beside |= PROVISION_NODE_APART
@@ -405,12 +405,14 @@ def unbudgeted(value: Any) -> Any:
     if not isinstance(value, dict):
         return value
     held = cast("dict[str, Any]", value)
-    return {
-        key: {name: each for name, each in part.items() if name != BUDGETED}
-        if isinstance(part, dict)
-        else part
-        for key, part in held.items()
-    }
+    found: dict[str, Any] = {}
+    for key, part in held.items():
+        if isinstance(part, dict):
+            amounts = cast("dict[str, Any]", part)
+            found[key] = {name: each for name, each in amounts.items() if name != BUDGETED}
+        else:
+            found[key] = part
+    return found
 
 
 def base_of(item: dict[str, Any]) -> Any:

@@ -114,7 +114,7 @@ def line_rows(
         )
         .where(Node.structure_id == structure_of(session, revision))
     ).all()
-    left_out = frozenset() if provisions else provision_lineages()
+    left_out: frozenset[UUID] = frozenset() if provisions else provision_lineages()
     return {
         node.lineage_id: (node, facet) for node, facet in found if node.lineage_id not in left_out
     }

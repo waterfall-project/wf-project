@@ -250,7 +250,7 @@ def _second() -> JsonObject:
     """Return the amendment 2: the revision 102, its trials of the wiring resumed."""
     main_tasks, main_lines = _entries(CURRENT, mockcore.current())
     tasks, lines = _entries(CURRENT, mockamendment.rows())
-    held = {cast("JsonObject", each)["lineage_id"] for each in (*tasks, *lines)}
+    held = {cast("str", cast("JsonObject", each)["lineage_id"]) for each in (*tasks, *lines)}
     removed = sorted(
         cast("str", cast("JsonObject", each)["lineage_id"])
         for each in (*main_tasks, *main_lines)

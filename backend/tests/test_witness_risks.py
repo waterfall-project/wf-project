@@ -23,6 +23,7 @@ from installed_reference import install
 from projects_support import MANAGING, PROJECTS, contribute, person
 from sqlalchemy import select
 from test_witness import load, wipe
+from test_witness_lines_reads import deviations
 from test_witness_projects import REVISION_100, REVISION_101, REVISION_102, keyed, without
 from witness_support import PRJ_001, example
 
@@ -344,3 +345,45 @@ def test_the_reports_of_the_merge_and_of_the_occurrence_read_are_the_examples(
     assert wanted <= {described(each) for each in occurrence["differences"]}
     assert len(occurrence["differences"]) == len(wanted) + len(redated)
     assert occurrence["own_estimate_past_planning_start_on"] == "2026-01-12"
+
+
+# What the own estimate of a risk reads otherwise than the examples (#4278): the budgeted amount of
+# its lines, nought where the examples read their amount, what follows from it, and the previous
+# figures the 101 gives the 102, which the examples do not; the counters follow the writes of the
+# loading.
+OWN_ESTIMATE_APART = {
+    "/items[]/lock_version",
+    "/items[]/task/budgeted_amount",
+    "/items[]/task/physical_progress/is_computable",
+    "/items[]/task/physical_progress/reason",
+    "/items[]/task/physical_progress/value",
+    "/items[]/estimate_line/budgeted_amount",
+    "/items[]/estimate_line/previous_quantity",
+    "/items[]/estimate_line/previous_reestimated_amount",
+    "/items[]/estimate_line/previous_unit_disbursement",
+    "/totals/budgeted_amount",
+}
+
+
+# The own estimates the examples read: of 751 in the 102, of 752 in the 101 that froze it.
+OWN_ESTIMATES = {
+    "nodes_risk_estimate": (REVISION_102, OWN_102[REWORK]),
+    "nodes_risk_estimate_occurred": (REVISION_101, OWN_101[DELAY]),
+}
+
+
+@pytest.mark.story("US-2650")
+@pytest.mark.parametrize("name", list(OWN_ESTIMATES))
+def test_the_own_estimates_read_are_the_examples_but_for_their_budget(
+    api: ContractClient, witness: Database, realm: TestRealm, name: str
+) -> None:
+    # The own estimate of 751 in the 102, of 752 in the 101 that froze it before its occurrence:
+    # the same nodes under the same identifiers, the same tasks, lines and amounts.
+    read = managing(api, witness, realm)
+    revision, structure = OWN_ESTIMATES[name]
+    body = read(f"{BASE}/revisions/{revision}/structures/{structure}/nodes")
+    expected = example(name)
+    assert [each["node_id"] for each in body["items"]] == [
+        each["node_id"] for each in expected["items"]
+    ]
+    assert deviations(body, expected) <= OWN_ESTIMATE_APART
