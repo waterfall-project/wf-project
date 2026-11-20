@@ -124,6 +124,7 @@ from wftools import (
     mockwitness,
     mockwitnesscostfile,
     mockwitnesslines,
+    mockwitnessrisksfile,
     mockwitnesstasks,
     mockwrites,
     paths,
@@ -229,6 +230,7 @@ def named() -> dict[str, JsonObject]:
         **mockwitnesstasks.examples(),
         **mockwitnesslines.examples(),
         **mockwitnesscostfile.examples(),
+        **mockwitnessrisksfile.examples(),
     }
 
 

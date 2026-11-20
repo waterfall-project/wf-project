@@ -406,7 +406,9 @@ by = "make fixtures"
 # loader of the tasks reads (wftools.mockwitnesstasks, held by tools/tests/test_witness_tasks.py),
 # and its lines the loader of the lines reads (wftools.mockwitnesslines, held by
 # tools/tests/test_witness_lines.py), and its costs the loader of the costs reads
-# (wftools.mockwitnesscostfile, held by tools/tests/test_witness_costs.py).
+# (wftools.mockwitnesscostfile, held by tools/tests/test_witness_costs.py), and its risks and its
+# structures the loader of the risks and the amendments reads (wftools.mockwitnessrisksfile, held
+# by tools/tests/test_witness_risks.py).
 paths = [
     "fixtures/api/volume/**",
     "fixtures/api/nodes.json",
@@ -852,6 +854,8 @@ paths = [
     "fixtures/api/witness_tasks.json",
     "fixtures/api/witness_lines.json",
     "fixtures/api/witness_costs.json",
+    "fixtures/api/witness_risks.json",
+    "fixtures/api/witness_structures.json",
 ]
 by = "make mock-data"
 

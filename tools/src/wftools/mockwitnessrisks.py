@@ -9,7 +9,6 @@ revision the current one is compared with: the core of ``wftools.mockwitness`` a
 """
 
 from dataclasses import dataclass, replace
-from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -18,11 +17,13 @@ from wftools.mockwitness import (
     CORE,
     PROVISIONS,
     RISK_751_REVIEWED,
+    RISK_752_IDENTIFIED,
     RISK_752_OCCURRED,
+    RISK_753_DISMISSED,
+    RISK_753_IDENTIFIED,
     RISK_SCALE,
     RISKS_IDENTIFIED,
     STUDIES_STARTED,
-    Event,
     Line,
     N,
     Task,
@@ -31,6 +32,7 @@ from wftools.mockwitness import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from datetime import date, datetime
 
 IDENTIFIED, OCCURRED, DISMISSED = "identified", "occurred", "dismissed"
 
@@ -90,10 +92,6 @@ class Risk:
         return known[-1] if known else None
 
 
-def _at(event: Event, hour: int, minute: int = 0) -> datetime:
-    return datetime.combine(event.on, time(hour, minute), UTC)
-
-
 REWORK = Risk(
     751,
     "Risque de reprise du câblage",
@@ -116,7 +114,7 @@ DELIVERY_DELAY = Risk(
     "Relance hebdomadaire du fournisseur ; transport exceptionnel réservé.",
     205,
     (
-        Review(_at(RISKS_IDENTIFIED, 10, 30), Decimal("0.3"), Decimal("200.00")),
+        Review(RISK_752_IDENTIFIED.instant, Decimal("0.3"), Decimal("200.00")),
         Review(RISK_752_OCCURRED.instant, Decimal("0.3"), Decimal("200.00"), OCCURRED),
     ),
     reference_provision_line=N.REFERENCE_PROVISION_752,
@@ -133,9 +131,12 @@ AUTOMATION_ENGINEER = Risk(
     None,
     206,
     (
-        Review(_at(RISKS_IDENTIFIED, 11), Decimal("0.05"), Decimal("12000.00") * RISK_SCALE),
+        Review(RISK_753_IDENTIFIED.instant, Decimal("0.05"), Decimal("12000.00") * RISK_SCALE),
         Review(
-            _at(RISK_751_REVIEWED, 14), Decimal("0.05"), Decimal("12000.00") * RISK_SCALE, DISMISSED
+            RISK_753_DISMISSED.instant,
+            Decimal("0.05"),
+            Decimal("12000.00") * RISK_SCALE,
+            DISMISSED,
         ),
     ),
     reference_provision_line=N.REFERENCE_PROVISION_753,
