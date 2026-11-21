@@ -72,15 +72,14 @@ def undesignate(session: Session, project_id: UUID, subproject_id: UUID, act: Ac
         return
     moved: dict[UUID, tuple[int, int]] = {}
     for risk_id in risk_ids:
-        counter = session.scalar(
+        counter = session.execute(
             update(Risk)
             .where(Risk.project_id == project_id, Risk.id == risk_id)
             .values(lock_version=Risk.lock_version + 1, updated_at=act.at, updated_by=act.author)
             .returning(Risk.lock_version)
             .execution_options(synchronize_session="fetch")
-        )
-        if counter is not None:
-            moved[risk_id] = (counter - 1, counter)
+        ).scalar_one()
+        moved[risk_id] = (counter - 1, counter)
     session.execute(
         update(RiskEvaluation)
         .where(*of_current, RiskEvaluation.risk_id.in_(risk_ids))

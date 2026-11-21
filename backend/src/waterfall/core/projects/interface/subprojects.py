@@ -139,6 +139,14 @@ class SubprojectChange:
 
 
 @dataclass(frozen=True, slots=True)
+class SubprojectDeletion:
+    """A deletion of a subproject: the subproject and its version as read."""
+
+    subproject_id: UUID
+    lock_version: int
+
+
+@dataclass(frozen=True, slots=True)
 class SubprojectLoad:
     """A subproject of the witness: the identifier it imposes, and what it is written with."""
 
@@ -528,13 +536,13 @@ def update_subproject(
 def delete_subproject(
     session: Session,
     project_id: UUID,
-    held: tuple[UUID, int],
+    deletion: SubprojectDeletion,
     act: Act,
     viewer: Viewer,
 ) -> None:
     """Delete for good a subproject that nothing cites (``deleteSubproject``).
 
-    ``held`` is the subproject and its version as read. Refused if unknown (404), at another
+    ``deletion`` names the subproject and its version as read. Refused if unknown (404), at another
     version (412), and by the first condition of its command that is lacking (409
     ``STATE_FORBIDS_OPERATION``, ``missing_condition``): ``subproject_not_cited`` for a marked
     revision whose line bears it or whose risk designates it for its provision (#4208), the lines
@@ -544,14 +552,13 @@ def delete_subproject(
     the current revision that designate it, none identified, keep their place, their designation
     set to null by the act (``undesignate_subproject``, #732, #4208).
     """
-    subproject_id, lock_version = held
-    _, row = _locked(session, project_id, subproject_id, lock_version, viewer)
+    _, row = _locked(session, project_id, deletion.subproject_id, deletion.lock_version, viewer)
     # ``_locked`` has judged the project writable (``_writable``): the manager under the lock, and
     # not terminal. The subproject is locked: a line that names it meanwhile waits on its key.
-    deletion = _deletions(session, project_id, [row.id], naming=True)[row.id]
-    if deletion.missing:
-        params: dict[str, object] = {"missing_condition": deletion.missing[0]}
-        if deletion.missing[0] == WITHOUT_ESTIMATE_LINES:
+    judged = _deletions(session, project_id, [row.id], naming=True)[row.id]
+    if judged.missing:
+        params: dict[str, object] = {"missing_condition": judged.missing[0]}
+        if judged.missing[0] == WITHOUT_ESTIMATE_LINES:
             params["estimate_lines"] = [
                 {
                     "structure_id": str(line.structure_id),
@@ -560,7 +567,7 @@ def delete_subproject(
                     "row_number": line.row_number,
                     "label": line.label,
                 }
-                for line in deletion.lines
+                for line in judged.lines
             ]
         raise ConflictError(STATE_FORBIDS_OPERATION, params)
     forget_subproject(session, project_id, row.id)

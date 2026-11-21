@@ -20,7 +20,7 @@ from estimate_support import Costing, costing
 from nodes_support import mark, refusal, signed_in
 from projects_support import Scene
 from projects_support import scene as make_scene
-from risks_support import RISK_LABEL, Costed, Risks, costed
+from risks_support import RISK_LABEL, Costed, Risks, costed, occur
 
 if TYPE_CHECKING:
     from projects_support import Person
@@ -135,6 +135,40 @@ def test_a_subproject_an_identified_risk_designates_is_kept_by_its_provision_lin
 
 
 @pytest.mark.requirement("WF-DAT-0080-A")
+def test_a_subproject_an_occurred_risk_designates_is_deleted_and_the_designation_set_to_null(
+    risks: Risks, project: Costed, stage: Scene
+) -> None:
+    # « La suppression d'un sous-projet non référencé le retire de la base » : an occurred risk
+    # bears no provision line, as a dismissed one; its designation goes to null, and the constraint
+    # of the provision of an identified risk (``provision_when_identified``) is not touched.
+    sub = risks.subproject("LOT-Z")
+    risk = risks.declared_costed(provision_subproject_id=sub)
+    occur(stage, risk["risk_id"], project.revision_id)
+    assert deletion_lacks(risks, sub) == []
+    assert deleted(risks, sub).status_code == 204
+    after = risks.risk(risk)
+    assert (after["state"], after["provision_subproject_id"]) == ("occurred", None)
+    assert after["lock_version"] == risk["lock_version"] + 1
+    assert after["audit"]["updated_by"]["user_id"] == str(stage.manager.user_id)
+
+
+@pytest.mark.requirement("WF-DAT-0080-A")
+def test_two_risks_designating_a_subproject_are_both_written_by_its_deletion(
+    risks: Risks, stage: Scene, who: Person
+) -> None:
+    # « La suppression d'un sous-projet non référencé le retire de la base » : each risk that
+    # designated it is written once, its counter advanced by one, its audit naming the manager.
+    sub = risks.subproject("LOT-Z")
+    first, second = dismissed_by(risks, who, sub), dismissed_by(risks, who, sub)
+    assert deleted(risks, sub).status_code == 204
+    for dismissed in (first, second):
+        after = risks.risk(dismissed)
+        assert after["provision_subproject_id"] is None
+        assert after["lock_version"] == dismissed["lock_version"] + 1
+        assert after["audit"]["updated_by"]["user_id"] == str(stage.manager.user_id)
+
+
+@pytest.mark.requirement("WF-DAT-0080-A")
 @pytest.mark.requirement("WF-DAT-0020-A")
 def test_a_subproject_a_risk_of_a_marked_revision_designates_is_refused_as_cited(
     risks: Risks, project: Costed, stage: Scene, who: Person
@@ -142,17 +176,23 @@ def test_a_subproject_a_risk_of_a_marked_revision_designates_is_refused_as_cited
     # « Celle d'un sous-projet référencé par une révision marquée est refusée » : the dismissed risk
     # of the marked revision bears no line, its evaluation designates the subproject; the deletion
     # is refused by ``subproject_not_cited``, never a failure of its key (#4208), and the marked
-    # revision keeps the designation.
+    # revision keeps the designation. A current revision made by copy of it designates the
+    # subproject too: the refusal comes before the designation is set to null, which stays, its
+    # counter unmoved.
     sub = risks.subproject("LOT-Z")
     dismissed = dismissed_by(risks, who, sub)
     mark(stage, {"revision_id": str(project.revision_id)})
+    assert risks.declare().status_code == 201
+    before = risks.risk(dismissed)["lock_version"]
     assert deletion_lacks(risks, sub) == ["subproject_not_cited"]
     assert refusal(deleted(risks, sub)) == (
         409,
         CONDITION,
         {"missing_condition": "subproject_not_cited"},
     )
-    assert risks.risk(dismissed)["provision_subproject_id"] == sub
+    for revision_id in (project.revision_id, None):
+        kept = risks.risk(dismissed, revision_id)
+        assert (kept["provision_subproject_id"], kept["lock_version"]) == (sub, before)
 
 
 @pytest.mark.requirement("WF-IHM-0110-A")
