@@ -85,6 +85,12 @@ def declaration(share: Path, bucket: Bucket, **changes: dict[str, Any]) -> dict[
     return declared
 
 
+def unvalidated(locations: ExternalLocations, name: str, **changes: Any) -> ExternalLocations:
+    """Change a field of a location past the validation of the settings, as a file once could."""
+    changed = locations.locations[name].model_copy(update=changes)
+    return locations.model_copy(update={"locations": locations.locations | {name: changed}})
+
+
 def declared(folder: Path, declaration: dict[str, Any]) -> ExternalLocations:
     """Write a declaration in a file, and read it back as the settings do."""
     path = folder / "external-locations.json"

@@ -84,13 +84,12 @@ class CopyTask:
         if copy is None:
             logger.info("backup_copy.not_made", backup_id=str(backup_id))
             return {"backup_id": str(backup_id), "copied": False}
-        at = utc_now()
         try:
             removed = self._copied(copy)
         except LocationRefusedError as refused:
-            made = CopyMade(at, copy.location, copy.path, refused.failure)
+            made = CopyMade(utc_now(), copy.location, copy.path, refused.failure)
             raise UndoneError(CopyRefusedError(refused.failure), _trace(backup_id, made)) from None
-        record_copy(session, backup_id, CopyMade(at, copy.location, copy.path))
+        record_copy(session, backup_id, CopyMade(utc_now(), copy.location, copy.path))
         logger.info(
             "backup_copy.made",
             backup_id=str(backup_id),

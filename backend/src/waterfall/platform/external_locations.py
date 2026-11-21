@@ -24,7 +24,7 @@ import shutil
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as Late
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol
 
@@ -111,6 +111,10 @@ class ExternalStore(Protocol):
 
     def remove(self, key: str) -> None:
         """Remove the file of a key."""
+        ...
+
+    def tidy(self) -> None:
+        """Remove the empty folders this store created by writing: a test leaves nothing."""
         ...
 
     def close(self) -> None:
@@ -218,6 +222,9 @@ class S3Store:
         with _s3_refusals("delete"):
             self.client.delete_object(Bucket=self.bucket, Key=key)
 
+    def tidy(self) -> None:
+        """Remove nothing: a bucket has no folders, only keys."""
+
     def close(self) -> None:
         """Close the client."""
         self.client.close()
@@ -247,6 +254,7 @@ class ShareStore:
 
     def __init__(self, root: Path) -> None:
         self.root = root
+        self.created: list[Path] = []
 
     @classmethod
     def of(cls, location: MountedShare) -> ShareStore:
@@ -277,6 +285,8 @@ class ShareStore:
         target = self._file(key)
         partial = target.with_name(f".{target.name}.{new_id().hex}.partial")
         with _share_refusals("write"):
+            above = (target.parent, *target.parent.parents)
+            self.created += [each for each in above if not each.exists()]
             target.parent.mkdir(parents=True, exist_ok=True)
             try:
                 with path.open("rb") as read, partial.open("wb") as written:
@@ -308,7 +318,15 @@ class ShareStore:
     def remove(self, key: str) -> None:
         """Remove the file of a key."""
         with _share_refusals("delete"):
-            self._file(key).unlink()
+            self._file(key).unlink(missing_ok=True)
+
+    def tidy(self) -> None:
+        """Remove the folders created by ``put``, the deepest first, those left empty only."""
+        with _share_refusals("delete"):
+            for each in sorted(self.created, key=lambda made: len(made.parts), reverse=True):
+                with suppress(OSError):
+                    each.rmdir()
+            self.created.clear()
 
     def close(self) -> None:
         """Let go of nothing: the share stays mounted."""
@@ -325,8 +343,15 @@ def store_of(location: DeclaredLocation) -> ExternalStore:
 def reached(
     location: DeclaredLocation, opened: Callable[[DeclaredLocation], ExternalStore] = store_of
 ) -> Generator[ExternalStore]:
-    """Open a location for the time of a use, and let go of it after."""
-    store = opened(location)
+    """Open a location for the time of a use, and let go of it after.
+
+    A location that cannot be opened — a region or an address the client refuses — is unreachable.
+    """
+    try:
+        store = opened(location)
+    except BotoCoreError, ValueError, OSError:
+        # Never its message: the client may repeat the address it refused.
+        raise LocationRefusedError(UNREACHABLE) from None
     try:
         yield store
     finally:
@@ -339,13 +364,16 @@ def witness_test(store: ExternalStore, folder: str) -> None:
     Refused as the location refuses: a witness that does not read back whole is a writing refused.
     """
     key = key_of(folder, f"waterfall-test-{new_id().hex}.txt")
-    with tempfile.TemporaryDirectory(prefix="waterfall-location-test-") as work:
-        witness = Path(work) / "witness.txt"
-        witness.write_bytes(WITNESS)
-        store.put(key, witness)
-    if store.read_back(key) != (len(WITNESS), hashlib.sha256(WITNESS).hexdigest()):
-        raise LocationRefusedError(WRITE_FAILED)
-    store.remove(key)
+    try:
+        with tempfile.TemporaryDirectory(prefix="waterfall-location-test-") as work:
+            witness = Path(work) / "witness.txt"
+            witness.write_bytes(WITNESS)
+            store.put(key, witness)
+        if store.read_back(key) != (len(WITNESS), hashlib.sha256(WITNESS).hexdigest()):
+            raise LocationRefusedError(WRITE_FAILED)
+        store.remove(key)
+    finally:
+        store.tidy()
 
 
 def try_location(

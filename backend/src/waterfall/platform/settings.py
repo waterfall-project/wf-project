@@ -297,6 +297,8 @@ class StorageSettings(PlatformSettings):
 # The external locations of the backups (US-2910/L3): declared in a file the deployment mounts.
 
 # The name of a location, a key of the file (`ExternalBackupLocationName`).
+# What botocore takes for a region: a label of a host name.
+REGION = "^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$"
 LOCATION_NAME = "^[a-z0-9][a-z0-9_-]{0,62}$"
 # The longest description the contract presents (`ExternalBackupLocation.description`).
 DESCRIPTION_LENGTH = 500
@@ -315,7 +317,7 @@ class S3Location(BaseModel):
     kind: Literal["s3"]
     description: str | None = Field(default=None, max_length=DESCRIPTION_LENGTH)
     address: str = Field(pattern="^https?://")
-    region: str = Field(default="us-east-1", min_length=1)
+    region: str = Field(default="us-east-1", pattern=REGION)
     bucket: str = Field(min_length=1)
     access_key: SecretStr = Field(min_length=1)
     secret_key: SecretStr = Field(min_length=1)
@@ -323,12 +325,24 @@ class S3Location(BaseModel):
 
     @model_validator(mode="after")
     def _address_without_credentials(self) -> Self:
-        """Refuse an address that carries credentials: the key and its secret are fields apart."""
+        """Refuse an address that is not an endpoint: no host, credentials, query or fragment.
+
+        The key and its secret are fields apart; a token in a parameter is a credential as well.
+        Never the value itself in the message.
+        """
         try:
             parts = urlsplit(self.address)
+            host = parts.hostname
+            _ = parts.port  # reading the port checks it
         except ValueError:
             message = "the address does not read as a URL"
             raise ValueError(message) from None
+        if not host:
+            message = "the address must name a host"
+            raise ValueError(message)
+        if parts.query or parts.fragment or "?" in self.address or "#" in self.address:
+            message = "the address must carry no query nor fragment: it is an endpoint"
+            raise ValueError(message)
         if parts.username is not None or parts.password is not None:
             message = "the address must not carry credentials: give them as access_key, secret_key"
             raise ValueError(message)

@@ -26,6 +26,7 @@ from external_support import (
     declared,
     objects,
     storage,
+    unvalidated,
 )
 from fastapi.testclient import TestClient
 from realm import KEY, TestRealm
@@ -173,7 +174,7 @@ def test_a_location_tested_takes_a_witness_file_and_keeps_nothing(
     assert rooted.status_code == 200
     assert (rooted.json()["path"], rooted.json()["failure"]) == (None, None)
     assert objects(elsewhere) == []
-    assert [each.name for each in share.rglob("*") if each.is_file()] == []
+    assert list(share.rglob("*")) == []
 
 
 def test_a_location_that_refuses_its_key_or_does_not_answer_says_why_as_a_code(
@@ -239,6 +240,9 @@ class Silent:
 
     def remove(self, key: str) -> None:
         del key
+
+    def tidy(self) -> None:
+        pass
 
     def close(self) -> None:
         pass
@@ -369,3 +373,77 @@ def test_a_bucket_reached_in_the_clear_is_refused_when_the_platform_has_its_auth
     encrypted = {BUCKET: {"address": "https://elsewhere.example:3900"}}
     path.write_text(json.dumps(declaration(share, elsewhere, **encrypted)), encoding="utf-8")
     assert load_service_settings().external_locations.names() == {SHARE, BUCKET}
+
+
+def test_a_test_removes_only_the_folders_it_created_on_a_share(
+    located: ContractClient, person: Person, share: Path
+) -> None:
+    # « Rien n'est laissé » (testExternalBackupLocation): a folder that was there stays, those the
+    # test created under it go, a deeper path included.
+    (share / "waterfall").mkdir()
+    tester = person(READ, WRITE)
+    answer = located.post(
+        f"{LOCATIONS}/{SHARE}/test", headers=tester, json={"path": "waterfall/a/b/c"}
+    )
+    assert answer.status_code == 200, answer.text
+    assert answer.json()["failure"] is None
+    assert [each.relative_to(share).as_posix() for each in share.rglob("*")] == ["waterfall"]
+
+
+def test_a_share_file_already_removed_is_not_a_failure_to_remove(share: Path) -> None:
+    # Two copies that turn the same folder both remove the oldest: the second finds it gone.
+    store = ShareStore(share)
+    (share / "old.tar").write_bytes(b"x")
+    store.remove("old.tar")
+    store.remove("old.tar")
+    assert list(share.iterdir()) == []
+
+
+@pytest.mark.parametrize("changes", [{"region": "us east"}, {"address": "http://"}])
+def test_a_location_the_client_cannot_open_is_unreachable_not_a_server_error(
+    api_on: ApiOn,
+    person: Person,
+    share: Path,
+    elsewhere: Bucket,
+    changes: dict[str, str],
+) -> None:
+    # A region or an address the S3 client refuses to open (a file read before the settings bounded
+    # them) is diagnosed as the location out of reach: 200 and the reason, never a 500.
+    declared_now = declared(share.parent, declaration(share, elsewhere))
+    locations = unvalidated(declared_now, BUCKET, **changes)
+    answer = api_on(locations).post(f"{LOCATIONS}/{BUCKET}/test", headers=person(READ, WRITE))
+    assert answer.status_code == 200, answer.text
+    assert answer.json()["failure"] == "location_unreachable"
+
+
+@pytest.mark.usefixtures("environment")
+@pytest.mark.parametrize(
+    ("changes", "rule"),
+    [
+        ({"region": "us east"}, "region"),
+        ({"region": "-us"}, "region"),
+        ({"address": "http://"}, "must name a host"),
+        ({"address": "https://elsewhere.example/?token=SECRET-TOKEN"}, "no query nor fragment"),
+        ({"address": "https://elsewhere.example/#SECRET-TOKEN"}, "no query nor fragment"),
+    ],
+)
+def test_a_location_with_an_unusable_region_or_address_stops_the_start_without_its_value(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, changes: dict[str, str], rule: str
+) -> None:
+    # A region botocore refuses, an address with no host, one that carries a token in its query or
+    # its fragment, are refused when the file is read; the value is never repeated.
+    base = {
+        "kind": "s3",
+        "address": "https://elsewhere.example",
+        "bucket": "copies",
+        "access_key": "key",
+        "secret_key": "secret-of-the-key",
+    }
+    path = tmp_path / "locations.json"
+    path.write_text(json.dumps({"lyon": base | changes}), encoding="utf-8")
+    monkeypatch.setenv("WATERFALL_EXTERNAL_BACKUP_LOCATIONS_FILE", str(path))
+    with pytest.raises(SettingsError, match=rule) as refused:
+        load_service_settings()
+    said = str(refused.value)
+    assert "SECRET-TOKEN" not in said
+    assert "us east" not in said

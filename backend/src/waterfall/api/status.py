@@ -189,7 +189,7 @@ def system_status(
 
     The latest restore test is not kept yet: null (US-2930). The alerts come the latest first.
     """
-    failed = failed_copy(session)
+    failed = None if observation is None else failed_copy(session)
     said = [] if observation is None else [alert(each, failed) for each in observation.alerts]
     alerts = sorted(
         (each for each in said if each is not None),

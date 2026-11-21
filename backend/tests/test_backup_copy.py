@@ -22,7 +22,15 @@ from uuid import UUID, uuid4
 import pytest
 from access_rows import account, role
 from backup_rows import Row, recorded
-from external_support import BUCKET, SHARE, bucket_elsewhere, declaration, declared, objects
+from external_support import (
+    BUCKET,
+    SHARE,
+    bucket_elsewhere,
+    declaration,
+    declared,
+    objects,
+    unvalidated,
+)
 from fastapi.testclient import TestClient
 from installations import Installation, Take, restore
 from realm import KEY, TestRealm
@@ -324,6 +332,9 @@ class Damaging:
     def remove(self, key: str) -> None:
         self.store.remove(key)
 
+    def tidy(self) -> None:
+        self.store.tidy()
+
     def close(self) -> None:
         self.store.close()
 
@@ -357,6 +368,22 @@ def test_an_archive_the_bucket_gives_at_another_size_is_not_copied(
     assert list(share.iterdir()) == []
     with bench.database.transaction() as session:
         assert failed_copy(session) == FailedCopy(backup_id, SHARE, None)
+
+
+@pytest.mark.parametrize("changes", [{"region": "us east"}, {"address": "http://"}])
+def test_a_copy_to_a_location_the_client_cannot_open_says_it_unreachable_on_its_row(
+    bench: Bench, changes: dict[str, str]
+) -> None:
+    # A region or an address the S3 client refuses is a location out of reach: the task fails with
+    # its reason on the row of the backup and for the alert, not with a bare trace.
+    bench.copy_set(BUCKET)
+    backup_id = bench.archived(FOURTH)
+    locations = unvalidated(bench.located(), BUCKET, **changes)
+    task_id = bench.copied(bench.copying(locations), backup_id)
+    assert task(bench.database, task_id).status == "failed"
+    assert bench.copy_row(backup_id) == (BUCKET, FOLDER, "location_unreachable")
+    with bench.database.transaction() as session:
+        assert failed_copy(session) == FailedCopy(backup_id, BUCKET, "location_unreachable")
 
 
 def test_a_copy_to_a_location_no_longer_declared_is_one_it_cannot_reach(bench: Bench) -> None:
