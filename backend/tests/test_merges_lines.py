@@ -391,7 +391,7 @@ def test_the_engine_and_the_estimate_name_the_same_task_without_a_working_hour(
 
 
 @pytest.mark.requirement("WF-REV-0050-A")
-def test_a_started_task_the_merge_completes_is_brought_to_nought_whatever_the_kind_of_its_lines(
+def test_a_started_task_the_merge_completes_is_brought_to_nought_whether_its_lines_are_of_labour_or_not(
     api: ContractClient, project: Costed, worker: Worker
 ) -> None:
     # « Une tâche démarrée désignée comme retirée par un différentiel est conservée, son reste à

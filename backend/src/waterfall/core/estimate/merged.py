@@ -146,10 +146,13 @@ def _zeroed(row: EstimateLine, merging: StructureMerging, bearer: BearingTask) -
 
     ``reestimate`` can refuse, but not here (#4249): the entry sends the quantity alone, which every
     line accepts, so that ``FIELD_NOT_ACCEPTED`` cannot be; and the line exists, its category
-    rated for the year of its revision when it was written, a rate no operation takes away, so
-    that ``HOURLY_RATE_MISSING`` cannot be. The report need not announce either; a test shows the
-    merge of a started task bearing a line of labour and one of material
-    (``test_a_started_task_the_merge_completes_is_brought_to_nought_whatever_the_kind_of_its_lines``).
+    rated for the year of its revision when it was written, a rate no operation takes away (the
+    hourly rates are corrected at the version read and "never deleted",
+    ``cost_settings/interface/hourly_rates.py``), so that ``HOURLY_RATE_MISSING`` cannot be. The
+    report need not announce either; a test shows the merge of a started task bearing a line of
+    labour and one that is not (``labor`` and ``non_labor``, the kinds a task bears: a line of
+    ``provision`` is the own estimate of a risk, borne by no task of the order),
+    ``test_a_started_task_the_merge_completes_is_brought_to_nought_whether_its_lines_are_of_labour_or_not``.
     """
     if row.budgeted_amount is None:
         row.budgeted_amount = row.reestimated_amount
