@@ -263,6 +263,9 @@ test("traverses the cells of a summary that its node does not accept or the serv
   await expect(grid.getByRole("textbox")).toHaveCount(0);
 });
 
+// Fake back only, untagged (`@shared` marks what plays the service too): the own estimate of the
+// risk of the rewiring is the witness's, which the account of the run does not write (#2193). Its
+// twin plays the service on a project of the run, the last path of this file.
 test("traverses the computed cells of a line entered along its row, without entering them [WF-IHM-0040-A]", async ({
   page,
 }) => {
@@ -419,14 +422,20 @@ test("traverses the computed cells of the provision of a risk the run identifies
     await openHydrated(page, own.replace(/\?.*$/, ""));
     const grid = page.getByRole("treegrid", { name: "Grille de devis" });
     const at = await columnsOf(grid, COLUMNS);
-    const provision = grid.getByRole("row").filter({ hasText: "Provision" }).first();
+    // The line the service names for the risk identified, « Provision — <label of the risk> »: not
+    // any row that carries the word.
+    const provision = grid.getByRole("row", { name: /Provision — Fuite du toit/ });
     await expect(provision).toBeVisible({ timeout: WORKING });
     const label = provision.getByRole("gridcell").nth(at.label);
     await label.click();
     await expect(label).toBeFocused();
     await press(page, "Enter", "Tab");
     // Past its quantity and its unit disbursement, which the server computes, past its category,
-    // its role and its effort, which its node does not accept, to the next row.
+    // its role and its effort, which its node does not accept: the project of the run holds no
+    // line after the provision, only tasks, whose cells are read only too, so that Tab leaves the
+    // grid. Were the computed cells of the row in the order of the keyboard, the focus would stay
+    // on one of them.
+    await expect(grid.locator(":focus")).toHaveCount(0);
     for (const column of [at.category, at.role, at.quantity, at.hours, at.delay]) {
       await expect(provision.getByRole("gridcell").nth(column)).toHaveAttribute(
         "aria-readonly",

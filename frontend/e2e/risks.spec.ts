@@ -249,7 +249,7 @@ test("exports the matrix as a PNG image named after the project and its revision
   expect(download?.suggestedFilename()).toBe("matrice-des-risques-PRJ-001.png");
 });
 
-test("walks the screens of the cycle of a risk: identify it, open an estimate, review it, declare it occurred, without pricing anything", async ({
+test("walks the screens of the cycle of a risk: identify it, open an estimate, review it, declare it occurred, without pricing anything [WF-RIS-0010-A] [WF-RIS-0060-A]", async ({
   page,
 }) => {
   // The fake back keeps no state: it serves the first example of each answer — the risk declared
