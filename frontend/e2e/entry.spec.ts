@@ -262,13 +262,15 @@ test("traverses the cells of a summary that its node does not accept or the serv
   await expect(grid.getByRole("textbox")).toHaveCount(0);
 });
 
-// The own estimate of a risk is EP-08's: played against the fake back until then.
-const BEFORE_EP08 = "EP-08 serves the own estimate of a risk";
+// These paths read PRJ-001, of which the account of the run is not a contributor (#2193): the service
+// serves its grids read-only, and the cells and the paste they play are refused to it. The risks the
+// witness holds since EP-08 do not change that: they stay with the fake back.
+const NOT_A_CONTRIBUTOR = "the account of the run is not a contributor of PRJ-001 (#2193)";
 
 test("traverses the computed cells of a line entered along its row, without entering them @shared [WF-IHM-0040-A]", async ({
   page,
 }) => {
-  test.skip(inService, BEFORE_EP08);
+  test.skip(inService, NOT_A_CONTRIBUTOR);
   const { grid, at } = await tabIntoGrid(page, OWN_SCREEN);
   await press(page, ...times("ArrowDown", PROVISION - 1));
   await expect(rowAt(grid, PROVISION)).toContainText("Provision");

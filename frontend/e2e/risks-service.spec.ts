@@ -15,7 +15,7 @@ import { seedPlanning } from "./planning-seed";
 const SERVICE_ONLY =
   "the service keeps what is written and runs the task, which the fake back does not";
 
-test("writes the risk after a cell of its own estimate was entered and the detail found again in the same tab, with no stale version @shared [US-2640] [WF-IHM-0110-A] [WF-RIS-0010-A]", async ({
+test("writes the risk after a cell of its own estimate was entered and the detail found again in the same tab, with no stale version @shared [US-2640] [WF-RIS-0010-A]", async ({
   page,
   browser,
   playwright,

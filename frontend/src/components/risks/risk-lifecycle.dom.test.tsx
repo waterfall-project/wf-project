@@ -184,7 +184,7 @@ describe("« Supprimer le risque »", () => {
 });
 
 describe("le risque relu après une écriture dans son devis propre", () => {
-  it("relit le risque au montage du détail, avant toute écriture, puis à chaque retour de l'écran, et ne relit rien tant qu'il est caché [US-2640] [WF-IHM-0020-A]", () => {
+  it("relit le risque au montage du détail, avant toute écriture, puis à chaque retour de l'écran, et ne relit rien tant qu'il est caché [US-2640]", () => {
     const client = serve({});
     // What the client had sent when the page was asked to be read anew: nothing yet.
     const sentBefore: number[] = [];
@@ -209,7 +209,7 @@ describe("le risque relu après une écriture dans son devis propre", () => {
     expect(document.visibilityState).toBe("visible");
   });
 
-  it("supprime avec la version relue après un 412 : la relecture suivie d'une suppression qui aboutit [WF-IHM-0110-A] [US-2640]", async () => {
+  it("supprime avec la version relue après un 412 : la relecture suivie d'une suppression qui aboutit [US-2640]", async () => {
     // The version the page read anew brings: derived from the risk read, no example of the contract
     // carries a risk deleted from a later version (the contract is frozen, #4134).
     const NEWER: Risk = { ...UNCITED, lock_version: UNCITED.lock_version + 1 };

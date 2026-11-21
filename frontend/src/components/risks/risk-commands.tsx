@@ -133,14 +133,15 @@ export function IdentifyRisk({
 
 /**
  * Read the risk anew when the commands are shown — at the mount of the detail, and again when the
- * screen is shown after a tab was left or a page restored from the memory of the browser —, before
- * any write of the risk: an entry in the own estimate of the risk, made meanwhile, advances
+ * screen is shown after a tab was left or a page restored from the memory of the browser. The reading
+ * is launched at the mount, not awaited: a write that goes out before it returns still carries the
+ * counter read before. An entry in the own estimate of the risk, made meanwhile, advances
  * `Risk.lock_version` and answers no counter of the risk (#1626, the contract does not change). The
  * gesture is a navigation in the same tab — the detail leads to the own estimate, one enters a cell,
  * one comes back —, which fires neither `visibilitychange` nor `pageshow` and which the router of Next
  * restores from its cache, with the counter read before: the reading at the mount is the one that
- * holds it. The write that still goes out with a counter read before is refused with 412, and the
- * offer to read the page anew resolves it (WF-IHM-0110). One reading per mount: the page read anew
+ * holds it. That write is refused with 412, and the offer to read the page anew resolves it
+ * (WF-IHM-0110). One reading per mount: the page read anew
  * keeps the commands mounted, so nothing loops.
  */
 function useRereadWhenShown(): void {

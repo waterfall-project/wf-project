@@ -1339,8 +1339,8 @@ cell, the duration and the predecessors, the start date — each have their twin
 `planning-service.spec.ts`, on a project of the run; the lines, the amounts and the estimate play
 against the service on a project of the run (EP-07, US-1560), those that read the witness waiting
 for its lines (US-1570); the remaining to commit is EP-09's, the risks and the differential
-structures EP-08's, so the path of `context.spec.ts` that opens the amendment and that of the risks
-screen stay on the fake back; the indicators, EP-10's, play against the service (US-1730,
+structures EP-08's (US-2640: the path of `context.spec.ts` that opens the amendment and those of
+the risks screen play against the service, the marks of the amendment being those it renders); the indicators, EP-10's, play against the service (US-1730,
 `indicators.spec.ts`). The measure
 of a cell validation (#196) and that of the move of the active cell over a thousand tasks (#620) are
 in the delivery report of US-1470.
@@ -1437,8 +1437,8 @@ date is named by a counter, not by `crypto.randomUUID()`, which a page served ov
 localhost does not provide (#2818). The screen no longer carries `MockupNotice`: the grid, the
 indicators and the Kanban are the service's. The whole of `e2e/remaining.spec.ts` carries `@shared`
 (the grid and the Kanban); the path that writes plays on a project the run creates (`seedPlanning`,
-`bringInProgress`, #2193), and those that read the volume witness or the risk coverage (a provision, a
-risk) stay guarded by `inService` until **EP-08** (volumes: **EP-13**). The Kanban of task starts, FBS-4.5.3, is a leaf of the
+`bringInProgress`, #2193), and those that read the volume witness stay guarded by `inService`
+until **EP-13**. The Kanban of task starts, FBS-4.5.3, is a leaf of the
 function, `…/revisions/[r]/kanban`, where the header of the grid leads: all the non-started tasks,
 the started and the completed ones with their date, as `listStartableTasks` renders them, each a
 card, a non-started milestone whose predecessors are completed flagged to be completed
@@ -4796,15 +4796,14 @@ the epic that lifts it; that epic removes the guard and its entry:
   `SERVICE_ONLY`), the fake back keeping nothing of the work breakdown it is given
   (`FAKE_BACK_FORGETS`) (#2543).
 - `context.spec.ts` — the banner of the context on the risks and on a differential structure
-  (`BEFORE_THE_RISKS`, `BEFORE_THE_DIFFERENTIALS`): lifted by **EP-08** (the risks and the
-  differential structures); the entry of the indicators (`BEFORE_THE_INDICATORS`) has been lifted
-  since US-1730. The path that goes through the remaining to commit then the risks stays guarded by
-  the risks. The banner of the planning (EP-06), of the estimate (US-1560, EP-07), of the screens of
+  plays against the service since US-2640 (the guards `BEFORE_THE_RISKS` and
+  `BEFORE_THE_DIFFERENTIALS` are lifted, the amendment 2 marking its tasks as the service renders
+  them), as that of the indicators since US-1730. The banner of the planning (EP-06), of the estimate (US-1560, EP-07), of the screens of
   a project created, of its settings and of its revisions plays against the service.
 - `review.spec.ts` — the figures of the indicators (the remaining to commit, the reference budget,
   the planned value, the variance and the schedule and cost indices, the date of the calculation)
-  are those of revision 101 of the examples; the reference of the loaded witness stays offer 100;
-  guarded by `inService`; **EP-08** (merge of amendment 1) removes the guard.
+  are those of revision 101 of the examples; which the merge of amendment 1 makes the reference of the
+  loaded witness: the path reads them against the service since US-2640.
 - `planning.spec.ts`, `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts` — the paths that
   write to the witness of PRJ-001, whose account of the run is no contributor (#2193): each has its
   twin against the service on a project of the run (`planning-service.spec.ts`, `structure.spec.ts`,
@@ -4826,11 +4825,9 @@ the epic that lifts it; that epic removes the guard and its entry:
   `computed.spec.ts`; the grid, its indicators by lot, its filter, its sort, its columns and its
   keyboard; the four paths of the workload plan). Do not play, for lack of what the service serves:
   the volume of 5,999 nodes and its marks, which the fake back alone holds until the volumes of
-  **EP-13** (#2696) — the opening and the scroll of the grid, its low and narrow windows, its
+  **EP-13** (#2696) : the opening and the scroll of the grid, its low and narrow windows, its
   folding by level, and the scroll of the keyboard to the six thousandth row (`grid.spec.ts`,
-  `keyboard.spec.ts`) —, the provision of the twelfth row (**EP-08**), the paths of the own estimate
-  of a risk and of the differential (`paste.spec.ts`, `entry.spec.ts`, guarded by `inService` or
-  untagged until **EP-08**). The untagged paths of the remaining to commit of
+  `keyboard.spec.ts`). The untagged paths of the remaining to commit of
   PRJ-001 do not replay, the account of the run being no contributor of PRJ-001 (#2193), and their
   twin is not always the one believed: the sort after a write in `grid.spec.ts` has no twin against the service;
   the addition of a task or of a line in `structure.spec.ts` has its own in `remaining.spec.ts`
@@ -4856,8 +4853,8 @@ the epic that lifts it; that epic removes the guard and its entry:
   `@shared`. The path that writes — a task started and a milestone completed on the Kanban, the lines
   of the started task in the grid, the tasks not started on demand — plays against the service on a
   project the run creates (`seedPlanning`, `bringInProgress`, #2193). Those that read the volume
-  witness (a thousand tasks, `NO_VOLUME_IN_SERVICE`, lifted by **EP-13**) or the risk coverage, a
-  provision or a risk (lifted by **EP-08**), stay guarded by `inService`; the gestures on the Kanban of
+  witness (a thousand tasks, `NO_VOLUME_IN_SERVICE`, lifted by **EP-13**), the risk coverage it
+  reads included, stay guarded by `inService`; the gestures on the Kanban of
   the fake back, which keeps nothing, and the « Sub-project » submenu (`FAKE_BACK_KEEPS_NOTHING`) play
   against the fake back alone, their equivalent against the service being the path that writes.
 - `timelines.spec.ts` — the frieze and the focus (WF-IHM-0100-A) play against the service from
@@ -5893,17 +5890,9 @@ commits » on `main` (*Settings → Rules*), before creating the branch of the n
 targets neither `epic/*` nor `lot/*`. No check of the chain duplicates it: it is GitHub that
 refuses, hence this section.
 
-**The list of the entries not replayed**, as EP-10 leaves it (US-1740/L2), by the epic that removes
+**The list of the entries not replayed**, as EP-08 leaves it (US-2640/L3), by the epic that removes
 the guard and the entry above:
 
-- **EP-08** — the provisions and the risks, guarded by `inService` until it: the risk coverage, a
-  provision or a risk read in the remaining to commit (`remaining.spec.ts`), the own estimate of a
-  risk (`entry.spec.ts`, `paste.spec.ts`, `BEFORE_EP08`), the provision of the twelfth row of the
-  estimate (`grid.spec.ts`), the banner on the risks and on a differential structure
-  (`context.spec.ts`), the risks of `risks.spec.ts`, the way back to the previous project of
-  `navigation.spec.ts`, and the figures of the indicators of `review.spec.ts` — those of the reference
-  101, when that of the loaded witness stays the offer 100 until the merge of the amendment 1; the
-  service loads no provision and no risk, and serves at zero what depends on them.
 - **EP-11** — the opening, from `/`, of the portfolio of `navigation.spec.ts`.
 - **EP-13** — the volumes: the project of 5,999 nodes and its marks (`NO_VOLUME_IN_SERVICE` of
   `revisions.spec.ts` and of `remaining.spec.ts`, the opening and the scroll of the grid, its windows
@@ -5911,7 +5900,11 @@ the guard and the entry above:
   eighteen thousand cost lines of §4.6.2, and the status screen of the system.
 - **No epic reverses them** — the paths that write PRJ-001, whose account of the run is no
   contributor (#2193): their twins play the service on a project of the run (`FAKE_BACK_ONLY`,
-  `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), the untagged paths of the
+  `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), those that enter or paste in
+  the own estimate of a risk or in the twelfth row of the estimate, the provision of a risk
+  (`NOT_A_CONTRIBUTOR` of `entry.spec.ts` and `paste.spec.ts`), the path of `risks.spec.ts` that
+  declares, reviews and declares occurred a risk of PRJ-001 (those the service proves are in
+  `risks-service.spec.ts`, on a project of the run), the untagged paths of the
   remaining to commit (`undo.spec.ts`: memory background without history, the service being covered by
   its `@shared` undo paths; `grid.spec.ts`) and the imports screen of PRJ-001 (`exchanges.spec.ts`), which only reads that
   screen: the `@shared` path exporting and re-importing the remaining to commit covers another
@@ -5935,9 +5928,9 @@ paths of `frontend/e2e/service/` (`backups.spec.ts`, `accounts.spec.ts`, `roles.
 the administrator of the installation. The home is served since US-0920/L2 and plays on both sides
 (`projects.spec.ts`, and the icon of the tab in `navigation.spec.ts`), as do the screens of a
 project since US-1000 (among them, in `navigation.spec.ts`, the move from the settings to the
-lifecycle). Untagged in `navigation.spec.ts` stay the way back to the previous project from a
-function outside any project, which reopens the remaining to commit then the risks of PRJ-001
-(lifted by **EP-08**: the path goes through the risks); the address of the project that leads to its planning, with its
+lifecycle). Since EP-08, plays on both sides in `navigation.spec.ts` the way back to the previous project from a
+function outside any project, which reopens the remaining to commit then the risks of PRJ-001, and
+which it leaves by the settings of costs, the portfolio being EP-11's; the address of the project that leads to its planning, with its
 reading context, plays on both sides since EP-06. On what their US does not tag yet: the reading of
 the settings outside any project (`reference-costs.spec.ts`, US-0250). The change of the units of
 duration (`reference-resources.spec.ts`), which writes the single object of the installation, plays

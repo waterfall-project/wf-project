@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { WORKING } from "./bounds";
 import { menuButton, openFilters, pick } from "./check-menu";
-import { type Download, expect, type Locator, test } from "@playwright/test";
+import { type Download, expect, type Locator } from "@playwright/test";
 
 import { compile } from "./compile";
 import { openHydrated } from "./hydration";
+import { inService, test } from "./mode";
 import { scrollPageToGrid, withinBox } from "./scroll";
 
-// The fake back serves the first example of each read of the risks — the register of three risks,
+// The paths that read are tagged `@shared`: they play against the service too, on the risks the
+// witness holds since EP-08 (US-2650). The fake back serves the first example of each read of the risks — the register of three risks,
 // one in each state, its matrix, the risk of rewiring and the history of its reviews —, whatever
 // the risk asked: the component and page tests prove what the screen asks of each.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -26,7 +28,7 @@ async function boxOf(element: Locator) {
   return { x: 0, y: 0, width: 0, height: 0, ...box };
 }
 
-test("reads the risks of a revision: the register and its totals, the detail of a risk, the sort and the filter asked of the server [WF-RIS-0040-A]", async ({
+test("reads the risks of a revision: the register and its totals, the detail of a risk, the sort and the filter asked of the server @shared [WF-RIS-0040-A]", async ({
   page,
 }) => {
   // The opening and the dense grid read anew by each click, each in the bound of a grid
@@ -95,7 +97,7 @@ test("reads the risks of a revision: the register and its totals, the detail of 
   await expect(menuButton(page, "Filtrer par état")).toContainText("Survenu");
 });
 
-test("draws the matrix over the whole width between the cards and the grid, the count of each cell in a table under it [WF-IHM-0070-A]", async ({
+test("draws the matrix over the whole width between the cards and the grid, the count of each cell in a table under it @shared [WF-IHM-0070-A]", async ({
   page,
 }) => {
   await openHydrated(page, RISKS);
@@ -139,7 +141,7 @@ test("draws the matrix over the whole width between the cards and the grid, the 
   await expect(matrix.getByRole("img", { name: "Alerte" })).toHaveCount(3);
 });
 
-test("leads from the label of a risk to its detail from the keyboard alone [WF-IHM-0100-A]", async ({
+test("leads from the label of a risk to its detail from the keyboard alone @shared [WF-IHM-0100-A]", async ({
   page,
 }) => {
   await openHydrated(page, RISKS);
@@ -154,7 +156,7 @@ test("leads from the label of a risk to its detail from the keyboard alone [WF-I
   await expect(page.getByRole("region", { name: "Risque de reprise du câblage" })).toBeVisible();
 });
 
-test("names the category and the sub-project a risk designates for its provision, in its detail (EP-14/L42p)", async ({
+test("names the category and the sub-project a risk designates for its provision, in its detail (EP-14/L42p) @shared", async ({
   page,
 }) => {
   await openHydrated(page, `${RISKS}?risk=${CABLING}`);
@@ -166,7 +168,7 @@ test("names the category and the sub-project a risk designates for its provision
   );
 });
 
-test("lays the provisions and the coverage of the risks side by side on a wide window [WF-RIS-0050-A]", async ({
+test("lays the provisions and the coverage of the risks side by side on a wide window @shared [WF-RIS-0050-A]", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
@@ -182,7 +184,7 @@ test("lays the provisions and the coverage of the risks side by side on a wide w
   expect(coverage?.x ?? 0).toBeGreaterThan((provisions?.x ?? 0) + (provisions?.width ?? 0) - 1);
 });
 
-test("places the risks as bubbles that a hover tells and a click opens, the zones named in their areas [WF-IHM-0070-A]", async ({
+test("places the risks as bubbles that a hover tells and a click opens, the zones named in their areas @shared [WF-IHM-0070-A]", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1366, height: 900 });
@@ -227,7 +229,7 @@ test("places the risks as bubbles that a hover tells and a click opens, the zone
   });
 });
 
-test("exports the matrix as a PNG image named after the project and its revision [WF-IHM-0130-A]", async ({
+test("exports the matrix as a PNG image named after the project and its revision @shared [WF-IHM-0130-A]", async ({
   page,
 }) => {
   await openHydrated(page, RISKS);
@@ -251,6 +253,10 @@ test("walks the screens of the cycle of a risk: identify it, open an estimate, r
   // (754, its own structure 208), then the risk of rewiring for the detail, its review confirmed
   // and its occurrence queued — so that the steps are played one after the other from the screens
   // they lead to, never from one another's effects (#1350).
+  test.skip(
+    inService,
+    "the path writes PRJ-001, of which the account of the run is not a contributor (#2193): the service plays the risks writes in `risks-service.spec.ts`",
+  );
   test.slow();
   await compile(page.request, `/projects/${PROJECT}/revisions/${REVISION}/estimate`);
   await openHydrated(page, RISKS);
@@ -302,7 +308,7 @@ test("walks the screens of the cycle of a risk: identify it, open an estimate, r
   ).toBeVisible();
 });
 
-test("shows the report of the occurrence in the marks before confirming, and abandons without writing [WF-RIS-0060-A] [WF-IHM-0110-A]", async ({
+test("shows the report of the occurrence in the marks before confirming, and abandons without writing @shared [WF-RIS-0060-A] [WF-IHM-0110-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${RISKS}?risk=${CABLING}`);

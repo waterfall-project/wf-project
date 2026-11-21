@@ -19,8 +19,8 @@ import { edgesBetween, rowAt, scroller, withinBox } from "./scroll";
 // Every gesture is a key: the grid is reached by Tab, as a user who never takes the mouse.
 //
 // The paths tagged `@shared` are played against the service too, on the witness it holds (US-1570).
-// Two read what it does not: the provision of row 12, which EP-08 gives the witness, and the six
-// thousandth row of the volume, which EP-13 does (#2696): they keep to the fake back.
+// One reads what it does not: the six thousandth row of the volume, which EP-13 gives it (#2696):
+// it keeps to the fake back.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;

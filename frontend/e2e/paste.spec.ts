@@ -204,13 +204,15 @@ test("a block of three rows and four columns pasted from a spreadsheet produces 
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 
-// The own estimate of a risk is EP-08's: played against the fake back until then.
-const BEFORE_EP08 = "EP-08 serves the own estimate of a risk";
+// These paths read PRJ-001, of which the account of the run is not a contributor (#2193): the service
+// serves its grids read-only, and the cells and the paste they play are refused to it. The risks the
+// witness holds since EP-08 do not change that: they stay with the fake back.
+const NOT_A_CONTRIBUTOR = "the account of the run is not a contributor of PRJ-001 (#2193)";
 
 test("a block whose cell names an unknown category is sent as copied for the server to judge, and modifies no row once abandoned @shared [WF-IHM-0050-A]", async ({
   page,
 }) => {
-  test.skip(inService, BEFORE_EP08);
+  test.skip(inService, NOT_A_CONTRIBUTOR);
   const posted = actions(page);
   const { grid, at } = await openOnFirstLine(page, OWN);
   const unknown = [BLOCK[0] ?? [], ["Heures d'essais", "Essais", "", "1"], BLOCK[2] ?? []];
@@ -236,7 +238,7 @@ test("a block whose cell names an unknown category is sent as copied for the ser
 test("a paste wider than the grid is refused, saying so @shared [WF-IHM-0050-A]", async ({
   page,
 }) => {
-  test.skip(inService, BEFORE_EP08);
+  test.skip(inService, NOT_A_CONTRIBUTOR);
   const posted = actions(page);
   const { grid, at } = await openOnFirstLine(page, OWN);
   // Eighteen columns from the label, where a line has seventeen in the contract (#223, #424).
