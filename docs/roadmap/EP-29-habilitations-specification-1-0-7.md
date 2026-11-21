@@ -1,13 +1,13 @@
 ---
 id: EP-29
-titre: Les habilitations suivent la spécification 1.0.7 — le référentiel sous permission, la visibilité d'un projet, le catalogue, les chefs de projet, les administrateurs
+titre: Les habilitations et les comptes suivent la spécification 1.0.7 — le référentiel sous permission, la visibilité d'un projet, le catalogue, les chefs de projet, les administrateurs, le lien de mot de passe
 statut: à planifier
 depend_de: EP-08
 famille: front, back
 issue:
 ---
 
-# EP-29 — Habilitations : suites de la spécification 1.0.7
+# EP-29 — Habilitations et comptes : suites de la spécification 1.0.7
 
 ## Objet
 
@@ -23,6 +23,12 @@ Ces constats étaient étiquetés EP-13. Le cadrage d'EP-13 les en sort (décisi
 « toute fonction métier ». L'EPIC reste à cadrer : ses US, sa conception et son rang se décident
 à son cadrage.
 
+La ventilation du 2026-11-21 l'élargit aux comptes : il reçoit le bloquant de la revue du
+2026-11-14 sur le lien de mot de passe (#3342), qui laisse un porteur de `users.write` seul prendre
+un compte administrateur, et les constats de la même revue sur les habilitations du back, l'écran
+des comptes et les écrans du référentiel ouverts sans la permission de les consulter. Il est de la
+première vague : il ne touche ni le code d'EP-13, ni celui d'EP-30.
+
 ## Ce qui en fait partie
 
 - la lecture des objets actifs du référentiel, des paramètres communs et des unités de durée sous
@@ -34,7 +40,14 @@ Ces constats étaient étiquetés EP-13. Le cadrage d'EP-13 les en sort (décisi
 - la garde du dernier administrateur, qui ne compte que les comptes déjà connectés (#3987) ;
 - la lecture des comptes, qui désactive ceux que l'annuaire tient pour désactivés (#3986) ;
 - la citation de WF-ADM-0200 dans les opérations qui servent les réglages de l'installation
-  (#3993).
+  (#3993) ;
+- le lien de mot de passe et le changement d'adresse d'un compte qui porte l'administration, et la
+  garde du dernier administrateur, qui compte les quatre permissions (#3342) ;
+- l'inscription d'un participant sur un projet terminal (#3990), et celle des comptes que le serveur
+  ne propose pas ;
+- les écrans du référentiel refusés à qui n'a pas la permission de les consulter ;
+- l'écran des comptes : le rattachement atteint au clavier, les commandes de la table ;
+- les habilitations du back que WF-ADM-0110 laisse à trancher, et l'avatar décodé à la pose.
 
 ## Ce qui n'en fait pas partie
 
@@ -60,7 +73,7 @@ règle d'après le gel ») : #3960, #3962, #3974 et #3975 ; #3993 n'en change qu
 
 ## Préalables
 
-EP-08 livré : le risque survenu et la fusion d'un différentiel, qu'il livre, suivent la règle des
+EP-08 fusionné : le risque survenu et la fusion d'un différentiel, qu'il livre, suivent la règle des
 chefs de projet de #3973. #3961 tranché par l'auteur, avant le travail qui referme les lectures
 du référentiel (#3960, #3962).
 
@@ -89,3 +102,33 @@ d'EP-13 jusqu'à l'ouverture de celle de cet EPIC :
   (WF-ADM-0120) ;
 - #3993 — contrat : citer WF-ADM-0200 dans les opérations qui servent les réglages de
   l'installation.
+
+Issues ouvertes, rattachées à cet EPIC par la ventilation du 2026-11-21 :
+
+- #3342 — back : un porteur de users.write seul obtient le lien de mot de passe d'un compte
+  administrateur, ou change son adresse, et prend le compte (bloquant de la revue du 2026-11-14,
+  BAC-01 ; elle porte aussi BAC-02 et CTA-02, la garde du dernier administrateur qui ne compte que
+  deux permissions) ;
+- #3990 — contrat : l'inscription d'un participant sur un projet terminal (WF-CYC-0100).
+
+Constats de la revue du 2026-11-14 (`docs/reviews/2026-11-14-revue-complete/`), vérifiés le
+2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité et sans issue ;
+un ticket par ligne, à ouvrir :
+
+- un chef de projet ne peut inscrire que les comptes que le serveur propose (FPL-02) — une
+  opération de contrat d'abord ;
+- la liste du rattachement d'un compte est inatteignable au clavier dans la grille (FAR-02,
+  FAR-06) ;
+- trois écrans du référentiel se présentent par URL directe sans la permission de consulter
+  (FAR-03) — #3960 en ferme un, non les deux autres ;
+- les habilitations du back, WF-ADM-0110 (BAC-03, BAC-04) — BAC-04 demande un arbitrage de
+  spécification avant tout code ;
+- l'avatar : image décodée à la pose (BAC-05) ;
+- l'écran des comptes : commandes de la table (FAR-04, FAR-08) — FAR-08 après #3342.
+
+Constat de la même revue joint à une issue ci-dessus : BAC-08, l'exclusion d'une ligne de coût sans
+la qualité de chef de projet, à #3973.
+
+## Conduite
+
+Vague 1 de la ventilation du 2026-11-21. Créneaux utiles sur le poste, qui porte six livreurs : 2.
