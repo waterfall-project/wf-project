@@ -2027,12 +2027,29 @@ l'EPIC ne laisse pas derrière lui la dette qu'il a relevée.
   désignation à nulle ; celui qu'une révision marquée désigne est refusé par une condition nommée, non
   par une 500 (#4208) ;
 - propre à l'US : `ImportReport.structure_id` et `revision_id` ont une clé étrangère en cascade, par
-  une migration qui traite les pointeurs morts déjà en base (#4139).
+  une migration qui traite les pointeurs morts déjà en base (#4139) ;
+- propre à l'US : une ligne de provision se lit comme calculée (`is_computed`, `computed_fields`),
+  fermée à la saisie et au reste à engager (`line_not_provision`), sans délai de paiement, et son
+  montant budgété est la provision que la référence portait (« le montant budgété est celui que la
+  référence a fixé »), par le marquage et par la copie, sans entrer au budget de référence ; les
+  tests du témoin lisent l'égalité avec les exemples (#4274) ;
+- propre à l'US : les tests du témoin tiennent leurs compteurs, leurs dates et leurs versions des
+  exemples, ou les comparent à eux, et ne passent pas à vide (#4287, #4288) ; `change_line` sous un
+  chargement de lignes est éprouvé, flush compris (#4308) ; le test du renommage d'un risque porte
+  le marqueur de WF-DAT-0020 (#4307) ; l'absence de tout compte rendu de l'e2e des échanges tient à
+  un test de cohérence du catalogue (#4299) ; l'attente de la grille de reste à engager comparée a
+  le délai des lectures lentes, d'après la mesure (#4326) ; le reste à engager, qui ne lit que la
+  structure principale, n'a pas de note d'avenant en retard, et le critère d'US-2640 ne vise que le
+  devis (#4298).
 
 **Notes de réalisation.** Chaque constat garde son issue, rattachée au lot qui le corrige. Le lot du
 contrat précède le code ; les lots du code qui touchent les modules que le chargeur du témoin exerce
 attendent US-2650/L1. La note « avenant en retard » du devis (#4255) et les libellés de
-`exchanges.spec.ts` (#3969) sont le lot US-2640/L4.
+`exchanges.spec.ts` (#3969) sont le lot US-2640/L4. Le cadrage complémentaire du 2026-11-20 soir ajoute
+L6 (la ligne de provision, #4274 ; pas avec L3, qui touche aussi `core/estimate/merged.py`) et L7 (les
+tests du témoin et le reste à engager, #4287, #4288, #4308, #4307, #4299, #4326, #4298), tous deux après
+US-2650/L1 ; #4304 et #4310 sont portés par L3. Les écarts du témoin de #4278 attendent la
+confirmation de l'auteur (#4337) : aucun lot ne les porte encore.
 
 **Hors périmètre.** Tout constat relevé pendant la livraison, rattaché selon « Suivi sur GitHub » ;
-les constats de spécification (#3850, #4132, #4178, #4210, #4222, #4260, #4271).
+les constats de spécification (#3850, #4132, #4178, #4210, #4222, #4260, #4271, #4337).
