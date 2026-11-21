@@ -14,6 +14,7 @@
  */
 import { expect, test } from "@playwright/test";
 
+import catalogue from "../../messages/fr.json" with { type: "json" };
 import { WORKING } from "../bounds";
 import { compileAnswered } from "../compile";
 import { untilHydrated } from "../hydration";
@@ -123,7 +124,7 @@ test("the periodicity shipped is read without having been entered, set weekly fr
     await stale.getByLabel("Heure (UTC)").fill("05:00");
     await stale.getByRole("button", { name: "Enregistrer" }).click();
     await expect(stale.getByRole("alert")).toContainText(
-      "Quelqu’un a modifié cette donnée entre-temps ; rechargez-la pour voir sa dernière version.",
+      catalogue.errors.STALE_LOCK_VERSION,
       { timeout: WORKING },
     );
     await expect(stale).toBeVisible();
