@@ -53,8 +53,6 @@ VIEWS = (
 LINES = ("node", "task", "task_link", "estimate_line")
 # Where a view read at a past date finds what a marking kept: the documents, by revision.
 KEPT = ("revision_indicator",)
-# What a revision marked before the EPIC still gives: its revision and its project, no document.
-BARE = ("revision", "project")
 # Every state a project can be in, asked all the same: no view counts the ones it does not read.
 STATES = "in_progress,pricing,completed,created,lost,abandoned"
 
@@ -195,7 +193,7 @@ def test_a_revision_marked_before_the_epic_keeps_none_of_the_documents_and_recei
     bare = documents(fabrics.stage.database)
     assert bare
     assert not {each[1] for each in bare} & PORTFOLIO_KINDS
-    reads = lines_read(api, fabrics.stage.reader, fabrics.stage.database.engine, READ, BARE)
+    reads = lines_read(api, fabrics.stage.reader, fabrics.stage.database.engine, READ, KEPT)
     assert reads == {view: [] for view in VIEWS}
     assert documents(fabrics.stage.database) == bare
     # What the views render without a document: the revision counts by what it kept — its project,
@@ -206,6 +204,7 @@ def test_a_revision_marked_before_the_epic_keeps_none_of_the_documents_and_recei
     assert answers["value"]["order_book"] == "1520.00"
     assert answers["value"]["pipeline_gross"] == "0.00"
     assert answers["performance"]["reference_budget"] == "1520.00"
+    assert answers["workload"]["monthly_totals"]
     assert all(each["hours"] == "0.00" for each in answers["workload"]["monthly_totals"])
     assert answers["risks"]["identified_total"] == "0.00"
     assert answers["risks"]["heaviest"] == []
@@ -246,7 +245,10 @@ def test_no_view_read_at_a_past_date_carries_is_stored_in_the_contract_yet(
     # figures of a past date are those of the marking, never of the day.
     body = served(api, fabrics.stage.reader, view, READ)
     [schema] = api.schema("GET", f"{PORTFOLIO}/{view}", 200, "application/json")
-    # The control: the schema is the one of this answer, it declares what the answer carries.
-    assert declares(schema, next(iter(body))), view
+    # The control: the schema is the one of this answer, it declares what the answer carries — a key
+    # of its scope that no top-level key of the answer repeats, which only the descent through the
+    # references of the schema reaches.
+    nested = next(key for key in body["scope"] if key not in body)
+    assert declares(schema, nested), view
     assert not declares(schema, "is_stored"), view
     assert not with_key(body, "is_stored"), view
