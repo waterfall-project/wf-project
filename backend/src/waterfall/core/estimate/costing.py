@@ -204,13 +204,17 @@ def hourless_tasks[K](
     task without one not judged; ``calendars`` the calendar of each role. The calendars intersected
     day by day, as an entry judges them (WF-PLA-0010); the roles named by their identifier, their
     code and their label (``resource_roles``).
+
+    A task none of whose roles has a calendar in ``calendars`` is not judged either, as a task
+    without a role is not: there is no week to intersect, and the default calendar applies to it
+    (WF-PLA-0010, WF-REF-0120); the empty intersection would otherwise refuse it (#4250).
     """
     weeks = calendar_hours(session, set(calendars.values()))
     for task, held in roles.items():
         if not held:
             continue
         days = [weeks[calendars[role]] for role in held if role in calendars]
-        if any(min(day) > 0 for day in zip(*days, strict=True)):
+        if not days or any(min(day) > 0 for day in zip(*days, strict=True)):
             continue
         yield (
             task,

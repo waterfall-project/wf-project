@@ -390,6 +390,35 @@ def test_the_engine_and_the_estimate_name_the_same_task_without_a_working_hour(
     assert refused[0] in {UUID(tests["lineage_id"]), UUID(tests["node_id"])}
 
 
+@pytest.mark.requirement("WF-REV-0050-A")
+def test_a_started_task_the_merge_completes_is_brought_to_nought_labour_or_not(
+    api: ContractClient, project: Costed, worker: Worker
+) -> None:
+    # « Une tâche démarrée désignée comme retirée par un différentiel est conservée, son reste à
+    # engager est nul » (#4249, option 2): the re-estimate to nought that ``_zeroed`` writes sends
+    # the quantity alone, which a line of labour and a line of disbursement both accept, at the
+    # rate its category holds since its creation: neither ``FIELD_NOT_ACCEPTED`` nor
+    # ``HOURLY_RATE_MISSING`` can be refused on an existing line, so that no kind of line makes the
+    # merge fail. The task bears the line of material it had, and a line of labour.
+    project.lines.made(
+        node_labelled(project.tree, MAKING), label="Montage", **labour(project.costs.role)
+    )
+    before = lines_of(project, project.structure_id)
+    assert before["Montage"].resource_role_id is not None
+    assert before["Fabrication"].resource_role_id is None
+    amendment = opened_amendment(api, project)
+    set_progress(project.stage, str(project.tasks[MAKING]), "started", DAY)
+    tree = on(project.tree, amendment)
+    assert delete(tree, node_labelled(tree, MAKING), project.stage.manager).status_code == 200
+    assert merged(api, project, worker, amendment)["status"] == "succeeded"
+    after = lines_of(project, project.structure_id)
+    for label in ("Montage", "Fabrication"):
+        assert after[label].reestimated_amount == Decimal("0.00"), label
+        assert after[label].budgeted_amount == before[label].reestimated_amount, label
+        assert after[label].reestimated_at is not None, label
+    assert tasks_of(project, project.structure_id)[MAKING][2] == "completed"
+
+
 # --- What the marking keeps -----------------------------------------------------------------------
 
 

@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from waterfall.core.projects.interface import project_code, project_facts, project_label
-from waterfall.core.revisions.tables import Revision
+from waterfall.core.revisions.tables import STRUCTURE_KINDS, Revision
 from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import (
     AuditObject,
@@ -58,9 +58,9 @@ if TYPE_CHECKING:
 
 
 # The kind of the main structure of a revision (``StructureKind``), read by the modules of this
-# package that cannot import ``structures``, which imports them (#4003); and that of a differential.
-MAIN = "main"
-AMENDMENT = "amendment"
+# package that cannot import ``structures``, which imports them (#4003); the kinds all derive from
+# ``STRUCTURE_KINDS``, the list the table constrains, so that no declaration can drift (#4033).
+MAIN, AMENDMENT, RISK, BASE = STRUCTURE_KINDS
 
 
 def refuse(condition: str) -> ConflictError:

@@ -9,8 +9,9 @@ estimate into the main structure (WF-RIS-0060):
 - **Judged.** A task grafted keeps its lines, hence the calendar their roles give it; a role whose
   calendar has since lost its hours — the reference changed after the revision was marked — would
   leave it without an hour in its week. Each such task is a reason that refuses the graft, its
-  roles and the task named as the structure grafted holds it, the task copied having no node yet
-  (``TASK_WITHOUT_WORKING_HOURS``, WF-PLA-0010, ``ReportRefusal``).
+  roles named, and the task named by its node in the own estimate grafted — the task copied has no
+  node in the main structure yet — and its label (``TASK_WITHOUT_WORKING_HOURS``, WF-PLA-0010,
+  ``ReportRefusal``, #4304).
 - **Written.** Each line keeps its figures, under the node the planning copied it to, at its first
   version, with the stamp of the graft; its budgeted amount is nought — the line of a risk that
   occurred is work the reference did not hold (WF-RIS-0060, WF-RAE-0050) —, and it carries neither

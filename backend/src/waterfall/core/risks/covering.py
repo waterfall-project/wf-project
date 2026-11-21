@@ -76,20 +76,21 @@ def conserved_coverage(
 
     The figures of the risks stay as the marking kept them; the reserve is the one the reference
     conserves, which a revision marked before it was designated could not keep, and the variance is
-    deduced from it. A document that kept no coverage, or one whose figures are missing, null or not
-    decimal, gives none (#4183): the caller computes the coverage at the reading, as it does for a
-    revision whose marking kept nothing.
+    deduced from it. A document that kept no coverage, or one whose figures are missing, null, not
+    decimal or not finite, gives none (#4183): the caller computes the coverage at the reading, as
+    it does for a revision whose marking kept nothing. The figures are judged before the reserve is
+    read, which a document that gives none does not need.
     """
     if kept is None or "remaining_provisions" not in kept or "occurred_cost" not in kept:
         return None
-    reserve = _reserve(session, project_id)
     try:
         left = Decimal(kept["remaining_provisions"])
         cost = Decimal(kept["occurred_cost"])
-    except InvalidOperation, TypeError:
+    except InvalidOperation, TypeError, ValueError:
         return None
     if not (left.is_finite() and cost.is_finite()):
         return None
+    reserve = _reserve(session, project_id)
     return {
         **kept,
         "reserve": format(reserve, "f"),
