@@ -352,19 +352,15 @@ describe("the backups", () => {
     expect(queriesOf("GET /backups")).toEqual([NEWEST_BACKUPS]);
   });
 
-  it("list the backups and offer their commands without the schedule nor the locations the API does not find [WF-ADM-0150-A]", async () => {
-    // The service answers 404 to the schedule and to the locations until it serves them (EP-13).
+  it("read the schedule and the locations of the service, none left out when it does not find them [WF-ADM-0170-A]", async () => {
+    server.answers = { ...server.answers, "GET /backup-schedule": NOT_FOUND };
+    await expect(BackupsPage(searched())).rejects.toThrow();
     server.answers = {
       ...server.answers,
-      "GET /backup-schedule": NOT_FOUND,
+      "GET /backup-schedule": "backup_schedule",
       "GET /external-backup-locations": NOT_FOUND,
     };
-    const page = rendered(await BackupsPage(searched()));
-    expect(text(page)).not.toContain("Planification");
-    expect(rows(page, "Sauvegardes")[1]).toContain("1,2 gigaoctet Vérifiée Planifiée");
-    expect(buttons(page)).toContain("Sauvegarder maintenant");
-    expect(buttons(page)).toContain("Déposer");
-    expect(links(page)).toHaveLength(8);
+    await expect(BackupsPage(searched())).rejects.toThrow();
   });
 
   it("present the download and the restoration of a backup not verified unavailable, with the condition it lacks, as the backups list it [WF-IHM-0090-A]", async () => {
