@@ -284,11 +284,11 @@ Problem:
         `order_item_tasks` for a merge that would take the task of an order item out of the
         subtree of the task of its work package (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
         `mergeCostStructure`, WF-PLA-0170) : the task of the work package and those of the order
-        items that would leave it, nodes of the main structure, each by its node and its label
-        (`node_id`, `label`), like the tasks of
-        `TASK_WITHOUT_WORKING_HOURS` — "the failure names what failed" (WF-IHM-0080; EP-14/L42k)
-        —, and likewise for the import file that would be rejected whole for this reason
-        (`ImportReport.refusals`) and the preliminary report of a merge
+        items that would leave it, nodes of the main structure, each by its node in the main
+        structure and its label (`node_id`, `label`), the node null for a task that the
+        differential adds, not by its lineage as `TASK_WITHOUT_WORKING_HOURS` does — "the failure
+        names what failed" (WF-IHM-0080; EP-14/L42k) —, and likewise for the import file that
+        would be rejected whole for this reason (`ImportReport.refusals`) and the preliminary report of a merge
         (`StructureMergeReport.refusals`; EP-14/L42s); `task` for a planning that would extend
         the project's duration beyond fifteen years (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150):
         the task involved, by its node and its label (`node_id`, `label`), the node null for a

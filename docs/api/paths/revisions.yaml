@@ -1263,8 +1263,8 @@
           report, `problem.code` its code and `params` its parameters, each task named by its
           node in the differential and its label, except that `TASK_WITHOUT_WORKING_HOURS`
           names a task that the main structure adds, having no node in the differential, by
-          its lineage and its label (`ProblemImportedTask`; #4245). Nothing is written. Or a body that is not a confirmation
-          (`VALIDATION_FAILED`).
+          its lineage and its label (`ProblemImportedTask`; #4245). Nothing is written. Or a
+          body that is not a confirmation (`VALIDATION_FAILED`).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
