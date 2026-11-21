@@ -7,7 +7,7 @@
     "states": "in_progress,pricing,completed"
   },
   "value": {
-    "scope": {"states":["in_progress","pricing","completed"],"as_of":"2026-06-03","from":"2025-06-04","to":"2026-06-03","org_node_id":null,"org_node_label":null,"project_count":10},
+    "scope": {"states":["in_progress","pricing","completed"],"as_of":"2026-06-03","from":"2025-06-04","to":"2026-06-03","org_node_id":null,"org_node_label":null,"project_count":9},
     "order_book": "70447996.56",
     "pipeline_gross": "29100.00",
     "pipeline_weighted": "17460.00",

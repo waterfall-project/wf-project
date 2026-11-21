@@ -71,7 +71,9 @@ bootstrap. The service Compose offers it (service `witness`, `make service-witne
 production one does not: a real installation holds no witness. `make service-witness` takes no
 variable of its own: the service Compose gives the `witness` service the role of the service
 (`WATERFALL_DATABASE_URL`, by `WATERFALL_POSTGRES_PASSWORD`, which must be exported as for
-`make service-up`) and mounts `fixtures/api/` read-only on `WATERFALL_WITNESS_PATH` (`/witness`);
+`make service-up`) and mounts `fixtures/api/` and `fixtures/witness/` read-only,
+`WATERFALL_WITNESS_PATH` being `/fixtures/api`: the slice of the portfolio (`fixtures/witness/portfolio/`) is read beside the
+examples;
 the platform must be started and bootstrapped (`make service-install`), for the command does not
 write what the bootstrap writes — the row of the installation, the common settings, the units, the
 mapping, the default calendar and the provision —, it sets what the bootstrap laid. The `witness`
@@ -3692,11 +3694,11 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   `front-cache.yml` writes that cache and the pnpm store after each merge, on the branch whose
   caches the pull requests and the merge queue read: without it, they would find nothing.
   `back.yml` spreads the back likewise: one runner holds the lint, the types and the boundaries of
-  the core (`make check-back-static`), six each play a sixth of the tests, with their services
-  (`make check-back-tests`, `SHARD=1/6` to `SHARD=6/6`), and in the full tier a last one gathers
-  their coverage and holds it to its thresholds (`make coverage-back-merge`). A sixth is one test
-  in six in the order of their collection (`--shard`, `backend/tests/conftest.py`), rather than
-  whole files: the files that load the witness, the longest, are spread over all six. The witness
+  the core (`make check-back-static`), eight each play an eighth of the tests, with their services
+  (`make check-back-tests`, `SHARD=1/8` to `SHARD=8/8`), and in the full tier a last one gathers
+  their coverage and holds it to its thresholds (`make coverage-back-merge`). An eighth is one test
+  in eight in the order of their collection (`--shard`, `backend/tests/conftest.py`), rather than
+  whole files: the files that load the witness, the longest, are spread over all eight. The witness
   is loaded by the command once per pytest process; the tests after it find its rows copied back
   (`backend/tests/witness_rows.py`, #2157). On a runner, each test that asked for it paid its
   loading, over six minutes in all.

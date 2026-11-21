@@ -7,7 +7,7 @@
     "states": "in_progress,pricing,completed"
   },
   "value": {
-    "scope": {"states":["in_progress","pricing","completed"],"as_of":"2026-06-03","from":"2025-06-04","to":"2026-06-03","org_node_id":null,"org_node_label":null,"project_count":10},
+    "scope": {"states":["in_progress","pricing","completed"],"as_of":"2026-06-03","from":"2025-06-04","to":"2026-06-03","org_node_id":null,"org_node_label":null,"project_count":9},
     "identified_total": "855360.00",
     "heaviest": [
       {"risk_id":"01926f3a-7c00-7000-8000-000000000753","label":"Indisponibilité de l'automaticien","project_id":"01926f3a-7c00-7000-8000-000000000001","project_label":"Modernisation du poste de commande","can_open":true,"provision_amount":"600000.00"},

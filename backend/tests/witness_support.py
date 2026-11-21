@@ -9,6 +9,7 @@ the helpers that tests outside the family of the witness read too (#3619).
 """
 
 import json
+import shutil
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -17,6 +18,8 @@ from projects_support import READING, person
 from support import WITNESS
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from realm import TestRealm
     from support import ContractClient
 
@@ -37,3 +40,15 @@ def read(api: ContractClient, witness: Database, realm: TestRealm, url: str) -> 
     answer = api.get(url, headers=person(witness, realm, *READING).headers)
     assert answer.status_code == 200, answer.text
     return answer.json()
+
+
+def copied_description(tmp_path: Path) -> Path:
+    """Copy the description of the witness and, beside it, the slice; give the description.
+
+    The slice is read beside the examples (``witness.portfolio_slice.directory``): a copy of the
+    examples alone is no witness. A test that changes a file edits the copy it is given.
+    """
+    directory = tmp_path / "api"
+    shutil.copytree(WITNESS, directory)
+    shutil.copytree(WITNESS.parent / "witness", tmp_path / "witness")
+    return directory

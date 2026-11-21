@@ -23,6 +23,7 @@ from projects_support import MANAGING, PROJECTS, contribute, person
 from sqlalchemy import select
 from test_witness import load, wipe
 from test_witness_lines_reads import deviations
+from test_witness_portfolio import identifying as slice_identifying
 from test_witness_projects import REVISION_100, REVISION_101, REVISION_102, keyed, without
 from witness_support import PRJ_001, example
 
@@ -90,13 +91,18 @@ def test_the_three_risks_are_declared_with_the_identifiers_and_at_the_instants_o
     witness: Database,
 ) -> None:
     with witness.transaction() as session:
-        risks = {row.id: row for row in session.scalars(select(Risk))}
+        risks = {
+            row.id: row for row in session.scalars(select(Risk).where(Risk.project_id == PRJ_001))
+        }
         evaluations = {
-            (row.risk_id, row.revision_id): row for row in session.scalars(select(RiskEvaluation))
+            (row.risk_id, row.revision_id): row
+            for row in session.scalars(
+                select(RiskEvaluation).where(RiskEvaluation.project_id == PRJ_001)
+            )
         }
         reviews = sorted(
             (row.risk_id, row.created_at, row.state, row.revision_id)
-            for row in session.scalars(select(RiskReview))
+            for row in session.scalars(select(RiskReview).where(RiskReview.project_id == PRJ_001))
         )
     assert {each: row.created_at for each, row in risks.items()} == DECLARED
     # Each declared, then reviewed as its own estimate is entered, the same instant; 751 reviewed
@@ -248,16 +254,23 @@ def test_two_loadings_give_the_same_identifiers_with_their_natural_keys(
     # Every identifier, those no example names included: the loader draws them in order. The risks
     # and their reviews, the structures, the nodes with their tasks and lines, the links, the
     # inscriptions and the history, each identifier with what it names.
-    first = identifying(witness)
+    first, slice_first = identifying(witness), slice_identifying(witness)
     wipe(owner)
     install(owner)
     assert load(service_database_url) == 0
     second = identifying(witness)
+    # « Deux engendrements successifs donnent des données identifiantes identiques. » for the slice
+    # of the portfolio (EP-11, US-2770): the same second loading, a full one costing minutes.
+    assert slice_identifying(witness) == slice_first
+    assert len(slice_first["project"]) == 10
+    assert slice_first["node"]
+    assert slice_first["cost_line"]
     assert second.keys() == first.keys()
     for name, rows in first.items():
         assert second[name] == rows, name
         assert rows, name
-    assert len(first["risk"]) == 3
+    # The three risks of PRJ-001, and the four of the slice of the portfolio.
+    assert len(first["risk"]) == 3 + 4
     assert len({row[1] for row in first["node"]}) == len(first["structure"])
 
 
@@ -268,11 +281,14 @@ def test_the_labels_of_the_risks_and_of_the_amendments_are_those_of_the_witness(
     described = {each["label"] for each in example("witness_risks")["risks"]}
     amendments = {each["label"] for each in example("witness_structures")["amendments"]}
     with witness.transaction() as session:
-        labels = set(session.scalars(select(Risk.label)))
+        labels = set(session.scalars(select(Risk.label).where(Risk.project_id == PRJ_001)))
         kinds = {
             row.label
             for row in session.scalars(
-                select(CostStructure).where(CostStructure.kind.in_(("amendment", "risk")))
+                select(CostStructure).where(
+                    CostStructure.kind.in_(("amendment", "risk")),
+                    CostStructure.project_id == PRJ_001,
+                )
             )
         }
     assert labels == described

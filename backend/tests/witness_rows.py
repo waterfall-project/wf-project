@@ -15,6 +15,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
+from project_rows import REVISED
 from psycopg import sql
 
 from waterfall.core.access_roles.tables import WRITTEN_BY_MIGRATION
@@ -35,6 +36,14 @@ class WitnessRows:
     """The name of each table, its columns, and its rows."""
     projects: tuple[str, ...]
     """The projects whose partitions the rows of the revised tables need."""
+
+
+# The projects that have partitions, by the suffix of their names: the identifier, without dashes.
+_PARTITIONED = (
+    "SELECT DISTINCT right(child.relname, 32) FROM pg_inherits "
+    "JOIN pg_class AS child ON child.oid = inhrelid "
+    "JOIN pg_class AS parent ON parent.oid = inhparent WHERE parent.relname = ANY(%s)"
+)
 
 
 def _tables() -> list[tuple[str, tuple[str, ...]]]:
@@ -79,11 +88,18 @@ def copied(owner: Engine) -> WitnessRows:
 
 
 def laid(owner: Engine, rows: WitnessRows) -> None:
-    """Lay the rows copied again, in one transaction of the owner, its triggers off."""
+    """Lay the rows copied again, in one transaction of the owner, its triggers off.
+
+    The partitions a project already has are kept, not created again: the tests that lay the
+    witness leave those of its projects in place, emptied (``drop_every_partition``).
+    """
     with _connection(owner) as connection, connection.cursor() as cursor:
         cursor.execute("SET LOCAL session_replication_role = replica")
+        cursor.execute(_PARTITIONED, (list(REVISED),))
+        held = {str(row[0]) for row in cursor.fetchall()}
         for project in rows.projects:
-            cursor.execute("SELECT create_project_partitions(%s::uuid)", (project,))
+            if project.replace("-", "") not in held:
+                cursor.execute("SELECT create_project_partitions(%s::uuid)", (project,))
         for name, columns, data in rows.tables:
             query = sql.SQL("COPY {} ({}) FROM STDIN (FORMAT BINARY)").format(
                 sql.Identifier(name), _columns(columns)

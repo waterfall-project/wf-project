@@ -158,7 +158,10 @@ def _row(each: Member, day: date) -> JsonObject:
     }
     if last is None:
         return row
-    row["win_probability"] = decimal(last.probability)
+    # Only an offer has a probability of winning: null for a project in progress or completed
+    # (EP-11, decision of 19 November 2026, #4137).
+    if state == PRICING:
+        row["win_probability"] = decimal(last.probability)
     if last.offer:
         if state == PRICING:
             row["current_estimate"] = money(last.estimate)
@@ -173,11 +176,20 @@ def _row(each: Member, day: date) -> JsonObject:
 
 
 def projects(portfolio: Portfolio) -> JsonObject:
-    """Return the list, sorted by label as without ``sort_by``: code points, then identifier."""
-    rows = [_row(each, portfolio.day) for each in portfolio.retained(STATES)]
+    """Return the list, sorted by label as without ``sort_by``: code points, then identifier.
+
+    Read without a period, it retains no completed project: there is no period in which one would
+    have completed (EP-11, decision of 19 November 2026, #4020 and #4136); ``scope.from`` and
+    ``scope.to`` are null.
+    """
+    retained = portfolio.retained(STATES)
+    kept = [each for each in retained if each.state_on(portfolio.day) != COMPLETED]
+    rows = [_row(each, portfolio.day) for each in kept]
     rows.sort(key=lambda row: (str(row["label"]), str(row["project_id"])))
+    scope = portfolio.scope(STATES, period=False)
+    scope["project_count"] = len(rows)
     return {
-        "scope": portfolio.scope(STATES, period=False),
+        "scope": scope,
         "items": cast("list[JsonValue]", rows),
         "meta": {"limit": 50, "offset": 0, "total": len(rows)},
     }
@@ -580,11 +592,13 @@ def _signals(each: Member, day: date) -> list[JsonValue]:
     """Return the signals of a project in progress, in the order of the codes of the contract."""
     marked = each.kept_on(day)
     last = marked[-1]
-    since = (
-        marked[-2].marked
-        if len(marked) > 1
-        else next(instant for instant, state in each.history if state == IN_PROGRESS)
-    )
+    entered = next(instant for instant, state in each.history if state == IN_PROGRESS)
+    # The interval of the last marking: from the one before it, or from the passage to In progress
+    # if that one is earlier or absent, to the last marking, bounds included (DECISIONS.md, 20
+    # November 2026). A last marking not after the passage is the reference the passage
+    # designated, not a review: the project carries neither of the two signals.
+    judged = last.marked > entered
+    since = max(marked[-2].marked, entered) if len(marked) > 1 else entered
     found: list[JsonValue] = []
 
     def signal(code: str, zone: str = "watch", params: JsonObject | None = None) -> None:
@@ -602,10 +616,10 @@ def _signals(each: Member, day: date) -> list[JsonValue]:
     days = (day - last.marked.date()).days
     if days > 7 * MAX_WEEKS:
         signal("review_overdue", params={"weeks_since_last_mark": days // 7})
-    reviewed = {risk for risk, instant in each.reviews if since < instant <= last.marked}
-    if any(r.state == IDENTIFIED and r.risk_id not in reviewed for r in last.risks):
+    reviewed = {risk for risk, instant in each.reviews if since <= instant <= last.marked}
+    if judged and any(r.state == IDENTIFIED and r.risk_id not in reviewed for r in last.risks):
         signal("risks_not_reviewed")
-    if not any(since < instant <= last.marked for instant in each.imports):
+    if judged and not any(since <= instant <= last.marked for instant in each.imports):
         signal("no_actual_cost_since_last_review")
     for lineage, label, reference, completed in each.milestones:
         if reference < day and (completed is None or completed > day):
@@ -626,11 +640,12 @@ def pilot_health(portfolio: Portfolio) -> JsonObject:
 
     The review overdue past the delay of the reference, in whole weeks; a risk identified with no
     review between the last two marked revisions — since the passage to In progress without a
-    previous one —; no import of actual costs in the same interval, the marking included, as for
-    the actual cost it keeps; a tracked milestone past its reference date that the kept marking
-    did not see completed. The declaration of a risk is its first review: it writes « un premier
-    réexamen daté du jour », and ``listRiskReviews`` renders each review, « l'identification le
-    premier » (EP-08, US-2570 and US-2590); a risk declared in the interval is so reviewed in it.
+    previous one or if it is later —, none for a last marking not after the passage; no import of
+    actual costs in the same interval, bounds included, as for the actual cost it keeps; a tracked
+    milestone past its reference date that the kept marking did not see completed. The declaration
+    of a risk is its first review: it writes « un premier réexamen daté du jour », and
+    ``listRiskReviews`` renders each review, « l'identification le premier » (EP-08, US-2570 and
+    US-2590); a risk declared in the interval is so reviewed in it.
     """
     progressing_ = sorted(
         (each for each in portfolio.retained([IN_PROGRESS]) if each.kept_on(portfolio.day)),

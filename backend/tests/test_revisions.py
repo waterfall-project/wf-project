@@ -843,10 +843,19 @@ def test_the_witness_opens_and_marks_its_revisions_as_the_service_and_the_worker
             row.id: (row.status, row.version_name, row.description, row.source_revision_id)
             for row in session.scalars(select(Revision).where(Revision.project_id == PRJ_001))
         }
-        projects = {row.id: row.current_revision_id for row in session.scalars(select(Project))}
+        # The two projects of the examples: the slice of the portfolio, loaded after them, is
+        # another description (EP-11, US-2770).
+        projects = {
+            row.id: row.current_revision_id
+            for row in session.scalars(select(Project).where(Project.id.in_((PRJ_001, PRJ_002))))
+        }
         structures_of = {
             row.revision_id: row.lineage_id
-            for row in session.scalars(select(CostStructure).where(CostStructure.kind == "main"))
+            for row in session.scalars(
+                select(CostStructure).where(
+                    CostStructure.kind == "main", CostStructure.project_id == PRJ_001
+                )
+            )
         }
     assert revisions == {
         OFFER: ("marked", "Offre v1.0", "Offre remise au client avant la commande.", None),
