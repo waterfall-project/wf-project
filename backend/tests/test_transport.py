@@ -48,6 +48,12 @@ if TYPE_CHECKING:
 START_SECONDS = 60.0
 STOP_SECONDS = 30.0
 VERIFIED = "sslmode=verify-full&sslrootcert=/trust/root.crt"
+# What a process given the root says of an address of PostgreSQL or of Redis it refuses.
+POSTGRESQL_WANTED = "ask sslmode=verify-full, and no other sslmode nor gssencmode"
+REDIS_WANTED = (
+    "be in rediss://, with no parameter ssl_ but ssl_ca_certs, ssl_cert_reqs=required "
+    "and ssl_check_hostname=true"
+)
 # The addresses of a process given the root of the platform, each encrypted.
 ENCRYPTED = {
     "WATERFALL_DATABASE_URL": f"{PLATFORM_SECRETS['WATERFALL_DATABASE_URL']}?{VERIFIED}",
@@ -143,12 +149,64 @@ def test_a_process_given_the_root_refuses_every_address_in_the_clear_naming_it(
     assert api_main.main([]) == 2
     said = faults(capsys)
     for name, wanted in (
-        ("WATERFALL_DATABASE_URL", "ask sslmode=verify-full"),
-        ("WATERFALL_REDIS_URL", "be in rediss://"),
+        ("WATERFALL_DATABASE_URL", POSTGRESQL_WANTED),
+        ("WATERFALL_REDIS_URL", REDIS_WANTED),
         ("WATERFALL_KEYCLOAK_ADDRESS", "be in https://"),
         ("WATERFALL_STORAGE_ADDRESS", "be in https://"),
     ):
         assert f"{name} must {wanted} when WATERFALL_TLS_AUTHORITY is given" in said
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+@pytest.mark.usefixtures("platform_environment")
+@pytest.mark.parametrize(
+    ("name", "query", "verdict"),
+    [
+        ("WATERFALL_REDIS_URL", "", "kept"),
+        ("WATERFALL_REDIS_URL", "?ssl_ca_certs=/trust/root.crt&ssl_cert_reqs=required", "kept"),
+        ("WATERFALL_REDIS_URL", "?ssl_check_hostname=true", "kept"),
+        ("WATERFALL_REDIS_URL", "?ssl_cert_reqs=none", "refused"),
+        ("WATERFALL_REDIS_URL", "?ssl_cert_reqs=optional", "refused"),
+        ("WATERFALL_REDIS_URL", "?ssl_cert_reqs=required&ssl_cert_reqs=none", "refused"),
+        ("WATERFALL_REDIS_URL", "?ssl_check_hostname=false", "refused"),
+        ("WATERFALL_REDIS_URL", "?SSL_CHECK_HOSTNAME=no", "refused"),
+        ("WATERFALL_REDIS_URL", "?ssl_exclude_verify_flags=VERIFY_X509_STRICT", "refused"),
+        ("WATERFALL_REDIS_URL", "?ssl_min_version=TLSv1", "refused"),
+        ("WATERFALL_REDIS_URL", "?ssl_ciphers=NULL", "refused"),
+        ("WATERFALL_DATABASE_URL", "?sslmode=verify-full", "kept"),
+        ("WATERFALL_DATABASE_URL", "?sslmode=verify-full&gssencmode=disable", "kept"),
+        ("WATERFALL_DATABASE_URL", "?sslmode=verify-ca", "refused"),
+        ("WATERFALL_DATABASE_URL", "?sslmode=require", "refused"),
+        ("WATERFALL_DATABASE_URL", "?sslmode=prefer", "refused"),
+        ("WATERFALL_DATABASE_URL", "?sslmode=verify-full&sslmode=disable", "refused"),
+        ("WATERFALL_DATABASE_URL", "?SSLMODE=allow&sslmode=verify-full", "refused"),
+        ("WATERFALL_DATABASE_URL", "?sslmode=verify-full&gssencmode=prefer", "refused"),
+        ("WATERFALL_DATABASE_URL", "", "refused"),
+    ],
+)
+def test_a_process_given_the_root_refuses_an_address_that_loosens_the_check_of_the_certificate(
+    name: str,
+    query: str,
+    verdict: str,
+    certified: Certified,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Encrypted, but with the check of the certificate or of its name turned off or loosened.
+    monkeypatch.setenv("WATERFALL_TLS_AUTHORITY", str(certified.root))
+    for each, value in ENCRYPTED.items():
+        monkeypatch.setenv(each, value)
+    plain = {
+        "WATERFALL_REDIS_URL": ENCRYPTED["WATERFALL_REDIS_URL"],
+        "WATERFALL_DATABASE_URL": PLATFORM_SECRETS["WATERFALL_DATABASE_URL"],
+    }
+    monkeypatch.setenv(name, plain[name] + query)
+    wanted = REDIS_WANTED if name == "WATERFALL_REDIS_URL" else POSTGRESQL_WANTED
+    if verdict == "kept":
+        assert load_service_settings().tls_authority == str(certified.root)
+        return
+    with pytest.raises(SettingsError) as found:
+        load_service_settings()
+    assert f"{name} must {wanted} when WATERFALL_TLS_AUTHORITY is given" in str(found.value)
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")

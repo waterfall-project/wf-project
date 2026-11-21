@@ -10,10 +10,11 @@ The transport (US-2840): ``tls_authority`` names the file of the roots a process
 exchanges inside the platform, the root of its authority. Given, it must be read, and every address
 of a component of data must be encrypted — PostgreSQL with ``sslmode=verify-full``, which checks
 the certificate and its name, Redis in ``rediss://``, the object storage and Keycloak in
-``https://`` —, or the process stops, naming what is wrong. PostgreSQL and Redis read the root
-from their address, as their drivers do (``sslrootcert``, ``ssl_ca_certs``); the clients of
-Keycloak and of the storage, from this setting. Not given, the addresses are taken as they are:
-the workstation and the tests reach their components on the loopback.
+``https://`` —, with no parameter that turns the check off or loosens it, or the process stops,
+naming what is wrong. PostgreSQL and Redis read the root from their address, as their drivers do
+(``sslrootcert``, ``ssl_ca_certs``); the clients of Keycloak and of the storage, from this setting.
+Not given, the addresses are taken as they are: the workstation and the tests reach their
+components on the loopback.
 """
 
 import ssl
@@ -95,13 +96,68 @@ def _roots(path: str | None) -> str | None:
 type Roots = Annotated[str | None, BeforeValidator(_none_when_empty), AfterValidator(_roots)]
 
 
-def verifies_postgresql(address: str) -> bool:
-    """Tell whether an address of PostgreSQL asks libpq to check the certificate and its name."""
+def _query(address: str) -> dict[str, list[str]] | None:
+    """Read the parameters of an address, each name in lower case; None if it does not read."""
     try:
-        query = parse_qs(urlsplit(address).query)
+        parsed = parse_qs(urlsplit(address).query, keep_blank_values=True)
     except ValueError:
+        return None
+    query: dict[str, list[str]] = {}
+    for name, values in parsed.items():
+        query.setdefault(name.lower(), []).extend(values)
+    return query
+
+
+def verifies_postgresql(address: str) -> bool:
+    """Tell whether an address of PostgreSQL asks libpq to check the certificate and its name.
+
+    Every ``sslmode`` it gives is ``verify-full``, whichever libpq would keep. ``gssencmode`` other
+    than ``disable`` is refused too: libpq prefers the encryption of GSSAPI where it can, and then
+    checks no certificate, whatever ``sslmode`` says.
+    """
+    query = _query(address)
+    if query is None:
         return False
-    return query.get("sslmode", [""])[-1] == "verify-full"
+    modes = query.get("sslmode", [])
+    return (
+        bool(modes)
+        and all(mode == "verify-full" for mode in modes)
+        and all(mode == "disable" for mode in query.get("gssencmode", []))
+    )
+
+
+REDIS_TRUE = frozenset({"1", "T", "TRUE", "Y", "YES"})
+"""What redis-py reads as true in an address: the other values turn a check off."""
+
+
+def _keeps_the_check(name: str, value: str) -> bool:
+    """Tell whether a parameter ``ssl_*`` of an address of Redis leaves the check whole."""
+    if name == "ssl_ca_certs":
+        return True
+    if name == "ssl_cert_reqs":
+        return value == "required"
+    if name == "ssl_check_hostname":
+        return value.upper() in REDIS_TRUE
+    return False
+
+
+def verifies_redis(address: str) -> bool:
+    """Tell whether an address of Redis asks redis-py for TLS, the certificate and its name checked.
+
+    In ``rediss://``, redis-py checks both by default; a parameter of the address can turn either
+    off (``ssl_cert_reqs=none``, ``ssl_check_hostname=false``), or loosen what is checked (the flags
+    of the check, the versions, the ciphers). Of the parameters ``ssl_*``, only the file of the
+    roots, ``ssl_cert_reqs=required`` and ``ssl_check_hostname`` true are admitted.
+    """
+    query = _query(address)
+    if query is None or not address.startswith("rediss://"):
+        return False
+    return all(
+        _keeps_the_check(name, value)
+        for name, values in query.items()
+        if name.startswith("ssl")
+        for value in values
+    )
 
 
 def encrypted_fault(name: str, *, encrypted: bool, wanted: str) -> list[str]:
@@ -136,7 +192,7 @@ class PlatformSettings(BaseSettings):
             for fault in encrypted_fault(
                 name,
                 encrypted=verifies_postgresql(getattr(self, name).get_secret_value()),
-                wanted="ask sslmode=verify-full",
+                wanted="ask sslmode=verify-full, and no other sslmode nor gssencmode",
             )
         ]
 
@@ -171,9 +227,12 @@ class Settings(PlatformSettings):
     port: int = Field(default=8000, ge=1, le=65535)
 
     def transport_faults(self) -> list[str]:
-        """Add Redis, which must be reached in ``rediss://``."""
-        encrypted = self.redis_url.get_secret_value().startswith("rediss://")
-        wanted = "be in rediss://"
+        """Add Redis, which must be reached in ``rediss://``, its certificate checked."""
+        encrypted = verifies_redis(self.redis_url.get_secret_value())
+        wanted = (
+            "be in rediss://, with no parameter ssl_ but ssl_ca_certs, ssl_cert_reqs=required "
+            "and ssl_check_hostname=true"
+        )
         return [
             *super().transport_faults(),
             *encrypted_fault("redis_url", encrypted=encrypted, wanted=wanted),
