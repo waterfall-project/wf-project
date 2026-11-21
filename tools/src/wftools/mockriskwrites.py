@@ -31,7 +31,9 @@ their answers are read, as the register is, from the risks of ``wftools.mockwitn
 - and the occurrence of the rework of the wiring before its confirmation (US-0680, #1383): its own
   estimate, the structure 204, read (``nodes_risk_estimate``, WF-RIS-0030); the report of what its
   occurrence would make of the main structure of the current revision (``risk_occurrence_report``,
-  WF-RIS-0060), and the confirmation that returns what it read (``risk_occurrence_sent``); the
+  WF-RIS-0060), its counterfactual variant whose task bearing the provision is completed, which
+  the report names (``risk_occurrence_report_completed_task``, #4240), and the confirmation that
+  returns what it read (``risk_occurrence_sent``); the
   report and the occurrence refused for a risk not identified (``risk_occurrence_not_identified``),
   and the confirmation refused for a report gone stale (``risk_occurrence_report_stale``,
   WF-IHM-0110).
@@ -546,7 +548,21 @@ def risk_occurrence_report() -> JsonObject:
         "provision_amount": risk["provision_amount"],
         "refusals": [],
         "own_estimate_past_planning_start_on": OCCURRING.reviews[0].at.date().isoformat(),
+        "completed_provision_task": None,
     }
+
+
+def risk_occurrence_report_completed_task() -> JsonObject:
+    """Return the report of the rework of the wiring, the task bearing its provision completed.
+
+    A declared counterfactual: the wiring of the cabinets is started in the witness. Completed, the
+    graft would make it the summary of the tasks of the own estimate, not started again, its earned
+    value falling back: the report names it by its node and its label, a warning beside the rest,
+    which it does not change — it refuses nothing, and the graft writes nothing else (#4240).
+    """
+    task = bearer()
+    named: JsonObject = {"node_id": task.node["node_id"], "label": task.label}
+    return {**risk_occurrence_report(), "completed_provision_task": named}
 
 
 def risk_occurrence_sent() -> JsonObject:
@@ -738,13 +754,28 @@ def _occurrence_examples() -> dict[str, JsonObject]:
             f"{mocktext.day(started)}, "
             f"avant le jour de la lecture, le compte rendu le dit "
             f"(own_estimate_past_planning_start_on) : ses tâches gardent les dates qu'elles y "
-            f"avaient, passées (#4133). Rien n'est écrit : la confirmation, qui "
+            f"avaient, passées (#4133). Le « {task.label} » n'étant que démarré, il n'est pas "
+            f"signalé (completed_provision_task nul, risk_occurrence_report_completed_task ; "
+            f"#4240). Rien n'est écrit : la confirmation, qui "
             f"renverra les compteurs lus — celui de la structure principale, "
             f"{report['main_structure_lock_version']}, comme `structures` le dit, et celui du "
             f"risque, {report['risk_lock_version']}, comme `risk` le dit, et "
             f"creates_current_revision faux, la révision en cours existant déjà —, est offerte "
             f"(risk_occurrence_sent ; WF-RIS-0060, WF-IHM-0110, #1383).",
             report,
+        ),
+        "risk_occurrence_report_completed_task.json": mocktext.example(
+            f"Variante contrefactuelle de risk_occurrence_report : le « {task.label} », qui "
+            f"porte la ligne de provision de « {OCCURRING.label} » et n'est que démarré dans le "
+            f"témoin, tenu pour terminé. La survenance y greffe le devis propre : la tâche "
+            f"devient la récapitulative de {said}, non démarrées, et son état se déduisant du "
+            f"leur, elle repasse non démarrée ; la valeur acquise qu'elle avait retombe. Le compte "
+            f"rendu la nomme, par son nœud et son libellé (completed_provision_task) : un "
+            f"avertissement, non un motif de refus — refusals reste vide, la survenance "
+            f"s'applique et la greffe n'écrit rien d'autre. Le reste du compte rendu est celui "
+            f"de risk_occurrence_report, que la variante ne change pas. Règle provisoire, "
+            f"qu'EP-30 reprend (WF-RIS-0060, WF-PLA-0040, WF-IND-0030, #4240).",
+            risk_occurrence_report_completed_task(),
         ),
         "risk_occurrence_sent.json": mocktext.example(
             f"La confirmation de la survenance de « {OCCURRING.label} », après son compte rendu "

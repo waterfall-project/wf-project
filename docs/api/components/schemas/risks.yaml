@@ -201,7 +201,9 @@ ProvisionTask:
   required: [node_id, label]
   description: >-
     The task of the main structure that carries the provision line of a risk
-    (WF-RIS-0010), by its node and its label, as a refusal names a task.
+    (WF-RIS-0010), by its node and its label, as a refusal names a task. The report of an
+    occurrence names it the same way when it is completed
+    (`RiskOccurrenceReport.completed_provision_task`, #4240).
   properties:
     node_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 300 }
@@ -549,6 +551,19 @@ RiskOccurrenceReport:
         they had in the own estimate (WF-RIS-0060, WF-PLA-0020), which then lie in the past
         (#4133). A change of the start date of the own estimate (`updateCostStructure`) advances
         `risk_lock_version`, so that a report read before it is stale.
+    completed_provision_task:
+      anyOf: [{ $ref: '#/ProvisionTask' }, { type: 'null' }]
+      description: >-
+        The task that carries the provision line (`Risk.provision_task`) when it is completed and
+        the own estimate is grafted under it — a milestone, after which the graft goes, is never
+        named —, by its node in the main structure read and its label; null otherwise, and when
+        absent. A warning, not a refusal: it is not in `refusals`, the occurrence applies, and
+        the graft writes nothing else. The task becomes the summary task of the grafted tasks,
+        its state derived from theirs, not started (WF-PLA-0040): it is not started again, and
+        the earned value it had acquired falls back (WF-IND-0030) — its `updated` difference is
+        among `differences` (#4240). A provisional rule: EP-30, which prepares the own estimate
+        as a differential, takes it over, extending the warning to every task the occurrence
+        reopens.
 
 RiskMatrixCell:
   type: object

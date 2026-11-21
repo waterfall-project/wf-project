@@ -6,11 +6,13 @@ EP-16/US-0640/L3, #788 and #790. They try the examples written by hand for these
 witness they speak of and against the contract: the failure of `mergeCostStructure` and its report
 naming the tasks of a loop of links or the task beyond the horizon, the command `merge_structure`
 of the last marked revision of a project without a current revision, the report that says the
-merge creates that revision, and the refusal once a revision is in progress — not the Vérif of a
-requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
+merge creates that revision — refused on the witness, the amendment 2 out of date on the reference
+(#4174) —, and the refusal once a revision is in progress — not the Vérif of a requirement: none
+cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
 """
 
-from typing import Any
+import json
+from typing import Any, cast
 
 import pytest
 
@@ -19,6 +21,7 @@ from wftools.mockids import universe
 from wftools.mockwitness import AMENDMENT_MERGED, RISK_751_REVIEWED, N, fixture
 
 PATHS = REPOSITORY / "docs" / "api" / "paths"
+EXAMPLES = REPOSITORY / "fixtures" / "api"
 SCHEMAS = REPOSITORY / "docs" / "api" / "components" / "schemas"
 
 REPORTS = (
@@ -29,9 +32,14 @@ REPORTS = (
     "structure_merge_report_link_cycle",
     "structure_merge_report_link_forbidden",
     "structure_merge_report_horizon_exceeded",
-    "structure_merge_report_without_current_revision",
 )
 """Every example of `getStructureMergeReport`, in the order of the contract."""
+
+
+def summary(name: str) -> str:
+    """Return the summary of an example of the contract, by its name."""
+    text = (EXAMPLES / f"{name}.json").read_text(encoding="utf-8")
+    return cast("str", json.loads(text)["summary"])
 
 
 def _operation(name: str, file: str = "revisions.yaml") -> str:
@@ -63,8 +71,9 @@ def test_every_report_before_a_merge_says_whether_the_merge_creates_the_current_
     report = _operation("getStructureMergeReport")
     for name in REPORTS:
         assert f"fixtures/api/{name}.json" in report, name
-        creates = fixture(name)["creates_current_revision"]
-        assert creates is (name == "structure_merge_report_without_current_revision"), name
+        # The witness has no report of a merge that creates the current revision: the amendment
+        # 2, the only differential of the reference, is out of date there (#4174).
+        assert fixture(name)["creates_current_revision"] is False, name
 
 
 @pytest.mark.parametrize(
@@ -201,18 +210,36 @@ def test_the_last_marked_revision_offers_the_merge_while_the_project_has_no_curr
     assert "fixtures/api/revision_marked_merge_offered.json" in _operation("getRevision")
 
 
-def test_the_report_of_a_merge_without_current_revision_says_it_creates_it_then_refused_today() -> (
-    None
-):
-    # The report read on the reference that day says the merge creates the current revision by
-    # copy, merges into it and marks it; its differences are those of the amendment 2, which the
-    # revision 102 took over with it. Today, a revision being in progress, the merge asked on the
-    # reference is refused by the condition its command lacks, nothing merged, no revision created.
-    report = fixture("structure_merge_report_without_current_revision")
-    today = fixture("structure_merge_report")
-    assert report["creates_current_revision"] is True
-    assert report["differences"] == today["differences"]
-    assert (report["completed_tasks"], report["refusals"]) == ([], [])
+@pytest.mark.story("US-3060")
+def test_the_merge_on_the_reference_without_current_revision_is_refused_out_of_date() -> None:
+    # #4174: the amendment 2, opened before the merge of the amendment 1 that marked the
+    # reference, is out of date there, and a marked revision is not updated. The command offered
+    # that day does not judge it; the report and the merge are refused by its last condition. The
+    # current revision took it over and updated it: up to date there, its merge applies.
+    [amendment] = [
+        each
+        for each in fixture("structures_amendments")
+        if each["kind"] == "amendment" and not each["is_merged"]
+    ]
+    assert amendment["is_up_to_date"] is False
+    refused = fixture("merge_reference_out_of_date_refused")
+    assert (refused["status"], refused["code"]) == (409, "STATE_FORBIDS_OPERATION")
+    assert refused["params"] == {"missing_condition": "structure_up_to_date"}
+    for operation in ("getStructureMergeReport", "mergeCostStructure"):
+        assert "fixtures/api/merge_reference_out_of_date_refused.json" in _operation(operation)
+    assert not (EXAMPLES / "structure_merge_report_without_current_revision.json").exists()
+    [current] = [each for each in fixture("structures") if each["label"] == amendment["label"]]
+    assert current["is_up_to_date"] is True
+    report = fixture("structure_merge_report")
+    assert report["amendment_lock_version"] == current["lock_version"]
+    assert (report["creates_current_revision"], report["refusals"]) == (False, [])
+    for name in ("revision_marked_merge_offered", "merge_may_create_revision_refused"):
+        assert "en retard sur la référence 101" in summary(name), name
+
+
+def test_the_merge_asked_today_on_the_reference_is_refused_its_draft_lacking() -> None:
+    # Today, a revision being in progress, the merge asked on the reference is refused by the
+    # condition its command lacks, nothing merged, no revision created.
     refused = fixture("merge_revision_marked_refused")
     _, missing = _command(fixture("revision_marked"), "merge_structure")
     assert (refused["status"], refused["code"]) == (409, "STATE_FORBIDS_OPERATION")
