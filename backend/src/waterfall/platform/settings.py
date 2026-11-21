@@ -420,9 +420,13 @@ class ScheduleSettings(Settings):
     the retention of the tasks does not make a task due again at each purge. Under Helm the first
     reading may leave before the realm of Keycloak is applied (a hook after the installation): it
     then fails and the next is due at the next occurrence of its schedule.
+    ``restore_test_interval``, in seconds, plans the test of a restoration under Kubernetes, where
+    the worker starts it (``restore_test_job``); none, the default, plans none: under Compose a
+    planned task of the host runs it (US-2930).
     """
 
     purge_interval: int = Field(default=600, ge=1)
+    restore_test_interval: int | None = Field(default=None, ge=1)
 
 
 class WorkerSettings(ServiceSettings):
@@ -439,12 +443,15 @@ class WorkerSettings(ServiceSettings):
     nor turn a trigger off (#895). Never the owner of the tables, who could give itself back the
     rights or turn off the trigger of the journal, nor a superuser (#701). The worker connects by
     either to dump alone.
+    ``restore_test_job`` is the file of the Job of the test of a restoration the worker makes in its
+    namespace under Kubernetes, which the chart mounts; none, it runs no test (US-2930).
     """
 
     backup_database_url: SecretStr = Field(min_length=1)
     keycloak_database_url: SecretStr = Field(min_length=1)
     metrics_port: int = Field(default=9100, ge=1, le=65535)
     undo_retention_hours: int = Field(default=12, ge=1)
+    restore_test_job: str | None = Field(default=None, min_length=1)
 
 
 # The largest avatar a new installation accepts, as the specification ships it (§4.4.1).

@@ -10,8 +10,9 @@ what expired in the object storage included.
 
 A kind is scheduled by one line of ``planned``: the kind, and what says it is due. The reading of
 the purge is due at an interval of the installation; the backup (US-2910) and the reading of the
-accounts (US-3040) are due when their schedules, which an administrator sets, say so, and the test
-of a restoration (US-2930) will join them, each asking the module that holds its planning.
+accounts (US-3040) are due when their schedules, which an administrator sets, say so, each asking
+the module that holds its planning; the test of a restoration (US-2930), under Kubernetes alone, at
+an interval of the installation, once a scheduled backup is there to test.
 A task of a kind is never deposited while one of that kind is queued or running, and two
 schedules, run together, deposit it once: they wait on one advisory lock. A backup is deposited
 as ``startBackup`` does, under the same locks in the same order (``waterfall.platform.locks``) and
@@ -19,7 +20,7 @@ under the same conditions: none is deposited while a backup or a restoration is 
 and a restoration asked for meanwhile waits for it, or sees it.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -82,7 +83,19 @@ def planned(settings: ScheduleSettings) -> tuple[Planned, ...]:
             ),
             locks=((BACKUP_LOCK, False), (RESTORE_LOCK, True)),
         ),
+        *restore_test_planned(settings),
     )
+
+
+def restore_test_planned(settings: ScheduleSettings) -> tuple[Planned, ...]:
+    """Plan the test of a restoration when the installation gives its interval, else nothing.
+
+    Without a scheduled backup verified, none is deposited: the test would have nothing to restore.
+    """
+    if settings.restore_test_interval is None:
+        return ()
+    interval = every("restore_test", settings.restore_test_interval)
+    return (replace(interval, lacks=backups_interface.restore_test_lacks),)
 
 
 def deposit_due(database: Database, queue: TaskQueue, plan: tuple[Planned, ...]) -> list[str]:

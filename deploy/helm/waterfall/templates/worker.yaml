@@ -22,6 +22,10 @@ spec:
         {{- include "waterfall.selector" (list . "worker") | nindent 8 }}
     spec:
       {{- include "waterfall.podDefaults" . | nindent 6 }}
+      {{- if .Values.restoreTest.enabled }}
+      # It makes the Job of the test of a restoration (restore-test.yaml).
+      serviceAccountName: {{ include "waterfall.name" (list . "worker") }}
+      {{- end }}
       initContainers:
         {{- include "waterfall.waitForDatabase" (list . "waterfall_service" "waterfall" "WATERFALL_SERVICE_DATABASE_PASSWORD") | nindent 8 }}
       containers:
@@ -48,8 +52,24 @@ spec:
               value: 0.0.0.0
             - name: WATERFALL_METRICS_PORT
               value: {{ .Values.metrics.port | quote }}
+            {{- if .Values.restoreTest.enabled }}
+            - name: WATERFALL_RESTORE_TEST_JOB
+              value: /restore-test/job.json
+            {{- end }}
           ports:
             - name: metrics
               containerPort: {{ .Values.metrics.port }}
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
+          {{- if .Values.restoreTest.enabled }}
+          volumeMounts:
+            - name: restore-test
+              mountPath: /restore-test
+              readOnly: true
+      volumes:
+        - name: restore-test
+          configMap:
+            name: {{ include "waterfall.name" (list . "restore-test") }}
+            items:
+              - { key: job.json, path: job.json }
+          {{- end }}

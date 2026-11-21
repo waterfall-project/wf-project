@@ -1,0 +1,243 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The test of a restoration (US-2930, WF-EXP-0060), as compose.restore-test.yaml makes it under
+# Compose. The schedule deposits the task restore_test once a month (restoreTest.interval), once a
+# scheduled backup verified is there to test; the worker makes the Job below, named after its task,
+# in the namespace of the installation (waterfall.worker.restore_test), as the service account
+# <release>-worker, which may create Jobs and nothing else.
+#
+# The Job is one pod: the PostgreSQL, the Keycloak and the API of the test, sidecars that listen on
+# its loopback alone, and the test, `waterfall-restore test`, which restores the latest scheduled
+# backup verified into that PostgreSQL, then writes /restore-test/restored, on which Keycloak and
+# the API start; it counts, compares, and gives its outcome to the production, which inscribes it.
+# The pod declares no port, no Service selects it, it mounts no token of the cluster, and the
+# NetworkPolicy below closes it to every other pod: none of it is reachable by a user. It leaves
+# only for the names, the PostgreSQL and the storage of the production. Its password is drawn at
+# each test, in memory; its databases are on a volume of the pod: once the test has ended, the
+# sidecars stop, and Kubernetes deletes the Job, its pod and its volumes at once
+# (ttlSecondsAfterFinished: 0) — the only place out of the production where a copy not anonymised
+# exists (WF-EXP-0010) does not outlive the test. restoreTest.deadline bounds it.
+{{- if .Values.restoreTest.enabled }}
+{{- $storage := urlParse (include "waterfall.storageAddress" .) }}
+{{- $storagePort := 80 }}
+{{- if contains ":" $storage.host }}
+{{- $storagePort = splitList ":" $storage.host | last | int }}
+{{- else if eq $storage.scheme "https" }}
+{{- $storagePort = 443 }}
+{{- end }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "waterfall.name" (list . "worker") }}
+  labels:
+    {{- include "waterfall.labels" (list . "worker") | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "waterfall.name" (list . "restore-test") }}
+  labels:
+    {{- include "waterfall.labels" (list . "restore-test") | nindent 4 }}
+rules:
+  # Create alone: the Job is named after its task, a second creation is refused (409).
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "waterfall.name" (list . "restore-test") }}
+  labels:
+    {{- include "waterfall.labels" (list . "restore-test") | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "waterfall.name" (list . "restore-test") }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "waterfall.name" (list . "worker") }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "waterfall.name" (list . "restore-test") }}
+  labels:
+    {{- include "waterfall.labels" (list . "restore-test") | nindent 4 }}
+data:
+  job.json: {{ include "waterfall.restoreTestJob" . | fromYaml | toJson | quote }}
+  restore-test-database.sql: |-
+    {{- .Files.Get "files/restore-test-database.sql" | trimSuffix "\n" | nindent 4 }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "waterfall.name" (list . "restore-test") }}
+  labels:
+    {{- include "waterfall.labels" (list . "restore-test") | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "waterfall.selector" (list . "restore-test") | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  # No rule: nothing enters.
+  ingress: []
+  egress:
+    - ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+        - { protocol: TCP, port: {{ include "waterfall.postgresPort" . | int }} }
+        - { protocol: TCP, port: {{ $storagePort }} }
+{{- end }}
+
+{{- define "waterfall.restoreTestJob" -}}
+{{- $test := .Values.restoreTest -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "waterfall.name" (list . "restore-test") }}
+  labels:
+    {{- include "waterfall.selector" (list . "restore-test") | nindent 4 }}
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: {{ $test.deadline | int }}
+  ttlSecondsAfterFinished: 0
+  template:
+    metadata:
+      labels:
+        {{- include "waterfall.selector" (list . "restore-test") | nindent 8 }}
+    spec:
+      {{- include "waterfall.podDefaults" . | nindent 6 }}
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      initContainers:
+        # The password of the test, drawn at each test, in memory, which dies with the pod.
+        - name: password
+          image: {{ include "waterfall.image" (list . "waterfall") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - umask 077 && od -An -N24 -tx1 /dev/urandom | tr -d ' \n' > /restore-test/password
+          volumeMounts:
+            - { name: shared, mountPath: /restore-test }
+        # PostgreSQL, empty: the owners of the two databases and the role of the service, made at
+        # its initialisation (restore-test-database.sql), on the loopback alone.
+        - name: postgres
+          image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
+          imagePullPolicy: IfNotPresent
+          restartPolicy: Always
+          command:
+            - sh
+            - -c
+            - |-
+              RESTORE_TEST_PASSWORD="$(cat /restore-test/password)"
+              export RESTORE_TEST_PASSWORD POSTGRES_PASSWORD="$RESTORE_TEST_PASSWORD"
+              exec docker-entrypoint.sh postgres -c listen_addresses=127.0.0.1 -c max_locks_per_transaction=1024
+          env:
+            - { name: POSTGRES_USER, value: postgres }
+          startupProbe:
+            exec:
+              command: [pg_isready, --host, 127.0.0.1, --username, postgres, --dbname, postgres]
+            periodSeconds: 2
+            failureThreshold: 150
+          volumeMounts:
+            - { name: shared, mountPath: /restore-test, readOnly: true }
+            - { name: databases, mountPath: /var/lib/postgresql }
+            - name: files
+              mountPath: /docker-entrypoint-initdb.d/restore-test-database.sql
+              subPath: restore-test-database.sql
+              readOnly: true
+        # Keycloak, on its database restored, once the test has restored it: the realm of the
+        # backup, issued at the address of the production, which nobody reaches here.
+        - name: keycloak
+          image: {{ include "waterfall.image" (list . "keycloak") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          restartPolicy: Always
+          command:
+            - bash
+            - -c
+            - |-
+              until [ -f /restore-test/restored ]; do sleep 5; done
+              KC_DB_PASSWORD="$(cat /restore-test/password)"
+              export KC_DB_PASSWORD
+              exec /opt/keycloak/bin/kc.sh start --optimized
+          env:
+            - { name: KC_DB_URL, value: "jdbc:postgresql://127.0.0.1:5432/keycloak" }
+            - { name: KC_DB_USERNAME, value: keycloak }
+            - name: KC_HOSTNAME
+              value: {{ printf "%s/auth" (include "waterfall.address" .) | quote }}
+            - { name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC, value: "true" }
+            - { name: KC_HTTP_ENABLED, value: "true" }
+            - { name: KC_HTTP_HOST, value: 127.0.0.1 }
+            - { name: KC_HTTP_MANAGEMENT_HOST, value: 127.0.0.1 }
+            - { name: KC_CACHE, value: local }
+          volumeMounts:
+            - { name: shared, mountPath: /restore-test, readOnly: true }
+        # The API, on the database restored, as its owner, on the loopback (WATERFALL_HOST is not
+        # given). Neither Redis nor the storage: its readiness, which the test asks alone, needs its
+        # database, and says whether Keycloak answers.
+        - name: api
+          image: {{ include "waterfall.image" (list . "waterfall") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          restartPolicy: Always
+          command:
+            - sh
+            - -c
+            - |-
+              until [ -f /restore-test/restored ]; do sleep 5; done
+              password="$(cat /restore-test/password)"
+              export WATERFALL_DATABASE_URL="postgresql://waterfall:${password}@127.0.0.1:5432/waterfall"
+              export WATERFALL_REDIS_URL="redis://:${password}@127.0.0.1:6379/0"
+              export WATERFALL_SERVICE_CLIENT_SECRET="$password" WATERFALL_STORAGE_SECRET="$password"
+              exec waterfall-api
+          env:
+            - name: WATERFALL_KEYCLOAK_ADDRESS
+              value: {{ printf "%s/auth" (include "waterfall.address" .) | quote }}
+            - { name: WATERFALL_KEYCLOAK_BACKCHANNEL, value: "http://127.0.0.1:8080/auth" }
+            - { name: WATERFALL_STORAGE_ADDRESS, value: "http://127.0.0.1:3900" }
+            - { name: WATERFALL_STORAGE_ACCESS_KEY, value: restore-test }
+            - { name: WATERFALL_PORT, value: "8000" }
+          volumeMounts:
+            - { name: shared, mountPath: /restore-test, readOnly: true }
+      containers:
+        # The test: 0 if it succeeded, 1 if it failed; the pod ends with it, its sidecars stopped.
+        - name: restore-test
+          image: {{ include "waterfall.image" (list . "waterfall") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - |-
+              password="$(cat /restore-test/password)"
+              export WATERFALL_RESTORE_TEST_DATABASE_URL="postgresql://waterfall:${password}@127.0.0.1:5432/waterfall"
+              export WATERFALL_RESTORE_TEST_KEYCLOAK_DATABASE_URL="postgresql://keycloak:${password}@127.0.0.1:5432/keycloak"
+              exec waterfall-restore test
+          env:
+            {{- include "waterfall.secretEnv" (list . "WATERFALL_SERVICE_DATABASE_PASSWORD") | nindent 12 }}
+            - name: WATERFALL_DATABASE_URL
+              value: {{ printf "postgresql://waterfall_service:$(WATERFALL_SERVICE_DATABASE_PASSWORD)@%s/waterfall" (include "waterfall.postgresAddress" .) | quote }}
+            {{- include "waterfall.storageEnvironment" . | nindent 12 }}
+            - { name: WATERFALL_RESTORE_TEST_API_ADDRESS, value: "http://127.0.0.1:8000" }
+            - { name: WATERFALL_RESTORE_TEST_RESTORED_FILE, value: /restore-test/restored }
+            - name: WATERFALL_RESTORE_TEST_PATIENCE
+              value: {{ $test.patience | int | toString | quote }}
+          volumeMounts:
+            - { name: shared, mountPath: /restore-test }
+          resources:
+            {{- toYaml $test.resources | nindent 12 }}
+      volumes:
+        - name: shared
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi
+        - name: databases
+          emptyDir: {}
+        - name: files
+          configMap:
+            name: {{ include "waterfall.name" (list . "restore-test") }}
+            items:
+              - { key: restore-test-database.sql, path: restore-test-database.sql }
+{{- end -}}

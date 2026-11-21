@@ -41,6 +41,7 @@ from waterfall.worker.backup import BackupTask
 from waterfall.worker.identity_sync import IdentitySync
 from waterfall.worker.marking import mark
 from waterfall.worker.purge import PurgeTask
+from waterfall.worker.restore_test import RestoreTestJob
 from waterfall.worker.runner import Worker
 from waterfall.worker.schedule import deposit_due, planned
 
@@ -75,10 +76,11 @@ def handlers(
     The marking is the first task of the trade (US-0970); the analysis and the application of an
     import and an export are the exchanges' (EP-06). The reading of the accounts counts in
     ``metrics`` the directories it could not read (#917). The purge is the task of what expired,
-    which the schedule deposits (EP-13, "Une commande planifiée unique").
+    which the schedule deposits (EP-13, "Une commande planifiée unique"); the test of a restoration,
+    under Kubernetes alone, the Job the settings name (US-2930).
     """
     imports = exchanges.ImportTasks.of(settings)
-    return {
+    run: dict[str, TaskHandler] = {
         "backup": BackupTask.of(settings),
         "identity_sync": IdentitySync.of(settings, metrics),
         "revision_mark": mark,
@@ -87,6 +89,9 @@ def handlers(
         "export": exchanges.ExportTask.of(settings),
         "purge": PurgeTask.of(settings),
     }
+    if settings.restore_test_job is not None:
+        run["restore_test"] = RestoreTestJob.of(settings.restore_test_job)
+    return run
 
 
 logger = get_logger(__name__)

@@ -5,8 +5,9 @@
 What it presents comes from three places (WF-OBS-0010): the availabilities, the spaces, the
 versions and the alerts from the metrics, read by the query API of Prometheus
 (``waterfall.platform.prometheus``, TFX-14); the dates and the results of the latest reading of the
-accounts and of the latest backup from the database; the operating parameters from the settings of
-the process, the largest avatar from the installation, where the bootstrap writes it (#3965).
+accounts, of the latest backup and of the latest test of a restoration from the database; the
+operating parameters from the settings of the process, the largest avatar from the installation,
+where the bootstrap writes it (#3965).
 
 Prometheus unavailable, the metrics are not presented (§4.5.4, table 12): the component ``metrics``
 is said unavailable, alone, no alert is said, and the storage is the one nothing measured.
@@ -18,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 from waterfall import __version__
 from waterfall.api.contract.models import AlertZone, Code, PlatformComponent, SystemStatus
+from waterfall.core.backups.interface import latest_restore_test
 from waterfall.platform.installation import read_settings
 from waterfall.platform.prometheus import Prometheus, PrometheusError
 from waterfall.platform.settings import OperatingParameters
@@ -144,6 +146,23 @@ def outcome(session: Session, kind: TaskKind) -> dict[str, Any] | None:
     return {"at": ended.at, "succeeded": ended.succeeded, "problem": problem}
 
 
+# What a failed test of a restoration says, or one that did not take place: the catalogue of the
+# errors does not name the reasons of a test, which its row and its journal keep (US-2930/L2).
+RESTORE_TEST_FAILED = {"code": "INTERNAL_ERROR", "status": 500}
+
+
+def restore_test(session: Session, now: datetime) -> dict[str, Any] | None:
+    """Give the date and the result of the latest test of a restoration (WF-EXP-0060).
+
+    A latest test older than a month says the test that was due missed (#4643).
+    """
+    latest = latest_restore_test(session, now)
+    if latest is None:
+        return None
+    problem = None if latest.succeeded else dict(RESTORE_TEST_FAILED)
+    return {"at": latest.at, "succeeded": latest.succeeded, "problem": problem}
+
+
 def parameters_of(parameters: OperatingParameters, avatar_max_bytes: int) -> dict[str, Any]:
     """Give the seven operating parameters in force, as the contract names them (§4.5.1)."""
     return {
@@ -162,7 +181,7 @@ def system_status(
 ) -> SystemStatus:
     """Describe the state of the platform from what the metrics said and what the database holds.
 
-    The latest external copy and the latest restore test are not kept yet: null (US-2910, US-2930).
+    The latest external copy is not kept yet: null (US-2910).
     The alerts come the latest first.
     """
     said = [] if observation is None else [alert(firing) for firing in observation.alerts]
@@ -181,7 +200,7 @@ def system_status(
             "last_identity_sync": outcome(session, "identity_sync"),
             "last_backup": outcome(session, "backup"),
             "last_backup_copy": None,
-            "last_restore_test": None,
+            "last_restore_test": restore_test(session, now),
             "alerts": alerts,
         }
     )

@@ -31,6 +31,9 @@ and, once more:
   (WF-ARC-0080-A, US-2820): each instance of the API answers the same to the same token, and a
   worker killed in the middle of a marking leaves the database as it was, the other taking the
   task again (``wftools.chartstateless``);
+- then the test of a restoration, as the platform plans it, on a scheduled backup: its environment
+  is reachable by no one while it runs, and is gone once it has ended (WF-EXP-0060-A, US-2930,
+  ``wftools.chartrestoretest``);
 - on the components of the operator's, the chart makes none of its own, and the migrations ended
   before the installation began.
 
@@ -54,7 +57,15 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from wftools import REPOSITORY, chart, chartdata, chartload, chartstateless, kubetools
+from wftools import (
+    REPOSITORY,
+    chart,
+    chartdata,
+    chartload,
+    chartrestoretest,
+    chartstateless,
+    kubetools,
+)
 from wftools.images import REGISTRY
 from wftools.production import (
     HIDDEN,
@@ -629,6 +640,14 @@ class Trial:
         ask = self.ask or _ask
         chartstateless.Stateless(self.kubectl, self.read, ask, chartstateless.started).hold(token)
 
+    def hold_restore_test(self, tag: str) -> None:
+        """Play the test of a restoration as the platform plans it: closed while it runs, then gone.
+
+        The probe of its ports runs the image of the tag, which the cluster holds.
+        """
+        image = f"{REGISTRY}/waterfall:{tag}"
+        chartrestoretest.RestoreTestTrial(self.kubectl, self.read, image).hold()
+
     def hold_provided(self) -> None:
         """Hold that the chart made no data component, and that it migrated before it installed."""
         found = _output(
@@ -751,6 +770,7 @@ def main(environment: Mapping[str, str] | None = None) -> int:
             browser = trial.hold(ADMIN)
             trial.scale(values, browser, ADMIN, SCALED_TO)
             trial.hold_stateless(values, browser)
+            trial.hold_restore_test(tag)
             trial.remove()
             print("the chart, on the data components of an operator:", flush=True)
             trial.prepare()

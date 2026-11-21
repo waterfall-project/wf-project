@@ -170,6 +170,19 @@ def test_an_interrupted_script_removes_the_platform_with_its_volumes(tmp_path: P
     assert "--remove-orphans" in after[-1]
 
 
+# The instant the database says before the backup is deposited.
+SINCE = "2026-11-21 01:02:03.456+00"
+
+
+def ending(code: int) -> restoretest_trial.Run:
+    """Run nothing, and say the status ``code``, as the script of the test would end."""
+
+    def run(_command: list[str], _limit: float | None = None) -> int:
+        return code
+
+    return run
+
+
 class Compose:
     """A Compose, a database and a Docker that answer as a test tells them."""
 
@@ -190,7 +203,9 @@ class Compose:
     def read(self, command: list[str]) -> tuple[int, str]:
         said = " ".join(command)
         self.ran.append(said)
-        if restoretest_trial.VERIFIED in said:
+        if restoretest_trial.NOW in said:
+            return 0, f"{SINCE}\n"
+        if restoretest_trial.verified_since(SINCE) in said:
             return 0, self.verified + "\n"
         if restoretest_trial.OPEN in said:
             left = self.open_tasks.pop(0) if len(self.open_tasks) > 1 else self.open_tasks[0]
@@ -205,8 +220,20 @@ class Compose:
 def test_a_backup_is_scheduled_by_making_it_due_and_running_the_schedule() -> None:
     compose = Compose()
     restoretest_trial.scheduled_backup(["compose"], compose.read)
-    assert restoretest_trial.DUE in compose.ran[0]
-    assert compose.ran[1] == "compose exec -T scheduler waterfall-worker schedule"
+    assert restoretest_trial.NOW in compose.ran[0]
+    assert restoretest_trial.DUE in compose.ran[1]
+    assert compose.ran[2] == "compose exec -T scheduler waterfall-worker schedule"
+
+
+def test_only_a_backup_taken_since_the_trial_asked_counts_as_the_one_the_schedule_deposited() -> (
+    None
+):
+    # #4650: a scheduled backup verified before the deposit is not the one the trial waits for.
+    compose = Compose()
+    restoretest_trial.scheduled_backup(["compose"], compose.read)
+    counted = [said for said in compose.ran if restoretest_trial.VERIFIED in said]
+    assert counted
+    assert all(f"AND taken_at >= '{SINCE}'" in said for said in counted)
 
 
 def test_a_schedule_that_deposits_no_verified_backup_fails_the_trial() -> None:
@@ -217,17 +244,13 @@ def test_a_schedule_that_deposits_no_verified_backup_fails_the_trial() -> None:
 
 def test_a_script_that_fails_fails_the_trial() -> None:
     with pytest.raises(TrialError, match=r"restore-test.sh failed \(1\)"):
-        restoretest_trial.restore_test(
-            ["compose"], lambda _command, _limit=None: 1, Compose().read, "p"
-        )
+        restoretest_trial.restore_test(["compose"], ending(1), Compose().read, "p")
 
 
 def test_a_test_not_inscribed_as_succeeded_on_a_scheduled_backup_fails_the_trial() -> None:
     compose = Compose(tested="")
     with pytest.raises(TrialError, match="holds no test of a restoration that succeeded"):
-        restoretest_trial.restore_test(
-            ["compose"], lambda _command, _limit=None: 0, compose.read, "p"
-        )
+        restoretest_trial.restore_test(["compose"], ending(0), compose.read, "p")
 
 
 @pytest.mark.parametrize(
@@ -236,15 +259,11 @@ def test_a_test_not_inscribed_as_succeeded_on_a_scheduled_backup_fails_the_trial
 def test_what_the_ephemeral_project_leaves_fails_the_trial(verb: str, kind: str) -> None:
     compose = Compose(left=verb)
     with pytest.raises(TrialError, match=f"leaves {kind} abc123"):
-        restoretest_trial.restore_test(
-            ["compose"], lambda _command, _limit=None: 0, compose.read, "p"
-        )
+        restoretest_trial.restore_test(["compose"], ending(0), compose.read, "p")
 
 
 def test_a_test_that_succeeded_and_left_nothing_passes() -> None:
-    restoretest_trial.restore_test(
-        ["compose"], lambda _command, _limit=None: 0, Compose().read, "p"
-    )
+    restoretest_trial.restore_test(["compose"], ending(0), Compose().read, "p")
 
 
 def test_a_backup_listed_verified_whose_task_is_open_is_waited_for_until_it_ends() -> None:

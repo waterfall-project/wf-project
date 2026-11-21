@@ -3,9 +3,10 @@
 
 # The tasks planned (PBS-5.3): one CronJob, which runs the one command the planners call, as the
 # loop of the service scheduler of the Compose does — `waterfall-worker schedule`. It deposits
-# what is due, the reading of the accounts and the purge of what expired, unless a task of the kind
-# is queued or running, and stops (TFX-10): it reaches PostgreSQL and Redis alone, the worker runs
-# the tasks and holds the storage. Never two of it at once.
+# what is due, the reading of the accounts, the purge of what expired and the test of a restoration
+# (restore-test.yaml), unless a task of the kind is queued or running, and stops (TFX-10): it
+# reaches PostgreSQL and Redis alone, the worker runs the tasks and holds the storage. Never two of
+# it at once.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -34,5 +35,9 @@ spec:
                 {{- include "waterfall.backEnvironment" (list . "service") | nindent 16 }}
                 - name: WATERFALL_PURGE_INTERVAL
                   value: {{ .Values.scheduler.purgeInterval | quote }}
+                {{- if .Values.restoreTest.enabled }}
+                - name: WATERFALL_RESTORE_TEST_INTERVAL
+                  value: {{ .Values.restoreTest.interval | int | toString | quote }}
+                {{- end }}
               resources:
                 {{- toYaml .Values.scheduler.resources | nindent 16 }}
