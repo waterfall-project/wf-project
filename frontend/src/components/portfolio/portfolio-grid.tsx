@@ -43,7 +43,13 @@ export const PROJECT_GRID: GridConfig<ProjectRow, ProjectSortColumn, ProjectPage
       pinned: true,
       contract: "label",
       value: (project) => project.label,
-      render: (project) => <ProjectLabelCell id={project.project_id} label={project.label} />,
+      render: (project) => (
+        <ProjectLabelCell
+          id={project.project_id}
+          label={project.label}
+          canOpen={project.can_open}
+        />
+      ),
     },
     {
       key: "code",

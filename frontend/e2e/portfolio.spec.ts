@@ -1,17 +1,23 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { type Download, expect, type Locator, test } from "@playwright/test";
+import { type Download, expect, type Locator, type Page } from "@playwright/test";
 
 import { WORKING } from "./bounds";
 import { menuButton, pick } from "./check-menu";
 import { compile } from "./compile";
 import { sortUntilAddress } from "./hydration";
+import { inService, test } from "./mode";
 import { scrollPageToGrid, withinBox } from "./scroll";
 
 // The fake back serves the first example of each read of the portfolio — the three hundred projects
 // of §4.6.2 at 3 June 2026, the witness project first, and the views summed from them —, whatever
 // the perimeter, the sort or the page asked: the component and page tests prove what each screen
-// asks. The marks read here are fixed by `test_the_marks_the_portfolio_journey_reads`.
+// asks. The marks read here are fixed by `test_the_marks_the_portfolio_journey_reads`. What affirms
+// the three hundred projects is played against the fake back alone; the paths tagged `@shared` are
+// played against the service too, on the witness loaded with its slice of the portfolio (EP-11,
+// US-2770/L2), at the date of calculation of the witness, 3 June 2026, which the address names
+// (`AS_OF`): the fake back ignores it, the service reads the portfolio as it was then.
+const AS_OF = "as_of=2026-06-03";
 const PROJECTS = "/portfolio/projects";
 const PERFORMANCE = "/portfolio/performance";
 const COST_CURVE = "/portfolio/cost-curve";
@@ -146,10 +152,10 @@ test("paints the same zone of an index the same colour in the list of the projec
   expect(new Set(Object.values(painted)).size).toBe(3);
 });
 
-test("exports the S-curve of the portfolio as a PNG image named after the date of its perimeter (#312)", async ({
+test("exports the S-curve of the portfolio as a PNG image named after the date of its perimeter @shared [WF-IHM-0130-A] (#312)", async ({
   page,
 }) => {
-  await page.goto(COST_CURVE);
+  await page.goto(`${COST_CURVE}?${AS_OF}`);
   const command = page
     .getByRole("figure", { name: "Coûts cumulés du portefeuille" })
     .getByRole("button", { name: "Exporter en PNG" });
@@ -165,7 +171,26 @@ test("exports the S-curve of the portfolio as a PNG image named after the date o
   expect(download?.suggestedFilename()).toBe("couts-cumules-portefeuille-2026-06-03.png");
 });
 
-test("offers the period of the projects completed to the S-curve and the structure of the costs, and keeps it in the address [WF-PTF-0010-A]", async ({
+test("exports the quarterly performance of the portfolio as a PNG image named after the date of its perimeter @shared [WF-IHM-0130-A] [US-2760]", async ({
+  page,
+}) => {
+  await page.goto(`${PERFORMANCE}?${AS_OF}`);
+  const figure = page.getByRole("figure", { name: "Évolution trimestrielle des indices" });
+  const command = figure.getByRole("button", { name: "Exporter en PNG" });
+  await expect(command).toBeVisible({ timeout: WORKING });
+  // No project is opened here, nothing witnesses the hydration: the command is pressed again
+  // until the browser saves the image.
+  let download: Download | undefined;
+  await expect(async () => {
+    [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 1_000 }),
+      command.click(),
+    ]);
+  }).toPass({ timeout: WORKING });
+  expect(download?.suggestedFilename()).toBe("evolution-des-indices-portefeuille-2026-06-03.png");
+});
+
+test("offers the period of the projects completed to the S-curve and the structure of the costs, and keeps it in the address @shared [WF-PTF-0010-A]", async ({
   page,
 }) => {
   for (const route of [COST_CURVE, "/portfolio/cost-structure"]) {
@@ -177,10 +202,10 @@ test("offers the period of the projects completed to the S-curve and the structu
   }
 });
 
-test("draws the aggregated workload in stacked bars with the dashed capacity of the perimeter, the table of the roles under it, and exports it as a PNG image [WF-PTF-0060-A] [WF-IHM-0130-A]", async ({
+test("draws the aggregated workload in stacked bars with the dashed capacity of the perimeter, the table of the roles under it, and exports it as a PNG image @shared [WF-PTF-0060-A] [WF-IHM-0130-A]", async ({
   page,
 }) => {
-  await page.goto(WORKLOAD);
+  await page.goto(`${WORKLOAD}?${AS_OF}`);
   const figure = page.getByRole("figure", { name: "Charge empilée par rôle et par mois" });
   await expect(figure.getByRole("img", { name: /^Barres empilées de la charge/ })).toBeVisible({
     timeout: WORKING,
@@ -230,16 +255,26 @@ test("draws the aggregated workload in stacked bars with the dashed capacity of 
   expect(download?.suggestedFilename()).toBe("plan-de-charge-agrege-portefeuille-2026-06-03.png");
 });
 
-test("draws the risk matrix of the portfolio as a bubble chart in place of the table, and exports it as a PNG image [WF-IHM-0130-A]", async ({
+test("draws the risk matrix of the portfolio as a bubble chart in place of the table, and exports it as a PNG image @shared [WF-IHM-0130-A]", async ({
   page,
 }) => {
-  await page.goto(RISKS);
+  await page.goto(`${RISKS}?${AS_OF}`);
   const figure = page.getByRole("figure", { name: "Matrice des risques" });
   const drawing = figure.getByRole("img", { name: /^Nuage de bulles des risques/ });
   await expect(drawing.locator("svg")).toBeVisible({ timeout: WORKING });
-  // One bubble for each risk identified the server rendered, 429 of them, over the sixteen zones;
-  // the chart has no legend of states, so that no marker is added to the bubbles.
-  await expect(drawing.locator("path[fill-opacity='0.85']")).toHaveCount(429);
+  // One bubble for each risk identified the server rendered, over the sixteen zones: 429 of the
+  // fake back's; the six of the witness's slice at least against the service, the paths of the other
+  // workers marking revisions of their own projects beside them. The count cannot be exact there: the
+  // perimeter of the risks is drawn by states, period and node of organisation alone, none of which
+  // isolates the projects of the slice (no filter by project, WF-PTF-0020-A), and the other workers
+  // add risks of their own as they run. The chart has no legend of states, so that no marker is
+  // added to the bubbles.
+  const bubbles = drawing.locator("path[fill-opacity='0.85']");
+  if (inService) {
+    await expect.poll(() => bubbles.count()).toBeGreaterThanOrEqual(6);
+  } else {
+    await expect(bubbles).toHaveCount(429);
+  }
   await figure.getByText("Valeurs du graphique").click();
   await expect(
     figure.getByRole("table", { name: "Décompte des risques identifiés par case de la matrice" }),
@@ -254,3 +289,89 @@ test("draws the risk matrix of the portfolio as a bubble chart in place of the t
   }).toPass({ timeout: WORKING });
   expect(download?.suggestedFilename()).toBe("matrice-des-risques-portefeuille-2026-06-03.png");
 });
+
+const SERVICE_ONLY =
+  "the service reads the slice of the portfolio the witness holds, which the fake back does not";
+
+test("reads the portfolio of the witness at its date of calculation: its value, its perimeter, the projects of its slice, each opened from its label @shared [WF-PTF-0040-A] [WF-PTF-0030-A] [US-2760]", async ({
+  page,
+}) => {
+  test.skip(!inService, SERVICE_ONLY);
+  test.slow();
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(`${PROJECTS}?${AS_OF}`);
+  await expect(page.getByRole("main")).toContainText("calculé au 3 juin 2026", {
+    timeout: WORKING,
+  });
+  await expect(page.getByRole("region", { name: "Valeur du portefeuille" })).toBeInViewport();
+  const grid = page.getByRole("grid", { name: "Projets du portefeuille" });
+  // Two projects of the slice of the witness, one in progress and one in pricing, found by their
+  // code, as the filter by column asks the server for it; then the project of the witness, which
+  // opens from its label.
+  for (const code of ["PRJ-301", "PRJ-306"]) {
+    await page.goto(`${PROJECTS}?${AS_OF}&states=in_progress%2Cpricing&code=${code}`);
+    await expect(grid.getByRole("row", { name: new RegExp(code) })).toBeVisible({
+      timeout: WORKING,
+    });
+    await scrollPageToGrid(grid);
+    await expect(grid.getByRole("row", { name: new RegExp(code) })).toBeInViewport();
+  }
+  await page.goto(`${PROJECTS}?${AS_OF}&code=PRJ-001`);
+  const opened = grid.getByRole("link", { name: "Modernisation du poste de commande" });
+  await expect(opened).toHaveAttribute("href", "/projects/01926f3a-7c00-7000-8000-000000000001");
+  await scrollPageToGrid(grid);
+  await expect(opened).toBeInViewport();
+});
+
+/** The number the totals row of the list says the server retained, the list read at an address. */
+async function retainedAt(page: Page, address: string): Promise<number> {
+  await page.goto(address);
+  const grid = page.getByRole("grid", { name: "Projets du portefeuille" });
+  await scrollPageToGrid(grid);
+  const total = grid.getByRole("gridcell", { name: /^\d+ projets? retenus?$/ });
+  await expect(total).toHaveCount(1, { timeout: WORKING });
+  await expect(total).toBeInViewport();
+  const digits = /\d+/.exec(await total.innerText())?.[0];
+  if (digits === undefined) {
+    throw new Error(
+      `The totals row of the list at ${address} states no number of retained projects.`,
+    );
+  }
+  return Number(digits);
+}
+
+for (const [state, shown, other] of [
+  ["pricing", "Chiffrage", "En cours"],
+  ["in_progress", "En cours", "Chiffrage"],
+] as const) {
+  test(`filters the list of the portfolio on the state ${state}: only the projects of that state, and its totals count them @shared [WF-PTF-0040-A] [WF-IHM-0130-A]`, async ({
+    page,
+  }) => {
+    test.skip(!inService, SERVICE_ONLY);
+    test.slow();
+    await page.setViewportSize({ width: 1280, height: 800 });
+    // The totals row says how many projects the server retained: those of the state alone, not
+    // those of both states. The other workers add projects as they run, so the three readings are
+    // taken again until they agree: the state and the other state make the two together.
+    await expect(async () => {
+      const filtered = await retainedAt(page, `${PROJECTS}?states=${state}&${AS_OF}`);
+      const others = await retainedAt(
+        page,
+        `${PROJECTS}?states=${state === "pricing" ? "in_progress" : "pricing"}&${AS_OF}`,
+      );
+      const both = await retainedAt(page, `${PROJECTS}?states=in_progress%2Cpricing&${AS_OF}`);
+      expect(filtered).toBeGreaterThan(0);
+      expect(others).toBeGreaterThan(0);
+      expect(filtered).toBeLessThan(both);
+      expect(filtered + others).toBe(both);
+    }).toPass({ timeout: 2 * WORKING });
+    // Every row in view is a project of the state, none of the other.
+    await page.goto(`${PROJECTS}?states=${state}&${AS_OF}`);
+    const grid = page.getByRole("grid", { name: "Projets du portefeuille" });
+    await scrollPageToGrid(grid);
+    const first = grid.getByRole("gridcell", { name: shown, exact: true }).first();
+    await expect(first).toBeVisible({ timeout: WORKING });
+    await expect(first).toBeInViewport();
+    await expect(grid.getByRole("gridcell", { name: other, exact: true })).toHaveCount(0);
+  });
+}

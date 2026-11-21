@@ -265,13 +265,16 @@ describe("the screens of the portfolio", () => {
     );
   });
 
-  it("opens the project of each of the heaviest risks, and fills the matrix [WF-PTF-0030-A]", async () => {
+  it("opens the project of each of the heaviest risks the caller can open, names the other without a link, and fills the matrix [WF-PTF-0030-A]", async () => {
     const markup = await render(RisksPage);
     const page = text(markup);
     expect(page).toMatch(/Provisions of the identified risks .*104,325,697\.03/);
-    expect(markup.match(/href="\/projects\/[\w-]+"/g)).toHaveLength(10);
+    // Nine of the ten projects open; the tenth, the first of them, the caller cannot open (`can_open`).
+    expect(markup.match(/href="\/projects\/[\w-]+"/g)).toHaveLength(9);
+    expect(markup).not.toContain('href="/projects/01926f3a-7c00-7000-8000-000300000119"');
+    expect(page).toContain("Extension de la sous-station — Grenoble");
     expect(markup).toContain(
-      'href="/projects/01926f3a-7c00-7000-8000-000300000119">Extension de la sous-station — Grenoble</a>',
+      'href="/projects/01926f3a-7c00-7000-8000-000300000128">Automatisation du système de supervision — Grenoble</a>',
     );
     expect(page).toContain("Risk matrix");
     expect(markup).toContain("Export as PNG");

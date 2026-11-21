@@ -15,17 +15,18 @@ pendant des mois, où le budget de référence ne se déplace que par un acte co
 la question « en sommes-nous encore où nous l'avions dit ? » doit trouver sa réponse des
 années après le départ de ceux qui y ont répondu la première fois.
 
-> **État : le service sert le produit du référentiel aux coûts réels ; les indicateurs, les
-> risques et le portefeuille pas encore.** La spécification et le contrat d'interface, figé en
+> **État : le service sert le produit du référentiel aux coûts réels, et le portefeuille ; les
+> indicateurs et les risques pas encore.** La spécification et le contrat d'interface, figé en
 > 1.0.0, viennent d'abord ; le dépôt porte aussi l'outillage et la chaîne par lesquels passe chaque
 > ligne du produit, et un front qui montre chaque écran contre un contrat simulé (EP-02). Le
 > service sert les comptes, l'authentification et les habilitations (EP-03), le référentiel de
 > l'entreprise (EP-05), les projets et leurs révisions (EP-04), le planning et l'aller-retour avec
 > MS Project (EP-06), le chiffrage et le devis (EP-07), les coûts réels importés de l'ERP et le
-> reste à engager (EP-09). Les écrans des indicateurs (EP-10), des avenants et des risques (EP-08)
-> et du portefeuille (EP-11) se parcourent encore contre le faux back. Ils viennent ensuite, dans
-> cet ordre, comme le planifie [`docs/roadmap`](docs/roadmap/README-fr.md), avec l'exploitation
-> et la mise en production (EP-13).
+> reste à engager (EP-09), et les sept vues du portefeuille (EP-11), lues à la date de calcul de
+> votre choix. Les écrans des indicateurs (EP-10) ainsi que des avenants et des risques (EP-08) se
+> parcourent encore contre le faux back. Ils viennent ensuite, dans cet ordre, comme le planifie
+> [`docs/roadmap`](docs/roadmap/README-fr.md), avec l'exploitation et la mise en production
+> (EP-13).
 
 ## Ce qui le distingue
 

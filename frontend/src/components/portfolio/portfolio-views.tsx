@@ -34,8 +34,22 @@ type Schemas = components["schemas"];
 type IndexValue = Schemas["IndexValue"];
 type AmountByKey = Schemas["AmountByKey"];
 
-/** A link that opens a project of the portfolio (WF-PTF-0030). */
-function ProjectLink({ id, label }: { readonly id: string; readonly label: string }) {
+/**
+ * A link that opens a project of the portfolio (WF-PTF-0030); the name alone, without a link, when
+ * the caller cannot open it (`can_open` false).
+ */
+function ProjectLink({
+  id,
+  label,
+  canOpen,
+}: {
+  readonly id: string;
+  readonly label: string;
+  readonly canOpen: boolean;
+}) {
+  if (!canOpen) {
+    return <>{label}</>;
+  }
   return (
     <Link href={`/projects/${id}`} className="underline-offset-2 hover:underline">
       {label}
@@ -261,7 +275,11 @@ export function PortfolioRisksView({ risks }: { readonly risks: Schemas["Portfol
             <TableRow key={risk.risk_id}>
               <TableCell className={CELL}>{risk.label}</TableCell>
               <TableCell className={CELL}>
-                <ProjectLink id={risk.project_id} label={risk.project_label} />
+                <ProjectLink
+                  id={risk.project_id}
+                  label={risk.project_label}
+                  canOpen={risk.can_open}
+                />
               </TableCell>
               <TableCell className={`${CELL} tabular-nums`}>
                 <ComputedAmount amount={risk.provision_amount} />
@@ -391,7 +409,11 @@ export function PilotHealthView({ health }: { readonly health: Schemas["PilotHea
           // apart.
           <TableRow key={`${signal.project_id}-${signal.code}-${rank.toString()}`}>
             <TableCell className={CELL}>
-              <ProjectLink id={signal.project_id} label={signal.project_label} />
+              <ProjectLink
+                id={signal.project_id}
+                label={signal.project_label}
+                canOpen={signal.can_open}
+              />
             </TableCell>
             <TableCell className={CELL}>
               {t(`enums.PilotHealth.signals.code.${signal.code}`)}
