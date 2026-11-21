@@ -19,20 +19,18 @@ from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from costs_support import cost, load_import
-from portfolio_listing_support import READ, served
+from portfolio_listing_support import PORTFOLIO, READ, served
 from portfolio_support import Portfolio, at, portfolio
 from projects_support import Scene
 from projects_support import scene as make_scene
 from sqlalchemy import select, text
 from statements_support import heard, tables_of, touching
 
-from waterfall.api.contract import models
 from waterfall.core.indicators.interface import PORTFOLIO_KINDS
 from waterfall.core.indicators.tables import RevisionIndicator
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
+    from jsonschema_path import SchemaPath
     from projects_support import Person
     from realm import TestRealm
     from sqlalchemy import Engine
@@ -40,19 +38,23 @@ if TYPE_CHECKING:
 
     from waterfall.platform.database import Database
 
-# The eight views read with ``as_of``, by the name of their route, and the model of their answer.
-VIEWS: Mapping[str, Any] = {
-    "projects": models.PortfolioProjectRow,
-    "value": models.PortfolioValue,
-    "workload": models.PortfolioWorkload,
-    "performance": models.PortfolioPerformance,
-    "cost-structure": models.PortfolioCostStructure,
-    "risks": models.PortfolioRisks,
-    "cost-curve": models.PortfolioCostCurve,
-    "pilot-health": models.PilotHealth,
-}
+# The eight views read with ``as_of``, by the name of their route.
+VIEWS = (
+    "projects",
+    "value",
+    "workload",
+    "performance",
+    "cost-structure",
+    "risks",
+    "cost-curve",
+    "pilot-health",
+)
 # The tables of the nodes, of the tasks (and their links) and of the lines of an estimate.
 LINES = ("node", "task", "task_link", "estimate_line")
+# Where a view read at a past date finds what a marking kept: the documents, by revision.
+KEPT = ("revision_indicator",)
+# What a revision marked before the EPIC still gives: its revision and its project, no document.
+BARE = ("revision", "project")
 # Every state a project can be in, asked all the same: no view counts the ones it does not read.
 STATES = "in_progress,pricing,completed,created,lost,abandoned"
 
@@ -65,17 +67,19 @@ def fabrics(api: ContractClient, owner: Engine, database: Database, realm: TestR
 
 
 def lines_read(
-    api: ContractClient, reader: Person, engine: Engine, query: str
+    api: ContractClient, reader: Person, engine: Engine, query: str, kept: tuple[str, ...]
 ) -> dict[str, list[str]]:
     """Read each view with a query that names a past date; give, by view, its statements on lines.
 
-    Every view must answer and send at least one statement: a view that is silent was not read.
+    Every view must answer and, to prove it was read, send a statement on one of the tables of
+    ``kept``, the ones its documents are kept in: the session and the permissions send some of
+    their own, whatever a view reads.
     """
     found: dict[str, list[str]] = {}
     for view in VIEWS:
         with heard(engine) as sent:
             served(api, reader, view, query)
-        assert sent, view
+        assert touching(sent, kept), view
         found[view] = touching(sent, LINES)
     return found
 
@@ -126,12 +130,11 @@ def test_no_view_read_at_a_past_date_reads_a_node_a_task_nor_a_line_of_an_estima
     # 3 June 2026: none sends a statement on the nodes, the tasks nor the lines (écart: the three
     # hundred projects are EP-13's, which replays ``lines_read`` on its own platform).
     reads = lines_read(
-        api, fabrics.stage.reader, fabrics.stage.database.engine, f"{READ}&states={STATES}"
+        api, fabrics.stage.reader, fabrics.stage.database.engine, f"{READ}&states={STATES}", KEPT
     )
     assert reads == {view: [] for view in VIEWS}
 
 
-@pytest.mark.requirement("WF-DAT-0040-A")
 def test_the_statements_heard_name_their_tables_and_the_day_reads_the_lines(
     api: ContractClient, fabrics: Portfolio
 ) -> None:
@@ -142,6 +145,12 @@ def test_the_statements_heard_name_their_tables_and_the_day_reads_the_lines(
     assert tables_of('SELECT a FROM "public".node AS n JOIN task ON task.id = n.id') == {
         "node",
         "task",
+    }
+    assert tables_of("SELECT 1 FROM a, node WHERE a.id = node.id") == {"a", "node"}
+    assert tables_of("SELECT 1 FROM a x, b AS y, estimate_line ORDER BY 1") == {
+        "a",
+        "b",
+        "estimate_line",
     }
     assert not touching(["SELECT 1 FROM background_task", "SELECT * FROM org_node"], LINES)
     with heard(fabrics.stage.database.engine) as sent:
@@ -186,21 +195,58 @@ def test_a_revision_marked_before_the_epic_keeps_none_of_the_documents_and_recei
     bare = documents(fabrics.stage.database)
     assert bare
     assert not {each[1] for each in bare} & PORTFOLIO_KINDS
-    reads = lines_read(api, fabrics.stage.reader, fabrics.stage.database.engine, READ)
+    reads = lines_read(api, fabrics.stage.reader, fabrics.stage.database.engine, READ, BARE)
     assert reads == {view: [] for view in VIEWS}
     assert documents(fabrics.stage.database) == bare
+    # What the views render without a document: the revision counts by what it kept — its project,
+    # its budget — and the figures that only a document carries are empty or nil.
+    answers = {view: served(api, fabrics.stage.reader, view, READ) for view in VIEWS}
+    rows = answers["projects"]["items"]
+    assert [(row["state"], row["reference_budget"]) for row in rows] == [("in_progress", "1520.00")]
+    assert answers["value"]["order_book"] == "1520.00"
+    assert answers["value"]["pipeline_gross"] == "0.00"
+    assert answers["performance"]["reference_budget"] == "1520.00"
+    assert all(each["hours"] == "0.00" for each in answers["workload"]["monthly_totals"])
+    assert answers["risks"]["identified_total"] == "0.00"
+    assert answers["risks"]["heaviest"] == []
+    assert answers["cost-structure"]["budget_by_cost_type"] == []
+    assert answers["cost-structure"]["labor_by_org_node"] == []
+
+
+def declares(schema: SchemaPath, key: str, depth: int = 0) -> bool:
+    """Tell whether a schema of the contract, or any below it, declares a property of this name."""
+    if depth > 16:
+        message = "the schema nests deeper than any answer of the portfolio"
+        raise AssertionError(message)
+    if "properties" in schema:
+        for name, below in (schema / "properties").str_items():
+            if name == key or declares(below, key, depth + 1):
+                return True
+    for each in ("items", "additionalProperties"):
+        opened = each in schema and isinstance((schema / each).read_value(), dict)
+        if opened and declares(schema / each, key, depth + 1):
+            return True
+    for each in ("allOf", "oneOf", "anyOf"):
+        if each in schema:
+            for index in range(len(cast("list[object]", (schema / each).read_value()))):
+                if declares(schema / each / index, key, depth + 1):
+                    return True
+    return False
 
 
 @pytest.mark.story("US-2680")
-@pytest.mark.parametrize("view", list(VIEWS))
-def test_a_view_read_at_a_past_date_says_stored_wherever_the_contract_carries_it(
+@pytest.mark.parametrize("view", VIEWS)
+def test_no_view_read_at_a_past_date_carries_is_stored_in_the_contract_yet(
     api: ContractClient, fabrics: Portfolio, view: str
 ) -> None:
-    # Propre à l'US : « elle rend ``is_stored`` partout où le contrat le porte »: every
-    # ``is_stored`` of the answer of a view read at a past date is true — its figures are those of
-    # the marking, never of the day — and a view whose schema carries it carries it in its answer.
+    # Propre à l'US : « elle rend ``is_stored`` partout où le contrat le porte ». Aucune des huit
+    # vues ne le porte aujourd'hui: the schema of the answer the route serves, whatever lies in
+    # it, declares no ``is_stored``, and the answer carries none. The day the contract adds one,
+    # this test fails, and must then ask that every ``is_stored`` of the answer be true — the
+    # figures of a past date are those of the marking, never of the day.
     body = served(api, fabrics.stage.reader, view, READ)
-    carried = "is_stored" in json.dumps(VIEWS[view].model_json_schema())
-    stored = with_key(body, "is_stored")
-    assert all(each is True for each in stored)
-    assert bool(stored) or not carried
+    [schema] = api.schema("GET", f"{PORTFOLIO}/{view}", 200, "application/json")
+    # The control: the schema is the one of this answer, it declares what the answer carries.
+    assert declares(schema, next(iter(body))), view
+    assert not declares(schema, "is_stored"), view
+    assert not with_key(body, "is_stored"), view
