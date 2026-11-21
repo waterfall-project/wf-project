@@ -175,6 +175,7 @@ closes. Four rules, which each slice follows:
 | [EP-28](EP-28-chaine-et-outillage.md) | Chain and development tooling | en cours | nothing |
 | [EP-29](EP-29-habilitations-specification-1-0-7.md) | Access rights: follow-up to specification 1.0.7 | à planifier | EP-08 |
 | [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risks prepared as differentials | à planifier | EP-08 |
+| [EP-31](EP-31-copier-et-coller-dans-les-grilles.md) | Copying and pasting in the grids | à planifier | EP-27 |
 
 The distribution of 2026-11-14, at the delivery of EP-24, spread what remains by theme — that of
 the code touched — and no longer by date of deferral: EP-25 keeps only the ergonomic redesign and
@@ -188,7 +189,10 @@ receives, at the framing of EP-13, the access-rights findings that the sorting o
 of 2026-11-18 had labelled EP-13, which keeps only operations (decision of the author of
 2026-11-18). EP-30 makes the own estimate of a risk a differential, so that a risk can rework or
 abandon existing work; it waits for EP-08, whose update of a differential it reuses, and for a
-revision of the specification (decision of the author of 2026-11-19).
+revision of the specification (decision of the author of 2026-11-19). EP-31 holds the place of
+copying and pasting in the grids, which specification 1.0.8 writes (WF-IHM-0180): EP-08 takes no new
+function, and the scope of the remaining epics is re-evaluated next (decision of the author of
+2026-11-21).
 
 The order of the list is not that of the numbers, and that is deliberate: an identifier is not
 renumbered. The distribution of the requirements put the reference data before the projects —

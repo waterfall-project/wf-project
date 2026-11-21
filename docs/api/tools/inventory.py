@@ -62,9 +62,13 @@ REASONS: dict[str, str] = {
     "DEV": "Le détail du plan de charge et la projection de dépenses, ajoutés par la "
     "spécification 1.0.6 : leur contrat reste à écrire, avec EP-10 (#3181, #3182).",
     "IHM": "Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent "
-    "dans le front.",
+    "dans le front. La copie de lignes d'une grille (WF-IHM-0180), ajoutée par la "
+    "spécification 1.0.8, attend son contrat (#4398).",
     "INTF": "Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par "
     "le catalogue des permissions ; la règle de traduction vit dans le front.",
+    "REV": "La base d'un différentiel et sa mise à jour (WF-REV-0110), ajoutées par la "
+    "spécification 1.0.8 : les opérations qu'EP-08 écrit pour elles (US-3050) les servent, "
+    "et leur citation au contrat reste à écrire (#4402).",
     "QUA": "Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle "
     "s'exerce sur le contrat, elle n'y figure pas.",
 }
