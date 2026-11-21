@@ -44,6 +44,10 @@ REQUIREMENT = "WF-QUA-0040-A"
 GENERATORS = ("mockslice", "mockslicereadings", "mocksliceviews")
 
 
+WITNESS_PROJECT = "01926f3a-7c00-7000-8000-000000000001"
+"""PRJ-001, the project of the witness."""
+
+
 @cache
 def _readings() -> dict[str, Any]:
     return {
@@ -431,7 +435,30 @@ def test_the_declaration_of_a_risk_is_its_first_review_for_the_health_of_the_ste
     assert first < risk.reviews[0].at <= last
     signals = _readings()["pilot_health"]["signals"]
     flagged = {s["project_id"] for s in signals if s["code"] == "risks_not_reviewed"}
-    assert flagged == {mockslice.R1.project_id}
+    assert flagged == {mockslice.R1.project_id, WITNESS_PROJECT}
+
+
+@pytest.mark.requirement("WF-PTF-0110-A")
+def test_the_first_review_since_the_passage_is_judged_from_the_passage_to_it() -> None:
+    # DECISIONS.md, 20 November 2026: « à la première revue marquée depuis le passage à En cours,
+    # de ce passage à cette revue », bounds included. PRJ-001, passed to In progress on 15 January
+    # 2026 and first reviewed since, is judged from that passage: the risk it identified in the
+    # offer, reviewed in no interval since, is not reviewed.
+    signals = _readings()["pilot_health"]["signals"]
+    flagged = {s["project_id"] for s in signals if s["code"] == "risks_not_reviewed"}
+    assert WITNESS_PROJECT in flagged
+
+
+@pytest.mark.requirement("WF-PTF-0110-A")
+def test_a_project_with_no_marking_since_its_passage_carries_neither_judged_signal() -> None:
+    # DECISIONS.md: the revision it holds is the reference the passage designated; its delay is
+    # said by review_overdue alone.
+    found = member(mockslice.R1)
+    entered = next(instant for instant, state in found.history if state == IN_PROGRESS)
+    late = replace(found, markings=tuple(replace(k, marked=entered) for k in found.markings[:1]))
+    signals = mocksliceviews.pilot_health(Portfolio([late]))["signals"]
+    codes = {signal["code"] for signal in cast("list[dict[str, Any]]", signals)}
+    assert not codes & {"risks_not_reviewed", "no_actual_cost_since_last_review"}
 
 
 @pytest.mark.requirement("WF-PTF-0010-A")

@@ -48,6 +48,17 @@ def expected() -> list[dict[str, Any]]:
     ]
 
 
+# Three lists whose order neither the contract nor the specification fixes (finding #4507): the
+# roles of the workload, the points of the matrix, the signals of the pilot health are compared by
+# their content, sorted on both sides by a stable key, not by their order.
+UNORDERED = ("/roles", "/matrix/points", "/signals")
+
+
+def _by_content(items: list[object]) -> list[object]:
+    """Sort items by their canonical JSON, the same on both sides."""
+    return sorted(items, key=lambda each: json.dumps(each, sort_keys=True))
+
+
 def differences(found: object, wanted: object, path: str = "") -> list[str]:
     """Name each place where an answer differs from the reading expected, with both values."""
     if isinstance(found, dict) and isinstance(wanted, dict):
@@ -61,6 +72,8 @@ def differences(found: object, wanted: object, path: str = "") -> list[str]:
         ]
     if isinstance(found, list) and isinstance(wanted, list):
         items, expected_items = cast("list[object]", found), cast("list[object]", wanted)
+        if path in UNORDERED:
+            items, expected_items = _by_content(items), _by_content(expected_items)
         if len(items) != len(expected_items):
             return [
                 f"{path}: {len(items)} items, expected {len(expected_items)}",
@@ -112,46 +125,8 @@ def test_the_readings_expected_are_the_eight_views_of_the_portfolio() -> None:
     assert sorted(document["operation"] for document in expected()) == sorted(ROUTES)
 
 
-# The views whose answer differs from the reading expected where neither the specification, nor the
-# contract, nor the file of the EPIC decides between the service and the generator: each is a
-# question to the author, and the test must fail until it is answered (``strict``), the reading or
-# the service then corrected and the entry removed.
-OPEN_QUESTIONS = {
-    "getPortfolioWorkload": (
-        "the roles come by label then identifier from the service, by identifier from the "
-        "generator (the example of the contract at three hundred projects is by identifier); the "
-        "specification (WF-PTF-0060-A) and the contract give no order"
-    ),
-    "getPortfolioRisks": (
-        "the points of the matrix come by project label then identifier from the service, by "
-        "project identifier from the generator; the specification (WF-PTF-0090) and the contract "
-        "give no order"
-    ),
-    "getPortfolioPilotHealth": (
-        "the signals come by project identifier from the service, by project label from the "
-        "generator; and the service raises risks_not_reviewed for PRJ-001 — its interval starts "
-        "at its passage to In progress, 15 January 2026 (DECISIONS.md, 20 November 2026) — where "
-        "the generator, following WF-PTF-0110-A to the letter (« entre l'avant-dernière et la "
-        "dernière révision marquée »), starts it at the marking of the offer, 15 December 2025"
-    ),
-}
-
-
-def cases() -> list[object]:
-    """Give each operation to read, those with an open question marked as failing for its reason."""
-    return [
-        pytest.param(
-            operation,
-            marks=pytest.mark.xfail(strict=True, reason=OPEN_QUESTIONS[operation]),
-        )
-        if operation in OPEN_QUESTIONS
-        else operation
-        for operation in sorted(ROUTES)
-    ]
-
-
 @pytest.mark.story("US-2770")
-@pytest.mark.parametrize("operation", cases())
+@pytest.mark.parametrize("operation", sorted(ROUTES))
 def test_a_view_read_at_the_date_of_the_witness_answers_the_reading_expected(
     api: ContractClient, witness: Database, realm: TestRealm, operation: str
 ) -> None:
