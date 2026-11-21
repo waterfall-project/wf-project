@@ -1,10 +1,10 @@
 ---
 id: EP-30
 titre: Un risque se prépare comme un différentiel — il ajoute, reprend ou abandonne du travail, et sa survenance fusionne sans déplacer la référence
-statut: prêt
+statut: en cours
 depend_de: EP-08, EP-11
 famille: front, back
-issue:
+issue: 4573
 ---
 
 # EP-30 — Risques préparés comme des différentiels
@@ -167,10 +167,10 @@ La spécification 1.0.9, acceptée par son auteur le 2026-11-21, avant l'ouvertu
 cadrage a proposé (#4516, #4517, #4518, #4519). Les critères « propre à l'US, texte proposé » sont
 devenus des citations de Vérif.
 
-Le plan de lots, validé par l'auteur le 2026-11-21, est dans la pull request de ce cadrage (#4521) :
-les lots ne s'écrivent pas dans ce fichier. Les issues de l'EPIC, des US, des lots et du contrat
-s'ouvrent une fois la 1.0.9 acceptée et les US alignées sur ses Vérif (décision de l'auteur du même
-jour) ; l'EPIC passe alors `en cours`.
+Le plan de lots, validé par l'auteur le 2026-11-21, a d'abord été gardé dans la pull request de ce
+cadrage (#4521) : les lots ne s'écrivent pas dans ce fichier. Les issues de l'EPIC, des US, des lots
+et du contrat sont ouvertes depuis le même jour, la 1.0.9 acceptée et les US alignées sur ses Vérif
+(#4568) : l'EPIC est `en cours`, et le tableau de suivi de son issue (#4573) porte le plan.
 
 ## Définition de fini
 
@@ -716,7 +716,7 @@ chaque lot.
   devis propre, `listNodes` et les écritures de l'arbre (`createNode`, `updateTaskFacet`,
   `updateEstimateLine`, `setPredecessors`, `moveNodes`, `deleteNode`, `previewPaste`, `applyPaste`),
   `openImport`, `applyImport`, `undoLastChange`, `redoLastUndo`
-- **issue** :
+- **issue** : #4574
 
 **En tant que** chef de projet, **je veux** préparer le devis propre d'un risque sur le planning et
 le devis du projet tels qu'ils sont — y ajouter des tâches et des lignes, modifier celles qui
@@ -806,7 +806,7 @@ la survenance (US-3100) ; les écrans (US-3140) ; le témoin (US-3150).
 - **opérations** : `getRisk`, `listRisks`, `listRiskReviews`, `getProjectRiskMatrix`, `createRisk`,
   `reviewRisk`, `updateRiskProvision`, `listNodes` (la ligne de provision), `getEstimateIndicators`,
   `getRemainingIndicators`
-- **issue** :
+- **issue** : #4575
 
 **En tant que** chef de projet, **je veux** que la gravité d'un risque soit ce que son devis propre
 change au coût du projet — ce qu'il ajoute, les charges qu'il modifie, les tâches qu'il abandonne,
@@ -934,7 +934,7 @@ recalcule la gravité (US-3090) ; le portefeuille (US-3130) ; les écrans (US-31
   l'arbre et `applyImport` sur un devis propre, `getRiskOccurrenceReport`, `declareRiskOccurrence`,
   `markRevision`, `getStructureMergeReport`, `mergeCostStructure` (leur refus), `getRisk`,
   `listRisks` (les commandes)
-- **issue** :
+- **issue** : #4577
 
 **En tant que** chef de projet, **je veux**, à chaque revue, confronter ce que chaque risque désigne
 au projet tel qu'il est devenu, lire ce qui ne s'y rattache plus et voir sa gravité recalculée avant
@@ -1049,7 +1049,7 @@ enchaîne la mise à jour et le réexamen (US-3140).
 - **exigences** : `WF-RIS-0060-A`
 - **opérations** : `getRiskOccurrenceReport`, `declareRiskOccurrence`, `getBackgroundTask`,
   `listNodes` et `compareRevisions` (`is_from_risk`, `origin_risk_ids`), `getRisk`
-- **issue** :
+- **issue** : #4576
 
 **En tant que** chef de projet, **je veux** déclarer qu'un risque est survenu après avoir lu ce que
 cela fera du projet — ce qu'il ajoute, les charges qu'il change, les tâches qu'il abandonne —,
@@ -1146,7 +1146,7 @@ marque (US-3120) ; l'écran (US-3140).
 - **exigences** : `WF-RIS-0050-A`
 - **opérations** : `getProjectRiskCoverage`, `listRisks` (`ProvisionTotals`, `occurrence_cost`,
   `occurred_reestimated_amount`), `getRisk`, `getRemainingIndicators` (`coverage`)
-- **issue** :
+- **issue** : #4578
 
 **En tant que** chef de projet, **je veux** que ce qu'un risque survenu a coûté soit son effet net
 sur le projet le jour où il est survenu, et le suivre ensuite contre ce qu'il coûte aujourd'hui,
@@ -1219,7 +1219,7 @@ couverture du portefeuille (US-3130).
 - **exigences** : `WF-IND-0030-A`, `WF-IND-0140-A`
 - **opérations** : `getProjectIndicators`, `getEarnedValueCurves`, `getIndexHistory`, `markRevision`
   (la conservation), `declareRiskOccurrence`
-- **issue** :
+- **issue** : #4579
 
 **En tant que** chef de projet, **je veux** que la valeur acquise compte à son budget une tâche
 qu'un risque survenu abandonne, et que la courbe dise ce que la survenance lui a fait ce jour-là,
@@ -1279,7 +1279,7 @@ des indicateurs (US-3140).
 - **statut** : à faire
 - **exigences** : aucune en propre — WF-PTF-0090, dont le texte ne change pas, reste close par EP-11
 - **opérations** : `getPortfolioRisks`, `getPortfolioPilotHealth`
-- **issue** :
+- **issue** : #4581
 
 **En tant que** manager, **je veux** que la vue des risques du portefeuille lise la gravité et le
 coût à la survenance comme les projets les lisent désormais, **afin que** la matrice, les risques
@@ -1318,7 +1318,7 @@ d'une opportunité (US-3140).
 - **statut** : à faire
 - **exigences** : aucune en propre — WF-IHM-0020, dont le texte ne change pas, reste close par EP-08
 - **opérations** : celles des US-3070 à US-3130, par le client engendré
-- **issue** :
+- **issue** : #4582
 
 **En tant que** chef de projet, **je veux** préparer un risque dans les grilles du projet, le mettre
 à jour et le réexaminer d'un seul geste, lire ce que sa survenance fera avant de la confirmer, et
@@ -1382,7 +1382,7 @@ colonne de tendance sont d'US-3160.
 - **exigences** : `WF-RIS-0040-A`
 - **opérations** : `listRisks`, `getRisk`, `getProjectRiskMatrix`, `getPortfolioRisks`,
   `updateMyPreferences`
-- **issue** :
+- **issue** : #4580
 
 **En tant que** chef de projet, **je veux** voir d'emblée le nuage des risques, en bulles dont la
 taille dit la gravité, et lire au registre quels risques pèsent plus ou moins qu'à la revue
@@ -1467,7 +1467,7 @@ graphique ; l'évolution d'un risque sur plus de deux révisions, piste d'après
 - **statut** : à faire
 - **exigences** : `WF-QUA-0040-A`
 - **opérations** : celles des US-3070 à US-3130, lues sur le témoin chargé
-- **issue** :
+- **issue** : #4583
 
 **En tant que** développeur, **je veux** que le témoin chargé dans le service porte les trois
 risques de PRJ-001 comme des différentiels, l'un d'eux ajoutant, modifiant et abandonnant, **afin
