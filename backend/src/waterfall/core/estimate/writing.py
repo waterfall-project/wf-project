@@ -124,8 +124,11 @@ def _priced_draft(
         if judging.role_changes:
             # The roles of the other lines of the task are read as the database holds them: under a
             # load of lines, what it changed or created and did not flush yet goes out first, lest
-            # the hours be judged on roles the load has replaced (#4403).
-            if remembers(session):
+            # the hours be judged on roles the load has replaced (#4403); with no line pending, the
+            # load keeps its single flush.
+            if remembers(session) and any(
+                isinstance(each, EstimateLine) for each in (*session.new, *session.dirty)
+            ):
                 session.flush()
             judge_working_hours(session, held, draft.role.resource_role_id, judging.earlier)
         calendar_id, category_id = draft.role.calendar_id, draft.cost_category_id
