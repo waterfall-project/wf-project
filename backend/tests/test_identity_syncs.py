@@ -33,10 +33,14 @@ from waterfall.core.users.interface import (
     SkippedAccount,
     SkippedPerson,
     SyncReport,
+    SyncScheduleWriting,
+    judged_sync_schedule,
     latest_report,
     record_report,
+    write_sync_schedule,
 )
 from waterfall.core.users.tables import IdentitySyncReport, UserAccount
+from waterfall.platform.audit import Act
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.keycloak import Keycloak, unavailable
 from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity, ProviderAccount
@@ -99,6 +103,23 @@ def reported(
         report = SyncReport(task_id, finished_at, created, 1, 0, 2, skipped, ["o@x.org"])
         record_report(session, report)
     return task_id
+
+
+@pytest.mark.story("US-3040")
+@pytest.mark.requirement("WF-ADM-0070-A")
+def test_a_reading_on_demand_is_deposited_though_the_schedule_is_disabled(
+    api: ContractClient, database: Database, queue: TaskQueue, person: Person
+) -> None:
+    # The schedule governs what the platform reads of itself: « la lecture à la demande reste ».
+    with database.transaction() as session:
+        schedule = judged_sync_schedule(
+            SyncScheduleWriting(is_enabled=False, frequency="daily", at_time="01:30", weekday=None)
+        )
+        write_sync_schedule(session, schedule, 1, Act(None, utc_now()))
+    _, headers = person("users.write")
+    asked = api.post(SYNCS, headers=headers)
+    assert asked.status_code == 202, asked.text
+    assert UUID(asked.json()["task_id"]) in queue.waiting()
 
 
 @pytest.mark.requirement("WF-ARC-0090-A")

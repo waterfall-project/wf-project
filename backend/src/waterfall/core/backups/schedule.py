@@ -13,7 +13,6 @@ governs (``keep_for_restoration``, #1743).
 
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime, time, timedelta
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select, update
@@ -26,6 +25,7 @@ from waterfall.core.backups.tables import (
     SINGLE_ROW,
     BackupSchedule,
 )
+from waterfall.platform import timing
 from waterfall.platform.errors import (
     STALE_LOCK_VERSION,
     VALIDATION_FAILED,
@@ -34,9 +34,11 @@ from waterfall.platform.errors import (
     UnprocessableError,
 )
 from waterfall.platform.tasks import last_submitted
+from waterfall.platform.timing import parsed_time, weekday_faults
 
 if TYPE_CHECKING:
     from collections.abc import Collection
+    from datetime import datetime, time
 
     from sqlalchemy.orm import Session
 
@@ -47,12 +49,6 @@ VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 VALUE_TOO_LONG = "VALUE_TOO_LONG"
 UNKNOWN_EXTERNAL_BACKUP_LOCATION = "UNKNOWN_EXTERNAL_BACKUP_LOCATION"
 PATH_INVALID = "PATH_INVALID"
-WEEKLY = "weekly"
-# The days of a weekly backup, 1 Monday to 7 Sunday (ISO 8601).
-WEEKDAYS = (1, 7)
-# A time ``HH:MM``, as the contract writes it (`BackupSchedule.at_time`): digits of 0 to 9 alone,
-# which ``\d`` would not keep to.
-AT_TIME = re.compile(r"([01][0-9]|2[0-3]):([0-5][0-9])")
 LOCATION = re.compile(LOCATION_FORM.removeprefix("^").removesuffix("$"))
 PATH = re.compile(PATH_FORM.removeprefix("^").removesuffix("$"))
 
@@ -108,19 +104,6 @@ def _bounded(pointer: str, value: int, least: int) -> list[FieldError]:
     return []
 
 
-def _weekday_faults(frequency: str, weekday: int | None) -> list[FieldError]:
-    """Ask a day of a weekly schedule, within the week, and refuse one to a daily schedule."""
-    if frequency != WEEKLY:
-        return [] if weekday is None else [FieldError("/weekday", VALIDATION_FAILED)]
-    if weekday is None:
-        return [FieldError("/weekday", VALUE_REQUIRED)]
-    if weekday < WEEKDAYS[0]:
-        return [FieldError("/weekday", VALUE_OUT_OF_RANGE, {"minimum": WEEKDAYS[0]})]
-    if weekday > WEEKDAYS[1]:
-        return [FieldError("/weekday", VALUE_OUT_OF_RANGE, {"maximum": WEEKDAYS[1]})]
-    return []
-
-
 def _copy_faults(copy: ExternalCopy, declared: Collection[str], least: int) -> list[FieldError]:
     """Judge the copy: a location declared, a relative folder in it, at least ``least`` kept.
 
@@ -154,10 +137,10 @@ def judged_schedule(writing: ScheduleWriting, declared: Collection[str]) -> Sche
     of its bounds (`BackupExternalCopy.retained_count`).
     """
     faults: list[FieldError] = []
-    held = AT_TIME.fullmatch(writing.at_time)
+    held = parsed_time(writing.at_time)
     if held is None:
         faults.append(FieldError("/at_time", VALIDATION_FAILED))
-    faults.extend(_weekday_faults(writing.frequency, writing.weekday))
+    faults.extend(weekday_faults(writing.frequency, writing.weekday))
     platform = _bounded("/retained_count", writing.retained_count, RETENTIONS[0])
     faults.extend(platform)
     if writing.external_copy is not None:
@@ -168,7 +151,7 @@ def judged_schedule(writing: ScheduleWriting, declared: Collection[str]) -> Sche
     return Schedule(
         writing.is_enabled,
         writing.frequency,
-        time(int(held[1]), int(held[2])),
+        held,
         writing.weekday,
         writing.retained_count,
         writing.external_copy,
@@ -250,19 +233,8 @@ def write_backup_schedule(
 
 
 def latest_occurrence(schedule: Schedule, now: datetime) -> datetime:
-    """Give the latest moment, ``now`` included, at which the schedule says a backup is taken.
-
-    Daily, the time of the day; weekly, the time of the day of the week (1 Monday to 7 Sunday).
-    All in universal time.
-    """
-    today = now.astimezone(UTC).date()
-    day = today
-    if schedule.frequency == WEEKLY and schedule.weekday is not None:
-        day = today - timedelta(days=(today.isoweekday() - schedule.weekday) % 7)
-    occurrence = datetime.combine(day, schedule.at_time, tzinfo=UTC)
-    if occurrence > now:
-        occurrence -= timedelta(days=7 if schedule.frequency == WEEKLY else 1)
-    return occurrence
+    """Give the latest moment, ``now`` included, at which the schedule says a backup is taken."""
+    return timing.latest_occurrence(schedule.frequency, schedule.weekday, schedule.at_time, now)
 
 
 def backup_is_due(session: Session, now: datetime) -> bool:

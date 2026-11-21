@@ -16,7 +16,9 @@ roles it holds, which notes the change (``states``); a deactivated account anony
 (``states``, WF-ADM-0060), and anonymised again after a restoration that named it again (#988);
 the moment its sessions were last closed — by its holder, or by its
 deactivation —, which refuses a token whose sign-in comes before it (#668, #835); what its holder
-sets alone, its preferences and its avatar (``personal``, WF-ADM-0040, WF-ADM-0080); and the
+sets alone, its preferences and its avatar (``personal``, WF-ADM-0040, WF-ADM-0080); the schedule of
+the readings of the accounts, read and written whole, and when a reading is due (``sync_schedule``,
+WF-ADM-0070, US-3040); and the
 administrator the bootstrap created (WF-EXP-0020). An anonymised account has no name nor address:
 what names it is ``None``, which the front shows as the neutral label of its catalogue.
 """
@@ -106,6 +108,15 @@ from waterfall.core.users.states import (
     check_anonymization,
     set_state,
 )
+from waterfall.core.users.sync_schedule import (
+    SyncSchedule,
+    SyncScheduleView,
+    SyncScheduleWriting,
+    judged_sync_schedule,
+    read_sync_schedule,
+    sync_is_due,
+    write_sync_schedule,
+)
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.errors import NOT_FOUND, ConflictError, NotFoundError
 
@@ -150,6 +161,9 @@ __all__ = [
     "SkippedAddressHeld",
     "SkippedPerson",
     "SyncReport",
+    "SyncSchedule",
+    "SyncScheduleView",
+    "SyncScheduleWriting",
     "account_commands",
     "active_accounts",
     "active_accounts_in_nodes",
@@ -174,6 +188,7 @@ __all__ = [
     "inscribe_password_link",
     "inscribed_actor",
     "is_address",
+    "judged_sync_schedule",
     "known_subjects",
     "latest_report",
     "list_accounts",
@@ -192,11 +207,14 @@ __all__ = [
     "read_authors",
     "read_avatar",
     "read_installation_administrator",
+    "read_sync_schedule",
     "record_report",
     "refuse",
     "set_account_activation",
+    "sync_is_due",
     "unheld_accounts",
     "withdraw_avatar",
+    "write_sync_schedule",
 ]
 
 

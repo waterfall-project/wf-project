@@ -285,7 +285,8 @@ def test_the_tasks_planned_are_one_cronjob_that_runs_the_one_command_of_the_sche
     assert not [name for name in variables if "STORAGE" in name or "KEYCLOAK" in name]
     assert {"WATERFALL_DATABASE_URL", "WATERFALL_REDIS_URL"} <= variables.keys()
     assert variables["WATERFALL_PURGE_INTERVAL"] == "600"
-    assert variables["WATERFALL_IDENTITY_SYNC_INTERVAL"] == "86400"
+    # US-3040: the reading of the accounts is scheduled by the database, not by a variable.
+    assert not [name for name in variables if "IDENTITY_SYNC" in name]
 
 
 def test_the_chart_reads_the_images_of_the_compose(objects: Objects) -> None:

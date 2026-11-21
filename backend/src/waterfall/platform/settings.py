@@ -140,17 +140,16 @@ class ApiSettings(ServiceSettings):
 class ScheduleSettings(Settings):
     """What ``waterfall-worker schedule`` reads: the database and Redis, nothing else (TFX-10).
 
-    ``identity_sync_interval`` is how long the platform waits between two readings of the accounts,
-    in seconds, a day by default (PBS-5.3; US-3040 replaces it by the planning the administrator
-    sets), and ``purge_interval`` between two purges of what expired, ten minutes by default (EP-06,
-    "La purge"). A task is deposited when the latest of its kind was submitted at least that long
-    ago. The purge spares the latest task of each planned kind, however old, so that an interval
-    longer than the retention of the tasks does not make a reading due again at each purge. Under
-    Helm the first reading may leave before the realm of Keycloak is applied (a hook after the
-    installation): it then fails and the next is due an interval later.
+    ``purge_interval`` is how long the platform waits between two purges of what expired, ten
+    minutes by default (EP-06, "La purge"). A task is deposited when the latest of its kind was
+    submitted at least that long ago. The reading of the accounts and the backup are not here: an
+    administrator sets when (``identity_sync_schedule``, ``backup_schedule``; US-3040, US-2910). The
+    purge spares the latest task of each planned kind, however old, so that a schedule longer than
+    the retention of the tasks does not make a task due again at each purge. Under Helm the first
+    reading may leave before the realm of Keycloak is applied (a hook after the installation): it
+    then fails and the next is due at the next occurrence of its schedule.
     """
 
-    identity_sync_interval: int = Field(default=86_400, ge=1)
     purge_interval: int = Field(default=600, ge=1)
 
 

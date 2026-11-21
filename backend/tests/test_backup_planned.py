@@ -53,7 +53,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.story("US-2910")
 
-SETTINGS = ScheduleSettings.model_construct(identity_sync_interval=86_400, purge_interval=600)
+SETTINGS = ScheduleSettings.model_construct(purge_interval=600)
 MINUTE = timedelta(minutes=1)
 HOUR = timedelta(hours=1)
 DAY = timedelta(days=1)

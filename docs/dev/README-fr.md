@@ -193,13 +193,14 @@ la maintenance (EP-13, US-2830, #956). Chaque requête de l'API lit donc la main
 lecture de plus par requête (la sonde de vie la lit pour la dire), bornée par `CONNECT_TIMEOUT` ; une
 base qui ne répond pas ou dont le réservoir est épuisé dit « pas de maintenance » et la sonde répond.
 Une maintenance posée dont l'état manque reste posée, comme une restauration abandonnée. Les tâches planifiées se déposent par `waterfall-worker schedule`, la seule commande que les
-planificateurs appellent : elle inscrit et met en file ce qui est dû — la lecture des comptes à
-l'intervalle de `WATERFALL_IDENTITY_SYNC_INTERVAL`, en secondes, un jour par défaut, la purge à
-l'intervalle de `WATERFALL_PURGE_INTERVAL`, dix minutes par défaut — et n'en dépose pas une quand une
+planificateurs appellent : elle inscrit et met en file ce qui est dû — la lecture des comptes et la sauvegarde à
+l'heure que disent leurs planifications, que l'administrateur règle à l'écran et que la base garde
+(`identity_sync_schedule`, `backup_schedule` ; une lecture quotidienne à 01:30 UTC par défaut), la
+purge à l'intervalle de `WATERFALL_PURGE_INTERVAL`, dix minutes par défaut — et n'en dépose pas une quand une
 tâche du même genre est en file ou en cours ; elle n'atteint que PostgreSQL et Redis (TFX-10). Le
 service `scheduler` de Compose l'appelle toutes les `WATERFALL_SCHEDULE_INTERVAL` secondes, cinq
 minutes par défaut, la CronJob du chart de même ; un intervalle qui n'est pas un entier positif
-arrête le service avec 2. La purge épargne la dernière tâche de chaque genre planifié, si bien qu'un intervalle plus long que la rétention ne rend pas la lecture due à chaque purge ; sous Helm, la première lecture peut partir avant que le royaume Keycloak soit appliqué (le crochet suit l'installation) : elle échoue, et la suivante est due un intervalle plus tard. La purge est une tâche du worker (`worker/purge.py`) : ce qui a expiré —
+arrête le service avec 2. La purge épargne la dernière tâche de chaque genre planifié, si bien qu'une planification plus espacée que la rétention ne rend pas la lecture due à chaque purge ; sous Helm, la première lecture peut partir avant que le royaume Keycloak soit appliqué (le crochet suit l'installation) : elle échoue, et la suivante est due à l'occurrence suivante de la planification. La purge est une tâche du worker (`worker/purge.py`) : ce qui a expiré —
 comptes rendus d'import, dépôts, exports, historique annulable, et leurs objets sur le stockage
 (EP-06, « La purge ») —, puis les tâches terminées depuis plus que `WATERFALL_BACKGROUND_TASK_RETENTION_DAYS`,
 trente jours par défaut, la tâche d'une sauvegarde encore listée épargnée. Un genre de plus se

@@ -7,7 +7,6 @@ test; the schedule is the command of the service ``scheduler`` of the Compose fi
 platform, run as its shell runs it, with ``waterfall-worker schedule``.
 """
 
-import itertools
 import os
 import signal
 import subprocess
@@ -22,11 +21,11 @@ from uuid import UUID, uuid4
 import pytest
 import yaml
 from access_rows import holder
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 from support import raw_account
 from task_handlers import REQUEST, Runs, deposit, inscriptions, task
 
-from waterfall.core.users.tables import UserAccount
+from waterfall.core.users.tables import IdentitySyncSchedule, UserAccount
 from waterfall.platform.correlation import FORM
 from waterfall.platform.database import utc_now
 from waterfall.platform.tasks import BackgroundTask
@@ -120,34 +119,39 @@ def scheduler(compose: Path = COMPOSE) -> tuple[dict[str, str], list[str]]:
     ]
 
 
-def test_the_platform_deposits_the_reading_of_the_accounts_at_its_interval_as_an_administrator(
+@pytest.mark.story("US-3040")
+@pytest.mark.requirement("WF-ADM-0070-A")
+def test_the_platform_deposits_the_reading_of_the_accounts_its_schedule_says_as_an_administrator(
     database: Database, platform_queue: TaskQueue, service_environment: dict[str, str]
 ) -> None:
-    # The criterion of US-0370 of its own: « la lecture se dépose en file à l'intervalle que fixe
-    # la configuration de l'installation, et le worker la prend comme celle qu'un administrateur
-    # demande (PBS-5.3) » — a day by default. The reading itself, and the accounts it gives
-    # (WF-ADM-0070-A), are tried against the platform (test_keycloak_identity_sync.py).
-    variable = "WATERFALL_IDENTITY_SYNC_INTERVAL"
+    # « La lecture est déposée à l'heure que la planification dit » : the schedule of the readings
+    # is the one of the database, a day by default; the Compose carries no interval of its own. The
+    # reading, due since the shipped 01:30 of a day long past, is deposited by the process once,
+    # and the worker takes it as it takes the one an administrator asks for. The reading itself,
+    # and the accounts it gives (WF-ADM-0070-A), are tried against the platform
+    # (test_keycloak_identity_sync.py).
     scheduled_with, shell = scheduler()
-    assert scheduled_with[variable] == f"${{{variable}:-86400}}"
+    assert not [name for name in scheduled_with if "IDENTITY_SYNC" in name]
+    with database.transaction() as session:
+        session.execute(
+            update(IdentitySyncSchedule).values(updated_at=utc_now() - timedelta(days=10))
+        )
     runs = Runs()
     platform_queue.prepare()
     handlers = {"identity_sync": runs, "purge": Runs()}
     taker = Worker(database, platform_queue, handlers, "worker", Timing(block=0.1))
     # The schedule looks at each second; the purge, deposited with the reading, waits for its hour.
-    environment = {**service_environment, SCHEDULE: str(INTERVAL), variable: str(INTERVAL)}
-    with started(shell, {**environment, PURGE: "3600"}):
-        wait_for(lambda: taker.step() and len(runs) == 2)
+    environment = {**service_environment, SCHEDULE: str(INTERVAL), PURGE: "3600"}
+    with started(shell, environment):
+        wait_for(lambda: taker.step() and len(runs) == 1)
+        # The reading owed is deposited once: the schedule looks again, and finds none owed.
+        time.sleep(3 * INTERVAL)
     with database.transaction() as session:
         readings = BackgroundTask.kind == "identity_sync"
         scheduled = list(session.scalars(select(BackgroundTask).where(readings)))
-    scheduled.sort(key=lambda row: row.submitted_at)
-    assert [row.id for row in scheduled[:2]] == runs
+    assert [row.id for row in scheduled] == runs
     assert {(row.kind, row.requested_by) for row in scheduled} == {("identity_sync", None)}
-    assert [row.status for row in scheduled[:2]] == ["succeeded", "succeeded"]
-    for earlier, later in itertools.pairwise(scheduled):
-        assert (later.submitted_at - earlier.submitted_at).total_seconds() >= INTERVAL
-    assert len({row.correlation_id for row in scheduled}) == len(scheduled)
+    assert [row.status for row in scheduled] == ["succeeded"]
     assert all(FORM.fullmatch(row.correlation_id) for row in scheduled)
     administrator = raw_account()
     with database.transaction() as session:
@@ -190,7 +194,6 @@ def test_the_platform_purges_what_expired_at_its_interval_by_the_task_its_schedu
         **service_environment,
         SCHEDULE: str(INTERVAL),
         PURGE: str(INTERVAL),
-        "WATERFALL_IDENTITY_SYNC_INTERVAL": "3600",
     }
 
     def purged() -> bool:
@@ -227,7 +230,7 @@ def test_a_schedule_whose_interval_is_no_positive_number_stops_with_two(
 
 
 @pytest.mark.story("US-2830")
-@pytest.mark.parametrize("variable", ["WATERFALL_IDENTITY_SYNC_INTERVAL", PURGE])
+@pytest.mark.parametrize("variable", [PURGE])
 def test_a_schedule_that_says_an_interval_is_wrong_stops_the_service_with_two(
     variable: str, service_environment: dict[str, str]
 ) -> None:
@@ -250,7 +253,7 @@ def test_the_two_compose_files_schedule_the_same_loop_with_the_same_settings() -
     ]
     assert "waterfall-worker schedule" in service_shell[-1]
     assert "waterfall-worker purge" not in service_shell[-1]
-    names = ("WATERFALL_SCHEDULE_INTERVAL", "WATERFALL_IDENTITY_SYNC_INTERVAL", PURGE)
+    names = ("WATERFALL_SCHEDULE_INTERVAL", PURGE)
     assert service_settings[SCHEDULE] == f"${{{SCHEDULE}:-300}}"
     assert {each: production_settings[each] for each in names} == {
         each: service_settings[each] for each in names
