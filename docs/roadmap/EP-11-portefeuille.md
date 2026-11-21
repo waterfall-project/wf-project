@@ -578,9 +578,9 @@ de** comparer les vues entre elles et de retrouver le portefeuille tel qu'il ét
 - propre à l'US : la règle « qui peut ouvrir un projet » n'est écrite qu'une fois : `access_roles`
   (`evaluation.py`) lit celle de `Viewer.sees_all`, et un test éprouve que le jugement d'accès d'un
   projet et `can_open` du portefeuille s'accordent (#4131, décision du 2026-11-19 ; US-2670/L4) ;
-- propre à l'US : la période de `getPortfolioPerformance` est bornée par le contrat : au-delà de
-  cinq ans, durée proposée par le lot, 422 `VALUE_OUT_OF_RANGE` (#4176, décision du 2026-11-19 ;
-  US-2670/L4) ;
+- propre à l'US : la période de `getPortfolioPerformance` est bornée par le contrat : au-delà d'une
+  durée maximale, 422 `VALUE_OUT_OF_RANGE` ; le lot propose la durée dans son issue (#4176, décision
+  du 2026-11-19 ; US-2670/L4) ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
 
 **Notes de réalisation.** `docs/api/DECISIONS.md` : « Le portefeuille : horizon, projets terminés,
