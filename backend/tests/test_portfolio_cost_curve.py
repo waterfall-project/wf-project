@@ -68,6 +68,13 @@ ENDS = [
     "2026-11-30",
 ]
 type Points = dict[str, str]
+# The days at least that the curves of the two projects share, by series, as the markings of the
+# fabrics left them: the sum compared with theirs on fewer would be a comparison emptied.
+MINIMUM_COMMON_DAYS = {
+    "reference_budget": 2,
+    "actual_cost": 1,
+    "project_manager_projection": 6,
+}
 
 
 @pytest.fixture
@@ -323,7 +330,8 @@ def test_the_sum_is_that_of_the_curves_getcostcurve_gives_of_each_project_at_the
             # At each day where every project has a point of its own, the sum of those points: no
             # rule of reading between two points is assumed here (``value_at`` has its own tests).
             common = [day for day in held if all(day in points(one, name) for one in each_one)]
-            assert common, name
+            # Enough days shared for a shift of the dates to empty none of the comparisons (#4341).
+            assert len(common) >= MINIMUM_COMMON_DAYS[name], (name, common)
             for day in common:
                 expected = sum((Decimal(points(one, name)[day]) for one in each_one), Decimal(0))
                 assert Decimal(held[day]) == expected, (name, day)
@@ -334,20 +342,52 @@ def test_the_sum_is_that_of_the_curves_getcostcurve_gives_of_each_project_at_the
 def test_a_curve_over_keeps_its_cumulative_and_one_that_starts_late_is_nought(
     api: ContractClient, owner: Engine, fabrics: Portfolio
 ) -> None:
-    # Propre à l'US : a curve is read at its last point on or before each day. A project whose
-    # curve ends in September 2025 keeps its cumulative to the end of the window; one whose curve
-    # starts in October 2026 is nought until then. The expected values are written by hand.
+    # Propre à l'US : a curve is read at its last point on or before each day, in each of the three
+    # series. A project whose curve ends in September 2025 keeps its cumulative to the end of the
+    # window; one whose curve starts in October 2026 is nought until then. The expected values are
+    # written by hand (#4341).
     first, second = two_projects(api, owner, fabrics)
-    keep(owner, first, "cost_curve", curve({"2025-08-31": "50.00", "2025-09-30": "70.00"}, {}, {}))
-    keep(owner, second, "cost_curve", curve({"2026-10-31": "5.00"}, {}, {}))
-    budget = points(curves(api, fabrics), "reference_budget")
-    assert budget == {
+    keep(
+        owner,
+        first,
+        "cost_curve",
+        curve(
+            {"2025-08-31": "50.00", "2025-09-30": "70.00"},
+            {"2025-08-31": "50.00", "2025-09-30": "70.00"},
+            {"2026-06-03": "40.00", "2026-07-31": "60.00"},
+        ),
+    )
+    keep(
+        owner,
+        second,
+        "cost_curve",
+        curve({"2026-10-31": "5.00"}, {"2026-05-31": "5.00"}, {"2026-09-30": "5.00"}),
+    )
+    body = curves(api, fabrics)
+    assert points(body, "reference_budget") == {
         "2025-06-30": "0.00",
         "2025-07-31": "0.00",
         "2025-08-31": "50.00",
         **dict.fromkeys(ENDS[3:16], "70.00"),
         "2026-10-31": "75.00",
         "2026-11-30": "75.00",
+    }
+    assert points(body, "actual_cost") == {
+        "2025-06-30": "0.00",
+        "2025-07-31": "0.00",
+        "2025-08-31": "50.00",
+        **dict.fromkeys(ENDS[3:11], "70.00"),
+        "2026-05-31": "75.00",
+        "2026-06-03": "75.00",
+    }
+    assert points(body, "project_manager_projection") == {
+        "2026-06-03": "40.00",
+        "2026-06-30": "40.00",
+        "2026-07-31": "60.00",
+        "2026-08-31": "60.00",
+        "2026-09-30": "65.00",
+        "2026-10-31": "65.00",
+        "2026-11-30": "65.00",
     }
 
 

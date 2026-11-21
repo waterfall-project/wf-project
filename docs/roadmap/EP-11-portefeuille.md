@@ -271,7 +271,7 @@ section qui la porte, et rien d'autre dans la conception ne change.
   maximale, 422 `VALUE_OUT_OF_RANGE` sur la période, au lieu d'une lecture par trimestre touché sans
   limite. Écartées : lire les documents conservés de tous les trimestres en une requête ; laisser
   tel quel et attendre la mesure. Porté par US-2670/L4 #3873, qui éprouve la règle des périodes sur
-  les six vues ; **la durée maximale n'est pas fixée** : le lot la propose dans son issue.
+  les six vues ; **la durée maximale est de cinq ans** (proposée par le lot, dans `docs/api/DECISIONS.md`).
 - **Un exemple de 422 de `getPortfolioProjects` sur la période du périmètre** (#4164) : période
   inversée avec `as_of`, champs `/query/from` et `/query/to`, au contrat, que le test de l'écran lit
   au lieu de composer ses champs. Porté par US-2760/L2 #3884.
@@ -492,7 +492,7 @@ leurs requêtes dans le noyau. Le rapport dit que le témoin ne porte pas trois 
 
 ## US-2670 — Le périmètre, la date de calcul et la règle d'agrégation
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-PTF-0010-A`, `WF-PTF-0020-A`, `WF-PTF-0030-A`, `WF-CYC-0130-A`,
   `WF-PRJ-0090-A`
 - **opérations** : `getPortfolioProjects`, `getPortfolioValue`, `getPortfolioWorkload`,
@@ -577,9 +577,8 @@ de** comparer les vues entre elles et de retrouver le portefeuille tel qu'il ét
 - propre à l'US : la règle « qui peut ouvrir un projet » n'est écrite qu'une fois : `access_roles`
   (`evaluation.py`) lit celle de `Viewer.sees_all`, et un test éprouve que le jugement d'accès d'un
   projet et `can_open` du portefeuille s'accordent (#4131, décision du 2026-11-19 ; US-2670/L4) ;
-- propre à l'US : la période de `getPortfolioPerformance` est bornée par le contrat : au-delà d'une
-  durée maximale, 422 `VALUE_OUT_OF_RANGE` ; le lot propose la durée dans son issue (#4176, décision
-  du 2026-11-19 ; US-2670/L4) ;
+- propre à l'US : la période de `getPortfolioPerformance` est bornée par le contrat : au-delà de
+  cinq ans, 422 `VALUE_OUT_OF_RANGE` (#4176, décision du 2026-11-19 ; US-2670/L4) ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
 
 **Notes de réalisation.** `docs/api/DECISIONS.md` : « Le portefeuille : horizon, projets terminés,

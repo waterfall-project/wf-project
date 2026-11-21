@@ -27,7 +27,11 @@ def money(amount: Decimal | None) -> str | None:
 
 
 def hours(amount: Decimal | None) -> str | None:
-    """Write hours, or a capacity in hours, to the hundredth; null stays null."""
+    """Write hours, or a capacity in hours, as ``Hours`` of the contract; null stays null.
+
+    At the scale received, none rounded here: the hours a document keeps and the capacity of a role
+    (EP-10) are already to the hundredth, as the answers of the workload show (#4292).
+    """
     return None if amount is None else format(amount, "f")
 
 

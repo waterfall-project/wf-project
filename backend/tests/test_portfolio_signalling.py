@@ -55,6 +55,19 @@ def test_a_project_with_no_marking_or_no_passage_in_progress_has_no_interval() -
     assert review_interval([(FIRST, JANUARY)], JANUARY, None) is None
 
 
+@pytest.mark.requirement("WF-PTF-0110-A")
+def test_a_marking_at_or_before_the_passage_in_progress_is_the_reference_not_a_review() -> None:
+    # « …ou, à défaut d'avant-dernière, depuis le passage à En cours » : the last marking at the
+    # very instant of the passage, or before it, is the reference the passage designates, no
+    # review; no interval (``docs/api/DECISIONS.md``, #4333). One an instant after is a review.
+    assert review_interval([(FIRST, ENTERED)], ENTERED, ENTERED) is None
+    assert review_interval([(FIRST, JANUARY)], JANUARY, ENTERED) is None
+    later = ENTERED.replace(minute=1)
+    assert review_interval([(FIRST, later)], later, ENTERED) == ReviewInterval(
+        FIRST, ENTERED, later
+    )
+
+
 @pytest.mark.requirement("WF-REF-0180-A")
 def test_a_review_is_late_beyond_the_delay_in_days_and_gives_its_whole_weeks() -> None:
     # « Un projet dont la dernière révision marquée date de plus que ce délai est signalé » : six

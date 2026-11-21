@@ -24,7 +24,6 @@ projet"); the risks never are.
 """
 
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 from waterfall.core.costs.interface import PROJECT
 from waterfall.core.estimate import interface as estimate
@@ -50,7 +49,7 @@ from waterfall.core.planning.interface import (
     tracked_milestones,
 )
 from waterfall.core.portfolio.states import IN_PROGRESS, PRICING
-from waterfall.core.projects.interface import Viewer, project_facts
+from waterfall.core.projects.interface import NOBODY, project_facts
 from waterfall.core.revisions.interface import reference_at_marking
 from waterfall.core.risks.interface import portfolio_risks
 
@@ -58,6 +57,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
     from datetime import date, datetime
     from decimal import Decimal
+    from uuid import UUID
 
     from sqlalchemy.orm import Session
 
@@ -65,9 +65,6 @@ if TYPE_CHECKING:
     from waterfall.core.indicators.interface import Document, IndicatorKind
     from waterfall.core.projects.interface import ProjectFacts
 
-# Who reads a marked revision for its workload: no account, no permission (the commands of the
-# revision are not read).
-NOBODY = Viewer(UUID(int=0), ())
 COMPLETED_TASK = "completed"
 
 WORKLOAD: IndicatorKind = "portfolio_workload"
@@ -93,6 +90,11 @@ type Documents = Mapping[IndicatorKind, Document]
 
 def _hours(value: Decimal) -> str:
     """Write hours or an amount as the contract does, without an exponent."""
+    return format(value, "f")
+
+
+def _probability(value: Decimal) -> str:
+    """Write a probability or a severity of a risk as the register keeps it (``0.3000``)."""
     return format(value, "f")
 
 
@@ -209,8 +211,8 @@ def risks_document(session: Session, project_id: UUID, revision_id: UUID) -> Doc
             {
                 "risk_id": str(each.risk_id),
                 "label": each.label,
-                "probability": _hours(each.probability),
-                "severity": _hours(each.severity),
+                "probability": _probability(each.probability),
+                "severity": _probability(each.severity),
                 "provision_amount": _hours(each.provision_amount),
                 "state": each.state,
                 "occurrence_cost": _amount(each.occurrence_cost),

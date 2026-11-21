@@ -23,12 +23,11 @@ Three readings, offered by ``interface/portfolio.py``:
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 from sqlalchemy import ARRAY, Uuid, and_, any_, column, func, literal, select, values
 
 from waterfall.core.estimate.interface import risk_base
-from waterfall.core.projects.interface import Viewer, project_facts
+from waterfall.core.projects.interface import NOBODY, project_facts
 from waterfall.core.revisions.interface import marked_revisions_of
 from waterfall.core.risks.commands import DISMISSED, IDENTIFIED, OCCURRED, state_named
 from waterfall.core.risks.reading import NOUGHT, read_context, risk_view, seen_revisions
@@ -41,13 +40,11 @@ if TYPE_CHECKING:
     from collections.abc import Collection, Mapping
     from datetime import date, datetime
     from decimal import Decimal
+    from uuid import UUID
 
     from sqlalchemy.orm import Session
 
     from waterfall.core.risks.views import RiskState
-
-# Who reads the risks for the portfolio: no account, no permission (their commands are not read).
-NOBODY = Viewer(UUID(int=0), ())
 
 
 @dataclass(frozen=True, slots=True)

@@ -36,7 +36,6 @@ Nothing is caught: a computation that raises fails the marking, nothing being wr
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 from waterfall.core.costs.interface import PROJECT, UNASSIGNED
 from waterfall.core.estimate import interface as estimate
@@ -55,9 +54,9 @@ from waterfall.core.indicators.interface.estimate_documents import (
 from waterfall.core.indicators.shaping import Context, instant
 from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.projects.interface import (
+    NOBODY,
     SubprojectFilters,
     SubprojectSort,
-    Viewer,
     current_day,
     list_subprojects,
     project_facts,
@@ -66,6 +65,8 @@ from waterfall.core.revisions.interface import reference_at_marking, revision_pr
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from sqlalchemy.orm import Session
 
     from waterfall.core.costs.interface import CostScope
@@ -74,8 +75,6 @@ if TYPE_CHECKING:
 
 IN_PROGRESS = "in_progress"
 MARKED = "marked"
-# Who reads the subprojects of the project for the marking: no account, no permission.
-NOBODY = Viewer(UUID(int=0), ())
 
 
 @dataclass(frozen=True, slots=True)
