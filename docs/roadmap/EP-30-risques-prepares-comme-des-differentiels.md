@@ -54,7 +54,7 @@ ses exigences avant l'ouverture des issues de ses lots.
 - sa tranche du jeu de données de référence (WF-QUA-0040) — les trois risques de PRJ-001 relus comme
   des différentiels, le 751 ajoutant, modifiant et abandonnant —, rechargée par `waterfall-api
   load-witness`, et les exemples du contrat qui suivent ;
-- le constat reçu, soldé.
+- les constats reçus, soldés.
 
 ## Ce qui n'en fait pas partie
 
@@ -208,7 +208,7 @@ et du contrat sont ouvertes depuis le même jour, la 1.0.9 acceptée et les US a
   détail du rendu d'ECharts, contre la règle « jamais par une classe CSS » (FTE-09, pour sa part des
   risques ; le reste est à EP-36, #4448). Reporté ici au cadrage d'EP-36 du 2026-11-21 (décision de
   l'auteur) : US-3160 redessine ces bulles et réécrit ce parcours, qui les trouve alors par ce que
-  l'écran nomme.
+  l'écran nomme. Corrigé par US-3160.
 
 Trois constats d'EP-08 sont tranchés au plus léger parce que cet EPIC rend leur règle provisoire
 (décisions de l'auteur du 2026-11-19 et du 2026-11-20) : #4133, les dates du devis propre le jour de
@@ -1445,6 +1445,9 @@ précédente, **afin de** mener la revue des risques par ce qui a bougé.
 - propre à l'US : l'infobulle d'une bulle, le clic vers le risque ou vers son projet, l'export en
   image avec sa provenance, la table des décomptes sous le graphique et les axes linéaires aux
   valeurs exactes sont gardés (#1253, #1395) ;
+- propre à l'US : le parcours de l'écran trouve les bulles par ce que l'écran nomme — un nom
+  accessible, ou la table sous le graphique —, et non par un attribut de leur tracé, que la
+  bibliothèque de graphiques change sans prévenir (#4633) ;
 - propre à l'US : l'aide en ligne de l'écran dit ce que la taille d'une bulle mesure et ce que la
   tendance compare ; aucune réponse n'est écrite à la main, le faux back servant les exemples du
   contrat ; les parcours de l'écran sont rejoués, et l'écran passe l'audit d'accessibilité.
