@@ -229,7 +229,7 @@ def image_environment(stage: str) -> dict[str, str]:
 @pytest.mark.parametrize(
     ("dockerfile", "expected"),
     [
-        ("FROM base AS production\nENV A=1 \\\n    B=\"two words\"\n", {"A": "1", "B": "two words"}),
+        ('FROM base AS production\nENV A=1 \\\n  B="two words"\n', {"A": "1", "B": "two words"}),
         ("FROM base AS production\nENV A=1\nENV B 2 3\n", {"A": "1", "B": "2 3"}),
         ("FROM base AS production\nENV A=1 \\\n# a comment\n    B=2\n", {"A": "1", "B": "2"}),
         ("FROM base AS build\nENV A=1\nFROM base AS production\nenv B=2\n", {"B": "2"}),

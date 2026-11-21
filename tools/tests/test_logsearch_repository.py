@@ -50,7 +50,8 @@ def test_a_secret_written_in_a_file_the_repository_tracks_is_found_naming_the_fi
 @pytest.mark.requirement("WF-SEC-0010-A")
 def test_a_secret_quoted_as_a_url_writes_it_is_found_too(tmp_path: Path) -> None:
     _repository(tmp_path, {"a.env": "URL=redis://:a%2Fsecret%2Bvalue@redis/0\n"})
-    assert logsearch.search_repository({"WATERFALL_REDIS_PASSWORD": "a/secret+value"}, tmp_path) == 1
+    secrets = {"WATERFALL_REDIS_PASSWORD": "a/secret+value"}
+    assert logsearch.search_repository(secrets, tmp_path) == 1
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")

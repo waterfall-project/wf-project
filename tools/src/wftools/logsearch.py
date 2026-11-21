@@ -268,7 +268,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def search_repository(environment: Mapping[str, str], root: Path = REPOSITORY) -> int:
-    """Look for the secrets of the environment in the repository; 1 if one is found, 2 if none known."""
+    """Look for the secrets of the environment in the repository.
+
+    1 if one is found, 2 if none is known, 0 otherwise.
+    """
     known = secrets_from(environment)
     skipped = left_out(environment)
     if skipped:

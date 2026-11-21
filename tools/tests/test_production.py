@@ -878,7 +878,8 @@ def test_the_trial_starts_bootstraps_holds_and_removes_the_platform(
     assert "HTTP sends to https://waterfall.localhost\n" in said
     assert "HTTPS answers with Strict-Transport-Security, X-Content-Type-Options" in said
     assert "/auth/admin/ and /auth/realms/master/ answer 404" in said
-    assert "postgres, redis, api, keycloak, storage, prometheus refuse a connection in the clear" in said
+    refused = "postgres, redis, api, keycloak, storage, prometheus refuse a connection in the clear"
+    assert refused in said
     assert "signs in at https://waterfall.localhost, and the front names them" in said
     assert "the backup and its restoration are left out (WATERFALL_TRIAL_RESTORATION)" in said
 

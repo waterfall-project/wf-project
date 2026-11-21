@@ -170,8 +170,8 @@ def test_the_api_given_the_root_reads_prometheus_in_https_alone(
     monkeypatch.setenv("WATERFALL_PROMETHEUS_ADDRESS", "http://prometheus:9090")
     with pytest.raises(SettingsError) as refused:
         load_api_settings()
-    wanted = "WATERFALL_PROMETHEUS_ADDRESS must be in https:// when WATERFALL_TLS_AUTHORITY is given"
-    assert wanted in str(refused.value)
+    wanted = "must be in https:// when WATERFALL_TLS_AUTHORITY is given"
+    assert f"WATERFALL_PROMETHEUS_ADDRESS {wanted}" in str(refused.value)
     monkeypatch.setenv("WATERFALL_PROMETHEUS_ADDRESS", "https://prometheus:9090")
     assert load_api_settings().prometheus_address == "https://prometheus:9090"
     monkeypatch.setenv("WATERFALL_PROMETHEUS_ADDRESS", "")

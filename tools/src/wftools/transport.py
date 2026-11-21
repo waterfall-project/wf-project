@@ -5,8 +5,9 @@
 « Aucune connexion en clair n'est acceptée par un composant de la plateforme, hors le point de
 métriques, qui n'est pas joignable hors du cluster. » (WF-SEC-0010-A). Inside the container of the
 API, on the network of the platform, ``PROBE`` speaks in the clear to each server — PostgreSQL,
-Redis, the API, Keycloak, the object storage, Prometheus — and says how it answered; it also reaches each in
-TLS, its certificate checked against the root of the platform, so that a server out of reach is not
+Redis, the API, Keycloak, the object storage, Prometheus — and says how it answered; it also
+reaches each in TLS, its certificate checked against the root of the platform, so that a server out
+of reach is not
 taken for one that refuses. The listeners that must not be reached at all — Keycloak in HTTP, its
 management, the ports of its cluster, Garage behind its proxy — are tried too, and the port of the
 metrics of the API, which serves them in HTTP, must answer nothing else. ``wftools.production``
