@@ -134,6 +134,8 @@ test("an import that fails in the worker is followed in the logs, from the depos
   }
   expect(reference, "the reference of the message").toMatch(/^[0-9a-f-]{36}$/);
 
+  // "From the front" is tried by the message the front presents, which gives the reference: the
+  // front does not log it (it logs only its own failures), so no line of its log carries it.
   // That one reference finds the whole story in the logs of the platform.
   const told = (): string[] => {
     const lines = story(reference).split("\n");

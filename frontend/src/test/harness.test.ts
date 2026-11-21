@@ -229,6 +229,14 @@ describe("the end-to-end harness", () => {
     expect(projectsOf(config).map(([name]) => name)).not.toContain("measure");
   });
 
+  it("keeps the output of the build in the log of the front too, against the service", async () => {
+    againstTheService();
+    const config = await harness();
+    expect(serversOf(config)[0]?.command).toBe(
+      "mkdir -p .e2e && WATERFALL_API_ADDRESS=http://127.0.0.1:9 pnpm build >> .e2e/front.log 2>&1 && mkdir -p .e2e && pnpm start --hostname 0.0.0.0 --port 3100 >> .e2e/front.log 2>&1",
+    );
+  });
+
   it("plays the paths against the service in projects, those that change the whole after the others (US-1910)", async () => {
     againstTheService();
     expect(projectsOf(await harness())).toEqual([
