@@ -332,6 +332,7 @@ def test_the_reports_of_the_merge_and_of_the_occurrence_read_are_the_examples(
     occurrence = read(f"{BASE}/risks/{REWORK}/occurrence")
     assert occurrence == example("risk_occurrence_report")
     assert occurrence["own_estimate_past_planning_start_on"] == "2026-01-12"
+    assert occurrence["completed_provision_task"] is None
     redated = [each for each in occurrence["differences"] if each["fields"] == ["start", "finish"]]
     assert redated
 

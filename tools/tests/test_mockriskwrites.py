@@ -46,6 +46,7 @@ CITED = (
     ("revisions.yaml", "setLineRemaining", "409", "remaining_provision_refused"),
     ("revisions.yaml", "listNodes", "200", "nodes_risk_estimate"),
     ("risks.yaml", "getRiskOccurrenceReport", "200", "risk_occurrence_report"),
+    ("risks.yaml", "getRiskOccurrenceReport", "200", "risk_occurrence_report_completed_task"),
     ("risks.yaml", "getRiskOccurrenceReport", "409", "risk_occurrence_not_identified"),
     ("risks.yaml", "declareRiskOccurrence", "409", "risk_occurrence_not_identified"),
     ("risks.yaml", "declareRiskOccurrence", "412", "risk_occurrence_report_stale"),
@@ -399,6 +400,29 @@ def test_the_report_names_the_tasks_the_graft_redates_by_their_dates_after_the_b
     successor = rows[N.FACTORY_ACCEPTANCE]
     assert successor.node["lineage_id"] in named
     assert report["own_estimate_past_planning_start_on"] == "2026-01-12"
+
+
+@pytest.mark.story("US-3060")
+def test_a_completed_bearer_is_a_warning_of_the_report_which_it_does_not_change() -> None:
+    # #4240: the task bearing the provision, completed, is named by its node and its label; the
+    # occurrence applies all the same, its report otherwise unchanged. The witness names none,
+    # its bearer only started, which the variant declares itself a counterfactual of.
+    witness = example("risk_occurrence_report")["value"]
+    variant = example("risk_occurrence_report_completed_task")
+    rows = {row.number: row for row in mockcore.current()}
+    bearer = rows[cast("int", rows[cast("int", mockwitnessrisks.REWORK.provision_line)].parent)]
+    assert cast("dict[str, Any]", bearer.node["task"])["progress"] == "started"
+    assert witness["completed_provision_task"] is None
+    named = variant["value"].pop("completed_provision_task")
+    assert named == {"node_id": bearer.node["node_id"], "label": bearer.label}
+    assert {key: value for key, value in witness.items() if key != "completed_provision_task"} == (
+        variant["value"]
+    )
+    assert variant["value"]["refusals"] == []
+    # `differences` is not recomputed: the bearer's difference keeps the witness's fields.
+    [kept] = [each for each in variant["value"]["differences"] if each["label"] == bearer.label]
+    assert kept["fields"] == ["duration", "start", "finish"]
+    assert variant["summary"].startswith("Variante contrefactuelle de risk_occurrence_report")
 
 
 def test_the_bearer_is_changed_by_the_dates_it_comes_to_span() -> None:

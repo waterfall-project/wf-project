@@ -147,7 +147,7 @@ export interface Examples {
     200: "structures" | "structures_amendments" | "structures_estimator" | "structures_without_tasks";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge": {
-    200: "structure_merge_report" | "structure_merge_report_horizon_exceeded" | "structure_merge_report_link_cycle" | "structure_merge_report_link_forbidden" | "structure_merge_report_provision_moved" | "structure_merge_report_refused" | "structure_merge_report_started_task" | "structure_merge_report_without_current_revision";
+    200: "structure_merge_report" | "structure_merge_report_horizon_exceeded" | "structure_merge_report_link_cycle" | "structure_merge_report_link_forbidden" | "structure_merge_report_provision_moved" | "structure_merge_report_refused" | "structure_merge_report_started_task";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
     200: "nodes" | "nodes_amendment" | "nodes_amendment_differences" | "nodes_awaiting_own_lines" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_filtered" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_from_risk" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_estimate" | "nodes_risk_estimate_occurred" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
@@ -174,7 +174,7 @@ export interface Examples {
     200: "risk" | "risk_dismissed_category_deactivated" | "risk_occurred_detail" | "risk_uncited";
   };
   "GET /projects/{project_id}/risks/{risk_id}/occurrence": {
-    200: "risk_occurrence_report";
+    200: "risk_occurrence_report" | "risk_occurrence_report_completed_task";
   };
   "GET /projects/{project_id}/risks/{risk_id}/reviews": {
     200: "risk_reviews" | "risk_reviews_reviewed";
