@@ -528,7 +528,7 @@ services:
 
   # Receives every mail Keycloak sends; read at http://127.0.0.1:8025.
   mailpit:
-    image: ${WATERFALL_MIRROR:-}axllent/mailpit:v1.33.1@sha256:aef2aacc11f075ec0fb6874275ee4a421e688e11a96ebb296134d1735c7761ce
+    image: ${WATERFALL_MIRROR:-}axllent/mailpit:v1.34.0@sha256:23a2ef85bc50853ab3093645d1d64679afd8887e89da5e48a88940c172591a4e
     user: "${WATERFALL_UID:-1000}:${WATERFALL_GID:-1000}"
     ports:
       - "127.0.0.1:${WATERFALL_MAILPIT_PORT:-8025}:8025"

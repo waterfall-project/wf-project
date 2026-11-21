@@ -8,9 +8,9 @@ description = "Waterfall: the business core, the API service and the worker, in 
 requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.20.1",
-    "boto3>=1.44.3",
+    "boto3>=1.44.5",
     "email-validator>=2.4.0",
-    "fastapi>=0.163.1",
+    "fastapi>=0.163.2",
     "httpx2>=2.16.2",
     "lxml>=6.1.3",
     "openpyxl>=3.1.5",
@@ -20,7 +20,7 @@ dependencies = [
     "pyjwt[crypto]>=2.15.1",
     "python-multipart>=0.0.34",
     "redis>=8.1",
-    "sqlalchemy>=2.1.8",
+    "sqlalchemy>=2.1.9",
     "structlog>=26.1.0",
     "tzdata>=2026.6",
     "uuid-utils>=1.2.0",
@@ -39,13 +39,13 @@ waterfall-migrate = "waterfall.migrations.runner:main"
 waterfall-restore = "waterfall.restore.main:main"
 
 [build-system]
-requires = ["uv_build>=0.13.8,<0.14.0"]
+requires = ["uv_build>=0.13.9,<0.14.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
-    "boto3-stubs-lite[s3]>=1.44.3",
-    "datamodel-code-generator>=0.96.0",
+    "boto3-stubs-lite[s3]>=1.44.5",
+    "datamodel-code-generator>=0.97.0",
     "grimp>=3.20",
     "import-linter>=2.16",
     "openapi-core>=0.23.1",
