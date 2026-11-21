@@ -101,7 +101,9 @@ Tout échange à l'intérieur de la plateforme est chiffré (US-2840, WF-SEC-001
 l'API et Keycloak ne servent qu'en TLS, le stockage objet derrière un mandataire TLS
 (`storage-proxy`, `Caddyfile.storage`) — Garage, qui ne chiffre pas, n'est joint que par lui, sur
 un réseau qu'ils sont seuls à partager. Chaque client vérifie le certificat du serveur et son nom
-contre la racine de l'autorité de la plateforme ; une connexion en clair est refusée. Seuls les
+contre la racine de l'autorité de la plateforme ; une connexion en clair est refusée. Keycloak, seule
+instance, garde ses caches pour lui (`KC_CACHE=local`) : il n'ouvre aucun port de grappe, ni 7800
+ni 57800, où JGroups parlerait en clair. Seuls les
 points de métriques restent en HTTP, sur un port que la porte ne route pas (TFX-09).
 
 Cette autorité est celle de l'exploitant s'il la fournit : son certificat, `ca.crt` — suivi au
@@ -115,6 +117,12 @@ pas — clé absente, chiffrée ou qui n'est pas celle du certificat, certificat
 autorité ou n'est plus valable — l'arrête en le disant, et la plateforme avec lui. Un serveur
 démarré sans son certificat s'arrête en nommant le fichier ; un processus de l'API, du worker ou
 de la restauration refuse de démarrer sur une adresse en clair, en la nommant.
+
+Rien d'autre ne renouvelle ces certificats : une plateforme qui ne redémarre pas en deux ans les
+voit expirer, et ses services ne se joignent plus. Redémarrer le service `authority` les renouvelle ;
+chaque serveur ne relit le sien qu'à son propre démarrage, d'où le plus simple, arrêter la
+plateforme et la redémarrer (`down`, sans `--volumes`, puis `up --detach --wait`), qui relance
+`authority` avant tout autre service.
 
 Pour changer d'autorité, déposer la nouvelle dans `authority`, puis arrêter la plateforme et la
 redémarrer (`down`, sans `--volumes`, puis `up --detach --wait`) : chaque serveur relit alors un

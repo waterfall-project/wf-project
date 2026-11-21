@@ -559,7 +559,8 @@ services:
   # password are handed over by createPasswordSetupLink (WF-CMP-0030). In TLS alone, with the
   # certificate of the authority (TFX-08): no listener in HTTP. Its interface of management, which
   # answers its health check, stays in HTTP on the loopback of its container, which no other
-  # service reaches.
+  # service reaches. One instance, its caches its own (KC_CACHE=local): it opens no port of a
+  # cluster, neither 7800 nor 57800, where JGroups would detect its peers in the clear.
   keycloak:
     image: *keycloak-image
     environment:
@@ -574,6 +575,7 @@ services:
       KC_HTTPS_CERTIFICATE_KEY_FILE: /tls/tls.key
       KC_HTTP_MANAGEMENT_SCHEME: http
       KC_HTTP_MANAGEMENT_HOST: 127.0.0.1
+      KC_CACHE: local
       KC_PROXY_HEADERS: xforwarded
     volumes:
       - certificates-keycloak:/tls:ro

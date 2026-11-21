@@ -8,9 +8,9 @@ API, on the network of the platform, ``PROBE`` speaks in the clear to each serve
 Redis, the API, Keycloak, the object storage — and says how it answered; it also reaches each in
 TLS, its certificate checked against the root of the platform, so that a server out of reach is not
 taken for one that refuses. The listeners that must not be reached at all — Keycloak in HTTP, its
-management, Garage behind its proxy — are tried too, and the port of the metrics of the API, which
-serves them in HTTP, must answer nothing else. ``wftools.production`` runs it on the started
-platform and holds that every server refuses, and serves in TLS.
+management, the ports of its cluster, Garage behind its proxy — are tried too, and the port of the
+metrics of the API, which serves them in HTTP, must answer nothing else. ``wftools.production``
+runs it on the started platform and holds that every server refuses, and serves in TLS.
 
 A verdict is ``refused`` — the server was reached and gave no answer of its own to what came in the
 clear —, ``accepted``, ``unreached`` — nothing listens, or the name is unknown —, ``no tls`` for
@@ -27,8 +27,18 @@ if TYPE_CHECKING:
 SERVED = ("postgres", "redis", "api", "keycloak", "storage")
 """The servers that must refuse the clear and serve in TLS (TFX-02 to TFX-05, TFX-08, TFX-12)."""
 
-CLOSED = ("keycloak-http", "keycloak-management", "garage")
-"""What must not be reached at all from the network of the platform."""
+CLOSED = (
+    "keycloak-http",
+    "keycloak-management",
+    "keycloak-cluster",
+    "keycloak-cluster-detection",
+    "garage",
+)
+"""What must not be reached at all from the network of the platform.
+
+Keycloak's cluster is one of them: alone, with caches of its own, it opens neither the port of its
+cluster, 7800, nor the one where JGroups detects the failure of a peer in the clear, 57800.
+"""
 
 METRICS = "api-metrics"
 """The port of the metrics of the API, in HTTP: it must answer nothing but the metrics."""
@@ -128,6 +138,8 @@ else:
 for name, host, port in (
     ("keycloak-http", "keycloak", 8080),
     ("keycloak-management", "keycloak", 9000),
+    ("keycloak-cluster", "keycloak", 7800),
+    ("keycloak-cluster-detection", "keycloak", 57800),
     ("garage", "garage", 3900),
 ):
     reached = clear(host, port, b"GET / HTTP/1.0\r\n\r\n") is not None

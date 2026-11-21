@@ -10,6 +10,7 @@ it, and each client checks it against the root. The platform itself is tried by
 these tests hold what the trial concludes from what the probe answers.
 """
 
+import ipaddress
 import json
 import re
 from typing import Any
@@ -34,6 +35,15 @@ SERVERS = {
     "keycloak": "keycloak",
     "storage": "storage-proxy",
 }
+# A variable that gives a service the address of another: Waterfall's, and their equivalents in the
+# services of Keycloak's image and of the buckets of the storage.
+ADDRESS = re.compile(r"^(WATERFALL_\w+_(URL|ADDRESS|BACKCHANNEL)|STORAGE_ADDRESS|KEYCLOAK_URL)$")
+WATERFALL_IMAGE = "ghcr.io/waterfall-project/waterfall:"
+# Where a client outside the back reads the root from: the server of Next, the curl of the buckets.
+TRUSTING = {"front": "NODE_EXTRA_CA_CERTS", "storage-buckets": "STORAGE_AUTHORITY"}
+# An address a service is given and does not reach: Caddy's is its own, where it sends HTTP to; it
+# checks Keycloak, which it reaches, by its Caddyfile.
+PUBLISHED = {"caddy": {"WATERFALL_ADDRESS"}}
 
 
 def compose(path: str = "compose.prod.yaml") -> dict[str, Any]:
@@ -59,6 +69,29 @@ def addresses() -> list[tuple[str, str, str]]:
         for variable, value in environment(name).items()
         if re.match(r"^(postgresql|jdbc:postgresql|redis|rediss|https?)://", value)
     ]
+
+
+def is_client(name: str, service: dict[str, Any]) -> bool:
+    """Tell whether a service reaches another: given an address, or the back with an environment."""
+    given = {variable for variable in service.get("environment", {}) if ADDRESS.match(variable)}
+    of_the_back = str(service.get("image", "")).startswith(WATERFALL_IMAGE)
+    return bool(given - PUBLISHED.get(name, set())) or (
+        of_the_back and bool(service.get("environment"))
+    )
+
+
+def untrusting(found: dict[str, Any]) -> list[str]:
+    """Name each client of the platform that is not given the root to check its servers against.
+
+    Every service is read: one added with an address, or with the environment of the back, and
+    without the root, is named.
+    """
+    faults: list[str] = []
+    for name, service in found.items():
+        variable = TRUSTING.get(name, "WATERFALL_TLS_AUTHORITY")
+        if is_client(name, service) and service.get("environment", {}).get(variable) != ROOT:
+            faults.append(f"{name} lacks {variable}")
+    return faults
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")
@@ -125,6 +158,9 @@ def test_postgresql_redis_keycloak_and_the_api_serve_in_tls_alone() -> None:
         "http",
         "127.0.0.1",
     )
+    # One instance, which opens no port of a cluster (7800, 57800).
+    assert keycloak["KC_CACHE"] == "local"
+    assert {"keycloak-cluster", "keycloak-cluster-detection"} <= set(transport.CLOSED)
     api = environment("api")
     assert (api["WATERFALL_TLS_CERTIFICATE"], api["WATERFALL_TLS_KEY"]) == (
         "/tls/tls.crt",
@@ -136,6 +172,36 @@ def test_postgresql_redis_keycloak_and_the_api_serve_in_tls_alone() -> None:
     collected = yaml.safe_load((COMPOSE / "prometheus.yml").read_text(encoding="utf-8"))
     (job,) = [job for job in collected["scrape_configs"] if job["job_name"] == "api"]
     assert (job["metrics_path"], job["dns_sd_configs"][0]["port"]) == ("/api/v1/metrics", 8000)
+
+
+def image_environment(stage: str) -> dict[str, str]:
+    """Read the variables the ENV of a stage of the image of the back sets."""
+    dockerfile = (REPOSITORY / "backend" / "Dockerfile").read_text(encoding="utf-8")
+    lines = re.MULTILINE | re.DOTALL
+    (body,) = re.findall(rf"^FROM \S+ AS {stage}\n(.*?)(?=^FROM |\Z)", dockerfile, lines)
+    found: dict[str, str] = {}
+    for instruction in re.findall(r"^ENV (.*?)(?<!\\)\n", body, lines):
+        found.update(re.findall(r"(\w+)=(\S+?)\"?(?:\s|\\|$)", instruction))
+    return found
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_prometheus_reaches_the_metrics_of_the_api_where_its_processes_serve_them() -> None:
+    # The port of the metrics listens on WATERFALL_HOST, the image's unless the Compose says it:
+    # every interface of the container, where Prometheus, on the network of the platform, finds the
+    # API by its name, at the port and the path it collects, in HTTP (TFX-09).
+    served = {**image_environment("production"), **environment("api")}
+    assert ipaddress.ip_address(served["WATERFALL_HOST"]).is_unspecified
+    collected = yaml.safe_load((COMPOSE / "prometheus.yml").read_text(encoding="utf-8"))
+    (job,) = [job for job in collected["scrape_configs"] if job["job_name"] == "api"]
+    (found,) = job["dns_sd_configs"]
+    assert found["names"] == ["api"]
+    assert str(found["port"]) == served["WATERFALL_METRICS_PORT"] != served["WATERFALL_PORT"]
+    assert (job["metrics_path"], job.get("scheme", "http")) == ("/api/v1/metrics", "http")
+    # Both on the network of the platform, and the port published nowhere.
+    for name in ("api", "prometheus"):
+        assert set(services()[name].get("networks", ["default"])) == {"default"}, name
+        assert "ports" not in services()[name], name
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")
@@ -178,8 +244,7 @@ def test_every_client_reaches_its_server_encrypted_and_checks_it_against_the_roo
         values = " ".join(environment(name).values())
         if ROOT in values:
             assert TRUST in service.get("volumes", []), name
-    for name in ("migrate", "api", "worker", "scheduler", "restore", "install"):
-        assert environment(name)["WATERFALL_TLS_AUTHORITY"] == ROOT, name
+    assert untrusting(services()) == []
     for name in ("waterfall-database", "service-database-role", "backup-database-role"):
         found_environment = environment(name)
         assert (found_environment["PGSSLMODE"], found_environment["PGSSLROOTCERT"]) == (
@@ -198,6 +263,30 @@ def test_every_client_reaches_its_server_encrypted_and_checks_it_against_the_roo
     )
     assert "keycloak:8080" not in door
     assert TRUST in services()["caddy"]["volumes"]
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_a_service_added_with_an_address_and_without_the_root_is_named() -> None:
+    found = services()
+    image = found["api"]["image"]
+    # The front, its root taken away.
+    front = environment("front")
+    del front["NODE_EXTRA_CA_CERTS"]
+    added = {
+        **found,
+        # A process of the back, given the environment of the back and nothing else.
+        "reporting": {"image": image, "environment": {"WATERFALL_LOG_LEVEL": "INFO"}},
+        # Another image, given an address of the platform.
+        "exporter": {"image": "exporter:1", "environment": {"WATERFALL_DATABASE_URL": "x"}},
+        "front": {**found["front"], "environment": front},
+        # A service of no address, which reaches nothing of the platform.
+        "quiet": {"image": "quiet:1", "environment": {"TZ": "UTC"}},
+    }
+    assert untrusting(added) == [
+        "front lacks NODE_EXTRA_CA_CERTS",
+        "reporting lacks WATERFALL_TLS_AUTHORITY",
+        "exporter lacks WATERFALL_TLS_AUTHORITY",
+    ]
 
 
 def test_a_local_name_makes_the_front_trust_the_authority_of_caddy() -> None:
@@ -231,6 +320,8 @@ def test_the_trial_holds_that_every_server_refuses_the_clear_and_serves_in_tls()
         ("api", "unreached", "api unreached"),
         ("garage", "accepted", "garage accepted"),
         ("keycloak-management", "accepted", "keycloak-management accepted"),
+        ("keycloak-cluster", "accepted", "keycloak-cluster accepted"),
+        ("keycloak-cluster-detection", "accepted", "keycloak-cluster-detection accepted"),
         ("api-metrics", "accepted", "api-metrics accepted"),
     ],
 )
