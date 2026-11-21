@@ -57,10 +57,12 @@ export const WORKING = 15_000;
  * the API under three workers, the same wait overran `WORKING` twice (runs 44769093797,
  * 44773195266 and 44872667894, `service / paths (2/4)`), the screen still « Chargement de l'écran »:
  * a read slowed by the load, not an error: the quiet measure is under a quarter of `WORKING`, and the
- * queue took it past it. The read is not accelerated, nothing in the measure asks it; the test
- * budget (`test.slow`) bounds the wait before this does.
+ * queue took it past it. The read is not accelerated, nothing in the measure asks it. Forty
+ * seconds, eleven times the quiet measure, and less than what `test.slow` leaves of the budget of
+ * the path when the wait comes: a read really degraded fails on this wait, which names the grid,
+ * and not on the « Test timeout » of the whole path.
  */
-export const LOADED = 60_000;
+export const LOADED = 40_000;
 
 /**
  * How long the worker is given to mark a revision: a task taken from the queue, one transaction.

@@ -9,6 +9,7 @@
 import { describe, expect, it } from "vitest";
 
 import fr from "../../messages/fr.json";
+import { firstWords } from "./report-titles";
 
 /** The title of every report an e2e path asserts the absence of, by the screen that shows it. */
 const TITLES = {
@@ -18,12 +19,9 @@ const TITLES = {
   import: fr.exchanges.report.title,
 };
 
-/** What `ANY_REPORT` keeps of a title: its first two words, as the e2e path computes it. */
-const beginning = (title: string): string => title.split(" ", 2).join(" ");
-
 describe("the titles of the reports of the catalogue", () => {
-  it("begin with the words the exchanges path keeps to tell any report apart (#4299) [WF-QUA-0010]", () => {
-    const common = beginning(TITLES.import);
+  it("begin with the words the exchanges path keeps to tell any report apart (#4299) [WF-QUA-0010-A]", () => {
+    const common = firstWords(TITLES.import);
     expect(common.split(" ")).toHaveLength(2);
     for (const [report, title] of Object.entries(TITLES)) {
       expect(title.startsWith(common), `the title of the report of the ${report}`).toBe(true);

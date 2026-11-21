@@ -429,13 +429,21 @@ test("traverses the computed cells of the provision of a risk the run identifies
     const label = provision.getByRole("gridcell").nth(at.label);
     await label.click();
     await expect(label).toBeFocused();
-    await press(page, "Enter", "Tab");
-    // Past its quantity and its unit disbursement, which the server computes, past its category,
-    // its role and its effort, which its node does not accept: the project of the run holds no
-    // line after the provision, only tasks, whose cells are read only too, so that Tab leaves the
-    // grid. Were the computed cells of the row in the order of the keyboard, the focus would stay
-    // on one of them.
-    await expect(grid.locator(":focus")).toHaveCount(0);
+    // The label of the provision the service names takes no entry (its node does not accept it):
+    // Enter opens no field there, and Tab, the grid being one stop of the tabulation, leaves it
+    // — it does not go along the row, whose cells are all read only, nor down to the next one,
+    // which only an entry validated does. Whatever follows the grid is nothing of it: the focus
+    // is on no element of the grid, and Shift+Tab brings it back to the cell it left, the
+    // active one, so that it was left and not lost.
+    await page.keyboard.press("Enter");
+    await expect(grid.getByRole("textbox")).toHaveCount(0);
+    await expect(label).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect
+      .poll(() => grid.evaluate((element) => element.contains(document.activeElement)))
+      .toBe(false);
+    await page.keyboard.press("Shift+Tab");
+    await expect(label).toBeFocused();
     for (const column of [at.category, at.role, at.quantity, at.hours, at.delay]) {
       await expect(provision.getByRole("gridcell").nth(column)).toHaveAttribute(
         "aria-readonly",

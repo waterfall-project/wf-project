@@ -14,6 +14,7 @@ import {
 } from "@playwright/test";
 
 import catalogue from "../messages/fr.json" with { type: "json" };
+import { firstWords } from "../src/i18n/report-titles";
 import { WORKING } from "./bounds";
 import type { components } from "../src/api/generated/schema";
 import type { Answer } from "./answer";
@@ -49,7 +50,7 @@ const REPORT = beginning(catalogue.exchanges.report.title);
 // Any report, not the import's alone: the reports of the update, the merge and the occurrence open
 // with the same two words (`Compte rendu`), which no key of the catalogue holds apart; so the
 // pattern keeps what the title of the import's report begins with, up to its second word.
-const ANY_REPORT = beginning(catalogue.exchanges.report.title.split(" ", 2).join(" "));
+const ANY_REPORT = beginning(firstWords(catalogue.exchanges.report.title));
 const confirmTitle = catalogue.exchanges.report.confirmTitle;
 const confirm = catalogue.exchanges.report.confirm;
 

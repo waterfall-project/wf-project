@@ -4790,7 +4790,8 @@ viennent d'EP-06. Le générateur des exemples répartit une ligne de devis à c
 comme le service (WF-DEV-0040, #2838) : le calculé est l'attendu, et les chiffres des exemples sont
 ceux du service. La tranche d'EP-08 y a mis les provisions, l'avenant 1 fusionné — qui fait de la 101
 la référence —, les risques et l'avenant 2 (US-2650). Ce qu'elle n'a pas : les volumes entiers
-(**EP-13**, qui clôt : les trois cents projets et les dix-huit mille lignes de coût du §4.6.2). Les indicateurs n'ont pas de tranche : le marquage rejoué par le chargeur
+(**EP-13**, qui clôt : les trois cents projets et les dix-huit mille lignes de coût du §4.6.2).
+Les indicateurs n'ont pas de tranche : le marquage rejoué par le chargeur
 (`load_marking`, EP-10, US-1670) conserve ceux de la révision 101 de PRJ-001 — le projet, ses deux
 sous-projets et « hors sous-projet » — à son instant, le 1er février 2026 à 9 h, l'offre 100 ne
 gardant aucun indicateur projet, et le service calcule ceux du jour sur la 102 (US-1740) ; les provisions et
