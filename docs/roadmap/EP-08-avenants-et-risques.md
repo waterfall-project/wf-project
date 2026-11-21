@@ -453,7 +453,12 @@ l'a copiée, ou à sa dernière mise à jour.
   qui la nomme répond 404, comme pour une structure inconnue ; ce qui parcourt les structures d'une
   révision — la grille, les imports, les indicateurs et leur empreinte, `generate_skeleton` — ne la
   compte pas. Seules l'écrivent l'ouverture d'une révision, qui la copie et la redate avec les
-  autres, et la mise à jour.
+  autres, et la mise à jour, qui la remplace ; entre les deux, elle suit les rechiffrages et les
+  redatages de la révision (changement de taux, d'inflation, désignation de la référence, moteur de
+  dates) comme les autres structures, sans quoi chaque ligne chiffrée du différentiel se lirait
+  `modified` contre elle jusqu'à la mise à jour (#4210, décision de l'utilisateur du 2026-11-19,
+  tranchée contre la lettre de la phrase écrite le 2026-11-19 ; écartée : ne pas rechiffrer la base
+  et ne comparer que les grandeurs saisies à la lecture).
 - **Elle suit son différentiel.** L'abandon du différentiel la supprime ; la copie d'une révision la
   reprend avec un différentiel non fusionné, sous la lignée de sa structure, et garde l'état du
   différentiel : à jour dans la révision marquée, il l'est dans la révision ouverte ; en retard, il
@@ -464,6 +469,13 @@ l'a copiée, ou à sa dernière mise à jour.
   le différentiel à sa base, et non plus à la structure principale : la lecture est celle
   d'US-2550/L3, dont seule la base change. Une ligne de provision de la principale n'y est plus
   présentée retirée, la base n'en portant pas (#4035).
+- **Les gardes de calendrier comptent la base.** Une tâche de la base, redatée avec les autres, doit
+  garder une heure travaillée : les gardes de calendrier (`tasks_left_idle`,
+  `idle_tasks_for_role_calendar`) la comptent donc, et un test le fixe ; un refus qui concerne une
+  tâche de la base nomme la tâche visible du différentiel de même lignée, jamais un nœud de la base,
+  que personne ne lit (#4213, décision de l'utilisateur du 2026-11-19, avec #4210 ; US-3060/L9).
+  Écartée : exclure la base des gardes et ne pas la redater quand une tâche y resterait sans heure,
+  qui laisserait lire `modified` ce que le calendrier seul a changé.
 - **« À jour » se lit sur la structure.** Un différentiel est à jour tant que la structure
   principale porte le compteur qu'elle avait quand sa base a été prise ; toute écriture qui avance
   ce compteur le met en retard, qu'elle touche ou non ce qu'il désigne. L'état est rendu avec la
@@ -556,6 +568,13 @@ seule opération, et la création préalable de la révision en cours.
   taux du rôle désigné : le contrat le précise (US-3060/L1), et l'écart de la spécification est une
   issue (#4271). Écarté : garder le montant réestimé à la lettre en ajustant les heures, règle que
   ni la spécification ni cette conception ne disent.
+- **Ce que la survenance fait d'une tâche terminée sous laquelle elle greffe** (#4240, décision de
+  l'utilisateur du 2026-11-20 ; EP-30 rend la règle provisoire). La tâche porteuse devient
+  récapitulative et repasse « non démarrée », et sa valeur acquise retombe : le compte rendu le
+  signale, sans refuser ni changer ce que la greffe écrit, comme pour #4133 — un champ de plus de
+  `RiskOccurrenceReport` (US-3060/L8), rempli par US-3060/L9. Écartées : refuser la greffe, et garder
+  la valeur acquise des lignes de la tâche devenue récapitulative, qui ajoutent une règle que la
+  spécification ne dit pas.
 
 Écarté : un module `core/amendments` à côté de `core/revisions`, qui aurait dû lire ses tables ;
 une fusion qui appliquerait des écritures une à une par les fonctions de saisie, des états
@@ -597,7 +616,9 @@ arrête les noms, et les dit dans `docs/api/DECISIONS.md` :
   différentiel déjà à jour — ; 412 à un compteur périmé ; et, quand un motif la refuse, le refus
   que le lot du contrat arrête, rien n'étant écrit.
 - **`CostStructure`** dit si un différentiel est à jour, par un champ nul pour toute autre
-  structure ; `StructureCommand` reçoit la commande de la mise à jour, listée sur un différentiel
+  structure **et pour un différentiel fusionné**, qui ne se met plus à jour : l'état n'y aurait pas de
+  sens (#4172, décision de l'utilisateur du 2026-11-19 ; écarté : le calculer contre la principale de
+  la révision marquée) ; `StructureCommand` reçoit la commande de la mise à jour, listée sur un différentiel
   non fusionné, sous la permission de `create_structure`, indisponible sur un différentiel à jour.
 - **`getStructureMergeReport` et `mergeCostStructure`** déclarent leur refus sur un différentiel en
   retard : 409 `STATE_FORBIDS_OPERATION`, par une condition nouvelle de `CommandCondition`, nommée
@@ -607,10 +628,18 @@ arrête les noms, et les dit dans `docs/api/DECISIONS.md` :
   avec le différentiel.
 - **`RiskOccurrenceReport`** : la description de `differences` reçoit les tâches de la structure
   principale que la greffe redate (#4134), et le compte rendu le signalement d'un devis propre qui
-  commence avant le jour de la déclaration (#4133), par US-2620/L2.
+  commence avant le jour de la déclaration (#4133), par US-2620/L2 ; puis, par US-3060/L8, celui
+  d'une greffe sous une tâche terminée (#4240).
 - **Exemples**, engendrés par `make mock-data` : le compte rendu d'une mise à jour de l'avenant 2,
   avec une différence de chaque sorte, sa variante refusée, et l'avenant 2 en retard dans
-  `structures_amendments`.
+  `structures_amendments`. Sur cette référence, l'avenant 2 est ouvert avant la fusion de l'avenant 1
+  qui marque la 101 : en retard, et une révision marquée ne se met pas à jour. L'exemple de son
+  compte rendu sans révision en cours devient le refus 409 `structure_up_to_date`, les résumés des
+  deux autres exemples de la fusion disent que l'avenant 2 est en retard, et la fusion applicable se
+  montre sur la révision en cours (#4174, décision de l'utilisateur du 2026-11-20, option mixte ;
+  US-3060/L8). Écartés : une variante contrefactuelle d'un différentiel à jour sur une révision
+  marquée, un état que le témoin ne charge pas ; une chronologie du témoin changée, qui touche le
+  chargeur et les exemples de la mise à jour.
 
 Aucun schéma servi par un EPIC livré ne change, hors le champ que `CostStructure` reçoit, que les
 écrans livrés ne lisent pas, et les commandes ajoutées à `StructureCommand`. Le succès d'une
@@ -1976,7 +2005,8 @@ US-2640.
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par les US qui les
   réalisent
 - **opérations** : aucune nouvelle ; `mergeCostStructure`, `getStructureMergeReport`,
-  `getRiskOccurrenceReport` et `deleteSubproject` (leurs descriptions et leurs refus)
+  `getRiskOccurrenceReport` et `deleteSubproject` (leurs descriptions et leurs refus) ; `getRevision`
+  et `getStructureMergeReport` (leurs exemples)
 - **issue** : #4264
 
 **En tant que** développeur, **je veux** que les constats mineurs que la livraison d'EP-08 a laissés
@@ -2020,7 +2050,15 @@ l'EPIC ne laisse pas derrière lui la dette qu'il a relevée.
   un test de cohérence du catalogue (#4299) ; l'attente de la grille de reste à engager comparée a
   le délai des lectures lentes, d'après la mesure (#4326) ; le reste à engager, qui ne lit que la
   structure principale, n'a pas de note d'avenant en retard, et le critère d'US-2640 ne vise que le
-  devis (#4298).
+  devis (#4298) ;
+- propre à l'US : le compte rendu de la survenance signale que la tâche sous laquelle il greffe est
+  terminée, et que la greffe la fait repasser non démarrée, sa valeur acquise retombant ; il ne
+  refuse pas, et la greffe n'écrit rien d'autre (#4240) ;
+- propre à l'US : les exemples de la fusion de l'avenant 2 sur la référence disent qu'il est en
+  retard : le compte rendu sans révision en cours est le refus 409 `structure_up_to_date`, les deux
+  autres résumés le disent, la fusion applicable se montre sur la révision en cours (#4174) ;
+- propre à l'US : les gardes de calendrier comptent les tâches de la base d'un différentiel, un test
+  le fixe, et un refus qui les concerne nomme la tâche visible de même lignée (#4213).
 
 **Notes de réalisation.** Chaque constat garde son issue, rattachée au lot qui le corrige. Le lot du
 contrat précède le code ; les lots du code qui touchent les modules que le chargeur du témoin exerce
@@ -2029,7 +2067,12 @@ attendent US-2650/L1. La note « avenant en retard » du devis (#4255) et les li
 L6 (la ligne de provision, #4274 ; pas avec L3, qui touche aussi `core/estimate/merged.py`) et L7 (les
 tests du témoin et le reste à engager, #4287, #4288, #4308, #4307, #4299, #4326, #4298), tous deux après
 US-2650/L1 ; #4304 et #4310 sont portés par L3. Les écarts du témoin de #4278 attendent la
-confirmation de l'auteur (#4337) : aucun lot ne les porte encore.
+confirmation de l'auteur (#4337) : aucun lot ne les porte encore. Le cadrage complémentaire du 2026-11-21 ajoute L8, le contrat (le
+signalement d'une greffe sous une tâche terminée, #4240 ; les exemples de l'avenant 2, #4174), et L9,
+le code (#4240 ; les gardes de calendrier, #4213), après L8 et US-2650/L1 ; les phrases de la
+conception pour #4172 et #4210 s'écrivent avec ce cadrage. L9 n'est pas « pas avec » L6 : L6 touche
+`core/estimate` (`merged.py`, `uniting.py`, `copying.py`, `comparing.py`, `reading.py`) et `api/nodes.py`,
+L9 `core/planning` et `core/estimate/interface/calendars.py`, sans fichier commun.
 
 **Hors périmètre.** Tout constat relevé pendant la livraison, rattaché selon « Suivi sur GitHub » ;
-les constats de spécification (#3850, #4132, #4178, #4210, #4222, #4260, #4271, #4337).
+les constats de spécification (#3850, #4132, #4178, #4222, #4260, #4271, #4337).
