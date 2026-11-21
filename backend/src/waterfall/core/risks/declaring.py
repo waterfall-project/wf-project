@@ -357,7 +357,12 @@ def change_identity(
     if current is not None:
         structure_facts(session, project_id, current.structure_id, lock=True)
     risk = found_risk(session, project_id, change.risk_id, lock=True)
-    evaluation = read_found(session, project_id, risk.id, None).evaluation
+    # The evaluation to read is the current revision's, already read; else the last marked (404).
+    evaluation = (
+        current
+        if current is not None
+        else read_found(session, project_id, risk.id, None).evaluation
+    )
     if risk.lock_version != change.lock_version:
         raise PreconditionFailedError(
             STALE_LOCK_VERSION, {"expected_lock_version": risk.lock_version}
