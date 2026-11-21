@@ -12,7 +12,6 @@ worker those of the estimate included, which it imports from US-1500/L2 on (EP-0
 those of the actual costs, which it imports from US-1610/L2 on (EP-09, "Le worker"), and those of
 the indicators, which it imports from US-1670/L1 on (EP-10, "Le worker"). What the socles of EP-06,
 EP-07, EP-09 and EP-10 register is named, so that the comparison is never between two empty lists.
-The portfolio registers nothing before US-2680/L2; its interface is imported apart (US-2670/L1).
 
 Then how each registry acts, details of the realization which reprise no Vérif: the closing of a
 revision, what its marking keeps and what follows the designation of a reference (EP-07), the guard
