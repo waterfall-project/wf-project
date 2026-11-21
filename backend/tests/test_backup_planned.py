@@ -129,7 +129,7 @@ def due(database: Database, now: datetime) -> bool:
 def installed_at(database: Database) -> datetime:
     """Read when the schedule was written last: for a new installation, when it was installed."""
     with database.transaction() as session:
-        return session.get_one(BackupSchedule, 1).updated_at
+        return session.get_one(BackupSchedule, 1).timing_changed_at
 
 
 def one_o_clock_after(instant: datetime) -> datetime:
@@ -184,20 +184,22 @@ def test_a_backup_an_administrator_asked_for_does_not_stand_for_the_one_the_plat
 def set_schedule(database: Database, writing: ScheduleWriting, at_instant: datetime) -> None:
     """Write the schedule as an administrator does, at an instant.
 
-    The row is taken as installed at that instant first: whatever the writing changes of the
-    timing is then dated by it, and a writing that changes none leaves the instant as it was.
+    The timing is taken as dated by that instant first: whatever the writing changes of it is then
+    dated by the instant, and a writing that changes none leaves it as it was.
     """
     with database.transaction() as session:
-        session.execute(update(BackupSchedule).values(updated_at=at_instant))
+        session.execute(update(BackupSchedule).values(timing_changed_at=at_instant))
     rewrite(database, writing, at_instant)
 
 
-def rewrite(database: Database, writing: ScheduleWriting, at_instant: datetime) -> None:
+def rewrite(
+    database: Database, writing: ScheduleWriting, at_instant: datetime, author: UUID | None = None
+) -> None:
     """Write the schedule as an administrator does, at an instant, the row as it stands."""
     with database.transaction() as session:
         held = read_backup_schedule(session).lock_version
         schedule = judged_schedule(writing, set())
-        write_backup_schedule(session, schedule, held, Act(None, at_instant))
+        write_backup_schedule(session, schedule, held, Act(author, at_instant))
 
 
 def written(**changes: Any) -> ScheduleWriting:
@@ -244,6 +246,20 @@ def test_a_retention_written_just_after_the_hour_leaves_the_backup_of_the_day_du
     # Moved, the same writing does announce a new time: nothing is owed for the one passed.
     rewrite(database, written(at_time="00:30", retained_count=3), day + timedelta(seconds=40))
     assert not due(database, day + MINUTE)
+
+
+@pytest.mark.requirement("WF-DAT-0070-A")
+def test_a_retention_written_alone_is_dated_and_signed_all_the_same(database: Database) -> None:
+    # Every writing says when, and by whom, the row was last touched; only the base of what is owed
+    # is left where it was.
+    day = datetime.combine(utc_now().date(), time(1, 0), tzinfo=UTC)
+    author = account(database, "Durand", "Paul")
+    set_schedule(database, written(), day - 10 * DAY)
+    rewrite(database, written(retained_count=3), day + timedelta(seconds=30), author)
+    with database.transaction() as session:
+        row = session.get_one(BackupSchedule, 1)
+        assert (row.updated_by, row.updated_at) == (author, day + timedelta(seconds=30))
+        assert row.timing_changed_at == day - 10 * DAY
 
 
 @pytest.mark.requirement("WF-ADM-0170-A")
@@ -295,7 +311,7 @@ def test_the_backup_the_planned_command_deposits_is_taken_by_the_worker_as_sched
     # backup, the worker takes it, and the list holds it, scheduled and verified.
     database = installation.database
     with database.transaction() as session:
-        session.execute(update(BackupSchedule).values(updated_at=utc_now() - 10 * DAY))
+        session.execute(update(BackupSchedule).values(timing_changed_at=utc_now() - 10 * DAY))
     queue.prepare()
     with logging_context(correlation_id="planned-backup"):
         assert deposit_due(database, queue, backup_plan()) == ["backup"]

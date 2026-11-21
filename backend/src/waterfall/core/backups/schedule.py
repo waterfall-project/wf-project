@@ -203,11 +203,11 @@ def write_backup_schedule(
     The row is locked, then read: a counter that is not its own is refused (412), and nothing is
     written. A copy absent removes the one set.
 
-    ``updated_at`` and ``updated_by`` say when, and by whom, the *timing* last changed — enabled,
-    frequency, time, weekday —, which is what ``backup_is_due`` takes as the base of what is owed:
-    a writing of the retention or of the copy alone leaves them, so that it does not make a backup
-    skip the occurrence it was written just after (no column, no migration: the audit journal
-    holds every writing).
+    ``updated_at`` and ``updated_by`` are those of every writing (WF-DAT-0070).
+    ``timing_changed_at`` says when the *timing* last changed — enabled, frequency, time, weekday —,
+    which is what ``backup_is_due`` takes as the base of what is owed: a writing of the retention
+    or of the copy alone leaves it, so that it does not make a backup skip the occurrence it was
+    written just after.
     """
     held = session.scalars(
         select(BackupSchedule)
@@ -226,7 +226,7 @@ def write_backup_schedule(
         schedule.at_time,
         schedule.weekday,
     )
-    stamp = {"updated_at": act.at, "updated_by": act.author} if retimed else {}
+    stamp = {"timing_changed_at": act.at} if retimed else {}
     session.execute(
         update(BackupSchedule)
         .where(BackupSchedule.id == SINGLE_ROW)
@@ -241,6 +241,8 @@ def write_backup_schedule(
             external_copy_path=None if copy is None else copy.path,
             external_copy_retained_count=None if copy is None else copy.retained_count,
             lock_version=lock_version + 1,
+            updated_at=act.at,
+            updated_by=act.author,
             **stamp,
         )
     )
@@ -267,15 +269,15 @@ def backup_is_due(session: Session, now: datetime) -> bool:
     """Tell whether the platform owes a backup of itself at ``now`` (WF-ADM-0170).
 
     It is when the schedule is enabled and its latest occurrence is later than the latest backup
-    the platform deposited of itself, and later than the last change of its timing (see
-    ``write_backup_schedule``): a schedule just enabled, moved or installed owes nothing for an
-    occurrence it did not announce; one whose retention or copy alone is written owes what it
-    owed. A backup deposited late, or not yet deposited, is deposited once, not once per
-    occurrence missed.
+    the platform deposited of itself, and later than the last change of its timing
+    (``timing_changed_at``, see ``write_backup_schedule``): a schedule just enabled, moved or
+    installed owes nothing for an occurrence it did not announce; one whose retention or copy alone
+    is written owes what it owed. A backup deposited late, or not yet deposited, is deposited once,
+    not once per occurrence missed.
     """
     row = session.get_one(BackupSchedule, SINGLE_ROW)
     if not row.is_enabled:
         return False
     schedule = _view(row).schedule
-    since = max(row.updated_at, last_submitted(session, "backup") or row.updated_at)
+    since = max(row.timing_changed_at, last_submitted(session, "backup") or row.timing_changed_at)
     return latest_occurrence(schedule, now) > since
