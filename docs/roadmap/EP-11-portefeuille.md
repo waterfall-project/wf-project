@@ -41,10 +41,8 @@ sur un dépôt qui les porte tous (WF-ARC-0010).
   PRJ-001 et de PRJ-002, pour que chaque vue ait de quoi sommer : des offres, un projet terminé, une
   offre perdue, des projets en cours — chargée par `waterfall-api load-witness` (décision de
   l'auteur du 2026-11-17) ;
-- les tests du harnais qui manquent aux exemples chiffrés de calcul des EPIC livrés, et le contrôle
-  qui échoue désormais sur un exemple sans test (WF-QUA-0020) ;
-- la mesure des huit vues, sur le témoin chargé, par l'outil d'EP-26 ;
-- les constats reçus, soldés.
+- les constats reçus, soldés, ou reportés à l'EPIC qui touche leur code (« Reprise du 2026-11-21
+  soir »).
 
 ## Ce qui n'en fait pas partie
 
@@ -52,7 +50,11 @@ sur un dépôt qui les porte tous (WF-ARC-0010).
 - les trois cents projets du jeu de données de référence, et la mesure des vues à cette échelle —
   EP-13, qui rejoue dessus l'outil d'EP-26 (WF-QUA-0060) et les tests de la lecture conservée ;
 - la reprise des révisions marquées avant cet EPIC : elles ne conservent pas ce que le portefeuille
-  lit de plus, et rien ne le recalcule (décision de l'auteur du 2026-11-17).
+  lit de plus, et rien ne le recalcule (décision de l'auteur du 2026-11-17) ;
+- reportés le 2026-11-21 soir (« Reprise du 2026-11-21 soir ») : les tests du harnais qui manquent
+  aux exemples chiffrés et le contrôle qui échoue sur un exemple sans test (US-2780/L2, EP-36) ; la
+  reprise des doublons du noyau (US-2780/L4, retiré : EP-35 et EP-34) ; la mesure des huit vues
+  (US-2790, EP-40).
 
 ## Exigences réalisées
 
@@ -167,17 +169,13 @@ indicateurs, conservés ou calculés, et les risques, leurs provisions et leur c
 
 - les exemples chiffrés des Vérif du §3.4.3, de WF-PRJ-0090, de WF-CYC-0130 et de WF-REF-0100 sont
   des tests qui passent ;
-- `make check-fixtures` échoue sur un exemple chiffré du document qui n'a ni test du harnais ni
-  déclaration hors harnais, et passe (WF-QUA-0020) ;
 - un portefeuille calculé à une date passée ne change pas quand une révision est marquée
   après cette date, et aucune de ses vues ne lit alors de ligne de tâche ni de ligne de devis ;
 - le parcours de bout en bout ouvre chacune des vues du portefeuille, contre le service réel, sur le
   témoin chargé avec la tranche du portefeuille, et le manager y ouvre un projet dont il n'est pas
   contributeur ;
-- `make requirements` ne laisse sans test du back aucune des exigences que cet EPIC clôt ;
-- le rapport de mesures porte les huit vues du portefeuille, mesurées sur le témoin chargé ; les
-  mesures existantes tiennent leurs objectifs et ne se dégradent pas de plus d'un quart
-  (WF-QUA-0060).
+- les tests du back reviennent à leur coût d'avant la tranche du portefeuille, mesuré en CI
+  (US-2770/L2b, #4653).
 
 ## Conception
 
@@ -334,6 +332,25 @@ rien d'autre dans la conception ne change.
   corrigé par US-2790 #3868.
 - **Les trois gardes du test de la lecture conservée sont durcies** (#4360) : corrigé par
   US-2770/L2 #3886.
+
+### Reprise du 2026-11-21 soir
+
+Décisions de l'utilisateur, le pilote arrêté : la fusion d'EP-11 retient EP-30, EP-36, EP-37 et
+EP-38, qui l'attendent ; ce qui ne tient pas à une fonction du portefeuille se reporte à l'EPIC
+née de la ventilation du 2026-11-21 qui touche son code. Chaque issue reportée porte le label de
+son EPIC et un commentaire ; son cadreur la rattache à un lot.
+
+- **US-2770/L2** (#3886) est fusionné (#4571) avec un palliatif de la chaîne : `back.yml` en huit
+  parts, délai de 25 minutes. Les tests du back coûtent treize fois plus qu'au 2026-11-07 (#4653).
+- **Un lot neuf, US-2770/L2b** (#4657, #4653) : mesurer en CI le coût du témoin, rendre la tranche
+  optionnelle hors des tests du portefeuille, ramener `back.yml` à ce que la mesure justifie. Avant
+  US-2770/L3, qui en dépend ; US-2760/L2, du front, part en parallèle.
+- **Sortis d'EP-11** : US-2780/L2 (#3877, avec #4021) → EP-36 ; US-2790 (#3868, avec #4165, #4177,
+  #4313, #4339) → EP-40 ; US-2780/L4 (#4494) retiré avant tout commencement, #4372 et #4373 →
+  EP-35, #4363 → EP-34. Les exigences WF-QUA-0020 et WF-ARC-0010 ne se closent donc plus ici.
+- **Constats reportés** : #4547, #4374, #4361, #4163, #4548 → EP-36 ; #4507 (décidé : par libellé
+  puis identifiant), #4164, #1714, #4137 → EP-38 ; #4349, #4160 → EP-37. US-2760/L2 et US-2770/L3
+  n'en portent plus, hors #4513, qui fait partie du parcours du manager.
 
 ### Tables et migrations
 
@@ -503,7 +520,8 @@ jour.
 
 ### La mesure
 
-Les huit vues entrent au parcours de `make measure` et de `make measure-version`, au jour courant, à
+Reportée à EP-40 avec US-2790 (« Reprise du 2026-11-21 soir ») ; ce qui suit est la conception que
+son cadreur reprend. Les huit vues entrent au parcours de `make measure` et de `make measure-version`, au jour courant, à
 cache froid puis chaud, et à une date passée ; `make measure-core` relève leur durée et le nombre de
 leurs requêtes dans le noyau. Le rapport dit que le témoin ne porte pas trois cents projets.
 
@@ -520,9 +538,9 @@ leurs requêtes dans le noyau. Le rapport dit que le témoin ne porte pas trois 
    attendent aussi les réexamens d'EP-08 (US-2590/L1).
 4. **Le périmètre éprouvé sur toutes les vues** (US-2670, dernier lot), puis **les écrans**
    (US-2760).
-5. **Le témoin** (US-2770), qui attend tout le back et le témoin d'EP-08 (US-2650/L1), puis **la
-   mesure** (US-2790) et **la vérification d'ensemble**, seule : le parcours du manager, la
-   définition de fini.
+5. **Le témoin** (US-2770), qui attend tout le back et le témoin d'EP-08 (US-2650/L1), puis son
+   coût dans la chaîne (US-2770/L2b) et **la vérification d'ensemble**, seule : le parcours du
+   manager, la définition de fini. La mesure (US-2790) est reportée à EP-40.
 
 ---
 
@@ -1174,7 +1192,7 @@ du paramétrage (`reference-*.spec.ts`).
 
 ## US-2780 — Les exemples chiffrés ont tous leur test, chaque calcul une seule implémentation
 
-- **statut** : en cours
+- **statut** : fini dans EP-11 — L2 reporté à EP-36, L4 retiré (« Reprise du 2026-11-21 soir »)
 - **exigences** : `WF-QUA-0020-A`, `WF-ARC-0010-A`, `WF-INTF-0150-A`
 - **opérations** : aucune en propre
 - **issue** : #3859
@@ -1243,7 +1261,7 @@ noyau ; la traçabilité des exigences par les tests (WF-QUA-0010, EP-13).
 
 ## US-2790 — Les vues du portefeuille sont mesurées
 
-- **statut** : à faire
+- **statut** : reporté → EP-40 (« Reprise du 2026-11-21 soir »)
 - **exigences** : aucune en propre — l'outil de WF-QUA-0060, que clôt US-2300 (EP-26)
 - **opérations** : `getPortfolioProjects`, `getPortfolioValue`, `getPortfolioWorkload`,
   `getPortfolioPerformance`, `getPortfolioCostStructure`, `getPortfolioRisks`,
