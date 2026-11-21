@@ -4,7 +4,7 @@
 
 > **Avenant** — Désigne une modification contractuelle du projet en cours d’exécution. Il est préparé comme une structure différentielle, puis fusionné à sa contractualisation, ce qui produit une nouvelle révision de référence.
 
-> **Différentiel** — Désigne une structure de coûts qui décrit un écart par rapport à la structure principale : des tâches et des lignes ajoutées, modifiées ou retirées. Un avenant se prépare comme un différentiel, puis se fusionne.
+> **Différentiel** — Désigne une structure de coûts qui décrit un écart par rapport à l’état de la structure principale auquel elle se rapporte, sa base : des tâches et des lignes ajoutées, modifiées ou retirées. Un avenant se prépare comme un différentiel, puis se fusionne.
 
 > **Structure de coûts** — Désigne un arbre de tâches portant des lignes de devis. Sa nature indique ce qu’elle décrit : la structure principale du projet, le différentiel d’un avenant, ou le devis propre à un risque. Une révision porte une structure principale, et le cas échéant des différentiels et des devis de risques.
 

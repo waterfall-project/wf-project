@@ -68,7 +68,8 @@ leur Vérif demande une ligne de provision, un différentiel, une fusion ou la d
 risque (cadrage d'EP-07, décision de l'auteur du 2026-11-07). WF-RAE-0010, WF-RAE-0020, WF-PLA-0040,
 WF-PLA-0050, WF-PRJ-0050 et WF-INTF-0120 sont commencées par EP-09 ou avant lui et closes ici : leur
 Vérif demande une ligne de provision, un risque identifié, écarté ou survenu, ou un avenant (cadrage
-d'EP-09, décision de l'auteur du 2026-11-07).
+d'EP-09, décision de l'auteur du 2026-11-07). WF-REV-0110 est écrite par la
+spécification 1.0.8 (#4132), d'après la reprise du 2026-11-19, et entière ici.
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -76,6 +77,7 @@ d'EP-09, décision de l'auteur du 2026-11-07).
 | `WF-REV-0050-A` | Fusion d’un différentiel | fin — amorcée en EP-15 | US-2560 |
 | `WF-PLA-0170-A` | Rattachement au lotissement | fin — amorcée en EP-06 | US-2560 |
 | `WF-REV-0100-A` | Structures de coûts d'une révision | fin — amorcée en EP-04, EP-15 | US-2550, US-3050 |
+| `WF-REV-0110-A` | Base et mise à jour d'un différentiel | entière | US-3050 |
 | `WF-IHM-0020-A` | Contexte de lecture affiché | fin — amorcée en EP-02, EP-15, EP-27 | US-2640 |
 | `WF-IHM-0110-A` | Annulation et rétablissement des saisies | fin — amorcée en EP-02, EP-06, EP-07 | US-2590 |
 | `WF-DEV-0080-A` | Valeur planifiée | fin — amorcée en EP-07 | US-2630 |
@@ -565,8 +567,8 @@ seule opération, et la création préalable de la révision en cours.
   courantes et le montant réestimé de toutes les autres lignes sont conservés », et du contrat de
   `mergeCostStructure`, qui le répète). Les grandeurs courantes d'une ligne réestimée ou d'une tâche
   démarrée sont gardées quand le différentiel en change le rôle, et le rejeu rechiffre la ligne au
-  taux du rôle désigné : le contrat le précise (US-3060/L1), et l'écart de la spécification est une
-  issue (#4271). Écarté : garder le montant réestimé à la lettre en ajustant les heures, règle que
+  taux du rôle désigné : le contrat le précise (US-3060/L1), et la spécification 1.0.8 l'écrit
+  (#4271). Écarté : garder le montant réestimé à la lettre en ajustant les heures, règle que
   ni la spécification ni cette conception ne disent.
 - **Ce que la survenance fait d'une tâche terminée sous laquelle elle greffe** (#4240, décision de
   l'utilisateur du 2026-11-20 ; EP-30 rend la règle provisoire). La tâche porteuse devient
@@ -1009,25 +1011,35 @@ ni ce qui a été réestimé, ni ce qui a été fait.
 - propre à l'US : le différentiel fusionné se lit `is_merged` dans la révision marquée et n'est pas
   repris par la suivante ; un autre différentiel de la même révision est intact, repris par la
   révision suivante, et reste fusionnable (WF-REV-0100, US-2550) ;
-- propre à l'US : la fusion n'applique que ce que le différentiel désigne (#4034, reprise du
-  2026-11-19) : une tâche ajoutée à la structure principale après l'ouverture du différentiel, que
-  celui-ci ne désigne pas, figure toujours dans la structure principale après la fusion ; une ligne
-  réestimée à 140 après l'ouverture, pour un montant budgété de 100, non désignée, porte toujours
-  100 et 140 ; une ligne que le différentiel porte à 120 et que la principale a réestimée à 140
-  depuis porte 120 de budgété et 140 de réestimé ; de deux différentiels ouverts le même jour, la
-  fusion du second, mis à jour dans la révision suivante, laisse dans la structure principale tout
-  ce que la fusion du premier y a apporté ;
-- propre à l'US : `getStructureMergeReport` et `mergeCostStructure` d'un différentiel en retard
-  sont refusés par 409 `STATE_FORBIDS_OPERATION`, la condition nouvelle que le contrat ajoute,
-  nommée après les autres ; sur un différentiel à jour, le compte rendu est celui d'US-2560/L1,
-  inchangé ; une écriture de la structure principale entre le compte rendu et la confirmation est
-  un 412, et rien n'est fusionné (US-3050) ;
+- `WF-REV-0050-A` — « Une tâche ajoutée à la structure principale après la création du différentiel,
+  que celui-ci ne désigne pas, figure toujours dans la structure principale après la fusion. » : la
+  fusion n'applique que ce que le différentiel désigne (#4034, reprise du 2026-11-19 ; spécification
+  1.0.8, #4132) : la tâche figure toujours dans la structure principale après la fusion ;
+- `WF-REV-0050-A` — « Une ligne réestimée à 140 après la création du différentiel, pour un montant
+  budgété de 100, non désignée, porte toujours 100 et 140. » : la ligne porte toujours 100 de
+  budgété et 140 de réestimé ; une ligne que le différentiel porte à 120 et que la principale a
+  réestimée à 140 depuis porte 120 de budgété et 140 de réestimé ;
+- `WF-REV-0050-A` — « De deux différentiels créés le même jour, la fusion du second laisse dans la
+  structure principale tout ce que la fusion du premier y a apporté. » : la fusion du second, mis à
+  jour dans la révision suivante, laisse dans la structure principale tout ce que la fusion du
+  premier y a apporté ;
+- `WF-REV-0050-A` — « La fusion d'un différentiel en retard est refusée et nomme la condition ; mis
+  à jour, il se fusionne. » : `getStructureMergeReport` et `mergeCostStructure` d'un différentiel en
+  retard sont refusés par 409 `STATE_FORBIDS_OPERATION`, la condition nouvelle que le contrat
+  ajoute, nommée après les autres ; sur un différentiel à jour, le compte rendu est celui
+  d'US-2560/L1, inchangé ; une écriture de la structure principale entre le compte rendu et la
+  confirmation est un 412, et rien n'est fusionné (US-3050) ;
+- `WF-REV-0050-A` — « Une ligne réestimée à dix heures, dont le différentiel change le rôle pour un
+  rôle d'une autre catégorie, garde dix heures après la fusion, et son montant réestimé est celui de
+  ces heures au taux du rôle désigné. » : les grandeurs courantes d'une ligne réestimée ou d'une
+  tâche démarrée sont gardées quand le différentiel en change le rôle, et le rejeu rechiffre la
+  ligne au taux du rôle désigné (décision de l'utilisateur du 2026-11-20, #4246 ; US-3060/L1 ;
+  spécification 1.0.8, #4271) ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
 
 **Notes de réalisation.** La fusion compare un différentiel à jour à la structure principale, en
 deux voies : c'est sa base, que la mise à jour vient de reprendre (US-3050), qui fait de cet écart
-ce que le différentiel désigne. La spécification le dira par #4132 ; d'ici là, les deux critères
-ci-dessus sont propres à l'US. `docs/api/DECISIONS.md` : « La fusion : cycle, horizon, et fusion sans
+ce que le différentiel désigne. La spécification 1.0.8 le dit (WF-REV-0050, WF-REV-0110 ; #4132). `docs/api/DECISIONS.md` : « La fusion : cycle, horizon, et fusion sans
 révision en cours » (#1331), « Les révisions et les structures » (E-04, E-10 : la description à la
 fusion, les grandeurs qu'elle donne), « Le réestimé après une fusion, selon l'année de référence »
 (E-02). La marque d'une ligne réestimée, que la fusion épargne, est écrite par EP-09 (US-1580). Les
@@ -1042,7 +1054,7 @@ d'un différentiel et sa mise à jour (US-3050).
 ## US-3050 — La base d'un différentiel et sa mise à jour depuis la structure principale
 
 - **statut** : à faire
-- **exigences** : `WF-REV-0100-A`
+- **exigences** : `WF-REV-0100-A`, `WF-REV-0110-A`
 - **opérations** : `getStructureRebaseReport`, `rebaseCostStructure` (nouvelles, écrites par la
   conception), `createCostStructure`, `listCostStructures`, `deleteCostStructure`, `createRevision`,
   `listNodes` sur un différentiel, `getStructureMergeReport`, `mergeCostStructure` (leur refus)
@@ -1071,6 +1083,29 @@ projet a reçu entre-temps.
 - `WF-REV-0100-A` — « Un risque déclaré ajoute une structure propre, présente dans chaque révision
   marquée postérieure tant qu'il n'est pas survenu. » : tenu par US-2570, non touché ici ; un devis
   propre n'a ni base ni mise à jour (EP-30) ;
+- `WF-REV-0110-A` — « Après l'ajout d'une tâche à la structure principale, la grille d'un
+  différentiel ouvert auparavant ne la présente pas retirée, et le dit en retard. » : `listNodes`
+  d'un différentiel le compare à sa base, et `CostStructure` le dit en retard dès qu'une écriture
+  avance le compteur de la structure principale ;
+- `WF-REV-0110-A` — « Un différentiel créé dans une révision, repris par la suivante puis mis à
+  jour, présente les tâches que la structure principale a reçues entre-temps, sans les désigner. » :
+  la copie d'une révision marquée reprend avec le différentiel sa base et son état ;
+  `rebaseCostStructure` y reporte ce que la structure principale a reçu, que le différentiel lit
+  ensuite `unchanged` ;
+- `WF-REV-0110-A` — « Après la mise à jour, le différentiel n'est plus en retard, et ce qu'il
+  désignait est inchangé. » : le différentiel est à jour, les nœuds qu'il désignait se lisent comme
+  avant, sous leur identifiant, et la structure principale n'est pas écrite ;
+- `WF-REV-0110-A` — « Une valeur changée à la fois dans le différentiel et dans la structure
+  principale garde, après la mise à jour, celle du différentiel, et le compte rendu la nomme. » : la
+  valeur du différentiel est gardée, et le compte rendu de la mise à jour la nomme (`kept`, ses
+  champs) ;
+- `WF-REV-0110-A` — « Une tâche que le différentiel modifie et que la structure principale a perdue
+  depuis y figure, après la mise à jour, comme une tâche ajoutée. » : la tâche reste au
+  différentiel, qui la présente ensuite `added`, signalée au compte rendu ;
+- `WF-REV-0110-A` — « Une mise à jour qui laisserait une boucle de liaisons dans le différentiel est
+  refusée et nomme le motif. » : la mise à jour est refusée, le motif et la tâche nommés au compte
+  rendu (`ReportRefusal`), et rien n'est écrit ; le lien fautif retiré du différentiel, elle aboutit
+  ;
 - propre à l'US : `createCostStructure` crée avec le différentiel sa base, copie de la structure
   principale au même instant ; `listCostStructures` ne la rend pas, et toute opération qui la nomme
   par son identifiant répond 404 ; `deleteCostStructure` la supprime avec son différentiel ; une
@@ -1119,9 +1154,9 @@ projet a reçu entre-temps.
 
 **Notes de réalisation.** Écrite à la reprise du 2026-11-19 (#4034) : la conception, « La base d'un
 différentiel et sa mise à jour », dit la forme de la base, ce qu'une structure désigne et les
-quatre règles de ce qu'une mise à jour ne reporte pas. La spécification 1.0.7 ne dit ni la base ni
-la mise à jour : #4132 en propose le texte, et les critères ci-dessus sont propres à l'US jusqu'à
-sa révision. La lecture d'un différentiel (`compare_differential`, US-2550/L3) et le compte rendu
+quatre règles de ce qu'une mise à jour ne reporte pas. La spécification 1.0.8 écrit la base et
+la mise à jour dans WF-REV-0110 (#4132) : ses Vérif sont cités ci-dessus, et les critères propres à
+l'US en disent la forme au contrat. La lecture d'un différentiel (`compare_differential`, US-2550/L3) et le compte rendu
 d'une fusion (`merge_plan`, `merge_lines`, US-2560/L1) comparent deux structures par la lignée : ce
 qu'une structure désigne est le même calcul, la base à la place de la structure principale. La copie
 d'une structure dans une autre (`copy_structure_nodes`) pose la base comme elle pose le
@@ -1281,6 +1316,10 @@ font peser sur le projet se lise là où il se lirait s'ils survenaient.
   de S2 ; sans sous-projet désigné, elle compte hors sous-projet. » : la provision compte au reste à
   engager de S2 (`getRemainingIndicators` par sous-projet) et, sans sous-projet, dans l'ensemble «
   hors sous-projet » ;
+- écart : `WF-RIS-0010-A` — « Un risque survenu dont le devis propre totalisait 200 présente une
+  gravité de 200 dans la révision suivante, qui ne reprend pas ce devis. » : ajouté par la
+  spécification 1.0.8 (décision de l'auteur du 2026-11-19, #4178), hors du périmètre de l'EPIC, qui
+  ne prend pas de fonction nouvelle (décision de l'auteur du 2026-11-21) ; #4400 l'éprouve ;
 - `WF-DEV-0010-A` — « Le refus énumère les catégories de coût sans taux horaire pour l'année de
   référence. » : tenu par EP-07, non touché ici ;
 - `WF-DEV-0010-A` — « Le calcul aboutit dès que ces taux sont renseignés. » : tenu par EP-07, non
