@@ -44,12 +44,19 @@ function repaired(name: string): void {
 
 /** The story the logs of the platform tell of an identifier, as `make service-logs-search` prints. */
 function story(identifier: string): string {
-  const { MAKEFLAGS: _flags, MFLAGS: _mflags, MAKELEVEL: _level, ...environment } = process.env;
+  // Not the jobserver of the make that plays the paths: this one is a make of its own.
+  const environment: NodeJS.ProcessEnv = {
+    ...process.env,
+    CORRELATION: identifier,
+    MAKEFLAGS: undefined,
+    MFLAGS: undefined,
+    MAKELEVEL: undefined,
+  };
   return execFileSync(
     "make",
     ["--no-print-directory", "-C", resolve(process.cwd(), ".."), "service-logs-search"],
     {
-      env: { ...environment, CORRELATION: identifier },
+      env: environment,
       encoding: "utf8",
       maxBuffer: 256 * 1024 * 1024,
     },
@@ -62,7 +69,10 @@ test("an import that fails in the worker is followed in the logs, from the depos
   request,
   manager,
 }) => {
-  test.skip(!inService, "the logs are those of the platform of the service, the fake back has none");
+  test.skip(
+    !inService,
+    "the logs are those of the platform of the service, the fake back has none",
+  );
   test.slow();
   const seeded = await seedEstimate(page, browser, request, manager, "Trace");
   await openHydrated(page, `${seeded.revision}/exchanges`);
@@ -115,19 +125,23 @@ test("an import that fails in the worker is followed in the logs, from the depos
       .filter({ hasText: "Erreur inattendue du service." });
     await expect(message).toContainText(/Référence\s:\s[0-9a-f-]{8,}/, { timeout: WORKING });
     const text = (await message.first().textContent()) ?? "";
-    reference = /Référence\s:\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/.exec(text)?.[1] ?? "";
+    reference =
+      /Référence\s:\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/.exec(
+        text,
+      )?.[1] ?? "";
   } finally {
     repaired(trigger);
   }
   expect(reference, "the reference of the message").toMatch(/^[0-9a-f-]{36}$/);
 
   // That one reference finds the whole story in the logs of the platform.
-  const events = (name: string) => story(reference).split("\n").filter((line) => line.includes(`"${name}"`));
-  await expect(async () => {
-    const found = story(reference);
-    for (const event of ["upload.deposited", "import.opened", "task.started", "task.failed"]) {
-      expect(found, event).toContain(`"${event}"`);
-    }
-  }).toPass({ timeout: WORKING, intervals: [500, 1_000, 2_000] });
-  expect(events("task.failed").some((line) => line.includes(reference))).toBe(true);
+  const told = (): string[] => {
+    const lines = story(reference).split("\n");
+    return ["upload.deposited", "import.opened", "task.started", "task.failed"].filter((event) =>
+      lines.some((line) => line.includes(`"${event}"`)),
+    );
+  };
+  await expect
+    .poll(told, { timeout: WORKING, intervals: [500, 1_000, 2_000] })
+    .toEqual(["upload.deposited", "import.opened", "task.started", "task.failed"]);
 });
