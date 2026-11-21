@@ -173,7 +173,176 @@ jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 
 ## Conception
 
-À écrire au cadrage.
+Écrite le 2026-11-21, contre `main` (12a58bc27) et `epic/EP-08` (99d036957), dont EP-32 part une
+fois fusionnée. `scheduling/engine.py` et `scheduling/links.py` sont identiques, octet pour octet,
+sur `main` et sur les branches d'EP-08, d'EP-11 et d'EP-13.
+
+### Ce que le cadrage décide
+
+Sept décisions de l'auteur du 2026-11-21, chacune avec l'option écartée :
+
+| Sujet | Retenu | Écarté, et pourquoi |
+|---|---|---|
+| une feuille démarrée qui reçoit une sous-tâche (#3336) | elle garde son état, qui entre dans l'état dérivé | refuser la sous-tâche (422, comme `MILESTONE_HAS_NO_SUBTASK`) : on ne détaillerait plus une tâche démarrée, et le refus se répéterait à chaque entrée — création, déplacement, collage, import, fusion, greffe et mise à jour d'un différentiel |
+| la spécification de cette règle | un constat de spécification, porté par la 1.0.9 ; seul le lot d'US-3310 attend sa fusion | faire attendre tout l'EPIC, comme EP-30 : les bloquants du moteur n'ont rien à voir avec elle ; livrer sans attendre : la spécification précède le code |
+| une tâche sans heure à l'ouverture (#4413) | `createRevision` refuse, 422 `TASK_WITHOUT_WORKING_HOURS` | étendre la garde de la modification d'un calendrier à la dernière révision marquée des projets au repos : au-delà de WF-PLA-0010 (« d'une révision en cours »), et un projet au repos depuis des mois bloquerait le référentiel |
+| le niveau des heures du Gantt (FPL-04) | les barres et les liaisons placées à l'heure, à tous les niveaux | retirer le niveau des heures : la flèche en arrière de deux tâches du même jour restait aux autres niveaux |
+| l'axe zoomé (FPL-05) | corrigé sans mesure, prouvé par un compte d'éléments | mesurer d'abord : la mesure prend le poste entier, et le placement à l'heure touche déjà ce dessin ; abandonner |
+| le clavier dans le Gantt zoomé (FPL-06) | la barre de la tâche active est ramenée dans le cadre | des touches de défilement de l'axe : un raccourci de plus, à tenir hors de ceux du navigateur |
+| #3785, le lien coupé par une ligne de marque | corrigé par US-3350 | la laisser en dette : c'était la décision du 2026-11-17, relayée par le pilote d'EP-27 ; celle du 2026-11-21 la renverse |
+
+Et ce que la conception tranche elle-même :
+
+| Sujet | Retenu | Écarté, et pourquoi |
+|---|---|---|
+| les marges et le chemin critique déjà conservés, faux par #3335 et #4412 | aucun rejeu : une révision en cours les retrouve justes à sa prochaine écriture ou à son prochain redatage, une révision marquée garde ceux qu'elle a figés (WF-REF-0130) | une migration qui rejoue le moteur : une migration de schéma n'appelle pas le noyau, et elle tiendrait le verrou de toutes les structures en cours ; les dates, elles, n'ont jamais été fausses |
+| ce qu'un conflit nomme sous une récapitulative (#3984) | `LinkConflict` gagne `manual_node_id`, la tâche manuelle en cause ; les tâches manuelles en conflit d'une liaison sont conservées dans une table | signaler à la lecture toutes les subordonnées manuelles de la récapitulative : une subordonnée datée assez tard serait signalée à tort, et la lecture ne rejoue pas le moteur |
+| le redatage au changement d'un calendrier de rôle (#4411) | toutes les structures des révisions en cours, par `recalculate` tel qu'il est, dès que les heures d'un calendrier changent | ne rejouer que les structures dont une tâche emploie le calendrier : une lecture de plus des lignes de devis de toutes les révisions en cours, celle que #4485 (EP-40) reproche déjà à la garde ; le coût du rejeu est borné par US-3300 |
+| le rechiffrage d'une tâche que le redatage ne déplace pas (BCH-07) | `reschedule_current_structures` rechiffre toutes les tâches des structures qu'il rejoue | ne rechiffrer que les tâches des rôles touchés : le défaut existe aussi pour le calendrier par défaut et les constantes d'unités, qui passent par la même fonction |
+| où se traduit le refus du moteur (#4413) | dans `dated`, le seul appel du moteur, pour toutes les écritures | l'attraper dans `create_revision` seul : `createNode` sur un calendrier par défaut vide rendrait encore 500 |
+| une récapitulative dont la facette porte déjà un état | lue telle quelle comme son état propre, sans migration | une migration qui remet à « non démarrée » la facette des récapitulatives : elle effacerait l'état des feuilles démarrées que le défaut n'a pas encore écrasé, celles que la correction rétablit |
+
+### Tables et migrations
+
+Une seule table nouvelle, `task_link_conflict`, par US-3300 : pour une liaison en conflit, les
+tâches manuelles que son prédécesseur ne peut pas satisfaire.
+
+- colonnes : `project_id`, `link_id`, `node_id` — la clé —, `revision_id`, `structure_id` ;
+- partitionnée par projet, comme `task_link` ; clés étrangères vers `task_link` et vers `node`, qui
+  suivent la suppression de la liaison ou de la tâche à l'intérieur d'une révision en cours (§4.4.1) ;
+  le déclencheur des révisions marquées la tient en lecture seule comme les autres tables d'une
+  révision ;
+- écrite par `kept` (`dating.py`), dans l'écriture qui pose `task_link.in_conflict`, lequel reste :
+  une liaison est en conflit dès qu'elle a une ligne ici ;
+- copiée à l'ouverture d'une révision avec les liaisons, puis récrite par `redate_copy` ; supprimée à
+  l'abandon avec elles (WF-DAT-0010) ;
+- la migration la crée vide et la remplit, pour chaque liaison `in_conflict` dont le successeur est
+  une feuille manuelle, de ce successeur : c'est ce que le moteur sait dire aujourd'hui. Les
+  conflits des récapitulatives liées naissent au premier rejeu.
+
+US-3310 n'ajoute ni colonne ni migration : l'état propre d'une récapitulative est celui que sa
+facette `task` porte déjà (`progress`, `started_on`), que la lecture ignorait.
+
+US-3340 n'en ajoute pas non plus : `tracking_entry` ne tient à ses nœuds par aucune clé, et c'est
+voulu — une inscription suit la lignée d'une révision à l'autre.
+
+### Les modules du noyau
+
+**`core/planning/scheduling` (US-3300).** Le moteur seul, sans base.
+
+- *Passe arrière.* Pour chaque liaison, la borne que ses successeurs laissent — le plus tôt des
+  instants que rendent les feuilles du successeur — se calcule une fois, dans la mesure du
+  successeur, puis se rapporte au calendrier de chaque feuille du prédécesseur. Les feuilles d'une
+  tâche se mémorisent (`Plan.leaves`). Une liaison qui part d'une fin borne chaque feuille du
+  prédécesseur ; une liaison qui part d'un début ne borne que les feuilles dont le début au plus tôt
+  est celui de la récapitulative, les autres n'en reçoivent aucune borne (#3335).
+- *Durée écoulée.* `latest_start` cherche le dernier départ du jour dont la fin placée tient encore
+  le compte, au lieu de la première heure du jour (BPL-03). `entries.finish_after` borne la fin
+  d'une tâche manuelle à durée écoulée par `calendar.bounded`, comme `placed` (BPL-08).
+- *Conflits.* `conflicts` juge chaque feuille manuelle sous le successeur d'une liaison, comme
+  `place` et `backward` le font ; `LinkConflict` porte la tâche manuelle en cause, qui est le
+  successeur quand celui-ci est une feuille.
+- *Le test de propriété* tire ses structures d'un générateur à graine fixe, écrit dans les tests :
+  le back n'a pas de bibliothèque de tests de propriété, et n'en reçoit pas pour un test. Le compte
+  des bornes se lit par un compteur que le moteur expose aux tests, non par un chronomètre.
+- La passe avant ne change pas : aucune date ne bouge.
+
+**`core/planning`, l'état (US-3310).** `state_of` donne à `_derived` l'état propre de la
+récapitulative, lu sur sa facette : démarrée ou terminée comme feuille, elle est au moins démarrée,
+et sa date de démarrage entre dans le minimum. `emptied` écrit donc sur la feuille retrouvée un état
+qui contient déjà le sien. `closed_above` et `reopened` gardent leur rôle — une terminaison périmée
+est effacée, la date de démarrage reste. La garde de `deleteNode` et le Kanban lisent `state_of` :
+ils suivent sans être touchés. `states_without` passe par les mêmes fonctions. Rien ne change pour
+une récapitulative dont la facette est « non démarrée ».
+
+**`core/planning`, le référentiel (US-3320, US-3330).**
+
+- `reschedule_current_structures` rejoue chaque structure avec toutes ses tâches à rechiffrer
+  (`Holding.repriced`) : calendrier de rôle, calendrier par défaut et constantes d'unités passent
+  par elle.
+- `dated` traduit `TaskWithoutWorkingHoursError` en 422 `TASK_WITHOUT_WORKING_HOURS`, la tâche
+  nommée par son nœud et son libellé, ses rôles par ceux de ses lignes de main-d'œuvre, que le
+  crochet des calendriers du devis sait déjà lire. Les opérations d'EP-08 qui attrapent l'exception
+  avant elle (`grafting`, `merging`, `rebasing`) gardent leur traduction.
+- `redate_copy` ne change pas : le refus remonte de `dated`, et l'ouverture, qui est une
+  transaction, n'écrit rien.
+
+**`core/resource_settings` (US-3320).** `update_calendar` appelle `recalculate` dès que des heures
+changent, quel que soit le calendrier. `update_role` prend le verrou du référentiel avant celui du
+rôle, puis appelle `recalculate` quand le calendrier du rôle change ; l'ordre reste celui d'EP-06 :
+le référentiel, la ligne, les structures. Le module n'apprend rien du planning : il passe par le
+registre `register_recalculation`, comme aujourd'hui.
+
+**`core/planning`, l'abandon et le jour (US-3340).** La suppression des inscriptions des lignées
+qu'aucun nœud du projet ne porte plus, aujourd'hui dans `shaping.deleted`, devient une fonction
+privée commune, que `closing._delete_where` appelle aussi — pour l'abandon d'une révision comme pour
+la structure qui part avec son propriétaire. `task_tree.py` et `views.py` lisent le jour par
+`current_day`, de l'interface des projets, que le planning importe déjà.
+
+**Ce que chacun expose aux autres.** Rien de nouveau : aucune interface de module ne change de
+signature, hors `LinkConflict` et `ConflictView`, qui gagnent la tâche manuelle.
+
+### Le contrat
+
+Trois modifications, faites avant le code qui les sert, chacune avec son entrée dans
+`docs/api/DECISIONS.md` :
+
+1. `LinkConflict.manual_node_id`, requis : la tâche manuelle que le prédécesseur ne peut pas
+   satisfaire — le successeur lui-même, ou sa subordonnée manuelle quand il est une récapitulative.
+   `link_conflicts` est rendu sur le prédécesseur et sur cette tâche manuelle. Le témoin n'a aucun
+   conflit sous une récapitulative : ses exemples gagnent le champ, égal au successeur, et le faux
+   back le rend de même.
+2. `createRevision` déclare le 422 `TASK_WITHOUT_WORKING_HOURS`, `params.tasks` et
+   `params.resource_roles` comme une saisie les rend. Pas d'exemple : aucune tâche du témoin n'est
+   sans heure.
+3. `updateResourceRole` déclare les deux refus du redatage, dans les termes d'`updateCalendar` :
+   422 `PROJECT_HORIZON_EXCEEDED`, projets nommés, et le refus d'une ligne rechiffrée au-delà de sa
+   colonne, sur `/calendar_id` (#3401).
+
+Le front suit la première : la grille et le Gantt signalent la tâche de `manual_node_id`. Les deux
+autres sont des refus que les écrans montrent déjà par leur message.
+
+### Le front (US-3350)
+
+- *Placement* (`layout.ts`). L'instant d'une tâche se place à son jour plus ses heures rapportées
+  aux heures de ce jour sur son calendrier (`calendar_hours`) ; sans calendrier — la frise d'une
+  chronologie —, ou un jour sans heure, le placement au jour d'aujourd'hui. `gantt-image.ts` lit la
+  même mise en place : l'image exportée suit.
+- *Axe* (`gantt.tsx`). `Months` et `DaysOff` ne dessinent que ce qui tombe dans la fenêtre que la
+  vue connaît, décalage et largeur du cadre ; la vue, valeur du contexte, est mémoïsée.
+- *Clavier.* Quand la ligne active de la grille change et que le Gantt est zoomé, `reveal` ramène la
+  barre de cette ligne dans le cadre. Rien ne s'écrit, aucune touche n'est ajoutée.
+- *Ligne de marque* (#3785). La ligne de marque d'une suite repliée dessine dans sa cellule du Gantt
+  le tronçon des liaisons qui la traversent ; `folded-runs.tsx` n'est touché que pour cela.
+- Le guide (`docs/dev/README-fr.md`, et `README.md`) dit le placement à l'heure.
+
+### L'ordre de construction
+
+1. US-3290, des tests seuls : rien ne la précède, et elle doit être fusionnée avant US-3000.
+2. Le contrat, d'un bloc : les trois modifications, le client et les modèles engendrés, le faux
+   back. Tout le reste le suit.
+3. Le moteur (US-3300) : la passe arrière et les durées écoulées d'abord, sans base ; puis la table
+   et les conflits, qui demandent la migration et le contrat.
+4. En parallèle une fois le contrat posé : le redatage (US-3320), puis le refus nommé (US-3330), qui
+   touchent tous deux `reference.py` et `dating.py` ; l'abandon et le jour (US-3340).
+5. Le Gantt (US-3350), après le contrat, sans dépendre du back : le placement, puis l'axe et le
+   clavier, puis la ligne de marque.
+6. US-3310 en dernier, quand la spécification 1.0.9 est fusionnée.
+
+### Les EPIC voisins
+
+- **EP-08** touche `rescheduling.py` et les gardes de calendrier (US-3060/L9, #4389) : EP-32 part de
+  sa fusion, et ne reprend aucun de ses lots.
+- **EP-30** écrit `core/planning` pour les différentiels des risques (`rebasing`, `merging`,
+  `grafting`) : il ne touche ni le moteur, ni `views.py` pour l'état. La règle retenue pour #3336
+  ne lui ajoute aucun refus.
+- **EP-34** tient la saisie en grille et le collage : `folded-runs.tsx` est le seul fichier de la
+  grille qu'EP-32 touche, pour le tracé d'un lien.
+- **EP-35** reçoit #3985, la désactivation d'un calendrier que portent des rôles actifs, dans le même
+  `calendars.py` du référentiel que US-3320 : fonctions distinctes, EP-35 vient après.
+- **EP-40** reçoit #4485, la garde des calendriers qui lit toutes les révisions : US-3320 ne
+  l'étend pas.
+- **EP-13** (US-3000) attend US-3290.
 
 ---
 
