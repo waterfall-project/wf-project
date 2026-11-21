@@ -16,7 +16,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends
 from sqlalchemy import func, select
 
-from waterfall.api.authentication import Caller, Transaction
+from waterfall.api.authentication import Caller, ServicesOf, Transaction
 from waterfall.api.contract.base import ContractModel
 from waterfall.api.contract.models import BackupSchedule, Frequency, LockVersion
 from waterfall.api.evaluation import Requires
@@ -45,10 +45,6 @@ router = APIRouter(tags=["platform"])
 READ = [Depends(Requires("backups.read"))]
 CHANGE = [Depends(Requires("backups.write"))]
 NO_RESTORE_RUNNING = "no_restore_running"
-# The locations the installation declares (`listExternalBackupLocations`): none yet, their
-# configuration being read by US-2910/L3. An installation that declares none offers no copy, and a
-# copy set names a location it does not declare (`BackupExternalCopy.location`).
-DECLARED_LOCATIONS: frozenset[str] = frozenset()
 
 
 class ExternalCopyWrite(ContractModel):
@@ -137,14 +133,20 @@ def get_backup_schedule(session: Transaction) -> BackupSchedule:
     response_model_exclude_unset=True,
 )
 def put_backup_schedule(
-    body: Annotated[BackupScheduleWrite, Body()], account: Caller, session: Transaction
+    body: Annotated[BackupScheduleWrite, Body()],
+    account: Caller,
+    session: Transaction,
+    services: ServicesOf,
 ) -> BackupSchedule:
     """Write the schedule whole: judged (422), refused during a restoration (409), counted (412).
 
-    The restoration is looked for under the lock ``startRestore`` deposits one under, shared: a
+    The copy names a location the installation declares (``listExternalBackupLocations``): one it
+    does not declare is unknown, and an installation that declares none offers no copy. The
+    restoration is looked for under the lock ``startRestore`` deposits one under, shared: a
     restoration deposited meanwhile waits for this writing, or this writing sees it.
     """
-    schedule = judged_schedule(schedule_writing(body), DECLARED_LOCATIONS)
+    declared = services.external_locations.names()
+    schedule = judged_schedule(schedule_writing(body), declared)
     session.execute(select(func.pg_advisory_xact_lock_shared(RESTORE_LOCK)))
     if pending_task(session, "restore") is not None:
         raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": NO_RESTORE_RUNNING})

@@ -41,6 +41,7 @@ from waterfall.core.backups.interface import (
     MANIFEST,
     TakenBackup,
     add_backup,
+    deposit_copy,
     read_backup_schedule,
     rotate,
 )
@@ -300,6 +301,7 @@ class BackupTask:
                 if is_verified:
                     backup_id = add_backup(session, taken, Act(task.requested_by, taken_at))
                     self._rotate(session)
+                    deposit_copy(session, backup_id)
                     logger.info("backup.taken", backup_id=str(backup_id), size_bytes=size_bytes)
                     return {"backup_id": str(backup_id), "verification": "passed"}
             except BaseException:

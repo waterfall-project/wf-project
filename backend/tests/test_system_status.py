@@ -14,16 +14,19 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import pytest
+from backup_rows import Row, recorded
 from fastapi.testclient import TestClient
 from installed_reference import holding, install
 from prometheus_support import TestPrometheus
-from sqlalchemy import insert
+from sqlalchemy import insert, update
 from support import ContractClient, nowhere
 
 from waterfall import __version__
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.api.status import UNMEASURED, StatusSources, alert, fullest
+from waterfall.core.backups.interface import FailedCopy
+from waterfall.core.backups.tables import Backup, BackupSchedule
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.prometheus import (
     AVAILABILITY,
@@ -501,6 +504,83 @@ def test_the_latest_backup_says_its_failure_by_the_problem_of_its_task(
     assert (status["last_backup_copy"], status["last_restore_test"]) == (None, None)
 
 
+def copy_failed(database: Database, at: datetime, failure: str) -> str:
+    """Set a copy to Lyon, and a scheduled backup whose copy, ended at ``at``, Lyon refused."""
+    taken_at = at - timedelta(minutes=14)
+    backup_id = recorded(database, taken_at, Row(origin="scheduled"))
+    with database.transaction() as session:
+        session.execute(
+            update(BackupSchedule).values(
+                external_copy_is_enabled=True,
+                external_copy_location="secours-lyon",
+                external_copy_path="waterfall/sauvegardes",
+                external_copy_retained_count=30,
+            )
+        )
+        session.execute(
+            update(Backup)
+            .where(Backup.id == backup_id)
+            .values(
+                last_copy_at=at,
+                last_copy_location="secours-lyon",
+                last_copy_path="waterfall/sauvegardes",
+                last_copy_failure=failure,
+            )
+        )
+        session.execute(
+            insert(BackgroundTask).values(
+                id=uuid4(),
+                kind="backup_copy",
+                status="failed",
+                progress=0,
+                payload={"backup_id": str(backup_id)},
+                problem={"code": "INTERNAL_ERROR", "status": 500, "correlation_id": CORRELATION},
+                correlation_id=CORRELATION,
+                attempts=1,
+                submitted_at=taken_at,
+                started_at=taken_at,
+                finished_at=at,
+            )
+        )
+    return str(backup_id)
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_a_scheduled_copy_failed_shows_an_alert_naming_the_backup_the_location_and_the_reason(
+    contract: OpenAPI,
+    platform: Services,
+    database: Database,
+    prometheus: TestPrometheus,
+    viewer: dict[str, str],
+) -> None:
+    # « Un échec planifié, de sauvegarde ou de copie, apparaît comme alerte sur l'écran d'état. » :
+    # the copy Lyon refused, its space spent, is an alert in progress, which names the backup, the
+    # location and the reason (#4637), as the example ``system_status_copy_failed`` does; the latest
+    # copy says its failure, its reason in the alert and not in ``problem``.
+    collected(prometheus)
+    failed_at = datetime(2026, 6, 3, 1, 14, tzinfo=UTC)
+    backup_id = copy_failed(database, failed_at, "storage_full")
+    prometheus.fires("scheduled_backup_copy_failed", failed_at, severity="alert")
+    status = read(screen_on(contract, platform, prometheus), viewer)
+    assert status["alerts"] == [
+        {
+            "code": "scheduled_backup_copy_failed",
+            "since": "2026-06-03T01:14:00Z",
+            "severity": "alert",
+            "params": {
+                "backup_id": backup_id,
+                "location": "secours-lyon",
+                "failure": "storage_full",
+            },
+        }
+    ]
+    assert status["last_backup_copy"] == {
+        "at": "2026-06-03T01:14:00Z",
+        "succeeded": False,
+        "problem": None,
+    }
+
+
 @pytest.mark.story("US-2890")
 def test_the_screen_is_refused_without_the_permission_to_view_the_status(
     contract: OpenAPI,
@@ -576,6 +656,25 @@ def test_an_alert_the_contract_does_not_name_is_not_presented() -> None:
         "since": since,
         "severity": "watch",
     }
+
+
+@pytest.mark.story("US-2910")
+def test_the_alert_of_a_failed_copy_names_what_the_database_knows_of_it() -> None:
+    # #4637: the backup, the location and the reason the latest copy failed with; a copy that
+    # failed before reaching its location names no reason, and none known, nothing is named.
+    firing = FiringAlert("scheduled_backup_copy_failed", {"severity": "alert"}, CHECKED_AT)
+    backup_id = uuid4()
+    named = alert(firing, FailedCopy(backup_id, "secours-lyon", "timed_out"))
+    assert named is not None
+    assert named["params"] == {
+        "backup_id": backup_id,
+        "location": "secours-lyon",
+        "failure": "timed_out",
+    }
+    unknown = alert(firing, FailedCopy(backup_id, "secours-lyon", None))
+    assert unknown is not None
+    assert unknown["params"] == {"backup_id": backup_id, "location": "secours-lyon"}
+    assert "params" not in (alert(firing) or {})
 
 
 @pytest.mark.story("US-2890")

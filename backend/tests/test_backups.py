@@ -23,7 +23,7 @@ from access_rows import account, role
 from backup_support import Corrupting, Run, worker_of
 from fastapi.testclient import TestClient
 from realm import KEY, TestRealm
-from sqlalchemy import Engine, select, text
+from sqlalchemy import Engine, select, text, update
 from sqlalchemy.exc import ProgrammingError
 from support import ContractClient, bearer, captured_logs
 from task_handlers import REQUEST, deposit, task
@@ -32,6 +32,7 @@ from waterfall import __version__
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.backups.interface import TakenBackup, add_backup, last_scheduled_outcome
+from waterfall.core.backups.tables import BackupSchedule
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import Database, create_database_engine, utc_now
 from waterfall.platform.errors import UnavailableError
@@ -39,6 +40,7 @@ from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import ServiceSettings, load_worker_settings
 from waterfall.platform.storage import Bucket
+from waterfall.platform.tasks import BackgroundTask
 from waterfall.worker import backup as backup_module
 from waterfall.worker.backup import MANIFEST, BackupTask, DumpError, connection, dump, verified
 
@@ -285,24 +287,76 @@ def test_an_archive_that_does_not_read_back_whole_fails_its_scheduled_task_and_s
         return []
 
     monkeypatch.setattr(backup_module, "rotate", rotate_spy)
+    copy_set(database)
     corrupting = Corrupting(backups_bucket.client, backups_bucket.name)
     task_id = run(BackupTask(databases, corrupting))
     problem = failed_problem(database, task_id)
     assert {key: problem[key] for key in FAILED_VERIFICATION} == FAILED_VERIFICATION
     with database.transaction() as session:
         rows = session.execute(text("SELECT verification, origin, object_key FROM backup")).all()
-        copies = session.execute(text("SELECT count(*) FROM task WHERE kind = 'backup_copy'"))
-        copied = copies.scalar_one()
         # One source of the failure: the task, which the gauge and the screen of the state read.
         outcome = last_scheduled_outcome(session)
     assert [tuple(row) for row in rows] == [("failed", "scheduled", f"backup-{task_id}.tar")]
     assert keys_of(backups_bucket, f"backup-{task_id}") == [f"backup-{task_id}.tar"]
     assert rotations == []
-    # A guard, not a proof: nothing deposits a ``backup_copy`` yet; the deposit of the copy comes
-    # with US-2910/L3 (#4100), whose test will carry the real check.
-    assert copied == 0
+    # The copy is set and enabled: a backup verified would deposit it (the test below), this one
+    # deposits none (US-2910/L3, #4100).
+    assert copies_deposited(database) == []
     assert outcome is not None
     assert not outcome.succeeded
+
+
+def copy_set(database: Database, *, is_enabled: bool = True) -> None:
+    """Set the copy of the scheduled backups, to a location, enabled or suspended."""
+    with database.transaction() as session:
+        session.execute(
+            update(BackupSchedule).values(
+                external_copy_is_enabled=is_enabled,
+                external_copy_location="secours-lyon",
+                external_copy_path="waterfall/sauvegardes",
+                external_copy_retained_count=30,
+            )
+        )
+
+
+def copies_deposited(database: Database) -> list[dict[str, Any]]:
+    """Give the payloads of the copies deposited, queued, by the platform."""
+    with database.transaction() as session:
+        return list(
+            session.scalars(
+                select(BackgroundTask.payload).where(
+                    BackgroundTask.kind == "backup_copy",
+                    BackgroundTask.status == "queued",
+                    BackgroundTask.requested_by.is_(None),
+                )
+            )
+        )
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_a_scheduled_backup_verified_deposits_its_copy_and_a_manual_one_none(
+    database: Database,
+    queue: TaskQueue,
+    run: Run,
+    databases: dict[str, str],
+    backups_bucket: Bucket,
+) -> None:
+    # « la copie attend la vérification de la sauvegarde » (US-2910): a scheduled backup verified,
+    # under a schedule whose copy is set and enabled, deposits the task of its copy, in its own
+    # transaction; a manual backup, copied out by its download, deposits none, nor a scheduled one
+    # whose copy is suspended.
+    copy_set(database)
+    task_id = run(BackupTask(databases, backups_bucket))
+    backup_id = task(database, task_id).result or {}
+    assert copies_deposited(database) == [{"backup_id": backup_id["backup_id"]}]
+    asker = account(database, "Martin", uuid4().hex[:8])
+    worker = worker_of(database, queue, BackupTask(databases, backups_bucket))
+    deposit(database, queue, "backup", requested_by=asker)
+    assert worker.step()
+    assert len(copies_deposited(database)) == 1
+    copy_set(database, is_enabled=False)
+    run(BackupTask(databases, backups_bucket))
+    assert len(copies_deposited(database)) == 1
 
 
 @pytest.mark.requirement("WF-ADM-0170-A")
