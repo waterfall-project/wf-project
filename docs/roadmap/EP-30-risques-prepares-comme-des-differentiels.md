@@ -1,7 +1,7 @@
 ---
 id: EP-30
 titre: Un risque se prépare comme un différentiel — il ajoute, reprend ou abandonne du travail, et sa survenance fusionne sans déplacer la référence
-statut: à planifier
+statut: prêt
 depend_de: EP-08, EP-11
 famille: front, back
 issue:
