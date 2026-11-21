@@ -142,9 +142,23 @@ function text(markup: string): string {
 /**
  * The comments React writes into the markup it streams, and only those: the separator of two texts
  * (`<!-- -->`), the bounds of a Suspense boundary (`<!--$-->`, `<!--$?-->`, `<!--$!-->`, `<!--/$-->`)
- * and of an Activity (`<!--&-->`, `<!--/&-->`). Named one by one, it removes no other text.
+ * and of an Activity (`<!--&-->`, `<!--/&-->`). Named one by one and cut out as plain strings, with
+ * no pattern: they remove no other text.
  */
-const REACT_MARKERS = /<!--(?: |\/?[$&]|\$[?!])-->/g;
+const REACT_MARKERS = [
+  "<!-- -->",
+  "<!--$-->",
+  "<!--$?-->",
+  "<!--$!-->",
+  "<!--/$-->",
+  "<!--&-->",
+  "<!--/&-->",
+];
+
+/** The markup given, the markers of React cut out of it. */
+function withoutReactMarkers(markup: string): string {
+  return REACT_MARKERS.reduce((text, marker) => text.split(marker).join(""), markup);
+}
 
 /** Render the screen of the risks in English, at the query given. */
 async function risksAt(search: PageSearchParams = {}) {
@@ -161,7 +175,7 @@ async function risksAt(search: PageSearchParams = {}) {
     { progressiveChunkSize: Infinity },
   );
   await stream.allReady;
-  return (await new Response(stream).text()).replace(REACT_MARKERS, "").replace(/&#x27;/g, "'");
+  return withoutReactMarkers(await new Response(stream).text()).replace(/&#x27;/g, "'");
 }
 
 /** The calls the page made to an operation. */
