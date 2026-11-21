@@ -141,8 +141,8 @@ export function IdentifyRisk({
  * one comes back —, which fires neither `visibilitychange` nor `pageshow` and which the router of Next
  * restores from its cache, with the counter read before: the reading at the mount is the one that
  * holds it. That write is refused with 412, and the offer to read the page anew resolves it
- * (WF-IHM-0110). One reading per mount: the page read anew
- * keeps the commands mounted, so nothing loops.
+ * (WF-IHM-0110). One reading per mount: the page read anew keeps the commands mounted, so nothing
+ * loops.
  */
 function useRereadWhenShown(): void {
   const router = useRouter();

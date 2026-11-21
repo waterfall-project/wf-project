@@ -184,7 +184,7 @@ describe("« Supprimer le risque »", () => {
 });
 
 describe("le risque relu après une écriture dans son devis propre", () => {
-  it("relit le risque au montage du détail, avant toute écriture, puis à chaque retour de l'écran, et ne relit rien tant qu'il est caché [US-2640]", () => {
+  it("relit le risque au montage du détail, puis à chaque retour de l'écran, et ne relit rien tant qu'il est caché [US-2640]", () => {
     const client = serve({});
     // What the client had sent when the page was asked to be read anew: nothing yet.
     const sentBefore: number[] = [];

@@ -4743,15 +4743,14 @@ from `fixtures/api/witness_costs.json`, which `make mock-data` writes beside the
 `wftools`. The remaining to commit has no slice: the lines of the revision 102 carry `previous_*` from
 the copy of the reference 101, and their states come from EP-06. The generator of the examples shares
 a quote line astride two years as the service does (WF-DEV-0040, #2838): the computed is the
-expected, and the figures of the examples are the service's. What the slice does not have: no
-provision, no amendment, no risk (**EP-08**, whose merge of the amendment 1 makes the 101 the
-reference: until then the reference is the offer 100), and not the whole volumes (**EP-13**, which
+expected, and the figures of the examples are the service's. The slice of EP-08 has put in it the provisions, the merged amendment 1 — which makes the 101 the
+reference —, the risks and the amendment 2 (US-2650). What it does not have: the whole volumes (**EP-13**, which
 closes: the three hundred projects and the eighteen thousand cost lines of §4.6.2). The indicators
 have no slice: the marking replayed by the loader (`load_marking`, EP-10, US-1670) keeps those of
 the revision 101 of PRJ-001 — the project, its two sub-projects and « outside any sub-project » —
 at its instant, 1 February 2026 at 9 a.m., the offer 100 keeping no project indicator, and the
-service computes those of the day on the 102 (US-1740); **EP-08** adds to them the provisions and
-the risks, which change the reference, **EP-11** the portfolio, **EP-13** the marked revisions that
+service computes those of the day on the 102 (US-1740); the provisions and
+the risks of EP-08 change the reference; **EP-11** adds the portfolio, **EP-13** the marked revisions that
 follow and the whole volumes. Against the service, the structure of PRJ-001 counts 5,966 nodes, not the 5,999 of the
 volume that the fake back serves. What reads PRJ-001 In progress,
 its reference and its lines thus plays against the service, to the expectations of the examples near
@@ -5902,16 +5901,18 @@ the guard and the entry above:
   contributor (#2193): their twins play the service on a project of the run (`FAKE_BACK_ONLY`,
   `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), those that enter or paste in
   the own estimate of a risk or in the twelfth row of the estimate, the provision of a risk
-  (`NOT_A_CONTRIBUTOR` of `entry.spec.ts` and `paste.spec.ts`), the path of `risks.spec.ts` that
-  declares, reviews and declares occurred a risk of PRJ-001 (those the service proves are in
-  `risks-service.spec.ts`, on a project of the run), the untagged paths of the
+  (`entry.spec.ts` and `paste.spec.ts`, untagged; their `@shared` twins, at the end of each file, play
+  the provision of an identified risk and the paste in its own estimate on a project of the run), the
+  path of `risks.spec.ts` that identifies, reviews and declares occurred a risk of PRJ-001 (its twins
+  are in `risks-service.spec.ts`, on a project of the run: identification, review, own estimate
+  entered, occurrence), the untagged paths of the
   remaining to commit (`undo.spec.ts`: memory background without history, the service being covered by
   its `@shared` undo paths; `grid.spec.ts`) and the imports screen of PRJ-001 (`exchanges.spec.ts`), which only reads that
   screen: the `@shared` path exporting and re-importing the remaining to commit covers another
   gesture, on a project of the run.
 
-The slice of the costs makes the actual costs, their journal and the exclusion playable; EP-08 adds
-the provisions, the amendments and the risks to it, EP-13 the whole volumes.
+The slice of the costs makes the actual costs, their journal and the exclusion playable; since EP-08 it
+counts the provisions, the amendments and the risks; EP-13 adds the whole volumes.
 
 The paths that depend on what the service does not do yet, or does not serve, are not replayed
 against it, being untagged; each is still played against the fake back, by `chromium`. What depends

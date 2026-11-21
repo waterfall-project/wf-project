@@ -6,13 +6,16 @@ import { type Download, expect, type Locator } from "@playwright/test";
 
 import { compile } from "./compile";
 import { openHydrated } from "./hydration";
-import { inService, test } from "./mode";
+import { test } from "./mode";
 import { scrollPageToGrid, withinBox } from "./scroll";
 
 // The paths that read are tagged `@shared`: they play against the service too, on the risks the
-// witness holds since EP-08 (US-2650). The fake back serves the first example of each read of the risks — the register of three risks,
-// one in each state, its matrix, the risk of rewiring and the history of its reviews —, whatever
-// the risk asked: the component and page tests prove what the screen asks of each.
+// witness holds since EP-08 (US-2650). The fake back serves the first example of each read of the
+// risks — the register of three risks, one in each state, its matrix, the risk of rewiring and the
+// history of its reviews —, whatever the risk asked: the component and page tests prove what the
+// screen asks of each. The path of the cycle of a risk writes PRJ-001, of which the account of the
+// run is not a contributor (#2193): it stays with the fake back, and its twins play the service on a
+// project of the run (`risks-service.spec.ts`: identify, review, declare occurred).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const RISKS = `/projects/${PROJECT}/revisions/${REVISION}/risks`;
@@ -156,7 +159,7 @@ test("leads from the label of a risk to its detail from the keyboard alone @shar
   await expect(page.getByRole("region", { name: "Risque de reprise du câblage" })).toBeVisible();
 });
 
-test("names the category and the sub-project a risk designates for its provision, in its detail (EP-14/L42p) @shared", async ({
+test("names the category and the sub-project a risk designates for its provision, in its detail (EP-14/L42p) @shared [WF-RIS-0010-A] [US-2640]", async ({
   page,
 }) => {
   await openHydrated(page, `${RISKS}?risk=${CABLING}`);
@@ -253,10 +256,6 @@ test("walks the screens of the cycle of a risk: identify it, open an estimate, r
   // (754, its own structure 208), then the risk of rewiring for the detail, its review confirmed
   // and its occurrence queued — so that the steps are played one after the other from the screens
   // they lead to, never from one another's effects (#1350).
-  test.skip(
-    inService,
-    "the path writes PRJ-001, of which the account of the run is not a contributor (#2193): the service plays the risks writes in `risks-service.spec.ts`",
-  );
   test.slow();
   await compile(page.request, `/projects/${PROJECT}/revisions/${REVISION}/estimate`);
   await openHydrated(page, RISKS);

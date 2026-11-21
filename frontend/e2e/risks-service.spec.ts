@@ -4,10 +4,8 @@ import { expect } from "@playwright/test";
 
 import { MARKING, WORKING } from "./bounds";
 import { openHydrated } from "./hydration";
-import { bringInProgress } from "./in-progress";
 import { inService, test } from "./mode";
-import { openRevision } from "./own-project";
-import { seedPlanning } from "./planning-seed";
+import { identifyRisk } from "./risk-seed";
 
 // What the fake back cannot replay: the success of a task of occurrence (#1830) — its exemples hold
 // the queued task alone, and the contract is not given another — and the risk it then reads occurred.
@@ -25,20 +23,14 @@ test("writes the risk after a cell of its own estimate was entered and the detai
   test.slow();
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
-    const seeded = await seedPlanning(page, browser, calls, manager, "Risque devis propre");
-    await bringInProgress(page, calls, seeded);
-    await openRevision(page, seeded.own);
-    const current = new URL(page.url()).searchParams.get("revision_id");
-    const risks = `${seeded.own.path}/revisions/${current ?? ""}/risks`;
-    await openHydrated(page, risks);
-    await page.getByRole("button", { name: "Identifier un risque" }).click();
-    const identify = page.getByRole("dialog", { name: "Identifier un risque" });
-    await identify.getByRole("textbox", { name: "Libellé" }).fill("Fuite du toit");
-    await identify.getByRole("textbox", { name: "Probabilité (%)" }).fill("20");
-    await identify.getByRole("combobox", { name: "Catégorie" }).selectOption({ index: 1 });
-    await identify.getByRole("button", { name: "Créer" }).click();
-    await expect(page).toHaveURL(/\/estimate\?.*structure=/, { timeout: WORKING });
-    const own = page.url();
+    const { risks, own } = await identifyRisk(
+      page,
+      browser,
+      calls,
+      manager,
+      "Risque devis propre",
+      "Fuite du toit",
+    );
     // The detail of the risk, mounted from the register: the counter of the risk it reads is the
     // one the entry below will advance.
     await openHydrated(page, risks);
@@ -96,21 +88,14 @@ test("declares a risk occurred against the service: the report, the task succeed
   test.slow();
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
-    const seeded = await seedPlanning(page, browser, calls, manager, "Risque survenu");
-    await bringInProgress(page, calls, seeded);
-    // The reference is read-only: the risks are declared on the current revision, opened as a copy.
-    await openRevision(page, seeded.own);
-    const current = new URL(page.url()).searchParams.get("revision_id");
-    const risks = `${seeded.own.path}/revisions/${current ?? ""}/risks`;
-    await openHydrated(page, risks);
-    // Identify a risk: its form, then its own estimate opens in the grid of the estimate.
-    await page.getByRole("button", { name: "Identifier un risque" }).click();
-    const identify = page.getByRole("dialog", { name: "Identifier un risque" });
-    await identify.getByRole("textbox", { name: "Libellé" }).fill("Grue indisponible");
-    await identify.getByRole("textbox", { name: "Probabilité (%)" }).fill("20");
-    await identify.getByRole("combobox", { name: "Catégorie" }).selectOption({ index: 1 });
-    await identify.getByRole("button", { name: "Créer" }).click();
-    await expect(page).toHaveURL(/\/estimate\?.*structure=/, { timeout: WORKING });
+    const { risks } = await identifyRisk(
+      page,
+      browser,
+      calls,
+      manager,
+      "Risque survenu",
+      "Grue indisponible",
+    );
     // The register lists it; its detail declares it occurred, from the report the service computed.
     await openHydrated(page, risks);
     await page.getByRole("link", { name: "Grue indisponible" }).click();

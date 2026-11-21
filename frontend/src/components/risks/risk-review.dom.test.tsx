@@ -119,7 +119,7 @@ afterEach(() => {
 });
 
 describe("« Réexaminer » a risk after its own estimate was written [US-2640]", () => {
-  it("reads the risk anew when the detail is mounted, before any write, and reviews from the version read (#1626)", async () => {
+  it("reads the risk anew when the detail is mounted, and reviews from the version read (#1626)", async () => {
     const client = serve();
     // What the client had sent when the page was asked to be read anew: nothing yet.
     const sentBefore: number[] = [];

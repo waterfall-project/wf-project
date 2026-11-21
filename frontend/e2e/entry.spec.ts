@@ -7,6 +7,7 @@ import { columnsOf } from "./columns";
 import { idle, seedEstimate } from "./estimate-seed";
 import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
+import { identifyRisk } from "./risk-seed";
 import { rowAt } from "./scroll";
 import { isServerAction } from "./server-action";
 
@@ -262,15 +263,9 @@ test("traverses the cells of a summary that its node does not accept or the serv
   await expect(grid.getByRole("textbox")).toHaveCount(0);
 });
 
-// These paths read PRJ-001, of which the account of the run is not a contributor (#2193): the service
-// serves its grids read-only, and the cells and the paste they play are refused to it. The risks the
-// witness holds since EP-08 do not change that: they stay with the fake back.
-const NOT_A_CONTRIBUTOR = "the account of the run is not a contributor of PRJ-001 (#2193)";
-
-test("traverses the computed cells of a line entered along its row, without entering them @shared [WF-IHM-0040-A]", async ({
+test("traverses the computed cells of a line entered along its row, without entering them [WF-IHM-0040-A]", async ({
   page,
 }) => {
-  test.skip(inService, NOT_A_CONTRIBUTOR);
   const { grid, at } = await tabIntoGrid(page, OWN_SCREEN);
   await press(page, ...times("ArrowDown", PROVISION - 1));
   await expect(rowAt(grid, PROVISION)).toContainText("Provision");
@@ -404,4 +399,42 @@ test("enters the cells of a line of the estimate against the service, the amount
   await expect(cellAt(again, 3, at.label)).toHaveText("Câbles de puissance", { timeout: WORKING });
   await expect(cellAt(again, 3, at.quantity)).toHaveText("4");
   await expect(cellAt(again, 1, at.reference)).toHaveText(/4\s000,00\s€/);
+});
+
+test("traverses the computed cells of the provision of a risk the run identifies, without entering them, against the service @shared [WF-IHM-0040-A] [WF-RIS-0010-A] [US-2640]", async ({
+  page,
+  browser,
+  playwright,
+  manager,
+}) => {
+  test.skip(
+    !inService,
+    "the service keeps the risks and their provisions, which the fake back does not",
+  );
+  test.slow();
+  const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  try {
+    const { own } = await identifyRisk(page, browser, calls, manager, "Provision", "Fuite du toit");
+    // The provision is a line of the main structure, under the task its risk designates.
+    await openHydrated(page, own.replace(/\?.*$/, ""));
+    const grid = page.getByRole("treegrid", { name: "Grille de devis" });
+    const at = await columnsOf(grid, COLUMNS);
+    const provision = grid.getByRole("row").filter({ hasText: "Provision" }).first();
+    await expect(provision).toBeVisible({ timeout: WORKING });
+    const label = provision.getByRole("gridcell").nth(at.label);
+    await label.click();
+    await expect(label).toBeFocused();
+    await press(page, "Enter", "Tab");
+    // Past its quantity and its unit disbursement, which the server computes, past its category,
+    // its role and its effort, which its node does not accept, to the next row.
+    for (const column of [at.category, at.role, at.quantity, at.hours, at.delay]) {
+      await expect(provision.getByRole("gridcell").nth(column)).toHaveAttribute(
+        "aria-readonly",
+        "true",
+      );
+    }
+    await expect(grid.getByRole("textbox")).toHaveCount(0);
+  } finally {
+    await calls.dispose();
+  }
 });

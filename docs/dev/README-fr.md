@@ -4788,14 +4788,13 @@ modèle strict qui lui est propre, sans importer `wftools`. Le reste à engager 
 lignes de la révision 102 portent `previous_*` de la copie de la référence 101, et leurs états
 viennent d'EP-06. Le générateur des exemples répartit une ligne de devis à cheval sur deux années
 comme le service (WF-DEV-0040, #2838) : le calculé est l'attendu, et les chiffres des exemples sont
-ceux du service. Ce que la tranche n'a pas : ni provision, ni avenant, ni risque (**EP-08**, dont la
-fusion de l'avenant 1 fait de la 101 la référence : jusqu'alors la référence est l'offre 100), ni
-les volumes entiers (**EP-13**, qui clôt : les trois cents projets et les dix-huit mille lignes de
+ceux du service. La tranche d'EP-08 y a mis les provisions, l'avenant 1 fusionné — qui fait de la 101 la
+référence —, les risques et l'avenant 2 (US-2650). Ce qu'elle n'a pas : les volumes entiers (**EP-13**, qui clôt : les trois cents projets et les dix-huit mille lignes de
 coût du §4.6.2). Les indicateurs n'ont pas de tranche : le marquage rejoué par le chargeur
 (`load_marking`, EP-10, US-1670) conserve ceux de la révision 101 de PRJ-001 — le projet, ses deux
 sous-projets et « hors sous-projet » — à son instant, le 1er février 2026 à 9 h, l'offre 100 ne
-gardant aucun indicateur projet, et le service calcule ceux du jour sur la 102 (US-1740) ; **EP-08**
-y ajoute les provisions et les risques, qui changent la référence, **EP-11** le portefeuille,
+gardant aucun indicateur projet, et le service calcule ceux du jour sur la 102 (US-1740) ; les provisions et
+les risques d'EP-08 changent la référence ; **EP-11** y ajoute le portefeuille,
 **EP-13** les révisions marquées suivantes et les volumes entiers. En service, la structure de
 PRJ-001 compte 5 966 nœuds, non les 5 999 du volume que le faux back sert. Ce que lisent PRJ-001 En
 cours, sa référence et ses lignes se joue donc contre le service, aux attendus des exemples près que
@@ -4963,16 +4962,18 @@ la garde et l'entrée ci-dessus :
   pas contributeur (#2193) : leurs jumeaux jouent le service sur un projet de la course
   (`FAKE_BACK_ONLY`, `FAKE_BACK_KEEPS_NOTHING`, `NOT_REPLAYED_IN_SERVICE`, `WITNESS_KEPT`), ceux qui
   saisissent ou collent dans le devis propre d'un risque ou dans la douzième ligne du devis, la provision
-  d'un risque (`NOT_A_CONTRIBUTOR` d'`entry.spec.ts` et de `paste.spec.ts`), le parcours de `risks.spec.ts`
-  qui déclare, réexamine et déclare survenu un risque de PRJ-001 (ceux que le service éprouve sont dans
-  `risks-service.spec.ts`, sur un projet de la course), les
+  d'un risque (`entry.spec.ts` et `paste.spec.ts`, non étiquetés ; leurs jumeaux `@shared`, en fin de
+  chacun des fichiers, jouent la provision d'un risque identifié et le collage dans son devis propre
+  sur un projet de la course), le parcours de `risks.spec.ts` qui identifie, réexamine et déclare
+  survenu un risque de PRJ-001 (ses jumeaux sont dans `risks-service.spec.ts`, sur un projet de la
+  course : identification, réexamen, devis propre saisi, survenance), les
   parcours sans étiquette du reste à engager (`undo.spec.ts` : fond mémoire sans historique, le service
   étant couvert par ses parcours d'annulation `@shared` ; `grid.spec.ts`) et l'écran des imports de PRJ-001
   (`exchanges.spec.ts`), qui ne fait que lire cet écran : le parcours `@shared` d'export et de
   réimport du reste à engager couvre un autre geste, sur un projet de la course.
 
-La tranche des coûts rend les coûts réels, leur journal et l'exclusion jouables ; EP-08 y ajoute les
-provisions, les avenants et les risques, EP-13 les volumes entiers.
+La tranche des coûts rend les coûts réels, leur journal et l'exclusion jouables ; elle compte,
+depuis EP-08, les provisions, les avenants et les risques ; EP-13 y ajoute les volumes entiers.
 
 Ne se rejouent pas contre le service, faute d'être étiquetés, les parcours qui dépendent de ce qu'il
 ne fait pas encore ou ne sert pas ; chacun reste joué contre le faux back, par `chromium`. Ce qui
