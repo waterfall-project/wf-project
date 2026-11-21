@@ -2113,7 +2113,8 @@ US-2640.
   réalisent
 - **opérations** : aucune nouvelle ; `mergeCostStructure`, `getStructureMergeReport`,
   `getRiskOccurrenceReport` et `deleteSubproject` (leurs descriptions et leurs refus) ; `getRevision`
-  et `getStructureMergeReport` (leurs exemples)
+  et `getStructureMergeReport` (leurs exemples) ; `setLineRemaining`, `updateEstimateLine` et le
+  collage (`previewPaste`, `applyPaste`), pour leurs refus d'une ligne de provision
 - **issue** : #4264
 
 **En tant que** développeur, **je veux** que les constats mineurs que la livraison d'EP-08 a laissés
@@ -2165,7 +2166,12 @@ l'EPIC ne laisse pas derrière lui la dette qu'il a relevée.
   retard : le compte rendu sans révision en cours est le refus 409 `structure_up_to_date`, les deux
   autres résumés le disent, la fusion applicable se montre sur la révision en cours (#4174) ;
 - propre à l'US : les gardes de calendrier comptent les tâches de la base d'un différentiel, un test
-  le fixe, et un refus qui les concerne nomme la tâche visible de même lignée (#4213).
+  le fixe, et un refus qui les concerne nomme la tâche visible de même lignée (#4213) ;
+- propre à l'US : les écritures jugent une ligne de provision comme sa lecture la ferme : le reste à
+  engager (`setLineRemaining`) est refusé par 409 `line_not_provision`, après `task_not_completed` ;
+  `updateEstimateLine` et le collage refusent par 422 `COMPUTED_VALUE` les grandeurs et le sous-projet
+  qu'elle calcule, et `FIELD_NOT_ACCEPTED` le délai de paiement et ce qu'elle n'accepte pas, le
+  libellé restant seul accepté ; chaque refus est éprouvé, rien n'est écrit (#4378).
 
 **Notes de réalisation.** Chaque constat garde son issue, rattachée au lot qui le corrige. Le lot du
 contrat précède le code ; les lots du code qui touchent les modules que le chargeur du témoin exerce
@@ -2180,6 +2186,10 @@ le code (#4240 ; les gardes de calendrier, #4213), après L8 et US-2650/L1 ; les
 conception pour #4172 et #4210 s'écrivent avec ce cadrage. L9 n'est pas « pas avec » L6 : L6 touche
 `core/estimate` (`merged.py`, `uniting.py`, `copying.py`, `comparing.py`, `reading.py`) et `api/nodes.py`,
 L9 `core/planning` et `core/estimate/interface/calendars.py`, sans fichier commun.
+Le cadrage complémentaire du 2026-11-21 ajoute L10, le code des refus en écriture d'une ligne de
+provision (#4378, après US-3060/L6 et US-2650/L1), qui touche `core/planning/interface/progress.py`,
+`core/estimate/entries.py` et `core/estimate/writing.py` ; il est « pas avec » L9, qui rattache #4403
+(`writing.py`) et touche `core/planning` ; aucun lot en cours ne le précède, L6 étant fusionné.
 
 **Hors périmètre.** Tout constat relevé pendant la livraison, rattaché selon « Suivi sur GitHub » ;
 les constats de spécification (#3850, #4132, #4178, #4222, #4260, #4271, #4337).
