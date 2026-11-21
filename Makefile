@@ -243,7 +243,7 @@ mock-spec: lint-openapi ## Derive from the contract the variant the fake back se
 	@cd $(API) && $(REDOCLY) bundle openapi.yaml --ext json -o $(abspath $(MOCK_SPEC)) >/dev/null
 	@$(WFTOOLS).mock $(MOCK_SPEC)
 
-mock-data: ## Regenerate the volumes of §4.6.2 and the readings and writes of the witness the fake back serves (fixtures/api)
+mock-data: ## Regenerate the volumes of §4.6.2 and the readings and writes of the witness the fake back serves (fixtures/api, fixtures/witness)
 	@$(WFTOOLS).mockdata
 
 mock-data-up-to-date: ## The versioned volumes and witness readings and writes are the ones the generator writes
@@ -339,7 +339,7 @@ service-install: ## Bootstrap the installation of the service platform, started,
 
 # The witness (EP-05), once the platform is bootstrapped: the examples of the contract written on it
 # by `waterfall-api load-witness`, as the role of the service; run again, it writes nothing.
-service-witness: ## Load the witness, the examples of the contract (fixtures/api), on the service platform, started and bootstrapped
+service-witness: ## Load the witness, the examples of the contract (fixtures/api and fixtures/witness), on the service platform, started and bootstrapped
 	@$(COMPOSE_SERVICE) build --quiet witness
 	@$(COMPOSE_SERVICE) run --rm --no-TTY witness
 

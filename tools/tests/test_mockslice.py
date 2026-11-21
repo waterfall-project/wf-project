@@ -5,7 +5,7 @@
 import ast
 import json
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from functools import cache
 from typing import TYPE_CHECKING, Any, cast
@@ -447,6 +447,25 @@ def test_the_first_review_since_the_passage_is_judged_from_the_passage_to_it() -
     signals = _readings()["pilot_health"]["signals"]
     flagged = {s["project_id"] for s in signals if s["code"] == "risks_not_reviewed"}
     assert WITNESS_PROJECT in flagged
+    # Both bounds of the interval are in it: a review on the very day of the passage, or of the
+    # last marking, is one of the interval; a second before the passage, or after the marking, not.
+    held = next(each for each in members() if each.project_id == WITNESS_PROJECT)
+    last = held.kept_on(AS_OF)[-1]
+    entered = next(instant for instant, state in held.history if state == IN_PROGRESS)
+    assert last.marked > entered
+    identified = [each.risk_id for each in last.risks if each.state == "identified"]
+    assert identified
+    second = timedelta(seconds=1)
+    for at, reviewed in (
+        (entered, True),
+        (entered - second, False),
+        (last.marked, True),
+        (last.marked + second, False),
+    ):
+        alone = replace(held, markings=(last,), reviews=tuple((risk, at) for risk in identified))
+        found = mocksliceviews.pilot_health(Portfolio([alone]))["signals"]
+        codes = {signal["code"] for signal in cast("list[dict[str, Any]]", found)}
+        assert ("risks_not_reviewed" not in codes) is reviewed, at
 
 
 @pytest.mark.requirement("WF-PTF-0110-A")

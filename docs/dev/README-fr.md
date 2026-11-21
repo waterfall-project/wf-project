@@ -68,8 +68,8 @@ Après eux, la tranche du portefeuille (EP-11, `waterfall.witness.portfolio`) : 
 (`../witness/portfolio`), écrits un à un par les interfaces des modules aux instants qu'ils datent —
 création, révisions ouvertes et marquées, risques et réexamens, imports de coûts réels, désignation
 de la référence, sorties —, le chef de projet du témoin pour contributeur de chacun, les
-identifiants du témoin imposés et les autres dérivés d'eux. Une tranche n'écrit rien de ce que la plateforme
-tient déjà : relancé, il n'écrit rien et réussit, en disant le témoin là
+identifiants du témoin imposés et les autres dérivés d'eux. Une tranche n'écrit rien de ce que la
+plateforme tient déjà : relancé, il n'écrit rien et réussit, en disant le témoin là
 (`witness.already_loaded`) ; un refus ou une erreur n'écrit rien et l'arrête en échec (1). Chaque US
 du référentiel et des projets remplit sa tranche, dans son fichier de `waterfall.witness`, sans
 toucher l'ordre. Son module,
@@ -78,8 +78,8 @@ lui, qui passe à l'amorçage tout autre argument. Le Compose de service l'offre
 `make service-witness`), celui de production non : une installation réelle ne porte pas le témoin.
 `make service-witness` ne prend aucune variable propre : le Compose de service passe au service
 `witness` le rôle du service (`WATERFALL_DATABASE_URL`, par `WATERFALL_POSTGRES_PASSWORD`, qu'il
-faut exporter comme pour `make service-up`) et monte `fixtures/api/` et `fixtures/witness/` en lecture seule, `WATERFALL_WITNESS_PATH` étant
-`/fixtures/api` : la tranche du portefeuille (`fixtures/witness/portfolio/`) se lit à côté des
+faut exporter comme pour `make service-up`) et monte `fixtures/api/` et `fixtures/witness/` en
+lecture seule, `WATERFALL_WITNESS_PATH` étant `/fixtures/api` : la tranche du portefeuille (`fixtures/witness/portfolio/`) se lit à côté des
 exemples ; la plateforme doit être démarrée et amorcée
 (`make service-install`), car la commande n'écrit pas ce que l'amorçage écrit — la ligne de
 l'installation, les paramètres communs, les unités, la correspondance, le calendrier par défaut

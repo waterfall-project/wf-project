@@ -570,7 +570,10 @@ def _task_row(node: Node, where: tuple[int, int, UUID], when: tuple[date, Week])
 
 
 def _working_days(start: date, finish: date, week: Week) -> int:
-    """Count the days the calendar works between two days, both included."""
+    """Count the days the calendar works between two days, both included.
+
+    A calendar is seven numbers of hours and no public holiday (WF-REF-0110): nothing else to count.
+    """
     days = (start + timedelta(days=each) for each in range((finish - start).days + 1))
     return sum(1 for each in days if week[each.weekday()] > 0)
 

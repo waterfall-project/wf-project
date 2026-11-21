@@ -28,6 +28,9 @@ estimate grid, which does not ask it, keeping its own. Read before and after, fi
 bodies differ only by ``task.physical_progress`` of the summaries that bear a budgeted amount — 39
 of the 40 of the current revision, the 39 of the marked one —, from "not computable" to a value, a
 leaf's null in both (EP-10, "L'avancement physique").
+
+The witness now also carries the slice of the portfolio (EP-11, US-2770/L2), loaded after PRJ-001
+under derived identifiers: the bodies of PRJ-001 read here do not depend on it, no digest changes.
 """
 
 import hashlib

@@ -16,8 +16,7 @@ EP-07, EP-09 and EP-10 register is named, so that the comparison is never betwee
 Then how each registry acts, details of the realization which reprise no Vérif: the closing of a
 revision, what its marking keeps and what follows the designation of a reference (EP-07), the guard
 and the recalculation of the reference, the categories a line employs (EP-07), the attachments of
-the work breakdown, the facets, the formats and the exporters, the coverage of the risks (EP-09),
-the fillers of the witness.
+the work breakdown, the facets, the formats, exporters, the risks' coverage (EP-09), the fillers.
 """
 
 import importlib
@@ -38,6 +37,7 @@ from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from witness_support import PRJ_001
 
 from waterfall.core.cost_settings.interface import category_is_employed, register_employment
 from waterfall.core.costs.interface import ACTUAL_COSTS_FORMAT
@@ -993,8 +993,8 @@ def test_the_witness_fills_each_structure_it_opens_before_the_next_event(
     fillers: list[tuple[UUID, UUID | None]], witness_loaded: Database
 ) -> None:
     # The offer's main structure, the amendment 1 of the 101, the 102's, its amendment 2 (EP-08).
-    offer, reference, current, first, second = (
-        UUID(f"01926f3a-7c00-7000-8000-000000000{n}") for n in (100, 101, 102, 212, 203)
-    )
-    assert witness_loaded
+    with witness_loaded.transaction() as session:
+        ids = select(Revision.id).where(Revision.project_id == PRJ_001)
+        offer, reference, current = session.scalars(ids.order_by(Revision.created_at, Revision.id))
+    first, second = (UUID(f"01926f3a-7c00-7000-8000-000000000{n}") for n in (212, 203))
     assert fillers == [(offer, None), (reference, first), (current, None), (current, second)]

@@ -11,6 +11,7 @@ views, with the expected ones, in ``test_witness_portfolio_readings``.
 
 import json
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
@@ -20,12 +21,13 @@ from sqlalchemy import func, select
 from support import WITNESS
 from test_witness import load, wipe
 
+from waterfall.api.contract.models import Calendar
 from waterfall.core.costs.tables import CostImport, CostLine
 from waterfall.core.planning.tables import Node
 from waterfall.core.planning.tables import Task as TaskFacet
 from waterfall.core.projects.tables import Contributor, Project, ProjectStateTransition
 from waterfall.core.revisions.tables import Revision
-from waterfall.core.risks.tables import Risk
+from waterfall.core.risks.tables import Risk, RiskReview
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import utc_now
@@ -169,9 +171,8 @@ def test_the_slice_is_written_at_the_instants_and_under_the_identifiers_of_its_d
             kept = [row for row in each.revisions if row.abandoned_at is None]
             assert set(revisions) == {row.revision_id for row in kept}, code
             for row in kept:
-                assert revisions[row.revision_id].marked_at == (
-                    None if row.marked_at is None else row.marked_at
-                ), code
+                assert revisions[row.revision_id].marked_at == row.marked_at, code
+                assert revisions[row.revision_id].created_at == row.opened_at, code
                 if row.mark is not None:
                     assert revisions[row.revision_id].version_name == row.mark.version_name
             transitions = [
@@ -183,19 +184,48 @@ def test_the_slice_is_written_at_the_instants_and_under_the_identifiers_of_its_d
                 )
             ]
             assert transitions == each.moves(), code
-            risks = set(session.scalars(select(Risk.id).where(Risk.project_id == each.project_id)))
-            assert risks == {row.risk_id for row in each.risks}, code
+            assert (
+                session.scalar(select(Project.created_at).where(Project.id == each.project_id))
+                == each.created_at
+            ), code
+            held = session.scalars(select(Risk).where(Risk.project_id == each.project_id))
+            risks = {row.id: row.created_at for row in held}
+            assert risks == {row.risk_id: row.declared_at for row in each.risks}, code
+            reviewed = session.execute(
+                select(RiskReview.risk_id, RiskReview.reviewed_on).where(
+                    RiskReview.project_id == each.project_id
+                )
+            )
+            # A risk is declared with a first review; the ones the description adds follow it.
+            dated = sorted((row.risk_id, row.reviewed_on) for row in reviewed)
+            later = sorted(
+                (row.risk_id, found.at.date()) for row in each.risks for found in row.reviews
+            )
+            assert set(later) <= set(dated), code
             lines = set(
                 session.scalars(select(CostLine.id).where(CostLine.project_id == each.project_id))
             )
             expected = {line.cost_line_id.root for row in each.imports for line in row.lines}
             assert lines == expected, code
-            imports = set(
-                session.scalars(
-                    select(CostImport.id).where(CostImport.project_id == each.project_id)
+            amounts = {
+                row.id: row.amount
+                for row in session.scalars(
+                    select(CostLine).where(CostLine.project_id == each.project_id)
                 )
-            )
-            assert imports == {row.cost_import_id for row in each.imports}, code
+            }
+            brought = {
+                line.cost_line_id.root: Decimal(line.amount.root)
+                for row in each.imports
+                for line in row.lines
+            }
+            assert amounts == brought, code
+            imports = {
+                row.id: row.imported_at
+                for row in session.scalars(
+                    select(CostImport).where(CostImport.project_id == each.project_id)
+                )
+            }
+            assert imports == {row.cost_import_id: row.imported_at for row in each.imports}, code
             if not kept:
                 continue
             nodes = set(
@@ -206,6 +236,23 @@ def test_the_slice_is_written_at_the_instants_and_under_the_identifiers_of_its_d
                 )
             )
             assert {row.node_id for row in (*each.tasks, *each.lines)} <= nodes, code
+
+
+@pytest.mark.requirement(REQUIREMENT)
+def test_the_duration_of_a_manual_task_has_no_calendar_exception_to_count() -> None:
+    # WF-REF-0110: a calendar is a label and seven numbers of hours, « ni jours fériés ni temps
+    # partiels »; ``_working_days`` counts the days of the week alone. The day the calendar of the
+    # contract gains an exception, this test fails and the count follows it.
+    assert set(Calendar.model_fields) == {
+        "calendar_id",
+        "label",
+        "weekly_hours",
+        "is_default",
+        "is_active",
+        "audit",
+        "lock_version",
+        "available_commands",
+    }
 
 
 @pytest.mark.requirement(REQUIREMENT)
