@@ -15,10 +15,12 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import CheckConstraint, delete, func, insert, select, table, text
 
+from waterfall.core.access_roles.tables import WRITTEN_BY_MIGRATION
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.tables import Node, Task
 from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.tables import CostStructure, Revision
+from waterfall.platform.database import SHIPPED_ROW, Base
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -162,6 +164,23 @@ def drop_partitions(connection: Connection, project_id: UUID | None = None) -> N
                 connection.execute(delete(table(name)))
                 connection.execute(text(f'ALTER TABLE "{parent}" DETACH PARTITION "{name}"'))
                 connection.execute(text(f'DROP TABLE "{name}"'))
+
+
+def empty_database(connection: Connection) -> None:
+    """Delete the rows of every table the code declares, as a platform neuve again, as a superuser.
+
+    The partitions of the projects go with their rows, and the guards and the keys are off for the
+    rest of the transaction. A table the migrations fill — the catalogue of permissions — keeps its
+    rows, as an installation does; a single row they write at its shipped values — a schedule — is
+    written back at them, whatever a test set.
+    """
+    drop_partitions(connection)
+    for each in reversed(Base.metadata.sorted_tables):
+        if not each.info.get(WRITTEN_BY_MIGRATION):
+            connection.execute(delete(each))
+        shipped = each.info.get(SHIPPED_ROW)
+        if shipped is not None:
+            connection.execute(insert(each).values(shipped))
 
 
 KIND_CHECK = "ck_cost_structure_kind_known"

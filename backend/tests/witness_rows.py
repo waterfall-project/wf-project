@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, cast
 from psycopg import sql
 
 from waterfall.core.access_roles.tables import WRITTEN_BY_MIGRATION
-from waterfall.platform.database import Base
+from waterfall.platform.database import SHIPPED_ROW, Base
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -40,12 +40,16 @@ class WitnessRows:
 def _tables() -> list[tuple[str, tuple[str, ...]]]:
     """Name the tables the rows of a test go in, those the migrations fill left out.
 
-    So are those of the schema ``platform``, a maintenance, which no witness writes.
+    So are those of the schema ``platform``, a maintenance, which no witness writes, and the single
+    rows the migrations write at their shipped values — a schedule —, which the emptying of a test
+    writes back (``empty_database``).
     """
     return [
         (table.name, tuple(column.name for column in table.columns))
         for table in Base.metadata.sorted_tables
-        if not table.info.get(WRITTEN_BY_MIGRATION) and table.schema is None
+        if not table.info.get(WRITTEN_BY_MIGRATION)
+        and SHIPPED_ROW not in table.info
+        and table.schema is None
     ]
 
 

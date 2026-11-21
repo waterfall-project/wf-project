@@ -469,7 +469,9 @@ def test_the_migration_completes_a_schema_made_by_hand_without_its_tables(
     installation: Installation, queue: TaskQueue
 ) -> None:
     # A schema ``platform`` made without its tables is completed by the migration, with the rights
-    # of the service; applied again over a complete one, it leaves the maintenance it holds.
+    # of the service; applied again over a complete one, it leaves the maintenance it holds. Applied
+    # again alone: the migrations after it create tables of ``public``, which a restoration replaces
+    # before it applies them, and which this database still holds.
     owner = create_database_engine(installation.owner["waterfall"])
     try:
         downgrade(owner, "0034")
@@ -481,7 +483,7 @@ def test_the_migration_completes_a_schema_made_by_hand_without_its_tables(
         Maintenance.of(Database(owner), queue).hold(HELD)
         with owner.begin() as connection:
             connection.execute(text("UPDATE alembic_version SET version_num = '0034'"))
-        upgrade(owner)
+        upgrade(owner, "0035")
         assert read.current() == HELD
     finally:
         owner.dispose()

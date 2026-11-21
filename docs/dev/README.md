@@ -4336,7 +4336,10 @@ through a login role that is a member of the service role of this database, crea
 (sql.md, « Le rôle du service ») —, and deletes after each test the rows of every table the `Base`
 declares, as owner, audit log included, which its trigger does not protect from a superuser who
 disables the triggers — except those a migration writes, the catalogue of permissions, which its
-table marks (`WRITTEN_BY_MIGRATION` in its `info`); `session` returns a session the test rolls back.
+table marks (`WRITTEN_BY_MIGRATION` in its `info`) —, then writes back at its shipped values the
+single row a migration writes and the service changes, a schedule, which its table gives
+(`SHIPPED_ROW` in its `info`, `empty_database` of `tests/project_rows.py`); `session` returns a
+session the test rolls back.
 
 - **In the chain**, `back.yml` starts PostgreSQL as a service of the job and sets the variable.
 - **On a workstation**, the Makefile does it: `make test-back` and `make coverage-back` start

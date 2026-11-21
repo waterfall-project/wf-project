@@ -4368,8 +4368,10 @@ rôle du service de cette base, créé pour la session (sql.md, « Le rôle du s
 supprime après chaque test les lignes de toutes les tables que la `Base` déclare, en
 propriétaire, journal d'audit compris, que son déclencheur ne protège pas d'un superutilisateur
 qui coupe les déclencheurs — sauf celles qu'une migration écrit, le catalogue des permissions,
-que sa table marque (`WRITTEN_BY_MIGRATION` dans son `info`) ; `session` rend une session que le
-test défait.
+que sa table marque (`WRITTEN_BY_MIGRATION` dans son `info`) —, puis récrit aux valeurs livrées la
+ligne unique qu'une migration écrit et que le service change, une planification, que sa table donne
+(`SHIPPED_ROW` dans son `info`, `empty_database` de `tests/project_rows.py`) ; `session` rend une
+session que le test défait.
 
 - **Dans la chaîne**, `back.yml` démarre PostgreSQL en service du travail et pose la variable.
 - **Sur un poste**, le Makefile s'en charge : `make test-back` et `make coverage-back` démarrent

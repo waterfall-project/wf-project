@@ -7,10 +7,11 @@ row, without its names, its address nor its avatar (WF-ADM-0060). Its address do
 identify it for the rest of the database, its identifier does: every row that refers to an
 account holds the identifier, so changing the address changes nothing else (WF-DAT-0060). The
 table of the accounts sorts on the name, the first name and the address, in the order of the code
-points: their collation is ``C``.
+points: their collation is ``C``. The reports of the readings of the accounts, and their schedule,
+one row (EP-13), are the module's too.
 """
 
-from datetime import datetime
+from datetime import datetime, time
 from typing import Any
 from uuid import UUID
 
@@ -21,14 +22,22 @@ from sqlalchemy import (
     Index,
     Integer,
     LargeBinary,
+    SmallInteger,
     Text,
+    Time,
     func,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from waterfall.platform.database import CODE_POINTS, EVERY_LETTER, Base, UtcDateTime
+from waterfall.platform.database import (
+    CODE_POINTS,
+    EVERY_LETTER,
+    SHIPPED_ROW,
+    Base,
+    UtcDateTime,
+)
 from waterfall.platform.installation import AVATAR_MAX_BYTES
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.platform.uploads import FileUpload
@@ -39,6 +48,10 @@ AVATAR_MEDIA_TYPES = ("image/png", "image/jpeg")
 # The unique index of the addresses, whatever their case: what refuses an address taken.
 ADDRESS_INDEX = "uq_user_account_email_lower"
 IDENTITY = ("last_name", "first_name", "email")
+# The frequencies of the reading of the accounts (`IdentitySyncSchedule.frequency`), and the key of
+# its single row.
+FREQUENCIES = ("daily", "weekly")
+SINGLE_ROW = 1
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -156,6 +169,59 @@ class IdentitySyncReport(Base):
     restored: Mapped[int] = mapped_column(Integer, server_default="0")
     skipped: Mapped[list[dict[str, str | None]]] = mapped_column(JSONB)
     removed: Mapped[list[str]] = mapped_column(JSONB)
+
+
+# The periodicity as the platform ships it: daily at 01:30 UTC, half an hour after the shipped
+# backup (`IdentitySyncSchedule`), its counter at 1, as a created object's, and by the platform.
+# Migration 0038 writes it.
+SHIPPED_SCHEDULE: dict[str, object] = {
+    "id": SINGLE_ROW,
+    "is_enabled": True,
+    "frequency": "daily",
+    "at_time": time(1, 30),
+    "weekday": None,
+    "lock_version": 1,
+    "created_at": func.now(),
+    "updated_at": func.now(),
+}
+
+
+class IdentitySyncSchedule(Base):
+    """When the platform reads the accounts of the identity provider (WF-ADM-0070, EP-13).
+
+    One row, written by the migrations at its shipped values. A restoration does not keep it: the
+    specification names it not among what a restoration keeps (WF-ADM-0160).
+    """
+
+    __tablename__ = "identity_sync_schedule"
+    __table_args__ = (
+        CheckConstraint(f"id = {SINGLE_ROW}", name="single_row"),
+        CheckConstraint(_in("frequency", FREQUENCIES), name="frequency_known"),
+        CheckConstraint("date_part('second', at_time) = 0", name="at_time_in_minutes"),
+        CheckConstraint("weekday BETWEEN 1 AND 7", name="weekday_range"),
+        CheckConstraint(
+            "(frequency = 'weekly') = (weekday IS NOT NULL)", name="weekday_of_a_weekly"
+        ),
+        CheckConstraint("lock_version >= 0", name="lock_version_not_negative"),
+        {"info": {SHIPPED_ROW: SHIPPED_SCHEDULE}},
+    )
+
+    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, autoincrement=False)
+    is_enabled: Mapped[bool]
+    frequency: Mapped[str] = mapped_column(Text)
+    # In universal time, to the minute.
+    at_time: Mapped[time] = mapped_column(Time)
+    # The day of a weekly reading, 1 Monday to 7 Sunday (ISO 8601); null for a daily one.
+    weekday: Mapped[int | None] = mapped_column(SmallInteger)
+    lock_version: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime)
+    created_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("user_account.id", ondelete="RESTRICT")
+    )
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime)
+    updated_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("user_account.id", ondelete="RESTRICT")
+    )
 
 
 # The requester of a background task, like the one who opened a deposit, is an account

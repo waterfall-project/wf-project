@@ -16,10 +16,10 @@ from installations import Installation, Take, installed, taker
 from installed_reference import install
 from migrations_support import scratch_database
 from openapi_core import Config, OpenAPI
-from project_rows import drop_partitions, unguarded
+from project_rows import empty_database, unguarded
 from pydantic import SecretStr
 from realm import KEY, TestRealm
-from sqlalchemy import Engine, delete, insert, text
+from sqlalchemy import Engine, insert, text
 from sqlalchemy.orm import Session
 from support import (
     CONTRACT,
@@ -42,10 +42,10 @@ from witness_rows import WitnessRows, copied, laid
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.core.access_roles.tables import WRITTEN_BY_MIGRATION, UserAccessRole
+from waterfall.core.access_roles.tables import UserAccessRole
 from waterfall.core.users.tables import UserAccount
 from waterfall.migrations.runner import upgrade
-from waterfall.platform.database import Base, Database, create_database_engine, engine_url
+from waterfall.platform.database import Database, create_database_engine, engine_url
 from waterfall.platform.installation import DELIVERED_TIME_ZONE, TIME_ZONE
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
@@ -311,7 +311,8 @@ def database(database_url: str, service_database_url: str) -> Iterator[Database]
     The rows of every table the code declares are deleted by the owner, the journal of audit
     included: its triggers, which refuse any deletion, are off for that transaction alone — what
     only a superuser may do, and the service never. A table the migrations fill — the catalogue
-    of permissions — keeps its rows, as an installation does.
+    of permissions — keeps its rows, as an installation does, and a schedule is written back at its
+    shipped values (``empty_database``).
     """
     db = Database(create_database_engine(service_database_url))
     yield db
@@ -322,10 +323,7 @@ def database(database_url: str, service_database_url: str) -> Iterator[Database]
         # partitions a project brings with it (WF-DAT-0050) outlive its rows: the witness imposes
         # its identifiers, and a creation refuses a project that has its partitions.
         unguarded(connection)
-        drop_partitions(connection)
-        for table in reversed(Base.metadata.sorted_tables):
-            if not table.info.get(WRITTEN_BY_MIGRATION):
-                connection.execute(delete(table))
+        empty_database(connection)
     owner.dispose()
 
 

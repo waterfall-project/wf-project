@@ -20,6 +20,7 @@ from waterfall.api import (
     actual_costs,
     audit,
     avatars,
+    backup_schedule,
     backups,
     calendars,
     comparison,
@@ -147,6 +148,7 @@ def create_app(
     app.include_router(tasks.router, prefix=PREFIX)
     app.include_router(audit.router, prefix=PREFIX)
     app.include_router(backups.router, prefix=PREFIX)
+    app.include_router(backup_schedule.router, prefix=PREFIX)
     app.include_router(restores.router, prefix=PREFIX)
     app.include_router(uploads.router, prefix=PREFIX)
     # The reference (EP-05): a router per story, each registered here from the start.
