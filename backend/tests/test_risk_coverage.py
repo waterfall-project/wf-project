@@ -14,7 +14,7 @@ marked as its marking kept it (WF-DAT-0040). The provisions the remaining to com
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 import pytest
@@ -42,6 +42,7 @@ from waterfall.platform.logs import logging_context
 if TYPE_CHECKING:
     from realm import TestRealm
     from sqlalchemy import Engine
+    from sqlalchemy.orm import Session
     from support import ContractClient
 
     from waterfall.platform.database import Database
@@ -469,6 +470,8 @@ MALFORMED: list[dict[str, Any]] = [
     {"remaining_provisions": "0.00", "occurred_cost": None},
     {"remaining_provisions": "n/a", "occurred_cost": "0.00"},
     {"remaining_provisions": "0.00", "occurred_cost": "NaN"},
+    {"remaining_provisions": "0.00", "occurred_cost": "Infinity"},
+    {"remaining_provisions": [1, 2, 3], "occurred_cost": "0.00"},
 ]
 
 
@@ -513,6 +516,19 @@ def test_the_conserved_coverage_of_a_malformed_document_is_none_without_any_patc
     # the caller computes the coverage at the reading, whatever route reaches it.
     with project.stage.database.transaction() as session:
         assert conserved_coverage(session, project.project_id, kept) is None
+
+
+@pytest.mark.requirement("WF-DAT-0040-A")
+@pytest.mark.parametrize("kept", MALFORMED)
+def test_a_malformed_document_is_judged_before_the_reserve_is_read(
+    monkeypatch: pytest.MonkeyPatch, kept: dict[str, Any]
+) -> None:
+    # The reserve costs a query, made for nothing on a document that gives no coverage (#4258).
+    def forbidden(*_: object) -> None:
+        raise AssertionError("the reserve was read")
+
+    monkeypatch.setattr("waterfall.core.risks.covering._reserve", forbidden)
+    assert conserved_coverage(cast("Session", None), UUID(int=1), kept) is None
 
 
 @pytest.mark.requirement("WF-RIS-0050-A")
