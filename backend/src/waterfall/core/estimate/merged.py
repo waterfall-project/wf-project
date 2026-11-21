@@ -152,7 +152,7 @@ def _zeroed(row: EstimateLine, merging: StructureMerging, bearer: BearingTask) -
     report need not announce either; a test shows the merge of a started task bearing a line of
     labour and one that is not (``labor`` and ``non_labor``, the kinds a task bears: a line of
     ``provision`` is the own estimate of a risk, borne by no task of the order),
-    ``test_a_started_task_the_merge_completes_is_brought_to_nought_whether_its_lines_are_of_labour_or_not``.
+    ``test_a_started_task_the_merge_completes_is_brought_to_nought_labour_or_not``.
     """
     if row.budgeted_amount is None:
         row.budgeted_amount = row.reestimated_amount
