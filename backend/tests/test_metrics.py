@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
+from backup_support import Corrupting
 from fastapi.testclient import TestClient
 from metrics_reading import Samples, samples, value
 from sqlalchemy import delete, insert
@@ -57,11 +58,13 @@ from waterfall.platform.metrics import (
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
 from waterfall.platform.storage import Bucket
 from waterfall.platform.tasks import BackgroundTask
+from waterfall.worker.backup import BackupTask
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from datetime import datetime
 
+    from backup_support import Run
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
@@ -375,6 +378,22 @@ def test_the_latest_scheduled_backup_and_reading_of_the_accounts_are_given_with_
     assert value(served.collect(), LAST_RUN_SUCCESS, run="scheduled_backup") == 0
     ended_task(database, "backup", now - timedelta(minutes=10), succeeded=True)
     assert value(served.collect(), LAST_RUN_SUCCESS, run="scheduled_backup") == 1
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_a_scheduled_backup_whose_archive_does_not_read_back_whole_is_said_failed_by_the_gauge(
+    platform: MakePlatform,
+    run: Run,
+    databases: dict[str, str],
+    backups_bucket: Bucket,
+) -> None:
+    # « Une archive qui échoue à sa vérification fait échouer sa tâche » (#4230, US-2910): the
+    # task of the scheduled backup the worker played fails, and the gauge says the same.
+    served = platform()
+    assert value(served.collect(), LAST_RUN_SUCCESS, run="scheduled_backup") is None
+    corrupting = Corrupting(backups_bucket.client, backups_bucket.name)
+    run(BackupTask(databases, corrupting))
+    assert value(served.collect(), LAST_RUN_SUCCESS, run="scheduled_backup") == 0
 
 
 def test_a_scheduled_backup_that_succeeded_stays_succeeded_once_the_rotation_removed_its_row(

@@ -13,18 +13,19 @@ import io
 import json
 import subprocess
 import tarfile
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account, role
+from backup_support import Corrupting, Run, worker_of
 from fastapi.testclient import TestClient
 from realm import KEY, TestRealm
 from sqlalchemy import Engine, select, text
 from sqlalchemy.exc import ProgrammingError
-from support import ContractClient, as_backup, bearer, captured_logs
+from support import ContractClient, bearer, captured_logs
 from task_handlers import REQUEST, deposit, task
 
 from waterfall import __version__
@@ -32,7 +33,7 @@ from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.backups.interface import TakenBackup, add_backup, last_scheduled_outcome
 from waterfall.platform.audit import Act, AuditEntry
-from waterfall.platform.database import Database, create_database_engine, engine_url, utc_now
+from waterfall.platform.database import Database, create_database_engine, utc_now
 from waterfall.platform.errors import UnavailableError
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
@@ -40,7 +41,6 @@ from waterfall.platform.settings import ServiceSettings, load_worker_settings
 from waterfall.platform.storage import Bucket
 from waterfall.worker import backup as backup_module
 from waterfall.worker.backup import MANIFEST, BackupTask, DumpError, connection, dump, verified
-from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -59,59 +59,10 @@ UNREACHABLE = "postgresql://nobody:nothing@127.0.0.1:9/nowhere"
 type Person = Callable[..., tuple[UUID, dict[str, str]]]
 
 
-@pytest.fixture(scope="session")
-def provider_url(database_url: str) -> Iterator[str]:
-    """Create, for this run, a database that stands for the identity provider's, with a realm."""
-    name = f"waterfall_test_idp_{uuid4().hex}"
-    server = create_database_engine(database_url).execution_options(isolation_level="AUTOCOMMIT")
-    with server.connect() as connection:
-        connection.execute(text(f'CREATE DATABASE "{name}"'))
-    url = engine_url(database_url).set(database=name).render_as_string(hide_password=False)
-    provider = create_database_engine(url)
-    with provider.begin() as connection:
-        connection.execute(text("CREATE TABLE realm (id text PRIMARY KEY)"))
-        connection.execute(text("INSERT INTO realm VALUES ('waterfall')"))
-    provider.dispose()
-    yield url
-    with server.connect() as connection:
-        connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
-    server.dispose()
-
-
-@pytest.fixture
-def databases(database_url: str, provider_url: str, backup_role: tuple[str, str]) -> dict[str, str]:
-    """Give the two databases of the test as the role of the backup reaches them, by backup name."""
-    return {
-        "waterfall": as_backup(database_url, backup_role),
-        "identity_provider": as_backup(provider_url, backup_role),
-    }
-
-
 @pytest.fixture
 def taking(databases: dict[str, str], backups_bucket: Bucket) -> BackupTask:
     """Give the task that backs up the two databases of the test into the bucket of the test."""
     return BackupTask(databases, backups_bucket)
-
-
-def worker_of(database: Database, queue: TaskQueue, taking: BackupTask) -> Worker:
-    """Give a worker of the queue of the test that runs the backups."""
-    queue.prepare()
-    return Worker(database, queue, {"backup": taking}, "worker-backup", Timing(0, 0.1))
-
-
-type Run = Callable[[BackupTask], UUID]
-
-
-@pytest.fixture
-def run(database: Database, queue: TaskQueue) -> Run:
-    """Give a runner: it deposits a backup the platform asks for, which a worker then takes."""
-
-    def backup(taking: BackupTask) -> UUID:
-        task_id = deposit(database, queue, "backup")
-        assert worker_of(database, queue, taking).step()
-        return task_id
-
-    return backup
 
 
 type ApiOn = Callable[[Bucket], ContractClient]
@@ -299,17 +250,6 @@ def member(tar: tarfile.TarFile, name: str) -> bytes:
     return read.read()
 
 
-class Corrupting(Bucket):
-    """A bucket that gives back every object with bytes of its middle overwritten."""
-
-    def download(self, key: str, path: Path) -> None:
-        super().download(key, path)
-        damaged = bytearray(path.read_bytes())
-        middle = len(damaged) // 2
-        damaged[middle : middle + 16] = b"\xff" * 16
-        path.write_bytes(bytes(damaged))
-
-
 FAILED_VERIFICATION = {
     "code": "INTERNAL_ERROR",
     "status": 500,
@@ -358,6 +298,8 @@ def test_an_archive_that_does_not_read_back_whole_fails_its_scheduled_task_and_s
     assert [tuple(row) for row in rows] == [("failed", "scheduled", f"backup-{task_id}.tar")]
     assert keys_of(backups_bucket, f"backup-{task_id}") == [f"backup-{task_id}.tar"]
     assert rotations == []
+    # A guard, not a proof: nothing deposits a ``backup_copy`` yet; the deposit of the copy comes
+    # with US-2910/L3 (#4100), whose test will carry the real check.
     assert copied == 0
     assert outcome is not None
     assert not outcome.succeeded
