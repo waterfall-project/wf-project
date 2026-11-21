@@ -23,7 +23,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Numeric, SmallInteger, Uuid, column, select, update, values
+from sqlalchemy import Numeric, SmallInteger, Uuid, column, inspect, select, update, values
 from sqlalchemy.orm.attributes import flag_modified, set_committed_value
 
 from waterfall.core.cost_settings.interface import categories_of_kind
@@ -122,6 +122,11 @@ def _priced_draft(
     rate = None
     if draft.role is not None:
         if judging.role_changes:
+            # The roles of the other lines of the task are read as the database holds them: under a
+            # load of lines, what it changed or created and did not flush yet goes out first, lest
+            # the hours be judged on roles the load has replaced (#4403).
+            if remembers(session):
+                session.flush()
             judge_working_hours(session, held, draft.role.resource_role_id, judging.earlier)
         calendar_id, category_id = draft.role.calendar_id, draft.cost_category_id
         week = recalled(
@@ -290,12 +295,17 @@ def read_ahead(session: Session, project_id: UUID, node_ids: Collection[UUID]) -
 def read_line(session: Session, project_id: UUID, node_id: UUID) -> EstimateLine:
     """Read the facet of a line under the lock its structure holds, as it is now.
 
-    Under a load of lines, the facet its load read ahead, the first time (``read_ahead``).
+    Under a load of lines, the facet its load read ahead, the first time (``read_ahead``). A line
+    the load changed already and has not flushed is flushed first: read afresh, it would otherwise
+    lose that change, its counter with it (#4403).
     """
     if remembers(session):
         line = _ahead(session, project_id).pop(node_id, None)
         if line is not None:
             return line
+        held = session.identity_map.get(session.identity_key(EstimateLine, (project_id, node_id)))
+        if held is not None and inspect(held).modified:
+            session.flush()
     return session.scalars(
         select(EstimateLine)
         .where(EstimateLine.project_id == project_id, EstimateLine.node_id == node_id)

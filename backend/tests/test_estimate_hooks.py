@@ -484,12 +484,6 @@ def test_lines_changed_under_a_load_read_their_basis_once_and_are_not_flushed_on
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
-@pytest.mark.xfail(
-    raises=AssertionError,
-    strict=True,
-    reason="#4403: read_line reads with populate_existing, and without autoflush the second "
-    "change of a line loses the pending first one (its counter is not carried)",
-)
 def test_a_line_changed_twice_under_a_load_keeps_both_of_its_changes(changing: Changing) -> None:
     # The lines of a load are not flushed one by one: a line changed twice must read, the second
     # time, what the first wrote and not yet flushed (#4403).
@@ -499,6 +493,30 @@ def test_a_line_changed_twice_under_a_load_keeps_both_of_its_changes(changing: C
         changing.change(session, node_id, "3")
     with changing.stage.database.transaction() as session:
         assert line_held(session, node_id) == (Decimal(3), 3)
+
+
+@pytest.mark.requirement("WF-PLA-0010-A")
+def test_the_hours_of_a_task_are_judged_on_the_roles_a_load_gave_its_other_lines(
+    changing: Changing,
+) -> None:
+    # Under a load of lines, the roles the load gave the other lines of the task and did not flush
+    # yet are those the hours are judged on (#4403): two lines moved to a role that works every day
+    # leave the third free to take one that works the week-end only.
+    database = changing.stage.database
+    every_day = add_role(database, "ALL", (8, 8, 8, 8, 8, 8, 8))
+    weekend = add_role(database, "WE", (0, 0, 0, 0, 0, 8, 8))
+    roles = (every_day, every_day, weekend)
+    with database.transaction() as session, remembering(session):
+        for node, role in zip(changing.nodes, roles, strict=True):
+            entry = LineEntry(resource_role_id=role, sent=frozenset({"resource_role_id"}))
+            writing.change_line(changing.write(session, node["node_id"]), entry)
+    with database.transaction() as session:
+        held = session.scalars(
+            select(EstimateLine.resource_role_id).where(
+                EstimateLine.node_id.in_([UUID(node["node_id"]) for node in changing.nodes])
+            )
+        ).all()
+    assert sorted(map(str, held)) == sorted(map(str, roles))
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
