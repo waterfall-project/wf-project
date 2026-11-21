@@ -560,10 +560,10 @@ RiskOccurrenceReport:
         absent. A warning, not a refusal: it is not in `refusals`, the occurrence applies, and
         the graft writes nothing else. The task becomes the summary task of the grafted tasks,
         its state derived from theirs, not started (WF-PLA-0040): it is not started again, and
-        the earned value it had acquired falls back (WF-IND-0030) — `differences` does not say it: no
-        column of `NodeColumn` names the state (#4240). A provisional rule: EP-30, which prepares the own estimate
-        as a differential, takes it over, extending the warning to every task the occurrence
-        reopens.
+        the earned value it had acquired falls back (WF-IND-0030) — `differences` does not say it:
+        no column of `NodeColumn` names the state (#4240). A provisional rule: EP-30, which
+        prepares the own estimate as a differential, takes it over, extending the warning to
+        every task the occurrence reopens.
 
 RiskMatrixCell:
   type: object
