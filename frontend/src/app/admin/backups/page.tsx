@@ -4,28 +4,29 @@
  * The backups of the platform (FBS-1.4, US-0250, EP-02/L43c, EP-14/L42h, US-0440), outside any
  * project: their schedule, their retention and their external copy (WF-ADM-0170), set whole by a
  * form to a session that may modify the backups, from the locations the installation declares
- * (EP-14/L43d) — the schedule left out when the API does not find it, the form when it does not find
- * the locations: the service does not serve them yet (EP-13) —, and a page of their list the server
- * pages, on the dense grid, each dated, sized and verified (WF-ADM-0150), sorted, filtered and paged
- * by the server as the address asks under the names of the contract (`sort_by`, `sort_order`,
- * `from`, `to`, `origins`, `verifications`, `is_retained`, `size_bytes_min`, `size_bytes_max`,
- * `offset`; WF-IHM-0130) — the most recent first when the address and the account say nothing of
- * the sort. Every figure as the API gives it: the front sorts, filters and pages nothing. The
- * commands are those each backup lists (`available_commands`, WF-IHM-0090) — mark it to be kept or
- * no longer, download it, restore the platform from it, confirmed —, and, to a session that may
- * modify the backups (WF-ADM-0100), the one that starts one now; to a session that may restore the
- * platform, the deposit of a backup copied out of another installation, in parts, then its
- * restoration (US-0440, #350). A restoration started replaces the screen by that of its maintenance
- * (`Restoration`). The screen says nothing of the fake back, which keeps none of what is written: it
- * is wired to the service of EP-03 (decision of the author, 2026-10-18). A download the route
- * refused comes back here, the refusal in the address, told above the list. Filters the API refuses (422) — a period that ends before it starts, a size
- * at most below the least — leave the list unread, said at their field; any other read the API
- * refuses, or cannot answer, is thrown for the pages of the shell to say.
+ * (EP-14/L43d, `listExternalBackupLocations`) — read for who may set it alone —, and a page of
+ * their list the server pages, on the dense grid, each dated, sized and verified (WF-ADM-0150),
+ * sorted, filtered and paged by the server as the address asks under the names of the contract
+ * (`sort_by`, `sort_order`, `from`, `to`, `origins`, `verifications`, `is_retained`,
+ * `size_bytes_min`, `size_bytes_max`, `offset`; WF-IHM-0130) — the most recent first when the
+ * address and the account say nothing of the sort. Every figure as the API gives it: the front
+ * sorts, filters and pages nothing. The commands are those each backup lists
+ * (`available_commands`, WF-IHM-0090) — mark it to be kept or no longer, download it, restore the
+ * platform from it, confirmed —, and, to a session that may modify the backups (WF-ADM-0100), the
+ * one that starts one now; to a session that may restore the platform, the deposit of a backup
+ * copied out of another installation, in parts, then its restoration (US-0440, #350). A
+ * restoration started replaces the screen by that of its maintenance (`Restoration`). The screen
+ * is wired to the service (US-2910), which keeps what is written, and says nothing of a fake back;
+ * the paths against it play it (`e2e/service/backup-schedule.spec.ts`). A download the route
+ * refused comes back here, the refusal in the address, told above the list. Filters the API
+ * refuses (422) — a period that ends before it starts, a size at most below the least — leave the
+ * list unread, said at their field; any other read the API refuses, or cannot answer, is thrown
+ * for the pages of the shell to say.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
-import { readOrRefused, readUnlessRefused } from "@/api/problem";
+import { readOrFail, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import {
   BACKUP_GRID_KEY,
@@ -54,9 +55,6 @@ import { screenMetadata } from "../../title";
 
 /** The refusal of filters the server cannot apply — a period or bounds inverted (`listBackups`, 422). */
 const FILTERS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
-
-/** A read the screen does without: the service does not serve it yet (EP-13), and answers 404. */
-const NOT_SERVED = [{ status: 404 }] as const;
 
 /** Title the tab with the function. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -113,12 +111,10 @@ export default async function BackupsPage({
   const startable = platformOffer(permissions, "backups") !== undefined;
   const restorable = platformOffer(permissions, "platform_restore") !== undefined;
   const [schedule, locations, backups] = await Promise.all([
-    readUnlessRefused("getBackupSchedule", NOT_SERVED, () =>
-      serverClient().GET("/backup-schedule"),
-    ),
+    readOrFail("getBackupSchedule", () => serverClient().GET("/backup-schedule")),
     // The locations a copy may go to, for the form of the schedule: read for who may set it alone.
     startable
-      ? readUnlessRefused("listExternalBackupLocations", NOT_SERVED, () =>
+      ? readOrFail("listExternalBackupLocations", () =>
           serverClient().GET("/external-backup-locations"),
         )
       : undefined,
@@ -134,9 +130,7 @@ export default async function BackupsPage({
         {/* The filters, the grid and the pages compose the changes they make to the address. */}
         <PendingAddress>
           <BackupsHeader />
-          {schedule === undefined ? null : (
-            <BackupScheduleSection schedule={schedule} locations={locations} />
-          )}
+          <BackupScheduleSection schedule={schedule} locations={locations} />
           <BackupList
             read={backups}
             filters={filters}
