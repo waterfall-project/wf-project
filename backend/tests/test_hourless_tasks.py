@@ -15,6 +15,8 @@ import pytest
 from waterfall.core.estimate.costing import hourless_tasks
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
+
     from sqlalchemy.orm import Session
 
 ROLE = UUID(int=1)
@@ -29,11 +31,15 @@ SESSION = cast("Session", None)
 
 def _given(monkeypatch: pytest.MonkeyPatch) -> None:
     weeks = {WEEKDAYS_CALENDAR: WEEKDAYS, WEEKENDS_CALENDAR: WEEKENDS}
-    monkeypatch.setattr(
-        "waterfall.core.estimate.costing.calendar_hours",
-        lambda _session, ids: {each: weeks[each] for each in set(ids)},
-    )
-    monkeypatch.setattr("waterfall.core.estimate.costing.read_roles", lambda *_a, **_k: [])
+
+    def hours(_session: Session, ids: Collection[UUID]) -> dict[UUID, tuple[Decimal, ...]]:
+        return {each: weeks[each] for each in set(ids)}
+
+    def roles(*_asked: object, **_kept: object) -> list[object]:
+        return []
+
+    monkeypatch.setattr("waterfall.core.estimate.costing.calendar_hours", hours)
+    monkeypatch.setattr("waterfall.core.estimate.costing.read_roles", roles)
 
 
 @pytest.mark.requirement("WF-PLA-0010-A")
@@ -48,7 +54,7 @@ def test_a_task_whose_roles_calendars_share_no_hour_is_still_refused(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _given(monkeypatch)
-    roles = {"hourless": {ROLE, OTHER}, "worked": {ROLE}, "none": set()}
+    roles: dict[str, set[UUID]] = {"hourless": {ROLE, OTHER}, "worked": {ROLE}, "none": set()}
     calendars = {ROLE: WEEKDAYS_CALENDAR, OTHER: WEEKENDS_CALENDAR}
     assert list(hourless_tasks(SESSION, roles, calendars)) == [("hourless", [])]
 

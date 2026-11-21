@@ -525,7 +525,8 @@ def test_a_malformed_document_is_judged_before_the_reserve_is_read(
 ) -> None:
     # The reserve costs a query, made for nothing on a document that gives no coverage (#4258).
     def forbidden(*_: object) -> None:
-        raise AssertionError("the reserve was read")
+        msg = "the reserve was read"
+        raise AssertionError(msg)
 
     monkeypatch.setattr("waterfall.core.risks.covering._reserve", forbidden)
     assert conserved_coverage(cast("Session", None), UUID(int=1), kept) is None

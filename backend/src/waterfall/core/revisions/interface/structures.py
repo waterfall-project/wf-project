@@ -65,7 +65,13 @@ from waterfall.core.revisions.commands import (
     phase_conditions,
     structure_commands_of,
 )
-from waterfall.core.revisions.interface.shared import AMENDMENT, BASE, MAIN, RISK, inscribe_structure
+from waterfall.core.revisions.interface.shared import (
+    AMENDMENT,
+    BASE,
+    MAIN,
+    RISK,
+    inscribe_structure,
+)
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.states import revision_state
 from waterfall.core.revisions.tables import CostStructure, Revision
