@@ -100,6 +100,13 @@ jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 - #4462 — les chaînes d'interface bâties à la main (FCO-12, FAR-07) — sans effet visible en français
   ni en anglais : candidat à l'abandon
 
+Reportées d'EP-11 le 2026-11-21 au soir (décision de l'utilisateur, « Reprise du 2026-11-21
+soir » du fichier d'EP-11), à rattacher à un lot :
+
+- #4349 — front : la structure des coûts affiche le montant d'une nature non calculée comme partiel
+- #4160 — front : deux autres copies d'IDENTIFIER laissent passer un identifiant qui n'est pas un
+  UUID
+
 ## Conception
 
 À écrire au cadrage.
