@@ -1,7 +1,7 @@
 ---
 id: EP-32
 titre: Corriger le moteur de planning sur les liaisons de récapitulatives, l'état d'une feuille qui devient récapitulative et le redatage, et le Gantt zoomé
-statut: en cours
+statut: prêt
 depend_de: EP-08
 famille: front, back
 issue: 4549
@@ -95,6 +95,12 @@ Aucune opération ne manque.
 ## Préalables
 
 EP-08 fusionné, qui touche `core/planning` (gardes de calendrier, structures différentielles).
+
+L'EPIC est `prêt`, non `en cours`, par décision de l'auteur du 2026-11-21 : ses issues sont ouvertes
+d'avance (#4549, ses US et ses lots), et leurs numéros restent dans ce fichier, mais la livraison
+attend son accord. C'est un écart à la définition du README (« en cours : son plan de lots est
+validé, et ses issues sont ouvertes sur GitHub »), écrit ici pour qu'il ne se lise pas comme un
+oubli ; l'EPIC passe `en cours` quand l'auteur le décide.
 
 La règle de #3336 est tranchée (2026-11-21) : la feuille garde son état. US-3310, et elle seule,
 attend la fusion de la spécification 1.0.9, qui amende WF-PLA-0040 ; les autres US ne l'attendent

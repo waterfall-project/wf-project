@@ -173,7 +173,7 @@ sommer (décision de l'auteur du 2026-11-17), les trois cents projets en EP-13, 
 | [EP-28](EP-28-chaine-et-outillage.md) | Chaîne et outillage de développement | livré | rien |
 | [EP-29](EP-29-habilitations-specification-1-0-7.md) | Habilitations et comptes : suites de la spécification 1.0.7 | à planifier | EP-08 |
 | [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risques préparés comme des différentiels | prêt | EP-08, EP-11 |
-| [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning : moteur et Gantt | en cours | EP-08 |
+| [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning : moteur et Gantt | prêt | EP-08 |
 | [EP-33](EP-33-imports-et-exports-de-fichiers.md) | Imports et exports de fichiers | en cours | EP-08 |
 | [EP-34](EP-34-grilles-saisie-et-collage.md) | Grilles : saisie et collage | à planifier | EP-08 |
 | [EP-36](EP-36-tests-et-preuve-des-exigences.md) | Tests et preuve des exigences | à planifier | EP-08, EP-11 |
