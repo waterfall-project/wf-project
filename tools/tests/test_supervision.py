@@ -31,6 +31,7 @@ SERVICE = COMPOSE / "compose.service.yaml"
 TEMPLATE = COMPOSE / "production.env.example"
 START = COMPOSE / "prometheus.sh"
 MOUNTED = ("prometheus.sh", "prometheus.yml", "prometheus-alerts.yml")
+TLS = ("prometheus-web.yml", "prometheus-client.yml")
 # The thresholds WF-OBS-0030 ships: fifteen minutes, 85 %, 5 % over five minutes.
 SHIPPED = {
     "WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS": "900",
@@ -92,15 +93,20 @@ def test_prometheus_is_a_service_of_the_platform_its_series_kept_in_a_volume() -
     assert "ports" not in prometheus
     assert prometheus["restart"] == "unless-stopped"
     mounts = [str(volume) for volume in prometheus["volumes"]]
+    read = [f"./{name}:/etc/waterfall/{name}:ro" for name in MOUNTED]
+    # In TLS, with the certificate the authority issues it, and its health checked so (US-2840).
+    in_tls = [f"./{name}:/etc/waterfall/{name}:ro" for name in TLS]
     assert mounts == [
-        *(f"./{name}:/etc/waterfall/{name}:ro" for name in MOUNTED),
+        *read,
+        *in_tls,
         "prometheus-data:/prometheus",
+        "certificates-prometheus:/tls:ro",
     ]
     # The service platform runs the same image, on the same files, for the tests that read it.
     beside = services(SERVICE)["prometheus"]
     assert beside["image"] == prometheus["image"]
     assert beside["profiles"] == ["supervision"]
-    assert [str(volume) for volume in beside["volumes"]] == mounts[:-1]
+    assert [str(volume) for volume in beside["volumes"]] == read
 
 
 @pytest.mark.requirement("WF-OBS-0030-A")

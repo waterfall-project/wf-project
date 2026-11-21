@@ -4,8 +4,10 @@
 
 The image pinned by its digest runs with the variables GF_* and the mounts of the service grafana of
 compose.prod.yaml, and a password of the test: it answers under /grafana, loads the dashboard the
-platform delivers and the one source that is Prometheus, and the account ``operator`` opens a
-session there, a wrong password not. Docker is needed: a test skips without it, and says so.
+platform delivers and the one source that is Prometheus, read in HTTPS against the root of the
+platform (US-2840), and the account ``operator`` opens a session there, a wrong password not. The
+volume trust, where the platform writes its root, is a folder of the test that holds one. Docker and
+OpenSSL are needed: a test skips without them, and says so.
 """
 
 import base64
@@ -24,10 +26,14 @@ from test_notification import COMPOSE, DASHBOARD, PRODUCTION
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from pathlib import Path
 
 pytestmark = [
-    pytest.mark.skipif(shutil.which("docker") is None, reason="docker is not installed"),
-    pytest.mark.unexecuted("skipped where docker is not installed"),
+    pytest.mark.skipif(
+        shutil.which("docker") is None or shutil.which("openssl") is None,
+        reason="docker or openssl is not installed",
+    ),
+    pytest.mark.unexecuted("skipped where docker or openssl is not installed"),
 ]
 
 PHRASE = "grafana-test-only"
@@ -92,10 +98,27 @@ def until(path: str, port: int, password: str | None = None) -> tuple[int, Any]:
     raise AssertionError(message)
 
 
+def trust(folder: Path) -> Path:
+    """Make a folder that holds a root, root.crt, as the volume trust of the platform does."""
+    folder.chmod(0o755)
+    subprocess.run(
+        [
+            *("openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256"),
+            *("-nodes", "-keyout", str(folder / "root.key"), "-out", str(folder / "root.crt")),
+            *("-subj", "/CN=Waterfall platform authority", "-days", "1"),
+        ],
+        capture_output=True,
+        check=True,
+    )
+    (folder / "root.crt").chmod(0o644)
+    return folder
+
+
 @pytest.fixture(scope="module")
-def grafana() -> Iterator[int]:
+def grafana(tmp_path_factory: pytest.TempPathFactory) -> Iterator[int]:
     """Start Grafana on the variables and the mounts of the production Compose; give its port."""
     service = production()
+    volumes = {"trust": trust(tmp_path_factory.mktemp("trust"))}
     given = {"WATERFALL_GRAFANA_ADMIN_PASSWORD": PHRASE, "WATERFALL_DOMAIN": "waterfall.test"}
     variables = {
         name: substituted(str(value), given) for name, value in service["environment"].items()
@@ -103,7 +126,8 @@ def grafana() -> Iterator[int]:
     mounts: list[str] = []
     for volume in service["volumes"]:
         source, target, mode = str(volume).split(":")
-        mounts += ["--volume", f"{(COMPOSE / source).resolve()}:{target}:{mode}"]
+        path = volumes[source] if source in volumes else (COMPOSE / source).resolve()
+        mounts += ["--volume", f"{path}:{target}:{mode}"]
     name = f"waterfall-grafana-us2880-{uuid.uuid4().hex[:8]}"
     started = subprocess.run(
         [
@@ -165,5 +189,9 @@ def test_grafana_loads_the_dashboard_and_the_one_source_the_platform_delivers(gr
     assert expressions["Alertes en cours"]
     _, sources = until("/grafana/api/datasources", grafana, PHRASE)
     assert [(source["type"], source["uid"], source["url"]) for source in sources] == [
-        ("prometheus", "prometheus", "http://prometheus:9090")
+        ("prometheus", "prometheus", "https://prometheus:9090")
     ]
+    # In HTTPS, its certificate checked against the root of the platform (US-2840, TFX-14).
+    _, source = until("/grafana/api/datasources/uid/prometheus", grafana, PHRASE)
+    assert source["jsonData"] == {"tlsAuthWithCACert": True}
+    assert source["secureJsonFields"] == {"tlsCACert": True}

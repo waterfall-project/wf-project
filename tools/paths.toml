@@ -276,6 +276,9 @@ paths = [
     "deploy/compose/Caddyfile.storage",
     "deploy/compose/pg_hba.conf",
     "tools/src/wftools/transport.py",
+    # Prometheus in TLS (TFX-14), and its health checked so.
+    "deploy/compose/prometheus-web.yml",
+    "deploy/compose/prometheus-client.yml",
     "deploy/compose/garage.toml",
     "deploy/compose/storage-buckets.sh",
     "deploy/compose/postgres-volume.sh",

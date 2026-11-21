@@ -5,7 +5,7 @@
 « Aucune connexion en clair n'est acceptée par un composant de la plateforme, hors le point de
 métriques, qui n'est pas joignable hors du cluster. » (WF-SEC-0010-A). Inside the container of the
 API, on the network of the platform, ``PROBE`` speaks in the clear to each server — PostgreSQL,
-Redis, the API, Keycloak, the object storage — and says how it answered; it also reaches each in
+Redis, the API, Keycloak, the object storage, Prometheus — and says how it answered; it also reaches each in
 TLS, its certificate checked against the root of the platform, so that a server out of reach is not
 taken for one that refuses. The listeners that must not be reached at all — Keycloak in HTTP, its
 management, the ports of its cluster, Garage behind its proxy — are tried too, and the port of the
@@ -24,8 +24,9 @@ from typing import TYPE_CHECKING, Any, cast
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-SERVED = ("postgres", "redis", "api", "keycloak", "storage")
-"""The servers that must refuse the clear and serve in TLS (TFX-02 to TFX-05, TFX-08, TFX-12)."""
+SERVED = ("postgres", "redis", "api", "keycloak", "storage", "prometheus")
+"""The servers that must refuse the clear and serve in TLS (TFX-02 to TFX-05, TFX-08, TFX-12,
+TFX-14)."""
 
 CLOSED = (
     "keycloak-http",
@@ -128,6 +129,7 @@ else:
 said["api"] = http("api", 8443)
 said["keycloak"] = http("keycloak", 8443)
 said["storage"] = http("storage", 3900)
+said["prometheus"] = http("prometheus", 9090)
 # The port of the metrics of the API, in HTTP, serves the metrics and nothing else (TFX-09).
 answer = clear("api", 8000, b"GET /api/v1/health HTTP/1.0\r\nHost: api\r\n\r\n")
 if answer is None:

@@ -15,8 +15,8 @@ come from the environment, as the chain gives them; no file holds them. Then it 
 - the API answers its liveness probe, ``status`` ``ok``;
 - the owner of the tables, ``waterfall``, is no superuser, and can create neither a role nor a
   database: the administrator of the server is ``postgres``, the services' of initialisation alone;
-- PostgreSQL, Redis, the API, Keycloak and the object storage refuse a connection in the clear and
-  serve in TLS, and nothing else of them is reached from the network of the platform
+- PostgreSQL, Redis, the API, Keycloak, the object storage and Prometheus refuse a connection in the
+  clear and serve in TLS, and nothing else of them is reached from the network of the platform
   (``wftools.transport``, US-2840, WF-SEC-0010);
 - the platform answers in HTTP by sending to the same page in HTTPS, at its published address
   (WF-SEC-0010); in HTTPS, with the headers that keep the browser there and its pages to

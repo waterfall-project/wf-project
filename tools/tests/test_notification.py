@@ -293,7 +293,7 @@ def provisioned(path: Path) -> dict[str, Any]:
 def test_the_dashboard_is_delivered_on_the_one_source_that_is_prometheus() -> None:
     sources = provisioned(DATASOURCE)["datasources"]
     assert [(source["type"], source["uid"], source["url"]) for source in sources] == [
-        ("prometheus", "prometheus", "http://prometheus:9090")
+        ("prometheus", "prometheus", "https://prometheus:9090")
     ]
     dashboard = json.loads(DASHBOARD.read_text(encoding="utf-8"))
     sourced = {

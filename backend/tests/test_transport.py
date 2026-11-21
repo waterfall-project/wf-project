@@ -159,6 +159,27 @@ def test_a_process_given_the_root_refuses_every_address_in_the_clear_naming_it(
 
 @pytest.mark.requirement("WF-SEC-0010-A")
 @pytest.mark.usefixtures("platform_environment")
+def test_the_api_given_the_root_reads_prometheus_in_https_alone(
+    certified: Certified, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # TFX-14: the API reads the metrics and the alerts of Prometheus in HTTPS, its certificate
+    # checked against the root; an address in the clear stops it, naming the variable.
+    for name, value in ENCRYPTED.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setenv("WATERFALL_TLS_AUTHORITY", str(certified.root))
+    monkeypatch.setenv("WATERFALL_PROMETHEUS_ADDRESS", "http://prometheus:9090")
+    with pytest.raises(SettingsError) as refused:
+        load_api_settings()
+    wanted = "WATERFALL_PROMETHEUS_ADDRESS must be in https:// when WATERFALL_TLS_AUTHORITY is given"
+    assert wanted in str(refused.value)
+    monkeypatch.setenv("WATERFALL_PROMETHEUS_ADDRESS", "https://prometheus:9090")
+    assert load_api_settings().prometheus_address == "https://prometheus:9090"
+    monkeypatch.setenv("WATERFALL_PROMETHEUS_ADDRESS", "")
+    assert load_api_settings().prometheus_address is None
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+@pytest.mark.usefixtures("platform_environment")
 @pytest.mark.parametrize(
     ("name", "query", "verdict"),
     [

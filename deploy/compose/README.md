@@ -98,7 +98,8 @@ accordent ; les sauvegardes, par le rôle de sauvegarde.
 ### Le chiffrement entre les services
 
 Tout échange à l'intérieur de la plateforme est chiffré (US-2840, WF-SEC-0010) : PostgreSQL, Redis,
-l'API et Keycloak ne servent qu'en TLS, le stockage objet derrière un mandataire TLS
+l'API, Keycloak et Prometheus — que l'API et Grafana lisent en HTTPS (TFX-14,
+`prometheus-web.yml`) — ne servent qu'en TLS, le stockage objet derrière un mandataire TLS
 (`storage-proxy`, `Caddyfile.storage`) — Garage, qui ne chiffre pas, n'est joint que par lui, sur
 un réseau qu'ils sont seuls à partager. Chaque client vérifie le certificat du serveur et son nom
 contre la racine de l'autorité de la plateforme ; une connexion en clair est refusée. Keycloak, seule

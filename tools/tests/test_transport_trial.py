@@ -35,6 +35,7 @@ SERVERS = {
     "api": "api",
     "keycloak": "keycloak",
     "storage": "storage-proxy",
+    "prometheus": "prometheus",
 }
 # A variable that gives a service the address of another: Waterfall's, and their equivalents in the
 # services of Keycloak's image and of the buckets of the storage.

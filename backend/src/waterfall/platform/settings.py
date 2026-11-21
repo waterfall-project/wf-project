@@ -305,10 +305,16 @@ class ApiSettings(ServiceSettings):
     the root — and of its key, in PEM (US-2840, TFX-02): given together, the API serves in TLS
     alone; neither, in HTTP, as on the workstation. ``metrics_port`` is a port of its own where it
     serves its metrics over HTTP, and nothing else (``getMetrics``, TFX-09): none by default, and
-    then they are served on the port of the API alone.
+    then they are served on the port of the API alone. ``prometheus_address`` is where the API
+    reads the metrics and the alerts by the query API of Prometheus (TFX-14, US-2890): in
+    ``https://``, the certificate checked against ``tls_authority``, when an authority is given;
+    none by default, and then the status screen says Prometheus is not reached.
     """
 
     api_processes: int = Field(default=1, ge=1)
+    prometheus_address: Annotated[
+        Annotated[str, Field(pattern="^https?://")] | None, BeforeValidator(_none_when_empty)
+    ] = None
     database_capacity_bytes: int | None = Field(default=None, ge=1)
     storage_capacity_bytes: int | None = Field(default=None, ge=1)
     tls_certificate: Annotated[str | None, BeforeValidator(_none_when_empty)] = None
@@ -328,6 +334,15 @@ class ApiSettings(ServiceSettings):
             message = f"{ENV_PREFIX}METRICS_PORT must not be {ENV_PREFIX}PORT"
             raise ValueError(message)
         return self
+
+    def transport_faults(self) -> list[str]:
+        """Add Prometheus, when the API reads it, which must be reached in ``https://`` (TFX-14)."""
+        address = self.prometheus_address
+        encrypted = address is None or address.startswith("https://")
+        return [
+            *super().transport_faults(),
+            *encrypted_fault("prometheus_address", encrypted=encrypted, wanted="be in https://"),
+        ]
 
 
 def _served_pair(certificate: str, key: str) -> None:

@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Prometheus serves in TLS alone (US-2840, TFX-14, WF-SEC-0010): its query API, which the API and
+# Grafana read, and its health. The certificate and the key the authority of the platform issues for
+# its name, prometheus (compose.prod.yaml, authority).
+tls_server_config:
+  cert_file: /tls/tls.crt
+  key_file: /tls/tls.key
