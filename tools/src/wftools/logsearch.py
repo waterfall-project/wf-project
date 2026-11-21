@@ -5,6 +5,7 @@
 Usage::
 
     python -m wftools.logsearch secrets [--name VARIABLE ...] [FILE ...]
+    python -m wftools.logsearch repository
     python -m wftools.logsearch follow IDENTIFIER [FILE ...]
     python -m wftools.logsearch fields [FILE ...]
 
@@ -21,6 +22,12 @@ variables it left out, absent or too short. ``fields`` ends with 2 on an empty t
 the search of the logs of the platform (WF-OBS-0020, US-2900) and that of the repository
 (WF-SEC-0010, US-2840) are this one.
 
+``repository`` looks for the same secrets, by their values alone, in every file git tracks: no
+secret is written in the repository (WF-SEC-0010, US-2840). It prints the file and the name of
+each one found, never the value, and ends as ``secrets`` does. Neither the shapes of the tokens nor
+the password of the accounts of the paths are looked for there: the tests write such shapes on
+purpose, and that password is a constant of the repository, no secret of a platform.
+
 ``follow`` prints the lines of the logs of an identifier of correlation, and those that name what
 they name — the deposit a file was made under, the import, the task (``LINKS``) —: the story of an
 import by the identifier its user was given. Records are JSON lines, which Compose may prefix with
@@ -36,10 +43,13 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from urllib.parse import quote, quote_plus
+
+from wftools import REPOSITORY
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
@@ -50,7 +60,6 @@ SECRET_VARIABLES = (
     "WATERFALL_BACKUP_DATABASE_PASSWORD",
     "WATERFALL_REDIS_PASSWORD",
     "WATERFALL_KEYCLOAK_DATABASE_PASSWORD",
-    "WATERFALL_STORAGE_ACCESS_KEY",
     "WATERFALL_STORAGE_SECRET",
     "WATERFALL_STORAGE_RPC_SECRET",
     "WATERFALL_KEYCLOAK_ADMIN_PASSWORD",
@@ -58,7 +67,12 @@ SECRET_VARIABLES = (
     "WATERFALL_SERVICE_CLIENT_SECRET",
     "WATERFALL_INSTALLATION_CLIENT_SECRET",
 )
-"""The secrets of the platform of service, which the guide lists (« Commandes »)."""
+"""The secrets of the platform of service, which the guide lists (« Commandes »). The identifier of
+its key on the object storage, WATERFALL_STORAGE_ACCESS_KEY, is no secret (``IDENTIFIERS``)."""
+
+IDENTIFIERS = ("WATERFALL_STORAGE_ACCESS_KEY",)
+"""The variables whose names look like a secret's and which hold none: the identifier of the key of
+the object storage, whose shipped value is public (compose.service.yaml). Not searched for."""
 
 FIXED_SECRETS = {"E2E_LOCAL_PASSWORD": "k7#Qw2ZpX9vR"}
 """The passwords of the accounts of the paths, which no variable holds: the constant of the paths
@@ -109,6 +123,32 @@ def find_secrets(text: str, secrets: Mapping[str, str]) -> list[str]:
         if value and any(spelling in text for spelling in spellings(value))
     ]
     return found + [name for name, shape in TOKENS.items() if shape.search(text)]
+
+
+def tracked(root: Path) -> list[Path]:
+    """Give the files git tracks under a folder, those of the worktree as they stand."""
+    listed = subprocess.run(
+        ["git", "ls-files", "-z", "--cached"], cwd=root, capture_output=True, check=True
+    ).stdout
+    return [root / name for name in listed.decode().split("\0") if name]
+
+
+def find_in_files(files: Iterable[Path], secrets: Mapping[str, str]) -> list[tuple[Path, str]]:
+    """Name, for each file, the secrets its text carries; the values are never given back.
+
+    A file git tracks but the worktree has not — removed, not yet committed — is not read.
+    """
+    found: list[tuple[Path, str]] = []
+    for path in files:
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        found += [
+            (path, name)
+            for name, value in secrets.items()
+            if any(spelling in text for spelling in spellings(value))
+        ]
+    return found
 
 
 def record_of(line: str) -> dict[str, object] | None:
@@ -192,7 +232,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     story.add_argument("files", nargs="*")
     fields = commands.add_parser("fields", help="check that every record carries its fields")
     fields.add_argument("files", nargs="*")
+    commands.add_parser("repository", help="look for the secrets known in the files git tracks")
     arguments = parser.parse_args(argv)
+    if arguments.command == "repository":
+        return search_repository(os.environ)
     text = read_texts(arguments.files)
     if arguments.command != "follow" and not text.strip():
         # An empty text — a reading of the logs that failed — would pass whatever was searched for.
@@ -221,6 +264,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     for name in found:
         print(f"found in the text: {name}", file=sys.stderr)
     print(f"searched {len(known)} secrets and the shapes of tokens in {len(text)} characters")
+    return 1 if found else 0
+
+
+def search_repository(environment: Mapping[str, str], root: Path = REPOSITORY) -> int:
+    """Look for the secrets of the environment in the repository; 1 if one is found, 2 if none known."""
+    known = secrets_from(environment)
+    skipped = left_out(environment)
+    if skipped:
+        print(f"not searched, absent or too short: {', '.join(skipped)}", file=sys.stderr)
+    if not known:
+        print("no secret to look for: the variables of the platform are not set", file=sys.stderr)
+        return 2
+    files = tracked(root)
+    found = find_in_files(files, known)
+    for path, name in found:
+        print(f"found in {path.relative_to(root)}: {name}", file=sys.stderr)
+    print(f"searched {len(known)} secrets in the {len(files)} files git tracks")
     return 1 if found else 0
 
 

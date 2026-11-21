@@ -34,7 +34,7 @@ ADMINISTRATOR=${KEYCLOAK_USER:?set KEYCLOAK_USER}
 APPLIED=/tmp/realm-applied
 # Where kcadm keeps the session of the temporary administrator: removed after each application,
 # at the start, and when the service stops.
-CONFIG=/tmp/realm-service.kcadm
+CONFIG=${TMPDIR:-/tmp}/realm-service.kcadm
 # What the identifier of a temporary administrator begins with.
 TEMPORARY=waterfall-realm-
 KC=/opt/keycloak/bin/kc.sh
@@ -60,7 +60,7 @@ drawn() {
 # sealed, so that Java reads it without one. keytool asks one all the same: drawn here, given by the
 # environment of keytool alone, and forgotten. A root it cannot read stops the service, saying so.
 if [ -n "${WATERFALL_TLS_AUTHORITY:-}" ]; then
-    TRUST=/tmp/realm-service.trust.p12
+    TRUST=${TMPDIR:-/tmp}/realm-service.trust.p12
     rm -f "$TRUST"
     if ! said=$(STORE_PASSWORD=$(drawn 16) keytool \
             -J-Dkeystore.pkcs12.certProtectionAlgorithm=NONE -J-Dkeystore.pkcs12.macAlgorithm=NONE \
@@ -68,6 +68,16 @@ if [ -n "${WATERFALL_TLS_AUTHORITY:-}" ]; then
             -keystore "$TRUST" -storetype PKCS12 -storepass:env STORE_PASSWORD 2>&1); then
         printf '%s\n' "$said" >&2
         echo "realm-service: the root $WATERFALL_TLS_AUTHORITY cannot be read" >&2
+        exit 1
+    fi
+    # The store read back without a password, as Java will (#4511): a keytool that ignores the two
+    # options — a JDK older than 17 — protects the root with the password drawn, and the store,
+    # read without it, holds no certificate; Java would then refuse Keycloak's without saying why.
+    if ! keytool -list -alias platform -keystore "$TRUST" -storetype PKCS12 \
+            </dev/null >/dev/null 2>&1; then
+        echo "realm-service: the store of trust $TRUST is not readable without a password: this" \
+            "keytool ignores keystore.pkcs12.certProtectionAlgorithm and macAlgorithm (JDK 17 or" \
+            "later reads them)" >&2
         exit 1
     fi
     export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Djavax.net.ssl.trustStore=$TRUST \

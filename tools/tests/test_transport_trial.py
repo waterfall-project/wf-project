@@ -13,6 +13,7 @@ these tests hold what the trial concludes from what the probe answers.
 import ipaddress
 import json
 import re
+import shlex
 from typing import Any
 
 import pytest
@@ -174,15 +175,71 @@ def test_postgresql_redis_keycloak_and_the_api_serve_in_tls_alone() -> None:
     assert (job["metrics_path"], job["dns_sd_configs"][0]["port"]) == ("/api/v1/metrics", 8000)
 
 
+def instructions(dockerfile: str) -> list[tuple[str, str]]:
+    """Read the instructions of a Dockerfile, each as its keyword and its arguments, on one line.
+
+    A line ended by a backslash goes on on the next; a comment, or a blank line, between them is
+    skipped, as Docker does.
+    """
+    found: list[tuple[str, str]] = []
+    pending = ""
+    for line in dockerfile.splitlines():
+        if not pending and not line.strip():
+            continue
+        if line.lstrip().startswith("#"):
+            continue
+        if line.endswith("\\"):
+            pending += line[:-1] + " "
+            continue
+        keyword, _, arguments = (pending + line).strip().partition(" ")
+        found.append((keyword.upper(), arguments.strip()))
+        pending = ""
+    return found
+
+
+def environment_set(arguments: str) -> dict[str, str]:
+    """Read what an ENV sets: ``KEY=value ...``, quoted or not, or the older ``KEY value``."""
+    words = shlex.split(arguments)
+    if words and "=" not in words[0]:
+        return {words[0]: " ".join(words[1:])}
+    return dict(word.split("=", 1) for word in words)
+
+
+def stage_environment(dockerfile: str, stage: str) -> dict[str, str]:
+    """Read the variables the ENV of a stage of a Dockerfile set, in order."""
+    found: dict[str, str] = {}
+    current = None
+    for keyword, arguments in instructions(dockerfile):
+        if keyword == "FROM":
+            words = arguments.split()
+            current = words[2] if len(words) == 3 and words[1].upper() == "AS" else None
+        elif keyword == "ENV" and current == stage:
+            found.update(environment_set(arguments))
+    return found
+
+
 def image_environment(stage: str) -> dict[str, str]:
     """Read the variables the ENV of a stage of the image of the back sets."""
     dockerfile = (REPOSITORY / "backend" / "Dockerfile").read_text(encoding="utf-8")
-    lines = re.MULTILINE | re.DOTALL
-    (body,) = re.findall(rf"^FROM \S+ AS {stage}\n(.*?)(?=^FROM |\Z)", dockerfile, lines)
-    found: dict[str, str] = {}
-    for instruction in re.findall(r"^ENV (.*?)(?<!\\)\n", body, lines):
-        found.update(re.findall(r"(\w+)=(\S+?)\"?(?:\s|\\|$)", instruction))
-    return found
+    return stage_environment(dockerfile, stage)
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+@pytest.mark.parametrize(
+    ("dockerfile", "expected"),
+    [
+        ("FROM base AS production\nENV A=1 \\\n    B=\"two words\"\n", {"A": "1", "B": "two words"}),
+        ("FROM base AS production\nENV A=1\nENV B 2 3\n", {"A": "1", "B": "2 3"}),
+        ("FROM base AS production\nENV A=1 \\\n# a comment\n    B=2\n", {"A": "1", "B": "2"}),
+        ("FROM base AS build\nENV A=1\nFROM base AS production\nenv B=2\n", {"B": "2"}),
+    ],
+)
+def test_the_environment_of_a_stage_is_read_in_every_form_an_env_takes(
+    dockerfile: str, expected: dict[str, str]
+) -> None:
+    # The forms an ENV takes (#4512): several variables on lines continued, quoted values, the older
+    # form of one variable and its value, a comment between continued lines, another stage before.
+    assert stage_environment(dockerfile, "production") == expected
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")

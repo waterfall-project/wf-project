@@ -23,7 +23,8 @@ LOCAL_PASSWORD = re.compile(r'LOCAL_PASSWORD = "([^"]+)"')
 def test_the_secrets_searched_are_those_the_compose_file_of_the_service_reads() -> None:
     read = set(re.findall(r"\$\{(WATERFALL_[A-Z_]*(?:SECRET|PASSWORD|_KEY)(?![A-Z]))", COMPOSE))
     assert read
-    assert read <= set(logsearch.SECRET_VARIABLES)
+    assert read - set(logsearch.IDENTIFIERS) <= set(logsearch.SECRET_VARIABLES)
+    assert not set(logsearch.IDENTIFIERS) & set(logsearch.SECRET_VARIABLES)
 
 
 @pytest.mark.requirement("WF-OBS-0020-A")
@@ -34,6 +35,7 @@ def test_the_password_of_the_accounts_of_the_paths_is_searched_as_the_paths_set_
     assert logsearch.FIXED_SECRETS["E2E_LOCAL_PASSWORD"] == set_by_the_paths[1]
 
 
+@pytest.mark.requirement("WF-OBS-0020-A")
 def test_a_variable_absent_or_too_short_is_named_as_left_out(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -47,7 +49,10 @@ def test_a_variable_absent_or_too_short_is_named_as_left_out(
     monkeypatch.setenv("WATERFALL_REDIS_PASSWORD", "long-enough-value")
     (tmp_path / "a.log").write_text("anything")
     assert logsearch.main(["secrets", str(tmp_path)]) == 0
-    assert "WATERFALL_POSTGRES_PASSWORD" in capsys.readouterr().err
+    said = capsys.readouterr().err
+    assert "WATERFALL_POSTGRES_PASSWORD" in said
+    # An identifier that holds no secret is never named as left out: it is not looked for.
+    assert "WATERFALL_STORAGE_ACCESS_KEY" not in said
 
 
 @pytest.mark.requirement("WF-OBS-0020-A")
@@ -81,3 +86,22 @@ def test_the_search_reads_the_logs_under_every_profile_service_down_knows() -> N
     ]
     assert reads
     assert all("$(COMPOSE_SERVICE_ALL)" in line for line in reads)
+
+
+@pytest.mark.requirement("WF-OBS-0020-A")
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_the_search_reads_the_logs_of_the_services_run_once_by_the_paths() -> None:
+    # install and witness run by `run --rm`: their containers go with their logs, which the search
+    # reads from the files e2e-service keeps them in (#4395) — install's log alone, its standard
+    # output being the link of the first administrator.
+    variables = dict(re.findall(r"^([\w-]+) = (.*)$", MAKEFILE, re.MULTILINE))
+    logs = variables["RUN_LOGS"].split()
+    assert logs == ["$(INSTALL_LOG)", "$(WITNESS_LOG)"]
+    assert "for each in $(RUN_LOGS)" in variables["service-logs-text"]
+    played = re.search(r"^e2e-service: install-front.*?\n((?:\t.*\n)+)", MAKEFILE, re.MULTILINE)
+    assert played
+    recipe = played[1]
+    assert "$(call run-logged,install,$(INSTALL_LOG),2> $(INSTALL_LOG))" in recipe
+    assert "$(call run-logged,witness,$(WITNESS_LOG),> $(WITNESS_LOG) 2>&1)" in recipe
+    assert "run --rm --no-TTY install)" not in recipe
+    assert recipe.index("run-logged,witness") < recipe.index("$(service-logs-secrets)")

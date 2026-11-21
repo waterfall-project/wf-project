@@ -4679,9 +4679,13 @@ plateforme qui le porte déjà n'en reçoit rien de plus.
 Une fois les parcours joués, `make e2e-service` cherche, dans les journaux de tous les services de la
 plateforme, Keycloak compris, sous tous les profils de Compose, et dans celui du front des parcours
 (`frontend/.e2e/front.log`, que git ignore : le serveur de Next est un serveur web de Playwright,
-que Compose ne tient pas), les secrets et les jetons connus (`make service-logs-search`,
-WF-OBS-0020, US-2900) ; il échoue s'il en trouve un, ou si les journaux n'ont pas pu être lus ou sont
-vides. Il vérifie ensuite que chaque ligne des journaux de l'API, du worker, de son ordonnanceur et du
+que Compose ne tient pas), et dans ceux de l'amorçage et du témoin, qu'il lance par `run --rm` et
+garde dans `frontend/.e2e/install.log` et `witness.log` — de l'amorçage, son journal seul : sa
+sortie standard est le lien du premier administrateur, imprimé exprès (#4395) —, les secrets et les
+jetons connus (`make service-logs-search`, WF-OBS-0020, US-2900) ; il échoue s'il en trouve un, ou
+si les journaux n'ont pas pu être lus ou sont vides. Il cherche aussi ces secrets, par leurs valeurs,
+dans chaque fichier que git suit (`python -m wftools.logsearch repository`, WF-SEC-0010, US-2840),
+et échoue s'il en trouve un. Il vérifie ensuite que chaque ligne des journaux de l'API, du worker, de son ordonnanceur et du
 service de restauration est un enregistrement qui porte son identifiant de corrélation, son auteur et
 sa gravité (`make service-logs-fields`). Un import qui échoue dans le worker se suit dans ces journaux
 par l'identifiant que son message donne (`frontend/e2e/service/import-trace.spec.ts`).
