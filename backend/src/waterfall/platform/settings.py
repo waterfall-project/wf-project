@@ -137,20 +137,31 @@ class ApiSettings(ServiceSettings):
     storage_capacity_bytes: int | None = Field(default=None, ge=1)
 
 
-class PurgeSettings(Settings, StorageSettings):
-    """What ``waterfall-worker purge`` reads: the database, Redis and the storage, not Keycloak.
+class ScheduleSettings(Settings):
+    """What ``waterfall-worker schedule`` reads: the database and Redis, nothing else (TFX-10).
 
-    ``undo_retention_hours`` is how long the history of a session is kept, twelve hours by default:
-    the longest session of the realm (EP-06, "L'historique annulable et le collage").
+    ``identity_sync_interval`` is how long the platform waits between two readings of the accounts,
+    in seconds, a day by default (PBS-5.3; US-3040 replaces it by the planning the administrator
+    sets), and ``purge_interval`` between two purges of what expired, ten minutes by default (EP-06,
+    "La purge"). A task is deposited when the latest of its kind was submitted at least that long
+    ago. The purge spares the latest task of each planned kind, however old, so that an interval
+    longer than the retention of the tasks does not make a reading due again at each purge. Under
+    Helm the first reading may leave before the realm of Keycloak is applied (a hook after the
+    installation): it then fails and the next is due an interval later.
     """
 
-    undo_retention_hours: int = Field(default=12, ge=1)
+    identity_sync_interval: int = Field(default=86_400, ge=1)
+    purge_interval: int = Field(default=600, ge=1)
 
 
 class WorkerSettings(ServiceSettings):
     """What the worker reads besides: the two databases a backup dumps, as the role of the backup.
 
     ``metrics_port`` is where it serves its metrics, on the address of ``host`` (WF-OBS-0010).
+    The purge it runs keeps the history of a session ``undo_retention_hours`` hours, twelve by
+    default: the longest session of the realm (EP-06, "L'historique annulable et le collage"); and
+    a task ended ``background_task_retention_days`` days, thirty by default, the retention of its
+    result (WF-DAT-0080, §4.4.1), the operating parameter of the same name.
     ``backup_database_url`` is the database of Waterfall, the journal of audit included, and
     ``keycloak_database_url`` the database of the identity provider, both as the role of the backup
     reaches them: a member of ``pg_read_all_data``, which reads every table and can neither write
@@ -162,6 +173,8 @@ class WorkerSettings(ServiceSettings):
     backup_database_url: SecretStr = Field(min_length=1)
     keycloak_database_url: SecretStr = Field(min_length=1)
     metrics_port: int = Field(default=9100, ge=1, le=65535)
+    undo_retention_hours: int = Field(default=12, ge=1)
+    background_task_retention_days: int = Field(default=30, ge=1)
 
 
 @cache
@@ -257,9 +270,9 @@ def load_platform_settings() -> PlatformSettings:
     return _load(PlatformSettings)
 
 
-def load_purge_settings() -> PurgeSettings:
-    """Read the settings of the purge, as ``load_settings`` does."""
-    return _load(PurgeSettings)
+def load_schedule_settings() -> ScheduleSettings:
+    """Read the settings of the schedule, as ``load_settings`` does."""
+    return _load(ScheduleSettings)
 
 
 def load_service_settings() -> ServiceSettings:

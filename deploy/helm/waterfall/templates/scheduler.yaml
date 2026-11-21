@@ -1,20 +1,19 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# The tasks planned (PBS-5.3): a CronJob per command of the worker the service scheduler of the
-# Compose runs in its loops — the purge of what expired, the reading of the accounts put in the
-# queue —, which inscribes or does its work and stops (TFX-10), never two of one at once. US-2830
-# replaces them by the single command that reads the schedules of the database.
-{{- range $job, $planned := .Values.scheduler.jobs }}
----
+# The tasks planned (PBS-5.3): one CronJob, which runs the one command the planners call, as the
+# loop of the service scheduler of the Compose does — `waterfall-worker schedule`. It deposits
+# what is due, the reading of the accounts and the purge of what expired, unless a task of the kind
+# is queued or running, and stops (TFX-10): it reaches PostgreSQL and Redis alone, the worker runs
+# the tasks and holds the storage. Never two of it at once.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: {{ include "waterfall.name" (list $ (printf "scheduler-%s" $job)) }}
+  name: {{ include "waterfall.name" (list . "scheduler") }}
   labels:
-    {{- include "waterfall.labels" (list $ "scheduler") | nindent 4 }}
+    {{- include "waterfall.labels" (list . "scheduler") | nindent 4 }}
 spec:
-  schedule: {{ $planned.schedule | quote }}
+  schedule: {{ .Values.scheduler.schedule | quote }}
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
@@ -22,21 +21,20 @@ spec:
       template:
         metadata:
           labels:
-            {{- include "waterfall.selector" (list $ "scheduler") | nindent 12 }}
+            {{- include "waterfall.selector" (list . "scheduler") | nindent 12 }}
         spec:
-          {{- include "waterfall.podDefaults" $ | nindent 10 }}
+          {{- include "waterfall.podDefaults" . | nindent 10 }}
           restartPolicy: Never
           containers:
-            - name: {{ $job }}
-              image: {{ include "waterfall.image" (list $ "waterfall") }}
-              imagePullPolicy: {{ $.Values.images.pullPolicy }}
-              command:
-                {{- toYaml $planned.command | nindent 16 }}
+            - name: schedule
+              image: {{ include "waterfall.image" (list . "waterfall") }}
+              imagePullPolicy: {{ .Values.images.pullPolicy }}
+              command: [waterfall-worker, schedule]
               env:
-                {{- include "waterfall.backEnvironment" (list $ "service") | nindent 16 }}
-                {{- include "waterfall.storageEnvironment" $ | nindent 16 }}
-                - name: WATERFALL_UNDO_RETENTION_HOURS
-                  value: {{ $.Values.scheduler.undoRetentionHours | quote }}
+                {{- include "waterfall.backEnvironment" (list . "service") | nindent 16 }}
+                - name: WATERFALL_IDENTITY_SYNC_INTERVAL
+                  value: {{ .Values.scheduler.identitySyncInterval | quote }}
+                - name: WATERFALL_PURGE_INTERVAL
+                  value: {{ .Values.scheduler.purgeInterval | quote }}
               resources:
-                {{- toYaml $.Values.scheduler.resources | nindent 16 }}
-{{- end }}
+                {{- toYaml .Values.scheduler.resources | nindent 16 }}
