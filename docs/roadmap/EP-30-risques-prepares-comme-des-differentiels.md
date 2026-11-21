@@ -354,10 +354,11 @@ elle et s'impose à elle.
   qu'EP-15 avait retenue. Écarté : un diamètre strictement proportionnel, qui réduit un petit risque
   à un point.
 - **La tendance d'un risque se mesure à la révision marquée précédente**, sur le produit signé de sa
-  gravité par sa probabilité, et le registre se filtre et se trie sur elle, comme sur ses autres
-  colonnes (H-01, #1786). Écartés : la comparaison au réexamen précédent du risque, que chaque
-  saisie dans le devis propre ferait bouger entre deux réexamens ; la colonne seule, sans filtre ni
-  tri, une exception à H-01.
+  gravité par sa probabilité ; un risque identifié qui ne l'était pas dans cette révision est dit
+  nouveau, par une icône ; le registre se filtre et se trie sur elle, comme sur ses autres colonnes
+  (H-01, #1786). Écartés : la comparaison au réexamen précédent du risque, que chaque saisie dans le
+  devis propre ferait bouger entre deux réexamens ; la colonne seule, sans filtre ni tri, une
+  exception à H-01.
 - **Aucun devis propre n'est repris.** EP-08 n'a servi aucune base à conserver : la migration change
   le schéma et refuse de s'appliquer si elle trouve un devis propre ; les bases de développement se
   recréent, le témoin se recharge. Écartée, contre ce que ce fichier disait : une migration de
@@ -1083,24 +1084,29 @@ précédente, **afin de** mener la revue des risques par ce qui a bougé.
   en hausse ; passé de 60 à 45, en baisse ; resté à 60, stable. » : le service rend la tendance avec
   le risque, calculée du produit signé de son évaluation dans la révision lue et dans la révision
   marquée qui la précède ; le front ne calcule ni ne compare rien (WF-ARC-0020) ;
-- propre à l'US, texte proposé pour WF-RIS-0040 : « Un risque qui n'était pas identifié dans la
-  révision marquée précédente ne présente aucune tendance, non plus qu'un risque écarté ou survenu.
-  » : sur un projet dont aucune révision n'a été marquée avant celle qui est lue, aucun risque n'en
-  présente, comme l'écart du reste à engager est alors absent (WF-RAE-0020) ;
+- propre à l'US, texte proposé pour WF-RIS-0040 : « Un risque identifié qui ne l'était pas dans la
+  révision marquée précédente est présenté comme nouveau ; un risque écarté ou survenu ne présente
+  aucune tendance. » : est nouveau le risque déclaré depuis, comme celui qui y était écarté et
+  redevient identifié ; sur un projet dont aucune révision n'a été marquée avant celle qui est lue,
+  aucun risque ne présente de tendance ni n'est dit nouveau, comme l'écart du reste à engager est
+  alors absent (WF-RAE-0020) ;
 - propre à l'US, texte proposé pour WF-RIS-0040 : « Le registre se filtre et se trie sur la
-  tendance. » : `listRisks` reçoit un filtre — en hausse, en baisse, stable — et un tri, les risques
-  sans tendance à la place que le contrat donne aux valeurs nulles ; les totaux sont ceux des
-  risques retenus (H-01, #1786) ;
+  tendance. » : `listRisks` reçoit un filtre — en hausse, en baisse, stable, nouveau — et un tri,
+  les risques sans tendance à la place que le contrat donne aux valeurs nulles ; les totaux sont
+  ceux des risques retenus (H-01, #1786) ;
 - propre à l'US : une opportunité suit la même règle sur son produit signé : passée de −30 à −45,
   elle est en baisse ; sa provision, plafonnée à zéro, n'y entre pas ;
 - propre à l'US : la tendance d'une révision marquée est celle qu'elle avait contre la révision
   marquée qui la précède, et ne change plus ; celle de la révision en cours suit la gravité et la
   probabilité enregistrées, donc chaque saisie dans le devis propre, chaque mise à jour et chaque
   réexamen ;
-- propre à l'US : la colonne présente une flèche rouge qui monte vers la droite pour une hausse, une
-  flèche verte qui descend pour une baisse, le signe égal pour un risque stable, et rien sans
-  tendance ; chaque marque porte un nom accessible et se lit sans sa couleur, par sa forme
-  (WF-IHM-0070) ;
+- propre à l'US : la colonne présente une icône du catalogue du front (lucide) : une flèche rouge
+  qui monte vers la droite pour une hausse (`TrendingUp`), une flèche verte qui descend pour une
+  baisse (`TrendingDown`), le signe égal pour un risque stable (`Equal`), une marque de nouveauté,
+  de couleur neutre, pour un risque nouveau (`Sparkles`), et rien sans tendance ; chaque icône porte
+  un nom accessible et une infobulle, et se lit sans sa couleur, par sa forme (WF-IHM-0070) ; aucune
+  n'a déjà un autre sens dans l'application, où `ArrowUpRight` ouvre une révision, `Star` désigne la
+  référence et `Zap` marque ce qui est issu d'un risque ;
 - propre à l'US : le graphique à bulles de l'écran des risques d'un projet est toujours dessiné,
   au-dessus de la grille ; la commande de pliage disparaît, et la préférence gardée sous
   `risk_matrix` n'est plus lue ; à 768 de haut, la page défile pour atteindre le bas de la grille
