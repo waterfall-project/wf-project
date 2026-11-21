@@ -121,6 +121,9 @@ DATA = {
     "ImportWaterfallCalendar.label": "a label",
     # The time zone of the installation, by its name in the IANA database (US-2200).
     "Installation.time_zone": "a name of a time zone",
+    # The description of an external location, as the configuration of the deployment writes it
+    # for the administrator: a datum of the installation, served as it is (US-2910/L3).
+    "ExternalBackupLocation.description": "a text of the configuration",
     # The version a component announces, by its number (``getReadiness``, US-2870), and the
     # metrics in the text format of Prometheus, names and values (``getMetrics``, WF-OBS-0010).
     "ComponentHealth.version": "a number of a version",

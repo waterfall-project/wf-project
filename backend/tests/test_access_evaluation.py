@@ -527,6 +527,8 @@ ASKED: dict[str, tuple[str, ...]] = {
     "downloadBackup": ("backups.read", "backups.write"),
     "getBackupSchedule": ("backups.read",),
     "setBackupSchedule": ("backups.write",),
+    "listExternalBackupLocations": ("backups.read",),
+    "testExternalBackupLocation": ("backups.read", "backups.write"),
     "openChunkedUpload": ("platform_restore",),
     "uploadChunk": ("platform_restore",),
     "completeChunkedUpload": ("platform_restore",),

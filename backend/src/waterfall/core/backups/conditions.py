@@ -12,7 +12,10 @@ available is never refused for a reason it did not give, and the other way round
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from sqlalchemy import func, select
+
 from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
+from waterfall.platform.locks import BACKUP_LOCK, RESTORE_LOCK
 from waterfall.platform.tasks import pending_task
 
 if TYPE_CHECKING:
@@ -60,6 +63,19 @@ def backup_start_lacks(platform: Platform) -> list[str]:
     """Give what the start of a backup lacks: no backup and no restoration running."""
     running = [NO_BACKUP_RUNNING] if platform.backup_running else []
     return [*running, *marking_lacks(platform)]
+
+
+def lock_backup_deposit(session: Session) -> list[str]:
+    """Take the locks a backup is deposited under, then give what its start lacks, read under them.
+
+    ``BACKUP_LOCK``, then ``RESTORE_LOCK`` shared, in the order of ``waterfall.platform.locks``:
+    ``startBackup`` and the planned command deposit by this one function, so that two deposits wait
+    for each other, and a restoration deposited meanwhile is waited for, or seen (#4369). The locks
+    are held to the end of the transaction.
+    """
+    session.execute(select(func.pg_advisory_xact_lock(BACKUP_LOCK)))
+    session.execute(select(func.pg_advisory_xact_lock_shared(RESTORE_LOCK)))
+    return backup_start_lacks(platform_of(session))
 
 
 def refuse_if_lacking(lacking: list[str]) -> None:

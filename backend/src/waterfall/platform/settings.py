@@ -17,6 +17,7 @@ Not given, the addresses are taken as they are: the workstation and the tests re
 components on the loopback.
 """
 
+import json
 import ssl
 from contextlib import suppress
 from dataclasses import dataclass
@@ -29,8 +30,11 @@ from zoneinfo import available_timezones
 
 from pydantic import (
     AfterValidator,
+    BaseModel,
     BeforeValidator,
+    ConfigDict,
     Field,
+    PrivateAttr,
     SecretStr,
     ValidationError,
     model_validator,
@@ -290,6 +294,145 @@ class StorageSettings(PlatformSettings):
         ]
 
 
+# The external locations of the backups (US-2910/L3): declared in a file the deployment mounts.
+
+# The name of a location, a key of the file (`ExternalBackupLocationName`).
+# What botocore takes for a region: a label of a host name.
+REGION = "^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$"
+LOCATION_NAME = "^[a-z0-9][a-z0-9_-]{0,62}$"
+# The longest description the contract presents (`ExternalBackupLocation.description`).
+DESCRIPTION_LENGTH = 500
+
+
+class S3Location(BaseModel):
+    """A bucket of an S3 storage, on another site: where it is, and the key that writes in it.
+
+    ``address`` is the endpoint of the storage, ``bucket`` the bucket the copies go to;
+    ``access_key`` and ``secret_key`` sign the requests, secrets both. ``authority`` is the file of
+    the roots its certificate is checked against, the usual ones when it is not given.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    kind: Literal["s3"]
+    description: str | None = Field(default=None, max_length=DESCRIPTION_LENGTH)
+    address: str = Field(pattern="^https?://")
+    region: str = Field(default="us-east-1", pattern=REGION)
+    bucket: str = Field(min_length=1)
+    access_key: SecretStr = Field(min_length=1)
+    secret_key: SecretStr = Field(min_length=1)
+    authority: Roots = None
+
+    @model_validator(mode="after")
+    def _address_without_credentials(self) -> Self:
+        """Refuse an address that is not an endpoint: no host, credentials, query or fragment.
+
+        The key and its secret are fields apart; a token in a parameter is a credential as well.
+        Never the value itself in the message.
+        """
+        try:
+            parts = urlsplit(self.address)
+            host = parts.hostname
+            _ = parts.port  # reading the port checks it
+        except ValueError:
+            message = "the address does not read as a URL"
+            raise ValueError(message) from None
+        if not host:
+            message = "the address must name a host"
+            raise ValueError(message)
+        if parts.query or parts.fragment or "?" in self.address or "#" in self.address:
+            message = "the address must carry no query nor fragment: it is an endpoint"
+            raise ValueError(message)
+        if parts.username is not None or parts.password is not None:
+            message = "the address must not carry credentials: give them as access_key, secret_key"
+            raise ValueError(message)
+        return self
+
+    def secrets(self) -> tuple[str, ...]:
+        """Give what the logs must never show of it: its key and the secret of the key."""
+        return (self.access_key.get_secret_value(), self.secret_key.get_secret_value())
+
+
+class MountedShare(BaseModel):
+    """A network share mounted on the server: the folder, absolute, where it is mounted."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    kind: Literal["mounted_share"]
+    description: str | None = Field(default=None, max_length=DESCRIPTION_LENGTH)
+    directory: str = Field(pattern="^/")
+
+    def secrets(self) -> tuple[str, ...]:
+        """Give what the logs must never show of it: nothing, the mount holds its credentials."""
+        return ()
+
+
+type DeclaredLocation = Annotated[S3Location | MountedShare, Field(discriminator="kind")]
+
+
+class ExternalLocations(BaseModel):
+    """The external locations an installation declares, by their name (WF-ADM-0170).
+
+    Read from a file in JSON that the deployment mounts, an object whose keys are the names: each
+    with its nature, its description, and what reaches it — secrets included, which only the server
+    reads, and which no reading of the API, no log and no error gives back
+    (`ExternalBackupLocation`). None declared, an installation offers no copy.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    locations: dict[Annotated[str, Field(pattern=LOCATION_NAME)], DeclaredLocation] = Field(
+        default_factory=dict
+    )
+
+    def declared(self) -> list[tuple[str, DeclaredLocation]]:
+        """Give the locations declared, in the order of their names."""
+        return sorted(self.locations.items())
+
+    def names(self) -> frozenset[str]:
+        """Give the names of the locations declared."""
+        return frozenset(self.locations)
+
+    def get(self, name: str) -> DeclaredLocation | None:
+        """Give the location of a name, or ``None`` if none is declared under it."""
+        return self.locations.get(name)
+
+    def secrets(self) -> tuple[str, ...]:
+        """Give the secrets of every location, for the logs to mask."""
+        return tuple(secret for _, each in self.declared() for secret in each.secrets())
+
+
+# An installation that declares none, as it is without a file.
+NO_LOCATIONS = ExternalLocations()
+LOCATIONS_VARIABLE = f"{ENV_PREFIX}EXTERNAL_BACKUP_LOCATIONS_FILE"
+
+
+def read_external_locations(path: Path) -> ExternalLocations:
+    """Read the external locations a file declares; refuse a file that does not declare them.
+
+    The refusal names the variable, the file and the place of each fault, and its rule, never a
+    value the file holds: a secret badly placed would else be written to the journal of the start.
+    """
+    try:
+        read = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError) as error:
+        message = f"{LOCATIONS_VARIABLE}: {path} cannot be read ({type(error).__name__})"
+        raise ValueError(message) from None
+    except json.JSONDecodeError as error:
+        where = f"line {error.lineno}, column {error.colno}"
+        message = f"{LOCATIONS_VARIABLE}: {path} is not JSON ({error.msg}, {where})"
+        raise ValueError(message) from None
+    try:
+        return ExternalLocations.model_validate({"locations": read})
+    except ValidationError as error:
+        faults = [
+            f"{'.'.join(str(part) for part in fault['loc'][1:]) or 'the file'}: {fault['msg']}"
+            for fault in error.errors(include_input=False, include_url=False, include_context=False)
+        ]
+        message = f"{LOCATIONS_VARIABLE}: {path} does not declare locations: " + "; ".join(faults)
+        raise ValueError(message) from None
+
+
 class ServiceSettings(Settings, KeycloakSettings, StorageSettings):
     """What a service that reaches Keycloak reads: the API, and the worker after it.
 
@@ -299,6 +442,40 @@ class ServiceSettings(Settings, KeycloakSettings, StorageSettings):
     """
 
     background_task_retention_days: int = Field(default=30, ge=1)
+    # The file of the external locations of the backups (US-2910/L3), read at start: none by
+    # default, and then no location is declared. A bucket reached in the clear is refused when an
+    # authority is given, as every other address is (US-2840).
+    external_backup_locations_file: Annotated[str | None, BeforeValidator(_none_when_empty)] = None
+    _external_locations: ExternalLocations = PrivateAttr(default=NO_LOCATIONS)
+
+    @model_validator(mode="after")
+    def _locations_declared(self) -> Self:
+        if self.external_backup_locations_file is None:
+            return self
+        declared = read_external_locations(Path(self.external_backup_locations_file))
+        clear = [
+            name
+            for name, each in declared.declared()
+            if isinstance(each, S3Location) and not each.address.startswith("https://")
+        ]
+        if self.tls_authority is not None and clear:
+            message = (
+                f"{LOCATIONS_VARIABLE}: the address of {', '.join(clear)} must be in https:// "
+                f"when {ENV_PREFIX}TLS_AUTHORITY is given"
+            )
+            raise ValueError(message)
+        self._external_locations = declared
+        return self
+
+    @property
+    def external_locations(self) -> ExternalLocations:
+        """Give the external locations the file declares; none without a file."""
+        return self._external_locations
+
+    def secret_values(self) -> tuple[str, ...]:
+        """Add the secrets of the external locations, which the logs mask as the others."""
+        found = (*super().secret_values(), *self._external_locations.secrets())
+        return tuple(dict.fromkeys(value for value in found if value))
 
 
 # A ratio of the thresholds of the alerts: above zero, at most one (``Percent`` of the contract).

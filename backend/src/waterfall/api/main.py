@@ -177,6 +177,7 @@ def open_services(settings: ServiceSettings) -> tuple[Services, ExitStack]:
             backups,
             Maintenance.of(database, queue),
             cache,
+            settings.external_locations,
         )
         TIME_ZONE.read_from(stored_in(database))
         return services, opened.pop_all()
