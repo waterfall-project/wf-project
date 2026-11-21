@@ -272,6 +272,7 @@ section qui la porte, et rien d'autre dans la conception ne change.
   limite. Écartées : lire les documents conservés de tous les trimestres en une requête ; laisser
   tel quel et attendre la mesure. Porté par US-2670/L4 #3873, qui éprouve la règle des périodes sur
   les six vues ; **la durée maximale n'est pas fixée** : le lot la propose dans son issue.
+  Proposée par US-2670/L4 : cinq ans (commentaire de #3873).
 - **Un exemple de 422 de `getPortfolioProjects` sur la période du périmètre** (#4164) : période
   inversée avec `as_of`, champs `/query/from` et `/query/to`, au contrat, que le test de l'écran lit
   au lieu de composer ses champs. Porté par US-2760/L2 #3884.
@@ -492,7 +493,7 @@ leurs requêtes dans le noyau. Le rapport dit que le témoin ne porte pas trois 
 
 ## US-2670 — Le périmètre, la date de calcul et la règle d'agrégation
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-PTF-0010-A`, `WF-PTF-0020-A`, `WF-PTF-0030-A`, `WF-CYC-0130-A`,
   `WF-PRJ-0090-A`
 - **opérations** : `getPortfolioProjects`, `getPortfolioValue`, `getPortfolioWorkload`,

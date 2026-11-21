@@ -1004,7 +1004,11 @@ PortfolioFrom:
     `params.maximum` the end filled in (`PortfolioPeriodRefused`). Without either, the
     statistics, the quarterly evolution, the cost structure and the S-curve
     retain the default period, the twelve months that end at the calculation date, and the
-    list of projects no period; `scope.from` and `scope.to` say the period retained.
+    list of projects no period; `scope.from` and `scope.to` say the period retained. On
+    `getPortfolioPerformance` only, the period is bounded to five years: an end more than five
+    years after the start is refused with 422, `/query/to` (`VALUE_OUT_OF_RANGE`, `params.maximum`
+    the last end admitted), or `/query/from` when the start alone is sent (`params.minimum` the
+    first start admitted).
   schema: { $ref: common.yaml#/PlanningDate }
 
 PortfolioTo:
@@ -1015,7 +1019,9 @@ PortfolioTo:
     422 (`PortfolioPeriodRefused`). Without `from`, the start is that of the default period:
     the calculation date minus twelve months (28 February for a 29 February), then the next day —
     4 June 2025 for 3 June 2026, 1 March 2027 for 29 February 2028; an end that
-    is earlier than it is refused likewise, `params.minimum` the start filled in.
+    is earlier than it is refused likewise, `params.minimum` the start filled in. On
+    `getPortfolioPerformance` only, an end more than five years after the start is refused with
+    422, `params.maximum` the last end admitted (`PortfolioFrom`).
   schema: { $ref: common.yaml#/PlanningDate }
 
 PortfolioOrgNode:

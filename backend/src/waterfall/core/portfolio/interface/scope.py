@@ -71,6 +71,18 @@ class PortfolioAsked:
 
 
 @dataclass(frozen=True, slots=True)
+class PeriodRule:
+    """The period a view retains: the longest it reads, in years, none for a period unbounded.
+
+    A view that reads a document kept by each quarter its period touches
+    (``getPortfolioPerformance``) bounds it, so that a period of centuries is refused, not read
+    (#4176).
+    """
+
+    longest_years: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class PortfolioReading:
     """When a view is read, and what the indicators of the day are read from.
 
@@ -177,21 +189,49 @@ def _default_start(as_of: date) -> date:
     return year_before + timedelta(days=1)
 
 
-def _period(asked: PortfolioAsked, as_of: date) -> tuple[date, date] | FieldError:
+def _years_after(day: date, years: int) -> date:
+    """Give the day ``years`` civil years from ``day``, a missing 29 February being the 28th."""
+    try:
+        return day.replace(year=day.year + years)
+    except ValueError:
+        return day.replace(year=day.year + years, day=28)
+
+
+def _earliest_start(end: date, years: int) -> date:
+    """Give the first start from which a period that ends on ``end`` is no longer than ``years``."""
+    start = _years_after(end, -years)
+    while _years_after(start, years) < end:
+        start += timedelta(days=1)
+    return start
+
+
+def _period(
+    asked: PortfolioAsked, as_of: date, longest_years: int | None
+) -> tuple[date, date] | FieldError:
     """Give the period asked, each bound absent completed by the default one; or its refusal.
 
     One rule for every view that takes a period (``PortfolioPeriodRefused``): an end before the
     start given, ``/query/to`` with that start; a start after the end completed — the date of
     calculation —, ``/query/from`` with that end; an end before the start completed, ``/query/to``
-    with that start. The bound sent is the one designated, the completed one named.
+    with that start. The bound sent is the one designated, the completed one named. A view that
+    bounds its period (``longest_years``) refuses one that is longer: an end beyond the start by
+    more than that many years, ``/query/to`` with ``params.maximum`` the last end admitted, or,
+    when only the start is sent, ``/query/from`` with ``params.minimum`` the first start admitted
+    (#4176).
     """
     start = _default_start(as_of) if asked.period_from is None else asked.period_from
     end = as_of if asked.period_to is None else asked.period_to
-    if end >= start:
-        return start, end
-    if asked.period_from is not None and asked.period_to is None:
-        return FieldError(FROM_POINTER, VALUE_OUT_OF_RANGE, {"maximum": end.isoformat()})
-    return FieldError(TO_POINTER, VALUE_OUT_OF_RANGE, {"minimum": start.isoformat()})
+    if end < start:
+        if asked.period_from is not None and asked.period_to is None:
+            return FieldError(FROM_POINTER, VALUE_OUT_OF_RANGE, {"maximum": end.isoformat()})
+        return FieldError(TO_POINTER, VALUE_OUT_OF_RANGE, {"minimum": start.isoformat()})
+    if longest_years is not None and end > _years_after(start, longest_years):
+        if asked.period_from is not None and asked.period_to is None:
+            first = _earliest_start(end, longest_years)
+            return FieldError(FROM_POINTER, VALUE_OUT_OF_RANGE, {"minimum": first.isoformat()})
+        last = _years_after(start, longest_years)
+        return FieldError(TO_POINTER, VALUE_OUT_OF_RANGE, {"maximum": last.isoformat()})
+    return start, end
 
 
 def _in_period(found: ProjectAtDate, period: tuple[date, date] | None) -> bool:
@@ -233,19 +273,20 @@ def resolve_scope(
     at: datetime,
     *,
     counted: frozenset[ProjectState],
-    period: bool,
+    period: PeriodRule | None,
 ) -> ResolvedScope:
     """Resolve what a view is asked at the instant ``at``, with a period if the view retains one.
 
     ``counted`` is the states the view counts: a state asked outside it stays in ``scope.states``
     and retains no project. Refuses a period inverted or that starts after its default end (422),
-    and an unknown node (422), each designated in one refusal.
+    and an unknown node (422), each designated in one refusal; a period longer than ``period``
+    allows too (#4176).
 
     The date of calculation is ``as_of``, or the current day of ``at`` in the time zone of the
     installation; without ``as_of`` the contributions are those of the current day, with it those
     the markings kept by the end of that day, the current day included (``AsOf``). A project is
     retained when its state at the date — that of its last transition before the end of the day —
-    is both asked and counted. ``period`` false, the view retains no period: ``from`` and ``to``
+    is both asked and counted. ``period`` none, the view retains no period: ``from`` and ``to``
     are not read, and the scope gives none. A project Completed at the date is then retained if
     and only if ``completed`` is both counted and asked: whether a view without a period — the list
     read without ``from`` nor ``to`` — counts it is the view's choice, by ``counted``; the list
@@ -257,7 +298,7 @@ def resolve_scope(
     on_current_day = asked.as_of is None
     states: tuple[ProjectState, ...] = tuple(dict.fromkeys(asked.states)) or DEFAULT_STATES
     faults: list[FieldError] = []
-    bounds = _period(asked, as_of) if period else None
+    bounds = None if period is None else _period(asked, as_of, period.longest_years)
     if isinstance(bounds, FieldError):
         faults.append(bounds)
         bounds = None

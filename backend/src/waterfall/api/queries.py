@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 NUMBER_INVALID = "NUMBER_INVALID"
 # The form of an integer, as the contract writes it.
-INTEGER = re.compile(r"-?\d+")
+INTEGER = re.compile(r"-?[0-9]+")
 # The horizon, in months, of the views that look ahead: its default and its greatest.
 DEFAULT_HORIZON = 6
 GREATEST_HORIZON = 240

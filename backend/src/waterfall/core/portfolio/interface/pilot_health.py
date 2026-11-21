@@ -15,8 +15,9 @@ project: from the marking before it, or from the passage to In progress if it is
 that passage, to that marking (WF-PTF-0110, specification 1.0.7). A project with no review marked
 since its passage carries neither of those two signals: its delay is said by ``review_overdue``
 (``docs/api/DECISIONS.md``). A project In progress always has a marked revision, its reference (the
-passage designates it, WF-CYC): a project never marked is not a case, and there is no silence for
-it. A past date reads the last marking by the end of that day, and the milestones the marking kept.
+passage designates it, WF-CYC): a project that has none by the date — which the cycle does not
+produce — is left out, with no last marking to judge and no signal. A past date reads the last
+marking by the end of that day, and the milestones the marking kept.
 
 Declared by US-2670/L1, the socle of EP-11; filled by US-2750.
 """
@@ -67,7 +68,7 @@ def read_pilot_health(
     in the order of the plan. A project with no marked revision by the date gives none: there is no
     last marking to judge. The view takes no node, so it refuses none.
     """
-    resolved = resolve_scope(session, asked, reading.at, counted=COUNTED, period=False)
+    resolved = resolve_scope(session, asked, reading.at, counted=COUNTED, period=None)
     as_of = resolved.scope.as_of
     identifiers = sorted(resolved.projects)
     names = projects_named(session, identifiers)

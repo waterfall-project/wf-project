@@ -24,7 +24,6 @@ projet"); the risks never are.
 """
 
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 from waterfall.core.costs.interface import PROJECT
 from waterfall.core.estimate import interface as estimate
@@ -50,7 +49,7 @@ from waterfall.core.planning.interface import (
     tracked_milestones,
 )
 from waterfall.core.portfolio.states import IN_PROGRESS, PRICING
-from waterfall.core.projects.interface import Viewer, project_facts
+from waterfall.core.projects.interface import NOBODY, project_facts
 from waterfall.core.revisions.interface import reference_at_marking
 from waterfall.core.risks.interface import portfolio_risks
 
@@ -58,6 +57,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
     from datetime import date, datetime
     from decimal import Decimal
+    from uuid import UUID
 
     from sqlalchemy.orm import Session
 
@@ -65,9 +65,6 @@ if TYPE_CHECKING:
     from waterfall.core.indicators.interface import Document, IndicatorKind
     from waterfall.core.projects.interface import ProjectFacts
 
-# Who reads a marked revision for its workload: no account, no permission (the commands of the
-# revision are not read).
-NOBODY = Viewer(UUID(int=0), ())
 COMPLETED_TASK = "completed"
 
 WORKLOAD: IndicatorKind = "portfolio_workload"
@@ -91,8 +88,8 @@ DAY_KINDS: tuple[IndicatorKind, ...] = (
 type Documents = Mapping[IndicatorKind, Document]
 
 
-def _hours(value: Decimal) -> str:
-    """Write hours or an amount as the contract does, without an exponent."""
+def _decimal_text(value: Decimal) -> str:
+    """Write hours, an amount, a probability or a severity as the contract does, no exponent."""
     return format(value, "f")
 
 
@@ -121,7 +118,8 @@ def workload_document(
             {
                 "resource_role_id": str(role.resource_role_id),
                 "months": [
-                    {"month": each.month, "hours": _hours(each.hours)} for each in role.months
+                    {"month": each.month, "hours": _decimal_text(each.hours)}
+                    for each in role.months
                 ],
             }
             for role in roles
@@ -141,7 +139,7 @@ def _entry(
     name, identifier = key
     missing = lacking.get(identifier, ())
     if not missing:
-        return {name: str(identifier), "amount": _hours(amount)}
+        return {name: str(identifier), "amount": _decimal_text(amount)}
     return {
         name: str(identifier),
         "amount": None,
@@ -190,7 +188,7 @@ def cost_structure_document(session: Session, project_id: UUID, revision_id: UUI
 
 def _amount(value: Decimal | None) -> str | None:
     """Write an amount that may be null: ``None`` for none."""
-    return None if value is None else _hours(value)
+    return None if value is None else _decimal_text(value)
 
 
 def risks_document(session: Session, project_id: UUID, revision_id: UUID) -> Document:
@@ -204,14 +202,14 @@ def risks_document(session: Session, project_id: UUID, revision_id: UUID) -> Doc
     """
     read = portfolio_risks(session, project_id, revision_id)
     return {
-        "base": _hours(read.base),
+        "base": _decimal_text(read.base),
         "risks": [
             {
                 "risk_id": str(each.risk_id),
                 "label": each.label,
-                "probability": _hours(each.probability),
-                "severity": _hours(each.severity),
-                "provision_amount": _hours(each.provision_amount),
+                "probability": _decimal_text(each.probability),
+                "severity": _decimal_text(each.severity),
+                "provision_amount": _decimal_text(each.provision_amount),
                 "state": each.state,
                 "occurrence_cost": _amount(each.occurrence_cost),
                 "occurred_reestimated_amount": _amount(each.occurred_reestimated_amount),

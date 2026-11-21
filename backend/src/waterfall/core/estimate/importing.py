@@ -76,9 +76,9 @@ from waterfall.core.planning.interface import (
     list_nodes,
 )
 from waterfall.core.projects.interface import (
+    NOBODY,
     SubprojectFilters,
     SubprojectSort,
-    Viewer,
     list_subprojects,
 )
 from waterfall.core.resource_settings.interface import (
@@ -117,7 +117,6 @@ DUPLICATE_LINEAGE = "DUPLICATE_LINEAGE"
 PROVISION_LINES = "provision_lines"
 NOUGHT = Decimal(0)
 EVERY = 10**9
-NOBODY = UUID(int=0)
 # The header of the column that carries each field of a line, as a refusal of its entry names it.
 HEADERS = {
     "label": reader.LABEL_HEADER,
@@ -341,7 +340,7 @@ def reference_of(session: Session, project_id: UUID) -> Reference:
     named_roles = {role.code: role for role in roles}
     named_categories = {category.accounting_code: category for category in categories}
     # The commands of the subprojects are not read: an account that holds no permission lists them.
-    viewer = Viewer(NOBODY, frozenset())
+    viewer = NOBODY
     subprojects = list_subprojects(
         session, project_id, viewer, SubprojectFilters(), SubprojectSort()
     )

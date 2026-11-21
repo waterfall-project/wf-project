@@ -80,6 +80,8 @@ def conserved_coverage(
     decimal or not finite, gives none (#4183): the caller computes the coverage at the reading, as
     it does for a revision whose marking kept nothing. The figures are judged before the reserve is
     read, which a document that gives none does not need.
+    A view of the portfolio at a past date adds nothing for the coverage it computes, no line of a
+    quote being read there (WF-DAT-0040).
     """
     if kept is None or "remaining_provisions" not in kept or "occurred_cost" not in kept:
         return None

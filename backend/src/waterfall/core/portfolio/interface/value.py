@@ -29,7 +29,7 @@ from waterfall.core.portfolio.aggregation import (
     weighted_amount,
 )
 from waterfall.core.portfolio.documents import documents_of
-from waterfall.core.portfolio.interface.scope import period_instants, resolve_scope
+from waterfall.core.portfolio.interface.scope import PeriodRule, period_instants, resolve_scope
 from waterfall.core.portfolio.shaping import computable, money, scope_document
 from waterfall.core.portfolio.states import COMPLETED, IN_PROGRESS, PRICING
 from waterfall.core.projects.interface import offers_closed_between
@@ -84,7 +84,7 @@ def read_portfolio_value(
     session: Session, asked: PortfolioAsked, reading: PortfolioReading
 ) -> Document:
     """Give the values of the portfolio of the scope at the instant of ``reading``."""
-    resolved = resolve_scope(session, asked, reading.at, counted=COUNTED, period=True)
+    resolved = resolve_scope(session, asked, reading.at, counted=COUNTED, period=PeriodRule())
     documents = documents_of(session, resolved, reading)
     in_progress: list[Decimal] = []
     delivered: list[Decimal] = []

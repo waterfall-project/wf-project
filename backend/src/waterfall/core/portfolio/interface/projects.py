@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 from waterfall.core.cost_settings.interface import read_reference_settings
 from waterfall.core.portfolio.documents import documents_of
 from waterfall.core.portfolio.folding import holding
-from waterfall.core.portfolio.interface.scope import resolve_scope
+from waterfall.core.portfolio.interface.scope import PeriodRule, resolve_scope
 from waterfall.core.portfolio.rows import Named, ProjectRow, filter_rows, row_of, sort_rows
 from waterfall.core.portfolio.shaping import row_document, scope_document
 from waterfall.core.portfolio.states import COMPLETED, IN_PROGRESS, PRICING
@@ -136,7 +136,11 @@ def read_portfolio_projects(
     """
     period = asked.period_from is not None or asked.period_to is not None
     resolved = resolve_scope(
-        session, asked, reading.at, counted=IN_PERIOD if period else WITHOUT_PERIOD, period=period
+        session,
+        asked,
+        reading.at,
+        counted=IN_PERIOD if period else WITHOUT_PERIOD,
+        period=PeriodRule() if period else None,
     )
     identifiers = list(resolved.projects)
     names = projects_named(session, identifiers)

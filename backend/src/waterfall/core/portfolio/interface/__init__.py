@@ -62,6 +62,9 @@ from waterfall.core.portfolio.interface.risks import (
 
 # ``scope`` (US-2670/L1; US-2670/L3): what a view is asked and the scope it retains.
 from waterfall.core.portfolio.interface.scope import (
+    PeriodRule as PeriodRule,
+)
+from waterfall.core.portfolio.interface.scope import (
     PortfolioAsked as PortfolioAsked,
 )
 from waterfall.core.portfolio.interface.scope import (

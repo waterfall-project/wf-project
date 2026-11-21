@@ -111,12 +111,12 @@ def read_portfolio_workload(
 
     The months are those of ``horizon_months`` from the month of the date of calculation, without a
     gap; each role retained has one for each, a role without load included, the roles by label then
-    by identifier. The zone of a month is
-    the load against the capacity of its role and the threshold (``load_zone``); the capacity of
-    the scope is the sum of those of the roles retained, and each month's total the sum of their
-    hours. Refuses an unknown node as every view of the portfolio does (422, ``resolve_scope``).
+    by identifier. The zone of a month is the load against the capacity of its role and the
+    threshold (``load_zone``); the capacity of the scope is the sum of those of the roles retained,
+    and each month's total the sum of their hours. Refuses an unknown node as every view of the
+    portfolio does (422, ``resolve_scope``).
     """
-    resolved = resolve_scope(session, asked, reading.at, counted=COUNTED, period=False)
+    resolved = resolve_scope(session, asked, reading.at, counted=COUNTED, period=None)
     documents = documents_of(session, resolved, reading, (WORKLOAD,))
     loads = _loads(resolved, documents)
     roles = _roles(session, asked)

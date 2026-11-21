@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.cost_settings.interface import read_reference_settings
 from waterfall.core.portfolio.documents import documents_of
-from waterfall.core.portfolio.interface.scope import resolve_scope
+from waterfall.core.portfolio.interface.scope import PeriodRule, resolve_scope
 from waterfall.core.portfolio.risking import (
     REMAINING,
     coverage_document,
@@ -67,7 +67,7 @@ def read_portfolio_risks(
     session: Session, asked: PortfolioAsked, reading: PortfolioReading, viewer: Viewer
 ) -> Document:
     """Give the risks of the scope read by ``reading``, the projects the reader opens told."""
-    resolved = resolve_scope(session, asked, reading.at, counted=COUNTED, period=True)
+    resolved = resolve_scope(session, asked, reading.at, counted=COUNTED, period=PeriodRule())
     identifiers = list(resolved.projects)
     names = projects_named(session, identifiers)
     can_open = openable(session, identifiers, viewer)
