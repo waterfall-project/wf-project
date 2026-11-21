@@ -41,6 +41,7 @@ from waterfall.witness import (
     duration_units,
     hourly_rates,
     org_nodes,
+    portfolio,
     projects,
     reference_settings,
     resource_roles,
@@ -90,7 +91,9 @@ SLICES: tuple[tuple[str, Slice], ...] = (
 def load_slices(session: Session, witness: Witness) -> list[str]:
     """Load each slice in its order, in the transaction of ``session``; name those that wrote.
 
-    The partitions of the projects first, before any slice writes (``projects.partition``).
+    The partitions of the projects first, before any slice writes (``projects.partition``, and the
+    slice of the portfolio's own).
     """
     projects.partition(session, witness)
+    portfolio.partition(session, witness)
     return [name for name, load in SLICES if load(session, witness)]

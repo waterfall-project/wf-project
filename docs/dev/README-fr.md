@@ -62,7 +62,13 @@ correspondance de l'extraction des coûts réels ; puis, par une seule entrée
 de leurs contributeurs, les contributeurs, les sous-projets, le lotissement, les révisions et les
 événements de la chronologie du témoin, aux instants qu'elle impose — chaque révision ouverte par
 les règles de l'ouverture, marquée par la transaction même du worker (`load_marking`), sous le nom
-de version et la description de `revisions.json`, que la chronologie ne fait qu'ordonner. Une tranche n'écrit rien de ce que la plateforme
+de version et la description de `revisions.json`, que la chronologie ne fait qu'ordonner.
+Après eux, la tranche du portefeuille (EP-11, `waterfall.witness.portfolio`) : les dix projets de
+`fixtures/witness/portfolio/projects/`, lus à côté du répertoire de la description
+(`../witness/portfolio`), écrits un à un par les interfaces des modules aux instants qu'ils datent —
+création, révisions ouvertes et marquées, risques et réexamens, imports de coûts réels, désignation
+de la référence, sorties —, le chef de projet du témoin pour contributeur de chacun, les
+identifiants du témoin imposés et les autres dérivés d'eux. Une tranche n'écrit rien de ce que la plateforme
 tient déjà : relancé, il n'écrit rien et réussit, en disant le témoin là
 (`witness.already_loaded`) ; un refus ou une erreur n'écrit rien et l'arrête en échec (1). Chaque US
 du référentiel et des projets remplit sa tranche, dans son fichier de `waterfall.witness`, sans
@@ -72,8 +78,9 @@ lui, qui passe à l'amorçage tout autre argument. Le Compose de service l'offre
 `make service-witness`), celui de production non : une installation réelle ne porte pas le témoin.
 `make service-witness` ne prend aucune variable propre : le Compose de service passe au service
 `witness` le rôle du service (`WATERFALL_DATABASE_URL`, par `WATERFALL_POSTGRES_PASSWORD`, qu'il
-faut exporter comme pour `make service-up`) et monte `fixtures/api/` en lecture seule sur
-`WATERFALL_WITNESS_PATH` (`/witness`) ; la plateforme doit être démarrée et amorcée
+faut exporter comme pour `make service-up`) et monte `fixtures/api/` et `fixtures/witness/` en lecture seule, `WATERFALL_WITNESS_PATH` étant
+`/fixtures/api` : la tranche du portefeuille (`fixtures/witness/portfolio/`) se lit à côté des
+exemples ; la plateforme doit être démarrée et amorcée
 (`make service-install`), car la commande n'écrit pas ce que l'amorçage écrit — la ligne de
 l'installation, les paramètres communs, les unités, la correspondance, le calendrier par défaut
 et la provision —, elle règle ce qu'il a posé. La fixture `witness` de `backend/tests/conftest.py`
@@ -3093,7 +3100,8 @@ dans la forme de son schéma du contrat (`projects/`, `wftools.mockslice`), et l
 des huit vues du portefeuille au 3 juin 2026, lues par `as_of` (`readings/`,
 `wftools.mockslicereadings` et `wftools.mocksliceviews`), calculées sans rien importer du back
 (EP-11, US-2770 ; tenues par `tools/tests/test_mockslice.py` et
-`backend/tests/test_witness_portfolio_slice.py`).
+`backend/tests/test_witness_portfolio_slice.py`, chargées et comparées aux réponses du service par
+`backend/tests/test_witness_portfolio.py` et `backend/tests/test_witness_portfolio_readings.py`).
 
 **Ce qui reste écrit à la main** — sessions, comptes et rôles, référentiel (rôles de ressources et
 leurs effectifs, calendriers, nœuds d'organisation), le projet, ses révisions et ses transitions,

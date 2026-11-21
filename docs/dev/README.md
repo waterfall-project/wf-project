@@ -71,7 +71,9 @@ bootstrap. The service Compose offers it (service `witness`, `make service-witne
 production one does not: a real installation holds no witness. `make service-witness` takes no
 variable of its own: the service Compose gives the `witness` service the role of the service
 (`WATERFALL_DATABASE_URL`, by `WATERFALL_POSTGRES_PASSWORD`, which must be exported as for
-`make service-up`) and mounts `fixtures/api/` read-only on `WATERFALL_WITNESS_PATH` (`/witness`);
+`make service-up`) and mounts `fixtures/api/` and `fixtures/witness/` read-only, `WATERFALL_WITNESS_PATH` being
+`/fixtures/api`: the slice of the portfolio (`fixtures/witness/portfolio/`) is read beside the
+examples;
 the platform must be started and bootstrapped (`make service-install`), for the command does not
 write what the bootstrap writes — the row of the installation, the common settings, the units, the
 mapping, the default calendar and the provision —, it sets what the bootstrap laid. The `witness`
