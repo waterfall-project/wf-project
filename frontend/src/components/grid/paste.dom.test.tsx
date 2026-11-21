@@ -15,6 +15,7 @@ import {
   fakeClient,
   held,
   type Problem,
+  reached,
   unreachable,
 } from "@/test/fixtures";
 import {
@@ -348,10 +349,10 @@ describe("a block pasted from a spreadsheet", () => {
     const line = held();
     const apply = held();
     // The cell written answers the structure at the version its example gives, the paste after it at its own.
-    const written = (example("estimate_line_entered") as { structure_lock_version: number })
-      .structure_lock_version;
-    const pasted = (example("paste_applied") as { structure_lock_version: number })
-      .structure_lock_version;
+    const written = reached("estimate_line_entered");
+    const pasted = reached("paste_applied");
+    // The two versions differ: else the order of the bodies below would not tell them apart.
+    expect(written).not.toBe(pasted);
     const client = fakeClient(
       { [PREVIEW]: "paste_plan", [APPLY]: "paste_applied", [LINE]: "estimate_line_entered" },
       {
