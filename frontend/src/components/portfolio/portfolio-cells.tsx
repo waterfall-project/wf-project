@@ -24,8 +24,22 @@ import type { ProjectState } from "./address";
 /** An index and its zone, as the contract gives it. */
 type IndexValue = components["schemas"]["IndexValue"];
 
-/** Render the label of a project, as a link that opens it. */
-export function ProjectLabelCell({ id, label }: { readonly id: string; readonly label: string }) {
+/**
+ * Render the label of a project, as a link that opens it — or named without a link when the caller
+ * cannot open it (`can_open` false, WF-PTF-0030): it is listed and counted all the same.
+ */
+export function ProjectLabelCell({
+  id,
+  label,
+  canOpen = true,
+}: {
+  readonly id: string;
+  readonly label: string;
+  readonly canOpen?: boolean;
+}) {
+  if (!canOpen) {
+    return <span className="block truncate">{label}</span>;
+  }
   return (
     <Link
       href={`/projects/${id}`}
