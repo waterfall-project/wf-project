@@ -38,6 +38,7 @@ from waterfall.platform.settings import (
 )
 from waterfall.worker import exchanges
 from waterfall.worker.backup import BackupTask
+from waterfall.worker.backup_copy import CopyTask
 from waterfall.worker.identity_sync import IdentitySync
 from waterfall.worker.marking import mark
 from waterfall.worker.purge import PurgeTask
@@ -70,16 +71,18 @@ EXTENDING = (
 def handlers(
     settings: WorkerSettings, metrics: WorkerMetrics | None = None
 ) -> dict[str, TaskHandler]:
-    """Give what the worker runs, by kind of task: a backup, the reading of the accounts, a purge.
+    """Give what the worker runs, by kind of task: a backup, its copy, the reading of the accounts.
 
     The marking is the first task of the trade (US-0970); the analysis and the application of an
     import and an export are the exchanges' (EP-06). The reading of the accounts counts in
     ``metrics`` the directories it could not read (#917). The purge is the task of what expired,
-    which the schedule deposits (EP-13, "Une commande planifiée unique").
+    which the schedule deposits (EP-13, "Une commande planifiée unique"); the copy of a backup, the
+    task a scheduled backup deposits once verified (US-2910/L3).
     """
     imports = exchanges.ImportTasks.of(settings)
     return {
         "backup": BackupTask.of(settings),
+        "backup_copy": CopyTask.of(settings),
         "identity_sync": IdentitySync.of(settings, metrics),
         "revision_mark": mark,
         "import_analysis": imports.analyse,

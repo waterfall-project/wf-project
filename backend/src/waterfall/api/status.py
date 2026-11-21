@@ -5,8 +5,10 @@
 What it presents comes from three places (WF-OBS-0010): the availabilities, the spaces, the
 versions and the alerts from the metrics, read by the query API of Prometheus
 (``waterfall.platform.prometheus``, TFX-14); the dates and the results of the latest reading of the
-accounts and of the latest backup from the database; the operating parameters from the settings of
-the process, the largest avatar from the installation, where the bootstrap writes it (#3965).
+accounts, of the latest backup and of its latest external copy from the database, with what the
+alert of a failed copy names — the backup, the location, the reason (US-2910/L3); the operating
+parameters from the settings of the process, the largest avatar from the installation, where the
+bootstrap writes it (#3965).
 
 Prometheus unavailable, the metrics are not presented (§4.5.4, table 12): the component ``metrics``
 is said unavailable, alone, no alert is said, and the storage is the one nothing measured.
@@ -18,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 from waterfall import __version__
 from waterfall.api.contract.models import AlertZone, Code, PlatformComponent, SystemStatus
+from waterfall.core.backups.interface import FailedCopy, failed_copy, last_copy_outcome
 from waterfall.platform.installation import read_settings
 from waterfall.platform.prometheus import Prometheus, PrometheusError
 from waterfall.platform.settings import OperatingParameters
@@ -89,8 +92,12 @@ def fullest(spaces: list[Space]) -> dict[str, int]:
     return {"used_bytes": space.used_bytes, "available_bytes": space.available_bytes or 0}
 
 
-def alert(firing: FiringAlert) -> dict[str, Any] | None:
-    """Describe an alert in progress as the contract does; ``None`` for a rule it does not name."""
+def alert(firing: FiringAlert, failed: FailedCopy | None = None) -> dict[str, Any] | None:
+    """Describe an alert in progress as the contract does; ``None`` for a rule it does not name.
+
+    ``failed`` is the latest copy, failed, which the alert of a failed copy names: the backup, the
+    location and the reason, those known (``Alert.params``).
+    """
     if firing.name not in Code.__members__:
         return None
     severity = firing.labels.get("severity", "")
@@ -107,6 +114,13 @@ def alert(firing: FiringAlert) -> dict[str, Any] | None:
             "used_bytes": firing.space.used_bytes,
             "available_bytes": firing.space.available_bytes or 0,
         }
+    if firing.name == Code.scheduled_backup_copy_failed and failed is not None:
+        named = {
+            "backup_id": failed.backup_id,
+            "location": failed.location,
+            "failure": failed.failure,
+        }
+        described["params"] = {key: value for key, value in named.items() if value is not None}
     return described
 
 
@@ -144,6 +158,17 @@ def outcome(session: Session, kind: TaskKind) -> dict[str, Any] | None:
     return {"at": ended.at, "succeeded": ended.succeeded, "problem": problem}
 
 
+def copy_outcome(session: Session) -> dict[str, Any] | None:
+    """Give the date and the result of the latest external copy; ``None`` without a copy set.
+
+    Its problem is never said: the reason of a copy refused is in its alert (``OperationOutcome``).
+    """
+    ended = last_copy_outcome(session)
+    if ended is None:
+        return None
+    return {"at": ended.at, "succeeded": ended.succeeded, "problem": None}
+
+
 def parameters_of(parameters: OperatingParameters, avatar_max_bytes: int) -> dict[str, Any]:
     """Give the seven operating parameters in force, as the contract names them (§4.5.1)."""
     return {
@@ -162,10 +187,10 @@ def system_status(
 ) -> SystemStatus:
     """Describe the state of the platform from what the metrics said and what the database holds.
 
-    The latest external copy and the latest restore test are not kept yet: null (US-2910, US-2930).
-    The alerts come the latest first.
+    The latest restore test is not kept yet: null (US-2930). The alerts come the latest first.
     """
-    said = [] if observation is None else [alert(firing) for firing in observation.alerts]
+    failed = None if observation is None else failed_copy(session)
+    said = [] if observation is None else [alert(each, failed) for each in observation.alerts]
     alerts = sorted(
         (each for each in said if each is not None),
         key=lambda each: (each["since"], each["code"]),
@@ -180,7 +205,7 @@ def system_status(
             "operating_parameters": parameters_of(sources.parameters, avatar_max_bytes),
             "last_identity_sync": outcome(session, "identity_sync"),
             "last_backup": outcome(session, "backup"),
-            "last_backup_copy": None,
+            "last_backup_copy": copy_outcome(session),
             "last_restore_test": None,
             "alerts": alerts,
         }

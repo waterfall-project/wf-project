@@ -118,15 +118,24 @@ def _copy_faults(copy: ExternalCopy, declared: Collection[str], least: int) -> l
         faults.append(
             FieldError("/external_copy/location", UNKNOWN_EXTERNAL_BACKUP_LOCATION, params)
         )
-    if not copy.path:
-        faults.append(FieldError("/external_copy/path", VALUE_REQUIRED))
-    elif len(copy.path) > PATH_LENGTH:
-        params = {"max_length": PATH_LENGTH}
-        faults.append(FieldError("/external_copy/path", VALUE_TOO_LONG, params))
-    elif PATH.fullmatch(copy.path) is None:
-        faults.append(FieldError("/external_copy/path", PATH_INVALID))
+    faults.extend(path_faults("/external_copy/path", copy.path))
     faults.extend(_bounded("/external_copy/retained_count", copy.retained_count, least))
     return faults
+
+
+def path_faults(pointer: str, path: str) -> list[FieldError]:
+    """Judge a folder of a location: given, not too long, relative, never leaving the location.
+
+    ``ExternalBackupPath``: segments separated by ``/``, each opening with a letter, a digit or
+    ``_``, so that neither ``.`` nor ``..`` nor an empty segment passes, the text judged whole.
+    """
+    if not path:
+        return [FieldError(pointer, VALUE_REQUIRED)]
+    if len(path) > PATH_LENGTH:
+        return [FieldError(pointer, VALUE_TOO_LONG, {"max_length": PATH_LENGTH})]
+    if PATH.fullmatch(path) is None:
+        return [FieldError(pointer, PATH_INVALID)]
+    return []
 
 
 def judged_schedule(writing: ScheduleWriting, declared: Collection[str]) -> Schedule:

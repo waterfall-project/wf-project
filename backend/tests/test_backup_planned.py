@@ -11,22 +11,25 @@ any schedule entered: it reads the one the migrations ship.
 """
 
 import threading
-import time as clock
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from access_rows import account
+from access_rows import account, role
+from advisory_locks import waits_for
+from backup_rows import recorded
+from realm import KEY, TestRealm
 from sqlalchemy import func, insert, select, update
+from support import ContractClient, bearer
 
 from waterfall.core.backups.interface import (
     Schedule,
     ScheduleWriting,
     backup_is_due,
-    backup_start_lacks,
     judged_schedule,
-    platform_of,
+    lock_backup_deposit,
     read_backup_schedule,
     refuse_if_lacking,
     write_backup_schedule,
@@ -48,11 +51,14 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from installations import Installation
+    from sqlalchemy.orm import Session
 
     from waterfall.platform.queue import TaskQueue
 
 pytestmark = pytest.mark.story("US-2910")
 
+RESTORES = "/api/v1/restores"
+READ = "backups.read"
 SETTINGS = ScheduleSettings.model_construct(purge_interval=600)
 MINUTE = timedelta(minutes=1)
 HOUR = timedelta(hours=1)
@@ -127,7 +133,11 @@ def due(database: Database, now: datetime) -> bool:
 
 
 def installed_at(database: Database) -> datetime:
-    """Read when the schedule was written last: for a new installation, when it was installed."""
+    """Read when the timing of the schedule last changed: on a new installation, its installation.
+
+    ``timing_changed_at``, not ``updated_at``: a writing of the retention or of the copy alone does
+    not move it (``write_backup_schedule``).
+    """
     with database.transaction() as session:
         return session.get_one(BackupSchedule, 1).timing_changed_at
 
@@ -394,6 +404,33 @@ def test_the_planned_command_deposits_no_backup_while_a_restoration_is_queued(
         assert deposit_due(database, queue, backup_plan()) == ["backup"]
 
 
+type Person = Callable[..., dict[str, str]]
+
+
+@pytest.fixture
+def person(database: Database, realm: TestRealm) -> Person:
+    """Give a maker of accounts, each holding a role of the permissions given: its header."""
+
+    def make(*permissions: str) -> dict[str, str]:
+        subject = f"subject-{new_id()}"
+        held = role(database, f"Rôle {new_id().hex[:8]}", permissions=permissions)
+        account(database, "Martin", new_id().hex[:8], roles=(held,), idp_subject=subject)
+        return bearer(realm.token(subject, KEY))
+
+    return make
+
+
+def asked(backup_id: UUID, database: Database) -> dict[str, object]:
+    """Ask for the restoration of a backup of the list, confirmed with its date."""
+    with database.transaction() as session:
+        taken_at = session.get_one(Backup, backup_id).taken_at
+    return {
+        "backup_id": str(backup_id),
+        "confirmed": True,
+        "acknowledged_backup_taken_at": taken_at.isoformat(),
+    }
+
+
 def planned_deposit(database: Database, queue: TaskQueue) -> list[str]:
     """Run the planned command for the backups, in a thread of its own."""
     with logging_context(correlation_id="planned-backup"):
@@ -404,8 +441,9 @@ def planned_deposit(database: Database, queue: TaskQueue) -> list[str]:
 def test_a_backup_asked_for_and_the_planned_command_run_together_leave_one_backup_queued(
     database: Database, queue: TaskQueue
 ) -> None:
-    # ``post_backup`` and the command deposit under the same locks and conditions: whichever
-    # comes second sees the first one's task and deposits none.
+    # ``post_backup`` and the command deposit under the locks of one function,
+    # ``lock_backup_deposit`` (#4369): the command, due, waits for the lock of the backup a request
+    # holds — PostgreSQL says so —, then sees its task and deposits none.
     set_schedule(database, written(), utc_now() - 10 * DAY)
     queue.prepare()
     entered = threading.Event()
@@ -413,9 +451,7 @@ def test_a_backup_asked_for_and_the_planned_command_run_together_leave_one_backu
 
     def asked_for() -> None:
         with logging_context(correlation_id="asked-for-backup"), database.transaction() as session:
-            session.execute(select(func.pg_advisory_xact_lock(BACKUP_LOCK)))
-            session.execute(select(func.pg_advisory_xact_lock_shared(RESTORE_LOCK)))
-            refuse_if_lacking(backup_start_lacks(platform_of(session)))
+            refuse_if_lacking(lock_backup_deposit(session))
             submit(session, queue, "backup", None)
             entered.set()
             release.wait(10)
@@ -424,9 +460,68 @@ def test_a_backup_asked_for_and_the_planned_command_run_together_leave_one_backu
         asking = pool.submit(asked_for)
         assert entered.wait(10)
         planned_run = pool.submit(planned_deposit, database, queue)
-        clock.sleep(0.5)
-        assert not planned_run.done()
+        waited = waits_for(database, BACKUP_LOCK)
         release.set()
         asking.result(10)
         assert planned_run.result(10) == []
+    assert waited
     assert backups_pending(database) == 1
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_a_restoration_asked_while_the_planned_command_deposits_a_backup_waits_then_is_refused(
+    api: ContractClient, database: Database, queue: TaskQueue, person: Person
+) -> None:
+    # #4369, the other way round: ``startRestore`` asked while the command, due, deposits its backup
+    # under the lock of the restorations, shared, waits for it — PostgreSQL says so —, then sees the
+    # backup queued and is refused, ``no_backup_running``; nothing replaces the database the backup
+    # copies.
+    set_schedule(database, written(), utc_now() - 10 * DAY)
+    queue.prepare()
+    backup_id = recorded(database, utc_now() - 2 * DAY)
+    holding = threading.Event()
+    release = threading.Event()
+
+    def held(session: Session) -> list[str]:
+        lacking = lock_backup_deposit(session)
+        holding.set()
+        release.wait(10)
+        return lacking
+
+    plan = (Planned("backup", backup_is_due, held=held),)
+
+    def deposited() -> list[str]:
+        with logging_context(correlation_id="planned-backup"):
+            return deposit_due(database, queue, plan)
+
+    restorer = person(READ, "platform_restore")
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        planned_run = pool.submit(deposited)
+        assert holding.wait(10)
+        asking = pool.submit(api.post, RESTORES, headers=restorer, json=asked(backup_id, database))
+        waited = waits_for(database, RESTORE_LOCK)
+        release.set()
+        assert planned_run.result(10) == ["backup"]
+        refused = asking.result(10)
+    assert waited
+    assert refused.status_code == 409, refused.text
+    assert refused.json()["params"] == {"missing_condition": "no_backup_running"}
+    with database.transaction() as session:
+        restorations = session.scalar(select(func.count()).where(BackgroundTask.kind == "restore"))
+    assert restorations == 0
+    assert backups_pending(database) == 1
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_the_planned_command_takes_no_lock_of_the_backups_when_none_is_due(
+    database: Database, queue: TaskQueue
+) -> None:
+    # #4369: the locks of a backup are taken only once it is due. A request holds the lock of the
+    # backups: the command, nothing due, deposits nothing and does not wait for it.
+    set_schedule(database, written(), utc_now())
+    queue.prepare()
+    with database.transaction() as session:
+        lock_backup_deposit(session)
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            planned_run = pool.submit(planned_deposit, database, queue)
+            assert planned_run.result(10) == []

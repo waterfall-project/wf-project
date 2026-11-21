@@ -81,6 +81,12 @@ ALLOWED = {
     "platform/authority.py": "the root of the platform, the key and the certificate of each "
     "server, written by the service authority of the Compose in the volumes it is given, before "
     "any service starts: no request nor task writes them",
+    # The external copy of the backups (US-2910/L3).
+    "worker/backup_copy.py": "the archive of a backup read from the bucket, in the temporary "
+    "folder of its task of copy",
+    "platform/external_locations.py": "a copy, or the witness of a test, written to a share "
+    "mounted on the server — the external location itself, not the disk of the service —, and the "
+    "witness first in the temporary folder of its test",
 }
 # What a ``with`` must wrap: a temporary folder that a ``finally`` or the end of a block removes.
 # ``worker/restore.py`` makes none and ``restore/provider.py`` neither: the first writes in the
