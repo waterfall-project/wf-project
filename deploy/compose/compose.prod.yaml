@@ -314,17 +314,17 @@ services:
       storage-buckets: *done
 
   # The one command the planners call, every five minutes (PBS-5.3; a CronJob does it under
-  # Kubernetes): `waterfall-worker schedule` deposits what is due — the reading of the accounts at
-  # the end of each interval, a day by default, the purge of what expired at the end of each purge
-  # interval, ten minutes by default (EP-06, "La purge") — unless a task of the kind is queued or
-  # running, and runs nothing: the worker does, the storage included. It reaches PostgreSQL and
+  # Kubernetes): `waterfall-worker schedule` deposits what is due — the reading of the accounts and
+  # the backup at the time their schedules say, which an administrator sets on the screen and the
+  # database keeps (US-3040, US-2910), the purge of what expired at the end of each purge interval,
+  # ten minutes by default (EP-06, "La purge") — unless a task of the kind is queued or running,
+  # and runs nothing: the worker does, the storage included. It reaches PostgreSQL and
   # Redis alone (TFX-10). A schedule that says a setting is wrong, 2, stops the service with 2.
   scheduler:
     image: *waterfall-image
     environment:
       <<: *back-environment
       WATERFALL_SCHEDULE_INTERVAL: ${WATERFALL_SCHEDULE_INTERVAL:-300}
-      WATERFALL_IDENTITY_SYNC_INTERVAL: ${WATERFALL_IDENTITY_SYNC_INTERVAL:-86400}
       WATERFALL_PURGE_INTERVAL: ${WATERFALL_PURGE_INTERVAL:-600}
     init: true
     command:

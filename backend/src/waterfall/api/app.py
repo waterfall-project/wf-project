@@ -32,6 +32,7 @@ from waterfall.api import (
     exports,
     history,
     hourly_rates,
+    identity_sync_schedule,
     identity_syncs,
     imports,
     index_history,
@@ -144,6 +145,7 @@ def create_app(
     app.include_router(avatars.router, prefix=PREFIX)
     app.include_router(users.router, prefix=PREFIX)
     app.include_router(identity_syncs.router, prefix=PREFIX)
+    app.include_router(identity_sync_schedule.router, prefix=PREFIX)
     app.include_router(access_roles.router, prefix=PREFIX)
     app.include_router(tasks.router, prefix=PREFIX)
     app.include_router(audit.router, prefix=PREFIX)

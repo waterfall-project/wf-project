@@ -75,11 +75,11 @@ restore:
 
 # The tasks planned (PBS-5.3): one CronJob, as the loop of the service scheduler of the Compose is
 # one, which runs `waterfall-worker schedule` and stops. The command deposits what is due — the
-# reading of the accounts at the end of each interval, a day by default, the purge of what expired
-# at the end of each purge interval, ten minutes — and the worker runs it. Intervals in seconds.
+# reading of the accounts and the backup at the time their schedules say, which an administrator
+# sets on the screen (the database keeps them), the purge of what expired at the end of each purge
+# interval, ten minutes — and the worker runs it. The purge interval is in seconds.
 scheduler:
   schedule: "*/5 * * * *"
-  identitySyncInterval: 86400
   purgeInterval: 600
   resources: {}
 

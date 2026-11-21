@@ -507,6 +507,8 @@ ASKED: dict[str, tuple[str, ...]] = {
     "resendInvitation": ("users.read", "users.write"),
     "startIdentitySync": ("users.write",),
     "getLatestIdentitySync": ("users.read",),
+    "getIdentitySyncSchedule": ("users.read",),
+    "setIdentitySyncSchedule": ("users.write",),
     "listAccessRoles": (CONSULT,),
     "getAccessRole": (CONSULT,),
     "createAccessRole": (CHANGE,),

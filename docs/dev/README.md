@@ -191,13 +191,14 @@ bounded by `CONNECT_TIMEOUT`; a database that does not answer or whose pool is s
 maintenance" and the probe answers. A maintenance held whose state is missing stays held, as an
 abandoned restore. Scheduled
 tasks are deposited by `waterfall-worker schedule`, the one command the planners call: it writes
-and queues what is due — the reading of the accounts at the interval of
-`WATERFALL_IDENTITY_SYNC_INTERVAL`, in seconds, one day by default, the purge at the interval of
+and queues what is due — the reading of the accounts and the backup at the time their schedules
+say, which the administrator sets on the screen and the database keeps (`identity_sync_schedule`,
+`backup_schedule`; a daily reading at 01:30 UTC by default), the purge at the interval of
 `WATERFALL_PURGE_INTERVAL`, ten minutes by default — and deposits none when a task of the same kind
 is queued or running; it reaches PostgreSQL and Redis alone (TFX-10). The `scheduler` service of
 Compose calls it every `WATERFALL_SCHEDULE_INTERVAL` seconds, five minutes by default, and so does
 the CronJob of the chart; an interval that is not a positive whole number stops the service with 2.
-The purge spares the latest task of each planned kind, so that an interval longer than the retention does not make a reading due at each purge; under Helm the first reading may leave before the realm of Keycloak is applied (the hook follows the installation): it fails, and the next is due an interval later. The purge is a task of the worker (`worker/purge.py`): what expired — reports of imports, deposits,
+The purge spares the latest task of each planned kind, so that a schedule sparser than the retention does not make a reading due at each purge; under Helm the first reading may leave before the realm of Keycloak is applied (the hook follows the installation): it fails, and the next is due at the next occurrence of the schedule. The purge is a task of the worker (`worker/purge.py`): what expired — reports of imports, deposits,
 exports, the undo history, and their objects on the storage (EP-06, "La purge") —, then the tasks
 ended for longer than `WATERFALL_BACKGROUND_TASK_RETENTION_DAYS`, thirty by default, the task of a
 backup still listed spared. One more kind is scheduled by one line of `planned`

@@ -107,6 +107,7 @@ convention = "pep257"
 "backend/src/waterfall/api/exports.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/history.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/hourly_rates.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/identity_sync_schedule.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/identity_syncs.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/imports.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/index_history.py" = ["TC001", "TC002", "TC003"]

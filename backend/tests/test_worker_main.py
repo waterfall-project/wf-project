@@ -17,6 +17,7 @@ from sqlalchemy import select, update
 from test_api_processes import free_port
 
 import waterfall
+from waterfall.core.users.tables import IdentitySyncSchedule
 from waterfall.platform.correlation import FORM
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.queue import WORKER_TIMEOUT, TaskQueue
@@ -243,6 +244,18 @@ def scheduled(
     return service_environment
 
 
+@pytest.fixture
+def owing_a_reading(database: Database) -> None:
+    """Make the schedule of the readings owe one: written ten days ago, due since its 01:30."""
+    with database.transaction() as session:
+        session.execute(
+            update(IdentitySyncSchedule).values(
+                updated_at=utc_now() - timedelta(days=10),
+                timing_changed_at=utc_now() - timedelta(days=10),
+            )
+        )
+
+
 def tasks_of(database: Database) -> dict[str, BackgroundTask]:
     """Read the tasks the schedule deposited, by kind."""
     with database.transaction() as session:
@@ -250,7 +263,7 @@ def tasks_of(database: Database) -> dict[str, BackgroundTask]:
 
 
 @pytest.mark.story("US-2830")
-@pytest.mark.usefixtures("logs", "scheduled")
+@pytest.mark.usefixtures("logs", "scheduled", "owing_a_reading")
 def test_the_schedule_deposits_the_reading_of_the_accounts_and_the_purge_for_the_platform(
     database: Database, platform_queue: TaskQueue, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -269,7 +282,7 @@ def test_the_schedule_deposits_the_reading_of_the_accounts_and_the_purge_for_the
 
 
 @pytest.mark.story("US-2830")
-@pytest.mark.usefixtures("logs", "scheduled")
+@pytest.mark.usefixtures("logs", "scheduled", "owing_a_reading")
 def test_the_schedule_deposits_nothing_of_a_kind_that_is_pending_nor_before_its_interval(
     database: Database, platform_queue: TaskQueue, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -297,52 +310,39 @@ def test_the_schedule_deposits_nothing_of_a_kind_that_is_pending_nor_before_its_
 
 @pytest.mark.story("US-2830")
 @pytest.mark.usefixtures("logs", "scheduled")
-@pytest.mark.parametrize(
-    ("variable", "kind"),
-    [
-        ("WATERFALL_IDENTITY_SYNC_INTERVAL", "identity_sync"),
-        ("WATERFALL_PURGE_INTERVAL", "purge"),
-    ],
-)
-def test_the_schedule_deposits_a_kind_again_once_its_interval_has_passed_since_the_last(
-    variable: str,
-    kind: str,
-    database: Database,
-    platform_queue: TaskQueue,
-    monkeypatch: pytest.MonkeyPatch,
+def test_the_schedule_deposits_the_purge_again_once_its_interval_has_passed_since_the_last(
+    database: Database, platform_queue: TaskQueue, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # The reading of the accounts at the interval of the Compose, the purge at its own: the latest
-    # task of the kind, whatever its state, fixes when the next one is due.
+    # The purge at its own interval: the latest task of the kind, whatever its state, fixes when
+    # the next one is due. (The reading of the accounts is not due at an interval of the
+    # installation but at the time of its schedule: test_identity_sync_planned.py.)
     assert worker_main.main(SCHEDULE) == 0
-    # The task of the kind ended an hour after its deposit; the other kind stays queued.
+    # The purge ended an hour after its deposit.
     ended = {"status": "failed", "finished_at": utc_now(), "problem": {"code": "X", "status": 500}}
     with database.transaction() as session:
         session.execute(
             update(BackgroundTask)
-            .where(BackgroundTask.kind == kind)
+            .where(BackgroundTask.kind == "purge")
             .values(ended | {"submitted_at": utc_now() - timedelta(hours=1)})
         )
-    monkeypatch.setenv(variable, "3700")
+    monkeypatch.setenv("WATERFALL_PURGE_INTERVAL", "3700")
     assert worker_main.main(SCHEDULE) == 0
     with database.transaction() as session:
         counts = Counter(session.scalars(select(BackgroundTask.kind)))
-    assert (counts[kind], sum(counts.values())) == (1, 2)
-    monkeypatch.setenv(variable, "3500")
+    assert counts == {"purge": 1}
+    monkeypatch.setenv("WATERFALL_PURGE_INTERVAL", "3500")
     assert worker_main.main(SCHEDULE) == 0
     with database.transaction() as session:
         counts = Counter(session.scalars(select(BackgroundTask.kind)))
-    assert (counts[kind], sum(counts.values())) == (2, 3)
-    assert len(platform_queue.waiting()) == 3
+    assert counts == {"purge": 2}
+    assert len(platform_queue.waiting()) == 2
 
 
 @pytest.mark.story("US-2830")
 @pytest.mark.usefixtures("scheduled")
-@pytest.mark.parametrize(
-    "variable", ["WATERFALL_IDENTITY_SYNC_INTERVAL", "WATERFALL_PURGE_INTERVAL"]
-)
 def test_a_schedule_whose_interval_is_no_positive_number_says_so_and_returns_two(
-    variable: str, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv(variable, "0")
+    monkeypatch.setenv("WATERFALL_PURGE_INTERVAL", "0")
     assert worker_main.main(SCHEDULE) == 2
-    assert variable in capsys.readouterr().err
+    assert "WATERFALL_PURGE_INTERVAL" in capsys.readouterr().err
