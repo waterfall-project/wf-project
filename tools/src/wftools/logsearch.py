@@ -15,7 +15,9 @@ file is read as it stands, a directory in every file it holds.
 with (``SECRET_VARIABLES``) — in the text, as it is written, as JSON escapes it and as a URL
 quotes it, and for the shape of a token whatever its value (a JWT, a bearer credential). It
 prints what it found by the name of the variable, never the value, and ends with 1 if it found
-anything. ``find_secrets`` is the same search for a caller that holds the text and the secrets:
+anything, with 2 if the text is empty or no secret is known; it names, on the standard error, the
+variables it left out, absent or too short. ``fields`` ends with 2 on an empty text too.
+``find_secrets`` is the same search for a caller that holds the text and the secrets:
 the search of the logs of the platform (WF-OBS-0020, US-2900) and that of the repository
 (WF-SEC-0010, US-2840) are this one.
 
@@ -48,6 +50,7 @@ SECRET_VARIABLES = (
     "WATERFALL_BACKUP_DATABASE_PASSWORD",
     "WATERFALL_REDIS_PASSWORD",
     "WATERFALL_KEYCLOAK_DATABASE_PASSWORD",
+    "WATERFALL_STORAGE_ACCESS_KEY",
     "WATERFALL_STORAGE_SECRET",
     "WATERFALL_STORAGE_RPC_SECRET",
     "WATERFALL_KEYCLOAK_ADMIN_PASSWORD",
@@ -56,6 +59,11 @@ SECRET_VARIABLES = (
     "WATERFALL_INSTALLATION_CLIENT_SECRET",
 )
 """The secrets of the platform of service, which the guide lists (« Commandes »)."""
+
+FIXED_SECRETS = {"E2E_LOCAL_PASSWORD": "k7#Qw2ZpX9vR"}
+"""The passwords of the accounts of the paths, which no variable holds: the constant of the paths
+(``frontend/e2e/service/realm.ts``, ``LOCAL_PASSWORD``), which the administrator of the
+installation and the local accounts of the realm are given; a test keeps the two equal."""
 
 SHORTEST = 6
 """A value shorter than this is not searched for: it would be found in any text."""
@@ -78,6 +86,11 @@ def secrets_from(
 ) -> dict[str, str]:
     """Give, by variable name, the values of the secrets the environment holds."""
     return {name: value for name in names if len(value := environment.get(name, "")) >= SHORTEST}
+
+
+def left_out(environment: Mapping[str, str], names: Iterable[str] = SECRET_VARIABLES) -> list[str]:
+    """Name the variables ``secrets_from`` leaves out: absent, or too short to be searched for."""
+    return [name for name in names if len(environment.get(name, "")) < SHORTEST]
 
 
 def spellings(value: str) -> set[str]:
@@ -181,6 +194,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     fields.add_argument("files", nargs="*")
     arguments = parser.parse_args(argv)
     text = read_texts(arguments.files)
+    if arguments.command != "follow" and not text.strip():
+        # An empty text — a reading of the logs that failed — would pass whatever was searched for.
+        print("the text is empty: nothing was read, so nothing can be checked", file=sys.stderr)
+        return 2
     if arguments.command == "fields":
         wrong = lacking(text.splitlines())
         print("\n".join(wrong), file=sys.stderr)
@@ -189,11 +206,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments.command == "follow":
         print("\n".join(follow(text.splitlines(), arguments.identifier)))
         return 0
-    known = secrets_from(os.environ, arguments.name or SECRET_VARIABLES)
+    names = arguments.name or SECRET_VARIABLES
+    known = secrets_from(os.environ, names)
+    skipped = left_out(os.environ, names)
+    if skipped:
+        print(f"not searched, absent or too short: {', '.join(skipped)}", file=sys.stderr)
     if not known:
         # A search with nothing to look for finds nothing: it would pass whatever the text holds.
         print("no secret to look for: the variables of the platform are not set", file=sys.stderr)
         return 2
+    if not arguments.name:
+        known |= FIXED_SECRETS
     found = find_secrets(text, known)
     for name in found:
         print(f"found in the text: {name}", file=sys.stderr)

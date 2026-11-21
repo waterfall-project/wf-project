@@ -4635,14 +4635,17 @@ paths would look for an administrator who does not exist. One must then give the
 (`make service-down WATERFALL_RESET_DATA=yes`).
 Once bootstrapped, it loads the witness (service `witness`, as `make service-witness`, EP-05): the
 screens of the reference the service serves read there what the examples of the contract say; a
-
-Once the paths are played, `make e2e-service` searches the logs of the platform, Keycloak included,
-and that of the front of the paths (`frontend/.e2e/front.log`, which git ignores: the server of Next
-is a web server of Playwright, which Compose does not hold) for the secrets and tokens known
-(`make service-logs-search`, WF-OBS-0020, US-2900); it fails if it finds one. An import that fails
-in the worker is followed in these logs by the identifier its message gives
-(`frontend/e2e/service/import-trace.spec.ts`).
 platform that already holds it receives nothing more.
+
+Once the paths are played, `make e2e-service` searches the logs of every service of the platform,
+Keycloak included, under all the profiles of Compose, and that of the front of the paths
+(`frontend/.e2e/front.log`, which git ignores: the server of Next is a web server of Playwright,
+which Compose does not hold) for the secrets and tokens known (`make service-logs-search`,
+WF-OBS-0020, US-2900); it fails if it finds one, or if the logs could not be read or are empty. It
+then checks that every line of the logs of the API, the worker, its schedule and the service of the
+restoration is a record that carries its correlation identifier, its author and its severity
+(`make service-logs-fields`). An import that fails in the worker is followed in these logs by the
+identifier its message gives (`frontend/e2e/service/import-trace.spec.ts`).
 
 The paths are played in six Playwright projects. `installation` first (`installation.setup.ts`,
 WF-EXP-0020): the link serves only once, and this path sets the administrator's password, signs in,

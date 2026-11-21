@@ -26,6 +26,10 @@ COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
 # platform runs under the project of the slot of the worktree (WATERFALL_SERVICE_PROJECT, below).
 COMPOSE_SERVICE_FILE = PRISM_VERSION=$(PRISM_VERSION) docker compose -f deploy/compose/compose.service.yaml
 COMPOSE_SERVICE = $(COMPOSE_SERVICE_FILE) -p $(WATERFALL_SERVICE_PROJECT)
+# The profiles of the services of that file the platform starts: service-down stops them, and the
+# logs are read under them, Compose leaving out of its commands the services of a profile not given.
+SERVICE_PROFILES = e2e install witness load
+COMPOSE_SERVICE_ALL = $(COMPOSE_SERVICE) $(addprefix --profile ,$(SERVICE_PROFILES))
 # The services of the tests (US-1110), under the project of the slot of the worktree.
 COMPOSE_TEST = docker compose -f deploy/compose/compose.test.yaml -p $(WATERFALL_TEST_PROJECT)
 # The production platform (US-0430), under a local name: Caddy's own authority makes its certificate.
@@ -413,22 +417,26 @@ keycloak-authority: ## Copy out of the service platform the root of the authorit
 	@echo "  -> $(KEYCLOAK_AUTHORITY)"
 
 service-logs: ## Print the logs of the services of the platform (SERVICES, all of them by default)
-	@$(COMPOSE_SERVICE) logs --no-color $(SERVICES)
+	@$(COMPOSE_SERVICE_ALL) logs --no-color $(SERVICES)
 
-# The search of the secrets and tokens known in the logs of the services of the platform, Keycloak
-# included, and in the log of the front end of the paths (FRONT_LOG, which Compose does not hold: the
-# server of Next is a web server of Playwright) (WF-OBS-0020, US-2900): the secrets are those the
-# platform was started with. make e2e-service plays it after the paths. With CORRELATION=<identifier>, the story of that identifier instead.
-# The logs the search reads: those of Compose, and the log of the front end of the paths.
-service-logs-pipe = { $(COMPOSE_SERVICE) logs --no-color $(SERVICES) && { test ! -f $(FRONT_LOG) || cat $(FRONT_LOG); }; } |
-service-logs-search: ## Search the logs of the services of the platform for the secrets and tokens known (the variables of service-up); CORRELATION=<identifier> prints the story of an identifier instead: its lines, and those of the deposit, the import and the task they name
-	@$(service-logs-pipe) $(WFTOOLS).logsearch $(if $(CORRELATION),follow $(CORRELATION),secrets)
+# The logs the search reads (WF-OBS-0020, US-2900), put in a file — a pipe would pass whatever the
+# reading did, the shell having no pipefail: those of every service of Compose, under all its
+# profiles, and the log of the front end of the paths (FRONT_LOG, which Compose does not hold: the
+# server of Next is a web server of Playwright). A reading that fails fails the search; so does an
+# empty text (logsearch).
+SERVICE_LOGS = $(FRONT)/.e2e/service-logs.txt
+SERVICE_LOGS_OF_WATERFALL = $(FRONT)/.e2e/service-logs-waterfall.txt
+service-logs-text = mkdir -p $(FRONT)/.e2e && { $(COMPOSE_SERVICE_ALL) logs --no-color $(SERVICES) && { test ! -f $(FRONT_LOG) || cat $(FRONT_LOG); }; } > $(SERVICE_LOGS)
+service-logs-secrets = $(service-logs-text) && $(WFTOOLS).logsearch secrets $(SERVICE_LOGS)
+service-logs-check = mkdir -p $(FRONT)/.e2e && $(COMPOSE_SERVICE_ALL) logs --no-color api worker scheduler restore > $(SERVICE_LOGS_OF_WATERFALL) && $(WFTOOLS).logsearch fields $(SERVICE_LOGS_OF_WATERFALL)
+service-logs-search: ## Search the logs of the platform and the log of the front of the last e2e-service for the secrets and tokens known; CORRELATION=<identifier>: the story of an identifier instead (its lines, and those of the deposit, the import and the task they name). The front log is the last run's, kept until e2e-service empties it
+	@$(if $(CORRELATION),$(service-logs-text) && $(WFTOOLS).logsearch follow $(CORRELATION) $(SERVICE_LOGS),$(service-logs-secrets))
 
 service-logs-fields: ## Check that every record of the logs of the API, the worker, its schedule and the service of the restoration carries its correlation identifier, its author and its severity (WF-OBS-0020, US-2900)
-	@$(COMPOSE_SERVICE) logs --no-color api worker scheduler restore | $(WFTOOLS).logsearch fields
+	@$(service-logs-check)
 
 service-down: ## Stop the service platform, the proxy of e2e-service and the load of make measure-version included; WATERFALL_RESET_DATA=yes also drops its databases, its directory and its authority
-	@$(COMPOSE_SERVICE) --profile e2e --profile install --profile witness --profile load down $(if $(filter yes,$(WATERFALL_RESET_DATA)),--volumes)
+	@$(COMPOSE_SERVICE_ALL) down $(if $(filter yes,$(WATERFALL_RESET_DATA)),--volumes)
 
 migrate: ## Apply the migrations to the database WATERFALL_DATABASE_URL designates (the guide, "Migrations")
 	@cd $(BACK) && uv run --frozen waterfall-migrate
@@ -873,8 +881,10 @@ e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end pat
 		mkdir -p $(FRONT)/.e2e && : > $(FRONT_LOG) && \
 		{ ( cd $(FRONT) && { $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $$part $(TESTS); } ); played=$$?; \
 		echo 'Searching the logs of the platform and of the front for the secrets and tokens known (WF-OBS-0020, US-2900).'; \
-		$(service-logs-pipe) $(WFTOOLS).logsearch secrets; found=$$?; \
-		if [ $$played -ne 0 ]; then exit $$played; fi; exit $$found; }
+		$(service-logs-secrets); found=$$?; \
+		echo 'Checking the records of the services of Waterfall for their fields (WF-OBS-0020, US-2900).'; \
+		$(service-logs-check); fields=$$?; \
+		if [ $$played -ne 0 ]; then exit $$played; fi; if [ $$found -ne 0 ]; then exit $$found; fi; exit $$fields; }
 
 # The measure of the journey of the grids against the service (US-2210, frontend/e2e/measure/): the
 # platform started as e2e-service starts it — its realm told the address of the front of the

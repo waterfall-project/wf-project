@@ -4673,14 +4673,17 @@ alors donner la première adresse à `E2E_ADMIN_EMAIL`, ou repartir d'une platef
 (`make service-down WATERFALL_RESET_DATA=yes`).
 L'amorçage fait, il charge le témoin (service `witness`, comme `make service-witness`, EP-05) : les
 écrans du référentiel que le service sert y lisent ce que disent les exemples du contrat ; une
-
-Une fois les parcours joués, `make e2e-service` cherche, dans les journaux de la plateforme, Keycloak
-compris, et dans celui du front des parcours (`frontend/.e2e/front.log`, que git ignore : le serveur
-de Next est un serveur web de Playwright, que Compose ne tient pas), les secrets et les jetons connus
-(`make service-logs-search`, WF-OBS-0020, US-2900) ; il échoue s'il en trouve un. Un import qui
-échoue dans le worker se suit dans ces journaux par l'identifiant que son message donne
-(`frontend/e2e/service/import-trace.spec.ts`).
 plateforme qui le porte déjà n'en reçoit rien de plus.
+
+Une fois les parcours joués, `make e2e-service` cherche, dans les journaux de tous les services de la
+plateforme, Keycloak compris, sous tous les profils de Compose, et dans celui du front des parcours
+(`frontend/.e2e/front.log`, que git ignore : le serveur de Next est un serveur web de Playwright,
+que Compose ne tient pas), les secrets et les jetons connus (`make service-logs-search`,
+WF-OBS-0020, US-2900) ; il échoue s'il en trouve un, ou si les journaux n'ont pas pu être lus ou sont
+vides. Il vérifie ensuite que chaque ligne des journaux de l'API, du worker, de son ordonnanceur et du
+service de restauration est un enregistrement qui porte son identifiant de corrélation, son auteur et
+sa gravité (`make service-logs-fields`). Un import qui échoue dans le worker se suit dans ces journaux
+par l'identifiant que son message donne (`frontend/e2e/service/import-trace.spec.ts`).
 
 Les parcours se jouent en six projets Playwright. `installation` d'abord
 (`installation.setup.ts`, WF-EXP-0020) : le lien ne sert qu'une fois, et ce parcours fixe le mot de
