@@ -477,6 +477,7 @@ def test_the_metrics_expose_no_project_data_identity_nor_secret(
     assert labels <= {"operation", "status", "le", "component", "run"}
 
 
+@pytest.mark.requirement("WF-EXP-0040-A")
 def test_the_instance_is_ready_when_the_components_it_needs_answer(platform: MakePlatform) -> None:
     # Proper to US-2870: ``getReadiness`` is served; it answers when the components the instance
     # needs answer, and says each one, the instance first.

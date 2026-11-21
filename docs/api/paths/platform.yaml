@@ -581,7 +581,7 @@
           `params.missing_condition` naming the missing condition, for a backup from the list
           the one its `restore` command reported as missing (`BackupCommand`) —
           `backup_verified`, the designated backup from the list not being verified, pending or
-          failed (WF-ADM-0150), an upload being verified by the task, not here;
+          failed (WF-ADM-0150);
           `no_backup_running`, a backup running, from its queuing to the production of its file
           (`startBackup`); `no_restore_running`, a restore already queued or in progress
           (WF-ADM-0160). The last two refuse any restore, from the list as from an upload

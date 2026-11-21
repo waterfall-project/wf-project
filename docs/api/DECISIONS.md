@@ -6379,11 +6379,11 @@ restauration (`status` à `maintenance`) et sa levée (`ok`), et le front l'inte
 quand la restauration a abouti. L'état de maintenance ne dépend pas de la base que la
 restauration recrée, où vit la tâche ; `getBackgroundTask` n'est pas servie pendant la
 maintenance, et toutes les opérations sauf `getLiveness` et `getMetrics` répondent 503
-`COMPONENT_UNAVAILABLE`, `component` à `database` (« sauf `getMetrics` » ajouté par la décision de
-l'auteur du 2026-11-21, #4226 : « Les cinq précisions d'EP-13 »). La sonde reste à 200 en maintenance : la plateforme est vivante, et un
-orchestrateur qui la redémarrerait interromprait la restauration. Écarté : `getBackgroundTask`
-servie pendant la maintenance, sa ligne réécrite dans la base restaurée, qui ferait lire à l'API la
-base qu'on remplace.
+`COMPONENT_UNAVAILABLE`, `component` à `database`. La sonde reste à 200 en maintenance : la
+plateforme est vivante, et un orchestrateur qui la redémarrerait interromprait la restauration.
+Écarté : `getBackgroundTask` servie pendant la maintenance, sa ligne réécrite dans la base
+restaurée, qui ferait lire à l'API la base qu'on remplace. « Sauf `getMetrics` » est ajouté par la
+décision de l'auteur du 2026-11-21 (#4226, « Les cinq précisions d'EP-13 »).
 
 `startRestore` déclare ce qu'elle refuse : une date confirmée qui n'est pas celle de la sauvegarde
 désignée est une confirmation qui ne la nomme pas, 400 `CONFIRMATION_REQUIRED` (WF-ADM-0160 : « La

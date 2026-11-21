@@ -33,7 +33,7 @@ export interface paths {
         };
         /**
          * Readiness probe
-         * @description True when the components the instance needs are answering. An unavailable component is never presented as available (WF-EXP-0040). The instance says itself (`api`) and the components it probes: the database, Redis (`cache`), the object storage and the identity provider; the worker and Prometheus, which it does not probe, are read by the collection of the metrics (#4227). Only the database makes the instance not ready — without it, nothing is served (§4.5.4, table 12) —: 503 `COMPONENT_UNAVAILABLE`, `params.component` at `database`; another unavailable component is said so in the list, the instance remaining ready.
+         * @description True when the components the instance needs are answering. An unavailable component is never presented as available (WF-EXP-0040). The instance says itself (`api`) and the components it probes: the database, Redis (`cache`), the object storage and the identity provider; the worker and Prometheus, which it does not probe, are read by the collection of the metrics (#4227). Only the database is said to make the instance not ready — without it, nothing is served (§4.5.4, table 12) —: 503 `COMPONENT_UNAVAILABLE`, `params.component` at `database`; the case of Redis is not settled (#4227).
          */
         get: operations["getReadiness"];
         put?: never;
@@ -8227,7 +8227,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description A state that forbids the restore: `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming the missing condition, for a backup from the list the one its `restore` command reported as missing (`BackupCommand`) — `backup_verified`, the designated backup from the list not being verified, pending or failed (WF-ADM-0150), an upload being verified by the task, not here; `no_backup_running`, a backup running, from its queuing to the production of its file (`startBackup`); `no_restore_running`, a restore already queued or in progress (WF-ADM-0160). The last two refuse any restore, from the list as from an upload (#4365). Nothing is queued. */
+            /** @description A state that forbids the restore: `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming the missing condition, for a backup from the list the one its `restore` command reported as missing (`BackupCommand`) — `backup_verified`, the designated backup from the list not being verified, pending or failed (WF-ADM-0150); `no_backup_running`, a backup running, from its queuing to the production of its file (`startBackup`); `no_restore_running`, a restore already queued or in progress (WF-ADM-0160). The last two refuse any restore, from the list as from an upload (#4365). Nothing is queued. */
             409: {
                 headers: {
                     [name: string]: unknown;

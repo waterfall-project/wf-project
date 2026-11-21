@@ -10,10 +10,10 @@
       reports the maintenance of a restore (`startRestore`, WF-ADM-0160): `status` is
       `maintenance` as long as the platform is in maintenance, every other operation but
       `getMetrics` then answering 503 `COMPONENT_UNAVAILABLE` (#4226), and `ok` once the
-      maintenance is lifted, the restore completed. The front polls it to know when the restore has completed: the maintenance
-      state does not depend on the database that the restore recreates, and the restore's task
-      cannot be read during the maintenance (#604). A platform in maintenance is alive: the
-      probe answers 200.
+      maintenance is lifted, the restore completed. The front polls it to know when the
+      restore has completed: the maintenance state does not depend on the database that the
+      restore recreates, and the restore's task cannot be read during the maintenance (#604).
+      A platform in maintenance is alive: the probe answers 200.
     responses:
       '200':
         description: The process answers; in maintenance or not.
@@ -80,10 +80,9 @@
       is never presented as available (WF-EXP-0040). The instance says itself (`api`) and the
       components it probes: the database, Redis (`cache`), the object storage and the identity
       provider; the worker and Prometheus, which it does not probe, are read by the collection
-      of the metrics (#4227). Only the database makes the instance not ready — without it,
-      nothing is served (§4.5.4, table 12) —: 503 `COMPONENT_UNAVAILABLE`, `params.component`
-      at `database`; another unavailable component is said so in the list, the instance
-      remaining ready.
+      of the metrics (#4227). Only the database is said to make the instance not ready —
+      without it, nothing is served (§4.5.4, table 12) —: 503 `COMPONENT_UNAVAILABLE`,
+      `params.component` at `database`; the case of Redis is not settled (#4227).
     responses:
       '200':
         description: The instance can serve requests.
