@@ -171,7 +171,7 @@ sommer (décision de l'auteur du 2026-11-17), les trois cents projets en EP-13, 
 | [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
 | [EP-13](EP-13-exploitation.md) | Exploitation et mise en production | en cours | EP-04 |
 | [EP-28](EP-28-chaine-et-outillage.md) | Chaîne et outillage de développement | livré | rien |
-| [EP-29](EP-29-habilitations-specification-1-0-7.md) | Habilitations et comptes : suites de la spécification 1.0.7 | à planifier | EP-08 |
+| [EP-29](EP-29-habilitations-specification-1-0-7.md) | Habilitations et comptes : suites de la spécification 1.0.7 | prêt | EP-08 |
 | [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risques préparés comme des différentiels | en cours | EP-08, EP-11 |
 | [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning : moteur et Gantt | prêt | EP-08 |
 | [EP-33](EP-33-imports-et-exports-de-fichiers.md) | Imports et exports de fichiers | en cours | EP-08 |
