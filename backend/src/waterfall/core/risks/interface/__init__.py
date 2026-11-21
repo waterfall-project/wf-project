@@ -18,9 +18,10 @@ the closing of a revision, and the counter of an own estimate (``register_copy``
 ``register_closing``, ``register_own_estimate_counted``; US-2570/L1), the designation of
 a reference and the coverage of the remaining to commit (``register_designation``,
 ``register_coverage``; US-2610/L1), the four kinds of entry of the history it undoes
-(``register_undoable``; US-2590/L2). The entry points that open, close, mark or designate a revision
-— the API, the worker, the loader of the witness — import this interface from US-2550/L1 on, so
-that none lacks their part once a story registers it (#2180).
+(``register_undoable``; US-2590/L2), the subprojects the provisions designate, which the deletion
+of a subproject asks (``register_risk_designations``; US-3060/L4). The entry points that open,
+close, mark or designate a revision — the API, the worker, the loader of the witness — import this
+interface from US-2550/L1 on, so that none lacks their part once a story registers it (#2180).
 """
 
 # ``coverage`` (US-2550/L1; US-2610/L1): the reserve and the coverage of the risks.
@@ -28,6 +29,7 @@ that none lacks their part once a story registers it (#2180).
 from waterfall.core.estimate.interface import register_coverage
 from waterfall.core.history.interface import register_undoable
 from waterfall.core.planning.interface import ProvisionOwners, register_provision_owners
+from waterfall.core.projects.interface import RiskDesignations, register_risk_designations
 from waterfall.core.revisions.interface import (
     register_closing,
     register_copy,
@@ -35,6 +37,7 @@ from waterfall.core.revisions.interface import (
     register_own_estimate_counted,
 )
 from waterfall.core.risks.commands import state_named as state_named
+from waterfall.core.risks.designations import marked_designations, undesignate
 from waterfall.core.risks.following import (
     close_evaluations,
     copy_evaluations,
@@ -225,3 +228,6 @@ register_coverage(risk_coverage_of)
 # The four kinds of entry of the history the risks undo and redo (US-2590/L2).
 for _kind in RISK_KINDS:
     register_undoable(_kind, UNDOABLE)
+# The subprojects the provisions designate, cited by a marked revision, set to null in the current
+# one by the deletion of a subproject (US-3060/L4, #4208).
+register_risk_designations(RiskDesignations(marked_designations, undesignate))

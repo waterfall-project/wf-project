@@ -97,6 +97,8 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "skeleton",
         "days",
         "estimate_facts",
+        # The subprojects the provisions of the risks designate (US-3060/L4, #4208).
+        "risk_designations",
     },
     # ``rates``: the update of the rates a revision frames (US-1500/L1).
     "revisions": {

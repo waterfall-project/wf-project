@@ -219,6 +219,10 @@ def remove_subproject(
     actor: Acting,
     session: Transaction,
 ) -> Response:
-    """Delete for good a subproject that nothing cites, at the version read; only managers may."""
-    delete_subproject(session, project_id, subproject_id, lock_version, viewer_of(actor))
+    """Delete for good a subproject that nothing cites, at the version read; only managers may.
+
+    The risks of the current revision that designated it lose the designation, by this act (#4208).
+    """
+    act = Act(actor.user_id, utc_now())
+    delete_subproject(session, project_id, (subproject_id, lock_version), act, viewer_of(actor))
     return Response(status_code=204)
