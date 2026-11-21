@@ -11,11 +11,13 @@ fixtures ``installation`` and ``take``.
 """
 
 import hashlib
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Generator, Iterable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
+import pytest
 from access_rows import account, role
 from realm import KEY, TestRealm
 from sqlalchemy import ColumnElement, func, insert, select, text, update
@@ -35,6 +37,8 @@ from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from sqlalchemy.orm import Session
 
     from waterfall.platform.queue import TaskQueue
     from waterfall.platform.storage import Bucket
@@ -124,12 +128,34 @@ def dropped(server_address: str, *addresses: str) -> None:
 type Take = Callable[[], UUID]
 
 
-def taker(installation: Installation, queue: TaskQueue) -> Take:
-    """Give a taker of backups: a backup deposited as a request does, then run by a worker."""
+def no_rotation(_taking: BackupTask, _session: Session) -> None:
+    """Turn nothing: the schema of an installation brought back lacks the schedule (0038)."""
+
+
+@contextmanager
+def before_the_schedule_of_the_backups() -> Generator[None]:
+    """Take backups of an installation whose schema is older than the schedule of the backups.
+
+    A verified backup turns the list under the retention of that schedule (US-2910/L2); in a schema
+    brought back before it, the table is not there to be read, and the rotation, which is not what
+    such a test tries, is left out.
+    """
+    # Only the rotation is left out: the attribute must exist, or the patch would leave nothing out.
+    assert callable(getattr(BackupTask, "_rotate", None)), "BackupTask no longer rotates by _rotate"
+    with pytest.MonkeyPatch.context() as patched:
+        patched.setattr(BackupTask, "_rotate", no_rotation)
+        yield
+
+
+def taker(installation: Installation, queue: TaskQueue, taking: BackupTask | None = None) -> Take:
+    """Give a taker of backups: a backup deposited as a request does, then run by a worker.
+
+    ``taking`` is the task the worker runs, the installation's own if none is given.
+    """
     worker = Worker(
         installation.database,
         queue,
-        {"backup": BackupTask(installation.backup, installation.bucket)},
+        {"backup": taking or BackupTask(installation.backup, installation.bucket)},
         "worker-restoration",
         Timing(0, 0.1),
     )
@@ -183,7 +209,7 @@ def new_restoration(installation: Installation) -> UUID:
 
 
 def written_task(database: Database, kind: str, status: str) -> UUID:
-    """Write a task in a state, around the queue, and give its identifier."""
+    """Write a task queued, running or succeeded, around the queue, and give its identifier."""
     task_id = uuid4()
     with database.transaction() as session:
         session.execute(
@@ -197,6 +223,7 @@ def written_task(database: Database, kind: str, status: str) -> UUID:
                 attempts=1 if status == "running" else 0,
                 submitted_at=utc_now(),
                 started_at=utc_now() if status == "running" else None,
+                finished_at=utc_now() if status == "succeeded" else None,
             )
         )
     return task_id

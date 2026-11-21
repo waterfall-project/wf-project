@@ -427,7 +427,7 @@ def test_a_backup_of_a_newer_version_fails_its_restoration_before_the_maintenanc
 
 def newer_backup(installation: Installation) -> tuple[UUID, str]:
     """Record a backup of a newer version, whose archive is ``newer.tar``; give it and its date."""
-    task_id = written_task(installation.database, "backup", "queued")
+    task_id = written_task(installation.database, "backup", "succeeded")
     backup_id, at = uuid4(), utc_now()
     owner = create_database_engine(installation.owner["waterfall"])
     with owner.begin() as connection:

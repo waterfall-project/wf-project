@@ -25,19 +25,24 @@ from waterfall.api.contract.models import BackgroundTaskRef, RestoreRequest
 from waterfall.api.evaluation import Acting, Requires
 from waterfall.api.tasks import task_ref
 from waterfall.core.access_roles.interface import require
-from waterfall.core.backups.interface import read_backup
+from waterfall.core.backups.interface import (
+    NO_RESTORE_RUNNING,
+    platform_of,
+    read_backup,
+    refuse_if_lacking,
+    restoration_lacks,
+)
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import (
     NOT_FOUND,
-    STATE_FORBIDS_OPERATION,
     VALIDATION_FAILED,
     BadRequestError,
-    ConflictError,
     FieldError,
     NotFoundError,
     UnprocessableError,
 )
-from waterfall.platform.tasks import BackgroundTask, pending_task, submit
+from waterfall.platform.locks import RESTORE_LOCK
+from waterfall.platform.tasks import BackgroundTask, submit
 from waterfall.platform.uploads import EXTERNAL_BACKUP, completed_upload
 
 router = APIRouter(tags=["platform"])
@@ -47,8 +52,6 @@ UPLOAD_PURPOSE_MISMATCH = "UPLOAD_PURPOSE_MISMATCH"
 RESTORE = [Depends(Requires("platform_restore"))]
 # The permission without which a backup of the list does not exist for the caller (WF-ADM-0110).
 CONSULTATION = "backups.read"
-# The key of the advisory lock under which a request looks for a pending restoration, then deposits.
-RESTORE_LOCK = 3_700_160
 
 
 @router.post(
@@ -75,7 +78,10 @@ def post_restore(
     deposit whose manifest says none; one without a date is one no confirmation names (400). The
     task carries the date confirmed, which the manifest read whole must say, before the
     maintenance. A confirmation absent or false is refused alike (400), before anything is read:
-    the schema leaves it to this guard (US-0702/L3).
+    the schema leaves it to this guard (US-0702/L3). A restoration the state forbids is refused
+    (409) with the first condition the backup's ``restore`` command lacks — a verification not
+    passed, a backup running, a restoration queued or running — named (#1035); an uploaded backup
+    is verified by the task, and lacks only the last.
     """
     asked = request.root
     if not asked.confirmed:
@@ -84,8 +90,10 @@ def post_restore(
         require(actor, CONSULTATION)
         backup = read_backup(session, asked.backup_id.root)
         taken_at = backup.taken_at
+        verification = backup.verification
         payload = {"backup_id": str(backup.backup_id), "object_key": backup.object_key}
     else:
+        verification = None
         upload_id = asked.external_backup_upload_id.root
         upload = completed_upload(session, upload_id, utc_now())
         if upload is None:
@@ -103,8 +111,11 @@ def post_restore(
     if taken_at is None or taken_at != asked.acknowledged_backup_taken_at.root:
         raise BadRequestError(CONFIRMATION_REQUIRED)
     session.execute(select(func.pg_advisory_xact_lock(RESTORE_LOCK)))
-    if pending_task(session, "restore") is not None:
-        raise ConflictError(STATE_FORBIDS_OPERATION)
+    platform = platform_of(session)
+    if verification is not None:
+        refuse_if_lacking(restoration_lacks(verification, platform))
+    elif platform.restore_running:
+        refuse_if_lacking([NO_RESTORE_RUNNING])
     restores = services.queue.restores()
     task_id = submit(session, restores, "restore", account.user_id, payload)
     return task_ref(session.get_one(BackgroundTask, task_id))

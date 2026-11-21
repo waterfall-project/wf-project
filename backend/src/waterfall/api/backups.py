@@ -11,24 +11,54 @@ both databases whole: reading it asks for the permission to change the backups b
 read them.
 """
 
-from dataclasses import dataclass
+from datetime import UTC
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from pydantic import AwareDatetime, BaseModel, Field
+from sqlalchemy import func, select
 
 from waterfall.api.authentication import Caller, ServicesOf, Transaction
-from waterfall.api.contract.models import BackgroundTaskRef, Backup, PaginationMeta
+from waterfall.api.contract.base import Text
+from waterfall.api.contract.models import (
+    BackgroundTaskRef,
+    Backup,
+    BackupOrigin,
+    BackupRetain,
+    BackupVerification,
+    PaginationMeta,
+    SortOrder,
+)
 from waterfall.api.evaluation import Acting, Requires
-from waterfall.api.queries import Offset
+from waterfall.api.queries import Offset, read_list, refuse_query
 from waterfall.api.tasks import task_ref
 from waterfall.core.access_roles.interface import Actor
-from waterfall.core.backups.interface import BackupView, list_backups, read_backup
-from waterfall.platform.errors import NOT_FOUND, NotFoundError
+from waterfall.core.backups.interface import (
+    BackupColumn,
+    BackupFilters,
+    BackupSort,
+    BackupView,
+    Platform,
+    backup_start_lacks,
+    download_lacks,
+    list_backups,
+    mark_backup,
+    marking_lacks,
+    platform_of,
+    read_backup,
+    refuse_if_lacking,
+    restoration_lacks,
+)
+from waterfall.platform.errors import (
+    NOT_FOUND,
+    FieldError,
+    NotFoundError,
+)
+from waterfall.platform.locks import BACKUP_LOCK, RESTORE_LOCK
 from waterfall.platform.storage import MissingObjectError
-from waterfall.platform.tasks import BackgroundTask, pending_task, submit
+from waterfall.platform.tasks import BackgroundTask, submit
 
 router = APIRouter(tags=["platform"])
 
@@ -38,25 +68,10 @@ READ = [Depends(Requires(CONSULTATION))]
 CREATE = [Depends(Requires(CHANGE))]
 COPY = [Depends(Requires(CONSULTATION, CHANGE))]
 RESTORATION = "platform_restore"
-VERIFIED = "backup_verified"
-NO_BACKUP_RUNNING = "no_backup_running"
-NO_RESTORE_RUNNING = "no_restore_running"
-
-
-@dataclass(frozen=True, slots=True)
-class Platform:
-    """What the commands of every backup depend on, read once for a reading: what runs now."""
-
-    backup_running: bool
-    restore_running: bool
-
-
-def platform_of(session: Session) -> Platform:
-    """Read whether a backup or a restoration is queued or running."""
-    return Platform(
-        backup_running=pending_task(session, "backup") is not None,
-        restore_running=pending_task(session, "restore") is not None,
-    )
+VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
+NUMBER_INVALID = "NUMBER_INVALID"
+# The greatest integer PostgreSQL represents (``bigint``): a bound beyond it keeps what it would.
+GREATEST_SIZE = 2**63 - 1
 
 
 def _command(command: str, lacking: list[str]) -> dict[str, Any]:
@@ -73,17 +88,14 @@ def commands(view: BackupView, actor: Actor, platform: Platform) -> list[dict[st
     WF-ADM-0160). A backup is running from its deposit to the end of its task.
     """
     held = set(actor.permissions)
-    unverified = [] if view.verification == "passed" else [VERIFIED]
     listed: list[dict[str, Any]] = []
     if CHANGE in held:
         marking = "release" if view.is_retained else "retain"
-        listed.append(_command(marking, [NO_RESTORE_RUNNING] if platform.restore_running else []))
+        listed.append(_command(marking, marking_lacks(platform)))
     if {CONSULTATION, CHANGE} <= held:
-        listed.append(_command("download", unverified))
+        listed.append(_command("download", download_lacks(view.verification)))
     if RESTORATION in held:
-        running = [NO_BACKUP_RUNNING] if platform.backup_running else []
-        restoring = [NO_RESTORE_RUNNING] if platform.restore_running else []
-        listed.append(_command("restore", unverified + running + restoring))
+        listed.append(_command("restore", restoration_lacks(view.verification, platform)))
     return listed
 
 
@@ -103,15 +115,79 @@ def backup(view: BackupView, actor: Actor, platform: Platform) -> Backup:
     )
 
 
+class BackupsQuery(BaseModel):
+    """The filters and the sort of the list, as the query names them."""
+
+    since: AwareDatetime | None = Field(default=None, alias="from")
+    to: AwareDatetime | None = None
+    origins: Text | None = None
+    verifications: Text | None = None
+    is_retained: bool | None = None
+    size_bytes_min: int | None = None
+    size_bytes_max: int | None = None
+    sort_by: BackupColumn | None = None
+    sort_order: SortOrder | None = None
+
+
+def _faults(query: BackupsQuery) -> list[FieldError]:
+    """Name the bounds the query inverts or malforms, every one at once (422)."""
+    faults: list[FieldError] = []
+    if query.since is not None and query.to is not None and query.to < query.since:
+        minimum = query.since.astimezone(UTC)
+        faults.append(FieldError("/query/to", VALUE_OUT_OF_RANGE, {"minimum": minimum}))
+    bounds = (("size_bytes_min", query.size_bytes_min), ("size_bytes_max", query.size_bytes_max))
+    faults.extend(
+        FieldError(f"/query/{name}", NUMBER_INVALID)
+        for name, bound in bounds
+        if bound is not None and bound < 0
+    )
+    low, high = query.size_bytes_min, query.size_bytes_max
+    if not faults and low is not None and high is not None and high < low:
+        faults.append(FieldError("/query/size_bytes_max", VALUE_OUT_OF_RANGE, {"minimum": low}))
+    return faults
+
+
+def backup_filters(query: Annotated[BackupsQuery, Query()]) -> tuple[BackupFilters, BackupSort]:
+    """Read the filters and the sort of the list; a period or bounds inverted are refused (422).
+
+    The lists are separated by commas. A period whose end precedes its start is refused at its end,
+    the start named; a negative bound is a malformed number, and an upper bound under the lower one
+    is out of its range, the lower one as its minimum, as the contract says. A bound beyond the
+    integers of PostgreSQL, which no size reaches, is brought back to the greatest of them.
+    """
+    origins, origin_faults = read_list("origins", query.origins, BackupOrigin)
+    verifications, verification_faults = read_list(
+        "verifications", query.verifications, BackupVerification
+    )
+    refuse_query((*_faults(query), *origin_faults, *verification_faults))
+    sizes = (query.size_bytes_min, query.size_bytes_max)
+    low, high = (None if size is None else min(size, GREATEST_SIZE) for size in sizes)
+    filters = BackupFilters(
+        since=query.since,
+        until=query.to,
+        origins=None if origins is None else frozenset(each.value for each in origins),
+        verifications=None
+        if verifications is None
+        else frozenset(each.value for each in verifications),
+        is_retained=query.is_retained,
+        size_min=low,
+        size_max=high,
+    )
+    descending = None if query.sort_order is None else query.sort_order is SortOrder.desc
+    return filters, BackupSort(query.sort_by, descending)
+
+
 @router.get("/backups", operation_id="listBackups", dependencies=READ, response_model=None)
 def get_backups(
     session: Transaction,
     actor: Acting,
+    read: Annotated[tuple[BackupFilters, BackupSort], Depends(backup_filters)],
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Offset = 0,
 ) -> dict[str, Any]:
-    """Give a page of the backups, the latest first (WF-ADM-0150)."""
-    views, total = list_backups(session, limit, offset)
+    """Give a page of the backups, filtered and sorted by the server, by date without a sort."""
+    filters, sort = read
+    views, total = list_backups(session, filters, sort, limit, offset)
     platform = platform_of(session)
     return {
         "items": [backup(view, actor, platform).model_dump(mode="json") for view in views],
@@ -127,9 +203,45 @@ def get_backups(
     response_model_exclude_unset=True,
 )
 def post_backup(account: Caller, session: Transaction, services: ServicesOf) -> BackgroundTaskRef:
-    """Deposit a backup for the worker, asked for by the caller, and say where it stands."""
+    """Deposit a backup for the worker, asked for by the caller, and say where it stands.
+
+    Refused (409) while a backup or a restoration is queued or running, the condition it lacks
+    named (#1035). Two requests that ask at once wait for each other, and a restoration deposited
+    meanwhile is waited for, or seen.
+    """
+    session.execute(select(func.pg_advisory_xact_lock(BACKUP_LOCK)))
+    session.execute(select(func.pg_advisory_xact_lock_shared(RESTORE_LOCK)))
+    refuse_if_lacking(backup_start_lacks(platform_of(session)))
     task_id = submit(session, services.queue, "backup", account.user_id)
     return task_ref(session.get_one(BackgroundTask, task_id))
+
+
+@router.patch(
+    "/backups/{backup_id}",
+    operation_id="retainBackup",
+    dependencies=CREATE,
+    response_model=None,
+)
+def patch_backup(
+    backup_id: UUID,
+    body: Annotated[BackupRetain, Body()],
+    session: Transaction,
+    actor: Acting,
+) -> dict[str, Any]:
+    """Mark a backup to keep, or release it: the rotation spares a marked backup (WF-ADM-0170).
+
+    An unknown backup is not found (404). Refused (409) while a restoration is queued or running,
+    which replaces the database the mark would be written in: the restoration is looked for under
+    the lock it is deposited under, shared, so that one deposited meanwhile waits for this writing,
+    or this writing sees it. Without a counter, by decided exception: the mark sets the state
+    intended (WF-IHM-0110).
+    """
+    session.execute(select(func.pg_advisory_xact_lock_shared(RESTORE_LOCK)))
+    platform = platform_of(session)
+    read_backup(session, backup_id)
+    refuse_if_lacking(marking_lacks(platform))
+    view = mark_backup(session, backup_id, is_retained=body.is_retained)
+    return backup(view, actor, platform).model_dump(mode="json")
 
 
 @router.get("/backups/{backup_id}", operation_id="getBackup", dependencies=READ)
@@ -144,10 +256,12 @@ def get_backup_content(backup_id: UUID, services: ServicesOf) -> StreamingRespon
 
     The backup is read in a transaction of its own, closed before the archive streams: no
     connection is held while the bucket is read. An archive the bucket no longer holds is a backup
-    that cannot be copied, refused as one that does not exist (404).
+    that cannot be copied, refused as one that does not exist (404); a backup whose verification
+    has not passed is not copied (409, ``backup_verified``, #1035).
     """
     with services.database.transaction() as session:
         view = read_backup(session, backup_id)
+    refuse_if_lacking(download_lacks(view.verification))
     try:
         chunks = services.backups.stream(view.object_key)
     except MissingObjectError:

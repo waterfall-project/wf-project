@@ -25,6 +25,7 @@ from indicators_support import indicator_row
 from installations import (
     Installation,
     Take,
+    before_the_schedule_of_the_backups,
     count,
     created,
     dropped,
@@ -331,12 +332,15 @@ def test_a_backup_of_an_earlier_revision_is_migrated_before_the_role_of_the_serv
     # The backup is taken at 0012, which lacks the reports of the readings of the accounts (0013);
     # the installation is then brought to the head. The restoration keeps, replaces, migrates, and
     # only then writes back: the rights kept name that table, which the migrations make again.
+    # The rotation, which reads the schedule of the backups (0038), is not what is tried here.
     subject = f"subject-{uuid4()}"
     held = role(installation.database, "Sauvegardes", permissions=("backups.read",))
     account(installation.database, "Martin", "Claire", roles=(held,), idp_subject=subject)
     owner = create_database_engine(installation.owner["waterfall"])
     downgrade(owner, "0012")
-    take()
+
+    with before_the_schedule_of_the_backups():
+        take()
     upgrade(owner)
     with installation.database.transaction() as session:
         backup_task, revision = session.execute(

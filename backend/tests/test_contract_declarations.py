@@ -522,6 +522,17 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
     ("listAccessRoles", "query", "holder_count_max"): (
         "declared nothing, contract low=(Decimal('0'), False)"
     ),
+    # The size of the backups, bounded like the roles' counts, and the lists of their origins and
+    # of their verifications, read as text and judged by the route (``backup_filters``,
+    # ``listBackups``, US-2910/L2, #2231).
+    ("listBackups", "query", "size_bytes_min"): (
+        "declared nothing, contract low=(Decimal('0'), False)"
+    ),
+    ("listBackups", "query", "size_bytes_max"): (
+        "declared nothing, contract low=(Decimal('0'), False)"
+    ),
+    ("listBackups", "query", "origins"): "declared nothing, contract min_items=1",
+    ("listBackups", "query", "verifications"): "declared nothing, contract min_items=1",
     ("listAuditEvents", "query", "actions"): ("declared nothing, contract min_items=1"),
     ("listAuditEvents", "query", "correlation_id"): (
         "declared nothing, contract pattern='^[A-Za-z0-9._-]{1,64}$'"

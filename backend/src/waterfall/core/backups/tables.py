@@ -119,6 +119,7 @@ SHIPPED_SCHEDULE: dict[str, object] = {
     "lock_version": 1,
     "created_at": func.now(),
     "updated_at": func.now(),
+    "timing_changed_at": func.now(),
 }
 
 
@@ -188,6 +189,9 @@ class BackupSchedule(Base):
     updated_by: Mapped[UUID | None] = mapped_column(
         ForeignKey("user_account.id", ondelete="RESTRICT")
     )
+    # When the timing (enabled, frequency, time, weekday) last changed, which a writing of the
+    # retention or of the copy alone leaves (``write_backup_schedule``): the base of what is owed.
+    timing_changed_at: Mapped[datetime] = mapped_column(UtcDateTime)
 
 
 class RestoreTest(Base):

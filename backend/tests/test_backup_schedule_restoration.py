@@ -15,6 +15,7 @@ from uuid import uuid4
 
 import pytest
 from access_rows import account, role
+from backup_rows import Row, days, listed, recorded
 from installations import Installation, Take, restore
 from realm import KEY, TestRealm
 from sqlalchemy import select, update
@@ -109,3 +110,23 @@ def test_the_schedule_set_before_a_restoration_is_read_after_it_and_not_the_back
     owner.dispose()
     assert tuple(authors) == (None, None)
     assert reading_at == time(1, 30)
+
+
+@pytest.mark.story("US-2910")
+def test_the_rotation_after_a_restoration_deletes_nothing_more_than_without_it(
+    installation: Installation, take: Take, tmp_path: Path
+) -> None:
+    # #1743: the backup holds a retention of two, the installation fourteen when it is restored;
+    # the list kept holds five backups besides the one restored. The schedule written back is the
+    # one of before the restoration, so that the rotation the next backup runs deletes nothing,
+    # as it would not have without it; the retention of the backup, two, would delete four.
+    set_schedule(installation.database, 2, None, None)
+    backup_task = take()
+    others = [recorded(installation.database, days(day), Row()) for day in range(1, 6)]
+    set_schedule(installation.database, 14, None, None)
+    restore(installation, backup_task, tmp_path)
+    with installation.database.transaction() as session:
+        assert read_backup_schedule(session).schedule.retained_count == 14
+    assert len(listed(installation.database)) == 1 + len(others)
+    take()
+    assert len(listed(installation.database)) == 2 + len(others)
