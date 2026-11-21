@@ -67,6 +67,11 @@ from waterfall.core.costs.interface.indicator_costs import (
     costs_stamp as costs_stamp,
 )
 
+# ``inventory`` (US-2930/L1): how many lines of cost a backup counts, which its test compares.
+from waterfall.core.costs.interface.inventory import (
+    count_cost_lines as count_cost_lines,
+)
+
 # ``subprojects`` (US-1580/L1; US-1610/L3): what the projects ask the actual costs of a subproject.
 from waterfall.core.costs.interface.subprojects import (
     impute_waiting_lines as impute_waiting_lines,

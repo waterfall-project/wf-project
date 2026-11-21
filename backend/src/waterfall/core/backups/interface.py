@@ -14,6 +14,8 @@ head of its archive (#350). The outcome of the latest backup the platform schedu
 the metrics, which its alert reads (WF-OBS-0030). The schedule of the backups, read and written
 whole (``waterfall.core.backups.schedule``, US-2910), is offered here, with when a backup is due,
 the list filtered and sorted (``listing``), the mark of a backup and the rotation (``rotation``).
+The test of a restoration reads here the backup it restores, and inscribes its outcome
+(``restore_tests``, US-2930).
 """
 
 import io
@@ -57,6 +59,13 @@ from waterfall.core.backups.listing import (
     BackupView,
     list_backups,
     view_of,
+)
+from waterfall.core.backups.restore_tests import (
+    BackupToTest,
+    RestoreCounts,
+    RestoreTestOutcome,
+    backup_to_test,
+    record_restore_test,
 )
 from waterfall.core.backups.rotation import mark_backup, rotate
 from waterfall.core.backups.schedule import (
@@ -113,12 +122,15 @@ __all__ = [
     "BackupFilters",
     "BackupScheduleView",
     "BackupSort",
+    "BackupToTest",
     "BackupView",
     "CopyMade",
     "CopyToMake",
     "ExternalCopy",
     "FailedCopy",
     "Platform",
+    "RestoreCounts",
+    "RestoreTestOutcome",
     "Schedule",
     "ScheduleWriting",
     "TakenBackup",
@@ -127,6 +139,7 @@ __all__ = [
     "backup_is_due",
     "backup_start_lacks",
     "backup_task_ids",
+    "backup_to_test",
     "confirmed_taken_at",
     "copies_beyond",
     "copy_to_make",
@@ -147,6 +160,7 @@ __all__ = [
     "read_backup",
     "read_backup_schedule",
     "record_copy",
+    "record_restore_test",
     "refuse_if_lacking",
     "restoration_lacks",
     "restored_object",

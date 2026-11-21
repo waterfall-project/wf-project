@@ -693,6 +693,40 @@ class RestoreSettings(ServiceSettings):
     realm_requests: str = Field(min_length=1)
 
 
+class RestoreTestSettings(StorageSettings):
+    """What the test of a restoration reads, ``waterfall-restore test`` (WF-EXP-0060, US-2930).
+
+    ``database_url`` designates the database of Waterfall of the production, as the role of the
+    service, which reads the backups and inscribes the test; the storage, its bucket of the backups.
+    ``restore_test_database_url`` and ``restore_test_keycloak_database_url`` designate the two
+    databases of the ephemeral platform, as their owners, which the test replaces by the backup;
+    ``restore_test_api_address`` the API of that platform, whose readiness says it started, checked
+    against the roots of ``restore_test_authority``, or of ``tls_authority`` if none is given.
+    ``restore_test_restored_file`` is the file the test writes once the databases are restored,
+    which the platform waits for to start, and ``restore_test_patience`` how long, in seconds, it is
+    given to start then: thirty minutes by default. ``keycloak_realm`` is the realm whose accounts
+    are counted, that of the installation.
+    """
+
+    restore_test_database_url: SecretStr = Field(min_length=1)
+    restore_test_keycloak_database_url: SecretStr = Field(min_length=1)
+    restore_test_api_address: str = Field(min_length=1, pattern="^https?://")
+    restore_test_authority: Roots = None
+    restore_test_restored_file: str = Field(min_length=1)
+    restore_test_patience: int = Field(default=1800, ge=1)
+    keycloak_realm: str = Field(default="waterfall", pattern="^[A-Za-z0-9_-]+$")
+
+    def transport_faults(self) -> list[str]:
+        """Add the API of the ephemeral platform, which must be reached in ``https://``."""
+        encrypted = self.restore_test_api_address.startswith("https://")
+        return [
+            *super().transport_faults(),
+            *encrypted_fault(
+                "restore_test_api_address", encrypted=encrypted, wanted="be in https://"
+            ),
+        ]
+
+
 class WitnessSettings(PlatformSettings):
     """What the loader of the witness reads, ``waterfall-api load-witness`` (WF-QUA-0040, EP-05).
 
@@ -741,6 +775,11 @@ def load_worker_settings() -> WorkerSettings:
 def load_restore_settings() -> RestoreSettings:
     """Read the settings of the service of the restoration, as ``load_settings`` does."""
     return _load(RestoreSettings)
+
+
+def load_restore_test_settings() -> RestoreTestSettings:
+    """Read the settings of the test of a restoration, as ``load_settings`` does."""
+    return _load(RestoreTestSettings)
 
 
 def load_installation_settings() -> InstallationSettings:
