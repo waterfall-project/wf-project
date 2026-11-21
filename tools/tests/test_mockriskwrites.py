@@ -349,7 +349,7 @@ def test_the_report_adds_the_own_estimate_modifies_the_bearer_and_removes_the_pr
     line = rows[cast("int", mockwitnessrisks.REWORK.provision_line)]
     bearer = rows[cast("int", line.parent)]
     assert not cast("dict[str, Any]", bearer.node["task"])["is_milestone"]
-    *_, updated, removed = report["differences"]
+    updated, removed = report["differences"][len(added)], report["differences"][-1]
     assert (updated["change"], updated["target"], updated["label"]) == (
         "updated",
         "task",
@@ -362,15 +362,36 @@ def test_the_report_adds_the_own_estimate_modifies_the_bearer_and_removes_the_pr
         line.label,
     )
     assert removed["lineage_id"] == line.node["lineage_id"]
-    assert len(report["differences"]) == len(added) + 2
+    redated = report["differences"][len(added) + 1 : -1]
+    assert len(report["differences"]) == len(added) + 2 + len(redated)
     assert report["refusals"] == []
+
+
+def test_the_report_names_the_tasks_the_graft_redates_by_their_dates_after_the_bearer() -> None:
+    # #4134: each task of the main structure the engine redates, an `updated` task difference
+    # naming `start` and `finish`, after the bearer and in the order of the plan.
+    report = example("risk_occurrence_report")["value"]
+    added = [each for each in report["differences"] if each["change"] == "added"]
+    redated = report["differences"][len(added) + 1 : -1]
+    assert redated
+    assert {(each["change"], each["target"]) for each in redated} == {("updated", "task")}
+    assert all(each["fields"] in (["finish"], ["start", "finish"]) for each in redated)
+    rows = {row.number: row for row in mockcore.current()}
+    plan = [row.node["lineage_id"] for row in mockcore.current() if row.kind == "task"]
+    named = [each["lineage_id"] for each in redated]
+    assert named == sorted(named, key=plan.index)
+    assert len(set(named)) == len(named)
+    successor = rows[N.FACTORY_ACCEPTANCE]
+    assert successor.node["lineage_id"] in named
+    assert report["own_estimate_past_planning_start_on"] == "2026-01-12"
 
 
 def test_the_bearer_is_changed_by_the_dates_it_comes_to_span() -> None:
     # The bearer becomes the summary of the tasks merged under it, which keep the dates they had in
     # the own estimate (WF-RIS-0060, WF-PLA-0040): a date it changes is a field of its `updated`.
     report = example("risk_occurrence_report")["value"]
-    [updated] = [each for each in report["differences"] if each["change"] == "updated"]
+    added = [each for each in report["differences"] if each["change"] == "added"]
+    updated = report["differences"][len(added)]
     tasks = [
         item["task"]
         for item in example("nodes_risk_estimate")["value"]["items"]

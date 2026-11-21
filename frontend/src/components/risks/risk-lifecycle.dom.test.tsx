@@ -264,8 +264,11 @@ describe("« Déclarer survenu »", () => {
       within(within(table).getByRole("row", { name: new RegExp(label) })).getAllByRole("cell")[0];
     expect(markOf("Diagnostic des défauts de câblage")).toHaveAccessibleName("Ajouté");
     expect(markOf("Câblage des armoires")).toHaveAccessibleName("Modifié");
-    expect(markOf("Provision — risque de reprise du câblage")).toHaveAccessibleName("Retiré");
-    expect(within(form).queryByRole("note")).toBeNull();
+    expect(markOf("Provision — Risque de reprise du câblage")).toHaveAccessibleName("Retiré");
+    // The own estimate of the risk starts before the day of the declaration: the report says so.
+    expect(within(form).getByRole("note")).toHaveTextContent(
+      /Le devis propre du risque commence le 12 janv\. 2026, avant le jour de la déclaration/,
+    );
     await expectAccessible(form);
     // Abandoned, nothing is written: the report was a read.
     await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));

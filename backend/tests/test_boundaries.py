@@ -99,6 +99,8 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "estimate_facts",
         # What the portfolio reads of several projects at once (US-2670/L1, EP-11).
         "portfolio",
+        # The subprojects the provisions of the risks designate (US-3060/L4, #4208).
+        "risk_designations",
     },
     # ``rates``: the update of the rates a revision frames (US-1500/L1).
     "revisions": {

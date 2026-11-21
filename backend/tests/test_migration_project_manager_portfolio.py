@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The predefined project manager no longer reads the portfolio: migration 0041 (US-2690/L2)."""
+"""The predefined project manager no longer reads the portfolio: migration 0043 (US-2690/L2)."""
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -52,7 +52,7 @@ def test_the_migration_takes_the_reading_of_the_portfolio_from_the_predefined_pr
     # Propre à US-2690 (#3355) : « une migration la lui retire sur une plateforme installée, sans
     # toucher aux autres rôles ni à un rôle que l'entreprise a créé ». The project manager is known
     # by what it holds, not by its label; the descent gives the permission back to it alone.
-    upgrade(empty_engine, "0040")
+    upgrade(empty_engine, "0042")
     with empty_engine.begin() as connection:
         identifiers = dict(connection.execute(select(Permission.code, Permission.id)).all())
         for label, (predefined, deleted, codes) in ROLES.items():
@@ -76,11 +76,11 @@ def test_the_migration_takes_the_reading_of_the_portfolio_from_the_predefined_pr
             )
     before = grants(empty_engine)
     assert PORTFOLIO in before["Chef de projet"]
-    upgrade(empty_engine, "0041")
+    upgrade(empty_engine, "0043")
     after = grants(empty_engine)
     assert after["Chef de projet"] == before["Chef de projet"] - {PORTFOLIO}
     assert {label: codes for label, codes in after.items() if label != "Chef de projet"} == {
         label: codes for label, codes in before.items() if label != "Chef de projet"
     }
-    downgrade(empty_engine, "0040")
+    downgrade(empty_engine, "0042")
     assert grants(empty_engine) == before

@@ -51,7 +51,7 @@ function rowOf(label: string): number {
 const TASK = rowOf("Câblage des armoires");
 const LABOUR = rowOf("Raccordement des borniers");
 const DISBURSEMENT = rowOf("Borniers");
-const PROVISION = rowOf("Provision — risque de reprise du câblage");
+const PROVISION = rowOf("Provision — Risque de reprise du câblage");
 // The last row of the grid, a line under the last task of the plan.
 const LAST = rowOf("Affrètement");
 // The height of a row at the default size of the root font.

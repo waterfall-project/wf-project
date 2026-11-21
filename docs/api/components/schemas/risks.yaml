@@ -615,7 +615,10 @@ RiskMatrixPoint:
         (WF-REF-0160) —, rounded to four decimal places (README, "A share…"). The cell of the
         risk and its zone are those of the exact share, which the severity bounds classify
         before rounding: a bubble less than half a hundredth of a percent from a bound may be
-        drawn on the line of that bound, in the cell that `zone` states. Not computable on a
+        drawn on the line of that bound, in the cell that `zone` states. The level of a point
+        is that of its cell, never computed again from the rounded share: an exact share just
+        below a bound, rounded onto it, stays at the level below, although the bound opens the
+        next level (#4027). Not computable on a
         zero base, reason `no_reference_budget` — a project without a reference budget whose
         estimate carries only provisions so far —: the risk is then at the lowest severity
         level (`RiskMatrixCell`), counted in its cell, and the chart, which has no y-value for

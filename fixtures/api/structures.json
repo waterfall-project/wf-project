@@ -28,7 +28,7 @@
           "missing_conditions": []
         }
       ],
-      "lock_version": 1
+      "lock_version": 9
     },
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000203",
@@ -62,7 +62,7 @@
           ]
         }
       ],
-      "lock_version": 2
+      "lock_version": 6
     },
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000204",
@@ -85,7 +85,7 @@
           "missing_conditions": []
         }
       ],
-      "lock_version": 1
+      "lock_version": 5
     },
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000205",
@@ -108,7 +108,7 @@
           "missing_conditions": []
         }
       ],
-      "lock_version": 1
+      "lock_version": 4
     },
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000206",
@@ -131,7 +131,7 @@
           "missing_conditions": []
         }
       ],
-      "lock_version": 1
+      "lock_version": 3
     }
   ]
 }

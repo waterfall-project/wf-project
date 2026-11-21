@@ -28,7 +28,7 @@ from waterfall.platform.database import CODE_POINTS, Base, UtcDateTime, bounded
 
 # The kinds of document a marking keeps (EP-10, "Tables et migrations"): the indicators of the
 # estimate and of the remaining to commit, those of the project, and its three curves; then the
-# documents of a project the portfolio sums (EP-11, migration ``0040``).
+# documents of a project the portfolio sums (EP-11, migration ``0042``).
 KINDS = (
     "estimate",
     "remaining",

@@ -24,7 +24,7 @@ from wftools import (
     mockwrites,
 )
 from wftools.mockids import universe
-from wftools.mockwitness import CABLE_FITTER, CORE
+from wftools.mockwitness import CABLE_FITTER, CORE, FIRST_WRITE
 
 type Node = dict[str, Any]
 
@@ -189,7 +189,7 @@ def test_a_write_of_the_core_answers_the_node_written_its_summaries_and_the_whol
     assert (renamed["rescheduled"], renamed["reinflated"]) == ([], [])
     assert renamed["totals"] == whole["totals"]
     assert renamed["totals"]["task_count"] == 1_000
-    assert renamed["structure_lock_version"] == 2
+    assert renamed["structure_lock_version"] == FIRST_WRITE
     # The same summary, rendered by every write of the wiring, is the reading's node, recalculated.
     estimate = numbered(mockwitness.fixture("nodes_estimate")["items"])
     assert estimate[CONTROL_STATION] == summary
@@ -395,7 +395,7 @@ def test_a_label_entered_on_the_volume_changes_nothing_else(answer: dict[str, An
     assert [node["row_number"] for node in entered["ancestors"]] == [25, 26, 27]
     assert all(node == read[node["node_id"]] for node in entered["ancestors"])
     assert entered["totals"] == answer["totals"]
-    assert entered["structure_lock_version"] == 3
+    assert entered["structure_lock_version"] == FIRST_WRITE + 1
 
 
 def test_a_block_is_planned_by_the_categories_and_roles_the_reference_names() -> None:

@@ -12,13 +12,16 @@ occurrence frozen, a review of occurrence written, the own estimate marked merge
 It marks nothing.
 
 Declared by US-2550/L1, the socle of EP-08; filled by US-2620/L1 (the report) and US-2620/L2 (the
-application, ``applying``).
+application, ``applying``). ``load_occurrence`` applies the occurrence of a risk of the witness at
+the instant it imposes, under the identifiers it imposes on the nodes grafted (US-2650/L1).
 """
 
 from typing import TYPE_CHECKING, Any
 
 from waterfall.core.risks.applying import (
+    OccurrenceLoad,
     OccurrenceRequest,
+    load_occurrence_at,
     run_occurrence_task,
     submit_occurrence_task,
 )
@@ -36,7 +39,7 @@ if TYPE_CHECKING:
     from waterfall.platform.queue import TaskQueue
 
 # The report and the request, as the interface hands them on (``risks.interface`` re-exports them).
-__all__ = ["OccurrenceReport", "OccurrenceRequest"]
+__all__ = ["OccurrenceLoad", "OccurrenceReport", "OccurrenceRequest"]
 
 
 def occurrence_report(
@@ -61,6 +64,11 @@ def submit_occurrence(
 def run_occurrence(session: Session, payload: Mapping[str, Any], act: Act, task_id: UUID) -> None:
     """Apply the occurrence a task names, in the transaction of the task (the worker's)."""
     run_occurrence_task(session, payload, act, task_id)
+
+
+def load_occurrence(session: Session, project_id: UUID, load: OccurrenceLoad, act: Act) -> None:
+    """Apply the occurrence of a risk of the witness at the instant it imposes (US-2650/L1)."""
+    load_occurrence_at(session, project_id, load, act)
 
 
 def occurred_risk_ids(

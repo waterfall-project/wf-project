@@ -131,6 +131,12 @@ from waterfall.core.projects.interface.projects import (
     update_project,
 )
 
+# ``risk_designations`` (US-3060/L4, #4208): the subprojects the provisions of the risks designate.
+from waterfall.core.projects.interface.risk_designations import (
+    RiskDesignations,
+    register_risk_designations,
+)
+
 # ``skeleton`` (US-1460, #2541): whether the main structure of the revision a project would open
 # carries a task.
 from waterfall.core.projects.interface.skeleton import (
@@ -145,6 +151,7 @@ from waterfall.core.projects.interface.subprojects import (
     SubprojectChange,
     SubprojectColumn,
     SubprojectCommandAvailability,
+    SubprojectDeletion,
     SubprojectFilters,
     SubprojectLoad,
     SubprojectSort,
@@ -237,9 +244,11 @@ __all__ = [
     "ProjectState",
     "ProjectView",
     "RevisionFate",
+    "RiskDesignations",
     "SubprojectChange",
     "SubprojectColumn",
     "SubprojectCommandAvailability",
+    "SubprojectDeletion",
     "SubprojectFilters",
     "SubprojectLoad",
     "SubprojectSort",
@@ -301,6 +310,7 @@ __all__ = [
     "register_cost_facts",
     "register_estimate_facts",
     "register_opening_main_question",
+    "register_risk_designations",
     "require_project_manager",
     "set_contributors",
     "set_current_revision",

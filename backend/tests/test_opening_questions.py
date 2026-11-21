@@ -5,6 +5,9 @@
 ``opening_main_with_tasks`` (projects) and ``main_structure_has_task`` (revisions) combine the
 questions registered the same way: all must retain a project, and none registered retains none. The
 registries are replaced for the test by registries of its own, and given back by ``monkeypatch``.
+
+The tests cite no requirement: how the questions combine is a detail of realisation (#4004), which
+no Vérif of an exigence judges.
 """
 
 from typing import TYPE_CHECKING, Any

@@ -215,6 +215,9 @@ the parent of the commissioning, moved under the trials on site, which no column
 RELINKED = (N.COMMISSIONING, N.MOUNTING, N.TESTS_RESUMED)
 """The task whose predecessor the amendment changes, its predecessor before, and after."""
 
+ADDED_LINKED = (N.TESTS_RESUMED, N.MOUNTING)
+"""The task the amendment adds and links, and its predecessor: the link comes with the task."""
+
 
 def structure(kind: str) -> JsonObject:
     """Return a structure of the current revision as `structures` lists it: the main, or this."""
@@ -240,12 +243,20 @@ def _difference(change: str, node: JsonObject, fields: list[str] | None = None) 
     }
 
 
+def is_task(node: JsonObject) -> bool:
+    """Tell whether a node read is a task."""
+    return node["kind"] == "task"
+
+
 def _link(change: str, task: JsonObject, predecessor: JsonObject) -> JsonObject:
-    """Return a link added or removed, named by its successor, whose predecessors present it."""
+    """Return a link added or removed, named by its successor, whose predecessors present it.
+
+    A task the amendment adds has no lineage in the main structure yet, nor has its link.
+    """
     return {
         "change": change,
         "target": "link",
-        "lineage_id": task["lineage_id"],
+        "lineage_id": None if task["difference"] == mockdiff.ADDED else task["lineage_id"],
         "label": cast("JsonObject", task["task"])["label"],
         "predecessor_label": cast("JsonObject", predecessor["task"])["label"],
         "fields": [],
@@ -255,19 +266,23 @@ def _link(change: str, task: JsonObject, predecessor: JsonObject) -> JsonObject:
 def structure_merge_report() -> JsonObject:
     """Return what getStructureMergeReport answers of the amendment 2 (WF-REV-0050).
 
-    The tasks and the lines added, the link of the commissioning moved from the mounting to the
-    rework, the commissioning moved under the trials on site and its duration changed, the hours
-    of its line changed, the line withdrawn; no started task withdrawn, none completed; nothing
-    refusing it. The counters of the two structures read, as `structures` lists them; the merge
-    applies to the current revision, which it does not create (#790).
+    In the order of the service: the tasks added, the links added — that of the commissioning to
+    the rework, and that of the rework to the mounting, the task the amendment adds being linked
+    as it enters —, the lines added, then what is modified and what is withdrawn: the commissioning
+    moved under the trials on site and its duration changed, the hours of its line changed, its
+    link to the mounting withdrawn, the line withdrawn; no started task withdrawn, none completed;
+    nothing refusing it. The counters of the two structures read, as `structures` lists them; the
+    merge applies to the current revision, which it does not create (#790, #4276).
     """
     nodes = marked()
     by_id = {cast("str", node["node_id"]): node for node in nodes}
     task, before, after = (by_id[own_id(number)] for number in RELINKED)
-    differences: list[JsonValue] = [
-        _difference("added", node) for node in nodes if node["difference"] == mockdiff.ADDED
-    ]
+    linked, predecessor = (by_id[own_id(number)] for number in ADDED_LINKED)
+    added = [node for node in nodes if node["difference"] == mockdiff.ADDED]
+    differences: list[JsonValue] = [_difference("added", node) for node in added if is_task(node)]
     differences.append(_link("added", task, after))
+    differences.append(_link("added", linked, predecessor))
+    differences.extend(_difference("added", node) for node in added if not is_task(node))
     differences.extend(
         _difference("updated", by_id[own_id(number)], fields)
         for number, fields in DESIGNATED.items()
@@ -360,6 +375,7 @@ def examples(reference: JsonObject) -> dict[str, JsonObject]:
         else "rien d'autre de la structure n'en est redaté"
     )
     relinked, before, after = (_label(whole, number) for number in RELINKED)
+    linked, predecessor = (_label(whole, number) for number in ADDED_LINKED)
     amendment_id = structure("amendment")["structure_id"]
     report = structure_merge_report()
     differences_read = nodes_amendment_differences()
@@ -425,7 +441,8 @@ def examples(reference: JsonObject) -> dict[str, JsonObject]:
             f"différentiel non fusionné de la révision courante (nodes_amendment) : "
             f"{_said(whole, mockdiff.ADDED)}, qu'il ajoute ; la « {relinked} » déplacée sous "
             f"les « {_label(whole, N.SITE_TESTS)} », liée à la « {after} » au lieu du "
-            f"« {before} », sa durée et la charge de sa ligne modifiées ; "
+            f"« {before} », sa durée et la charge de sa ligne modifiées ; la « {linked} » "
+            f"ajoutée est liée au « {predecessor} » ; "
             f"{_said(whole, mockdiff.REMOVED)}, retirée ; aucune tâche démarrée retirée, aucune "
             f"terminée, aucun motif de "
             f"refus : la confirmation est offerte, qui renverra les compteurs lus — celui de la "

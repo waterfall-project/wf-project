@@ -8,15 +8,19 @@ applied, and only the structure aimed at is written: the main structure and the 
 are left as they were. Through the service and its worker, each answer checked against the contract.
 """
 
+from dataclasses import replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 import pytest
 from amendments_support import listed, on, opened_amendment, structures_path
 from estimate_import_support import STATE, entry_of, opening, row, workbook
 from estimate_support import Costing, costing
 from fastapi.testclient import TestClient
-from imports_trial import apply, deposited, import_worker, read, refusal, run
+from imports_trial import apply, deposited, import_worker, path, read, refusal, run
+from nodes_support import mark
+from nodes_support import opened as opened_revision
 from projects_support import PROJECTS, Scene, put_in_state
 from projects_support import scene as make_scene
 from risks_support import MAKING, STUDY, Costed, costed
@@ -189,20 +193,13 @@ def test_an_import_aimed_at_a_structure_the_revision_does_not_hold_is_not_found(
     assert answer.status_code == 404, answer.text
 
 
-@pytest.mark.requirement("WF-INTF-0100-A")
-def test_an_import_analysed_on_a_differential_abandoned_since_is_not_applied(
-    api: ContractClient, project: Costed, worker: Worker
-) -> None:
-    # The import is kept by the structure it aims at, which no key binds: abandoned since its
-    # analysis, the structure is unknown at the application, refused with 404 as at the opening
-    # (I-03, #1789), not a failure; the import ends refused and nothing is written.
+def analysed_on(api: ContractClient, project: Costed, worker: Worker, aimed: str) -> str:
+    """Open and analyse the import of an estimate on a differential, Plans at 750; give it."""
     stage = project.stage
-    aimed = opened_amendment(api, project)
-    amendment = on(project.tree, aimed)
-    content = exported(project, amendment, {"Débours unitaire": 750})
+    content = exported(project, on(project.tree, aimed), {"Débours unitaire": 750})
     upload_id = deposited(api, stage.manager, content)
     opened = api.post(
-        f"{PROJECTS}/{project.project_id}/imports",
+        path(stage),
         headers=stage.manager.headers,
         json={"kind": "estimate", "upload_id": upload_id, "structure_id": aimed},
     )
@@ -210,16 +207,49 @@ def test_an_import_analysed_on_a_differential_abandoned_since_is_not_applied(
     import_id = opened.json()["import_id"]
     run(worker)
     assert read(api, stage, import_id)["status"] == "analysed"
-    held = next(each for each in listed(api, project) if each["structure_id"] == aimed)
+    return import_id
+
+
+def abandoned(api: ContractClient, project: Costed, kind: str = "amendment") -> None:
+    """Abandon the differential of the current revision of a project, as its manager does."""
+    held = next(each for each in listed(api, project) if each["kind"] == kind)
     gone = api.delete(
-        f"{structures_path(project)}/{aimed}?lock_version={held['lock_version']}",
-        headers=stage.manager.headers,
+        f"{structures_path(project)}/{held['structure_id']}?lock_version={held['lock_version']}",
+        headers=project.stage.manager.headers,
     )
     assert gone.status_code == 204, gone.text
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+def test_an_import_analysed_on_a_differential_goes_with_its_abandonment(
+    api: ContractClient, project: Costed, worker: Worker
+) -> None:
+    # The import is bound to the structure it aims at by a key in cascade (US-3060, #4139):
+    # abandoned since its analysis, the differential takes the import with it. The client sees it
+    # unknown, at the reading and at the application (404, I-03, #1789), and nothing is written.
+    stage = project.stage
+    import_id = analysed_on(api, project, worker, opened_amendment(api, project))
+    abandoned(api, project)
     before = project.tree.read().json()
-    answer = apply(api, stage, import_id)
-    assert answer.status_code == 404, answer.text
-    assert read(api, stage, import_id)["status"] == "refused"
-    run(worker)
-    assert read(api, stage, import_id)["status"] == "refused"
+    found = api.get(path(stage, import_id), headers=stage.manager.headers)
+    assert found.status_code == 404, found.text
+    assert apply(api, stage, import_id).status_code == 404
     assert project.tree.read().json() == before
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+def test_an_import_on_a_marked_differential_whose_copy_is_abandoned_is_refused_not_found(
+    api: ContractClient, project: Costed, worker: Worker
+) -> None:
+    # What the key cannot see: analysed on a differential of the last marked revision, which stays,
+    # the import applies to its copy in the current revision (WF-INTF-0090); the copy abandoned,
+    # the current revision holds none, and the application refuses the import for good, not found,
+    # as before the key (I-03, #1789).
+    stage = project.stage
+    aimed = opened_amendment(api, project)
+    mark(stage, {"revision_id": str(project.revision_id)})
+    import_id = analysed_on(api, project, worker, aimed)
+    current = replace(project, revision_id=UUID(opened_revision(api, stage)["revision_id"]))
+    abandoned(api, current)
+    assert refusal(apply(api, stage, import_id))[:2] == (404, "NOT_FOUND")
+    assert read(api, stage, import_id)["status"] == "refused"

@@ -742,7 +742,7 @@ describe("the report of an import", () => {
     expect(
       screen.getByText(/Lignes de provision d’un risque, laissées telles quelles/),
     ).toHaveTextContent(
-      "Lignes de provision d’un risque, laissées telles quelles (1) : Provision — risque de reprise du câblage",
+      "Lignes de provision d’un risque, laissées telles quelles (1) : Provision — Risque de reprise du câblage",
     );
   });
 
