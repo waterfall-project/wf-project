@@ -23,6 +23,7 @@ command, saying so; nothing is written then.
 
 import argparse
 import ipaddress
+import itertools
 import os
 import sys
 import tempfile
@@ -32,7 +33,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from cryptography import x509
-from cryptography.exceptions import UnsupportedAlgorithm
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
@@ -147,21 +148,64 @@ def _key(path: Path) -> CertificateIssuerPrivateKeyTypes:
     return key
 
 
+def _signs_certificates(certificate: x509.Certificate, below: int) -> bool:
+    """Tell whether a certificate may sign one with ``below`` authorities under it in a path.
+
+    It is one of authority, whose length of path admits them, and whose usages, when it says them,
+    include the signature of a certificate: what a client checks before it trusts a service.
+    """
+    try:
+        constraints = certificate.extensions.get_extension_for_class(x509.BasicConstraints).value
+    except x509.ExtensionNotFound:
+        return False
+    too_short = constraints.path_length is not None and constraints.path_length < below
+    if not constraints.ca or too_short:
+        return False
+    try:
+        usage = certificate.extensions.get_extension_for_class(x509.KeyUsage).value
+    except x509.ExtensionNotFound:
+        return True
+    return usage.key_cert_sign
+
+
+def _chained(certificates: Sequence[x509.Certificate], path: Path) -> None:
+    """Refuse a file that holds the authority and something else than the chain up to its root.
+
+    Each certificate after the first is the one that signed the certificate before it.
+    """
+    for lower, upper in itertools.pairwise(certificates):
+        try:
+            lower.verify_directly_issued_by(upper)
+        except (ValueError, TypeError, InvalidSignature) as error:
+            message = (
+                f"{path} must hold the certificate of the authority alone, or followed by those up "
+                "to its root, each signed by the next"
+            )
+            raise AuthorityError(message) from error
+
+
 def _loaded(certificate: Path, key: Path, now: datetime) -> Authority:
-    """Read an authority, and check that it may sign: a certificate of authority, valid, its key."""
+    """Read an authority, and check that it may sign: a certificate of authority, valid, its key.
+
+    The certificates after it, if any, are those up to its root, in order, each of authority with a
+    length of path that admits those under it.
+    """
     certificates = _certificates(certificate)
     private = _key(key)
     issuer = certificates[0]
     if issuer.public_key() != private.public_key():
         message = f"the key {key} is not that of the certificate {certificate}"
         raise AuthorityError(message)
-    try:
-        constraints = issuer.extensions.get_extension_for_class(x509.BasicConstraints).value
-    except x509.ExtensionNotFound:
-        constraints = None
-    if constraints is None or not constraints.ca:
-        message = f"{certificate} is not a certificate of authority"
-        raise AuthorityError(message)
+    _chained(certificates, certificate)
+    for below, each in enumerate(certificates):
+        if not _signs_certificates(each, below):
+            subject = each.subject.rfc4514_string()
+            message = (
+                f"{certificate} is not a certificate of authority that may sign those of the "
+                f"services: {subject} is not of authority, does not sign certificates, or its "
+                "length of path is too short"
+            )
+            raise AuthorityError(message)
     if not issuer.not_valid_before_utc <= now < issuer.not_valid_after_utc:
         message = f"{certificate} is not valid now"
         raise AuthorityError(message)

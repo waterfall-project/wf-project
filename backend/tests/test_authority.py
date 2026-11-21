@@ -187,6 +187,145 @@ def test_a_certificate_that_is_no_authority_is_refused(tmp_path: Path) -> None:
         authority.authority_of(tmp_path, tmp_path / "kept", NOW)
 
 
+def of_authority(
+    name: str,
+    key: ec.EllipticCurvePrivateKey,
+    signer: tuple[x509.Name, ec.EllipticCurvePrivateKey] | None = None,
+    *,
+    path_length: int | None = None,
+    signs_certificates: bool = True,
+) -> x509.Certificate:
+    """Make a certificate of authority, signed by ``signer``, a name and its key, else by itself."""
+    subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, name)])
+    issuer, signing = signer or (subject, key)
+    usage = x509.KeyUsage(
+        digital_signature=True,
+        content_commitment=False,
+        key_encipherment=False,
+        data_encipherment=False,
+        key_agreement=False,
+        key_cert_sign=signs_certificates,
+        crl_sign=True,
+        encipher_only=False,
+        decipher_only=False,
+    )
+    return (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(NOW - timedelta(days=1))
+        .not_valid_after(NOW + timedelta(days=365))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=path_length), critical=True)
+        .add_extension(usage, critical=True)
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
+        .add_extension(
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(signing.public_key()),
+            critical=False,
+        )
+        .sign(signing, hashes.SHA256())
+    )
+
+
+def provide(folder: Path, chain: list[x509.Certificate], key: ec.EllipticCurvePrivateKey) -> None:
+    """Write ``ca.crt``, the certificates of a chain in their order, and ``ca.key``."""
+    pem = b"".join(each.public_bytes(serialization.Encoding.PEM) for each in chain)
+    (folder / "ca.crt").write_bytes(pem)
+    (folder / "ca.key").write_bytes(
+        key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption(),
+        )
+    )
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_an_intermediate_authority_followed_by_its_root_signs_what_its_root_vouches_for(
+    tmp_path: Path,
+) -> None:
+    provided, kept, trust, certificates = folders(tmp_path)
+    root_key = ec.generate_private_key(ec.SECP256R1())
+    intermediate_key = ec.generate_private_key(ec.SECP256R1())
+    root = of_authority("Operator root", root_key, path_length=1)
+    intermediate = of_authority(
+        "Operator intermediate", intermediate_key, (root.subject, root_key), path_length=0
+    )
+    provide(provided, [intermediate, root], intermediate_key)
+    authority.run(provided, kept, trust, certificates, [own("api")])
+    leaf = certificate(certificates / "api" / "tls.crt")
+    leaf.verify_directly_issued_by(intermediate)
+    # The server serves its chain; a client that trusts the root alone accepts it.
+    client = ssl.create_default_context(cafile=root_only(tmp_path, root))
+    served = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    served.load_cert_chain(certificates / "api" / "tls.crt", certificates / "api" / "tls.key")
+    assert handshake(served, client, "api")
+
+
+def root_only(folder: Path, root: x509.Certificate) -> Path:
+    """Write a root alone in a file, and give its path."""
+    path = folder / "root-only.crt"
+    path.write_bytes(root.public_bytes(serialization.Encoding.PEM))
+    return path
+
+
+def handshake(server: ssl.SSLContext, client: ssl.SSLContext, name: str) -> bool:
+    """Tell whether a client reaches a server by its name in memory, its certificate accepted."""
+    incoming, outgoing = ssl.MemoryBIO(), ssl.MemoryBIO()
+    back_in, back_out = ssl.MemoryBIO(), ssl.MemoryBIO()
+    serving = server.wrap_bio(incoming, back_out, server_side=True)
+    asking = client.wrap_bio(back_in, outgoing, server_hostname=name)
+    for _ in range(10):
+        done = 0
+        for side in (asking, serving):
+            try:
+                side.do_handshake()
+                done += 1
+            except ssl.SSLWantReadError:
+                pass
+        incoming.write(outgoing.read())
+        back_in.write(back_out.read())
+        if done == 2:
+            return True
+    return False
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+@pytest.mark.parametrize(
+    ("given", "said"),
+    [
+        ("root of path 0 over an intermediate", "length of path is too short"),
+        ("signs no certificate", "does not sign certificates"),
+        ("another certificate after it", "each signed by the next"),
+        ("root before the intermediate", "is not that of the certificate"),
+        ("intermediate, then a root that did not sign it", "each signed by the next"),
+    ],
+)
+def test_a_provided_authority_that_cannot_sign_the_certificate_of_a_server_is_refused(
+    given: str, said: str, tmp_path: Path
+) -> None:
+    keys = [ec.generate_private_key(ec.SECP256R1()) for _ in range(3)]
+    root = of_authority("Operator root", keys[0], path_length=0 if "path 0" in given else None)
+    intermediate = of_authority("Operator intermediate", keys[1], (root.subject, keys[0]))
+    other = of_authority("Another root", keys[2])
+    chains = {
+        "root of path 0 over an intermediate": ([intermediate, root], keys[1]),
+        "signs no certificate": (
+            [of_authority("Operator root", keys[0], signs_certificates=False)],
+            keys[0],
+        ),
+        "another certificate after it": ([root, other], keys[0]),
+        "root before the intermediate": ([root, intermediate], keys[1]),
+        "intermediate, then a root that did not sign it": ([intermediate, other], keys[1]),
+    }
+    chain, key = chains[given]
+    provide(tmp_path, chain, key)
+    with pytest.raises(AuthorityError, match=said) as refused:
+        authority.authority_of(tmp_path, tmp_path / "kept", NOW)
+    assert str(tmp_path / "ca.crt") in str(refused.value)
+
+
 def test_an_authority_no_longer_valid_is_refused(tmp_path: Path) -> None:
     operators_authority(tmp_path, days=1)
     later = NOW + timedelta(days=2)
