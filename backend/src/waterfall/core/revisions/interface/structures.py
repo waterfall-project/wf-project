@@ -65,7 +65,7 @@ from waterfall.core.revisions.commands import (
     phase_conditions,
     structure_commands_of,
 )
-from waterfall.core.revisions.interface.shared import AMENDMENT, MAIN, inscribe_structure
+from waterfall.core.revisions.interface.shared import AMENDMENT, BASE, MAIN, RISK, inscribe_structure
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.states import revision_state
 from waterfall.core.revisions.tables import CostStructure, Revision
@@ -85,10 +85,9 @@ if TYPE_CHECKING:
 
 # The kind of a differential, the amendment a negotiation prepares (``StructureKind``), is
 # ``AMENDMENT``, which ``shared`` holds for the modules that cannot import this one.
-# The kind of the own estimate of a risk (``StructureKind``).
-RISK = "risk"
-# The kind of the base of a differential, which no operation serves (US-3050).
-BASE = "base"
+# The kind of the own estimate of a risk, and that of the base of a differential, which no
+# operation serves (US-3050), are ``RISK`` and ``BASE``, which ``shared`` derives from the kinds
+# the table constrains.
 # The label of the main structure at its creation, as the examples of the contract name it.
 MAIN_LABEL = "Structure principale"
 # The counter of a structure at its creation, its own or a copy's: every resource is born at 1
@@ -831,6 +830,10 @@ def rename_own_estimates(session: Session, project_id: UUID, labels: dict[UUID, 
 
     ``labels`` maps each own estimate to the label of its risk: the copy of a revision names them
     from the risk, not from the structures it copies (#3980). They are new, at their first version.
+
+    The copy added their objects to the session with the label it copied, and the statement does not
+    synchronize the session: the label of each object the session holds is expired, so that a
+    reading by the ORM in the same transaction gives the new one (#4041).
     """
     if not labels:
         return
@@ -840,6 +843,9 @@ def rename_own_estimates(session: Session, project_id: UUID, labels: dict[UUID, 
         .values(label=case(labels, value=CostStructure.id))
         .execution_options(synchronize_session=False)
     )
+    for held in tuple(session.identity_map.values()):
+        if isinstance(held, CostStructure) and held.id in labels:
+            session.expire(held, ["label"])
 
 
 @dataclass(frozen=True, slots=True)
