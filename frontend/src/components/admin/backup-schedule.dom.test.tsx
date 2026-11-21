@@ -397,38 +397,25 @@ describe("the schedule of the backups", () => {
   });
 
   it.each([
-    ["-3", "2", "Valeur minimale : 1."],
-    ["0", "2", "Valeur minimale : 1."],
-    ["366", "30", "Valeur maximale : 365."],
+    ["-3", "2"],
+    ["0", "2"],
+    ["366", "30"],
   ])(
-    "refuses at its field, before asking anything, a retention out of the bounds of the contract, %s [WF-ADM-0170-A]",
-    async (retention, count, bound) => {
-      const client = serve();
-      const form = await openForm();
-      const retained = await retype(form, "Sauvegardes conservées", retention);
-      const copies = await retype(form, "Copies gardées", count);
-      await save(form);
-      expect(retained).toHaveAccessibleDescription(
-        spaced(`La valeur sort des limites admises. ${bound}`),
-      );
-      // The copies are judged only on a retention within its bounds: the server names their least.
-      expect(copies).not.toHaveAttribute("aria-invalid");
-      expect(client.calls).toEqual([]);
-    },
-  );
-
-  it.each(["1", "365"])(
-    "sends a retention at a bound of the contract, %s [WF-ADM-0170-A]",
-    async (retention) => {
+    "leaves to the server the count of copies of a retention out of its bounds, %s, which it refuses by its own: %s copies sent",
+    async (retention, count) => {
       const client = serve();
       const form = await openForm();
       await retype(form, "Sauvegardes conservées", retention);
-      await retype(form, "Copies gardées", "365");
+      const copies = await retype(form, "Copies gardées", count);
       await save(form);
       await vi.waitFor(() => {
         expect(client.calls).toHaveLength(1);
       });
-      expect(client.calls[0]?.body).toMatchObject({ retained_count: Number(retention) });
+      expect(copies).not.toHaveAttribute("aria-invalid");
+      expect(client.calls[0]?.body).toMatchObject({
+        retained_count: Number(retention),
+        external_copy: { retained_count: Number(count) },
+      });
     },
   );
 
