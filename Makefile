@@ -330,7 +330,7 @@ lint-chart: kube-tools ## Lint the chart strictly, with the values of the chain 
 # administrator held, then deleted (wftools.charttrial). A heavy run: a cluster, Keycloak twice and
 # PostgreSQL. The cluster is named after the slot, so that two worktrees never share one.
 chart-trial: export WATERFALL_CHART_CLUSTER ?= waterfall-chart-s$(call slot-value,WATERFALL_SLOT)
-chart-trial: kube-tools ## Install the chart on a throwaway cluster of kind from the images of WATERFALL_IMAGE_TAG (the commit by default, make images first), bootstrap it, hold its liveness and the sign-in of its first administrator, then delete the cluster
+chart-trial: kube-tools ## Install the chart on a throwaway cluster of kind from the images of WATERFALL_IMAGE_TAG (the commit by default, make images first), bootstrap it, hold its liveness, the sign-in of its first administrator and its services without state (one token answered the same by each instance, a worker killed in a marking), then delete the cluster
 	@$(heavy) $(WFTOOLS).charttrial
 
 # Keycloak answers before its realm is applied: the application starts once it does, anew at each
