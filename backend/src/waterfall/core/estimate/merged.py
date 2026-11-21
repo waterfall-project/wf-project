@@ -36,6 +36,17 @@ lines (``place_merged_lines``), then this module their facets:
   takes it by the lineage (``copy_lines``). It never enters the reference budget, the sum of the
   budgeted amounts of the lines but the provisions (``lines_for_indicators``,
   ``reference_budgets``), nor does it advance a counter: a budgeted amount is computed.
+  The designation of a marked revision by the command (``reference_correctable``) writes nothing,
+  and has nothing to write: a revision it can designate was marked while the project had no
+  reference, so that its provision lines bear a budgeted amount of null (``budgeted_of`` reads a
+  null as the re-estimated amount, the provision, which is never projected), and the revision
+  opened after it copies that null by the lineage. Only a merge, which marks a reference whose
+  figures it has just changed, has a budgeted amount to fix (``test_risk_provision_lines.py``, the
+  provision line marked plainly then designated). The write here is neither stamped
+  (``lock_version``, ``updated_at``, ``updated_by``) as ``_stamped`` and ``_zeroed`` stamp theirs: a
+  provision line is closed to the entry, its risk alone writing it, so no entry holds its counter
+  to lose, and the revision is marked in the same transaction, which freezes the line and its
+  history whole; the amount it gives is the one the line read before, null read as the provision.
 
 The amounts are priced again by the replay of the dates that ends the merge; a provision line is
 never priced again.

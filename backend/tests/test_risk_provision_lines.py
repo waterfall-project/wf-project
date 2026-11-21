@@ -18,9 +18,9 @@ from uuid import UUID
 
 import pytest
 from estimate_support import YEAR, Costing, Lines, costing
-from nodes_support import Tree, refusal
+from nodes_support import Tree, mark, refusal
 from planning_support import DAY, insert_task
-from projects_support import PROJECTS, Scene
+from projects_support import PROJECTS, Scene, designate
 from projects_support import scene as make_scene
 from remaining_support import Review, in_progress, line_named, task_named
 from risks_support import (
@@ -334,7 +334,7 @@ def closure(node: dict[str, Any]) -> tuple[Any, ...]:
 
 
 @pytest.mark.story("US-3060")
-@pytest.mark.requirement("WF-RIS-0010-A")
+@pytest.mark.requirement("WF-DEV-0020-A")
 def test_a_provision_line_is_read_computed_and_closed_to_the_entry_and_to_the_remaining(
     risks: Risks, project: Costed
 ) -> None:
@@ -366,7 +366,7 @@ def test_a_provision_line_is_read_computed_and_closed_to_the_entry_and_to_the_re
 
 
 @pytest.mark.story("US-3060")
-@pytest.mark.requirement("WF-RIS-0010-A")
+@pytest.mark.requirement("WF-DEV-0020-A")
 def test_a_provision_line_of_a_completed_task_accepts_nothing_and_names_both_conditions(
     api: ContractClient, stage: Scene, costs: Costing
 ) -> None:
@@ -384,6 +384,70 @@ def test_a_provision_line_of_a_completed_task_accepts_nothing_and_names_both_con
         {"is_available": False, "missing_conditions": missing},
         None,
     )
+
+
+def budget_of(risks: Risks, revision_id: object) -> Decimal:
+    """Read the budget of the reference in a revision: the budgets of its subprojects, summed."""
+    path = f"{risks.base}/remaining-indicators?revision_id={revision_id}"
+    answer = risks.api.get(path, headers=risks.headers)
+    assert answer.status_code == 200, answer.text
+    return sum((Decimal(each["budget"]) for each in answer.json()["by_subproject"]), Decimal(0))
+
+
+@pytest.mark.story("US-3060")
+@pytest.mark.requirement("WF-DEV-0020-A")
+def test_a_provision_line_marked_plainly_then_designated_reads_its_provision_as_its_budget(
+    risks: Risks, project: Costed
+) -> None:
+    # « Le montant budgété est fixé par la révision de référence. » The designation by the command
+    # writes nothing (``merged.py``): a revision without a reference, marked plainly, bears the
+    # budgeted amount of its provision line null, read as its re-estimated amount; designated, then
+    # followed by the next revision, the line reads the 60 of its provision in both, and the budget
+    # of the reference leaves the provision out.
+    risk = risks.declared_costed()
+    label = f"Provision — {risk['label']}"
+    first = project.tree.revision
+    mark(project.stage, first)
+    designate(
+        risks.api,
+        project.stage,
+        risks.api.get(
+            f"{risks.base}/revisions/{first['revision_id']}", headers=risks.headers
+        ).json(),
+    )
+    following = risks.revision()
+    # The tree of the marked revision is read as it was made: a ``Tree`` would write its planning.
+    for tree in (project.tree, Tree(risks.api, project.stage, following)):
+        line = line_named(tree, label)["estimate_line"]
+        assert (line["budgeted_amount"], line["reestimated_amount"]) == ("60.00", "60.00")
+    assert budget_of(risks, following["revision_id"]) == Decimal("1000.00")
+
+
+@pytest.mark.story("US-3060")
+@pytest.mark.requirement("WF-DEV-0020-A")
+def test_a_provision_line_has_no_payment_delay_to_filter_or_sort_by(
+    api: ContractClient, stage: Scene, costs: Costing
+) -> None:
+    # « un délai de paiement […] reste saisissable sur toute ligne autre qu'une ligne de provision,
+    # qui n'en porte pas » : read null, the provision line is out of a lower bound of nought, and
+    # after the lines that carry one in ascending order, before them in descending order.
+    risks = running(api, stage, costs)
+    tree = risks.project.tree
+    risk = risks.declared_costed(provision_task_id=str(risks.project.tasks["Montage"]))
+    label = f"Provision — {risk['label']}"
+
+    def lines(query: str) -> list[str]:
+        return [
+            each["estimate_line"]["label"]
+            for each in tree.items(query)
+            if each["kind"] == "estimate_line"
+        ]
+
+    assert label in lines("")
+    assert label not in lines("?payment_delay_days_min=0")
+    assert lines("?payment_delay_days_min=0")
+    assert lines("?sort_by=payment_delay_days&sort_order=asc")[-1] == label
+    assert lines("?sort_by=payment_delay_days&sort_order=desc")[0] == label
 
 
 # --- The grid does not write it -------------------------------------------------------------------

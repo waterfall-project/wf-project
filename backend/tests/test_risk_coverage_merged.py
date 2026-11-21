@@ -325,6 +325,7 @@ def test_an_amendment_that_integrates_the_lines_of_the_risk_takes_the_budget_to_
 
 
 @pytest.mark.requirement("WF-RIS-0050-A")
+@pytest.mark.requirement("WF-DEV-0020-A")
 @pytest.mark.story("US-3060")
 def test_an_amendment_that_declares_a_risk_of_50_takes_the_reserve_to_110_and_the_variance_stays(
     api: ContractClient, project: Costed, worker: Worker
