@@ -248,6 +248,9 @@ paths = [
     "tools/src/wftools/registry.py",
     # The parts of the paths, spread by the seconds they took (US-1910).
     "tools/src/wftools/e2eparts.py",
+    # The search of the secrets and of the story of an identifier in the logs, which the paths play
+    # after them (WF-OBS-0020, US-2900).
+    "tools/src/wftools/logsearch.py",
     # The launcher the Makefile starts the slots by, and the slots that run its heavy checks
     # (US-2450, PLC-06).
     "tools/src/wftools/launch.py",

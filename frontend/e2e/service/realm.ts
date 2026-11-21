@@ -399,7 +399,7 @@ export async function withRealm<T>(
  * Run SQL on the database of the platform, its values given as variables of psql, which quotes
  * them (`:'name'`); a statement refused fails the path, rather than leave it half done.
  */
-function sql(script: string, values: Readonly<Record<string, string>>): string {
+export function sql(script: string, values: Readonly<Record<string, string>>): string {
   const container = process.env.E2E_SERVICE_DATABASE;
   if (container === undefined || container === "") {
     throw new Error(

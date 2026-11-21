@@ -42,6 +42,7 @@ TOOLS   := tools
 DOC_TOOLS := ../docs/api/tools ../docs/spec/tools
 BACK    := backend
 FRONT   := frontend
+FRONT_LOG = $(FRONT)/.e2e/front.log
 # An address where no API answers: the front builds without reaching one (#131).
 NOWHERE := http://127.0.0.1:9
 PNPM_ENV := NEXT_TELEMETRY_DISABLED=1
@@ -414,11 +415,14 @@ keycloak-authority: ## Copy out of the service platform the root of the authorit
 service-logs: ## Print the logs of the services of the platform (SERVICES, all of them by default)
 	@$(COMPOSE_SERVICE) logs --no-color $(SERVICES)
 
-# The search of the secrets and tokens known in the logs of the services of the platform, front
-# and Keycloak included for what Compose holds (WF-OBS-0020, US-2900): the secrets are those the
-# platform was started with. With CORRELATION=<identifier>, the story of that identifier instead.
+# The search of the secrets and tokens known in the logs of the services of the platform, Keycloak
+# included, and in the log of the front end of the paths (FRONT_LOG, which Compose does not hold: the
+# server of Next is a web server of Playwright) (WF-OBS-0020, US-2900): the secrets are those the
+# platform was started with. make e2e-service plays it after the paths. With CORRELATION=<identifier>, the story of that identifier instead.
+# The logs the search reads: those of Compose, and the log of the front end of the paths.
+service-logs-pipe = { $(COMPOSE_SERVICE) logs --no-color $(SERVICES) && { test ! -f $(FRONT_LOG) || cat $(FRONT_LOG); }; } |
 service-logs-search: ## Search the logs of the services of the platform for the secrets and tokens known (the variables of service-up); CORRELATION=<identifier> prints the story of an identifier instead: its lines, and those of the deposit, the import and the task they name
-	@$(COMPOSE_SERVICE) logs --no-color $(SERVICES) | $(WFTOOLS).logsearch $(if $(CORRELATION),follow $(CORRELATION),secrets)
+	@$(service-logs-pipe) $(WFTOOLS).logsearch $(if $(CORRELATION),follow $(CORRELATION),secrets)
 
 service-logs-fields: ## Check that every record of the logs of the API, the worker, its schedule and the service of the restoration carries its correlation identifier, its author and its severity (WF-OBS-0020, US-2900)
 	@$(COMPOSE_SERVICE) logs --no-color api worker scheduler restore | $(WFTOOLS).logsearch fields
@@ -866,7 +870,11 @@ e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end pat
 		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
 		export E2E_INSTALLATION_LINK E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
 		part= && $(e2e-service-part) \
-		cd $(FRONT) && { $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $$part $(TESTS); }
+		mkdir -p $(FRONT)/.e2e && : > $(FRONT_LOG) && \
+		{ ( cd $(FRONT) && { $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $$part $(TESTS); } ); played=$$?; \
+		echo 'Searching the logs of the platform and of the front for the secrets and tokens known (WF-OBS-0020, US-2900).'; \
+		$(service-logs-pipe) $(WFTOOLS).logsearch secrets; found=$$?; \
+		if [ $$played -ne 0 ]; then exit $$played; fi; exit $$found; }
 
 # The measure of the journey of the grids against the service (US-2210, frontend/e2e/measure/): the
 # platform started as e2e-service starts it — its realm told the address of the front of the
