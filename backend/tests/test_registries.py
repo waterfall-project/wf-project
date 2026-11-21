@@ -10,9 +10,8 @@ imported in a process of its own, and its registries compared with those of a pr
 every module of the core and of the witness: none lacks an extension that a module registers — the
 worker those of the estimate included, which it imports from US-1500/L2 on (EP-07, "Le worker"),
 those of the actual costs, which it imports from US-1610/L2 on (EP-09, "Le worker"), and those of
-the indicators, which it imports from US-1670/L1 on (EP-10, "Le worker"). What the socles of
-EP-06, EP-07, EP-09 and EP-10 register is named, so that the comparison is never between two empty
-lists.
+the indicators, which it imports from US-1670/L1 on (EP-10, "Le worker"). What the socles of EP-06,
+EP-07, EP-09 and EP-10 register is named, so that the comparison is never between two empty lists.
 
 Then how each registry acts, details of the realization which reprise no Vérif: the closing of a
 revision, what its marking keeps and what follows the designation of a reference (EP-07), the guard
@@ -208,9 +207,10 @@ DECLARED = {
     "history.undoable",
     "revisions.own_estimate_counted",
     "planning.provision_owners",
-    # EP-08 (US-3050/L3): the parts of the update of a differential, and its end.
+    # EP-08: the update of a differential, its end (US-3050/L3); what risks designate (US-3060/L4).
     "revisions.rebase",
     "revisions.rebase_end",
+    "projects.risk_designations",
 }
 PLANNING = "waterfall.core.planning.interface"
 # What EP-06 registers (US-1380/L1, US-1390/L2), the copy of the nodes after the structures', and
