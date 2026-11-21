@@ -28,6 +28,14 @@ estimate grid, which does not ask it, keeping its own. Read before and after, fi
 bodies differ only by ``task.physical_progress`` of the summaries that bear a budgeted amount — 39
 of the 40 of the current revision, the 39 of the marked one —, from "not computable" to a value, a
 leaf's null in both (EP-10, "L'avancement physique").
+
+US-3060/L6 reads a provision line as computed, its budgeted amount the provision the reference
+fixed (#4274): the SHA-256 of the bodies that hold one, or a sum of budgeted amounts, are taken
+again after it. Read before and after, field by field, they differ only by the three provision
+lines — ``is_computed``, ``computed_fields``, ``editable_fields``, ``remaining_entry``,
+``payment_delay_days`` null, the budgeted amount of 250 000, 60 and 600 000 —, by the budgeted
+amount of the tasks above them, and by the budgeted totals, deltas and bases that sum them; the
+bodies filtered by a task, which hold none, keep theirs.
 """
 
 import hashlib
@@ -85,7 +93,8 @@ NODES = {
     ),
 }
 # The readings of the tasks alone added by US-2280/L1, and their SHA-256 taken before it (commit
-# 7a43a670c of epic/EP-26), then again after US-1680, their summaries' physical progress computed.
+# 7a43a670c of epic/EP-26), then again after US-1680, their summaries' physical progress computed,
+# and after US-3060/L6 for the one that holds the task of a provision line (#4274).
 TASKS = {
     "kinds=task, filtered by a task": "?kinds=task&search=revue&progress=not_started,started",
     "kinds=task, by level, sorted by a line": (
@@ -97,7 +106,7 @@ TASKS_DIGESTS = {
         "c9442c6ca05a9e9c98b7244d3029c4b4a4042de7478d7726c397fdd668e95b53"
     ),
     "kinds=task, by level, sorted by a line": (
-        "18acb97be09990b3b0f22aaad7134eb6be9271866590aa4669db0ba689620441"
+        "90fc0d8dbdc66ddc3c5167f5a3a6bdd63203195cbb60e0b751be8f1c167020fb"
     ),
     "kinds=task of a marked revision": (
         "a5a54050ee30477cac09b5d00462809b2c5c5bd09ed185d57a834816f83eab26"
@@ -111,16 +120,17 @@ COMPARISONS = {
 }
 
 # The SHA-256 of each body, taken before US-2220/L1 (commit 587127f0c of epic/EP-26), then again
-# after US-1680 but the fields of the estimate grid, which ask no physical progress.
+# after US-1680 but the fields of the estimate grid, which ask no physical progress, and after
+# US-3060/L6 but those filtered by a task (#4274).
 DIGESTS = {
-    "whole": "07d795106292f5c47a0ca4c8d45b398be26f04eb76829a849b50c8eb05b88f1f",
-    "kinds=task": "16ed48ccb9a54f1e40b7f4f99aef417a677598dbc063d62a48ad53a2df33f010",
-    "fields": "3345d39beaafa66b2fd9c472218ba8bd46a1770e55a3c4848128ab81dc2dd3c5",
+    "whole": "ab0364282ea8a6e8f37588f988b13a231e59970e18783e98c6a47353c53d2e19",
+    "kinds=task": "d9dcefc43e9076da91accb04a790b34814447107cc12c739819bb5c96faf4c8e",
+    "fields": "63eedbe65f6a5d6ae0a7e0d130844d9fc791500e399b2bcbd8edc002a0ddd017",
     "filtered by a task": "70811c278a893bf6ef55cb727d85fff3e767d00b49d91053099aa282eca74a99",
     "filtered by a line, sorted": (
-        "aaaac13506129c2105d58b0bed0db0f2404088ecf6c6bb2c89b293b97c904630"
+        "8d1e236bb53024c1e416646256f07201aa05cab4d23acc1cbc3315a598293d9f"
     ),
-    "whole comparison": "2b3130729e42e341647397425a4e527d5595b17114a1cda4eb2e068d729dac3b",
+    "whole comparison": "d5ecbfc93a7036b7dc1feaa1a46bdaef697428d6e2cb5bae61a10b3817d9dd50",
     "comparison filtered and sorted": (
         "908485770a32aeba12ade836c31fd12d034ff77e4446d27b7297a3e8f40b0c03"
     ),
@@ -131,9 +141,10 @@ DIGESTS = {
 # every value it carries: ``difference=modified`` retains more nodes than before. Taken again when
 # epic/EP-10 took back main, after US-1680: its 39 summaries put back "not computable", the body
 # read then gives the SHA-256 of US-2320/L3, bd5415c9…; nothing else differs, no mark included.
+# Taken again after US-3060/L6, the budgeted amounts of its provisions written (#4274).
 COMPARED_DIGESTS = {
     "comparison filtered and sorted": (
-        "334759c1d8320c36a0bfb5be374978acba27dd99997d6284edcebfe0e73718d9"
+        "e301557b6e0016d3f40a132116a280b55cd76b7d2b6b8617943adee6109f16d6"
     ),
 }
 

@@ -7,15 +7,18 @@ category, its role and its subproject resolved, the object active or deactivated
 those its marked revision keeps, as they were at its marking (US-1500) —, whether it uses a
 deactivated one (``uses_inactive_object``, WF-REF-0010), whether it accepts a
 re-estimate (``remaining_entry``, ``task_not_completed``), its remaining to commit before the review
-and the reason of its last re-estimate (``previous_*``, ``remaining_reason``, EP-09) —
-``is_computed`` false until the provision lines of EP-08 —, its budgeted amount read as its
-re-estimated one when the project had no reference at its creation; and the fields it computes and
-accepts: a labour line computes its category, and accepts its role and its hours, another its
-category and its unit disbursement; a line of a completed task of the main structure accepts none
-(#1767), one of a task started or completed does not name a subproject that received actual costs
-(WF-PRJ-0050). The filters of the line retain lines on these values, every bound inclusive, a line
-without the value retained by no bound; the sort orders them, a line without the value after the
-others ascending, before them descending (WF-IHM-0060).
+and the reason of its last re-estimate (``previous_*``, ``remaining_reason``, EP-09), its budgeted
+amount read as its re-estimated one when the project had no reference at its creation; and the
+fields it computes and accepts: a labour line computes its category, and accepts its role and its
+hours, another its category and its unit disbursement; a line of a completed task of the main
+structure accepts none (#1767), one of a task started or completed does not name a subproject that
+received actual costs (WF-PRJ-0050). A provision line — of a category of the provision kind, read on
+the images of its revision (EP-08, "Ce qui reconnaît une ligne de provision") — is computed
+(``is_computed``): its figures and its subproject are its risk's, it accepts its label alone, never
+a re-estimate (``line_not_provision``, after ``task_not_completed``), and carries no payment delay
+(WF-RIS-0010, WF-DEV-0020; #4274). The filters of the line retain lines on these values, every
+bound inclusive, a line without the value retained by no bound; the sort orders them, a line without
+the value after the others ascending, before them descending (WF-IHM-0060).
 
 A reading that writes nothing — ``listNodes``, ``compareRevisions`` — reads the lines as rows, once
 for their figures and their facets (``line_columns``), and filters and sorts them on rows too
@@ -51,7 +54,17 @@ type Bounds[T] = tuple[T | None, T | None]
 COMPLETED = "completed"
 NOT_STARTED = "not_started"
 TASK_NOT_COMPLETED = "task_not_completed"
+LINE_NOT_PROVISION = "line_not_provision"
+# The kind of the nature of cost of a provision line (WF-RIS-0010).
+PROVISION = "provision"
 CATEGORY = "estimate_line.cost_category_id"
+# What a provision line computes, its risk writing it, and the one field it accepts (#4274).
+PROVISION_COMPUTED = (
+    "estimate_line.quantity",
+    "estimate_line.unit_disbursement",
+    "estimate_line.subproject_id",
+)
+PROVISION_EDITABLE = ("estimate_line.label",)
 # The fields a line may accept, in the order of ``EditableField``.
 EDITABLE = (
     "label",
@@ -70,7 +83,8 @@ class LineView:
     """The facet of a line as it is read (``EstimateLineFacet``), its labels resolved.
 
     ``remaining_missing`` the conditions a re-estimate lacks, none when it is open; the previous
-    figures those of the review before, none before the first (EP-09).
+    figures those of the review before, none before the first (EP-09); ``is_computed`` true for a
+    provision line, whose payment delay is none (#4274).
     """
 
     label: str
@@ -81,7 +95,7 @@ class LineView:
     quantity: Decimal
     hours: Decimal | None
     unit_disbursement: Decimal | None
-    payment_delay_days: int
+    payment_delay_days: int | None
     subproject_id: UUID | None
     subproject_label: str | None
     base_amount: Decimal
@@ -90,6 +104,7 @@ class LineView:
     consumption_year: int
     uses_inactive_object: bool
     remaining_missing: tuple[str, ...]
+    is_computed: bool = False
     previous_quantity: Decimal | None = None
     previous_hours: Decimal | None = None
     previous_unit_disbursement: Decimal | None = None
@@ -327,6 +342,7 @@ def _views(
             or not (category.is_active and category.cost_type_is_active)
             or (role is not None and not role[1])
         )
+        provision = category is not None and category.cost_type_kind == PROVISION
         view = LineView(
             label=row.label,
             cost_category_id=row.cost_category_id,
@@ -336,7 +352,7 @@ def _views(
             quantity=row.quantity,
             hours=row.hours,
             unit_disbursement=row.unit_disbursement,
-            payment_delay_days=row.payment_delay_days,
+            payment_delay_days=None if provision else row.payment_delay_days,
             subproject_id=row.subproject_id,
             subproject_label=None if row.subproject_id is None else labels.get(row.subproject_id),
             base_amount=row.base_amount,
@@ -350,16 +366,24 @@ def _views(
             previous_unit_disbursement=row.previous_unit_disbursement,
             previous_reestimated_amount=row.previous_reestimated_amount,
             remaining_reason=row.remaining_reason,
+            is_computed=provision,
         )
         found[row.node_id] = (view, row.subproject_id in costs)
     return found
 
 
 def _fields(view: LineView, bearer: BearingTask, *, costs: bool) -> tuple[tuple[str, ...], ...]:
-    """Give the fields a line computes and those it accepts (WF-IHM-0030, WF-IHM-0040)."""
+    """Give the fields a line computes and those it accepts (WF-IHM-0030, WF-IHM-0040).
+
+    A provision line computes its figures and its subproject, which its risk writes, and accepts
+    its label alone (WF-RIS-0010; #4274).
+    """
+    closed = bearer.is_main and bearer.progress == COMPLETED
+    if view.is_computed:
+        return PROVISION_COMPUTED, () if closed else PROVISION_EDITABLE
     labour = view.resource_role_id is not None
     computed = (CATEGORY,) if labour else ()
-    if bearer.is_main and bearer.progress == COMPLETED:
+    if closed:
         return computed, ()
     subproject = not costs or bearer.progress == NOT_STARTED
     return computed, _editable(labour=labour, subproject=subproject)
@@ -413,6 +437,8 @@ def _facets(
         # The view is written with nothing missing: copied only for a line it holds back, the
         # thousands of lines of a structure read whole are not copied for nothing (#3048).
         missing = (TASK_NOT_COMPLETED,) if bearer.progress == COMPLETED else ()
+        if view.is_computed:
+            missing = (*missing, LINE_NOT_PROVISION)
         whole = replace(view, remaining_missing=missing) if missing else view
         computed, editable = _fields(whole, bearer, costs=costs)
         found[node_id] = FacetRead(whole, whole.label, computed, editable)

@@ -468,7 +468,7 @@ def _line(view: LineView) -> dict[str, Any]:
         "previous_reestimated_amount": _optional(view.previous_reestimated_amount, _money),
         "remaining_reason": view.remaining_reason,
         "consumption_year": view.consumption_year,
-        "is_computed": False,
+        "is_computed": view.is_computed,
         "uses_inactive_object": view.uses_inactive_object,
         "remaining_entry": {
             "is_available": not view.remaining_missing,

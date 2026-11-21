@@ -273,7 +273,10 @@ def line_label(session: Session, read: Read, writer: Writer) -> NodesWritten:
 
 def payment_delay(session: Session, read: Read, writer: Writer) -> NodesWritten:
     node, view = read.line(f"{LINE}.payment_delay_days")
-    later = view.payment_delay_days + 30
+    # A line that accepts a payment delay carries one: a provision line alone has none (#4274).
+    held = view.payment_delay_days
+    assert held is not None
+    later = held + 30
     return _line(session, read, node, writer, payment_delay_days=later)
 
 

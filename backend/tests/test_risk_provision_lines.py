@@ -311,6 +311,81 @@ def test_a_provision_changes_with_the_inflation_only_by_its_own_estimate_priced_
     assert provision_line(risks, staying)["reestimated_amount"] == "60.00"
 
 
+# --- The reading: computed, closed to the entry and to the remaining ----------------------------
+
+# What a provision line computes, its risk writing it, as the examples read it (``nodes_estimate``).
+PROVISION_COMPUTED = [
+    "estimate_line.quantity",
+    "estimate_line.unit_disbursement",
+    "estimate_line.subproject_id",
+]
+
+
+def closure(node: dict[str, Any]) -> tuple[Any, ...]:
+    """Give what a reading says a line computes and accepts, and its payment delay."""
+    line = node["estimate_line"]
+    return (
+        line["is_computed"],
+        node["computed_fields"],
+        node["editable_fields"],
+        line["remaining_entry"],
+        line["payment_delay_days"],
+    )
+
+
+@pytest.mark.story("US-3060")
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_a_provision_line_is_read_computed_and_closed_to_the_entry_and_to_the_remaining(
+    risks: Risks, project: Costed
+) -> None:
+    # #4274: its figures and its subproject computed, its label alone accepted, no re-estimate
+    # (``line_not_provision``), no payment delay; the material beside read as entered.
+    risk = risks.declared_costed()
+    assert closure(project.tree.node(risk["provision_node_id"])) == (
+        True,
+        PROVISION_COMPUTED,
+        ["estimate_line.label"],
+        {"is_available": False, "missing_conditions": ["line_not_provision"]},
+        None,
+    )
+    entered = [
+        "estimate_line.label",
+        "estimate_line.cost_category_id",
+        "estimate_line.quantity",
+        "estimate_line.unit_disbursement",
+        "estimate_line.payment_delay_days",
+        "estimate_line.subproject_id",
+    ]
+    assert closure(line_named(project.tree, "Plans")) == (
+        False,
+        [],
+        entered,
+        {"is_available": True, "missing_conditions": []},
+        0,
+    )
+
+
+@pytest.mark.story("US-3060")
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_a_provision_line_of_a_completed_task_accepts_nothing_and_names_both_conditions(
+    api: ContractClient, stage: Scene, costs: Costing
+) -> None:
+    # #4274: on the milestone completed from the Kanban, the line accepts not even its label, and
+    # its re-estimate lacks the task not completed, then the line not a provision, in that order.
+    risks = running(api, stage, costs)
+    tree = risks.project.tree
+    risk = risks.declared_costed(provision_task_id=str(risks.project.tasks["Jalon"]))
+    moved(tree, "Jalon", "completed", DAY)
+    missing = ["task_not_completed", "line_not_provision"]
+    assert closure(tree.node(risk["provision_node_id"])) == (
+        True,
+        PROVISION_COMPUTED,
+        [],
+        {"is_available": False, "missing_conditions": missing},
+        None,
+    )
+
+
 # --- The grid does not write it -------------------------------------------------------------------
 
 

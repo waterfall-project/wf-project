@@ -49,18 +49,8 @@ COMPARISON_REQUIREMENT = "WF-REV-0080-A"
 
 # The recapitulative "Poste de commande", whose estimate the examples read.
 CORE = "01926f3a-7c00-7000-8000-000000000551"
-# What the service reads of a line of provision otherwise than the examples, each with its issue:
-# computed, closed to the entry and to the remaining, its budgeted amount the provision of the
-# reference (#4274).
-PROVISION_LABEL = "Provision — "
-PROVISION_APART = {
-    "budgeted_amount",
-    "is_computed",
-    "payment_delay_days",
-    "remaining_entry",
-}
-PROVISION_NODE_APART = {"computed_fields", "editable_fields", "predecessors"}
-# The issue a comparison of the budgeted amounts waits for: the provisions lack them (#4274).
+# A line of provision is read computed, closed to the entry and to the remaining, its budgeted
+# amount the provision of the reference, as the examples read it (#4274).
 BUDGETED = "budgeted_amount"
 
 READS = {
@@ -119,28 +109,20 @@ def keyed(items: list[dict[str, Any]], key: str = "node_id") -> dict[str, dict[s
     return {item[key]: item for item in items}
 
 
-def is_provision(item: dict[str, Any]) -> bool:
-    """Tell whether a line of a reading is a line of provision, by its label."""
-    return str(item["estimate_line"]["label"]).startswith(PROVISION_LABEL)
-
-
 def line_differences(ours: dict[str, Any], theirs: dict[str, Any]) -> set[str]:
-    """Name what a line read differs in from the example, but for what is read apart.
+    """Name what a line read differs in from the example, but for its counter.
 
-    Its counter follows the writes of the loading; a line of provision is read apart (#4274).
+    Its counter follows the writes of the loading; a line of provision is read as any (#4274).
     """
-    apart: set[str] = PROVISION_APART if is_provision(theirs) else set()
     beside = {"estimate_line", "row_number", "editable_fields", "lock_version", "task"}
-    if is_provision(theirs):
-        beside |= PROVISION_NODE_APART
     found = {
         key
         for key in set(ours) | set(theirs)
         if key not in beside and deviations(ours.get(key), theirs.get(key))
     }
-    kept = {k: v for k, v in ours["estimate_line"].items() if k not in apart}
-    wanted = {k: v for k, v in theirs["estimate_line"].items() if k not in apart}
-    found |= {f"estimate_line.{key}" for key in deviations(kept, wanted)}
+    found |= {
+        f"estimate_line.{key}" for key in deviations(ours["estimate_line"], theirs["estimate_line"])
+    }
     return found
 
 
@@ -202,19 +184,9 @@ def test_the_estimate_read_of_the_loaded_witness_is_the_example(
             assert not difference(item, theirs, read_on), (name, item["task"]["label"])
         else:
             assert not line_differences(item, theirs), (name, item["estimate_line"]["label"])
-            if not is_provision(theirs):
-                assert item["editable_fields"] == theirs["editable_fields"], key
-    # The budgeted total lacks the budgeted amount of the line of provision (#4274).
-    assert deviations(body["totals"], expected["totals"]) <= {f"/{BUDGETED}"}
-    provisions = sum(
-        (
-            Decimal(each["estimate_line"][BUDGETED])
-            for each in wanted.values()
-            if each["kind"] == "estimate_line" and is_provision(each)
-        ),
-        Decimal(0),
-    )
-    assert Decimal(body["totals"][BUDGETED]) + provisions == Decimal(expected["totals"][BUDGETED])
+            assert item["editable_fields"] == theirs["editable_fields"], key
+    # The budgeted total counts the provision the reference fixed, as the example (#4274).
+    assert deviations(body["totals"], expected["totals"]) == set()
     assert body["meta"]["summary_depth"] == expected["meta"]["summary_depth"]
     assert body["meta"]["scheduled_at"] == instant(OCCURRED).isoformat().replace("+00:00", "Z")
 
@@ -387,29 +359,13 @@ FIGURES = (
 COMPARED = {"comparison", "comparison_differences"}
 
 
-def unbudgeted(value: Any) -> Any:
-    """Give the amounts of a node of a comparison without the budgeted ones (#4274)."""
-    if not isinstance(value, dict):
-        return value
-    held = cast("dict[str, Any]", value)
-    found: dict[str, Any] = {}
-    for key, part in held.items():
-        if isinstance(part, dict):
-            amounts = cast("dict[str, Any]", part)
-            found[key] = {name: each for name, each in amounts.items() if name != BUDGETED}
-        else:
-            found[key] = part
-    return found
-
-
 def base_of(item: dict[str, Any]) -> Any:
     """Give the base of a node of a comparison as the witness and the example can share it.
 
     Each predecessor by its link alone, not the node it names nor its row, which the identifiers of
-    each revision move (``test_comparison`` holds the node it names); the budgeted amounts, which
-    the provisions lack, apart (#4274).
+    each revision move (``test_comparison`` holds the node it names).
     """
-    base = unbudgeted(item["base"])
+    base = item["base"]
     if not base or "predecessors" not in base:
         return base
     shared = [(each["link_type"], each["lag"]) for each in base["predecessors"]]
@@ -449,12 +405,9 @@ def test_the_comparison_of_two_revisions_is_the_example(
         for field in ("kind", "difference", "level", "changes"):
             assert item[field] == theirs[field], (label_of(item), field)
         assert base_of(item) == base_of(theirs), label_of(item)
-        ours_deltas, theirs_deltas = (
-            unbudgeted(item.get("deltas")),
-            unbudgeted(theirs.get("deltas")),
-        )
-        assert deviations(ours_deltas, theirs_deltas) == set(), label_of(item)
-        if item["kind"] == "estimate_line" and not is_provision(theirs):
+        assert deviations(item.get("deltas"), theirs.get("deltas")) == set(), label_of(item)
+        if item["kind"] == "estimate_line":
+            # A line of provision too, its budgeted amount the provision it carries (#4274).
             figures = (*FIGURES, BUDGETED)
             ours = {each: item["estimate_line"][each] for each in figures}
             assert (
@@ -464,15 +417,10 @@ def test_the_comparison_of_two_revisions_is_the_example(
             assert label_of(item) == label_of(theirs)
     for key in ("from_revision_id", "to_revision_id"):
         assert body[key] == expected[key], key
-    # The budgeted deltas, which the provisions lack (#4274), apart.
-    assert [
-        {k: v for k, v in each.items() if k != "budgeted_delta"} for each in body["amount_deltas"]
-    ] == [
-        {k: v for k, v in each.items() if k != "budgeted_delta"}
-        for each in expected["amount_deltas"]
-    ]
+    # The budgeted deltas and totals count the provisions the reference fixed (#4274).
+    assert body["amount_deltas"] == expected["amount_deltas"]
     for key in ("totals", "base_totals", "totals_delta"):
-        assert deviations(body[key], expected[key]) <= {f"/{BUDGETED}"}, key
+        assert deviations(body[key], expected[key]) == set(), key
     assert body["meta"]["scheduled_at"] == instant(MERGED).isoformat().replace("+00:00", "Z")
 
 
@@ -563,10 +511,5 @@ def test_the_amount_deltas_of_the_whole_comparison_are_the_lines_of_the_two_revi
             for dimension in ("cost_type", "subproject")
         }
         assert by["cost_type"] == by["subproject"], name
-    # The budgeted deltas, which the provisions lack (#4274), apart.
-    assert [
-        {k: v for k, v in each.items() if k != "budgeted_delta"} for each in body["amount_deltas"]
-    ] == [
-        {k: v for k, v in each.items() if k != "budgeted_delta"}
-        for each in expected["amount_deltas"]
-    ]
+    # The budgeted deltas too, the provisions the reference fixed included (#4274).
+    assert body["amount_deltas"] == expected["amount_deltas"]

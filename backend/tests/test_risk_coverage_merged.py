@@ -325,6 +325,7 @@ def test_an_amendment_that_integrates_the_lines_of_the_risk_takes_the_budget_to_
 
 
 @pytest.mark.requirement("WF-RIS-0050-A")
+@pytest.mark.story("US-3060")
 def test_an_amendment_that_declares_a_risk_of_50_takes_the_reserve_to_110_and_the_variance_stays(
     api: ContractClient, project: Costed, worker: Worker
 ) -> None:
@@ -341,8 +342,17 @@ def test_an_amendment_that_declares_a_risk_of_50_takes_the_reserve_to_110_and_th
     assert ready.risks.risk(declared)["provision_amount"] == "50.00"
     late = OutOfDate(current, amendment, on(current.tree, amendment))
     assert rebased(api, late).status_code == 200
-    marked, _ = merged_reading(ready, current, worker, amendment)
+    provision = f"Provision — {declared['label']}"
+    assert line_named(current, provision)["estimate_line"]["budgeted_amount"] == "0.00"
+    marked, following = merged_reading(ready, current, worker, amendment)
     assert marked == ("110.00", "50.00", "250.00", "250.00", "-190.00")
+    # « Les lignes de provision ne font jamais partie du budget de référence » : the line of the
+    # new risk bears the 50 the reference fixed, in the reference the merge marked and in the
+    # revision copied from it, and the budget of the reference stays 1 000 (US-3060, #4274).
+    after = in_current(replace(ready, revision=following))
+    for each in (current, after):
+        assert line_named(each, provision)["estimate_line"]["budgeted_amount"] == "50.00"
+    assert budget(ready, following["revision_id"]) == Decimal("1000.00")
 
 
 @pytest.mark.requirement("WF-RIS-0050-A")
