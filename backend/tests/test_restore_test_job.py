@@ -123,11 +123,10 @@ def plan(tmp_path: Path, api: str) -> tuple[Planned, ...]:
 
 def started(database: Database) -> list[tuple[str, Any, Any, Any]]:
     """Read the tasks of the tests started: their state, their requester and their result."""
+    task = BackgroundTask
     with database.transaction() as session:
         rows = session.execute(
-            select(
-                BackgroundTask.status, BackgroundTask.requested_by, BackgroundTask.result
-            ).where(BackgroundTask.kind == "restore_test")
+            select(task.status, task.requested_by, task.result).where(task.kind == "restore_test")
         ).all()
     return [("restore_test", *row) for row in rows]
 

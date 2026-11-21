@@ -148,6 +148,6 @@ def start_restore_test(
     """
     try:
         return RestoreTestJob.of(path, account, address).start(session)
-    except (OSError, ValueError, KubernetesError, httpx2.HTTPError):
+    except OSError, ValueError, KubernetesError, httpx2.HTTPError:
         logger.exception("restore_test.job_not_made")
         return None

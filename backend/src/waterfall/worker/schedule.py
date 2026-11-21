@@ -98,13 +98,11 @@ def restore_test_planned(settings: ScheduleSettings) -> tuple[Planned, ...]:
     if path is None:
         return ()
     interval = every("restore_test", settings.restore_test_interval)
-    return (
-        replace(
-            interval,
-            held=backups_interface.restore_test_lacks,
-            start=lambda session: start_restore_test(session, path),
-        ),
-    )
+
+    def start(session: Session) -> UUID | None:
+        return start_restore_test(session, path)
+
+    return (replace(interval, held=backups_interface.restore_test_lacks, start=start),)
 
 
 def deposit_due(database: Database, queue: TaskQueue, plan: tuple[Planned, ...]) -> list[str]:
