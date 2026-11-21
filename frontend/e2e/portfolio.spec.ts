@@ -331,14 +331,20 @@ async function retainedAt(page: Page, address: string): Promise<number> {
   const total = grid.getByRole("gridcell", { name: /^\d+ projets? retenus?$/ });
   await expect(total).toHaveCount(1, { timeout: WORKING });
   await expect(total).toBeInViewport();
-  return Number(/\d+/.exec(await total.innerText())?.[0]);
+  const digits = /\d+/.exec(await total.innerText())?.[0];
+  if (digits === undefined) {
+    throw new Error(
+      `The totals row of the list at ${address} states no number of retained projects.`,
+    );
+  }
+  return Number(digits);
 }
 
 for (const [state, shown, other] of [
   ["pricing", "Chiffrage", "En cours"],
   ["in_progress", "En cours", "Chiffrage"],
 ] as const) {
-  test(`filters the list of the portfolio on the state ${state}: only the projects of that state, and its totals count them @shared [WF-PTF-0040-A]`, async ({
+  test(`filters the list of the portfolio on the state ${state}: only the projects of that state, and its totals count them @shared [WF-PTF-0040-A] [WF-IHM-0130-A]`, async ({
     page,
   }) => {
     test.skip(!inService, SERVICE_ONLY);
