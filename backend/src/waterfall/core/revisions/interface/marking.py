@@ -92,7 +92,7 @@ EXIT_REASON = "exit_reason"
 EXIT_LOCK_VERSION = "exit_lock_version"
 
 # The key of the session telling which revision being marked is designated at the same instant.
-_DESIGNATES = "revision_designated_at_marking"
+_DESIGNATES = "waterfall.revisions.marking.designates"
 # What computes and keeps the indicators of a revision being marked, in their order, given the act
 # of the marking — its instant and its requester: EP-10's.
 _INDICATORS: Registry[Callable[[Session, UUID, Act], None]] = Registry("revisions.indicators")

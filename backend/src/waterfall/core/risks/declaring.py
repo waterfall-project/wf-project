@@ -42,7 +42,13 @@ from waterfall.core.cost_settings.interface import (
 )
 from waterfall.core.estimate.interface import ProvisionEntry, rename_provision
 from waterfall.core.history.interface import carry_everywhere
-from waterfall.core.planning.interface import Place, create_borne_line, first_task, task_of
+from waterfall.core.planning.interface import (
+    Place,
+    create_borne_line,
+    first_task,
+    recreate_borne_line,
+    task_of,
+)
 from waterfall.core.projects.interface import (
     ACTIVE_PROVISION_CATEGORY,
     AT_LEAST_ONE_TASK,
@@ -81,7 +87,7 @@ from waterfall.core.risks.reading import (
 )
 from waterfall.core.risks.recording import recorded
 from waterfall.core.risks.tables import PROBABILITY_SCALE, Risk, RiskEvaluation, RiskReview
-from waterfall.core.risks.views import Omitted
+from waterfall.core.risks.views import Omitted, RiskEntry, RiskLoad
 from waterfall.platform.errors import (
     STALE_LOCK_VERSION,
     STATE_FORBIDS_OPERATION,
@@ -100,7 +106,7 @@ if TYPE_CHECKING:
 
     from waterfall.core.planning.interface import TaskNamed, Writer
     from waterfall.core.projects.interface import Viewer
-    from waterfall.core.risks.views import RiskEntry, RiskIdentityChange
+    from waterfall.core.risks.views import RiskIdentityChange
     from waterfall.platform.audit import Act
 
 VALUE_REQUIRED = "VALUE_REQUIRED"
@@ -219,12 +225,17 @@ def _designated(
 
 
 def declare(
-    session: Session, project_id: UUID, entry: RiskEntry, writer: Writer, viewer: Viewer
+    session: Session,
+    project_id: UUID,
+    entry: RiskEntry | RiskLoad,
+    writer: Writer,
+    viewer: Viewer,
 ) -> tuple[UUID, UUID]:
     """Declare a risk in the current revision, created if needed; give the risk and the revision.
 
     An entry of the history of its writer (``risk_create``, US-2590/L2), opened once the revision
-    is known and before the main structure is locked, whose undoing takes the risk away.
+    is known and before the main structure is locked, whose undoing takes the risk away. A risk of
+    the witness (``RiskLoad``) is declared under the identifiers it imposes (US-2650/L1).
     """
     # The natures first, as every write of the tree takes them (#2615), before the stack.
     share_natures(session)
@@ -249,17 +260,22 @@ def declare(
 
 
 def _declared(
-    session: Session, revision: tuple[UUID, UUID], entry: RiskEntry, writer: Writer
+    session: Session, revision: tuple[UUID, UUID], asked: RiskEntry | RiskLoad, writer: Writer
 ) -> UUID:
-    """Write a risk declared in a revision: its row, its own estimate, its line, its evaluation."""
+    """Write a risk declared in a revision: its row, its own estimate, its line, its evaluation.
+
+    Under the identifiers a risk of the witness imposes, drawn otherwise.
+    """
     act = writer.act
     project_id, revision_id = revision
     main = aimed_structure(session, project_id, revision_id, None)
     if main is None:
         raise refuse(AT_LEAST_ONE_TASK)
     place = Place(project_id, revision_id, main)
+    entry = asked if isinstance(asked, RiskEntry) else asked.entry
     category, subproject, task = _designated(session, place, entry)
-    risk_id = new_id()
+    imposed = None if isinstance(asked, RiskEntry) else asked
+    risk_id = new_id() if imposed is None else imposed.risk_id
     session.add(
         Risk(
             id=risk_id,
@@ -272,11 +288,16 @@ def _declared(
         )
     )
     session.flush()
+    kept = None if imposed is None else (imposed.structure_id, current_day(act.at))
     structure_id = create_own_estimate(
-        session, (project_id, revision_id), (risk_id, entry.label), act
+        session, (project_id, revision_id), (risk_id, entry.label), act, kept
     )
     provision = ProvisionEntry(entry.label, category, subproject, NOUGHT)
-    line = create_borne_line(session, place, task.node_id, provision, writer)
+    if imposed is None:
+        line = create_borne_line(session, place, task.node_id, provision, writer)
+    else:
+        borne = (task.node_id, imposed.provision_node_id)
+        line = recreate_borne_line(session, place, borne, provision, writer)
     session.add(
         RiskEvaluation(
             project_id=project_id,

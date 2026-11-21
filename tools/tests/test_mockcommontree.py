@@ -19,7 +19,7 @@ from witnessreadings import ACCEPTANCE, LABOUR, PROVISION, STUDIES, facet, nodes
 
 from wftools import mockcore, mockdating, mockgestures, mockids, mockwitness, mockwrites
 from wftools.mockcalendar import START_TO_START
-from wftools.mockwitness import Link, Task
+from wftools.mockwitness import FIRST_WRITE, Link, Task
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -225,4 +225,4 @@ def test_deleting_the_only_subordinate_of_a_summary_leaves_a_leaf_of_its_duratio
     assert (leaf["start"], leaf["finish"]) == (summary["start"], summary["finish"])
     assert "task.duration" in leaf_node["editable_fields"]
     assert "task.duration" not in leaf_node["computed_fields"]
-    assert emptied["structure_lock_version"] == 4
+    assert emptied["structure_lock_version"] == FIRST_WRITE + 2

@@ -46,7 +46,7 @@ from wftools.mockids import universe
 from wftools.mockproject import TAKEN_NAME, name_taken
 from wftools.mockrefusals import REFERENCE, field_refused, problem, state_refused
 from wftools.mockstructure import described
-from wftools.mockwitness import CONTROL_STATION, CORE, N, Task, fixture
+from wftools.mockwitness import CONTROL_STATION, CORE, FIRST_WRITE, N, Task, fixture
 from wftools.mockwitnessrisks import IDENTIFIED, REGISTER
 from wftools.mockwrites import amended, totals_said, written
 
@@ -233,7 +233,11 @@ def node_deleted_provision_moved() -> JsonObject:
     """Return what deleteNode answers for a task, not started, that bears a line of provision."""
     before, after = provision_readings()
     return written(
-        before, after, [universe(N.PROVISION)], deleted=[universe(N.MOUNTING)], structure_version=2
+        before,
+        after,
+        [universe(N.PROVISION)],
+        deleted=[universe(N.MOUNTING)],
+        structure_version=FIRST_WRITE,
     )
 
 

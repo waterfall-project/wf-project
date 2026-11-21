@@ -24,7 +24,9 @@ written (``RecordedChange.node_ids`` empty); the structure after is built from w
 holds, read once under the lock (#2492), at the counter of its redating, not read again.
 
 ``open_differential`` opens a differential, the copy of the main structure of a revision
-(``createCostStructure``, US-2550/L3), and its base, a second copy (US-3050/L2).
+(``createCostStructure``, US-2550/L3), and its base, a second copy (US-3050/L2);
+``load_differential`` the same for the loader of the witness, under the identifiers it imposes on
+the differential and on the copies of its nodes, its base drawn (US-2650/L1).
 
 Declared by US-1380/L1; ``reschedule`` filled by US-1380/L2, handed what a write already holds by
 US-1380/L3, ``update_cost_structure`` filled by US-1390/L2, its structure after built by US-1380/L5.
@@ -39,6 +41,8 @@ from waterfall.core.planning.interface.copying import copy_structure_nodes
 from waterfall.core.planning.rescheduling import Holding, replayed
 from waterfall.core.planning.writing import Place, facts_of, judge_revision, writing
 from waterfall.core.revisions.interface import (
+    CopyImposed,
+    DifferentialName,
     RevisionCopy,
     aimed_structure,
     create_differential,
@@ -55,6 +59,7 @@ from waterfall.platform.errors import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from datetime import date, datetime
     from uuid import UUID
 
@@ -64,6 +69,7 @@ if TYPE_CHECKING:
     from waterfall.core.planning.rescheduling import Rescheduled
     from waterfall.core.planning.writing import NodesWritten, Writer
     from waterfall.core.revisions.interface import StructureFacts
+    from waterfall.platform.audit import Act
 
 NON_WORKING_DAY = "NON_WORKING_DAY"
 
@@ -174,6 +180,40 @@ def open_differential(
     main structure as the differential copied it, which the differential is read against and which
     no operation serves (US-3050).
     """
+    return _opened(session, revision, label, writer.act, None)
+
+
+@dataclass(frozen=True, slots=True)
+class DifferentialLoad:
+    """A differential of the witness: its identifier and label, those of the copies of its nodes.
+
+    ``nodes`` the identifier of the copy of a node of the main structure, by its lineage; a node
+    not named is drawn, as the base and its nodes are (US-2650/L1).
+    """
+
+    structure_id: UUID
+    label: str
+    nodes: Mapping[UUID, UUID]
+
+
+def load_differential(
+    session: Session, revision: tuple[UUID, UUID], load: DifferentialLoad, act: Act
+) -> None:
+    """Open a differential of the witness as ``open_differential`` does, under its identifiers."""
+    _opened(session, revision, load.label, act, load)
+
+
+def _opened(
+    session: Session,
+    revision: tuple[UUID, UUID],
+    label: str,
+    act: Act,
+    load: DifferentialLoad | None,
+) -> UUID:
+    """Open a differential and its base under the lock of the main structure; give it.
+
+    ``load`` the identifiers the witness imposes, none for the service.
+    """
     project_id, revision_id = revision
     # A revision of another project is unknown before it is judged: it has no main structure here.
     main_id = aimed_structure(session, project_id, revision_id, None)
@@ -181,9 +221,10 @@ def open_differential(
         raise NotFoundError(NOT_FOUND)
     judge_revision(session, project_id, revision_id)
     main = facts_of(session, Place(project_id, revision_id, main_id), lock=True)
-    act = writer.act
-    opened = create_differential(session, revision, main, label, act)
+    imposed = None if load is None else load.structure_id
+    opened = create_differential(session, revision, main, DifferentialName(label, imposed), act)
     for target in (opened.structure_id, opened.base_id):
+        nodes = {} if load is None or target != imposed else {target: load.nodes}
         copy = RevisionCopy(
             session,
             project_id,
@@ -193,6 +234,7 @@ def open_differential(
             act.author,
             {main_id: target},
             within_revision=True,
+            imposed=CopyImposed(nodes=nodes),
         )
         copy_structure_nodes(copy)
     return opened.structure_id

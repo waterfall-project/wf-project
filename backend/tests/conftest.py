@@ -4,6 +4,7 @@
 
 import json
 import os
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
@@ -35,6 +36,7 @@ from support import (
     captured_logs,
     nowhere,
     raw_account,
+    recorded_logs,
     service_role,
 )
 from witness_rows import WitnessRows, copied, laid
@@ -482,36 +484,86 @@ def witness(database: Database, owner: Engine, service_database_url: str) -> Dat
     witness as the service (#2143): the slices that set what the bootstrap wrote have it to set.
     Emptied with the database after the test, as any row. Loaded once by each process: the tests
     after the first find its rows laid again (``witness_rows``); a test that reads what the
-    command says asks for ``witness_loaded``.
+    command says asks for ``witness_logged``, one that changes how the command loads it for
+    ``witness_loaded``.
     """
-    rows = WITNESS_ROWS.get(service_database_url)
-    if rows is None:
+    held = WITNESS_ROWS.get(service_database_url)
+    if held is None:
         WITNESS_ROWS[service_database_url] = loaded(owner, service_database_url)
     else:
-        laid(owner, rows)
+        laid(owner, held.rows)
     return database
 
 
 @pytest.fixture
-def witness_loaded(database: Database, owner: Engine, service_database_url: str) -> Database:
-    """Give the database the witness was loaded on by the command in this very test."""
-    rows = loaded(owner, service_database_url)
-    WITNESS_ROWS.setdefault(service_database_url, rows)
+def witness_logged(
+    database: Database, owner: Engine, service_database_url: str, logs: Logs
+) -> Database:
+    """Give the witness and, in ``logs``, the records the command wrote when it loaded it.
+
+    Those of the loading of this process, kept with its rows: the command, the description and
+    the platform are the same for every test, so are its records. Kept records that do not say the
+    witness loaded — none, or those of a loading that found it there — are not taken on trust: the
+    command loads it again in this very test, under ``logs``, and its rows and records are kept in
+    their place.
+    """
+    held = WITNESS_ROWS.get(service_database_url)
+    if held is not None and said_loaded(held.records):
+        laid(owner, held.rows)
+        logs.stream.write(held.records)
+    else:
+        WITNESS_ROWS[service_database_url] = loaded(owner, service_database_url)
     return database
 
 
-def loaded(owner: Engine, service_database_url: str) -> WitnessRows:
-    """Install the database, load the witness by the command; give the rows it wrote, copied."""
+def said_loaded(records: str) -> bool:
+    """Tell whether records hold the one that says the command loaded the witness."""
+    for line in records.splitlines():
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(record, dict) and cast("dict[str, object]", record).get("event") == (
+            "witness.loaded"
+        ):
+            return True
+    return False
+
+
+@pytest.fixture
+def witness_loaded(database: Database, owner: Engine, service_database_url: str) -> Database:
+    """Give the database the witness was loaded on by the command in this very test.
+
+    For a test that changes how the command loads it, a filler registered for instance: one that
+    only reads what the command says asks for ``witness_logged``. Its loading is never shared: a
+    modified one would be the witness the other tests find laid again.
+    """
+    loaded(owner, service_database_url)
+    return database
+
+
+@dataclass(frozen=True)
+class Loaded:
+    """The rows a loading of the witness wrote, copied, and the records the command wrote."""
+
+    rows: WitnessRows
+    records: str
+
+
+def loaded(owner: Engine, service_database_url: str) -> Loaded:
+    """Install the database, load the witness by the command; give its rows and its records."""
     install(owner)
     settings = WitnessSettings(
         database_url=SecretStr(service_database_url), witness_path=str(WITNESS)
     )
-    assert load_witness(settings) == 0
-    return copied(owner)
+    with recorded_logs() as records:
+        assert load_witness(settings) == 0
+    return Loaded(copied(owner), records.getvalue())
 
 
-# The rows of the witness, by the database of the process that loaded them.
-WITNESS_ROWS: dict[str, WitnessRows] = {}
+# The rows of the witness and the records of its loading, by the database of the process that
+# loaded them.
+WITNESS_ROWS: dict[str, Loaded] = {}
 
 
 @pytest.fixture

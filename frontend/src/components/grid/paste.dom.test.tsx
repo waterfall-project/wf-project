@@ -347,7 +347,11 @@ describe("a block pasted from a spreadsheet", () => {
   it("applies a paste once the cell written before it answered, with the version that write reached, and keeps what the later paste answered (#421, #1224)", async () => {
     const line = held();
     const apply = held();
-    // The cell written answers the structure at its version 3, the paste that follows it at 4.
+    // The cell written answers the structure at the version its example gives, the paste after it at its own.
+    const written = (example("estimate_line_entered") as { structure_lock_version: number })
+      .structure_lock_version;
+    const pasted = (example("paste_applied") as { structure_lock_version: number })
+      .structure_lock_version;
     const client = fakeClient(
       { [PREVIEW]: "paste_plan", [APPLY]: "paste_applied", [LINE]: "estimate_line_entered" },
       {
@@ -361,8 +365,8 @@ describe("a block pasted from a spreadsheet", () => {
     await userEvent.keyboard("X{Enter}");
     await pasteOn(cell(FIRST, "label"), copied(BLOCK));
     const first = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
-    // Confirmed while the cell is under way, the paste would carry the version 1 that write's answer
-    // moves on to 3, and be refused (412): it waits, inactive and saying why.
+    // Confirmed while the cell is under way, the paste would carry the version that write's answer
+    // moves on from, and be refused (412): it waits, inactive and saying why.
     const applying = await within(first).findByRole("button", { name: "Appliquer le collage" });
     expect(applying).toHaveAttribute("aria-disabled", "true");
     expect(applying).toHaveAccessibleDescription(
@@ -370,7 +374,7 @@ describe("a block pasted from a spreadsheet", () => {
     );
     await userEvent.click(applying);
     expect(bodies(client, APPLY)).toEqual([]);
-    // The write answers, version 3; the paste, confirmed then, answers after it, version 4.
+    // The write answers its version; the paste, confirmed then, answers after it with its own.
     await act(async () => {
       line.release();
       await line.until;
@@ -408,7 +412,7 @@ describe("a block pasted from a spreadsheet", () => {
     });
     expect(
       bodies(client, APPLY).map((body) => (body as { lock_version: number }).lock_version),
-    ).toEqual([3, 4]);
+    ).toEqual([written, pasted]);
   });
 
   it("whose span reaches a column of the contract the grid does not present is refused, naming it, and nothing is asked [WF-IHM-0050-A]", async () => {
@@ -564,7 +568,7 @@ describe("a block pasted from a spreadsheet", () => {
     renderGrid(true, undefined, { nodes: estimateHours, sort: BY_HOURS });
     // From the provision, moved before the labour, a block of two rows would write the row after
     // it in the plan, the next task, where the grid shows the labour: refused (L41a).
-    const provision = hoursLine("Provision — risque de reprise du câblage");
+    const provision = hoursLine("Provision — Risque de reprise du câblage");
     await expectRefused(client, cell(provision, "label"), "a\nb", UNSHOWN_ROWS.sorted);
     // From the terminal blocks, the provision follows in the plan as on the screen: asked.
     const blocks = hoursLine("Borniers");

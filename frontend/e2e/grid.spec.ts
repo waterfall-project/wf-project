@@ -98,17 +98,13 @@ test("the indicators of the estimate break the total down by lot, « Lot 1 » na
   const byLot = indicators.getByRole("region", { name: "Par lot" });
   await expect(byLot).toBeVisible();
   // The card holds a list with the lot of the witness, whose posts it contains, with the total of
-  // its tasks. Against the fake back, that of the first example of `getEstimateIndicators`:
-  // 502 434,56 €, its share of the estimate after it (`test_mockdata.py` holds the lot of the
-  // volume). Against the service, 2 434,56 €, the amount that
-  // `backend/tests/test_witness_lines_reads.py` pins for the witness it holds.
+  // its tasks: 502 434,56 €, its share of the estimate after it, the first example of
+  // `getEstimateIndicators`, which `test_mockdata.py` holds. The 500 000 € are the provision of the
+  // risk identified under « Poste de commande » (WF-DEV-0060): the service, whose witness holds
+  // the risks since EP-08, reads the same, as `backend/tests/test_witness_lines_reads.py` pins.
   const lot = byLot.getByRole("listitem");
   await expect(lot).toHaveCount(1);
-  // The 500 000 € that the fake back adds are the volume (§4.6.2), which it alone holds until
-  // EP-13 (#2696).
-  await expect(lot).toHaveText(
-    inService ? /^Lot 1\s*2\s434,56\s€\s\(<\s0,01\s%\)$/ : /^Lot 1\s*502\s434,56\s€\s\(0,73\s%\)$/,
-  );
+  await expect(lot).toHaveText(/^Lot 1\s*502\s434,56\s€\s\(0,73\s%\)$/);
   await expect(indicators.getByText("Par poste")).toHaveCount(0);
 });
 

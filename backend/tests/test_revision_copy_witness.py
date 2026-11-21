@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 from sqlalchemy import event, func, inspect, select
-from test_witness_projects import PRJ_001, REVISION_100, REVISION_101, REVISION_102
+from test_witness_projects import PRJ_001, REVISION_101, REVISION_102
 
 from waterfall.core.estimate.keeping import reprice_revision
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
@@ -37,6 +37,7 @@ from waterfall.core.revisions.interface import (
     create_revision,
     read_revision,
 )
+from waterfall.core.revisions.tables import CostStructure
 from waterfall.platform.audit import Act
 from waterfall.platform.logs import logging_context
 
@@ -209,12 +210,28 @@ def _columns(row: Task | EstimateLine, own: tuple[str, ...]) -> dict[str, object
     }
 
 
+def _main(session: Session, revision_id: UUID) -> UUID:
+    """Give the main structure of a revision of PRJ-001."""
+    return session.scalars(
+        select(CostStructure.id).where(
+            CostStructure.project_id == PRJ_001,
+            CostStructure.revision_id == revision_id,
+            CostStructure.kind == "main",
+        )
+    ).one()
+
+
 def _nodes(session: Session, revision_id: UUID) -> dict[UUID, Node]:
-    """Give the nodes of a revision of PRJ-001, by their lineage."""
+    """Give the nodes of the main structure of a revision of PRJ-001, by their lineage.
+
+    The amendments and the own estimates of the risks hold the same lineages (EP-08).
+    """
     return {
         node.lineage_id: node
         for node in session.scalars(
-            select(Node).where(Node.project_id == PRJ_001, Node.revision_id == revision_id)
+            select(Node).where(
+                Node.project_id == PRJ_001, Node.structure_id == _main(session, revision_id)
+            )
         )
     }
 
@@ -252,11 +269,12 @@ def _rates(session: Session, revision_id: UUID) -> dict[UUID, tuple[Decimal, str
 
 
 def _links(session: Session, revision_id: UUID) -> set[tuple[object, ...]]:
-    """Give the links of a revision, each by the lineages of its two tasks and what it says."""
+    """Give the links of the main structure of a revision, each by its tasks' lineages."""
+    main = _main(session, revision_id)
     nodes = {
         node.id: node.lineage_id
         for node in session.scalars(
-            select(Node).where(Node.project_id == PRJ_001, Node.revision_id == revision_id)
+            select(Node).where(Node.project_id == PRJ_001, Node.structure_id == main)
         )
     }
     return {
@@ -269,9 +287,7 @@ def _links(session: Session, revision_id: UUID) -> set[tuple[object, ...]]:
             link.in_conflict,
         )
         for link in session.scalars(
-            select(TaskLink).where(
-                TaskLink.project_id == PRJ_001, TaskLink.revision_id == revision_id
-            )
+            select(TaskLink).where(TaskLink.project_id == PRJ_001, TaskLink.structure_id == main)
         )
     }
 
@@ -308,7 +324,8 @@ def test_a_revision_opened_on_prj_001_bears_the_same_tasks_and_lines_as_its_mark
         assert _links(session, opened) == _links(session, REVISION_101)
         lines = _lines(session, source), _lines(session, copy)
         assert len(lines[1]) == len(lines[0]) > 4900
-        reference = _lines(session, _nodes(session, REVISION_100))
+        # The reference is the 101 the merge of the amendment 1 marks (EP-08).
+        reference = _lines(session, _nodes(session, REVISION_101))
         for lineage, line in lines[1].items():
             was = lines[0][lineage]
             # At the year of the source, its amounts as they are: the rates are the same.
@@ -351,11 +368,12 @@ def test_a_revision_opened_on_prj_001_a_year_later_projects_the_rates_its_source
             )
             for category, (amount, _) in kept.items()
         }
+        # The main structures alone: the amendment 1 the 101 merged is not taken up (EP-08).
         counted = {
             entity.__name__: session.scalar(
                 select(func.count())
                 .select_from(entity)
-                .where(entity.project_id == PRJ_001, entity.revision_id == opened)
+                .where(entity.project_id == PRJ_001, entity.structure_id == _main(session, opened))
             )
             for entity in (Node, TaskLink)
         }
@@ -363,7 +381,10 @@ def test_a_revision_opened_on_prj_001_a_year_later_projects_the_rates_its_source
             entity.__name__: session.scalar(
                 select(func.count())
                 .select_from(entity)
-                .where(entity.project_id == PRJ_001, entity.revision_id == REVISION_101)
+                .where(
+                    entity.project_id == PRJ_001,
+                    entity.structure_id == _main(session, REVISION_101),
+                )
             )
             for entity in (Node, TaskLink)
         }

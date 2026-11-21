@@ -12,7 +12,8 @@ found, under the lock of the two structures, so that what the report presented i
   under the task named; when it is a milestone, immediately after it, under its parent or at the
   first level, the siblings after it moved down: a milestone bears no subtask (WF-PLA-0050).
 - **The copies.** Each node of the structure grafted is copied under a node of its own, its lineage
-  its own — a node created, which no revision held (WF-DAT-0030) —, at its rank under the copy of
+  its own — a node created, which no revision held (WF-DAT-0030); for the witness, the identifier
+  and the lineage it imposes (US-2650/L1) —, at its rank under the copy of
   its parent, marked with the risk it comes from (``origin_risk_id``); its facet task keeps its
   label, its description, its duration and its mode, without attachment to the work breakdown,
   which the main structure alone carries (WF-PLA-0170), nor identifier of MS Project, which would
@@ -99,13 +100,20 @@ FIELDS = ("scheduling_mode", "duration", "start", "finish")
 DATE_FIELDS = ("start", "finish")
 
 
+def _none_imposed() -> dict[UUID, tuple[UUID, UUID]]:
+    """Give a graft no identifier imposed: the service's."""
+    return {}
+
+
 @dataclass(frozen=True, slots=True)
 class GraftAsked:
     """A graft as the planning computes it: the structures, the task, what goes with it.
 
     ``source_id`` the structure grafted, ``target_id`` the one grafted into, ``bearer_id`` the task
     of the latter its tasks go under — or after, for a milestone —, ``removed`` the lines of the
-    latter that go with the graft, ``origin_risk_id`` the risk each node copied comes from.
+    latter that go with the graft, ``origin_risk_id`` the risk each node copied comes from;
+    ``imposed`` the identifier and the lineage the witness imposes on the copy of a node, by the
+    lineage of the node grafted (US-2650/L1), a node not named copied under one drawn, its lineage.
     """
 
     project_id: UUID
@@ -114,6 +122,7 @@ class GraftAsked:
     bearer_id: UUID
     removed: tuple[UUID, ...]
     origin_risk_id: UUID | None
+    imposed: Mapping[UUID, tuple[UUID, UUID]] = field(default_factory=_none_imposed)
 
 
 @dataclass(frozen=True, slots=True)
@@ -494,10 +503,15 @@ def plan_graft(session: Session, asked: GraftAsked, *, lock: bool) -> GraftPlan:
             msg = "a graft removes lines of the structure grafted into"
             raise ValueError(msg)
     parent, first_rank, shifted = _placed(read, asked)
+    imposed = asked.imposed
+    lineages = {each: read.source.nodes[each].lineage_id for each in read.source.order}
     plan = GraftPlan(
         asked,
         read,
-        {each: new_id() for each in read.source.order},
+        {
+            each: imposed[lineages[each]][0] if lineages[each] in imposed else new_id()
+            for each in read.source.order
+        },
         parent,
         first_rank,
         shifted if read.source.subtasks(None) else (),
@@ -511,12 +525,13 @@ def _node(plan: GraftPlan, node_id: UUID, act: Act) -> Json:
     """Give the node a node grafted is copied under: created, its lineage its own, its risk."""
     copy = plan.copies[node_id]
     facts = plan.read.facts
+    imposed = plan.asked.imposed.get(plan.source.nodes[node_id].lineage_id)
     return {
         "project_id": plan.asked.project_id,
         "id": copy,
         "revision_id": facts.revision_id,
         "structure_id": facts.structure_id,
-        "lineage_id": copy,
+        "lineage_id": copy if imposed is None else imposed[1],
         "kind": plan.source.nodes[node_id].kind,
         "parent_id": plan.grafted_parent(node_id),
         "rank": plan.grafted_rank(node_id),

@@ -18,6 +18,10 @@ what it adds (``without_gains``).
 The bodies are read straight from the application, unchecked against the contract: their form is
 the other tests' (``test_witness_lines_reads``), their bytes this one's.
 
+US-2650/L1 changes the witness itself — the 101 the merge of the amendment 1 produces, the
+reference, the risks and their provision lines, the occurrence of 752 —: the SHA-256 of every body
+are taken again on it, the code of the readings untouched.
+
 US-1680 computes the physical progress of the summaries, not computable before in every body: the
 SHA-256 of the bodies that give a summary's are taken again after it, the body of the fields of the
 estimate grid, which does not ask it, keeping its own. Read before and after, field by field, the
@@ -90,10 +94,10 @@ TASKS = {
 }
 TASKS_DIGESTS = {
     "kinds=task, filtered by a task": (
-        "bc8abb4fc4e0499b47b81bd619adf3cc99fcdc3aa9791c3900fb8a0216127557"
+        "c9442c6ca05a9e9c98b7244d3029c4b4a4042de7478d7726c397fdd668e95b53"
     ),
     "kinds=task, by level, sorted by a line": (
-        "c13f2162c31378310b50bd07366cc88b9f4d33c94b645a512c74b322f128ff8a"
+        "18acb97be09990b3b0f22aaad7134eb6be9271866590aa4669db0ba689620441"
     ),
     "kinds=task of a marked revision": (
         "a5a54050ee30477cac09b5d00462809b2c5c5bd09ed185d57a834816f83eab26"
@@ -109,14 +113,14 @@ COMPARISONS = {
 # The SHA-256 of each body, taken before US-2220/L1 (commit 587127f0c of epic/EP-26), then again
 # after US-1680 but the fields of the estimate grid, which ask no physical progress.
 DIGESTS = {
-    "whole": "c354cb22a3180302a4d6810dd3b1cdeb07d024f987bb9a21eb120db0fd5ff502",
-    "kinds=task": "42c5452c592bfea4e4988ef98fe4ba4a6c6d1d5deb4e56d0185c5225ff26a6cd",
-    "fields": "0f8680e6fe285210e034e71ffcef1736a4f19c9e8c788022bf5373dea06ced19",
-    "filtered by a task": "b472c386ce4c8cd48318c501bfb65e396bf3e20b2101e561915f860cc2cc23f5",
+    "whole": "07d795106292f5c47a0ca4c8d45b398be26f04eb76829a849b50c8eb05b88f1f",
+    "kinds=task": "16ed48ccb9a54f1e40b7f4f99aef417a677598dbc063d62a48ad53a2df33f010",
+    "fields": "3345d39beaafa66b2fd9c472218ba8bd46a1770e55a3c4848128ab81dc2dd3c5",
+    "filtered by a task": "70811c278a893bf6ef55cb727d85fff3e767d00b49d91053099aa282eca74a99",
     "filtered by a line, sorted": (
-        "425a759da25aad539bc4488bb6c11fadb00efc4da1176f7e98f4ad0d5819e098"
+        "aaaac13506129c2105d58b0bed0db0f2404088ecf6c6bb2c89b293b97c904630"
     ),
-    "whole comparison": "d635d9e709ea15dbebe14249aedf2bd48c8d97b1412fac3e251f255f31fc1247",
+    "whole comparison": "2b3130729e42e341647397425a4e527d5595b17114a1cda4eb2e068d729dac3b",
     "comparison filtered and sorted": (
         "908485770a32aeba12ade836c31fd12d034ff77e4446d27b7297a3e8f40b0c03"
     ),
@@ -129,7 +133,7 @@ DIGESTS = {
 # read then gives the SHA-256 of US-2320/L3, bd5415c9…; nothing else differs, no mark included.
 COMPARED_DIGESTS = {
     "comparison filtered and sorted": (
-        "a72f125f4f4a89b25f85b2968c0a34ab0ba8888f9f334e9fecf4a8b555ddcff4"
+        "334759c1d8320c36a0bfb5be374978acba27dd99997d6284edcebfe0e73718d9"
     ),
 }
 

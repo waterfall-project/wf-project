@@ -129,7 +129,7 @@ def composed_label(task_label: str, role_label: str | None) -> str:
     """Return the label the server composes for a line created without one (WF-DEV-0020).
 
     The label of the task that bears it and, if the line has one, that of its role, joined as the
-    labels of the universe join two names — « Provision — risque de reprise du câblage » —,
+    labels of the universe join two names — « Provision — Risque de reprise du câblage » —,
     within the length of a label.
     """
     label = task_label if role_label is None else f"{task_label} — {role_label}"

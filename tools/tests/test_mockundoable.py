@@ -16,7 +16,7 @@ import pytest
 
 from wftools import mockcore, mockundoable, mockwitness, mockwrites
 from wftools.mockids import universe
-from wftools.mockwitness import WIRING, fixture
+from wftools.mockwitness import FIRST_WRITE, WIRING, fixture
 
 type Node = dict[str, Any]
 
@@ -86,7 +86,7 @@ def test_the_tasks_created_are_siblings_of_the_last_node_after_it_as_a_creation_
             "not_started",
         )
         assert node.get("predecessors", []) == []
-    assert fixture("paste_applied_creating")["structure_lock_version"] == 2
+    assert fixture("paste_applied_creating")["structure_lock_version"] == FIRST_WRITE
 
 
 def test_every_plan_counts_its_rows_that_create_among_those_it_accepts() -> None:
@@ -148,7 +148,7 @@ def test_a_redo_renames_again_one_version_further_than_the_undo() -> None:
     [renamed] = cast("list[Node]", mockwrites.task_renamed()["nodes"])
     assert node == {**renamed, "lock_version": before["lock_version"] + 1}
     assert node["task"]["label"] == mockwrites.RENAMED
-    assert redone["written"]["structure_lock_version"] == 4
+    assert redone["written"]["structure_lock_version"] == FIRST_WRITE + 2
 
 
 def test_the_variants_of_the_undo_and_the_redo_differ_by_the_history_left_alone() -> None:

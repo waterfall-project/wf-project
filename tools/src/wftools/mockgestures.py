@@ -30,6 +30,7 @@ from wftools.mockwitness import (
     CONTROL_STATION,
     CORE,
     CUSTOMER,
+    FIRST_WRITE,
     INSTALLATION,
     STUDIES,
     TIMELINES,
@@ -131,7 +132,7 @@ def node_summary_emptied() -> JsonObject:
         mockcore.whole(after),
         [],
         deleted=[universe(CREATED_CHILD)],
-        structure_version=4,
+        structure_version=FIRST_WRITE + 2,
     )
 
 

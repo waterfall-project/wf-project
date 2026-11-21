@@ -133,6 +133,7 @@ from waterfall.core.revisions.interface.reference import (
 
 # ``revisions`` (US-0960; the partitions, US-0910/L1): the revisions of a project.
 from waterfall.core.revisions.interface.revisions import (
+    CopyImposed,
     RevisionAsked,
     RevisionCopy,
     RevisionFilters,
@@ -171,6 +172,7 @@ from waterfall.core.revisions.interface.shared import MAIN, hold_current_revisio
 # ``structures`` (US-0960; the facts the planning reads, US-1380/L2; written, US-1390/L2).
 from waterfall.core.revisions.interface.structures import (
     CurrentStructure,
+    DifferentialName,
     OpenedDifferential,
     OwnEstimateCounted,
     StructureFacts,
@@ -208,7 +210,9 @@ __all__ = [
     "UNMERGED_AMENDMENT_EXISTS",
     "ClosingKind",
     "ClosingStage",
+    "CopyImposed",
     "CurrentStructure",
+    "DifferentialName",
     "MarkingRequest",
     "MergePart",
     "MergePartError",

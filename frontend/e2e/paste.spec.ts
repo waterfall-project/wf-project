@@ -184,7 +184,7 @@ test("a block of three rows and four columns pasted from a spreadsheet produces 
   expect(argumentsWith(posted, "paste_id")?.[1]).toEqual({
     paste_id: "01926f3a-7c00-7000-8000-000000000994",
     confirmed: true,
-    lock_version: 2,
+    lock_version: 6,
   });
   // The three rows the server wrote, in place of those read; the focus back on the cell.
   const first = AMENDMENT.first;

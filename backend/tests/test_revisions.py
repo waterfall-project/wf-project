@@ -836,8 +836,8 @@ def test_the_witness_opens_and_marks_its_revisions_as_the_service_and_the_worker
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
     # The chronology opens the offer 100 of PRJ-001, marks it, opens the 101, marks it
-    # « Référence », opens the 102: the names and the description of ``revisions.json``, each copy
-    # of the last marked one. PRJ-002 has none.
+    # « Référence » by the merge of the amendment 1, opens the 102: the names and the description of
+    # ``revisions.json``, each copy of the last marked one. PRJ-002 has none.
     with witness.transaction() as session:
         revisions = {
             row.id: (row.status, row.version_name, row.description, row.source_revision_id)
@@ -845,7 +845,8 @@ def test_the_witness_opens_and_marks_its_revisions_as_the_service_and_the_worker
         }
         projects = {row.id: row.current_revision_id for row in session.scalars(select(Project))}
         structures_of = {
-            row.revision_id: row.lineage_id for row in session.scalars(select(CostStructure))
+            row.revision_id: row.lineage_id
+            for row in session.scalars(select(CostStructure).where(CostStructure.kind == "main"))
         }
     assert revisions == {
         OFFER: ("marked", "Offre v1.0", "Offre remise au client avant la commande.", None),
@@ -853,7 +854,7 @@ def test_the_witness_opens_and_marks_its_revisions_as_the_service_and_the_worker
         CURRENT: ("draft", None, None, REFERENCE),
     }
     assert projects == {PRJ_001: CURRENT, PRJ_002: None}
-    # One lineage, born with the main structure of the offer, kept by each copy (WF-DAT-0030).
+    # One lineage of the main structure, born with the offer's, kept by each copy (WF-DAT-0030).
     assert set(structures_of) == {OFFER, REFERENCE, CURRENT}
     assert len(set(structures_of.values())) == 1
     reader = person(witness, realm, *READING)

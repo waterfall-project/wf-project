@@ -36,6 +36,13 @@ def fixture(name: str) -> Any:
     return json.loads((FIXTURES / f"{name}.json").read_text(encoding="utf-8"))["value"]
 
 
+FIRST_WRITE = (
+    next(each["lock_version"] for each in fixture("structures") if each["kind"] == "main") + 1
+)
+"""The counter the first write leaves on the main structure: one past the counter `structures`
+reads, which the loader of the witness advanced by each of its writes (US-2650/L1)."""
+
+
 def by_identifier(name: str, key: str) -> list[Any]:
     """Return the objects of a list of the reference, in the order of their identifier.
 
@@ -87,7 +94,7 @@ OFFER_YEAR = OFFER_MARKED.on.year
 that year, and the lines the amendment 1 did not designate keep the budget it fixed so (#467)."""
 RISKS_IDENTIFIED = Event(
     date(2026, 1, 12),
-    "Risques 751, 752 et 753 identifiés ; la première saisie ouvre la révision 101",
+    "Risque 751 identifié, le premier des trois ; sa déclaration ouvre la révision 101",
     time(10, 0),
 )
 RATES_UPDATED = Event(
@@ -98,6 +105,25 @@ RATES_UPDATED = Event(
 """The revision 101, created by an entry of a risk, took the rates of the offer projected to 2026;
 the update, still proposed from the revision in progress, was accepted a quarter of an hour after
 (WF-REV-0060, C-362; ``rate_update_applied``)."""
+RISK_752_IDENTIFIED = Event(date(2026, 1, 12), "Risque 752 identifié", time(10, 30))
+RISK_753_IDENTIFIED = Event(date(2026, 1, 12), "Risque 753 identifié", time(11, 0))
+"""The risks 752 and 753, identified after 751 the same morning, each declared at its own instant,
+the update of the rates between the first two (``mockwitnessrisks``; US-2650/L1)."""
+AMENDMENT_1_OPENED = Event(
+    date(2026, 1, 12),
+    "Avenant 1 « extension du poste » ouvert et saisi dans la révision 101",
+    time(11, 30),
+)
+AMENDMENT_2_OPENED = Event(
+    date(2026, 1, 12),
+    "Avenant 2 « reprise des essais » ouvert dans la révision 101",
+    time(11, 45),
+)
+"""The two amendments, opened in the revision 101 the day the risks opened it, once the three risks
+were identified and the rates updated: what separates the offer from the reference is entered in
+the amendment 1, which nothing written in the main structure puts out of date before its merge; the
+amendment 2 is opened after it and coexists with it (``amendment_created``; US-2650/L1). No example
+dates their opening."""
 ORDER_RECEIVED = Event(
     date(2026, 1, 15),
     "Commande reçue ; l'offre 100 désignée référence, passage En cours",
@@ -114,6 +140,9 @@ RISK_751_REVIEWED = Event(
     "753 écarté",
     time(9, 0),
 )
+RISK_753_DISMISSED = Event(date(2026, 2, 2), "Risque 753 écarté", time(14, 0))
+"""The unavailability of the automation engineer dismissed in the afternoon of the review of 751,
+its provision line withdrawn from the revision 102 (WF-RIS-0020)."""
 RISK_752_OCCURRED = Event(
     date(2026, 2, 20),
     "Survenance de 752 : son devis propre fusionné dans la révision en cours, 102, la référence "
@@ -121,6 +150,14 @@ RISK_752_OCCURRED = Event(
     time(16, 0),
 )
 STUDIES_STARTED = Event(date(2026, 3, 2), "Réexamen de 751 à 40 % ; début des études", time(9, 15))
+AMENDMENT_2_REBASED = Event(
+    date(2026, 6, 3),
+    "Avenant 2 mis à jour depuis la structure principale, puis saisi dans la révision 102",
+    time(9, 0),
+)
+"""The amendment 2, taken over out of date by the revision 102, updated from its main structure
+after the last write of it, then its trials of the wiring resumed entered: up to date today, and
+the main structure has received nothing since (``structures``, #4034; US-2650/L1)."""
 PLANNING_START = STUDIES_STARTED.on
 """The planning start of the main structure and of the differentials of the witness, which
 `structures` lists (`CostStructure.planning_start_on`): a task in automatic mode without a
@@ -159,11 +196,17 @@ CHRONOLOGY = tuple(
             OFFER_MARKED,
             RISKS_IDENTIFIED,
             RATES_UPDATED,
+            RISK_752_IDENTIFIED,
+            RISK_753_IDENTIFIED,
+            AMENDMENT_1_OPENED,
+            AMENDMENT_2_OPENED,
             ORDER_RECEIVED,
             AMENDMENT_MERGED,
             RISK_751_REVIEWED,
+            RISK_753_DISMISSED,
             RISK_752_OCCURRED,
             STUDIES_STARTED,
+            AMENDMENT_2_REBASED,
             *COST_IMPORTS,
             RECEPTION_EXCLUDED,
             PLANNING_IMPORT_ABANDONED,
@@ -583,7 +626,7 @@ CONTROL_STATION = Task(
                 ),
                 Line(
                     N.PROVISION,
-                    "Provision — risque de reprise du câblage",
+                    "Provision — Risque de reprise du câblage",
                     PROVISIONS,
                     unit=Decimal("500.00") * RISK_SCALE,
                     budgeted=REFERENCE_PROVISION_751,

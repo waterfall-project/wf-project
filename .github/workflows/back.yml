@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # The back: lint and format, strict types, the boundaries of the core, then the tests, spread over
-# four runners and, in the full tier, measured and their measures gathered (make check-back-static,
+# six runners and, in the full tier, measured and their measures gathered (make check-back-static,
 # check-back-tests, coverage-back-merge). The tests of the data run against a real PostgreSQL, those
 # of the queue of tasks against a real Redis, services of the job, and those of the backups against
 # a real object storage, Garage, which a service of the job cannot start with the arguments it
@@ -48,12 +48,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: ["1/4", "2/4", "3/4", "4/4"]
+        part: ["1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
     # Each half took 10 to 16 minutes before the witness was loaded once by each process (#2157),
-    # then 10 to 18 on 2026-11-12 and 13, a minute or two from this delay: four parts of a quarter
-    # of the tests each (US-1910) should play in less than that, the fixed cost of a runner
-    # (services, `uv sync`, collection) apart. The delay stays, a margin to the slowest runner
-    # rather than a wait, until the queue has measured the quarters.
+    # then 10 to 18 on 2026-11-12 and 13; four parts (US-1910) then played in 11 to 12. The witness
+    # of EP-08 (US-2650/L1) doubles the cost of a load: the quarters took 12 to 20 minutes and more,
+    # and two were cancelled at 20 (run 44790137342). Six parts of a sixth of the tests each, by the
+    # decision of 2026-11-20, bring them back under the delay, which stays at 20 minutes: a margin
+    # to the slowest runner rather than a wait.
     timeout-minutes: 20
     services:
       postgres:

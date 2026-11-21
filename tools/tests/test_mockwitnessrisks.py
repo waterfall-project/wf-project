@@ -183,14 +183,16 @@ def test_each_risk_names_the_category_and_the_subproject_its_line_of_provision_b
 def test_the_reviews_of_a_risk_and_its_audit_follow_the_chronology(
     history: dict[str, Any],
 ) -> None:
-    # The reviews of 751, the latest first: identified on 12 January at 25 % of 1,000,000 — the
-    # 250,000 the reference knew on 1 February —, raised to 1,250,000 on 2 February, to 40 % on
-    # 2 March.
+    # The reviews of 751, the latest first: declared on 12 January at 25 %, its own estimate still
+    # empty, then identified the same instant at 1,000,000 once it is entered — the 250,000 the
+    # reference knew on 1 February —, raised to 1,250,000 on 2 February, to 40 % on 2 March
+    # (US-2650/L1).
     reviews = history["risk_reviews"]
     assert [(r["reviewed_on"], r["probability"], r["severity"]) for r in reviews] == [
         ("2026-03-02", "0.4", "1250000.00"),
         ("2026-02-02", "0.25", "1250000.00"),
         ("2026-01-12", "0.25", "1000000.00"),
+        ("2026-01-12", "0.25", "0.00"),
     ]
     known = mockwitnessrisks.REWORK.known_on(AMENDMENT_MERGED.on)
     assert known is not None

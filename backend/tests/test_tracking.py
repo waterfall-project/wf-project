@@ -520,7 +520,7 @@ def test_a_malformed_body_is_refused_by_the_envelope_and_nothing_is_written(
 
 @pytest.mark.requirement("WF-PLA-0140-A")
 def test_the_witness_is_loaded_with_its_timelines_and_the_inscriptions_of_its_tasks_by_lineage(
-    witness_loaded: Database,
+    witness: Database,
 ) -> None:
     described = json.loads((WITNESS / "witness_tasks.json").read_text(encoding="utf-8"))["value"]
     # The last revision that describes a lineage says what it keeps.
@@ -529,7 +529,7 @@ def test_the_witness_is_loaded_with_its_timelines_and_the_inscriptions_of_its_ta
         expected[task["lineage_id"]] = {
             (each["kind"], each["timeline_id"]) for each in task["inscriptions"]
         }
-    with witness_loaded.transaction() as session:
+    with witness.transaction() as session:
         found = session.execute(
             select(TrackingEntry.lineage_id, TrackingEntry.kind, TrackingEntry.timeline_id)
         ).all()

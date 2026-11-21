@@ -62,12 +62,20 @@ from waterfall.core.risks.interface.matrix import (
     risk_matrix as risk_matrix,
 )
 
+# ``occurrence`` (US-2650/L1): the occurrence of a risk of the witness, under its identifiers.
+from waterfall.core.risks.interface.occurrence import (
+    OccurrenceLoad as OccurrenceLoad,
+)
+
 # ``occurrence`` (US-2550/L1; US-2620/L1, US-2620/L2): the occurrence of a risk.
 from waterfall.core.risks.interface.occurrence import (
     OccurrenceReport as OccurrenceReport,
 )
 from waterfall.core.risks.interface.occurrence import (
     OccurrenceRequest as OccurrenceRequest,
+)
+from waterfall.core.risks.interface.occurrence import (
+    load_occurrence as load_occurrence,
 )
 from waterfall.core.risks.interface.occurrence import (
     occurred_risk_ids as occurred_risk_ids,
@@ -104,6 +112,11 @@ from waterfall.core.risks.interface.reviews import (
 )
 from waterfall.core.risks.interface.risks import (
     create_risk as create_risk,
+)
+
+# ``risks`` (US-2650/L1): a risk of the witness declared under the identifiers it imposes.
+from waterfall.core.risks.interface.risks import (
+    load_risk as load_risk,
 )
 from waterfall.core.risks.interface.risks import (
     read_risk as read_risk,
@@ -168,6 +181,9 @@ from waterfall.core.risks.views import (
 )
 from waterfall.core.risks.views import (
     RiskList as RiskList,
+)
+from waterfall.core.risks.views import (
+    RiskLoad as RiskLoad,
 )
 from waterfall.core.risks.views import (
     RiskMatrix as RiskMatrix,

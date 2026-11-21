@@ -73,7 +73,7 @@ function rowOf(label: string): number {
 const TASK_ROW = rowOf("Câblage des armoires");
 const LABOUR = rowOf("Raccordement des borniers");
 const DISBURSEMENT = rowOf("Borniers");
-const PROVISION = rowOf("Provision — risque de reprise du câblage");
+const PROVISION = rowOf("Provision — Risque de reprise du câblage");
 // The row after the provision: the factory acceptance, a milestone.
 const ACCEPTANCE = rowOf("Réception usine");
 const nodeIdOf = (row: number) => estimate.items[row]?.node_id ?? "";
