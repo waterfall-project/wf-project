@@ -23,12 +23,12 @@ requests is the same in every process, or lives in PostgreSQL or Redis (WF-ARC-0
 
 import sys
 from contextlib import ExitStack, asynccontextmanager, nullcontext
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import uvicorn
 
 from waterfall import __version__
-from waterfall.api.app import create_app
+from waterfall.api.app import PREFIX, create_app
 from waterfall.api.authentication import Services
 from waterfall.platform.cache import IndicatorsCache
 from waterfall.platform.database import Database, create_database_engine
@@ -43,10 +43,11 @@ from waterfall.platform.settings import SettingsError, load_api_settings
 from waterfall.platform.storage import Bucket
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Sequence
+    from collections.abc import AsyncGenerator, Callable, Sequence
 
     from fastapi import FastAPI
 
+    from waterfall.api.system import Observed
     from waterfall.platform.settings import ServiceSettings
 
 NAME = "waterfall-api"
@@ -98,6 +99,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             port=settings.port,
             log_config=None,
             access_log=False,
+            # In TLS alone when the settings give its certificate (US-2840, TFX-02).
+            ssl_certfile=settings.tls_certificate,
+            ssl_keyfile=settings.tls_key,
         )
     return 0
 
@@ -113,15 +117,28 @@ def application() -> FastAPI:
     services, opened = open_services(settings)
 
     @asynccontextmanager
-    async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         try:
-            yield
+            with ExitStack() as served:
+                served.callback(opened.close)
+                if settings.metrics_port is not None:
+                    served.callback(serve_metrics(app, settings.host, settings.metrics_port))
+                yield
         finally:
-            opened.close()
             logger.info("service.stopped")
 
     capacities = Capacities(settings.database_capacity_bytes, settings.storage_capacity_bytes)
     return create_app(services, lifespan, capacities)
+
+
+def serve_metrics(app: FastAPI, host: str, port: int) -> Callable[[], None]:
+    """Serve ``getMetrics`` of an application over HTTP on a port of its own; give what stops it.
+
+    The API serving in TLS (US-2840), its metrics stay in HTTP, on a port neither the door nor the
+    ingress routes (TFX-09), at the path of the operation: the same exposition, and nothing else.
+    """
+    observed = cast("Observed", app.state.observed)
+    return observed.registry.serve_shared(host, port, f"{PREFIX}/metrics")
 
 
 def open_services(settings: ServiceSettings) -> tuple[Services, ExitStack]:

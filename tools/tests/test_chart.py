@@ -234,9 +234,9 @@ def test_the_realm_is_applied_by_a_hook_after_each_installation_and_upgrade(
     (realm,) = pod(jobs["realm"])["containers"]
     assert realm["command"] == ["/opt/keycloak/bin/apply-realm"]
     keycloak_realm = services()["keycloak-realm"]["environment"]
-    assert set(keycloak_realm) - {"KC_DB_URL", "KC_DB_USERNAME", "KC_DB_PASSWORD"} <= set(
-        environment(realm)
-    )
+    # The root of the platform: the Compose's alone until the chart encrypts too (US-2840/L2).
+    left = {"KC_DB_URL", "KC_DB_USERNAME", "KC_DB_PASSWORD", "WATERFALL_TLS_AUTHORITY"}
+    assert set(keycloak_realm) - left <= set(environment(realm))
 
 
 def test_the_migrations_run_in_the_order_of_the_compose_as_the_roles_it_names(
@@ -295,11 +295,12 @@ def test_the_chart_reads_the_images_of_the_compose(objects: Objects) -> None:
         for service in services().values()
         if (match := PUBLISHED.match(service["image"]))
     }
-    # Caddy is the door of the Compose alone: the ingress is the chart's.
+    # Caddy is the door of the Compose alone: the ingress is the chart's. It is also the proxy in
+    # TLS of the storage of the Compose, which the chart does not have yet (US-2840/L2).
     third_parties = {
         MIRRORED.sub("", service["image"])
         for name, service in services().items()
-        if MIRRORED.match(service["image"]) and name != "caddy"
+        if MIRRORED.match(service["image"]) and name not in {"caddy", "storage-proxy"}
     }
     images = {
         container["image"]

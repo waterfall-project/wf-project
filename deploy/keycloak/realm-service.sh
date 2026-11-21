@@ -53,6 +53,27 @@ drawn() {
     od -An -tx1 -N"$1" /dev/urandom | tr -d ' \n'
 }
 
+# Keycloak in TLS (US-2840): given the root of the authority of the platform, WATERFALL_TLS_AUTHORITY,
+# the Java of keycloak-config-cli and of kcadm checks the certificate of Keycloak against it alone,
+# by a store of trust made from it here — Java reads no root in PEM. The store holds the root alone,
+# no secret, and is protected by no password: neither its certificates encrypted nor its integrity
+# sealed, so that Java reads it without one. keytool asks one all the same: drawn here, given by the
+# environment of keytool alone, and forgotten. A root it cannot read stops the service, saying so.
+if [ -n "${WATERFALL_TLS_AUTHORITY:-}" ]; then
+    TRUST=/tmp/realm-service.trust.p12
+    rm -f "$TRUST"
+    if ! said=$(STORE_PASSWORD=$(drawn 16) keytool \
+            -J-Dkeystore.pkcs12.certProtectionAlgorithm=NONE -J-Dkeystore.pkcs12.macAlgorithm=NONE \
+            -importcert -noprompt -alias platform -file "$WATERFALL_TLS_AUTHORITY" \
+            -keystore "$TRUST" -storetype PKCS12 -storepass:env STORE_PASSWORD 2>&1); then
+        printf '%s\n' "$said" >&2
+        echo "realm-service: the root $WATERFALL_TLS_AUTHORITY cannot be read" >&2
+        exit 1
+    fi
+    export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Djavax.net.ssl.trustStore=$TRUST \
+-Djavax.net.ssl.trustStoreType=PKCS12"
+fi
+
 # Removes from master every temporary administrator, as the one signed in to kcadm, $1: the others
 # first, then itself, after which kcadm is refused.
 remove_temporaries() {

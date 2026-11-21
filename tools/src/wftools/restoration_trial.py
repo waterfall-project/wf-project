@@ -51,7 +51,22 @@ WATCH = 0.5
 """The pause, in seconds, between two looks for the maintenance, short enough not to miss it."""
 MARKER = "Essai de restauration : fait après la sauvegarde"
 """The label of the role made after the backup, which its restoration takes away."""
-API_CALL = """
+API_REACHED = (
+    "import os, ssl; "
+    "TLS = bool(os.environ.get('WATERFALL_TLS_CERTIFICATE')); "
+    "PORT = os.environ.get('WATERFALL_PORT') or '8000'; "
+    "API = ('https://localhost:' if TLS else 'http://127.0.0.1:') + PORT; "
+    "TRUSTED = ssl.create_default_context(cafile=os.environ['WATERFALL_TLS_AUTHORITY']) "
+    "if TLS else None; "
+)
+"""Where a command run in the container of the API reaches it, and what it trusts there.
+
+In TLS, at the name its certificate carries for the loopback, checked against the root of the
+platform, when the container serves it so (the production Compose, US-2840); else in HTTP.
+"""
+API_CALL = (
+    API_REACHED
+    + """
 import json, sys, urllib.error, urllib.request
 asked = json.load(sys.stdin)
 body = None if asked["body"] is None else json.dumps(asked["body"]).encode()
@@ -59,15 +74,16 @@ headers = {"Authorization": "Bearer " + asked["token"], "Accept": "application/j
 if body is not None:
     headers["Content-Type"] = "application/json"
 request = urllib.request.Request(
-    "http://127.0.0.1:8000/api/v1" + asked["path"], body, headers, method=asked["method"]
+    API + "/api/v1" + asked["path"], body, headers, method=asked["method"]
 )
 try:
-    with urllib.request.urlopen(request, timeout=30) as response:
+    with urllib.request.urlopen(request, timeout=30, context=TRUSTED) as response:
         status, text = response.status, response.read().decode()
 except urllib.error.HTTPError as error:
     status, text = error.code, error.read().decode()
 print(json.dumps({"status": status, "body": text}))
 """
+)
 """What the container of the API runs to ask it one operation, read on its standard input."""
 
 Ask = Callable[[list[str], str], tuple[int, str]]

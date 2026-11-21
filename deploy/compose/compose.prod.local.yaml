@@ -3,10 +3,11 @@
 
 # What the production platform adds under a local name — localhost, *.localhost, *.internal —, for
 # which Let's Encrypt gives no certificate: Caddy makes it from its own authority, and the front,
-# which reaches Keycloak through Caddy in HTTPS, trusts its root (NODE_EXTRA_CA_CERTS adds it to the
-# authorities it knows). The chain tries the platform so (make production-trial); a workstation
-# can too. Given after compose.prod.yaml: `docker compose -f compose.prod.yaml -f
-# compose.prod.local.yaml …`. A machine with a public name has no use for it.
+# which reaches Keycloak through Caddy in HTTPS, trusts its root besides the root of the platform,
+# by which it reaches the API and Redis (NODE_EXTRA_CA_CERTS adds both to the authorities it
+# knows). The chain tries the platform so (make production-trial); a workstation can too. Given
+# after compose.prod.yaml: `docker compose -f compose.prod.yaml -f compose.prod.local.yaml …`. A
+# machine with a public name has no use for it.
 services:
   # Ready once its authority has made the root, which it does with the certificate of the domain.
   caddy:
@@ -16,13 +17,18 @@ services:
       timeout: 3s
       retries: 30
 
-  # Copies the root, which Caddy keeps for itself alone, where the front reads it, then stops.
-  authority:
+  # Writes the root of the door, which Caddy keeps for itself alone, after the root of the platform,
+  # where the front reads them, then stops.
+  door-authority:
     image: ${WATERFALL_MIRROR:-}caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
-    command: ["install", "-m", "0644", "/data/caddy/pki/authorities/local/root.crt", "/authority/root.crt"]
+    command:
+      - sh
+      - -c
+      - cat /trust/root.crt /data/caddy/pki/authorities/local/root.crt > /roots/roots.crt.new && chmod 0644 /roots/roots.crt.new && mv /roots/roots.crt.new /roots/roots.crt
     volumes:
       - caddy-data:/data:ro
-      - authority:/authority
+      - trust:/trust:ro
+      - door-authority:/roots
     restart: "no"
     depends_on:
       caddy:
@@ -30,12 +36,12 @@ services:
 
   front:
     environment:
-      NODE_EXTRA_CA_CERTS: /authority/root.crt
+      NODE_EXTRA_CA_CERTS: /roots/roots.crt
     volumes:
-      - authority:/authority:ro
+      - door-authority:/roots:ro
     depends_on:
-      authority:
+      door-authority:
         condition: service_completed_successfully
 
 volumes:
-  authority:
+  door-authority:

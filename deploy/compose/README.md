@@ -95,6 +95,40 @@ tables, qui n'est pas superutilisateur et ne crée ni rôle ni base (`WATERFALL_
 l'API, le worker et le planificateur, par le rôle du service, qui ne tient que ce que les tables lui
 accordent ; les sauvegardes, par le rôle de sauvegarde.
 
+### Le chiffrement entre les services
+
+Tout échange à l'intérieur de la plateforme est chiffré (US-2840, WF-SEC-0010) : PostgreSQL, Redis,
+l'API et Keycloak ne servent qu'en TLS, le stockage objet derrière un mandataire TLS
+(`storage-proxy`, `Caddyfile.storage`) — Garage, qui ne chiffre pas, n'est joint que par lui, sur
+un réseau qu'ils sont seuls à partager. Chaque client vérifie le certificat du serveur et son nom
+contre la racine de l'autorité de la plateforme ; une connexion en clair est refusée. Keycloak, seule
+instance, garde ses caches pour lui (`KC_CACHE=local`) : il n'ouvre aucun port de grappe, ni 7800
+ni 57800, où JGroups parlerait en clair. Seuls les
+points de métriques restent en HTTP, sur un port que la porte ne route pas (TFX-09).
+
+Cette autorité est celle de l'exploitant s'il la fournit : son certificat, `ca.crt` — suivi au
+besoin de ceux qui mènent à la racine —, et sa clé, `ca.key`, non chiffrée, dans le répertoire
+`authority` voisin de ce fichier (ou celui que nomme `WATERFALL_AUTHORITY_DIRECTORY`), lisible de
+root seul ; git l'ignore. Sinon, le service `authority` en crée une au premier démarrage et la
+garde dans le volume `authority`, que nul autre service ne monte. À chaque démarrage, il émet de
+nouveau le certificat de chaque serveur, valable deux ans, dans un volume propre à ce serveur, et
+écrit la racine dans le volume `trust`, que lisent les clients. Une autorité fournie qu'il ne lit
+pas — clé absente, chiffrée ou qui n'est pas celle du certificat, certificat qui n'est pas d'une
+autorité ou n'est plus valable — l'arrête en le disant, et la plateforme avec lui. Un serveur
+démarré sans son certificat s'arrête en nommant le fichier ; un processus de l'API, du worker ou
+de la restauration refuse de démarrer sur une adresse en clair, en la nommant.
+
+Rien d'autre ne renouvelle ces certificats : une plateforme qui ne redémarre pas en deux ans les
+voit expirer, et ses services ne se joignent plus. Redémarrer le service `authority` les renouvelle ;
+chaque serveur ne relit le sien qu'à son propre démarrage, d'où le plus simple, arrêter la
+plateforme et la redémarrer (`down`, sans `--volumes`, puis `up --detach --wait`), qui relance
+`authority` avant tout autre service.
+
+Pour changer d'autorité, déposer la nouvelle dans `authority`, puis arrêter la plateforme et la
+redémarrer (`down`, sans `--volumes`, puis `up --detach --wait`) : chaque serveur relit alors un
+certificat qu'elle signe, et chaque client la nouvelle racine. Pour que la plateforme en recrée une
+à elle, retirer le volume `authority` à l'arrêt.
+
 ## Amorcer
 
 Une fois la plateforme démarrée, l'amorçage (US-0420) crée l'installation, ses trois rôles
@@ -123,23 +157,27 @@ chaque démarrage ; un réglage fait à la main dans la console y revient.
 
 Pour ouvrir la console quand même, le temps d'une intervention, une surcharge Compose locale
 publie Keycloak sur la seule boucle locale de la machine, et lui dit que sa console s'y trouve.
-Elle s'écrit à côté des autres, sous le nom `compose.admin.yaml` par exemple :
+Keycloak ne sert qu'en HTTPS, avec le certificat que l'autorité de la plateforme lui a émis, qui
+vaut aussi pour `localhost` (« Le chiffrement entre les services »). La surcharge s'écrit à côté
+des autres, sous le nom `compose.admin.yaml` par exemple :
 
 ```yaml
 services:
   keycloak:
     environment:
-      KC_HOSTNAME_ADMIN: http://localhost:8080/auth
+      KC_HOSTNAME_ADMIN: https://localhost:8443/auth
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8443:8443"
 ```
 
 ```sh
 docker compose -f compose.prod.yaml -f compose.admin.yaml up --detach --wait keycloak
 ```
 
-Depuis un poste, un tunnel SSH y mène : `ssh -L 8080:127.0.0.1:8080 <machine>`, puis
-`http://localhost:8080/auth/admin/master/console/` dans le navigateur du poste, avec
+Depuis un poste, un tunnel SSH y mène : `ssh -L 8443:127.0.0.1:8443 <machine>`, puis
+`https://localhost:8443/auth/admin/master/console/` dans le navigateur du poste — qui avertit,
+sauf si on y importe la racine de la plateforme, que donne `docker compose -f compose.prod.yaml cp
+caddy:/trust/root.crt .` —, avec
 l'utilisateur `admin` et le mot de passe `WATERFALL_KEYCLOAK_ADMIN_PASSWORD`. L'intervention
 finie, Keycloak redémarre sans la surcharge, et le port se referme :
 

@@ -15,6 +15,9 @@ come from the environment, as the chain gives them; no file holds them. Then it 
 - the API answers its liveness probe, ``status`` ``ok``;
 - the owner of the tables, ``waterfall``, is no superuser, and can create neither a role nor a
   database: the administrator of the server is ``postgres``, the services' of initialisation alone;
+- PostgreSQL, Redis, the API, Keycloak and the object storage refuse a connection in the clear and
+  serve in TLS, and nothing else of them is reached from the network of the platform
+  (``wftools.transport``, US-2840, WF-SEC-0010);
 - the platform answers in HTTP by sending to the same page in HTTPS, at its published address
   (WF-SEC-0010); in HTTPS, with the headers that keep the browser there and its pages to
   themselves, HSTS first;
@@ -52,6 +55,7 @@ from urllib.parse import urlencode, urljoin, urlsplit
 
 from wftools import REPOSITORY
 from wftools.restoration_trial import (
+    API_REACHED,
     Administrator,
     Api,
     Ask,
@@ -61,6 +65,7 @@ from wftools.restoration_trial import (
     probe_of,
     wanted,
 )
+from wftools.transport import PROBE, SERVED, TransportError, check_clear_refused
 
 COMPOSE = REPOSITORY / "deploy" / "compose"
 FILES = (COMPOSE / "compose.prod.yaml", COMPOSE / "compose.prod.local.yaml")
@@ -75,8 +80,8 @@ COMPANY_NAME = "Delmas Automatismes"
 CAPACITY = str(10 * 1024**3)
 AUTHORITY = "caddy:/data/caddy/pki/authorities/local/root.crt"
 LIVENESS = (
-    "import urllib.request; "
-    "print(urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5)"
+    f"import urllib.request; {API_REACHED}"
+    "print(urllib.request.urlopen(API + '/api/v1/health', timeout=5, context=TRUSTED)"
     ".read().decode())"
 )
 OWNER_RIGHTS = (
@@ -376,6 +381,11 @@ def trial(
     rights = [*psql, "--tuples-only", "--no-align", f"--command={OWNER_RIGHTS}"]
     check_owner(_output(read, rights))
     print("  the owner of the tables, waterfall, is no superuser")
+    try:
+        check_clear_refused(_output(read, transport_command(compose)))
+    except TransportError as error:
+        raise ProductionError(str(error)) from error
+    print(f"  {', '.join(SERVED)} refuse a connection in the clear, and serve in TLS")
     with tempfile.TemporaryDirectory(prefix="waterfall-production-") as folder:
         authority = Path(folder) / "root.crt"
         _output(read, [*compose, "cp", AUTHORITY, str(authority)])
@@ -407,6 +417,11 @@ def trial(
 def liveness_command(compose: list[str]) -> list[str]:
     """Return the command that asks the API its liveness probe, inside its container."""
     return [*compose, "exec", "-T", "api", "python", "-c", LIVENESS]
+
+
+def transport_command(compose: list[str]) -> list[str]:
+    """Return the command that tries every server in the clear, inside the container of the API."""
+    return [*compose, "exec", "-T", "api", "python", "-c", PROBE]
 
 
 def back_up_and_restore(

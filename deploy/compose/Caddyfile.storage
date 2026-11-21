@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The proxy in TLS of the object storage of the production platform (US-2840, TFX-05): Garage does
+# not encrypt by itself, and listens on a network that only this proxy shares with it
+# (compose.prod.yaml, storage-proxy). The services reach the storage here, at https://storage:3900,
+# with the certificate the authority of the platform issues for that name; a request in the clear
+# gets no answer of the storage. The host and the signature of a request go through unchanged,
+# Garage checking the second against the first.
+{
+	# Nothing changes the configuration once started.
+	admin off
+	# Its own certificate alone: no Let's Encrypt, no redirection from a port of HTTP.
+	auto_https off
+	servers {
+		protocols h1 h2
+	}
+}
+
+https://:3900 {
+	tls /tls/tls.crt /tls/tls.key
+	reverse_proxy garage:3900
+}

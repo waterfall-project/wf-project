@@ -21,7 +21,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 import yaml
 
-from wftools import REPOSITORY, images, paths, production, restoration_trial
+from wftools import REPOSITORY, images, paths, production, restoration_trial, transport
 from wftools.production import Answer, Browser, Platform, ProductionError
 
 COMPOSE = REPOSITORY / "deploy" / "compose"
@@ -112,6 +112,10 @@ def test_the_platform_is_complete_on_one_machine_its_data_in_named_volumes() -> 
         "prometheus-data",
         "alertmanager-data",
         "realm-requests",
+        # The authority of the platform and what it issues (US-2840, test_transport_trial.py).
+        "authority",
+        "trust",
+        *(f"certificates-{name}" for name in transport.SERVED),
     }
     for name, kept in {
         "postgres": "/var/lib/postgresql",
@@ -166,7 +170,8 @@ def test_postgresql_carries_fifteen_connections_for_each_process_of_the_api(
         check=True,
     ).stdout.split()
     assert shown[:3] == ["postgres", "-c", "max_locks_per_transaction=1024"]
-    assert shown[3:] == ["-c", f"max_connections={15 * processes + 200}"]
+    # Then, in production, those of TLS (test_transport_trial.py).
+    assert shown[3:5] == ["-c", f"max_connections={15 * processes + 200}"]
 
 
 @pytest.mark.parametrize("path", [PRODUCTION, SERVICE])
@@ -199,7 +204,7 @@ def test_caddy_is_the_only_door_and_serves_the_front_at_the_root_and_keycloak_un
     caddyfile = CADDYFILE.read_text(encoding="utf-8")
     assert re.search(r"^\{\$WATERFALL_DOMAIN\} \{$", caddyfile, re.MULTILINE)
     assert "email {$WATERFALL_ACME_EMAIL}" in caddyfile
-    assert re.search(r"handle /auth/\* \{\s*reverse_proxy keycloak:8080\s*\}", caddyfile)
+    assert re.search(r"handle /auth/\* \{\s*reverse_proxy https://keycloak:8443 \{", caddyfile)
     assert re.search(r"handle \{\s*reverse_proxy front:3000\s*\}", caddyfile)
 
 
@@ -428,12 +433,6 @@ def test_the_restoration_has_a_service_of_its_own_always_started_and_the_realm_i
     )
     assert sharing == ["keycloak-realm", "restore"]
     assert compose()["volumes"]["realm-requests"]["driver_opts"]["type"] == "tmpfs"
-
-
-def test_a_local_name_makes_the_front_trust_the_authority_of_caddy() -> None:
-    front = compose(LOCAL)["services"]["front"]
-    assert front["environment"]["NODE_EXTRA_CA_CERTS"] == "/authority/root.crt"
-    assert "authority:/authority:ro" in front["volumes"]
 
 
 def test_the_chain_tries_the_platform_in_the_full_tier_and_on_the_images_published() -> None:
@@ -796,6 +795,13 @@ def test_the_trial_fails_when_the_point_of_metrics_is_served(
     assert "/metrics answered 200, not 404" in capsys.readouterr().err
 
 
+REFUSED = {
+    **dict.fromkeys(transport.SERVED, "refused"),
+    **dict.fromkeys(transport.CLOSED, "unreached"),
+    transport.METRICS: "metrics alone",
+}
+
+
 class Docker:
     """A Compose that answers as a test tells it, and records what it is asked."""
 
@@ -825,6 +831,8 @@ class Docker:
             return 1, ""
         if "install" in command:
             return 0, self.installed
+        if transport.PROBE in command:
+            return 0, json.dumps(dict(REFUSED))
         if "exec" in command:
             return 0, self.rights if "postgres" in command else self.live
         if "cp" in command:
@@ -860,7 +868,8 @@ def test_the_trial_starts_bootstraps_holds_and_removes_the_platform(
     docker = Docker()
     fake = FakePlatform(realm_routes())
     assert production.main(GIVEN, docker.run, docker.read, platform_sender(fake)) == 0
-    assert docker.verbs() == ["up", "run", "exec", "exec", "cp", "down"]
+    assert docker.verbs() == ["up", "run", "exec", "exec", "exec", "cp", "down"]
+    assert docker.ran[4][-3:] == ["python", "-c", transport.PROBE]
     assert docker.ran[0][:5] == ["docker", "compose", "--project-name", "trial-a3", "--file"]
     assert docker.ran[0][-4:] == ["up", "--detach", "--wait", "--quiet-pull"]
     assert docker.ran[-1][-2:] == ["down", "--volumes"]
@@ -869,6 +878,7 @@ def test_the_trial_starts_bootstraps_holds_and_removes_the_platform(
     assert "HTTP sends to https://waterfall.localhost\n" in said
     assert "HTTPS answers with Strict-Transport-Security, X-Content-Type-Options" in said
     assert "/auth/admin/ and /auth/realms/master/ answer 404" in said
+    assert "postgres, redis, api, keycloak, storage refuse a connection in the clear" in said
     assert "signs in at https://waterfall.localhost, and the front names them" in said
     assert "the backup and its restoration are left out (WATERFALL_TRIAL_RESTORATION)" in said
 

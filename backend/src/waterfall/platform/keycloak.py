@@ -14,11 +14,14 @@ key is not held is refused as Keycloak's failure, never as a session missing, an
 most for the keys another request reads (#674). The administration API is ``keycloak_admin``'s.
 
 Keycloak is reached on its back channel, the issuer of the tokens being the address the browser
-knows it by. A Keycloak that does not answer is a component unavailable (503); an answer that
-breaks what the realm promises is a defect of the platform, raised as such.
+knows it by — in HTTPS, its certificate checked against the roots of the platform when the settings
+give them (``tls_authority``, TFX-08, US-2840). A Keycloak that does not answer is a component
+unavailable (503); an answer that breaks what the realm promises is a defect of the platform, raised
+as such.
 """
 
 import math
+import ssl
 import threading
 import time
 from dataclasses import dataclass
@@ -74,6 +77,11 @@ def unavailable() -> UnavailableError:
     return UnavailableError(COMPONENT_UNAVAILABLE, {"component": COMPONENT})
 
 
+def trusted(authority: str | None) -> ssl.SSLContext | bool:
+    """Give what a client in HTTPS checks a certificate against: the roots given, else the usual."""
+    return True if authority is None else ssl.create_default_context(cafile=authority)
+
+
 def expect(response: httpx2.Response, status: int) -> httpx2.Response:
     """Give an answer of Keycloak of the status the realm promises, or raise it as a defect."""
     if response.status_code != status:
@@ -120,7 +128,9 @@ class Keycloak:
         realm = quote(settings.keycloak_realm, safe="")
         self.issuer = f"{settings.keycloak_address.rstrip('/')}/realms/{realm}"
         backchannel = (settings.keycloak_backchannel or settings.keycloak_address).rstrip("/")
-        self._http = httpx2.Client(base_url=backchannel, timeout=timeout)
+        self._http = httpx2.Client(
+            base_url=backchannel, timeout=timeout, verify=trusted(settings.tls_authority)
+        )
         # Where the realm serves its keys and its tokens, on the back channel.
         self.protocol = f"/realms/{realm}/protocol/openid-connect"
         self._clock = clock

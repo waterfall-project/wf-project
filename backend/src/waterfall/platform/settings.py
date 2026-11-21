@@ -5,15 +5,34 @@
 A secret that is missing stops the process and names the variable that lacks, rather than
 letting the service start without it. The secrets are ``SecretStr``: printing the settings
 shows no value.
+
+The transport (US-2840): ``tls_authority`` names the file of the roots a process trusts for the
+exchanges inside the platform, the root of its authority. Given, it must be read, and every address
+of a component of data must be encrypted — PostgreSQL with ``sslmode=verify-full``, which checks
+the certificate and its name, Redis in ``rediss://``, the object storage and Keycloak in
+``https://`` —, with no parameter that turns the check off or loosens it, or the process stops,
+naming what is wrong. PostgreSQL and Redis read the root from their address, as their drivers do
+(``sslrootcert``, ``ssl_ca_certs``); the clients of Keycloak and of the storage, from this setting.
+Not given, the addresses are taken as they are: the workstation and the tests reach their
+components on the loopback.
 """
 
+import ssl
 from contextlib import suppress
 from functools import cache
-from typing import Annotated, Any, Literal
-from urllib.parse import unquote, unquote_plus, urlsplit
+from pathlib import Path
+from typing import Annotated, Any, Literal, Self
+from urllib.parse import parse_qs, unquote, unquote_plus, urlsplit
 from zoneinfo import available_timezones
 
-from pydantic import AfterValidator, BeforeValidator, Field, SecretStr, ValidationError
+from pydantic import (
+    AfterValidator,
+    BeforeValidator,
+    Field,
+    SecretStr,
+    ValidationError,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ENV_PREFIX = "WATERFALL_"
@@ -54,13 +73,134 @@ def _url_secrets(value: str) -> list[str]:
     return found
 
 
+def _none_when_empty(value: object) -> object:
+    """Read an empty setting as one not given: Compose passes an unset variable as empty."""
+    return None if value == "" else value
+
+
+def _roots(path: str | None) -> str | None:
+    """Keep the path of a file of certificates in PEM that can be read; refuse another."""
+    if path is None:
+        return None
+    if not Path(path).is_file():
+        message = f"no file at {path}"
+        raise ValueError(message)
+    try:
+        ssl.create_default_context(cafile=path)
+    except (OSError, ssl.SSLError) as error:
+        message = f"{path} is not a file of certificates in PEM that can be read"
+        raise ValueError(message) from error
+    return path
+
+
+type Roots = Annotated[str | None, BeforeValidator(_none_when_empty), AfterValidator(_roots)]
+
+
+def _query(address: str) -> dict[str, list[str]] | None:
+    """Read the parameters of an address, each name in lower case; None if it does not read."""
+    try:
+        parsed = parse_qs(urlsplit(address).query, keep_blank_values=True)
+    except ValueError:
+        return None
+    query: dict[str, list[str]] = {}
+    for name, values in parsed.items():
+        query.setdefault(name.lower(), []).extend(values)
+    return query
+
+
+def verifies_postgresql(address: str) -> bool:
+    """Tell whether an address of PostgreSQL asks libpq to check the certificate and its name.
+
+    Every ``sslmode`` it gives is ``verify-full``, whichever libpq would keep. ``gssencmode`` other
+    than ``disable`` is refused too: libpq prefers the encryption of GSSAPI where it can, and then
+    checks no certificate, whatever ``sslmode`` says.
+    """
+    query = _query(address)
+    if query is None:
+        return False
+    modes = query.get("sslmode", [])
+    return (
+        bool(modes)
+        and all(mode == "verify-full" for mode in modes)
+        and all(mode == "disable" for mode in query.get("gssencmode", []))
+    )
+
+
+REDIS_TRUE = frozenset({"1", "T", "TRUE", "Y", "YES"})
+"""What redis-py reads as true in an address: the other values turn a check off."""
+
+
+def _keeps_the_check(name: str, value: str) -> bool:
+    """Tell whether a parameter ``ssl_*`` of an address of Redis leaves the check whole."""
+    if name == "ssl_ca_certs":
+        return True
+    if name == "ssl_cert_reqs":
+        return value == "required"
+    if name == "ssl_check_hostname":
+        return value.upper() in REDIS_TRUE
+    return False
+
+
+def verifies_redis(address: str) -> bool:
+    """Tell whether an address of Redis asks redis-py for TLS, the certificate and its name checked.
+
+    In ``rediss://``, redis-py checks both by default; a parameter of the address can turn either
+    off (``ssl_cert_reqs=none``, ``ssl_check_hostname=false``), or loosen what is checked (the flags
+    of the check, the versions, the ciphers). Of the parameters ``ssl_*``, only the file of the
+    roots, ``ssl_cert_reqs=required`` and ``ssl_check_hostname`` true are admitted.
+    """
+    query = _query(address)
+    if query is None or not address.startswith("rediss://"):
+        return False
+    return all(
+        _keeps_the_check(name, value)
+        for name, values in query.items()
+        if name.startswith("ssl")
+        for value in values
+    )
+
+
+def encrypted_fault(name: str, *, encrypted: bool, wanted: str) -> list[str]:
+    """Say how a setting of an address fails the transport the authority asks, if it does."""
+    if encrypted:
+        return []
+    return [f"{ENV_PREFIX}{name.upper()} must {wanted} when {ENV_PREFIX}TLS_AUTHORITY is given"]
+
+
 class PlatformSettings(BaseSettings):
-    """What every process of the platform reads from its environment: its database, its logs."""
+    """What every process of the platform reads from its environment: its database, its logs.
+
+    ``tls_authority`` is the file of the roots it trusts inside the platform (US-2840), none by
+    default; given, each address of PostgreSQL the process reads must check the certificate.
+    """
 
     model_config = SettingsConfigDict(env_prefix=ENV_PREFIX, frozen=True, extra="ignore")
 
     database_url: SecretStr = Field(min_length=1)
     log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
+    tls_authority: Roots = None
+
+    def transport_faults(self) -> list[str]:
+        """Say each address that would be reached in the clear, though an authority is given.
+
+        Each class adds the addresses it reads; every address of PostgreSQL is found by its name.
+        """
+        return [
+            fault
+            for name in type(self).model_fields
+            if name.endswith("database_url")
+            for fault in encrypted_fault(
+                name,
+                encrypted=verifies_postgresql(getattr(self, name).get_secret_value()),
+                wanted="ask sslmode=verify-full, and no other sslmode nor gssencmode",
+            )
+        ]
+
+    @model_validator(mode="after")
+    def _encrypted(self) -> Self:
+        if self.tls_authority is not None and (faults := self.transport_faults()):
+            raise ValueError("; ".join(faults))
+        return self
 
     def secret_values(self) -> tuple[str, ...]:
         """Give every secret held, and the password a URL secret carries, for the logs to mask.
@@ -86,6 +226,18 @@ class Settings(PlatformSettings):
     host: str = "127.0.0.1"
     port: int = Field(default=8000, ge=1, le=65535)
 
+    def transport_faults(self) -> list[str]:
+        """Add Redis, which must be reached in ``rediss://``, its certificate checked."""
+        encrypted = verifies_redis(self.redis_url.get_secret_value())
+        wanted = (
+            "be in rediss://, with no parameter ssl_ but ssl_ca_certs, ssl_cert_reqs=required "
+            "and ssl_check_hostname=true"
+        )
+        return [
+            *super().transport_faults(),
+            *encrypted_fault("redis_url", encrypted=encrypted, wanted=wanted),
+        ]
+
 
 class KeycloakSettings(PlatformSettings):
     """What a process that reaches Keycloak reads besides.
@@ -100,6 +252,16 @@ class KeycloakSettings(PlatformSettings):
     keycloak_backchannel: str | None = Field(default=None, min_length=1, pattern="^https?://")
     keycloak_realm: str = Field(default="waterfall", pattern="^[A-Za-z0-9_-]+$")
     service_client_secret: SecretStr = Field(min_length=1)
+
+    def transport_faults(self) -> list[str]:
+        """Add the address this process reaches Keycloak at, which must be in ``https://``."""
+        name = "keycloak_address" if self.keycloak_backchannel is None else "keycloak_backchannel"
+        encrypted = (self.keycloak_backchannel or self.keycloak_address).startswith("https://")
+        wanted = "be in https://"
+        return [
+            *super().transport_faults(),
+            *encrypted_fault(name, encrypted=encrypted, wanted=wanted),
+        ]
 
 
 class StorageSettings(PlatformSettings):
@@ -116,6 +278,15 @@ class StorageSettings(PlatformSettings):
     storage_secret: SecretStr = Field(min_length=1)
     backups_bucket: str = Field(default="backups", min_length=1)
 
+    def transport_faults(self) -> list[str]:
+        """Add the object storage, which must be reached in ``https://``."""
+        encrypted = self.storage_address.startswith("https://")
+        wanted = "be in https://"
+        return [
+            *super().transport_faults(),
+            *encrypted_fault("storage_address", encrypted=encrypted, wanted=wanted),
+        ]
+
 
 class ServiceSettings(Settings, KeycloakSettings, StorageSettings):
     """What a service that reaches Keycloak reads: the API, and the worker after it."""
@@ -130,11 +301,49 @@ class ApiSettings(ServiceSettings):
     ``database_capacity_bytes`` and ``storage_capacity_bytes`` are the space the deployment gives
     PostgreSQL and the object storage, in bytes, of which the metrics say what is left
     (WF-OBS-0010): none by default, and then they say only what is used.
+    ``tls_certificate`` and ``tls_key`` are the files of its certificate — followed by those up to
+    the root — and of its key, in PEM (US-2840, TFX-02): given together, the API serves in TLS
+    alone; neither, in HTTP, as on the workstation. ``metrics_port`` is a port of its own where it
+    serves its metrics over HTTP, and nothing else (``getMetrics``, TFX-09): none by default, and
+    then they are served on the port of the API alone.
     """
 
     api_processes: int = Field(default=1, ge=1)
     database_capacity_bytes: int | None = Field(default=None, ge=1)
     storage_capacity_bytes: int | None = Field(default=None, ge=1)
+    tls_certificate: Annotated[str | None, BeforeValidator(_none_when_empty)] = None
+    tls_key: Annotated[str | None, BeforeValidator(_none_when_empty)] = None
+    metrics_port: Annotated[
+        Annotated[int, Field(ge=1, le=65535)] | None, BeforeValidator(_none_when_empty)
+    ] = None
+
+    @model_validator(mode="after")
+    def _served(self) -> Self:
+        if (self.tls_certificate is None) != (self.tls_key is None):
+            message = f"{ENV_PREFIX}TLS_CERTIFICATE and {ENV_PREFIX}TLS_KEY go together"
+            raise ValueError(message)
+        if self.tls_certificate is not None and self.tls_key is not None:
+            _served_pair(self.tls_certificate, self.tls_key)
+        if self.metrics_port == self.port:
+            message = f"{ENV_PREFIX}METRICS_PORT must not be {ENV_PREFIX}PORT"
+            raise ValueError(message)
+        return self
+
+
+def _served_pair(certificate: str, key: str) -> None:
+    """Refuse a certificate and a key the server could not serve, naming the variables."""
+    for name, path in (("TLS_CERTIFICATE", certificate), ("TLS_KEY", key)):
+        if not Path(path).is_file():
+            message = f"{ENV_PREFIX}{name}: no file at {path}"
+            raise ValueError(message)
+    try:
+        ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER).load_cert_chain(certificate, key)
+    except (OSError, ssl.SSLError) as error:
+        message = (
+            f"{ENV_PREFIX}TLS_CERTIFICATE and {ENV_PREFIX}TLS_KEY are not a certificate in PEM "
+            "and its key, that can be read"
+        )
+        raise ValueError(message) from error
 
 
 class ScheduleSettings(Settings):
@@ -192,11 +401,6 @@ def _known_time_zone(name: str) -> str:
 def _known_time_zone_if_given(name: str | None) -> str | None:
     """Keep a name given, if the IANA database knows it; none is none."""
     return None if name is None else _known_time_zone(name)
-
-
-def _none_when_empty(value: object) -> object:
-    """Read an empty setting as one not given: Compose passes an unset variable as empty."""
-    return None if value == "" else value
 
 
 class InstallationSettings(KeycloakSettings):
@@ -304,6 +508,13 @@ def load_witness_settings() -> WitnessSettings:
     return _load(WitnessSettings)
 
 
+def _named(location: tuple[int | str, ...]) -> str:
+    """Name the variable of a fault; a fault between several settings names them itself."""
+    if not location:
+        return ""
+    return f"{ENV_PREFIX}{'_'.join(str(part) for part in location).upper()}: "
+
+
 def _load[Kind: PlatformSettings](kind: type[Kind]) -> Kind:
     # The values come from the environment, which pydantic-settings reads itself.
     from_environment: dict[str, Any] = {}
@@ -311,8 +522,7 @@ def _load[Kind: PlatformSettings](kind: type[Kind]) -> Kind:
         return kind(**from_environment)
     except ValidationError as error:
         faults = [
-            f"{ENV_PREFIX}{'_'.join(str(part) for part in fault['loc']).upper()}: "
-            + ("is missing" if fault["type"] == "missing" else fault["msg"])
+            _named(fault["loc"]) + ("is missing" if fault["type"] == "missing" else fault["msg"])
             for fault in error.errors(include_input=False, include_url=False)
         ]
         message = "settings are not valid: " + "; ".join(faults)

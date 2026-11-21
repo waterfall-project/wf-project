@@ -31,6 +31,8 @@ def test_the_api_the_worker_the_migrations_and_the_restoration_are_the_entry_poi
         "waterfall-worker",
         "waterfall-migrate",
         "waterfall-restore",
+        # The authority of the Compose, which issues the certificates of the servers (US-2840).
+        "waterfall-authority",
     }
 
 

@@ -196,9 +196,10 @@ def test_the_server_starts_once_the_control_of_its_volume_has_passed(
     """
     found = services(path)
     server, volume = found["postgres"], found["postgres-volume"]
-    assert server["volumes"] == ["postgres-data:/var/lib/postgresql"]
-    assert server["depends_on"] == {
-        "postgres-volume": {"condition": "service_completed_successfully"}
+    # In production, its certificate and its access besides (US-2840, test_transport_trial.py).
+    assert server["volumes"][0] == "postgres-data:/var/lib/postgresql"
+    assert server["depends_on"]["postgres-volume"] == {
+        "condition": "service_completed_successfully"
     }
     assert volume["image"] == server["image"]
     assert volume["entrypoint"] == ["/bin/sh", "/postgres-volume.sh"]

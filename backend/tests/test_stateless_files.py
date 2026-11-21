@@ -72,6 +72,10 @@ ALLOWED = {
     "platform/metrics.py": "the counters of the processes of the API, in a folder made at its "
     "start and removed at its end, in the mode of several processes alone: what is measured, which "
     "only ``getMetrics`` reads, not what a request answers (exception of #4351, to be decided)",
+    # No service: a command that runs once at each start of the Compose, then stops (US-2840).
+    "platform/authority.py": "the root of the platform, the key and the certificate of each "
+    "server, written by the service authority of the Compose in the volumes it is given, before "
+    "any service starts: no request nor task writes them",
 }
 # What a ``with`` must wrap: a temporary folder that a ``finally`` or the end of a block removes.
 # ``worker/restore.py`` makes none and ``restore/provider.py`` neither: the first writes in the
@@ -316,7 +320,9 @@ def test_the_counters_folder_is_read_by_no_route_but_the_metrics_and_dies_with_i
         for node in ast.walk(tree)
         if isinstance(node, ast.Call) and getattr(node.func, "attr", "") == "expose"
     }
-    assert exposing == {"api/system.py"}
+    # ``getMetrics``, and the same exposition at the same path, in HTTP, on the port of the metrics
+    # of an API that serves in TLS (``serve_shared``, US-2840).
+    assert exposing == {"api/system.py", "platform/metrics.py"}
     operations = {
         keyword.value.value
         for node in ast.walk(trees["api/system.py"])

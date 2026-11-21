@@ -10,8 +10,10 @@ each component of data and of the identity provider, probed together within a de
 queued and the age of the oldest; the latest outcome of what the platform runs on a schedule; and
 the space PostgreSQL and the object storage use, and what is left of the capacity the deployment
 declares. A gauge that cannot be read — the database down, a capacity not declared — is left out,
-never given a value it does not have. The API serves the metrics on ``getMetrics``; the worker,
-which listens to nothing else, on a port of its own (``MetricsRegistry.serve``).
+never given a value it does not have. The API serves the metrics on ``getMetrics`` — and, when it
+serves in TLS, in HTTP at the same path of a port of their own, shared by its processes
+(``MetricsRegistry.serve_shared``, US-2840); the worker, which listens to nothing else, on a port of
+its own (``MetricsRegistry.serve``).
 
 The names below are the interface: the rules of the alerts (US-2880) and the status screen
 (US-2890) read them by the query API of Prometheus. The error rate of the requests is the share of
@@ -34,7 +36,9 @@ from collections.abc import Callable, Generator, Iterator, Mapping
 from concurrent.futures import Future, wait
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, get_args
+from socketserver import ThreadingMixIn
+from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, get_args, override
+from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
 
 from prometheus_client import CollectorRegistry, Counter, Histogram, generate_latest
 from prometheus_client.exposition import CONTENT_TYPE_PLAIN_0_0_4, start_http_server
@@ -52,6 +56,7 @@ from waterfall.platform.tasks import waiting
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from wsgiref.types import StartResponse, WSGIEnvironment
 
     from prometheus_client.registry import Collector
     from sqlalchemy.orm import Session
@@ -150,6 +155,53 @@ class MetricsRegistry:
             thread.join()
 
         return stop
+
+    def serve_shared(self, host: str, port: int, path: str) -> Callable[[], None]:
+        """Serve the metrics over HTTP at one path of a port of their own; give what stops it.
+
+        The port is shared by every process that serves there (``SO_REUSEPORT``): each process of
+        the API serves the same exposition, the counters of all of them merged, and the system
+        hands each collection to one of them. Any other path, or method, is not found: the port
+        serves the metrics and nothing else, in the clear (TFX-09).
+        """
+
+        def application(environ: WSGIEnvironment, start: StartResponse) -> list[bytes]:
+            found = environ.get("PATH_INFO") == path and environ.get("REQUEST_METHOD") == "GET"
+            body = self.expose() if found else b"not found\n"
+            kind = CONTENT_TYPE if found else "text/plain; charset=utf-8"
+            start(
+                "200 OK" if found else "404 Not Found",
+                [("Content-Type", kind), ("Content-Length", str(len(body)))],
+            )
+            return [body]
+
+        server = make_server(
+            host, port, application, server_class=_SharedServer, handler_class=_QuietHandler
+        )
+        thread = threading.Thread(target=server.serve_forever, name="metrics", daemon=True)
+        thread.start()
+
+        def stop() -> None:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+        return stop
+
+
+class _SharedServer(ThreadingMixIn, WSGIServer):
+    """A server of the metrics on a port several processes listen on, a thread per request."""
+
+    allow_reuse_port = True
+    daemon_threads = True
+
+
+class _QuietHandler(WSGIRequestHandler):
+    """A handler that writes nothing of the requests: the collections are not events."""
+
+    @override
+    def log_message(self, format: str, *args: Any) -> None:
+        """Write nothing."""
 
 
 @contextmanager
