@@ -48,7 +48,9 @@ ses exigences avant l'ouverture des issues de ses lots.
   courbes de valeur acquise ;
 - les lectures du portefeuille qui suivent : une opportunité dans sa matrice, un coût à la
   survenance négatif dans sa couverture agrégée ;
-- les écrans des risques ;
+- les écrans des risques, et la reprise de celui d'un projet : le graphique à bulles toujours
+  visible, en bulles rondes dont le diamètre suit la gravité, et au registre la tendance de chaque
+  risque depuis la revue précédente ;
 - sa tranche du jeu de données de référence (WF-QUA-0040) — les trois risques de PRJ-001 relus comme
   des différentiels, le 751 ajoutant, modifiant et abandonnant —, rechargée par `waterfall-api
   load-witness`, et les exemples du contrat qui suivent ;
@@ -81,21 +83,21 @@ avant l'ouverture des issues des lots — les US citent alors les Vérif réels.
 
 Six exigences changent de règle et sont closes ici : WF-RIS-0010 (la gravité, écart net, et le coût
 à la survenance), WF-RIS-0030 (le devis propre), WF-RIS-0040 (l'opportunité au registre et dans la
-matrice), WF-RIS-0050 (le coût à la survenance signé, et ce qui se lit en regard), WF-RIS-0060 (la
-survenance) et WF-IND-0030 (la valeur acquise d'une tâche qu'une survenance termine). Trois
-exigences nouvelles sont proposées, et entreront à ce tableau, entières, quand la 1.0.9 les aura
-écrites : « Mise à jour du devis propre d'un risque » (WF-RIS-0070), « Gravité d'un risque »
-(WF-RIS-0080) et « Marque d'une survenance sur les courbes de valeur acquise » (WF-IND-0140).
-WF-RIS-0020 et WF-REV-0110, dont aucune phrase de Vérif ne change, et WF-REV-0100, dont seul le
-corps est retouché, restent closes par EP-08 ; WF-PTF-0090 et WF-IND-0110, dont le texte ne change
-pas, par les EPIC qui les ont réalisées. WF-QUA-0040 entre au tableau en portée « début » : cet EPIC
-recharge sa tranche du jeu de données de référence, qu'EP-13 clôt.
+matrice, la tendance d'un risque), WF-RIS-0050 (le coût à la survenance signé, et ce qui se lit en
+regard), WF-RIS-0060 (la survenance) et WF-IND-0030 (la valeur acquise d'une tâche qu'une survenance
+termine). Trois exigences nouvelles sont proposées, et entreront à ce tableau, entières, quand la
+1.0.9 les aura écrites : « Mise à jour du devis propre d'un risque » (WF-RIS-0070), « Gravité d'un
+risque » (WF-RIS-0080) et « Marque d'une survenance sur les courbes de valeur acquise »
+(WF-IND-0140). WF-RIS-0020 et WF-REV-0110, dont aucune phrase de Vérif ne change, et WF-REV-0100,
+dont seul le corps est retouché, restent closes par EP-08 ; WF-PTF-0090 et WF-IND-0110, dont le
+texte ne change pas, par les EPIC qui les ont réalisées. WF-QUA-0040 entre au tableau en portée «
+début » : cet EPIC recharge sa tranche du jeu de données de référence, qu'EP-13 clôt.
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
 | `WF-RIS-0010-A` | Attributs d’un risque | fin — amorcée en EP-15, EP-08 | US-3080 |
 | `WF-RIS-0030-A` | Devis propre d’un risque | fin — amorcée en EP-15, EP-08 | US-3070 |
-| `WF-RIS-0040-A` | Grille de suivi des risques | fin — amorcée en EP-15, EP-17, EP-08 | US-3080 |
+| `WF-RIS-0040-A` | Grille de suivi des risques | fin — amorcée en EP-15, EP-17, EP-08 | US-3080, US-3160 |
 | `WF-RIS-0050-A` | Réserve pour risques et couverture | fin — amorcée en EP-17, EP-08 | US-3110 |
 | `WF-RIS-0060-A` | Survenance d’un risque | fin — amorcée en EP-17, EP-08 | US-3100 |
 | `WF-IND-0030-A` | Valeur acquise | fin — amorcée en EP-10, EP-08 | US-3120 |
@@ -125,6 +127,9 @@ code qui la consomme. La conception en dira le détail ; ce que les US demandent
 - `listNodes` sur un devis propre : les différences (`NodeDifference`) par rapport à la structure
   principale de la révision lue ;
 - `getEarnedValueCurves` : la marche datée d'une survenance ;
+- `Risk` et `listRisks` : la tendance d'un risque depuis la révision marquée précédente, son filtre
+  et son tri ;
+- `ChartPreferences` : l'état plié du graphique des risques d'un projet, qui n'a plus d'objet ;
 - les exemples, engendrés par `make mock-data`.
 
 Servies par EP-08 ou par EP-11, et reprises ici pour ce que cet EPIC y change :
@@ -138,7 +143,8 @@ Servies par EP-08 ou par EP-11, et reprises ici pour ce que cet EPIC y change :
   propre, `undoLastChange`, `redoLastUndo` ;
 - `exchanges` : `openImport`, `applyImport`, sur un devis propre ;
 - `analysis` : `getRemainingIndicators`, `getProjectIndicators`, `getEarnedValueCurves` ;
-- `portfolio` : `getPortfolioRisks`.
+- `portfolio` : `getPortfolioRisks` ;
+- `me` : `updateMyPreferences`.
 
 ## Préalables
 
@@ -330,6 +336,28 @@ elle et s'impose à elle.
   négative, une provision nulle et une mention ; la matrice, du projet comme du portefeuille, la
   classe au plus bas niveau de gravité. Écartée : l'opportunité hors de la matrice, qui rendrait
   `matrix_cell` nul et changerait la forme du risque au contrat.
+- **L'écran des risques d'un projet est repris ici**, par une US de plus (US-3160) : cet EPIC touche
+  déjà cet écran et le contrat du risque, et un constat va à l'EPIC qui touche son code. Tranché
+  contre « cette US ne redessine aucun écran », écrit d'abord pour US-3140, et contre le rangement
+  des écrans en EP-37 par la ventilation du 2026-11-21.
+- **Le graphique à bulles est toujours visible, au-dessus de la grille, sans pliage.** La commande
+  de pliage et la préférence qui gardait son état disparaissent ; sur un écran de 768 de haut, la
+  page défile pour atteindre le bas de la grille. Tranché contre #1252, qui l'avait fait démarrer
+  replié pour tenir la grille dans la fenêtre. Écartés : le graphique à côté de la grille sur un
+  écran large, une mise en page de plus à écrire et à éprouver à deux largeurs ; le graphique déplié
+  par défaut, qu'on replierait encore.
+- **Des bulles rondes, dont le diamètre est proportionnel à la gravité**, sans descendre sous un
+  minimum qui les laisse visibles et cliquables ; une opportunité est dessinée par la valeur absolue
+  de sa gravité. La zone se lit toujours sans sa couleur, par son nom écrit dans sa case et par le
+  trait de ses côtés (WF-IHM-0070). Tranché contre le point de #1395 qui marquait la zone par la
+  forme de la bulle — rond, losange, triangle —, et contre la taille en racine carrée, bornée,
+  qu'EP-15 avait retenue. Écarté : un diamètre strictement proportionnel, qui réduit un petit risque
+  à un point.
+- **La tendance d'un risque se mesure à la révision marquée précédente**, sur le produit signé de sa
+  gravité par sa probabilité, et le registre se filtre et se trie sur elle, comme sur ses autres
+  colonnes (H-01, #1786). Écartés : la comparaison au réexamen précédent du risque, que chaque
+  saisie dans le devis propre ferait bouger entre deux réexamens ; la colonne seule, sans filtre ni
+  tri, une exception à H-01.
 - **Aucun devis propre n'est repris.** EP-08 n'a servi aucune base à conserver : la migration change
   le schéma et refuse de s'appliquer si elle trouve un devis propre ; les bases de développement se
   recréent, le témoin se recharge. Écartée, contre ce que ce fichier disait : une migration de
@@ -1020,9 +1048,90 @@ qu'il est.
 **Notes de réalisation.** Les écrans existent (EP-15, EP-17, EP-25, EP-08) : le registre, le détail,
 les formulaires, le réexamen, le compte rendu de survenance, et pour un avenant la note de retard et
 « Mettre à jour l'avenant » (`amendment-late-note.tsx`, `rebase-amendment-command.tsx`), que le
-devis propre reprend. Cette US ne redessine aucun écran.
+devis propre reprend. Cette US ne redessine aucun écran : la reprise du graphique à bulles et la
+colonne de tendance sont d'US-3160.
 
-**Hors périmètre.** La refonte d'un écran ; les vues du portefeuille (EP-11).
+**Hors périmètre.** La reprise de l'écran des risques (US-3160) ; les vues du portefeuille (EP-11).
+
+---
+
+## US-3160 — L'écran des risques revu : le graphique à bulles toujours visible, et la tendance de chaque risque
+
+- **statut** : à faire
+- **exigences** : `WF-RIS-0040-A`
+- **opérations** : `listRisks`, `getRisk`, `getProjectRiskMatrix`, `getPortfolioRisks`,
+  `updateMyPreferences`
+- **issue** :
+
+**En tant que** chef de projet, **je veux** voir d'emblée le nuage des risques, en bulles dont la
+taille dit la gravité, et lire au registre quels risques pèsent plus ou moins qu'à la revue
+précédente, **afin de** mener la revue des risques par ce qui a bougé.
+
+**Critères d'acceptation.**
+
+- `WF-RIS-0040-A` — « Les six colonnes sont présentes, ainsi que l'accès aux deux notes et à
+  l'historique. » : tenu par EP-08 ; la colonne de tendance s'y ajoute (critères propres ci-dessous)
+  ;
+- `WF-RIS-0040-A` — « Le tri par provision classe les risques du plus lourd au plus léger. » : tenu
+  par EP-08, non touché ici ;
+- `WF-RIS-0040-A` — « Un risque dont la probabilité augmente change de couleur conformément à la
+  matrice. » : tenu par EP-08 ; sa bulle prend la couleur de sa zone, et reste ronde ;
+- `WF-RIS-0040-A` — « Les trois totaux — identifiés, survenus, écartés — sont distincts, et la
+  réserve pour risques de la référence est affichée en regard. » : tenu par EP-08, non touché ici ;
+- propre à l'US, texte proposé pour WF-RIS-0040 : « Un risque identifié dont le produit de la
+  gravité par la probabilité est passé de 60 à 75 depuis la révision marquée précédente est présenté
+  en hausse ; passé de 60 à 45, en baisse ; resté à 60, stable. » : le service rend la tendance avec
+  le risque, calculée du produit signé de son évaluation dans la révision lue et dans la révision
+  marquée qui la précède ; le front ne calcule ni ne compare rien (WF-ARC-0020) ;
+- propre à l'US, texte proposé pour WF-RIS-0040 : « Un risque qui n'était pas identifié dans la
+  révision marquée précédente ne présente aucune tendance, non plus qu'un risque écarté ou survenu.
+  » : sur un projet dont aucune révision n'a été marquée avant celle qui est lue, aucun risque n'en
+  présente, comme l'écart du reste à engager est alors absent (WF-RAE-0020) ;
+- propre à l'US, texte proposé pour WF-RIS-0040 : « Le registre se filtre et se trie sur la
+  tendance. » : `listRisks` reçoit un filtre — en hausse, en baisse, stable — et un tri, les risques
+  sans tendance à la place que le contrat donne aux valeurs nulles ; les totaux sont ceux des
+  risques retenus (H-01, #1786) ;
+- propre à l'US : une opportunité suit la même règle sur son produit signé : passée de −30 à −45,
+  elle est en baisse ; sa provision, plafonnée à zéro, n'y entre pas ;
+- propre à l'US : la tendance d'une révision marquée est celle qu'elle avait contre la révision
+  marquée qui la précède, et ne change plus ; celle de la révision en cours suit la gravité et la
+  probabilité enregistrées, donc chaque saisie dans le devis propre, chaque mise à jour et chaque
+  réexamen ;
+- propre à l'US : la colonne présente une flèche rouge qui monte vers la droite pour une hausse, une
+  flèche verte qui descend pour une baisse, le signe égal pour un risque stable, et rien sans
+  tendance ; chaque marque porte un nom accessible et se lit sans sa couleur, par sa forme
+  (WF-IHM-0070) ;
+- propre à l'US : le graphique à bulles de l'écran des risques d'un projet est toujours dessiné,
+  au-dessus de la grille ; la commande de pliage disparaît, et la préférence gardée sous
+  `risk_matrix` n'est plus lue ; à 768 de haut, la page défile pour atteindre le bas de la grille
+  (décision de l'auteur du 2026-11-21, contre #1252) ;
+- propre à l'US : chaque risque identifié est une bulle ronde, de la couleur de sa zone, quelle que
+  soit cette zone ; la zone se lit sans sa couleur par son nom, écrit dans sa case, et par le trait
+  de ses côtés : une copie d'écran en niveaux de gris laisse lire la zone de chaque bulle
+  (WF-IHM-0070 ; décision de l'auteur du 2026-11-21, contre la forme par zone de #1395) ;
+- propre à l'US : le diamètre d'une bulle est proportionnel à la gravité du risque en montant,
+  rapportée à la plus forte du graphique, sans descendre sous un minimum qui la laisse visible et
+  cliquable ; une opportunité est dessinée par la valeur absolue de sa gravité, au plus bas niveau
+  (US-3140) ;
+- propre à l'US : le graphique des risques du portefeuille, qui partage ce composant, dessine les
+  mêmes bulles rondes au même diamètre ;
+- propre à l'US : l'infobulle d'une bulle, le clic vers le risque ou vers son projet, l'export en
+  image avec sa provenance, la table des décomptes sous le graphique et les axes linéaires aux
+  valeurs exactes sont gardés (#1253, #1395) ;
+- propre à l'US : l'aide en ligne de l'écran dit ce que la taille d'une bulle mesure et ce que la
+  tendance compare ; aucune réponse n'est écrite à la main, le faux back servant les exemples du
+  contrat ; les parcours de l'écran sont rejoués, et l'écran passe l'audit d'accessibilité.
+
+**Notes de réalisation.** Le graphique est `risk-bubble-chart.tsx`, partagé par l'écran des risques
+d'un projet et par celui du portefeuille : la forme par zone (`ZONE_SYMBOL`), la taille
+(`bubbleSize`, de 12 à 40 pixels par la racine carrée) et le pliage, que le composant de graphique
+tient (`folded`, `onFold`) et que le contrat garde par compte (`ChartPreferences`). La tendance est
+peu coûteuse parce que cet EPIC enregistre la gravité avec l'évaluation du risque dans chaque
+révision (US-3080) : le registre lit l'évaluation de la révision marquée précédente. Décisions de
+l'auteur du 2026-10-23 (#1395) et sur #1252 et #1253, dont cette US reprend deux points.
+
+**Hors périmètre.** Toute autre reprise des écrans des risques ; les vues du portefeuille hors de ce
+graphique ; l'évolution d'un risque sur plus de deux révisions, piste d'après le MVP.
 
 ---
 
@@ -1059,6 +1168,8 @@ propre complet.
   de 751 avec un nœud ajouté, un modifié et un retiré ; un devis propre en retard et le compte rendu
   de sa mise à jour, avec une différence gardée, et sa variante refusée ; le compte rendu d'une
   survenance dans sa forme nouvelle ;
+- propre à l'US : le registre du témoin porte la tendance de chaque risque de la révision 102 contre
+  la 101, et une variante déclarée montre celles que le témoin ne porte pas (US-3160) ;
 - propre à l'US : des variantes déclarées montrent ce que le témoin ne charge pas : une survenance
   qui abandonne une tâche, avec sa marche de valeur acquise ; une opportunité au registre et dans la
   matrice ; un coût à la survenance négatif dans la couverture ;
