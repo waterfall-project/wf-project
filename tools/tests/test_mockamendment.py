@@ -173,6 +173,18 @@ def test_the_report_before_the_merge_says_what_the_differential_marks(whole: lis
         ("added", "Montage des armoires sur site"),
         ("removed", "Montage des armoires sur site"),
     ]
+    # A link whose successor the amendment adds has no lineage in the main structure yet, nor has
+    # that task; one whose successor it keeps names the lineage of the successor (#4287).
+    added_tasks = set(labels("added", "task"))
+    assert added_tasks
+    for each in differences:
+        if each["target"] == "link":
+            assert (each["lineage_id"] is None) == (each["label"] in added_tasks), each
+    assert all(
+        each["lineage_id"] is None
+        for each in differences
+        if (each["change"], each["target"]) == ("added", "task")
+    )
     # In the order of the service: the tasks added, the links added, the lines added, then the
     # modifications and the withdrawals (#4276).
     order = [
