@@ -79,23 +79,23 @@ Issues ouvertes, rattachées à cet EPIC par la ventilation du 2026-11-21 :
 - #3785 — front : un lien vertical du Gantt est coupé par la ligne de marque d'une suite repliée
 
 Constats de la revue du 2026-11-14 (`docs/reviews/2026-11-14-revue-complete/`), vérifiés le
-2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité et sans issue ;
-un ticket par ligne, à ouvrir :
+2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité, sans issue
+jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 
-- le redatage des révisions en cours quand le calendrier d'un rôle change, ou qu'un rôle change de
-  calendrier (BRC-01, BCH-07)
-- une durée écoulée de moins d'un jour donne une marge négative sans conflit (BPL-03, BPL-08) — à
-  reprendre avec #3335
-- « tâche sans heure travaillée » levée par le moteur n'est traduite nulle part : 500 à l'ouverture
-  d'une révision (BPL-05)
-- la passe arrière du moteur, quadratique sur une liaison entre récapitulatives (BPL-04) — reste
-  d'un majeur : EP-26 a retiré le rejeu des saisies inertes
-- WF-PLA-0090-A, close par EP-06, n'est citée par aucun test du back (FTE-01, RMP-05) — avant
-  US-3000
-- le jour en temps universel hors du jour de l'installation, dans l'image de l'arborescence et le
-  jugement « en retard » (BEX-15)
-- les inscriptions orphelines à l'abandon d'une révision (BPL-10)
-- le Gantt zoomé : niveau heures, axe, clavier (FPL-04, FPL-05, FPL-06)
+- #4411 — le redatage des révisions en cours quand le calendrier d'un rôle change, ou qu'un rôle
+  change de calendrier (BRC-01, BCH-07)
+- #4412 — une durée écoulée de moins d'un jour donne une marge négative sans conflit (BPL-03,
+  BPL-08) — à reprendre avec #3335
+- #4413 — « tâche sans heure travaillée » levée par le moteur n'est traduite nulle part : 500 à
+  l'ouverture d'une révision (BPL-05)
+- #4414 — la passe arrière du moteur, quadratique sur une liaison entre récapitulatives (BPL-04) —
+  reste d'un majeur : EP-26 a retiré le rejeu des saisies inertes
+- #4415 — WF-PLA-0090-A, close par EP-06, n'est citée par aucun test du back (FTE-01, RMP-05) —
+  avant US-3000
+- #4416 — le jour en temps universel hors du jour de l'installation, dans l'image de l'arborescence
+  et le jugement « en retard » (BEX-15)
+- #4417 — les inscriptions orphelines à l'abandon d'une révision (BPL-10)
+- #4418 — le Gantt zoomé : niveau heures, axe, clavier (FPL-04, FPL-05, FPL-06)
 
 ## Conception
 

@@ -69,19 +69,21 @@ Vague 3 de la ventilation du 2026-11-21. Créneaux utiles sur le poste, qui port
 ## Constats reçus
 
 Constats de la revue du 2026-11-14 (`docs/reviews/2026-11-14-revue-complete/`), vérifiés le
-2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité et sans issue ;
-un ticket par ligne, à ouvrir :
+2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité, sans issue
+jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 
-- les couloirs d'une chronologie sont rangés par `node_id`, qui change à chaque révision (CTB-03)
-- les bornes des entrées de l'API (BRC-05, BRC-06, BRC-08, BPL-09, CTB-04, CTB-05, CTB-06, CTC-03) —
-  BRC-05 est devenu réel : EP-08 classe les risques sur ces bornes
-- l'enveloppe d'erreur : paramètres et pointeurs (BAC-06, CTA-04, CTA-05, CTA-06)
-- le contrat : refus servis non déclarés (CTA-08, CTA-09, CTB-08, CTC-02)
-- le contrat : descriptions, schémas morts, champs nuls (CTA-07, CTB-09, CTB-10, CTB-13, CTB-14)
-- les tables plates : filtres et tris par colonne (WF-IHM-0130) (CTB-11) — EP-11 clôt l'exigence en
-  ne filtrant que le portefeuille
-- le schéma : contraintes, clés et droits à resserrer (DON-07, DON-08, DON-09, DON-14, BPR-11) —
-  après les comptes rendus d’import (EP-33)
+- #4463 — les couloirs d'une chronologie sont rangés par `node_id`, qui change à chaque révision
+  (CTB-03)
+- #4464 — les bornes des entrées de l'API (BRC-05, BRC-06, BRC-08, BPL-09, CTB-04, CTB-05, CTB-06,
+  CTC-03) — BRC-05 est devenu réel : EP-08 classe les risques sur ces bornes
+- #4465 — l'enveloppe d'erreur : paramètres et pointeurs (BAC-06, CTA-04, CTA-05, CTA-06)
+- #4466 — le contrat : refus servis non déclarés (CTA-08, CTA-09, CTB-08, CTC-02)
+- #4467 — le contrat : descriptions, schémas morts, champs nuls (CTA-07, CTB-09, CTB-10, CTB-13,
+  CTB-14)
+- #4468 — les tables plates : filtres et tris par colonne (WF-IHM-0130) (CTB-11) — EP-11 clôt
+  l'exigence en ne filtrant que le portefeuille
+- #4469 — le schéma : contraintes, clés et droits à resserrer (DON-07, DON-08, DON-09, DON-14,
+  BPR-11) — après les comptes rendus d’import (EP-33)
 
 ## Conception
 

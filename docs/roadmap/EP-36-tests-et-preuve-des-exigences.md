@@ -93,26 +93,29 @@ Issues ouvertes, rattachées à cet EPIC par la ventilation du 2026-11-21 :
 - #3789 — outil : make requirements ignore une exigence citée par une constante
 
 Constats de la revue du 2026-11-14 (`docs/reviews/2026-11-14-revue-complete/`), vérifiés le
-2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité et sans issue ;
-un ticket par ligne, à ouvrir :
+2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité, sans issue
+jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 
-- deux phrases de Vérif closes par un renvoi « constaté par EP-06 » qu'EP-06 ne porte pas (RMP-06)
-- un parcours laisse la matrice de risques et les seuils modifiés (FTE-02) — reste d'un majeur
-- WF-IHM-0080-A close par un renvoi circulaire, sans test au volume qui la cite (RMP-03) — reste
-  d'un majeur
-- WF-ADM-0160-A reste close par EP-04, sans citation dans les tests d'EP-13 qui la tiennent (RMP-04)
-  — reste d'un majeur
-- les parcours du front : attentes trop faibles ou fragiles (FTE-03, FTE-04, FTE-05, FTE-08, FTE-09)
-- les tests du front : gardes manquantes du harnais et des sources (FTE-06, FTE-07, FTE-12)
-- les tests du front : commentaires périmés (FTE-10, FTE-14)
-- les tests : citations d'exigences, et ménage (BAC-10, BRC-10, FCO-13, FAR-05)
-- les corps redéclarés à la main ne sont tenus au contrat par aucun test (CTC-05)
-- les imports hors de l'interface d'un module, et la règle d'import-linter (BRC-09)
-- la roadmap : renvois de portée, titres, fichiers livrés (RMP-08, RMP-09, RMP-13) — un contrôle de
-  `wftools.roadmap`
-- les compteurs `lock_version` : la dette remise à la v1, sans porteur (RMP-10)
-- la spécification : WF-RAE-0020 renvoie à WF-IND-0010 pour une révision marquée (SPB-12) — avec la
-  prochaine révision du document
+- #4444 — deux phrases de Vérif closes par un renvoi « constaté par EP-06 » qu'EP-06 ne porte pas
+  (RMP-06)
+- #4445 — un parcours laisse la matrice de risques et les seuils modifiés (FTE-02) — reste d'un
+  majeur
+- #4446 — WF-IHM-0080-A close par un renvoi circulaire, sans test au volume qui la cite (RMP-03) —
+  reste d'un majeur
+- #4447 — WF-ADM-0160-A reste close par EP-04, sans citation dans les tests d'EP-13 qui la tiennent
+  (RMP-04) — reste d'un majeur
+- #4448 — les parcours du front : attentes trop faibles ou fragiles (FTE-03, FTE-04, FTE-05, FTE-08,
+  FTE-09)
+- #4449 — les tests du front : gardes manquantes du harnais et des sources (FTE-06, FTE-07, FTE-12)
+- #4450 — les tests du front : commentaires périmés (FTE-10, FTE-14)
+- #4451 — les tests : citations d'exigences, et ménage (BAC-10, BRC-10, FCO-13, FAR-05)
+- #4452 — les corps redéclarés à la main ne sont tenus au contrat par aucun test (CTC-05)
+- #4454 — les imports hors de l'interface d'un module, et la règle d'import-linter (BRC-09)
+- #4455 — la roadmap : renvois de portée, titres, fichiers livrés (RMP-08, RMP-09, RMP-13) — un
+  contrôle de `wftools.roadmap`
+- #4456 — les compteurs `lock_version` : la dette remise à la v1, sans porteur (RMP-10)
+- #4457 — la spécification : WF-RAE-0020 renvoie à WF-IND-0010 pour une révision marquée (SPB-12) —
+  avec la prochaine révision du document
 
 ## Conception
 

@@ -76,24 +76,25 @@ Issues ouvertes, rattachées à cet EPIC par la ventilation du 2026-11-21 :
   au focus survient
 
 Constats de la revue du 2026-11-14 (`docs/reviews/2026-11-14-revue-complete/`), vérifiés le
-2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité et sans issue ;
-un ticket par ligne, à ouvrir :
+2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité, sans issue
+jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 
-- une valeur retapée pendant qu'une écriture de la même cellule est en route n'est pas envoyée
-  (FGR-02, FGR-09, FGR-10)
-- le menu d'une cellule garde l'indice de sa ligne à travers une relecture (FGR-03) — non rejoué
-  dans un navigateur
-- une écriture en route quand la grille change d'adresse ou que l'écran part : son refus n'est pas
-  dit (FGR-04, FGR-08)
-- pendant la relecture qui suit un geste ou une annulation, les cellules restent saisissables avec
-  des versions périmées (FGR-05)
-- les liens en conflit d'une tâche redatée ne suivent pas l'écriture (FGR-06)
-- les nombres collés sont lus sans la langue de l'utilisateur (FGR-07, BCH-09)
-- revenue par « Précédent », une grille montre les données d'avant la saisie (FPL-03) — non rejoué
-  dans un navigateur
-- les cartes d'indicateurs du devis et du reste à engager restent celles d'avant la saisie (FCO-01)
-- l'éditeur de cellule : saisie invalide quittée au clic, composition de caractères (FGR-11, FGR-12)
-  — FGR-11 est un choix d'ergonomie à trancher
+- #4430 — une valeur retapée pendant qu'une écriture de la même cellule est en route n'est pas
+  envoyée (FGR-02, FGR-09, FGR-10)
+- #4431 — le menu d'une cellule garde l'indice de sa ligne à travers une relecture (FGR-03) — non
+  rejoué dans un navigateur
+- #4432 — une écriture en route quand la grille change d'adresse ou que l'écran part : son refus
+  n'est pas dit (FGR-04, FGR-08)
+- #4433 — pendant la relecture qui suit un geste ou une annulation, les cellules restent
+  saisissables avec des versions périmées (FGR-05)
+- #4434 — les liens en conflit d'une tâche redatée ne suivent pas l'écriture (FGR-06)
+- #4435 — les nombres collés sont lus sans la langue de l'utilisateur (FGR-07, BCH-09)
+- #4436 — revenue par « Précédent », une grille montre les données d'avant la saisie (FPL-03) — non
+  rejoué dans un navigateur
+- #4437 — les cartes d'indicateurs du devis et du reste à engager restent celles d'avant la saisie
+  (FCO-01)
+- #4438 — l'éditeur de cellule : saisie invalide quittée au clic, composition de caractères (FGR-11,
+  FGR-12) — FGR-11 est un choix d'ergonomie à trancher
 
 ## Conception
 

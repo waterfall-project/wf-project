@@ -98,15 +98,15 @@ Issues ouvertes, rattachées à cet EPIC par la ventilation du 2026-11-21 :
 - #3640 — front : des lignes de code de frontend/e2e/measure dépassent cent colonnes
 
 Constats de la revue du 2026-11-14 (`docs/reviews/2026-11-14-revue-complete/`), vérifiés le
-2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité et sans issue ;
-un ticket par ligne, à ouvrir :
+2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité, sans issue
+jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 
-- des lectures de `node` filtrées par la seule révision parcourent toutes les partitions, et
+- #4484 — des lectures de `node` filtrées par la seule révision parcourent toutes les partitions, et
   `node.lineage_id` n'a pas d'index (DON-01, DON-04, BPR-05, BPR-06)
-- la garde des calendriers lit les lignes de devis de toutes les révisions de tous les projets
-  (DON-02, BCH-12)
-- « cette catégorie est-elle employée ? » : un `DISTINCT` sur toutes les lignes de devis de la
-  plateforme (DON-03) — alourdi par EP-08 et EP-11
+- #4485 — la garde des calendriers lit les lignes de devis de toutes les révisions de tous les
+  projets (DON-02, BCH-12)
+- #4486 — « cette catégorie est-elle employée ? » : un `DISTINCT` sur toutes les lignes de devis de
+  la plateforme (DON-03) — alourdi par EP-08 et EP-11
 
 ## Conception
 

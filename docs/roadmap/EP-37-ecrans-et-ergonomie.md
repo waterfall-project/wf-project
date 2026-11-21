@@ -89,16 +89,16 @@ Issues ouvertes, rattachées à cet EPIC par la ventilation du 2026-11-21 :
   relecture
 
 Constats de la revue du 2026-11-14 (`docs/reviews/2026-11-14-revue-complete/`), vérifiés le
-2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité et sans issue ;
-un ticket par ligne, à ouvrir :
+2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité, sans issue
+jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 
-- les écrans de projet : robustesse à l'adresse (FPL-07, FPL-08)
-- les commandes de sortie et de marquage (FSO-04, FSO-05) — voisin de #3594
-- le client d'API du front : délai et codes inconnus (FSO-06, FSO-07)
-- la coquille du front : recherche inerte, catalogue entier servi (FSO-09, FSO-10) — FSO-10 à
-  mesurer
-- les chaînes d'interface bâties à la main (FCO-12, FAR-07) — sans effet visible en français ni en
-  anglais : candidat à l'abandon
+- #4458 — les écrans de projet : robustesse à l'adresse (FPL-07, FPL-08)
+- #4459 — les commandes de sortie et de marquage (FSO-04, FSO-05) — voisin de #3594
+- #4460 — le client d'API du front : délai et codes inconnus (FSO-06, FSO-07)
+- #4461 — la coquille du front : recherche inerte, catalogue entier servi (FSO-09, FSO-10) — FSO-10
+  à mesurer
+- #4462 — les chaînes d'interface bâties à la main (FCO-12, FAR-07) — sans effet visible en français
+  ni en anglais : candidat à l'abandon
 
 ## Conception
 

@@ -112,19 +112,19 @@ Issues ouvertes, rattachées à cet EPIC par la ventilation du 2026-11-21 :
 - #3990 — contrat : l'inscription d'un participant sur un projet terminal (WF-CYC-0100).
 
 Constats de la revue du 2026-11-14 (`docs/reviews/2026-11-14-revue-complete/`), vérifiés le
-2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité et sans issue ;
-un ticket par ligne, à ouvrir :
+2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité, sans issue
+jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 
-- un chef de projet ne peut inscrire que les comptes que le serveur propose (FPL-02) — une
+- #4487 — un chef de projet ne peut inscrire que les comptes que le serveur propose (FPL-02) — une
   opération de contrat d'abord ;
-- la liste du rattachement d'un compte est inatteignable au clavier dans la grille (FAR-02,
+- #4488 — la liste du rattachement d'un compte est inatteignable au clavier dans la grille (FAR-02,
   FAR-06) ;
-- trois écrans du référentiel se présentent par URL directe sans la permission de consulter
+- #4489 — trois écrans du référentiel se présentent par URL directe sans la permission de consulter
   (FAR-03) — #3960 en ferme un, non les deux autres ;
-- les habilitations du back, WF-ADM-0110 (BAC-03, BAC-04) — BAC-04 demande un arbitrage de
+- #4490 — les habilitations du back, WF-ADM-0110 (BAC-03, BAC-04) — BAC-04 demande un arbitrage de
   spécification avant tout code ;
-- l'avatar : image décodée à la pose (BAC-05) ;
-- l'écran des comptes : commandes de la table (FAR-04, FAR-08) — FAR-08 après #3342.
+- #4491 — l'avatar : image décodée à la pose (BAC-05) ;
+- #4492 — l'écran des comptes : commandes de la table (FAR-04, FAR-08) — FAR-08 après #3342.
 
 Constat de la même revue joint à une issue ci-dessus : BAC-08, l'exclusion d'une ligne de coût sans
 la qualité de chef de projet, à #3973.

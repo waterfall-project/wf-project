@@ -84,17 +84,19 @@ Issues ouvertes, rattachées à cet EPIC par la ventilation du 2026-11-21 :
 - #3727 — back : la docstring d'Instants dit « the imports apart », le champ en fait partie
 
 Constats de la revue du 2026-11-14 (`docs/reviews/2026-11-14-revue-complete/`), vérifiés le
-2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité et sans issue ;
-un ticket par ligne, à ouvrir :
+2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité, sans issue
+jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 
-- une tâche datée hors de 2000-2100 fait répondre 500 à toute écriture de ligne et à tout redatage
-  (BCH-02)
-- la référence se corrige encore après la réception de coûts réels (WF-REV-0040) (BPR-02, SPB-01)
-- le plan de charge « référence » et l'export du reste à engager d'une révision marquée lisent les
-  valeurs du jour (BCH-04, BCH-08) — reste d'un majeur : la valeur planifiée est corrigée par EP-10
-- la concurrence des révisions : marquage, désignation, interblocages (BPR-08, BPR-12, BPR-01) —
-  avec le reste de BPR-01
-- les indicateurs : l'évolution des indices (FCO-07, FCO-08, FCO-09)
+- #4439 — une tâche datée hors de 2000-2100 fait répondre 500 à toute écriture de ligne et à tout
+  redatage (BCH-02)
+- #4440 — la référence se corrige encore après la réception de coûts réels (WF-REV-0040) (BPR-02,
+  SPB-01)
+- #4441 — le plan de charge « référence » et l'export du reste à engager d'une révision marquée
+  lisent les valeurs du jour (BCH-04, BCH-08) — reste d'un majeur : la valeur planifiée est corrigée
+  par EP-10
+- #4442 — la concurrence des révisions : marquage, désignation, interblocages (BPR-08, BPR-12,
+  BPR-01) — avec le reste de BPR-01
+- #4443 — les indicateurs : l'évolution des indices (FCO-07, FCO-08, FCO-09)
 
 Constats de la même revue joints à une issue ci-dessus : BPR-03 (la création d'une révision au
 changement d'année), à #3983 ; BPR-07 (le code d'un projet En cours), à #3989.

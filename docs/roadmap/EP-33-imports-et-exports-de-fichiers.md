@@ -81,26 +81,26 @@ Issues ouvertes, rattachées à cet EPIC par la ventilation du 2026-11-21 :
   1.0.7, WF-CRE-0020, WF-PRJ-0050)
 
 Constats de la revue du 2026-11-14 (`docs/reviews/2026-11-14-revue-complete/`), vérifiés le
-2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité et sans issue ;
-un ticket par ligne, à ouvrir :
+2026-11-21 contre `main` et les branches d'EP-08, EP-11 et EP-13, encore d'actualité, sans issue
+jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 
-- les classeurs téléversés ouverts sans borne de décompression, et l'en-tête lu sous le verrou du
-  projet (BEX-03, BRC-02, BCH-06, BRC-03, BEX-05)
-- l'application d'un import MS Project n'est pas liée au compte rendu confirmé (BEX-02, CTB-01) — le
+- #4419 — les classeurs téléversés ouverts sans borne de décompression, et l'en-tête lu sous le
+  verrou du projet (BEX-03, BRC-02, BCH-06, BRC-03, BEX-05)
+- #4420 — l'application d'un import MS Project n'est pas liée au compte rendu confirmé (BEX-02,
+  CTB-01) — le contrat change
+- #4421 — une colonne lue absente d'un onglet se lit comme des cellules vides (BCH-03)
+- #4422 — import du devis : une suppression par ligne retirée, avec un rejeu du moteur chacune
+  (BCH-05) — à mesurer
+- #4423 — `uploadFile` : une écriture sans permission, sans 403 et sans quota (CTB-02, BAC-09) — le
   contrat change
-- une colonne lue absente d'un onglet se lit comme des cellules vides (BCH-03)
-- import du devis : une suppression par ligne retirée, avec un rejeu du moteur chacune (BCH-05) — à
-  mesurer
-- `uploadFile` : une écriture sans permission, sans 403 et sans quota (CTB-02, BAC-09) — le contrat
-  change
-- « Relancer » offert pour l'application échouée d'un import, que le service refuse toujours
+- #4424 — « Relancer » offert pour l'application échouée d'un import, que le service refuse toujours
   (FCO-02, FCO-04)
-- les comptes rendus d'import : suppression à l'échéance, liste, tâche purgée, taille (BEX-07,
-  BEX-10, BEX-11, DON-05, FCO-06) — avant la fusion d'EP-13
-- le lecteur MS Project : bornes et replis (BEX-08, BEX-09, BEX-14)
-- un import pendant une panne passagère du stockage (BEX-13)
-- l'import du reste à engager : montant saisi, montant écrit (BCH-11)
-- l'écran des imports : formulaire et zone de dépôt après un envoi (FCO-03, FCO-05, FCO-14)
+- #4425 — les comptes rendus d'import : suppression à l'échéance, liste, tâche purgée, taille
+  (BEX-07, BEX-10, BEX-11, DON-05, FCO-06) — avant la fusion d'EP-13
+- #4426 — le lecteur MS Project : bornes et replis (BEX-08, BEX-09, BEX-14)
+- #4427 — un import pendant une panne passagère du stockage (BEX-13)
+- #4428 — l'import du reste à engager : montant saisi, montant écrit (BCH-11)
+- #4429 — l'écran des imports : formulaire et zone de dépôt après un envoi (FCO-03, FCO-05, FCO-14)
 
 Constats de la même revue joints à une issue ci-dessus : BRC-04 (l'imputation et le compte rendu des
 lignes hors du projet) et BPR-09 (la borne du code de sous-projet déclaré), à #3966.
