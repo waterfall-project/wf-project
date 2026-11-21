@@ -9,8 +9,9 @@ unique"). It reaches PostgreSQL and Redis alone (TFX-10): the worker does the wo
 what expired in the object storage included.
 
 A kind is scheduled by one line of ``planned``: the kind, and what says it is due. The reading of
-the accounts and the purge are due at an interval of the installation; the backup (US-2910) and
-the test of a restoration (US-2930) join them, each asking the module that holds its planning.
+the accounts and the purge are due at an interval of the installation; the backup (US-2910) is due
+when the schedule of the backups says so, and the test of a restoration (US-2930) will join them,
+each asking the module that holds its planning.
 A task of a kind is never deposited while one of that kind is queued or running, and two
 schedules, run together, deposit it once: they wait on one advisory lock.
 """
@@ -21,6 +22,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 
+from waterfall.core.backups import interface as backups_interface
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.logs import get_logger
 from waterfall.platform.tasks import ScheduledKind, TaskKind, last_submitted, pending_task, submit
@@ -63,6 +65,7 @@ def planned(settings: ScheduleSettings) -> tuple[Planned, ...]:
     return (
         every("identity_sync", settings.identity_sync_interval),
         every("purge", settings.purge_interval),
+        Planned("backup", backups_interface.backup_is_due),
     )
 
 

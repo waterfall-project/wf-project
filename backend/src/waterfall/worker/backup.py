@@ -15,7 +15,9 @@ the backups under a key the task names, so that a task taken up again writes ove
 left. It is then read back from
 the bucket and verified: the manifest read, each dump against its digest, each dump listed by
 ``pg_restore``. The backup is recorded with the outcome of that verification, and inscribed in the
-journal at its date.
+journal at its date. A backup verified turns the list: the oldest backups not marked beyond the
+retention of the schedule go, and their archives with them once the transaction is committed
+(WF-ADM-0170).
 """
 
 import hashlib
@@ -32,12 +34,19 @@ from typing import IO, TYPE_CHECKING, Any
 import psycopg
 
 from waterfall import __version__
-from waterfall.core.backups.interface import MANIFEST, TakenBackup, add_backup
+from waterfall.core.backups.interface import (
+    MANIFEST,
+    TakenBackup,
+    add_backup,
+    read_backup_schedule,
+    rotate,
+)
 from waterfall.platform.audit import Act
 from waterfall.platform.database import engine_url, utc_now
 from waterfall.platform.errors import UnavailableError
 from waterfall.platform.logs import get_logger
 from waterfall.platform.storage import Bucket
+from waterfall.worker.identity_sync import after_commit
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -275,6 +284,8 @@ class BackupTask:
                     is_verified=is_verified,
                 )
                 backup_id = add_backup(session, taken, Act(task.requested_by, taken_at))
+                if is_verified:
+                    self._rotate(session)
             except BaseException:
                 self._discard(key)
                 raise
@@ -282,6 +293,20 @@ class BackupTask:
             "backup.taken", backup_id=str(backup_id), size_bytes=size_bytes, verified=is_verified
         )
         return {"backup_id": str(backup_id), "verification": "passed" if is_verified else "failed"}
+
+    def _rotate(self, session: Session) -> None:
+        """Turn the list under the retention of the schedule; remove the archives once committed."""
+        retained = read_backup_schedule(session).schedule.retained_count
+        gone = rotate(session, retained)
+        after_commit(session, lambda: self._remove(gone))
+
+    def _remove(self, keys: list[str]) -> None:
+        """Remove the archives of the backups the rotation deleted; a failure is only logged."""
+        for key in keys:
+            try:
+                self.bucket.remove(key)
+            except Exception:
+                logger.exception("backup.archive_not_removed", key=key)
 
     def _discard(self, key: str) -> None:
         """Remove an archive no backup names (WF-DAT-0120); a removal that fails is logged only.

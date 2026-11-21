@@ -13,7 +13,7 @@ governs (``keep_for_restoration``, #1743).
 
 import re
 from dataclasses import dataclass
-from datetime import time
+from datetime import UTC, datetime, time, timedelta
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select, update
@@ -33,6 +33,7 @@ from waterfall.platform.errors import (
     PreconditionFailedError,
     UnprocessableError,
 )
+from waterfall.platform.tasks import last_submitted
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -232,3 +233,36 @@ def write_backup_schedule(
         )
     )
     return BackupScheduleView(schedule, lock_version + 1)
+
+
+def latest_occurrence(schedule: Schedule, now: datetime) -> datetime:
+    """Give the latest moment, ``now`` included, at which the schedule says a backup is taken.
+
+    Daily, the time of the day; weekly, the time of the day of the week (1 Monday to 7 Sunday).
+    All in universal time.
+    """
+    today = now.astimezone(UTC).date()
+    day = today
+    if schedule.frequency == WEEKLY and schedule.weekday is not None:
+        day = today - timedelta(days=(today.isoweekday() - schedule.weekday) % 7)
+    occurrence = datetime.combine(day, schedule.at_time, tzinfo=UTC)
+    if occurrence > now:
+        occurrence -= timedelta(days=7 if schedule.frequency == WEEKLY else 1)
+    return occurrence
+
+
+def backup_is_due(session: Session, now: datetime) -> bool:
+    """Tell whether the platform owes a backup of itself at ``now`` (WF-ADM-0170).
+
+    It is when the schedule is enabled and its latest occurrence is later than the latest backup
+    the platform deposited of itself, and later than the last writing of the schedule: a schedule
+    that has just been written, or just been installed, owes nothing for an occurrence it did not
+    announce. A backup deposited late, or not yet deposited, is deposited once, not once per
+    occurrence missed.
+    """
+    row = session.get_one(BackupSchedule, SINGLE_ROW)
+    if not row.is_enabled:
+        return False
+    schedule = _view(row).schedule
+    since = max(row.updated_at, last_submitted(session, "backup") or row.updated_at)
+    return latest_occurrence(schedule, now) > since

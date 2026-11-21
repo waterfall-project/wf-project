@@ -23,7 +23,13 @@ import pytest
 from access_rows import role
 from alembic.script import ScriptDirectory
 from fastapi.testclient import TestClient
-from installations import Installation, Take, restore, written_task
+from installations import (
+    Installation,
+    Take,
+    before_the_schedule_of_the_backups,
+    restore,
+    written_task,
+)
 from psycopg import sql
 from sqlalchemy import Engine, create_engine, delete, func, insert, select, text
 from sqlalchemy.exc import IntegrityError, ProgrammingError
@@ -228,7 +234,8 @@ def test_a_backup_taken_before_the_schema_platform_is_restored_and_the_migration
     # and ``public`` admits the kinds of the schedule.
     owner = create_database_engine(installation.owner["waterfall"])
     downgrade(owner, "0034")
-    backup_task = take()
+    with before_the_schedule_of_the_backups():
+        backup_task = take()
     upgrade(owner)
     held_on.hold(HELD)
     restore(installation, backup_task, tmp_path)

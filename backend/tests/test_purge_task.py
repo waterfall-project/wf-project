@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
-from access_rows import holder
-from sqlalchemy import insert, select
+from access_rows import account, holder
+from sqlalchemy import insert, select, update
 from task_handlers import deposit, task
 
 from waterfall.core.backups.tables import Backup
@@ -178,14 +178,44 @@ def test_the_last_reading_purged_with_a_longer_interval_does_not_become_due_agai
 
 
 @pytest.mark.story("US-2830")
+def test_only_the_latest_task_of_a_planned_kind_the_platform_deposited_is_spared(
+    database: Database, queue: TaskQueue, backups_bucket: Bucket
+) -> None:
+    # #4346 : two readings of the accounts of the platform, both older than the retention: the
+    # latest stays, for the schedule to read, and the one before it goes.
+    now = utc_now()
+    earlier = ended_task(database, now - 50 * timedelta(days=1), kind="identity_sync")
+    latest = ended_task(database, now - 40 * timedelta(days=1), kind="identity_sync")
+    purge_run(database, queue, backups_bucket)
+    assert kept(database, earlier, latest) == [False, True]
+
+
+@pytest.mark.story("US-2830")
+def test_a_reading_of_the_accounts_an_account_asked_for_is_purged_whatever_its_age_among_the_kind(
+    database: Database, queue: TaskQueue, backups_bucket: Bucket
+) -> None:
+    # #4346 : a task of a planned kind that has a requester is not the platform's, which the
+    # schedule reads: it goes with the others once it is older than the retention.
+    requester = account(database, "Durand", "Paul")
+    asked = ended_task(database, utc_now() - 40 * timedelta(days=1), kind="identity_sync")
+    with database.transaction() as session:
+        session.execute(
+            update(BackgroundTask).where(BackgroundTask.id == asked).values(requested_by=requester)
+        )
+    purge_run(database, queue, backups_bucket)
+    assert kept(database, asked) == [False]
+
+
+@pytest.mark.story("US-2830")
 def test_the_task_of_a_backup_still_listed_is_spared_by_the_purge_of_the_tasks(
     database: Database, queue: TaskQueue, backups_bucket: Bucket
 ) -> None:
     # propre à US-2830 : « en épargnant la tâche d'une sauvegarde gardée » : only the rotation
     # deletes a backup; the task its row names, which the table refuses to lose, stays however old.
+    # The unlisted one is older than the listed one, so that it is no latest task of its kind.
     finished = utc_now() - 2 * THIRTY_DAYS
     listed = ended_task(database, finished, kind="backup")
-    unlisted = ended_task(database, finished, kind="backup")
+    unlisted = ended_task(database, finished - timedelta(days=1), kind="backup")
     with database.transaction() as session:
         session.execute(
             insert(Backup).values(

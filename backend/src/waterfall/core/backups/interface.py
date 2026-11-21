@@ -12,7 +12,8 @@ deposits are those of the installation, not the source's; the accounts the journ
 since are anonymised again (#988). The date a backup deposited from elsewhere says is read from the
 head of its archive (#350). The outcome of the latest backup the platform scheduled is a gauge of
 the metrics, which its alert reads (WF-OBS-0030). The schedule of the backups, read and written
-whole (``waterfall.core.backups.schedule``, US-2910), is offered here.
+whole (``waterfall.core.backups.schedule``, US-2910), is offered here, with when a backup is due,
+the list filtered and sorted (``listing``), the mark of a backup and the rotation (``rotation``).
 """
 
 import io
@@ -23,14 +24,24 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from sqlalchemy import Connection, func, insert, select
+from sqlalchemy import Connection, insert, select
 from sqlalchemy.orm import Session
 
+from waterfall.core.backups.listing import (
+    BackupColumn,
+    BackupFilters,
+    BackupSort,
+    BackupView,
+    list_backups,
+    view_of,
+)
+from waterfall.core.backups.rotation import mark_backup, rotate
 from waterfall.core.backups.schedule import (
     BackupScheduleView,
     ExternalCopy,
     Schedule,
     ScheduleWriting,
+    backup_is_due,
     judged_schedule,
     read_backup_schedule,
     write_backup_schedule,
@@ -72,7 +83,10 @@ if TYPE_CHECKING:
 __all__ = [
     "MANIFEST",
     "MANIFEST_HEAD",
+    "BackupColumn",
+    "BackupFilters",
     "BackupScheduleView",
+    "BackupSort",
     "BackupView",
     "ExternalCopy",
     "Schedule",
@@ -80,6 +94,7 @@ __all__ = [
     "TakenBackup",
     "add_backup",
     "archive_taken_at",
+    "backup_is_due",
     "backup_task_ids",
     "confirmed_taken_at",
     "inscribe_restoration",
@@ -87,9 +102,11 @@ __all__ = [
     "keep_for_restoration",
     "last_scheduled_outcome",
     "list_backups",
+    "mark_backup",
     "read_backup",
     "read_backup_schedule",
     "restored_object",
+    "rotate",
     "write_back_after_restoration",
     "write_backup_schedule",
 ]
@@ -100,19 +117,6 @@ MANIFEST = "manifest.json"
 MANIFEST_HEAD = 64 * 1024
 # The authors of the schedule, accounts the restored database may not hold.
 AUTHORS = frozenset({"created_by", "updated_by"})
-
-
-@dataclass(frozen=True, slots=True)
-class BackupView:
-    """A backup as the API gives it, and the key of its archive in the bucket of the backups."""
-
-    backup_id: UUID
-    taken_at: datetime
-    size_bytes: int
-    verification: str
-    origin: str
-    is_retained: bool
-    object_key: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,32 +132,12 @@ class TakenBackup:
     is_verified: bool
 
 
-def _view(row: Backup) -> BackupView:
-    return BackupView(
-        row.id,
-        row.taken_at,
-        row.size_bytes,
-        row.verification,
-        row.origin,
-        row.is_retained,
-        row.object_key,
-    )
-
-
-def list_backups(session: Session, limit: int, offset: int) -> tuple[list[BackupView], int]:
-    """Give a page of the backups, the latest first, and how many there are."""
-    total = session.scalar(select(func.count()).select_from(Backup))
-    latest = select(Backup).order_by(Backup.taken_at.desc(), Backup.id.desc())
-    rows = session.scalars(latest.limit(limit).offset(offset))
-    return [_view(row) for row in rows], total or 0
-
-
 def read_backup(session: Session, backup_id: UUID) -> BackupView:
     """Give a backup, or refuse it as an object that does not exist (404)."""
     row = session.get(Backup, backup_id)
     if row is None:
         raise NotFoundError(NOT_FOUND)
-    return _view(row)
+    return view_of(row)
 
 
 def backup_task_ids(session: Session) -> frozenset[UUID]:

@@ -61,7 +61,10 @@ SCHEDULED_KINDS: tuple[str, ...] = get_args(ScheduledKind.__value__)
 KINDS = (*CONTRACT_KINDS, *SCHEDULED_KINDS)
 STATUSES = ("queued", "running", "succeeded", "failed")
 PENDING = ("queued", "running")
-PLANNED_KINDS: tuple[str, ...] = ("identity_sync", *SCHEDULED_KINDS)
+# The kinds the platform deposits of itself, whose latest the purge spares: those the planned
+# command schedules (``waterfall.worker.schedule.planned``, which a test compares to this list), and
+# the copy a backup deposits.
+PLANNED_KINDS: tuple[str, ...] = ("identity_sync", "backup", *SCHEDULED_KINDS)
 FINISHED = ("succeeded", "failed")
 # The key of the payload of a task that names the project it aims at, which waits for it.
 PROJECT = "project_id"
