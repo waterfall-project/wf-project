@@ -134,7 +134,10 @@ def test_the_platform_deposits_the_reading_of_the_accounts_its_schedule_says_as_
     assert not [name for name in scheduled_with if "IDENTITY_SYNC" in name]
     with database.transaction() as session:
         session.execute(
-            update(IdentitySyncSchedule).values(updated_at=utc_now() - timedelta(days=10))
+            update(IdentitySyncSchedule).values(
+                updated_at=utc_now() - timedelta(days=10),
+                timing_changed_at=utc_now() - timedelta(days=10),
+            )
         )
     runs = Runs()
     platform_queue.prepare()

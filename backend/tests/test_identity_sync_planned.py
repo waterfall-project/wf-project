@@ -62,6 +62,17 @@ def written(**changes: Any) -> SyncScheduleWriting:
 
 
 def set_schedule(database: Database, writing: SyncScheduleWriting, at_instant: datetime) -> None:
+    """Write the schedule as an administrator does, at an instant.
+
+    The timing is taken as dated by that instant first: whatever the writing changes of it is then
+    dated by the instant, and a writing that changes none leaves it as it was.
+    """
+    with database.transaction() as session:
+        session.execute(update(IdentitySyncSchedule).values(timing_changed_at=at_instant))
+    rewrite(database, writing, at_instant)
+
+
+def rewrite(database: Database, writing: SyncScheduleWriting, at_instant: datetime) -> None:
     """Write the schedule as an administrator does, at an instant, the row as it stands."""
     with database.transaction() as session:
         held = read_sync_schedule(session).lock_version
@@ -103,7 +114,7 @@ def due(database: Database, now: datetime) -> bool:
 def installed_at(database: Database) -> datetime:
     """Read when the schedule was written last: for a new installation, when it was installed."""
     with database.transaction() as session:
-        return session.get_one(IdentitySyncSchedule, 1).updated_at
+        return session.get_one(IdentitySyncSchedule, 1).timing_changed_at
 
 
 def half_past_one_after(instant: datetime) -> datetime:
@@ -169,6 +180,21 @@ def test_a_schedule_that_has_just_been_written_owes_nothing_for_the_time_it_has_
     assert not due(database, written_at + MINUTE)
     assert not due(database, written_at + 23 * HOUR - MINUTE)
     assert due(database, written_at + 23 * HOUR)
+
+
+@pytest.mark.requirement("WF-ADM-0070-A")
+def test_a_schedule_written_again_unchanged_still_owes_the_occurrence_it_was_written_just_after(
+    database: Database,
+) -> None:
+    # The occurrence of 01:30 is not deposited yet when the same schedule is written at 01:31: it
+    # stays owed. Written moved, it owes nothing for the occurrence it has passed.
+    set_schedule(database, written(), at(1, 0, 0))
+    assert due(database, at(2, 1, 30))
+    rewrite(database, written(), at(2, 1, 31))
+    assert due(database, at(2, 1, 35))
+    rewrite(database, written(at_time="01:00"), at(2, 1, 36))
+    assert not due(database, at(2, 1, 40))
+    assert due(database, at(3, 1, 0))
 
 
 @pytest.mark.requirement("WF-ADM-0070-A")
@@ -254,7 +280,8 @@ def test_the_planned_command_deposits_no_reading_while_one_is_queued_or_running(
     database: Database, queue: TaskQueue, status: str, asked: bool
 ) -> None:
     # Due, but a reading is in the queue or being run — the platform's, or one asked for on
-    # demand: none is deposited. Once it has ended, the one owed is.
+    # demand: none is deposited, and the schedule written again unchanged meanwhile does not take
+    # the occurrence from the platform: once the reading has ended, the one owed is deposited.
     set_schedule(database, written(), utc_now() - 10 * DAY)
     requester = account(database, "Durand", "Paul") if asked else None
     submitted(database, utc_now() - 3 * DAY, status=status, requested_by=requester)
@@ -262,6 +289,7 @@ def test_the_planned_command_deposits_no_reading_while_one_is_queued_or_running(
     with logging_context(correlation_id="planned-identity-sync"):
         assert deposit_due(database, queue, reading_plan()) == []
     assert len(tasks(database)) == 1
+    rewrite(database, written(), utc_now())
     with database.transaction() as session:
         session.execute(
             update(BackgroundTask).values(

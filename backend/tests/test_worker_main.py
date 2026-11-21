@@ -249,7 +249,10 @@ def owing_a_reading(database: Database) -> None:
     """Make the schedule of the readings owe one: written ten days ago, due since its 01:30."""
     with database.transaction() as session:
         session.execute(
-            update(IdentitySyncSchedule).values(updated_at=utc_now() - timedelta(days=10))
+            update(IdentitySyncSchedule).values(
+                updated_at=utc_now() - timedelta(days=10),
+                timing_changed_at=utc_now() - timedelta(days=10),
+            )
         )
 
 

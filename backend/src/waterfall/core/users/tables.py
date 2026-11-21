@@ -183,6 +183,7 @@ SHIPPED_SCHEDULE: dict[str, object] = {
     "lock_version": 1,
     "created_at": func.now(),
     "updated_at": func.now(),
+    "timing_changed_at": func.now(),
 }
 
 
@@ -222,6 +223,8 @@ class IdentitySyncSchedule(Base):
     updated_by: Mapped[UUID | None] = mapped_column(
         ForeignKey("user_account.id", ondelete="RESTRICT")
     )
+    # When the timing (enabled, frequency, time, weekday) last changed: the base of what is owed.
+    timing_changed_at: Mapped[datetime] = mapped_column(UtcDateTime)
 
 
 # The requester of a background task, like the one who opened a deposit, is an account

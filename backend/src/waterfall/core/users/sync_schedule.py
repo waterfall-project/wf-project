@@ -91,8 +91,10 @@ def write_sync_schedule(
     """Write the schedule whole, under the counter the writer read; give it as written.
 
     The row is locked, then read: a counter that is not its own is refused (412), and nothing is
-    written. Every field of the schedule is its timing, so ``updated_at``, the date of every
-    writing (WF-DAT-0070), is also the instant ``sync_is_due`` takes as the base of what is owed.
+    written. ``updated_at`` is the date of every writing (WF-DAT-0070); ``timing_changed_at``, the
+    base ``sync_is_due`` takes for what is owed, moves only when the timing — enabled, frequency,
+    time, weekday — changes: a writing that changes none of them leaves the occurrence it was
+    written just before owed, one that changes it does not catch up the occurrence it has passed.
     """
     held = session.scalars(
         select(IdentitySyncSchedule)
@@ -104,6 +106,13 @@ def write_sync_schedule(
         raise PreconditionFailedError(
             STALE_LOCK_VERSION, {"expected_lock_version": held.lock_version}
         )
+    retimed = (held.is_enabled, held.frequency, held.at_time, held.weekday) != (
+        schedule.is_enabled,
+        schedule.frequency,
+        schedule.at_time,
+        schedule.weekday,
+    )
+    stamp = {"timing_changed_at": act.at} if retimed else {}
     session.execute(
         update(IdentitySyncSchedule)
         .where(IdentitySyncSchedule.id == SINGLE_ROW)
@@ -115,6 +124,7 @@ def write_sync_schedule(
             lock_version=lock_version + 1,
             updated_at=act.at,
             updated_by=act.author,
+            **stamp,
         )
     )
     return SyncScheduleView(schedule, lock_version + 1)
@@ -124,16 +134,19 @@ def sync_is_due(session: Session, now: datetime) -> bool:
     """Tell whether the platform owes a reading of the accounts at ``now`` (WF-ADM-0070).
 
     It is when the schedule is enabled and its latest occurrence is later than the latest reading
-    the platform deposited of itself, and later than its last writing (``updated_at``, which the
-    installation sets as it writes the row): a schedule just enabled, moved or installed owes
-    nothing for an occurrence it did not announce. A reading asked for by an administrator is
+    the platform deposited of itself, and later than the last change of its timing
+    (``timing_changed_at``, see ``write_sync_schedule``): a schedule just enabled, moved or
+    installed owes nothing for an occurrence it did not announce; one written again unchanged owes
+    what it owed. A reading asked for by an administrator is
     another reading, which does not count; one deposited late, or not yet deposited, is deposited
     once, not once per occurrence missed.
     """
     row = session.get_one(IdentitySyncSchedule, SINGLE_ROW)
     if not row.is_enabled:
         return False
-    since = max(row.updated_at, last_submitted(session, "identity_sync") or row.updated_at)
+    since = max(
+        row.timing_changed_at, last_submitted(session, "identity_sync") or row.timing_changed_at
+    )
     schedule = _view(row).schedule
     occurrence = timing.latest_occurrence(
         schedule.frequency, schedule.weekday, schedule.at_time, now
