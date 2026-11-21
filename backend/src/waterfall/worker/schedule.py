@@ -14,9 +14,10 @@ accounts (US-3040) are due when their schedules, which an administrator sets, sa
 of a restoration (US-2930) will join them, each asking the module that holds its planning.
 A task of a kind is never deposited while one of that kind is queued or running, and two
 schedules, run together, deposit it once: they wait on one advisory lock. A backup is deposited
-as ``startBackup`` does, under the same locks in the same order (``waterfall.platform.locks``) and
-under the same conditions: none is deposited while a backup or a restoration is queued or running,
-and a restoration asked for meanwhile waits for it, or sees it.
+as ``startBackup`` does, by the same function that takes the same locks in the same order and
+reads the same conditions (``lock_backup_deposit``, #4369): none is deposited while a backup or a
+restoration is queued or running, and a restoration asked for meanwhile waits for it, or sees it.
+The locks of a kind are taken only once it is due, and what is due is read again under them.
 """
 
 from dataclasses import dataclass
@@ -28,7 +29,7 @@ from sqlalchemy import func, select
 from waterfall.core.backups import interface as backups_interface
 from waterfall.core.users import interface as users_interface
 from waterfall.platform.database import Database, utc_now
-from waterfall.platform.locks import BACKUP_LOCK, RESTORE_LOCK
+from waterfall.platform.locks import SCHEDULE_LOCK
 from waterfall.platform.logs import get_logger
 from waterfall.platform.tasks import ScheduledKind, TaskKind, last_submitted, pending_task, submit
 
@@ -40,9 +41,6 @@ if TYPE_CHECKING:
     from waterfall.platform.queue import TaskQueue
     from waterfall.platform.settings import ScheduleSettings
 
-# The key of the advisory lock under which a schedule looks for a pending task, then deposits.
-SCHEDULE_LOCK = 3_700_010
-
 logger = get_logger(__name__)
 
 
@@ -52,10 +50,9 @@ class Planned:
 
     kind: TaskKind | ScheduledKind
     due: Callable[[Session, datetime], bool]
-    # What holds back a task due: the conditions the kind has besides its own pending task.
-    lacks: Callable[[Session], list[str]] = lambda _session: []
-    # The advisory locks of the kind, taken in order before it looks for what holds it back.
-    locks: tuple[tuple[int, bool], ...] = ()
+    # What holds back a task due, besides its own pending task: the kind takes its locks, then
+    # gives the conditions it lacks, read under them. Called only once the kind is due.
+    held: Callable[[Session], list[str]] = lambda _session: []
 
 
 def every(kind: TaskKind | ScheduledKind, seconds: int) -> Planned:
@@ -77,10 +74,7 @@ def planned(settings: ScheduleSettings) -> tuple[Planned, ...]:
         Planned(
             "backup",
             backups_interface.backup_is_due,
-            lacks=lambda session: backups_interface.backup_start_lacks(
-                backups_interface.platform_of(session)
-            ),
-            locks=((BACKUP_LOCK, False), (RESTORE_LOCK, True)),
+            held=backups_interface.lock_backup_deposit,
         ),
     )
 
@@ -88,19 +82,24 @@ def planned(settings: ScheduleSettings) -> tuple[Planned, ...]:
 def deposit_due(database: Database, queue: TaskQueue, plan: tuple[Planned, ...]) -> list[str]:
     """Deposit the tasks due, none of a kind that has one queued or running; give their kinds.
 
-    Each task is written in the transaction of the schedule, and put in the queue once it is
-    committed; a deposit Redis refuses leaves the task queued, which the worker deposits again.
+    A kind pending or not due takes none of its locks; a kind due takes them, then reads again
+    whether one is pending, what holds it back and whether it is still due: a deposit made
+    meanwhile by another — ``startBackup`` — is seen under them. Each task is written in the
+    transaction of the schedule, and put in the queue once it is committed; a deposit Redis
+    refuses leaves the task queued, which the worker deposits again.
     """
     deposited: list[str] = []
     with database.transaction() as session:
         session.execute(select(func.pg_advisory_xact_lock(SCHEDULE_LOCK)))
         now = utc_now()
         for each in plan:
-            for key, shared in each.locks:
-                lock = func.pg_advisory_xact_lock_shared if shared else func.pg_advisory_xact_lock
-                session.execute(select(lock(key)))
             pending = pending_task(session, each.kind)
-            lacking = each.lacks(session)
+            lacking: list[str] = []
+            if pending is None:
+                if not each.due(session, now):
+                    continue
+                lacking = each.held(session)
+                pending = pending_task(session, each.kind)
             if pending is not None:
                 logger.info("task.already_pending", kind=each.kind, task_id=str(pending))
             elif lacking:

@@ -41,9 +41,9 @@ from waterfall.core.backups.interface import (
     BackupSort,
     BackupView,
     Platform,
-    backup_start_lacks,
     download_lacks,
     list_backups,
+    lock_backup_deposit,
     mark_backup,
     marking_lacks,
     platform_of,
@@ -56,7 +56,7 @@ from waterfall.platform.errors import (
     FieldError,
     NotFoundError,
 )
-from waterfall.platform.locks import BACKUP_LOCK, RESTORE_LOCK
+from waterfall.platform.locks import RESTORE_LOCK
 from waterfall.platform.storage import MissingObjectError
 from waterfall.platform.tasks import BackgroundTask, submit
 
@@ -209,9 +209,7 @@ def post_backup(account: Caller, session: Transaction, services: ServicesOf) -> 
     named (#1035). Two requests that ask at once wait for each other, and a restoration deposited
     meanwhile is waited for, or seen.
     """
-    session.execute(select(func.pg_advisory_xact_lock(BACKUP_LOCK)))
-    session.execute(select(func.pg_advisory_xact_lock_shared(RESTORE_LOCK)))
-    refuse_if_lacking(backup_start_lacks(platform_of(session)))
+    refuse_if_lacking(lock_backup_deposit(session))
     task_id = submit(session, services.queue, "backup", account.user_id)
     return task_ref(session.get_one(BackgroundTask, task_id))
 

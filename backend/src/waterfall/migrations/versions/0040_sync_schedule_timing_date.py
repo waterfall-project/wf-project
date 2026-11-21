@@ -6,7 +6,8 @@
 reading of the accounts (WF-ADM-0070) is read from the date its timing — enabled, frequency, time,
 weekday — last changed, which a writing that changes none of them does not move, as for the
 backups (0039). The column takes, for the row there, the date of its last writing, which is what
-the timing was dated by until then.
+the timing was dated by until then. In one step, as 0039 and for its reason: the schedule of the
+readings (0037, 0038) is in no release yet (#4375).
 """
 
 from typing import TYPE_CHECKING

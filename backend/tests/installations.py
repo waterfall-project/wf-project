@@ -31,6 +31,7 @@ from waterfall.platform.database import Database, create_database_engine, engine
 from waterfall.platform.logs import logging_context
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.restore.provider import RealmNotAppliedError
+from waterfall.worker import backup as backup_module
 from waterfall.worker.backup import DATABASES, BackupTask
 from waterfall.worker.restore import extracted, replace
 from waterfall.worker.runner import Timing, Worker
@@ -132,18 +133,25 @@ def no_rotation(_taking: BackupTask, _session: Session) -> None:
     """Turn nothing: the schema of an installation brought back lacks the schedule (0038)."""
 
 
+def no_copy(_session: Session, _backup_id: UUID) -> None:
+    """Deposit no copy: the schema brought back lacks the schedule and the columns of the copy."""
+
+
 @contextmanager
 def before_the_schedule_of_the_backups() -> Generator[None]:
     """Take backups of an installation whose schema is older than the schedule of the backups.
 
-    A verified backup turns the list under the retention of that schedule (US-2910/L2); in a schema
-    brought back before it, the table is not there to be read, and the rotation, which is not what
-    such a test tries, is left out.
+    A verified backup turns the list under the retention of that schedule (US-2910/L2), then
+    deposits its copy as the schedule sets it (US-2910/L3); in a schema brought back before it, the
+    table is not there to be read, and the rotation and the copy, which are not what such a test
+    tries, are left out.
     """
-    # Only the rotation is left out: the attribute must exist, or the patch would leave nothing out.
+    # Only these are left out: each must exist, or the patch would leave nothing out.
     assert callable(getattr(BackupTask, "_rotate", None)), "BackupTask no longer rotates by _rotate"
+    assert callable(getattr(backup_module, "deposit_copy", None)), "no deposit_copy to leave out"
     with pytest.MonkeyPatch.context() as patched:
         patched.setattr(BackupTask, "_rotate", no_rotation)
+        patched.setattr(backup_module, "deposit_copy", no_copy)
         yield
 
 

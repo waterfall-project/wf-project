@@ -6,8 +6,10 @@
 reads, a writing judged whole (422), refused while a restoration is queued or running (409,
 ``no_restore_running``, #1743), and written under its counter (412). Each person is an account
 written around the service, with the roles a test gives it; every answer is checked against the
-contract (``ContractClient``). The installation declares no external location yet (US-2910/L3): a
-copy that names one is refused as unknown, and the rule is tried apart with locations declared.
+contract (``ContractClient``). The application of these tests declares no external location: a
+copy that names one is refused as unknown, and the rule is tried apart with locations declared; the
+copy set by the route on an installation that declares its locations is
+``test_external_backup_locations.py``'s (US-2910/L3).
 """
 
 import threading
@@ -18,9 +20,10 @@ from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account, role
+from advisory_locks import waits_for
 from installations import written_task
 from realm import KEY, TestRealm
-from sqlalchemy import func, select, text, update
+from sqlalchemy import func, select, update
 from support import ContractClient, bearer
 
 from waterfall.core.backups.interface import (
@@ -264,18 +267,6 @@ def test_a_schedule_set_while_a_restoration_runs_is_refused_and_nothing_is_writt
     assert api.put(SCHEDULE, headers=headers, json=WEEKLY).status_code == 200
 
 
-def waits_on_an_advisory_lock(database: Database) -> bool:
-    """Tell whether a transaction waits for an advisory lock, within a bound."""
-    query = text("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted")
-    pause = threading.Event()
-    for _ in range(int(QUEUED_WITHIN * 20)):
-        with database.engine.connect() as connection:
-            if connection.scalar(query):
-                return True
-        pause.wait(0.05)
-    return False
-
-
 def test_a_schedule_set_waits_for_a_restoration_being_deposited_and_then_sees_it(
     api: ContractClient, database: Database, person: Person
 ) -> None:
@@ -291,7 +282,7 @@ def test_a_schedule_set_waits_for_a_restoration_being_deposited_and_then_sees_it
     with database.transaction() as session:
         session.execute(select(func.pg_advisory_xact_lock(RESTORE_LOCK)))
         caller.start()
-        queued = waits_on_an_advisory_lock(database)
+        queued = waits_for(database, RESTORE_LOCK)
         written_task(database, "restore", "queued")
     caller.join(QUEUED_WITHIN)
     assert queued

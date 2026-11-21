@@ -49,6 +49,7 @@ from waterfall.platform.keycloak_admin import KeycloakAdmin, ProviderAccount
 from waterfall.platform.logs import get_logger
 from waterfall.platform.maintenance import Maintenance
 from waterfall.platform.queue import TaskQueue
+from waterfall.platform.settings import NO_LOCATIONS, ExternalLocations
 from waterfall.platform.storage import Bucket
 
 ACCOUNT_DEACTIVATED = "ACCOUNT_DEACTIVATED"
@@ -86,6 +87,8 @@ class Services:
     And the queue its tasks are deposited in, the bucket of the backups, the maintenance of a
     restoration — none for a process that is never held in maintenance —, and the cache of the
     indicators of the day — none for a process that computes them at each reading (US-1720/L2).
+    And the external locations the installation declares for the copy of its backups, none by
+    default (US-2910/L3).
     """
 
     database: Database
@@ -95,6 +98,7 @@ class Services:
     backups: Bucket
     maintenance: Maintenance | None = None
     indicators_cache: IndicatorsCache | None = None
+    external_locations: ExternalLocations = NO_LOCATIONS
 
 
 def services_of(request: Request) -> Services:

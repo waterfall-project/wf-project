@@ -54,9 +54,10 @@ def identity_sync_outcome(session: Session) -> Outcome | None:
 
 
 # The operations the platform runs on a schedule whose latest outcome the metrics give, by the name
-# the rules of the alerts read (WF-OBS-0030); the external copy of a backup comes with US-2910.
+# the rules of the alerts read (WF-OBS-0030): a test compares these names to the rules (#4301).
 OUTCOMES: dict[str, OutcomeReader] = {
     "scheduled_backup": backups_interface.last_scheduled_outcome,
+    "scheduled_backup_copy": backups_interface.last_copy_outcome,
     "identity_sync": identity_sync_outcome,
 }
 
