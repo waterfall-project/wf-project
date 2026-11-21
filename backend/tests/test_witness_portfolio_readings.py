@@ -12,16 +12,20 @@ stay those of the fake back (EP-11, decision of 18 November 2026).
 """
 
 import json
+import re
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlencode
 
 import pytest
+import yaml
 from portfolio_listing_support import served
 from projects_support import READING, person
-from support import WITNESS
+from support import CONTRACT, WITNESS
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from realm import TestRealm
     from support import ContractClient
 
@@ -59,15 +63,20 @@ def _by_content(items: list[object]) -> list[object]:
     return sorted(items, key=lambda each: json.dumps(each, sort_keys=True))
 
 
-def differences(found: object, wanted: object, path: str = "") -> list[str]:
-    """Name each place where an answer differs from the reading expected, with both values."""
+def differences(
+    found: object, wanted: object, hours: frozenset[str] = frozenset(), path: str = ""
+) -> list[str]:
+    """Name each place where an answer differs from the reading expected, with both values.
+
+    ``hours`` holds the places typed ``Hours`` in the contract (see ``hours_places``).
+    """
     if isinstance(found, dict) and isinstance(wanted, dict):
         have, want = cast("dict[str, object]", found), cast("dict[str, object]", wanted)
         return [
             each
             for key in sorted(set(have) | set(want))
             for each in differences(
-                have.get(key, "<absent>"), want.get(key, "<absent>"), f"{path}/{key}"
+                have.get(key, "<absent>"), want.get(key, "<absent>"), hours, f"{path}/{key}"
             )
         ]
     if isinstance(found, list) and isinstance(wanted, list):
@@ -83,10 +92,12 @@ def differences(found: object, wanted: object, path: str = "") -> list[str]:
         return [
             each
             for rank, (one, other) in enumerate(zip(items, expected_items, strict=True))
-            for each in differences(one, other, f"{path}/{rank}")
+            for each in differences(one, other, hours, f"{path}/{rank}")
         ]
-    if isinstance(found, str) and isinstance(wanted, str) and _same_decimal(found, wanted):
-        return []
+    if isinstance(found, str) and isinstance(wanted, str):
+        if re.sub(r"/\d+(?=/|$)", "/*", path) in hours and _same_decimal(found, wanted):
+            return []
+        return [] if found == wanted else [f"{path}: {found!r}, expected {wanted!r}"]
     return [] if found == wanted else [f"{path}: {found!r}, expected {wanted!r}"]
 
 
@@ -107,17 +118,65 @@ def _named(items: list[object]) -> list[str]:
     return names
 
 
+# Only ``Hours`` is compared by value. The contract says of it: "exact decimal … rendered at ten
+# decimals at most … An entry keeps the decimals it was sent with" (``common.yaml#/Hours``), so
+# ``3746.9`` and ``3746.90`` are two spellings it allows. It fixes no such freedom for the other
+# decimals (``Money``, ``Percent``, ratios): they are compared string for string.
 def _same_decimal(found: str, wanted: str) -> bool:
-    """Tell whether two strings are one exact decimal: ``1466.5`` and ``1466.50`` are.
-
-    The contract carries an amount, an hour, a ratio as an exact decimal in a string
-    (``Hours``, ``Money``, ``Percent``): the digits after the last significant one are not a
-    value, and the generator writes none where the service rounds to the hundredth.
-    """
+    """Tell whether two strings are one exact decimal: ``1466.5`` and ``1466.50`` are."""
     try:
         return Decimal(found) == Decimal(wanted)
     except InvalidOperation:
         return False
+
+
+def _load(file: Path) -> dict[str, Any]:
+    return cast("dict[str, Any]", yaml.safe_load(file.read_text(encoding="utf-8")))
+
+
+def _hours_in(node: object, file: Path, path: str, found: set[str], seen: tuple[str, ...]) -> None:
+    """Collect the places of a schema that are typed ``Hours``, following the references."""
+    if isinstance(node, list):
+        for each in cast("list[object]", node):
+            _hours_in(each, file, path, found, seen)
+        return
+    if not isinstance(node, dict):
+        return
+    held = cast("dict[str, Any]", node)
+    ref = held.get("$ref")
+    if isinstance(ref, str):
+        name, _, pointer = ref.partition("#")
+        target = (file.parent / name).resolve() if name else file
+        if target.name == "common.yaml" and pointer == "/Hours":
+            found.add(path)
+            return
+        key = f"{target}#{pointer}:{path}"
+        if key in seen:
+            return
+        target_node: Any = _load(target)
+        for part in pointer.strip("/").split("/"):
+            target_node = target_node[part] if part else target_node
+        _hours_in(target_node, target, path, found, (*seen, key))
+        return
+    for keyword in ("allOf", "oneOf", "anyOf"):
+        _hours_in(held.get(keyword), file, path, found, seen)
+    for name, each in cast("dict[str, Any]", held.get("properties", {})).items():
+        _hours_in(each, file, f"{path}/{name}", found, seen)
+    _hours_in(held.get("items"), file, f"{path}/*", found, seen)
+
+
+def hours_places(operation: str) -> frozenset[str]:
+    """Name the places of the 200 answer of an operation that the contract types ``Hours``."""
+    paths = CONTRACT.parent / "paths" / "portfolio.yaml"
+    routes = cast("dict[str, dict[str, Any]]", _load(paths))
+    for route in routes.values():
+        get: dict[str, Any] | None = route.get("get")
+        if get and get.get("operationId") == operation:
+            schema: Any = get["responses"]["200"]["content"]["application/json"]["schema"]
+            found: set[str] = set()
+            _hours_in(schema, paths, "", found, ())
+            return frozenset(found)
+    raise AssertionError(operation)
 
 
 @pytest.mark.story("US-2770")
@@ -137,5 +196,5 @@ def test_a_view_read_at_the_date_of_the_witness_answers_the_reading_expected(
     reader = person(witness, realm, *READING)
     query = urlencode(reading["query"], safe=",")
     answer = served(api, reader, ROUTES[operation], query)
-    found = differences(answer, reading["value"])
+    found = differences(answer, reading["value"], hours_places(operation))
     assert not found, "\n".join(found)
