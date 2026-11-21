@@ -164,6 +164,11 @@ elle redit les six exigences du tableau et écrit les trois nouvelles, d'après 
 cadrage propose (#4516, #4517, #4518, #4519). Les critères « propre à l'US, texte proposé »
 deviennent alors des citations de Vérif.
 
+Le plan de lots, validé par l'auteur le 2026-11-21, est dans la pull request de ce cadrage (#4521) :
+les lots ne s'écrivent pas dans ce fichier. Les issues de l'EPIC, des US, des lots et du contrat
+s'ouvrent une fois la 1.0.9 acceptée et les US alignées sur ses Vérif (décision de l'auteur du même
+jour) ; l'EPIC passe alors `en cours`.
+
 ## Définition de fini
 
 - les exemples chiffrés des Vérif que la spécification 1.0.9 écrit pour WF-RIS-0010, WF-RIS-0030,
