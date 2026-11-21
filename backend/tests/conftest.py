@@ -503,16 +503,19 @@ def witness_logged(
 
     Those of the loading of this process, kept with its rows: the command, the description and
     the platform are the same for every test, so are its records. Kept records that do not say the
-    witness loaded — none, or those of a loading that found it there — are not taken on trust: the
-    command loads it again in this very test, under ``logs``, and its rows and records are kept in
-    their place.
+    witness loaded — none, or a loading that did not say it, one that found it there — are not taken
+    on trust: the command loads it again in this very test, under ``logs``, and its rows and
+    records are kept in their place. A loading that does not say it either fails here, at its
+    cause, and not later on an empty list (#4350).
     """
     held = WITNESS_ROWS.get(service_database_url)
     if held is not None and said_loaded(held.records):
         laid(owner, held.rows)
         logs.stream.write(held.records)
     else:
-        WITNESS_ROWS[service_database_url] = loaded(owner, service_database_url)
+        reloaded = loaded(owner, service_database_url)
+        assert said_loaded(reloaded.records), "the command loaded the witness without saying so"
+        WITNESS_ROWS[service_database_url] = reloaded
     return database
 
 

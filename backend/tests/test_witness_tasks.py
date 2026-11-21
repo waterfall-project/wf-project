@@ -409,6 +409,7 @@ def test_the_loading_notes_for_each_revision_how_many_tasks_the_engine_dated_oth
     # Structure after structure: the offer, filled from nothing; the others, copies of a structure
     # whose lines gave its tasks their calendars, none (EP-08).
     del witness_logged
+    assert logs.named("witness.loaded"), "the records of the loading do not say it loaded"
     noted = logs.named("witness.tasks_dated_before_the_lines")
     assert [(each["revision"], each["structure"], each["tasks"]) for each in noted] == FILLED
 
