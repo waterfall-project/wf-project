@@ -485,13 +485,14 @@ def test_lines_changed_under_a_load_read_their_basis_once_and_are_not_flushed_on
 
 @pytest.mark.requirement("WF-QUA-0040-A")
 @pytest.mark.xfail(
+    raises=AssertionError,
     strict=True,
-    reason="#4308: read_line reads with populate_existing, and without autoflush the second "
+    reason="#4403: read_line reads with populate_existing, and without autoflush the second "
     "change of a line loses the pending first one (its counter is not carried)",
 )
 def test_a_line_changed_twice_under_a_load_keeps_both_of_its_changes(changing: Changing) -> None:
     # The lines of a load are not flushed one by one: a line changed twice must read, the second
-    # time, what the first wrote and not yet flushed (#4308).
+    # time, what the first wrote and not yet flushed (#4403).
     node_id = changing.nodes[0]["node_id"]
     with changing.stage.database.transaction() as session, remembering(session):
         changing.change(session, node_id, "2")
