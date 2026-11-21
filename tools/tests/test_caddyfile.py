@@ -77,7 +77,7 @@ def lists(node: object) -> Iterator[list[dict[str, Any]]]:
         for key, value in found.items():
             if key == "routes" and isinstance(value, list):
                 yield cast("list[dict[str, Any]]", value)
-            yield from lists(value)
+            yield from lists(cast("object", value))
     elif isinstance(node, list):
         for item in cast("list[Any]", node):
             yield from lists(item)

@@ -19,9 +19,7 @@ def answers() -> bool:
     if shutil.which("docker") is None:
         return False
     try:
-        done = subprocess.run(
-            ["docker", "info"], capture_output=True, check=False, timeout=30
-        )
+        done = subprocess.run(["docker", "info"], capture_output=True, check=False, timeout=30)
     except subprocess.TimeoutExpired:
         return False
     return done.returncode == 0
