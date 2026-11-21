@@ -63,6 +63,9 @@ from waterfall.core.projects.interface.estimate_facts import (
     register_estimate_facts,
 )
 
+# ``inventory`` (US-2930/L1): how many projects a backup counts, which its test compares.
+from waterfall.core.projects.interface.inventory import count_projects
+
 # ``lifecycle`` (US-0980): the cycle of life of a project.
 from waterfall.core.projects.interface.lifecycle import (
     DesignationFacts,
@@ -238,6 +241,7 @@ __all__ = [
     "code_faults",
     "contributor_kind",
     "contributors_present",
+    "count_projects",
     "create_project",
     "create_subproject",
     "current_day",

@@ -821,7 +821,7 @@ class Docker:
         self.live = live
         self.ran: list[list[str]] = []
 
-    def run(self, command: list[str]) -> int:
+    def run(self, command: list[str], _limit: float | None = None) -> int:
         self.ran.append(command)
         return self.up if "up" in command else 0
 
@@ -833,15 +833,18 @@ class Docker:
             return 0, self.installed
         if transport.PROBE in command:
             return 0, json.dumps(dict(REFUSED))
+        if "--dbname=waterfall" in command:
+            kinds = {"restore_test": "t\n", "background_task": "0\n"}
+            return 0, next((v for k, v in kinds.items() if k in command[-1]), "1\n")
         if "exec" in command:
             return 0, self.rights if "postgres" in command else self.live
         if "cp" in command:
             Path(command[-1]).write_text("root", encoding="utf-8")
-        return 0, ""
+        return 0, ""  # also the docker of the test of a restoration: nothing left
 
     def verbs(self) -> list[str]:
         known = ("up", "run", "exec", "cp", "logs", "down")
-        return [next(word for word in command if word in known) for command in self.ran]
+        return [next((word for word in command if word in known), "other") for command in self.ran]
 
 
 def platform_sender(fake: FakePlatform) -> Callable[[Platform], Callable[[Path], production.Send]]:
@@ -949,7 +952,10 @@ def test_the_trial_backs_up_and_restores_by_the_api_when_asked_to(
     ]
     said = capsys.readouterr().out
     assert "its restoration asked of the API has ended: the probe said the maintenance" in said
-    assert docker.verbs()[-2:] == ["exec", "down"]
+    assert docker.verbs()[-1] == "down"
+    # The script of the test of a restoration is played, then nothing of its project remains.
+    assert any(c[:2] == ["env", "WATERFALL_PRODUCTION_PROJECT=trial-a3"] for c in docker.ran)
+    assert "nothing of waterfall-restore-test remains" in said
 
 
 def test_the_owner_of_the_tables_must_be_no_superuser(capsys: pytest.CaptureFixture[str]) -> None:
@@ -961,14 +967,7 @@ def test_the_owner_of_the_tables_must_be_no_superuser(capsys: pytest.CaptureFixt
     fake = FakePlatform(realm_routes())
     assert production.main(GIVEN, docker.run, docker.read, platform_sender(fake)) == 1
     asked = docker.ran[3]
-    assert asked[asked.index("exec") :][:6] == [
-        "exec",
-        "-T",
-        "postgres",
-        "psql",
-        "--username=postgres",
-        "--no-psqlrc",
-    ]
+    assert "exec -T postgres psql --username=postgres --no-psqlrc" in " ".join(asked)
     assert f"--command={production.OWNER_RIGHTS}" in asked
     assert "is a superuser" in capsys.readouterr().err
 

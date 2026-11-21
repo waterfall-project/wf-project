@@ -276,6 +276,10 @@ paths = [
     "deploy/compose/Caddyfile.storage",
     "deploy/compose/pg_hba.conf",
     "tools/src/wftools/transport.py",
+    # The test of a restoration, which the trial plays after the restoration (US-2930).
+    "deploy/compose/compose.restore-test.yaml",
+    "deploy/compose/restore-test.sh",
+    "deploy/compose/restore-test-database.sql",
     "deploy/compose/garage.toml",
     "deploy/compose/storage-buckets.sh",
     "deploy/compose/postgres-volume.sh",
@@ -297,6 +301,7 @@ paths = [
     "tools/src/wftools/heavyturns.py",
     "tools/src/wftools/production.py",
     "tools/src/wftools/restoration_trial.py",
+    "tools/src/wftools/restoretest_trial.py",
     "tools/src/wftools/images.py",
     ".github/workflows/production.yml",
     # The same images published, and the same trial on them, after a merge.
@@ -344,6 +349,7 @@ paths = [
     "tools/src/wftools/charttrial.py",
     "tools/src/wftools/production.py",
     "tools/src/wftools/restoration_trial.py",
+    "tools/src/wftools/restoretest_trial.py",
     "tools/src/wftools/transport.py",
     "tools/src/wftools/images.py",
     "tools/tests/test_chart.py",

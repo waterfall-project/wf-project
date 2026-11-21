@@ -10,16 +10,17 @@ the large objects of the database: the schema ``platform``, where a restoration 
 maintenance, is the installation's and not the backup's, and a restoration replaces ``public``
 alone (EP-13, US-2830); Keycloak keeps its tables in ``public``, as long as ``KC_DB_SCHEMA`` is
 not set. The archive — the two dumps, and a manifest that gives the date, the version of the
-application, the revision of the schema and the digest of each dump — is written to the bucket of
-the backups under a key the task names, so that a task taken up again writes over what an attempt
-left. It is then read back from
-the bucket and verified: the manifest read, each dump against its digest, each dump listed by
-``pg_restore``. The backup is recorded with the outcome of that verification, and inscribed in the
-journal at its date. A backup verified turns the list: the oldest backups not marked beyond the
-retention of the schedule go, and their archives with them once the transaction is committed
-(WF-ADM-0170). An archive that fails its verification fails the task, manual or scheduled, by
-``UndoneError``: the work is undone, then the row is written, ``failed``, with its archive; neither
-the rotation nor a copy follows, and the task alone says the failure (#4230).
+application, the revision of the schema, the digest of each dump, and what the test of a restoration
+compares, counted just before each database is dumped (``waterfall.worker.inventory``, US-2930) — is
+written to the bucket of the backups under a key the task names, so that a task taken up again
+writes over what an attempt left. It is then read back from the bucket and verified: the manifest
+read, each dump against its digest, each dump listed by ``pg_restore``. The backup is recorded with
+the outcome of that verification, and inscribed in the journal at its date. A backup verified turns
+the list: the oldest backups not marked beyond the retention of the schedule go, and their archives
+with them once the transaction is committed (WF-ADM-0170). An archive that fails its verification
+fails the task, manual or scheduled, by ``UndoneError``: the work is undone, then the row is
+written, ``failed``, with its archive; neither the rotation nor a copy follows, and the task alone
+says the failure (#4230).
 """
 
 import hashlib
@@ -50,6 +51,7 @@ from waterfall.platform.logs import get_logger
 from waterfall.platform.storage import Bucket
 from waterfall.platform.tasks import UndoneError
 from waterfall.worker.identity_sync import after_commit
+from waterfall.worker.inventory import Inventory, accounts_of, counted_in, read_or_none
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -69,6 +71,8 @@ COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
 DATABASES = ("waterfall", "identity_provider")
 # The connection service a dump reaches its database by.
 SERVICE = "backup"
+# The realm of the installation, whose accounts a backup counts, unless the settings name another.
+REALM = "waterfall"
 # The event a database the backup cannot reach writes to the journal of the service.
 UNREACHED = "backup.database_unreached"
 
@@ -253,16 +257,19 @@ def _member(tar: tarfile.TarFile, name: str) -> IO[bytes]:
 class BackupTask:
     """Take a backup of the two databases, as the worker runs a task of the kind ``backup``."""
 
-    def __init__(self, databases: Mapping[str, str], bucket: Bucket) -> None:
+    def __init__(self, databases: Mapping[str, str], bucket: Bucket, realm: str = REALM) -> None:
+        """Dump ``databases`` into ``bucket``; count the accounts of ``realm``, the installation."""
         self.databases = databases
         self.bucket = bucket
+        self.realm = realm
 
     @classmethod
     def of(cls, settings: WorkerSettings) -> BackupTask:
         """Dump the databases the settings name, as the role of the backup, into its bucket."""
         reached_as = (settings.backup_database_url, settings.keycloak_database_url)
         addresses = (address.get_secret_value() for address in reached_as)
-        return cls(dict(zip(DATABASES, addresses, strict=True)), Bucket.of_backups(settings))
+        databases: dict[str, str] = dict(zip(DATABASES, addresses, strict=True))
+        return cls(databases, Bucket.of_backups(settings), settings.keycloak_realm)
 
     def __call__(self, session: Session, task: Task) -> dict[str, Any]:
         """Dump, archive, store, read back and verify; record the backup, and inscribe it."""
@@ -272,9 +279,9 @@ class BackupTask:
             folder = Path(work)
             revision = schema_revision(self.databases["waterfall"])
             reached(self.databases["identity_provider"])
-            dumps = [dump(name, self.databases[name], folder) for name in DATABASES]
+            dumps, inventory = self._dumped(folder)
             path = folder / "backup.tar"
-            archive(path, manifest(taken_at, revision, dumps), dumps)
+            archive(path, manifest(taken_at, revision, dumps, inventory), dumps)
             self.bucket.upload(key, path)
             try:
                 stored = folder / "stored.tar"
@@ -300,6 +307,21 @@ class BackupTask:
                 raise
             # The archive stays: the row the trace writes names it (#4230).
             raise UndoneError(UnverifiedArchiveError(key), self._failed_trace(task, taken))
+
+    def _dumped(self, folder: Path) -> tuple[list[Dumped], Inventory | None]:
+        """Count what each database holds, then dump it, so that the manifest says what it holds.
+
+        The accounts are counted in the database of the identity provider, the rest in Waterfall's;
+        nothing, if either does not hold what is counted.
+        """
+        waterfall, provider = (self.databases[name] for name in DATABASES)
+        accounts = read_or_none(provider, lambda connection: accounts_of(connection, self.realm))
+        provided = dump(DATABASES[1], provider, folder)
+        inventory = None
+        if accounts is not None:
+            inventory = read_or_none(waterfall, lambda connection: counted_in(connection, accounts))
+        dumped = dump(DATABASES[0], waterfall, folder)
+        return [dumped, provided], inventory
 
     @staticmethod
     def _failed_trace(task: Task, taken: TakenBackup) -> Callable[[Session], None]:
@@ -344,9 +366,14 @@ class BackupTask:
             logger.exception("backup.archive_not_removed", key=key)
 
 
-def manifest(taken_at: datetime, revision: str, dumps: list[Dumped]) -> dict[str, Any]:
-    """Describe the archive: when, by which version, at which revision, and each dump's digest."""
-    return {
+def manifest(
+    taken_at: datetime, revision: str, dumps: list[Dumped], inventory: Inventory | None
+) -> dict[str, Any]:
+    """Describe the archive: when, by which version, at which revision, each dump's digest.
+
+    And what it holds, which the test of its restoration compares (US-2930), if it was counted.
+    """
+    described: dict[str, Any] = {
         "format": ARCHIVE_FORMAT,
         "taken_at": taken_at.isoformat(),
         "application_version": __version__,
@@ -361,3 +388,6 @@ def manifest(taken_at: datetime, revision: str, dumps: list[Dumped]) -> dict[str
             for dumped in dumps
         ],
     }
+    if inventory is not None:
+        described["inventory"] = inventory.described()
+    return described

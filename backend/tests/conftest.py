@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import pytest
 from access_rows import role
-from backup_support import worker_of
+from backup_support import stand_in_realm, worker_of
 from estimate_support import pin_year
 from fastapi.testclient import TestClient
 from installations import Installation, Take, installed, taker
@@ -587,8 +587,7 @@ def provider_url(database_url: str) -> Iterator[str]:
     url = engine_url(database_url).set(database=name).render_as_string(hide_password=False)
     provider = create_database_engine(url)
     with provider.begin() as connection:
-        connection.execute(text("CREATE TABLE realm (id text PRIMARY KEY)"))
-        connection.execute(text("INSERT INTO realm VALUES ('waterfall')"))
+        stand_in_realm(connection)
     provider.dispose()
     yield url
     with server.connect() as connection:

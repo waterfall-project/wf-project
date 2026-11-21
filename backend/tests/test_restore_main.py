@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The command of the service of the restoration: it refuses to start without its secrets, runs."""
 
+import json
 import os
 from typing import TYPE_CHECKING
 
@@ -12,11 +13,15 @@ from waterfall.platform.queue import RESTORES, STREAM
 from waterfall.restore import main as restore_main
 from waterfall.restore.provider import Keycloak
 from waterfall.restore.task import RestoreTask
+from waterfall.restore.trial import Readiness, RestoreTrial
 from waterfall.worker.backup import DATABASES
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
+    from waterfall.platform.database import Database
+    from waterfall.platform.settings import RestoreTestSettings
     from waterfall.restore.runner import Restorer
 
 
@@ -29,7 +34,7 @@ def test_the_version_is_stated_without_starting_anything(
 
 def test_any_argument_but_the_version_is_refused(capsys: pytest.CaptureFixture[str]) -> None:
     assert restore_main.main(["restore"]) == 2
-    assert capsys.readouterr().err.startswith("usage: waterfall-restore [--version]\n")
+    assert capsys.readouterr().err.startswith("usage: waterfall-restore [--version | test]\n")
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")
@@ -80,3 +85,95 @@ def test_with_its_secrets_the_service_runs_the_restorations_of_their_stream(
     assert isinstance(provider, Keycloak)
     assert provider.installation is not provider.service
     assert provider.realm.folder == tmp_path
+
+
+# The ephemeral platform of a test of a restoration, its databases and its API, as Compose has them.
+EPHEMERAL = {
+    "WATERFALL_RESTORE_TEST_DATABASE_URL": "postgresql://waterfall:ephemeral-secret@restore-test-postgres/waterfall",
+    "WATERFALL_RESTORE_TEST_KEYCLOAK_DATABASE_URL": (
+        "postgresql://keycloak:ephemeral-secret@restore-test-postgres/keycloak"
+    ),
+    "WATERFALL_RESTORE_TEST_API_ADDRESS": "https://restore-test-api:8443",
+}
+
+
+@pytest.mark.story("US-2930")
+@pytest.mark.requirement("WF-SEC-0010-A")
+def test_without_its_settings_the_test_of_a_restoration_returns_failure_and_names_them(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.MonkeyPatch.context() as patch:
+        for name in [name for name in os.environ if name.startswith("WATERFALL_")]:
+            patch.delenv(name)
+        assert restore_main.main(["test"]) == 2
+    said = capsys.readouterr().err
+    for setting in (
+        "DATABASE_URL",
+        "STORAGE_SECRET",
+        "RESTORE_TEST_DATABASE_URL",
+        "RESTORE_TEST_KEYCLOAK_DATABASE_URL",
+        "RESTORE_TEST_API_ADDRESS",
+        "RESTORE_TEST_RESTORED_FILE",
+    ):
+        assert f"WATERFALL_{setting}: is missing" in said
+
+
+@pytest.mark.story("US-2930")
+@pytest.mark.usefixtures("platform_environment", "logs")
+def test_the_test_of_a_restoration_restores_the_production_into_the_ephemeral_platform(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # The production read as the role of the service, the ephemeral databases as their owners, its
+    # API at its address; the file the platform waits for is written once restored. 0 if the test
+    # succeeded, 1 if it failed.
+    for name, value in EPHEMERAL.items():
+        monkeypatch.setenv(name, value)
+    restored = tmp_path / "restored"
+    monkeypatch.setenv("WATERFALL_RESTORE_TEST_RESTORED_FILE", str(restored))
+    monkeypatch.setenv("WATERFALL_RESTORE_TEST_PATIENCE", "60")
+    built: list[RestoreTrial] = []
+    outcomes = [True, False]
+    trial = restore_main.trial
+
+    def tried(settings: RestoreTestSettings, production: Database) -> Callable[[], bool]:
+        built.append(trial(settings, production))
+        return lambda: outcomes.pop(0)
+
+    monkeypatch.setattr(restore_main, "trial", tried)
+    assert restore_main.main(["test"]) == 0
+    assert restore_main.main(["test"]) == 1
+    restoring = built[0]
+    assert restoring.databases == {
+        "waterfall": EPHEMERAL["WATERFALL_RESTORE_TEST_DATABASE_URL"],
+        "identity_provider": EPHEMERAL["WATERFALL_RESTORE_TEST_KEYCLOAK_DATABASE_URL"],
+    }
+    assert restoring.realm == "waterfall"
+    started = restoring.ephemeral.started
+    assert isinstance(started, Readiness)
+    assert started.patience == 60
+    restoring.ephemeral.restored()
+    assert restored.exists()
+
+
+@pytest.mark.story("US-2930")
+@pytest.mark.usefixtures("platform_environment")
+def test_a_test_of_a_restoration_that_cannot_run_returns_failure_and_says_why(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    for name, value in EPHEMERAL.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setenv("WATERFALL_RESTORE_TEST_RESTORED_FILE", str(tmp_path / "restored"))
+
+    def unreached(_settings: RestoreTestSettings, _production: Database) -> Callable[[], bool]:
+        def run() -> bool:
+            message = "the production does not answer"
+            raise ConnectionError(message)
+
+        return run
+
+    monkeypatch.setattr(restore_main, "trial", unreached)
+    assert restore_main.main(["test"]) == 1
+    said = [json.loads(line) for line in capsys.readouterr().err.splitlines()]
+    (failed,) = [record for record in said if record["event"] == "restore_test.not_run"]
+    assert (failed["level"], failed["actor"]) == ("error", "platform")
+    assert "ConnectionError" in str(failed["exception"])

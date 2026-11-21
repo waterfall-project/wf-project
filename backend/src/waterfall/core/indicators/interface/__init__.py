@@ -53,6 +53,11 @@ from waterfall.core.indicators.interface.index_history import (
     index_history as index_history,
 )
 
+# ``inventory`` (US-2930/L1): the digest of what a marked revision kept, which a backup compares.
+from waterfall.core.indicators.interface.inventory import (
+    kept_indicators_digest as kept_indicators_digest,
+)
+
 # ``milestone_tracking`` (US-1660/L1; US-1710): the time/time diagram.
 from waterfall.core.indicators.interface.milestone_tracking import (
     milestone_tracking as milestone_tracking,
