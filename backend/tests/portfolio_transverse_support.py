@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 from portfolio_listing_support import kept_changed
-from portfolio_support import OFFERS_OPENED, OFFER_PROBABILITY, Portfolio, revision_opened
+from portfolio_support import OFFER_PROBABILITY, OFFERS_OPENED, Portfolio, revision_opened
 from projects_support import MANAGING
 
 from waterfall.core.projects.interface import (
@@ -134,4 +134,6 @@ def probability_written(fabrics: Portfolio, project_id: UUID, probability: Decim
     manager = fabrics.stage.manager.user_id
     with logging_context(correlation_id="probability"), fabrics.stage.database.transaction() as s:
         change = ProjectChange({"win_probability": probability}, stored_lock_version(s, project_id))
-        update_project(s, project_id, change, Act(manager, OFFERS_OPENED), Viewer(manager, MANAGING))
+        update_project(
+            s, project_id, change, Act(manager, OFFERS_OPENED), Viewer(manager, MANAGING)
+        )

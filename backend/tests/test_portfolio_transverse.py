@@ -109,7 +109,7 @@ def test_the_projects_in_pricing_add_their_weighted_contribution_to_each_view_th
     assert both("value")["scope"]["project_count"] == 2
     # The list: the row of the offer comes with ``pricing``, whole and in the state it holds. The
     # health of the control (``getPortfolioPilotHealth``) is not read here: it counts the projects
-    # In progress alone, a state it does not count being without effect, so that no offer adds to it.
+    # In progress alone, a state it does not count being without effect: no offer adds to it.
     rows = {
         states: [(each["project_id"], each["state"]) for each in found["projects", states]["items"]]
         for states in ("in_progress", "pricing", "in_progress,pricing")
@@ -186,7 +186,9 @@ def test_a_past_date_is_reached_by_no_later_marking_no_later_import_and_no_later
     running = fabrics.in_progress.project_id
     query = f"as_of={READ_ON}&states={COUNTED}"
     before = {view: served(api, reader, view, query) for view in VIEWS}
-    after_marking, after_import = (f"as_of={day}&states={COUNTED}" for day in ("2026-06-11", "2026-06-13"))
+    after_marking, after_import = (
+        f"as_of={day}&states={COUNTED}" for day in ("2026-06-11", "2026-06-13")
+    )
     unwritten = [served(api, reader, "projects", each) for each in (after_marking, after_import)]
     marked_on(api, fabrics, running, "Revue de juin", at(6, 10))
     load_import(fabrics.stage, running, [cost("FA-2001", None, "250.00")], at=at(6, 12))

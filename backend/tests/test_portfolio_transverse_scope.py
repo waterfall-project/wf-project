@@ -34,16 +34,12 @@ from portfolio_support import (
     revision_opened,
 )
 from portfolio_transverse_support import NOW, PERIODIC, VIEWS, now_is, probability_written
-from project_rows import REPLICA
 from projects_support import MANAGING, Scene
 from projects_support import scene as make_scene
-from sqlalchemy import update
 
 from waterfall.core.estimate.workloading import WorkloadAsked, WorkloadBasis, reading_of
 from waterfall.core.projects.interface import Viewer
-from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.interface import current_revision
-from waterfall.core.revisions.tables import Revision
 from waterfall.platform.installation import TIME_ZONE
 
 if TYPE_CHECKING:
@@ -299,10 +295,10 @@ def test_the_estimate_and_the_indicators_of_a_project_marked_at_0_and_at_100_per
 ) -> None:
     # « Le devis et les indicateurs du projet lui-même sont identiques à 0 % et à 100 %. » The
     # probability is a weight of the portfolio and no figure of a project. An offer In pricing,
-    # whose probability the API writes at 0 % then at 100 %, gives the same ``getEstimateIndicators``
-    # and ``getRemainingIndicators``; and two projects In progress written alike, with the same
-    # cost imported, the probability written while each was an offer — the one at 0 %, the other at
-    # 100 % — give the same ``getProjectIndicators``, with the two others.
+    # whose probability the API writes at 0 % then at 100 %, gives the same
+    # ``getEstimateIndicators`` and ``getRemainingIndicators``; and two projects In progress
+    # written alike, with the same cost imported, the probability written while each was an offer —
+    # the one at 0 %, the other at 100 % — give the same three indicators.
     now_is(monkeypatch)
     reader = fabrics.stage.reader
 

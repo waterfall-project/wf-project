@@ -89,7 +89,7 @@ type Documents = Mapping[IndicatorKind, Document]
 
 
 def _decimal_text(value: Decimal) -> str:
-    """Write hours, an amount, a probability or a severity as the contract does, without exponent."""
+    """Write hours, an amount, a probability or a severity as the contract does, no exponent."""
     return format(value, "f")
 
 
@@ -118,7 +118,8 @@ def workload_document(
             {
                 "resource_role_id": str(role.resource_role_id),
                 "months": [
-                    {"month": each.month, "hours": _decimal_text(each.hours)} for each in role.months
+                    {"month": each.month, "hours": _decimal_text(each.hours)}
+                    for each in role.months
                 ],
             }
             for role in roles
