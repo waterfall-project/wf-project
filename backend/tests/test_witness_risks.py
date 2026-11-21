@@ -23,6 +23,7 @@ from projects_support import MANAGING, PROJECTS, contribute, person
 from sqlalchemy import select
 from test_witness import load, wipe
 from test_witness_lines_reads import deviations
+from test_witness_portfolio import identifying as slice_identifying
 from test_witness_projects import REVISION_100, REVISION_101, REVISION_102, keyed, without
 from witness_support import PRJ_001, example
 
@@ -253,11 +254,17 @@ def test_two_loadings_give_the_same_identifiers_with_their_natural_keys(
     # Every identifier, those no example names included: the loader draws them in order. The risks
     # and their reviews, the structures, the nodes with their tasks and lines, the links, the
     # inscriptions and the history, each identifier with what it names.
-    first = identifying(witness)
+    first, slice_first = identifying(witness), slice_identifying(witness)
     wipe(owner)
     install(owner)
     assert load(service_database_url) == 0
     second = identifying(witness)
+    # « Deux engendrements successifs donnent des données identifiantes identiques. » for the slice
+    # of the portfolio (EP-11, US-2770): the same second loading, a full one costing minutes.
+    assert slice_identifying(witness) == slice_first
+    assert len(slice_first["project"]) == 10
+    assert slice_first["node"]
+    assert slice_first["cost_line"]
     assert second.keys() == first.keys()
     for name, rows in first.items():
         assert second[name] == rows, name

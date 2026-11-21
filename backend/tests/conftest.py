@@ -7,7 +7,7 @@ import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 from urllib.parse import urlsplit, urlunsplit
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from access_rows import role
@@ -306,22 +306,39 @@ def backup_role(database_url: str) -> Iterator[tuple[str, str]]:
 
 
 @pytest.fixture
-def database(database_url: str, service_database_url: str) -> Iterator[Database]:
+def database(
+    request: pytest.FixtureRequest, database_url: str, service_database_url: str
+) -> Iterator[Database]:
     """Give the migrated database as the service sees it, emptied afterwards of every row.
 
     The rows of every table the code declares are deleted by the owner, the journal of audit
     included: its triggers, which refuse any deletion, are off for that transaction alone — what
     only a superuser may do, and the service never. A table the migrations fill — the catalogue
     of permissions — keeps its rows, as an installation does.
+
+    The partitions a project brings with it (WF-DAT-0050) outlive its rows: the witness imposes
+    its identifiers, and a creation refuses a project that has its partitions. Dropped project
+    after project, a transaction each, so that no transaction holds the locks of them all (#4051)
+    — but for the projects of the witness after a test that asks for it (``witness``,
+    ``witness_logged``): creating and dropping their dozens of partitions cost more than laying
+    the rows, and the next such test finds them. A test that does not ask for it, or loads it by
+    the command (``witness_loaded``), starts with none.
     """
+    needs = "witness" in request.fixturenames or "witness_logged" in request.fixturenames
+    if not needs and database_url in WITNESS_PARTITIONS:
+        owner = create_database_engine(database_url)
+        drop_every_partition(owner)
+        owner.dispose()
+        WITNESS_PARTITIONS.discard(database_url)
     db = Database(create_database_engine(service_database_url))
     yield db
     db.dispose()
     owner = create_database_engine(database_url)
-    # The partitions a project brings with it (WF-DAT-0050) outlive its rows: the witness imposes
-    # its identifiers, and a creation refuses a project that has its partitions. Dropped project
-    # after project, a transaction each, so that no transaction holds the locks of them all (#4051).
-    drop_every_partition(owner)
+    held = WITNESS_ROWS.get(service_database_url)
+    kept = {UUID(project) for project in held.rows.projects} if needs and held else set()
+    drop_every_partition(owner, kept)
+    if kept:
+        WITNESS_PARTITIONS.add(database_url)
     with owner.begin() as connection:
         # The guards of the journal and of the revised tables off for this transaction alone.
         unguarded(connection)
@@ -553,6 +570,7 @@ class Loaded:
 
 def loaded(owner: Engine, service_database_url: str) -> Loaded:
     """Install the database, load the witness by the command; give its rows and its records."""
+    drop_every_partition(owner)
     install(owner)
     settings = WitnessSettings(
         database_url=SecretStr(service_database_url), witness_path=str(WITNESS)
@@ -565,6 +583,8 @@ def loaded(owner: Engine, service_database_url: str) -> Loaded:
 # The rows of the witness and the records of its loading, by the database of the process that
 # loaded them.
 WITNESS_ROWS: dict[str, Loaded] = {}
+# The databases of the process whose partitions of the witness's projects a test left in place.
+WITNESS_PARTITIONS: set[str] = set()
 
 
 @pytest.fixture

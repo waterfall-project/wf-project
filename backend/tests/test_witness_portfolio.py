@@ -16,10 +16,9 @@ from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 import pytest
-from installed_reference import install
 from sqlalchemy import func, select
 from support import WITNESS
-from test_witness import load, wipe
+from test_witness import load
 
 from waterfall.api.contract.models import Calendar
 from waterfall.core.costs.tables import CostImport, CostLine
@@ -39,7 +38,6 @@ from waterfall.witness.portfolio_slice import Project as Described
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from sqlalchemy import Engine
     from support import Logs
 
     from waterfall.platform.database import Database
@@ -270,23 +268,6 @@ def test_a_second_loading_of_the_slice_finds_it_there_and_writes_nothing(
     assert counts(witness) == before
     assert identifying(witness) == identified
     assert before["project"] == 12
-
-
-@pytest.mark.requirement(REQUIREMENT)
-def test_two_loadings_of_the_witness_give_the_slice_identical_identifying_data(
-    witness: Database, owner: Engine, service_database_url: str
-) -> None:
-    # « Deux engendrements successifs donnent des données identifiantes identiques. » : the
-    # platform emptied and loaded again holds the same identifiers, codes, labels and instants — the
-    # ones the loader draws in order included.
-    first = identifying(witness)
-    wipe(owner)
-    install(owner)
-    assert load(service_database_url) == 0
-    assert identifying(witness) == first
-    assert len(first["project"]) == 10
-    assert first["node"]
-    assert first["cost_line"]
 
 
 @pytest.mark.requirement(REQUIREMENT)
