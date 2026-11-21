@@ -1,7 +1,7 @@
 ---
 id: EP-36
 titre: Durcir les tests et la preuve des exigences — attentes des parcours, gardes du harnais, tests instables, citations, renvois de la roadmap
-statut: à planifier
+statut: prêt
 depend_de: EP-08, EP-11
 famille: front, back
 issue:
@@ -20,8 +20,8 @@ se parallélise sur tous les créneaux du poste, et il se glisse là où des cr�
 L'EPIC naît de la ventilation du 2026-11-21 : une fois fusionnés EP-08, EP-11, EP-13 et EP-30, les
 fonctions du MVP sont livrées, et le reste à faire — les issues ouvertes hors de ces EPIC et les
 constats de la revue du 2026-11-14 encore d'actualité — se range par zone de code, pour que deux
-EPIC menés de front ne touchent pas les mêmes fichiers. Ses US datent du cadrage du 2026-11-21 ; sa
-conception et son plan de lots restent à écrire.
+EPIC menés de front ne touchent pas les mêmes fichiers. Ses US et sa conception datent du cadrage du
+2026-11-21, validées par l'auteur le même jour.
 
 ## Ce qui en fait partie
 
@@ -245,7 +245,155 @@ service — EP-36 ») : écarté, voir « Ce qui n'en fait pas partie ».
 
 ## Conception
 
-À écrire au cadrage, après la validation des US.
+Écrite le 2026-11-21, après la validation des US par l'auteur le même jour, contre `main`
+(985bbc198) et les branches `epic/EP-08` (5568efc89) et `epic/EP-11`, dont EP-36 part une fois
+fusionnées. Courte, comme celles d'EP-18, d'EP-23 et d'EP-33 : chaque issue porte sa proposition,
+ses lieux et ses tests, et fait foi pour le détail ; ce qui suit ne dit que ce qu'elles laissent
+ouvert, ce qui s'en écarte, et ce que les décisions de l'auteur du 2026-11-21 y changent.
+
+**Tables et migrations.** Aucune.
+
+**Modifications du contrat.** Aucune : `docs/api/DECISIONS.md` ne reçoit aucune entrée, et ni le
+client ni les modèles ne sont régénérés.
+
+**Modules du noyau touchés.** Aucun ne change de comportement. US-3480 ajoute des réexports à trois
+interfaces — `CommandAvailability` à celle de `core/cost_settings`, `Duration`, `DurationUnit` et
+`LagUnit` à celle de `core/planning`, `Written` à celle de `core/estimate` — sans déplacer aucun
+objet. Hors du noyau, le code de production ne change qu'en deux endroits du front : trois lignes
+de `admin/role-creation.tsx` (US-3420), et le tracé d'une liaison dans `gantt/gantt.tsx`, avec une
+clé des catalogues (US-3390).
+
+**Les outils du dépôt.**
+
+- `wftools.coverage` (US-3450). Une marque `requirement` ou `story` dont un argument n'est pas une
+  chaîne écrite en toutes lettres est une erreur de lecture, comme l'est déjà une forme d'appel
+  inconnue dans un titre TypeScript : le relevé échoue en nommant le fichier et la ligne. Un titre
+  qui porte entre crochets un identifiant d'exigence sans indice échoue de même. Rien n'est résolu
+  ni deviné. La marque `unexecuted`, dont l'argument est une raison et non une citation, garde ses
+  constantes.
+- `wftools.roadmap` (US-3490). La portée d'une ligne se lit selon trois formes, et toute autre
+  échoue : `entière` ; `début — close en EP-x`, suivie ou non de `, amorcée aussi en EP-…` ; `fin —
+  amorcée en EP-…`. Quatre contrôles : l'EPIC que nomme un « début » clôt l'exigence ; la liste
+  d'un « fin » est celle des EPIC qui portent un « début » pour elle ; une exigence « entière »
+  n'a de « début » nulle part ; un EPIC nommé par « amorcée aussi en » porte un « début » — sans
+  exiger que cette liste soit complète, elle n'est qu'une aide. Le titre d'une ligne se compare à
+  celui de la spécification, normalisé comme un Vérif l'est déjà. Le nombre d'exigences que le
+  README énonce se compare à celui de la projection, hors l'exemple du §1.3.1. Relevé au cadrage
+  sur `main` : dix-neuf portées sans répondant, dont une de forme inconnue (« fin — amorcée en
+  EP-15, poursuivie en EP-16 », EP-11), et six titres périmés ; le lot corrige l'état que `main`
+  porte à sa date, les lignes d'EP-08 et d'EP-11 comprises. `Row` gagne des champs et n'en change
+  aucun : `wftools.coverage`, qui lit `roadmap`, n'est pas touché.
+- import-linter (US-3480). Un contrat de plus dans `backend/pyproject.toml`, à côté de celui qui
+  tient les modules du noyau entre eux : depuis `waterfall.api`, `waterfall.worker` et
+  `waterfall.witness`, un module du noyau ne s'importe que par son `interface`. Les imports sous
+  `TYPE_CHECKING` comptent, comme aujourd'hui. Quatre imports sont à faire passer par l'interface
+  sur les branches d'EP-08 et d'EP-11 — `api/cost_types.py`, `api/numbering.py`,
+  `witness/filling.py`, `witness/tasks.py` — ; un cinquième, celui d'`api/subprojects.py`, est
+  corrigé par EP-33.
+
+**Le harnais et les gardes du front.**
+
+- La sortie d'erreur (US-3430). `refuseStderr` quitte `setup-dom.ts` pour `src/test/stderr.ts`, et
+  le projet `node` reçoit sa mise en place, qui la pose comme celle du projet `dom`. `text`, dans
+  `src/test/markup.ts`, s'appuie sur `textOfMarkup` : les aides du harnais sont le seul lieu où un
+  rendu se lit.
+- Les deux gardes d'US-3440 sont des tests `node`, chacun dans un fichier à lui : la typographie
+  lit les deux catalogues ; les sauts lisent les sources de `e2e/**` par l'analyseur de TypeScript,
+  non par expression régulière, et jugent le premier argument de chaque `test.skip`. Aucune ne
+  touche `catalogue-terms.test.ts`, qu'US-3450 corrige.
+- Les déclencheurs (US-3380) : une table dans `e2e/opened.ts` donne, par écran, le nombre de
+  déclencheurs que le test doit au moins jouer, par largeur de fenêtre quand elles diffèrent ; le
+  lot la remplit de ce que le parcours joue aujourd'hui, qu'il annote déjà.
+- La flèche d'une liaison (US-3390) prend la forme du nom que la liaison en conflit porte déjà —
+  le prédécesseur, le type, la ligne visée —, sans « en conflit » ; la liaison en conflit garde le
+  sien.
+- Le portefeuille (US-3380) : le parcours garde l'assertion que le dessin est visible, et compte
+  les risques par la table des valeurs.
+
+**La règle des mille lignes.** `make sources` refuse un fichier de plus de 1 000 lignes, tests
+compris. `kanban.dom.test.tsx` en compte 998 : US-3400 en détache les tests de la relecture dans un
+fichier à eux avant d'y ajouter l'étape du refus. `test_scheduling_examples.py` (877),
+`test_nodes.py` (873), `gantt.tsx` (870), `test_access_evaluation.py` (854), `remaining.spec.ts`
+(844) et `test_contract_declarations.py` (768) sont proches : un lot qui en ferait passer un
+au-delà le scinde, il ne resserre pas ses lignes.
+
+**Les EPIC voisins.**
+
+- **EP-32** écrit `gantt.tsx` et `layout.ts` (US-3350) et l'interface de `core/planning` : US-3390
+  et US-3480 l'attendent dans `main`. Il touche aussi `folded-runs.tsx`, pour le tracé d'un lien :
+  US-3420 corrige un autre test du même fichier de tests, et ne l'attend pas. US-3360 ajoute un
+  test à `test_scheduling_examples.py`, dont EP-32 ne change pas les dates.
+- **EP-33** corrige l'import d'`api/subprojects.py` (US-3270) : US-3480 l'attend. Il change les
+  bornes du code d'un sous-projet au contrat et dans le modèle local à la fois : US-3470 ne
+  l'attend pas.
+- **EP-30** réécrit les risques et leur parcours : le test des risques d'US-3360 a son fichier, et
+  `risks.spec.ts` n'est pas touché.
+- **EP-29**, **EP-34** et **EP-37**, pas encore cadrés, reprendront des fichiers où EP-36 ne
+  change que des tests : `test_users_activation.py`, `test_access_evaluation.py`,
+  `user-bulk.dom.test.tsx` et `role-creation.tsx` (EP-29), les tests de la grille (EP-34),
+  `remaining.spec.ts` (EP-37). Leur cadrage lit cette liste.
+- **EP-13** a modifié `test_contract_declarations.py` sur sa branche : US-3470 y ajoute des
+  fonctions, et la reprise de `main` par `epic/EP-13` règle ce qui se chevauche.
+- **La spécification 1.0.9** porte le nombre d'exigences à 224 : US-3490 écrit au README le nombre
+  que `main` porte à sa date.
+- Les catalogues (`messages/*.json`) et le guide (`docs/dev/README-fr.md`, `README.md`) reçoivent
+  des lignes de plusieurs lots, à des endroits distincts, comme dans tout EPIC.
+
+**Ordre de construction.**
+
+1. Dès la branche tirée, EP-08 et EP-11 fusionnés : toutes les US, hors US-3390 et US-3480. Aucune
+   ne dépend d'une autre.
+2. Dans US-3430, la lecture du rendu par les aides du harnais précède la garde de la sortie
+   d'erreur : les deux touchent les mêmes fichiers de tests de pages.
+3. US-3450 corrige des citations dans deux fichiers que d'autres US corrigent aussi —
+   `tasks/remount.dom.test.tsx` (US-3420) et `app/(home)/page.test.tsx` (US-3430) : ces lots ne se
+   livrent pas en même temps.
+4. US-3390 après EP-32 dans `main` ; US-3480 après EP-32 et EP-33 dans `main` ; `epic/EP-36`
+   reprend `main` à chaque fois.
+
+**Décisions prises.**
+
+- **Deux preuves attendent EP-13 ailleurs** (#4446, #4447) : le parcours au volume va à EP-40, les
+  citations des tests de la restauration à EP-39, et EP-36 ne corrige que les renvois. Écarté : une
+  US d'EP-36 qui attendrait EP-13, et ferait de l'EPIC le dernier livré ; demander la citation aux
+  lots d'EP-13, que l'auteur n'élargit pas.
+- **Le relevé ne lit pas `@shared`.** Une exigence close par un EPIC du back se prouve par un test
+  du back ou de `e2e/service/`. Écarté : compter un parcours `@shared` comme joué contre le service
+  — cent quarante-six parcours deviendraient des preuves, dont ceux qu'US-3370 corrige parce que
+  leur attente contre le service était faible ; déplacer `planning-service.spec.ts`, qu'EP-32
+  touche.
+- **Une citation illisible est refusée, non résolue** (décision de l'auteur du 2026-11-17, #3789).
+  Écarté : résoudre une constante du même module — une lecture de plus à tenir juste ; une règle
+  écrite au guide seule, que rien ne tiendrait.
+- **Une citation sans indice se juge une à une** : l'indice si le test éprouve une phrase du Vérif,
+  le retrait sinon. Écarté : ajouter l'indice partout — FAR-05 montre des tests qui parlent d'une
+  exigence sans l'éprouver, et le relevé les compterait.
+- **Les marqueurs de BAC-10 suivent le Vérif d'aujourd'hui.** La revue nommait WF-ADM-0090 et
+  WF-ADM-0110 ; aucune phrase de leur Vérif en 1.0.8 n'est celle des deux tests. Ils citent l'US
+  dont ils portent un critère, à moins que le lot ne trouve la phrase. Écarté : poser les marqueurs
+  de la revue, qui gonfleraient le relevé.
+- **Les fichiers des EPIC livrés se corrigent dans le lot du contrôle**, sur `epic/EP-36`. Écarté :
+  les corriger dans la pull request du cadrage — le contrôle qui les vérifie n'existe pas encore.
+  Qui clôt ne change nulle part.
+- **Le README garde un nombre, que l'outil tient.** Écarté : retirer le nombre — la phrase dit que
+  les exigences sont fixées, et le nombre la rend vérifiable.
+- **Le compte des déclencheurs est un plancher.** Écarté : une égalité, qui ferait échouer le lot
+  qui ajoute un dialogue ; la revue demande d'« échouer sur une baisse ».
+- **Les bulles du portefeuille se comptent par la table des valeurs.** Écarté : un nom accessible
+  par bulle, quatre cent vingt-neuf noms dans un dessin que la table dit déjà ; un attribut posé
+  sur le tracé, que le rendu d'ECharts ne porte pas.
+- **La flèche d'une liaison est nommée.** Écarté : un attribut `data-slot`, comme EP-25 l'a fait
+  pour la puce d'un risque survenu — il trouve la flèche sans la dire à qui ne la voit pas.
+- **La garde typographique est un test du front**, à côté de la garde des textes. Écarté :
+  `wftools.catalogs`, qui tient les catalogues au contrat, non leur rédaction.
+- **Aucune exemption à la garde de la sortie d'erreur** : la règle commune interdit de contourner
+  une règle dans le code, et la liste nommée de la garde des sauts naît vide.
+- **Une instabilité se ferme par sa cause**, ou se classe avec une hypothèse dans
+  `tools/queue-known.toml`, l'issue restant ouverte. Écarté : fermer sur des passages verts seuls
+  un parcours déjà vu en échec dans la file (#4140).
+- **Trois paquets pour import-linter**, ceux que le constat nomme. `waterfall.restore`,
+  `waterfall.bootstrap` et les migrations n'importent aucun fichier privé aujourd'hui, et ne sont
+  pas inscrits. Les objets ne bougent pas : l'interface les réexporte.
 
 ---
 
