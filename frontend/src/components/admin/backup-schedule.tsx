@@ -172,8 +172,9 @@ function scheduleOf(values: Draft, lockVersion: number): BackupSchedule {
 
 /**
  * The bounds of the retention of the backups, as the contract writes them
- * (`BackupSchedule.retained_count`, 1 to 365): out of them, the server refuses it, and gives the
- * least of the copies as 1 (`BackupExternalCopy.retained_count`).
+ * (`BackupSchedule.retained_count`, 1 to 365): out of them, the form says so at the field, as the
+ * server would (`VALUE_OUT_OF_RANGE`), and the server gives the least of the copies as 1
+ * (`BackupExternalCopy.retained_count`).
  */
 const RETENTION = { minimum: 1, maximum: 365 } as const;
 
@@ -196,6 +197,19 @@ function scheduleRules(
   locations: readonly ExternalBackupLocation[],
 ): ReadonlyMap<string, FieldProblem> {
   const refused = new Map<string, FieldProblem>();
+  // A whole number out of the bounds of the retention is refused at its field, before any sending.
+  const typed = values[RETAINED] ?? "";
+  if (/^-?\d+$/.test(typed)) {
+    const count = Number(typed);
+    const bound = count < RETENTION.minimum ? "minimum" : "maximum";
+    if (count < RETENTION.minimum || count > RETENTION.maximum) {
+      refused.set(RETAINED, {
+        pointer: `/${RETAINED}`,
+        code: "VALUE_OUT_OF_RANGE",
+        params: { [bound]: RETENTION[bound] },
+      });
+    }
+  }
   const location = values[LOCATION] ?? "";
   if (location === "") {
     return refused;

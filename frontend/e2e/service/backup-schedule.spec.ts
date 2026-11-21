@@ -22,13 +22,14 @@
  * API, never recomputed.
  *
  * The external copy: the installation declares its locations in a file its deployment mounts
- * (`external_backup_locations_file`), which neither the Compose of the platform of the paths nor the
- * chart mounts yet (#4655, to settle by the author). The platform of the paths declares none, and
- * this path plays what the service serves then: no location listed, the form of the schedule
+ * (`external_backup_locations_file`), which neither the Compose of the platform of the paths nor
+ * the chart mounts yet (#4655, to settle by the author). The platform of the paths declares none,
+ * and this path plays what the service serves then: no location listed, the form of the schedule
  * offering no copy, the test of a location the installation does not declare refused (404), a
  * copy set to such a location refused at its field (422, `UNKNOWN_EXTERNAL_BACKUP_LOCATION`). The
- * copy up to a location — the sentence « fichier témoin écrit puis effacé », the copy kept — waits
- * for a location declared on the platform of the paths.
+ * copy up to a location — the sentence « fichier témoin écrit puis effacé », the copy kept — is
+ * declared unexecuted (`test.fixme`, last of the file) until a location is declared on the
+ * platform of the paths.
  */
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
@@ -250,7 +251,11 @@ test("a backup taken is listed, marked to keep and released, filtered and sorted
         },
         { timeout: 240_000, intervals: [2_000] },
       )
-      .toMatch(/^(succeeded|failed)$/);
+      .toBe("succeeded");
+    // The contract links a backup to no task (`BackgroundTaskRef` names no backup, and the task has
+    // no result to read), so the backup is the one the list did not hold before. No other path of
+    // the project `service` takes one: `backups.spec.ts`, which does, is `@platform-wide` and plays
+    // alone, after the others (`playwright.config.ts`, project `restoration`).
     const taken = (await backups("?limit=100")).find((one) => !before.has(one.backup_id));
     expect(taken, "the backup of the path in the list").toBeDefined();
     const id = taken?.backup_id ?? "";
@@ -387,4 +392,12 @@ test("a backup taken is listed, marked to keep and released, filtered and sorted
     withdrawRoles(holder.email);
     await calls.dispose();
   }
+});
+
+test.fixme("the copy of a schedule to a declared location is chosen, its location tested (« fichier témoin écrit puis effacé »), kept and found on the location [WF-ADM-0170-A] [US-2910]", () => {
+  // Not played: the platform of the paths declares no location (#4655, to settle by the author).
+  // The path to write once it declares one: choose the location in « Copie externe vers » of the
+  // form of the schedule, press « Tester l’emplacement » and read the sentence « fichier témoin
+  // écrit puis effacé »; save the copy, read the schedule anew from the service with its
+  // `external_copy`; take a backup, and find its copy on the location, rotated by its retention.
 });

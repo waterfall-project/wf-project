@@ -353,14 +353,20 @@ describe("the backups", () => {
   });
 
   it("read the schedule and the locations of the service, none left out when it does not find them [WF-ADM-0170-A]", async () => {
+    // `readOrFail` turns a 404 into the not-found page of Next: neither read is left out.
+    const notFound = { digest: "NEXT_HTTP_ERROR_FALLBACK;404" };
     server.answers = { ...server.answers, "GET /backup-schedule": NOT_FOUND };
-    await expect(BackupsPage(searched())).rejects.toThrow();
+    await expect(BackupsPage(searched())).rejects.toMatchObject(notFound);
+    expect(queriesOf("GET /backup-schedule")).toHaveLength(1);
+    server.clients = [];
     server.answers = {
       ...server.answers,
       "GET /backup-schedule": "backup_schedule",
       "GET /external-backup-locations": NOT_FOUND,
     };
-    await expect(BackupsPage(searched())).rejects.toThrow();
+    // The session of the contract may modify the backups: the locations are read, and tried.
+    await expect(BackupsPage(searched())).rejects.toMatchObject(notFound);
+    expect(queriesOf("GET /external-backup-locations")).toHaveLength(1);
   });
 
   it("present the download and the restoration of a backup not verified unavailable, with the condition it lacks, as the backups list it [WF-IHM-0090-A]", async () => {
