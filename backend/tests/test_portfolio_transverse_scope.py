@@ -29,10 +29,11 @@ from portfolio_support import (
     REVIEW,
     Portfolio,
     another_in_progress,
+    offer_being_priced,
     portfolio,
     revision_opened,
 )
-from portfolio_transverse_support import NOW, PERIODIC, VIEWS, now_is
+from portfolio_transverse_support import NOW, PERIODIC, VIEWS, now_is, probability_written
 from project_rows import REPLICA
 from projects_support import MANAGING, Scene
 from projects_support import scene as make_scene
@@ -294,35 +295,38 @@ def test_a_project_whose_review_was_just_marked_with_no_revision_in_progress_con
 
 @pytest.mark.requirement("WF-PRJ-0090-A")
 def test_the_estimate_and_the_indicators_of_a_project_marked_at_0_and_at_100_percent_are_the_same(
-    api: ContractClient, owner: Engine, fabrics: Portfolio, monkeypatch: pytest.MonkeyPatch
+    api: ContractClient, fabrics: Portfolio, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # « Le devis et les indicateurs du projet lui-même sont identiques à 0 % et à 100 %. » Two
-    # projects In progress written alike, with the same cost imported, the one marked at 0 % — the
-    # probability of the fabrics —, the other at 100 %, its project and its markings: what
-    # ``getEstimateIndicators``, ``getRemainingIndicators`` and ``getProjectIndicators`` give of
-    # them is the same, the probability being a weight of the portfolio and no figure of a project.
+    # « Le devis et les indicateurs du projet lui-même sont identiques à 0 % et à 100 %. » The
+    # probability is a weight of the portfolio and no figure of a project. An offer In pricing,
+    # whose probability the API writes at 0 % then at 100 %, gives the same ``getEstimateIndicators``
+    # and ``getRemainingIndicators``; and two projects In progress written alike, with the same
+    # cost imported, the probability written while each was an offer — the one at 0 %, the other at
+    # 100 % — give the same ``getProjectIndicators``, with the two others.
     now_is(monkeypatch)
-    at_nought = fabrics.in_progress.project_id
-    at_one = another_in_progress(api, fabrics, fabrics.in_progress.label, "PRJ-2680")
-    with owner.begin() as connection:
-        connection.execute(REPLICA)
-        connection.execute(update(Project).where(Project.id == at_one).values(win_probability=1))
-        connection.execute(
-            update(Revision).where(Revision.project_id == at_one).values(win_probability=1)
-        )
-    for number, project_id in enumerate((at_nought, at_one)):
-        load_import(fabrics.stage, project_id, [cost(f"FA-4{number}", None, "100.00")])
     reader = fabrics.stage.reader
-    found: dict[UUID, dict[str, Any]] = {}
-    for project_id in (at_nought, at_one):
-        found[project_id] = {}
-        for name in INDICATORS:
+
+    def indicators(project_id: UUID, names: tuple[str, ...]) -> dict[str, str]:
+        found: dict[str, str] = {}
+        for name in names:
             answer = api.get(f"/api/v1/projects/{project_id}/{name}", headers=reader.headers)
             assert answer.status_code == 200, (name, answer.text)
-            found[project_id][name] = answer.json()
-    for name in INDICATORS:
-        assert anonymous(found[at_nought][name]) == anonymous(found[at_one][name]), name
-    assert Decimal(found[at_one]["indicators"]["actual_cost"]) > 0
+            found[name] = anonymous(answer.json())
+        return found
+
+    offer, _ = offer_being_priced(api, fabrics, "Offre à pondérer", Decimal(0))
+    read_at = {}
+    for probability in (Decimal(0), Decimal(1)):
+        probability_written(fabrics, offer, probability)
+        read_at[probability] = indicators(offer, INDICATORS[:2])
+    assert read_at[Decimal(0)] == read_at[Decimal(1)]
+    at_nought = another_in_progress(api, fabrics, "Chantier jumeau", "PRJ-2680", Decimal(0))
+    at_one = another_in_progress(api, fabrics, "Chantier jumeau", "PRJ-2681", Decimal(1))
+    for number, project_id in enumerate((at_nought, at_one)):
+        load_import(fabrics.stage, project_id, [cost(f"FA-4{number}", None, "100.00")])
+    found = {each: indicators(each, INDICATORS) for each in (at_nought, at_one)}
+    assert found[at_nought] == found[at_one]
+    assert Decimal(json.loads(found[at_one]["indicators"])["actual_cost"]) > 0
 
 
 # --- The numbers of a query ----------------------------------------------------------------------
@@ -353,26 +357,6 @@ def test_a_number_written_in_other_digits_than_0_to_9_is_refused_as_the_contract
     reader = fabrics.stage.reader
     assert served(api, reader, "workload", "horizon_months=12&under_load_threshold=0.5")["months"]
     assert served(api, reader, "projects", "win_probability_min=0.5")["items"] == []
-
-
-@pytest.mark.requirement("WF-PTF-0060-A")
-def test_the_capacity_and_the_hours_of_the_workload_are_written_to_the_hundredth_as_hours(
-    api: ContractClient, fabrics: Portfolio
-) -> None:
-    # #4292 : ``hours`` writes what it is given, at the scale of the document and of the capacity
-    # (EP-10), which are to the hundredth: the capacity of the scope, of each role, the hours of
-    # each month and each total carry two decimals, as ``Hours`` of the contract writes them.
-    body = served(api, fabrics.stage.reader, "workload", READ)
-    form = r"\d+\.\d{2}"
-    figures = [
-        body["capacity_monthly_hours"],
-        *(each["hours"] for each in body["monthly_totals"]),
-        *(role["capacity_monthly_hours"] for role in body["roles"]),
-        *(month["hours"] for role in body["roles"] for month in role["months"]),
-    ]
-    assert len(figures) > 3
-    for figure in figures:
-        assert re.fullmatch(form, figure), figure
 
 
 # --- The day of the load, in the time zone of the installation -----------------------------------

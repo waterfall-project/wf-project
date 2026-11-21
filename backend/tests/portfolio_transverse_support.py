@@ -13,14 +13,16 @@ from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 from portfolio_listing_support import kept_changed
-from portfolio_support import OFFER_PROBABILITY, Portfolio, revision_opened
+from portfolio_support import OFFERS_OPENED, OFFER_PROBABILITY, Portfolio, revision_opened
 from projects_support import MANAGING
 
 from waterfall.core.projects.interface import (
     ExitRequest,
+    ProjectChange,
     Viewer,
     exit_project,
     stored_lock_version,
+    update_project,
 )
 from waterfall.core.revisions.interface import mark_revision
 from waterfall.platform.audit import Act
@@ -125,3 +127,11 @@ def exited(fabrics: Portfolio, project_id: UUID, to_state: ExitState, instant: d
     with logging_context(correlation_id="exit"), fabrics.stage.database.transaction() as session:
         request = ExitRequest(to_state, None, stored_lock_version(session, project_id))
         exit_project(session, project_id, request, Act(manager, instant), Viewer(manager, MANAGING))
+
+
+def probability_written(fabrics: Portfolio, project_id: UUID, probability: Decimal) -> None:
+    """Write the probability of winning of a project In pricing, as its manager does."""
+    manager = fabrics.stage.manager.user_id
+    with logging_context(correlation_id="probability"), fabrics.stage.database.transaction() as s:
+        change = ProjectChange({"win_probability": probability}, stored_lock_version(s, project_id))
+        update_project(s, project_id, change, Act(manager, OFFERS_OPENED), Viewer(manager, MANAGING))

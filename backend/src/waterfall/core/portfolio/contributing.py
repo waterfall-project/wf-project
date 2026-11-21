@@ -88,13 +88,8 @@ DAY_KINDS: tuple[IndicatorKind, ...] = (
 type Documents = Mapping[IndicatorKind, Document]
 
 
-def _hours(value: Decimal) -> str:
-    """Write hours or an amount as the contract does, without an exponent."""
-    return format(value, "f")
-
-
-def _probability(value: Decimal) -> str:
-    """Write a probability or a severity of a risk as the register keeps it (``0.3000``)."""
+def _decimal_text(value: Decimal) -> str:
+    """Write hours, an amount, a probability or a severity as the contract does, without exponent."""
     return format(value, "f")
 
 
@@ -123,7 +118,7 @@ def workload_document(
             {
                 "resource_role_id": str(role.resource_role_id),
                 "months": [
-                    {"month": each.month, "hours": _hours(each.hours)} for each in role.months
+                    {"month": each.month, "hours": _decimal_text(each.hours)} for each in role.months
                 ],
             }
             for role in roles
@@ -143,7 +138,7 @@ def _entry(
     name, identifier = key
     missing = lacking.get(identifier, ())
     if not missing:
-        return {name: str(identifier), "amount": _hours(amount)}
+        return {name: str(identifier), "amount": _decimal_text(amount)}
     return {
         name: str(identifier),
         "amount": None,
@@ -192,7 +187,7 @@ def cost_structure_document(session: Session, project_id: UUID, revision_id: UUI
 
 def _amount(value: Decimal | None) -> str | None:
     """Write an amount that may be null: ``None`` for none."""
-    return None if value is None else _hours(value)
+    return None if value is None else _decimal_text(value)
 
 
 def risks_document(session: Session, project_id: UUID, revision_id: UUID) -> Document:
@@ -206,14 +201,14 @@ def risks_document(session: Session, project_id: UUID, revision_id: UUID) -> Doc
     """
     read = portfolio_risks(session, project_id, revision_id)
     return {
-        "base": _hours(read.base),
+        "base": _decimal_text(read.base),
         "risks": [
             {
                 "risk_id": str(each.risk_id),
                 "label": each.label,
-                "probability": _probability(each.probability),
-                "severity": _probability(each.severity),
-                "provision_amount": _hours(each.provision_amount),
+                "probability": _decimal_text(each.probability),
+                "severity": _decimal_text(each.severity),
+                "provision_amount": _decimal_text(each.provision_amount),
                 "state": each.state,
                 "occurrence_cost": _amount(each.occurrence_cost),
                 "occurred_reestimated_amount": _amount(each.occurred_reestimated_amount),

@@ -271,7 +271,8 @@ section qui la porte, et rien d'autre dans la conception ne change.
   maximale, 422 `VALUE_OUT_OF_RANGE` sur la période, au lieu d'une lecture par trimestre touché sans
   limite. Écartées : lire les documents conservés de tous les trimestres en une requête ; laisser
   tel quel et attendre la mesure. Porté par US-2670/L4 #3873, qui éprouve la règle des périodes sur
-  les six vues ; **la durée maximale est de cinq ans** (proposée par le lot, dans `docs/api/DECISIONS.md`).
+  les six vues ; **la durée maximale n'est pas fixée** : le lot la propose dans son issue : cinq ans,
+  proposés dans un commentaire de #3873.
 - **Un exemple de 422 de `getPortfolioProjects` sur la période du périmètre** (#4164) : période
   inversée avec `as_of`, champs `/query/from` et `/query/to`, au contrat, que le test de l'écran lit
   au lieu de composer ses champs. Porté par US-2760/L2 #3884.

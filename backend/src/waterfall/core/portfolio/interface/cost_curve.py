@@ -3,22 +3,23 @@
 """The S-curve of the portfolio (``getPortfolioCostCurve``; US-2740).
 
 The curves of the projects In progress or Completed — the documents ``cost_curve`` and
-``cost_curve_payment_delays`` of the indicators (EP-10), those ``getCostCurve`` gives on the current
-day, those their last marking kept at a past date — and, for an offer, ``portfolio_offer_curves``
+``cost_curve_payment_delays`` of the indicators (EP-10), those ``getCostCurve`` gives on the
+current day, those their last marking kept at a past date — and, for an offer,
+``portfolio_offer_curves``
 weighted by its probability of winning, summed month by month over the twelve months before that of
 the date of calculation and the ``horizon_months`` months from it, whatever the period, which only
-chooses the projects Completed (``resolve_scope``, G-05). Nothing is calculated again (WF-PTF-0100):
-a point of the S-curve is the sum, over the projects, of the point of theirs at that date, each
-rounded once.
+chooses the projects Completed (``resolve_scope``, G-05). Nothing is calculated again
+(WF-PTF-0100): a point of the S-curve is the sum, over the projects, of the point of theirs at that
+date, each rounded once.
 
 A curve of a project is cumulative and stepped at its points: its value at a date is that of its
 last point on or before it (``value_at``), nought before its first and its final value after its
-last — a series without points, a project that kept no curves, adds nothing. The reference budget is
-read at the end of each month of the window; the actual cost at the end of each month before the
-date of calculation and at that date; the projection of the project manager at that date and at the
-end of each month after it. With the payment delays the series are those of the cash-out of each
-project, and ``cash_out_by_month`` sums the details of theirs by month, a month of the window none
-holds being nought; without them it is null.
+last — a series without points, a project that kept no curves, adds nothing. The reference
+budget is read at the end of each month of the window; the actual cost at the end of each month
+before the date of calculation and at that date; the projection of the project manager at that date
+and at the end of each month after it. With the payment delays the series are those of the cash-out
+of each project, and ``cash_out_by_month`` sums the details of theirs by month, a month of the
+window none holds being nought; without them it is null.
 
 Declared by US-2670/L1, the socle of EP-11; filled by US-2740.
 """

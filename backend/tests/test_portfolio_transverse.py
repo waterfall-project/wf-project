@@ -85,7 +85,15 @@ def test_the_projects_in_pricing_add_their_weighted_contribution_to_each_view_th
     reader = fabrics.stage.reader
     found = {
         (view, states): served(api, reader, view, f"{READ}&states={states}")
-        for view in ("value", "workload", "cost-structure", "cost-curve", "risks", "performance")
+        for view in (
+            "projects",
+            "value",
+            "workload",
+            "cost-structure",
+            "cost-curve",
+            "risks",
+            "performance",
+        )
         for states in ("in_progress", "pricing", "in_progress,pricing")
     }
 
@@ -99,6 +107,17 @@ def test_the_projects_in_pricing_add_their_weighted_contribution_to_each_view_th
         return found[view, "in_progress,pricing"]
 
     assert both("value")["scope"]["project_count"] == 2
+    # The list: the row of the offer comes with ``pricing``, whole and in the state it holds. The
+    # health of the control (``getPortfolioPilotHealth``) is not read here: it counts the projects
+    # In progress alone, a state it does not count being without effect, so that no offer adds to it.
+    rows = {
+        states: [(each["project_id"], each["state"]) for each in found["projects", states]["items"]]
+        for states in ("in_progress", "pricing", "in_progress,pricing")
+    }
+    offer = (str(fabrics.offer.project_id), "pricing")
+    assert rows["pricing"] == [offer]
+    assert offer not in rows["in_progress"]
+    assert sorted(rows["in_progress,pricing"]) == sorted([*rows["in_progress"], offer])
     # The value: the order book is the projects In progress, the pipeline the offers, gross whole
     # and weighted at 40 %; the difference of the weighted pipeline is the offer at its probability.
     assert both("value")["order_book"] == without("value")["order_book"]
@@ -167,12 +186,20 @@ def test_a_past_date_is_reached_by_no_later_marking_no_later_import_and_no_later
     running = fabrics.in_progress.project_id
     query = f"as_of={READ_ON}&states={COUNTED}"
     before = {view: served(api, reader, view, query) for view in VIEWS}
+    after_marking, after_import = (f"as_of={day}&states={COUNTED}" for day in ("2026-06-11", "2026-06-13"))
+    unwritten = [served(api, reader, "projects", each) for each in (after_marking, after_import)]
     marked_on(api, fabrics, running, "Revue de juin", at(6, 10))
     load_import(fabrics.stage, running, [cost("FA-2001", None, "250.00")], at=at(6, 12))
     exited(fabrics, running, "completed", at(7, 1))
     for view in VIEWS:
         assert served(api, reader, view, query) == before[view], view
     assert before["performance"]["scope"]["project_count"] == 1
+    # The control that the writes landed, so that the stability is not true of nothing: a date after
+    # the marking, then after the import, then after the completion, gives another answer.
+    written = [served(api, reader, "projects", each) for each in (after_marking, after_import)]
+    assert written[0] != unwritten[0]
+    assert written[1] != unwritten[1]
+    assert written[1] != written[0]
     assert served(api, reader, "performance", "as_of=2026-07-02")["scope"]["project_count"] == 0
 
 
