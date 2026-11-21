@@ -48,16 +48,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
+        part: ["1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
     # Each half took 10 to 16 minutes before the witness was loaded once by each process (#2157),
     # then 10 to 18 on 2026-11-12 and 13; four parts (US-1910) then played in 11 to 12. The witness
-    # of EP-08 (US-2650/L1) doubles the cost of a load: the quarters took 12 to 20 minutes and more,
-    # and two were cancelled at 20 (run 44790137342). Six parts of a sixth of the tests each, by the
-    # decision of 2026-11-20, bring them back under the delay, which stays at 20 minutes: a margin
-    # to the slowest runner rather than a wait. The slice of the portfolio (US-2770/L2) took the
-    # sixths to 13 to 18 minutes, and one was cancelled at 20 in the merge queue (run 44927736116):
-    # eight parts, and 25 minutes, the time to measure the witness and mend it apart.
-    timeout-minutes: 25
+    # of EP-08 (US-2650/L1) doubled the cost of a load, and the slice of the portfolio (US-2770/L2)
+    # again: eight parts took 10 to 17 minutes, several frozen (runs 44945586307, 44945620214). The
+    # witness is now loaded once by a part, into a template each test on it copies (US-2770/L2b,
+    # #4653): the eight parts took 6 to 10 minutes (run 44957647502), so six bring each under the
+    # delay of 20 minutes, a margin to the slowest runner rather than a wait.
+    timeout-minutes: 20
     services:
       postgres:
         # The version the platform targets (deploy/compose/compose.service.yaml), by its digest.
@@ -142,8 +141,6 @@ jobs:
         env:
           TIER: ${{ inputs.tier }}
           SHARD: ${{ matrix.part }}
-          # The fifty longest steps of the part (#4653, temporary measure).
-          PYTEST_ADDOPTS: --durations=50
           # A role that may create databases: each run creates its own and drops it.
           WATERFALL_TEST_DATABASE_URL: postgresql://postgres@localhost:5432/postgres
           WATERFALL_TEST_REDIS_URL: redis://127.0.0.1:6379/0

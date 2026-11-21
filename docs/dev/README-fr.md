@@ -3720,15 +3720,16 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   écrit ce cache et le magasin de pnpm après chaque fusion, sur la branche dont les pull requests et
   la file de fusion lisent les caches : sans lui, elles ne trouveraient rien.
   `back.yml` répartit de même le back : un runner tient le lint, les types et les frontières du
-  cœur (`make check-back-static`), huit jouent chacun le huitième des tests, avec leurs services
-  (`make check-back-tests`, `SHARD=1/8` à `SHARD=8/8`), et au palier complet un dernier rassemble
-  leur couverture et la tient à ses seuils (`make coverage-back-merge`). Un huitième est un test sur
-  huit dans l'ordre de leur collecte (`--shard`, `backend/tests/conftest.py`), plutôt que des
+  cœur (`make check-back-static`), six jouent chacun le sixième des tests, avec leurs services
+  (`make check-back-tests`, `SHARD=1/6` à `SHARD=6/6`), et au palier complet un dernier rassemble
+  leur couverture et la tient à ses seuils (`make coverage-back-merge`). Un sixième est un test sur
+  six dans l'ordre de leur collecte (`--shard`, `backend/tests/conftest.py`), plutôt que des
   fichiers entiers : les fichiers qui chargent le témoin, les plus longs, sont répartis sur les
-  huit.
-  Le témoin n'est chargé par la commande qu'une fois par processus de pytest ; les tests suivants
-  retrouvent ses lignes recopiées (`backend/tests/witness_rows.py`, #2157). Sur un runner, chaque
-  test qui le demandait payait son chargement, plus de six minutes en tout. `keycloak.yml`
+  six.
+  Le témoin n'est chargé par la commande qu'une fois par part, dans une base modèle que copie
+  chaque test qui le demande (`backend/tests/witness_template.py`, #4653, « Un test contre
+  PostgreSQL ») : les huit parts de 10 à 17 minutes, dont plusieurs figées, sont passées à 6 à
+  10 minutes (passages 44945620214, puis 44957647502), d'où six parts sous 20 minutes. `keycloak.yml`
   construit l'image de Keycloak et l'éprouve sur la plateforme de service, son royaume appliqué
   (`make check-keycloak`), aux deux paliers : la famille `keycloak` se réveille sur
   `deploy/keycloak/`, sur les fichiers de la plateforme qui la démarrent, sur ses tests, sur tout le
@@ -4401,11 +4402,11 @@ processus, puis reposé et ses partitions supprimées autour de chaque test (#21
 tiers du temps des tests. Un test qui change la façon dont la commande le charge le charge
 lui-même, sur la base du processus (`witness_loaded`).
 
-Un test qui se fige échoue au bout de dix minutes, nommé, sa trace là où il s'est arrêté
+Un test qui se fige échoue au bout de huit minutes, nommé, sa trace là où il s'est arrêté
 (`pytest-timeout`, `timeout` de `backend/pyproject.toml`, par `SIGALRM`) : son processus passe au
 suivant, au lieu de figer sa part de la chaîne jusqu'à l'annulation du travail (#4653). Le plus
-long test qui ne se fige pas recharge le témoin dans son corps : 230 secondes au plus sur un
-runner.
+long test qui ne se fige pas charge le témoin lui-même : 216 secondes au plus sur un runner
+(passage 44957647502), et un runner est jusqu'à deux fois plus lent qu'un autre.
 
 - **Dans la chaîne**, `back.yml` démarre PostgreSQL en service du travail et pose la variable.
 - **Sur un poste**, le Makefile s'en charge : `make test-back` et `make coverage-back` démarrent
