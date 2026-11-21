@@ -30,7 +30,7 @@ from task_handlers import REQUEST, deposit, task
 from waterfall import __version__
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.core.backups.interface import TakenBackup, add_backup
+from waterfall.core.backups.interface import TakenBackup, add_backup, last_scheduled_outcome
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import Database, create_database_engine, engine_url, utc_now
 from waterfall.platform.errors import UnavailableError
@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from openapi_core import OpenAPI
+    from sqlalchemy.orm import Session
 
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
@@ -309,17 +310,81 @@ class Corrupting(Bucket):
         path.write_bytes(bytes(damaged))
 
 
-def test_an_archive_that_does_not_read_back_whole_is_listed_with_a_verification_failed(
-    database: Database, run: Run, databases: dict[str, str], backups_bucket: Bucket
+FAILED_VERIFICATION = {
+    "code": "INTERNAL_ERROR",
+    "status": 500,
+    "correlation_id": REQUEST,
+}
+
+
+def failed_problem(database: Database, task_id: UUID) -> dict[str, Any]:
+    """Read the problem of a task that failed, whole."""
+    failed = task(database, task_id)
+    assert failed.status == "failed"
+    assert failed.result is None
+    assert failed.problem is not None
+    return dict(failed.problem)
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_an_archive_that_does_not_read_back_whole_fails_its_scheduled_task_and_stays_listed(
+    database: Database,
+    run: Run,
+    databases: dict[str, str],
+    backups_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The verification is what tells a backup from a file one hopes to restore (WF-ADM-0150): read
-    # back damaged, the backup is listed, and says it failed.
+    # « Une archive qui échoue à sa vérification fait échouer sa tâche » (#4230, US-2910): read
+    # back damaged, the backup is listed with its archive, ``failed``; its task fails by an
+    # INTERNAL_ERROR under its correlation, and neither rotation nor copy follows.
+    rotations: list[int] = []
+
+    def rotate_spy(session: Session, retained_count: int) -> list[str]:
+        del session, retained_count
+        rotations.append(1)
+        return []
+
+    monkeypatch.setattr(backup_module, "rotate", rotate_spy)
     corrupting = Corrupting(backups_bucket.client, backups_bucket.name)
     task_id = run(BackupTask(databases, corrupting))
-    assert task(database, task_id).result is not None
+    problem = failed_problem(database, task_id)
+    assert {key: problem[key] for key in FAILED_VERIFICATION} == FAILED_VERIFICATION
+    with database.transaction() as session:
+        rows = session.execute(text("SELECT verification, origin, object_key FROM backup")).all()
+        copies = session.execute(text("SELECT count(*) FROM task WHERE kind = 'backup_copy'"))
+        copied = copies.scalar_one()
+        # One source of the failure: the task, which the gauge and the screen of the state read.
+        outcome = last_scheduled_outcome(session)
+    assert [tuple(row) for row in rows] == [("failed", "scheduled", f"backup-{task_id}.tar")]
+    assert keys_of(backups_bucket, f"backup-{task_id}") == [f"backup-{task_id}.tar"]
+    assert rotations == []
+    assert copied == 0
+    assert outcome is not None
+    assert not outcome.succeeded
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_an_archive_that_does_not_read_back_whole_fails_a_manual_backup_the_same_way(
+    database: Database,
+    queue: TaskQueue,
+    databases: dict[str, str],
+    backups_bucket: Bucket,
+) -> None:
+    # The same for a backup an account asked for: a row ``failed`` and its archive, the task failed,
+    # the journal inscribing the backup by its author (#4230).
+    asker = account(database, "Martin", uuid4().hex[:8])
+    corrupting = Corrupting(backups_bucket.client, backups_bucket.name)
+    worker = worker_of(database, queue, BackupTask(databases, corrupting))
+    task_id = deposit(database, queue, "backup", requested_by=asker)
+    assert worker.step()
+    problem = failed_problem(database, task_id)
+    assert {key: problem[key] for key in FAILED_VERIFICATION} == FAILED_VERIFICATION
     with database.transaction() as session:
         rows = session.execute(text("SELECT verification, origin FROM backup")).all()
-    assert [tuple(row) for row in rows] == [("failed", "scheduled")]
+        outcome = last_scheduled_outcome(session)
+    assert [tuple(row) for row in rows] == [("failed", "manual")]
+    assert keys_of(backups_bucket, f"backup-{task_id}") == [f"backup-{task_id}.tar"]
+    assert outcome is None
 
 
 DATABASE = "database"

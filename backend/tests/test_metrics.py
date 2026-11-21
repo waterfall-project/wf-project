@@ -18,7 +18,7 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi.testclient import TestClient
 from metrics_reading import Samples, samples, value
-from sqlalchemy import delete, insert, update
+from sqlalchemy import delete, insert
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import QueuePool
 from support import PLATFORM_SECRETS, ContractClient, raw_account
@@ -392,25 +392,6 @@ def test_a_scheduled_backup_that_succeeded_stays_succeeded_once_the_rotation_rem
     read = served.collect()
     assert value(read, LAST_RUN_SUCCESS, run="scheduled_backup") == 1
     assert value(read, LAST_RUN_TIMESTAMP, run="scheduled_backup") == now.timestamp()
-
-
-def test_a_scheduled_backup_whose_archive_failed_its_verification_is_still_succeeded(
-    platform: MakePlatform, database: Database
-) -> None:
-    # Proper to US-2870: the gauge follows the contract, where the failure of a backup is that of
-    # its task (``OperationOutcome.problem``): a task that ended with its archive unverified
-    # (``{"verification": "failed"}``) succeeded. Whether an unverified archive is a failure of the
-    # gauge is for the author to decide (#4230); this test then changes with that decision.
-    now = utc_now().replace(microsecond=0)
-    task_id = ended_task(database, "backup", now, succeeded=True)
-    with database.transaction() as session:
-        session.execute(
-            update(BackgroundTask)
-            .where(BackgroundTask.id == task_id)
-            .values(result={"verification": "failed"})
-        )
-    read = platform().collect()
-    assert value(read, LAST_RUN_SUCCESS, run="scheduled_backup") == 1
 
 
 @pytest.mark.requirement("WF-OBS-0010-A")

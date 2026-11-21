@@ -17,7 +17,9 @@ the bucket and verified: the manifest read, each dump against its digest, each d
 ``pg_restore``. The backup is recorded with the outcome of that verification, and inscribed in the
 journal at its date. A backup verified turns the list: the oldest backups not marked beyond the
 retention of the schedule go, and their archives with them once the transaction is committed
-(WF-ADM-0170).
+(WF-ADM-0170). An archive that fails its verification fails the task, manual or scheduled, by
+``UndoneError``: the work is undone, then the row is written, ``failed``, with its archive; neither
+the rotation nor a copy follows, and the task alone says the failure (#4230).
 """
 
 import hashlib
@@ -46,10 +48,11 @@ from waterfall.platform.database import engine_url, utc_now
 from waterfall.platform.errors import UnavailableError
 from waterfall.platform.logs import get_logger
 from waterfall.platform.storage import Bucket
+from waterfall.platform.tasks import UndoneError
 from waterfall.worker.identity_sync import after_commit
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
     from datetime import datetime
 
     from psycopg.rows import TupleRow
@@ -70,6 +73,10 @@ SERVICE = "backup"
 UNREACHED = "backup.database_unreached"
 
 logger = get_logger(__name__)
+
+
+class UnverifiedArchiveError(RuntimeError):
+    """An archive that failed its verification: the task fails as an internal error (#4230)."""
 
 
 class DumpError(RuntimeError):
@@ -283,16 +290,34 @@ class BackupTask:
                     revision,
                     is_verified=is_verified,
                 )
-                backup_id = add_backup(session, taken, Act(task.requested_by, taken_at))
                 if is_verified:
+                    backup_id = add_backup(session, taken, Act(task.requested_by, taken_at))
                     self._rotate(session)
+                    logger.info("backup.taken", backup_id=str(backup_id), size_bytes=size_bytes)
+                    return {"backup_id": str(backup_id), "verification": "passed"}
             except BaseException:
                 self._discard(key)
                 raise
-        logger.info(
-            "backup.taken", backup_id=str(backup_id), size_bytes=size_bytes, verified=is_verified
-        )
-        return {"backup_id": str(backup_id), "verification": "passed" if is_verified else "failed"}
+            # The archive stays: the row the trace writes names it (#4230).
+            raise UndoneError(UnverifiedArchiveError(key), self._failed_trace(task, taken))
+
+    @staticmethod
+    def _failed_trace(task: Task, taken: TakenBackup) -> Callable[[Session], None]:
+        """Write the backup whose archive failed its verification, once the task's work is undone.
+
+        The row stays listed, ``verification`` at ``failed``, with its archive; no rotation and no
+        external copy follow (WF-ADM-0170, #4230). The task itself fails as an internal error.
+        """
+
+        def trace(session: Session) -> None:
+            backup_id = add_backup(session, taken, Act(task.requested_by, taken.taken_at))
+            logger.error(
+                "backup.verification_failed",
+                backup_id=str(backup_id),
+                size_bytes=taken.size_bytes,
+            )
+
+        return trace
 
     def _rotate(self, session: Session) -> None:
         """Turn the list under the retention of the schedule; remove the archives once committed."""
