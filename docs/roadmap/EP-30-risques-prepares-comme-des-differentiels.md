@@ -88,10 +88,13 @@ regard), WF-RIS-0060 (la survenance) et WF-IND-0030 (la valeur acquise d'une tâ
 termine). Trois exigences nouvelles sont proposées, et entreront à ce tableau, entières, quand la
 1.0.9 les aura écrites : « Mise à jour du devis propre d'un risque » (WF-RIS-0070), « Gravité d'un
 risque » (WF-RIS-0080) et « Marque d'une survenance sur les courbes de valeur acquise »
-(WF-IND-0140). WF-RIS-0020 et WF-REV-0110, dont aucune phrase de Vérif ne change, et WF-REV-0100,
-dont seul le corps est retouché, restent closes par EP-08 ; WF-PTF-0090 et WF-IND-0110, dont le
-texte ne change pas, par les EPIC qui les ont réalisées. WF-QUA-0040 entre au tableau en portée «
-début » : cet EPIC recharge sa tranche du jeu de données de référence, qu'EP-13 clôt.
+(WF-IND-0140). Le texte proposé, corps et Vérif, est dans quatre issues de spécification : #4516, le
+devis propre et sa mise à jour ; #4517, la gravité, l'opportunité et la tendance ; #4518, la
+survenance et la couverture ; #4519, la valeur acquise et sa marche. WF-RIS-0020 et WF-REV-0110,
+dont aucune phrase de Vérif ne change, et WF-REV-0100, dont seul le corps est retouché, restent
+closes par EP-08 ; WF-PTF-0090 et WF-IND-0110, dont le texte ne change pas, par les EPIC qui les ont
+réalisées. WF-QUA-0040 entre au tableau en portée « début » : cet EPIC recharge sa tranche du jeu de
+données de référence, qu'EP-13 clôt.
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -157,8 +160,8 @@ suivre.
 
 La spécification 1.0.9, écrite par son auteur et acceptée avant l'ouverture des issues des lots :
 elle redit les six exigences du tableau et écrit les trois nouvelles, d'après le texte que ce
-cadrage propose (issues de spécification, ouvertes à la validation des US). Les critères « propre à
-l'US, texte proposé » deviennent alors des citations de Vérif.
+cadrage propose (#4516, #4517, #4518, #4519). Les critères « propre à l'US, texte proposé »
+deviennent alors des citations de Vérif.
 
 ## Définition de fini
 
