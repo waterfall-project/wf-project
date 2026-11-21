@@ -357,7 +357,12 @@ def change_identity(
     if current is not None:
         structure_facts(session, project_id, current.structure_id, lock=True)
     risk = found_risk(session, project_id, change.risk_id, lock=True)
-    # The evaluation to read is the current revision's, already read; else the last marked (404).
+    # The evaluation to read is the current revision's; else the last marked (404). The entries of
+    # the risk judge it under its lock, not under that of the project (``enter`` locks the project
+    # only to open a revision), so the evaluation read before the locks may be stale: it is read
+    # again, under the lock of the risk, which every write of its state holds.
+    if current is not None:
+        session.refresh(current)
     evaluation = (
         current
         if current is not None
