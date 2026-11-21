@@ -33,7 +33,9 @@ ses exigences avant l'ouverture des issues de ses lots.
 - la lecture, avant la survenance, du planning et du devis entiers avec le risque appliqué : la
   grille d'un devis propre montre le projet du jour et ce que le risque y désigne ;
 - la mise à jour d'un devis propre depuis la structure principale, son compte rendu, et ce qui
-  l'exige : la saisie dans le devis propre, le réexamen, la survenance ;
+  l'exige : la saisie dans le devis propre, le réexamen, la survenance, et le marquage d'une
+  révision comme la contractualisation d'un avenant, pour que la gravité qu'une révision fige soit
+  juste ;
 - la gravité d'un risque, écart net entre le projet avec le risque et le projet sans lui, la
   provision qui en est tirée, et l'opportunité, dont la gravité est négative ;
 - la gravité d'un risque survenu, lue à son coût à la survenance dans les révisions qui suivent
@@ -56,8 +58,9 @@ ses exigences avant l'ouverture des issues de ses lots.
 
 - la base d'un différentiel d'avenant et sa mise à jour depuis la structure principale — EP-08
   (#4034, #4132), dont cet EPIC réutilise les règles et les deux opérations ;
-- l'avenant, sa fusion et le déplacement de la référence — EP-08 ; la fusion d'un avenant ne lit ni
-  n'écrit aucun devis propre ;
+- l'avenant, sa fusion et le déplacement de la référence — EP-08 ; la fusion d'un avenant n'écrit
+  aucun devis propre, et cet EPIC ne lui ajoute qu'un refus, tant qu'un risque identifié a le sien
+  en retard ;
 - la reprise des devis propres saisis sous EP-08 : aucune base à conserver n'en porte, et la
   migration refuse de s'appliquer si elle en trouve un (décision de l'auteur du 2026-11-21) ;
 - les vues du portefeuille — EP-11 ; ici, ce que la gravité signée change à leurs lectures des
@@ -108,7 +111,9 @@ code qui la consomme. La conception en dira le détail ; ce que les US demandent
   et `rebaseCostStructure` l'acceptent, sous la permission de la saisie des risques ;
   `CostStructure` dit un devis propre à jour ou en retard, et liste sa commande de mise à jour ;
 - un refus de plus, sur un devis propre en retard, pour les écritures de l'arbre et les imports sur
-  un devis propre, pour `reviewRisk`, `getRiskOccurrenceReport` et `declareRiskOccurrence` ;
+  un devis propre, pour `reviewRisk`, `getRiskOccurrenceReport` et `declareRiskOccurrence` ; et,
+  tant qu'un risque identifié de la révision a son devis propre en retard, pour `markRevision`,
+  `getStructureMergeReport` et `mergeCostStructure` ;
 - `Risk` : une gravité et un coût à la survenance signés, ce dont la gravité dépend
   (`computed_fields`), le réestimé présenté en regard redit, et les commandes d'un risque dont le
   devis propre est en retard ;
@@ -128,8 +133,9 @@ Servies par EP-08 ou par EP-11, et reprises ici pour ce que cet EPIC y change :
   `updateRiskProvision`, `getRiskOccurrenceReport`, `declareRiskOccurrence`,
   `getProjectRiskCoverage`, `getProjectRiskMatrix` ;
 - `revisions` : `listCostStructures`, `getStructureRebaseReport`, `rebaseCostStructure`,
-  `createRevision`, `abandonRevision`, `compareRevisions`, `listNodes` et les écritures de l'arbre
-  sur un devis propre, `undoLastChange`, `redoLastUndo` ;
+  `createRevision`, `abandonRevision`, `markRevision`, `getStructureMergeReport`,
+  `mergeCostStructure`, `compareRevisions`, `listNodes` et les écritures de l'arbre sur un devis
+  propre, `undoLastChange`, `redoLastUndo` ;
 - `exchanges` : `openImport`, `applyImport`, sur un devis propre ;
 - `analysis` : `getRemainingIndicators`, `getProjectIndicators`, `getEarnedValueCurves` ;
 - `portfolio` : `getPortfolioRisks`.
@@ -159,6 +165,9 @@ l'US, texte proposé » deviennent alors des citations de Vérif.
   la fusion d'un avenant et la survenance d'un autre risque, puis mis à jour, réexaminé et déclaré
   survenu, laisse dans la structure principale tout ce qu'elle a reçu entre-temps, et y applique ce
   qu'il désigne ;
+- une révision ne se marque pas, et un avenant ne se contractualise pas, tant qu'un risque identifié
+  a son devis propre en retard : la gravité qu'une révision marquée fige est celle de son projet,
+  ou, pour la révision qu'un avenant marque, celle du projet d'avant l'avenant ;
 - le parcours de bout en bout, contre le service réel, déclare un risque, y ajoute une tâche, y
   modifie une ligne et y abandonne une tâche, met son devis propre à jour après une saisie du
   projet, le réexamine et le déclare survenu ;
@@ -278,11 +287,22 @@ elle et s'impose à elle.
   devis propre, sous l'ancêtre commun de ce qu'il désigne, qui changerait de lot et de dates sans
   geste de l'utilisateur ; toujours la première tâche de premier niveau, arbitraire dans le devis
   par lot et dans les courbes ; une provision hors de toute tâche, contre le modèle livré.
-- **La fusion d'un avenant ne fait rien d'un devis propre.** Elle n'en lit ni n'en écrit aucun ;
-  comme après toute écriture de la structure principale, les devis propres sont en retard, et la
-  mise à jour de chacun applique les règles de WF-REV-0110 et nomme ce qu'elle garde. Écarté : un
-  compte rendu de fusion qui nommerait les risques dont le devis propre désigne ce que l'avenant
-  désigne, un champ de plus au contrat d'EP-08.
+- **La fusion d'un avenant n'écrit aucun devis propre.** Comme après toute écriture de la structure
+  principale, les devis propres sont ensuite en retard, et la mise à jour de chacun applique les
+  règles de WF-REV-0110 et nomme ce qu'elle garde. Écarté : un compte rendu de fusion qui nommerait
+  les risques dont le devis propre désigne ce que l'avenant désigne, un champ de plus au contrat
+  d'EP-08.
+- **Le marquage d'une révision et la contractualisation d'un avenant exigent des devis propres à
+  jour.** Une révision marquée ne se modifie plus, et sa réserve est figée quand elle devient la
+  référence : l'un et l'autre sont refusés, la condition nommée, tant qu'un risque identifié a son
+  devis propre en retard, et l'écran enchaîne les mises à jour. L'ordre d'une revue en découle : les
+  saisies du projet, puis la mise à jour et le réexamen des risques, puis le marquage. Limite connue
+  : la fusion d'un avenant écrit la structure principale et marque dans la même opération, si bien
+  que la révision qu'elle marque fige les gravités du projet d'avant l'avenant, que la révision
+  suivante recalcule. Tranché contre la réponse donnée plus tôt dans ce cadrage, « le contrat de la
+  fusion ne change pas » : la fusion reçoit un refus de plus. Écartés : le refus au marquage seul,
+  qui laisserait un avenant figer une réserve périmée ; un signalement sans refus, que l'utilisateur
+  passerait ; ne rien faire, l'ordre laissé à la discipline du chef de projet.
 - **Une désignation sur une tâche terminée s'applique.** Le devis propre modifie une ligne d'une
   tâche terminée, et garde cette désignation quand le projet termine la tâche après coup ; la
   survenance l'applique, la tâche n'est plus terminée, et le compte rendu le signale sans refuser,
@@ -512,7 +532,8 @@ opportunité, **afin que** la provision dise ce que le risque pèserait vraiment
   nulle tant que le devis propre ne désigne rien ;
 - propre à l'US : la gravité est enregistrée avec l'évaluation du risque dans la révision :
   `Risk.severity` et `RiskReview.severity` la rendent signée, `computed_fields` dit ce dont elle
-  dépend, et une révision marquée rend celle qu'elle a figée ;
+  dépend, et une révision marquée rend celle qu'elle a figée, calculée sur sa structure principale
+  puisque le marquage exige des devis propres à jour (US-3090) ;
 - propre à l'US : le registre se filtre et se trie sur une gravité négative, par les bornes et les
   tris de la gravité que le contrat porte déjà (H-01) ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
@@ -530,7 +551,7 @@ recalcule la gravité (US-3090) ; le portefeuille (US-3130) ; les écrans (US-31
 
 ---
 
-## US-3090 — La mise à jour d'un devis propre, et ce qui l'exige : la saisie, le réexamen, la survenance
+## US-3090 — La mise à jour d'un devis propre, et ce qui l'exige : la saisie, le réexamen, la survenance, le marquage
 
 - **statut** : à faire
 - **exigences** : aucune que la spécification 1.0.8 porte — l'exigence nouvelle « Mise à jour du
@@ -539,14 +560,14 @@ recalcule la gravité (US-3090) ; le portefeuille (US-3130) ; les écrans (US-31
   closes par EP-08
 - **opérations** : `getStructureRebaseReport`, `rebaseCostStructure` (étendues au devis propre),
   `listCostStructures`, `reviewRisk`, les écritures de l'arbre et `applyImport` sur un devis propre,
-  `getRiskOccurrenceReport`, `declareRiskOccurrence` (leur refus), `getRisk`, `listRisks` (les
-  commandes)
+  `getRiskOccurrenceReport`, `declareRiskOccurrence`, `markRevision`, `getStructureMergeReport`,
+  `mergeCostStructure` (leur refus), `getRisk`, `listRisks` (les commandes)
 - **issue** :
 
 **En tant que** chef de projet, **je veux**, à chaque revue, confronter ce que chaque risque désigne
 au projet tel qu'il est devenu, lire ce qui ne s'y rattache plus et voir sa gravité recalculée avant
-de confirmer sa probabilité, **afin que** le registre ne garde pas la gravité d'un projet qui
-n'existe plus.
+de confirmer sa probabilité, **afin que** ni le registre ni une révision marquée ne gardent la
+gravité d'un projet qui n'existe plus.
 
 **Critères d'acceptation.**
 
@@ -579,6 +600,19 @@ n'existe plus.
   retard ;
 - propre à l'US, texte proposé pour WF-RIS-0070 : « Lorsque deux risques modifient la même ligne et
   que l'un survient, la mise à jour de l'autre garde la valeur qu'il désigne et la nomme. » ;
+- propre à l'US, texte proposé pour WF-RIS-0070 : « Le marquage d'une révision dont un risque
+  identifié a son devis propre en retard est refusé et nomme la condition ; ce devis propre mis à
+  jour, il aboutit. » : `markRevision` répond 409 `STATE_FORBIDS_OPERATION`, par la condition que le
+  lot du contrat nomme, et la commande de marquage la dit d'avance (WF-IHM-0090) ; le devis propre
+  d'un risque écarté ou survenu ne compte pas ;
+- propre à l'US, texte proposé pour WF-RIS-0070 : « La contractualisation d'un avenant est refusée
+  de même tant qu'un risque identifié a son devis propre en retard. » : `getStructureMergeReport` et
+  `mergeCostStructure` répondent 409, cette condition placée dans l'ordre que le lot du contrat
+  arrête ; la fusion n'écrit aucun devis propre ;
+- propre à l'US : la gravité qu'une révision marquée fige est ainsi calculée sur sa structure
+  principale ; la révision qu'un avenant marque fige celle du projet d'avant l'avenant, sa fusion
+  écrivant la structure principale et marquant dans la même opération, et la mise à jour la
+  recalcule dans la révision suivante (limite connue, décision de l'auteur du 2026-11-21) ;
 - propre à l'US, texte proposé pour WF-RIS-0070 : « Une mise à jour qui laisserait une boucle de
   liaisons dans le devis propre est refusée et nomme le motif. » : comme une liaison interdite, une
   date au-delà de l'horizon ou une tâche sans heure travaillée, le motif et la tâche nommés au
@@ -618,7 +652,9 @@ structure principale portait quand sa base a été prise, et sa mise à jour par
 (`register_rebase`, `register_rebase_end`) où `core/planning` et `core/estimate` donnent chacun leur
 part, sans nommer la nature du différentiel. Un devis propre n'a pas de base conservée : ce que sa
 mise à jour compare, et ce qu'elle écrit, est à la conception. Le réexamen lui-même (`reviewRisk`)
-ne change que par son refus.
+ne change que par son refus. Le marquage et la fusion sont de `core/revisions`, dont `core/risks`
+dépend et non l'inverse : ce qu'ils doivent savoir des devis propres en retard passe par un
+registre, comme la copie et la désignation d'une révision (EP-08, « Modules »).
 
 **Hors périmètre.** Le calcul de la gravité (US-3080) ; la survenance (US-3100) ; l'écran qui
 enchaîne la mise à jour et le réexamen (US-3140).
@@ -928,6 +964,10 @@ qu'il est.
 - propre à l'US : « Réexaminer » présente d'abord ce même compte rendu, puis confirme la mise à jour
   et le réexamen ; un réexamen qui écarte le risque ne le présente pas ; la revue périodique
   enchaîne de même pour chaque risque ;
+- propre à l'US : quand le marquage d'une révision ou la contractualisation d'un avenant est refusé
+  pour un devis propre en retard, l'écran nomme les risques concernés et enchaîne leurs mises à
+  jour, chaque compte rendu confirmé, puis reprend le geste ; l'aide en ligne de la revue en dit
+  l'ordre : le projet, les risques, le marquage ;
 - propre à l'US : « Déclarer survenu » n'est offert que sur un devis propre à jour ; son compte
   rendu présente ce que la survenance ajoute et modifie, les tâches qu'elle termine et la valeur
   acquise qu'elles apportent, les tâches terminées qu'elle rouvre, et ce qui la refuse ; les deux
@@ -995,6 +1035,9 @@ propre complet.
 - propre à l'US : sur le témoin chargé, les lectures du service sont comparées aux exemples du
   contrat — le registre, le détail, les réexamens, la matrice, la couverture, les structures, le
   devis propre, les comptes rendus de mise à jour et de survenance, les courbes ;
+- propre à l'US : le chargeur met à jour les devis propres avant chaque marquage et chaque fusion de
+  la chronologie du témoin, par la fonction de la mise à jour, sans compte rendu, comme il le fait
+  d'un avenant avant sa fusion ;
 - propre à l'US : la migration de cet EPIC refuse de s'appliquer, en le disant, sur une base qui
   porte un devis propre saisi sous EP-08 (décision de l'auteur du 2026-11-21) ; sur une base sans
   risque, elle aboutit ;
