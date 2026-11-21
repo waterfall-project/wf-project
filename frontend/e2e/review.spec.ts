@@ -19,7 +19,7 @@ import type { Locale } from "../src/i18n/locale";
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
 import { setExpanded } from "./hydration";
-import { inService, test } from "./mode";
+import { test } from "./mode";
 import { rowAt } from "./scroll";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -286,14 +286,12 @@ for (const language of [FRENCH, ENGLISH]) {
 
       // The amounts, the indices and the date of calculation are the API's, formatted in the
       // language, the date in the time zone of the workstation (WF-ARC-0020). They are those of
-      // the reference 101 of the example, which the witness loaded in the service lacks while its
-      // reference stays the offer 100: kept by `inService`, as the guide lists it (« review.spec.ts »).
-      if (!inService) {
-        for (const [term, shown] of language.figures) {
-          await expect(definitionOf(page, term).getByRole("definition").first()).toHaveText(shown);
-        }
-        await expect(page.getByRole("main")).toContainText(language.computedOn);
+      // the reference 101 of the example, which the witness loaded in the service holds since the
+      // avenant 1 is merged (US-2650).
+      for (const [term, shown] of language.figures) {
+        await expect(definitionOf(page, term).getByRole("definition").first()).toHaveText(shown);
       }
+      await expect(page.getByRole("main")).toContainText(language.computedOn);
 
       // Out of the project, to its portfolio; back to the project, in the same context.
       await follow(page, language, names.portfolioProjects, { block: names.portfolio });
