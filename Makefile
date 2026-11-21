@@ -68,7 +68,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-purge service-logs service-down measure-core migrate \
+	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-purge service-logs service-logs-search service-logs-fields service-down measure-core migrate \
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production kube-tools lint-chart test-chart chart-trial check-chart \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
@@ -180,7 +180,7 @@ SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_OPE
 	WATERFALL_POSTGRES_PORT WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT \
 	WATERFALL_MAILPIT_PORT WATERFALL_PROXY_PORT
 SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT E2E_METRICS_FRONT_PORT E2E_METRICS_PORT
-$(call slot-export,service-up service-install service-witness service-purge keycloak-authority service-logs service-down service-api-processes \
+$(call slot-export,service-up service-install service-witness service-purge keycloak-authority service-logs service-logs-search service-logs-fields service-down service-api-processes \
 	test-keycloak e2e-service,$(SLOT_SERVICE))
 # e2e-down is not tolerant of a worktree without a slot, on purpose: its first command, stop-servers,
 # already stops on "run make slot" (US-1300), because without a slot there are no ports to look at and
@@ -413,6 +413,15 @@ keycloak-authority: ## Copy out of the service platform the root of the authorit
 
 service-logs: ## Print the logs of the services of the platform (SERVICES, all of them by default)
 	@$(COMPOSE_SERVICE) logs --no-color $(SERVICES)
+
+# The search of the secrets and tokens known in the logs of the services of the platform, front
+# and Keycloak included for what Compose holds (WF-OBS-0020, US-2900): the secrets are those the
+# platform was started with. With CORRELATION=<identifier>, the story of that identifier instead.
+service-logs-search: ## Search the logs of the services of the platform for the secrets and tokens known (the variables of service-up); CORRELATION=<identifier> prints the story of an identifier instead: its lines, and those of the deposit, the import and the task they name
+	@$(COMPOSE_SERVICE) logs --no-color $(SERVICES) | $(WFTOOLS).logsearch $(if $(CORRELATION),follow $(CORRELATION),secrets)
+
+service-logs-fields: ## Check that every record of the logs of the API, the worker, its schedule and the service of the restoration carries its correlation identifier, its author and its severity (WF-OBS-0020, US-2900)
+	@$(COMPOSE_SERVICE) logs --no-color api worker scheduler restore | $(WFTOOLS).logsearch fields
 
 service-down: ## Stop the service platform, the proxy of e2e-service and the load of make measure-version included; WATERFALL_RESET_DATA=yes also drops its databases, its directory and its authority
 	@$(COMPOSE_SERVICE) --profile e2e --profile install --profile witness --profile load down $(if $(filter yes,$(WATERFALL_RESET_DATA)),--volumes)

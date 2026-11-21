@@ -72,6 +72,7 @@ from waterfall.platform.audit import (
 )
 from waterfall.platform.database import frozen_reading, utc_now
 from waterfall.platform.errors import ServiceError
+from waterfall.platform.logs import bind_logging
 from waterfall.platform.tasks import UndoneError
 
 if TYPE_CHECKING:
@@ -130,6 +131,9 @@ def analyse(
     row = session.get(ImportReport, import_id)
     if row is None or row.status != "analysing" or row.task_id != task.task_id:
         return None
+    bind_logging(
+        project_id=str(row.project_id), import_id=str(import_id), upload_id=str(row.upload_id)
+    )
     revision = task.payload.get(REVISION_KEY)
     aimed = None if revision is None else UUID(revision)
     target = ImportTarget(row.project_id, aimed, row.structure_id, duration_rule=_rule(row))
@@ -189,6 +193,9 @@ def apply(
     found = session.get(ImportReport, import_id)
     if found is None or found.status != "applying" or found.task_id != task.task_id:
         return None
+    bind_logging(
+        project_id=str(found.project_id), import_id=str(import_id), upload_id=str(found.upload_id)
+    )
     try:
         content = _content(files, found.object_key)
         form = _format(formats, found.kind)

@@ -24,7 +24,10 @@ from support import (
     found_in,
 )
 
+from waterfall.platform.correlation import FORM
 from waterfall.platform.logs import (
+    PROCESS_CORRELATION,
+    bind_logging,
     configure_logging,
     drop_secrets,
     get_logger,
@@ -62,8 +65,39 @@ def test_the_context_is_bound_to_every_record_written_inside_it(logs: Logs) -> N
     get_logger("test").info("outside")
     inside, outside = logs.records
     assert (inside["correlation_id"], inside["actor"]) == ("abc-123", "someone")
-    assert "correlation_id" not in outside
+    assert outside["correlation_id"] == PROCESS_CORRELATION
     assert outside["actor"] == "platform"
+    assert "project_id" not in outside
+
+
+@pytest.mark.story("US-2900")
+@pytest.mark.requirement("WF-OBS-0020-A")
+def test_a_record_outside_any_request_carries_the_correlation_of_its_process(
+    logs: Logs,
+) -> None:
+    # Chaque enregistrement porte l'identifiant de corrélation, l'auteur et la gravité : ceux des
+    # services eux-mêmes — démarrage, journal d'accès du serveur — comme ceux des bibliothèques.
+    get_logger("test").info("starting")
+    logging.getLogger("uvicorn.access").warning("served")
+    for record in logs.records:
+        assert (record["correlation_id"], record["actor"]) == (PROCESS_CORRELATION, "platform")
+        assert record["level"] in {"info", "warning"}
+    assert FORM.fullmatch(PROCESS_CORRELATION)
+
+
+@pytest.mark.story("US-2900")
+def test_what_is_bound_inside_a_context_is_dropped_when_it_ends(logs: Logs) -> None:
+    with logging_context(correlation_id="outer", actor="ada"):
+        with logging_context(correlation_id="inner"):
+            bind_logging(project_id="p-1")
+            get_logger("test").info("inner")
+        get_logger("test").info("outer")
+    get_logger("test").info("after")
+    inner, outer, after = logs.records
+    assert (inner["correlation_id"], inner["actor"], inner["project_id"]) == ("inner", "ada", "p-1")
+    assert (outer["correlation_id"], outer["actor"]) == ("outer", "ada")
+    assert "project_id" not in outer
+    assert after["correlation_id"] == PROCESS_CORRELATION
 
 
 def test_the_records_of_the_libraries_are_written_the_same_way(logs: Logs) -> None:
