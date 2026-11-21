@@ -335,7 +335,7 @@ def database(
     db.dispose()
     owner = create_database_engine(database_url)
     held = WITNESS_ROWS.get(service_database_url)
-    kept = {UUID(project) for project in held.rows.projects} if needs and held else set()
+    kept: set[UUID] = {UUID(each) for each in held.rows.projects} if needs and held else set()
     drop_every_partition(owner, kept)
     if kept:
         WITNESS_PARTITIONS.add(database_url)
