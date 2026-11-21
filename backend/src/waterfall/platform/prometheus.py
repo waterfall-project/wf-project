@@ -17,6 +17,9 @@ Prometheus is reached in HTTPS, its certificate checked against the roots of the
 settings give them (US-2840).
 """
 
+import math
+import threading
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from http import HTTPStatus
@@ -37,6 +40,8 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 TIMEOUT_SECONDS = 2.0
+# How long a whole observation may take, whatever the number of its requests.
+OBSERVATION_SECONDS = 8.0
 # The processes Prometheus collects, by the name of their job, which is that of their component.
 PROCESSES = 'up{job=~"api|worker"}'
 # The availability of each component, and the date of its last collection: the processes by ``up``,
@@ -119,6 +124,9 @@ class Prometheus:
         self, address: str, authority: str | None = None, *, timeout: float = TIMEOUT_SECONDS
     ) -> None:
         """Prepare the client; nothing is asked before a reading."""
+        self._timeout = timeout
+        # When the observation in progress must be over, if one is.
+        self._observing = threading.local()
         self._http = httpx2.Client(
             base_url=address.rstrip("/"), timeout=timeout, verify=trusted(authority)
         )
@@ -129,8 +137,17 @@ class Prometheus:
 
     def _data(self, path: str, **parameters: str) -> Any:
         """Give the data of an answer of the API, or raise ``PrometheusError``."""
+        deadline: float | None = getattr(self._observing, "deadline", None)
+        remaining = None if deadline is None else deadline - time.monotonic()
+        if remaining is not None and remaining <= 0:
+            logger.warning("prometheus.too_slow")
+            raise PrometheusError
         try:
-            answer = self._http.get(path, params=parameters)
+            answer = self._http.get(
+                path,
+                params=parameters,
+                timeout=self._timeout if remaining is None else min(self._timeout, remaining),
+            )
             document: object = answer.json() if answer.status_code == HTTPStatus.OK else None
         except (httpx2.HTTPError, ValueError) as error:
             logger.warning("prometheus.unreachable", fault=type(error).__name__)
@@ -148,12 +165,17 @@ class Prometheus:
             parameters["time"] = f"{at.timestamp():.3f}"
         data = self._data("/api/v1/query", **parameters)
         try:
-            return [
+            vector = [
                 (dict(sample["metric"]), float(sample["value"][1])) for sample in data["result"]
             ]
         except (KeyError, IndexError, TypeError, ValueError) as error:
             logger.warning("prometheus.unread", fault=type(error).__name__)
             raise PrometheusError from None
+        # NaN and the infinities are values Prometheus may say, that no space or moment holds.
+        if not all(math.isfinite(value) for _, value in vector):
+            logger.warning("prometheus.unread", fault="NonFinite")
+            raise PrometheusError
+        return vector
 
     def firing(self) -> list[FiringAlert]:
         """Give the alerts in progress, since the moment their rule found them true."""
@@ -185,7 +207,17 @@ class Prometheus:
         ]
 
     def observe(self) -> Observation:
-        """Read at once what the status screen presents of the metrics; raise if any of it fails."""
+        """Read at once what the status screen presents of the metrics; raise if any of it fails.
+
+        The whole reading is bounded by ``OBSERVATION_SECONDS``, not only each request of it.
+        """
+        self._observing.deadline = time.monotonic() + OBSERVATION_SECONDS
+        try:
+            return self._observe()
+        finally:
+            self._observing.deadline = None
+
+    def _observe(self) -> Observation:
         checked = {labels.get("component"): value for labels, value in self.query(CHECKED)}
         said: dict[str, list[str]] = {}
         for labels, _ in self.query(VERSIONS):

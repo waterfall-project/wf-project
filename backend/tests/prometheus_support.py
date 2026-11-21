@@ -10,6 +10,7 @@ a port of its own, in HTTP. An expression a test has not given is an empty vecto
 
 import json
 import threading
+import time
 from datetime import UTC, datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -48,6 +49,8 @@ class TestPrometheus:
         self.garbled = False
         # A success whose vector has not the shape of one.
         self.shapeless = False
+        # How long each answer takes, in seconds.
+        self.delay = 0.0
         self.asked: list[str] = []
         server = self
 
@@ -60,6 +63,7 @@ class TestPrometheus:
                 parsed = urlsplit(self.path)
                 asked = {name: values[0] for name, values in parse_qs(parsed.query).items()}
                 server.asked.append(asked.get("query", parsed.path))
+                time.sleep(server.delay)
                 data = server.data(parsed.path, asked)
                 if data is None:
                     self.send_error(HTTPStatus.NOT_FOUND)

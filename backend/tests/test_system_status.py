@@ -230,6 +230,8 @@ def test_the_screen_shows_the_same_version_for_the_three_processes(
 ) -> None:
     # « L'écran d'état affiche la même version pour les trois processus. » : the installed version,
     # which the front, the API and the worker share, and the one the API and the worker announce.
+    # The metrics are faked here: that the worker announces its version is proved by
+    # ``test_worker_main``.
     collected(prometheus)
     status = read(screen_on(contract, platform, prometheus), viewer)
     components = by_component(status)
@@ -317,6 +319,7 @@ def test_an_alert_disappears_from_the_screen_as_soon_as_its_cause_has_ceased(
 ) -> None:
     # « Une alerte disparaît de l'écran dès que sa cause a cessé. » : the rule no longer true, the
     # alert is no longer in progress in Prometheus, and the next reading of the screen has none.
+    # The other half, the rule that ends the alert, is proved by the tests of the rules (US-2880).
     collected(prometheus)
     prometheus.fires("task_queue_stalled", CHECKED_AT, severity="alert")
     screen = screen_on(contract, platform, prometheus)
@@ -422,6 +425,52 @@ def test_an_answer_of_prometheus_without_its_vector_is_a_failure_of_prometheus()
     finally:
         client.close()
         served.stop()
+
+
+@pytest.mark.story("US-2890")
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_a_sample_that_is_not_finite_is_a_failure_of_prometheus_not_of_the_screen(
+    contract: OpenAPI,
+    platform: Services,
+    prometheus: TestPrometheus,
+    viewer: dict[str, str],
+    value: float,
+) -> None:
+    # Proper to US-2890: a space that is NaN or infinite is no integer: metrics unavailable, and
+    # the screen answers all the same.
+    collected(prometheus)
+    prometheus.holds(USED, [({"component": "database"}, value)])
+    status = read(screen_on(contract, platform, prometheus), viewer)
+    assert [(each["component"], each["is_available"]) for each in status["components"]] == [
+        ("metrics", False)
+    ]
+
+
+@pytest.mark.story("US-2890")
+def test_an_observation_that_lasts_longer_than_its_bound_is_a_failure_of_prometheus(
+    prometheus: TestPrometheus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Proper to US-2890: each request answers within its own bound, yet together they would hold
+    # the screen for longer than an observation may take.
+    collected(prometheus)
+    prometheus.delay = 0.3
+    monkeypatch.setattr("waterfall.platform.prometheus.OBSERVATION_SECONDS", 0.5)
+    client = Prometheus(prometheus.address)
+    try:
+        with pytest.raises(PrometheusError):
+            client.observe()
+        prometheus.delay = 0.0
+        assert client.observe().version == "3.16.0"
+    finally:
+        client.close()
+
+
+@pytest.mark.story("US-2890")
+def test_the_storage_of_no_measured_space_is_a_copy_each_reading() -> None:
+    # Proper to US-2890: the answer of an unmeasured platform is its own dictionary each time.
+    first = fullest([])
+    first["used_bytes"] = 1
+    assert fullest([]) == UNMEASURED == {"used_bytes": 0, "available_bytes": 0}
 
 
 @pytest.mark.story("US-2890")

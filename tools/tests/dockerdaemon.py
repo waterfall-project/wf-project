@@ -6,6 +6,7 @@
 every ``docker run`` fail, and a trial must then skip rather than fail on its fixture (#4321).
 """
 
+import functools
 import os
 import shutil
 import subprocess
@@ -14,6 +15,7 @@ import subprocess
 MIRROR = "${WATERFALL_MIRROR:-}"
 
 
+@functools.cache
 def answers() -> bool:
     """Tell whether ``docker`` is installed and its daemon answers this user."""
     if shutil.which("docker") is None:

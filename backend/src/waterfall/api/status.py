@@ -84,7 +84,7 @@ def fullest(spaces: list[Space]) -> dict[str, int]:
     """
     measured = [space for space in spaces if space.available_bytes is not None]
     if not measured:
-        return UNMEASURED
+        return dict(UNMEASURED)
     space = max(measured, key=lambda each: (rate(each), each.component == "object_storage"))
     return {"used_bytes": space.used_bytes, "available_bytes": space.available_bytes or 0}
 
@@ -176,7 +176,7 @@ def system_status(
         {
             "version": __version__,
             "components": components(observation, now),
-            "storage": UNMEASURED if observation is None else fullest(observation.spaces),
+            "storage": dict(UNMEASURED) if observation is None else fullest(observation.spaces),
             "operating_parameters": parameters_of(sources.parameters, avatar_max_bytes),
             "last_identity_sync": outcome(session, "identity_sync"),
             "last_backup": outcome(session, "backup"),
