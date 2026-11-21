@@ -1,10 +1,10 @@
 ---
 id: EP-36
 titre: Durcir les tests et la preuve des exigences — attentes des parcours, gardes du harnais, tests instables, citations, renvois de la roadmap
-statut: prêt
+statut: en cours
 depend_de: EP-08, EP-11
 famille: front, back
-issue:
+issue: 4596
 ---
 
 # EP-36 — Tests et preuve des exigences
@@ -20,8 +20,9 @@ se parallélise sur tous les créneaux du poste, et il se glisse là où des cr�
 L'EPIC naît de la ventilation du 2026-11-21 : une fois fusionnés EP-08, EP-11, EP-13 et EP-30, les
 fonctions du MVP sont livrées, et le reste à faire — les issues ouvertes hors de ces EPIC et les
 constats de la revue du 2026-11-14 encore d'actualité — se range par zone de code, pour que deux
-EPIC menés de front ne touchent pas les mêmes fichiers. Ses US et sa conception datent du cadrage du
-2026-11-21, validées par l'auteur le même jour.
+EPIC menés de front ne touchent pas les mêmes fichiers. Ses US, sa conception et son plan de lots
+datent du cadrage du 2026-11-21, validés par l'auteur le même jour ; ses issues sont ouvertes
+depuis.
 
 ## Ce qui en fait partie
 
@@ -177,6 +178,9 @@ jusqu’à 6.
 
 ## Constats reçus
 
+Tous rattachés à leur lot, avec leur décision, ou reportés à l'EPIC que leur ligne nomme, à
+l'ouverture des issues de l'EPIC (#4596), le 2026-11-21.
+
 Issues ouvertes, rattachées à cet EPIC par la ventilation du 2026-11-21 :
 
 - #3916 — back : trois reprises mineures des tests du lot #3802 (citation de WF-DEV-0090-A, somme
@@ -222,7 +226,7 @@ jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 - #4448 — les parcours du front : attentes trop faibles ou fragiles (FTE-03, FTE-04, FTE-05, FTE-08,
   FTE-09) → US-3370 (FTE-03, FTE-04, FTE-05), US-3380 (FTE-08 pour le compte des déclencheurs,
   FTE-09 pour le portefeuille), US-3390 (FTE-09 pour le Gantt) ; les bulles des risques de FTE-09
-  reportées → EP-30 ; le reste de FTE-08 écarté ;
+  reportées → EP-30 (#4633) ; le reste de FTE-08 écarté ;
 - #4449 — les tests du front : gardes manquantes du harnais et des sources (FTE-06, FTE-07, FTE-12)
   → US-3430 (FTE-06), US-3440 (FTE-07, FTE-12) ; la garde des clés inemployées écartée ;
 - #4450 — les tests du front : commentaires périmés (FTE-10, FTE-14) → US-3440 ;
@@ -238,7 +242,7 @@ jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 - #4456 — les compteurs `lock_version` : la dette remise à la v1, sans porteur (RMP-10) → reporté
   → EP-38 ;
 - #4457 — la spécification : WF-RAE-0020 renvoie à WF-IND-0010 pour une révision marquée (SPB-12)
-  → corrigé par la spécification 1.0.9.
+  → corrigé par la spécification 1.0.9 (#4568), et fermée à sa fusion, le 2026-11-21.
 
 Reçu du cadrage d'EP-32 (« ce que `make requirements` ne lit pas d'un parcours joué contre le
 service — EP-36 ») : écarté, voir « Ce qui n'en fait pas partie ».
@@ -403,7 +407,7 @@ au-delà le scinde, il ne resserre pas ses lignes.
 - **exigences** : `WF-DAT-0100-A`, `WF-DAT-0070-A`, `WF-IHM-0030-A`
 - **opérations** : `createNode`, `setPredecessors`, `updateTaskFacet`, `listNodes`, `createRisk`,
   `updateRisk`, `updateRiskProvision`
-- **issue** :
+- **issue** : #4605
 
 **En tant que** développeur, **je veux** que trois phrases de Vérif que la roadmap dit constatées —
 deux par un renvoi à EP-06, qui ne porte pas leurs exigences, une par EP-02 sur le seul faux back —
@@ -459,7 +463,7 @@ d'EP-09 sont corrigés par US-3490, qui nomme cette US.
 - **opérations** : `listNodes`, `requestExport`, `getBackgroundTask`, `getBackgroundTaskResult`,
   `getProjectWorkload`, `listOrgNodes`, `uploadFile`, `openImport`, `applyImport`,
   `listCostImports`, `listActualCosts`, `setActualCostTrackedScope`
-- **issue** :
+- **issue** : #4606
 
 **En tant que** développeur, **je veux** que les parcours de l'arborescence de tâches, du plan de
 charge et des coûts réels affirment, quand ils se jouent contre le service, ce que l'exigence de
@@ -523,7 +527,7 @@ de ses attendus de lecture, et c'est elle que le parcours de l'arborescence retr
 - **statut** : à faire
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : `getReferenceSettings`, `updateReferenceSettings`, `getPortfolioRisks`
-- **issue** :
+- **issue** : #4608
 
 **En tant que** développeur, **je veux** qu'un parcours laisse l'installation comme il l'a trouvée,
 qu'il échoue dès que son attente est perdue et qu'il n'affirme jamais rien sur un écran où il n'a
@@ -568,7 +572,7 @@ US-3390.
 - **statut** : à faire
 - **exigences** : `WF-PLA-0090-A`
 - **opérations** : `listNodes`
-- **issue** :
+- **issue** : #4616
 
 **En tant que** développeur, **je veux** que le parcours qui prouve « les liaisons sont visibles »
 trouve les flèches du Gantt par un nom que l'écran leur donne, **afin qu'** un changement de la
@@ -599,7 +603,7 @@ deux langues.
 - **statut** : à faire
 - **exigences** : aucune — tests du front
 - **opérations** : aucune en propre
-- **issue** :
+- **issue** : #4599
 
 **En tant que** développeur, **je veux** que `kanban.dom.test.tsx` passe quelle que soit la charge
 du poste et que ses titres disent ce que ses tests éprouvent, **afin de** ne plus relancer la
@@ -629,7 +633,7 @@ correction est le modèle. Les deux constats touchent le même fichier : un seul
 - **statut** : à faire
 - **exigences** : aucune — parcours du front
 - **opérations** : aucune en propre
-- **issue** :
+- **issue** : #4600
 
 **En tant que** développeur, **je veux** que le test d'en-tête du reste à engager exige ce que son
 titre annonce, et que deux parcours vus en échec sans lien avec leur lot aient une cause connue,
@@ -665,7 +669,7 @@ décision de l'auteur du 2026-11-21 — aucun écran ne la demande aujourd'hui.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0170-A`
 - **opérations** : `createAccessRole`
-- **issue** :
+- **issue** : #4603
 
 **En tant que** développeur, **je veux** que cinq tests du front, relevés par les revues de leurs
 lots, éprouvent les branches et les états que leur titre annonce, **afin qu'** une régression de
@@ -706,7 +710,7 @@ tests d'un composant qu'EP-32 (US-3350) touche pour le tracé d'un lien : des te
 - **statut** : à faire
 - **exigences** : aucune — harnais des tests du front
 - **opérations** : aucune
-- **issue** :
+- **issue** : #4602
 
 **En tant que** développeur, **je veux** qu'un test `node` qui écrit sur la sortie d'erreur échoue
 comme un test `dom`, et que les tests de pages lisent le texte rendu par les aides du harnais,
@@ -742,7 +746,7 @@ tout corriger (2026-11-21).
 - **statut** : à faire
 - **exigences** : aucune — gardes des sources du front
 - **opérations** : aucune
-- **issue** :
+- **issue** : #4609
 
 **En tant que** développeur, **je veux** que la typographie des catalogues et la règle « ni `skip`
 ni `fixme` » soient tenues par un test, **afin qu'** une apostrophe droite ou un parcours sauté
@@ -779,7 +783,7 @@ sauté « non exécuté » (US-2440) : la garde des sauts vaut pour tout parcour
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
+- **issue** : #4615
 
 **En tant que** développeur, **je veux** qu'une citation d'exigence que le relevé ne sait pas lire
 le fasse échouer, **afin qu'** un test ne soit plus tenu pour une preuve par son auteur et ignoré
@@ -818,7 +822,7 @@ dont il parle ».
 - **statut** : à faire
 - **exigences** : aucune — tests du back
 - **opérations** : aucune en propre
-- **issue** :
+- **issue** : #4611
 
 **En tant que** développeur, **je veux** que les tests du back relevés par les revues citent ce
 qu'ils éprouvent et partagent leurs aides par le module de support, **afin que** le relevé de
@@ -856,7 +860,7 @@ assertion de WF-REF-0150-A, que #3342 et #3960 (EP-29) réécrivent. Les branche
 - **opérations** : `createProject`, `updateProject`, `createSubproject`, `updateSubproject`,
   `updateReferenceSettings`, et les écritures des calendriers, des types de coût, des nœuds
   d'organisation, des rôles et des chronologies
-- **issue** :
+- **issue** : #4612
 
 **En tant que** développeur, **je veux** qu'une borne changée au contrat sur un corps que le
 service déclare par un modèle à lui fasse échouer un test, **afin que** le service ne continue pas
@@ -884,7 +888,7 @@ voulu, pour rendre les trois codes du contrat là où le modèle engendré n'en 
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
+- **issue** : #4618
 
 **En tant que** développeur, **je veux** que la règle « toujours depuis l'interface, jamais depuis
 le fichier d'un objet » soit tenue par l'outil au-dessus du noyau comme elle l'est dedans, **afin
@@ -916,7 +920,7 @@ de `core/planning`, EP-33 corrige l'import d'`api/subprojects.py` (BPR-09). `wat
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt et fichiers de la roadmap
 - **opérations** : aucune
-- **issue** :
+- **issue** : #4613
 
 **En tant que** développeur, **je veux** que `make roadmap` confronte les deux bouts d'une portée
 et le titre d'une exigence à la spécification, et que les renvois que la revue a trouvés sans

@@ -204,11 +204,11 @@ jour) ; l'EPIC passe alors `en cours`.
   suivantes (WF-RIS-0010, spécification 1.0.8). Rangé en EP-35 par la ventilation du 2026-11-21, et
   repris ici au cadrage du même jour (décision de l'auteur, contre « EP-30 ne prend pas d'autres
   restes ») : cet EPIC clôt WF-RIS-0010 et réécrit la lecture de la gravité. Corrigé par US-3080.
-- FTE-09, pour sa part des risques (#4448, EP-36) — test : `risks.spec.ts` trouve les bulles du
-  graphique par `path[fill-opacity='0.85']`, un détail du rendu d'ECharts, contre la règle « jamais
-  par une classe CSS ». Reporté ici au cadrage d'EP-36 du 2026-11-21 (décision de l'auteur) :
-  US-3160 redessine ces bulles et réécrit ce parcours, qui les trouve alors par ce que l'écran
-  nomme.
+- #4633 — test : `risks.spec.ts` trouve les bulles du graphique par `path[fill-opacity='0.85']`, un
+  détail du rendu d'ECharts, contre la règle « jamais par une classe CSS » (FTE-09, pour sa part des
+  risques ; le reste est à EP-36, #4448). Reporté ici au cadrage d'EP-36 du 2026-11-21 (décision de
+  l'auteur) : US-3160 redessine ces bulles et réécrit ce parcours, qui les trouve alors par ce que
+  l'écran nomme.
 
 Trois constats d'EP-08 sont tranchés au plus léger parce que cet EPIC rend leur règle provisoire
 (décisions de l'auteur du 2026-11-19 et du 2026-11-20) : #4133, les dates du devis propre le jour de
