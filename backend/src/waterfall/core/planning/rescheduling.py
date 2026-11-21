@@ -15,6 +15,10 @@ second time (``reshaped``, US-2250, #3169). The nodes of the other kinds under t
 redated, and under those the write names, are then priced again by the hooks of their facets
 (``FacetHooks.reinflate``, EP-07, "Le calcul des montants").
 
+The base of a differential is replayed too, with the other structures of its revision (US-3050),
+and no one reads it: the refusal that concerns one of its tasks names the task of the differential
+of the same lineage, never a node of the base (#4213).
+
 Written by US-1380/L2 in ``interface.structures``, moved here by US-1390/L2; ``Holding`` posed by
 US-1380/L3, its tree by US-2250.
 """
@@ -22,12 +26,19 @@ US-1380/L3, its tree by US-2250.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from sqlalchemy import select
+
 from waterfall.core.planning.dating import dated, horizon_exceeded, kept, replay_of
 from waterfall.core.planning.interface.facets import BearingTask, calendars_of, facets
 from waterfall.core.planning.scheduling import WorkInstant
-from waterfall.core.planning.tree import read_tree, reshaped
+from waterfall.core.planning.tables import Node, Task
+from waterfall.core.planning.tree import TASK, read_tree, reshaped
 from waterfall.core.planning.views import state_of
-from waterfall.core.revisions.interface import structure_facts, structure_rescheduled
+from waterfall.core.revisions.interface import (
+    base_differential,
+    structure_facts,
+    structure_rescheduled,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping
@@ -124,7 +135,8 @@ def replayed(
     ``held`` hands is brought to what the write made of it (``reshaped``), not read again.
     Beyond fifteen years (WF-PLA-0150), refused (422 ``PROJECT_HORIZON_EXCEEDED``), nothing
     written: naming the task the write blames — its node, none for a task created, its label, and
-    the row of the block of a paste — or, without one, the task that finishes last. A loop of
+    the row of the block of a paste — or, without one, the task that finishes last; of a base, as
+    its differential holds it (``_visible``). A loop of
     links is named from the origin the write gives (422 ``LINK_CYCLE``), a link across the
     hierarchy refused (``LINK_FORBIDDEN``).
     """
@@ -147,6 +159,10 @@ def replayed(
     beyond = computed.horizon_exceeded_by
     if beyond is not None:
         named = _named(blamed, beyond, tree)
+        if blamed is None:
+            named = _visible(
+                session, (project_id, structure_id), tree.nodes[beyond].lineage_id, named
+            )
         raise horizon_exceeded(named.node_id, named.label, named.row)
     moved = kept(replay, computed, held.conflicts)
     session.flush()
@@ -171,6 +187,33 @@ def _named(blamed: Blamed | None, beyond: UUID, tree: Tree) -> Named:
         return named
     found = Named(beyond, tree.tasks[beyond].label)
     return found if named is None else named.get(beyond, found)
+
+
+def _visible(
+    session: Session, structure: tuple[UUID, UUID], lineage_id: UUID, named: Named
+) -> Named:
+    """Name a task of a base by the task of its differential of the same lineage (#4213).
+
+    ``structure`` is the project and the structure replayed: another than a base names its own
+    task. No operation serves the base (US-3050), whose nodes no one reads: the differential's task
+    is named by its node and its label as the differential has it, and a task the differential
+    no longer holds by its label alone, its node null.
+    """
+    project_id, structure_id = structure
+    differential = base_differential(session, project_id, structure_id)
+    if differential is None:
+        return named
+    found = session.execute(
+        select(Node.id, Task.label)
+        .join(Task, (Task.project_id == Node.project_id) & (Task.node_id == Node.id))
+        .where(
+            Node.project_id == project_id,
+            Node.structure_id == differential,
+            Node.lineage_id == lineage_id,
+            Node.kind == TASK,
+        )
+    ).first()
+    return Named(None, named.label) if found is None else Named(found.id, found.label)
 
 
 def _reinflated(

@@ -6,13 +6,15 @@ The base of a differential is the copy of the main structure it was taken from (
 d'un différentiel et sa mise à jour"): created with its differential (``create_differential``),
 deleted with it (``abandon_structure``), taken up with it by the copy of a revision
 (``copy_structures``) — all in ``structures``. This module gives what the other modules ask of it:
-the base of a differential, which its reading compares it to (``differential_base``); the
-conditions that a column of structures names no base (``not_a_base``), which what counts the nodes
-or the lines of a revision or of a project leaves out, and only structures that hold their
-lineages alone (``holds_its_lineages``), which a reading by lineage reads; whether a differential is
-up to date (``differential_up_to_date``), which the loader of the witness asks before a merge
-(US-2560/L2); and, at the end of the copy of a revision, the state of each differential it took
-up, up to date or out of date, as it was in the revision marked (``keep_differential_states``).
+the base of a differential, which its reading compares it to (``differential_base``), and the
+differential of a base, by which a refusal that concerns a task of the base names the task of the
+differential (``base_differential``, #4213); the conditions that a column of structures names no
+base (``not_a_base``), which what counts the nodes or the lines of a revision or of a project leaves
+out, and only structures that hold their lineages alone (``holds_its_lineages``), which a reading
+by lineage reads; whether a differential is up to date (``differential_up_to_date``), which the
+loader of the witness asks before a merge (US-2560/L2); and, at the end of the copy of a revision,
+the state of each differential it took up, up to date or out of date, as it was in the revision
+marked (``keep_differential_states``).
 
 Written by US-3050/L2.
 """
@@ -44,6 +46,17 @@ def differential_base(session: Session, project_id: UUID, structure_id: UUID) ->
         select(CostStructure.id).where(
             CostStructure.project_id == project_id,
             CostStructure.differential_id == structure_id,
+            CostStructure.kind == BASE,
+        )
+    )
+
+
+def base_differential(session: Session, project_id: UUID, structure_id: UUID) -> UUID | None:
+    """Give the differential a base was taken for; ``None`` for a structure that is no base."""
+    return session.scalar(
+        select(CostStructure.differential_id).where(
+            CostStructure.project_id == project_id,
+            CostStructure.id == structure_id,
             CostStructure.kind == BASE,
         )
     )

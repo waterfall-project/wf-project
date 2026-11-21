@@ -41,6 +41,7 @@ from waterfall.core.revisions.commands import (
 
 # ``bases`` (US-3050/L2): the base of a differential; the bases left out of a count, of a reading.
 from waterfall.core.revisions.interface.bases import (
+    base_differential,
     differential_base,
     differential_up_to_date,
     holds_its_lineages,
@@ -245,6 +246,7 @@ __all__ = [
     "abandon_revision",
     "abandon_structure",
     "aimed_structure",
+    "base_differential",
     "closers",
     "compute_indicators",
     "consume_own_estimate",
