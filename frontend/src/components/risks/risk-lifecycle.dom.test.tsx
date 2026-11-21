@@ -11,6 +11,7 @@ import { forgetMessages } from "@/components/notices/message-history";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { formatPlanningDate } from "@/i18n/format";
 import { atCommit } from "@/test/committed";
 import {
   example,
@@ -248,7 +249,7 @@ describe("« Déclarer survenu »", () => {
     return form;
   }
 
-  it("presents the report in the marks, says the provision withdrawn, and confirms with the counters read [WF-RIS-0060-A] [WF-IHM-0110-A]", async () => {
+  it("presents the report in the marks, says the provision withdrawn and the own estimate that starts before the day (#4133), and confirms with the counters read [WF-RIS-0060-A] [WF-IHM-0110-A]", async () => {
     const client = serve({
       [OCCURRENCE_REPORT]: { example: "risk_occurrence_report", status: 200 },
       [OCCURRENCE]: { example: "task_occurrence_queued", status: 202 },
@@ -266,8 +267,12 @@ describe("« Déclarer survenu »", () => {
     expect(markOf("Câblage des armoires")).toHaveAccessibleName("Modifié");
     expect(markOf("Provision — Risque de reprise du câblage")).toHaveAccessibleName("Retiré");
     // The own estimate of the risk starts before the day of the declaration: the report says so.
+    // The day is the one the example gives, formatted as the screen does.
+    const started = (
+      example("risk_occurrence_report") as { own_estimate_past_planning_start_on: string }
+    ).own_estimate_past_planning_start_on;
     expect(within(form).getByRole("note")).toHaveTextContent(
-      /Le devis propre du risque commence le 12 janv\. 2026, avant le jour de la déclaration/,
+      `Le devis propre du risque commence le ${formatPlanningDate(started, "fr")}, avant le jour de la déclaration`,
     );
     await expectAccessible(form);
     // Abandoned, nothing is written: the report was a read.

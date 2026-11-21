@@ -4743,9 +4743,10 @@ from `fixtures/api/witness_costs.json`, which `make mock-data` writes beside the
 `wftools`. The remaining to commit has no slice: the lines of the revision 102 carry `previous_*` from
 the copy of the reference 101, and their states come from EP-06. The generator of the examples shares
 a quote line astride two years as the service does (WF-DEV-0040, #2838): the computed is the
-expected, and the figures of the examples are the service's. The slice of EP-08 has put in it the provisions, the merged amendment 1 — which makes the 101 the
-reference —, the risks and the amendment 2 (US-2650). What it does not have: the whole volumes (**EP-13**, which
-closes: the three hundred projects and the eighteen thousand cost lines of §4.6.2). The indicators
+expected, and the figures of the examples are the service's. The slice of EP-08 has put in it the
+provisions, the merged amendment 1 — which makes the 101 the reference —, the risks and the
+amendment 2 (US-2650). What it does not have: the whole volumes (**EP-13**, which closes: the three
+hundred projects and the eighteen thousand cost lines of §4.6.2). The indicators
 have no slice: the marking replayed by the loader (`load_marking`, EP-10, US-1670) keeps those of
 the revision 101 of PRJ-001 — the project, its two sub-projects and « outside any sub-project » —
 at its instant, 1 February 2026 at 9 a.m., the offer 100 keeping no project indicator, and the

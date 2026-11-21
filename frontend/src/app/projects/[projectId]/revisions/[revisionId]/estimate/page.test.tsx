@@ -151,10 +151,15 @@ describe("the grid of the estimate, entered as the structure lists it", () => {
   });
 
   /** The version of a structure, as the example of the list of the structures gives it. */
-  const versionOf = (structure: string) =>
-    (example("structures") as { structure_id: string; lock_version: number }[]).find(
+  const versionOf = (structure: string): number => {
+    const found = (example("structures") as { structure_id: string; lock_version: number }[]).find(
       (each) => each.structure_id === structure,
-    )?.lock_version;
+    );
+    if (found === undefined) {
+      throw new Error(`The example structures lists no structure ${structure}.`);
+    }
+    return found.lock_version;
+  };
 
   it.each([
     {

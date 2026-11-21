@@ -15,6 +15,7 @@ import {
   fakeClient,
   held,
   type Problem,
+  reached,
 } from "@/test/fixtures";
 import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 import { estimateReference } from "@/test/reference";
@@ -52,9 +53,6 @@ const STRUCTURE = {
   structure_id: "01926f3a-7c00-7000-8000-000000000201",
 };
 const VERSION = 1;
-/** The version of the structure an example of the contract answers. */
-const reached = (name: string) =>
-  (example(name) as { structure_lock_version: number }).structure_lock_version;
 const estimate = example("nodes_estimate") as NodeList;
 const planning = example("nodes_planning") as NodeList;
 const core = example("nodes_core") as NodeList;
@@ -361,6 +359,7 @@ describe("the indentation of a task", () => {
     });
     await choose(mounting, "Indenter");
     await screen.findByText(/indentée\.$/);
+    expect(reached("task_attached")).not.toBe(VERSION);
     expect(moved(client)).toMatchObject([{ lock_version: reached("task_attached") }]);
   });
 
@@ -380,6 +379,7 @@ describe("the indentation of a task", () => {
     });
     await choose(TRANSPORT, "Indenter");
     await screen.findByText(/indentée\.$/);
+    expect(reached("remaining_reestimated")).not.toBe(VERSION);
     expect(moved(client)).toMatchObject([{ lock_version: reached("remaining_reestimated") }]);
   });
 

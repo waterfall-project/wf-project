@@ -31,6 +31,18 @@ export function example(name: string): unknown {
   return (JSON.parse(text) as { value: unknown }).value;
 }
 
+/**
+ * The version of the structure an example of the contract answers (`structure_lock_version`), read
+ * from the example: a name whose example carries none fails, rather than reading `undefined`.
+ */
+export function reached(name: string): number {
+  const version = (example(name) as { structure_lock_version?: unknown }).structure_lock_version;
+  if (typeof version !== "number") {
+    throw new Error(`The example ${name} carries no structure_lock_version.`);
+  }
+  return version;
+}
+
 /** The methods of the generated client that call an operation of the contract. */
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
