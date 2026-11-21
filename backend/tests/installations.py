@@ -19,6 +19,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account, role
+from backup_support import stand_in_realm
 from realm import KEY, TestRealm
 from sqlalchemy import ColumnElement, func, insert, select, text, update
 from support import as_backup, bearer
@@ -86,8 +87,7 @@ def installed(
     owner.dispose()
     identity = create_database_engine(provider)
     with identity.begin() as connection:
-        connection.execute(text("CREATE TABLE realm (id text PRIMARY KEY)"))
-        connection.execute(text("INSERT INTO realm VALUES ('waterfall')"))
+        stand_in_realm(connection)
     identity.dispose()
     service = f"waterfall_test_restore_{suffix}_service"
     signing, password = f"waterfall_test_signing_{suffix}", uuid4().hex

@@ -463,6 +463,9 @@ lint-compose: ## Validate the Compose files
 		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_STORAGE_RPC_SECRET=stand-in \
 		WATERFALL_GRAFANA_ADMIN_PASSWORD=stand-in \
 		$(COMPOSE_PRODUCTION) --profile install config --quiet
+	@WATERFALL_DOMAIN=waterfall.localhost WATERFALL_IMAGE_TAG=stand-in WATERFALL_SERVICE_DATABASE_PASSWORD=stand-in \
+		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_RESTORE_TEST_PASSWORD=stand-in \
+		docker compose -f deploy/compose/compose.restore-test.yaml --profile restore-test config --quiet
 	@WATERFALL_DOMAIN=demo.localhost WATERFALL_ACME_EMAIL=stand-in WATERFALL_IMAGE_TAG=stand-in \
 		WATERFALL_DEMO_USER=stand-in WATERFALL_DEMO_PASSWORD_HASH=stand-in \
 		WATERFALL_SERVER_ACTIONS_KEY=stand-in PRISM_VERSION=$(PRISM_VERSION) \

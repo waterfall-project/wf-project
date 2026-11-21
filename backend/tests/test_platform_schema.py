@@ -62,6 +62,7 @@ from waterfall.worker.backup import (
     digest,
     manifest,
 )
+from waterfall.worker.inventory import Inventory
 from waterfall.worker.restore import extracted
 
 if TYPE_CHECKING:
@@ -265,7 +266,7 @@ def taken_whole(installation: Installation, folder: Path) -> UUID:
     folder.mkdir()
     dumps = [whole(name, installation.backup[name], folder) for name in DATABASES]
     path = folder / "backup.tar"
-    archive(path, manifest(utc_now(), "0034", dumps), dumps)
+    archive(path, manifest(utc_now(), "0034", dumps, Inventory(0, 0, 0, 0)), dumps)
     backup_task = uuid4()
     installation.bucket.upload(f"backup-{backup_task}.tar", path)
     return backup_task

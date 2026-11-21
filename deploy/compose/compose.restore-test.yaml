@@ -1,0 +1,210 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The test of a restoration (US-2930, WF-EXP-0060): an ephemeral platform — a PostgreSQL, a Keycloak
+# and an API made for the test —, beside the production platform of compose.prod.yaml, which a
+# planned task of the host starts once a month and removes (restore-test.sh;
+# docs/exploitation/test-de-restauration.md). The only place out of the production where a copy not
+# anonymised exists (WF-EXP-0010).
+#
+# A project of its own, waterfall-restore-test, its services under the profile restore-test: `down
+# --volumes` removes all of it — the databases restored, its authority and its certificates —, and
+# nothing of the production. None of its services publishes a port, and they share a network of
+# their own, internal, which nothing leaves and no service of the production joins: none of them is
+# reachable by a user. Only the test, restore-test, which serves nothing, joins the network of the
+# production besides: it reads the latest scheduled backup verified there — the database as the
+# role of the service, the bucket of the backups —, and gives its result back there, which the
+# production inscribes (waterfall.restore.trial).
+#
+# The settings come from the file .env of the production, beside this one; the password of the
+# ephemeral platform, WATERFALL_RESTORE_TEST_PASSWORD, is drawn by restore-test.sh at each test, and
+# dies with it. Every exchange is in TLS, as in the production (US-2840), with an authority of its
+# own, made at each test.
+name: waterfall-restore-test
+
+x-waterfall-image: &waterfall-image ghcr.io/waterfall-project/waterfall:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
+x-keycloak-image: &keycloak-image ghcr.io/waterfall-project/keycloak:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
+x-postgres-image: &postgres-image ${WATERFALL_MIRROR:-}postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+x-password: &password ${WATERFALL_RESTORE_TEST_PASSWORD:?restore-test.sh draws WATERFALL_RESTORE_TEST_PASSWORD}
+# The issuer of the realm restored: the address the browser knows the production's Keycloak by.
+x-keycloak-address: &keycloak-address https://${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}${WATERFALL_HTTPS_PORT:+:${WATERFALL_HTTPS_PORT}}/auth
+# The databases of the ephemeral platform, as their owners, their certificate checked against its
+# root, which every service of the test reads at /trust/root.crt, and the test at /restore-test.
+x-waterfall-database: &waterfall-database postgresql://waterfall:${WATERFALL_RESTORE_TEST_PASSWORD:?restore-test.sh draws WATERFALL_RESTORE_TEST_PASSWORD}@restore-test-postgres:5432/waterfall?sslmode=verify-full&sslrootcert=/trust/root.crt
+
+x-healthy: &healthy
+  condition: service_healthy
+x-done: &done
+  condition: service_completed_successfully
+
+services:
+  # The authority of the test (waterfall.platform.authority): a root made at each test, which no
+  # operator provides, and the certificate of each server, named as the network of the test names it.
+  restore-test-authority:
+    image: *waterfall-image
+    profiles: [restore-test]
+    user: "0:0"
+    command:
+      - waterfall-authority
+      - --provided=/authority/none
+      - --kept=/authority/kept
+      - --trust=/trust
+      - --certificates=/certificates
+      - restore-test-postgres:999:999
+      - restore-test-keycloak:1000:0
+      - restore-test-api:1000:1000
+    volumes:
+      - authority:/authority/kept
+      - trust:/trust
+      - certificates-postgres:/certificates/restore-test-postgres
+      - certificates-keycloak:/certificates/restore-test-keycloak
+      - certificates-api:/certificates/restore-test-api
+    network_mode: none
+    restart: "no"
+
+  # The PostgreSQL of the test, empty: the owners of the two databases, and the role of the service
+  # the migrations grant to, made at its initialisation (restore-test-database.sql). Enough locks for
+  # a restoration (compose.prod.yaml); in TLS alone, as the production's (pg_hba.conf).
+  restore-test-postgres:
+    image: *postgres-image
+    profiles: [restore-test]
+    command:
+      - postgres
+      - -c
+      - max_locks_per_transaction=1024
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/tls/tls.crt
+      - -c
+      - ssl_key_file=/tls/tls.key
+      - -c
+      - hba_file=/etc/waterfall/pg_hba.conf
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: *password
+      RESTORE_TEST_PASSWORD: *password
+    volumes:
+      - certificates-postgres:/tls:ro
+      - ./pg_hba.conf:/etc/waterfall/pg_hba.conf:ro
+      - ./restore-test-database.sql:/docker-entrypoint-initdb.d/restore-test-database.sql:ro
+    networks: [ephemeral]
+    depends_on:
+      restore-test-authority: *done
+    restart: "no"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready --host 127.0.0.1 --username postgres --dbname postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+
+  # The test: `waterfall-restore test`. It restores the latest scheduled backup verified of the
+  # production into the PostgreSQL of the test, then writes /tmp/restored, which its health check
+  # reads: Keycloak and the API start then, on the databases restored. It waits for the API to be
+  # ready, counts, compares, gives the outcome to the production, and stops: 0 if the test
+  # succeeded, 1 if it failed.
+  restore-test:
+    image: *waterfall-image
+    profiles: [restore-test]
+    command: ["waterfall-restore", "test"]
+    environment:
+      WATERFALL_DATABASE_URL: postgresql://waterfall_service:${WATERFALL_SERVICE_DATABASE_PASSWORD:?set WATERFALL_SERVICE_DATABASE_PASSWORD in .env}@postgres:5432/waterfall?sslmode=verify-full&sslrootcert=/trust/root.crt
+      WATERFALL_TLS_AUTHORITY: /trust/root.crt
+      WATERFALL_STORAGE_ADDRESS: https://storage:3900
+      WATERFALL_STORAGE_ACCESS_KEY: ${WATERFALL_STORAGE_ACCESS_KEY:-GK000000000000000000000001}
+      WATERFALL_STORAGE_SECRET: ${WATERFALL_STORAGE_SECRET:?set WATERFALL_STORAGE_SECRET in .env}
+      WATERFALL_BACKUPS_BUCKET: backups
+      WATERFALL_RESTORE_TEST_DATABASE_URL: postgresql://waterfall:${WATERFALL_RESTORE_TEST_PASSWORD:?restore-test.sh draws WATERFALL_RESTORE_TEST_PASSWORD}@restore-test-postgres:5432/waterfall?sslmode=verify-full&sslrootcert=/restore-test/root.crt
+      WATERFALL_RESTORE_TEST_KEYCLOAK_DATABASE_URL: postgresql://keycloak:${WATERFALL_RESTORE_TEST_PASSWORD:?restore-test.sh draws WATERFALL_RESTORE_TEST_PASSWORD}@restore-test-postgres:5432/keycloak?sslmode=verify-full&sslrootcert=/restore-test/root.crt
+      WATERFALL_RESTORE_TEST_API_ADDRESS: https://restore-test-api:8443
+      WATERFALL_RESTORE_TEST_AUTHORITY: /restore-test/root.crt
+      WATERFALL_RESTORE_TEST_RESTORED_FILE: /tmp/restored
+      WATERFALL_RESTORE_TEST_PATIENCE: ${WATERFALL_RESTORE_TEST_PATIENCE:-1800}
+    volumes:
+      # The root of the production, which its PostgreSQL and its storage are checked against, and
+      # the root of the test.
+      - production-trust:/trust:ro
+      - trust:/restore-test:ro
+    networks: [production, ephemeral]
+    depends_on:
+      restore-test-postgres: *healthy
+    restart: "no"
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/restored"]
+      interval: 5s
+      timeout: 3s
+      # Four hours: the time a restoration of the reference data set takes, and more.
+      retries: 2880
+
+  # Keycloak, on its database restored: the realm of the backup, issued at the address of the
+  # production, which nobody reaches here. In TLS alone, its management on its loopback.
+  restore-test-keycloak:
+    image: *keycloak-image
+    profiles: [restore-test]
+    environment:
+      KC_DB_URL: jdbc:postgresql://restore-test-postgres:5432/keycloak?sslmode=verify-full&sslrootcert=/trust/root.crt
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: *password
+      KC_HOSTNAME: *keycloak-address
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "false"
+      KC_HTTPS_CERTIFICATE_FILE: /tls/tls.crt
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /tls/tls.key
+      KC_HTTP_MANAGEMENT_SCHEME: http
+      KC_HTTP_MANAGEMENT_HOST: 127.0.0.1
+      KC_CACHE: local
+    volumes:
+      - certificates-keycloak:/tls:ro
+      - trust:/trust:ro
+    networks: [ephemeral]
+    depends_on:
+      restore-test: *healthy
+    restart: "no"
+
+  # The API, on the database restored, as its owner: the test gives the role of the service none of
+  # its rights back, which a restoration of the production alone keeps. Neither Redis nor the
+  # storage: the API reaches them only when a request needs them, and its readiness, which the test
+  # asks alone, needs only its database; it says whether Keycloak answers.
+  restore-test-api:
+    image: *waterfall-image
+    profiles: [restore-test]
+    environment:
+      WATERFALL_DATABASE_URL: *waterfall-database
+      WATERFALL_REDIS_URL: rediss://:${WATERFALL_RESTORE_TEST_PASSWORD:?restore-test.sh draws WATERFALL_RESTORE_TEST_PASSWORD}@restore-test-redis:6379/0?ssl_ca_certs=/trust/root.crt
+      WATERFALL_TLS_AUTHORITY: /trust/root.crt
+      WATERFALL_KEYCLOAK_ADDRESS: *keycloak-address
+      WATERFALL_KEYCLOAK_BACKCHANNEL: https://restore-test-keycloak:8443/auth
+      WATERFALL_SERVICE_CLIENT_SECRET: *password
+      WATERFALL_STORAGE_ADDRESS: https://restore-test-storage:3900
+      WATERFALL_STORAGE_ACCESS_KEY: restore-test
+      WATERFALL_STORAGE_SECRET: *password
+      WATERFALL_PORT: 8443
+      WATERFALL_TLS_CERTIFICATE: /tls/tls.crt
+      WATERFALL_TLS_KEY: /tls/tls.key
+    volumes:
+      - certificates-api:/tls:ro
+      - trust:/trust:ro
+    networks: [ephemeral]
+    depends_on:
+      restore-test: *healthy
+    restart: "no"
+
+networks:
+  # The network of the production, which the test alone joins.
+  production:
+    external: true
+    name: ${WATERFALL_PRODUCTION_PROJECT:-waterfall}_default
+  # The network of the test: nothing leaves it, nothing of the production joins it.
+  ephemeral:
+    internal: true
+
+volumes:
+  # The root every client of the production trusts, which the test reads.
+  production-trust:
+    external: true
+    name: ${WATERFALL_PRODUCTION_PROJECT:-waterfall}_trust
+  authority:
+  trust:
+  certificates-postgres:
+  certificates-keycloak:
+  certificates-api:
