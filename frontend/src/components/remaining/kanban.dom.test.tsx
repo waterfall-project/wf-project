@@ -797,10 +797,10 @@ describe("the gestures of the cards of the Kanban", () => {
     await userEvent.click(
       within(card("Réception usine")).getByRole("button", { name: "Terminer" }),
     );
-    await waitFor(() => {
-      expect(router.refresh).toHaveBeenCalledTimes(2);
-    });
+    await expect.poll(() => router.refresh).toHaveBeenCalledTimes(2);
     expect(readAnew.mounts).toBe(2);
+    await within(card("Réception usine")).findByRole("alert");
+    await expect.poll(() => screen.queryByText(/Relecture de l’écran/)).toBeNull();
   });
 
   it("keeps the card of a write lost waiting for its own reading when another write is lost or refused meanwhile (US-2240)", async () => {
@@ -819,11 +819,10 @@ describe("the gestures of the cards of the Kanban", () => {
     await choose("Réception des études", "Rouvrir");
     await within(card("Réception des études")).findByRole("alert");
     expect(card("Études de détail")).toHaveAttribute("draggable", "false");
-    act(() => {
+    await act(async () => {
       readAnew.held = false;
-      readAnew.watchers.forEach((wake) => {
-        wake();
-      });
+      for (const wake of readAnew.watchers) wake();
+      await Promise.resolve();
     });
     await waitFor(() => {
       expect(card("Études de détail")).toHaveAttribute("draggable", "true");
