@@ -183,8 +183,15 @@ les formules que la table lui donne. Un calcul nouveau d'un de ces quatre ajoute
 Deux déclarations y gardent un écart dit sans échouer : un homonyme (`[[homonym]]`), autre calcul d'un
 module du noyau sous un nom de la table, qui peut s'importer de ce module, et un doublon connu
 (`[[duplicate]]`), dit à chaque passage avec sa raison jusqu'à ce qu'il disparaisse ; chacune échoue
-quand elle ne tient plus. Le contrôle juge par le nom : un calcul récrit sous un autre nom lui
-échappe, et relève de la revue ; les générateurs du faux back, qui ne sont pas livrés, en sont hors.
+quand elle ne tient plus ; un doublon peut copier un nom de la table sous un autre (`of`, et `of_file`
+pour un nom privé que la table ne porte pas). « Appliquer » une formule, c'est l'appeler ou la passer
+pour qu'on l'appelle (`map(cost_index, …)`) ; le contrôle ne vérifie pas que l'argument est une somme,
+ce qui relève de la revue. Le contrôle juge par le nom : un calcul récrit sous un autre nom lui
+échappe, et relève de la revue — l'arrondi d'un montant récrit par `quantize`, sans nom de la table,
+en est un (le cas de `_money` de l'API est ouvert à part, #4373) ; les générateurs du faux back, qui
+ne sont pas livrés, en sont hors. Un fichier tenu qui nomme `schedule`, `advance`, `margin`,
+`balances`, `distribution` ou `cumulative` autre chose qu'un calcul de la table n'a pas
+d'échappatoire : il renomme sa méthode.
 
 _Contrôle_ : `make implementations` (`wftools.implementations`, famille `repo`, qui s'exécute sur
 toute modification).

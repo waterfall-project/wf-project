@@ -180,9 +180,15 @@ formulas the table gives it. A new calculation of one of these four adds its nam
 Two declarations keep a gap there, said without failing: a homonym (`[[homonym]]`), another
 calculation of a module of the core under a name of the table, which may be imported from that
 module, and a known duplicate (`[[duplicate]]`), said at each run with its reason until it is gone;
-each fails once it no longer holds. The check judges by name: a calculation written again under
-another name escapes it, and falls under review; the generators of the fake back, which are not
-delivered, are out of it.
+each fails once it no longer holds; a duplicate may copy a name of the table under another (`of`, and
+`of_file` for a private name the table does not hold). To « apply » a formula is to call it or to
+pass it on to be called (`map(cost_index, …)`); the check does not verify that the argument is a sum,
+which falls under review. The check judges by name: a calculation written again under another name
+escapes it, and falls under review — the rounding of an amount rewritten by `quantize`, without a
+name of the table, is one (the case of the API's `_money` is open apart, #4373); the generators of
+the fake back, which are not delivered, are out of it. A held file that names `schedule`, `advance`,
+`margin`, `balances`, `distribution` or `cumulative` something that is not a calculation of the
+table has no escape hatch: it renames its method.
 
 _Check_: `make implementations` (`wftools.implementations`, family `repo`, which runs on every
 change).

@@ -23,22 +23,29 @@ and the line:
 - on a name of the table that one of them imports (``from … import name``, an alias included, a
   relative import resolved) from elsewhere than the module of the core that owns it;
 - on a file of the portfolio that the table says applies a formula of EP-10 to sums, and that does
-  not import that formula or does not call it (WF-PTF-0020);
+  not import that formula or does not apply it (WF-PTF-0020): a call, ``cost_index(…)``, or the name
+  passed on to be called, ``map(cost_index, …)``. The check does not see that what it is applied to
+  is a sum: that is the review's;
 - on a name of the table its file no longer defines, and on a declaration of the table that no
   longer holds, so that the table does not age unnoticed.
 
 What « defines none » observes is thus a definition by name, and what « imports it from there »
-observes, the module an import names. A calculation written again under another name escapes it,
-and is the review's to find. The names too common to designate a calculation, and the classes,
-which the models generated from the contract repeat without computing anything, are left out of the
-table, which says why. The other modules of the core are out of the check: several of them give a
-name of the table to another thing of their own (``STATES`` of the risks, ``state_of`` of the
-planning), and the migrations keep the values of their time. Two declarations of the table keep a
-finding said without failing: a homonym, another calculation of a module of the core under a name
-of the table, which may be imported from that module (the zone of a cell of the risk matrix,
-``zone_of``); a known duplicate, a definition the check would refuse, said at each run with its
-reason until it is gone, re-exports of it included. The generators of the fake back, under
-``tools/``, are not delivered: they stay an independent calculation, out of the check.
+observes, the module an import names. A calculation written again under another name escapes it, and
+is the review's to find: the rounding of an amount written again by ``quantize``, without any name
+of the table, is one. A name of the table too generic for a file that is held, which gives it to
+something else (``schedule``, ``margin``…), is renamed there. The names too common to designate a
+calculation, and the classes, which the models generated from the contract repeat without computing
+anything, are left out of the table, which says why. The other modules of the core are out of the
+check: several of them give a name of the table to another thing of their own (``STATES`` of the
+risks, ``state_of`` of the planning), and the migrations keep the values of their time. Two
+declarations of the table keep a finding said without failing: a homonym, another calculation of a
+module of the core under a name of the table, which may be imported from that module (the zone of a
+cell of the risk matrix, ``zone_of``); a known duplicate, a definition the check would refuse, said
+at each run with its reason until it is gone, re-exports of it included (it is imported from its
+module, or from a package that re-exports it, up to the module of the core), which may copy a name
+of the table under another one (``of``, and ``of_file`` for a private name that the table does not
+hold). The generators of the fake back, under ``tools/``, are not delivered: they stay an
+independent calculation, out of the check.
 """
 
 import ast
@@ -104,6 +111,15 @@ class Declaration:
     name: str
     place: str
     reason: str
+    of: str = ""
+    """The name a duplicate copies, when it is written under another name."""
+    of_file: str = ""
+    """The file of the core that defines ``of``, when it is no name of the table (a private one)."""
+
+    @property
+    def copied(self) -> str:
+        """Return the name of the table the declaration is about: ``of``, or the name itself."""
+        return self.of or self.name
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,12 +195,24 @@ def parse(text: str) -> Table:
         for each in _entries(data, "homonym")
     ]
     duplicates = [
-        Declaration(_string(each, "name"), _string(each, "file"), _string(each, "reason"))
+        Declaration(
+            _string(each, "name"),
+            _string(each, "file"),
+            _string(each, "reason"),
+            _string(each, "of") if "of" in each else "",
+            _string(each, "of_file") if "of_file" in each else "",
+        )
         for each in _entries(data, "duplicate")
     ]
     for each in (*homonyms, *duplicates):
-        if each.name not in seen:
-            message = f"{each.place}: {each.name} is not a name of the table"
+        if each.copied not in seen and not each.of_file:
+            message = (
+                f"{each.place}: {each.copied} is not a name of the table"
+                " (a private name gives its file as of_file)"
+            )
+            raise TableError(message)
+        if each.of_file and (not each.of or each.of_file.startswith(PORTFOLIO)):
+            message = f"{each.place}: of_file goes with an of, and names a file of another module"
             raise TableError(message)
     return Table(tuple(implementations), tuple(applications), tuple(homonyms), tuple(duplicates))
 
@@ -203,25 +231,54 @@ def module_of(file: str) -> str:
     return ".".join(parts[:-1] if parts[-1] == "__init__" else parts)
 
 
+_NESTED = (ast.If, ast.Try, ast.TryStar, ast.With, ast.AsyncWith, ast.For, ast.AsyncFor, ast.While)
+
+
+def _statements(body: list[ast.stmt]) -> Iterator[ast.stmt]:
+    """Yield the statements of the level of the module, those under an ``if``, a ``try``… too."""
+    for statement in body:
+        yield statement
+        if isinstance(statement, _NESTED):
+            blocks = [statement.body, getattr(statement, "orelse", [])]
+            if isinstance(statement, ast.Try | ast.TryStar):
+                blocks += [each.body for each in statement.handlers] + [statement.finalbody]
+            for block in blocks:
+                yield from _statements(block)
+
+
+def _bound(target: ast.expr) -> Iterator[ast.Name]:
+    """Yield the names an assignment binds: direct, or in a tuple or a list, a starred one included.
+
+    ``REGISTRY[cost_index] = 1`` binds none: the name in an index or in an attribute is read.
+    """
+    if isinstance(target, ast.Name):
+        yield target
+    elif isinstance(target, ast.Tuple | ast.List):
+        for each in target.elts:
+            yield from _bound(each)
+    elif isinstance(target, ast.Starred):
+        yield from _bound(target.value)
+
+
 def defined(tree: ast.Module) -> dict[str, int]:
     """Return the names a module defines, with the line of the first of each.
 
-    Functions at any depth, methods included; names assigned at the level of the module.
+    Functions at any depth, methods included; names assigned at the level of the module, which
+    includes those under an ``if``, a ``try`` or a ``with`` of that level.
     """
     found: dict[str, int] = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             found.setdefault(node.name, node.lineno)
-    for statement in tree.body:
+    for statement in _statements(tree.body):
         targets: list[ast.expr] = []
         if isinstance(statement, ast.Assign):
             targets = statement.targets
         elif isinstance(statement, ast.AnnAssign | ast.AugAssign):
             targets = [statement.target]
         for target in targets:
-            for node in ast.walk(target):
-                if isinstance(node, ast.Name):
-                    found.setdefault(node.id, statement.lineno)
+            for node in _bound(target):
+                found.setdefault(node.id, statement.lineno)
     return found
 
 
@@ -245,17 +302,37 @@ def imports(tree: ast.Module, file: str) -> Iterator[tuple[str, str, int]]:
 
 
 def called(tree: ast.Module) -> set[str]:
-    """Return the names a module calls directly: ``cost_index(…)``."""
-    return {
-        node.func.id
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-    }
+    """Return the names a module applies: called, ``cost_index(…)``, or passed on to be called.
+
+    ``map(cost_index, …)`` and ``partial(cost_index, …)`` apply it too: a name that is an argument
+    of a call, by position or by keyword. The check does not see that the argument it is applied
+    to is a sum: that, and a name passed along without ever being called, are the review's.
+    """
+    found: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if isinstance(node.func, ast.Name):
+            found.add(node.func.id)
+        found.update(each.id for each in node.args if isinstance(each, ast.Name))
+        found.update(each.value.id for each in node.keywords if isinstance(each.value, ast.Name))
+    return found
 
 
 def within(module: str, package: str) -> bool:
     """Tell whether a module is a package or one of its modules, at any depth."""
     return module == package or module.startswith(f"{package}.")
+
+
+def _ancestors(module: str) -> Iterator[str]:
+    """Yield a module of the back and each package above it, down to the module of the core.
+
+    ``….portfolio.aggregation.periods``, ``….portfolio.aggregation``, ``….portfolio``:
+    the packages that re-export a duplicate are where it is imported from.
+    """
+    parts = module.split(".")
+    for length in range(len(parts), 2, -1):
+        yield ".".join(parts[:length])
 
 
 class _Judge:
@@ -268,7 +345,11 @@ class _Judge:
         self.defined = {file: defined(tree) for file, tree in trees.items()}
         self.duplicates = {(each.name, each.place): each for each in table.duplicates}
         self.homonyms = {(each.name, each.place) for each in table.homonyms}
-        self.duplicate_modules = {(each.name, module_of(each.place)) for each in table.duplicates}
+        self.duplicate_modules = {
+            (each.name, source)
+            for each in table.duplicates
+            for source in _ancestors(module_of(each.place))
+        }
         self.findings: list[str] = []
         self.notes: list[str] = []
 
@@ -289,14 +370,15 @@ class _Judge:
 
     def definitions(self, file: str) -> None:
         for name, line in sorted(self.defined[file].items()):
-            owner = self.owners.get(name)
-            if owner is None:
-                continue
             duplicate = self.duplicates.get((name, file))
             if duplicate is not None:
+                of = f" of {duplicate.of}" if duplicate.of else ""
                 self.notes.append(
-                    f"{file}:{line}: defines {name}, a known duplicate: {duplicate.reason}"
+                    f"{file}:{line}: defines {name}, a known duplicate{of}: {duplicate.reason}"
                 )
+                continue
+            owner = self.owners.get(name)
+            if owner is None:
                 continue
             self.findings.append(
                 f"{file}:{line}: defines {name}, a second implementation of the {owner.calculation}"
@@ -345,6 +427,12 @@ class _Judge:
             elif name not in self.defined.get(file, {}):
                 self.findings.append(
                     f"{file}: no longer defines {name}: remove its [[duplicate]] entry"
+                )
+        for each in self.table.duplicates:
+            if each.of_file and each.of not in self.defined.get(each.of_file, {}):
+                self.findings.append(
+                    f"{each.of_file}: no longer defines {each.of}, which the duplicate"
+                    f" {each.name} of {each.place} copies"
                 )
         for name, module in sorted(self.homonyms):
             if not any(

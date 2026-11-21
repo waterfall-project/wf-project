@@ -26,11 +26,13 @@
 #
 # Ce que la table ne liste pas, et pourquoi : un nom trop commun pour désigner un calcul — `NOUGHT`,
 # `CENT`, `MONEY`, `Point`, `plan_of`, `chain` —, que d'autres modules emploient pour autre chose
-# (le motif d'un montant dans une requête de l'API, le plan de charge rendu…) ; les classes, que les
+# (`MONEY`, le motif d'un montant dans une requête de l'API, le plan de charge rendu…) ; les classes, que les
 # modèles engendrés du contrat (`api/contract/models.py`) reprennent sous le même nom sans rien
 # calculer ; les codes de refus et de condition, qui ne sont pas des calculs (`SHARED` de
 # `backend/tests/test_boundaries.py` en tient les partagés). Un calcul récrit sous un autre nom
-# échappe à ce contrôle : la revue le cherche.
+# échappe à ce contrôle : la revue le cherche — l'arrondi d'un montant récrit par `quantize` sans
+# aucun nom de la table en est un. Un nom générique de la table (`schedule`, `advance`, `margin`,
+# `balances`, `distribution`, `cumulative`) qu'un fichier tenu donne à autre chose se renomme.
 #
 # Les générateurs du faux back (`tools/src/wftools/mock*`), qui ne sont pas livrés, restent un
 # calcul indépendant, par la règle du jeu de données de référence : ils sont hors du contrôle.
@@ -147,6 +149,16 @@ names = ["remaining_sum"]
 
 [[implementation]]
 calculation = "estimate"
+file = "core/estimate/remaining/analysing.py"
+names = ["effort", "unit_disbursement"]
+
+[[implementation]]
+calculation = "estimate"
+file = "core/estimate/spreading/rounding.py"
+names = ["HOURS"]
+
+[[implementation]]
+calculation = "estimate"
 file = "core/estimate/remaining/balancing.py"
 names = ["margin", "balances", "delta_to_reference", "delta_to_previous", "distributed"]
 
@@ -243,11 +255,34 @@ reason = """la zone de la case d'une probabilité et d'une gravité dans la matr
 # Une entrée `[[duplicate]]` par définition d'un nom de la table, dans un fichier que le contrôle
 # tient, que le dépôt porte aujourd'hui : le contrôle la dit à chaque passage, sans échouer — ses
 # réexportations comprises —, et échoue quand elle disparaît, pour que l'entrée parte avec elle.
-# `reason` dit ce qui est copié ; une entrée ne s'ajoute que pour un doublon trouvé, jamais pour
+# `name` est le nom du doublon ; `of` le nom qu'il copie quand il en porte un autre (`last_day_of`
+# copie `end_of`) ; `of_file` le fichier du noyau qui définit ce nom quand il est privé et hors de la
+# table (`_index`, que d'autres fichiers du portefeuille donnent à une autre chose). Un doublon
+# s'importe de son module, ou du paquet qui le réexporte, jusqu'au module du noyau. `reason` dit ce
+# qui est copié ; une entrée ne s'ajoute que pour un doublon trouvé, jamais pour
 # faire passer un calcul nouveau.
 
 [[duplicate]]
 name = "month_of"
 file = "core/portfolio/aggregation/periods.py"
-reason = """le mois civil d'un jour des courbes d'EP-10, récrit par le portefeuille avec \
-last_day_of (end_of des courbes) et le rang d'un mois, que l'interface des indicateurs n'offre pas"""
+reason = """le mois civil d'un jour, copie de `month_of` des courbes d'EP-10 (constat #4372)"""
+
+[[duplicate]]
+name = "last_day_of"
+of = "end_of"
+file = "core/portfolio/aggregation/periods.py"
+reason = """le dernier jour d'un mois, copie de `end_of` des courbes d'EP-10 (constat #4372)"""
+
+[[duplicate]]
+name = "_index_of"
+of = "_index"
+of_file = "core/indicators/series/months.py"
+file = "core/portfolio/aggregation/periods.py"
+reason = """le rang d'un mois, copie de `_index` des courbes d'EP-10 (constat #4372)"""
+
+[[duplicate]]
+name = "_month_at"
+of = "_from_index"
+of_file = "core/indicators/series/months.py"
+file = "core/portfolio/aggregation/periods.py"
+reason = """le mois d'un rang, copie de `_from_index` des courbes d'EP-10 (constat #4372)"""

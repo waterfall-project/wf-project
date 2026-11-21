@@ -65,6 +65,20 @@ EXPORTS = {
     "task_tree_image": "WF-PLA-0120",
 }
 SENSES = {IMPORT: "Entrant", EXPORT: "Sortant"}
+# The words by which the description of ``openImport`` and of ``requestExport`` names each kind,
+# and by which that of a backup operation names the backup: the requirement is the one in the
+# parentheses that follow them.
+NAMES = {
+    "ms_project_schedule": "MS Project schedule",
+    "estimate": "estimate",
+    "remaining": "remaining to commit",
+    "actual_costs": "actual costs",
+    "task_tree_image": "image of the task tree",
+}
+BACKUPS = {
+    "downloadBackup": ("copy outside the platform", "WF-ADM-0150"),
+    "uploadChunk": ("backup to restore", "WF-ADM-0160"),
+}
 
 _FLOW = re.compile(r"FLX-\d{2}")
 _REQUIREMENT = re.compile(r"WF-[A-Z]+-\d{4}")
@@ -179,6 +193,17 @@ def enumeration(name: str) -> list[str]:
     return cast("list[str]", schemas[name]["enum"])
 
 
+def names_with(description: str, words: str, cited: str) -> bool:
+    """Tell whether the description cites the requirement in the parentheses that follow the words.
+
+    ``MS Project schedule (WF-INTF-0040)``: the requirement is attached to the passage that names
+    the kind, not found anywhere in the description. The contract states it in prose, not in a
+    field: the link is the parentheses after the words, with no full stop between them.
+    """
+    pattern = rf"{re.escape(words)}[^().]*\((?:[^)]*[ ,])?{re.escape(cited)}\b"
+    return re.search(pattern, description, re.IGNORECASE) is not None
+
+
 def requirement_of_intf_0150() -> projection.Requirement:
     return next(each for each in projection.read() if each.identifier == INTF)
 
@@ -209,7 +234,7 @@ def test_each_import_and_export_is_a_flow_of_the_table_its_operation_cites_the_r
             else:
                 sense, cited = table[target]
                 assert sense == SENSES[kind], each
-            assert cited in description, (opening, each, cited)
+            assert names_with(description, NAMES[each], cited), (opening, each, cited)
 
 
 @pytest.mark.requirement("WF-INTF-0150-A")
@@ -227,9 +252,23 @@ def test_the_uses_of_an_upload_are_an_import_or_a_backup_and_backups_cite_their_
     assert enumeration("FileUploadPurpose") == list(PURPOSES)
     assert frozenset(PURPOSES.values()) == CARRIERS["uploadFile"]
     found = operations(API)
-    for name, carried in CARRIERS.items():
-        if carried == frozenset({BACKUP}):
-            assert any(each in found[name][1]["description"] for each in backups), name
+    backing = {name for name, carried in CARRIERS.items() if carried == frozenset({BACKUP})}
+    assert backing - {"uploadFile"} == set(BACKUPS)
+    for name, (words, cited) in BACKUPS.items():
+        assert cited in backups, name
+        assert names_with(found[name][1]["description"], words, cited), name
+
+
+@pytest.mark.requirement("WF-INTF-0150-A")
+def test_a_requirement_cited_elsewhere_in_the_description_does_not_name_the_kind() -> None:
+    description = (
+        "Estimate (WF-INTF-0100). An MS Project schedule is read. Remaining (WF-INTF-0120)."
+    )
+    assert names_with(description, "estimate", "WF-INTF-0100")
+    assert names_with(description, "remaining", "WF-INTF-0120")
+    assert not names_with(description, "MS Project schedule", "WF-INTF-0040")
+    assert not names_with(description, "MS Project schedule", "WF-INTF-0100")
+    assert not names_with(description, "estimate", "WF-INTF-0120")
 
 
 @pytest.mark.requirement("WF-INTF-0150-A")

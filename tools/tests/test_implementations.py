@@ -66,6 +66,16 @@ def test_a_back_built_to_pass_passes() -> None:
         ("core/portfolio/folding.py", "cost_index = lambda earned, actual: earned / actual\n"),
         ("core/portfolio/folding.py", "cost_index: object = None\n"),
         ("witness/loader.py", "cost_index, other = 1, 2\n"),
+        ("witness/loader.py", "other, *cost_index = 1, 2\n"),
+        ("witness/loader.py", "[other, (cost_index, more)] = 1, (2, 3)\n"),
+        ("witness/loader.py", "if True:\n    cost_index = 1\nelse:\n    other = 2\n"),
+        ("witness/loader.py", "try:\n    pass\nexcept OSError:\n    cost_index = 1\n"),
+        (
+            "witness/loader.py",
+            "try:\n    pass\nexcept OSError:\n    pass\nelse:\n    cost_index = 1\n",
+        ),
+        ("witness/loader.py", "try:\n    pass\nfinally:\n    cost_index = 1\n"),
+        ("witness/loader.py", "with open('x') as handle:\n    cost_index = 1\n"),
     ],
 )
 def test_a_second_implementation_in_the_api_the_worker_or_the_portfolio_is_refused(
@@ -75,6 +85,19 @@ def test_a_second_implementation_in_the_api_the_worker_or_the_portfolio_is_refus
     assert len(found) == 1
     assert found[0].startswith(f"{file}:")
     assert "defines cost_index, a second implementation of the indicators" in found[0]
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+@pytest.mark.parametrize(
+    "text",
+    [
+        "REGISTRY = {}\nREGISTRY[cost_index] = 1\n",
+        "settings.cost_index = 1\n",
+        "REGISTRY[cost_index], other = 1, 2\n",
+    ],
+)
+def test_a_name_read_in_an_index_or_an_attribute_of_a_target_is_not_defined(text: str) -> None:
+    assert check(parse(TABLE), sources() | {"witness/loader.py": text})[0] == []
 
 
 @pytest.mark.requirement("WF-ARC-0010-A")
@@ -223,7 +246,17 @@ def test_a_known_duplicate_is_said_without_failing_until_it_is_gone() -> None:
         ),
         (
             TABLE + DUPLICATE.replace('"zone_of"', '"margin"'),
-            "core/portfolio/aggregation/periods.py: margin is not a name of the table",
+            (
+                "core/portfolio/aggregation/periods.py: margin is not a name of the table"
+                " (a private name gives its file as of_file)"
+            ),
+        ),
+        (
+            TABLE + DUPLICATE.replace('name = "zone_of"', 'name = "x"\nof_file = "core/a.py"'),
+            (
+                "core/portfolio/aggregation/periods.py: of_file goes with an of, and names a file"
+                " of another module"
+            ),
         ),
         (TABLE.replace('["cost_index", "zone_of"]', "[]"), "names must be a list of names, not []"),
     ],
@@ -238,3 +271,75 @@ def test_the_check_reports_on_the_repository(capsys: pytest.CaptureFixture[str])
     # A detail of the command, which reprises no Vérif: it cites no requirement.
     assert implementations.main() == 0
     assert "0 finding(s)" in capsys.readouterr().out
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+@pytest.mark.parametrize(
+    "call",
+    ["list(map(cost_index, earned, actual))", "partial(cost_index, 1)", "run(rule=cost_index)"],
+)
+def test_a_formula_passed_on_to_be_called_is_applied(call: str) -> None:
+    text = (
+        "from waterfall.core.indicators.interface import cost_index\n\n\n"
+        f"def aggregate(earned, actual):\n    return {call}\n"
+    )
+    assert check(parse(TABLE), sources() | {"core/portfolio/aggregation/ratios.py": text}) == (
+        [],
+        [],
+    )
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+def test_a_duplicate_under_another_name_is_said_and_its_copied_name_must_exist() -> None:
+    table = parse(
+        TABLE
+        + """
+[[duplicate]]
+name = "_rank"
+of = "_index"
+of_file = "core/indicators/series/months.py"
+file = "core/portfolio/aggregation/periods.py"
+reason = "the rank of a month"
+"""
+    )
+    back = sources() | {
+        "core/portfolio/aggregation/periods.py": "def _rank(month):\n    ...\n",
+        "core/indicators/series/months.py": "def _index(month):\n    ...\n",
+    }
+    assert check(table, back) == (
+        [],
+        [
+            (
+                "core/portfolio/aggregation/periods.py:1: defines _rank, a known duplicate of"
+                " _index: the rank of a month"
+            )
+        ],
+    )
+    gone = back | {"core/indicators/series/months.py": "def other():\n    ...\n"}
+    assert check(table, gone)[0] == [
+        (
+            "core/indicators/series/months.py: no longer defines _index, which the duplicate"
+            " _rank of core/portfolio/aggregation/periods.py copies"
+        )
+    ]
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+def test_a_duplicate_is_imported_from_its_module_or_the_packages_that_re_export_it() -> None:
+    table = parse(TABLE + DUPLICATE)
+    periods = {"core/portfolio/aggregation/periods.py": "def zone_of(index):\n    ...\n"}
+    for source in (
+        "waterfall.core.portfolio.aggregation.periods",
+        "waterfall.core.portfolio.aggregation",
+        "waterfall.core.portfolio",
+    ):
+        reading = {"core/portfolio/views.py": f"from {source} import zone_of\n"}
+        assert check(table, sources() | periods | reading)[0] == [], source
+    elsewhere = {"core/portfolio/views.py": "from waterfall.core.portfolio.rows import zone_of\n"}
+    found = check(table, sources() | periods | elsewhere)[0]
+    assert found == [
+        (
+            "core/portfolio/views.py:1: imports zone_of from waterfall.core.portfolio.rows, not"
+            " from waterfall.core.indicators, the module of the core that owns it"
+        )
+    ]
