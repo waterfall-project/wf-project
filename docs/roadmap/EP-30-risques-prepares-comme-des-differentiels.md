@@ -209,6 +209,21 @@ et du contrat sont ouvertes depuis le même jour, la 1.0.9 acceptée et les US a
   risques ; le reste est à EP-36, #4448). Reporté ici au cadrage d'EP-36 du 2026-11-21 (décision de
   l'auteur) : US-3160 redessine ces bulles et réécrit ce parcours, qui les trouve alors par ce que
   l'écran nomme. Corrigé par US-3160.
+- #4409 — outil : le faux back sert la structure principale à l'adresse du devis propre d'un risque
+  (`listNodes ?structure=204`), faute d'aiguiller par chemin les structures de nature `risk`.
+  Relevé par EP-08 (US-3060/L7), reporté ici le 2026-11-21 (décision de l'auteur) : cet EPIC écrit
+  les exemples du devis propre que ses écrans lisent sur le faux back. Corrigé par US-3070.
+- #4503 — front : la cellule du montant est hors de la garde `aria-readonly` du jumeau de service de
+  la provision (`e2e/entry.spec.ts`, WF-RIS-0010-A). Relevé par EP-08 (US-3060/L7), reporté ici le
+  2026-11-21 (décision de l'auteur) : cet EPIC clôt WF-RIS-0010 et rejoue les parcours des risques.
+  Son autre point, le commentaire de `LOADED`, est à EP-36 (#4645). Corrigé par US-3140.
+- #4406 — back : la docstring de `_provision_budgeted` (`core/estimate/merged.py`) ne dit pas
+  pourquoi l'écriture du montant budgété d'une ligne de provision ne touche ni `lock_version` ni
+  `updated_at/by` ; et #4367 — back : celle de `_zeroed`, dans le même fichier, renvoie à un test
+  par son nom. Relevés par EP-08 (US-3060/L6 et L3), reportés ici le 2026-11-21 (décision de
+  l'auteur) : US-3100 écrit le mode « survenance » de la fusion dans ce fichier. Les autres points
+  de #4367 : le test de concurrence de `change_identity`, sans suite ; les lignes longues de
+  `common.yaml`, à EP-38 (#4646). Corrigés par US-3100.
 
 Trois constats d'EP-08 sont tranchés au plus léger parce que cet EPIC rend leur règle provisoire
 (décisions de l'auteur du 2026-11-19 et du 2026-11-20) : #4133, les dates du devis propre le jour de
@@ -785,6 +800,11 @@ fragment à part.
   que le devis propre désigne, et la structure principale est inchangée ; le même fichier appliqué
   sur la structure principale laisse inchangé ce que le devis propre désigne, et le met en retard
   (WF-INTF-0090) ;
+- propre à l'US : le faux back sert, à l'adresse du devis propre d'un risque, les nœuds de ce devis
+  propre et non ceux de la structure principale : les structures de nature `risk` sont aiguillées
+  par chemin comme celles d'un avenant, et les parcours joués contre le faux back qui lisaient là
+  les marques de la principale (`e2e/entry.spec.ts`, `e2e/paste.spec.ts`) lisent celles du devis
+  propre, ou cèdent la place à leur jumeau de service (#4409) ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
 
 **Notes de réalisation.** EP-08 lit déjà un différentiel contre sa base (`compare_differential`,
@@ -1124,6 +1144,10 @@ sans toucher au budget de référence.
   à l'historique annulable, et aucune transition ne part de l'état survenu ; l'abandon de la
   révision en cours la défait, le risque redevenant identifié avec son devis propre et sa provision
   (WF-RIS-0020) ;
+- propre à l'US : dans `core/estimate/merged.py`, la docstring de `_provision_budgeted` dit pourquoi
+  l'écriture du montant budgété d'une ligne de provision ne touche ni `lock_version` ni
+  `updated_at/by`, et celle de `_zeroed` ne nomme plus un test, pour autant que le mode
+  « survenance » garde ces fonctions (#4406, #4367) ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
 
 **Notes de réalisation.** La survenance d'EP-08 greffe un sous-arbre (`graft`,
@@ -1364,7 +1388,10 @@ qu'il est.
   et l'opportunité ;
 - propre à l'US : aucune réponse n'est écrite à la main : le faux back sert les exemples du contrat,
   le client est engendré ; les parcours de bout en bout des risques sont rejoués contre le service
-  ou réécrits, et les écrans passent l'audit d'accessibilité.
+  ou réécrits, et les écrans passent l'audit d'accessibilité ;
+- propre à l'US : le jumeau de service du parcours de la ligne de provision (`e2e/entry.spec.ts`,
+  WF-RIS-0010-A) affirme aussi fermée la cellule du montant, avec les autres cellules de la ligne
+  (#4503).
 
 **Notes de réalisation.** Les écrans existent (EP-15, EP-17, EP-25, EP-08) : le registre, le détail,
 les formulaires, le réexamen, le compte rendu de survenance, et pour un avenant la note de retard et
