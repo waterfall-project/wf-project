@@ -559,6 +559,8 @@ def risk_occurrence_report_completed_task() -> JsonObject:
     graft would make it the summary of the tasks of the own estimate, not started again, its earned
     value falling back: the report names it by its node and its label, a warning beside the rest,
     which it does not change — it refuses nothing, and the graft writes nothing else (#4240).
+    ``differences`` is not recomputed for the counterfactual: the ``updated`` difference of the
+    task keeps the dates of the witness, no column of `NodeColumn` naming its state.
     """
     task = bearer()
     named: JsonObject = {"node_id": task.node["node_id"], "label": task.label}
@@ -773,7 +775,9 @@ def _occurrence_examples() -> dict[str, JsonObject]:
             f"rendu la nomme, par son nœud et son libellé (completed_provision_task) : un "
             f"avertissement, non un motif de refus — refusals reste vide, la survenance "
             f"s'applique et la greffe n'écrit rien d'autre. Le reste du compte rendu est celui "
-            f"de risk_occurrence_report, que la variante ne change pas. Règle provisoire, "
+            f"de risk_occurrence_report, que la variante ne change pas : differences n'y est pas "
+            f"recalculé, la différence de la tâche gardant ses dates du témoin (aucune colonne "
+            f"ne nomme son état). Règle provisoire, "
             f"qu'EP-30 reprend (WF-RIS-0060, WF-PLA-0040, WF-IND-0030, #4240).",
             risk_occurrence_report_completed_task(),
         ),

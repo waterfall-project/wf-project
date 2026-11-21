@@ -419,6 +419,9 @@ def test_a_completed_bearer_is_a_warning_of_the_report_which_it_does_not_change(
         variant["value"]
     )
     assert variant["value"]["refusals"] == []
+    # `differences` is not recomputed: the bearer's difference keeps the witness's fields.
+    [kept] = [each for each in variant["value"]["differences"] if each["label"] == bearer.label]
+    assert kept["fields"] == ["duration", "start", "finish"]
     assert variant["summary"].startswith("Variante contrefactuelle de risk_occurrence_report")
 
 

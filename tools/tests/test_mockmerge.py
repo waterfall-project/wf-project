@@ -64,15 +64,16 @@ def _command(revision: dict[str, Any], name: str) -> tuple[bool, list[str]]:
     return command["is_available"], command["missing_conditions"]
 
 
-def test_every_report_before_a_merge_says_whether_the_merge_creates_the_current_revision() -> None:
+def test_every_report_before_a_merge_says_it_creates_no_current_revision() -> None:
     schema = (SCHEMAS / "revisions.yaml").read_text(encoding="utf-8")
     block = schema.split("\nStructureMergeReport:\n", 1)[1].split("\n\n", 1)[0]
     assert "- creates_current_revision" in block.split("properties:", 1)[0]
     report = _operation("getStructureMergeReport")
     for name in REPORTS:
         assert f"fixtures/api/{name}.json" in report, name
-        # The witness has no report of a merge that creates the current revision: the amendment
-        # 2, the only differential of the reference, is out of date there (#4174).
+        # No example says true: the witness has no report of a merge that creates the current
+        # revision, the amendment 2, the only differential of the reference, being out of date
+        # there (#4174). That state is shown by a counterfactual variant of the front.
         assert fixture(name)["creates_current_revision"] is False, name
 
 

@@ -415,32 +415,25 @@ def examples(reference: JsonObject) -> dict[str, JsonObject]:
     )
     return {
         "revision_marked_merge_offered.json": mocktext.example(
-            "La révision de référence du projet le 1er février 2026, juste après son marquage par "
-            "la fusion de l'avenant 1, et avant que le réexamen d'un risque n'ouvre le lendemain "
-            "la révision courante : un instant antérieur de la même chronologie. Le projet n'a "
-            "pas de révision en cours, et la référence, dernière révision marquée, porte "
-            "l'avenant 2 « reprise des essais », non fusionné : sa commande de fusion y est "
-            "offerte, elle qui créerait la révision en cours par copie de la référence, y "
-            "fusionnerait la copie de l'avenant et la marquerait. Mais l'avenant 2, ouvert avant "
-            "la fusion de l'avenant 1 qui a écrit la structure principale, est en retard sur la "
-            "référence 101 (structures_amendments), et une révision marquée ne se met pas à "
-            "jour : la commande ne juge pas cet état, et le compte rendu comme la fusion "
-            "demandés ce jour-là sont refusés par structure_up_to_date "
+            "La révision de référence du projet le 1er février 2026, juste après le marquage par "
+            "la fusion de l'avenant 1 et avant que le réexamen d'un risque n'ouvre la révision "
+            "courante. Le projet n'a pas de révision en cours, et la référence porte l'avenant 2 "
+            "« reprise des essais », non fusionné : sa commande de fusion y est offerte, la "
+            "commande ne jugeant pas l'état de l'avenant. Or l'avenant 2 est en retard sur la "
+            "référence 101 (structures_amendments) : compte rendu et fusion y sont refusés "
             "(merge_reference_out_of_date_refused). La fusion applicable se montre sur la "
-            "révision en cours, qui a repris l'avenant et l'a mis à jour (structure_merge_report). "
-            "Ses autres commandes de modification restent indisponibles, la révision étant "
-            "marquée (WF-REV-0050, WF-REV-0010, WF-REV-0100, #790, #4174).",
+            "révision en cours (structure_merge_report). Les autres commandes de modification "
+            "restent indisponibles, la révision étant marquée (WF-REV-0050, WF-REV-0010, "
+            "WF-REV-0100, #790, #4174).",
             revision_marked_merge_offered(reference),
         ),
         "merge_may_create_revision_refused.json": mocktext.example(
-            "La fusion de l'avenant 2 demandée le 1er février 2026 sur la référence, quand le "
-            "projet n'a pas de révision en cours (revision_marked_merge_offered), par une "
-            "session sans la permission d'écrire dans les révisions (`revisions.write`) : la "
-            "fusion créerait la révision en cours, et la commande merge_structure nomme alors "
-            "may_create_revision, après unmerged_amendment_exists. Rien n'est fusionné, et "
-            "aucune révision n'est créée. L'avenant 2 étant en retard sur la référence 101, une "
-            "session qui peut créer la révision serait refusée à son tour, par "
-            "structure_up_to_date, la dernière des conditions "
+            "La fusion de l'avenant 2 demandée le 1er février 2026 sur la référence "
+            "(revision_marked_merge_offered) par une session sans `revisions.write` : elle "
+            "créerait la révision en cours, et la commande merge_structure nomme "
+            "may_create_revision, après unmerged_amendment_exists. Rien n'est fusionné ni créé. "
+            "L'avenant étant en retard sur la référence 101, une session qui peut la "
+            "créer serait refusée par structure_up_to_date "
             "(merge_reference_out_of_date_refused ; WF-REV-0050, WF-REV-0010, WF-IHM-0090, #790, "
             "#4174).",
             merge_may_create_revision_refused(),
@@ -489,10 +482,9 @@ def examples(reference: JsonObject) -> dict[str, JsonObject]:
         ),
         "structure_merge_report.json": mocktext.example(
             f"Le compte rendu préalable de la fusion de l'avenant 2 du témoin, « {LABEL} », "
-            f"différentiel non fusionné de la révision courante (nodes_amendment), repris en "
-            f"retard de la référence, où sa fusion est refusée "
-            f"(merge_reference_out_of_date_refused), et mis à jour depuis : à jour "
-            f"(structures), c'est ici que sa fusion s'applique ; "
+            f"différentiel non fusionné de la révision courante (nodes_amendment), repris puis "
+            f"mis à jour : sa fusion s'applique ici, refusée sur la référence "
+            f"(merge_reference_out_of_date_refused) ; "
             f"{_said(whole, mockdiff.ADDED)}, qu'il ajoute ; la « {relinked} » déplacée sous "
             f"les « {_label(whole, N.SITE_TESTS)} », liée à la « {after} » au lieu du "
             f"« {before} », sa durée et la charge de sa ligne modifiées ; la « {linked} » "
