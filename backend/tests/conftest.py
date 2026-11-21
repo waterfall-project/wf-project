@@ -4,6 +4,7 @@
 
 import json
 import os
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 from urllib.parse import urlsplit, urlunsplit
@@ -40,6 +41,7 @@ from support import (
     service_role,
 )
 from witness_rows import WitnessRows, copied, laid
+from witness_timings import summary, timed
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -54,10 +56,11 @@ from waterfall.platform.maintenance import SUFFIX, Maintenance
 from waterfall.platform.queue import RESTORES, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import ServiceSettings, WitnessSettings, load_service_settings
 from waterfall.platform.storage import Bucket
+from waterfall.witness import chronology, portfolio
 from waterfall.witness.main import load_witness
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator, Iterator
 
 # A test that skips without declaring it by the mark ``unexecuted`` fails (US-2440): the plugin is
 # the tools', shared with their tests, and found on the ``pythonpath`` of pyproject.toml.
@@ -327,7 +330,8 @@ def database(
     needs = "witness" in request.fixturenames or "witness_logged" in request.fixturenames
     if not needs and database_url in WITNESS_PARTITIONS:
         owner = create_database_engine(database_url)
-        drop_every_partition(owner)
+        with timed(request.node, "drop_every_partition:setup"):
+            drop_every_partition(owner)
         owner.dispose()
         WITNESS_PARTITIONS.discard(database_url)
     db = Database(create_database_engine(service_database_url))
@@ -336,10 +340,11 @@ def database(
     owner = create_database_engine(database_url)
     held = WITNESS_ROWS.get(service_database_url)
     kept: set[UUID] = {UUID(each) for each in held.rows.projects} if needs and held else set()
-    drop_every_partition(owner, kept)
+    with timed(request.node, "drop_every_partition:teardown"):
+        drop_every_partition(owner, kept)
     if kept:
         WITNESS_PARTITIONS.add(database_url)
-    with owner.begin() as connection:
+    with timed(request.node, "delete"), owner.begin() as connection:
         # The guards of the journal and of the revised tables off for this transaction alone.
         unguarded(connection)
         for table in reversed(Base.metadata.sorted_tables):
@@ -494,7 +499,9 @@ def installation_api(
 
 
 @pytest.fixture
-def witness(database: Database, owner: Engine, service_database_url: str) -> Database:
+def witness(
+    request: pytest.FixtureRequest, database: Database, owner: Engine, service_database_url: str
+) -> Database:
     """Install the database as the bootstrap does, load the witness by the command; give it.
 
     The row of the installation and the reference the bootstrap writes — the settings, the units,
@@ -507,9 +514,11 @@ def witness(database: Database, owner: Engine, service_database_url: str) -> Dat
     """
     held = WITNESS_ROWS.get(service_database_url)
     if held is None:
-        WITNESS_ROWS[service_database_url] = loaded(owner, service_database_url)
+        with timed(request.node, "loaded"):
+            WITNESS_ROWS[service_database_url] = loaded(owner, service_database_url)
     else:
-        laid(owner, held.rows)
+        with timed(request.node, "laid"):
+            laid(owner, held.rows)
     return database
 
 
@@ -575,9 +584,32 @@ def loaded(owner: Engine, service_database_url: str) -> Loaded:
     settings = WitnessSettings(
         database_url=SecretStr(service_database_url), witness_path=str(WITNESS)
     )
-    with recorded_logs() as records:
+    with recorded_logs() as records, sliced():
         assert load_witness(settings) == 0
     return Loaded(copied(owner), records.getvalue())
+
+
+@contextmanager
+def sliced() -> Generator[None]:
+    """Leave the slice of the portfolio out of the loading under ``WATERFALL_WITNESS_CORE``.
+
+    Temporary measure of #4653: the cost of the witness without its slice, the tests that read it
+    failing.
+    """
+    if not os.environ.get("WATERFALL_WITNESS_CORE"):
+        yield
+        return
+    held = (chronology.SLICES, portfolio.partition)
+    chronology.SLICES = tuple(each for each in chronology.SLICES if each[0] != "portfolio")
+    portfolio.partition = nothing
+    try:
+        yield
+    finally:
+        chronology.SLICES, portfolio.partition = held
+
+
+def nothing(_session: Session, _witness: object) -> None:
+    """Create no partition (#4653, temporary measure)."""
 
 
 # The rows of the witness and the records of its loading, by the database of the process that
@@ -585,6 +617,11 @@ def loaded(owner: Engine, service_database_url: str) -> Loaded:
 WITNESS_ROWS: dict[str, Loaded] = {}
 # The databases of the process whose partitions of the witness's projects a test left in place.
 WITNESS_PARTITIONS: set[str] = set()
+
+
+def pytest_terminal_summary(terminalreporter: pytest.TerminalReporter) -> None:
+    """Sum the time the fixtures of the witness took (#4653, temporary measure)."""
+    summary(terminalreporter)
 
 
 @pytest.fixture
