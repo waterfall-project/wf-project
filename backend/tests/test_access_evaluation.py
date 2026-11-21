@@ -489,6 +489,7 @@ ASKED: dict[str, tuple[str, ...]] = {
     "getReadiness": (),
     "getMetrics": (),
     "getInstallation": (),
+    "getSystemStatus": ("system_status.read",),
     "getMe": (),
     "updateMyPreferences": (),
     "putMyAvatar": (),

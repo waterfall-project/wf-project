@@ -157,13 +157,16 @@ def post(port: int, **given: object) -> None:
     assert status == OK
 
 
-def until(condition: Callable[[], bool], what: str) -> None:
+def until(condition: Callable[[], bool], what: str, said: Path | None = None) -> None:
+    """Wait for a condition; else fail, joining what the program wrote to ``said``, if given."""
     deadline = time.monotonic() + WAIT
     while time.monotonic() < deadline:
         if condition():
             return
         time.sleep(0.2)
     message = f"no {what} in {WAIT:.0f} seconds"
+    if said is not None:
+        message += f"; it wrote:\n{said.read_text(encoding='utf-8', errors='replace')}"
     raise AssertionError(message)
 
 
@@ -176,18 +179,21 @@ def running(folder: Path, port: int, **given: str) -> Generator[None]:
         "ALERTMANAGER": str(shortened(folder)),
         **given,
     }
-    started = subprocess.Popen(
-        [
-            "sh",
-            str(START),
-            f"--web.listen-address=127.0.0.1:{port}",
-            f"--storage.path={folder / 'data'}",
-            "--cluster.listen-address=",
-        ],
-        env=variables,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    # What Alertmanager writes, joined to the failure of a start (#4321).
+    said = folder / "alertmanager.log"
+    with said.open("w", encoding="utf-8") as output:
+        started = subprocess.Popen(
+            [
+                "sh",
+                str(START),
+                f"--web.listen-address=127.0.0.1:{port}",
+                f"--storage.path={folder / 'data'}",
+                "--cluster.listen-address=",
+            ],
+            env=variables,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+        )
 
     def ready() -> bool:
         try:
@@ -196,7 +202,7 @@ def running(folder: Path, port: int, **given: str) -> Generator[None]:
             return False
 
     try:
-        until(ready, "ready Alertmanager")
+        until(ready, "ready Alertmanager", said)
         yield
     finally:
         started.terminate()

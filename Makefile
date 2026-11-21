@@ -324,7 +324,7 @@ lint-docker: ## Lint the Dockerfiles
 
 # Helm, kind and kubectl, which PyPI does not hold as it holds the linters above: downloaded at the
 # versions and digests wftools.kubetools pins, kept under the cache of the user, shared by worktrees.
-kube-tools: ## Install Helm, kind, kubectl, promtool and amtool at their pinned versions, under ~/.cache/waterfall/bin
+kube-tools: ## Install Helm, kind, kubectl, promtool, amtool and alertmanager at their pinned versions, under ~/.cache/waterfall/bin
 	@$(WFTOOLS).kubetools
 
 lint-chart: kube-tools ## Lint the chart strictly, with the values of the chain (US-2800)

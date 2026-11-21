@@ -5,14 +5,14 @@
 The image pinned by its digest runs with the variables GF_* and the mounts of the service grafana of
 compose.prod.yaml, and a password of the test: it answers under /grafana, loads the dashboard the
 platform delivers and the one source that is Prometheus, and the account ``operator`` opens a
-session there, a wrong password not. Docker is needed: a test skips without it, and says so.
+session there, a wrong password not. A docker daemon is needed: a test skips without one, and
+says so; the image is pulled behind ``WATERFALL_MIRROR``, as the Compose pulls it (#4321).
 """
 
 import base64
 import http.client
 import json
 import re
-import shutil
 import subprocess
 import time
 import uuid
@@ -20,14 +20,15 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
+from dockerdaemon import answers, mirrored
 from test_notification import COMPOSE, DASHBOARD, PRODUCTION
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
 pytestmark = [
-    pytest.mark.skipif(shutil.which("docker") is None, reason="docker is not installed"),
-    pytest.mark.unexecuted("skipped where docker is not installed"),
+    pytest.mark.skipif(not answers(), reason="no docker daemon answers"),
+    pytest.mark.unexecuted("skipped where no docker daemon answers"),
 ]
 
 PHRASE = "grafana-test-only"
@@ -56,7 +57,7 @@ def production() -> dict[str, Any]:
 
 
 def image() -> str:
-    return str(production()["image"]).removeprefix("${WATERFALL_MIRROR:-}")
+    return mirrored(str(production()["image"]))
 
 
 def get(port: int, path: str, password: str | None = None) -> tuple[int, Any]:

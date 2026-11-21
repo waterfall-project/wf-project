@@ -38,6 +38,7 @@ from waterfall.witness import (
     cost_types,
     duration_units,
     hourly_rates,
+    installation,
     org_nodes,
     projects,
     reference_settings,
@@ -63,11 +64,12 @@ EXTENDING = (
     planning_interface,
 )
 
-# The settings and the units name nothing; a category names its nature, a rate its category, a
-# node its parent, a role its node, its category and its calendar; the mapping comes last of the
-# reference. The projects follow, which their creation asks the minimal reference of (EP-04): one
-# entry, which orders the slices of the projects (``chronology``).
+# The bound of the avatars, the settings and the units name nothing; a category names its nature,
+# a rate its category, a node its parent, a role its node, its category and its calendar; the
+# mapping comes last of the reference. The projects follow, which their creation asks the minimal
+# reference of (EP-04): one entry, which orders the slices of the projects (``chronology``).
 SLICES: tuple[tuple[str, Slice], ...] = (
+    ("installation", installation.load),
     ("reference_settings", reference_settings.load),
     ("duration_units", duration_units.load),
     ("cost_types", cost_types.load),

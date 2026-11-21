@@ -19,6 +19,8 @@ components on the loopback.
 
 import ssl
 from contextlib import suppress
+from dataclasses import dataclass
+from decimal import Decimal
 from functools import cache
 from pathlib import Path
 from typing import Annotated, Any, Literal, Self
@@ -289,7 +291,37 @@ class StorageSettings(PlatformSettings):
 
 
 class ServiceSettings(Settings, KeycloakSettings, StorageSettings):
-    """What a service that reaches Keycloak reads: the API, and the worker after it."""
+    """What a service that reaches Keycloak reads: the API, and the worker after it.
+
+    ``background_task_retention_days`` is how long the result of a task ended is kept, thirty days
+    by default (WF-DAT-0080, §4.4.1): an operating parameter, which the worker's purge applies and
+    the status screen presents.
+    """
+
+    background_task_retention_days: int = Field(default=30, ge=1)
+
+
+# A ratio of the thresholds of the alerts: above zero, at most one (``Percent`` of the contract).
+type Ratio = Annotated[Decimal, Field(gt=0, le=1)]
+
+
+@dataclass(frozen=True, slots=True)
+class OperatingParameters:
+    """The operating parameters a process of the API reads, at their shipped values (§4.5.1).
+
+    Set by the operator at the deployment (WF-ARC-0050), never by an operation; the status screen
+    presents them (WF-ADM-0130). The three thresholds of the alerts are those the rules of
+    Prometheus are written with (WF-OBS-0030), which the API receives to present them. The seventh,
+    the largest avatar, is the installation's: the bootstrap writes it from its own setting
+    (``InstallationSettings.avatar_max_bytes``), and the front reads it there without a session.
+    """
+
+    cache_validity_seconds: int = 600
+    background_task_retention_days: int = 30
+    task_queue_age_threshold_seconds: int = 900
+    storage_usage_threshold: Decimal = Decimal("0.85")
+    error_rate_threshold: Decimal = Decimal("0.05")
+    error_rate_window_seconds: int = 300
 
 
 class ApiSettings(ServiceSettings):
@@ -306,6 +338,10 @@ class ApiSettings(ServiceSettings):
     alone; neither, in HTTP, as on the workstation. ``metrics_port`` is a port of its own where it
     serves its metrics over HTTP, and nothing else (``getMetrics``, TFX-09): none by default, and
     then they are served on the port of the API alone.
+    ``prometheus_address`` is where it reaches the query API of Prometheus, for the status screen
+    (TFX-14): none by default, and then the screen says the metrics unavailable. The thresholds of
+    the alerts are those the rules of Prometheus are written with, which it presents
+    (``OperatingParameters``).
     """
 
     api_processes: int = Field(default=1, ge=1)
@@ -316,6 +352,33 @@ class ApiSettings(ServiceSettings):
     metrics_port: Annotated[
         Annotated[int, Field(ge=1, le=65535)] | None, BeforeValidator(_none_when_empty)
     ] = None
+    prometheus_address: Annotated[
+        Annotated[str, Field(pattern="^https?://")] | None, BeforeValidator(_none_when_empty)
+    ] = None
+    task_queue_age_threshold_seconds: int = Field(default=900, ge=1)
+    storage_usage_threshold: Ratio = Decimal("0.85")
+    error_rate_threshold: Ratio = Decimal("0.05")
+    error_rate_window_seconds: int = Field(default=300, ge=1)
+
+    def transport_faults(self) -> list[str]:
+        """Add Prometheus, when given, which must be reached in ``https://`` (TFX-14)."""
+        address = self.prometheus_address
+        encrypted = address is None or address.startswith("https://")
+        return [
+            *super().transport_faults(),
+            *encrypted_fault("prometheus_address", encrypted=encrypted, wanted="be in https://"),
+        ]
+
+    def operating_parameters(self) -> OperatingParameters:
+        """Give the operating parameters in force, as the environment sets them."""
+        return OperatingParameters(
+            cache_validity_seconds=self.indicators_cache_ttl,
+            background_task_retention_days=self.background_task_retention_days,
+            task_queue_age_threshold_seconds=self.task_queue_age_threshold_seconds,
+            storage_usage_threshold=self.storage_usage_threshold,
+            error_rate_threshold=self.error_rate_threshold,
+            error_rate_window_seconds=self.error_rate_window_seconds,
+        )
 
     @model_validator(mode="after")
     def _served(self) -> Self:
@@ -368,8 +431,8 @@ class WorkerSettings(ServiceSettings):
     ``metrics_port`` is where it serves its metrics, on the address of ``host`` (WF-OBS-0010).
     The purge it runs keeps the history of a session ``undo_retention_hours`` hours, twelve by
     default: the longest session of the realm (EP-06, "L'historique annulable et le collage"); and
-    a task ended ``background_task_retention_days`` days, thirty by default, the retention of its
-    result (WF-DAT-0080, §4.4.1), the operating parameter of the same name.
+    a task ended ``background_task_retention_days`` days, the operating parameter of the same name
+    (``ServiceSettings``).
     ``backup_database_url`` is the database of Waterfall, the journal of audit included, and
     ``keycloak_database_url`` the database of the identity provider, both as the role of the backup
     reaches them: a member of ``pg_read_all_data``, which reads every table and can neither write
@@ -382,7 +445,10 @@ class WorkerSettings(ServiceSettings):
     keycloak_database_url: SecretStr = Field(min_length=1)
     metrics_port: int = Field(default=9100, ge=1, le=65535)
     undo_retention_hours: int = Field(default=12, ge=1)
-    background_task_retention_days: int = Field(default=30, ge=1)
+
+
+# The largest avatar a new installation accepts, as the specification ships it (§4.4.1).
+SHIPPED_AVATAR_MAX_BYTES = 512 * 1024
 
 
 @cache
@@ -416,8 +482,9 @@ class InstallationSettings(KeycloakSettings):
     ``time_zone`` the name of its time zone in the IANA database, optional, in which the
     current day is taken (WF-EXP-0020, WF-PLA-0130, US-2200), written once too, ``UTC`` when none is
     given at that first writing — the bootstrap refuses a name it
-    does not know. It deposits no task and serves nothing: it reads neither Redis nor where the API
-    listens.
+    does not know. ``avatar_max_bytes`` is the largest avatar, an operating parameter (§4.4.1),
+    shipped at 512 KB and never above 8 MiB, which every run writes in the installation (#3965). It
+    deposits no task and serves nothing: it reads neither Redis nor where the API listens.
     """
 
     installation_client_secret: SecretStr = Field(min_length=1)
@@ -428,6 +495,7 @@ class InstallationSettings(KeycloakSettings):
     time_zone: Annotated[
         str | None, BeforeValidator(_none_when_empty), AfterValidator(_known_time_zone_if_given)
     ] = None
+    avatar_max_bytes: int = Field(default=SHIPPED_AVATAR_MAX_BYTES, ge=1, le=8 * 1024**2)
 
 
 class RestoreSettings(ServiceSettings):
