@@ -3813,6 +3813,25 @@ déclaration de son refus, avec un exemple de période inversée.
 *Complété par US-0701/L6 (#1606, G-05) : `getPortfolioCostStructure` et `getPortfolioCostCurve`
 prennent aussi `from` et `to` et déclarent `PortfolioPeriodRefused` ; six vues le partagent.*
 
+*Complété par US-2670/L4 (#4176, décision de l'auteur du 2026-11-19 : borner la période, durée
+proposée par le lot) : la période de `getPortfolioPerformance` est bornée à **cinq ans**
+(commentaire de #3873), la seule vue qui lise un document conservé par
+trimestre que la période touche. Une fin au-delà du début de plus de cinq ans (le 28 février pour un
+29 février que l'année n'a pas) est refusée par 422 `VALIDATION_FAILED`, `/query/to` par
+`VALUE_OUT_OF_RANGE`, `params.maximum` la dernière fin admise ; quand le début seul est envoyé, la
+fin étant la date de calcul, `/query/from`, `params.minimum` le premier début admis. Une seule
+constante, `PERIOD_YEARS` (`core/portfolio/interface/performance.py`), que `resolve_scope` reçoit.
+L'exemple `period_too_long` s'écrit dans le contrat (`paths/portfolio.yaml`), non sous `fixtures/api/` :
+la dernière fin admise d'un exemple tombe hors de l'univers des fixtures, entre son installation et
+son jour (`test_mockhistory`), et la corrélation dérivée du nom d'un exemple n'est d'aucune famille
+d'identifiants (`test_mockwitness`, #1007). Écartée : lire les documents conservés de tous les
+trimestres en une requête.*
+
+*Complété par US-2670/L4 (#4333) : le dernier marquage d'un projet tombé à l'instant même de son
+passage à En cours (`end == entered_at`) est la référence que ce passage désigne, non une revue :
+`review_interval` rend `None`, la santé du pilotage ne lève ni « risques non revus » ni « aucun coût
+réel » pour ce projet, et le retard de revue se dit seul (WF-PTF-0110).*
+
 Engendrés par `wftools.mocklists`, des comptes et des rôles écrits à la main et du lotissement du
 témoin, dont il écrit désormais la forme pour `mockdata` : `users_by_access_role`, `users_search`,
 `users_inactive`, `access_roles_composed`, `access_roles_unheld`, `work_breakdown_search`,

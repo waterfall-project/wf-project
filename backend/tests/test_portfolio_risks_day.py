@@ -282,11 +282,11 @@ def test_a_date_asked_reads_what_the_marking_kept_and_the_same_answer_as_the_day
 def test_at_a_past_date_the_outcomes_and_the_reserve_follow_the_reference_of_the_day(
     ready: Occurring, owner: Engine
 ) -> None:
-    # Constat de #4294 : ``outcomes_between`` ne vient d'aucun document conservé — la provision
-    # d'une issue est la part du risque dans la référence actuelle (WF-RIS-0040) —, et la réserve
-    # est celle que la référence conserve (``kept_coverage``). La matrice, elle, garde ce que le
-    # marquage a conservé. The share the occurred risk bears in the reference moved from 60 to 75
-    # after the marking: the date asked gives 75 and a reserve of 115, the matrix 60 as kept.
+    # Finding of #4294: ``outcomes_between`` comes from no document kept — the provision of an
+    # outcome is the share of the risk in the current reference (WF-RIS-0040) —, and the reserve is
+    # the one the reference conserves (``kept_coverage``). The matrix keeps what the marking kept.
+    # The share the occurred risk bears in the reference moved from 60 to 75 after the marking: the
+    # date asked gives 75 and a reserve of 115, the matrix 60 as kept.
     marked(ready.project.stage, ready.revision, "v2")
     query = f"?as_of={current_day(utc_now())}"
     before = read(ready, query)

@@ -233,7 +233,7 @@
       states requested. A portfolio index is a ratio of sums, never an average of indices
       (WF-PTF-0020). The quarterly evolution runs over the quarters that the period touches
       (`from`, `to`), each calculated at a past date according to WF-PTF-0010
-      (WF-PTF-0070).
+      (WF-PTF-0070); that period is bounded to five years (422, `VALUE_OUT_OF_RANGE`).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/PortfolioFrom
@@ -250,7 +250,38 @@
               volume: { $ref: ../../../fixtures/api/volume/portfolio_performance.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '422': { $ref: ../components/responses.yaml#/PortfolioPeriodRefused }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`. The period (`from`, `to`) refused by the rule of every period of
+          the portfolio (`PortfolioPeriodRefused`): an end that precedes the start, a start later
+          than the end completed, a malformed bound. Or a period longer than five years: an end
+          more than five years after the start, one document being read for each quarter that the
+          period touches. It is refused on `/query/to` with `VALUE_OUT_OF_RANGE`,
+          `params.maximum` the last end admitted, the start given plus five years (the 28
+          February for a 29 February the year lacks); on `/query/from`, when only the start is
+          sent, `params.minimum` the first start admitted, the end — the calculation date — less
+          five years. No empty view stands in for a refusal.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              period_inverted: { $ref: ../../../fixtures/api/portfolio_period_inverted.json }
+              open_period_inverted:
+                $ref: ../../../fixtures/api/portfolio_open_period_inverted.json
+              period_too_long:
+                summary: >-
+                  The performance asked from 1 January 2020 to 3 June 2026, more than five years:
+                  the end is refused on `/query/to`, the last end admitted named (1 January 2025).
+                  Written in the contract: its bound lies before the installation of the universe
+                  of the examples, which the fixtures keep to.
+                value:
+                  code: VALIDATION_FAILED
+                  status: 422
+                  fields:
+                    - pointer: /query/to
+                      code: VALUE_OUT_OF_RANGE
+                      params: { maximum: '2025-01-01' }
+                  correlation_id: '01926f3a-7c00-7000-8000-d073140e43fb'
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

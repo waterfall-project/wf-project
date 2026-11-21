@@ -338,9 +338,11 @@ def test_the_evolution_has_a_point_by_quarter_each_read_at_its_last_day_and_neve
 def test_the_current_day_sums_the_indicators_of_the_day_of_the_projects_in_progress(
     api: ContractClient, fabrics: Portfolio, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # The performance of one project In progress is its own indicators: the sums of one project,
-    # the indices of the day, the variances and the three projections as the project gives them,
-    # and the quarter that holds the current day is read as the day is.
+    # The performance of two projects In progress is the sums of their own indicators, as
+    # ``getProjectIndicators`` gives them: the reference budget, the cost index — a ratio of the
+    # sums of the earned value and of the actual cost, never a mean of indices —, the cost and
+    # schedule variances and the projections at the budget and of the project manager; the quarter
+    # that holds the current day is read as the day is.
     for route in ("portfolio_performance", "project_indicators"):
         monkeypatch.setattr(f"waterfall.api.{route}.utc_now", lambda: NOW)
     thresholds(fabrics.stage, WATCH, ALERT)
@@ -368,7 +370,11 @@ def test_the_current_day_sums_the_indicators_of_the_day_of_the_projects_in_progr
         "reason": None,
     }
     assert body["cost_variance"] == f"{earned - spent:.2f}"
-    assert body["cost_index"]["value"]["is_computable"] is True
+    schedule = sum(Decimal(each["schedule_variance"]) for each in (own, other))
+    assert body["schedule_variance"] == f"{schedule:.2f}"
+    for name in ("at_budget", "project_manager"):
+        projected = sum(Decimal(each["projections"][name]) for each in (own, other))
+        assert body["projections"][name] == f"{projected:.2f}"
     last = body["quarterly"][-1]
     assert last["quarter"] == "2026-Q4"
     assert last["cost_index"] == body["cost_index"]["value"]

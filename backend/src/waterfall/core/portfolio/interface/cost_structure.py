@@ -50,7 +50,7 @@ from waterfall.core.portfolio.aggregation import (
 )
 from waterfall.core.portfolio.contributing import COST_STRUCTURE
 from waterfall.core.portfolio.documents import documents_of
-from waterfall.core.portfolio.interface.scope import resolve_scope
+from waterfall.core.portfolio.interface.scope import PeriodRule, resolve_scope
 from waterfall.core.portfolio.shaping import computable, money, scope_document
 from waterfall.core.portfolio.states import COMPLETED, IN_PROGRESS, PRICING
 from waterfall.core.resource_settings.interface import (
@@ -211,7 +211,7 @@ def read_portfolio_cost_structure(
     Refuses a period inverted and an unknown node as every view of the portfolio does (422,
     ``resolve_scope``).
     """
-    resolved = resolve_scope(session, asked, reading.at, counted=COUNTED, period=True)
+    resolved = resolve_scope(session, asked, reading.at, counted=COUNTED, period=PeriodRule())
     documents = documents_of(session, resolved, reading, KINDS)
     weighed = [
         (weight, held[COST_STRUCTURE])

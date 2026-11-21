@@ -33,12 +33,14 @@ from portfolio_support import (
     at,
     portfolio,
 )
+from project_rows import REPLICA
 from projects_support import MANAGING, Scene, contribute, create
 from projects_support import scene as make_scene
-from sqlalchemy import event, select, text, update
+from sqlalchemy import event, select, update
 
 from waterfall.core.portfolio import interface
 from waterfall.core.portfolio.interface import (
+    PeriodRule,
     PortfolioAsked,
     ResolvedScope,
     period_instants,
@@ -101,7 +103,9 @@ def _resolved(
     period: bool = True,
 ) -> ResolvedScope:
     with database.transaction() as session:
-        return resolve_scope(session, asked, NOW, counted=counted, period=period)
+        return resolve_scope(
+            session, asked, NOW, counted=counted, period=PeriodRule() if period else None
+        )
 
 
 def _refused(database: Database, asked: PortfolioAsked) -> list[tuple[str, str, object]]:
@@ -318,7 +322,7 @@ def test_the_weight_of_an_offer_at_a_past_date_is_the_probability_its_marking_ke
     # progress one.
     with owner.begin() as connection:
         # A marked revision is immutable: the trigger that says so is set aside, as a superuser.
-        connection.execute(text("SET LOCAL session_replication_role = replica"))
+        connection.execute(REPLICA)
         connection.execute(
             update(Revision)
             .where(Revision.project_id.in_([offer, running]), Revision.status == "marked")
@@ -423,17 +427,20 @@ def test_each_reading_of_several_projects_is_one_statement_whatever_their_number
     ids = [each.project_id for each in fabrics.projects]
 
     def counted(session: Session, project_ids: list[UUID]) -> dict[str, int]:
-        def count(read: Callable[[], object]) -> int:
-            return _statements(session, read)
-
         return {
-            "states": count(lambda: projects_in_states_on(session, list(STATES), at(6, 1))),
-            "now": count(lambda: projects_in_states_on(session, list(STATES), None)),
-            "marked": count(lambda: last_marked_at_instant(session, project_ids, at(6, 1))),
-            "closed": count(lambda: offers_closed_between(session, at(1, 1), at(7, 1))),
-            "openable": count(lambda: openable(session, project_ids, contributor)),
-            "all": count(lambda: openable(session, project_ids, reader)),
-            "none": count(lambda: openable(session, [], contributor)),
+            "states": _statements(
+                session, lambda: projects_in_states_on(session, list(STATES), at(6, 1))
+            ),
+            "now": _statements(session, lambda: projects_in_states_on(session, list(STATES), None)),
+            "marked": _statements(
+                session, lambda: last_marked_at_instant(session, project_ids, at(6, 1))
+            ),
+            "closed": _statements(
+                session, lambda: offers_closed_between(session, at(1, 1), at(7, 1))
+            ),
+            "openable": _statements(session, lambda: openable(session, project_ids, contributor)),
+            "all": _statements(session, lambda: openable(session, project_ids, reader)),
+            "none": _statements(session, lambda: openable(session, [], contributor)),
         }
 
     with stage.database.transaction() as session:

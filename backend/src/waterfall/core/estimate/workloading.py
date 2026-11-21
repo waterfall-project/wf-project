@@ -38,7 +38,7 @@ from waterfall.core.estimate.imaging import KeptReference, KeptRole, kept_refere
 from waterfall.core.estimate.parting import remaining_parts, rounded_parts, summed_parts
 from waterfall.core.estimate.placing import Placed, placed_lines, placement_of, role_weeks
 from waterfall.core.estimate.spreading import HOURS, Month, Placement
-from waterfall.core.projects.interface import project_facts
+from waterfall.core.projects.interface import current_day, project_facts
 from waterfall.core.resource_settings.interface import (
     Capacity,
     RoleFilters,
@@ -251,7 +251,7 @@ def _marked_reading(session: Session, project_id: UUID, asked: WorkloadAsked) ->
     if view.status != MARKED or view.marked_at is None:
         return None
     return Reading(
-        view.revision_id, MARKED, view.marked_at, is_stored=True, as_of=view.marked_at.date()
+        view.revision_id, MARKED, view.marked_at, is_stored=True, as_of=current_day(view.marked_at)
     )
 
 
@@ -275,7 +275,9 @@ def reading_of(session: Session, project_id: UUID, asked: WorkloadAsked) -> Read
         case WorkloadBasis.CURRENT_REMAINING:
             if facts.current_revision_id is None:
                 raise _refuse_absent(facts.state)
-            return Reading(facts.current_revision_id, DRAFT, now, is_stored=False, as_of=now.date())
+            return Reading(
+                facts.current_revision_id, DRAFT, now, is_stored=False, as_of=current_day(now)
+            )
         case WorkloadBasis.MARKED_REMAINING:
             return _marked_reading(session, project_id, asked)
 

@@ -32,10 +32,10 @@ from waterfall.core.costs.interface import PROJECT, UNASSIGNED
 from waterfall.core.indicators.interface.project_indicators import day_indicators, day_reading
 from waterfall.core.indicators.interface.reading import IndicatorsReading
 from waterfall.core.indicators.interface.stored_documents import kept_revisions
-from waterfall.core.indicators.interface.storing import NOBODY
 from waterfall.core.indicators.shaping import classified, instant
 from waterfall.core.indicators.tables import RevisionIndicator
 from waterfall.core.projects.interface import (
+    NOBODY,
     SubprojectFilters,
     SubprojectSort,
     list_subprojects,

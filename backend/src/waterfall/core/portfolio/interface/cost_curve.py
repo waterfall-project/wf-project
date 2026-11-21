@@ -14,13 +14,12 @@ date, each rounded once.
 
 A curve of a project is cumulative and stepped at its points: its value at a date is that of its
 last point on or before it (``value_at``), nought before its first and its final value after its
-last — a series without points, a project that kept
-no curves, adds nothing. The reference budget is read at the end of each month of the window; the
-actual cost at the end of each month before the date of calculation and at that date; the
-projection of the project manager at that date and at the end of each month after it. With the
-payment delays the series are those of the cash-out of each project, and ``cash_out_by_month`` sums
-the details of theirs by month, a month of the window none holds being nought; without them it is
-null.
+last — a series without points, a project that kept no curves, adds nothing. The reference
+budget is read at the end of each month of the window; the actual cost at the end of each month
+before the date of calculation and at that date; the projection of the project manager at that
+date and at the end of each month after it. With the payment delays the series are those of the
+cash-out of each project, and ``cash_out_by_month`` sums the details of theirs by month, a month
+of the window none holds being nought; without them it is null.
 
 Declared by US-2670/L1, the socle of EP-11; filled by US-2740.
 """
@@ -44,7 +43,7 @@ from waterfall.core.portfolio.aggregation import (
 )
 from waterfall.core.portfolio.contributing import OFFER_CURVES
 from waterfall.core.portfolio.documents import documents_of
-from waterfall.core.portfolio.interface.scope import resolve_scope
+from waterfall.core.portfolio.interface.scope import PeriodRule, resolve_scope
 from waterfall.core.portfolio.shaping import money, scope_document
 from waterfall.core.portfolio.states import COMPLETED, IN_PROGRESS, PRICING
 
@@ -167,7 +166,7 @@ def read_portfolio_cost_curve(
     payment_delays: bool,
 ) -> Document:
     """Give the S-curve of the scope read by ``reading``, over its horizon."""
-    resolved = resolve_scope(session, asked, reading.at, counted=COUNTED, period=True)
+    resolved = resolve_scope(session, asked, reading.at, counted=COUNTED, period=PeriodRule())
     day = resolved.scope.as_of
     window = months_window(day, before=MONTHS_BEFORE, horizon=horizon_months)
     ends = [last_day_of(month) for month in window]

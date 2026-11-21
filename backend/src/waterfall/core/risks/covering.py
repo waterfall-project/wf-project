@@ -77,8 +77,9 @@ def conserved_coverage(
     The figures of the risks stay as the marking kept them; the reserve is the one the reference
     conserves, which a revision marked before it was designated could not keep, and the variance is
     deduced from it. A document that kept no coverage, or one whose figures are missing, null or not
-    decimal, gives none (#4183): the caller computes the coverage at the reading, as it does for a
-    revision whose marking kept nothing.
+    decimal, gives none (#4183). The register of the project then computes the coverage; a view of
+    the portfolio at a past date adds nothing for it, no line of a quote being read there
+    (WF-DAT-0040).
     """
     if kept is None or "remaining_provisions" not in kept or "occurred_cost" not in kept:
         return None

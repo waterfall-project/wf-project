@@ -40,8 +40,9 @@ router = APIRouter(tags=["portfolio"])
 
 READ = "portfolio_workload.read"
 DEFAULT_THRESHOLD = "0.5"
-# The form of a decimal, as the contract writes it (``Decimal``).
-DECIMAL = re.compile(r"-?\d+(\.\d+)?")
+# The form of a decimal, as the contract writes it (``Decimal``): the digits 0 to 9 alone, never the
+# digits of other scripts that ``\d`` takes (#4293).
+DECIMAL = re.compile(r"-?[0-9]+(\.[0-9]+)?")
 
 
 class WorkloadQuery(ScopeQuery):

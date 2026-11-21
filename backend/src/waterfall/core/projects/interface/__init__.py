@@ -101,6 +101,7 @@ from waterfall.core.projects.interface.portfolio import (
 
 # ``projects`` (US-0920): the project, its commands, its names for the journal.
 from waterfall.core.projects.interface.projects import (
+    NOBODY,
     CommandAvailability,
     ProjectChange,
     ProjectColumn,
@@ -192,6 +193,7 @@ __all__ = [
     "AT_LEAST_ONE_TASK",
     "BEFORE_IN_PROGRESS",
     "BORN_LOCK_VERSION",
+    "NOBODY",
     "NO_BACKGROUND_TASK_RUNNING",
     "PROJECT_BEFORE_IN_PROGRESS",
     "PROJECT_NOT_TERMINAL",

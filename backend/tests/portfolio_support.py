@@ -196,9 +196,16 @@ class _Writer:
             request = ExitRequest(to_state, reason, stored_lock_version(session, project_id))
             exit_project(session, project_id, request, self.act(instant), self.viewer)
 
-    def under_way(self, label: str, code: str) -> tuple[UUID, dict[str, tuple[UUID, datetime]]]:
-        """Write a project In progress: its offer marked and designated, its review marked."""
+    def under_way(
+        self, label: str, code: str, probability: Decimal | None = None
+    ) -> tuple[UUID, dict[str, tuple[UUID, datetime]]]:
+        """Write a project In progress: its offer marked and designated, its review marked.
+
+        Its probability of winning, when given, is written while it is an offer, as the API does.
+        """
         project_id = self.created(label, OPENED)
+        if probability is not None:
+            self.changed(project_id, OPENED, win_probability=probability)
         offer = self.marked(project_id, OFFER, OFFER_MARKED)
         self.designated(project_id, offer[0], DESIGNATED)
         self.changed(project_id, DESIGNATED, code=code)
@@ -235,11 +242,21 @@ def rated(stage: Scene, costs: Costing) -> None:
         set_hourly_rate(session, rate, Decimal("65.00"), None, Act(None, OPENED))
 
 
-def another_in_progress(api: ContractClient, fabrics: Portfolio, label: str, code: str) -> UUID:
-    """Write one more project In progress on the platform of the fabrics, as they are; give it."""
+def another_in_progress(
+    api: ContractClient,
+    fabrics: Portfolio,
+    label: str,
+    code: str,
+    probability: Decimal | None = None,
+) -> UUID:
+    """Write one more project In progress on the platform of the fabrics, as they are; give it.
+
+    Its probability of winning is the one of the fabrics unless one is given, written before its
+    offer is marked, as the API does.
+    """
     writer = _Writer(api, fabrics.stage, fabrics.costs)
     with logging_context(correlation_id="portfolio-another"):
-        return writer.under_way(label, code)[0]
+        return writer.under_way(label, code, probability)[0]
 
 
 def revision_opened(

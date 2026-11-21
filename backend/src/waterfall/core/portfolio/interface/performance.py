@@ -44,7 +44,7 @@ from waterfall.core.portfolio.aggregation import (
     reading_day,
     zone_distribution,
 )
-from waterfall.core.portfolio.interface.scope import resolve_scope
+from waterfall.core.portfolio.interface.scope import PeriodRule, resolve_scope
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -67,6 +67,9 @@ if TYPE_CHECKING:
 # The one state the view counts: the others, asked or not, contribute to no sum.
 COUNTED: frozenset[ProjectState] = frozenset({"in_progress"})
 COST, SCHEDULE = "cost", "schedule"
+# The longest period the view reads, in years: one document kept per civil quarter it touches, so
+# that a longer one is refused (422 ``VALUE_OUT_OF_RANGE``; #4176, ``PortfolioFrom``).
+PERIOD_YEARS = 5
 
 
 def _money(amount: Decimal) -> str:
@@ -196,7 +199,7 @@ def _evolution(
         if day != scope.as_of:
             past = replace(asked, as_of=day, org_node_id=None)
             resolved = resolve_scope(
-                reading.session, past, reading.at, counted=COUNTED, period=False
+                reading.session, past, reading.at, counted=COUNTED, period=None
             )
             held = reading.documents(resolved)
         total = aggregate(_figures(each) for each in held)
@@ -217,7 +220,9 @@ def read_portfolio_performance(
 
     Refuses a period or a node as every view of the portfolio does (422, ``resolve_scope``).
     """
-    resolved = resolve_scope(session, asked, reading.at, counted=COUNTED, period=True)
+    resolved = resolve_scope(
+        session, asked, reading.at, counted=COUNTED, period=PeriodRule(PERIOD_YEARS)
+    )
     scope = resolved.scope
     source = _Reading(session, reading.at, reading.cache)
     thresholds = read_reference_settings(session).index_thresholds
