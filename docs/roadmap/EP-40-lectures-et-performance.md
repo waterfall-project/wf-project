@@ -108,6 +108,12 @@ jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 - #4486 — « cette catégorie est-elle employée ? » : un `DISTINCT` sur toutes les lignes de devis de
   la plateforme (DON-03) — alourdi par EP-08 et EP-11
 
+Reporté par le cadrage d'EP-36 du 2026-11-21 (décision de l'auteur) :
+
+- #4446 — aucun test ne cite WF-IHM-0080-A sur le marquage d'une révision de dix mille objets
+  (« laisse l'écran utilisable et présente son avancement ») : un parcours au volume, sur le jeu
+  qu'EP-13 charge (RMP-03) ; EP-36 (US-3490) corrige le renvoi circulaire d'EP-09 et d'EP-04
+
 ## Conception
 
 À écrire au cadrage.

@@ -1209,6 +1209,16 @@ survenait, **afin que** sa gravité soit un chiffrage et non une affirmation.
   de projet (WF-RAE-0010). » : la provision suit dans la même écriture (US-2580) ; les grandeurs
   lues avant et après — budget de référence, valeur planifiée, valeur acquise, indices, reste à
   engager, avancement financier, projection du chef de projet — sont éprouvées par US-2630 ;
+- écart : `WF-RIS-0030-A` — « La grille d'un devis propre qui vient d'être créé présente les tâches
+  et les lignes de la structure principale, aucune n'étant présentée ajoutée, modifiée ou retirée. »
+  : ajouté par la spécification 1.0.9 (#4516) ; EP-30 (US-3070) ;
+- écart : `WF-RIS-0030-A` — « Dans le devis propre d'un risque, une tâche ajoutée après une tâche du
+  projet, une ligne existante portée de 100 à 130 heures et une tâche existante abandonnée sont
+  présentées ajoutée, modifiée et retirée ; la structure principale est inchangée. » : ajouté par la
+  spécification 1.0.9 (#4516) ; EP-30 (US-3070) ;
+- écart : `WF-RIS-0030-A` — « Une tâche ajoutée à la structure principale figure, sans y être
+  désignée, dans la grille du devis propre d'un risque ouverte ensuite. » : ajouté par la
+  spécification 1.0.9 (#4516) ; EP-30 (US-3070) ;
 - `WF-REF-0030-A` — « Une nature de chacun des trois types peut être créée. » : tenu par EP-05, non
   touché ici ;
 - `WF-REF-0030-A` — « La création d'une nature dont le code existe déjà est refusée. » : tenu par
@@ -1339,6 +1349,10 @@ font peser sur le projet se lise là où il se lirait s'ils survenaient.
   gravité de 200 dans la révision suivante, qui ne reprend pas ce devis. » : ajouté par la
   spécification 1.0.8 (décision de l'auteur du 2026-11-19, #4178), hors du périmètre de l'EPIC, qui
   ne prend pas de fonction nouvelle (décision de l'auteur du 2026-11-21) ; #4400 l'éprouve ;
+- écart : `WF-RIS-0010-A` — « Un risque de gravité 200 et de probabilité 30 % porte une provision de
+  60. » : ajouté par la spécification 1.0.9 (#4517) ; EP-30 (US-3080) ;
+- écart : `WF-RIS-0010-A` — « Un risque de gravité −100 et de même probabilité porte une provision
+  nulle, et non de −30. » : ajouté par la spécification 1.0.9 (#4517) ; EP-30 (US-3080) ;
 - `WF-DEV-0010-A` — « Le refus énumère les catégories de coût sans taux horaire pour l'année de
   référence. » : tenu par EP-07, non touché ici ;
 - `WF-DEV-0010-A` — « Le calcul aboutit dès que ces taux sont renseignés. » : tenu par EP-07, non
@@ -1582,6 +1596,18 @@ ses totaux, **afin de** mener la revue des risques par ordre d'importance.
   réserve pour risques de la référence est affichée en regard. » : `ProvisionTotals` rend trois
   totaux — les identifiés pour leur provision courante, les survenus et les écartés pour celle de la
   référence — et la réserve de la référence ;
+- écart : `WF-RIS-0040-A` — « Un risque de gravité négative est présenté comme une opportunité, avec
+  une provision nulle, et figure dans la matrice au plus bas niveau de gravité. » : ajouté par la
+  spécification 1.0.9 (#4517) ; EP-30 (US-3080) ;
+- écart : `WF-RIS-0040-A` — « Un risque identifié dont le produit de la gravité par la probabilité
+  est passé de 60 à 75 depuis la révision marquée précédente est présenté en hausse ; passé de 60 à
+  45, en baisse ; resté à 60, stable. » : ajouté par la spécification 1.0.9 (#4517) ; EP-30
+  (US-3160) ;
+- écart : `WF-RIS-0040-A` — « Un risque identifié qui ne l'était pas dans la révision marquée
+  précédente est présenté comme nouveau ; un risque écarté ou survenu ne présente aucune tendance. »
+  : ajouté par la spécification 1.0.9 (#4517) ; EP-30 (US-3160) ;
+- écart : `WF-RIS-0040-A` — « Le registre se filtre et se trie sur la tendance. » : ajouté par la
+  spécification 1.0.9 (#4517) ; EP-30 (US-3160) ;
 - `WF-REF-0160-A` — « Les six bornes sont saisissables et ordonnées. » : tenu par EP-05, non touché
   ici ;
 - `WF-REF-0160-A` — « Avec des bornes de gravité à 1 %, 5 % et 10 %, un risque de gravité 60 est au
@@ -1662,6 +1688,16 @@ savoir si le projet consomme ses provisions sans que cela se voie dans son budge
 - `WF-RIS-0050-A` — « Sur le projet dont le risque est survenu à 250, la réestimation à 300 des
   lignes qui en sont issues présente 300 en regard de 250, et laisse l'écart de couverture à −190. »
   : `occurred_reestimated` 300 en regard de `occurred_cost` 250, hors de l'écart, −190 ;
+- écart : `WF-RIS-0050-A` — « Un risque survenu qui abandonne une tâche de 100 et ajoute une ligne
+  de 300 a un coût à la survenance de 200. » : ajouté par la spécification 1.0.9 (#4518) ; EP-30
+  (US-3110) ;
+- écart : `WF-RIS-0050-A` — « Un risque survenu à 250, dont 150 de lignes ajoutées et 100 de lignes
+  modifiées, présente 250 en regard de 250 ; la réestimation à 200 des lignes ajoutées présente 300,
+  et celle des lignes modifiées ne change pas ce montant. » : ajouté par la spécification 1.0.9
+  (#4518) ; EP-30 (US-3110) ;
+- écart : `WF-RIS-0050-A` — « Sur un projet de réserve 60 dont un risque est survenu à 250, la
+  survenance d'une opportunité de −50 porte le coût des survenus à 200 et l'écart de couverture de
+  −190 à −140. » : ajouté par la spécification 1.0.9 (#4518) ; EP-30 (US-3110) ;
 - `WF-RAE-0020-A` — « Sur un projet de budget 1 000, de coût réel 500 et de reste à engager 550, la
   marge sur le budget vaut − 50 ; un reste à engager passé de 600 à 550 depuis la revue précédente
   donne un écart de − 50. » : tenu par EP-09, non touché ici ;
@@ -1754,18 +1790,21 @@ autre — planifié, réestimé, terminé —, sans budget, et que ce qu'il coû
   nul, réestimé 120 et 80 ; la ligne de provision n'y est plus ; la révision de référence et son
   budget sont les mêmes ; le reste à engager a monté de 200 moins la provision ; que leur
   terminaison n'acquière rien est éprouvé par US-2630 ;
-- `WF-RIS-0060-A` — « Les tâches fusionnées se trouvent sous la tâche qui portait la provision, aux
-  dates qu’elles avaient dans le devis propre ; le total du lot dont cette tâche relève augmente de
-  leur montant, moins la provision retirée ; une tâche feuille fusionnée qui n’avait pas de
-  prédécesseur est en mode manuel. » : les tâches de premier niveau du devis propre sont, dans leur
-  ordre, les dernières sous la tâche qui portait la provision, avec leurs subordonnées, leurs
-  liaisons internes, leurs durées et leurs modes ; une tâche sans prédécesseur dans le devis propre
-  est en mode manuel aux dates qu'elle y avait ; le total du lot de la tâche porteuse monte de leur
-  montant moins la provision ;
-- `WF-RIS-0060-A` — « La survenance d'un risque dont la provision était portée par un jalon place
-  ses tâches après ce jalon, qui reste un jalon sans sous-tâche. » : les tâches sont placées, dans
-  leur ordre, immédiatement après le jalon, sous sa tâche parente ou au premier niveau ; le jalon
-  reste un jalon ;
+- propre à l'US, phrase de la Vérif de WF-RIS-0060 jusqu'à la spécification 1.0.8 : « Les tâches
+  fusionnées se trouvent sous la tâche qui portait la provision, aux dates qu’elles avaient dans le
+  devis propre ; le total du lot dont cette tâche relève augmente de leur montant, moins la
+  provision retirée ; une tâche feuille fusionnée qui n’avait pas de prédécesseur est en mode
+  manuel. » : les tâches de premier niveau du devis propre sont, dans leur ordre, les dernières sous
+  la tâche qui portait la provision, avec leurs subordonnées, leurs liaisons internes, leurs durées
+  et leurs modes ; une tâche sans prédécesseur dans le devis propre est en mode manuel aux dates
+  qu'elle y avait ; le total du lot de la tâche porteuse monte de leur montant moins la provision ;
+  la spécification 1.0.9 réécrit la phrase (#4518), et EP-30 remplace cette règle (US-3100) ;
+- propre à l'US, phrase de la Vérif de WF-RIS-0060 jusqu'à la spécification 1.0.8 : « La survenance
+  d'un risque dont la provision était portée par un jalon place ses tâches après ce jalon, qui reste
+  un jalon sans sous-tâche. » : les tâches sont placées, dans leur ordre, immédiatement après le
+  jalon, sous sa tâche parente ou au premier niveau ; le jalon reste un jalon ; la spécification
+  1.0.9 retire la phrase (#4518), la tâche qui porte la provision ne recevant plus rien (EP-30,
+  US-3100) ;
 - `WF-RIS-0060-A` — « Une ligne fusionnée par la survenance d'un risque est encore désignée comme
   issue de ce risque dans la révision suivante, et après son déplacement sous une autre tâche ; une
   ligne ajoutée ensuite sous une tâche issue du risque ne l'est pas. » : `origin_risk_id` est posé
@@ -1776,6 +1815,26 @@ autre — planifié, réestimé, terminé —, sans budget, et que ce qu'il coû
   issues d'un risque, ou d'un risque donné (WF-IHM-0130). » : `is_from_risk` et `origin_risk_ids`
   filtrent `listNodes` et `compareRevisions` ; un identifiant qui n'est pas celui d'un risque
   survenu du projet est refusé par 422, `UNKNOWN_RISK` ;
+- écart : `WF-RIS-0060-A` — « Les tâches ajoutées se trouvent à la place, avec les liaisons et aux
+  dates que le devis propre leur donnait ; la tâche qui portait la provision ne reçoit aucune tâche.
+  » : réécrit par la spécification 1.0.9 (#4518) ; EP-30 (US-3100) ;
+- écart : `WF-RIS-0060-A` — « Après la survenance d'un risque qui porte de 100 à 130 le montant
+  réestimé d'une ligne budgétée à 100, la ligne porte un montant budgété de 100 et un montant
+  réestimé de 130 ; elle n'est pas désignée comme issue de ce risque. » : ajouté par la
+  spécification 1.0.9 (#4518) ; EP-30 (US-3100) ;
+- écart : `WF-RIS-0060-A` — « Une tâche non démarrée budgétée à 100 que le risque abandonne est
+  conservée, terminée le jour de la survenance, son reste à engager est nul, et le montant budgété
+  de ses lignes est inchangé. » : ajouté par la spécification 1.0.9 (#4518) ; EP-30 (US-3100) ;
+- écart : `WF-RIS-0060-A` — « Le compte rendu d'une survenance qui abandonne une tâche budgétée à
+  100 nomme cette tâche comme terminée et annonce une valeur acquise de 100 ; l'abandon à cette
+  étape laisse la révision en cours inchangée. » : ajouté par la spécification 1.0.9 (#4518) ; EP-30
+  (US-3100) ;
+- écart : `WF-RIS-0060-A` — « La survenance d'un risque qui modifie une ligne d'une tâche terminée
+  rouvre cette tâche, et le compte rendu le signale sans refuser. » : ajouté par la spécification
+  1.0.9 (#4518) ; EP-30 (US-3100) ;
+- écart : `WF-RIS-0060-A` — « Une tâche ajoutée à la structure principale après la préparation du
+  devis propre, que celui-ci ne désigne pas, figure toujours dans la structure principale après la
+  survenance. » : ajouté par la spécification 1.0.9 (#4518) ; EP-30 (US-3100) ;
 - propre à l'US : `getRiskOccurrenceReport` est une lecture qui n'écrit rien : les tâches et les
   lignes du devis propre ajoutées dans l'ordre de son plan, la tâche porteuse modifiée par ses dates
   et sa durée, la ligne de provision retirée et son montant, les motifs de refus
@@ -1846,6 +1905,9 @@ référence.
   moitié est tenue par EP-10 ; les tâches issues d'un risque survenu (`origin_risk_id`), terminées,
   n'ajoutent rien à la valeur acquise, pas plus que les lignes de provision : la valeur acquise du
   projet tout terminé reste le budget de référence ;
+- écart : `WF-IND-0030-A` — « Une tâche budgétée à 100 qu'un risque survenu abandonne contribue pour
+  100 à la valeur acquise à la date de la survenance. » : ajouté par la spécification 1.0.9 (#4519)
+  ; EP-30 (US-3120) ;
 - `WF-IND-0100-A` — « La courbe du budget de référence atteint le budget de référence à la date de
   fin de la référence. » : tenu par EP-10, non touché ici ;
 - `WF-IND-0100-A` — « Celle du coût réel s'arrête à la date de calcul, et la projection part de ce
@@ -2072,7 +2134,8 @@ US-2640.
   réalisent
 - **opérations** : aucune nouvelle ; `mergeCostStructure`, `getStructureMergeReport`,
   `getRiskOccurrenceReport` et `deleteSubproject` (leurs descriptions et leurs refus) ; `getRevision`
-  et `getStructureMergeReport` (leurs exemples)
+  et `getStructureMergeReport` (leurs exemples) ; `setLineRemaining`, `updateEstimateLine` et le
+  collage (`previewPaste`, `applyPaste`), pour leurs refus d'une ligne de provision
 - **issue** : #4264
 
 **En tant que** développeur, **je veux** que les constats mineurs que la livraison d'EP-08 a laissés
@@ -2124,7 +2187,12 @@ l'EPIC ne laisse pas derrière lui la dette qu'il a relevée.
   retard : le compte rendu sans révision en cours est le refus 409 `structure_up_to_date`, les deux
   autres résumés le disent, la fusion applicable se montre sur la révision en cours (#4174) ;
 - propre à l'US : les gardes de calendrier comptent les tâches de la base d'un différentiel, un test
-  le fixe, et un refus qui les concerne nomme la tâche visible de même lignée (#4213).
+  le fixe, et un refus qui les concerne nomme la tâche visible de même lignée (#4213) ;
+- propre à l'US : les écritures jugent une ligne de provision comme sa lecture la ferme : le reste à
+  engager (`setLineRemaining`) est refusé par 409 `line_not_provision`, après `task_not_completed` ;
+  `updateEstimateLine` et le collage refusent par 422 `COMPUTED_VALUE` les grandeurs et le sous-projet
+  qu'elle calcule, et `FIELD_NOT_ACCEPTED` le délai de paiement et ce qu'elle n'accepte pas, le
+  libellé restant seul accepté ; chaque refus est éprouvé, rien n'est écrit (#4378).
 
 **Notes de réalisation.** Chaque constat garde son issue, rattachée au lot qui le corrige. Le lot du
 contrat précède le code ; les lots du code qui touchent les modules que le chargeur du témoin exerce
@@ -2139,6 +2207,10 @@ le code (#4240 ; les gardes de calendrier, #4213), après L8 et US-2650/L1 ; les
 conception pour #4172 et #4210 s'écrivent avec ce cadrage. L9 n'est pas « pas avec » L6 : L6 touche
 `core/estimate` (`merged.py`, `uniting.py`, `copying.py`, `comparing.py`, `reading.py`) et `api/nodes.py`,
 L9 `core/planning` et `core/estimate/interface/calendars.py`, sans fichier commun.
+Le cadrage complémentaire du 2026-11-21 ajoute L10, le code des refus en écriture d'une ligne de
+provision (#4378, après US-3060/L6 et US-2650/L1), qui touche `core/planning/interface/progress.py`,
+`core/estimate/entries.py` et `core/estimate/writing.py` ; il est « pas avec » L9, qui rattache #4403
+(`writing.py`) et touche `core/planning` ; aucun lot en cours ne le précède, L6 étant fusionné.
 
 **Hors périmètre.** Tout constat relevé pendant la livraison, rattaché selon « Suivi sur GitHub » ;
 les constats de spécification (#3850, #4132, #4178, #4222, #4260, #4271, #4337).

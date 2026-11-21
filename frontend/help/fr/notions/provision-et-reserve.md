@@ -2,11 +2,11 @@
 
 ## Ce que dit le glossaire
 
-> **Provision** — Désigne le montant réservé pour couvrir les conséquences d’un risque identifié, égal à sa gravité pondérée par sa probabilité. Elle compte au devis et au reste à engager, jamais au budget de référence ; un risque survenu ou écarté n’en porte plus. Elle relève d’une nature de type provision pour risques ; une provision saisie, pour aléas par exemple, est une ligne hors main-d’œuvre ordinaire.
+> **Provision** — Désigne le montant réservé pour couvrir les conséquences d’un risque identifié, égal à sa gravité pondérée par sa probabilité, sans descendre sous zéro. Elle compte au devis et au reste à engager, jamais au budget de référence ; un risque survenu ou écarté n’en porte plus. Elle relève d’une nature de type provision pour risques ; une provision saisie, pour aléas par exemple, est une ligne hors main-d’œuvre ordinaire.
 
 > **Réserve pour risques** — Désigne la somme des lignes de provision de la révision de référence. Elle ne fait pas partie du budget de référence et ne bouge qu’avec lui ; c’est à elle que se comparent les provisions restantes et le coût des risques survenus.
 
-> **Coût à la survenance** — Désigne, pour un risque survenu, le total de son devis propre au moment où il a été déclaré survenu. Il ne change plus, quelles que soient les réestimations et la terminaison des tâches fusionnées ; c’est lui que la couverture des risques compare à la réserve.
+> **Coût à la survenance** — Désigne, pour un risque survenu, sa gravité au moment où il a été déclaré survenu. Il ne change plus, quelles que soient les réestimations et la terminaison des tâches fusionnées ; c’est lui que la couverture des risques compare à la réserve.
 
 > **Couverture des risques** — Désigne la mise en regard, pour un projet ou pour le portefeuille, de la réserve pour risques de la référence avec la somme des provisions des risques identifiés et du coût à la survenance des risques survenus ; leur différence est l’écart de couverture.
 

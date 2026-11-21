@@ -332,6 +332,56 @@
       "sentence": "Un risque déclaré sur le sous-projet S2 porte sa provision au reste à engager de S2 ; sans sous-projet désigné, elle compte hors sous-projet."
     },
     {
+      "key": "WF-RIS-0010-A#64f8dd73669b",
+      "requirement": "WF-RIS-0010-A",
+      "sentence": "Un risque de gravité 200 et de probabilité 30 % porte une provision de 60."
+    },
+    {
+      "key": "WF-RIS-0010-A#7d120fa212cd",
+      "requirement": "WF-RIS-0010-A",
+      "sentence": "Un risque de gravité −100 et de même probabilité porte une provision nulle, et non de −30."
+    },
+    {
+      "key": "WF-RIS-0030-A#e3d0deb23d6b",
+      "requirement": "WF-RIS-0030-A",
+      "sentence": "Dans le devis propre d'un risque, une tâche ajoutée après une tâche du projet, une ligne existante portée de 100 à 130 heures et une tâche existante abandonnée sont présentées ajoutée, modifiée et retirée ; la structure principale est inchangée."
+    },
+    {
+      "key": "WF-RIS-0070-A#812c8f07b789",
+      "requirement": "WF-RIS-0070-A",
+      "sentence": "Une ligne que le devis propre porte à 130 heures et que le projet a réestimée à 110 garde 130 après la mise à jour, et le compte rendu la nomme."
+    },
+    {
+      "key": "WF-RIS-0080-A#3a9a16157bae",
+      "requirement": "WF-RIS-0080-A",
+      "sentence": "Un devis propre qui ajoute deux lignes de 120 et 80 donne une gravité de 200."
+    },
+    {
+      "key": "WF-RIS-0080-A#b9862643d55d",
+      "requirement": "WF-RIS-0080-A",
+      "sentence": "Un devis propre qui ajoute une ligne de 300 et abandonne une tâche dont les lignes totalisent 100 donne une gravité de 200."
+    },
+    {
+      "key": "WF-RIS-0080-A#f6d9bb91f45c",
+      "requirement": "WF-RIS-0080-A",
+      "sentence": "Un devis propre qui porte de 100 à 130 le montant réestimé d'une ligne existante donne une gravité de 30."
+    },
+    {
+      "key": "WF-RIS-0080-A#a89181f35d17",
+      "requirement": "WF-RIS-0080-A",
+      "sentence": "Sur un projet au taux d'inflation de 3 %, un devis propre dont une tâche ajoutée repousse de l'année de référence à la suivante la consommation d'une ligne de 1 000 compte 30 dans la gravité."
+    },
+    {
+      "key": "WF-RIS-0080-A#bf900fdf50f0",
+      "requirement": "WF-RIS-0080-A",
+      "sentence": "Un devis propre qui n'abandonne qu'une tâche de 100 donne une gravité de −100 : le registre présente le risque comme une opportunité, sa provision est nulle, et le total du devis est celui du projet sans lui."
+    },
+    {
+      "key": "WF-RIS-0040-A#8b79aae81ee1",
+      "requirement": "WF-RIS-0040-A",
+      "sentence": "Un risque identifié dont le produit de la gravité par la probabilité est passé de 60 à 75 depuis la révision marquée précédente est présenté en hausse ; passé de 60 à 45, en baisse ; resté à 60, stable."
+    },
+    {
       "key": "WF-RIS-0050-A#ba9e53e8bcb3",
       "requirement": "WF-RIS-0050-A",
       "sentence": "Sur un projet chiffré à 1 000 portant un risque de gravité 200 à 30 %, le devis totalise 1 060, le budget de référence 1 000 et la réserve 60."
@@ -362,9 +412,39 @@
       "sentence": "Sur le projet dont le risque est survenu à 250, la réestimation à 300 des lignes qui en sont issues présente 300 en regard de 250, et laisse l'écart de couverture à −190."
     },
     {
+      "key": "WF-RIS-0050-A#805fb12808c2",
+      "requirement": "WF-RIS-0050-A",
+      "sentence": "Un risque survenu qui abandonne une tâche de 100 et ajoute une ligne de 300 a un coût à la survenance de 200."
+    },
+    {
+      "key": "WF-RIS-0050-A#a69535a39dd6",
+      "requirement": "WF-RIS-0050-A",
+      "sentence": "Un risque survenu à 250, dont 150 de lignes ajoutées et 100 de lignes modifiées, présente 250 en regard de 250 ; la réestimation à 200 des lignes ajoutées présente 300, et celle des lignes modifiées ne change pas ce montant."
+    },
+    {
+      "key": "WF-RIS-0050-A#afaa6ba57e95",
+      "requirement": "WF-RIS-0050-A",
+      "sentence": "Sur un projet de réserve 60 dont un risque est survenu à 250, la survenance d'une opportunité de −50 porte le coût des survenus à 200 et l'écart de couverture de −190 à −140."
+    },
+    {
       "key": "WF-RIS-0060-A#474d7bce167a",
       "requirement": "WF-RIS-0060-A",
       "sentence": "Après déclaration de survenance d'un risque dont le devis propre porte deux lignes de 120 et 80, ces lignes figurent dans la structure principale de la révision en cours avec des montants budgétés nuls et des montants réestimés de 120 et 80 ; la ligne de provision a disparu ; le budget de référence et la révision de référence sont inchangés ; le reste à engager a augmenté de 200 moins la provision retirée ; la terminaison de ces tâches n'acquiert aucune valeur."
+    },
+    {
+      "key": "WF-RIS-0060-A#9bb09779ea42",
+      "requirement": "WF-RIS-0060-A",
+      "sentence": "Après la survenance d'un risque qui porte de 100 à 130 le montant réestimé d'une ligne budgétée à 100, la ligne porte un montant budgété de 100 et un montant réestimé de 130 ; elle n'est pas désignée comme issue de ce risque."
+    },
+    {
+      "key": "WF-RIS-0060-A#700192196e52",
+      "requirement": "WF-RIS-0060-A",
+      "sentence": "Une tâche non démarrée budgétée à 100 que le risque abandonne est conservée, terminée le jour de la survenance, son reste à engager est nul, et le montant budgété de ses lignes est inchangé."
+    },
+    {
+      "key": "WF-RIS-0060-A#1640209a578f",
+      "requirement": "WF-RIS-0060-A",
+      "sentence": "Le compte rendu d'une survenance qui abandonne une tâche budgétée à 100 nomme cette tâche comme terminée et annonce une valeur acquise de 100 ; l'abandon à cette étape laisse la révision en cours inchangée."
     },
     {
       "key": "WF-CRE-0020-A#327d63bf4748",
@@ -385,6 +465,11 @@
       "key": "WF-IND-0030-A#c3aebc79b97d",
       "requirement": "WF-IND-0030-A",
       "sentence": "Une tâche terminée le 12 du mois contribue à la valeur acquise dès cette date, non à la revue suivante."
+    },
+    {
+      "key": "WF-IND-0030-A#fb843cd7529a",
+      "requirement": "WF-IND-0030-A",
+      "sentence": "Une tâche budgétée à 100 qu'un risque survenu abandonne contribue pour 100 à la valeur acquise à la date de la survenance."
     },
     {
       "key": "WF-IND-0040-A#2c0d13aef084",
@@ -455,6 +540,16 @@
       "key": "WF-IND-0100-A#e82fb54dd583",
       "requirement": "WF-IND-0100-A",
       "sentence": "Avec un délai de paiement de 60 jours saisi sur toutes les lignes, main-d'œuvre comprise, chaque montant de la courbe du budget de référence est compté au mois de sa date décalée de 60 jours ; ceux de la projection le sont aussi, hormis les lignes de provision, qui restent à leur date ; le coût réel n'est pas décalé."
+    },
+    {
+      "key": "WF-IND-0140-A#44efc2c3b752",
+      "requirement": "WF-IND-0140-A",
+      "sentence": "Après la survenance, le 20 du mois, d'un risque qui abandonne une tâche budgétée à 100, la courbe de valeur acquise porte au point de ce mois une marche de 100, datée du 20 et attribuée à la survenance."
+    },
+    {
+      "key": "WF-IND-0140-A#da0d70895bd8",
+      "requirement": "WF-IND-0140-A",
+      "sentence": "La survenance d'un risque qui rouvre une tâche terminée budgétée à 60 porte une marche de −60."
     },
     {
       "key": "WF-IHM-0160-A#3c0e1839abfb",
