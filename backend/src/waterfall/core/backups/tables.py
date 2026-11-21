@@ -50,14 +50,8 @@ RETENTIONS = (1, 365)
 LOCATION_FORM = "^[a-z0-9][a-z0-9_-]{0,62}$"
 PATH_FORM = "^[A-Za-z0-9_][A-Za-z0-9_.-]*(/[A-Za-z0-9_][A-Za-z0-9_.-]*)*$"
 PATH_LENGTH = 255
-# Why a test of a restoration failed: the restoration itself, the platform that does not start,
-# the counts that differ from those of the backup, the indicators of a marked revision that changed.
-RESTORE_TEST_FAILURES = (
-    "restore_failed",
-    "platform_unstarted",
-    "counts_differ",
-    "indicators_differ",
-)
+# The reason of a failed test of a restoration is a text, bounded like the other texts.
+RESTORE_TEST_FAILURE_LENGTH = 1000
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -213,7 +207,10 @@ class RestoreTest(Base):
             "AND identity_accounts >= 0",
             name="counts_not_negative",
         ),
-        CheckConstraint(_in("failure", RESTORE_TEST_FAILURES), name="failure_known"),
+        CheckConstraint(
+            f"char_length(failure) BETWEEN 1 AND {RESTORE_TEST_FAILURE_LENGTH}",
+            name="failure_length",
+        ),
         CheckConstraint("succeeded = (failure IS NULL)", name="failure_of_a_failed_test"),
     )
 

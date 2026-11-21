@@ -10,6 +10,7 @@ contract (``ContractClient``). The installation declares no external location ye
 copy that names one is refused as unknown, and the rule is tried apart with locations declared.
 """
 
+import threading
 from collections.abc import Callable
 from datetime import time
 from typing import Any
@@ -19,9 +20,10 @@ import pytest
 from access_rows import account, role
 from installations import written_task
 from realm import KEY, TestRealm
-from sqlalchemy import select, update
+from sqlalchemy import func, select, text, update
 from support import ContractClient, bearer
 
+from waterfall.api.restores import RESTORE_LOCK
 from waterfall.core.backups.interface import (
     ExternalCopy,
     ScheduleWriting,
@@ -57,6 +59,7 @@ WEEKLY = {
     "retained_count": 4,
     "lock_version": 1,
 }
+QUEUED_WITHIN = 10.0
 COPY = {"is_enabled": True, "location": LYON, "path": "waterfall/sauvegardes", "retained_count": 30}
 
 type Person = Callable[..., tuple[UUID, dict[str, str]]]
@@ -259,6 +262,44 @@ def test_a_schedule_set_while_a_restoration_runs_is_refused_and_nothing_is_writt
             update(BackgroundTask).where(BackgroundTask.id == restoration).values(**ended)
         )
     assert api.put(SCHEDULE, headers=headers, json=WEEKLY).status_code == 200
+
+
+def waits_on_an_advisory_lock(database: Database) -> bool:
+    """Tell whether a transaction waits for an advisory lock, within a bound."""
+    query = text("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted")
+    pause = threading.Event()
+    for _ in range(int(QUEUED_WITHIN * 20)):
+        with database.engine.connect() as connection:
+            if connection.scalar(query):
+                return True
+        pause.wait(0.05)
+    return False
+
+
+def test_a_schedule_set_waits_for_a_restoration_being_deposited_and_then_sees_it(
+    api: ContractClient, database: Database, person: Person
+) -> None:
+    # startRestore deposits its task under the lock RESTORE_LOCK. A setting that arrives meanwhile
+    # waits for it (shared lock), then sees the task committed and is refused; without the lock it
+    # would read no restoration and write.
+    _, headers = person(READ, WRITE)
+    before = schedule_row(database)
+    answers: list[Any] = []
+    caller = threading.Thread(
+        target=lambda: answers.append(api.put(SCHEDULE, headers=headers, json=WEEKLY))
+    )
+    with database.transaction() as session:
+        session.execute(select(func.pg_advisory_xact_lock(RESTORE_LOCK)))
+        caller.start()
+        queued = waits_on_an_advisory_lock(database)
+        written_task(database, "restore", "queued")
+    caller.join(QUEUED_WITHIN)
+    assert queued
+    assert not caller.is_alive()
+    (response,) = answers
+    assert response.status_code == 409
+    assert response.json()["params"] == {"missing_condition": "no_restore_running"}
+    assert schedule_row(database) == before
 
 
 def test_a_schedule_set_on_a_stale_counter_is_refused_and_nothing_is_written(

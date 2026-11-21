@@ -43,12 +43,7 @@ COPY_FAILURES = (
     "storage_full",
     "timed_out",
 )
-RESTORE_TEST_FAILURES = (
-    "restore_failed",
-    "platform_unstarted",
-    "counts_differ",
-    "indicators_differ",
-)
+RESTORE_TEST_FAILURE_LENGTH = 1000
 LOCATION_FORM = "^[a-z0-9][a-z0-9_-]{0,62}$"
 PATH_FORM = "^[A-Za-z0-9_][A-Za-z0-9_.-]*(/[A-Za-z0-9_][A-Za-z0-9_.-]*)*$"
 GRANT = """
@@ -166,7 +161,10 @@ def upgrade() -> None:
             "AND identity_accounts >= 0",
             name="counts_not_negative",
         ),
-        sa.CheckConstraint(_listed("failure", RESTORE_TEST_FAILURES), name="failure_known"),
+        sa.CheckConstraint(
+            f"char_length(failure) BETWEEN 1 AND {RESTORE_TEST_FAILURE_LENGTH}",
+            name="failure_length",
+        ),
         sa.CheckConstraint("succeeded = (failure IS NULL)", name="failure_of_a_failed_test"),
     )
     op.create_index(None, "restore_test", ["finished_at"])

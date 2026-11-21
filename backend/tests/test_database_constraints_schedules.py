@@ -24,6 +24,7 @@ from waterfall.core.backups.tables import (
     BackupSchedule,
     RestoreTest,
 )
+from waterfall.core.users.tables import SHIPPED_SCHEDULE as SHIPPED_SYNC_SCHEDULE
 from waterfall.core.users.tables import IdentitySyncSchedule
 from waterfall.migrations.runner import upgrade
 from waterfall.platform.database import SHIPPED_ROW, Base, Database
@@ -200,7 +201,8 @@ SCHEDULE_REFUSALS: list[tuple[type[Base], dict[str, Any], str]] = [
 RESTORE_TEST_REFUSALS: list[tuple[dict[str, Any], str]] = [
     ({"finished_at": AT - timedelta(seconds=1)}, "ck_restore_test_finished_after_started"),
     ({"cost_lines": -1}, "ck_restore_test_counts_not_negative"),
-    ({"succeeded": False, "failure": "lost"}, "ck_restore_test_failure_known"),
+    ({"succeeded": False, "failure": ""}, "ck_restore_test_failure_length"),
+    ({"succeeded": False, "failure": "a" * 1001}, "ck_restore_test_failure_length"),
     ({"succeeded": False}, "ck_restore_test_failure_of_a_failed_test"),
     ({"failure": "counts_differ"}, "ck_restore_test_failure_of_a_failed_test"),
 ]
@@ -272,7 +274,7 @@ def test_the_forms_the_constraints_admit_are_written(database: Database, owner: 
     with owner.begin() as connection:
         connection.execute(update(BackupSchedule).values(COPY | weekly | longest))
         connection.execute(update(IdentitySyncSchedule).values(frequency="weekly", weekday=1))
-        failed = {"succeeded": False, "failure": "platform_unstarted"}
+        failed = {"succeeded": False, "failure": "a" * 1000}
         uncounted = {"projects": None, "marked_revisions": None, "cost_lines": None}
         connection.execute(restore_test(**failed, **uncounted, identity_accounts=None))
         connection.execute(
@@ -293,11 +295,10 @@ def test_the_migrations_write_each_schedule_at_its_shipped_values(empty_engine: 
     assert {name: row[name] for name in shipped} == shipped
     assert row["external_copy_is_enabled"] is None
     assert (row["created_by"], row["updated_by"]) == (None, None)
-    assert (reading["at_time"], reading["weekday"], reading["lock_version"]) == (
-        time(1, 30),
-        None,
-        1,
-    )
+    shipped_sync = {
+        name: value for name, value in SHIPPED_SYNC_SCHEDULE.items() if not name.endswith("_at")
+    }
+    assert {name: reading[name] for name in shipped_sync} == shipped_sync
 
 
 def test_every_named_constraint_of_the_schedules_and_of_the_copy_has_its_refusal_tried() -> None:
