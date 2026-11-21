@@ -323,8 +323,9 @@ autres sont des refus que les écrans montrent déjà par leur message.
    back. Tout le reste le suit.
 3. Le moteur (US-3300) : la passe arrière et les durées écoulées d'abord, sans base ; puis la table
    et les conflits, qui demandent la migration et le contrat.
-4. En parallèle une fois le contrat posé : le redatage (US-3320), puis le refus nommé (US-3330), qui
-   touchent tous deux `reference.py` et `dating.py` ; l'abandon et le jour (US-3340).
+4. En parallèle une fois le contrat posé : le redatage (US-3320), dans `reference.py` et le
+   référentiel ; le refus nommé (US-3330), dans `dating.py`, que les conflits d'US-3300 écrivent
+   aussi ; l'abandon et le jour (US-3340), qui n'attendent pas le contrat.
 5. Le Gantt (US-3350), après le contrat, sans dépendre du back : le placement, puis l'axe et le
    clavier, puis la ligne de marque.
 6. US-3310 en dernier, quand la spécification 1.0.9 est fusionnée.
