@@ -72,7 +72,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
-	requirements-release screens readmes reuse lint-workflows \
+	requirements-release screens implementations readmes reuse lint-workflows \
 	lint-shell check slot slot-release e2e-down slots test-services test-services-down \
 	check-all check-repo check-repo-tools check-spec \
 	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
@@ -295,6 +295,9 @@ requirements-release: ## Same, and fail on an F0 requirement no test covers
 screens: ## Each leaf of the FBS has its route in the table of the front, answered by a page (EP-02/L3)
 	@$(WFTOOLS).screens
 
+implementations: ## Each calculation of WF-ARC-0010 has one implementation, in its module of the core (US-2780/L3)
+	@$(WFTOOLS).implementations
+
 readmes: ## Each README-fr.md of docs/ has its English README.md, their headings one for one (#1711)
 	@$(WFTOOLS).readmes
 
@@ -496,7 +499,7 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 check-all: check-repo check-repo-tools check-spec check-contract check-back check-front check-front-image check-roadmap check-measures check-keycloak check-service check-production ## Run every family of checks
 
 check-repo: reuse lint-workflows lint-shell lint-docker lint-compose sources check-fixtures \
-	requirements screens readmes ## Checks that run on any change
+	requirements screens implementations readmes ## Checks that run on any change
 
 check-repo-tools: lint-tools typecheck-tools test-tools ## The tools of the repository: lint, types, tests
 

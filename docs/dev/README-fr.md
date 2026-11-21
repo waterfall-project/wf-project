@@ -170,6 +170,32 @@ un test les éprouve sur un paquet d'essai (`backend/tests/test_boundaries.py`).
 SQL écrite en texte, qui nommerait la table d'un autre module, échappe à l'analyse des
 imports : elle relève des règles SQL d'EP-03 et de la revue.
 
+**Une seule implémentation de chaque calcul** (WF-ARC-0010, US-2780/L3). La machine d'état, le
+planning, le chiffrage et les indicateurs ne s'écrivent qu'une fois, dans leur module du noyau, que
+l'API, le worker et le portefeuille importent. La table versionnée `tools/implementations.toml` nomme,
+pour chaque fichier du noyau qui porte l'un de ces calculs, les noms par lesquels on l'appelle — ses
+fonctions qui calculent, les constantes qui en fixent le résultat —, et pour chaque fichier du
+portefeuille, les formules d'EP-10 qu'il applique à des sommes. Un fichier hors de `core/` et de
+`migrations/` — l'API, le worker, les autres points d'entrée, la plateforme — ou du portefeuille ne
+définit aucun de ces noms (ni fonction, à toute profondeur, ni affectation au niveau du module), et
+ne les importe que du module du noyau qui les porte ; un fichier du portefeuille importe et appelle
+les formules que la table lui donne. Un calcul nouveau d'un de ces quatre ajoute ses noms à la table.
+Deux déclarations y gardent un écart dit sans échouer : un homonyme (`[[homonym]]`), autre calcul d'un
+module du noyau sous un nom de la table, qui peut s'importer de ce module, et un doublon connu
+(`[[duplicate]]`), dit à chaque passage avec sa raison jusqu'à ce qu'il disparaisse ; chacune échoue
+quand elle ne tient plus ; un doublon peut copier un nom de la table sous un autre (`of`, et `of_file`
+pour un nom privé que la table ne porte pas). « Appliquer » une formule, c'est l'appeler ou la passer
+pour qu'on l'appelle (`map(cost_index, …)`) ; le contrôle ne vérifie pas que l'argument est une somme,
+ce qui relève de la revue. Le contrôle juge par le nom : un calcul récrit sous un autre nom lui
+échappe, et relève de la revue — l'arrondi d'un montant récrit par `quantize`, sans nom de la table,
+en est un (le cas de `_money` de l'API est ouvert à part, #4373) ; les générateurs du faux back, qui
+ne sont pas livrés, en sont hors. Un fichier tenu qui nomme `schedule`, `advance`, `margin`,
+`balances`, `distribution` ou `cumulative` autre chose qu'un calcul de la table n'a pas
+d'échappatoire : il renomme sa méthode.
+
+_Contrôle_ : `make implementations` (`wftools.implementations`, famille `repo`, qui s'exécute sur
+toute modification).
+
 **Les tâches de fond** (WF-ARC-0090). Une tâche vit dans la table `background_task`
 (`waterfall.platform.tasks`), qui fait foi ; le flux Redis (`waterfall.platform.queue`) n'en porte
 que l'identifiant. Une route la dépose par `submit(session, queue, genre, demandeur)`, dans sa
