@@ -1,6 +1,6 @@
 ---
 id: EP-37
-titre: Reprendre les écrans d'après les remarques d'ergonomie et les essais manuels : libellés, navigation, mise en page, coquille et client du front
+titre: Reprendre les écrans d'après les remarques d'ergonomie et les essais manuels — libellés, navigation, mise en page, coquille et client du front
 statut: à planifier
 depend_de: EP-08, EP-11
 famille: front

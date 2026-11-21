@@ -1,6 +1,6 @@
 ---
 id: EP-33
-titre: Fiabiliser les allers-retours de fichiers : rapprochement MS Project, bornes des classeurs, compte rendu confirmé, comptes rendus d'import et leur purge
+titre: Fiabiliser les allers-retours de fichiers — rapprochement MS Project, bornes des classeurs, compte rendu confirmé, comptes rendus d'import et leur purge
 statut: à planifier
 depend_de: EP-08
 famille: front, back

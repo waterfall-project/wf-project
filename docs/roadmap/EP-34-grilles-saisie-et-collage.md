@@ -1,6 +1,6 @@
 ---
 id: EP-34
-titre: Corriger la saisie en grille : le collage du planning, les écritures concurrentes d'une même cellule, les relectures et ce que l'écran montre après une saisie
+titre: Corriger la saisie en grille — le collage du planning, les écritures concurrentes d'une même cellule, les relectures et ce que l'écran montre après une saisie
 statut: à planifier
 depend_de: EP-08
 famille: front, back

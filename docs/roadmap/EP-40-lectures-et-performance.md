@@ -1,6 +1,6 @@
 ---
 id: EP-40
-titre: Tenir les objectifs de temps de réponse : requêtes qui parcourent toutes les partitions, grilles comparées, marquage, écran des indicateurs, et les outils de mesure
+titre: Tenir les objectifs de temps de réponse — requêtes qui parcourent toutes les partitions, grilles comparées, marquage, écran des indicateurs, et les outils de mesure
 statut: à planifier
 depend_de: EP-13
 famille: front, back

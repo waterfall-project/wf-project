@@ -1,6 +1,6 @@
 ---
 id: EP-36
-titre: Durcir les tests et la preuve des exigences : attentes des parcours, gardes du harnais, tests instables, citations, renvois de la roadmap
+titre: Durcir les tests et la preuve des exigences — attentes des parcours, gardes du harnais, tests instables, citations, renvois de la roadmap
 statut: à planifier
 depend_de: EP-08, EP-11
 famille: front, back

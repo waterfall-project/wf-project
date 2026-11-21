@@ -1,6 +1,6 @@
 ---
 id: EP-38
-titre: Resserrer le contrat et le schéma : bornes des entrées, refus déclarés, enveloppe d'erreur, descriptions, contraintes et clés
+titre: Resserrer le contrat et le schéma — bornes des entrées, refus déclarés, enveloppe d'erreur, descriptions, contraintes et clés
 statut: à planifier
 depend_de: EP-13
 famille: back
