@@ -75,6 +75,7 @@ qui finissent en `INTERNAL_ERROR`.
 
 ### BEX-02 — Planning : ce qui s'applique n'est pas le compte rendu confirmé, et rien ne le compare
 
+- **Issue** : #4420 (EP-33), ouverte le 2026-11-21, avec CTB-01.
 - **Où** : `core/planning/interface/msproject.py:100-117` (`del report`, ligne 113 ; plan refait
   ligne 116) ; `core/planning/importing.py:599-602` (tâches absentes → `removed`) ;
   `core/planning/applying.py:137-138` (suppression, lignes de devis en cascade) ;
@@ -109,6 +110,7 @@ qui finissent en `INTERNAL_ERROR`.
 
 ### BEX-03 — Classeurs téléversés : aucune borne de décompression (bombe zip), dès `openImport`, dans l'API
 
+- **Issue** : #4419 (EP-33), ouverte le 2026-11-21, avec BRC-02, BCH-06, BRC-03, BEX-05.
 - **Où** : mécanique commune : `core/exchanges/interface/imports.py:452` (`form.read_header`, appelé
   par la requête) et `core/exchanges/interface/damages.py` (seul outil commun des classeurs, sans
   borne) ; sites d'ouverture, tenus par d'autres relecteurs : `core/estimate/excel/reader.py:199`
@@ -139,6 +141,7 @@ qui finissent en `INTERNAL_ERROR`.
 
 ### BEX-04 — Le fichier d'un import appliqué est supprimé avant la validation de la tâche, et sous ses verrous
 
+- **Issue** : #4476 (EP-39), ouverte le 2026-11-21, avec BSO-04.
 - **Où** : `core/exchanges/records.py:73-86` (`event.listen(session, "after_commit", …, once=True)`),
   appelé par `core/exchanges/running.py:219`, dans le point de sauvegarde de
   `worker/runner.py:267`.
@@ -162,6 +165,7 @@ qui finissent en `INTERNAL_ERROR`.
 
 ### BEX-05 — L'en-tête d'un classeur est analysé sous le verrou du projet (défaut n° 4 de python.md)
 
+- **Issue** : #4419 (EP-33), ouverte le 2026-11-21, avec BEX-03, BRC-02, BCH-06, BRC-03.
 - **Où** : `core/exchanges/interface/imports.py:437` (`lock_project`) puis `:452`
   (`form.read_header(session, head)`).
 - **Quoi** : la lecture du stockage a été sortie de la transaction, pas l'analyse : pour les trois
@@ -178,6 +182,8 @@ qui finissent en `INTERNAL_ERROR`.
 
 ### BEX-06 — La purge supprime le dépôt d'une sauvegarde qu'une restauration acceptée désigne
 
+- **Issue** : #4471 (EP-39), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue, avec BSO-01.
 - **Où** : `core/exchanges/interface/purge.py:177-203` (`_deposits_expired`) ; promesse :
   `docs/api/components/schemas/exchanges.yaml:10-13` et `:25-27` (« kept until the end of its
   task, even beyond `expires_at` »).
@@ -194,6 +200,7 @@ qui finissent en `INTERNAL_ERROR`.
 
 ### BEX-07 — `getImport` répond 500 sur un import sans tâche (ceux du témoin)
 
+- **Issue** : #4425 (EP-33), ouverte le 2026-11-21, avec BEX-10, BEX-11, DON-05, FCO-06.
 - **Où** : `backend/src/waterfall/api/imports.py:238` (`session.get_one(BackgroundTask,
   view.task_id)`) ; `core/exchanges/interface/loading.py:91` (`task_id=None`).
 - **Quoi** : `get_one` avec une clé nulle lève `NoResultFound` (vérifié), qu'aucun gestionnaire ne
@@ -206,6 +213,7 @@ qui finissent en `INTERNAL_ERROR`.
 
 ### BEX-08 — Des valeurs hostiles sortent du lecteur en exception brute : `INTERNAL_ERROR` au lieu du refus du format
 
+- **Issue** : #4426 (EP-33), ouverte le 2026-11-21, avec BEX-09, BEX-14.
 - **Où** : `core/planning/msproject/reader.py:178-189` (`<Duration>PT999…H` → `OverflowError`,
   exécuté) ; `core/planning/importing.py:523-528` (un plan de ≥ 1 000 niveaux d'`OutlineLevel` →
   `RecursionError` du moteur, exécuté ; seules deux exceptions sont traduites) ;
@@ -224,6 +232,7 @@ qui finissent en `INTERNAL_ERROR`.
 
 ### BEX-09 — Une tâche manuelle devient automatique, sans signal, quand le fichier ne nomme pas le calendrier de son projet
 
+- **Issue** : #4426 (EP-33), ouverte le 2026-11-21, avec BEX-08, BEX-14.
 - **Où** : `core/planning/msproject/translation.py:181-186` (`calendar_of` rend `None` sans
   `CalendarUID`, alors que la docstring du module, lignes 16-18, et `calendar_gap.py:68-76` prennent
   le calendrier « Standard » de MS Project) ; `core/planning/importing.py:392-394` et `:429-430`.
@@ -240,6 +249,8 @@ qui finissent en `INTERNAL_ERROR`.
 
 ### BEX-10 — Requêtes non bornées de la purge et de la liste des imports
 
+- **Issue** : #4425 (EP-33), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue, avec BEX-07, BEX-11, DON-05, FCO-06.
 - **Où** : `core/exchanges/interface/purge.py:156-174` (`_exports_old` : tous les exports réussis
   de plus d'un jour, déjà consommés compris, chargés et verrouillés `FOR UPDATE` toutes les dix
   minutes) ; `core/exchanges/interface/imports.py:571-578` (`list_imports` charge le `report`
@@ -252,6 +263,7 @@ qui finissent en `INTERNAL_ERROR`.
 
 ### BEX-11 — Un compte rendu d'import n'est jamais supprimé, contre §4.4.1 et la docstring de sa table
 
+- **Issue** : #4425 (EP-33), ouverte le 2026-11-21, avec BEX-07, BEX-10, DON-05, FCO-06.
 - **Où** : `core/exchanges/tables.py:8-10` (« It is deleted at its expiry or its abandonment ») ;
   `core/exchanges/interface/purge.py:132-153` (passe `expired`/`failed`, ne supprime rien) ; spec
   §4.4.1, ligne 3984 (« un compte rendu d'import [se supprime physiquement] à son expiration ou à
@@ -265,6 +277,11 @@ qui finissent en `INTERNAL_ERROR`.
 
 ### BEX-12 — Les routes des imports gardées par `planning.read`, quel que soit le genre — déjà connu (#2473, EP-08)
 
+- **Suite** : corrigé depuis la revue, vérifié le 2026-11-21 — sur EP-08 (commit `1b644a73b`, #2473
+  fermée le 2026-11-18), les routes ne gardent que la visibilité du projet et le genre est jugé par
+  les échanges : `read_import` rend 404 pour un genre que l'appelant ne consulte pas, `list_imports`
+  ne liste et ne compte que les genres lisibles. La face de lecture ajoutée par la revue est donc
+  fermée aussi.
 - **Où** : `backend/src/waterfall/api/imports.py:84-94` ; `backend/tests/asked_imports.py`.
 - **Quoi** : connu pour l'écriture (importer un devis ou des coûts réels demande `planning.read`).
   J'ajoute la face de lecture, que l'issue ne dit pas : un rôle composé avec `planning.read` seul
@@ -275,6 +292,7 @@ qui finissent en `INTERNAL_ERROR`.
 
 ### BEX-13 — Une panne passagère du stockage fait échouer l'import pour de bon
 
+- **Issue** : #4427 (EP-33), ouverte le 2026-11-21.
 - **Où** : `core/exchanges/running.py:136-142` et `:192-197` (`except Exception` autour de
   `_content`) ; `platform/storage.py:212-219` (les erreurs de lecture en cours de flux échappent à
   `reached()` et sortent brutes).
@@ -288,6 +306,7 @@ qui finissent en `INTERNAL_ERROR`.
 
 ### BEX-14 — Aucune borne au nombre de tâches ni à la profondeur qu'un planning importé crée
 
+- **Issue** : #4426 (EP-33), ouverte le 2026-11-21, avec BEX-08, BEX-09.
 - **Où** : `core/planning/msproject/reader.py:62-79`, `core/planning/importing.py:586-646`.
 - **Quoi** : mesuré : un MSPDI de 6,6 Mio de 90 000 tâches emboîtées est lu en 2,5 s pour 355 Mo
   de mémoire (≈ 55 fois le fichier), et seule la récursion du moteur l'arrête (BEX-08) ; à plat,
@@ -300,6 +319,7 @@ qui finissent en `INTERNAL_ERROR`.
 
 ### BEX-15 — La date « Calculé le » de l'image de l'arborescence ne passe pas par `current_day`
 
+- **Issue** : #4416 (EP-32), ouverte le 2026-11-21.
 - **Où** : `core/planning/interface/task_tree.py:95` (`facts.scheduled_at.date()`).
 - **Quoi** : le jour est celui du temps universel, lu sans `current_day` de l'interface des
   projets : quand US-2200 donnera son fuseau à l'installation, ce site ne suivra pas. Déjà connu

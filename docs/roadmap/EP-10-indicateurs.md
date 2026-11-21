@@ -1,6 +1,6 @@
 ---
 id: EP-10
-titre: Lire où en est un projet : avancement, indices, projections et courbes
+titre: Lire où en est un projet — avancement, indices, projections et courbes
 statut: livré
 depend_de: EP-25, EP-26
 famille: front, back

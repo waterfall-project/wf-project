@@ -38,6 +38,7 @@ Aucun.
 
 ### DON-01 — Des lectures de `node` filtrées par la seule révision parcourent toutes les partitions, 2 à 3 fois par révision lue
 
+- **Issue** : #4484 (EP-40), ouverte le 2026-11-21, avec DON-04, BPR-05, BPR-06.
 - **Où** : `backend/src/waterfall/core/planning/interface/nodes.py:209-213` (`revision_has_tasks` :
   `exists().where(Node.revision_id == revision_id, Node.kind == TASK)`) ;
   `backend/src/waterfall/core/planning/interface/lines.py:233-237` (`revision_bears`, même forme) ;
@@ -72,6 +73,7 @@ Aucun.
 
 ### DON-02 — La garde des calendriers d'EP-07 lit les lignes de devis de toutes les révisions de tous les projets
 
+- **Issue** : #4485 (EP-40), ouverte le 2026-11-21, avec BCH-12.
 - **Où** : `backend/src/waterfall/core/estimate/interface/calendars.py:41-51` (`_roles_changed` :
   `select(EstimateLine.resource_role_id).where(resource_role_id IS NOT NULL).distinct()`, sans
   projet ni révision) et `:54-72` (`_lines_of_roles` :
@@ -106,6 +108,7 @@ Aucun.
 
 ### DON-03 — « Cette catégorie est-elle employée ? » : un `DISTINCT` sur toutes les lignes de devis de la plateforme, à chaque liste des natures et des catégories
 
+- **Issue** : #4486 (EP-40), ouverte le 2026-11-21.
 - **Où** : `backend/src/waterfall/core/estimate/interface/employment.py:34-43`
   (`select(EstimateLine.cost_category_id).where(cost_category_id.in_(ids)).distinct()`), enregistrée
   par `core/estimate/interface/__init__.py:414` ; appelée par
@@ -134,6 +137,7 @@ Aucun.
 
 ### DON-04 — Aucun index sur `node.lineage_id` : chaque suppression de tâche balaie la partition du projet
 
+- **Issue** : #4484 (EP-40), ouverte le 2026-11-21, avec DON-01, BPR-05, BPR-06.
 - **Où** : `backend/src/waterfall/core/planning/shaping.py:182-188`
   (`select(Node.lineage_id).where(Node.project_id == project_id, Node.lineage_id.in_(lineages))`) ;
   index de `node` : `core/planning/tables.py:132-149`, migration `0022_planning.py:319-339` —
@@ -152,6 +156,7 @@ Aucun.
 
 ### DON-05 — Un compte rendu d'import n'est jamais supprimé, contre le §4.4.1, la Conception d'EP-06 et ses propres docstrings ; le droit `DELETE` accordé ne sert pas
 
+- **Issue** : #4425 (EP-33), ouverte le 2026-11-21, avec BEX-07, BEX-10, BEX-11, FCO-06.
 - **Où** : spécification §4.4.1 (« un compte rendu d'import [se supprime] à son expiration ou à
   l'abandon de l'import », `docs/spec/waterfall-spec.md`, « Suppression », et WF-DAT-0080) ;
   `docs/roadmap/EP-06-planification.md:386-389` ; docstrings de
@@ -175,6 +180,7 @@ Aucun.
 
 ### DON-06 — Après une restauration, `create_project_partitions` est exécutable par `PUBLIC`
 
+- **Issue** : #4475 (EP-39), ouverte le 2026-11-21, avec BSO-05, BSO-03.
 - **Où** : `backend/src/waterfall/worker/restore.py:134-144` (`pg_restore --no-owner
   --no-privileges`) ; `backend/src/waterfall/platform/restoration.py:49-65` (`SERVICE_GRANTS` ne
   garde que les droits des **tables** et des **colonnes** : `pg_class.relacl`, `pg_attribute.attacl`)
@@ -199,6 +205,8 @@ Aucun.
   fonction) ; non exécuté.
 
 ### DON-07 — Invariants simples que la base laisse au service (défaut n° 1 de `sql.md`)
+
+- **Issue** : #4469 (EP-38), ouverte le 2026-11-21, avec DON-08, DON-09, DON-14, BPR-11.
 
 Chacun est une contrainte de vérification d'une ligne, sans coût, que la base ne porte pas :
 
@@ -226,6 +234,7 @@ Chacun est une contrainte de vérification d'une ligne, sans coût, que la base 
 
 ### DON-08 — Des clés qui ne nomment pas le projet laissent passer un rattachement entre deux projets, et leurs contrôles ne s'élaguent pas
 
+- **Issue** : #4469 (EP-38), ouverte le 2026-11-21, avec DON-07, DON-09, DON-14, BPR-11.
 - **Où** : `task.order_item_id → order_item(id)` et `task.work_package_id → work_package(id)`
   (`0022_planning.py:370-371`) ; `project.reference_revision_id` et `current_revision_id →
   revision(id)` (`0020_projects_and_revisions.py:369-370`, alors que `uq_revision_project_id`
@@ -246,6 +255,8 @@ Chacun est une contrainte de vérification d'une ligne, sans coût, que la base 
 
 ### DON-09 — Colonnes `*_id` sans clé étrangère que la Conception ne justifie pas
 
+- **Issue** : #4469 (EP-38), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue, avec DON-07, DON-08, DON-14, BPR-11.
 - **Où** : `revision_rate.cost_category_id` (`0025_estimate.py:255`, `core/estimate/tables.py:172-192`) ;
   `import_report.task_id`, `upload_id`, `revision_id`, `structure_id` (`0022_planning.py:566-574`) ;
   `paste_plan.structure_id`, `target_node_id` (`0022…:540-542`) ; les identifiants recopiés des
@@ -265,6 +276,8 @@ Chacun est une contrainte de vérification d'une ligne, sans coût, que la base 
 
 ### DON-10 — Écarts schéma ↔ spécification décidés par les Conceptions, jamais reportés dans la spécification
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — déjà tranché par l'auteur au tri
+  du 2026-11-18 : #3385 (SPT-07) clos « non retenu », #3386 (SPT-08) retenu sans le Tableau 10.
 - `display_preference` : le Tableau 10 (§4.4.1) nomme une table, et le régime de suppression « une
   préférence d'affichage à la demande de son porteur » ; le schéma porte
   `user_account.display_preferences` (jsonb, `0001…`, Conception d'EP-03 l. 417).
@@ -282,6 +295,9 @@ Chacun est une contrainte de vérification d'une ligne, sans coût, que la base 
 
 ### DON-11 — Le test de la « descente miroir » ne prouve que la descente de la chaîne entière, sur une base vide
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — la revue dit elle-même « portée
+  faible » : la descente ne sert qu'aux tests et au poste, jamais à une installation (§4.5.3 ;
+  US-2850 met le retour arrière du schéma hors périmètre).
 - **Où** : `backend/tests/test_migrations.py:196-212`
   (`test_each_migration_is_undone_by_its_mirror_and_applied_again`) ; `docs/dev/sql.md` (tableau des
   contrôles) et le guide (« la descente est le miroir de la montée ») s'y réfèrent.
@@ -299,6 +315,8 @@ Chacun est une contrainte de vérification d'une ligne, sans coût, que la base 
 
 ### DON-12 — Deux migrations importent du code applicatif
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — préférence de style : une
+  migration appliquée ne se modifie pas, et `new_id` est la fonction la plus stable du service.
 - **Où** : `migrations/versions/0005_permission_catalogue.py:18` et
   `0006_read_only_functions.py:16` (`from waterfall.platform.identifiers import new_id`).
 - **Quoi** : les migrations `0014` et `0021` écrivent en toutes lettres ce qu'elles emploient
@@ -310,6 +328,8 @@ Chacun est une contrainte de vérification d'une ligne, sans coût, que la base 
 
 ### DON-13 — La purge relit et verrouille tous les exports réussis de l'histoire, toutes les dix minutes
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — une fois la rétention d'EP-13
+  fusionnée, le lot est borné à un mois d'exports : gain non mesurable.
 - **Où** : `backend/src/waterfall/core/exchanges/interface/purge.py:156-175` (`_exports_old`).
 - **Quoi** : la requête prend `FOR UPDATE` toutes les tâches `export` réussies de plus de 24 h, déjà
   consommées comprises (le tri se fait en Python par `has_file`), et `background_task` n'a aucune
@@ -319,6 +339,7 @@ Chacun est une contrainte de vérification d'une ligne, sans coût, que la base 
 
 ### DON-14 — Droits du rôle du service au-delà de ce que le code emploie
 
+- **Issue** : #4469 (EP-38), ouverte le 2026-11-21, avec DON-07, DON-08, DON-09, BPR-11.
 - **Où** : `installation` : `UPDATE` (`0002_service_role.py`, gardé par `0012`) — aucun code ne
   modifie la ligne (`platform/installation.py` ne fait que lire ; recherché) ; `import_report` :
   `DELETE` (DON-05).
@@ -329,6 +350,10 @@ Chacun est une contrainte de vérification d'une ligne, sans coût, que la base 
 
 ### DON-15 — `backup.task_id` bloquera la purge des tâches comme `identity_sync_report.task_id`
 
+- **Suite** : corrigé depuis la revue, vérifié le 2026-11-21 — sur EP-13 (US-2830), la purge des
+  tâches épargne celles que nomme une sauvegarde encore listée (`backup_task_ids`, passé en `spared`
+  à `purge_ended`) : la clé reste en refus mais n'est plus heurtée. `identity_sync_report.task_id`
+  est passée en cascade (`0035`, #921). Aucune autre table ne désigne `background_task` par une clé.
 - **Où** : `0010_backup.py` (`ForeignKeyConstraint(["task_id"], ["background_task.id"],
   ondelete="RESTRICT")`), `core/backups/tables.py:50-53`.
 - **Quoi** : même motif que le constat reporté pour `identity_sync_report` ; la purge de rétention

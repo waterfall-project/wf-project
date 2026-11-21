@@ -39,6 +39,7 @@ Aucun.
 
 ### SPA-01 — Un compte sans rôle lit le référentiel actif : la décision #1745/#1746 contredit quatre exigences, et la spécification n'a pas suivi
 
+- **Issue** : #3349 (fermée), #3960 (ouverte), #3962 (ouverte).
 - **Où** : spécification — `WF-ADM-0020-A` (l. 1320 : « Toute action de Waterfall est soumise à une
   permission portée par un rôle d'habilitation »), `WF-ADM-0090-A` (l. 1332 : « sans rôle, il n'a
   aucune permission »), `WF-ADM-0070-A` (l. 1230 : « un compte ainsi créé n'a aucun droit »),
@@ -74,6 +75,7 @@ Aucun.
 
 ### SPA-02 — « Action structurante » n'est définie nulle part : l'exclusion d'une ligne de coût est livrée ouverte aux participants
 
+- **Issue** : #3350 (fermée), #3973 (ouverte).
 - **Où** : `WF-ADM-0110-A` (l. 1356 : « pour une action structurante ou le paramétrage du projet,
   s'il y est chef de projet »), `WF-PRJ-0060-A` (l. 2169 : « Les actions structurantes du catalogue
   (WF-ADM-0100) … sont réservé[e]s à ses chefs de projet »), `WF-ADM-0100-A` (l. 1344 : dix
@@ -108,6 +110,7 @@ Aucun.
 
 ### SPA-03 — Santé du pilotage : deux signaux s'allument sur tout projet qui vient de faire sa revue (non encore réalisé, EP-11)
 
+- **Issue** : #3351 (fermée).
 - **Où** : `WF-PTF-0110-A` (l. 1608) : « ceux dont des risques identifiés n'ont pas été réexaminés
   depuis leur dernière révision marquée ; ceux dont aucun coût réel n'a été importé depuis leur
   dernière révision marquée ». À rapprocher du §3.5 (l. 3199) et du glossaire « Revue périodique »
@@ -131,6 +134,7 @@ Aucun.
 
 ### SPA-04 — Le code d'un projet En cours peut être effacé — déjà connu (revue du contrat du 2026-10-31, D-06 ; « reste ouvert », `docs/api/DECISIONS.md:11063` ; aucune issue ni EPIC trouvés)
 
+- **Issue** : #3353 (fermée), #3989 (ouverte).
 - **Où** : `WF-CYC-0030-A` (l. 985), `WF-PRJ-0010-A` (l. 2075 : « peut être renseigné à tout moment ») ;
   `backend/src/waterfall/core/projects/interface/projects.py:714-739` (seul l'état terminal refuse),
   `api/projects.py:77` (`NEVER_NULL` ne compte pas `code`), aucune contrainte en base
@@ -146,6 +150,7 @@ Aucun.
 
 ### SPA-05 — « La permission de consulter » un projet n'est pas nommée ; deux permissions du catalogue n'ouvrent rien
 
+- **Issue** : #3354 (fermée), #3974 (ouverte), #3975 (ouverte).
 - **Où** : `WF-ADM-0110-A` (l. 1356-1358), `WF-PRJ-0060-A` (l. 2169), `WF-ADM-0100-A` (l. 1344-1346).
   Livré : `backend/src/waterfall/api/projects.py:66` (`CONSULT = "project_settings.read"` garde
   `listProjects` et `getProject`) ; `lifecycle.write` et `project_indicators.write` ne sont lues
@@ -166,6 +171,7 @@ Aucun.
 
 ### SPA-06 — Le rôle « chef de projet » livré porte cinq permissions que WF-INTF-0010 ne nomme pas, dont la liste du portefeuille
 
+- **Issue** : #3355 (ouverte).
 - **Où** : `WF-INTF-0010-A` (l. 393-395), `WF-ADM-0010-A` (l. 1308) ;
   `backend/src/waterfall/core/access_roles/predefined.py:48-53` (`portfolio_projects.read`,
   `cost_settings.read`, `resource_settings.read`, `risk_settings.read`, `indicator_settings.read`).
@@ -183,6 +189,7 @@ Aucun.
 
 ### SPA-07 — Qui est chef de projet d'un projet ne laisse aucune trace, sauvetage par un non-contributeur compris
 
+- **Issue** : #3356 (fermée), #3988 (ouverte).
 - **Où** : §3.4.2.2 (l. 1299), `WF-PRJ-0060-A` (l. 2169), `WF-SEC-0030-A` (l. 4334, liste des
   actions inscrites — hors de mes lignes, citée par WF-ADM-0190) ;
   `backend/src/waterfall/core/projects/interface/contributors.py:409-449` (aucune inscription au
@@ -205,6 +212,7 @@ Aucun.
 
 ### SPA-08 — Le « dernier administrateur » peut être un compte qui ne peut pas se connecter
 
+- **Issue** : #3357 (fermée), #3358 (fermée), #3987 (ouverte).
 - **Où** : `WF-ADM-0120-A` (l. 1368-1370), `WF-ADM-0140-A` (l. 1242 : un compte local créé « ne peut
   pas se connecter avant » d'avoir fixé son mot de passe, lien valable une heure) ;
   `backend/src/waterfall/core/access_roles/administrators.py:44-58` (compte actif porteur des deux
@@ -222,6 +230,7 @@ Aucun.
 
 ### SPA-09 — La lecture des comptes ne désactive que les comptes disparus : ni un compte désactivé dans l'annuaire, ni un compte relayé par un fournisseur externe
 
+- **Issue** : #3357 (fermée), #3358 (fermée), #3986 (ouverte).
 - **Où** : `WF-ADM-0070-A` (l. 1230), `WF-ADM-0180-A` (l. 1254 : « La lecture suivante désactive ceux
   que le fournisseur ne connaît plus ») ; `backend/src/waterfall/platform/keycloak_admin.py:311-333`
   (`enabled` n'est pas lu), `worker/identity_sync.py:110-115`.
@@ -237,6 +246,7 @@ Aucun.
 
 ### SPA-10 — Un rôle de ressource actif peut reposer sur une catégorie ou un calendrier désactivés
 
+- **Issue** : #3359 (fermée), #3985 (ouverte).
 - **Où** : `WF-REF-0010-A` (l. 1634), `WF-REF-0080-A` (l. 1800), `WF-REF-0090-A` (l. 1816),
   `WF-CYC-0120-A` (l. 902) ; `backend/src/waterfall/core/cost_settings/commands.py:53-58` (la
   désactivation d'une catégorie est toujours disponible, rôles rattachés ou non).
@@ -251,6 +261,7 @@ Aucun.
 
 ### SPA-11 — L'identifiant de lignée ne voyage pas dans « le champ d'identifiant unique de MS Project »
 
+- **Issue** : #3361 (fermée).
 - **Où** : `WF-INTF-0050-A` (l. 447), `WF-INTF-0040-A` (l. 435 : « les champs personnalisés ne sont
   jamais importés ») ; `backend/src/waterfall/core/planning/msproject/model.py:101-112`,
   `reader.py:219-248` ; conception EP-06 (`docs/roadmap/EP-06-planification.md:513,531`).
@@ -265,6 +276,7 @@ Aucun.
 
 ### SPA-12 — WF-INTF-0120 : deux règles de terminaison d'une tâche, et une incise mal placée
 
+- **Issue** : #3362 (fermée).
 - **Où** : `WF-INTF-0120-A` (l. 531 et Vérif l. 533).
 - **Quoi** : « Une tâche dont toutes les lignes **du fichier** portent un reste nul est terminée »,
   puis « n'est terminée … que si … aucune de ses lignes, **celles absentes du fichier comprises**,
@@ -280,6 +292,7 @@ Aucun.
 
 ### SPA-13 — La liste des contributeurs d'un projet terminal est figée : personne ne peut plus y être admis
 
+- **Issue** : #3363 (fermée), #3990 (ouverte).
 - **Où** : `WF-CYC-0100-A` (l. 1057), `WF-CYC-0110-A` (l. 1069-1070 : « relu, pour chiffrer le
   suivant »), `WF-PRJ-0060-A` ; `core/projects/interface/contributors.py:430-431`.
 - **Quoi** : « toutes ses données » en lecture seule emporte la liste des contributeurs. Celui qui
@@ -291,6 +304,7 @@ Aucun.
 
 ### SPA-14 — Règles de saisie du référentiel que la spécification tait et que le contrat ou le code ont fixées
 
+- **Issue** : #3364 (fermée).
 - **Où** : `WF-REF-0070-A` (l. 1788 : rien sur le déplacement d'un nœud sous l'un de ses
   descendants — refusé par le code, `core/resource_settings/interface/org_nodes.py:239,332`) ;
   `WF-REF-0110-A` (heures d'un jour : 0 à 24 selon `calendars.py:7`) ; `WF-REF-0180-A` (1 à 104
@@ -306,6 +320,7 @@ Aucun.
 
 ### SPA-15 — Vocabulaire et traçabilité
 
+- **Issue** : #3365 (fermée).
 - **« Chef de projet »** désigne trois choses — l'acteur (§3.1.3), le rôle prédéfini (WF-ADM-0010),
   la qualité d'un contributeur (WF-PRJ-0060) — et n'a pas d'entrée au glossaire, pas plus que
   « participant ». « La projection du chef de projet » ou « sauf si le chef de projet l'a

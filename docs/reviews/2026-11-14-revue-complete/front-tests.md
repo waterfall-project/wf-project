@@ -34,6 +34,7 @@ Aucun.
 
 ### FTE-01 — `WF-PLA-0090-A`, close par EP-06 (livré, `front, back`), est comptée « front seul » : non couverte au sens du dépôt
 
+- **Issue** : #4415 (EP-32), ouverte le 2026-11-21, avec RMP-05.
 - **Où** : `tools/paths.toml:778-779` (`end-to-end-service = ["frontend/e2e/service/**"]`,
   `end-to-end = ["frontend/e2e/**"]`) ; `tools/src/wftools/coverage.py:48` (`FRONT_FAMILIES`) et `:254` ;
   les parcours qui la citent : `frontend/e2e/planning-service.spec.ts:70` et `:327`,
@@ -71,6 +72,8 @@ Aucun.
 
 ### FTE-02 — Le parcours des unités de durée laisse l'installation à 7 h/jour une fois sur deux, ce qui redate toutes les révisions en cours, témoin compris
 
+- **Issue** : #4445 (EP-36), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue.
 - **Où** : `frontend/e2e/reference-resources.spec.ts:284-331` (`written = before === "7" ? "8" : "7"`,
   `:299` ; l'en-tête du fichier, `:7-8`, dit « leave a state equivalent … the units of duration
   alternate between 7 and 8 ») ; `backend/src/waterfall/core/resource_settings/interface/duration_units.py:131-168`
@@ -114,6 +117,7 @@ Aucun.
 
 ### FTE-03 — `task-tree.spec.ts` : contre le service, l'attendu se lit dans le service, et l'export cité n'est pas vérifié
 
+- **Issue** : #4448 (EP-36), ouverte le 2026-11-21, avec FTE-04, FTE-05, FTE-08, FTE-09.
 - **Où** : `frontend/e2e/task-tree.spec.ts:79-98` et `:113-123` (titre `:53`, `[WF-PLA-0110-A] [WF-PLA-0120-A]`).
 - **Quoi** : contre le service, la profondeur attendue est `meta.summary_depth` relue par l'API
   (`summaryDepth`, `:80`) ; si elle vaut 0, le parcours affirme « Ce planning n'a aucune tâche
@@ -134,6 +138,7 @@ Aucun.
 
 ### FTE-04 — Plan de charge : le filtre par nœud d'organisation n'est affirmé que par l'adresse, des deux côtés
 
+- **Issue** : #4448 (EP-36), ouverte le 2026-11-21, avec FTE-03, FTE-05, FTE-08, FTE-09.
 - **Où** : `frontend/e2e/workload.spec.ts:52-60` et `:71-80` (`[WF-DEV-0070-A]`, `@shared`).
 - **Quoi** : Vérif — « Le filtre par nœud d'organisation ne laisse voir que les rôles qui en
   relèvent ». Les deux parcours choisissent le nœud, puis affirment l'adresse (`org_node_id=…`) et la
@@ -148,6 +153,7 @@ Aucun.
 
 ### FTE-05 — Coûts réels : `WF-CRE-0050-A` et `WF-CRE-0030-A` cités pour une moitié de leur Vérif
 
+- **Issue** : #4448 (EP-36), ouverte le 2026-11-21, avec FTE-03, FTE-04, FTE-08, FTE-09.
 - **Où** : `frontend/e2e/actual-costs.spec.ts:189-268` (titre : `[WF-CRE-0040-A] [WF-CRE-0030-A] [WF-CRE-0020-A] [WF-CRE-0050-A]`).
 - **Quoi** : après l'import contre le service, le parcours affirme la date du dernier import
   (`:226-229`) mais jamais l'entrée du journal (« le journal présente une entrée datée du jour avec
@@ -162,6 +168,7 @@ Aucun.
 
 ### FTE-06 — Le projet Vitest `node` ne refuse pas la sortie d'erreur, et la couverture tourne en `--silent`
 
+- **Issue** : #4449 (EP-36), ouverte le 2026-11-21, avec FTE-07, FTE-12.
 - **Où** : `frontend/vitest.config.ts:80-99` (`setupFiles: [SERVER_ONLY]` pour `node` et `lint`),
   `frontend/src/test/setup.ts` (deux `vi.mock`, rien d'autre), `frontend/src/test/setup-dom.ts:30-43`
   (la garde, pour `dom` seul), `Makefile:574-577` (`vitest run … --silent`).
@@ -180,6 +187,7 @@ Aucun.
 
 ### FTE-07 — Catalogues : deux clés mortes, deux apostrophes droites, deux guillemets français en anglais ; rien ne tient les clés inemployées
 
+- **Issue** : #4449 (EP-36), ouverte le 2026-11-21, avec FTE-06, FTE-12.
 - **Où** : `frontend/messages/fr.json:2746-2747` et `en.json:2746-2747` (`admin.audit.find`,
   `admin.audit.findButton` : aucune lecture dans `frontend/src`, tests compris) ;
   `frontend/messages/fr.json:349` (`grid.structure.taskHint`, « d'un jour ») et `:3495`
@@ -201,6 +209,8 @@ Aucun.
 
 ### FTE-08 — Accessibilité : la page de connexion n'est jamais auditée, les écrans ne le sont qu'en français, et « ce qu'un geste ouvre » passe à vide
 
+- **Issue** : #4448 (EP-36), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue, avec FTE-03, FTE-04, FTE-05, FTE-09.
 - **Où** : `frontend/e2e/accessibility.spec.ts:185` (`WALKED_SCREENS`), `:331-361` (seul contrôle en
   anglais : le panneau d'aide), `:404-423` (`found.length === 0 ? "nothing"`) ;
   `deploy/keycloak/themes/waterfall/login/resources/css/waterfall.css:19-50` ; aucun `axeAudit` ni
@@ -225,6 +235,8 @@ Aucun.
 
 ### FTE-09 — Sélecteurs de structure et détails internes de bibliothèque dans quatre parcours
 
+- **Issue** : #4448 (EP-36), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue, avec FTE-03, FTE-04, FTE-05, FTE-08.
 - **Où** : `frontend/e2e/planning-service.spec.ts:110` (`g.stroke-muted-foreground polygon`, une classe
   de la charte, pour « les liaisons sont visibles ») ; `frontend/e2e/risks.spec.ts:63`
   (`[class*='before:content']`) ; `frontend/e2e/portfolio.spec.ts:232` et `risks.spec.ts:205`
@@ -239,6 +251,8 @@ Aucun.
 
 ### FTE-10 — Mesure de performance : une ligne du tableau 15 sur plusieurs, faux back, un utilisateur, sans échec — déjà connu (#3173, #3184, EP-26)
 
+- **Issue** : #4450 (EP-36), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue, avec FTE-14.
 - **Où** : `frontend/e2e/opening.spec.ts:51` (`OBJECTIVE = 1_000`), `:352-366` (avertissement, jamais
   d'échec), `:425-441` ; `frontend/e2e/departure.spec.ts` (seule borne qui échoue : le travail du fil
   principal pour quitter une grille, sous une seconde, processeur ralenti quatre fois) ;
@@ -255,6 +269,9 @@ Aucun.
 
 ### FTE-11 — Un seul attendu dépend du fuseau du poste ; aucun `timezoneId` dans la configuration
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — n'échoue que sur un poste à
+  l'ouest de UTC−8 h 30, quand les postes sont en France et la chaîne en UTC : gain nul pour ce
+  projet.
 - **Où** : `frontend/e2e/actual-costs.spec.ts:58` (« Dernier import 3 juin 2026 », rendu par
   `LocalTime` depuis `2026-06-03T08:30:00Z`) ; `frontend/playwright.config.ts` (`locale: "fr-FR"`, pas
   de `timezoneId` ; seul `review.spec.ts:208` en pose un).
@@ -268,6 +285,8 @@ Aucun.
 
 ### FTE-12 — Quatre parcours en quarantaine contre le service, et aucun outil ne tient « ni `skip` ni `fixme` » — déjà connu (#3087, #3190, #3191, #3192)
 
+- **Issue** : #4449 (EP-36), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue, avec FTE-06, FTE-07.
 - **Où** : `frontend/e2e/structure.spec.ts:338-344`, `frontend/e2e/reference-costs.spec.ts:376-382` et
   `:480-486`, `frontend/e2e/revisions.spec.ts:124-132`.
 - **Quoi** : `test.skip(inService, QUARANTINED_…)`, par décision de l'auteur du 2026-11-14, contre la
@@ -283,6 +302,9 @@ Aucun.
 
 ### FTE-13 — 347 noms accessibles recopiés du catalogue dans les parcours : un libellé changé ne casse qu'au palier complet
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — c'est le parti assumé du dépôt,
+  l'échec reste dit au palier complet, et la raison d'urgence (les renommages d'EP-25) a disparu :
+  EP-25 est livré.
 - **Où** : `frontend/e2e/*.spec.ts`, `frontend/e2e/service/*.spec.ts` — 1 654 `name: "…"`, 482
   distincts, dont 347 sont mot pour mot une valeur de `messages/fr.json` ; trois fichiers seulement
   lisent le catalogue (`routes.ts:15`, `exchanges.spec.ts:15`, `review.spec.ts:16`).
@@ -297,6 +319,7 @@ Aucun.
 
 ### FTE-14 — Commentaire périmé dans le harnais d'axe des composants
 
+- **Issue** : #4450 (EP-36), ouverte le 2026-11-21, avec FTE-10.
 - **Où** : `frontend/src/test/axe.ts:9-10` : « US-0200, to come — today only `e2e/paste.spec.ts` runs
   axe in one ».
 - **Quoi** : US-0200 est livrée et `e2e/accessibility.spec.ts` audite chaque écran ; le commentaire
