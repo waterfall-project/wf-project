@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /*
  * The periodicity of the reading of the accounts, set from the screen of the accounts, against the
- * service (US-3040, WF-ADM-0070): a local account of the path, that reads and modifies the accounts,
+ * service (US-3040): a local account of the path, that reads and modifies the accounts,
  * finds the periodicity the platform ships — on, daily, at 01:30 UTC — without anyone having entered
  * it; sets it weekly, on a Wednesday, at 03:15 UTC, and finds it so once the page is read anew; and
  * a write made from a version of it another write has outdated is refused (412), what the form says
  * without losing the schedule. The service keeps the schedule in its database: the path puts back
  * the one it shipped, whatever happened, so that no other path meets a reading at a strange hour.
+ * The path carries the criterion of the story alone; the Vérif of WF-ADM-0070 is covered elsewhere.
  * No write of the schedule asks a reading: the reading on demand is the business of
  * `identity-sync.spec.ts`.
  */
@@ -40,11 +41,18 @@ interface Schedule {
   lock_version: number;
 }
 
+const withoutVersion = (schedule: Schedule): Omit<Schedule, "lock_version"> => ({
+  is_enabled: schedule.is_enabled,
+  frequency: schedule.frequency,
+  at_time: schedule.at_time,
+  weekday: schedule.weekday,
+});
+
 test.beforeEach(async ({ request }) => {
   await compileAnswered(request, "/auth/callback", USERS);
 });
 
-test("the periodicity shipped is read without having been entered, set weekly from the screen, kept, and refused from a version outdated [US-3040] [WF-ADM-0070-A]", async ({
+test("the periodicity shipped is read without having been entered, set weekly from the screen, kept, and refused from a version outdated [US-3040]", async ({
   browser,
   page,
   playwright,
@@ -68,13 +76,17 @@ test("the periodicity shipped is read without having been entered, set weekly fr
     const section = page.getByRole("region", { name: "Périodicité de la lecture", exact: true });
     await expect(section).toBeVisible();
     await untilHydrated(page);
-    // What the platform ships, read before anything was entered — unless a run played before moved it.
-    await expect(section).toContainText(shipped.is_enabled ? "Active" : "Suspendue");
-    await expect(section).toContainText(`${shipped.at_time} UTC`);
-    if (shipped.lock_version === 1) {
-      await expect(section).toContainText("Quotidienne");
-      await expect(section).toContainText("01:30 UTC");
-    }
+    // What the platform ships, read before anything was entered: every path puts it back at its end.
+    expect(shipped).toMatchObject({
+      is_enabled: true,
+      frequency: "daily",
+      at_time: "01:30",
+      weekday: null,
+    });
+    await expect(section).toContainText("Active");
+    await expect(section).toContainText("Quotidienne");
+    await expect(section).toContainText("01:30 UTC");
+    await expect(section).not.toContainText("Mercredi");
 
     // Set weekly, on a Wednesday, at 03:15 UTC, from the version the form opened on.
     await section.getByRole("button", { name: "Modifier la périodicité" }).click();
@@ -110,19 +122,29 @@ test("the periodicity shipped is read without having been entered, set weekly fr
     expect(elsewhere.status()).toBe(200);
     await stale.getByLabel("Heure (UTC)").fill("05:00");
     await stale.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(stale.getByRole("alert")).toBeVisible({ timeout: WORKING });
+    await expect(stale.getByRole("alert")).toContainText(
+      "Quelqu’un a modifié cette donnée entre-temps ; rechargez-la pour voir sa dernière version.",
+      { timeout: WORKING },
+    );
     await expect(stale).toBeVisible();
+    await expect(stale.getByLabel("Heure (UTC)")).toHaveValue("05:00");
     expect((await current()).at_time).toBe("04:45");
   } finally {
-    if (shipped !== undefined) {
-      // The schedule put back whole as it was shipped, from the version the service holds now.
-      const now = await current();
-      await calls.put(SCHEDULE, {
-        headers,
-        data: { ...shipped, lock_version: now.lock_version },
-      });
+    try {
+      if (shipped !== undefined) {
+        // The schedule put back whole as it was shipped, from the version the service holds now.
+        const now = await current();
+        const whole = withoutVersion(shipped);
+        const back = await calls.put(SCHEDULE, {
+          headers,
+          data: { ...whole, lock_version: now.lock_version },
+        });
+        expect(back.status(), "PUT identity-sync-schedule, shipped value put back").toBe(200);
+        expect(withoutVersion(await current())).toEqual(whole);
+      }
+    } finally {
+      withdrawRoles(holder.email);
+      await calls.dispose();
     }
-    withdrawRoles(holder.email);
-    await calls.dispose();
   }
 });
