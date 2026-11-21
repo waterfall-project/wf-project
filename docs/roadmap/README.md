@@ -175,7 +175,7 @@ closes. Four rules, which each slice follows:
 | [EP-28](EP-28-chaine-et-outillage.md) | Chain and development tooling | livré | nothing |
 | [EP-29](EP-29-habilitations-specification-1-0-7.md) | Access rights and accounts: follow-ups of specification 1.0.7 | à planifier | EP-08 |
 | [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risks prepared as differentials | prêt | EP-08, EP-11 |
-| [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning: engine and Gantt | à planifier | EP-08 |
+| [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning: engine and Gantt | prêt | EP-08 |
 | [EP-33](EP-33-imports-et-exports-de-fichiers.md) | File imports and exports | à planifier | EP-08 |
 | [EP-34](EP-34-grilles-saisie-et-collage.md) | Grids: entry and pasting | à planifier | EP-08 |
 | [EP-36](EP-36-tests-et-preuve-des-exigences.md) | Tests and proof of the requirements | à planifier | EP-08, EP-11 |
