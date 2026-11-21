@@ -76,9 +76,10 @@ variable of its own: the service Compose gives the `witness` service the role of
 examples;
 the platform must be started and bootstrapped (`make service-install`), for the command does not
 write what the bootstrap writes — the row of the installation, the common settings, the units, the
-mapping, the default calendar and the provision —, it sets what the bootstrap laid. The `witness`
-fixture of `backend/tests/conftest.py` does likewise on the database of the tests: it first
-installs what the bootstrap writes, then runs the command. `backend/tests/test_witness.py` tries
+mapping, the default calendar and the provision —, it sets what the bootstrap laid. The tests do
+likewise, once a run, on a template database (`backend/tests/witness_template.py`): they first
+install what the bootstrap writes, then run the command; the `witness` fixture gives each test a
+copy of that database. `backend/tests/test_witness.py` tries
 the witness whole: its volumes, two new platforms loaded identical, a second run that writes
 nothing, the dates and authors of the platform, the stop, saying so, on a witness the rules refuse,
 and the lists of the service compared with the examples of the contract, the audit columns apart.
@@ -4338,14 +4339,33 @@ report says so.
 An integration test of the back joins the real database, PostgreSQL, never another in its place
 (`python.md`, « Les tests »). The variable `WATERFALL_TEST_DATABASE_URL` names a server and a role
 that can create databases and roles, a superuser (`postgresql://rôle@hôte:5432/postgres`): at each
-test session, the `database_url` fixture (`backend/tests/conftest.py`) creates there a database with
-a unique name, applies the migrations to it, and drops it at the end, with the service role the
-migrations created for it. The `database` fixture returns this database as the service sees it —
-through a login role that is a member of the service role of this database, created for the session
-(sql.md, « Le rôle du service ») —, and deletes after each test the rows of every table the `Base`
-declares, as owner, audit log included, which its trigger does not protect from a superuser who
-disables the triggers — except those a migration writes, the catalogue of permissions, which its
-table marks (`WRITTEN_BY_MIGRATION` in its `info`); `session` returns a session the test rolls back.
+test session, that is for each process, the `process_database_url` fixture
+(`backend/tests/conftest.py`) creates there a database with a unique name, applies the migrations to
+it, and drops it at the end, with the service role the migrations created for it. `database_url` and
+`service_database_url` name the database of the test: the process's, but for a test on the witness.
+The `database` fixture returns this database as the service sees it — through a login role that is a
+member of the service role of this database, created for the session (sql.md, « Le rôle du
+service ») —, and deletes after each test the rows of every table the `Base` declares, as owner,
+audit log included, which its trigger does not protect from a superuser who disables the triggers —
+except those a migration writes, the catalogue of permissions, which its table marks
+(`WRITTEN_BY_MIGRATION` in its `info`); `session` returns a session the test rolls back.
+
+The witness is loaded once a run, by a process of its own, into a template database
+(`backend/tests/witness_template.py`, #4653): the first process whose tests ask for it starts that
+loading as soon as they are collected, and those tests run after the others, while it is done. A
+test on the witness (`witness`, `witness_logged`) is given a database of its own, a copy of the
+template (`CREATE DATABASE … TEMPLATE`, a few tenths of a second), dropped after it: rows,
+identifiers, the partitions of the projects and the sequences are those the command wrote, and no
+row is laid again nor any partition dropped. The service reaches it through a login role member of
+the service role of the template, whose rights the copy keeps. The witness loaded by each process,
+then laid again and its partitions dropped around each test (#2157), took a third of the time of the
+tests. A test that changes how the command loads it loads it itself, on the process's database
+(`witness_loaded`).
+
+A test that hangs fails after ten minutes, named, its traceback where it stopped (`pytest-timeout`,
+`timeout` of `backend/pyproject.toml`, by `SIGALRM`): its process goes on with the next, instead of
+freezing its part of the chain until the job is cancelled (#4653). The longest test that does not
+hang loads the witness again in its body: 230 seconds at most on a runner.
 
 - **In the chain**, `back.yml` starts PostgreSQL as a service of the job and sets the variable.
 - **On a workstation**, the Makefile does it: `make test-back` and `make coverage-back` start

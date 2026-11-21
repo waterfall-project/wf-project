@@ -53,6 +53,7 @@ dev = [
     "pytest>=9.2.0",
     "pytest-cov>=7.1.0",
     "pytest-socket>=0.8.1",
+    "pytest-timeout>=2.4",
     "pytest-xdist>=3.8",
     "pyyaml>=6.0",
     "ruff>=0.17.5",
@@ -75,6 +76,13 @@ markers = [
 ]
 xfail_strict = true
 filterwarnings = ["error"]
+# A test that hangs fails after ten minutes, named, its traceback where it stood, rather than freezing
+# its part of the chain until the job is cancelled (#4653). The longest test that does not hang loads
+# the witness again in its body: 230 seconds at most on a runner (run 44945620214); the setup of a
+# test on the witness waits for its template at most as long. By SIGALRM, in the main thread where
+# pytest-xdist runs the tests: the test fails and its process goes on with the next.
+timeout = 600
+timeout_method = "signal"
 
 [tool.coverage.run]
 branch = true

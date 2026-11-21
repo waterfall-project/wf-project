@@ -21,7 +21,7 @@ from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.tables import CostStructure, Revision
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Generator
+    from collections.abc import Generator
 
     from sqlalchemy import Engine
     from sqlalchemy.engine import Connection
@@ -218,19 +218,16 @@ def partitioned_projects(connection: Connection) -> list[UUID]:
     return sorted({UUID(hex=name[-HEX:]) for name in names})
 
 
-def drop_every_partition(owner: Engine, keep: Collection[UUID] = ()) -> None:
-    """Drop the partitions of every project but ``keep``'s, a transaction for each project (#4051).
+def drop_every_partition(owner: Engine) -> None:
+    """Drop the partitions of every project, a transaction for each project (#4051).
 
     One transaction for all held a lock on every partition at once — fourteen tables a project,
     five projects a fabric of the portfolio —, beyond what the server holds; each project now holds
-    its own, released at its commit. The projects kept keep theirs, empty or not: the witness's,
-    that the next test that asks for it lays its rows in without creating them again.
+    its own, released at its commit.
     """
     with owner.connect() as connection:
         projects = partitioned_projects(connection)
     for project_id in projects:
-        if project_id in keep:
-            continue
         with owner.begin() as connection:
             drop_partitions(connection, project_id)
 
