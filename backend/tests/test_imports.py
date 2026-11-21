@@ -46,13 +46,14 @@ from support import ContractClient
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.access_roles.predefined import PROJECT_MANAGER
+from waterfall.core.exchanges.interface import purge, remove_purged, stored_before
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.database import utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 from waterfall.platform.tasks import submit
-from waterfall.platform.uploads import FileUpload
+from waterfall.platform.uploads import LIFETIME, FileUpload
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -607,11 +608,13 @@ def test_an_application_refused_by_a_condition_of_its_kind_refuses_the_import(
 
 @pytest.mark.requirement("WF-ARC-0100-A")
 @pytest.mark.usefixtures("trial")
-def test_an_application_whose_structure_is_gone_from_the_current_revision_refuses_the_import(
+def test_an_import_goes_with_the_revision_abandoned_it_was_analysed_in(
     api: ContractClient, stage: Scene, worker: Worker, database: Database, backups_bucket: Bucket
 ) -> None:
-    # The revision analysed abandoned, another opened from no marked one: the structure aimed at
-    # has no copy there, and the import is refused for good, not found (#2475).
+    # The revision analysed abandoned, the import goes with it (``CASCADE``, US-3060, #4139): the
+    # revision opened after it knows it no more, and its application is refused as unknown (404,
+    # #2475). Its file stays where it is, and goes with the sweep of the purge once the life of a
+    # deposit is past, as an object no import names.
     revision = open_revision(api, stage)
     import_id = analysed(api, stage, worker)["import_id"]
     key = stored(database, import_id).object_key
@@ -623,7 +626,16 @@ def test_an_application_whose_structure_is_gone_from_the_current_revision_refuse
     assert abandoned.status_code == 204, abandoned.text
     open_revision(api, stage)
     assert refusal(apply(api, stage, import_id))[:2] == (404, "NOT_FOUND")
-    assert stored(database, import_id).status == "refused"
+    with database.transaction() as session:
+        assert session.get(ImportReport, UUID(import_id)) is None
+        assert session.scalar(select(FileUpload.id).where(FileUpload.object_key == key))
+    assert backups_bucket.size(key) is not None
+    later = utc_now() + LIFETIME + timedelta(hours=1)
+    with database.transaction() as session:
+        swept = stored_before(backups_bucket, later, session)
+    with database.transaction() as session:
+        gone = purge(session, later, swept)
+    remove_purged(backups_bucket, gone)
     assert backups_bucket.size(key) is None
 
 

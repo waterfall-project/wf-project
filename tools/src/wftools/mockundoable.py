@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any, cast
 from wftools import mockcore, mocktext, mockwrites
 from wftools.mockids import universe
 from wftools.mockstructure import JsonObject, JsonValue, described
-from wftools.mockwitness import CORE, WIRING, Task
+from wftools.mockwitness import CORE, FIRST_WRITE, WIRING, Task
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -223,7 +223,9 @@ def undo_task_renamed() -> JsonObject:
     """
     before = _bumped(_renamed(), WIRING, 1)
     after = mockcore.whole(mockcore.current())
-    return _undone(mockwrites.written(before, after, [universe(WIRING)], structure_version=3))
+    return _undone(
+        mockwrites.written(before, after, [universe(WIRING)], structure_version=FIRST_WRITE + 1)
+    )
 
 
 def redo_task_renamed() -> JsonObject:
@@ -232,7 +234,11 @@ def redo_task_renamed() -> JsonObject:
     One version further than the undo left it; nothing remains to redo.
     """
     before = _bumped(mockcore.whole(mockcore.current()), WIRING, 2)
-    return _undone(mockwrites.written(before, _renamed(), [universe(WIRING)], structure_version=4))
+    return _undone(
+        mockwrites.written(
+            before, _renamed(), [universe(WIRING)], structure_version=FIRST_WRITE + 2
+        )
+    )
 
 
 def undo_task_renamed_one_left() -> JsonObject:

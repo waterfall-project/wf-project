@@ -210,10 +210,11 @@ FOURTEEN_REVISED = [
     "task",
     "task_link",
 ]
-FIFTEEN_BOUND = [
+SIXTEEN_BOUND = [
     "cost_category",
     "cost_structure",
     "estimate_line",
+    "import_report",
     "node",
     "order_item",
     "resource_role",
@@ -275,14 +276,14 @@ def test_the_revised_tables_the_catalogue_partitions_by_project_are_the_fourteen
 ) -> None:
     # What the function reads at each call: a table partitioned by another column, or by range,
     # would not be one; a table an epic adds enters by itself, and this list with it — the
-    # indicators of EP-10 and the risks of EP-08 among them. The keys of the fourteen bind fifteen
+    # indicators of EP-10 and the risks of EP-08 among them. The keys of the fourteen bind sixteen
     # tables, the risks and their evaluations among them, which it locks besides; a key an epic adds
-    # enters too.
+    # enters too, as the imports' to their structure did (US-3060, #4139).
     with owner.connect() as connection:
         assert connection.scalars(REVISED_TABLES).all() == FOURTEEN_REVISED
         bound = connection.scalars(BOUND_TABLES, {"revised": FOURTEEN_REVISED}).all()
-        assert bound == FIFTEEN_BOUND
-        assert locked_tables(connection) == sorted({*FOURTEEN_REVISED, *FIFTEEN_BOUND})
+        assert bound == SIXTEEN_BOUND
+        assert locked_tables(connection) == sorted({*FOURTEEN_REVISED, *SIXTEEN_BOUND})
 
 
 def test_the_creation_takes_the_advisory_lock_of_the_revisions_distinct_from_the_others(

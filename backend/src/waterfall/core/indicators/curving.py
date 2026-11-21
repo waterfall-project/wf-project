@@ -133,17 +133,17 @@ class CurveSources:
     since: date | None = None
 
 
-def _earlier_references(session: Session, basis: Basis) -> tuple[tuple[InForce, ...], date | None]:
+def earlier_references(session: Session, basis: Basis) -> tuple[tuple[InForce, ...], date | None]:
     """Read the references the project had before its reference now, and the day this one stands.
 
     The journal of the designations says them in order, the revision when each was marked; they
     count only when the last is the reference of the basis. The revision a merge marks and
-    designates at once (``basis.designated_at``) is the last, its designation not yet inscribed. A
-    project that has had a single reference has none before it, and its curves are drawn as they
-    always were.
+    designates at once (``basis.designated_at``) is the last, its designation not yet inscribed —
+    added once: a journal that says it already, its last, is kept as it is (#4262). A project that
+    has had a single reference has none before it, and its curves are drawn as they always were.
     """
     history = reference_history(session, basis.project_id)
-    if basis.designated_at is not None:
+    if basis.designated_at is not None and (not history or history[-1][0] != basis.revision_id):
         history.append((basis.revision_id, basis.designated_at))
     if len(history) <= 1 or history[-1][0] != basis.reference_id:
         return (), None
@@ -160,7 +160,7 @@ def read_curve_sources(session: Session, basis: Basis) -> CurveSources:
     """Read, once for all the scopes, the lines, the remaining and the completions of a basis."""
     tasks, lines, reference = read_lines(session, basis)
     remaining = remaining_of_lines(tasks, lines).by_line
-    earlier, since = _earlier_references(session, basis)
+    earlier, since = earlier_references(session, basis)
     return CurveSources(
         tuple(reference),
         tuple(lines),

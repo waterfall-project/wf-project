@@ -126,7 +126,8 @@ def _copy_links(copy: RevisionCopy, nodes: dict[UUID, UUID], structures: dict[UU
 def _copy(copy: RevisionCopy, *, attached: bool, left_out: frozenset[UUID] = frozenset()) -> None:
     """Copy the nodes of the source, their facet task and their links (WF-DAT-0010).
 
-    The nodes of each structure copied, under identifiers of their own and their lineage, at their
+    The nodes of each structure copied, under identifiers of their own — those the witness imposes
+    (``RevisionCopy.imposed``, US-2650/L1), else drawn — and their lineage, at their
     place, at their first version, their dates as computed, their attachment to the work breakdown
     but to an element marked deleted, which the revision opened does not take up (WF-PLA-0170); the
     facets the later modules register after them (``register_facet``). The inscriptions follow the
@@ -134,19 +135,19 @@ def _copy(copy: RevisionCopy, *, attached: bool, left_out: frozenset[UUID] = fro
     """
     session, ids = copy.session, copy.identifiers
     sources = session.execute(
-        select(Node.id, Node.structure_id).where(
+        select(Node.id, Node.structure_id, Node.lineage_id).where(
             Node.project_id == copy.project_id, Node.revision_id == copy.source
         )
     ).all()
     nodes = {
-        each: new_id()
-        for each, structure_id in sources
+        each: copy.imposed.node(ids[structure_id], lineage_id) or new_id()
+        for each, structure_id, lineage_id in sources
         if structure_id in ids and each not in left_out
     }
     if not nodes:
         return
     structures = {
-        structure_id: ids[structure_id] for each, structure_id in sources if each in nodes
+        structure_id: ids[structure_id] for each, structure_id, _ in sources if each in nodes
     }
     ids.update(nodes)
     node, structure = copies(nodes, "copied_node"), copies(structures, "copied_structure")

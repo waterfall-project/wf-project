@@ -201,6 +201,10 @@ describe("an amendment in arrears", () => {
       [REBASE_REPORT]: "structure_rebase_report",
       [REBASE]: "structure_rebased",
     });
+    const report = example("structure_rebase_report") as {
+      main_structure_lock_version: number;
+      structure_lock_version: number;
+    };
     commands(amendment("structures_amendments"), ["rebase"]);
     await userEvent.click(screen.getByRole("button", { name: "Mettre à jour l’avenant" }));
     const form = screen.getByRole("form", { name: "Mettre à jour l’avenant" });
@@ -219,7 +223,11 @@ describe("an amendment in arrears", () => {
 
     await userEvent.click(within(form).getByRole("button", { name: "Confirmer la mise à jour" }));
     expect(client.calls.filter((call) => call.route === REBASE).map((call) => call.body)).toEqual([
-      { confirmed: true, main_structure_lock_version: 6, structure_lock_version: 2 },
+      {
+        confirmed: true,
+        main_structure_lock_version: report.main_structure_lock_version,
+        structure_lock_version: report.structure_lock_version,
+      },
     ]);
     expect(await screen.findByText(/est à jour\./)).toBeVisible();
     // The grid is read anew with the screen: the server action refreshes the page.

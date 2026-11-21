@@ -607,7 +607,9 @@ StructureMerge:
     the reference quantities it carries, from which their budgeted amount is derived; a
     designated line of a task not started, which nobody has re-estimated since the reference,
     also takes these quantities as current quantities; the current quantities and the
-    re-estimated amount of all other lines are kept (WF-REV-0050, WF-DEV-0020). It applies to
+    re-estimated amount of all other lines are kept (WF-REV-0050, WF-DEV-0020); a kept line
+    whose role the differential changes keeps its current quantities, its re-estimated amount
+    following the hourly rate of the role designated (`mergeCostStructure`, #4246). It applies to
     the current revision and marks it in the same operation, hence the version name required
     and the description allowed, as at any marking (WF-REV-0020), and the resulting revision
     becomes the reference (WF-REV-0050); on a project without a current revision, it first

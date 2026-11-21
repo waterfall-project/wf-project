@@ -413,6 +413,16 @@ développement, qui se recréent.
 la ligne du différentiel sans structure à elle, que ni la copie ni la lecture d'un arbre ne
 sauraient lire.
 
+Deux migrations encore, pour les clés d'`import_report` (US-3060, #4139), chaînées sur la dernière
+d'`epic/EP-08` : `0040` supprime les imports dont la structure ou la révision n'existe plus (sa
+descente est sans effet : ils ne reviennent pas), `0041` pose les clés.
+
+- **`import_report`** : les clés `(project_id, structure_id)` vers `cost_structure` et
+  `(project_id, revision_id)` vers `revision`, en cascade : l'abandon d'un différentiel ou d'une
+  révision emporte le rapport d'import qui la nomme, et lui seul. Le fichier suit le balayage de la
+  purge, qui retire l'objet de `uploads/` qu'aucune ligne ne nomme. `cost_import.import_report_id`
+  reste en refus (`RESTRICT`) : un import de coûts réels n'est jamais emporté.
+
 ### Ce qui reconnaît une ligne de provision
 
 Une ligne de provision est une ligne dont la catégorie relève d'une nature de type provision pour
@@ -547,6 +557,15 @@ seule opération, et la création préalable de la révision en cours.
   et des images suivent.
 - **Les tâches de fond** portent les genres que le contrat nomme pour la fusion et la survenance ;
   pendant qu'elles courent, les écritures du projet nomment `no_background_task_running`.
+
+- **Ce que la fusion fait d'une ligne gardée dont le rôle change de catégorie** (#4246, décision de
+  l'utilisateur du 2026-11-20, tranchée contre la lettre de WF-REV-0050-A, corps : « les grandeurs
+  courantes et le montant réestimé de toutes les autres lignes sont conservés », et du contrat de
+  `mergeCostStructure`, qui le répète). Les grandeurs courantes d'une ligne réestimée ou d'une tâche
+  démarrée sont gardées quand le différentiel en change le rôle, et le rejeu rechiffre la ligne au
+  taux du rôle désigné : le contrat le précise (US-3060/L1), et l'écart de la spécification est une
+  issue (#4271). Écarté : garder le montant réestimé à la lettre en ajustant les heures, règle que
+  ni la spécification ni cette conception ne disent.
 
 Écarté : un module `core/amendments` à côté de `core/revisions`, qui aurait dû lire ses tables ;
 une fusion qui appliquerait des écritures une à une par les fonctions de saisie, des états
@@ -1859,6 +1878,9 @@ risques et un avenant de bout en bout.
 - propre à l'US : le succès de « Déclarer survenu » — son message et la relecture du risque survenu
   — est éprouvé contre le service (#1830) ; la promesse qui retient l'origine d'un filtre sur un
   risque nommé a son gestionnaire quand la lecture des risques rejette (#1972) ;
+- propre à l'US : le devis et le reste à engager ouverts sur un différentiel en retard le disent, par la
+  note que dit déjà le planning ; les gestes de l'avenant restent au planning, et l'aide en ligne du
+  devis y renvoie (#4255, décision de l'utilisateur du 2026-11-20, option 2) ;
 - propre à l'US : les parcours de bout en bout que `inService` gardait jusqu'à EP-08 pour un risque,
   une provision ou un différentiel sont rejoués contre le service ou réécrits, et le guide ne les
   liste plus comme non rejoués ; les écrans passent l'audit d'accessibilité.
@@ -1873,7 +1895,7 @@ d'EP-25 ; cette US ne les redessine pas.
 
 ## US-2650 — Le témoin : les risques, les provisions et les avenants de PRJ-001, et le parcours du chef de projet
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0010-A`
 - **opérations** : celles des US-2550 à US-2630, lues sur le témoin chargé
 - **issue** : #3821
@@ -1965,3 +1987,69 @@ par US-2600 ; #2002 par US-2610 ; #1762 par US-2620 ; #1363, #1369, #1626, #1830
 US-2640.
 
 **Hors périmètre.** Tout constat relevé pendant la livraison, rattaché selon « Suivi sur GitHub ».
+
+---
+
+## US-3060 — Le ménage de fin d'EPIC : les constats mineurs soldés
+
+- **statut** : en cours
+- **exigences** : aucune en propre — les exigences de ces fonctions sont closes par les US qui les
+  réalisent
+- **opérations** : aucune nouvelle ; `mergeCostStructure`, `getStructureMergeReport`,
+  `getRiskOccurrenceReport` et `deleteSubproject` (leurs descriptions et leurs refus)
+- **issue** : #4264
+
+**En tant que** développeur, **je veux** que les constats mineurs que la livraison d'EP-08 a laissés
+ouverts, et que l'utilisateur a décidés le 2026-11-19 et le 2026-11-20, soient corrigés, **afin que**
+l'EPIC ne laisse pas derrière lui la dette qu'il a relevée.
+
+**Critères d'acceptation.**
+
+- propre à l'US : le contrat dit qu'une tâche que le différentiel ajoute est nommée par sa lignée dans
+  le refus `TASK_WITHOUT_WORKING_HOURS` d'une fusion (#4245), que les grandeurs courantes d'une ligne
+  gardée le restent et que son réestimé suit le taux du rôle désigné (#4246), que la tâche greffée
+  d'un refus de survenance est nommée par son nœud du devis propre (`ReportRefusal`, #4151), et que
+  le niveau d'un point de la matrice est celui de sa case, jamais recalculé depuis la part arrondie
+  (#4027) ; les lignes de `DECISIONS.md` de #4231 et de #4258 sont recoupées ;
+- propre à l'US : les tests et les docstrings disent pourquoi ils ne citent aucune exigence (#3945,
+  #4042), `test_registries.py` ne retire la part d'une fusion qu'une fois (#4157), l'aide `lotted`
+  vit dans un module `*_support` (#4254), le rétablissement après un changement d'identité d'un
+  risque est éprouvé par deux tests cités à WF-IHM-0110-A (#4219), et la docstring de
+  `carry_everywhere` dit son pire effet, un faux 409, et le coût accepté (#4214, #4215) ;
+- propre à l'US : `MAIN` dérive de `STRUCTURE_KINDS` (#4033) ; `rename_own_estimates` expire les
+  structures copiées (#4041) ; `updateRisk` ne lit l'évaluation qu'une fois (#4043) ; une tâche dont
+  aucun rôle n'a de calendrier n'est plus refusée sans heure, un test le tient (#4250) ; la fin d'une
+  tâche démarrée retirée est tenue pour impossible sur une ligne existante, par un test, sinon le
+  compte rendu prévoit le refus (#4249) ; la couverture conservée d'un document mal formé ne lève
+  plus de `ValueError`, ses cas `[1, 2, 3]` et `"Infinity"` sont éprouvés et ses grandeurs validées
+  avant `_reserve` (#4258) ;
+- propre à l'US : supprimer un sous-projet que désigne le risque écarté de la révision en cours met la
+  désignation à nulle ; celui qu'une révision marquée désigne est refusé par une condition nommée, non
+  par une 500 (#4208) ;
+- propre à l'US : `ImportReport.structure_id` et `revision_id` ont une clé étrangère en cascade, par
+  une migration qui traite les pointeurs morts déjà en base (#4139) ;
+- propre à l'US : une ligne de provision se lit comme calculée (`is_computed`, `computed_fields`),
+  fermée à la saisie et au reste à engager (`line_not_provision`), sans délai de paiement, et son
+  montant budgété est la provision que la référence portait (« le montant budgété est celui que la
+  référence a fixé »), par le marquage et par la copie, sans entrer au budget de référence ; les
+  tests du témoin lisent l'égalité avec les exemples (#4274) ;
+- propre à l'US : les tests du témoin tiennent leurs compteurs, leurs dates et leurs versions des
+  exemples, ou les comparent à eux, et ne passent pas à vide (#4287, #4288) ; `change_line` sous un
+  chargement de lignes est éprouvé, flush compris (#4308) ; le test du renommage d'un risque porte
+  le marqueur de WF-DAT-0020 (#4307) ; l'absence de tout compte rendu de l'e2e des échanges tient à
+  un test de cohérence du catalogue (#4299) ; l'attente de la grille de reste à engager comparée a
+  le délai des lectures lentes, d'après la mesure (#4326) ; le reste à engager, qui ne lit que la
+  structure principale, n'a pas de note d'avenant en retard, et le critère d'US-2640 ne vise que le
+  devis (#4298).
+
+**Notes de réalisation.** Chaque constat garde son issue, rattachée au lot qui le corrige. Le lot du
+contrat précède le code ; les lots du code qui touchent les modules que le chargeur du témoin exerce
+attendent US-2650/L1. La note « avenant en retard » du devis (#4255) et les libellés de
+`exchanges.spec.ts` (#3969) sont le lot US-2640/L4. Le cadrage complémentaire du 2026-11-20 soir ajoute
+L6 (la ligne de provision, #4274 ; pas avec L3, qui touche aussi `core/estimate/merged.py`) et L7 (les
+tests du témoin et le reste à engager, #4287, #4288, #4308, #4307, #4299, #4326, #4298), tous deux après
+US-2650/L1 ; #4304 et #4310 sont portés par L3. Les écarts du témoin de #4278 attendent la
+confirmation de l'auteur (#4337) : aucun lot ne les porte encore.
+
+**Hors périmètre.** Tout constat relevé pendant la livraison, rattaché selon « Suivi sur GitHub » ;
+les constats de spécification (#3850, #4132, #4178, #4210, #4222, #4260, #4271, #4337).

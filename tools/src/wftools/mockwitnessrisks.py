@@ -9,7 +9,6 @@ revision the current one is compared with: the core of ``wftools.mockwitness`` a
 """
 
 from dataclasses import dataclass, replace
-from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -18,11 +17,13 @@ from wftools.mockwitness import (
     CORE,
     PROVISIONS,
     RISK_751_REVIEWED,
+    RISK_752_IDENTIFIED,
     RISK_752_OCCURRED,
+    RISK_753_DISMISSED,
+    RISK_753_IDENTIFIED,
     RISK_SCALE,
     RISKS_IDENTIFIED,
     STUDIES_STARTED,
-    Event,
     Line,
     N,
     Task,
@@ -31,6 +32,7 @@ from wftools.mockwitness import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from datetime import date, datetime
 
 IDENTIFIED, OCCURRED, DISMISSED = "identified", "occurred", "dismissed"
 
@@ -39,8 +41,10 @@ IDENTIFIED, OCCURRED, DISMISSED = "identified", "occurred", "dismissed"
 class Review:
     """A review of a risk: the instant it was made, the probability, severity and state retained.
 
-    The first review of a risk is its identification; the declaration of its occurrence is a
-    review too, the last (WF-RIS-0010, WF-RIS-0020).
+    The first review of a risk is its declaration, which keeps the severity of its own estimate
+    still empty; the second, the same instant, its identification once its own estimate is entered
+    (US-2650/L1); the declaration of its occurrence is a review too, the last (WF-RIS-0010,
+    WF-RIS-0020).
     """
 
     at: datetime
@@ -64,7 +68,10 @@ class Risk:
     ``merged`` the task of the core its occurrence merged its own estimate under (WF-RIS-0060);
     ``provision_category`` and ``provision_subproject`` the category of provision for risks and
     the subproject it designated for its provision, which its line of provision bears while it is
-    identified — the one category of provision of the universe, and no subproject (WF-RIS-0010).
+    identified — the one category of provision of the universe, and no subproject (WF-RIS-0010);
+    ``written`` the writes of the risk besides its reviews, its declaration included: its counter
+    is the number of its reviews, plus that (`Risk.lock_version`), as the loader of the witness
+    leaves it.
     """
 
     number: int
@@ -78,6 +85,12 @@ class Risk:
     merged: int | None = None
     provision_category: str = PROVISIONS
     provision_subproject: str | None = None
+    written: int = 1
+
+    @property
+    def lock_version(self) -> int:
+        """Return the counter of the risk, which each review and each other write raised."""
+        return len(self.reviews) + self.written
 
     @property
     def last(self) -> Review:
@@ -90,10 +103,6 @@ class Risk:
         return known[-1] if known else None
 
 
-def _at(event: Event, hour: int, minute: int = 0) -> datetime:
-    return datetime.combine(event.on, time(hour, minute), UTC)
-
-
 REWORK = Risk(
     751,
     "Risque de reprise du câblage",
@@ -102,12 +111,14 @@ REWORK = Risk(
     "Contrôle du câblage en atelier avant expédition ; essais de continuité systématiques.",
     204,
     (
+        Review(RISKS_IDENTIFIED.instant, Decimal("0.25"), Decimal("0.00")),
         Review(RISKS_IDENTIFIED.instant, Decimal("0.25"), Decimal("1000.00") * RISK_SCALE),
         Review(RISK_751_REVIEWED.instant, Decimal("0.25"), Decimal("1250.00") * RISK_SCALE),
         Review(STUDIES_STARTED.instant, Decimal("0.4"), Decimal("1250.00") * RISK_SCALE),
     ),
     reference_provision_line=N.PROVISION,
     provision_line=N.PROVISION,
+    written=6,
 )
 DELIVERY_DELAY = Risk(
     752,
@@ -116,11 +127,13 @@ DELIVERY_DELAY = Risk(
     "Relance hebdomadaire du fournisseur ; transport exceptionnel réservé.",
     205,
     (
-        Review(_at(RISKS_IDENTIFIED, 10, 30), Decimal("0.3"), Decimal("200.00")),
+        Review(RISK_752_IDENTIFIED.instant, Decimal("0.3"), Decimal("0.00")),
+        Review(RISK_752_IDENTIFIED.instant, Decimal("0.3"), Decimal("200.00")),
         Review(RISK_752_OCCURRED.instant, Decimal("0.3"), Decimal("200.00"), OCCURRED),
     ),
     reference_provision_line=N.REFERENCE_PROVISION_752,
     merged=N.MERGED,
+    written=4,
 )
 OCCURRENCE_EXAMPLE = "WF-RIS-0060-A#474d7bce167a"
 """The numeric example of the Vérif of WF-RIS-0060 the occurrence of the delay of the cabinets
@@ -133,12 +146,17 @@ AUTOMATION_ENGINEER = Risk(
     None,
     206,
     (
-        Review(_at(RISKS_IDENTIFIED, 11), Decimal("0.05"), Decimal("12000.00") * RISK_SCALE),
+        Review(RISK_753_IDENTIFIED.instant, Decimal("0.05"), Decimal("0.00")),
+        Review(RISK_753_IDENTIFIED.instant, Decimal("0.05"), Decimal("12000.00") * RISK_SCALE),
         Review(
-            _at(RISK_751_REVIEWED, 14), Decimal("0.05"), Decimal("12000.00") * RISK_SCALE, DISMISSED
+            RISK_753_DISMISSED.instant,
+            Decimal("0.05"),
+            Decimal("12000.00") * RISK_SCALE,
+            DISMISSED,
         ),
     ),
     reference_provision_line=N.REFERENCE_PROVISION_753,
+    written=4,
 )
 REGISTER = (REWORK, DELIVERY_DELAY, AUTOMATION_ENGINEER)
 """The register of the witness, in the order of declaration: the rework of the wiring, still
@@ -159,7 +177,7 @@ REFERENCE_PROVISIONS = {
         N.CONTROL_STATION,
         Line(
             N.REFERENCE_PROVISION_752,
-            "Provision — retard de livraison des armoires",
+            "Provision — Retard de livraison des armoires",
             PROVISIONS,
             is_provision=True,
         ),
@@ -168,7 +186,7 @@ REFERENCE_PROVISIONS = {
         COMMISSIONING_TASK,
         Line(
             N.REFERENCE_PROVISION_753,
-            "Provision — indisponibilité de l'automaticien",
+            "Provision — Indisponibilité de l'automaticien",
             PROVISIONS,
             is_provision=True,
         ),

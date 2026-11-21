@@ -46,7 +46,7 @@ They would have carried ``mockhistory`` past the thousand lines (``wftools.sourc
 """
 
 from dataclasses import replace
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
@@ -60,7 +60,15 @@ from wftools.mockhistory import (
 )
 from wftools.mockids import universe
 from wftools.mockstructure import described
-from wftools.mockwitness import AMENDMENT_MERGED, REWORK_ESTIMATE, TODAY, N, fixture, lineage_id
+from wftools.mockwitness import (
+    AMENDMENT_MERGED,
+    REWORK_ESTIMATE,
+    TODAY,
+    N,
+    fixture,
+    lineage_id,
+    rewritten,
+)
 from wftools.mockwitnessrisks import (
     AUTOMATION_ENGINEER,
     DELIVERY_DELAY,
@@ -75,6 +83,7 @@ from wftools.mockwitnessrisks import (
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
+    from wftools.mockwitness import Task
 
 DECLARED_AT = TODAY - timedelta(minutes=20)
 """When the risk was declared: earlier today, so that its modification follows at today's instant,
@@ -172,7 +181,7 @@ def risk_updated_without_current_revision() -> JsonObject:
         "structure_id": own,
         "provision_task": {"node_id": universe(bearer), "label": rows[bearer].label},
         "audit": audit,
-        "lock_version": len(REWORK.reviews) + 3,
+        "lock_version": REWORK.lock_version + 2,
     }
 
 
@@ -368,6 +377,11 @@ SCHEDULE = ("duration", "start", "finish")
 SCHEDULE_SAID = {"duration": "sa durée", "start": "son début", "finish": "sa fin"}
 
 
+OWN_ESTIMATE_COUNTER = 2
+"""The counter the loader of the witness leaves on each node of the own estimate of 751 in the
+current revision, the revision having copied it before the entry of its estimate (US-2650/L1)."""
+
+
 def risk_estimate() -> list[mockcore.Row]:
     """Return the own estimate of the rework of the wiring read today, dated and priced.
 
@@ -387,6 +401,7 @@ def nodes_risk_estimate() -> JsonObject:
     items = [
         {
             **node,
+            "lock_version": OWN_ESTIMATE_COUNTER,
             "editable_fields": [
                 field
                 for field in cast("list[JsonValue]", node["editable_fields"])
@@ -431,6 +446,67 @@ def bearer_changes() -> list[JsonValue]:
     return [name for name in SCHEDULE if changed[name]]
 
 
+def own_estimate_grafted() -> tuple[Task, ...]:
+    """Return the own estimate as the graft places it: a task without predecessor in manual mode.
+
+    At the dates it had in the own estimate, so that the planning start of the structure grafted
+    into does not move it (WF-RIS-0060).
+    """
+    placed = mockdating.schedule(REWORK_ESTIMATE)
+
+    def change(task: Task) -> Task:
+        if task.children or task.links or task.manual is not None:
+            return task
+        dated = placed[task.number]
+        return replace(task, manual=(dated.start.day, dated.finish.day))
+
+    return rewritten(REWORK_ESTIMATE, change)
+
+
+def main_grafted() -> tuple[Task, ...]:
+    """Return the main structure as the occurrence leaves it (WF-RIS-0060).
+
+    The tasks of the own estimate under the task that bore the provision, in last position, now
+    their summary; the line of provision gone.
+    """
+    bearing = bearer().number
+    grafted = own_estimate_grafted()
+
+    def change(task: Task) -> Task:
+        if task.number != bearing:
+            return task
+        lines = tuple(line for line in task.lines if line.number != OCCURRING.provision_line)
+        return replace(task, lines=lines, children=(*task.children, *grafted))
+
+    return rewritten(described(), change)
+
+
+def graft_redates() -> list[JsonValue]:
+    """Return the tasks of the main structure, but the bearer, whose dates the graft moves.
+
+    Each as an ``updated`` difference naming its dates, ``start`` and ``finish`` in the order of
+    `NodeColumn`, in the order of the plan, as the engine gives them replayed once on the structure
+    the occurrence leaves (#4134).
+    """
+    before, after = mockdating.schedule(described()), mockdating.schedule(main_grafted())
+    rows = {row.number: row for row in mockcore.current() if row.kind == mockcore.TASK}
+    named: list[JsonValue] = []
+    for task in mockdating.tasks_in_order(described()):
+        if task.number == bearer().number:
+            continue
+        fields: list[JsonValue] = [
+            name
+            for name, was, now in (
+                ("start", before[task.number].start, after[task.number].start),
+                ("finish", before[task.number].finish, after[task.number].finish),
+            )
+            if was != now
+        ]
+        if fields:
+            named.append(_difference("updated", rows[task.number], fields))
+    return named
+
+
 def _difference(change: str, row: mockcore.Row, fields: list[JsonValue]) -> JsonObject:
     """Return a node added, updated or removed, as the report of a merge names it."""
     return {
@@ -458,6 +534,7 @@ def risk_occurrence_report() -> JsonObject:
     main = {row.number: row for row in mockcore.current()}
     differences: list[JsonValue] = [_difference("added", row, []) for row in risk_estimate()]
     differences.append(_difference("updated", bearer(), bearer_changes()))
+    differences.extend(graft_redates())
     line = main[cast("int", OCCURRING.provision_line)]
     differences.append(_difference("removed", line, []))
     risk = risk_item(OCCURRING, _budget())
@@ -468,6 +545,7 @@ def risk_occurrence_report() -> JsonObject:
         "differences": differences,
         "provision_amount": risk["provision_amount"],
         "refusals": [],
+        "own_estimate_past_planning_start_on": OCCURRING.reviews[0].at.date().isoformat(),
     }
 
 
@@ -625,6 +703,8 @@ def _occurrence_examples() -> dict[str, JsonObject]:
     main = {row.number: row for row in mockcore.current()}
     line = main[cast("int", OCCURRING.provision_line)]
     changed = mocktext.listed([SCHEDULE_SAID[cast("str", name)] for name in bearer_changes()])
+    redated = graft_redates()
+    started = date.fromisoformat(cast("str", report["own_estimate_past_planning_start_on"]))
     severity = cast("JsonObject", estimate["totals"])["reestimated_amount"]
     reviewed = NOT_IDENTIFIED.last.at.date()
     return {
@@ -646,10 +726,19 @@ def _occurrence_examples() -> dict[str, JsonObject]:
             f"le « {task.label} », qui "
             f"portait la ligne de provision et n'est pas un jalon (nodes_risk_estimate) ; le "
             f"« {task.label} » modifié par {changed}, devenu la récapitulative de ces tâches, "
-            f"dont il couvre les dates ; la ligne « "
+            f"dont il couvre les dates ; {mocktext.count(len(redated))} autres tâches de la "
+            f"structure principale, que le moteur de dates redate quand il rejoue la structure "
+            f"que la survenance laisse — celles que la « {task.label} », devenue récapitulative, "
+            f"ou l'un de ses ancêtres, pousse en aval, et leurs récapitulatives —, chacune "
+            f"modifiée par ses dates, début et fin, après elle, dans l'ordre du plan (#4134) ; "
+            f"la ligne « "
             f"{line.label} » retirée, et sa provision de "
             f"{mocktext.amount(Decimal(cast('str', report['provision_amount'])))} retirée du "
-            f"reste à engager ; aucun motif de refus. Rien n'est écrit : la confirmation, qui "
+            f"reste à engager ; aucun motif de refus. Le devis propre commençant le "
+            f"{mocktext.day(started)}, "
+            f"avant le jour de la lecture, le compte rendu le dit "
+            f"(own_estimate_past_planning_start_on) : ses tâches gardent les dates qu'elles y "
+            f"avaient, passées (#4133). Rien n'est écrit : la confirmation, qui "
             f"renverra les compteurs lus — celui de la structure principale, "
             f"{report['main_structure_lock_version']}, comme `structures` le dit, et celui du "
             f"risque, {report['risk_lock_version']}, comme `risk` le dit, et "

@@ -126,13 +126,13 @@ def test_a_delay_moves_the_forecast_and_leaves_the_past_where_the_documents_are(
 
 
 @pytest.mark.requirement("WF-IND-0100-A")
-def test_the_cash_out_of_the_witness_is_the_example_but_for_the_provision(
+def test_the_cash_out_of_the_witness_is_the_example_but_for_the_occurrence(
     api: ContractClient, witness: Database, realm: TestRealm, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # « La somme des décaissements à venir égale le reste à engager, provisions des risques
     # identifiés comprises. » The witness read on 3 June 2026: the past is the example's, month for
-    # month, and the forecast too but for the provision (EP-08), 500 000, and the two lines the
-    # occurrence of a risk added, 200, which the example puts in June, the month of the date (the
+    # month, and the forecast too, the provision of 751 included (EP-08), but for the two lines the
+    # occurrence of 752 added, 200, of tasks completed, which the example puts in June (#4278; the
     # forecast is otherwise the same to the cent, #3564); the sum of the forecast is the remaining
     # of the witness, the projection of the project manager less the actual cost at the day, as the
     # example's is.
@@ -140,7 +140,7 @@ def test_the_cash_out_of_the_witness_is_the_example_but_for_the_provision(
     url = f"{PROJECTS}/{PRJ_001}/indicators/{COST_CURVE}"
     body = read(api, witness, realm, f"{url}{DELAYED}")
     expected = example("cost_curve_payment_delays")
-    provision = D("500200.00")
+    provision = D("200.00")
     got, wanted = months(body), months(expected)
     assert [(month, past) for month, past, _ in got] == [(m, p) for m, p, _ in wanted]
     assert {
@@ -163,8 +163,8 @@ def test_the_cash_out_to_come_is_the_projection_of_spending_to_the_cent(
     # sans les provisions et la projection de dépenses ne diffèrent pas d'un centime » (#3564,
     # #3614). The witness read on 3 June 2026 by the two routes: month for month, the cash-out to
     # come of `getCostCurve` is the total of `getProjectSpending` on the remaining to commit with
-    # the payment delays, to the cent; the provisions and the occurrence of a risk (EP-08) are
-    # left out of both, the witness bearing none.
+    # the payment delays, to the cent, but for the provision of 751, which the cash-out counts in
+    # June, the month of its task, and the spending leaves out (EP-08).
     monkeypatch.setattr("waterfall.api.indicator_curves.utc_now", lambda: READ_AT)
     monkeypatch.setattr("waterfall.api.spending.utc_now", lambda: READ_AT)
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/indicators/{COST_CURVE}{DELAYED}")
@@ -179,4 +179,6 @@ def test_the_cash_out_to_come_is_the_projection_of_spending_to_the_cent(
         row["month"]: D(row["amount"]) for row in spent["monthly_totals"] if D(row["amount"])
     }
     assert spending
-    assert forecast == spending
+    provision = D(example("remaining_indicators")["coverage"]["remaining_provisions"])
+    gaps = {month: amount - spending.get(month, D(0)) for month, amount in forecast.items()}
+    assert {month: gap for month, gap in gaps.items() if gap} == {"2026-06": provision}

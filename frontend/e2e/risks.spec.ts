@@ -77,7 +77,7 @@ test("reads the risks of a revision: the register and its totals, the detail of 
   await expect(detail).toContainText("Présente dans la structure principale");
   await expect(
     detail.getByRole("table", { name: "Historique des réexamens" }).getByRole("row"),
-  ).toHaveCount(4);
+  ).toHaveCount(5);
   await detail.getByRole("link", { name: "Fermer le détail du risque" }).click();
   await expect(page).toHaveURL(RISKS, { timeout: WORKING });
   await expect(detail).toHaveCount(0);
@@ -319,7 +319,7 @@ test("shows the report of the occurrence in the marks before confirming, and aba
       .first();
   await expect(markOf("Diagnostic des défauts de câblage")).toHaveAccessibleName("Ajouté");
   await expect(markOf("Câblage des armoires")).toHaveAccessibleName("Modifié");
-  await expect(markOf("Provision — risque de reprise du câblage")).toHaveAccessibleName("Retiré");
+  await expect(markOf("Provision — Risque de reprise du câblage")).toHaveAccessibleName("Retiré");
   await expect(declare).toContainText("500 000,00 € de provision en moins");
   // Abandoned: the form closes and nothing is declared.
   await declare.getByRole("button", { name: "Annuler" }).click();

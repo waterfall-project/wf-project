@@ -10,10 +10,9 @@ imported in a process of its own, and its registries compared with those of a pr
 every module of the core and of the witness: none lacks an extension that a module registers — the
 worker those of the estimate included, which it imports from US-1500/L2 on (EP-07, "Le worker"),
 those of the actual costs, which it imports from US-1610/L2 on (EP-09, "Le worker"), and those of
-the indicators, which it imports from US-1670/L1 on (EP-10, "Le worker"). What the socles of
-EP-06, EP-07, EP-09 and EP-10 register is named, so that the comparison is never between two empty
-lists. The portfolio registers nothing before US-2680/L2: each entry point imports its interface
-from its socle on (US-2670/L1), which is checked apart.
+the indicators, which it imports from US-1670/L1 on (EP-10, "Le worker"). What the socles of EP-06,
+EP-07, EP-09 and EP-10 register is named, so that the comparison is never between two empty lists.
+The portfolio registers nothing before US-2680/L2; its interface is imported apart (US-2670/L1).
 
 Then how each registry acts, details of the realization which reprise no Vérif: the closing of a
 revision, what its marking keeps and what follows the designation of a reference (EP-07), the guard
@@ -119,7 +118,7 @@ from waterfall.platform.database import utc_now
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.logs import logging_context
 from waterfall.platform.registry import Registry
-from waterfall.witness.revisions import OpenedRevision, register_revision_filler
+from waterfall.witness.revisions import register_revision_filler
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -132,6 +131,7 @@ if TYPE_CHECKING:
     from waterfall.core.revisions.interface import RevisionCopy
     from waterfall.platform.database import Database
     from waterfall.witness.description import Witness
+    from waterfall.witness.filling import Filling
 
 # Each entry point, by the module that holds it.
 ENTRY_POINTS = {
@@ -208,9 +208,10 @@ DECLARED = {
     "history.undoable",
     "revisions.own_estimate_counted",
     "planning.provision_owners",
-    # EP-08 (US-3050/L3): the parts of the update of a differential, and its end.
+    # EP-08: the update of a differential, its end (US-3050/L3); what risks designate (US-3060/L4).
     "revisions.rebase",
     "revisions.rebase_end",
+    "projects.risk_designations",
 }
 PLANNING = "waterfall.core.planning.interface"
 # What EP-06 registers (US-1380/L1, US-1390/L2), the copy of the nodes after the structures', and
@@ -947,6 +948,7 @@ def test_a_part_of_a_merge_with_a_change_unknown_is_a_defect_named_by_its_error(
         registered.callback(withdraw)
         with pytest.raises(MergePartError, match="'moved'"):
             merge_parts(merging)
+        registered.pop_all()  # disarms all `registered` holds (this one callback)
         withdraw()
         assert merge_parts(merging) == MergePart()
 
@@ -976,25 +978,24 @@ def test_a_kind_of_entry_is_undone_by_one_module_at_most() -> None:
 
 
 @pytest.fixture
-def fillers() -> Iterator[list[UUID]]:
-    """Register a filler of the revisions of the witness that notes each revision opened."""
-    opened: list[UUID] = []
+def fillers() -> Iterator[list[tuple[UUID, UUID | None]]]:
+    """Register a filler of the structures of the witness that notes each structure it fills."""
+    filled: list[tuple[UUID, UUID | None]] = []
 
-    def note(_session: Session, _witness: Witness, revision: OpenedRevision) -> None:
-        opened.append(revision.revision.revision_id.root)
+    def note(_session: Session, _witness: Witness, filling: Filling) -> None:
+        filled.append((filling.revision.revision_id.root, filling.structure_id))
 
     withdraw = register_revision_filler(note)
-    yield opened
+    yield filled
     withdraw()
 
 
-def test_the_witness_fills_each_revision_it_opens_before_the_next_event(
-    fillers: list[UUID], witness_loaded: Database
+def test_the_witness_fills_each_structure_it_opens_before_the_next_event(
+    fillers: list[tuple[UUID, UUID | None]], witness_loaded: Database
 ) -> None:
-    # The 100, the 101 and the 102 of PRJ-001, in the order the chronology opens them.
+    # The offer's main structure, the amendment 1 of the 101, the 102's, its amendment 2 (EP-08).
     with witness_loaded.transaction() as session:
-        revisions = session.scalars(
-            select(Revision.id).order_by(Revision.created_at, Revision.id)
-        ).all()
-    assert fillers == list(revisions)
-    assert len(fillers) == 3
+        opened = select(Revision.id).order_by(Revision.created_at, Revision.id)
+        offer, reference, current = session.scalars(opened).all()
+    first, second = (UUID(f"01926f3a-7c00-7000-8000-000000000{n}") for n in (212, 203))
+    assert fillers == [(offer, None), (reference, first), (current, None), (current, second)]

@@ -18,8 +18,13 @@ of the current revision that bears it — are asked of the later modules: the es
 first and the last by its lines (``estimate_facts``, US-1490/L4), the actual costs the second, by
 the registry declared here (``register_cost_facts``, US-1610/L3), which also says
 ``has_actual_costs`` of the list, its filter and its sort; none is ever lacking before
-``project_not_terminal``. A deletion refused for the lines of the current revision names them
-(WF-DAT-0080). ``load_subprojects`` writes those of the witness, by the very rules of the creation.
+``project_not_terminal``. The risks answer the first too, by the evaluations of the marked
+revisions that designate the subproject for their provision (``risk_designations``, #4208). A
+deletion refused for the lines of the current revision names them (WF-DAT-0080). A deletion admitted
+sets to null the designation of the risks of the current revision that designated it, none of them
+identified — the provision line of one would bear it —, each risk's counter advanced and its audit
+naming the author of the deletion (#732). ``load_subprojects`` writes those of the witness, by the
+very rules of the creation.
 
 A subproject created imputes at once, in its transaction and under the lock of its project, the
 lines of cost of the project that waited for its code (``impute_waiting_lines``, WF-CRE-0020); a
@@ -52,6 +57,10 @@ from waterfall.core.projects.interface.estimate_facts import (
     subprojects_estimated,
 )
 from waterfall.core.projects.interface.projects import ALREADY_EXISTS, Viewer, lock_project
+from waterfall.core.projects.interface.risk_designations import (
+    subprojects_designated,
+    undesignate_subproject,
+)
 from waterfall.core.projects.tables import Project, Subproject
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
@@ -86,8 +95,9 @@ CODE_INDEX = "uq_subproject_project_id"
 FORBIDDEN_CHARACTERS = ":\\/?*[]"
 # The two names Waterfall gives its own tabs, as it writes them.
 RESERVED_NAMES = ("Synthèse", "Hors sous-projet")
-# The conditions of the deletion, in the order of the contract: the citation, which no write
-# lifts (a marked revision is immutable), the actual costs, then the lines of the current revision.
+# The conditions of the deletion, in the order of the contract: the citation, by a line or by the
+# designation of a risk, which no write lifts (a marked revision is immutable), the actual costs,
+# then the lines of the current revision.
 NOT_CITED = "subproject_not_cited"
 WITHOUT_ACTUAL_COSTS = "subproject_without_actual_costs"
 WITHOUT_ESTIMATE_LINES = "subproject_without_estimate_lines"
@@ -125,6 +135,14 @@ class SubprojectChange:
 
     subproject_id: UUID
     write: SubprojectWrite
+    lock_version: int
+
+
+@dataclass(frozen=True, slots=True)
+class SubprojectDeletion:
+    """A deletion of a subproject: the subproject and its version as read."""
+
+    subproject_id: UUID
     lock_version: int
 
 
@@ -249,11 +267,14 @@ def _deletions(
 ) -> dict[UUID, _Deletion]:
     """Name what the deletion of each subproject of a project lacks.
 
-    The estimate and the actual costs are asked once for them all whether a line bears each; the
-    lines of the estimate themselves, which only the refusal of a deletion shows, are read when
-    ``naming``; ``costs``, the subprojects an actual cost is imputed to, if its caller read them.
+    The estimate and the actual costs are asked once for them all whether a line bears each, the
+    risks whether the evaluation of a marked revision designates each (#4208); the lines of the
+    estimate themselves, which only the refusal of a deletion shows, are read when ``naming``;
+    ``costs``, the subprojects an actual cost is imputed to, if its caller read them.
     """
-    cited = subprojects_cited(session, project_id, subproject_ids)
+    cited = subprojects_cited(session, project_id, subproject_ids) | subprojects_designated(
+        session, project_id, subproject_ids
+    )
     if costs is None:
         costs = subprojects_with_actual_costs(session, subproject_ids)
     estimated = subprojects_estimated(session, project_id, subproject_ids)
@@ -278,7 +299,10 @@ def _commands(
 
     ``held`` and ``quality`` are those of the reader on the project, computed once per list. None
     for a caller that does not hold ``update``, and none on a terminal project, which lists no
-    command; the quality on the project comes first among the conditions each lacks.
+    command; the quality on the project comes first among the conditions each lacks. ``delete``
+    lacks those of the deletion (``_deletions``): ``subproject_not_cited`` for a marked revision
+    that cites it by a line or by the risk that designates it for its provision (#4208); the
+    designation of a risk of the current revision lacks nothing, the deletion sets it to null.
     """
     if "update" not in held:
         return ()
@@ -510,24 +534,31 @@ def update_subproject(
 
 
 def delete_subproject(
-    session: Session, project_id: UUID, subproject_id: UUID, lock_version: int, viewer: Viewer
+    session: Session,
+    project_id: UUID,
+    deletion: SubprojectDeletion,
+    act: Act,
+    viewer: Viewer,
 ) -> None:
     """Delete for good a subproject that nothing cites (``deleteSubproject``).
 
-    Refused if unknown (404), at another version (412), and by the first condition of its command
-    that is lacking (409 ``STATE_FORBIDS_OPERATION``, ``missing_condition``): the lines of the
-    current revision that bear it named for ``subproject_without_estimate_lines``
+    ``deletion`` names the subproject and its version as read. Refused if unknown (404), at another
+    version (412), and by the first condition of its command that is lacking (409
+    ``STATE_FORBIDS_OPERATION``, ``missing_condition``): ``subproject_not_cited`` for a marked
+    revision whose line bears it or whose risk designates it for its provision (#4208), the lines
+    of the current revision that bear it named for ``subproject_without_estimate_lines``
     (``estimate_lines``, WF-DAT-0080). The lines of the bases of the differentials, which no
-    operation serves, neither refuse it nor keep it (``forget_subproject``, US-3050). The place of
-    the risks that designate it for their provision is kept: EP-08 nulls the designation.
+    operation serves, neither refuse it nor keep it (``forget_subproject``, US-3050). The risks of
+    the current revision that designate it, none identified, keep their place, their designation
+    set to null by the act (``undesignate_subproject``, #732, #4208).
     """
-    _, row = _locked(session, project_id, subproject_id, lock_version, viewer)
+    _, row = _locked(session, project_id, deletion.subproject_id, deletion.lock_version, viewer)
     # ``_locked`` has judged the project writable (``_writable``): the manager under the lock, and
     # not terminal. The subproject is locked: a line that names it meanwhile waits on its key.
-    deletion = _deletions(session, project_id, [row.id], naming=True)[row.id]
-    if deletion.missing:
-        params: dict[str, object] = {"missing_condition": deletion.missing[0]}
-        if deletion.missing[0] == WITHOUT_ESTIMATE_LINES:
+    judged = _deletions(session, project_id, [row.id], naming=True)[row.id]
+    if judged.missing:
+        params: dict[str, object] = {"missing_condition": judged.missing[0]}
+        if judged.missing[0] == WITHOUT_ESTIMATE_LINES:
             params["estimate_lines"] = [
                 {
                     "structure_id": str(line.structure_id),
@@ -536,10 +567,11 @@ def delete_subproject(
                     "row_number": line.row_number,
                     "label": line.label,
                 }
-                for line in deletion.lines
+                for line in judged.lines
             ]
         raise ConflictError(STATE_FORBIDS_OPERATION, params)
     forget_subproject(session, project_id, row.id)
+    undesignate_subproject(session, project_id, row.id, act)
     session.delete(row)
     session.flush()
 

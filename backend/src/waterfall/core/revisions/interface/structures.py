@@ -65,7 +65,13 @@ from waterfall.core.revisions.commands import (
     phase_conditions,
     structure_commands_of,
 )
-from waterfall.core.revisions.interface.shared import AMENDMENT, MAIN, inscribe_structure
+from waterfall.core.revisions.interface.shared import (
+    AMENDMENT,
+    BASE,
+    MAIN,
+    RISK,
+    inscribe_structure,
+)
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.states import revision_state
 from waterfall.core.revisions.tables import CostStructure, Revision
@@ -85,10 +91,9 @@ if TYPE_CHECKING:
 
 # The kind of a differential, the amendment a negotiation prepares (``StructureKind``), is
 # ``AMENDMENT``, which ``shared`` holds for the modules that cannot import this one.
-# The kind of the own estimate of a risk (``StructureKind``).
-RISK = "risk"
-# The kind of the base of a differential, which no operation serves (US-3050).
-BASE = "base"
+# The kind of the own estimate of a risk, and that of the base of a differential, which no
+# operation serves (US-3050), are ``RISK`` and ``BASE``, which ``shared`` derives from the kinds
+# the table constrains.
 # The label of the main structure at its creation, as the examples of the contract name it.
 MAIN_LABEL = "Structure principale"
 # The counter of a structure at its creation, its own or a copy's: every resource is born at 1
@@ -114,6 +119,17 @@ class StructureView:
     risk_id: UUID | None = None
     # Whether a differential not merged is up to date; ``None`` for any other structure (US-3050).
     is_up_to_date: bool | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DifferentialName:
+    """What names the differential to create: its label, and the identifier the witness imposes.
+
+    The identifier is none for the service, which draws it (US-2650/L1).
+    """
+
+    label: str
+    imposed: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -324,7 +340,7 @@ def create_differential(
     session: Session,
     revision: tuple[UUID, UUID],
     main: StructureFacts,
-    label: str,
+    named: DifferentialName,
     act: Act,
 ) -> OpenedDifferential:
     """Create a differential in a revision and its base, copies of its main structure; give them.
@@ -335,21 +351,26 @@ def create_differential(
     The differential keeps the counter of the main structure read: it is up to date while the main
     structure bears it (US-3050). The lineage of each structure is its own: the next revision copies
     them under it (WF-REV-0100, WF-DAT-0030). The label is not unique: several differentials
-    coexist; the base bears its differential's, which nothing reads.
+    coexist; the base bears its differential's, which nothing reads. ``named`` the label, and the
+    identifier the witness imposes on the differential, none for the service (US-2650/L1); the base
+    is drawn.
     """
     project_id, revision_id = revision
-    structure_id, base_id = new_id(), new_id()
-    for each, kind, named in ((structure_id, AMENDMENT, None), (base_id, BASE, structure_id)):
+    structure_id, base_id = named.imposed or new_id(), new_id()
+    for each, kind, differential in (
+        (structure_id, AMENDMENT, None),
+        (base_id, BASE, structure_id),
+    ):
         session.add(
             CostStructure(
                 project_id=project_id,
                 id=each,
                 revision_id=revision_id,
                 kind=kind,
-                label=label,
+                label=named.label,
                 is_merged=False,
                 lineage_id=each,
-                differential_id=named,
+                differential_id=differential,
                 main_lock_version=main.lock_version if kind == AMENDMENT else None,
                 planning_start_on=main.planning_start_on,
                 scheduled_at=main.scheduled_at,
@@ -375,7 +396,9 @@ def copy_structures(copy: RevisionCopy) -> None:
     each differential is given once every table is copied and the main structure redated
     (``keep_differential_states``).
 
-    Each keeps the date its planning starts on and the instant its dates were computed (#2170): a
+    Each is copied under an identifier of its own, the one the witness imposes if it does
+    (``RevisionCopy.imposed``, US-2650/L1). Each keeps the date its planning starts on and the
+    instant its dates were computed (#2170): a
     null date stays null, read by the lineage the copy keeps; a null instant is the creation of the
     structure copied. The planning then redates, at the opening, those that hold a node, with the
     reference of the day (``redate_copy``, EP-06).
@@ -394,7 +417,7 @@ def copy_structures(copy: RevisionCopy) -> None:
     for row in sorted(rows, key=lambda row: row.kind == BASE):
         if row.differential_id is not None and row.differential_id not in taken:
             continue
-        copied = new_id()
+        copied = copy.imposed.structure(row.kind, row.lineage_id) or new_id()
         copy.identifiers[row.id] = copied
         copy.session.add(
             CostStructure(
@@ -813,6 +836,10 @@ def rename_own_estimates(session: Session, project_id: UUID, labels: dict[UUID, 
 
     ``labels`` maps each own estimate to the label of its risk: the copy of a revision names them
     from the risk, not from the structures it copies (#3980). They are new, at their first version.
+
+    The copy added their objects to the session with the label it copied, and the statement does not
+    synchronize the session: the label of each object the session holds is expired, so that a
+    reading by the ORM in the same transaction gives the new one (#4041).
     """
     if not labels:
         return
@@ -822,6 +849,9 @@ def rename_own_estimates(session: Session, project_id: UUID, labels: dict[UUID, 
         .values(label=case(labels, value=CostStructure.id))
         .execution_options(synchronize_session=False)
     )
+    for held in tuple(session.identity_map.values()):
+        if isinstance(held, CostStructure) and held.id in labels:
+            session.expire(held, ["label"])
 
 
 @dataclass(frozen=True, slots=True)

@@ -249,7 +249,8 @@ def test_an_import_whose_requester_loses_its_kind_after_acceptance_is_refused_by
 def test_an_import_of_a_kind_without_a_format_is_neither_listed_nor_counted_and_is_unknown(
     api: ContractClient, stage: Scene, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # US-2660/L1 (#2473): a kind no module serves is read by no one, the manager included.
+    # US-2660/L1 (#2473): a kind no module serves is read by no one, the manager included. It cites
+    # no requirement: the kind read by no format is a detail of the registry, no Vérif's subject.
     kept = opened_as(api, stage, stage.manager, "ms_project_schedule")
     orphan = opened_as(api, stage, stage.manager, "remaining")
     served: Registry[tuple[ExchangeKind, Format[Any]]] = Registry()

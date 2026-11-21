@@ -71,7 +71,7 @@ def _structures() -> dict[int, tuple[date, list[mockcore.Row]]]:
     }
 
 
-def _task(revision: int, row: mockcore.Row, lineages: dict[str, str]) -> JsonObject:
+def task_entry(revision: int, row: mockcore.Row, lineages: dict[str, str]) -> JsonObject:
     """Return a task of a revision, from the node the structure emits for it."""
     node = row.node
     facet = cast("JsonObject", node["task"])
@@ -117,7 +117,7 @@ def tasks() -> JsonObject:
         lineages = {
             cast("str", row.node["node_id"]): cast("str", row.node["lineage_id"]) for row in own
         }
-        found.extend(_task(revision, row, lineages) for row in own)
+        found.extend(task_entry(revision, row, lineages) for row in own)
         revisions.append(
             {
                 "revision": revision,

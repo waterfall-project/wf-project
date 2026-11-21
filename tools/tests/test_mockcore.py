@@ -380,7 +380,8 @@ _RENAMED = {
         for identifier in (mockamendment.own_id(N.SITE_TESTS), mockcore.lineage(N.SITE_TESTS))
     ),
     *(
-        ("nodes_risk_estimate_occurred.json", identifier)
+        (name, identifier)
+        for name in ("nodes_risk_estimate_occurred.json", "witness_risks.json")
         for row in mockreview.delivery_delay_rows()
         for identifier in (universe(row.number), mockcore.lineage(row.number))
     ),

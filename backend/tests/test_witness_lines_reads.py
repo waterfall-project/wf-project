@@ -7,31 +7,26 @@ Compared with the examples of the contract (``nodes_estimate*``, ``volume/nodes_
 ``comparison*``), amounts and audit columns included, but for what the witness does not reach, each
 named with its cause where the test stands:
 
-- the reference is the offer 100 until the merge of the amendment 1 (EP-08): the budgeted amount of
-  a line is that of its lineage in the 100, where the examples read the 101's; the indicators, the
-  comparisons and the plan of the reference budget are measured to it, the project and the
-  revisions name it;
-- the provisions are EP-08's, the lines of the risks: a line of provision is absent, with the row
-  numbers it shifts and the amounts it adds to the tasks above it, to the totals, to the indicators
-  and to the comparisons;
-- the previous figures (``previous_*``) are EP-09's; the actual costs, which lock the subproject of
-  a line (``editable_fields``), are loaded since US-1650/L2;
 - the authors are the platform's, and the commands of a reader are those of its rights, not of
-  the example's.
+  the example's; the counters follow the writes of the loading;
+- a node of a marked revision is the witness's own, the examples read the identifiers of the
+  revision in progress: the nodes of a comparison are matched by lineage.
+
+Since EP-08 (US-2650/L1), the reference is the 101 the merge of the amendment 1 marks, and the risks
+bear their provision lines: what the examples read of the reference and of the provisions is read
+as they read it, without reserve.
 """
 
 import copy
-from bisect import bisect_left
 from collections import Counter, defaultdict
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any, cast
-from uuid import UUID
 
 import pytest
 from projects_support import PROJECTS
 from sqlalchemy import select
-from test_witness_lines import CABLER, INSTALLATION, OPENED, PROVISION, RATES_UPDATED, line_rows
+from test_witness_lines import CABLER, INSTALLATION, MERGED, OCCURRED, PROVISION, line_rows
 from test_witness_projects import REVISION_100, REVISION_101, REVISION_102, instant
 from test_witness_tasks import REVISIONS, difference, structure_of
 from witness_support import PRJ_001, READ_AT, example, read
@@ -41,6 +36,8 @@ from waterfall.core.estimate.tables import RevisionCategory
 from waterfall.core.planning.tables import Node
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from realm import TestRealm
     from support import ContractClient
 
@@ -52,15 +49,19 @@ COMPARISON_REQUIREMENT = "WF-REV-0080-A"
 
 # The recapitulative "Poste de commande", whose estimate the examples read.
 CORE = "01926f3a-7c00-7000-8000-000000000551"
-# What a line of the examples carries that the witness does not (EP-09): the previous figures.
-PREVIOUS = {
-    "previous_quantity",
-    "previous_hours",
-    "previous_unit_disbursement",
-    "previous_reestimated_amount",
+# What the service reads of a line of provision otherwise than the examples, each with its issue:
+# computed, closed to the entry and to the remaining, its budgeted amount the provision of the
+# reference (#4274).
+PROVISION_LABEL = "Provision — "
+PROVISION_APART = {
+    "budgeted_amount",
+    "is_computed",
+    "payment_delay_days",
+    "remaining_entry",
 }
-# What the service computes otherwise than the examples, compared apart, line by line.
-APART = PREVIOUS | {"budgeted_amount"}
+PROVISION_NODE_APART = {"computed_fields", "editable_fields", "predecessors"}
+# The issue a comparison of the budgeted amounts waits for: the provisions lack them (#4274).
+BUDGETED = "budgeted_amount"
 
 READS = {
     "nodes_estimate": f"?subtree_of={CORE}",
@@ -118,39 +119,38 @@ def keyed(items: list[dict[str, Any]], key: str = "node_id") -> dict[str, dict[s
     return {item[key]: item for item in items}
 
 
+def is_provision(item: dict[str, Any]) -> bool:
+    """Tell whether a line of a reading is a line of provision, by its label."""
+    return str(item["estimate_line"]["label"]).startswith(PROVISION_LABEL)
+
+
 def line_differences(ours: dict[str, Any], theirs: dict[str, Any]) -> set[str]:
-    """Name what a line read differs in from the example, but for what is read apart."""
+    """Name what a line read differs in from the example, but for what is read apart.
+
+    Its counter follows the writes of the loading; a line of provision is read apart (#4274).
+    """
+    apart: set[str] = PROVISION_APART if is_provision(theirs) else set()
+    beside = {"estimate_line", "row_number", "editable_fields", "lock_version", "task"}
+    if is_provision(theirs):
+        beside |= PROVISION_NODE_APART
     found = {
         key
         for key in set(ours) | set(theirs)
-        if key
-        not in {
-            "estimate_line",
-            "row_number",
-            "editable_fields",
-            "lock_version",
-            "task",
-            "origin_risk_id",
-        }
-        and deviations(ours.get(key), theirs.get(key))
+        if key not in beside and deviations(ours.get(key), theirs.get(key))
     }
-    kept = {k: v for k, v in ours["estimate_line"].items() if k not in APART}
-    wanted = {k: v for k, v in theirs["estimate_line"].items() if k not in APART}
+    kept = {k: v for k, v in ours["estimate_line"].items() if k not in apart}
+    wanted = {k: v for k, v in theirs["estimate_line"].items() if k not in apart}
     found |= {f"estimate_line.{key}" for key in deviations(kept, wanted)}
-    if ours["lock_version"] != theirs["lock_version"]:
-        found.add("lock_version")
     return found
 
 
 def test_the_comparison_of_a_line_bites_on_a_figure_off_by_a_cent() -> None:
-    # The comparison is not a formality: a cent off in a base amount is a difference, and what is
-    # read apart (the previous figures) is not.
+    # The comparison is not a formality: a cent off in a base amount is a difference.
     item = next(
         each for each in example("nodes_estimate")["items"] if each["kind"] == "estimate_line"
     )
     moved = copy.deepcopy(item)
     moved["estimate_line"]["base_amount"] = "1234.57"
-    moved["estimate_line"]["previous_quantity"] = "9"
     assert line_differences(item, item) == set()
     assert line_differences(moved, item) == {"estimate_line./base_amount"}
     assert deviations({"a": "1.00"}, {"a": "1"}) == set()
@@ -178,150 +178,55 @@ def amounts_under(items: dict[str, dict[str, Any]], name: str) -> dict[str, Deci
     return sums
 
 
-# How many lines of each read differ from the example in what is read apart: the budgeted amount
-# (the reference is the 100, the example's the 101). The re-estimated amount and the year are the
-# example's: the generator spreads a line over the years of its task as the service does
-# (WF-DEV-0040, #2838).
-LINES_APART = {
-    "nodes_estimate": {"budgeted": 1},
-    "nodes_estimate_sorted": {"budgeted": 1},
-    "nodes_estimate_filtered": {"budgeted": 1},
-    "nodes_estimate_hours": {"budgeted": 1},
-    "volume/nodes_thousand": {"budgeted": 2},
-}
-
-
-def sums_hold(
-    name: str,
-    reads: tuple[dict[str, Any], dict[str, Any]],
-    got: dict[str, dict[str, Any]],
-    absent: list[str],
-) -> None:
-    """Check the amounts of the tasks and the totals of a read of the estimate against its lines.
-
-    The amounts of a task are those of its lines; the totals those of the lines read. The base
-    amount, the hours and the counts are the example's but for the line of provision the witness
-    lacks (``absent``).
-    """
-    body, expected = reads
-    wanted = keyed(expected["items"])
-    lines = {key: item for key, item in got.items() if item["kind"] == "estimate_line"}
-    totals, wanted_totals = body["totals"], expected["totals"]
-    if name != "nodes_estimate_filtered":
-        for amount in ("base_amount", "budgeted_amount", "reestimated_amount"):
-            sums = amounts_under(got, amount)
-            for key, item in got.items():
-                if item["kind"] == "task":
-                    assert Decimal(item["task"][amount]) == sums.get(key, Decimal(0)), key
-    for amount in ("base_amount", "budgeted_amount", "reestimated_amount"):
-        assert Decimal(totals[amount]) == sum(
-            (Decimal(item["estimate_line"][amount]) for item in lines.values()), Decimal(0)
-        )
-    provision = sum(
-        (Decimal(wanted[key]["estimate_line"]["base_amount"]) for key in absent), Decimal(0)
-    )
-    assert Decimal(totals["base_amount"]) == Decimal(wanted_totals["base_amount"]) - provision
-    assert totals["hours"] == wanted_totals["hours"]
-    assert totals["estimate_line_count"] == wanted_totals["estimate_line_count"] - len(absent)
-    # A filter of the line retains lines, and the tasks above them are rendered for the tree alone:
-    # the filtered read counts none, as the example and ``NodeTotals`` say (#2699).
-    assert totals["task_count"] == wanted_totals["task_count"]
-    assert body["meta"]["summary_depth"] == expected["meta"]["summary_depth"]
-    assert body["meta"]["scheduled_at"] == instant(OPENED[102]).isoformat().replace("+00:00", "Z")
-
-
 @pytest.mark.parametrize("name", list(READS))
-def test_the_estimate_read_of_the_loaded_witness_is_the_example_but_for_what_it_does_not_reach(
+def test_the_estimate_read_of_the_loaded_witness_is_the_example(
     api: ContractClient, witness: Database, realm: TestRealm, name: str
 ) -> None:
+    # Every node in the order of the plan, at its row, the line of provision of 751 included; the
+    # tasks as the slice of the tasks reads them, the lines to the cent, their budgeted amount the
+    # 101's, their previous figures those of the 101, which reviewed them (EP-08); the totals those
+    # of the example.
     with witness.transaction() as session:
         structure = structure_of(session, REVISION_102)
-        offer = line_rows(session, REVISION_100)
     base = f"{PROJECTS}/{PRJ_001}/revisions/{REVISION_102}/structures/{structure}/nodes"
     body = read(api, witness, realm, f"{base}{READS[name]}")
     expected = example(name)
     got, wanted = keyed(body["items"]), keyed(expected["items"])
-    # The only node the witness lacks is the line of provision of the risk of the core (EP-08).
-    absent = sorted(wanted.keys() - got.keys())
-    assert absent == ([] if name == "nodes_estimate_filtered" else [PROVISION])
-    assert got.keys() <= wanted.keys()
-    # The order of the plan, but for that line; the row numbers it shifts by one below it.
-    assert list(got) == [key for key in wanted if key in got]
-    gone = sorted(wanted[key]["row_number"] for key in absent)
-    for key, item in got.items():
-        shifted = wanted[key]["row_number"] - bisect_left(gone, wanted[key]["row_number"])
-        assert item["row_number"] == shifted, key
-    # The tasks, as the slice of the tasks reads them, their amounts apart.
+    assert list(got) == list(wanted)
+    assert PROVISION in got or name == "nodes_estimate_filtered"
     read_on = date.fromisoformat(body["meta"]["scheduled_at"][:10])
     for key, item in got.items():
-        if item["kind"] == "task":
-            assert not difference(item, wanted[key], read_on), (name, item["task"]["label"])
-    # The lines: everything the file enters, the base amount and the place are the example's; what
-    # is read apart is counted, and each difference has its cause.
-    lines = {key: item for key, item in got.items() if item["kind"] == "estimate_line"}
-    found = {"budgeted": 0}
-    for key, item in lines.items():
         theirs = wanted[key]
-        assert not line_differences(item, theirs), (name, item["estimate_line"]["label"])
-        sheet, example_sheet = item["estimate_line"], theirs["estimate_line"]
-        before = offer.get(UUID(item["lineage_id"]))
-        # The budgeted amount: the re-estimated one of the lineage in the offer, the reference.
-        assert Decimal(sheet["budgeted_amount"]) == (
-            Decimal(0) if before is None else before[1].reestimated_amount
-        ), sheet["label"]
-        found["budgeted"] += sheet["budgeted_amount"] != example_sheet["budgeted_amount"]
-        # The risk that originates a line is EP-08's.
-        assert item["origin_risk_id"] is None
-        # The previous figures are EP-09's; the subproject of a line of a started task is locked
-        # by the actual costs the witness loads (US-1650/L2), as in the example.
-        assert all(sheet[each] is None for each in PREVIOUS)
-        assert item["editable_fields"] == theirs["editable_fields"], sheet["label"]
-    assert found == LINES_APART[name]
-    sums_hold(name, (body, expected), got, absent)
-
-
-INDICATORS = {
-    "/by_cost_type[]/share/value",
-    "/by_cost_type[len]",
-    "/by_subproject[]/amount/value",
-    "/by_subproject[]/share/value",
-    "/by_work_package[]/amount/value",
-    "/by_work_package[]/share/value",
-    "/delta_to_previous_revision/value",
-    "/delta_to_reference/value",
-    "/provisions_identified",
-    "/total/value",
-}
+        assert item["row_number"] == theirs["row_number"], key
+        if item["kind"] == "task":
+            assert not difference(item, theirs, read_on), (name, item["task"]["label"])
+        else:
+            assert not line_differences(item, theirs), (name, item["estimate_line"]["label"])
+            if not is_provision(theirs):
+                assert item["editable_fields"] == theirs["editable_fields"], key
+    # The budgeted total lacks the budgeted amount of the line of provision (#4274).
+    assert deviations(body["totals"], expected["totals"]) <= {f"/{BUDGETED}"}
+    provisions = sum(
+        (
+            Decimal(each["estimate_line"][BUDGETED])
+            for each in wanted.values()
+            if each["kind"] == "estimate_line" and is_provision(each)
+        ),
+        Decimal(0),
+    )
+    assert Decimal(body["totals"][BUDGETED]) + provisions == Decimal(expected["totals"][BUDGETED])
+    assert body["meta"]["summary_depth"] == expected["meta"]["summary_depth"]
+    assert body["meta"]["scheduled_at"] == instant(OCCURRED).isoformat().replace("+00:00", "Z")
 
 
 @pytest.mark.parametrize("name", ["estimate_indicators", "volume/estimate_indicators_volume"])
-def test_the_indicators_are_the_example_but_for_the_provisions_and_the_reference(
+def test_the_indicators_are_the_example(
     api: ContractClient, witness: Database, realm: TestRealm, the_day: None, name: str
 ) -> None:
+    # The provision of 751 and the delta measured to the 101, the reference (EP-08).
     del the_day
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/estimate-indicators")
-    expected = example(name)
-    assert deviations(body, expected) == INDICATORS
-    # The structure is that of the example, a nature short: the provision (EP-08), nought here.
-    assert [each["key"] for each in body["by_cost_type"]] == [
-        each["key"] for each in expected["by_cost_type"] if each["label"] != "Provision"
-    ]
-    assert body["provisions_identified"] == "0.00"
-    # The total is the lines', the example's but for its provision, which the witness lacks.
-    ours, theirs = Decimal(body["total"]["value"]), Decimal(expected["total"]["value"])
-    wanted = keyed(example("volume/nodes_thousand")["items"])
-    assert ours - theirs == -Decimal(wanted[PROVISION]["estimate_line"]["reestimated_amount"])
-    assert body["by_work_package"][0]["amount"]["value"] == "2434.56"
-    for dimension in ("by_cost_type", "by_subproject"):
-        assert sum(Decimal(each["amount"]["value"]) for each in body[dimension]) == ours
-    # Measured to the offer, the reference: the delta is that of the revision in progress to it.
-    with witness.transaction() as session:
-        offer = sum(
-            (facet.reestimated_amount for _, facet in line_rows(session, REVISION_100).values()),
-            Decimal(0),
-        )
-    assert Decimal(body["delta_to_reference"]["value"]) == ours - offer
-    assert body["delta_to_previous_revision"]["value"] == "200.00"
+    assert deviations(body, example(name)) == set()
 
 
 def by_role(plan: dict[str, Any]) -> dict[str, Any]:
@@ -336,27 +241,6 @@ def summed_tasks(role: dict[str, Any]) -> dict[str, str]:
         for month in task["months"]:
             sums[month["month"]] += Decimal(month["hours"])
     return {month: str(sums[month]) for month in sorted(sums)}
-
-
-# The rows of the tasks of the detail of a plan, which the nodes the witness lacks shift (one at the
-# 102, three at the 101; EP-08, #3584): compared apart, by ``rows_in_order``.
-ROWS = {"row_number"}
-
-
-def rows_in_order(body: dict[str, Any], expected: dict[str, Any], lacking: int = 1) -> bool:
-    """Tell whether the rows of the tasks of a plan are the example's, less the nodes it lacks.
-
-    Each row the example's or at most ``lacking`` less, and in the same order: the witness lacks
-    that many nodes (one at the 102, three at the 101), never holds one more, and the tasks keep
-    their places.
-    """
-    pairs = sorted(
-        (theirs["row_number"], ours["row_number"])
-        for mine, yours in zip(by_role(body)["roles"], by_role(expected)["roles"], strict=True)
-        for ours, theirs in zip(mine["tasks"], yours["tasks"], strict=True)
-    )
-    rows = [ours for _, ours in pairs]
-    return rows == sorted(rows) and all(0 <= theirs - ours <= lacking for theirs, ours in pairs)
 
 
 def tasks_are_their_nodes(
@@ -389,9 +273,7 @@ def test_the_workload_of_the_remaining_is_the_example_within_a_rounding_of_a_hun
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/workload?basis=current_remaining")
     expected = example("workload")
     # The detail of each role too, its tasks the same nodes in the same order (WF-DEV-0090).
-    ours, theirs = by_role(without(body, ROWS)), by_role(without(expected, ROWS))
-    assert deviations(ours, theirs, Decimal("0.02")) == set()
-    assert rows_in_order(body, expected)
+    assert deviations(by_role(body), by_role(expected), Decimal("0.02")) == set()
     tasks_are_their_nodes(api, witness, realm, body, REVISION_102)
     assert [each["resource_role_id"][-3:] for each in body["roles"]] != [
         each["resource_role_id"][-3:] for each in expected["roles"]
@@ -402,46 +284,20 @@ def test_the_workload_of_the_remaining_is_the_example_within_a_rounding_of_a_hun
 
 
 @pytest.mark.requirement("WF-DEV-0090-A")
-def test_the_workload_of_the_reference_budget_is_that_of_the_offer_where_the_example_reads_the_101(
+def test_the_workload_of_the_reference_budget_is_the_example(
     api: ContractClient, witness: Database, realm: TestRealm, the_day: None
 ) -> None:
+    # The plan of the 101, the reference (EP-08): every role, month and task of the example, each
+    # task the node of the 101 it names, which the example reads under the identifier of the 102.
     del the_day
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/workload?basis=reference_budget")
     expected = example("workload_reference_budget")
-    assert body["context"]["revision_id"] == str(REVISION_100)
-    assert expected["context"]["revision_id"] == str(REVISION_101)
-    # The tasks of the 100 are other nodes than those of the 101, a task fewer, their dates and
-    # their hours the offer's: the detail sums to the plan, each task is the node of the 100 it
-    # names, and the tasks the two share, matched by label, have their label, their dates and
-    # their hours (WF-DEV-0090).
-    found = deviations(
-        by_role(without(body, {"tasks"})), by_role(without(expected, {"tasks"})), Decimal("0.02")
-    )
-    assert found == {"/context/revision_id", "/monthly_totals[]/hours", "/roles[]/months[]/hours"}
+    assert body["context"]["revision_id"] == str(REVISION_101)
+    found = deviations(by_role(body), by_role(expected), Decimal("0.02"))
+    assert found <= {"/roles[]/tasks[]/node_id"}
     for role in body["roles"]:
         assert summed_tasks(role) == {each["month"]: each["hours"] for each in role["months"]}
-    tasks_are_their_nodes(api, witness, realm, body, REVISION_100)
-    # The tasks the 100 and the 101 share, matched by label: the same dates, the same hours but for
-    # the one the offer gives fewer; the task of the 101 the offer lacks is the assembly on site.
-    lacking: set[tuple[str, str]] = set()
-    differing: set[tuple[str, str]] = set()
-    held = {
-        (role["resource_role_id"], task["label"]): task
-        for role in body["roles"]
-        for task in role["tasks"]
-    }
-    for role in expected["roles"]:
-        for task in role["tasks"]:
-            key = (role["resource_role_id"], task["label"])
-            name = (role["resource_role_id"][-3:], task["label"])
-            if key not in held:
-                lacking.add(name)
-            elif {k: held[key][k] for k in ("start", "finish")} != {
-                k: task[k] for k in ("start", "finish")
-            } or Decimal(held[key]["hours"]) != Decimal(task["hours"]):
-                differing.add(name)
-    assert lacking == {("452", "Montage des armoires sur site")}
-    assert differing == {("451", "Câblage des armoires")}
+    tasks_are_their_nodes(api, witness, realm, body, REVISION_101)
 
 
 def test_the_contributors_the_lines_employ_are_proposed_as_the_example_does(
@@ -479,31 +335,29 @@ AUTHORS = {
 }
 
 
-def test_the_revisions_of_the_loaded_witness_are_the_examples_but_for_the_reference_and_the_authors(
+def test_the_revisions_of_the_loaded_witness_are_the_examples_but_for_the_authors(
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
     # The commands are those of the reader's rights (``available_commands``), the authors the
-    # platform's; the offer is the reference, designated at the order (event 7), where the example
-    # marks the 101; the revision in progress was not edited (its counter and its instant).
+    # platform's, the counters and the instants those of the writes of the loading; the 101, marked
+    # by the merge of the amendment 1, is the reference (EP-08).
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/revisions")
     expected = example("revisions")
     found = deviations(
         without(body, {"available_commands"}), without(expected, {"available_commands"})
     )
-    assert found == {f"/items[]{each}" for each in AUTHORS} | {
+    assert found <= {f"/items[]{each}" for each in AUTHORS} | {
         "/items[]/audit/updated_at",
-        "/items[]/is_reference",
         "/items[]/lock_version",
     }
+    assert [each["is_reference"] for each in body["items"]] == [False, True, False]
     got = {each["revision_id"]: each for each in body["items"]}
-    assert [each["is_reference"] for each in body["items"]] == [False, False, True]
-    assert got[str(REVISION_100)]["audit"]["updated_at"] == "2026-01-15T11:00:00Z"
-    assert got[str(REVISION_101)]["audit"] == next(
-        each["audit"] for each in expected["items"] if each["revision_id"] == str(REVISION_101)
-    ) | {"created_by": {"kind": "platform"}, "updated_by": {"kind": "platform"}}
+    assert got[str(REVISION_101)]["audit"]["updated_at"] == instant(MERGED).isoformat().replace(
+        "+00:00", "Z"
+    )
 
 
-def test_the_project_of_the_loaded_witness_is_the_example_but_for_the_reference_and_the_authors(
+def test_the_project_of_the_loaded_witness_is_the_example_but_for_the_authors(
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}")
@@ -511,8 +365,8 @@ def test_the_project_of_the_loaded_witness_is_the_example_but_for_the_reference_
     found = deviations(
         without(body, {"available_commands"}), without(expected, {"available_commands"})
     )
-    assert found == AUTHORS | {"/lock_version", "/reference_revision_id"}
-    assert body["reference_revision_id"] == str(REVISION_100)
+    assert found == AUTHORS | {"/lock_version"}
+    assert body["reference_revision_id"] == str(REVISION_101)
     # State, rate, probability, order and code are the example's: the witness enters them.
     for key in ("state", "inflation_rate", "win_probability", "order_received_on", "code"):
         assert body[key] == expected[key]
@@ -529,39 +383,37 @@ FIGURES = (
     "subproject_id",
     "base_amount",
 )
-# The nodes of each comparison the witness lacks: the lines of provision (EP-08) and the tasks
-# above them that the example gives as modified for their sake alone.
-LACKING = {
-    "comparison": {("estimate_line", "Provision — indisponibilité de l'automaticien")},
-    "comparison_differences": {
-        ("task", "Câblage des armoires"),
-        ("task", "Mise en service"),
-        ("estimate_line", "Provision — risque de reprise du câblage"),
-        ("estimate_line", "Provision — retard de livraison des armoires"),
-        ("estimate_line", "Provision — indisponibilité de l'automaticien"),
-    },
-}
+# The comparisons of the offer 100 and of the reference 101 the examples read.
+COMPARED = {"comparison", "comparison_differences"}
+
+
+def unbudgeted(value: Any) -> Any:
+    """Give the amounts of a node of a comparison without the budgeted ones (#4274)."""
+    if not isinstance(value, dict):
+        return value
+    held = cast("dict[str, Any]", value)
+    found: dict[str, Any] = {}
+    for key, part in held.items():
+        if isinstance(part, dict):
+            amounts = cast("dict[str, Any]", part)
+            found[key] = {name: each for name, each in amounts.items() if name != BUDGETED}
+        else:
+            found[key] = part
+    return found
 
 
 def base_of(item: dict[str, Any]) -> Any:
     """Give the base of a node of a comparison as the witness and the example can share it.
 
-    Without the budgeted amount, the reference's in the example (the 101's own), the offer's in the
-    witness; each predecessor by its link alone, not the node it names nor its row, which the
-    identifiers of each and the provision lines the witness lacks move (``test_comparison`` holds
-    the node it names).
+    Each predecessor by its link alone, not the node it names nor its row, which the identifiers of
+    each revision move (``test_comparison`` holds the node it names); the budgeted amounts, which
+    the provisions lack, apart (#4274).
     """
-    base = item["base"]
-    if not base:
+    base = unbudgeted(item["base"])
+    if not base or "predecessors" not in base:
         return base
-    shared: dict[str, Any] = {
-        key: {name: value for name, value in held.items() if name != "budgeted_amount"}
-        for key, held in base.items()
-        if key in {"task", "estimate_line"}
-    }
-    if "predecessors" in base:
-        shared["predecessors"] = [(each["link_type"], each["lag"]) for each in base["predecessors"]]
-    return {**base, **shared}
+    shared = [(each["link_type"], each["lag"]) for each in base["predecessors"]]
+    return {**base, "predecessors": shared}
 
 
 def label_of(item: dict[str, Any]) -> tuple[str, str]:
@@ -570,16 +422,18 @@ def label_of(item: dict[str, Any]) -> tuple[str, str]:
     return item["kind"], str(held.get("label"))
 
 
-@pytest.mark.parametrize("name", list(LACKING))
-def test_the_comparison_of_two_revisions_is_the_example_but_for_the_provisions_and_reference(
+@pytest.mark.parametrize("name", sorted(COMPARED))
+def test_the_comparison_of_two_revisions_is_the_example(
     api: ContractClient, witness: Database, realm: TestRealm, name: str
 ) -> None:
-    # From the offer 100 to the 101, by lineage: the same nodes, each as added, removed or modified
-    # by the same fields, the same figures, the same base (US-2320); the identifiers are those of
-    # each revision (derived for a marked one), so the nodes are matched by lineage.
+    # From the offer 100 to the reference 101, by lineage: the same nodes in the same order, each
+    # added, removed or modified by the same fields, the same figures, the same base (US-2320), the
+    # provision lines the risks declared in the 101 included (EP-08); the identifiers are those of
+    # each revision, so the nodes are matched by lineage.
     with witness.transaction() as session:
+        main = structure_of(session, REVISION_101)
         installation = session.scalar(
-            select(Node.id).where(Node.revision_id == REVISION_101, Node.lineage_id == INSTALLATION)
+            select(Node.id).where(Node.structure_id == main, Node.lineage_id == INSTALLATION)
         )
     asked = f"&subtree_of={installation}" if name == "comparison" else "&difference=added,removed"
     url = (
@@ -589,47 +443,45 @@ def test_the_comparison_of_two_revisions_is_the_example_but_for_the_provisions_a
     body = read(api, witness, realm, url)
     expected = example(name)
     got, wanted = keyed(body["items"], "lineage_id"), keyed(expected["items"], "lineage_id")
-    assert {label_of(wanted[key]) for key in wanted.keys() - got.keys()} == LACKING[name]
-    assert got.keys() <= wanted.keys()
-    assert list(got) == [key for key in wanted if key in got]
+    assert list(got) == list(wanted)
     for key, item in got.items():
         theirs = wanted[key]
-        for field in ("kind", "difference", "level"):
+        for field in ("kind", "difference", "level", "changes"):
             assert item[field] == theirs[field], (label_of(item), field)
-        assert item["changes"] == theirs["changes"], label_of(item)
         assert base_of(item) == base_of(theirs), label_of(item)
-        if item["kind"] == "estimate_line":
-            ours = {each: item["estimate_line"][each] for each in FIGURES}
+        ours_deltas, theirs_deltas = (
+            unbudgeted(item.get("deltas")),
+            unbudgeted(theirs.get("deltas")),
+        )
+        assert deviations(ours_deltas, theirs_deltas) == set(), label_of(item)
+        if item["kind"] == "estimate_line" and not is_provision(theirs):
+            figures = (*FIGURES, BUDGETED)
+            ours = {each: item["estimate_line"][each] for each in figures}
             assert (
-                deviations(ours, {each: theirs["estimate_line"][each] for each in FIGURES}) == set()
+                deviations(ours, {each: theirs["estimate_line"][each] for each in figures}) == set()
             )
         else:
-            assert item["task"]["label"] == theirs["task"]["label"]
-    # The deltas are measured to the offer, the reference: the labour is raised by the rates alone.
-    assert (body["from_revision_id"], body["to_revision_id"]) == (
-        expected["from_revision_id"],
-        expected["to_revision_id"],
-    )
-    nature = {
-        each["key"]: each for each in body["amount_deltas"] if each["dimension"] == "cost_type"
-    }
-    assert "01926f3a-7c00-7000-8000-000000000463" not in nature
-    assert nature["01926f3a-7c00-7000-8000-000000000461"]["budgeted_delta"] == "0.00"
-    assert body["meta"]["scheduled_at"] == instant(RATES_UPDATED).isoformat().replace("+00:00", "Z")
-    lacking_lines = len([each for each in LACKING[name] if each[0] == "estimate_line"])
-    assert body["totals"]["estimate_line_count"] == (
-        expected["totals"]["estimate_line_count"] - lacking_lines
-    )
-    assert body["totals"]["hours"] == expected["totals"]["hours"]
-    assert body["totals"]["task_count"] == expected["totals"]["task_count"]
+            assert label_of(item) == label_of(theirs)
+    for key in ("from_revision_id", "to_revision_id"):
+        assert body[key] == expected[key], key
+    # The budgeted deltas, which the provisions lack (#4274), apart.
+    assert [
+        {k: v for k, v in each.items() if k != "budgeted_delta"} for each in body["amount_deltas"]
+    ] == [
+        {k: v for k, v in each.items() if k != "budgeted_delta"}
+        for each in expected["amount_deltas"]
+    ]
+    for key in ("totals", "base_totals", "totals_delta"):
+        assert deviations(body[key], expected[key]) <= {f"/{BUDGETED}"}, key
+    assert body["meta"]["scheduled_at"] == instant(MERGED).isoformat().replace("+00:00", "Z")
 
 
-def test_the_comparison_of_the_whole_structure_marks_the_nodes_of_the_example_but_provisions(
+def test_the_comparison_of_the_whole_structure_marks_the_nodes_of_the_example(
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
-    # Read whole, reduced to what the screen shows: the same marks on the same labels, but for the
-    # three lines of provision the witness lacks; the example carries the identifiers of the
-    # revision in progress, so nodes are counted by what they are.
+    # Read whole, reduced to what the screen shows: the same marks on the same labels, the three
+    # lines of provision included (EP-08); the example carries the identifiers of the revision in
+    # progress, so nodes are counted by what they are.
     url = (
         f"{PROJECTS}/{PRJ_001}/revisions/comparison?from_revision_id={REVISION_100}"
         f"&to_revision_id={REVISION_101}&fields=kind,task.label,estimate_line.label"
@@ -638,28 +490,13 @@ def test_the_comparison_of_the_whole_structure_marks_the_nodes_of_the_example_bu
     expected = example("volume/comparison_volume")
 
     def counted(items: list[dict[str, Any]]) -> Counter[tuple[str, str, str, tuple[str, ...]]]:
-        # The budgeted amount of a line moves from the 100 to the 101 only for the reference the
-        # example reads (the 101's own): the offer, the reference here, keeps the budgets it gave.
         return Counter(
-            (
-                *label_of(item),
-                item["difference"],
-                tuple(each for each in item["changes"] if each != "budgeted_amount"),
-            )
-            for item in items
+            (*label_of(item), item["difference"], tuple(item["changes"])) for item in items
         )
 
-    lacking = counted(expected["items"]) - counted(body["items"])
-    extra = counted(body["items"]) - counted(expected["items"])
-    assert not extra, list(extra.items())[:8]
-    assert sum(lacking.values()) == 3
-    assert {key[0:3] for key in lacking} == {
-        ("estimate_line", "Provision — retard de livraison des armoires", "added"),
-        ("estimate_line", "Provision — risque de reprise du câblage", "added"),
-        ("estimate_line", "Provision — indisponibilité de l'automaticien", "added"),
-    }
-    assert [item["level"] for item in body["items"] if item["kind"] == "task"] == [
-        item["level"] for item in expected["items"] if item["kind"] == "task"
+    assert counted(body["items"]) == counted(expected["items"])
+    assert [item["level"] for item in body["items"]] == [
+        item["level"] for item in expected["items"]
     ]
 
 
@@ -670,11 +507,9 @@ def test_the_amount_deltas_of_the_whole_comparison_are_the_lines_of_the_two_revi
     # US-1530 (#1752): each line counts under the key it bears in each revision, the keys at two
     # nought deltas left out, the sum by subproject equal to the sum by nature. Read whole, the
     # deltas are the amounts of the lines of the 101 less those of the 100, summed by key straight
-    # from the rows; the example's differ by the reference (budgeted) and the provision the witness
-    # lacks (EP-08), the nature of which is absent. The
-    # budgeted deltas are held to the sum by subproject equal to the sum by nature (#1752). The
-    # nodes reduced to their kind: the deltas are those of the whole comparison, which the fields
-    # do not reduce, and its 10 000 nodes in full cost some twenty seconds of validation (#2716).
+    # from the rows, the provision lines included (EP-08). The nodes reduced to their kind: the
+    # deltas are those of the whole comparison, which the fields do not reduce, and its 10 000
+    # nodes in full cost some twenty seconds of validation (#2716).
     url = (
         f"{PROJECTS}/{PRJ_001}/revisions/comparison?from_revision_id={REVISION_100}"
         f"&to_revision_id={REVISION_101}&fields=kind"
@@ -682,7 +517,9 @@ def test_the_amount_deltas_of_the_whole_comparison_are_the_lines_of_the_two_revi
     body = read(api, witness, realm, url)
     expected = example("volume/comparison_volume")
     with witness.transaction() as session:
-        lines = {number: line_rows(session, REVISIONS[number]) for number in (100, 101)}
+        lines = {
+            number: line_rows(session, REVISIONS[number], provisions=True) for number in (100, 101)
+        }
         natures = {
             number: dict(
                 session.execute(
@@ -708,8 +545,8 @@ def test_the_amount_deltas_of_the_whole_comparison_are_the_lines_of_the_two_revi
         for each in body["amount_deltas"]
         for name in ("budgeted_delta", "reestimated_delta")
     }
-    # The re-estimated deltas, key by key, from the rows; the budgeted ones are the reference's
-    # (the offer), their keys those of the re-estimated deltas or one more at most.
+    # The re-estimated deltas, key by key, from the rows; the deltas are the example's, the
+    # provision of the risks and the budgets of the 101 included (EP-08).
     assert {k: a for k, a in found.items() if k[2] == "reestimated_delta" and a} == {
         key: amount for key, amount in summed.items() if amount
     }
@@ -726,17 +563,10 @@ def test_the_amount_deltas_of_the_whole_comparison_are_the_lines_of_the_two_revi
             for dimension in ("cost_type", "subproject")
         }
         assert by["cost_type"] == by["subproject"], name
-    # A sum held to another proves their agreement only: some budgeted delta is not nought.
-    assert any(found[key] for key in found if key[2] == "budgeted_delta")
-    # The keys are the example's but for the nature of the provision; the budgeted delta of the
-    # disbursements, which the offer and the 101 do not budget differently, is the example's.
-    ours = {(each["dimension"], each["key"]) for each in body["amount_deltas"]}
-    theirs = {(each["dimension"], each["key"]) for each in expected["amount_deltas"]}
-    assert theirs - ours == {("cost_type", "01926f3a-7c00-7000-8000-000000000463")}
-    assert ours <= theirs
-    disbursements = ("cost_type", "01926f3a-7c00-7000-8000-000000000462", "budgeted_delta")
-    assert found[disbursements] == next(
-        Decimal(each["budgeted_delta"])
+    # The budgeted deltas, which the provisions lack (#4274), apart.
+    assert [
+        {k: v for k, v in each.items() if k != "budgeted_delta"} for each in body["amount_deltas"]
+    ] == [
+        {k: v for k, v in each.items() if k != "budgeted_delta"}
         for each in expected["amount_deltas"]
-        if (each["dimension"], each["key"]) == disbursements[:2]
-    )
+    ]

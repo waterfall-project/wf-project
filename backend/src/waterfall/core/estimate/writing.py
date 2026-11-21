@@ -19,11 +19,12 @@ judged again line by line, against a structure half written, a role given before
 refused that the end accepts (US-1550).
 """
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Numeric, SmallInteger, Uuid, column, select, update, values
-from sqlalchemy.orm.attributes import set_committed_value
+from sqlalchemy.orm.attributes import flag_modified, set_committed_value
 
 from waterfall.core.cost_settings.interface import categories_of_kind
 from waterfall.core.estimate.costing import (
@@ -52,10 +53,12 @@ from waterfall.core.estimate.provisioning import ProvisionEntry, create_provisio
 from waterfall.core.estimate.recalling import recalled, remembers
 from waterfall.core.estimate.tables import AMOUNT_PRECISION, AMOUNT_SCALE, EstimateLine
 from waterfall.core.resource_settings.interface import role_calendars
+from waterfall.platform.database import among
 from waterfall.platform.errors import VALIDATION_FAILED, FieldError
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Collection, Mapping, Sequence
+    from decimal import Decimal
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -63,6 +66,8 @@ if TYPE_CHECKING:
     from waterfall.core.planning.interface import BearingTask, FacetCreation, FacetWrite
 
 NOUGHT = CENT * 0
+# Where a load of lines keeps the facets it read ahead, in the memory of its reads (``recalling``).
+_AHEAD = "estimate.lines_ahead"
 # The type of an amount written by set, that of the columns of the amounts of a line.
 AMOUNT = Numeric(AMOUNT_PRECISION, AMOUNT_SCALE)
 # The lines written by a statement, four parameters each: far under the 65 535 parameters a
@@ -257,8 +262,40 @@ def create_line(creation: FacetCreation) -> None:
         session.flush()
 
 
+def _ahead(session: Session, project_id: UUID) -> dict[UUID, EstimateLine]:
+    """Give the facets a load of lines read ahead in a project, not yet given."""
+    none: dict[UUID, EstimateLine] = {}
+    return recalled(session, (_AHEAD, project_id), lambda: none)
+
+
+def read_ahead(session: Session, project_id: UUID, node_ids: Collection[UUID]) -> None:
+    """Read at once, for a load of lines, the facets of the lines it may change (``read_line``).
+
+    By a statement for them all, as they are in the transaction, rather than one by line: the
+    witness changes some fifteen thousand lines in place. Each is given once, then read afresh.
+    """
+    ahead = _ahead(session, project_id)
+    if not node_ids:
+        return
+    ahead.update(
+        (line.node_id, line)
+        for line in session.scalars(
+            select(EstimateLine)
+            .where(EstimateLine.project_id == project_id, among(EstimateLine.node_id, node_ids))
+            .execution_options(populate_existing=True)
+        )
+    )
+
+
 def read_line(session: Session, project_id: UUID, node_id: UUID) -> EstimateLine:
-    """Read the facet of a line under the lock its structure holds, as it is now."""
+    """Read the facet of a line under the lock its structure holds, as it is now.
+
+    Under a load of lines, the facet its load read ahead, the first time (``read_ahead``).
+    """
+    if remembers(session):
+        line = _ahead(session, project_id).pop(node_id, None)
+        if line is not None:
+            return line
     return session.scalars(
         select(EstimateLine)
         .where(EstimateLine.project_id == project_id, EstimateLine.node_id == node_id)
@@ -272,11 +309,27 @@ def change_line(write: FacetWrite, sent: LineEntry | HoursJudged) -> None:
     The budgeted amount is left as it is (WF-DEV-0020); the hours of the task are judged only when
     the role changes, and not for an import, which judged them (``HoursJudged``).
     """
+    session = write.session
+    # Under a load of lines the changes are not flushed one by one, nor the reads that precede each
+    # of them, which would: the lines of a load are written together, by set, when it ends or when
+    # a statement that needs them comes (as ``create_line`` does).
+    with session.no_autoflush if remembers(session) else nullcontext():
+        _change_line(write, sent)
+    if not remembers(session):
+        session.flush()
+
+
+def _change_line(write: FacetWrite, sent: LineEntry | HoursJudged) -> None:
     session, project_id = write.session, write.project_id
     entry, judged = _sent(sent)
     line = read_line(session, project_id, write.node_id)
     draft = judged_line(session, (project_id, write.bearer), entry, line)
-    basis = basis_of(session, project_id, write.revision_id)
+    revision_id = write.revision_id
+    basis = recalled(
+        session,
+        ("basis", project_id, revision_id),
+        lambda: basis_of(session, project_id, revision_id),
+    )
     amounts = _priced_draft(
         session,
         (project_id, write.bearer, write.node_id),
@@ -297,7 +350,37 @@ def change_line(write: FacetWrite, sent: LineEntry | HoursJudged) -> None:
     line.consumption_year = amounts.consumption_year
     line.lock_version += 1
     line.updated_at, line.updated_by = write.act.at, write.act.author
-    session.flush()
+    if remembers(session):
+        _written_whole(line)
+
+
+# The columns a change of a line writes (``change_line``).
+_CHANGED = (
+    "label",
+    "cost_category_id",
+    "resource_role_id",
+    "quantity",
+    "hours",
+    "unit_disbursement",
+    "payment_delay_days",
+    "subproject_id",
+    "base_amount",
+    "reestimated_amount",
+    "consumption_year",
+    "updated_at",
+    "updated_by",
+)
+
+
+def _written_whole(line: EstimateLine) -> None:
+    """Write every column a change sets, those whose value stays included, at the next flush.
+
+    A flush writes of each row the columns that moved, and gathers into one statement only the
+    rows next to each other that moved the same ones: the lines of a load, each moving its own,
+    went out in thousands of statements, each a round trip. All the same, they go out together.
+    """
+    for name in _CHANGED:
+        flag_modified(line, name)
 
 
 def reprice(
@@ -398,3 +481,30 @@ def _write_priced(
             set_committed_value(row, "base_amount", each.base)
             set_committed_value(row, "reestimated_amount", each.reestimated)
             set_committed_value(row, "consumption_year", each.consumption_year)
+
+
+def write_budgeted(
+    session: Session, project_id: UUID, moved: Sequence[tuple[EstimateLine, Decimal]]
+) -> None:
+    """Write the budgeted amounts of the lines whose amount moves, by set; keep them on their rows.
+
+    As the amounts priced (``_write_priced``): one ``UPDATE ... FROM (VALUES ...)`` by batch, where
+    a flush sent one statement by line — the designation of the witness's offer gives some fifteen
+    thousand lines their budget. The rows take the amount written as that of the base: not dirty.
+    """
+    for start in range(0, len(moved), PRICED_BATCH):
+        batch = moved[start : start + PRICED_BATCH]
+        amounts = values(
+            column("node_id", Uuid), column("budgeted_amount", AMOUNT), name="budgeted"
+        ).data([(row.node_id, amount) for row, amount in batch])
+        session.execute(
+            update(EstimateLine)
+            .where(
+                EstimateLine.project_id == project_id,
+                EstimateLine.node_id == amounts.c.node_id,
+            )
+            .values(budgeted_amount=amounts.c.budgeted_amount)
+            .execution_options(synchronize_session=False)
+        )
+        for row, amount in batch:
+            set_committed_value(row, "budgeted_amount", amount)

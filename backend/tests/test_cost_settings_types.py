@@ -109,8 +109,9 @@ def test_the_commands_of_a_nature_are_those_of_a_caller_who_changes_the_cost_set
     api: ContractClient, sessions: PartSessions
 ) -> None:
     # The witness rates every category of labour and attaches roles to them (US-0850), and its
-    # lines employ the natures of labour and of disbursement (US-1570): neither can change kind,
-    # the provisions, which the risks employ (EP-08), can. The deactivation always is available.
+    # lines employ the natures of labour and of disbursement (US-1570), and its risks the provision
+    # of the witness by their provision lines (US-2650/L1): none can change kind; the provision the
+    # bootstrap wrote, which nothing employs, can. The deactivation always is available.
     for headers in (sessions.without, sessions.reading):
         assert all(item["available_commands"] == [] for item in listed(api, headers)["items"])
     managed = {item["code"]: commands(item) for item in listed(api, sessions.changing)["items"]}
@@ -125,7 +126,7 @@ def test_the_commands_of_a_nature_are_those_of_a_caller_who_changes_the_cost_set
         ],
         "DEB": [AVAILABLE[0], ("change_kind", False, ["cost_type_unused"])],
         "PROV": AVAILABLE,
-        "PRV": AVAILABLE,
+        "PRV": [AVAILABLE[0], ("change_kind", False, ["cost_type_unused"])],
     }
 
 

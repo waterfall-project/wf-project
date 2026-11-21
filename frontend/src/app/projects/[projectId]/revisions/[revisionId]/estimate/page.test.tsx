@@ -9,7 +9,7 @@ import { estimateGrid } from "@/components/grid/estimate";
 import type { EstimateGridProps } from "@/components/grid/estimate-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { filtersOf, menuText } from "@/test/filter-menu";
-import { type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
 
 import EstimatePage from "./page";
@@ -150,27 +150,31 @@ describe("the grid of the estimate, entered as the structure lists it", () => {
     expect([inPricing?.editable, inPricing?.tasksEditable]).toEqual([true, true]);
   });
 
+  /** The version of a structure, as the example of the list of the structures gives it. */
+  const versionOf = (structure: string) =>
+    (example("structures") as { structure_id: string; lock_version: number }[]).find(
+      (each) => each.structure_id === structure,
+    )?.lock_version;
+
   it.each([
     {
       kind: "the amendment 2, a differential",
       structure: "01926f3a-7c00-7000-8000-000000000203",
-      version: 2,
     },
     {
       kind: "the own estimate of a risk",
       structure: "01926f3a-7c00-7000-8000-000000000204",
-      version: 1,
     },
   ])(
     "hands the grid entered on $kind the address names, at its version, the project in progress",
-    async ({ structure, version }) => {
+    async ({ structure }) => {
       // The differential and the own estimate of a risk list `edit_estimate` available whatever
       // the state of the project (`structures`): their estimate is entered where the main one is not.
       await estimatePage("me", { structure });
       const grid = grids.estimate.at(-1);
       expect(grid?.structure.structure_id).toBe(structure);
       expect([grid?.editable, grid?.tasksEditable]).toEqual([true, true]);
-      expect(grid?.structureVersion).toBe(version);
+      expect(grid?.structureVersion).toBe(versionOf(structure));
     },
   );
 

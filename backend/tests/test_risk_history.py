@@ -664,6 +664,41 @@ def test_a_change_of_the_identity_does_not_erase_a_conflict_already_born(
     assert risks.risk(risk)["probability"] == "0.6"
 
 
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_a_change_of_the_identity_after_an_undoing_is_no_conflict_of_the_redoing(
+    risks: Risks, who: Person
+) -> None:
+    # #4219: the same carrying on the entries undone (their ``before``, the path of the redoing): a
+    # review undone, the label corrected, then redone (200): the new label stays.
+    risk = risks.declared_costed()
+    entered(risks.review(risks.risk(risk), who, probability="0.5"))
+    risk_undone(undone(risks, who), "risk_review", risk)
+    assert risks.update(risks.risk(risk), who, label="Grue en panne").status_code == 200
+    risk_undone(undone(risks, who, "redo"), "risk_review", risk)
+    back = risks.risk(risk)
+    assert (back["label"], back["probability"]) == ("Grue en panne", "0.5")
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_a_change_of_the_identity_does_not_erase_a_conflict_born_after_an_undoing(
+    risks: Risks, who: Person
+) -> None:
+    # #4219: a review undone, another contributor reviews the risk, then the label is corrected: the
+    # carrying leaves the entry undone that did not hold the counter before it, so the redoing stays
+    # a conflict (409 naming the risk), the review of the other not overwritten.
+    risk = risks.declared_costed()
+    entered(risks.review(risks.risk(risk), who, probability="0.5"))
+    risk_undone(undone(risks, who), "risk_review", risk)
+    risks.reviewed(risks.risk(risk), probability="0.6")
+    assert risks.update(risks.risk(risk), who, label="Grue en panne").status_code == 200
+    assert refusal(turned(risks, who, "redo")) == (
+        409,
+        "UNDO_CONFLICT",
+        {"conflicting_object_id": risk["risk_id"], "conflicting_object_label": "Grue en panne"},
+    )
+    assert risks.risk(risk)["probability"] == "0.6"
+
+
 # --- What enters the history, and what does not --------------------------------------------------
 
 

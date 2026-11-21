@@ -887,7 +887,7 @@ describe("the sentence of a refusal", () => {
     // A lock version, the one parameter of a refusal of a stale version, names nothing either.
     const stale = fromExample("paste_stale", {
       code: "STALE_LOCK_VERSION",
-      params: { expected_lock_version: 4 },
+      params: { expected_lock_version: 12 },
     });
     expect(say(stale, "en")).toBe(
       "Someone changed this data in the meantime; reload it to see its latest version.",

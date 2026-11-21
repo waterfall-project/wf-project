@@ -66,20 +66,39 @@ def test_the_writes_are_those_of_the_design_in_that_order() -> None:
     # update of the rates accepted on 101 (« Le chargeur du témoin »), and the designation of 100
     # succeeds: the project moves to In progress by the code entered (#2700); EP-09 the imports of
     # costs, the exclusion of the reception of the customer and the expiry of the extraction of
-    # April replayed (see tools/tests/test_witness_costs.py).
+    # April replayed (see tools/tests/test_witness_costs.py); EP-08 the risks declared, reviewed,
+    # dismissed and occurred, the two amendments opened in the 101, the first merged, which marks
+    # it, the second updated in the 102 (US-2650/L1, see tools/tests/test_witness_risks.py).
     costs = {"cost_import_applied", "cost_line_excluded", "import_expired"}
-    assert [(w["kind"], w.get("revision")) for w in _writes() if w["kind"] not in costs] == [
+    assert [
+        (w["kind"], w.get("revision", w.get("risk_id", "")[-3:] or None))
+        for w in _writes()
+        if w["kind"] not in costs
+    ] == [
         ("project_created", None),
         ("revision_opened", 100),
         ("state_transition", None),
         ("revision_marked", 100),
         ("revision_opened", 101),
+        ("risk_declared", "751"),
+        ("risk_reviewed", "751"),
         ("rate_update_applied", 101),
+        ("risk_declared", "752"),
+        ("risk_reviewed", "752"),
+        ("risk_declared", "753"),
+        ("risk_reviewed", "753"),
+        ("amendment_opened", 101),
+        ("amendment_opened", 101),
         ("designation_attempted", 100),
         ("code_entered", None),
         ("state_transition", None),
-        ("revision_marked", 101),
+        ("amendment_merged", 101),
         ("revision_opened", 102),
+        ("risk_reviewed", "751"),
+        ("risk_reviewed", "753"),
+        ("risk_occurred", "752"),
+        ("risk_reviewed", "751"),
+        ("amendment_rebased", 102),
     ]
 
 
@@ -96,9 +115,17 @@ def test_each_write_has_the_fields_of_its_kind() -> None:
         "cost_import_applied": {"kind", "project", "cost_import_id"},
         "cost_line_excluded": {"kind", "project", "document", "item", "reason"},
         "import_expired": {"kind", "project", "import_id"},
+        "risk_declared": {"kind", "project", "risk_id"},
+        "risk_reviewed": {"kind", "project", "risk_id", "probability", "state"},
+        "risk_occurred": {"kind", "project", "risk_id"},
+        "amendment_opened": {"kind", "project", "revision", "structure_id"},
+        "amendment_merged": {"kind", "project", "revision", "structure_id", "version_name"},
+        "amendment_rebased": {"kind", "project", "revision", "structure_id"},
     }
     assert all(set(write) == fields[write["kind"]] for write in _writes())
-    assert [(w["revision"], w["version_name"]) for w in _written("revision_marked")] == [
+    assert [
+        (w["revision"], w["version_name"]) for w in _written("revision_marked", "amendment_merged")
+    ] == [
         (100, "Offre v1.0"),
         (101, "Référence"),
     ]

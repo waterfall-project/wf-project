@@ -642,9 +642,17 @@ from waterfall.core.planning.interface.snapshots import (
     undo_last_change as undo_last_change,
 )
 
+# ``structures`` (US-2650/L1): a differential of the witness opened under its identifiers.
+from waterfall.core.planning.interface.structures import (
+    DifferentialLoad as DifferentialLoad,
+)
+
 # ``structures`` (US-1380/L1; US-1380/L2, US-1390/L2): the dates, the start and the label.
 from waterfall.core.planning.interface.structures import (
     StructureChange as StructureChange,
+)
+from waterfall.core.planning.interface.structures import (
+    load_differential as load_differential,
 )
 from waterfall.core.planning.interface.structures import (
     open_differential as open_differential,

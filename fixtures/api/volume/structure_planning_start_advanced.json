@@ -1275,6 +1275,6 @@
       {"node_id":"01926f3a-7c00-7000-8000-000100005312","budgeted_amount":"27988.43","reestimated_amount":"26843.46","consumption_year":2029}
     ],
     "totals": {"task_count":1000,"estimate_line_count":5000,"hours":"116270","base_amount":"66105223.89","budgeted_amount":"70566396.56","reestimated_amount":"68908488.36"},
-    "structure_lock_version": 2
+    "structure_lock_version": 10
   }
 }

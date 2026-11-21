@@ -31,7 +31,7 @@ from wftools import (
 from wftools.mockids import universe
 from wftools.mockstructure import described
 from wftools.mocktree import AT_END, LINE, TASK, After
-from wftools.mockwitness import CORE, CUSTOMER, Link, N, Task, node_id
+from wftools.mockwitness import CORE, CUSTOMER, FIRST_WRITE, Link, N, Task, node_id
 
 type Node = dict[str, Any]
 
@@ -209,7 +209,7 @@ def test_a_task_created_beside_another_is_an_automatic_leaf_of_one_day_not_start
     [summary] = created["ancestors"]
     assert summary == read[universe(N.STUDIES)]
     assert created["totals"]["task_count"] == totals["task_count"] + 1
-    assert created["structure_lock_version"] == 2
+    assert created["structure_lock_version"] == FIRST_WRITE
 
 
 def test_a_task_created_under_a_leaf_makes_it_its_summary(read: dict[str, Node]) -> None:
@@ -228,7 +228,7 @@ def test_a_task_created_under_a_leaf_makes_it_its_summary(read: dict[str, Node])
     assert {"task.scheduling_mode", "task.duration"}.isdisjoint(leaf["editable_fields"])
     assert "task.duration" in leaf["computed_fields"]
     assert above[universe(N.STUDIES)] == read[universe(N.STUDIES)]
-    assert child["structure_lock_version"] == 3
+    assert child["structure_lock_version"] == FIRST_WRITE + 1
     [created] = gesture("node_created")["nodes"]
     place = ("node_id", "parent_id", "position", "row_number", "level", "lock_version")
     assert [leaf[key] for key in place] == [created[key] for key in place]
@@ -290,7 +290,7 @@ def test_a_summary_deleted_takes_its_subordinates_their_lines_and_their_links(
         )
     ]
     assert followers
-    assert deleted["structure_lock_version"] == 2
+    assert deleted["structure_lock_version"] == FIRST_WRITE
 
 
 # --- The entries of a task --------------------------------------------------------------------
@@ -334,7 +334,7 @@ def test_dates_entered_on_a_manual_task_follow_the_mode_changed(read: dict[str, 
     [manual] = gesture("task_mode_changed")["nodes"]
     assert (task["lock_version"], dated["structure_lock_version"]) == (
         manual["lock_version"] + 1,
-        3,
+        FIRST_WRITE + 1,
     )
     [line] = dated["reinflated"]
     assert (line["node_id"], line["consumption_year"]) == (universe(N.COMMISSIONING_LINE), 2027)

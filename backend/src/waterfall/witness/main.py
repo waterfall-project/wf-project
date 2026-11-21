@@ -5,15 +5,18 @@
 It reads ``WATERFALL_DATABASE_URL``, the role of the service, and ``WATERFALL_WITNESS_PATH``, the
 directory of the description; a setting that lacks, or a path that is no directory, stops it at
 start, named (2). Then, in one transaction, under an advisory lock of its own that keeps two
-loadings apart, each slice in its order (``loader``): a failure — a file that strays from the
-contract, an identifier already held — writes nothing and ends it (1), said in the structured logs.
-Run again on a platform that holds the witness, it writes nothing and succeeds, saying so.
+loadings apart, each slice in its order (``loader``), every identifier the witness does not impose
+drawn in order (``drawn_in_order``), so that two loadings give the same ones: a failure — a file
+that strays from the contract, an identifier already held — writes nothing and ends it (1), said in
+the structured logs. Run again on a platform that holds the witness, it writes nothing and succeeds,
+saying so.
 
 The command ``waterfall-api`` starts here: ``load-witness`` loads, anything else is the
 bootstrap's, which passes on to the API what is not its own.
 """
 
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -25,6 +28,7 @@ from waterfall.platform.audit import Act
 from waterfall.platform.correlation import correlation_id_from
 from waterfall.platform.database import Database, create_database_engine, utc_now
 from waterfall.platform.errors import ServiceError
+from waterfall.platform.identifiers import drawn_in_order
 from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, logging_context
 from waterfall.platform.settings import SettingsError, WitnessSettings, load_witness_settings
@@ -37,6 +41,9 @@ if TYPE_CHECKING:
 COMMAND = "load-witness"
 # The key of the advisory lock of the transaction that loads the witness.
 WITNESS_LOCK = 4_200_810
+# The instant the identifiers the loader draws bear: the installation of the witness, before any
+# identifier the service draws afterwards (US-2650/L1).
+DRAWN_AT = datetime(2025, 9, 1, 9, 0, tzinfo=UTC)
 
 logger = get_logger(__name__)
 
@@ -77,7 +84,8 @@ def _load(database: Database, directory: Path) -> int:
     try:
         with database.transaction() as session:
             session.execute(select(func.pg_advisory_xact_lock(WITNESS_LOCK)))
-            written = load_slices(session, Witness(directory, Act(None, utc_now())))
+            with drawn_in_order(DRAWN_AT):
+                written = load_slices(session, Witness(directory, Act(None, utc_now())))
     except ServiceError as refused:
         # A rule of a module refused an object of the witness: a state to correct, not a trace.
         refusal = (refused.code, dict(refused.params))
