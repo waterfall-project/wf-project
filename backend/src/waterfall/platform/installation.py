@@ -94,6 +94,19 @@ def read_settings(session: Session) -> Settings:
     )
 
 
+def set_avatar_max_bytes(session: Session, avatar_max_bytes: int) -> bool:
+    """Bound the avatars of a bootstrapped installation; tell whether the bound changed.
+
+    An operating parameter (§4.4.1): the bootstrap writes it from its settings, the witness its
+    own (#3965). An installation not bootstrapped has no bound to change.
+    """
+    row = session.get(Installation, THE_ROW, with_for_update=True)
+    if row is None or row.avatar_max_bytes == avatar_max_bytes:
+        return False
+    row.avatar_max_bytes = avatar_max_bytes
+    return True
+
+
 def stored_in(database: Database) -> Callable[[], str]:
     """Give the reading of the time zone the installation of ``database`` keeps, in a transaction.
 

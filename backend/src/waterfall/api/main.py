@@ -30,6 +30,7 @@ import uvicorn
 from waterfall import __version__
 from waterfall.api.app import PREFIX, create_app
 from waterfall.api.authentication import Services
+from waterfall.api.status import StatusSources
 from waterfall.platform.cache import IndicatorsCache
 from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.installation import TIME_ZONE, stored_in
@@ -38,6 +39,7 @@ from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import configure_logging, get_logger
 from waterfall.platform.maintenance import Maintenance
 from waterfall.platform.metrics import Capacities, shared_between_processes
+from waterfall.platform.prometheus import Prometheus
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
 from waterfall.platform.settings import SettingsError, load_api_settings
 from waterfall.platform.storage import Bucket
@@ -128,7 +130,11 @@ def application() -> FastAPI:
             logger.info("service.stopped")
 
     capacities = Capacities(settings.database_capacity_bytes, settings.storage_capacity_bytes)
-    return create_app(services, lifespan, capacities)
+    # Where the status screen reads the metrics (TFX-14), in HTTPS on the roots of the platform.
+    address = settings.prometheus_address
+    prometheus = None if address is None else Prometheus(address, settings.tls_authority)
+    sources = StatusSources(settings.operating_parameters(), prometheus)
+    return create_app(services, lifespan, capacities, sources)
 
 
 def serve_metrics(app: FastAPI, host: str, port: int) -> Callable[[], None]:

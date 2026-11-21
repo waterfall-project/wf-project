@@ -25,7 +25,7 @@ from waterfall.platform.correlation import correlation_id_from
 from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, logging_context
-from waterfall.platform.metrics import MetricsRegistry, WorkerMetrics
+from waterfall.platform.metrics import Announced, MetricsRegistry, WorkerMetrics
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import (
     ENV_PREFIX,
@@ -139,6 +139,8 @@ def _work(settings: WorkerSettings) -> int:
     logger.info("worker.starting", version=__version__)
     registry = MetricsRegistry()
     metrics = WorkerMetrics(registry)
+    # Its version, which the status screen presents beside the API's (WF-EXP-0030).
+    registry.read_at_collection.append(Announced("worker", __version__))
     # The worker listens to nothing but its metrics, on a port of their own (WF-OBS-0010); a port
     # that cannot be taken is said, as a setting is, before anything is opened.
     try:

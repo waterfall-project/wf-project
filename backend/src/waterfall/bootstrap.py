@@ -74,7 +74,12 @@ from waterfall.platform.audit import Act
 from waterfall.platform.correlation import correlation_id_from
 from waterfall.platform.database import Database, create_database_engine, utc_now
 from waterfall.platform.errors import ServiceError
-from waterfall.platform.installation import DELIVERED_TIME_ZONE, THE_ROW, Installation
+from waterfall.platform.installation import (
+    DELIVERED_TIME_ZONE,
+    THE_ROW,
+    Installation,
+    set_avatar_max_bytes,
+)
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import (
     INSTALLATION_CLIENT,
@@ -96,9 +101,9 @@ if TYPE_CHECKING:
 
 # The key of the advisory lock under which a bootstrap reads what is installed, then installs.
 INSTALL_LOCK = 4_200_420
-# The bounds of a new installation, those of the example ``installation`` of the contract: an
-# avatar of two mebibytes, a backup deposited for a restoration of twenty gibibytes.
-AVATAR_MAX_BYTES = 2 * 1024**2
+# The bound of a backup deposited for a restoration, that of the example ``installation`` of the
+# contract: twenty gibibytes. The bound of an avatar is an operating parameter, read from the
+# settings (``InstallationSettings.avatar_max_bytes``, #3965).
 EXTERNAL_BACKUP_MAX_BYTES = 20 * 1024**3
 # Why the platform refuses a bootstrap: an installation without its administrator, or whose
 # administrator was anonymised, an address that is none, an address an account of a directory or of
@@ -287,6 +292,7 @@ def _bootstrap(
         if settings.time_zone is not None and time_zone != settings.time_zone:
             logger.warning("installation.time_zone_ignored")
         with database.transaction() as session:
+            _parameters_again(session, settings)
             _reference_again(session, settings, language)
         return administrator, language
     roles = predefined_roles(settings.default_language)
@@ -304,7 +310,7 @@ def _bootstrap(
                 id=THE_ROW,
                 default_language=settings.default_language,
                 time_zone=settings.time_zone or DELIVERED_TIME_ZONE,
-                avatar_max_bytes=AVATAR_MAX_BYTES,
+                avatar_max_bytes=settings.avatar_max_bytes,
                 external_backup_max_bytes=EXTERNAL_BACKUP_MAX_BYTES,
                 installed_at=act.at,
             )
@@ -351,6 +357,17 @@ def install_reference(session: Session, choice: Chosen, act: Act) -> bool:
     )
     create_cost_category(session, category, act)
     return True
+
+
+def _parameters_again(session: Session, settings: InstallationSettings) -> None:
+    """Write the operating parameters the installation keeps, as the settings give them now.
+
+    An operating parameter is set at each deployment (§4.5.1, WF-ARC-0050): unlike the language or
+    the currency, chosen once, the largest avatar changed in the settings is applied by the next
+    run, and said (#3965).
+    """
+    if set_avatar_max_bytes(session, settings.avatar_max_bytes):
+        logger.info("installation.avatar_max_bytes_set", avatar_max_bytes=settings.avatar_max_bytes)
 
 
 def _reference_again(session: Session, settings: InstallationSettings, language: str) -> None:

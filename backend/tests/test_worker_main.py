@@ -148,6 +148,10 @@ def test_the_worker_answers_on_its_metrics_endpoint_while_it_runs(
     assert answer.status_code == 200
     assert "# TYPE waterfall_worker_tasks_total counter" in answer.text
     assert "waterfall_identity_directory_sync_failures_total 0.0" in answer.text
+    # Its version, which the status screen presents (WF-EXP-0030, US-2890).
+    version = waterfall.__version__
+    announced = f'waterfall_component_version{{component="worker",version="{version}"}} 1.0'
+    assert announced in answer.text
     with pytest.raises(httpx2.TransportError):
         httpx2.get(f"http://127.0.0.1:{port}/metrics", timeout=1)
 

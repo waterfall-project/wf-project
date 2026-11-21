@@ -519,6 +519,25 @@ def test_the_installation_keeps_the_time_zone_it_is_given_and_a_second_run_does_
         assert read_settings(session).time_zone == "Europe/Paris"
 
 
+@pytest.mark.story("US-2890")
+def test_the_installation_bounds_an_avatar_at_512_kb_and_each_run_applies_the_setting(
+    database: Database, database_url: str, address: str, logs: Logs
+) -> None:
+    # Proper to US-2890 (#3965): the bootstrap ships 512 KB, `524288`, the operating parameter of
+    # §4.4.1 — 2 MiB is the witness's alone; the bound is read from a setting, which a run after the
+    # first applies, an operating parameter being set at each deployment (§4.5.1).
+    settings = settings_of(database_url, address)
+    link_of(settings)
+    with database.transaction() as session:
+        assert read_settings(session).avatar_max_bytes == 524288
+    assert not logs.named("installation.avatar_max_bytes_set")
+    link_of(settings.model_copy(update={"avatar_max_bytes": 1024**2}))
+    with database.transaction() as session:
+        assert read_settings(session).avatar_max_bytes == 1024**2
+    (applied,) = logs.named("installation.avatar_max_bytes_set")
+    assert applied["avatar_max_bytes"] == 1024**2
+
+
 @pytest.mark.requirement("WF-EXP-0020-A")
 def test_an_installation_made_before_the_reference_is_given_it_when_run_again(
     owner: Engine, database: Database, database_url: str, address: str, logs: Logs

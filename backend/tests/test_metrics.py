@@ -25,6 +25,7 @@ from sqlalchemy.pool import QueuePool
 from support import PLATFORM_SECRETS, ContractClient, raw_account
 from witness_support import example
 
+from waterfall import __version__
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.backups.tables import Backup
@@ -40,6 +41,7 @@ from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.maintenance import Maintenance, Restoring
 from waterfall.platform.metrics import (
     COMPONENT_UP,
+    COMPONENT_VERSION,
     LAST_RUN_SUCCESS,
     LAST_RUN_TIMESTAMP,
     OLDEST_QUEUED_TASK_AGE,
@@ -474,7 +476,30 @@ def test_the_metrics_expose_no_project_data_identity_nor_secret(
     for secret in PLATFORM_SECRETS.values():
         assert secret not in response.text
     labels = {name for _, labelled in samples(response.text) for name, _ in labelled}
-    assert labels <= {"operation", "status", "le", "component", "run"}
+    # The version a component announces is no datum of a project, no identity, no secret.
+    assert labels <= {"operation", "status", "le", "component", "run", "version"}
+
+
+@pytest.mark.requirement("WF-CMP-0020-A")
+def test_the_api_announces_its_version_and_that_of_each_component_its_probe_reads(
+    platform: MakePlatform,
+) -> None:
+    # « L'écran d'état présente la version de chaque composant. » : the metrics the screen reads
+    # give it — the API its own, PostgreSQL and Redis the one their probe reads, one down none.
+    read = platform().collect()
+    announced = {
+        dict(labelled)["component"]: dict(labelled)["version"]
+        for (name, labelled), _ in read.items()
+        if name == COMPONENT_VERSION
+    }
+    assert announced["api"] == __version__
+    assert announced["database"].split(".")[0] == "18"
+    assert announced["cache"]
+    assert "database" not in {
+        dict(labelled)["component"]
+        for (name, labelled), _ in platform("database").collect().items()
+        if name == COMPONENT_VERSION
+    }
 
 
 @pytest.mark.requirement("WF-EXP-0040-A")
