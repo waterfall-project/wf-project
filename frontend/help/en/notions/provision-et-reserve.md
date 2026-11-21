@@ -2,11 +2,11 @@
 
 ## What the glossary says
 
-> **Provision** — Designates the amount reserved to cover the consequences of an identified risk, equal to its severity weighted by its probability. It counts in the estimate and in the remaining to commit, never in the reference budget; a risk occurred or dismissed no longer bears one. It comes under a cost type of the kind risk provision; a provision entered, for contingencies for instance, is an ordinary non-labour line.
+> **Provision** — Designates the amount reserved to cover the consequences of an identified risk, equal to its severity weighted by its probability, without going below zero. It counts in the estimate and in the remaining to commit, never in the reference budget; a risk occurred or dismissed no longer bears one. It comes under a cost type of the kind risk provision; a provision entered, for contingencies for instance, is an ordinary non-labour line.
 
 > **Risk reserve** — Designates the sum of the provision lines of the reference revision. It is not part of the reference budget and moves only with it; it is to it that the remaining provisions and the cost of the risks occurred are compared.
 
-> **Cost at occurrence** — Designates, for an occurred risk, the total of its own estimate at the moment it was declared occurred. It no longer changes, whatever the re-estimations and the completion of the tasks merged; it is the one the risk coverage compares to the reserve.
+> **Cost at occurrence** — Designates, for an occurred risk, its severity at the moment it was declared occurred. It no longer changes, whatever the re-estimations and the completion of the tasks merged; it is the one the risk coverage compares to the reserve.
 
 > **Risk coverage** — Designates the setting side by side, for a project or for the portfolio, of the risk reserve of the reference with the sum of the provisions of the identified risks and of the cost at occurrence of the occurred risks; their difference is the coverage variance.
 
