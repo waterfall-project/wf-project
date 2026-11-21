@@ -794,7 +794,9 @@ describe("the gestures of the cards of the Kanban", () => {
 
     // Another write lost, on another card: the tasks are read anew once more, not twice.
     await choose("Réception usine", /^Terminer/);
-    fireEvent.click(within(card("Réception usine")).getByRole("button", { name: "Terminer" }));
+    await userEvent.click(
+      within(card("Réception usine")).getByRole("button", { name: "Terminer" }),
+    );
     await waitFor(() => {
       expect(router.refresh).toHaveBeenCalledTimes(2);
     });
