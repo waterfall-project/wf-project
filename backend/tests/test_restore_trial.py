@@ -15,9 +15,9 @@ import json
 import tarfile
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
 import httpx2
@@ -29,7 +29,8 @@ from fastapi.testclient import TestClient
 from indicators_support import indicator_row
 from installations import created, dropped
 from project_rows import AT, MARKED, insert_project, insert_revision, unguarded
-from sqlalchemy import func, insert, select, text, update
+from sqlalchemy import exc, func, insert, select, text, update
+from sqlalchemy.engine import make_url
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -59,7 +60,7 @@ from waterfall.restore.trial import (
 )
 from waterfall.worker import backup as backup_module
 from waterfall.worker.backup import DATABASES, Dumped
-from waterfall.worker.inventory import Inventory, inventory_of
+from waterfall.worker.inventory import Inventory, inventory_of, read_or_none
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -548,3 +549,63 @@ def test_a_platform_that_cannot_be_restored_or_counted_or_an_archive_that_does_n
     reasons = [test.failure for test in reversed(inscribed_tests(installation))]
     assert reasons == ["not_restored", "not_counted", UNREADABLE]
     assert platform.told == []
+
+
+class Reading:
+    """A session that gives the rows of a read in the order a test says, as a database may."""
+
+    def __init__(self, rows: list[tuple[str, str, datetime, dict[str, int]]]) -> None:
+        self.rows = rows
+
+    def execute(self, _statement: object) -> Iterator[tuple[str, str, datetime, dict[str, int]]]:
+        return iter(self.rows)
+
+
+@pytest.mark.story("US-2930")
+def test_the_digest_of_the_kept_indicators_does_not_depend_on_the_order_a_database_reads_them() -> (
+    None
+):
+    # The collation of a database orders text its own way: the digest sorts what it reads.
+    taken = datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
+    rows = [
+        ("Z", "a", taken, {"n": 1}),
+        ("a", "b", taken, {"n": 2}),
+        ("a", "B", taken, {"n": 3}),
+        ("_", "a", taken, {"n": 4}),
+    ]
+    project, revision = uuid4(), uuid4()
+    digests = {
+        kept_indicators_digest(cast("Session", Reading(order)), project, revision)
+        for order in (rows, list(reversed(rows)), [rows[2], rows[0], rows[3], rows[1]])
+    }
+    assert len(digests) == 1
+
+
+@pytest.mark.story("US-2930")
+def test_a_table_missing_is_not_counted_but_a_right_missing_fails_the_reading(
+    ephemeral_databases: dict[str, str], database_url: str
+) -> None:
+    address = ephemeral_databases["waterfall"]
+    owner = create_database_engine(address)
+    with owner.begin() as connection:
+        connection.execute(text("CREATE TABLE kept (n integer)"))
+    owner.dispose()
+    assert read_or_none(address, lambda c: c.execute(text("SELECT n FROM absent"))) is None
+    assert read_or_none(address, lambda c: c.execute(text("SELECT absent FROM kept"))) is None
+    name = f"waterfall_test_reader_{uuid4().hex}"
+    secret = uuid4().hex
+    database = make_url(address).database
+    server = create_database_engine(database_url).execution_options(isolation_level="AUTOCOMMIT")
+    with server.connect() as connection:
+        connection.execute(text(f"CREATE ROLE \"{name}\" LOGIN PASSWORD '{secret}'"))
+        connection.execute(text(f'GRANT CONNECT ON DATABASE "{database}" TO "{name}"'))
+    try:
+        reader = make_url(address).set(username=name, password=secret)
+        refused = reader.render_as_string(hide_password=False)
+        with pytest.raises(exc.ProgrammingError):
+            read_or_none(refused, lambda c: c.execute(text("SELECT n FROM kept")))
+    finally:
+        with server.connect() as connection:
+            connection.execute(text(f'REVOKE CONNECT ON DATABASE "{database}" FROM "{name}"'))
+            connection.execute(text(f'DROP ROLE "{name}"'))
+        server.dispose()

@@ -21,11 +21,31 @@ compose() {
   docker compose --file compose.restore-test.yaml --profile restore-test "$@"
 }
 
+# Whatever happens — the test ends, fails, is interrupted (INT, TERM) — the ephemeral platform is
+# removed with its volumes: it holds a copy not anonymised, and a restoration of the production.
+remove() {
+  compose down --volumes --remove-orphans
+}
+trap remove EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+# A command Compose runs, in the background and waited for: the shell takes a signal at once, not
+# once the command has ended, which `compose wait` would not do for hours.
+run() {
+  "$@" &
+  waited=$!
+  wait "$waited"
+}
+
+# What a test interrupted before left (its copy not anonymised, a volume whose roles have another
+# password than the one drawn above) goes first: the test starts from nothing.
+remove
+
 # Keycloak and the API start once the test has restored their databases: up returns then, or as
 # soon as the test stops before.
-compose up --detach --quiet-pull
-compose wait restore-test
+run compose up --detach --quiet-pull
+run compose wait restore-test
 status=$?
 compose logs --no-color --no-log-prefix restore-test
-compose down --volumes --remove-orphans
 exit "$status"

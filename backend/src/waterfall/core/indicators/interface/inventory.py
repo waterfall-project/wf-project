@@ -26,9 +26,11 @@ if TYPE_CHECKING:
 def kept_indicators_digest(session: Session, project_id: UUID, revision_id: UUID) -> str:
     """Give the SHA-256 of the documents a revision kept, each with its kind, scope and instant.
 
-    Read in the partition of the project, in the order of their kind then their scope, and written
-    in a form that does not depend on that of the database. A revision that kept none, or that is
-    not there, gives the digest of nothing, which a revision that kept some never gives.
+    Read in the partition of the project, then sorted here by their kind then their scope — the
+    collation of a database sorts text its own way, and the one of the database restored may not be
+    the one of the backup —, and written in a form that does not depend on that of the database. A
+    revision that kept none, or that is not there, gives the digest of nothing, which a revision
+    that kept some never gives.
     """
     kept = session.execute(
         select(
@@ -36,16 +38,17 @@ def kept_indicators_digest(session: Session, project_id: UUID, revision_id: UUID
             RevisionIndicator.scope,
             RevisionIndicator.computed_at,
             RevisionIndicator.document,
-        )
-        .where(
+        ).where(
             RevisionIndicator.project_id == project_id,
             RevisionIndicator.revision_id == revision_id,
         )
-        .order_by(RevisionIndicator.kind, RevisionIndicator.scope)
     )
-    written = [
-        [kind, scope, computed_at.isoformat(), document]
-        for kind, scope, computed_at, document in kept
-    ]
+    written = sorted(
+        (
+            [kind, scope, computed_at.isoformat(), document]
+            for kind, scope, computed_at, document in kept
+        ),
+        key=lambda each: (each[0], each[1]),
+    )
     canonical = json.dumps(written, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canonical.encode()).hexdigest()

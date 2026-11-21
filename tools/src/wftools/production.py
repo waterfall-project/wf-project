@@ -27,7 +27,9 @@ come from the environment, as the chain gives them; no file holds them. Then it 
   page of the front that names them;
 - asked for by ``WATERFALL_TRIAL_RESTORATION=1``, as the chain does, a backup and its restoration by
   the API, which the service of the restoration runs, followed by the liveness probe to its end
-  (``wftools.restoration_trial``, US-0440, #948).
+  (``wftools.restoration_trial``, US-0440, #948), and the test of a restoration under Compose
+  (``deploy/compose/restore-test.sh``) on a backup the schedule took, which leaves nothing of its
+  ephemeral platform behind (``wftools.restoretest_trial``, US-2930).
 
 Every request reaches the platform at the loopback, under the name of the domain, which no resolver
 is asked for. The platform is removed at the end, its volumes with it, whatever the outcome; what
@@ -65,6 +67,7 @@ from wftools.restoration_trial import (
     probe_of,
     wanted,
 )
+from wftools.restoretest_trial import restore_test, scheduled_backup
 from wftools.transport import PROBE, SERVED, TransportError, check_clear_refused
 
 COMPOSE = REPOSITORY / "deploy" / "compose"
@@ -544,7 +547,8 @@ def main(
     if wanted(given):
         secret = given.get("WATERFALL_FRONT_CLIENT_SECRET", "")
         restoration = Restoration(ask or _asker(started), secret)
-    compose = compose_command(given.get("WATERFALL_PRODUCTION_PROJECT") or PROJECT)
+    project = given.get("WATERFALL_PRODUCTION_PROJECT") or PROJECT
+    compose = compose_command(project)
     up = [*compose, "up", "--detach", "--wait", "--quiet-pull"]
     print(f"  the images {tag}, at {platform.address}", flush=True)
     failed = True
@@ -556,7 +560,9 @@ def main(
         if restoration is None:
             print("  the backup and its restoration are left out (WATERFALL_TRIAL_RESTORATION)")
         else:
+            scheduled_backup(compose, read)
             back_up_and_restore(compose, read, platform, signed, restoration)
+            restore_test(compose, run, read, project)
         failed = False
     except (ProductionError, TrialError) as error:
         print(f"wftools.production: {error}", file=sys.stderr)

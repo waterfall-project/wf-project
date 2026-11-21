@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
+from psycopg.errors import UndefinedColumn, UndefinedTable
 from sqlalchemy import exc, text
 from sqlalchemy.orm import Session
 
@@ -173,12 +174,16 @@ def read_or_none[Read](address: str, read: Callable[[Connection], Read]) -> Read
     """Read in one state of a database; ``None`` if it lacks a table or a column the reading names.
 
     A database of an earlier revision than the code — taken mid-update — is backed up all the
-    same, its manifest without what it holds: its test of a restoration then says so.
+    same, its manifest without what it holds: its test of a restoration then says so. Any other
+    refusal — a right the role lacks (42501) — fails the backup: it would hold a manifest without
+    inventory for a fault no earlier revision explains.
     """
     try:
         with reading(address) as connection:
             return read(connection)
     except exc.ProgrammingError as error:
+        if not isinstance(error.orig, UndefinedTable | UndefinedColumn):
+            raise
         logger.warning(UNCOUNTED, error=type(error.orig).__name__)
         return None
 
