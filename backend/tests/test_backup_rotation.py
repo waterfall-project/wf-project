@@ -196,3 +196,17 @@ def test_a_task_that_fails_after_the_rotation_keeps_the_list_and_the_archives(
         assert session.get_one(BackgroundTask, failed).status == "failed"
     assert installation.bucket.size(archive_of(first)) is not None
     assert installation.bucket.size(archive_of(failed)) is None
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_a_backup_whose_verification_failed_is_counted_in_the_retention(database: Database) -> None:
+    # Pinned as the letter of WF-ADM-0170-A has it, until the specification says otherwise (#4366):
+    # a failed backup takes a place of the retention, and the oldest verified one goes for it.
+    oldest = recorded(database, days(1), Row(key="good.tar"))
+    failed = [
+        recorded(database, days(2 + day), Row(verification="failed", key=f"bad-{day}.tar"))
+        for day in range(3)
+    ]
+    assert rotated(database, 3) == ["good.tar"]
+    assert oldest not in listed(database)
+    assert listed(database) == failed

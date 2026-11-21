@@ -23,7 +23,6 @@ from realm import KEY, TestRealm
 from sqlalchemy import func, select, text, update
 from support import ContractClient, bearer
 
-from waterfall.api.restores import RESTORE_LOCK
 from waterfall.core.backups.interface import (
     ExternalCopy,
     ScheduleWriting,
@@ -35,6 +34,7 @@ from waterfall.core.backups.tables import BackupSchedule
 from waterfall.platform.audit import Act
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import UnprocessableError
+from waterfall.platform.locks import RESTORE_LOCK
 from waterfall.platform.tasks import BackgroundTask
 
 pytestmark = pytest.mark.story("US-2910")

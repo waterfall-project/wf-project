@@ -21,17 +21,17 @@ from fastapi import APIRouter, Body, Depends
 from sqlalchemy import func, select
 
 from waterfall.api.authentication import Caller, ServicesOf, Transaction
-from waterfall.api.backup_conditions import (
-    NO_RESTORE_RUNNING,
-    platform_of,
-    refuse_if_lacking,
-    restoration_lacks,
-)
 from waterfall.api.contract.models import BackgroundTaskRef, RestoreRequest
 from waterfall.api.evaluation import Acting, Requires
 from waterfall.api.tasks import task_ref
 from waterfall.core.access_roles.interface import require
-from waterfall.core.backups.interface import read_backup
+from waterfall.core.backups.interface import (
+    NO_RESTORE_RUNNING,
+    platform_of,
+    read_backup,
+    refuse_if_lacking,
+    restoration_lacks,
+)
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import (
     NOT_FOUND,
@@ -41,6 +41,7 @@ from waterfall.platform.errors import (
     NotFoundError,
     UnprocessableError,
 )
+from waterfall.platform.locks import RESTORE_LOCK
 from waterfall.platform.tasks import BackgroundTask, submit
 from waterfall.platform.uploads import EXTERNAL_BACKUP, completed_upload
 
@@ -51,8 +52,6 @@ UPLOAD_PURPOSE_MISMATCH = "UPLOAD_PURPOSE_MISMATCH"
 RESTORE = [Depends(Requires("platform_restore"))]
 # The permission without which a backup of the list does not exist for the caller (WF-ADM-0110).
 CONSULTATION = "backups.read"
-# The key of the advisory lock under which a request looks for a pending restoration, then deposits.
-RESTORE_LOCK = 3_700_160
 
 
 @router.post(

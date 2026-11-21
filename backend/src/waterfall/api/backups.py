@@ -21,15 +21,6 @@ from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy import func, select
 
 from waterfall.api.authentication import Caller, ServicesOf, Transaction
-from waterfall.api.backup_conditions import (
-    Platform,
-    backup_start_lacks,
-    download_lacks,
-    marking_lacks,
-    platform_of,
-    refuse_if_lacking,
-    restoration_lacks,
-)
 from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import (
     BackgroundTaskRef,
@@ -42,7 +33,6 @@ from waterfall.api.contract.models import (
 )
 from waterfall.api.evaluation import Acting, Requires
 from waterfall.api.queries import Offset, read_list, refuse_query
-from waterfall.api.restores import RESTORE_LOCK
 from waterfall.api.tasks import task_ref
 from waterfall.core.access_roles.interface import Actor
 from waterfall.core.backups.interface import (
@@ -50,15 +40,23 @@ from waterfall.core.backups.interface import (
     BackupFilters,
     BackupSort,
     BackupView,
+    Platform,
+    backup_start_lacks,
+    download_lacks,
     list_backups,
     mark_backup,
+    marking_lacks,
+    platform_of,
     read_backup,
+    refuse_if_lacking,
+    restoration_lacks,
 )
 from waterfall.platform.errors import (
     NOT_FOUND,
     FieldError,
     NotFoundError,
 )
+from waterfall.platform.locks import BACKUP_LOCK, RESTORE_LOCK
 from waterfall.platform.storage import MissingObjectError
 from waterfall.platform.tasks import BackgroundTask, submit
 
@@ -74,8 +72,6 @@ VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 NUMBER_INVALID = "NUMBER_INVALID"
 # The greatest integer PostgreSQL represents (``bigint``): a bound beyond it keeps what it would.
 GREATEST_SIZE = 2**63 - 1
-# The key of the advisory lock under which a request looks for a backup pending, then deposits one.
-BACKUP_LOCK = 3_700_150
 
 
 def _command(command: str, lacking: list[str]) -> dict[str, Any]:

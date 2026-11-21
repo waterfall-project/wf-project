@@ -184,6 +184,8 @@ class BackupSchedule(Base):
     created_by: Mapped[UUID | None] = mapped_column(
         ForeignKey("user_account.id", ondelete="RESTRICT")
     )
+    # When, and by whom, the timing (enabled, frequency, time, weekday) last changed: a writing of
+    # the retention or of the copy alone leaves them (``write_backup_schedule``).
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime)
     updated_by: Mapped[UUID | None] = mapped_column(
         ForeignKey("user_account.id", ondelete="RESTRICT")

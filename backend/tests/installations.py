@@ -140,6 +140,8 @@ def before_the_schedule_of_the_backups() -> Generator[None]:
     brought back before it, the table is not there to be read, and the rotation, which is not what
     such a test tries, is left out.
     """
+    # Only the rotation is left out: the attribute must exist, or the patch would leave nothing out.
+    assert callable(getattr(BackupTask, "_rotate", None)), "BackupTask no longer rotates by _rotate"
     with pytest.MonkeyPatch.context() as patched:
         patched.setattr(BackupTask, "_rotate", no_rotation)
         yield

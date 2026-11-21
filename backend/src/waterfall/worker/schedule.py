@@ -13,7 +13,10 @@ the accounts and the purge are due at an interval of the installation; the backu
 when the schedule of the backups says so, and the test of a restoration (US-2930) will join them,
 each asking the module that holds its planning.
 A task of a kind is never deposited while one of that kind is queued or running, and two
-schedules, run together, deposit it once: they wait on one advisory lock.
+schedules, run together, deposit it once: they wait on one advisory lock. A backup is deposited
+as ``startBackup`` does, under the same locks in the same order (``waterfall.platform.locks``) and
+under the same conditions: none is deposited while a backup or a restoration is queued or running,
+and a restoration asked for meanwhile waits for it, or sees it.
 """
 
 from dataclasses import dataclass
@@ -24,6 +27,7 @@ from sqlalchemy import func, select
 
 from waterfall.core.backups import interface as backups_interface
 from waterfall.platform.database import Database, utc_now
+from waterfall.platform.locks import BACKUP_LOCK, RESTORE_LOCK
 from waterfall.platform.logs import get_logger
 from waterfall.platform.tasks import ScheduledKind, TaskKind, last_submitted, pending_task, submit
 
@@ -47,6 +51,10 @@ class Planned:
 
     kind: TaskKind | ScheduledKind
     due: Callable[[Session, datetime], bool]
+    # What holds back a task due: the conditions the kind has besides its own pending task.
+    lacks: Callable[[Session], list[str]] = lambda _session: []
+    # The advisory locks of the kind, taken in order before it looks for what holds it back.
+    locks: tuple[tuple[int, bool], ...] = ()
 
 
 def every(kind: TaskKind | ScheduledKind, seconds: int) -> Planned:
@@ -65,7 +73,14 @@ def planned(settings: ScheduleSettings) -> tuple[Planned, ...]:
     return (
         every("identity_sync", settings.identity_sync_interval),
         every("purge", settings.purge_interval),
-        Planned("backup", backups_interface.backup_is_due),
+        Planned(
+            "backup",
+            backups_interface.backup_is_due,
+            lacks=lambda session: backups_interface.backup_start_lacks(
+                backups_interface.platform_of(session)
+            ),
+            locks=((BACKUP_LOCK, False), (RESTORE_LOCK, True)),
+        ),
     )
 
 
@@ -80,9 +95,15 @@ def deposit_due(database: Database, queue: TaskQueue, plan: tuple[Planned, ...])
         session.execute(select(func.pg_advisory_xact_lock(SCHEDULE_LOCK)))
         now = utc_now()
         for each in plan:
+            for key, shared in each.locks:
+                lock = func.pg_advisory_xact_lock_shared if shared else func.pg_advisory_xact_lock
+                session.execute(select(lock(key)))
             pending = pending_task(session, each.kind)
+            lacking = each.lacks(session)
             if pending is not None:
                 logger.info("task.already_pending", kind=each.kind, task_id=str(pending))
+            elif lacking:
+                logger.info("task.held_back", kind=each.kind, missing_condition=lacking[0])
             elif each.due(session, now):
                 task_id = submit(session, queue, each.kind, None)
                 logger.info("task.enqueued", kind=each.kind, task_id=str(task_id))

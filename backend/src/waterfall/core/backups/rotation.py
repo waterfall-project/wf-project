@@ -27,6 +27,10 @@ def rotate(session: Session, retained_count: int) -> list[str]:
     """Delete the oldest backups not marked beyond ``retained_count``; give their archives' keys.
 
     The mark is judged again by the deletion: a backup marked meanwhile survives it.
+
+    A backup whose verification failed is counted in the retention like any other, as the letter of
+    WF-ADM-0170-A has it ("the oldest backups not marked beyond the retention"): whether it should
+    be, with the risk that failures push the good ones out, is open in the specification (#4366).
     """
     unmarked = ~Backup.is_retained
     oldest = (

@@ -62,8 +62,9 @@ KINDS = (*CONTRACT_KINDS, *SCHEDULED_KINDS)
 STATUSES = ("queued", "running", "succeeded", "failed")
 PENDING = ("queued", "running")
 # The kinds the platform deposits of itself, whose latest the purge spares: those the planned
-# command schedules (``waterfall.worker.schedule.planned``, which a test compares to this list), and
-# the copy a backup deposits.
+# command schedules (``waterfall.worker.schedule.planned``), and the two it does not schedule yet,
+# ``backup_copy``, which a backup deposits, and ``restore_test``, whose planning US-2930 adds. A
+# test compares this list to ``planned``, those two excepted.
 PLANNED_KINDS: tuple[str, ...] = ("identity_sync", "backup", *SCHEDULED_KINDS)
 FINISHED = ("succeeded", "failed")
 # The key of the payload of a task that names the project it aims at, which waits for it.

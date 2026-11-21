@@ -20,7 +20,6 @@ from waterfall.api.authentication import Caller, Transaction
 from waterfall.api.contract.base import ContractModel
 from waterfall.api.contract.models import BackupSchedule, Frequency, LockVersion
 from waterfall.api.evaluation import Requires
-from waterfall.api.restores import RESTORE_LOCK
 from waterfall.core.backups.interface import (
     BackupScheduleView,
     ExternalCopy,
@@ -38,6 +37,7 @@ from waterfall.platform.errors import (
     FieldError,
     UnprocessableError,
 )
+from waterfall.platform.locks import RESTORE_LOCK
 from waterfall.platform.tasks import pending_task
 
 router = APIRouter(tags=["platform"])

@@ -10,19 +10,25 @@ administrator asks for, its origin ``scheduled``. A new installation is backed u
 any schedule entered: it reads the one the migrations ship.
 """
 
+import threading
+import time as clock
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any
 
 import pytest
 from access_rows import account
-from sqlalchemy import insert, select, update
+from sqlalchemy import func, insert, select, update
 
 from waterfall.core.backups.interface import (
     Schedule,
     ScheduleWriting,
     backup_is_due,
+    backup_start_lacks,
     judged_schedule,
+    platform_of,
     read_backup_schedule,
+    refuse_if_lacking,
     write_backup_schedule,
 )
 from waterfall.core.backups.schedule import latest_occurrence
@@ -30,9 +36,10 @@ from waterfall.core.backups.tables import Backup, BackupSchedule
 from waterfall.platform.audit import Act
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.identifiers import new_id
+from waterfall.platform.locks import BACKUP_LOCK, RESTORE_LOCK
 from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import ScheduleSettings
-from waterfall.platform.tasks import PLANNED_KINDS, BackgroundTask
+from waterfall.platform.tasks import PENDING, PLANNED_KINDS, BackgroundTask, submit
 from waterfall.worker.backup import BackupTask
 from waterfall.worker.runner import Timing, Worker
 from waterfall.worker.schedule import Planned, deposit_due, planned
@@ -175,7 +182,18 @@ def test_a_backup_an_administrator_asked_for_does_not_stand_for_the_one_the_plat
 
 
 def set_schedule(database: Database, writing: ScheduleWriting, at_instant: datetime) -> None:
-    """Write the schedule as an administrator does, at an instant."""
+    """Write the schedule as an administrator does, at an instant.
+
+    The row is taken as installed at that instant first: whatever the writing changes of the
+    timing is then dated by it, and a writing that changes none leaves the instant as it was.
+    """
+    with database.transaction() as session:
+        session.execute(update(BackupSchedule).values(updated_at=at_instant))
+    rewrite(database, writing, at_instant)
+
+
+def rewrite(database: Database, writing: ScheduleWriting, at_instant: datetime) -> None:
+    """Write the schedule as an administrator does, at an instant, the row as it stands."""
     with database.transaction() as session:
         held = read_backup_schedule(session).lock_version
         schedule = judged_schedule(writing, set())
@@ -211,6 +229,21 @@ def test_a_schedule_that_has_just_been_written_owes_nothing_for_the_time_it_has_
     assert not due(database, written_at + MINUTE)
     assert not due(database, written_at + 23 * HOUR - MINUTE)
     assert due(database, written_at + 23 * HOUR)
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_a_retention_written_just_after_the_hour_leaves_the_backup_of_the_day_due(
+    database: Database,
+) -> None:
+    # The schedule is daily at 01:00, long written; its retention alone is written at 01:00:30: the
+    # backup of 01:00 is still owed, a timing unchanged not being a schedule newly announced.
+    day = datetime.combine(utc_now().date(), time(1, 0), tzinfo=UTC)
+    set_schedule(database, written(), day - 10 * DAY)
+    rewrite(database, written(retained_count=3), day + timedelta(seconds=30))
+    assert due(database, day + MINUTE)
+    # Moved, the same writing does announce a new time: nothing is owed for the one passed.
+    rewrite(database, written(at_time="00:30", retained_count=3), day + timedelta(seconds=40))
+    assert not due(database, day + MINUTE)
 
 
 @pytest.mark.requirement("WF-ADM-0170-A")
@@ -281,9 +314,103 @@ def test_the_backup_the_planned_command_deposits_is_taken_by_the_worker_as_sched
         assert deposit_due(database, queue, backup_plan()) == []
 
 
+# The kinds the purge keeps the latest of that the planned command does not schedule: the copy a
+# backup deposits, and the test of a restoration, which US-2930 will plan.
+NOT_PLANNED_BY_THE_COMMAND = {"backup_copy", "restore_test"}
+
+
 def test_every_kind_the_planned_command_schedules_is_one_the_purge_keeps_the_latest_of() -> None:
     # #4347: a kind added to ``planned`` and not to ``PLANNED_KINDS`` would see its latest task
-    # purged, and its schedule read it due again at once after each purge.
+    # purged, and its schedule read it due again at once after each purge; and a kind of
+    # ``PLANNED_KINDS`` that nothing schedules is named, not silently kept.
     planned_kinds = {each.kind for each in planned(SETTINGS)}
     assert "backup" in planned_kinds
-    assert planned_kinds <= set(PLANNED_KINDS)
+    assert planned_kinds == set(PLANNED_KINDS) - NOT_PLANNED_BY_THE_COMMAND
+    assert set(PLANNED_KINDS) >= NOT_PLANNED_BY_THE_COMMAND
+
+
+def restore_queued(database: Database) -> None:
+    """Write a restoration queued, as ``startRestore`` leaves it."""
+    with database.transaction() as session:
+        session.execute(
+            insert(BackgroundTask).values(
+                id=new_id(),
+                kind="restore",
+                status="queued",
+                progress=0,
+                payload={},
+                requested_by=None,
+                correlation_id="test-backup-planned",
+                attempts=0,
+                submitted_at=utc_now(),
+            )
+        )
+
+
+def backups_pending(database: Database) -> int:
+    """Count the backups queued or running."""
+    with database.transaction() as session:
+        return len(
+            session.execute(
+                select(BackgroundTask.id).where(
+                    BackgroundTask.kind == "backup", BackgroundTask.status.in_(PENDING)
+                )
+            ).all()
+        )
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_the_planned_command_deposits_no_backup_while_a_restoration_is_queued(
+    database: Database, queue: TaskQueue
+) -> None:
+    # The conditions of ``startBackup``: a backup is not deposited beside a restoration, which
+    # replaces the database it would copy; once the restoration is over, the backup is deposited.
+    set_schedule(database, written(), utc_now() - 10 * DAY)
+    queue.prepare()
+    restore_queued(database)
+    with logging_context(correlation_id="planned-backup"):
+        assert deposit_due(database, queue, backup_plan()) == []
+    assert backups_pending(database) == 0
+    with database.transaction() as session:
+        restored = update(BackgroundTask).where(BackgroundTask.kind == "restore")
+        session.execute(restored.values(status="succeeded", finished_at=utc_now()))
+    with logging_context(correlation_id="planned-backup"):
+        assert deposit_due(database, queue, backup_plan()) == ["backup"]
+
+
+def planned_deposit(database: Database, queue: TaskQueue) -> list[str]:
+    """Run the planned command for the backups, in a thread of its own."""
+    with logging_context(correlation_id="planned-backup"):
+        return deposit_due(database, queue, backup_plan())
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_a_backup_asked_for_and_the_planned_command_run_together_leave_one_backup_queued(
+    database: Database, queue: TaskQueue
+) -> None:
+    # ``post_backup`` and the command deposit under the same locks and conditions: whichever
+    # comes second sees the first one's task and deposits none.
+    set_schedule(database, written(), utc_now() - 10 * DAY)
+    queue.prepare()
+    entered = threading.Event()
+    release = threading.Event()
+
+    def asked_for() -> None:
+        with logging_context(correlation_id="asked-for-backup"), database.transaction() as session:
+            session.execute(select(func.pg_advisory_xact_lock(BACKUP_LOCK)))
+            session.execute(select(func.pg_advisory_xact_lock_shared(RESTORE_LOCK)))
+            refuse_if_lacking(backup_start_lacks(platform_of(session)))
+            submit(session, queue, "backup", None)
+            entered.set()
+            release.wait(10)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        asking = pool.submit(asked_for)
+        assert entered.wait(10)
+        planned_run = pool.submit(planned_deposit, database, queue)
+        clock.sleep(0.5)
+        assert not planned_run.done()
+        release.set()
+        asking.result(10)
+        assert planned_run.result(10) == []
+    assert backups_pending(database) == 1

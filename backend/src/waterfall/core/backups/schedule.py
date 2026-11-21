@@ -202,6 +202,12 @@ def write_backup_schedule(
 
     The row is locked, then read: a counter that is not its own is refused (412), and nothing is
     written. A copy absent removes the one set.
+
+    ``updated_at`` and ``updated_by`` say when, and by whom, the *timing* last changed — enabled,
+    frequency, time, weekday —, which is what ``backup_is_due`` takes as the base of what is owed:
+    a writing of the retention or of the copy alone leaves them, so that it does not make a backup
+    skip the occurrence it was written just after (no column, no migration: the audit journal
+    holds every writing).
     """
     held = session.scalars(
         select(BackupSchedule)
@@ -214,6 +220,13 @@ def write_backup_schedule(
             STALE_LOCK_VERSION, {"expected_lock_version": held.lock_version}
         )
     copy = schedule.external_copy
+    retimed = (held.is_enabled, held.frequency, held.at_time, held.weekday) != (
+        schedule.is_enabled,
+        schedule.frequency,
+        schedule.at_time,
+        schedule.weekday,
+    )
+    stamp = {"updated_at": act.at, "updated_by": act.author} if retimed else {}
     session.execute(
         update(BackupSchedule)
         .where(BackupSchedule.id == SINGLE_ROW)
@@ -228,8 +241,7 @@ def write_backup_schedule(
             external_copy_path=None if copy is None else copy.path,
             external_copy_retained_count=None if copy is None else copy.retained_count,
             lock_version=lock_version + 1,
-            updated_at=act.at,
-            updated_by=act.author,
+            **stamp,
         )
     )
     return BackupScheduleView(schedule, lock_version + 1)
@@ -255,9 +267,10 @@ def backup_is_due(session: Session, now: datetime) -> bool:
     """Tell whether the platform owes a backup of itself at ``now`` (WF-ADM-0170).
 
     It is when the schedule is enabled and its latest occurrence is later than the latest backup
-    the platform deposited of itself, and later than the last writing of the schedule: a schedule
-    that has just been written, or just been installed, owes nothing for an occurrence it did not
-    announce. A backup deposited late, or not yet deposited, is deposited once, not once per
+    the platform deposited of itself, and later than the last change of its timing (see
+    ``write_backup_schedule``): a schedule just enabled, moved or installed owes nothing for an
+    occurrence it did not announce; one whose retention or copy alone is written owes what it
+    owed. A backup deposited late, or not yet deposited, is deposited once, not once per
     occurrence missed.
     """
     row = session.get_one(BackupSchedule, SINGLE_ROW)
