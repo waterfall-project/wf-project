@@ -271,8 +271,8 @@ section qui la porte, et rien d'autre dans la conception ne change.
   maximale, 422 `VALUE_OUT_OF_RANGE` sur la période, au lieu d'une lecture par trimestre touché sans
   limite. Écartées : lire les documents conservés de tous les trimestres en une requête ; laisser
   tel quel et attendre la mesure. Porté par US-2670/L4 #3873, qui éprouve la règle des périodes sur
-  les six vues ; **la durée maximale n'est pas fixée** : le lot la propose dans son issue.
-  Proposée par US-2670/L4 : cinq ans (commentaire de #3873).
+  les six vues. Le lot a proposé cinq ans (commentaire de #3873), **confirmés par l'auteur le
+  2026-11-21** : `PERIOD_YEARS = 5`.
 - **Un exemple de 422 de `getPortfolioProjects` sur la période du périmètre** (#4164) : période
   inversée avec `as_of`, champs `/query/from` et `/query/to`, au contrat, que le test de l'écran lit
   au lieu de composer ses champs. Porté par US-2760/L2 #3884.
@@ -299,6 +299,41 @@ section qui la porte, et rien d'autre dans la conception ne change.
   tests sur les fabriques attendent tous, directement ou non.
 - **Les exemples à barre oblique de WF-CRE-0020 et WF-PRJ-0050** (#4022) entrent au harnais avec le
   lot qui réalise #3966 : voir US-2780.
+
+### Décisions de l'auteur du 2026-11-21
+
+Prises sur les constats ouverts, en commentaire de leur issue ; chacune dit le lot qui la porte, et
+rien d'autre dans la conception ne change.
+
+- **Un lot neuf, US-2780/L4 « L'unique implémentation, reprise du noyau »** (#4372, #4373, #4363),
+  après US-2780/L3 #3878, qui a posé le contrôle, et avant US-2790 #3868 et US-2770/L3 #3887, qui en
+  dépendent désormais ; « pas avec » US-2770/L2 #3886, qui peut toucher les mêmes fichiers du noyau.
+  Il fait tenir par le dépôt ce que le contrôle de L3 ne pouvait encore constater :
+  - le calendrier des mois de `core/portfolio/aggregation/periods.py` importe celui de
+    `core/indicators/series/months.py` par l'interface d'`indicators`, et l'exemption `[[duplicate]]`
+    de `tools/implementations.toml` est retirée (#4372) ;
+  - les trois calculs écrits deux fois dans le noyau n'ont plus qu'une définition, importée par
+    l'interface : `quality_conditions` (`core/projects/commands.py`, `core/revisions/commands.py`),
+    `month_of` (`core/estimate/disbursing.py`, `core/indicators/series/months.py`), `CENT`
+    (`core/estimate/pricing/amounts.py`, `core/indicators/formulas/rounding.py`) (#4373) ;
+  - **les arrondis de `api/nodes.py` (`_money`) et d'`api/comparison.py`** — `quantize(CENT)`, demi
+    pair — **face à `round_to_cent`, demi supérieur** : le lot commence par un test qui dit si cela
+    change une valeur réelle. Si oui, c'est un constat de contrat à ouvrir à part, non corrigé dans
+    le lot sans décision (#4373) ;
+  - les motifs `\d` d'`api/problems.py`, de `core/costs/extraction.py` et de
+    `core/planning/interface/paste.py` n'acceptent plus les chiffres Unicode (`[0-9]` ou `re.ASCII`),
+    un test par chemin (#4363).
+
+  Écarté : corriger dans US-2780/L3, déjà fusionné ; un lot neuf garde la revue de ces reprises du
+  noyau, qui changent des interfaces qu'EP-09 et EP-10 partagent, séparée de celle du contrôle.
+- **La durée maximale de la performance est de cinq ans** (#4176, `PERIOD_YEARS = 5`) : voir
+  « Décisions de l'auteur du 2026-11-19 ».
+- **Le test des familles d'identifiants reconnaît la corrélation dérivée** d'un exemple d'erreur de
+  `fixtures/api` (#4361, issue de #1007) : corrigé par US-2770/L3 #3887.
+- **La courbe en S du jour ne re-choisit pas la révision que le périmètre a retenue** (#4339) :
+  corrigé par US-2790 #3868.
+- **Les trois gardes du test de la lecture conservée sont durcies** (#4360) : corrigé par
+  US-2770/L2 #3886.
 
 ### Tables et migrations
 
@@ -1190,6 +1225,12 @@ noyau refuse encore ces codes. **Aucun lot de l'EPIC ni d'un autre EPIC ne réal
 jour** (issue sans EPIC) ; ce lot reste à nommer quand #3966 sera planifié, et c'est lui qui écrit
 ces trois exemples dans `backend/tests/examples/test_wbs_element_examples.py`. Ils restent hors de la
 liste versionnée des exemples hors du harnais, qui ne reçoit que ce que le noyau ne calcule pas.
+
+**La reprise du noyau** (#4372, #4373, #4363, décision du 2026-11-21) : le contrôle de L3 constate ce
+que le noyau ne tenait pas encore ; US-2780/L4 reprend les doublons que L3 a trouvés, retire
+l'exemption de `tools/implementations.toml` et ferme les motifs `\d` : voir « Décisions de l'auteur
+du 2026-11-21 ». Il ne ferme aucun critère de plus : il tient celui de `WF-ARC-0010-A` sur « qu'une
+implémentation ».
 
 **Notes de réalisation.** Le relevé compte 98 exemples au cadrage ; les exemples d'EP-10 et d'EP-08
 entrent au harnais par leurs propres lots. Le harnais est `backend/tests/examples`, l'outil
