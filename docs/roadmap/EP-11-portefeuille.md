@@ -843,7 +843,7 @@ couverture, offres » (G-03, G-08, G-14, M-16). Les ratios et les projections so
 
 ## US-2720 — La structure des coûts du portefeuille
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PTF-0080-A`
 - **opérations** : `getPortfolioCostStructure`
 - **issue** : #3863

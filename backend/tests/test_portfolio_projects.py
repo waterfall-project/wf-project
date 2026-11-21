@@ -39,7 +39,7 @@ from support import CONTRACT
 
 from waterfall.api.portfolio_projects import BOUNDED, DECIMAL, MONEY, ProjectsQuery
 from waterfall.core.costs.interface import PROJECT
-from waterfall.core.indicators.contributions import contribution_key
+from waterfall.core.indicators.contributions import contribution_key, stamps_of
 from waterfall.core.indicators.interface import current_day_reading, day_indicators, day_reading_of
 from waterfall.core.portfolio.contributing import day_contribution
 from waterfall.core.portfolio.interface import (
@@ -49,7 +49,6 @@ from waterfall.core.portfolio.interface import (
     read_portfolio_projects,
 )
 from waterfall.core.projects.interface import Viewer
-from waterfall.core.resource_settings.interface import roles_stamp
 from waterfall.platform.cache import PREFIX, IndicatorsCache, Unavailable
 from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError, NotFoundError
 
@@ -414,9 +413,9 @@ def test_the_documents_of_the_current_day_are_computed_once_and_then_read_from_t
             )
 
     with database.transaction() as session:
-        roles = roles_stamp(session)
+        stamps = stamps_of(session)
         keys = [
-            contribution_key(session, project_id, revision, now, roles)
+            contribution_key(session, project_id, revision, now, stamps)
             for project_id, revision in contributing.items()
         ]
     try:

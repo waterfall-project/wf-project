@@ -30,9 +30,18 @@ revision, own estimates included, the lines and the reference, from which its se
 re-estimated amount of an occurred one, its share and the base are read. ``FORM`` of the key
 changes with what an entry holds, so that an entry of a form before is never read again.
 
+The key covers the stamp of the hourly rates of the reference too (``rates_stamp``, #4283, US-2720),
+read once for all the projects: on the current day, the structure of the costs of a revision not
+marked names the rates its labour lacks, and the document ``estimate`` of an offer is not computed
+without them (WF-DEV-0010), so a rate set leaves the entry (WF-DAT-0130-A). The rates a revision
+keeps need nothing more: they are written at its opening, which moves its counters, and at its
+marking.
+
 The key does not cover the label of a nature of cost, which the structure of the costs of a
 revision not marked reads on the reference as it stands: a nature renamed is served under its former
-label until the entry expires, within the validity of the cache (``IndicatorsCache``).
+label until the entry expires, within the validity of the cache (``IndicatorsCache``). The labels
+of ``missing_rates[].label`` are in the same case: kept in the entry, which the key does not cover,
+a category renamed keeps its former label there until the entry expires.
 
 An entry answers every kind the caller names (``Contributing.kinds``), a document or ``null`` for a
 kind the state of the project does not call for: an entry that lacks one of them is partial —
@@ -45,6 +54,7 @@ import hashlib
 import json
 from typing import TYPE_CHECKING, cast
 
+from waterfall.core.cost_settings.interface import rates_stamp
 from waterfall.core.costs.interface import PROJECT
 from waterfall.core.indicators.caching import day_key
 from waterfall.core.indicators.computing import Basis
@@ -60,6 +70,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.cost_settings.interface import RatesStamp
     from waterfall.core.indicators.interface.documents import Document, IndicatorKind
     from waterfall.core.indicators.interface.portfolio import Contributing
     from waterfall.core.resource_settings.interface import RolesStamp
@@ -71,12 +82,16 @@ CONTRIBUTION = "portfolio"
 DRAFT = "draft"
 # The form of an entry of a contribution: a change of what an entry holds changes it. "2" since
 # US-2680/L2: every kind named, ``null`` for one the project does not give (#4193); "3" since
-# US-2680/L3, which adds ``portfolio_risks``.
-FORM = "3"
+# US-2680/L3, which adds ``portfolio_risks``; "4" since US-2720, whose structure of the costs names
+# the rates missing.
+FORM = "4"
 # The length of what the key adds to the fingerprint of the day: 128 bits of a SHA-256.
 FINGERPRINT_LENGTH = 32
 
 type Contribution = dict[IndicatorKind, Document]
+# What the key of every contribution of a reading reads once: the stamp of the roles and of the
+# calendars, and that of the hourly rates.
+type Stamps = tuple[RolesStamp, RatesStamp]
 
 
 class UnserializableContributionError(TypeError):
@@ -87,18 +102,23 @@ class UnserializableContributionError(TypeError):
 
 
 def contribution_key(
-    session: Session, project_id: UUID, revision_id: UUID, at: datetime, roles: RolesStamp
+    session: Session,
+    project_id: UUID,
+    revision_id: UUID,
+    at: datetime,
+    stamps: Stamps,
 ) -> str:
     """Give the key of the contribution of a project on the day of ``at``, on one of its revisions.
 
     The fingerprint of the day of the indicators (``day_key``), on that revision and the reference
     of the project, followed by ``portfolio`` and the fingerprint of what the contribution reads
-    besides: the form of an entry, the probability of winning of the project, ``roles`` — the stamp
-    of the roles and of the calendars, read once by the caller for all the projects. The facts of
-    the project are read once, for the reference, the probability and the fingerprint. The label of
-    a nature of cost is not covered: a nature renamed is served under its former label until the
-    entry expires.
+    besides: the form of an entry, the probability of winning of the project, ``stamps`` — the stamp
+    of the roles and of the calendars, and that of the hourly rates, read once by the caller for all
+    the projects (``stamps_of``). The facts of the project are read once, for the reference, the
+    probability and the fingerprint. The label of a nature of cost is not covered: a nature renamed
+    is served under its former label until the entry expires.
     """
+    roles, rates = stamps
     facts = project_facts(session, project_id)
     basis = Basis(project_id, revision_id, facts.reference_revision_id)
     context = Context(revision_id, DRAFT, at, PROJECT, is_stored=False)
@@ -108,10 +128,16 @@ def contribution_key(
         f"win_probability={facts.win_probability}\n"
         f"roles={roles.count},{roles.versions},{_instant(roles.updated_at)}\n"
         f"calendars={roles.calendar_count},{roles.calendar_versions},"
-        f"{_instant(roles.calendar_updated_at)}"
+        f"{_instant(roles.calendar_updated_at)}\n"
+        f"rates={rates.count},{rates.versions},{_instant(rates.updated_at)}"
     )
     fingerprint = hashlib.sha256(besides.encode()).hexdigest()[:FINGERPRINT_LENGTH]
     return f"{key}:{CONTRIBUTION}:{fingerprint}"
+
+
+def stamps_of(session: Session) -> Stamps:
+    """Read what the key of every contribution of a reading reads once: two statements."""
+    return roles_stamp(session), rates_stamp(session)
 
 
 def _instant(written: datetime | None) -> str:
@@ -191,15 +217,15 @@ def contributions(
 ) -> dict[UUID, Contribution]:
     """Give the contribution of each project on its revision, from its entry or computed.
 
-    Without a cache, every project is computed. With one, the stamp of the roles is read once, the
-    entries in one exchange, and those missing — absent, unreadable or partial — computed then
-    written, in one pass of writes.
+    Without a cache, every project is computed. With one, the stamps of the roles and of the rates
+    are read once, the entries in one exchange, and those missing — absent, unreadable or partial —
+    computed then written, in one pass of writes.
     """
     if cache is None or not revisions:
         return _documents(_computed(session, revisions, at, contributing))
-    roles = roles_stamp(session)
+    stamps = stamps_of(session)
     keys = {
-        project_id: contribution_key(session, project_id, revision, at, roles)
+        project_id: contribution_key(session, project_id, revision, at, stamps)
         for project_id, revision in revisions.items()
     }
     found = cache.lookup_many(list(keys.values()))

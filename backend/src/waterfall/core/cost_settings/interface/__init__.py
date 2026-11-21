@@ -157,13 +157,20 @@ from waterfall.core.cost_settings.interface.hourly_rates import (
 from waterfall.core.cost_settings.interface.hourly_rates import (
     HourlyRateView as HourlyRateView,
 )
+from waterfall.core.cost_settings.interface.hourly_rates import (
+    RatesStamp as RatesStamp,
+)
 
-# ``hourly_rates`` (US-0830): the hourly rates of the categories of labour, by year.
+# ``hourly_rates`` (US-0830; US-2720 for ``rates_stamp``): the hourly rates of the categories of
+# labour, by year.
 from waterfall.core.cost_settings.interface.hourly_rates import (
     category_is_rated as category_is_rated,
 )
 from waterfall.core.cost_settings.interface.hourly_rates import (
     list_hourly_rates as list_hourly_rates,
+)
+from waterfall.core.cost_settings.interface.hourly_rates import (
+    rates_stamp as rates_stamp,
 )
 from waterfall.core.cost_settings.interface.hourly_rates import (
     read_hourly_rate_grid as read_hourly_rate_grid,

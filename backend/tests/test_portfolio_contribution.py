@@ -40,7 +40,7 @@ from sqlalchemy import event, func, select, text, update
 from waterfall.core.cost_settings.tables import CostType
 from waterfall.core.estimate.interface import offer_workload, portfolio_totals
 from waterfall.core.estimate.tables import EstimateLine
-from waterfall.core.indicators.contributions import contribution_key
+from waterfall.core.indicators.contributions import contribution_key, stamps_of
 from waterfall.core.indicators.interface import (
     PORTFOLIO_KINDS,
     Contributing,
@@ -551,7 +551,7 @@ def cache(queue: TaskQueue) -> Iterator[Written]:
 def key_of(fabrics: Portfolio, project_id: UUID, revision_id: UUID) -> str:
     """Give the key of the contribution of a project at ``AT``."""
     with fabrics.stage.database.transaction() as session:
-        return contribution_key(session, project_id, revision_id, AT, roles_stamp(session))
+        return contribution_key(session, project_id, revision_id, AT, stamps_of(session))
 
 
 @pytest.mark.requirement("WF-DAT-0130-A")

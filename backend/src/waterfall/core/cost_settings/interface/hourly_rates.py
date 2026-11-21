@@ -40,6 +40,7 @@ from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
+    from datetime import datetime
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -129,6 +130,33 @@ def category_is_rated(session: Session, category_ids: Collection[UUID]) -> froze
         .distinct()
     )
     return frozenset(found)
+
+
+@dataclass(frozen=True, slots=True)
+class RatesStamp:
+    """The hourly rates of the platform: their number, the sum of their counters, the last write."""
+
+    count: int
+    versions: int
+    updated_at: datetime | None
+
+
+def rates_stamp(session: Session) -> RatesStamp:
+    """Give the stamp of every hourly rate of the reference (EP-11, #4283; WF-DAT-0130-A).
+
+    What a key of a cache reads when what it keeps says a rate missing: the structure of the costs
+    of the portfolio names, on the current day, the rates the labour of a revision lacks, so a rate
+    set moves the stamp — its number and its instant —, and a rate corrected its counter. A rate is
+    never deleted. One statement.
+    """
+    count, versions, written = session.execute(
+        select(
+            func.count(),
+            func.coalesce(func.sum(HourlyRate.lock_version), 0),
+            func.max(HourlyRate.updated_at),
+        )
+    ).one()
+    return RatesStamp(count, int(versions), written)
 
 
 def _views(session: Session, rates: Sequence[HourlyRate]) -> list[HourlyRateView]:
