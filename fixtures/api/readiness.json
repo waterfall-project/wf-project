@@ -1,16 +1,10 @@
 {
-  "summary": "L'instance prête au 3 juin 2026 à 14 h 04 min 30 s : les sept composants répondent, ceux de l'écran d'état (`system_status`) à la même vérification (WF-EXP-0040).",
+  "summary": "L'instance prête au 3 juin 2026 à 14 h 04 min 30 s : elle-même et les quatre composants qu'elle sonde — la base, Redis, le stockage objet, le fournisseur d'identité — répondent, à la même vérification que l'écran d'état (`system_status`) ; le worker et Prometheus, qu'elle ne sonde pas, se lisent par la collecte des métriques (WF-EXP-0040, #4227).",
   "value": {
     "status": "ready",
     "components": [
       {
         "component": "api",
-        "is_available": true,
-        "checked_at": "2026-06-03T14:04:30Z",
-        "version": "1.0.0"
-      },
-      {
-        "component": "worker",
         "is_available": true,
         "checked_at": "2026-06-03T14:04:30Z",
         "version": "1.0.0"
@@ -38,12 +32,6 @@
         "is_available": true,
         "checked_at": "2026-06-03T14:04:30Z",
         "version": "26.0.5"
-      },
-      {
-        "component": "metrics",
-        "is_available": true,
-        "checked_at": "2026-06-03T14:04:30Z",
-        "version": "2.53.0"
       }
     ]
   }

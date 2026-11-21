@@ -27,7 +27,15 @@ SystemStatus:
     components:
       type: array
       items: { $ref: '#/ComponentHealth' }
-    storage: { $ref: '#/StorageUsage' }
+    storage:
+      allOf: [{ $ref: '#/StorageUsage' }]
+      description: >-
+        The storage space, of the two that WF-OBS-0010 measures — that of PostgreSQL, the size
+        of the databases, and that of the object storage, the sum of the objects of its buckets
+        —, the one whose occupancy rate, the space used over the capacity the deployment
+        declares, is the higher: the screen presents the space closest to saturation
+        (#4128). The alert `storage_nearly_full` is triggered by each of the two
+        (`OperatingParameters.storage_usage_threshold`), and the metrics give both.
     operating_parameters: { $ref: '#/OperatingParameters' }
     last_identity_sync:
       anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
@@ -138,8 +146,11 @@ PlatformComponent:
   type: string
   description: >-
     Platform component whose availability the status screen reports (WF-ADM-0130), and which
-    an alert names when it is unavailable (WF-OBS-0030).
-  enum: [api, worker, database, cache, object_storage, identity_provider, metrics]
+    an alert names when it is unavailable (WF-OBS-0030). `front` is named only by the alert
+    `component_unavailable` (`Alert.params.component`), which the operator's dashboard and the
+    notification present: the status screen, served by the front, does not present it, and
+    neither `SystemStatus.components` nor `getReadiness` lists it (#4297).
+  enum: [api, worker, database, cache, object_storage, identity_provider, metrics, front]
 
 StorageUsage:
   type: object
@@ -160,7 +171,8 @@ OperationOutcome:
         Reason for the failure, null when the operation succeeded, and for an external copy,
         whose reason is in its alert (`SystemStatus.last_backup_copy`). The failure of a backup
         is that of its background task, with the task's `correlation_id`
-        (`BackgroundTaskRef.problem`, WF-OBS-0020).
+        (`BackgroundTaskRef.problem`, WF-OBS-0020), an archive that fails its verification
+        included: its task fails (`BackgroundTaskRef.kind`, #4230).
 
 Alert:
   type: object

@@ -183,7 +183,7 @@ ne laisse rien de son travail : un autre la reprend depuis le début, et elle é
 tentatives ; une tâche d'un genre qu'aucun traitement n'exécute échoue sans s'exécuter. Une
 restauration (`restore`) n'est jamais celle du worker : `startRestore` la dépose dans un second
 flux, `waterfall:tasks:restores`, que le service de la restauration lit seul, dans son groupe de
-consommateurs ; il pose la maintenance, que l'API lit (503 sauf la sonde de vie), et le worker
+consommateurs ; il pose la maintenance, que l'API lit (503 hors `/health` et `/metrics`), et le worker
 n'exécute rien tant qu'elle y est (EP-03, « Sauvegarde et restauration »). La maintenance et l'état
 de la restauration qui la tient vivent dans le schéma `platform` de la base de Waterfall, une ligne
 au plus dans chacune de ses deux tables, que le rôle du service lit et que le propriétaire seul

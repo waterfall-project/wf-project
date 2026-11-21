@@ -22,6 +22,7 @@ from sqlalchemy import delete, insert, update
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import QueuePool
 from support import PLATFORM_SECRETS, ContractClient, raw_account
+from witness_support import example
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -476,6 +477,7 @@ def test_the_metrics_expose_no_project_data_identity_nor_secret(
     assert labels <= {"operation", "status", "le", "component", "run"}
 
 
+@pytest.mark.requirement("WF-EXP-0040-A")
 def test_the_instance_is_ready_when_the_components_it_needs_answer(platform: MakePlatform) -> None:
     # Proper to US-2870: ``getReadiness`` is served; it answers when the components the instance
     # needs answer, and says each one, the instance first.
@@ -487,6 +489,9 @@ def test_the_instance_is_ready_when_the_components_it_needs_answer(platform: Mak
     assert list(said) == ["api", *PROBED]
     assert all(each["is_available"] for each in said.values())
     assert said["database"]["version"]
+    # The example of the contract says the same components, in the same order: the instance and
+    # what it probes, the worker and Prometheus being read by the collection (#4227).
+    assert list(said) == [each["component"] for each in example("readiness")["components"]]
 
 
 def test_an_instance_without_its_database_is_not_ready_and_names_it(platform: MakePlatform) -> None:

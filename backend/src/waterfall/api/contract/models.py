@@ -324,6 +324,7 @@ class PlatformComponent(StrEnum):
     object_storage = "object_storage"
     identity_provider = "identity_provider"
     metrics = "metrics"
+    front = "front"
 
 
 class Timestamp(RootModel[AwareDatetime]):
@@ -423,7 +424,7 @@ class OperationOutcome(ContractModel):
     problem: Annotated[
         Problem | None,
         Field(
-            description="Reason for the failure, null when the operation succeeded, and for an external copy, whose reason is in its alert (`SystemStatus.last_backup_copy`). The failure of a backup is that of its background task, with the task's `correlation_id` (`BackgroundTaskRef.problem`, WF-OBS-0020)."
+            description="Reason for the failure, null when the operation succeeded, and for an external copy, whose reason is in its alert (`SystemStatus.last_backup_copy`). The failure of a backup is that of its background task, with the task's `correlation_id` (`BackgroundTaskRef.problem`, WF-OBS-0020), an archive that fails its verification included: its task fails (`BackgroundTaskRef.kind`, #4230)."
         ),
     ]
 
@@ -492,7 +493,12 @@ class SystemStatus(ContractModel):
         ),
     ]
     components: list[ComponentHealth]
-    storage: StorageUsage
+    storage: Annotated[
+        StorageUsage,
+        Field(
+            description="The storage space, of the two that WF-OBS-0010 measures — that of PostgreSQL, the size of the databases, and that of the object storage, the sum of the objects of its buckets —, the one whose occupancy rate, the space used over the capacity the deployment declares, is the higher: the screen presents the space closest to saturation (#4128). The alert `storage_nearly_full` is triggered by each of the two (`OperatingParameters.storage_usage_threshold`), and the metrics give both."
+        ),
+    ]
     operating_parameters: OperatingParameters
     last_identity_sync: Annotated[
         OperationOutcome | None,
@@ -577,7 +583,7 @@ class BackgroundTaskRef(ContractModel):
     kind: Annotated[
         Kind,
         Field(
-            description="What the task does. `backup` takes the backup of the two databases and verifies it; `restore` follows the whole restore, from entering maintenance to leaving it: it only moves to `succeeded` once maintenance is lifted, and an interrupted restore resumes from the beginning; an archive from a version more recent than the installation is refused before maintenance, the task failing with `BACKUP_FROM_NEWER_VERSION` (WF-ARC-0090, WF-ADM-0160); `identity_sync` reads the accounts of the identity provider (WF-ADM-0070); `revision_mark` freezes the revision and calculates its indicators, and fails without freezing anything with `HOURLY_RATE_MISSING`, `params.missing_rates` naming the labour categories without a rate for the reference year (`markRevision`, WF-DEV-0010); `import_analysis` analyses an imported file before anything is applied (`openImport`); `import_apply` applies an analysed import (`applyImport`); `structure_merge` merges a differential into the main structure (`mergeCostStructure`); `risk_occurrence` merges the own estimate of a risk declared occurred into the main structure (`declareRiskOccurrence`); `export` produces an export file, read through `getBackgroundTaskResult` (`requestExport`); the image of the task tree is not drawn beyond one hundred million pixels, the task then failing with `TASK_TREE_IMAGE_TOO_LARGE` (WF-PLA-0120)."
+            description="What the task does. `backup` takes the backup of the two databases and verifies it; an archive that fails its verification makes the task fail, manual or scheduled, with `INTERNAL_ERROR` and the task's correlation identifier, like any failed backup, and the backup remains in the list with its archive, its `verification` at `failed`; neither the rotation nor the external copy follows (WF-ADM-0150, WF-ADM-0170, #4230); `restore` follows the whole restore, from entering maintenance to leaving it: it only moves to `succeeded` once maintenance is lifted, and an interrupted restore resumes from the beginning; an archive from a version more recent than the installation is refused before maintenance, the task failing with `BACKUP_FROM_NEWER_VERSION` (WF-ARC-0090, WF-ADM-0160); `identity_sync` reads the accounts of the identity provider (WF-ADM-0070); `revision_mark` freezes the revision and calculates its indicators, and fails without freezing anything with `HOURLY_RATE_MISSING`, `params.missing_rates` naming the labour categories without a rate for the reference year (`markRevision`, WF-DEV-0010); `import_analysis` analyses an imported file before anything is applied (`openImport`); `import_apply` applies an analysed import (`applyImport`); `structure_merge` merges a differential into the main structure (`mergeCostStructure`); `risk_occurrence` merges the own estimate of a risk declared occurred into the main structure (`declareRiskOccurrence`); `export` produces an export file, read through `getBackgroundTaskResult` (`requestExport`); the image of the task tree is not drawn beyond one hundred million pixels, the task then failing with `TASK_TREE_IMAGE_TOO_LARGE` (WF-PLA-0120)."
         ),
     ]
     status: BackgroundTaskStatus
