@@ -120,7 +120,7 @@ DIGESTS = {
     "filtered by a line, sorted": (
         "aaaac13506129c2105d58b0bed0db0f2404088ecf6c6bb2c89b293b97c904630"
     ),
-    "whole comparison": "2b3130729e42e341647397425a4e527d5595b17114a1cda4eb2e068d729dac3b",
+    "whole comparison": "1c061a14bda01ef84c002f7fb239b5768316589352048859f7797e37994388c8",
     "comparison filtered and sorted": (
         "908485770a32aeba12ade836c31fd12d034ff77e4446d27b7297a3e8f40b0c03"
     ),
@@ -131,9 +131,13 @@ DIGESTS = {
 # every value it carries: ``difference=modified`` retains more nodes than before. Taken again when
 # epic/EP-10 took back main, after US-1680: its 39 summaries put back "not computable", the body
 # read then gives the SHA-256 of US-2320/L3, bd5415c9…; nothing else differs, no mark included.
+# Taken again when epic/EP-11 and epic/EP-08 met: each marking keeps four documents of the portfolio
+# (EP-11), drawn from the loader's count of identifiers, so that every node the witness creates
+# after the first marking has its identifier 4 greater — and nothing else of the body changes
+# (checked field by field against epic/EP-08: 12 997 identifiers, all shifted by 4).
 COMPARED_DIGESTS = {
     "comparison filtered and sorted": (
-        "334759c1d8320c36a0bfb5be374978acba27dd99997d6284edcebfe0e73718d9"
+        "4fd972d1d8ec0584b94076a27194979c68e7269e3833eef724fe5793f2f34b90"
     ),
 }
 

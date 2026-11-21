@@ -744,8 +744,8 @@ def test_no_address_and_no_project_but_the_witness_s_appear_in_the_documents_the
     witness: Database,
 ) -> None:
     # « Aucune adresse électronique ni aucun libellé de projet réel n'y figure » : the documents
-    # add nothing to the witness — their labels are those of its subprojects, natures and milestones
-    # (US-2680/L2), and no text holds an address.
+    # add nothing to the witness — their labels are those of its subprojects, natures, milestones
+    # and risks (US-2680/L2), and no text holds an address.
     with witness.transaction() as session:
         found = [
             row.document
@@ -764,6 +764,8 @@ def test_no_address_and_no_project_but_the_witness_s_appear_in_the_documents_the
     allowed |= {each["label"] for each in remaining["by_cost_type"]}
     allowed |= {each["label"] for each in example("estimate_indicators")["by_work_package"]}
     allowed |= {each["label"] for each in example("milestone_tracking")["milestones"]}
+    # The portfolio's risks document (EP-11) names the risks of the witness (EP-08).
+    allowed |= {each["label"] for each in example("risks")["items"]}
     assert labels
     assert labels <= allowed
     assert "@" not in json.dumps(found)
