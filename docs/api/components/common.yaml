@@ -288,11 +288,12 @@ Problem:
         structure and its label (`node_id`, `label`), the node null for a task that the
         differential adds, not by its lineage as `TASK_WITHOUT_WORKING_HOURS` does — "the failure
         names what failed" (WF-IHM-0080; EP-14/L42k) —, and likewise for the import file that
-        would be rejected whole for this reason (`ImportReport.refusals`) and the preliminary report of a merge
-        (`StructureMergeReport.refusals`; EP-14/L42s); `task` for a planning that would extend
-        the project's duration beyond fifteen years (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150):
-        the task involved, by its node and its label (`node_id`, `label`), the node null for a
-        task that the file or the differential creates; for a merge (`mergeCostStructure`,
+        would be rejected whole for this reason (`ImportReport.refusals`) and the preliminary
+        report of a merge (`StructureMergeReport.refusals`; EP-14/L42s); `task` for a planning
+        that would extend the project's duration beyond fifteen years
+        (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150): the task involved, by its node and its label
+        (`node_id`, `label`), the node null for a task that the file or the differential
+        creates; for a merge (`mergeCostStructure`,
         `StructureMergeReport.refusals`; #788), the task of the merged structure that finishes
         last, excluding summary tasks, which draw their dates from their subordinates
         (WF-PLA-0040), the first in plan order in case of a tie — and, for an entry that moves a
