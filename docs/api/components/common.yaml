@@ -1070,7 +1070,11 @@ BackgroundTaskRef:
     kind:
       type: string
       description: >-
-        What the task does. `backup` takes the backup of the two databases and verifies it;
+        What the task does. `backup` takes the backup of the two databases and verifies it; an
+        archive that fails its verification makes the task fail, manual or scheduled, with
+        `INTERNAL_ERROR` and the task's correlation identifier, like any failed backup, and the
+        backup remains in the list with its archive, its `verification` at `failed`; neither
+        the rotation nor the external copy follows (WF-ADM-0150, WF-ADM-0170, #4230);
         `restore` follows the whole restore, from entering maintenance to leaving it: it only
         moves to `succeeded` once maintenance is lifted, and an interrupted restore resumes from
         the beginning; an archive from a version more recent than the installation is refused

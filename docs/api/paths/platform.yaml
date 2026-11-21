@@ -492,7 +492,10 @@
       (read back and rewritten), and the restore is recorded in it (WF-ADM-0160, WF-SEC-0030). Under the permission to restore
       the platform (`platform_restore`). A backup from the list is restored as its `restore`
       command says in advance (`BackupCommand`, WF-IHM-0090): verified, and no backup or
-      restore in progress — otherwise 409. An archive from a version more recent than the
+      restore in progress — otherwise 409. Whatever its source, from the list or uploaded, a
+      restore is refused while a backup is running, which would read a database being replaced
+      (`no_backup_running`, #4365), as it is while another restore is (`no_restore_running`).
+      An archive from a version more recent than the
       installation is refused by the task, not by this request, which does not read the
       archive: the task fails (`BackgroundTaskRef.problem`, `BACKUP_FROM_NEWER_VERSION`,
       `params.backup_version` and `params.installed_version`) before the switch to
@@ -515,8 +518,9 @@
       backup — the one the list gives (`Backup.taken_at`), or, for an uploaded backup, the one
       the upload read in its manifest (`FileUpload.backup_taken_at`) —, and another date is a
       confirmation that does not name it, refused with 400 `CONFIRMATION_REQUIRED`; an unknown
-      backup or upload, 404; a restore already queued or in progress, or a backup from the
-      list whose `restore` command says it is unavailable, 409 `STATE_FORBIDS_OPERATION`.
+      backup or upload, 404; a backup running or a restore already queued or in progress, for
+      a backup from the list as for an uploaded one, or a backup from the list whose `restore`
+      command says it is unavailable, 409 `STATE_FORBIDS_OPERATION`.
       While a restore is running, from its queuing to the switch to maintenance, every other
       write to the backups is likewise refused with 409 — starting one (`startBackup`),
       marking one (`retainBackup`), setting their schedule (`setBackupSchedule`), restoring
@@ -574,11 +578,14 @@
       '409':
         description: >-
           A state that forbids the restore: `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` naming the condition that the backup's `restore` command
-          reported as missing (`BackupCommand`) — `backup_verified`, the designated backup not
-          being verified, pending or failed (WF-ADM-0150); `no_backup_running`, a backup
-          running; `no_restore_running`, a restore already queued or in progress (WF-ADM-0160).
-          Nothing is queued.
+          `params.missing_condition` naming the missing condition, for a backup from the list
+          the one its `restore` command reported as missing (`BackupCommand`) —
+          `backup_verified`, the designated backup from the list not being verified, pending or
+          failed (WF-ADM-0150), an upload being verified by the task, not here;
+          `no_backup_running`, a backup running, from its queuing to the production of its file
+          (`startBackup`); `no_restore_running`, a restore already queued or in progress
+          (WF-ADM-0160). The last two refuse any restore, from the list as from an upload
+          (#4365). Nothing is queued.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

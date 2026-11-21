@@ -6378,8 +6378,9 @@ Décision de l'auteur du 2026-10-10 (#604) : `getLiveness`, publique, dit la mai
 restauration (`status` à `maintenance`) et sa levée (`ok`), et le front l'interroge pour savoir
 quand la restauration a abouti. L'état de maintenance ne dépend pas de la base que la
 restauration recrée, où vit la tâche ; `getBackgroundTask` n'est pas servie pendant la
-maintenance, et toute opération autre que la sonde répond 503 `COMPONENT_UNAVAILABLE`,
-`component` à `database`. La sonde reste à 200 en maintenance : la plateforme est vivante, et un
+maintenance, et toutes les opérations sauf `getLiveness` et `getMetrics` répondent 503
+`COMPONENT_UNAVAILABLE`, `component` à `database` (« sauf `getMetrics` » ajouté par la décision de
+l'auteur du 2026-11-21, #4226 : « Les cinq précisions d'EP-13 »). La sonde reste à 200 en maintenance : la plateforme est vivante, et un
 orchestrateur qui la redémarrerait interromprait la restauration. Écarté : `getBackgroundTask`
 servie pendant la maintenance, sa ligne réécrite dans la base restaurée, qui ferait lire à l'API la
 base qu'on remplace.
@@ -12397,6 +12398,61 @@ citées, qui diront les formes et la version.
 
 Le contrat, le service, le front, le témoin et la reprise des codes déjà saisis suivent par
 #3966.
+
+### Les cinq précisions d'EP-13 : la maintenance, la sonde de disponibilité, le front, l'espace de l'écran d'état, la restauration pendant une sauvegarde, la vérification d'une sauvegarde (US-2880/L3, #4226, #4227, #4297, #4128, #4365, #4230)
+
+Décisions de l'auteur du 2026-11-21, sur des constats de la livraison d'EP-13 et, pour l'espace, de
+son cadrage (conception d'EP-13, « Modifications du contrat »). Une modification du contrat figé
+(« La règle d'après le gel ») : `PlatformComponent` reçoit une valeur, le reste ne change que des
+descriptions et un exemple ; aucune autre forme ne change.
+
+- **`getMetrics` est servie en maintenance** (#4226). `ServiceUnavailable` et la décision #604
+  (« La restauration et sa maintenance ») disent « toutes les opérations sauf `getLiveness` et
+  `getMetrics` », comme la description de `getLiveness` : Prometheus doit voir l'instance pendant
+  une restauration, et `getMetrics` ne déclarait pas de 503, si bien que le contrat se contredisait.
+  Le service le faisait déjà (`api/maintenance.py`, `SERVED_IN_MAINTENANCE`). Écarté : un 503 déclaré
+  à `getMetrics`, refusé en maintenance, qui ferait disparaître les métriques d'une restauration.
+- **La sonde de disponibilité dit l'instance et ce qu'elle sonde** (#4227). L'exemple `readiness`
+  de `getReadiness` ne liste plus que cinq composants, `api`, `database`, `cache`, `object_storage`
+  et `identity_provider` : le worker et Prometheus ne se sondent pas depuis l'API, leur
+  disponibilité se lit sur `up{job}` de la collecte des métriques. La description dit que seule la
+  base rend l'instance non prête (503 `COMPONENT_UNAVAILABLE`, `component` à `database`, §4.5.4,
+  tableau 12), un autre composant tombé étant dit indisponible dans la liste. Le cas de Redis, que
+  le tableau 12 ne liste pas, reste à confirmer par l'auteur dans #4227 ; le service, qui ne refuse
+  aujourd'hui que sans la base, ne change pas. Écarté : garder les sept composants, que l'API
+  devrait lire par Prometheus ou par un battement en base, pour un exemple que l'écran d'état dit
+  déjà.
+- **`PlatformComponent` reçoit `front`** (#4297), dernière valeur de l'énumération, pour que
+  l'alerte `component_unavailable` nomme l'arrêt du front (`Alert.params.component`), qui prive
+  tous les utilisateurs de la plateforme. Sa description dit que l'écran d'état, servi par le front,
+  ne le présente pas : ni `SystemStatus.components` ni `getReadiness` ne le listent, et seuls le
+  tableau de bord de l'exploitant et la notification le disent. La règle de Prometheus suit dans un
+  lot à part (US-2880/L4). Écarté : laisser l'arrêt du front sans alerte.
+- **`SystemStatus.storage` rend l'espace le plus occupé** (#4128). WF-OBS-0010 mesure deux espaces,
+  celui de PostgreSQL et celui du stockage objet ; le champ, sans changer de forme (`StorageUsage`),
+  rend celui des deux dont le taux d'occupation — l'utilisé sur la capacité que le déploiement
+  déclare — est le plus élevé, et sa description le dit. L'alerte `storage_nearly_full` porte sur
+  chacun des deux, et les métriques donnent les deux. Écarté : deux espaces dans `SystemStatus`, qui
+  changeraient une forme du contrat figé et l'écran de la maquette.
+- **Une sauvegarde en cours refuse toute restauration** (#4365). `startRestore` refuse
+  `no_backup_running` (409 `STATE_FORBIDS_OPERATION`) quelle que soit la source de la restauration,
+  une sauvegarde de la liste comme un fichier déposé : une sauvegarde ne lit pas une base en cours
+  de remplacement, symétrique du refus `no_restore_running` d'US-2910/L1. L'exemple
+  `backup_running` montre déjà la forme du refus ; aucun nouvel exemple. La route suit dans un lot à
+  part (US-2910/L6). Écarté : la condition laissée à la seule sauvegarde de la liste.
+- **Une archive qui échoue à sa vérification fait échouer sa tâche** (#4230). La description de la
+  tâche `backup` (`BackgroundTaskRef.kind`) le dit, sauvegarde manuelle comme planifiée : la tâche
+  échoue par `INTERNAL_ERROR` avec son identifiant de corrélation, comme tout échec de sauvegarde, la
+  sauvegarde reste dans la liste avec son archive, `verification` à `failed`, et ni la rotation ni
+  la copie externe ne suivent ; `OperationOutcome.problem` le rappelle. Le résultat de la tâche est
+  ainsi la seule source de l'échec, que `last_backup`, la jauge
+  `waterfall_last_run_success{run="scheduled_backup"}` et l'écran d'état disent ensemble. La tâche
+  suit dans un lot à part (US-2910/L5). Écarté : amender `OperationOutcome` (« … ou la vérification
+  de son archive ») et faire lire le même calcul par la jauge et l'écran, deux définitions de l'échec
+  à tenir ensemble.
+
+Les modèles du service sont régénérés (`make generate-server-models`) ; le client du front et le
+libellé de `front` suivent dans ce même lot.
 
 ## Collage et annulation
 

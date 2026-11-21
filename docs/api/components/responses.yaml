@@ -136,9 +136,10 @@ ServiceUnavailable:
     An unavailable component prevents the operation; `params.component` names it and
     the operation is never presented as successful (WF-EXP-0040). During the maintenance of a
     restore (`startRestore`), every operation responds this way, `component` at `database`, except
-    `getLiveness`, which reports the maintenance (WF-ADM-0160, #604). Every guarded operation
-    declares it: reading the realm keys and admitting an account wait on the identity
-    provider (`identity_provider`).
+    `getLiveness`, which reports the maintenance (WF-ADM-0160, #604), and `getMetrics`, which
+    Prometheus keeps collecting so that it sees the instance during the restore (#4226). Every
+    guarded operation declares it: reading the realm keys and admitting an account wait on the
+    identity provider (`identity_provider`).
   content:
     application/problem+json:
       schema: { $ref: common.yaml#/Problem }
