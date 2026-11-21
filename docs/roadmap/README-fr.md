@@ -172,7 +172,7 @@ sommer (décision de l'auteur du 2026-11-17), les trois cents projets en EP-13, 
 | [EP-13](EP-13-exploitation.md) | Exploitation et mise en production | en cours | EP-04 |
 | [EP-28](EP-28-chaine-et-outillage.md) | Chaîne et outillage de développement | livré | rien |
 | [EP-29](EP-29-habilitations-specification-1-0-7.md) | Habilitations et comptes : suites de la spécification 1.0.7 | à planifier | EP-08 |
-| [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risques préparés comme des différentiels | à planifier | EP-08 |
+| [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risques préparés comme des différentiels | à planifier | EP-08, EP-11 |
 | [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning : moteur et Gantt | à planifier | EP-08 |
 | [EP-33](EP-33-imports-et-exports-de-fichiers.md) | Imports et exports de fichiers | à planifier | EP-08 |
 | [EP-34](EP-34-grilles-saisie-et-collage.md) | Grilles : saisie et collage | à planifier | EP-08 |
@@ -196,7 +196,10 @@ constats d'habilitation que le tri de la spécification du 2026-11-18 avait éti
 garde que l'exploitation (décision de l'auteur du 2026-11-18). EP-30 fait du devis propre d'un
 risque un différentiel, pour qu'un risque reprenne ou abandonne du travail existant ; il attend
 EP-08, dont il réutilise la mise à jour d'un différentiel, et une révision de la spécification
-(décision de l'auteur du 2026-11-19). EP-31 tient la place de la copie et du collage dans les
+(décision de l'auteur du 2026-11-19). Depuis son cadrage du 2026-11-21, il attend aussi EP-11, qui
+modifie le même module des risques et dont il fait suivre les lectures, et il clôt à la place
+d'EP-08 les exigences des risques que la spécification 1.0.9 redit, écrite avant l'ouverture des
+issues de ses lots. EP-31 tient la place de la copie et du collage dans les
 grilles, que la spécification 1.0.8 écrit (WF-IHM-0180) : EP-08 ne prend pas de fonction nouvelle
 (décision de l'auteur du 2026-11-21).
 

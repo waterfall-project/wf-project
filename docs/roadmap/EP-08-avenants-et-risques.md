@@ -71,6 +71,12 @@ Vérif demande une ligne de provision, un risque identifié, écarté ou survenu
 d'EP-09, décision de l'auteur du 2026-11-07). WF-REV-0110 est écrite par la
 spécification 1.0.8 (#4132), d'après la reprise du 2026-11-19, et entière ici.
 
+WF-RIS-0010, WF-RIS-0030, WF-RIS-0040, WF-RIS-0050, WF-RIS-0060 et WF-IND-0030 sont réalisées ici
+telles que la spécification 1.0.8 les dit, et closes par EP-30, qui en réécrit la règle — le devis
+propre préparé comme un différentiel, la gravité en écart net — sous la spécification 1.0.9
+(décision de l'auteur du 2026-11-21, au cadrage d'EP-30) : leur portée passe « début », sans que les
+critères ni les lots de cet EPIC changent.
+
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
 | `WF-REV-0040-A` | Désignation de la révision de référence | fin — amorcée en EP-04, EP-15 | US-2560 |
@@ -81,14 +87,14 @@ spécification 1.0.8 (#4132), d'après la reprise du 2026-11-19, et entière ici
 | `WF-IHM-0020-A` | Contexte de lecture affiché | fin — amorcée en EP-02, EP-15, EP-27 | US-2640 |
 | `WF-IHM-0110-A` | Annulation et rétablissement des saisies | fin — amorcée en EP-02, EP-06, EP-07 | US-2590 |
 | `WF-DEV-0080-A` | Valeur planifiée | fin — amorcée en EP-07 | US-2630 |
-| `WF-RIS-0010-A` | Attributs d’un risque | fin — amorcée en EP-15 | US-2580 |
+| `WF-RIS-0010-A` | Attributs d’un risque | début — close en EP-30, amorcée aussi en EP-15 | US-2580 |
 | `WF-RIS-0020-A` | États d’un risque | fin — amorcée en EP-15 | US-2590 |
-| `WF-RIS-0030-A` | Devis propre d’un risque | fin — amorcée en EP-15 | US-2570 |
-| `WF-RIS-0040-A` | Grille de suivi des risques | fin — amorcée en EP-15 | US-2600 |
-| `WF-RIS-0050-A` | Réserve pour risques et couverture | entière | US-2610 |
-| `WF-RIS-0060-A` | Survenance d’un risque | entière | US-2620 |
+| `WF-RIS-0030-A` | Devis propre d’un risque | début — close en EP-30, amorcée aussi en EP-15 | US-2570 |
+| `WF-RIS-0040-A` | Grille de suivi des risques | début — close en EP-30, amorcée aussi en EP-15 | US-2600 |
+| `WF-RIS-0050-A` | Réserve pour risques et couverture | début — close en EP-30 | US-2610 |
+| `WF-RIS-0060-A` | Survenance d’un risque | début — close en EP-30 | US-2620 |
 | `WF-ADM-0100-A` | Catalogue des permissions | fin — amorcée en EP-03 | US-2560 |
-| `WF-IND-0030-A` | Valeur acquise | fin — amorcée en EP-10 | US-2630 |
+| `WF-IND-0030-A` | Valeur acquise | début — close en EP-30, amorcée aussi en EP-10 | US-2630 |
 | `WF-IND-0100-A` | Courbe de coûts cumulés | fin — amorcée en EP-10 | US-2630 |
 | `WF-INTF-0010-A` | Usages du chef de projet | fin — amorcée en EP-06, EP-07, EP-09, EP-10 | US-2650 |
 | `WF-RAE-0010-A` | Composition du reste à engager | fin — amorcée en EP-09 | US-2610 |

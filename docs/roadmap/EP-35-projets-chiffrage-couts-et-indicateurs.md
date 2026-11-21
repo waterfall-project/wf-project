@@ -14,8 +14,8 @@ issue:
 Des règles et des calculs livrés ne tiennent pas la spécification : une grandeur saisie avec plus de
 décimales que sa colonne donne un montant qui change sans saisie (bloquant B4), la référence se
 corrige encore après la réception de coûts réels (WF-REV-0040), une tâche datée hors de 2000-2100
-fait répondre 500, la gravité d'un risque survenu se lit à zéro dans les révisions suivantes. Cet
-EPIC les corrige après EP-30, qui touche le même code — devis, risques, révisions.
+fait répondre 500. Cet EPIC les corrige après EP-30, qui touche le même code — devis, risques,
+révisions.
 
 L'EPIC naît de la ventilation du 2026-11-21 : une fois fusionnés EP-08, EP-11, EP-13 et EP-30, les
 fonctions du MVP sont livrées, et le reste à faire — les issues ouvertes hors de ces EPIC et les
@@ -29,14 +29,15 @@ ses lots se décident à son cadrage.
 - la désignation de la référence refusée dès qu'un coût réel est reçu ;
 - les bornes de l'année d'une tâche, l'année de consommation, le débours projeté au changement
   d'année ;
-- la gravité d'un risque survenu, lue à son coût à la survenance (spécification 1.0.8) ;
 - ce qu'une révision marquée lit aux valeurs du jour ;
 - les règles du référentiel et des projets que la spécification 1.0.7 a écrites ;
 - la concurrence du marquage, de la désignation et de l'abandon d'une révision.
 
 ## Ce qui n'en fait pas partie
 
-- le devis propre d'un risque préparé comme un différentiel, et la gravité en écart net — EP-30 ;
+- le devis propre d'un risque préparé comme un différentiel, la gravité en écart net, et celle d'un
+  risque survenu, lue à son coût à la survenance (#4400, repris par EP-30 à son cadrage du
+  2026-11-21) — EP-30 ;
 - les lectures lentes et les requêtes sans le projet — EP-40 ;
 - les imports — EP-33.
 
@@ -75,8 +76,6 @@ Issues ouvertes, rattachées à cet EPIC par la ventilation du 2026-11-21 :
   la tâche
 - #3983 — back : le débours unitaire projeté au changement d'année de référence (WF-REV-0060,
   spécification 1.0.7)
-- #4400 — back : la gravité d'un risque survenu se lit à son coût à la survenance dans les révisions
-  suivantes (WF-RIS-0010, spécification 1.0.8)
 - #3985 — contrat : la désactivation d'une catégorie ou d'un calendrier que portent des rôles actifs
   est refusée (WF-REF-0010)
 - #3989 — contrat : le code d'un projet En cours ne s'efface plus (WF-PRJ-0010)

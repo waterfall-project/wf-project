@@ -174,7 +174,7 @@ closes. Four rules, which each slice follows:
 | [EP-13](EP-13-exploitation.md) | Operations and going to production | en cours | EP-04 |
 | [EP-28](EP-28-chaine-et-outillage.md) | Chain and development tooling | livré | nothing |
 | [EP-29](EP-29-habilitations-specification-1-0-7.md) | Access rights and accounts: follow-ups of specification 1.0.7 | à planifier | EP-08 |
-| [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risks prepared as differentials | à planifier | EP-08 |
+| [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risks prepared as differentials | à planifier | EP-08, EP-11 |
 | [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning: engine and Gantt | à planifier | EP-08 |
 | [EP-33](EP-33-imports-et-exports-de-fichiers.md) | File imports and exports | à planifier | EP-08 |
 | [EP-34](EP-34-grilles-saisie-et-collage.md) | Grids: entry and pasting | à planifier | EP-08 |
@@ -198,7 +198,10 @@ receives, at the framing of EP-13, the access-rights findings that the sorting o
 of 2026-11-18 had labelled EP-13, which keeps only operations (decision of the author of
 2026-11-18). EP-30 makes the own estimate of a risk a differential, so that a risk can rework or
 abandon existing work; it waits for EP-08, whose update of a differential it reuses, and for a
-revision of the specification (decision of the author of 2026-11-19). EP-31 holds the place of
+revision of the specification (decision of the author of 2026-11-19). Since its framing of
+2026-11-21, it also waits for EP-11, which modifies the same module of the risks and whose reads it
+brings along, and it closes in place of EP-08 the requirements of the risks that specification
+1.0.9 states again, written before the issues of its lots are opened. EP-31 holds the place of
 copying and pasting in the grids, which specification 1.0.8 writes (WF-IHM-0180): EP-08 takes no new
 function (decision of the author of 2026-11-21).
 

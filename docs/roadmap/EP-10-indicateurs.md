@@ -86,7 +86,7 @@ EP-11 celle du plan de charge agrégé.
 |---|---|---|---|
 | `WF-IND-0010-A` | Date et périmètre de calcul | entière | US-1660, US-1670 |
 | `WF-IND-0020-A` | Granularité des indicateurs | entière | US-1660 |
-| `WF-IND-0030-A` | Valeur acquise | début — close en EP-08 | US-1660 |
+| `WF-IND-0030-A` | Valeur acquise | début — close en EP-30 | US-1660 |
 | `WF-IND-0040-A` | Avancement financier et consommation du budget | entière | US-1660 |
 | `WF-IND-0050-A` | Projections à terminaison | entière | US-1660 |
 | `WF-IND-0060-A` | Avancement physique | entière | US-1660, US-1680 |

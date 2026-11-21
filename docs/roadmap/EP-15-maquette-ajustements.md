@@ -114,15 +114,15 @@ service sont des écarts, qui nomment l'EPIC qui les clôt.
 | `WF-REV-0080-A` | Comparaison de deux révisions | début — close en EP-08 | US-0500 |
 | `WF-REV-0100-A` | Structures de coûts d'une révision | début — close en EP-08 | US-0500 |
 | `WF-REV-0050-A` | Fusion d’un différentiel | début — close en EP-08 | US-0510 |
-| `WF-RIS-0010-A` | Attributs d’un risque | début — close en EP-08 | US-0520 |
+| `WF-RIS-0010-A` | Attributs d’un risque | début — close en EP-30 | US-0520 |
 | `WF-RIS-0020-A` | États d’un risque | début — close en EP-08 | US-0520 |
-| `WF-RIS-0030-A` | Devis propre d’un risque | début — close en EP-08 | US-0520 |
+| `WF-RIS-0030-A` | Devis propre d’un risque | début — close en EP-30 | US-0520 |
 | `WF-PLA-0090-A` | Diagramme de Gantt | début — close en EP-06 | US-0530 |
 | `WF-PLA-0140-A` | Chronologies nommées | début — close en EP-06 | US-0530 |
 | `WF-RAE-0030-A` | Démarrage d’une tâche | début — close en EP-10 | US-0540 |
 | `WF-DEV-0070-A` | Plan de charge du projet | début — close en EP-09 | US-0550 |
 | `WF-PTF-0060-A` | Plan de charge agrégé | début — close en EP-11 | US-0550 |
-| `WF-RIS-0040-A` | Grille de suivi des risques | début — close en EP-08 | US-0550 |
+| `WF-RIS-0040-A` | Grille de suivi des risques | début — close en EP-30 | US-0550 |
 | `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | début — close en EP-11 | US-0550, US-0570 |
 | `WF-IHM-0080-A` | Traitements longs | début — close en EP-09 | US-0560 |
 | `WF-OBS-0020-A` | Journaux structurés et corrélation | début — close en EP-13 | US-0560 |
