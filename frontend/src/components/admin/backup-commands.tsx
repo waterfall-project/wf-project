@@ -21,10 +21,9 @@
  * told above the list as any other (`useListReport`).
  *
  * A backup has no counter: a marking answered shows the backup as the server answered it while each
- * reading anew of the page reads it as the one before did (`BackupCommands`) — against the fake back,
- * which keeps nothing, for as long as the screen stays. A restoration, from a backup of the list or
- * from a deposit, is confirmed in the one dialog (`RestoreDialog`), then followed by the screen of
- * its maintenance (`Restoration`).
+ * reading anew of the page reads it as the one before did (`BackupCommands`). A restoration, from
+ * a backup of the list or from a deposit, is confirmed in the one dialog (`RestoreDialog`), then
+ * followed by the screen of its maintenance (`Restoration`).
  */
 "use client";
 
