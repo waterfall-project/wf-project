@@ -350,19 +350,6 @@ COLUMNS = ("not_started", "started", "completed")
 COMMANDS = {"available_commands"}
 
 
-def provisions_under() -> dict[str, Decimal]:
-    """Give the budgeted amount the example gives the provision lines of each task (#4274)."""
-    items = example("volume/nodes_thousand")["items"]
-    found: dict[str, Decimal] = {}
-    for each in items:
-        line = each.get("estimate_line")
-        if each["kind"] == "estimate_line" and str(line["label"]).startswith("Provision — "):
-            found[each["parent_id"]] = found.get(each["parent_id"], Decimal(0)) + Decimal(
-                line["budgeted_amount"]
-            )
-    return found
-
-
 @pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_kanban_is_the_example_but_for_the_commands(
     api: ContractClient, witness: Database, realm: TestRealm
@@ -375,7 +362,6 @@ def test_the_kanban_is_the_example_but_for_the_commands(
         assert scheduled is not None
         assert scheduled.scheduled_at is not None
         read_on = scheduled.scheduled_at.date()
-    provisions = provisions_under()
     for column in COLUMNS:
         got, wanted = keyed(body[column], "node_id"), keyed(expected[column], "node_id")
         # The same tasks in each column, in the order of the plan.
@@ -391,12 +377,9 @@ def test_the_kanban_is_the_example_but_for_the_commands(
             # The risk a task comes from (EP-08); the commands follow the reader's rights.
             assert card["origin_risk_id"] == theirs["origin_risk_id"]
             assert card["available_commands"] == []
-            for amount in ("base_amount", "reestimated_amount"):
+            # The budgeted amount with the provision the reference fixed, that a task bears (#4274).
+            for amount in ("base_amount", "budgeted_amount", "reestimated_amount"):
                 assert card["task"][amount] == theirs["task"][amount], (key, amount)
-            # The budgeted amount but that of a provision line the task bears (#4274).
-            assert Decimal(card["task"]["budgeted_amount"]) + provisions.get(
-                key, Decimal(0)
-            ) == Decimal(theirs["task"]["budgeted_amount"]), key
     assert [len(body[column]) for column in COLUMNS] == [925, 8, 27]
 
 
