@@ -7,7 +7,7 @@ les réponses en citent d'autres, comptées dans la couverture ci-dessous mais p
 dans le tableau.
 
 **171 opérations sur 133 chemins, dans 13 familles.**
-Le contrat cite **195 des 221 exigences** de la spécification.
+Le contrat cite **195 des 224 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
@@ -273,7 +273,7 @@ Le contrat cite **195 des 221 exigences** de la spécification.
 
 ## Exigences que le contrat ne cite pas
 
-26 sur 221. Aucune n'est un oubli : ce sont celles qui n'ont pas de
+29 sur 224. Aucune n'est un oubli : ce sont celles qui n'ont pas de
 surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 
 | Domaine | Exigences | Pourquoi aucune surface d'API |
@@ -284,6 +284,8 @@ surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 | DAT | WF-DAT-0050, WF-DAT-0140, WF-DAT-0150 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |
 | EXP | WF-EXP-0010 | Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune n'est une opération d'API. |
 | IHM | WF-IHM-0010, WF-IHM-0100, WF-IHM-0140, WF-IHM-0180 | Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent dans le front. La copie de lignes d'une grille (WF-IHM-0180), ajoutée par la spécification 1.0.8, attend son contrat (#4398). |
+| IND | WF-IND-0140 | La marque d'une survenance sur les courbes de valeur acquise (WF-IND-0140), ajoutée par la spécification 1.0.9 : EP-30 écrit son contrat (US-3120), dont les issues s'ouvrent avec celles de ses lots. |
 | INTF | WF-INTF-0010, WF-INTF-0020, WF-INTF-0030, WF-INTF-0170 | Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par le catalogue des permissions ; la règle de traduction vit dans le front. |
 | QUA | WF-QUA-0010, WF-QUA-0020, WF-QUA-0030, WF-QUA-0040, WF-QUA-0050, WF-QUA-0060, WF-QUA-0070, WF-QUA-0080 | Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle s'exerce sur le contrat, elle n'y figure pas. |
 | REV | WF-REV-0110 | La base d'un différentiel et sa mise à jour (WF-REV-0110), ajoutées par la spécification 1.0.8 : les opérations qu'EP-08 écrit pour elles (US-3050) les servent, et leur citation au contrat reste à écrire (#4402). |
+| RIS | WF-RIS-0070, WF-RIS-0080 | La mise à jour du devis propre d'un risque (WF-RIS-0070) et la gravité d'un risque (WF-RIS-0080), ajoutées par la spécification 1.0.9 : EP-30 écrit leur contrat (US-3090, US-3080), dont les issues s'ouvrent avec celles de ses lots. |

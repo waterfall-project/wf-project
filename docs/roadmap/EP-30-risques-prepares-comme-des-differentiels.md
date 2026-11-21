@@ -74,27 +74,27 @@ ses exigences avant l'ouverture des issues de ses lots.
 
 ## Exigences réalisées
 
-La spécification 1.0.8 décrit encore le devis propre greffé d'EP-08. Décisions de l'auteur du
+La spécification 1.0.8 décrivait encore le devis propre greffé d'EP-08. Décisions de l'auteur du
 2026-11-21, à ce cadrage : les exigences dont la règle change sont réécrites sous leur identifiant,
 et cet EPIC les clôt à la place d'EP-08, dont les lignes passent « début — close en EP-30 » ; ce qui
-est purement neuf prend des exigences courtes nouvelles ; le cadrage se fait sur un texte de Vérif
-proposé, que les US citent en critères propres, et la spécification 1.0.9 est écrite et acceptée
-avant l'ouverture des issues des lots — les US citent alors les Vérif réels.
+est purement neuf prend des exigences courtes nouvelles ; le cadrage s'est fait sur un texte de
+Vérif proposé, que les US citaient en critères propres. La spécification 1.0.9, écrite d'après ce
+texte et acceptée par l'auteur le même jour, avant l'ouverture des issues des lots, le porte : les
+US en citent les Vérif.
 
 Six exigences changent de règle et sont closes ici : WF-RIS-0010 (la gravité, écart net, et le coût
 à la survenance), WF-RIS-0030 (le devis propre), WF-RIS-0040 (l'opportunité au registre et dans la
 matrice, la tendance d'un risque), WF-RIS-0050 (le coût à la survenance signé, et ce qui se lit en
 regard), WF-RIS-0060 (la survenance) et WF-IND-0030 (la valeur acquise d'une tâche qu'une survenance
-termine). Trois exigences nouvelles sont proposées, et entreront à ce tableau, entières, quand la
-1.0.9 les aura écrites : « Mise à jour du devis propre d'un risque » (WF-RIS-0070), « Gravité d'un
-risque » (WF-RIS-0080) et « Marque d'une survenance sur les courbes de valeur acquise »
-(WF-IND-0140). Le texte proposé, corps et Vérif, est dans quatre issues de spécification : #4516, le
-devis propre et sa mise à jour ; #4517, la gravité, l'opportunité et la tendance ; #4518, la
-survenance et la couverture ; #4519, la valeur acquise et sa marche. WF-RIS-0020 et WF-REV-0110,
-dont aucune phrase de Vérif ne change, et WF-REV-0100, dont seul le corps est retouché, restent
-closes par EP-08 ; WF-PTF-0090 et WF-IND-0110, dont le texte ne change pas, par les EPIC qui les ont
-réalisées. WF-QUA-0040 entre au tableau en portée « début » : cet EPIC recharge sa tranche du jeu de
-données de référence, qu'EP-13 clôt.
+termine). Trois exigences nouvelles, que la 1.0.9 écrit, entrent à ce tableau, entières : « Mise à
+jour du devis propre d'un risque » (WF-RIS-0070), « Gravité d'un risque » (WF-RIS-0080) et « Marque
+d'une survenance sur les courbes de valeur acquise » (WF-IND-0140). Le texte, corps et Vérif, a été
+proposé dans quatre issues de spécification : #4516, le devis propre et sa mise à jour ; #4517, la
+gravité, l'opportunité et la tendance ; #4518, la survenance et la couverture ; #4519, la valeur
+acquise et sa marche. WF-RIS-0020 et WF-REV-0110, dont aucune phrase de Vérif ne change, et
+WF-REV-0100, dont seul le corps est retouché, restent closes par EP-08 ; WF-PTF-0090 et WF-IND-0110,
+dont le texte ne change pas, par les EPIC qui les ont réalisées. WF-QUA-0040 entre au tableau en
+portée « début » : cet EPIC recharge sa tranche du jeu de données de référence, qu'EP-13 clôt.
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -103,7 +103,10 @@ données de référence, qu'EP-13 clôt.
 | `WF-RIS-0040-A` | Grille de suivi des risques | fin — amorcée en EP-15, EP-17, EP-08 | US-3080, US-3160 |
 | `WF-RIS-0050-A` | Réserve pour risques et couverture | fin — amorcée en EP-17, EP-08 | US-3110 |
 | `WF-RIS-0060-A` | Survenance d’un risque | fin — amorcée en EP-17, EP-08 | US-3100 |
+| `WF-RIS-0070-A` | Mise à jour du devis propre d’un risque | entière | US-3090 |
+| `WF-RIS-0080-A` | Gravité d’un risque | entière | US-3080 |
 | `WF-IND-0030-A` | Valeur acquise | fin — amorcée en EP-10, EP-08 | US-3120 |
+| `WF-IND-0140-A` | Marque d’une survenance sur les courbes de valeur acquise | entière | US-3120 |
 | `WF-QUA-0040-A` | Jeu de données de référence | début — close en EP-13, amorcée aussi en EP-05, EP-04, EP-06, EP-07, EP-09, EP-10, EP-08, EP-11 | US-3150 |
 
 ## Opérations du contrat
@@ -159,10 +162,10 @@ risques (`core/risks`), et deux EPIC ne le touchent pas en même temps. EP-30 tr
 jour d'un différentiel et son compte rendu, la fusion — et les lectures du portefeuille qu'il fait
 suivre.
 
-La spécification 1.0.9, écrite par son auteur et acceptée avant l'ouverture des issues des lots :
-elle redit les six exigences du tableau et écrit les trois nouvelles, d'après le texte que ce
-cadrage propose (#4516, #4517, #4518, #4519). Les critères « propre à l'US, texte proposé »
-deviennent alors des citations de Vérif.
+La spécification 1.0.9, acceptée par son auteur le 2026-11-21, avant l'ouverture des issues des lots
+: elle redit les six exigences du tableau et écrit les trois nouvelles, d'après le texte que ce
+cadrage a proposé (#4516, #4517, #4518, #4519). Les critères « propre à l'US, texte proposé » sont
+devenus des citations de Vérif.
 
 Le plan de lots, validé par l'auteur le 2026-11-21, est dans la pull request de ce cadrage (#4521) :
 les lots ne s'écrivent pas dans ce fichier. Les issues de l'EPIC, des US, des lots et du contrat
@@ -663,11 +666,11 @@ graphique à bulles ; la marche sur l'écran des indicateurs. Aucune réponse n'
 
 ### Les tests du back
 
-Les exemples chiffrés des Vérif proposés entrent au harnais d'exemples (`fixtures/examples.json`),
-chacun citant son exigence une fois la spécification 1.0.9 écrite, son US d'ici là. Le socle ajoute
-aux fabriques d'EP-08 un projet chiffré à 1 000 dont un risque ajoute une ligne, en modifie une et
-abandonne une tâche ; son devis propre en retard, la structure principale ayant reçu une tâche, une
-réestimation et la suppression d'une tâche qu'il modifiait ; et le même, élagué par un marquage.
+Les exemples chiffrés des Vérif de la spécification 1.0.9 sont au harnais d'exemples
+(`fixtures/examples.json`), chacun citant son exigence. Le socle ajoute aux fabriques d'EP-08 un
+projet chiffré à 1 000 dont un risque ajoute une ligne, en modifie une et abandonne une tâche ; son
+devis propre en retard, la structure principale ayant reçu une tâche, une réestimation et la
+suppression d'une tâche qu'il modifiait ; et le même, élagué par un marquage.
 
 ### La conduite
 
@@ -728,22 +731,20 @@ fragment à part.
   de projet (WF-RAE-0010). » : tenu par EP-08 pour un devis propre qui ajoute ; ici, éprouvé sur un
   devis propre qui modifie une ligne existante et abandonne une tâche : les cinq premières grandeurs
   sont les mêmes avant et après, et la provision suit la gravité (US-3080) ;
-- propre à l'US, texte proposé pour WF-RIS-0030 : « La grille d'un devis propre qui vient d'être
-  créé présente les tâches et les lignes de la structure principale, aucune n'étant présentée
-  ajoutée, modifiée ou retirée. » : `createRisk` crée un devis propre qui ne désigne rien ;
-  `listNodes` y rend les nœuds de la structure principale de la révision, tous `unchanged` ;
-- propre à l'US, texte proposé pour WF-RIS-0030 : « Dans le devis propre d'un risque, une tâche
-  ajoutée après une tâche du projet, une ligne existante portée de 100 à 130 heures et une tâche
-  existante abandonnée sont présentées ajoutée, modifiée et retirée ; la structure principale est
-  inchangée. » : `listNodes` les rend `added`, `modified` — la valeur de la structure principale en
-  regard — et `removed` (`NodeDifference`) ; aucune lecture de la structure principale ne change, ni
-  son compteur ;
-- propre à l'US, texte proposé pour WF-RIS-0030 : « Une tâche ajoutée à la structure principale
-  figure, sans y être désignée, dans la grille du devis propre d'un risque ouverte ensuite. » : à
-  l'ouverture d'un devis propre en retard, l'écran le met à jour sans rien demander quand rien n'est
-  à signaler (US-3090, US-3140), et sa grille présente alors le projet du jour avec ce qu'il désigne
-  ; les dates et les montants sont ceux que le moteur de dates et le chiffrage donnent à sa
-  structure ;
+- `WF-RIS-0030-A` — « La grille d'un devis propre qui vient d'être créé présente les tâches et les
+  lignes de la structure principale, aucune n'étant présentée ajoutée, modifiée ou retirée. » :
+  `createRisk` crée un devis propre qui ne désigne rien ; `listNodes` y rend les nœuds de la
+  structure principale de la révision, tous `unchanged` ;
+- `WF-RIS-0030-A` — « Dans le devis propre d'un risque, une tâche ajoutée après une tâche du projet,
+  une ligne existante portée de 100 à 130 heures et une tâche existante abandonnée sont présentées
+  ajoutée, modifiée et retirée ; la structure principale est inchangée. » : `listNodes` les rend
+  `added`, `modified` — la valeur de la structure principale en regard — et `removed`
+  (`NodeDifference`) ; aucune lecture de la structure principale ne change, ni son compteur ;
+- `WF-RIS-0030-A` — « Une tâche ajoutée à la structure principale figure, sans y être désignée, dans
+  la grille du devis propre d'un risque ouverte ensuite. » : à l'ouverture d'un devis propre en
+  retard, l'écran le met à jour sans rien demander quand rien n'est à signaler (US-3090, US-3140),
+  et sa grille présente alors le projet du jour avec ce qu'il désigne ; les dates et les montants
+  sont ceux que le moteur de dates et le chiffrage donnent à sa structure ;
 - propre à l'US : une révision marquée ne conserve d'un devis propre que ce qu'il désigne — les
   tâches, les liaisons et les lignes qu'il ajoute, les valeurs qu'il modifie, ce qu'il abandonne.
   Sur un projet de mille tâches et cinq mille lignes, le marquage d'une révision dont un risque
@@ -796,7 +797,7 @@ la survenance (US-3100) ; les écrans (US-3140) ; le témoin (US-3150).
 ## US-3080 — La gravité d'un risque, écart net, la provision qui en est tirée, et l'opportunité
 
 - **statut** : à faire
-- **exigences** : `WF-RIS-0010-A`, `WF-RIS-0040-A`
+- **exigences** : `WF-RIS-0010-A`, `WF-RIS-0040-A`, `WF-RIS-0080-A`
 - **opérations** : `getRisk`, `listRisks`, `listRiskReviews`, `getProjectRiskMatrix`, `createRisk`,
   `reviewRisk`, `updateRiskProvision`, `listNodes` (la ligne de provision), `getEstimateIndicators`,
   `getRemainingIndicators`
@@ -860,30 +861,38 @@ opportunité, **afin que** la provision dise ce que le risque pèserait vraiment
   sa probabilité ;
 - `WF-RIS-0040-A` — « Les trois totaux — identifiés, survenus, écartés — sont distincts, et la
   réserve pour risques de la référence est affichée en regard. » : tenu par EP-08, non touché ici ;
-- propre à l'US, texte proposé pour l'exigence nouvelle « Gravité d'un risque » (WF-RIS-0080) : « Un
-  devis propre qui ajoute deux lignes de 120 et 80 donne une gravité de 200. » ;
-- propre à l'US, texte proposé pour WF-RIS-0080 : « Un devis propre qui ajoute une ligne de 300 et
-  abandonne une tâche dont les lignes totalisent 100 donne une gravité de 200. » ;
-- propre à l'US, texte proposé pour WF-RIS-0080 : « Un devis propre qui porte de 100 à 130 le
-  montant réestimé d'une ligne existante donne une gravité de 30. » ;
-- propre à l'US, texte proposé pour WF-RIS-0080 : « Sur un projet au taux d'inflation de 3 %, un
-  devis propre dont une tâche ajoutée repousse de l'année de référence à la suivante la consommation
-  d'une ligne de 1 000 compte 30 dans la gravité. » : la gravité est calculée sur les dates que le
-  moteur donne à la structure principale portant ce que le devis propre désigne, tâches en aval
-  comprises (WF-DEV-0030) ;
-- propre à l'US, texte proposé pour WF-RIS-0080 : « Un devis propre qui n'abandonne qu'une tâche de
-  100 donne une gravité de −100 : le registre présente le risque comme une opportunité, sa provision
-  est nulle, et le total du devis est celui du projet sans lui. » ;
-- propre à l'US, texte proposé pour WF-RIS-0080 : « Une réestimation dans la structure principale ne
-  change ni la gravité ni la provision d'un risque avant la mise à jour de son devis propre. » ;
-- propre à l'US, texte proposé pour WF-RIS-0010 : « Un risque de gravité 200 à 30 % porte une
-  provision de 60 ; un risque de gravité −100 à 30 %, une provision nulle. » : la provision est la
-  gravité pondérée par la probabilité, au centime, sans descendre sous zéro ; la ligne de provision
-  d'une opportunité reste, à montant nul ;
-- propre à l'US, texte proposé pour WF-RIS-0040 : « Un risque de gravité négative est présenté comme
-  une opportunité, avec une provision nulle, et figure dans la matrice au plus bas niveau de
-  gravité. » : `matrix_cell` et `getProjectRiskMatrix` la classent au premier niveau de gravité, sa
-  part de l'assiette étant sous la première borne (WF-REF-0160), et la comptent dans sa case ;
+- `WF-RIS-0080-A` — « Un devis propre qui ajoute deux lignes de 120 et 80 donne une gravité de 200.
+  » ;
+- `WF-RIS-0080-A` — « Un devis propre qui ajoute une ligne de 300 et abandonne une tâche dont les
+  lignes totalisent 100 donne une gravité de 200. » ;
+- `WF-RIS-0080-A` — « Un devis propre qui porte de 100 à 130 le montant réestimé d'une ligne
+  existante donne une gravité de 30. » ;
+- `WF-RIS-0080-A` — « Sur un projet au taux d'inflation de 3 %, un devis propre dont une tâche
+  ajoutée repousse de l'année de référence à la suivante la consommation d'une ligne de 1 000 compte
+  30 dans la gravité. » : la gravité est calculée sur les dates que le moteur donne à la structure
+  principale portant ce que le devis propre désigne, tâches en aval comprises (WF-DEV-0030) ;
+- `WF-RIS-0080-A` — « Un devis propre qui n'abandonne qu'une tâche de 100 donne une gravité de −100
+  : le registre présente le risque comme une opportunité, sa provision est nulle, et le total du
+  devis est celui du projet sans lui. » ;
+- `WF-RIS-0080-A` — « Une réestimation dans la structure principale ne change ni la gravité ni la
+  provision d'un risque avant la mise à jour de son devis propre. » ;
+- `WF-RIS-0010-A` — « Un risque de gravité 200 et de probabilité 30 % porte une provision de 60. » :
+  la provision est la gravité pondérée par la probabilité, au centime ;
+- `WF-RIS-0010-A` — « Un risque de gravité −100 et de même probabilité porte une provision nulle, et
+  non de −30. » : la provision ne descend pas sous zéro ; la ligne de provision d'une opportunité
+  reste, à montant nul ;
+- `WF-RIS-0040-A` — « Un risque de gravité négative est présenté comme une opportunité, avec une
+  provision nulle, et figure dans la matrice au plus bas niveau de gravité. » : `matrix_cell` et
+  `getProjectRiskMatrix` la classent au premier niveau de gravité, sa part de l'assiette étant sous
+  la première borne (WF-REF-0160), et la comptent dans sa case ;
+- écart : `WF-RIS-0040-A` — « Un risque identifié dont le produit de la gravité par la probabilité
+  est passé de 60 à 75 depuis la révision marquée précédente est présenté en hausse ; passé de 60 à
+  45, en baisse ; resté à 60, stable. » : la tendance est d'US-3160 ;
+- écart : `WF-RIS-0040-A` — « Un risque identifié qui ne l'était pas dans la révision marquée
+  précédente est présenté comme nouveau ; un risque écarté ou survenu ne présente aucune tendance. »
+  : la tendance est d'US-3160 ;
+- écart : `WF-RIS-0040-A` — « Le registre se filtre et se trie sur la tendance. » : la tendance est
+  d'US-3160 ;
 - propre à l'US : la gravité est l'écart net des montants réestimés, lignes de provision exclues :
   le total de la structure principale portant ce que le devis propre désigne, moins son total sans
   lui ; elle compte les lignes ajoutées, l'écart des lignes modifiées, les lignes des tâches
@@ -913,10 +922,8 @@ recalcule la gravité (US-3090) ; le portefeuille (US-3130) ; les écrans (US-31
 ## US-3090 — La mise à jour d'un devis propre, et ce qui l'exige : la saisie, le réexamen, la survenance, le marquage
 
 - **statut** : à faire
-- **exigences** : aucune que la spécification 1.0.8 porte — l'exigence nouvelle « Mise à jour du
-  devis propre d'un risque » (WF-RIS-0070), proposée ; les règles de la mise à jour d'un
-  différentiel (WF-REV-0110) et le réexamen (WF-RIS-0020), dont le texte ne change pas, restent
-  closes par EP-08
+- **exigences** : `WF-RIS-0070-A` ; les règles de la mise à jour d'un différentiel (WF-REV-0110)
+  et le réexamen (WF-RIS-0020), dont aucune phrase de Vérif ne change, restent closes par EP-08
 - **opérations** : `getStructureRebaseReport`, `rebaseCostStructure` (étendues au devis propre), la
   recomposition d'un devis propre (nouvelle), `listCostStructures`, `reviewRisk`, les écritures de
   l'arbre et `applyImport` sur un devis propre, `getRiskOccurrenceReport`, `declareRiskOccurrence`,
@@ -931,67 +938,63 @@ gravité d'un projet qui n'existe plus.
 
 **Critères d'acceptation.**
 
-- propre à l'US, texte proposé pour l'exigence nouvelle « Mise à jour du devis propre d'un risque »
-  (WF-RIS-0070) : « Après une réestimation dans la structure principale, le devis propre d'un risque
-  identifié est en retard, et sa gravité et sa provision sont inchangées ; ouvert, il est mis à jour
-  sans confirmation, et sa grille présente la réestimation. » : `CostStructure` dit un devis propre
-  à jour à la déclaration du risque et après sa mise à jour, en retard dès qu'une écriture change la
-  structure principale, qu'elle touche ou non ce qu'il désigne, hors l'écriture d'une ligne de
-  provision ;
-- propre à l'US, texte proposé pour WF-RIS-0070 : « La mise à jour du devis propre d'un risque ne
-  met pas en retard celui d'un autre. » : elle réécrit sa ligne de provision dans la structure
-  principale, et l'écriture d'une ligne de provision — son montant, sa catégorie, son sous-projet,
-  sa tâche — ne met aucun devis propre en retard ;
-- propre à l'US, texte proposé pour WF-RIS-0070 : « Sur un devis propre en retard, une saisie, la
-  confirmation du risque et la déclaration de sa survenance n'aboutissent qu'une fois le devis
-  propre mis à jour. » : les écritures de l'arbre et l'application d'un import sur le devis propre,
-  `reviewRisk`, `getRiskOccurrenceReport` et `declareRiskOccurrence` répondent 409
-  `STATE_FORBIDS_OPERATION`, par une condition que le lot du contrat nomme, et rien n'est écrit ;
-  l'écran enchaîne la mise à jour (US-3140) ;
-- propre à l'US, texte proposé pour WF-RIS-0070 : « Une mise à jour qui ne signale rien s'applique
-  sans confirmation ; celle qui garde une valeur contre le projet présente son compte rendu, à
-  confirmer. » : le compte rendu ne signale rien quand il ne porte ni différence gardée ni motif de
-  refus, la gravité recalculée n'étant pas un signalement (décision de l'auteur du 2026-11-21) ;
-- propre à l'US, texte proposé pour WF-RIS-0070 : « La mise à jour d'un devis propre dont une tâche
-  ajoutée suit une tâche que le projet a repoussée d'un an recalcule sa gravité sur les dates
-  nouvelles, et sa provision la suit. » : `rebaseCostStructure` enregistre la gravité calculée sur
-  le projet du jour, et la ligne de provision en prend le montant dans la même écriture ;
-- propre à l'US, texte proposé pour WF-RIS-0070 : « Une ligne que le devis propre porte à 130 heures
-  et que le projet a réestimée à 110 garde 130 après la mise à jour, et le compte rendu la nomme. »
-  : une différence `kept`, ses champs nommés (règle 1 de WF-REV-0110) ;
-- propre à l'US, texte proposé pour WF-RIS-0070 : « Une tâche que le devis propre modifie et que le
-  projet a supprimée y figure, après la mise à jour, comme une tâche ajoutée, et le compte rendu la
-  nomme. » : règle 2 de WF-REV-0110 ; une tâche ou une ligne qu'il ajoute sous une tâche que le
-  projet n'a plus passe sous l'ancêtre le plus proche qui reste, et une liaison qu'il ajoute vers
-  une tâche que le projet n'a plus est retirée, l'une et l'autre nommées (règles 3 et 4) ;
-- propre à l'US, texte proposé pour WF-RIS-0070 : « Un risque dont le devis propre est en retard est
-  écarté sans mise à jour ; son retour à l'état identifié l'exige. » : `reviewRisk` qui écarte n'est
-  pas refusé ; celui qui laisse ou rend le risque identifié l'est tant que le devis propre est en
-  retard ;
-- propre à l'US, texte proposé pour WF-RIS-0070 : « Lorsque deux risques modifient la même ligne et
-  que l'un survient, la mise à jour de l'autre garde la valeur qu'il désigne et la nomme. » ;
-- propre à l'US, texte proposé pour WF-RIS-0070 : « Au marquage d'une révision, le devis propre en
-  retard d'un risque identifié est mis à jour sans confirmation quand sa mise à jour ne signale rien
-  ; lorsqu'elle garde une valeur ou qu'elle est refusée, le marquage n'aboutit pas et nomme le
-  risque. » : la tâche de fond du marquage recompose et met à jour, avant toute autre écriture, le
-  devis propre de chaque risque identifié ; elle échoue en nommant les risques dont la mise à jour
-  garde une valeur ou est refusée, rien n'étant écrit ; le devis propre entier d'un risque écarté
-  est mis à jour d'office, sans que ce qu'il garde soit présenté, et celui d'un risque survenu ne
-  compte pas ;
-- propre à l'US, texte proposé pour WF-RIS-0070 : « La contractualisation d'un avenant met à jour de
-  même les devis propres en retard, et n'aboutit pas lorsque l'une de ces mises à jour garde une
-  valeur ou est refusée. » : la tâche de fond de la fusion fait de même avant d'écrire la structure
-  principale, et échoue de même ; la fusion n'écrit aucun devis propre, et la révision qu'elle
-  marque les garde entiers, en retard ;
+- `WF-RIS-0070-A` — « Après une réestimation dans la structure principale, le devis propre d'un
+  risque identifié est en retard, et sa gravité et sa provision sont inchangées ; ouvert, il est mis
+  à jour sans confirmation, et sa grille présente la réestimation. » : `CostStructure` dit un devis
+  propre à jour à la déclaration du risque et après sa mise à jour, en retard dès qu'une écriture
+  change la structure principale, qu'elle touche ou non ce qu'il désigne, hors l'écriture d'une
+  ligne de provision ;
+- `WF-RIS-0070-A` — « La mise à jour du devis propre d'un risque ne met pas en retard celui d'un
+  autre. » : elle réécrit sa ligne de provision dans la structure principale, et l'écriture d'une
+  ligne de provision — son montant, sa catégorie, son sous-projet, sa tâche — ne met aucun devis
+  propre en retard ;
+- `WF-RIS-0070-A` — « Sur un devis propre en retard, une saisie, la confirmation du risque et la
+  déclaration de sa survenance n'aboutissent qu'une fois le devis propre mis à jour. » : les
+  écritures de l'arbre et l'application d'un import sur le devis propre, `reviewRisk`,
+  `getRiskOccurrenceReport` et `declareRiskOccurrence` répondent 409 `STATE_FORBIDS_OPERATION`, par
+  une condition que le lot du contrat nomme, et rien n'est écrit ; l'écran enchaîne la mise à jour
+  (US-3140) ;
+- `WF-RIS-0070-A` — « Une mise à jour qui ne signale rien s'applique sans confirmation ; celle qui
+  garde une valeur contre le projet présente son compte rendu, à confirmer. » : le compte rendu ne
+  signale rien quand il ne porte ni différence gardée ni motif de refus, la gravité recalculée
+  n'étant pas un signalement (décision de l'auteur du 2026-11-21) ;
+- `WF-RIS-0070-A` — « La mise à jour d'un devis propre dont une tâche ajoutée suit une tâche que le
+  projet a repoussée d'un an recalcule sa gravité sur les dates nouvelles, et sa provision la suit.
+  » : `rebaseCostStructure` enregistre la gravité calculée sur le projet du jour, et la ligne de
+  provision en prend le montant dans la même écriture ;
+- `WF-RIS-0070-A` — « Une ligne que le devis propre porte à 130 heures et que le projet a réestimée
+  à 110 garde 130 après la mise à jour, et le compte rendu la nomme. » : une différence `kept`, ses
+  champs nommés (règle 1 de WF-REV-0110) ;
+- `WF-RIS-0070-A` — « Une tâche que le devis propre modifie et que le projet a supprimée y figure,
+  après la mise à jour, comme une tâche ajoutée, et le compte rendu la nomme. » : règle 2 de
+  WF-REV-0110 ; une tâche ou une ligne qu'il ajoute sous une tâche que le projet n'a plus passe sous
+  l'ancêtre le plus proche qui reste, et une liaison qu'il ajoute vers une tâche que le projet n'a
+  plus est retirée, l'une et l'autre nommées (règles 3 et 4) ;
+- `WF-RIS-0070-A` — « Un risque dont le devis propre est en retard est écarté sans mise à jour ; son
+  retour à l'état identifié l'exige. » : `reviewRisk` qui écarte n'est pas refusé ; celui qui laisse
+  ou rend le risque identifié l'est tant que le devis propre est en retard ;
+- `WF-RIS-0070-A` — « Lorsque deux risques modifient la même ligne et que l'un survient, la mise à
+  jour de l'autre garde la valeur qu'il désigne et la nomme. » ;
+- `WF-RIS-0070-A` — « Au marquage d'une révision, le devis propre en retard d'un risque identifié
+  est mis à jour sans confirmation quand sa mise à jour ne signale rien ; lorsqu'elle garde une
+  valeur ou qu'elle est refusée, le marquage n'aboutit pas et nomme le risque. » : la tâche de fond
+  du marquage recompose et met à jour, avant toute autre écriture, le devis propre de chaque risque
+  identifié ; elle échoue en nommant les risques dont la mise à jour garde une valeur ou est
+  refusée, rien n'étant écrit ; le devis propre entier d'un risque écarté est mis à jour d'office,
+  sans que ce qu'il garde soit présenté, et celui d'un risque survenu ne compte pas ;
+- `WF-RIS-0070-A` — « La contractualisation d'un avenant met à jour de même les devis propres en
+  retard, et n'aboutit pas lorsque l'une de ces mises à jour garde une valeur ou est refusée. » : la
+  tâche de fond de la fusion fait de même avant d'écrire la structure principale, et échoue de même
+  ; la fusion n'écrit aucun devis propre, et la révision qu'elle marque les garde entiers, en retard
+  ;
 - propre à l'US : la gravité qu'une révision marquée fige est ainsi calculée sur sa structure
   principale ; la révision qu'un avenant marque fige celle du projet d'avant l'avenant, sa fusion
   écrivant la structure principale et marquant dans la même opération, et la mise à jour la
   recalcule dans la révision suivante (limite connue, décision de l'auteur du 2026-11-21) ;
-- propre à l'US, texte proposé pour WF-RIS-0070 : « Une mise à jour qui laisserait une boucle de
-  liaisons dans le devis propre est refusée et nomme le motif. » : comme une liaison interdite, une
-  date au-delà de l'horizon ou une tâche sans heure travaillée, le motif et la tâche nommés au
-  compte rendu (`ReportRefusal`), rien n'étant écrit ; le lien fautif retiré du devis propre, elle
-  aboutit ;
+- `WF-RIS-0070-A` — « Une mise à jour qui laisserait une boucle de liaisons dans le devis propre est
+  refusée et nomme le motif. » : comme une liaison interdite, une date au-delà de l'horizon ou une
+  tâche sans heure travaillée, le motif et la tâche nommés au compte rendu (`ReportRefusal`), rien
+  n'étant écrit ; le lien fautif retiré du devis propre, elle aboutit ;
 - propre à l'US : `getStructureRebaseReport` sur un devis propre est celui d'un différentiel, une
   lecture qui n'écrit rien : ce que la mise à jour reporte de la structure principale, ce que le
   devis propre garde contre elle (`kept`), les motifs qui la refusent, les compteurs lus, et en plus
@@ -1060,16 +1063,11 @@ sans toucher au budget de référence.
   nul, réestimé 120 et 80 ; la ligne de provision n'y est plus ; la révision de référence et son
   budget sont les mêmes ; le reste à engager a monté de 200 moins la provision ; que leur
   terminaison n'acquière rien est éprouvé par US-3120 ;
-- écart : `WF-RIS-0060-A` — « Les tâches fusionnées se trouvent sous la tâche qui portait la
-  provision, aux dates qu'elles avaient dans le devis propre ; le total du lot dont cette tâche
-  relève augmente de leur montant, moins la provision retirée ; une tâche feuille fusionnée qui
-  n'avait pas de prédécesseur est en mode manuel. » : la règle de la greffe, que cet EPIC remplace
-  (décision de l'auteur du 2026-11-19) : les tâches ajoutées se trouvent où le devis propre les
-  place ; la spécification 1.0.9 réécrit la phrase, et le critère propre ci-dessous la porte d'ici
-  là ;
-- écart : `WF-RIS-0060-A` — « La survenance d'un risque dont la provision était portée par un jalon
-  place ses tâches après ce jalon, qui reste un jalon sans sous-tâche. » : sans objet, la tâche qui
-  porte la provision ne recevant plus rien ; la spécification 1.0.9 retire la phrase ;
+- `WF-RIS-0060-A` — « Les tâches ajoutées se trouvent à la place, avec les liaisons et aux dates que
+  le devis propre leur donnait ; la tâche qui portait la provision ne reçoit aucune tâche. » : la
+  règle de la greffe d'EP-08, sous la tâche qui portait la provision, est remplacée (décision de
+  l'auteur du 2026-11-19) ; la spécification 1.0.9 réécrit la phrase et retire celle du jalon, sans
+  objet puisque la tâche qui porte la provision ne reçoit plus rien (#4518) ;
 - `WF-RIS-0060-A` — « Une ligne fusionnée par la survenance d'un risque est encore désignée comme
   issue de ce risque dans la révision suivante, et après son déplacement sous une autre tâche ; une
   ligne ajoutée ensuite sous une tâche issue du risque ne l'est pas. » : tenu par EP-08 ;
@@ -1078,28 +1076,25 @@ sans toucher au budget de référence.
 - `WF-RIS-0060-A` — « Les grilles de planning et de devis se filtrent sur les tâches et les lignes
   issues d'un risque, ou d'un risque donné (WF-IHM-0130). » : tenu par EP-08 ; `is_from_risk` et
   `origin_risk_ids` rendent les ajouts d'une survenance, non ce qu'elle a modifié ou terminé ;
-- propre à l'US, texte proposé pour WF-RIS-0060 : « Les tâches ajoutées se trouvent à la place, avec
-  les liaisons et aux dates que le devis propre leur donnait ; la tâche qui portait la provision ne
-  reçoit aucune tâche. » ;
-- propre à l'US, texte proposé pour WF-RIS-0060 : « Après la survenance d'un risque qui porte de 100
-  à 130 le montant réestimé d'une ligne budgétée à 100, la ligne porte un montant budgété de 100 et
-  un montant réestimé de 130 ; elle n'est pas désignée comme issue de ce risque. » : la ligne garde
-  ses grandeurs de référence et prend pour grandeurs courantes celles que le devis propre désigne ;
-- propre à l'US, texte proposé pour WF-RIS-0060 : « Une tâche non démarrée budgétée à 100 que le
-  risque abandonne est conservée, terminée le jour de la survenance, son reste à engager est nul, et
-  le montant budgété de ses lignes est inchangé. » : il en va de même d'une tâche démarrée ; c'est
-  la règle qu'un avenant applique à une tâche démarrée qu'il retire (WF-REV-0050) ;
-- propre à l'US, texte proposé pour WF-RIS-0060 : « Le compte rendu d'une survenance qui abandonne
-  une tâche budgétée à 100 nomme cette tâche comme terminée et annonce une valeur acquise de 100 ;
-  l'abandon à cette étape laisse la révision en cours inchangée. » ;
-- propre à l'US, texte proposé pour WF-RIS-0060 : « La survenance d'un risque qui modifie une ligne
-  d'une tâche terminée rouvre cette tâche, et le compte rendu le signale sans refuser. » : il en va
-  de même d'une tâche ajoutée sous une récapitulative terminée ; le signalement est celui qu'EP-08 a
-  écrit pour une greffe sous une tâche terminée (#4240), étendu à toute tâche que la survenance
-  rouvre, avec la valeur acquise qu'elle retire ;
-- propre à l'US, texte proposé pour WF-RIS-0060 : « Une tâche ajoutée à la structure principale
-  après la préparation du devis propre, que celui-ci ne désigne pas, figure toujours dans la
-  structure principale après la survenance. » ;
+- `WF-RIS-0060-A` — « Après la survenance d'un risque qui porte de 100 à 130 le montant réestimé
+  d'une ligne budgétée à 100, la ligne porte un montant budgété de 100 et un montant réestimé de 130
+  ; elle n'est pas désignée comme issue de ce risque. » : la ligne garde ses grandeurs de référence
+  et prend pour grandeurs courantes celles que le devis propre désigne ;
+- `WF-RIS-0060-A` — « Une tâche non démarrée budgétée à 100 que le risque abandonne est conservée,
+  terminée le jour de la survenance, son reste à engager est nul, et le montant budgété de ses
+  lignes est inchangé. » : il en va de même d'une tâche démarrée ; c'est la règle qu'un avenant
+  applique à une tâche démarrée qu'il retire (WF-REV-0050) ;
+- `WF-RIS-0060-A` — « Le compte rendu d'une survenance qui abandonne une tâche budgétée à 100 nomme
+  cette tâche comme terminée et annonce une valeur acquise de 100 ; l'abandon à cette étape laisse
+  la révision en cours inchangée. » ;
+- `WF-RIS-0060-A` — « La survenance d'un risque qui modifie une ligne d'une tâche terminée rouvre
+  cette tâche, et le compte rendu le signale sans refuser. » : il en va de même d'une tâche ajoutée
+  sous une récapitulative terminée ; le signalement est celui qu'EP-08 a écrit pour une greffe sous
+  une tâche terminée (#4240), étendu à toute tâche que la survenance rouvre, avec la valeur acquise
+  qu'elle retire ;
+- `WF-RIS-0060-A` — « Une tâche ajoutée à la structure principale après la préparation du devis
+  propre, que celui-ci ne désigne pas, figure toujours dans la structure principale après la
+  survenance. » ;
 - propre à l'US : `getRiskOccurrenceReport` est une lecture qui n'écrit rien, dans la forme du
   compte rendu d'une fusion : les tâches, les liaisons et les lignes ajoutées, celles que la
   survenance modifie avec leurs champs, la ligne de provision retirée et son montant, les tâches
@@ -1180,17 +1175,17 @@ charges ou abandonné des tâches.
   lignes qui en sont issues présente 300 en regard de 250, et laisse l'écart de couverture à −190. »
   : tenu par EP-08 pour un risque qui n'a fait qu'ajouter ; ici, ce qui se lit en regard est le
   montant réestimé courant des lignes ajoutées, augmenté de la part figée à la survenance ;
-- propre à l'US, texte proposé pour WF-RIS-0050 : « Un risque survenu qui abandonne une tâche de 100
-  et ajoute une ligne de 300 a un coût à la survenance de 200. » ;
-- propre à l'US, texte proposé pour WF-RIS-0050 : « Un risque survenu à 250, dont 150 de lignes
-  ajoutées et 100 de lignes modifiées, présente 250 en regard de 250 ; la réestimation à 200 des
-  lignes ajoutées présente 300, et celle des lignes modifiées ne change pas ce montant. » : la part
-  du risque dans ce qu'il a modifié et abandonné est figée à la survenance, et le réestimé présenté
-  en regard ne suit que les lignes qu'il a ajoutées (décision de l'auteur du 2026-11-19) ;
-- propre à l'US, texte proposé pour WF-RIS-0050 : « Sur un projet de réserve 60 dont un risque est
-  survenu à 250, la survenance d'une opportunité de −50 porte le coût des survenus à 200 et l'écart
-  de couverture de −190 à −140. » : le coût à la survenance est signé, et la couverture le compte
-  tel quel (décision de l'auteur du 2026-11-21) ;
+- `WF-RIS-0050-A` — « Un risque survenu qui abandonne une tâche de 100 et ajoute une ligne de 300 a
+  un coût à la survenance de 200. » ;
+- `WF-RIS-0050-A` — « Un risque survenu à 250, dont 150 de lignes ajoutées et 100 de lignes
+  modifiées, présente 250 en regard de 250 ; la réestimation à 200 des lignes ajoutées présente 300,
+  et celle des lignes modifiées ne change pas ce montant. » : la part du risque dans ce qu'il a
+  modifié et abandonné est figée à la survenance, et le réestimé présenté en regard ne suit que les
+  lignes qu'il a ajoutées (décision de l'auteur du 2026-11-19) ;
+- `WF-RIS-0050-A` — « Sur un projet de réserve 60 dont un risque est survenu à 250, la survenance
+  d'une opportunité de −50 porte le coût des survenus à 200 et l'écart de couverture de −190 à −140.
+  » : le coût à la survenance est signé, et la couverture le compte tel quel (décision de l'auteur
+  du 2026-11-21) ;
 - propre à l'US : `occurrence_cost` est la gravité enregistrée au moment de la survenance, figée :
   ni une réestimation, ni la terminaison des tâches, ni un avenant ne la changent ; l'abandon de la
   révision où le risque est survenu l'efface (WF-RIS-0020) ;
@@ -1216,7 +1211,7 @@ couverture du portefeuille (US-3130).
 ## US-3120 — La valeur acquise devant une survenance qui termine ou rouvre des tâches, et sa marque sur les courbes
 
 - **statut** : à faire
-- **exigences** : `WF-IND-0030-A`
+- **exigences** : `WF-IND-0030-A`, `WF-IND-0140-A`
 - **opérations** : `getProjectIndicators`, `getEarnedValueCurves`, `getIndexHistory`, `markRevision`
   (la conservation), `declareRiskOccurrence`
 - **issue** :
@@ -1237,16 +1232,15 @@ de l'indice de délai ne se lise pas comme une avance.
   EP-10 et EP-08 ; ici, sur un projet dont un risque survenu a abandonné une tâche budgétée et en a
   ajouté d'autres, toutes terminées : la tâche abandonnée a acquis son montant budgété, les tâches
   ajoutées rien, et la valeur acquise égale le budget de référence ;
-- propre à l'US, texte proposé pour WF-IND-0030 : « Une tâche budgétée à 100 qu'un risque survenu
-  abandonne contribue pour 100 à la valeur acquise à la date de la survenance. » ;
-- propre à l'US, texte proposé pour l'exigence nouvelle « Marque d'une survenance sur les courbes de
-  valeur acquise » (WF-IND-0140) : « Après la survenance, le 20 du mois, d'un risque qui abandonne
-  une tâche budgétée à 100, la courbe de valeur acquise porte au point de ce mois une marche de 100,
-  datée du 20 et attribuée à la survenance. » ;
-- propre à l'US, texte proposé pour WF-IND-0140 : « La survenance d'un risque qui rouvre une tâche
-  terminée budgétée à 60 porte une marche de −60. » ;
-- propre à l'US, texte proposé pour WF-IND-0140 : « Une survenance qui ne termine ni ne rouvre
-  aucune tâche ne porte aucune marche. » ;
+- `WF-IND-0030-A` — « Une tâche budgétée à 100 qu'un risque survenu abandonne contribue pour 100 à
+  la valeur acquise à la date de la survenance. » ;
+- `WF-IND-0140-A` — « Après la survenance, le 20 du mois, d'un risque qui abandonne une tâche
+  budgétée à 100, la courbe de valeur acquise porte au point de ce mois une marche de 100, datée du
+  20 et attribuée à la survenance. » ;
+- `WF-IND-0140-A` — « La survenance d'un risque qui rouvre une tâche terminée budgétée à 60 porte
+  une marche de −60. » ;
+- `WF-IND-0140-A` — « Une survenance qui ne termine ni ne rouvre aucune tâche ne porte aucune
+  marche. » ;
 - propre à l'US : la marche est rendue par `getEarnedValueCurves`, datée, signée, avec sa cause,
   comme la marche d'un avenant sur la courbe du budget (`steps`) ; son montant est ce que la
   survenance a apporté à la valeur acquise moins ce qu'elle lui a retiré ; la série de valeur
@@ -1392,7 +1386,7 @@ précédente, **afin de** mener la revue des risques par ce qui a bougé.
 **Critères d'acceptation.**
 
 - `WF-RIS-0040-A` — « Les six colonnes sont présentes, ainsi que l'accès aux deux notes et à
-  l'historique. » : tenu par EP-08 ; la colonne de tendance s'y ajoute (critères propres ci-dessous)
+  l'historique. » : tenu par EP-08 ; la colonne de tendance s'y ajoute (critères ci-dessous)
   ;
 - `WF-RIS-0040-A` — « Le tri par provision classe les risques du plus lourd au plus léger. » : tenu
   par EP-08, non touché ici ;
@@ -1400,21 +1394,22 @@ précédente, **afin de** mener la revue des risques par ce qui a bougé.
   matrice. » : tenu par EP-08 ; sa bulle prend la couleur de sa zone, et reste ronde ;
 - `WF-RIS-0040-A` — « Les trois totaux — identifiés, survenus, écartés — sont distincts, et la
   réserve pour risques de la référence est affichée en regard. » : tenu par EP-08, non touché ici ;
-- propre à l'US, texte proposé pour WF-RIS-0040 : « Un risque identifié dont le produit de la
-  gravité par la probabilité est passé de 60 à 75 depuis la révision marquée précédente est présenté
-  en hausse ; passé de 60 à 45, en baisse ; resté à 60, stable. » : le service rend la tendance avec
-  le risque, calculée du produit signé de son évaluation dans la révision lue et dans la révision
-  marquée qui la précède ; le front ne calcule ni ne compare rien (WF-ARC-0020) ;
-- propre à l'US, texte proposé pour WF-RIS-0040 : « Un risque identifié qui ne l'était pas dans la
-  révision marquée précédente est présenté comme nouveau ; un risque écarté ou survenu ne présente
-  aucune tendance. » : est nouveau le risque déclaré depuis, comme celui qui y était écarté et
-  redevient identifié ; sur un projet dont aucune révision n'a été marquée avant celle qui est lue,
-  aucun risque ne présente de tendance ni n'est dit nouveau, comme l'écart du reste à engager est
-  alors absent (WF-RAE-0020) ;
-- propre à l'US, texte proposé pour WF-RIS-0040 : « Le registre se filtre et se trie sur la
-  tendance. » : `listRisks` reçoit un filtre — en hausse, en baisse, stable, nouveau — et un tri,
-  les risques sans tendance à la place que le contrat donne aux valeurs nulles ; les totaux sont
-  ceux des risques retenus (H-01, #1786) ;
+- `WF-RIS-0040-A` — « Un risque identifié dont le produit de la gravité par la probabilité est passé
+  de 60 à 75 depuis la révision marquée précédente est présenté en hausse ; passé de 60 à 45, en
+  baisse ; resté à 60, stable. » : le service rend la tendance avec le risque, calculée du produit
+  signé de son évaluation dans la révision lue et dans la révision marquée qui la précède ; le front
+  ne calcule ni ne compare rien (WF-ARC-0020) ;
+- `WF-RIS-0040-A` — « Un risque identifié qui ne l'était pas dans la révision marquée précédente est
+  présenté comme nouveau ; un risque écarté ou survenu ne présente aucune tendance. » : est nouveau
+  le risque déclaré depuis, comme celui qui y était écarté et redevient identifié ; sur un projet
+  dont aucune révision n'a été marquée avant celle qui est lue, aucun risque ne présente de tendance
+  ni n'est dit nouveau, comme l'écart du reste à engager est alors absent (WF-RAE-0020) ;
+- `WF-RIS-0040-A` — « Le registre se filtre et se trie sur la tendance. » : `listRisks` reçoit un
+  filtre — en hausse, en baisse, stable, nouveau — et un tri, les risques sans tendance à la place
+  que le contrat donne aux valeurs nulles ; les totaux sont ceux des risques retenus (H-01, #1786) ;
+- écart : `WF-RIS-0040-A` — « Un risque de gravité négative est présenté comme une opportunité, avec
+  une provision nulle, et figure dans la matrice au plus bas niveau de gravité. » : l'opportunité au
+  registre et dans la matrice est d'US-3080 ;
 - propre à l'US : une opportunité suit la même règle sur son produit signé : passée de −30 à −45,
   elle est en baisse ; sa provision, plafonnée à zéro, n'y entre pas ;
 - propre à l'US : la tendance d'une révision marquée est celle qu'elle avait contre la révision
