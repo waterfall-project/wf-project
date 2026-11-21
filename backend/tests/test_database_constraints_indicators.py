@@ -90,7 +90,7 @@ REFUSALS: list[tuple[dict[str, object], str]] = [
     ({"project_id": OTHER}, "fk_revision_indicator_project_id_revision"),
     ({"created_by": uuid4()}, "fk_revision_indicator_created_by_user_account"),
     ({"kind": "risks"}, "ck_revision_indicator_kind_known"),
-    # The kinds of the portfolio are named whole (migration 0040): no prefix stands for them.
+    # The kinds of the portfolio are named whole (migration 0042): no prefix stands for them.
     ({"kind": "portfolio"}, "ck_revision_indicator_kind_known"),
     ({"scope": ""}, "ck_revision_indicator_scope_length"),
     ({"scope": "x" * 37}, "ck_revision_indicator_scope_length"),
@@ -189,7 +189,7 @@ def test_a_document_written_by_the_transaction_that_marks_its_revision_is_kept(
     assert [tuple(each) for each in kept] == [("estimate", "project", AT)]
 
 
-# The kinds a marking keeps for the portfolio (EP-11, "Tables et migrations"; migration 0040).
+# The kinds a marking keeps for the portfolio (EP-11, "Tables et migrations"; migration 0042).
 PORTFOLIO_KINDS = (
     "portfolio_workload",
     "portfolio_cost_structure",

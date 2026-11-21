@@ -214,10 +214,10 @@ def test_the_kinds_of_the_portfolio_are_admitted_and_one_kept_holds_the_descent_
     empty_engine: Engine,
 ) -> None:
     # Covers no requirement: the check of the kinds and the trigger of ``computed_at``, not a direct
-    # write on a marked revision. #3549, US-2670/L1: before 0040, the check of the kinds refuses a
+    # write on a marked revision. #3549, US-2670/L1: before 0042, the check of the kinds refuses a
     # document of the portfolio; after it, one written by the transaction that marks its revision
     # is kept, the trigger of 0032 unchanged.
-    # The descent would refuse it again: it fails, nothing deleted, the base at 0040.
+    # The descent would refuse it again: it fails, nothing deleted, the base at 0042.
     upgrade(empty_engine, "0036")
     project_id, revision_id = uuid4(), uuid4()
     with empty_engine.begin() as connection:
@@ -234,13 +234,13 @@ def test_the_kinds_of_the_portfolio_are_admitted_and_one_kept_holds_the_descent_
     )
     with pytest.raises(IntegrityError, match="kind_known"), empty_engine.begin() as connection:
         connection.execute(document)
-    upgrade(empty_engine, "0040")
+    upgrade(empty_engine, "0042")
     with empty_engine.begin() as connection:
         connection.execute(document)
         connection.execute(marking)
     with pytest.raises(DBAPIError, match="kind_known"):
         downgrade(empty_engine, "0036")
     with empty_engine.connect() as connection:
-        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0040"
+        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0042"
         kept = connection.scalars(text("SELECT kind FROM revision_indicator")).all()
     assert kept == ["portfolio_risks"]
