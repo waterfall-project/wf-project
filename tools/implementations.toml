@@ -1,0 +1,253 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# L'unique implémentation de chaque calcul que WF-ARC-0010 cite — la machine d'état, le planning,
+# le chiffrage, les indicateurs —, que `make implementations` (wftools.implementations, US-2780/L3)
+# tient contre le back livré, `backend/src/waterfall`.
+#
+# Une entrée `[[implementation]]` par fichier du noyau qui porte un calcul : `calculation` le nomme
+# (l'une des quatre familles), `file` est le fichier, relatif à `backend/src/waterfall`, et `names`
+# les noms par lesquels on l'appelle — ses fonctions qui calculent, et les constantes qui en fixent
+# le résultat (un horizon, un pas d'arrondi, un ensemble d'états). Le module du noyau qui le porte
+# est le premier répertoire sous `core/` : `core/indicators/formulas/ratios.py` est à
+# `waterfall.core.indicators`. Un nom n'a qu'un propriétaire.
+#
+# Le contrôle tient les fichiers qui emploient ces calculs sans en porter aucun : l'API, le worker,
+# les autres points d'entrée et la plateforme — tout fichier hors de `core/` et de `migrations/` —,
+# et le portefeuille, `core/portfolio`, qui somme ce que les autres modules calculent. Il y refuse :
+#   - la définition d'un nom de la table : une fonction (`def`, à toute profondeur, méthode
+#     comprise) ou une affectation au niveau du module ;
+#   - l'import d'un nom de la table d'ailleurs que du module du noyau qui le porte (son interface
+#     ou l'un de ses fichiers ; `from … import nom`, alias compris).
+# Il refuse aussi un nom de la table que son fichier ne définit plus, et une déclaration (homonyme,
+# doublon) qui ne tient plus : la table ne vieillit pas en silence. Les autres modules du noyau sont
+# hors du contrôle : plusieurs donnent un nom de la table à une chose à eux (`STATES` des risques,
+# `state_of` du planning), et les migrations gardent les valeurs de leur temps.
+#
+# Ce que la table ne liste pas, et pourquoi : un nom trop commun pour désigner un calcul — `NOUGHT`,
+# `CENT`, `MONEY`, `Point`, `plan_of`, `chain` —, que d'autres modules emploient pour autre chose
+# (le motif d'un montant dans une requête de l'API, le plan de charge rendu…) ; les classes, que les
+# modèles engendrés du contrat (`api/contract/models.py`) reprennent sous le même nom sans rien
+# calculer ; les codes de refus et de condition, qui ne sont pas des calculs (`SHARED` de
+# `backend/tests/test_boundaries.py` en tient les partagés). Un calcul récrit sous un autre nom
+# échappe à ce contrôle : la revue le cherche.
+#
+# Les générateurs du faux back (`tools/src/wftools/mock*`), qui ne sont pas livrés, restent un
+# calcul indépendant, par la règle du jeu de données de référence : ils sont hors du contrôle.
+
+# --- La machine d'état (§3.3) -------------------------------------------------------------------
+
+[[implementation]]
+calculation = "state machine"
+file = "core/projects/tables.py"
+names = ["STATES"]
+
+[[implementation]]
+calculation = "state machine"
+file = "core/projects/interface/lifecycle.py"
+names = ["next_state", "advance", "exit_project", "BEFORE_TERMINAL"]
+
+[[implementation]]
+calculation = "state machine"
+file = "core/projects/commands.py"
+names = [
+    "state_conditions",
+    "commands_of",
+    "quality_conditions",
+    "TERMINAL",
+    "BEFORE_IN_PROGRESS",
+    "EXITS",
+]
+
+[[implementation]]
+calculation = "state machine"
+file = "core/revisions/states.py"
+names = ["state_of", "opening_of", "revision_state"]
+
+[[implementation]]
+calculation = "state machine"
+file = "core/revisions/commands.py"
+names = [
+    "revision_conditions",
+    "phase_conditions",
+    "revision_commands",
+    "structure_commands_of",
+    "merge_conditions",
+    "rebase_conditions",
+]
+
+# --- Le planning (§3.4.3) -----------------------------------------------------------------------
+
+[[implementation]]
+calculation = "planning"
+file = "core/planning/scheduling/engine.py"
+names = ["schedule", "horizon_of", "HORIZON_YEARS"]
+
+[[implementation]]
+calculation = "planning"
+file = "core/planning/scheduling/links.py"
+names = ["dating_order"]
+
+[[implementation]]
+calculation = "planning"
+file = "core/planning/scheduling/calendar.py"
+names = ["applicable_calendar", "weekly_calendar"]
+
+[[implementation]]
+calculation = "planning"
+file = "core/planning/scheduling/units.py"
+names = [
+    "MINUTES_PER_HOUR",
+    "HOURS_PER_ELAPSED_DAY",
+    "DAYS_PER_ELAPSED_WEEK",
+    "DAYS_PER_ELAPSED_MONTH",
+    "ELAPSED_HOURS",
+]
+
+# --- Le chiffrage (§3.4.4, §3.4.6) --------------------------------------------------------------
+
+[[implementation]]
+calculation = "estimate"
+file = "core/estimate/pricing/amounts.py"
+names = [
+    "round_to_cent",
+    "labour_base_amount",
+    "disbursement_base_amount",
+    "unrounded_labour_amount",
+    "unrounded_disbursement_amount",
+    "inflation_factor",
+    "projected_amount",
+    "sum_amounts",
+]
+
+[[implementation]]
+calculation = "estimate"
+file = "core/estimate/spreading/spread.py"
+names = ["spread_by_month", "exact_by_month", "month_weights", "spread_by_year"]
+
+[[implementation]]
+calculation = "estimate"
+file = "core/estimate/spreading/planned.py"
+names = ["planned_value"]
+
+[[implementation]]
+calculation = "estimate"
+file = "core/estimate/shares.py"
+names = ["share_of", "distribution"]
+
+[[implementation]]
+calculation = "estimate"
+file = "core/estimate/disbursing.py"
+names = ["amount_parts"]
+
+[[implementation]]
+calculation = "estimate"
+file = "core/estimate/remaining/summing.py"
+names = ["remaining_sum"]
+
+[[implementation]]
+calculation = "estimate"
+file = "core/estimate/remaining/balancing.py"
+names = ["margin", "balances", "delta_to_reference", "delta_to_previous", "distributed"]
+
+# --- Les indicateurs (§3.4.8, EP-10) ------------------------------------------------------------
+
+[[implementation]]
+calculation = "indicators"
+file = "core/indicators/formulas/ratios.py"
+names = [
+    "financial_progress",
+    "budget_consumption",
+    "physical_progress",
+    "cost_index",
+    "schedule_index",
+    "zone_of",
+]
+
+[[implementation]]
+calculation = "indicators"
+file = "core/indicators/formulas/projections.py"
+names = ["cost_variance", "schedule_variance", "projections"]
+
+[[implementation]]
+calculation = "indicators"
+file = "core/indicators/formulas/indicators.py"
+names = ["indicators_of"]
+
+[[implementation]]
+calculation = "indicators"
+file = "core/indicators/formulas/rounding.py"
+names = ["round_amount", "round_ratio", "RATIO_STEP"]
+
+[[implementation]]
+calculation = "indicators"
+file = "core/indicators/formulas/summaries.py"
+names = ["summary_progress"]
+
+[[implementation]]
+calculation = "indicators"
+file = "core/indicators/series/cumulation.py"
+names = ["cumulative", "cumulative_until", "cumulative_from", "to_cent"]
+
+[[implementation]]
+calculation = "indicators"
+file = "core/indicators/series/cash_out.py"
+names = ["cash_out_by_month"]
+
+[[implementation]]
+calculation = "indicators"
+file = "core/indicators/series/shares.py"
+names = ["line_shares", "spread_lines", "spread_delayed"]
+
+[[implementation]]
+calculation = "indicators"
+file = "core/indicators/series/months.py"
+names = [
+    "month_of",
+    "end_of",
+    "month_end",
+    "month_before",
+    "months_between",
+    "month_ends",
+    "events_by_month",
+]
+
+# --- Le portefeuille applique les formules d'EP-10 à des sommes ---------------------------------
+#
+# Une entrée `[[application]]` par fichier du portefeuille qui applique une formule : chacun des
+# noms de `applies` y est importé du module qui le porte et appelé, jamais récrit (WF-PTF-0020).
+
+[[application]]
+file = "core/portfolio/aggregation/ratios.py"
+applies = ["cost_index", "schedule_index", "cost_variance", "schedule_variance", "projections",
+    "share_of", "distribution"]
+
+[[application]]
+file = "core/portfolio/aggregation/zones.py"
+applies = ["zone_of"]
+
+# --- Les homonymes ------------------------------------------------------------------------------
+#
+# Une entrée `[[homonym]]` par module du noyau qui donne un nom de la table à un autre calcul, le
+# sien : un fichier tenu peut importer ce nom de ce module. Le contrôle échoue quand le module ne
+# le définit plus.
+
+[[homonym]]
+name = "zone_of"
+module = "waterfall.core.risk_settings"
+reason = """la zone de la case d'une probabilité et d'une gravité dans la matrice des risques \
+(EP-08), non la zone d'un indice"""
+
+# --- Les doublons connus ------------------------------------------------------------------------
+#
+# Une entrée `[[duplicate]]` par définition d'un nom de la table, dans un fichier que le contrôle
+# tient, que le dépôt porte aujourd'hui : le contrôle la dit à chaque passage, sans échouer — ses
+# réexportations comprises —, et échoue quand elle disparaît, pour que l'entrée parte avec elle.
+# `reason` dit ce qui est copié ; une entrée ne s'ajoute que pour un doublon trouvé, jamais pour
+# faire passer un calcul nouveau.
+
+[[duplicate]]
+name = "month_of"
+file = "core/portfolio/aggregation/periods.py"
+reason = """le mois civil d'un jour des courbes d'EP-10, récrit par le portefeuille avec \
+last_day_of (end_of des courbes) et le rang d'un mois, que l'interface des indicateurs n'offre pas"""

@@ -167,6 +167,26 @@ exercises them on a trial package (`backend/tests/test_boundaries.py`). An SQL q
 as text, which would name the table of another module, escapes the analysis of the imports:
 it falls under the SQL rules of EP-03 and under review.
 
+**One implementation of each calculation** (WF-ARC-0010, US-2780/L3). The state machine, the
+planning, the estimate and the indicators are written once only, in their module of the core, which
+the API, the worker and the portfolio import. The versioned table `tools/implementations.toml`
+names, for each file of the core that carries one of these calculations, the names it is called
+by — its functions that compute, the constants that fix its result —, and for each file of the
+portfolio, the formulas of EP-10 it applies to sums. A file outside `core/` and `migrations/` — the
+API, the worker, the other entry points, the platform — or of the portfolio defines none of these
+names (neither a function, at any depth, nor an assignment at the level of the module), and imports
+them only from the module of the core that owns them; a file of the portfolio imports and calls the
+formulas the table gives it. A new calculation of one of these four adds its names to the table.
+Two declarations keep a gap there, said without failing: a homonym (`[[homonym]]`), another
+calculation of a module of the core under a name of the table, which may be imported from that
+module, and a known duplicate (`[[duplicate]]`), said at each run with its reason until it is gone;
+each fails once it no longer holds. The check judges by name: a calculation written again under
+another name escapes it, and falls under review; the generators of the fake back, which are not
+delivered, are out of it.
+
+_Check_: `make implementations` (`wftools.implementations`, family `repo`, which runs on every
+change).
+
 **Background tasks** (WF-ARC-0090). A task lives in the `background_task` table
 (`waterfall.platform.tasks`), which is authoritative; the Redis stream (`waterfall.platform.queue`)
 carries only its identifier. A route submits it by `submit(session, queue, genre, demandeur)`, in
