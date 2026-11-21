@@ -404,7 +404,13 @@ test("enters the cells of a line of the estimate against the service, the amount
   await expect(cellAt(again, 1, at.reference)).toHaveText(/4\s000,00\s€/);
 });
 
-test("traverses the computed cells of the provision of a risk the run identifies, without entering them, against the service @shared [WF-IHM-0040-A] [WF-RIS-0010-A] [US-2640]", async ({
+// What the service lets be proved of the provision of a risk: its label, like every cell of its
+// row, takes no entry (its node does not accept it), which a user sees as a grid left at once. The
+// traversal of its computed cells, from one cell to the next and down to the row after, is played
+// on the fake back only (the test of the line entered along its row, above): the service renders
+// no cell of that estimate editable, so that nothing there is entered to be followed by cells to
+// traverse. Tagged for the provision that is not entered (WF-RIS-0010-A), not for the traversal.
+test("leaves the grid from the label of the provision the service names for the risk, which takes no entry @shared [WF-RIS-0010-A] [US-2640]", async ({
   page,
   browser,
   playwright,
@@ -444,7 +450,7 @@ test("traverses the computed cells of the provision of a risk the run identifies
       .toBe(false);
     await page.keyboard.press("Shift+Tab");
     await expect(label).toBeFocused();
-    for (const column of [at.category, at.role, at.quantity, at.hours, at.delay]) {
+    for (const column of [at.label, at.category, at.role, at.quantity, at.hours, at.delay]) {
       await expect(provision.getByRole("gridcell").nth(column)).toHaveAttribute(
         "aria-readonly",
         "true",
