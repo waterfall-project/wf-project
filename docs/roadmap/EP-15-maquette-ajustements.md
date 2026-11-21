@@ -114,15 +114,15 @@ service sont des écarts, qui nomment l'EPIC qui les clôt.
 | `WF-REV-0080-A` | Comparaison de deux révisions | début — close en EP-08 | US-0500 |
 | `WF-REV-0100-A` | Structures de coûts d'une révision | début — close en EP-08 | US-0500 |
 | `WF-REV-0050-A` | Fusion d’un différentiel | début — close en EP-08 | US-0510 |
-| `WF-RIS-0010-A` | Attributs d’un risque | début — close en EP-08 | US-0520 |
+| `WF-RIS-0010-A` | Attributs d’un risque | début — close en EP-30 | US-0520 |
 | `WF-RIS-0020-A` | États d’un risque | début — close en EP-08 | US-0520 |
-| `WF-RIS-0030-A` | Devis propre d’un risque | début — close en EP-08 | US-0520 |
+| `WF-RIS-0030-A` | Devis propre d’un risque | début — close en EP-30 | US-0520 |
 | `WF-PLA-0090-A` | Diagramme de Gantt | début — close en EP-06 | US-0530 |
 | `WF-PLA-0140-A` | Chronologies nommées | début — close en EP-06 | US-0530 |
 | `WF-RAE-0030-A` | Démarrage d’une tâche | début — close en EP-10 | US-0540 |
 | `WF-DEV-0070-A` | Plan de charge du projet | début — close en EP-09 | US-0550 |
 | `WF-PTF-0060-A` | Plan de charge agrégé | début — close en EP-11 | US-0550 |
-| `WF-RIS-0040-A` | Grille de suivi des risques | début — close en EP-08 | US-0550 |
+| `WF-RIS-0040-A` | Grille de suivi des risques | début — close en EP-30 | US-0550 |
 | `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | début — close en EP-11 | US-0550, US-0570 |
 | `WF-IHM-0080-A` | Traitements longs | début — close en EP-09 | US-0560 |
 | `WF-OBS-0020-A` | Journaux structurés et corrélation | début — close en EP-13 | US-0560 |
@@ -1068,6 +1068,22 @@ référence se déplace, et qu'EP-08 serve ce parcours tel qu'il est validé.
   différentiel, garde un montant budgété nul. » : EP-08.
 - écart : `WF-REV-0050-A` — « Après fusion, le projet ne comporte plus de révision en cours. » :
   EP-08.
+- écart : `WF-REV-0050-A` — « Une tâche ajoutée à la structure principale après la création du
+  différentiel, que celui-ci ne désigne pas, figure toujours dans la structure principale après la
+  fusion. » : ajouté par la spécification 1.0.8 (#4132) ; EP-08 (US-2560).
+- écart : `WF-REV-0050-A` — « Une ligne réestimée à 140 après la création du différentiel, pour un
+  montant budgété de 100, non désignée, porte toujours 100 et 140. » : ajouté par la spécification
+  1.0.8 (#4132) ; EP-08 (US-2560).
+- écart : `WF-REV-0050-A` — « De deux différentiels créés le même jour, la fusion du second laisse
+  dans la structure principale tout ce que la fusion du premier y a apporté. » : ajouté par la
+  spécification 1.0.8 (#4132) ; EP-08 (US-2560).
+- écart : `WF-REV-0050-A` — « La fusion d'un différentiel en retard est refusée et nomme la
+  condition ; mis à jour, il se fusionne. » : ajouté par la spécification 1.0.8 (#4132) ; EP-08
+  (US-2560, US-3050).
+- écart : `WF-REV-0050-A` — « Une ligne réestimée à dix heures, dont le différentiel change le rôle
+  pour un rôle d'une autre catégorie, garde dix heures après la fusion, et son montant réestimé est
+  celui de ces heures au taux du rôle désigné. » : ajouté par la spécification 1.0.8 (#4271) ; EP-08
+  (US-2560).
 - propre à l'US : « Préparer un avenant » est une commande de la révision en cours, offerte comme
   elle la liste (`create_structure`) ; elle demande un libellé, crée le différentiel et l'ouvre
   dans la grille de planning (US-0500), où les gestes d'US-0460 s'appliquent ;
@@ -1138,6 +1154,9 @@ d'un risque, et qu'EP-08 le serve tel qu'il est validé.
   tâche qu’il désignait ; si cette tâche a été supprimée entre-temps, sur la première tâche de
   premier niveau. » : le contrat le dit de `reviewRisk` (US-0570/L1, #1237) ; le choix de la tâche
   est du service — EP-08.
+- écart : `WF-RIS-0010-A` — « Un risque survenu dont le devis propre totalisait 200 présente une
+  gravité de 200 dans la révision suivante, qui ne reprend pas ce devis. » : ajouté par la
+  spécification 1.0.8 (#4178) ; #4400 l'éprouve.
 - `WF-RIS-0020-A` — « Les transitions entre identifié et écarté sont possibles dans les deux
   sens. » : par « Réexaminer », l'état retenu parmi ceux que le risque liste.
 - `WF-RIS-0020-A` — « Toute transition depuis l’état survenu est refusée. » : un risque survenu n'a

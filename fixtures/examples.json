@@ -127,6 +127,11 @@
       "sentence": "Une ligne réestimée à 140 pour un montant budgété de 100, non désignée par le différentiel, porte toujours 100 et 140 après la fusion."
     },
     {
+      "key": "WF-REV-0050-A#96932a83414d",
+      "requirement": "WF-REV-0050-A",
+      "sentence": "Une ligne réestimée à 140 après la création du différentiel, pour un montant budgété de 100, non désignée, porte toujours 100 et 140."
+    },
+    {
       "key": "WF-REV-0060-A#e0a3eb570e51",
       "requirement": "WF-REV-0060-A",
       "sentence": "Une révision créée en 2027 porte l'année de référence 2027."
@@ -310,6 +315,11 @@
       "key": "WF-RAE-0040-A#a27e44651c10",
       "requirement": "WF-RAE-0040-A",
       "sentence": "La saisie d'une charge de 80 heures sur une ligne de quantité 1 budgétée à 100 heures donne un montant réestimé de 80 fois le taux, projeté sur l'année de consommation de la ligne (WF-DEV-0030) ; le montant n'est pas saisissable."
+    },
+    {
+      "key": "WF-RIS-0010-A#69846466edd4",
+      "requirement": "WF-RIS-0010-A",
+      "sentence": "Un risque survenu dont le devis propre totalisait 200 présente une gravité de 200 dans la révision suivante, qui ne reprend pas ce devis."
     },
     {
       "key": "WF-RIS-0010-A#bd03f92aacb4",

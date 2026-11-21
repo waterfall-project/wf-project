@@ -436,6 +436,13 @@ export default defineConfig([
     },
   },
   {
+    // The load of k6 (bench/load.ts): the types of k6 declare a scenario as a class, BaseScenario,
+    // where k6 reads a plain object and makes none, so the options of a load are object literals by
+    // their nature. The rule against an object literal in the place of an instance is off here only.
+    files: ["bench/load.ts"],
+    rules: { "@typescript-eslint/no-unsafe-class-instance-assignment": "off" },
+  },
+  {
     // A non-breaking space written as itself is invisible in a test, and an expectation with one
     // cannot be told from one with an ordinary space: a test writes it as its escape, and the
     // rule, which skips strings by default, reads strings and templates too (#905).

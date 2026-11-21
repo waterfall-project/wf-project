@@ -1107,6 +1107,9 @@ sans construire un second arbre.
 - `WF-DAT-0090-A` — « La suppression d’un poste cité par une révision marquée le marque supprimé,
   retire le rattachement de la tâche de la révision en cours et laisse celui de la révision
   marquée. » : constaté par EP-06 ;
+- écart : `WF-DAT-0090-A` — « L'abandon d'un différentiel sur lequel un import a été analysé
+  supprime le compte rendu de cet import. » : ajouté par la spécification 1.0.8 (#4331) ; EP-08 le
+  tient (US-3060/L5, #4269) ;
 - `WF-DAT-0100-A` — « La somme des montants budgétés d’une révision est identique quel que soit
   l’ordre de sommation. » : des `Decimal` à deux décimales, sommés dans deux ordres ;
 - `WF-DAT-0100-A` — « Une tâche planifiée au 30 juin s’affiche au 30 juin sur tout poste client,
@@ -1123,11 +1126,12 @@ sans construire un second arbre.
 - écart : `WF-DAT-0100-A` — « Sur une installation au fuseau de Paris, une saisie datée faite à 0 h
   30, heure de Paris, propose le jour de Paris. » : ajouté par la spécification 1.0.7 (#3382) ; tenu
   depuis EP-25 (US-2200, #2527) ;
-- `WF-DAT-0010-A` — « Après marquage d’une révision puis création de la suivante, le nombre de
-  lignes de chaque table portant l’identifiant de la nouvelle révision égale celui de la révision
-  marquée, hors les lignes des structures différentielles fusionnées et des structures propres des
-  risques survenus. » : `estimate_line` et les tables images comprises, par `register_copy` ; les
-  structures qu'une révision ne reprend pas sont d'EP-08 ;
+- `WF-DAT-0010-A` — « Après marquage d'une révision puis création de la suivante, le nombre de
+  lignes de chaque table portant l'identifiant de la nouvelle révision égale celui de la révision
+  marquée, hors les lignes des structures différentielles fusionnées, de leur base (WF-REV-0110) et
+  des structures propres des risques survenus. » : `estimate_line` et les tables images comprises,
+  par `register_copy` ; les structures qu'une révision ne reprend pas, et la base d'un différentiel
+  (spécification 1.0.8, #4132), sont d'EP-08 ;
 - `WF-DAT-0010-A` — « Une modification dans la révision en cours ne change aucune ligne portant
   l’identifiant d’une révision marquée. »
 - `WF-DAT-0010-A` — « L’abandon d’une révision en cours ne laisse aucune ligne portant son

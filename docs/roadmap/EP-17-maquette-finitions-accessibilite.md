@@ -119,7 +119,7 @@ demandent le service sont des écarts, qui nomment l'EPIC qui les clôt.
 |---|---|---|---|
 | `WF-RAE-0030-A` | Démarrage d’une tâche | début — close en EP-10 | US-0730 |
 | `WF-PLA-0040-A` | Hiérarchie des tâches | début — close en EP-08 | US-0730 |
-| `WF-RIS-0040-A` | Grille de suivi des risques | début — close en EP-08 | US-0740 |
+| `WF-RIS-0040-A` | Grille de suivi des risques | début — close en EP-30 | US-0740 |
 | `WF-PLA-0080-A` | Grille de planning | début — close en EP-06 | US-0750 |
 | `WF-PLA-0090-A` | Diagramme de Gantt | début — close en EP-06 | US-0750 |
 | `WF-PLA-0050-A` | Jalons | début — close en EP-08 | US-0750 |
@@ -128,9 +128,9 @@ demandent le service sont des écarts, qui nomment l'EPIC qui les clôt.
 | `WF-IHM-0140-A` | Aide en ligne | début — close en EP-11 | US-0790 |
 | `WF-REF-0150-A` | Affichage des objets désactivés | début — close en EP-05 | US-1010 |
 | `WF-RIS-0020-A` | États d’un risque | début — close en EP-08 | US-1020 |
-| `WF-RIS-0050-A` | Réserve pour risques et couverture | début — close en EP-08 | US-1020, US-1210 |
+| `WF-RIS-0050-A` | Réserve pour risques et couverture | début — close en EP-30 | US-1020, US-1210 |
 | `WF-PTF-0090-A` | Risques du portefeuille | début — close en EP-11 | US-1210 |
-| `WF-RIS-0060-A` | Survenance d’un risque | début — close en EP-08 | US-1020 |
+| `WF-RIS-0060-A` | Survenance d’un risque | début — close en EP-30 | US-1020 |
 
 Les exigences déjà closes par un EPIC livré que ces travaux touchent restent closes, et leurs tests
 existants continuent de les citer ; trois d'entre elles sont citées par une US, avec tout leur

@@ -1,7 +1,7 @@
 ---
 id: EP-12
 titre: Échanger le planning avec MS Project, le devis et le reste à engager avec Excel
-statut: abandonné : chaque aller-retour se valide dans son bloc fonctionnel — MS Project en EP-06, le devis en EP-07, le reste à engager en EP-09
+statut: "abandonné : chaque aller-retour se valide dans son bloc fonctionnel — MS Project en EP-06, le devis en EP-07, le reste à engager en EP-09"
 depend_de: EP-09
 famille: front, back
 issue:

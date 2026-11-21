@@ -172,9 +172,19 @@ closes. Four rules, which each slice follows:
 | [EP-11](EP-11-portefeuille.md) | Portfolio | en cours | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | File exchanges (FLX-01 to FLX-06) | abandonné : each round trip is validated in its functional block | — |
 | [EP-13](EP-13-exploitation.md) | Operations and going to production | en cours | EP-04 |
-| [EP-28](EP-28-chaine-et-outillage.md) | Chain and development tooling | en cours | nothing |
-| [EP-29](EP-29-habilitations-specification-1-0-7.md) | Access rights: follow-up to specification 1.0.7 | à planifier | EP-08 |
-| [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risks prepared as differentials | à planifier | EP-08 |
+| [EP-28](EP-28-chaine-et-outillage.md) | Chain and development tooling | livré | nothing |
+| [EP-29](EP-29-habilitations-specification-1-0-7.md) | Access rights and accounts: follow-ups of specification 1.0.7 | à planifier | EP-08 |
+| [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risks prepared as differentials | prêt | EP-08, EP-11 |
+| [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning: engine and Gantt | à planifier | EP-08 |
+| [EP-33](EP-33-imports-et-exports-de-fichiers.md) | File imports and exports | à planifier | EP-08 |
+| [EP-34](EP-34-grilles-saisie-et-collage.md) | Grids: entry and pasting | à planifier | EP-08 |
+| [EP-36](EP-36-tests-et-preuve-des-exigences.md) | Tests and proof of the requirements | à planifier | EP-08, EP-11 |
+| [EP-35](EP-35-projets-chiffrage-couts-et-indicateurs.md) | Projects, estimate, costs and indicators: rules and computations | à planifier | EP-30 |
+| [EP-37](EP-37-ecrans-et-ergonomie.md) | Screens and ergonomics | à planifier | EP-08, EP-11 |
+| [EP-39](EP-39-exploitation-et-deploiement-suites.md) | Operations and deployment: follow-ups of EP-13 | à planifier | EP-13 |
+| [EP-38](EP-38-contrat-et-schema.md) | Contract and schema | à planifier | EP-13 |
+| [EP-40](EP-40-lectures-et-performance.md) | Reads and performance | à planifier | EP-13 |
+| [EP-31](EP-31-copier-et-coller-dans-les-grilles.md) | Functions after the MVP: copy and paste, « Heures » export | à planifier | EP-27 |
 
 The distribution of 2026-11-14, at the delivery of EP-24, spread what remains by theme — that of
 the code touched — and no longer by date of deferral: EP-25 keeps only the ergonomic redesign and
@@ -188,7 +198,27 @@ receives, at the framing of EP-13, the access-rights findings that the sorting o
 of 2026-11-18 had labelled EP-13, which keeps only operations (decision of the author of
 2026-11-18). EP-30 makes the own estimate of a risk a differential, so that a risk can rework or
 abandon existing work; it waits for EP-08, whose update of a differential it reuses, and for a
-revision of the specification (decision of the author of 2026-11-19).
+revision of the specification (decision of the author of 2026-11-19). Since its framing of
+2026-11-21, it also waits for EP-11, which modifies the same module of the risks and whose reads it
+brings along, and it closes in place of EP-08 the requirements of the risks that specification
+1.0.9 states again, written before the issues of its lots are opened. EP-31 holds the place of
+copying and pasting in the grids, which specification 1.0.8 writes (WF-IHM-0180): EP-08 takes no new
+function (decision of the author of 2026-11-21).
+
+The sorting of 2026-11-21 places what remains once the functions of the MVP are delivered — the
+merge of EP-08, EP-11, EP-13 and EP-30. Everything else is a fix: the issues open outside these
+epics, and the findings of the review of 2026-11-14 (`docs/reviews/`) checked that day against `main`
+and the branches of the three epics in progress, of which 45 majors out of 50 and 154 minors out of
+170 still hold, wholly or in part; the minors are gathered in clusters, one ticket per cluster, and 24 are dropped. Ten
+fix epics receive them, EP-29 widened to the accounts and EP-32 to EP-40, cut by area of code so
+that two epics led side by side do not touch the same files — the workstation carries six
+deliverers, two or three per epic, all six on EP-36 whose lots do not get in each other's way. Three
+waves: EP-29, EP-32, EP-33, EP-34 and EP-36 as soon as EP-08 and EP-11 are merged, which carry the
+six blockers of the review but the one of the estimate; EP-35 after EP-30, whose code it touches,
+and EP-37, which receives the remarks of the manual trials; EP-39, EP-38 and EP-40 after EP-13 — the
+code it delivers, the contract that gets in the way of every lot when it changes, and the
+measurements that need the whole workstation. EP-31 keeps what is a function and not a fix: copying
+and pasting, the « Heures » export of the estimate (decision of the author of 2026-11-21).
 
 The order of the list is not that of the numbers, and that is deliberate: an identifier is not
 renumbered. The distribution of the requirements put the reference data before the projects —

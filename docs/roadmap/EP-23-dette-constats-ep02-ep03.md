@@ -559,9 +559,9 @@ aboutissement sans voir un « Suivi interrompu » qui n'en est pas un (#2257, #2
   une relecture refusée par 401 ou 404 interrompent le suivi, qui le dit.
 - écart : `WF-IHM-0080-A` — « Le marquage d'une révision de dix mille objets laisse l'écran utilisable et présente son avancement. » : constaté par EP-02 (US-0180) et EP-04, inchangé ; EP-09 clôt.
 - écart : `WF-IHM-0080-A` — « L'échec d'un traitement de fond est signalé avec son motif, et le même traitement peut être relancé. » : idem.
-- écart : `WF-ADM-0160-A` — « Après restauration d’une sauvegarde, la plateforme présente exactement les projets, révisions et comptes qu’elle contenait à la date de la sauvegarde, et rien de postérieur, hors le journal d’audit, la liste des sauvegardes et leur planification, qui gardent leurs inscriptions, leurs sauvegardes et leurs réglages ; le journal nomme la restauration. » : le service ; la liste
+- écart : `WF-ADM-0160-A` — « Après restauration d’une sauvegarde, la plateforme présente exactement les projets, révisions et comptes qu’elle contenait à la date de la sauvegarde, et rien de postérieur, hors le journal d’audit, la liste des sauvegardes et leur planification, qui gardent leurs inscriptions, leurs sauvegardes et leurs réglages, et la périodicité de la lecture des comptes, qui reste celle réglée avant la restauration ; le journal nomme la restauration. » : le service ; la liste
   des sauvegardes d'une autre installation est corrigée par US-1800, le reste est constaté par EP-03
-  (US-0440) et EP-04.
+  (US-0440) et EP-04 ; la périodicité de la lecture des comptes, conservée de même, est de la spécification 1.0.8 (#4126) et d'EP-13 (US-3040).
 - écart : `WF-ADM-0160-A` — « Une tâche de fond en file ou en cours dans la sauvegarde est en échec après la restauration. » : constaté par EP-03 (US-0440), inchangé.
 - écart : `WF-ADM-0160-A` — « La confirmation nomme la date de la sauvegarde. » : sa forme pour le suivi : la restauration se suit par l'écran de sa maintenance, que sa
   confirmation ouvre, et jamais par le suivi de la coquille — une tâche `restore` que
@@ -797,10 +797,10 @@ sauvegarde absente, et que la rotation voie tout ce qui est gardé (#2230, #2242
 
 **Critères d'acceptation.**
 
-- `WF-ADM-0160-A` — « Après restauration d’une sauvegarde, la plateforme présente exactement les projets, révisions et comptes qu’elle contenait à la date de la sauvegarde, et rien de postérieur, hors le journal d’audit, la liste des sauvegardes et leur planification, qui gardent leurs inscriptions, leurs sauvegardes et leurs réglages ; le journal nomme la restauration. » : la liste
+- `WF-ADM-0160-A` — « Après restauration d’une sauvegarde, la plateforme présente exactement les projets, révisions et comptes qu’elle contenait à la date de la sauvegarde, et rien de postérieur, hors le journal d’audit, la liste des sauvegardes et leur planification, qui gardent leurs inscriptions, leurs sauvegardes et leurs réglages, et la périodicité de la lecture des comptes, qui reste celle réglée avant la restauration ; le journal nomme la restauration. » : la liste
   des sauvegardes est celle de l'installation gardée : restaurée depuis une base dont la table
   `backup` porte une ligne inconnue de l'installation, elle ne la liste plus ; le reste de la phrase
-  est constaté par EP-03 (US-0440) et EP-04.
+  est constaté par EP-03 (US-0440) et EP-04 ; la périodicité de la lecture des comptes, conservée de même, est de la spécification 1.0.8 (#4126) et d'EP-13 (US-3040).
 - écart : `WF-ADM-0160-A` — « Une tâche de fond en file ou en cours dans la sauvegarde est en échec après la restauration. » : constaté par EP-03 (US-0440), inchangé.
 - écart : `WF-ADM-0160-A` — « La confirmation nomme la date de la sauvegarde. » : idem.
 - écart : `WF-ADM-0160-A` — « Aucune restauration partielle n’est proposée. » : idem.

@@ -35,6 +35,8 @@ naissent à 0 ou à 1 selon la table, remise « à la v1 » sans EPIC qui la por
 
 ### RMP-01 — WF-EXP-0020-A est close par EP-07 alors que le fuseau de l'installation, que son corps exige, n'existe pas — déjà connu (#2527, EP-25 US-2200)
 
+- **Issue** : #3382 (fermée) — le fuseau de l'installation, traité au tri des constats de
+  spécification du 2026-11-18.
 - **Où** : `docs/roadmap/EP-07-chiffrage-et-devis.md:124` (portée « fin », US-1550) et `:242-247`
   (« US-1550, qui clôt WF-EXP-0020-A, l'ajoute ») ; `docs/roadmap/EP-13-exploitation.md:618-623`
   (« US-1550 devait le porter et ne l'a pas fait ») ; `docs/roadmap/EP-25-refonte-ergonomique.md:173`
@@ -61,6 +63,11 @@ naissent à 0 ou à 1 selon la table, remise « à la v1 » sans EPIC qui la por
 
 ### RMP-02 — Deux exigences restent « entières, closes par EP-02 » alors qu'une phrase de leur Vérif attend un EPIC non livré, qui ne les porte pas à son tableau
 
+- **Suite** : corrigé depuis la revue, vérifié le 2026-11-21 — EP-27 et EP-25 sont livrés et
+  fusionnés ; US-2330 cite WF-IHM-0010-A avec tout son Vérif et porte en critère (non en écart) la
+  phrase « Une comparaison active sur le planning l'est encore sur le devis puis sur le reste à
+  engager, avec la même base », et US-2160 porte de même la phrase de la préférence des motifs de
+  WF-IHM-0070-A (et les deux phrases de WF-ADM-0040-A).
 - **Où** : `docs/roadmap/EP-02-maquette-du-front.md:80` et `:731-733` (WF-IHM-0010-A, « EP-27 le
   réalise ») ; `:86` et `:1009-1012` (WF-IHM-0070-A, « EP-25 le réalise ») ;
   `docs/roadmap/EP-27-comparaison-dans-les-grilles.md:49-58` ; `docs/roadmap/EP-25-refonte-ergonomique.md:70-85` ;
@@ -86,6 +93,8 @@ naissent à 0 ou à 1 selon la table, remise « à la v1 » sans EPIC qui la por
 
 ### RMP-03 — WF-IHM-0080-A est close par EP-09 sans que le marquage « d'une révision de dix mille objets » ait jamais été constaté : trois fichiers se renvoient la phrase
 
+- **Issue** : #4446 (EP-36), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue.
 - **Où** : `docs/roadmap/EP-02-maquette-du-front.md:1063-1066` (« le volume … se constate sur le
   marquage réel, en EP-04 ») ; `docs/roadmap/EP-04-projets-et-revisions.md:1191-1193` (« écart … les
   objets sont d'EP-06 et d'EP-07 … EP-09 clôt ») ; `docs/roadmap/EP-09-couts-reels-et-reste-a-engager.md:116`
@@ -112,6 +121,8 @@ naissent à 0 ou à 1 selon la table, remise « à la v1 » sans EPIC qui la por
 
 ### RMP-04 — WF-ADM-0160-A est close par EP-04 alors que deux de ses phrases ont un défaut ou un manque reporté à EP-13, qui ne la porte pas — déjà connu (#1743, #2229, EP-13)
 
+- **Issue** : #4447 (EP-36), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue.
 - **Où** : `docs/roadmap/EP-04-projets-et-revisions.md:110` (« fin — amorcée en EP-03 ») et
   `:1209-1214` ; `docs/roadmap/EP-03-comptes-et-habilitations.md:1768-1771` (« la planification
   conservée est … du service en EP-13 (#1743) ») ; `docs/roadmap/EP-13-exploitation.md:144-145`
@@ -133,6 +144,7 @@ naissent à 0 ou à 1 selon la table, remise « à la v1 » sans EPIC qui la por
 
 ### RMP-05 — WF-PLA-0090-A, close par EP-06 (`front, back`), n'est citée que par les familles du front : « front seul » pour `make requirements-release`
 
+- **Issue** : #4415 (EP-32), ouverte le 2026-11-21, avec FTE-01.
 - **Où** : `docs/roadmap/EP-06-planification.md:116` ; `tools/src/wftools/coverage.py:249-255`
   (`front_only`) et `:48` (`FRONT_FAMILIES`) ; `tools/paths.toml:778` (`end-to-end-service =
   ["frontend/e2e/service/**"]`) ; `frontend/e2e/planning-service.spec.ts:70` et `:327` ;
@@ -155,6 +167,7 @@ naissent à 0 ou à 1 selon la table, remise « à la v1 » sans EPIC qui la por
 
 ### RMP-06 — Deux phrases de Vérif closes par un renvoi « constaté par EP-06 » qu'EP-06 ne porte pas, et qu'aucun test citant l'exigence ne prouve
 
+- **Issue** : #4444 (EP-36), ouverte le 2026-11-21.
 - **Où** : `docs/roadmap/EP-07-chiffrage-et-devis.md:88` et `:1113-1114` (WF-DAT-0100-A, « Deux
   tâches de quatre heures liées fin à début, sur un calendrier de huit heures, commencent et
   finissent le même jour. » : constaté par EP-06) ; `docs/roadmap/EP-09-couts-reels-et-reste-a-engager.md:1436-1437`
@@ -182,6 +195,11 @@ naissent à 0 ou à 1 selon la table, remise « à la v1 » sans EPIC qui la por
 
 ### RMP-07 — La reprise de la capacité d'un rôle (WF-REF-0100-A, spécification 1.0.4) est dite reportée à EP-10 par trois fichiers ; le fichier d'EP-10 n'en dit rien
 
+- **Suite** : corrigé depuis la revue, vérifié le 2026-11-21 — le fichier d'EP-10 (livré, fusionné
+  dans `main`) porte maintenant la ligne « `WF-REF-0100-A` — début — close en EP-11, amorcée aussi
+  en EP-05 — US-2410 », #2978 dans ses « Constats reçus » et l'US-2410 (`fini`) qui cite l'exigence
+  et réalise la capacité déduite. Le code suit : les tests citant WF-REF-0100-A éprouvent l'exemple
+  chiffré (303,33 et 75,83 heures) et la migration des rôles ; #2978 est close (2026-11-17).
 - **Où** : `docs/roadmap/EP-24-consolidation-apres-v0-3-0.md:64-67`, `:245-246` (« → EP-10, par
   #2978, ouverte sous #2427 »), `:482`, `:495-497`, `:1184`, `:1191` ;
   `docs/roadmap/EP-05-referentiel.md:968-973` ; `docs/roadmap/EP-10-indicateurs.md` (aucune
@@ -208,6 +226,7 @@ naissent à 0 ou à 1 selon la table, remise « à la v1 » sans EPIC qui la por
 
 ### RMP-08 — Des « Portée » dont l'autre bout ne répond pas
 
+- **Issue** : #4455 (EP-36), ouverte le 2026-11-21, avec RMP-09, RMP-13.
 - **Où et quoi** (aucune ne change qui clôt, toutes passent `make roadmap`, qui ne confronte pas les
   renvois) :
   - `EP-02:89` et `EP-18:71` : WF-IHM-0110-A « début — close en EP-06 », alors qu'EP-06 la dit
@@ -230,6 +249,7 @@ naissent à 0 ou à 1 selon la table, remise « à la v1 » sans EPIC qui la por
 
 ### RMP-09 — Trois exigences closes « entières » par EP-02, de la seule famille `front`, dont le travail du back est fait par EP-06 et EP-07 sans qu'aucune de leurs US ne les cite
 
+- **Issue** : #4455 (EP-36), ouverte le 2026-11-21, avec RMP-08, RMP-13.
 - **Où** : `EP-02:82-84` (WF-IHM-0030-A, 0040-A, 0050-A, `entière`) ; `EP-06:1710-1715` (US-1450,
   « Le collage et l'annulation servis par le serveur », `previewPaste`, `applyPaste`, ne cite que
   WF-IHM-0110-A) ; `backend/tests/test_paste.py:155` et suivantes, `test_estimate_paste.py:133` et
@@ -249,6 +269,7 @@ naissent à 0 ou à 1 selon la table, remise « à la v1 » sans EPIC qui la por
 
 ### RMP-10 — Les compteurs `lock_version` naissent à 0 ou à 1 selon la table ; la dette est reconnue et remise « à la v1 », sans EPIC qui la porte
 
+- **Issue** : #4456 (EP-36), ouverte le 2026-11-21.
 - **Où** : `EP-23:81-83`, `:509-510`, `:514` (#2779, #2240) ; `EP-06:885-889` et `:904-907` (#2843,
   « le projet et son lotissement nés à 1, "jamais écrit" lu à `lock_version` 1 ») ; code :
   `server_default="0"` dans `migrations/versions/0001…:61`, `0004…:80`, `0018…:68`, `0020…:176`,
@@ -266,6 +287,10 @@ naissent à 0 ou à 1 selon la table, remise « à la v1 » sans EPIC qui la por
 
 ### RMP-11 — EP-10 est `en cours` avec une conception antérieure à EP-24 : sa migration `0028` est prise, et deux de ses US n'ont ni issue ni opération
 
+- **Suite** : corrigé depuis la revue, vérifié le 2026-11-21 — EP-10 a été recadré le 2026-11-15
+  puis livré : sa conception dit « Les migrations ne portent plus de numéro dans ce fichier … `0028`
+  est prise », US-2040 et US-2050 ont leur issue (#3506, #3507) et leurs opérations, et ses
+  migrations sont `0031` à `0034` dans `main`.
 - **Où** : `EP-10:314-316`, `:333`, `:684`, `:702`, `:869` (« une seule migration, `0028`, chaînée
   sur `0027` ») ; `EP-08:116-117` (« la chaîne des migrations arrêtée à `0028` ») ;
   `backend/src/waterfall/migrations/versions/0028_import_duration_rule.py` (EP-24, livré) ;
@@ -286,6 +311,10 @@ naissent à 0 ou à 1 selon la table, remise « à la v1 » sans EPIC qui la por
 
 ### RMP-12 — EP-07 est `livré` alors qu'un point de sa définition de fini n'est pas entièrement tenu — déjà connu (#2893, EP-10)
 
+- **Suite** : corrigé depuis la revue, vérifié le 2026-11-21 — #2893 est fermée le 2026-11-16,
+  soldée par US-2430 d'EP-10 (« chaque clé de `fixtures/examples.json` du §3.4.5.4 et de WF-REV-0060
+  qui n'a pas de test du harnais d'exemples en reçoit un, dont le 4,04 % »), et le 4,04 % est dans
+  les tests du harnais.
 - **Où** : `EP-07:183-185` (« les exemples chiffrés des Vérif du §3.4.5.4, de WF-PRJ-0040 et de
   WF-REV-0060 … sont des tests qui passent (WF-QUA-0020) ») ; `EP-10:160-161` (#2893 : « des
   exemples chiffrés du §3.4.5.4 et de WF-REV-0060 n'ont pas de test du harnais d'exemples, dont le
@@ -298,6 +327,8 @@ naissent à 0 ou à 1 selon la table, remise « à la v1 » sans EPIC qui la por
 
 ### RMP-13 — Incohérences documentaires du README et des fichiers livrés
 
+- **Issue** : #4455 (EP-36), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue, avec RMP-08, RMP-09.
 - `README-fr.md:27` (et `README.md:27`) : « les 212 exigences » ; la spécification 1.0.6 en compte
   218 hors l'exemple du §1.3.1 (210 F0, 8 F1).
 - `README-fr.md:155` et `:157` : EP-21 est listé avant EP-05, dont il dépend (`depend_de: EP-19,
@@ -318,6 +349,9 @@ naissent à 0 ou à 1 selon la table, remise « à la v1 » sans EPIC qui la por
 
 ### RMP-14 — EP-26 annonce clore WF-QUA-0060-A « entière » alors que son Vérif exige des mesures aux volumes d'un jeu qu'EP-13 charge après lui
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — la clôture par EP-26 est une
+  décision de l'auteur (2026-11-14), redite au cadrage d'EP-13 (2026-11-18), avec l'écart écrit et
+  la mesure rejouée par US-2970.
 - **Où** : `EP-26:42-43` (« le jeu de données aux trois cents projets (WF-QUA-0040) — EP-13 ») et
   `:49-55` ; `docs/spec/waterfall-spec.md:4608` (« Les mesures sont faites aux volumes du §4.6.2. ») ;
   `README-fr.md:177`.

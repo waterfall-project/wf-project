@@ -35,6 +35,7 @@ Aucun.
 
 ### FAR-01 — Le suivi d'une restauration s'arrête pour de bon au premier rejet d'une action serveur
 
+- **Issue** : #4472 (EP-39), ouverte le 2026-11-21.
 - **Où** : `frontend/src/components/system/maintenance.tsx:108-122` (`useRestorationPhase`, `step`) ;
   aussi `:62-66` (`taskPhase`) ; effet de bord `frontend/src/components/system/system-failure.tsx:122`.
 - **Quoi** : `step()` attend `readLiveness()` puis `readBackgroundTask()` sans `try/catch` ni
@@ -62,6 +63,7 @@ Aucun.
 
 ### FAR-02 — La liste du rattachement d'un compte est inatteignable au clavier dans la grille
 
+- **Issue** : #4488 (EP-29), ouverte le 2026-11-21, avec FAR-06.
 - **Où** : `frontend/src/components/admin/user-cells.tsx:336-344` (`AttachmentCell`, `NativeSelect`
   avec `tabIndex={-1}` et `data-cell-command`) ; `frontend/src/components/grid/grid-keyboard.ts:270-280`
   (`followLink`).
@@ -87,6 +89,7 @@ Aucun.
 
 ### FAR-03 — Trois écrans du référentiel se présentent par URL directe sans la permission de consulter
 
+- **Issue** : #4489 (EP-29), ouverte le 2026-11-21.
 - **Où** : `frontend/src/app/reference/risks/page.tsx:41-56`,
   `frontend/src/app/reference/indicators/page.tsx:42` et suivantes,
   `frontend/src/app/reference/resources/page.tsx:335` et suivantes.
@@ -117,6 +120,7 @@ Aucun.
 
 ### FAR-04 — « Ajouter un rôle » en action groupée, offert à une session que le serveur refusera toujours
 
+- **Issue** : #4492 (EP-29), ouverte le 2026-11-21, avec FAR-08.
 - **Où** : `frontend/src/components/admin/user-bulk.tsx:49-64` ; `frontend/src/app/admin/users/page.tsx:141`.
 - **Quoi** : la barre offre « Ajouter un rôle » dès que la session modifie les comptes
   (`users.write`) et lit les rôles (`roles.length > 0`). `setUserAccessRoles` exige en plus
@@ -133,6 +137,7 @@ Aucun.
 
 ### FAR-05 — Des tests citent une exigence dont ils n'éprouvent pas le Vérif
 
+- **Issue** : #4451 (EP-36), ouverte le 2026-11-21, avec BAC-10, BRC-10, FCO-13.
 - **Où** : `frontend/src/components/admin/user-bulk.dom.test.tsx:305, 324, 355, 367` (`[WF-ADM-0120-A]`
   sur la réentrance du groupe, le résumé, le décompte « déjà dans l'état demandé ») ; `:388`
   (`[WF-ADM-0180-A]` sur le choix gardé affiché) ; `:407` (`[WF-IHM-0110-A]` — annulation et
@@ -146,6 +151,7 @@ Aucun.
 
 ### FAR-06 — Des boutons qui ouvrent un dialogue ne le disent pas
 
+- **Issue** : #4488 (EP-29), ouverte le 2026-11-21, avec FAR-02.
 - **Où** : `frontend/src/components/admin/backup-commands.tsx:658-669` (« Restaurer cette
   sauvegarde » du dépôt, ouvre `RestoreDialog`) ; `frontend/src/components/admin/user-cells.tsx:402-422`
   (`SetupLinkCommand`, ouvre `SetupLinkDialog` à la réponse) ; `frontend/src/components/admin/user-dialogs.tsx:278-295`
@@ -160,6 +166,7 @@ Aucun.
 
 ### FAR-07 — Séparateurs et listes composés en dur
 
+- **Issue** : #4462 (EP-37), ouverte le 2026-11-21, avec FCO-12.
 - **Où** : `frontend/src/components/admin/user-cells.tsx:226, 241` (`labels.join(", ")` dans un nom
   accessible) ; `frontend/src/components/reference/actual-cost-mapping.tsx:183` (`.join(", ")` des
   colonnes manquantes) et `:265` (`" " + …`, deux phrases collées par une espace) ;
@@ -174,6 +181,7 @@ Aucun.
 
 ### FAR-08 — L'adresse d'un compte local ne se corrige sur aucun écran
 
+- **Issue** : #4492 (EP-29), ouverte le 2026-11-21, avec FAR-04.
 - **Où** : `frontend/src/components/admin/admin-grids.tsx:274-282` (colonne `email` sans `entry`).
 - **Quoi** : le contrat laisse modifier l'adresse d'un compte local (`UserUpdate.email`, servi par
   `backend/src/waterfall/api/users.py:458-464`), et WF-ADM-0050 ne la fige que pour l'annuaire et le
@@ -189,6 +197,9 @@ Aucun.
 
 ### FAR-09 — Des gestes à cascade ou sans retour partent d'un seul clic
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — la revue le dit elle-même : aucune
+  exigence ne demande ces confirmations, la maquette d'US-1860 est validée sans, et le serveur tient
+  WF-ADM-0120 — une opportunité d'ergonomie, pas un écart.
 - **Où** : `frontend/src/components/reference/commands.tsx:371-396` (`ActivationButton` d'un nœud) ;
   `frontend/src/components/admin/user-bulk.tsx:80-97` (« Désactiver » groupé) ;
   `frontend/src/components/admin/user-cells.tsx:128-153` (interrupteur de son propre compte).

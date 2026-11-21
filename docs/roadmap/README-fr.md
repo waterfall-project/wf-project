@@ -170,9 +170,19 @@ sommer (décision de l'auteur du 2026-11-17), les trois cents projets en EP-13, 
 | [EP-11](EP-11-portefeuille.md) | Portefeuille | en cours | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
 | [EP-13](EP-13-exploitation.md) | Exploitation et mise en production | en cours | EP-04 |
-| [EP-28](EP-28-chaine-et-outillage.md) | Chaîne et outillage de développement | en cours | rien |
-| [EP-29](EP-29-habilitations-specification-1-0-7.md) | Habilitations : suites de la spécification 1.0.7 | à planifier | EP-08 |
-| [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risques préparés comme des différentiels | à planifier | EP-08 |
+| [EP-28](EP-28-chaine-et-outillage.md) | Chaîne et outillage de développement | livré | rien |
+| [EP-29](EP-29-habilitations-specification-1-0-7.md) | Habilitations et comptes : suites de la spécification 1.0.7 | à planifier | EP-08 |
+| [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risques préparés comme des différentiels | prêt | EP-08, EP-11 |
+| [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning : moteur et Gantt | à planifier | EP-08 |
+| [EP-33](EP-33-imports-et-exports-de-fichiers.md) | Imports et exports de fichiers | à planifier | EP-08 |
+| [EP-34](EP-34-grilles-saisie-et-collage.md) | Grilles : saisie et collage | à planifier | EP-08 |
+| [EP-36](EP-36-tests-et-preuve-des-exigences.md) | Tests et preuve des exigences | à planifier | EP-08, EP-11 |
+| [EP-35](EP-35-projets-chiffrage-couts-et-indicateurs.md) | Projets, chiffrage, coûts et indicateurs : règles et calculs | à planifier | EP-30 |
+| [EP-37](EP-37-ecrans-et-ergonomie.md) | Écrans et ergonomie | à planifier | EP-08, EP-11 |
+| [EP-39](EP-39-exploitation-et-deploiement-suites.md) | Exploitation et déploiement : suites d'EP-13 | à planifier | EP-13 |
+| [EP-38](EP-38-contrat-et-schema.md) | Contrat et schéma | à planifier | EP-13 |
+| [EP-40](EP-40-lectures-et-performance.md) | Lectures et performance | à planifier | EP-13 |
+| [EP-31](EP-31-copier-et-coller-dans-les-grilles.md) | Fonctions après le MVP : copier-coller, export « Heures » | à planifier | EP-27 |
 
 La ventilation du 2026-11-14, à la livraison d'EP-24, a réparti le reste à faire par thème — celui du
 code touché — et non plus par date de report : EP-25 ne garde que la refonte ergonomique et passe en
@@ -186,7 +196,27 @@ constats d'habilitation que le tri de la spécification du 2026-11-18 avait éti
 garde que l'exploitation (décision de l'auteur du 2026-11-18). EP-30 fait du devis propre d'un
 risque un différentiel, pour qu'un risque reprenne ou abandonne du travail existant ; il attend
 EP-08, dont il réutilise la mise à jour d'un différentiel, et une révision de la spécification
-(décision de l'auteur du 2026-11-19).
+(décision de l'auteur du 2026-11-19). Depuis son cadrage du 2026-11-21, il attend aussi EP-11, qui
+modifie le même module des risques et dont il fait suivre les lectures, et il clôt à la place
+d'EP-08 les exigences des risques que la spécification 1.0.9 redit, écrite avant l'ouverture des
+issues de ses lots. EP-31 tient la place de la copie et du collage dans les
+grilles, que la spécification 1.0.8 écrit (WF-IHM-0180) : EP-08 ne prend pas de fonction nouvelle
+(décision de l'auteur du 2026-11-21).
+
+La ventilation du 2026-11-21 range ce qui reste une fois livrées les fonctions du MVP — la fusion
+d'EP-08, EP-11, EP-13 et EP-30. Tout le reste est correction : les issues ouvertes hors de ces EPIC,
+et les constats de la revue du 2026-11-14 (`docs/reviews/`) vérifiés ce jour contre `main` et les
+branches des trois EPIC en cours, dont 45 majeurs sur 50 et 154 mineurs sur 170 sont encore
+d'actualité, en tout ou en partie ; les mineurs se regroupent en grappes, un ticket par grappe, et 24 sont abandonnés. Dix
+EPIC de correction les reçoivent, EP-29 élargi aux comptes et EP-32 à EP-40, découpés par zone de
+code pour que deux EPIC menés de front ne touchent pas les mêmes fichiers — le poste porte six
+livreurs, à deux ou trois par EPIC, les six sur EP-36 dont les lots ne se gênent pas. Trois vagues :
+EP-29, EP-32, EP-33, EP-34 et EP-36 dès la fusion d'EP-08 et d'EP-11, qui portent les six bloquants
+de la revue hors celui du chiffrage ; EP-35 après EP-30, dont il touche le code, et EP-37, qui
+reçoit les remarques des essais manuels ; EP-39, EP-38 et EP-40 après EP-13 — le code qu'il livre,
+le contrat qui gêne tous les lots quand il change, et les mesures qui demandent le poste entier.
+EP-31 garde ce qui est une fonction et non une correction : la copie et le collage, l'export
+« Heures » du devis (décision de l'auteur du 2026-11-21).
 
 L'ordre de la liste n'est pas celui des numéros, et c'est voulu : un identifiant ne se
 renumérote pas. La répartition des exigences a fait passer le référentiel avant les projets —

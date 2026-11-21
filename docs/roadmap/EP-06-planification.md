@@ -1474,6 +1474,10 @@ s'importent de la même façon.
 - `WF-ARC-0100-A` — « Une application refusée parce qu’un marquage est en cours sur le projet peut
   être redemandée après lui, sans nouveau dépôt. » : un refus passager laisse le compte rendu
   applicable et son fichier en place (spécification 1.0.3, #2523), réalisé par US-1380/L4 (#2519) ;
+- écart : `WF-ARC-0100-A` — « Après l'abandon d'un différentiel sur lequel un import a été analysé,
+  cet import ne peut plus être appliqué, et son fichier n'est plus sur le stockage objet au terme du
+  délai d'expiration. » : ajouté par la spécification 1.0.8 (#4331) ; EP-08 le tient (US-3060/L5,
+  #4269) : le compte rendu part avec la structure, et le fichier au balayage de la purge ;
 - `WF-INTF-0080-A` — « Pour un fichier qui contient des lignes invalides, le compte rendu les
   liste avec leur motif avant la confirmation. » : `ImportReport.rejected`, par le format
   (US-1430 pour MS Project) ; les lignes d'un devis sont d'EP-07, qui clôt ;
