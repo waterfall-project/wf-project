@@ -79,10 +79,10 @@ SNAPSHOT = (
 )
 """One line a table, ``name|digest of its rows``: the revisions, the projects (their counter), the
 journal, and every table that keeps rows of a revision, the indicators among them. The task is left
-out: its attempt is committed apart, before the marking. The revision of the trial is a new one and
-empty: the tables by ``revision_id`` hold no row of it, before as after, so that the snapshot has its
-real strength on ``revision``, ``project`` and ``audit_entry`` alone; the others are held in case the
-marking comes to write them."""
+out: its attempt is committed apart, before the marking. The revision of the trial is new and
+empty: the tables by ``revision_id`` hold no row of it, before as after, so that the snapshot has
+its real strength on ``revision``, ``project`` and ``audit_entry`` alone; the others are held in
+case the marking comes to write them."""
 HELD_REVISION = (
     "SELECT r.status, r.marked_at IS NULL, p.current_revision_id = r.id "
     "FROM revision r JOIN project p ON p.id = r.project_id WHERE r.id = :id"
@@ -173,7 +173,7 @@ def check_marked_once(count: str) -> None:
 
 
 def check_not_stopped(logs: str, worker: str) -> None:
-    """Hold that a worker's logs, a JSON object a line, hold no ``worker.stopped``: no one stopped it."""
+    """Hold that a worker's logs, a JSON object a line, hold no ``worker.stopped``."""
     for line in logs.splitlines():
         try:
             entry = json.loads(line)

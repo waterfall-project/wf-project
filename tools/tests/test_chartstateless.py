@@ -66,7 +66,9 @@ class Platform:
             listed = self.pods[component]
             if component == "worker" and self.labelled:
                 # The pod to kill is no longer selected; the pod made may stay.
-                listed = "".join(each for each in listed.splitlines(True) if "worker-b" in each)
+                listed = "".join(
+                    each for each in listed.splitlines(keepends=True) if "worker-b" in each
+                )
                 listed += "pod/waterfall-worker-c\n" * self.replacement
             return 0, listed
         if "XPENDING" in command:
@@ -250,7 +252,7 @@ def test_a_worker_killed_in_a_marking_leaves_the_database_and_another_marks() ->
 
 def test_a_worker_that_logged_its_stop_was_not_killed_and_is_not_deleted() -> None:
     platform = Platform(stopped_logs=True)
-    with pytest.raises(ProductionError, match="worker.stopped"):
+    with pytest.raises(ProductionError, match=r"worker\.stopped"):
         platform.trial().hold("token")
     assert not [command for command in platform.asked if "delete" in command]
 
@@ -266,7 +268,7 @@ def test_a_worker_that_logged_its_stop_is_read_in_its_logs() -> None:
     stop = json.dumps({"event": "worker.stopped"})
     started = json.dumps({"event": "task.started"})
     chartstateless.check_not_stopped(f"{started}\nnot json\n", "a")
-    with pytest.raises(ProductionError, match="worker.stopped"):
+    with pytest.raises(ProductionError, match=r"worker\.stopped"):
         chartstateless.check_not_stopped(f"not json\n{stop}\n", "a")
 
 
