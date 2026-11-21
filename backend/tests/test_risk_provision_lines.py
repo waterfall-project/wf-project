@@ -567,6 +567,41 @@ def test_a_provision_line_is_not_reestimated_its_condition_named_before_the_phas
 
 @pytest.mark.story("US-3060")
 @pytest.mark.requirement("WF-RIS-0010-A")
+def test_a_line_of_a_category_of_provision_in_a_differential_is_not_reestimated_either(
+    risks: Risks, project: Costed
+) -> None:
+    # #4378: ``line_not_provision`` holds on every structure, not on the main one alone: the line
+    # of the category of provision a differential holds is refused as the line of a risk is, and
+    # nothing is written.
+    structure_id = differential(project)
+    with project.stage.owner.begin() as connection:
+        task = insert_task(
+            connection, project.project_id, project.revision_id, structure_id, label="Avenant"
+        )
+        line = material_line(
+            connection,
+            (project.project_id, project.revision_id, structure_id, task),
+            project.costs.provision,
+            Decimal("50.00"),
+        )
+        held = connection.scalar(select(Node.lock_version).where(Node.id == line))
+    path = (
+        f"{PROJECTS}/{project.project_id}/revisions/{project.revision_id}"
+        f"/structures/{structure_id}/nodes/{line}/remaining"
+    )
+    sent = {
+        "reestimated_amount_basis": {"unit_disbursement": "10.00"},
+        "lock_version": held,
+        "completed_on": str(DAY),
+    }
+    answer = risks.api.put(path, headers=project.stage.manager.headers, json=sent)
+    assert refusal(answer) == (409, STATE, {"missing_condition": "line_not_provision"})
+    with project.stage.owner.begin() as connection:
+        assert connection.scalar(select(Node.lock_version).where(Node.id == line)) == held
+
+
+@pytest.mark.story("US-3060")
+@pytest.mark.requirement("WF-RIS-0010-A")
 def test_a_provision_line_is_not_reestimated_its_completed_task_named_first(
     api: ContractClient, stage: Scene, costs: Costing
 ) -> None:
@@ -678,6 +713,19 @@ def test_the_label_of_a_provision_line_is_accepted_alone_and_its_amount_not_proj
     assert kept(after) == (line["lock_version"] + 1, "Provision renommée", *kept(line)[2:])
     assert kept(after)[-2:] == ("60.00", "60.00")
     assert after["estimate_line"]["is_computed"] is True
+
+
+@pytest.mark.story("US-3060")
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_a_null_label_on_a_provision_line_is_refused_as_required_and_nothing_is_written(
+    risks: Risks, project: Costed
+) -> None:
+    # #4378: the label is the one field the line accepts, and it is required: sent null it is
+    # ``VALUE_REQUIRED`` on ``/label``, and the line is left as it was.
+    risk = risks.declared_costed()
+    line = project.tree.node(risk["provision_node_id"])
+    assert faults(project.lines.change(line, label=None)) == [("/label", "VALUE_REQUIRED", {})]
+    assert kept(project.tree.node(risk["provision_node_id"])) == kept(line)
 
 
 @pytest.mark.story("US-3060")
