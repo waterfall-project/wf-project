@@ -74,6 +74,7 @@ signature, deux `VALUE_TOO_LONG` sans `max_length`, `emailVerified` posé par un
 
 ### BAC-02 — La garde du dernier administrateur ignore les permissions de consultation que ses routes exigent
 
+- **Issue** : #3342 (ouverte).
 - **Où** : `backend/src/waterfall/core/access_roles/administrators.py:33`
   (`ADMINISTRATION = ("users.write", "access_roles.write")`) et `:44-55` ; contre
   `backend/src/waterfall/api/access_roles.py:57-59` (`updateAccessRole`, `deleteAccessRole`,
@@ -111,6 +112,7 @@ signature, deux `VALUE_TOO_LONG` sans `max_length`, `emailVerified` posé par un
 
 ### BAC-03 — `undo`/`redo` disent si une révision d'un autre projet existe, et son état
 
+- **Issue** : #4490 (EP-29), ouverte le 2026-11-21, avec BAC-04.
 - **Où** : `backend/src/waterfall/core/planning/interface/snapshots.py:183` (`judge_revision` avant
   toute lecture bornée au projet) ; `backend/src/waterfall/core/planning/writing.py:139-155` ;
   `backend/src/waterfall/core/revisions/interface/revisions.py:621-636` (`revision_draft` lit et
@@ -129,6 +131,7 @@ signature, deux `VALUE_TOO_LONG` sans `max_length`, `emailVerified` posé par un
 
 ### BAC-04 — Ce qui a été demandé avant un retrait de droits s'achève après
 
+- **Issue** : #4490 (EP-29), ouverte le 2026-11-21, avec BAC-03.
 - **Où** : `backend/src/waterfall/api/exports.py:107-135` et
   `backend/src/waterfall/core/exchanges/interface/exports.py:218-233` (le fichier d'un export se
   télécharge sous la seule qualité de demandeur) ; `backend/src/waterfall/worker/exchanges.py:51-62`
@@ -148,6 +151,8 @@ signature, deux `VALUE_TOO_LONG` sans `max_length`, `emailVerified` posé par un
 
 ### BAC-05 — Avatar : validé sur sa seule signature, servi sans en-tête de protection ni de cache
 
+- **Issue** : #4491 (EP-29), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue.
 - **Où** : `backend/src/waterfall/core/users/personal.py:36` et `:87-89` (`SIGNATURES` : huit octets
   pour PNG, **trois** pour JPEG) ; `backend/src/waterfall/api/avatars.py:48-74` (aucun décodage),
   `:101-110` (réponse sans `X-Content-Type-Options`, `Cache-Control`, `ETag` ni
@@ -165,6 +170,7 @@ signature, deux `VALUE_TOO_LONG` sans `max_length`, `emailVerified` posé par un
 
 ### BAC-06 — Deux `VALUE_TOO_LONG` portent `maximum` au lieu de `max_length` (EP-18/US-1060)
 
+- **Issue** : #4465 (EP-38), ouverte le 2026-11-21, avec CTA-04, CTA-05, CTA-06.
 - **Où** : `backend/src/waterfall/core/exchanges/interface/imports.py:333` (nom de fichier d'un
   dépôt, `uploadFile`) ; `backend/src/waterfall/core/planning/interface/timelines.py:67` (libellé
   d'une chronologie — atteint par le seul chargeur du témoin si le modèle du contrat borne déjà le
@@ -180,6 +186,9 @@ signature, deux `VALUE_TOO_LONG` sans `max_length`, `emailVerified` posé par un
 
 ### BAC-07 — L'extension Keycloak déclare l'adresse prouvée par un lien remis à la main
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — sans effet dans le produit livré :
+  ni le royaume (`verifyEmail` absent), ni le back, ni le front ne lisent `emailVerified` ; la revue
+  dit la portée « plausible », sous un réglage de console qu'aucune plateforme ne porte.
 - **Où** : `deploy/keycloak/extension/src/main/java/io/github/waterfallproject/keycloak/PasswordSetupTokenHandler.java:119-120`
   (`user.setEmailVerified(true)`, « the link reached the address it was made for »).
 - **Quoi** : le même jeton sert au lien envoyé par courriel (`invite`) et au lien rendu à
@@ -194,6 +203,7 @@ signature, deux `VALUE_TOO_LONG` sans `max_length`, `emailVerified` posé par un
 
 ### BAC-08 — Lectures et écritures sous une permission voisine de celle de l'objet
 
+- **Issue** : #3973 (EP-29), à laquelle la ventilation du 2026-11-21 joint ce constat.
 - **Où/quoi** :
   - `backend/src/waterfall/api/imports.py:94`, `:250`, `:311` : `listImports` et `getImport`
     demandent `planning.read` quel que soit le genre ; le compte rendu d'un import de devis, de
@@ -218,6 +228,7 @@ signature, deux `VALUE_TOO_LONG` sans `max_length`, `emailVerified` posé par un
 
 ### BAC-09 — `uploadFile` : toute session, sans plafond par compte
 
+- **Issue** : #4423 (EP-33), ouverte le 2026-11-21, avec CTB-02.
 - **Où** : `backend/src/waterfall/api/imports.py:149-183`,
   `backend/src/waterfall/core/exchanges/interface/imports.py:318-334`.
 - **Quoi/scénario** : un compte sans aucun rôle (première connexion d'une personne d'un fournisseur
@@ -231,6 +242,7 @@ signature, deux `VALUE_TOO_LONG` sans `max_length`, `emailVerified` posé par un
 
 ### BAC-10 — Tests de sécurité qui ne citent pas d'exigence, et un test sans assertion
 
+- **Issue** : #4451 (EP-36), ouverte le 2026-11-21, avec BRC-10, FCO-13, FAR-05.
 - **Où** : `backend/tests/test_users_activation.py:276` (#834 : « qui modifie les comptes ne se
   donne pas l'administration », Vérif de WF-ADM-0090, aucun marqueur) ;
   `backend/tests/test_users_password_link.py:210` (permission du lien, WF-ADM-0110) ;

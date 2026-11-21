@@ -79,6 +79,7 @@ points ci-dessus n'ont aucun test.
 
 ### BCH-02 — Une tâche datée hors de 2000-2100 fait répondre 500 à toute écriture de ligne et à tout redatage
 
+- **Issue** : #4439 (EP-35), ouverte le 2026-11-21.
 - **Où** : `core/estimate/costing.py:172-187` (`priced` rend l'année de la part la plus lourde,
   sans borne) ; `core/estimate/writing.py:206,257,305` (écriture de `consumption_year`) ;
   `core/estimate/tables.py:104-106` (`ck_estimate_line_consumption_year_bound`, 2000-2100).
@@ -102,6 +103,7 @@ points ci-dessus n'ont aucun test.
 
 ### BCH-03 — Une colonne lue absente d'un onglet se lit comme des cellules vides : restes mis à zéro, tâches terminées, lignes dupliquées
 
+- **Issue** : #4421 (EP-33), ouverte le 2026-11-21.
 - **Où** : `core/estimate/excel/reader.py:361-369` et
   `core/estimate/remaining/excel/reader.py:275-285` (le lecteur calcule `missing_headers` et
   `unread_sheets`, « the policy is the analysis' ») ; `core/estimate/importing.py:490-531` et
@@ -138,6 +140,8 @@ points ci-dessus n'ont aucun test.
 
 ### BCH-04 — La base « référence » lit les calendriers du jour, non les images de la révision de référence
 
+- **Issue** : #4441 (EP-35), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue, avec BCH-08.
 - **Où** : `core/estimate/workloading.py:234` (`is_stored=False` pour `reference_budget`),
   `:323-325` (`kept_reference` lu seulement si `is_stored`, puis `role_weeks(…, kept)`) ;
   `core/estimate/valuing.py:45-49` (`role_weeks` appelé sans images) ;
@@ -166,6 +170,7 @@ points ci-dessus n'ont aucun test.
 
 ### BCH-05 — Import du devis : les lignes absentes du fichier sont supprimées une écriture de l'arbre chacune
 
+- **Issue** : #4422 (EP-33), ouverte le 2026-11-21.
 - **Où** : `core/estimate/applying.py:88-90` ; `core/planning/interface/nodes.py:802-846`
   (`delete_node` : verrou, lecture de l'arbre, rejeu du moteur, relecture, par appel).
 - **Quoi** : l'application supprime les lignes retirées nœud par nœud, chacune dans un cadre
@@ -184,6 +189,7 @@ points ci-dessus n'ont aucun test.
 
 ### BCH-06 — Ouverture d'un import : le classeur entier est décompressé et analysé dans la requête, sous le verrou du projet, sans borne de taille décompressée
 
+- **Issue** : #4419 (EP-33), ouverte le 2026-11-21, avec BEX-03, BRC-02, BRC-03, BEX-05.
 - **Où** : `core/estimate/excel/reader.py:186-209` (`check_header`), `:317-331` (`load_sheets`) ;
   `core/estimate/interface/excel.py:50-54,70-76` et
   `core/estimate/interface/remaining_excel.py:49,68-75` (`HEADER_LENGTH = LARGEST_FILE`) ;
@@ -213,6 +219,7 @@ points ci-dessus n'ont aucun test.
 
 ### BCH-07 — Pas de rechiffrage quand le calendrier d'un rôle change sans déplacer la tâche
 
+- **Issue** : #4411 (EP-32), ouverte le 2026-11-21, avec BRC-01.
 - **Où** : `core/planning/interface/reference.py:101-103` (`reschedule` sans `Holding.repriced`),
   `core/planning/rescheduling.py:124-130` (seules les tâches déplacées sont rechiffrées) ;
   dépendance côté chiffrage : `core/estimate/costing.py:179` (répartition sur le calendrier du
@@ -232,6 +239,7 @@ points ci-dessus n'ont aucun test.
 
 ### BCH-08 — Export du reste à engager d'une révision marquée : coefficient d'inflation au taux courant du projet
 
+- **Issue** : #4441 (EP-35), ouverte le 2026-11-21, avec BCH-04.
 - **Où** : `core/estimate/remaining/exporting.py:157,239` ; `core/estimate/costing.py:91-102`
   (`basis_of` lit `project_facts(...).inflation_rate`, « a marked one writes none »).
 - **Quoi** : `basis_of`, écrit pour les écritures d'une révision en cours, sert à lire une
@@ -248,6 +256,7 @@ points ci-dessus n'ont aucun test.
 
 ### BCH-09 — Collage : l'espace fine insécable (U+202F) des milliers fait refuser le nombre
 
+- **Issue** : #4435 (EP-34), ouverte le 2026-11-21, avec FGR-07.
 - **Où** : `core/estimate/pasting.py:81-87`.
 - **Quoi** : `_number` retire l'espace et U+00A0, pas U+202F, séparateur de milliers du français
   dans les tableurs et navigateurs récents : « 1 234,56 » est refusé `NUMBER_INVALID` (exécuté :
@@ -258,6 +267,11 @@ points ci-dessus n'ont aucun test.
 
 ### BCH-10 — Import : le taux manquant et le débordement de montant ne sont jugés qu'à l'application
 
+- **Suite** : corrigé depuis la revue, vérifié le 2026-11-21 — sur EP-08 (US-2660/L2, #3827, commits
+  `ad1b9e4cf`, `296606006`, `100964315`), `judged` appelle `judged_amounts` après `judged_line` pour
+  toute ligne nouvelle ou modifiée : un montant débordé rejette la ligne à l'analyse, et
+  `HOURLY_RATE_MISSING` devient un rejet de la ligne au compte rendu, à l'en-tête « Rôle ou
+  catégorie », avec `missing_rates`. Un test l'affirme.
 - **Où** : `core/estimate/importing.py:456-480` (`judged` appelle `judged_line`, non
   `judged_priced`) ; refus levés à l'application par `core/estimate/writing.py:121-122,131-138`.
 - **Quoi** : une ligne de main-d'œuvre dont la catégorie n'a pas de taux pour l'année de la
@@ -272,6 +286,7 @@ points ci-dessus n'ont aucun test.
 
 ### BCH-11 — Reste à engager importé en montant : le montant obtenu n'est pas toujours le montant saisi
 
+- **Issue** : #4428 (EP-33), ouverte le 2026-11-21.
 - **Où** : `core/estimate/remaining/analysing.py:168-170,384-386`.
 - **Quoi** : le débours unitaire est arrondi au centime après division par quantité × coefficient
   (décision de la Conception d'EP-09). La décision #2797 dit pourtant que « le débours d'une
@@ -286,6 +301,7 @@ points ci-dessus n'ont aucun test.
 
 ### BCH-12 — Lectures non bornées par la révision
 
+- **Issue** : #4485 (EP-40), ouverte le 2026-11-21, avec DON-02.
 - **Où** : `core/estimate/interface/contributors.py:28-49` (`roles_employed`) et `:52-67`
   (`marked_revision_has_lines`) ; `core/estimate/costing.py:139-148` (`reference_rates`, une
   requête par catégorie) ; `core/estimate/indicating.py:175-186`, `core/estimate/keeping.py:115-130`
@@ -300,6 +316,9 @@ points ci-dessus n'ont aucun test.
 
 ### BCH-13 — Critères `SOMME.SI.ENS` construits depuis des libellés libres
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — il ne valait que par sa jonction à
+  #4317 (EP-08), dont le périmètre ne s'élargit pas : les sous-totaux sont en lecture seule, et le
+  nom de nature qui casserait le critère est improbable.
 - **Où** : `core/estimate/excel/writer.py:564-572`, `core/estimate/remaining/excel/writer.py:415-419`.
 - **Quoi** : le nom d'une nature et un code comptable entrent tels quels (guillemets doublés)
   dans un critère de `SUMIFS` ; un nom qui commence par `<`, `>`, `=` ou contient `*`, `?`, `~`

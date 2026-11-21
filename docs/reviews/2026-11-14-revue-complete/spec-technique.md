@@ -29,6 +29,9 @@ Aucun.
 
 ### SPT-01 — WF-QUA-0010 est déclarée close, mais la chaîne publie des versions sans sa porte
 
+- **Suite** : sans issue propre, vérifié le 2026-11-21 — tombera avec US-3000 (#4077, EP-13, `à
+  faire`) et #3725 (finding, EP-13, rattachée à #4077) ; US-2440 (EP-28) pour les tests non
+  exécutés, livrée.
 - **Où** : spec l. 4533-4535 (WF-QUA-0010, corps et Vérif) ; `docs/roadmap/EP-01-socle-de-developpement.md:72`
   (« entière ») et `:80` (« Seules WF-QUA-0010 et WF-QUA-0030 sont closes ») ; `Makefile:255-256`
   (`requirements-release`) ; `.github/workflows/images.yml:57-60` (`make images PUSH=yes`) ;
@@ -67,6 +70,7 @@ Aucun.
 
 ### SPT-02 — WF-DAT-0070 close, mais la liste des contributeurs s'écrit sans auteur ni date
 
+- **Issue** : #3356 (fermée).
 - **Où** : spec l. 3974 (§4.4.1 « Audit ») et l. 4006 (WF-DAT-0070, corps : « Toute table dont les
   lignes peuvent être modifiées porte la date de création et son auteur, la date de dernière
   modification et son auteur ») ; `backend/src/waterfall/core/projects/tables.py:169-184` (`contributor` :
@@ -97,6 +101,7 @@ Aucun.
 
 ### SPT-03 — La restauration livrée n'est pas celle du §4 : un quatrième processus, un état dans Redis, un volume partagé
 
+- **Issue** : #3380 (fermée).
 - **Où** : spec l. 3576 (PBS-2.2 : le worker exécute « sauvegardes et leur copie externe »), l. 3894
   (WF-ARC-0090 : « sauvegarde et restauration […] sont exécutés par le worker »), l. 3711 (« trois
   processus applicatifs »), figure 18 (l. 3715-3756), tableau 8 (l. 3764-3782), l. 3495 et l. 3588
@@ -142,6 +147,7 @@ Aucun.
 
 ### SPT-04 — Le fuseau de l'installation est au corps de trois exigences et au Vérif d'aucune
 
+- **Issue** : #3382 (fermée).
 - **Où** : spec l. 2326 (WF-PLA-0130, corps), l. 4043 (WF-DAT-0100 : « Le jour courant […] s'entend
   dans le fuseau horaire de l'installation (WF-EXP-0020) »), l. 4233 et l. 4241 (§4.5.2 et WF-EXP-0020 :
   l'amorçage fixe « son fuseau horaire ») ; Vérif l. 4045 et l. 4243, où le mot n'apparaît que pour le
@@ -165,6 +171,7 @@ Aucun.
 
 ### SPT-05 — WF-CMP-0020 tait deux contraintes que le livré impose à un PostgreSQL fourni par l'exploitant
 
+- **Issue** : #3383 (fermée).
 - **Où** : spec l. 4503-4505 (WF-CMP-0020 : « PostgreSQL dans une version au moins égale à 18 » ;
   Vérif : « échoue […] si un composant est d'une version antérieure ») et l. 3702 (WF-ARC-0050 :
   remplacés « par simple paramétrage ») ; `deploy/compose/compose.prod.yaml:140-143`,
@@ -188,6 +195,7 @@ Aucun.
 
 ### SPT-06 — Le tableau des flux et la figure 18 ignorent trois flux livrés
 
+- **Issue** : #3384 (fermée), #3389 (fermée), #3963 (fermée).
 - **Où** : spec l. 3764-3782 (tableau 8), l. 3715-3756 (figure 18), l. 3606 (PBS-5.3), l. 3702
   (« images de conteneurs — front, API, worker ») ; `deploy/keycloak/realm/waterfall.yaml:126-127` et
   `frontend/src/app/auth/backchannel-logout/route.ts:20` ; `deploy/compose/compose.prod.yaml:281-301`
@@ -209,6 +217,7 @@ Aucun.
 
 ### SPT-07 — WF-DAT-0090 (close) : trois phrases du corps que le schéma livré ne suit pas
 
+- **Issue** : #3385 (fermée).
 - **Où** : spec l. 3986 et l. 4030 ; `backend/src/waterfall/core/planning/tables.py:242-247`
   (`order_item_id`, `work_package_id` en `RESTRICT`), `:325` (`tracking_entry.timeline_id` en
   `CASCADE`), `:66-88` (cascade de la structure vers ses nœuds et ses liaisons, du parent vers ses
@@ -228,6 +237,7 @@ Aucun.
 
 ### SPT-08 — Le tableau 10, les régimes et l'amorçage décrits ne sont plus ceux du schéma livré
 
+- **Issue** : #3386 (fermée).
 - **Où** : spec l. 3930-3968 (tableau 10), l. 3920-3926 (régimes), l. 3984 et l. 4018 (« cinq lignes
   techniques »), l. 3990-3994 (WF-DAT-0060 : « Toute ligne […] un UUID »), l. 4233 et l. 4241
   (amorçage), l. 4932 (glossaire, « Référentiel commun ») ; `backend/src/waterfall/core/users/tables.py:98`
@@ -252,6 +262,7 @@ Aucun.
 
 ### SPT-09 — L'avatar est « livré à 512 Ko » ; l'amorçage livre 2 Mio, et ce n'est pas un réglage de déploiement
 
+- **Issue** : #3387 (fermée), #3965 (ouverte).
 - **Où** : spec l. 3928 ; `docs/api/components/schemas/platform.yaml:97` (« shipped at 512 KB,
   `524288` ») ; `backend/src/waterfall/bootstrap.py:98-101, 302` ; `docs/api/DECISIONS.md:9707-9708`
   (« Le témoin a ses valeurs livrées, sauf l'avatar, porté à 2 Mio ») ; spec l. 4204 (définition du
@@ -268,6 +279,7 @@ Aucun.
 
 ### SPT-10 — WF-DAT-0080 (close) : la rétention des tâches de fond n'a ni purge ni Vérif
 
+- **Issue** : #3388 (fermée).
 - **Où** : spec l. 3984 (« une tâche de fond au terme de la rétention de son résultat — […] trente
   jours ») et l. 4018-4020 ; `backend/src/waterfall/worker/main.py:203-229` (la purge ne touche pas
   `background_task`) ; `docs/roadmap/EP-07-chiffrage-et-devis.md:91` (« fin »).
@@ -279,6 +291,7 @@ Aucun.
 
 ### SPT-11 — Figure 19 : l'abandon d'un import passe par la file ; le contrat et le livré le font dans la requête
 
+- **Issue** : #3389 (fermée).
 - **Où** : spec l. 3843-3851 (« inscrit la tâche », « met en file la suppression ») ;
   `docs/api/paths/exchanges.yaml:436-452` (`abandonImport`, 204) ; `backend/src/waterfall/api/imports.py:319-324` ;
   `backend/src/waterfall/platform/tasks.py:44-54` (aucun genre de tâche pour l'abandon).
@@ -290,6 +303,7 @@ Aucun.
 
 ### SPT-12 — Deux énumérations du §4 en retard sur le contrat
 
+- **Issue** : #3390 (fermée).
 - **Où** : spec l. 4334 (WF-SEC-0030) contre `backend/src/waterfall/platform/audit.py:49-72` et
   `docs/api/DECISIONS.md:3076-3083` ; spec l. 3894 (WF-ARC-0090) contre
   `backend/src/waterfall/platform/tasks.py:44-54`.
@@ -303,6 +317,7 @@ Aucun.
 
 ### SPT-13 — WF-ARC-0030 : l'API « n'en tire que l'identité » ; le livré en tire aussi la date et la session de connexion
 
+- **Issue** : #3391 (fermée).
 - **Où** : spec l. 3677 et l. 4321 (WF-SEC-0020 : la déconnexion prend effet « à la requête
   suivante » parce que « le fournisseur d'identité révoque ses jetons ») ;
   `backend/src/waterfall/platform/keycloak.py:178-179` ; `backend/src/waterfall/api/authentication.py:139-141, 145-154`.
@@ -316,6 +331,7 @@ Aucun.
 
 ### SPT-14 — « L'exploitant » : dix-huit emplois, aucune définition, et un compte dont rien ne dit où il vit
 
+- **Issue** : #3392 (fermée).
 - **Où** : spec l. 3781 (TFX-15, « Compte de l'exploitant »), l. 4447 (WF-OBS-0030 : le tableau de
   bord « reste servi lorsque PostgreSQL ou Redis sont indisponibles »), l. 4271 (tableau 12 :
   PostgreSQL indisponible, « Rien » ne continue), l. 4850 (glossaire, « Acteur »).
@@ -328,6 +344,7 @@ Aucun.
 
 ### SPT-15 — WF-DAT-0120 : « téléchargement complet » ne s'observe qu'au bord de l'API
 
+- **Issue** : #3393 (fermée), #3977 (ouverte).
 - **Où** : spec l. 4162-4164 ; `backend/src/waterfall/api/exports.py:127-131` ; `frontend/src/api/relay.ts:51-60`.
 - **Quoi** : le fichier est supprimé quand l'API a remis son dernier octet au front, qui le relaie
   au navigateur derrière le mandataire ; une coupure côté navigateur après ce moment perd le fichier,
@@ -339,6 +356,7 @@ Aucun.
 
 ### SPT-16 — WF-QUA-0050 : « le seul chemin d'écriture asynchrone » ne l'est pas, et « trois parcours » en énumère cinq
 
+- **Issue** : #3394 (fermée).
 - **Où** : spec l. 4593-4595.
 - **Quoi** : le motif dit des flux par fichier qu'ils sont « le seul chemin d'écriture asynchrone du
   produit » ; WF-ARC-0090 y met aussi le marquage, la sauvegarde et la restauration. Le corps annonce
@@ -350,6 +368,7 @@ Aucun.
 
 ### SPT-17 — Annexes B et C en retard sur le dépôt
 
+- **Issue** : #3395 (fermée).
 - **Où** : spec l. 5011-5038 (annexe C, « avec quoi les propriétés du §4.7 sont obtenues
   aujourd'hui ») et l. 4982 (annexe B) ; `frontend/package.json` (`vitest`, `next-intl`) ;
   `backend/pyproject.toml` (`import-linter`, `openapi-core`) ; `docs/roadmap/EP-01-socle-de-developpement.md:664`
