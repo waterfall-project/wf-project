@@ -92,6 +92,11 @@ Reporté par le cadrage d'EP-36 du 2026-11-21 (décision de l'auteur) :
   2026-11-11 sur « rien avant la v1 ») — à aligner avant la première installation qui garde ses
   données
 
+Reporté d'EP-08 le 2026-11-21 (décision de l'auteur) :
+
+- #4646 — des lignes de descriptions de `docs/api/components/common.yaml` dépassent 100 colonnes —
+  détaché de #4367 ; à recouper avec les descriptions de #4467
+
 ## Conception
 
 À écrire au cadrage.

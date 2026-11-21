@@ -244,6 +244,11 @@ jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 - #4457 — la spécification : WF-RAE-0020 renvoie à WF-IND-0010 pour une révision marquée (SPB-12)
   → corrigé par la spécification 1.0.9 (#4568), et fermée à sa fusion, le 2026-11-21.
 
+Reçu d'EP-08 le 2026-11-21 (décision de l'auteur) :
+
+- #4645 — e2e : le commentaire de `LOADED` (`e2e/bounds.ts`) affirme un budget que le code ne montre
+  pas — détaché de #4503, dont l'autre point est à EP-30 → US-3440.
+
 Reçu du cadrage d'EP-32 (« ce que `make requirements` ne lit pas d'un parcours joué contre le
 service — EP-36 ») : écarté, voir « Ce qui n'en fait pas partie ».
 
@@ -769,6 +774,8 @@ sans raison n'attendent pas une revue pour être vus (FTE-07 et FTE-12, de #4449
 - propre à l'US (#4450) : `e2e/opening.spec.ts` et le guide ne disent plus que la mesure « se
   tient, bloquante, en EP-13 » — EP-26 a clos WF-QUA-0060-A, et rien n'échoue sur un objectif ; le
   commentaire de `src/test/axe.ts` dit qu'`e2e/accessibility.spec.ts` audite chaque écran.
+- propre à l'US (#4645) : le commentaire de `LOADED`, dans `e2e/bounds.ts`, cite le délai de test
+  dont `test.slow` triple la valeur, ou ne promet plus un budget que le code ne montre pas.
 
 **Notes de réalisation.** L'apostrophe droite est aussi l'échappement des messages ICU : la garde
 ne juge que le texte qu'un utilisateur lit. Le relevé de `make requirements` range déjà un test
