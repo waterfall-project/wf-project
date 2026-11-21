@@ -5,8 +5,8 @@
  * longer the main structure as it stands (`is_up_to_date` false), as the structure lists it — the
  * front deduces none of it. It carries no command: the gestures of the amendment stay at the
  * planning (`amendment-commands.tsx`), where the note is shown with them; the estimate shows the
- * note alone. The remaining to commit mounts it too, yet reads the main structure alone
- * (WF-RAE-0040), never a differential: the note stays unshown there.
+ * note alone. The remaining to commit does not mount it: it reads the main structure alone
+ * (WF-RAE-0040), never a differential.
  *
  * A server component: it reads nothing.
  */

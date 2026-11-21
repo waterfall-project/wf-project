@@ -1878,9 +1878,10 @@ risques et un avenant de bout en bout.
 - propre à l'US : le succès de « Déclarer survenu » — son message et la relecture du risque survenu
   — est éprouvé contre le service (#1830) ; la promesse qui retient l'origine d'un filtre sur un
   risque nommé a son gestionnaire quand la lecture des risques rejette (#1972) ;
-- propre à l'US : le devis et le reste à engager ouverts sur un différentiel en retard le disent, par la
-  note que dit déjà le planning ; les gestes de l'avenant restent au planning, et l'aide en ligne du
-  devis y renvoie (#4255, décision de l'utilisateur du 2026-11-20, option 2) ;
+- propre à l'US : le devis ouvert sur un différentiel en retard le dit, par la note que dit déjà le
+  planning ; le reste à engager, qui ne lit que la structure principale, n'en a pas à dire ; les gestes
+  de l'avenant restent au planning, et l'aide en ligne du devis y renvoie (#4255, décision de
+  l'utilisateur du 2026-11-20, option 2 ; #4298) ;
 - propre à l'US : les parcours de bout en bout que `inService` gardait jusqu'à EP-08 pour un risque,
   une provision ou un différentiel sont rejoués contre le service ou réécrits, et le guide ne les
   liste plus comme non rejoués ; les écrans passent l'audit d'accessibilité.

@@ -205,6 +205,10 @@ test("a block of three rows and four columns pasted from a spreadsheet produces 
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 
+// Fake back only, untagged (`@shared` marks what plays the service too): the own estimate of the
+// risk of the rewiring is the witness's, which the account of the run does not write (#2193). Its
+// twin plays the service on a project of the run, the path of the own estimate of a risk the run
+// identifies, below.
 test("a block whose cell names an unknown category is sent as copied for the server to judge, and modifies no row once abandoned [WF-IHM-0050-A]", async ({
   page,
 }) => {
@@ -230,6 +234,10 @@ test("a block whose cell names an unknown category is sent as copied for the ser
   await expect(cellAt(grid, OWN.first + 2, at.quantity)).toHaveText("2");
 });
 
+// Fake back only, untagged (`@shared` marks what plays the service too): the own estimate of the
+// risk of the rewiring is the witness's, which the account of the run does not write (#2193). Its
+// twin plays the service on a project of the run, the path of the own estimate of a risk the run
+// identifies, below.
 test("a paste wider than the grid is refused, saying so [WF-IHM-0050-A]", async ({ page }) => {
   const posted = actions(page);
   const { grid, at } = await openOnFirstLine(page, OWN);

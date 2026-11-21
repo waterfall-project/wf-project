@@ -337,6 +337,30 @@ def _label(node: dict[str, Any]) -> str:
     return cast("str", node[node["kind"]]["label"])
 
 
+def _difference(differences: list[dict[str, Any]], key: tuple[str, str, str]) -> dict[str, Any]:
+    """Give the one difference of a (change, target, label), wherever the report puts it."""
+    [found] = [
+        each for each in differences if (each["change"], each["target"], each["label"]) == key
+    ]
+    return found
+
+
+def _bearer_label() -> str:
+    """Give the label of the task that bears the line of provision of the rework."""
+    rows = {row.number: row for row in mockcore.current()}
+    line = rows[cast("int", mockwitnessrisks.REWORK.provision_line)]
+    return rows[cast("int", line.parent)].label
+
+
+def _redated(differences: list[dict[str, Any]], bearer: str) -> list[dict[str, Any]]:
+    """Give the tasks the graft redates: the `updated` tasks other than the bearer, in order."""
+    return [
+        each
+        for each in differences
+        if (each["change"], each["target"]) == ("updated", "task") and each["label"] != bearer
+    ]
+
+
 def test_the_report_adds_the_own_estimate_modifies_the_bearer_and_removes_the_provision() -> None:
     report = example("risk_occurrence_report")["value"]
     items = example("nodes_risk_estimate")["value"]["items"]
@@ -349,21 +373,13 @@ def test_the_report_adds_the_own_estimate_modifies_the_bearer_and_removes_the_pr
     line = rows[cast("int", mockwitnessrisks.REWORK.provision_line)]
     bearer = rows[cast("int", line.parent)]
     assert not cast("dict[str, Any]", bearer.node["task"])["is_milestone"]
-    updated, removed = report["differences"][len(added)], report["differences"][-1]
-    assert (updated["change"], updated["target"], updated["label"]) == (
-        "updated",
-        "task",
-        bearer.label,
-    )
+    differences = report["differences"]
+    updated = _difference(differences, ("updated", "task", bearer.label))
+    removed = _difference(differences, ("removed", "estimate_line", line.label))
     assert updated["lineage_id"] == bearer.node["lineage_id"]
-    assert (removed["change"], removed["target"], removed["label"]) == (
-        "removed",
-        "estimate_line",
-        line.label,
-    )
     assert removed["lineage_id"] == line.node["lineage_id"]
-    redated = report["differences"][len(added) + 1 : -1]
-    assert len(report["differences"]) == len(added) + 2 + len(redated)
+    redated = _redated(differences, bearer.label)
+    assert len(differences) == len(added) + 2 + len(redated)
     assert report["refusals"] == []
 
 
@@ -371,8 +387,7 @@ def test_the_report_names_the_tasks_the_graft_redates_by_their_dates_after_the_b
     # #4134: each task of the main structure the engine redates, an `updated` task difference
     # naming `start` and `finish`, after the bearer and in the order of the plan.
     report = example("risk_occurrence_report")["value"]
-    added = [each for each in report["differences"] if each["change"] == "added"]
-    redated = report["differences"][len(added) + 1 : -1]
+    redated = _redated(report["differences"], _bearer_label())
     assert redated
     assert {(each["change"], each["target"]) for each in redated} == {("updated", "task")}
     assert all(each["fields"] in (["finish"], ["start", "finish"]) for each in redated)
@@ -390,8 +405,7 @@ def test_the_bearer_is_changed_by_the_dates_it_comes_to_span() -> None:
     # The bearer becomes the summary of the tasks merged under it, which keep the dates they had in
     # the own estimate (WF-RIS-0060, WF-PLA-0040): a date it changes is a field of its `updated`.
     report = example("risk_occurrence_report")["value"]
-    added = [each for each in report["differences"] if each["change"] == "added"]
-    updated = report["differences"][len(added)]
+    updated = _difference(report["differences"], ("updated", "task", _bearer_label()))
     tasks = [
         item["task"]
         for item in example("nodes_risk_estimate")["value"]["items"]

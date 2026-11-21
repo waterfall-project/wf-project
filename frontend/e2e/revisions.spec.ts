@@ -15,7 +15,7 @@
  */
 import { expect, type Locator, type Page } from "@playwright/test";
 
-import { MARKING, WORKING } from "./bounds";
+import { LOADED, MARKING, WORKING } from "./bounds";
 import { columnsOf } from "./columns";
 import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
@@ -197,7 +197,7 @@ test("the comparison of the current revision of PRJ-001 to its reference, from t
   const marked = estimate
     .getByRole("row")
     .filter({ hasText: "Modifié" })
-    .filter({ hasText: "Δ" })
+    .filter({ has: page.getByRole("gridcell").filter({ hasText: "Δ" }) })
     .first();
   await expect(marked).toBeVisible({ timeout: WORKING });
   const at = await columnsOf(estimate, { label: "Libellé" });
@@ -262,7 +262,8 @@ test("the comparison of the current revision of PRJ-001 to its reference, from t
   await functions.getByRole("link", { name: "Estimation du reste à engager", exact: true }).click();
   await expect(page).toHaveURL(`${BASE}/remaining${compared}`, { timeout: WORKING });
   const remaining = page.getByRole("treegrid", { name: "Grille de reste à engager" });
-  await expect(remaining).toBeVisible({ timeout: WORKING });
+  // The slowest read of the path, the remaining to commit compared (`LOADED`, #4326).
+  await expect(remaining).toBeVisible({ timeout: LOADED });
   await expect(comparedTo).toContainText(named);
   await expect(page.getByRole("button", { name: "Écarts de montants" })).toBeVisible();
 
