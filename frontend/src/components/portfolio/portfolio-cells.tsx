@@ -31,11 +31,11 @@ type IndexValue = components["schemas"]["IndexValue"];
 export function ProjectLabelCell({
   id,
   label,
-  canOpen = true,
+  canOpen,
 }: {
   readonly id: string;
   readonly label: string;
-  readonly canOpen?: boolean;
+  readonly canOpen: boolean;
 }) {
   if (!canOpen) {
     return <span className="block truncate">{label}</span>;

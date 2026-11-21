@@ -110,7 +110,7 @@ describe("a project the caller cannot open, named without a link [US-2760] [WF-P
   });
 });
 
-describe("the views of the portfolio carry no command of entry [US-2760]", () => {
+describe("the views of the portfolio carry no command of entry [WF-PTF-0030-A] [US-2760]", () => {
   it("offers no field to type in on the risks nor on the pilot health", () => {
     render(
       inFrench(
