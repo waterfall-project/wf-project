@@ -31,7 +31,7 @@ ses exigences avant l'ouverture des issues de ses lots.
   grilles de planning et de devis, où il ajoute des tâches et des lignes, modifie celles qui
   existent et en abandonne ;
 - la lecture, avant la survenance, du planning et du devis entiers avec le risque appliqué : la
-  grille d'un devis propre montre le projet du jour et ce que le risque y désigne ;
+  grille d'un devis propre montre le projet avec ce que le risque y désigne ;
 - la mise à jour d'un devis propre depuis la structure principale, son compte rendu, et ce qui
   l'exige : la saisie dans le devis propre, le réexamen, la survenance, et le marquage d'une
   révision comme la contractualisation d'un avenant, pour que la gravité qu'une révision fige soit
@@ -117,8 +117,9 @@ code qui la consomme. La conception en dira le détail ; ce que les US demandent
   `CostStructure` dit un devis propre à jour ou en retard, et liste sa commande de mise à jour ;
 - un refus de plus, sur un devis propre en retard, pour les écritures de l'arbre et les imports sur
   un devis propre, pour `reviewRisk`, `getRiskOccurrenceReport` et `declareRiskOccurrence` ; et,
-  tant qu'un risque identifié de la révision a son devis propre en retard, pour `markRevision`,
-  `getStructureMergeReport` et `mergeCostStructure` ;
+  pour `markRevision` et `mergeCostStructure`, l'échec de leur tâche de fond, qui nomme les risques
+  dont la mise à jour garde une valeur ou est refusée ;
+- la recomposition d'un devis propre élagué, opération nouvelle ;
 - `Risk` : une gravité et un coût à la survenance signés, ce dont la gravité dépend
   (`computed_fields`), le réestimé présenté en regard redit, et les commandes d'un risque dont le
   devis propre est en retard ;
@@ -168,8 +169,8 @@ deviennent alors des citations de Vérif.
 - les exemples chiffrés des Vérif que la spécification 1.0.9 écrit pour WF-RIS-0010, WF-RIS-0030,
   WF-RIS-0040, WF-RIS-0050, WF-RIS-0060 et WF-IND-0030, et pour les trois exigences nouvelles, sont
   des tests qui passent (WF-QUA-0020) ;
-- sur un projet de mille tâches et cinq mille lignes, un risque déclaré n'ajoute à la révision que
-  ce que son devis propre désigne, et la révision suivante n'en reprend pas davantage ;
+- sur un projet de mille tâches et cinq mille lignes, une révision marquée ne garde d'un devis
+  propre que ce qu'il désigne, et la révision suivante n'en reprend pas davantage ;
 - un devis propre préparé avant que la structure principale ne reçoive une tâche, une réestimation,
   la fusion d'un avenant et la survenance d'un autre risque, puis mis à jour, réexaminé et déclaré
   survenu, laisse dans la structure principale tout ce qu'elle a reçu entre-temps, et y applique ce
@@ -184,9 +185,10 @@ deviennent alors des citations de Vérif.
   comparées aux exemples du contrat ;
 - `make requirements` ne laisse sans test du back aucune des exigences que cet EPIC clôt ;
 - les mesures existantes, `make measure-core` et `make measure`, rejouées sur le témoin chargé,
-  tiennent leurs objectifs et ne se dégradent pas de plus d'un quart (WF-QUA-0060) ; l'ouverture de
-  la grille d'un devis propre sur le projet de mille tâches y est relevée, contre l'objectif que la
-  conception arrête.
+  tiennent leurs objectifs et ne se dégradent pas de plus d'un quart (WF-QUA-0060) ; la grille d'un
+  devis propre entier sur le projet de mille tâches y tient l'objectif d'ouverture d'une grille, et
+  la recomposition, la mise à jour et le marquage d'un projet à vingt risques y sont relevés, sans
+  objectif.
 
 ## Constats reçus
 
@@ -206,8 +208,9 @@ toute tâche terminée que la survenance rouvre.
 
 ## Conception
 
-À écrire à l'étape suivante du cadrage, après la validation des US. Ce qui suit est décidé avant
-elle et s'impose à elle.
+Écrite au cadrage du 2026-11-21, sur le code d'`epic/EP-08` et d'`epic/EP-11` à cette date, après la
+validation des US. Elle dit ce qu'un lot devrait sinon décider seul ; ce qui relève d'un lot reste
+au lot. Ses deux premières sections sont les décisions de l'auteur, qui s'imposent à elle.
 
 ### Ce que l'auteur a décidé le 2026-11-19
 
@@ -264,7 +267,10 @@ elle et s'impose à elle.
   enregistrées sont celles de la dernière mise à jour ou de la dernière saisie dans le devis propre
   ; une écriture de la structure principale ne les change pas. Écartée : la grille tenue sur l'état
   du dernier réexamen, comme celle d'un avenant sur sa base, qui demande une base entière par
-  risque, contre la décision du 2026-11-19.
+  risque, contre la décision du 2026-11-19. Repris à la conception, qui garde cette base dans la
+  révision en cours : un devis propre en retard montre l'état de sa dernière mise à jour, et c'est
+  la mise à jour, faite par l'écran à l'ouverture quand rien n'est à signaler, qui l'amène au projet
+  du jour.
 - **Un devis propre est en retard** dès que la structure principale a changé depuis sa dernière mise
   à jour : une branche que personne n'a encore rejouée sur la tête. L'écriture d'une ligne de
   provision n'y compte pas : elle ne change pas le projet sur lequel la gravité se calcule, et sans
@@ -377,23 +383,314 @@ elle et s'impose à elle.
   qui changerait la structure de la révision 102 et toutes ses lectures ; trois risques additifs,
   que les écrans ne verraient jamais modifier une ligne sur le faux back.
 
-### Ce qui reste à la conception
+### Ce que la conception décide
 
-- la forme de ce que le devis propre conserve, comment sa grille se recompose à chaque lecture, et
-  comment les écritures de l'arbre s'y appliquent ;
-- le calcul de la gravité sur la structure recomposée, et ce qu'il coûte à chaque saisie ;
-- ce que la mise à jour écrit, et la forme de son compte rendu pour un devis propre ;
-- ce que le devis propre d'un risque survenu garde dans la révision où il est survenu ;
-- les tables — la gravité enregistrée, la part figée d'un risque survenu, les contraintes de signe —
-  et la migration qui refuse un devis propre d'EP-08 ;
-- les modifications du contrat, issue par issue, et la forme de la marche sur les courbes de valeur
-  acquise ;
-- l'objectif de l'ouverture de la grille d'un devis propre ;
-- ce qui met un devis propre en retard, l'écriture d'une ligne de provision n'y comptant pas, quand
-  EP-08 juge le retard d'un différentiel sur le seul compteur de la structure principale ;
-- où s'enchaîne une mise à jour faite sans confirmation — par l'écran, risque par risque, ou par le
-  service —, et ce qu'elle coûte avant un marquage sur un projet à vingt risques ;
-- l'ordre de construction.
+- **Entier dans la révision en cours, élagué au marquage.** Les écritures d'une grille ne savent
+  écrire que des lignes en base, et la mise à jour comme la fusion d'EP-08 comparent des structures
+  entières. Dans la révision en cours, le devis propre est donc un différentiel avec sa base, comme
+  un avenant, et les réemploie telles quelles ; au marquage il est élagué, la révision marquée ne
+  gardant que ce qu'il désigne, et la révision suivante le recompose quand on y travaille. La
+  décision du 2026-11-19 tient là où elle pèse, dans les révisions marquées, qui s'accumulent sur
+  quinze ans. Tranché contre « le projet du jour » à la lettre : un devis propre en retard montre
+  l'état de sa dernière mise à jour, et l'écran le met à jour à l'ouverture quand rien n'est à
+  signaler. Écartés : les écarts seuls partout, recomposés en mémoire à chaque lecture, qui
+  demandaient d'écrire une seconde fois la lecture, la mise à jour et leurs règles à côté de celles
+  d'EP-08 ; le modèle de l'avenant dans toutes les révisions, vingt risques multipliant par quarante
+  et un ce que porte chacune.
+- **Dans une révision marquée, la grille d'un devis propre montre ce qu'il désigne**, sous ses
+  tâches parentes, et non le projet entier ; il en va de même du devis propre d'un risque survenu.
+  Écartés : la lecture entière gardée au marquage, un document par risque et par révision ; le
+  projet recomposé en mémoire à la lecture, le chemin de l'architecture écartée.
+- **Le marquage n'élague qu'un devis propre à jour ; en retard, il reste entier.** Deux cas : après
+  la fusion d'un avenant, qui écrit la structure principale et marque dans la même opération, tous
+  les devis propres sont en retard, et la révision qu'elle marque les garde entiers, que la révision
+  suivante reprend avec leur base — c'est la limite connue, la gravité figée étant celle du projet
+  d'avant l'avenant, et leur mise à jour se lit ensuite, compte rendu compris ; le devis propre d'un
+  risque écarté dont la mise à jour d'office est refusée. Écarté : une mise à jour d'office après la
+  fusion, qui réglerait sans les présenter les écarts de risques identifiés.
+- **Au marquage, le devis propre entier d'un risque écarté est mis à jour d'office**, sans compte
+  rendu : les règles s'appliquent sans être présentées, personne ne suivant un risque écarté. Un
+  devis propre écarté déjà élagué n'est pas touché : il garde le nom de la révision marquée contre
+  laquelle ses écarts sont exacts, et son retour à l'état identifié le recompose puis présente toute
+  sa mise à jour. Écartés : le marquage arrêté par un risque écarté, contre « seuls les risques
+  identifiés comptent » ; le devis propre écarté jamais élagué.
+- **La mise à jour sans confirmation est faite par l'écran pour un risque, et par la tâche de fond
+  au marquage et à la fusion d'un avenant.** Pour une saisie, un réexamen ou une survenance, le
+  service refuse sur un devis propre en retard, et l'écran lit le compte rendu puis met à jour : la
+  mise à jour reste une opération à part, et l'annulation d'un réexamen rend la provision d'avant.
+  Au marquage et à la fusion, la tâche de fond recompose et met à jour elle-même les devis propres
+  qui ne signalent rien, et échoue en nommant les risques sinon, rien n'étant écrit. Écarté :
+  l'écran enchaînant vingt recompositions avant un marquage, autant d'allers et retours de plusieurs
+  secondes.
+- **Ce qu'un devis propre élagué garde reste dans les tables des nœuds** : les nœuds qu'il désigne,
+  leurs ancêtres et les extrémités de ses liaisons, sous sa structure, et à part la liste de ce
+  qu'il abandonne. Il suit ainsi les migrations du schéma et la copie d'une révision sans code à
+  lui. Écartés, comme pour la base d'un différentiel en EP-08 : une image sérialisée de ses écarts,
+  qui devrait rester lisible quinze ans ; des tables propres, doubles de celles des nœuds et des
+  lignes.
+- **Le retard d'un devis propre ignore l'écriture d'une ligne de provision** : quand un risque
+  réécrit sa provision, ce qui avance le compteur de la structure principale, les devis propres qui
+  étaient à jour le restent. Écarté : un second compteur de la structure principale, que chaque
+  écriture de l'arbre aurait à tenir.
+- **La survenance est la fusion d'EP-08, dans un mode de plus** : les grandeurs courantes seules,
+  les tâches retirées gardées et terminées quel que soit leur état, la trace posée sur les ajouts,
+  ni marquage ni désignation de la référence. La greffe d'EP-08 (`graft`) disparaît. Écartée : une
+  seconde application des écarts, à côté de celle de la fusion.
+- **Une mesure, sans objectif nouveau.** La grille d'un devis propre entier tient l'objectif
+  d'ouverture d'une grille (WF-QUA-0060) ; la recomposition, la mise à jour et le marquage d'un
+  projet à vingt risques sont relevés, sans objectif, comme la fusion et la survenance en EP-08.
+
+### Les états d'un devis propre
+
+- **Entier** : sa structure porte tous les nœuds du projet, copiés sous leurs lignées, avec ce qu'il
+  désigne, et elle a sa base, comme un différentiel d'avenant. Il naît entier à la déclaration du
+  risque, et le redevient par la recomposition.
+- **Élagué** : sa structure ne porte que ce qu'il désigne, il n'a pas de base, et il nomme la
+  révision marquée contre la structure principale de laquelle ses écarts sont exacts. C'est l'état
+  d'un devis propre élagué par un marquage, dans la révision marquée et dans celles qui le
+  reprennent, jusqu'à sa recomposition.
+- **À jour ou en retard**, comme un différentiel : à jour tant que la structure principale porte le
+  compteur qu'il a retenu, l'écriture d'une ligne de provision mise à part. La copie d'une révision
+  garde l'état qu'il avait dans la révision marquée, comme elle le fait d'un différentiel
+  (`keep_differential_states`).
+- **Consommé** (`is_merged`) : celui d'un risque survenu, élagué à ce qu'il désignait dans la
+  révision où le risque est survenu ; la révision suivante n'en reprend que la ligne de structure,
+  vide, comme aujourd'hui (`copy_consumed_estimate`).
+
+### Tables et migrations
+
+Une migration, dans le socle, chaînée sur la dernière de `main` à la création de la branche. Elle ne
+reprend aucune donnée, et refuse de s'appliquer, en le disant, si une structure de nature `risk`
+existe : aucune base à conserver ne porte de devis propre d'EP-08 (décision de l'auteur du
+2026-11-21). Les tables révisées restent partitionnées par projet.
+
+- **`cost_structure`** : le compteur retenu de la structure principale (`main_lock_version`) vaut
+  aussi pour un devis propre — non nul si et seulement si la nature est `amendment` ou `risk` — ;
+  une base nomme un devis propre comme elle nomme un différentiel ; une colonne nomme, pour un devis
+  propre élagué, la révision marquée contre laquelle ses écarts sont exacts, non nulle si et
+  seulement s'il est élagué, clé étrangère vers cette révision. La date de début de planning d'un
+  devis propre est celle de la structure principale, recopiée à sa naissance, à sa recomposition et
+  à sa mise à jour.
+- **Une table des abandons**, révisée : ce qu'un devis propre élagué abandonne, par la lignée d'un
+  nœud ou par les deux lignées d'une liaison. La copie d'une révision la reprend ; l'abandon d'une
+  révision et la suppression du risque l'emportent.
+- **`risk_evaluation`** : la gravité enregistrée, signée, nulle à la déclaration ; le coût à la
+  survenance devient signé ; deux colonnes de plus, nulles hors de l'état survenu : la part du coût
+  à la survenance qui ne tient pas aux lignes ajoutées, figée, et la valeur acquise que la
+  survenance a apportée, signée.
+- **`risk_review`** : la gravité retenue devient signée.
+- **`risk_reference_share`** et **`node.origin_risk_id`**, inchangés : une provision ne descend pas
+  sous zéro, et la trace ne marque que les ajouts.
+
+Écartés : la gravité recalculée à chaque lecture, qu'un devis propre élagué ou en retard ne peut pas
+donner ; la marche de valeur acquise dans les documents des indicateurs seuls, qui ne la rendraient
+pas pour la révision en cours.
+
+### Modules
+
+| Module | Ce qu'il reçoit | Ce qu'il expose |
+|---|---|---|
+| `core/revisions` | les états d'un devis propre — entier, élagué, à jour, en retard — ; sa naissance avec sa base ; la mise à jour d'EP-08 étendue à la nature `risk` ; la recomposition et l'élagage, par deux registres où `core/planning` et `core/estimate` donnent chacun leur part ; le mode « survenance » de la fusion ; l'élagage au marquage ; l'état « à jour » porté par-dessus l'écriture d'une ligne de provision ; la copie d'un devis propre élagué et de ses abandons | `register_compose`, `register_prune` ; un registre appelé avant le marquage et avant la fusion d'un avenant, par lequel `core/risks` met à jour ses devis propres ou les refuse ; le mode de `register_merge` |
+| `core/planning` | sa part de la recomposition et de l'élagage, tâches et liaisons ; le mode « survenance » de sa part de la fusion — une tâche retirée gardée et terminée quel que soit son état, les tâches terminées qu'elle rouvre — ; la lecture d'un devis propre élagué, ce qu'il désigne sous ses ancêtres ; la greffe (`graft`, `grafting.py`) retirée | ses parts des registres |
+| `core/estimate` | sa part de la recomposition et de l'élagage, les lignes ; le mode « survenance » de sa part de la fusion — les grandeurs courantes seules, une ligne ajoutée à budgété nul, la trace — ; la lecture des lignes d'un devis propre élagué ; les crochets de la greffe retirés | ses parts des registres ; l'écart des totaux d'un devis propre et de sa base |
+| `core/risks` | la gravité enregistrée, son calcul à chaque écriture du devis propre et à chaque mise à jour, la provision plafonnée ; la mise à jour d'un devis propre, sa permission et ses conditions ; les refus sur un devis propre en retard ; la survenance par la fusion, le coût signé, la part figée, la valeur acquise apportée ; la mise à jour de ses devis propres avant un marquage ou une fusion ; la tendance ; la gravité d'un survenu lue à son coût (#4400) | son interface, dont les signatures que `core/portfolio` lit ne changent pas |
+| `core/indicators` | la marche d'une survenance sur les courbes de valeur acquise, dans le calcul du jour et dans les documents conservés | inchangé |
+| `core/portfolio` | rien : il lit une gravité et un coût signés par l'interface de `core/risks` | inchangé |
+
+Les modules ne se lisent que par leur interface. `core/risks` dépend de `core/revisions`,
+`core/planning`, `core/estimate` et `core/risk_settings`, et aucun d'eux ne dépend de lui : ce que
+le marquage et la fusion doivent savoir des devis propres passe par un registre.
+
+### La recomposition, la mise à jour et l'élagage
+
+- **La déclaration** crée le devis propre entier : `createRisk` copie la structure principale deux
+  fois sous son verrou, sa structure et sa base, comme l'ouverture d'un différentiel
+  (`create_differential`). Le devis propre ne désigne rien, et sa gravité est nulle.
+- **La recomposition** rend entier un devis propre élagué. Sa base et sa structure sont copiées de
+  la structure principale de la révision marquée qu'il nomme, puis rechiffrées et redatées dans la
+  révision en cours, comme l'ouverture d'une révision le fait de toute structure ; ses écarts sont
+  posés sur sa structure par la lignée — les nœuds qu'il garde remplacent ou complètent ceux de la
+  copie, ce qu'il abandonne en sort — et le moteur de dates est rejoué une fois. Elle est sans
+  conflit, ses écarts étant exacts contre cette structure principale, et laisse le devis propre en
+  retard si la structure principale de la révision en cours a changé depuis. Elle ne change rien de
+  ce qu'il désigne : ni compte rendu, ni confirmation, ni historique annulable, ni journal. C'est
+  une opération nouvelle du contrat.
+- **La mise à jour** est celle d'EP-08, étendue à la nature `risk` : mêmes trois structures, mêmes
+  règles, même compte rendu, mêmes refus (`rebasing_of`, `register_rebase`, `register_rebase_end`).
+  Elle enregistre en plus la gravité et la provision, que son compte rendu annonce. Elle demande un
+  devis propre entier : sur un devis propre élagué, son compte rendu et son application sont
+  refusés, la condition nommée, et l'écran le recompose d'abord. Elle est une saisie des risques,
+  sous leur permission.
+- **Le retard** se lit comme celui d'un différentiel, sur le compteur retenu. L'écriture d'une ligne
+  de provision par `core/risks` avance le compteur de la structure principale : dans la même
+  transaction, les devis propres qui étaient à jour retiennent le nouveau compteur. Leur base ne
+  porte aucune ligne de provision, comme celle d'un différentiel (#4008).
+- **La lecture.** Un devis propre entier se lit contre sa base, comme un différentiel
+  (`compare_differential`). Un devis propre élagué présente ce qu'il désigne : ses nœuds, comparés
+  par la lignée à la structure principale de la révision qu'il nomme, ses ancêtres présentés
+  inchangés, ce qu'il abandonne présenté retiré.
+- **Avant un marquage ou la fusion d'un avenant**, dans la tâche de fond et avant toute autre
+  écriture : le devis propre de chaque risque identifié est recomposé s'il est élagué et en retard,
+  puis mis à jour ; une mise à jour qui garde une valeur ou qui est refusée fait échouer la tâche,
+  les risques nommés, rien n'étant écrit ; le devis propre entier d'un risque écarté est mis à jour
+  d'office. Un devis propre élagué et à jour n'est pas touché.
+- **L'élagage**, au marquage, réduit chaque devis propre entier et à jour à ce qu'il désigne par
+  rapport à sa base (`designated`) : les nœuds désignés, leurs ancêtres et les extrémités de ses
+  liaisons restent, ce qu'il abandonne entre à la table des abandons, le reste et la base sont
+  supprimés, et il nomme la révision marquée. Un devis propre en retard à cet instant reste entier.
+- **La copie d'une révision** reprend un devis propre élagué avec ses nœuds et ses abandons, sous la
+  révision qu'il nommait, et un devis propre entier avec sa base, comme un différentiel non
+  fusionné.
+- **L'abandon d'une révision** emporte ses devis propres, entiers ou élagués, et ramène ceux de la
+  dernière révision marquée, comme aujourd'hui.
+
+### La gravité et la provision
+
+- **La gravité** est l'écart des totaux réestimés d'un devis propre entier et de sa base, ni l'un ni
+  l'autre ne portant de ligne de provision. Elle est calculée et enregistrée à chaque écriture du
+  devis propre, par le suiveur qu'EP-08 a déclaré (`register_own_estimate_counted`), et à chaque
+  mise à jour ; elle n'est jamais recalculée à la lecture, un devis propre élagué ou en retard
+  rendant celle qu'il a enregistrée.
+- **La provision** est la gravité pondérée par la probabilité, au centime, sans descendre sous zéro
+  ; la ligne d'une opportunité reste, à montant nul.
+- **La gravité d'un risque survenu** est son coût à la survenance, que son évaluation porte dans la
+  révision où il est survenu et dans celles qui la reprennent (#4400).
+- **La tendance** est calculée à la lecture : le produit signé de la gravité par la probabilité de
+  l'évaluation de la révision lue, comparé à celui de l'évaluation de la révision marquée qui la
+  précède. Le filtre et le tri du registre la lisent de même.
+- **La matrice** classe la part signée de l'assiette : négative, elle est sous la première borne.
+
+### La survenance
+
+- **Elle demande un devis propre entier et à jour** ; l'écran le recompose et le met à jour d'abord.
+- **Son compte rendu et son application sont ceux de la fusion** (`merge_parts`), dans le mode «
+  survenance » : les ajouts créés à budgété nul et marqués du risque, les lignes désignées recevant
+  leurs grandeurs courantes seules, les tâches retirées gardées et terminées quel que soit leur
+  état, les tâches terminées qu'elle rouvre nommées. Ce qui la refuse est ce qui refuse une fusion.
+- **La tâche de fond** `risk_occurrence` applique la fusion, retire la ligne de provision, passe
+  l'évaluation à l'état survenu — le coût à la survenance, la gravité de cet instant ; la part
+  figée, ce coût moins le montant des lignes ajoutées une fois fusionnées ; la valeur acquise
+  apportée, le budgété des tâches qu'elle termine moins celui des tâches qu'elle rouvre —, écrit le
+  réexamen de survenance, élague le devis propre à ce qu'il désignait et le marque consommé. Elle ne
+  marque rien.
+- **Ce qu'un risque survenu coûte aujourd'hui** est sa part figée, augmentée du montant réestimé
+  courant des lignes qui portent sa trace.
+
+### Le contrat
+
+Modifié par un lot, avant le code qui le consomme, et le client réengendré. Chaque point passe par
+une issue « contrat » que l'auteur tranche, ouverte avec les issues de l'EPIC, et s'inscrit dans
+`docs/api/DECISIONS.md` ; le lot arrête les noms.
+
+- **`CostStructure`** : l'état à jour d'un devis propre, et s'il est entier ou élagué ; la commande
+  de mise à jour et celle de recomposition, listées sur un devis propre ; la date de début de
+  planning d'un devis propre ne se saisit pas (`updateCostStructure`).
+- **La recomposition**, opération nouvelle, `POST` sur un devis propre élagué de la révision en
+  cours, sans corps ni confirmation : 200 et la structure ; 409 `STATE_FORBIDS_OPERATION`, la
+  première condition qui manque.
+- **`getStructureRebaseReport` et `rebaseCostStructure`** acceptent un devis propre, sous la
+  permission de la saisie des risques ; `StructureRebaseReport` porte la gravité et la provision que
+  la mise à jour enregistrerait, nulles pour un avenant ; un devis propre élagué les fait refuser.
+- **`CommandCondition`** : deux conditions de plus, le devis propre à jour et le devis propre
+  entier, que nomment les écritures de l'arbre et l'application d'un import sur un devis propre,
+  `reviewRisk`, `getRiskOccurrenceReport` et `declareRiskOccurrence`.
+- **`markRevision` et `mergeCostStructure`** : l'échec de leur tâche de fond qui nomme les risques
+  dont la mise à jour garde une valeur ou est refusée, lu par `getBackgroundTask`.
+- **`Risk`** : la gravité et le coût à la survenance signés ; ce dont la gravité dépend
+  (`computed_fields`) ; `occurred_reestimated_amount` redit ; la tendance ; les commandes d'un
+  risque dont le devis propre est en retard. **`RiskReview`** : la gravité signée.
+- **`listRisks`** : le filtre et le tri de la tendance ; les bornes de la gravité acceptent une
+  valeur négative.
+- **`RiskOccurrenceReport`** : la forme de `StructureMergeReport` — les différences, les tâches
+  terminées, les tâches rouvertes, la valeur acquise apportée et retirée, le montant de la
+  provision, les motifs de refus, les compteurs — ; `own_estimate_past_planning_start_on` et la
+  liste des tâches redatées en sortent (#4133, #4134), le signalement de #4240 s'étend à toute tâche
+  rouverte.
+- **`listNodes`** sur un devis propre : `NodeDifference` contre sa base s'il est entier, contre la
+  structure principale de la révision qu'il nomme s'il est élagué.
+- **`getEarnedValueCurves`** : la marche d'une survenance, datée, signée, avec sa cause
+  (`CurveSeries`).
+- **`ChartPreferences`** : l'état plié du graphique des risques d'un projet, sans objet.
+- **Exemples**, engendrés par `make mock-data` : ceux qu'US-3150 nomme.
+
+Les schémas servis par un EPIC livré qui changent de forme sont `CostStructure`, `Risk`,
+`RiskOccurrenceReport`, `StructureRebaseReport` et `CurveSeries` ; les autres ne changent que de
+description.
+
+### Le service d'API et le worker
+
+Les routeurs d'EP-08 servent déjà les risques, la survenance et la mise à jour d'un différentiel :
+ils reçoivent leurs refus, et la recomposition a sa route à côté de la mise à jour. La mise à jour
+et la recomposition d'un devis propre sont sous la permission d'écriture des risques, la lecture de
+son compte rendu sous leur permission de lecture. Chaque réponse est validée contre le contrat dans
+les tests. Le worker ne reçoit aucune tâche nouvelle : `revision_mark` et `structure_merge` mettent
+à jour les devis propres avant d'écrire, et `risk_occurrence` applique la fusion dans son mode.
+
+### Les indicateurs
+
+La sélection des lignes d'EP-10 ne change pas : une tâche abandonnée, terminée, acquiert le budgété
+de ses lignes comme toute tâche terminée, et les lignes ajoutées par une survenance en restent
+exclues. La marche se lit de l'évaluation des risques survenus de la révision — la date de leur
+réexamen de survenance, la valeur acquise apportée — pour le calcul du jour, et entre aux documents
+conservés au marquage. L'empreinte du cache lit déjà le compteur des structures de la révision,
+bases exclues, et ceux des risques.
+
+### Le chargeur du témoin
+
+Les trois risques sont déclarés comme le service les déclare, entiers, et leurs devis propres
+remplis par les interfaces de l'arbre : 751 ajoute une tâche, modifie la charge d'une ligne et
+abandonne une tâche, à gravité égale ; 752 et 753 ajoutent leurs tâches. Avant chaque marquage et
+chaque fusion de la chronologie, le chargeur met les devis propres à jour par la fonction de la mise
+à jour, sans compte rendu, comme il le fait d'un avenant. La survenance de 752 est rejouée par la
+fusion (`load_occurrence`), sous les identifiants que le témoin impose. Le calcul du faux back
+(`wftools.mockwitnessrisks`) reste indépendant de celui du service.
+
+### Le front
+
+Le devis propre s'ouvre dans les grilles du planning et du devis par ce qu'EP-08 a écrit pour un
+avenant : la lecture contre la base, la note de retard, la commande de mise à jour et son compte
+rendu (`amendment-late-note.tsx`, `rebase-amendment-command.tsx`), généralisés aux deux natures. S'y
+ajoutent : la recomposition à l'ouverture d'un devis propre élagué ; l'enchaînement de la mise à
+jour avant une saisie, un réexamen ou une survenance ; l'échec nommé d'un marquage ou d'une
+contractualisation, d'où l'écran mène aux risques à lire ; le compte rendu de survenance ;
+l'opportunité au registre et dans la matrice ; la colonne de tendance, son filtre et son tri ; le
+graphique à bulles ; la marche sur l'écran des indicateurs. Aucune réponse n'est écrite à la main.
+
+### Les tests du back
+
+Les exemples chiffrés des Vérif proposés entrent au harnais d'exemples (`fixtures/examples.json`),
+chacun citant son exigence une fois la spécification 1.0.9 écrite, son US d'ici là. Le socle ajoute
+aux fabriques d'EP-08 un projet chiffré à 1 000 dont un risque ajoute une ligne, en modifie une et
+abandonne une tâche ; son devis propre en retard, la structure principale ayant reçu une tâche, une
+réestimation et la suppression d'une tâche qu'il modifiait ; et le même, élagué par un marquage.
+
+### La conduite
+
+EP-30 se livre pendant la première vague de la ventilation du 2026-11-21, dont trois EPIC touchent
+des fichiers voisins : EP-32, le moteur du planning ; EP-33, les imports ; EP-34, les grilles. Hors
+de `core/risks`, EP-30 écrit `core/revisions` (structures, marquage, fusion, mise à jour), les parts
+de `core/planning` et de `core/estimate` dans la fusion, la mise à jour et la copie, et retire la
+greffe ; côté front, les composants des risques, ceux de l'avenant qu'il généralise, et le graphique
+à bulles. Il ne touche ni le moteur de dates, ni les lecteurs des imports, ni les cellules des
+grilles. Les conflits se règlent à chaque reprise de `main`, et le plan de lots dit les fichiers de
+chaque lot.
+
+### L'ordre de construction
+
+1. **Le socle et le contrat**, en parallèle : la migration, les états d'un devis propre, sa
+   naissance entière avec sa base, le retard porté par-dessus une ligne de provision, les fabriques
+   ; le lot du contrat.
+2. **Le devis propre entier** : sa lecture contre sa base et ses écritures (US-3070), la gravité
+   enregistrée et la provision (US-3080).
+3. **La mise à jour** étendue au devis propre et les refus sur un devis propre en retard (US-3090) ;
+   à côté, **l'élagage, la recomposition et la copie** (US-3070).
+4. **Le marquage et la fusion d'un avenant** devant les devis propres (US-3090), sur la mise à jour
+   et l'élagage.
+5. **La survenance** par la fusion (US-3100), puis la couverture (US-3110) et la valeur acquise
+   (US-3120) ; la greffe retirée.
+6. **La tendance** (US-3160, sa part du back) et **le portefeuille** (US-3130).
+7. **Les écrans** (US-3140, US-3160), puis **le témoin** (US-3150), qui attend tout le back, et la
+   vérification d'ensemble : le parcours, la définition de fini, les mesures.
 
 ---
 
@@ -401,7 +698,8 @@ elle et s'impose à elle.
 
 - **statut** : à faire
 - **exigences** : `WF-RIS-0030-A`
-- **opérations** : `createRisk`, `listCostStructures`, `createRevision`, `abandonRevision` ; sur le
+- **opérations** : `createRisk`, `listCostStructures`, `createRevision`, `abandonRevision`,
+  `markRevision`, la recomposition d'un devis propre (nouvelle, écrite par la conception) ; sur le
   devis propre, `listNodes` et les écritures de l'arbre (`createNode`, `updateTaskFacet`,
   `updateEstimateLine`, `setPredecessors`, `moveNodes`, `deleteNode`, `previewPaste`, `applyPaste`),
   `openImport`, `applyImport`, `undoLastChange`, `redoLastUndo`
@@ -437,18 +735,26 @@ fragment à part.
   son compteur ;
 - propre à l'US, texte proposé pour WF-RIS-0030 : « Une tâche ajoutée à la structure principale
   figure, sans y être désignée, dans la grille du devis propre d'un risque ouverte ensuite. » : à
-  chaque lecture, la grille présente la structure principale telle qu'elle est, avec ce que le devis
-  propre désigne (décision de l'auteur du 2026-11-21 : le projet du jour) ; les dates et les
-  montants qu'elle présente sont ceux que le moteur de dates et le chiffrage donnent à cet ensemble
-  ;
-- propre à l'US : le devis propre ne conserve que ce qu'il désigne — les tâches, les liaisons et les
-  lignes qu'il ajoute, les valeurs qu'il modifie, ce qu'il abandonne. Sur un projet de mille tâches
-  et cinq mille lignes, un risque dont le devis propre ajoute deux tâches et modifie une ligne
-  n'ajoute à la révision que ce que ces désignations demandent, et `createRevision` n'en reprend pas
-  davantage (décision de l'auteur du 2026-11-19) ; la forme conservée est à la conception ;
-- propre à l'US : chaque révision fige une version du devis propre : une révision marquée le rend
-  tel qu'il était à son marquage, sur sa propre structure principale ; `createRevision` le reprend,
-  et `abandonRevision` ramène celui de la dernière révision marquée (WF-RIS-0020, WF-REV-0100) ;
+  l'ouverture d'un devis propre en retard, l'écran le met à jour sans rien demander quand rien n'est
+  à signaler (US-3090, US-3140), et sa grille présente alors le projet du jour avec ce qu'il désigne
+  ; les dates et les montants sont ceux que le moteur de dates et le chiffrage donnent à sa
+  structure ;
+- propre à l'US : une révision marquée ne conserve d'un devis propre que ce qu'il désigne — les
+  tâches, les liaisons et les lignes qu'il ajoute, les valeurs qu'il modifie, ce qu'il abandonne.
+  Sur un projet de mille tâches et cinq mille lignes, le marquage d'une révision dont un risque
+  ajoute deux tâches et modifie une ligne n'y laisse, pour son devis propre, que ces nœuds, leurs
+  ancêtres et les extrémités de leurs liaisons, et `createRevision` n'en reprend pas davantage
+  (décision de l'auteur du 2026-11-19) ; dans la révision en cours, il est entier, avec sa base, dès
+  qu'on y travaille ;
+- propre à l'US : chaque révision fige une version du devis propre : dans une révision marquée, sa
+  grille présente ce qu'il désignait — les tâches et les lignes ajoutées, modifiées avec la valeur
+  du projet en regard, abandonnées, sous leurs tâches parentes — et non le projet entier ;
+  `createRevision` le reprend élagué, et `abandonRevision` ramène celui de la dernière révision
+  marquée (WF-RIS-0020, WF-REV-0100) ; une révision qu'un avenant a marquée le garde entier, en
+  retard ;
+- propre à l'US : la recomposition d'un devis propre élagué le rend entier sans rien changer de ce
+  qu'il désigne : après elle, sa grille présente ajouté, modifié et retiré ce que la révision
+  marquée présentait ; elle n'entre ni à l'historique annulable ni au journal ;
 - propre à l'US : le devis propre ne porte ni ligne de provision — la sienne, comme celles des
   autres risques, n'y figure pas —, ni rattachement au lotissement, ni avancement, ni reste à
   engager ; l'engendrement du squelette et `setNodeTracking` y sont refusés comme sur un
@@ -472,11 +778,10 @@ fragment à part.
 
 **Notes de réalisation.** EP-08 lit déjà un différentiel contre sa base (`compare_differential`,
 US-2550/L3 puis US-3050/L2) et calcule ce qu'une structure désigne (`designated`, US-3050/L3) sans
-nommer la nature « avenant » : ce sont les deux calculs que cette US reprend, la structure
-principale du jour tenant lieu de base. Ce qui change est ce que la révision conserve, et ce que la
-conception arrête : la forme de ce que le devis propre désigne, la recomposition à la lecture,
-l'application des écritures. Le devis propre d'EP-08, structure autonome qui tient seule ses lignées
-(`holds_its_lineages`), disparaît.
+nommer la nature « avenant » : ce sont les deux calculs que cette US reprend, le devis propre entier
+ayant sa base comme un différentiel. La conception dit ses états — entier dans la révision en cours,
+élagué au marquage —, la recomposition et l'élagage. Le devis propre d'EP-08, structure autonome qui
+tient seule ses lignées (`holds_its_lineages`), disparaît.
 
 **Hors périmètre.** La gravité et la provision (US-3080) ; la mise à jour et ses refus (US-3090) ;
 la survenance (US-3100) ; les écrans (US-3140) ; le témoin (US-3150).
@@ -607,10 +912,11 @@ recalcule la gravité (US-3090) ; le portefeuille (US-3130) ; les écrans (US-31
   devis propre d'un risque » (WF-RIS-0070), proposée ; les règles de la mise à jour d'un
   différentiel (WF-REV-0110) et le réexamen (WF-RIS-0020), dont le texte ne change pas, restent
   closes par EP-08
-- **opérations** : `getStructureRebaseReport`, `rebaseCostStructure` (étendues au devis propre),
-  `listCostStructures`, `reviewRisk`, les écritures de l'arbre et `applyImport` sur un devis propre,
-  `getRiskOccurrenceReport`, `declareRiskOccurrence`, `markRevision`, `getStructureMergeReport`,
-  `mergeCostStructure` (leur refus), `getRisk`, `listRisks` (les commandes)
+- **opérations** : `getStructureRebaseReport`, `rebaseCostStructure` (étendues au devis propre), la
+  recomposition d'un devis propre (nouvelle), `listCostStructures`, `reviewRisk`, les écritures de
+  l'arbre et `applyImport` sur un devis propre, `getRiskOccurrenceReport`, `declareRiskOccurrence`,
+  `markRevision`, `getStructureMergeReport`, `mergeCostStructure` (leur refus), `getRisk`,
+  `listRisks` (les commandes)
 - **issue** :
 
 **En tant que** chef de projet, **je veux**, à chaque revue, confronter ce que chaque risque désigne
@@ -622,10 +928,11 @@ gravité d'un projet qui n'existe plus.
 
 - propre à l'US, texte proposé pour l'exigence nouvelle « Mise à jour du devis propre d'un risque »
   (WF-RIS-0070) : « Après une réestimation dans la structure principale, le devis propre d'un risque
-  identifié est en retard ; sa gravité et sa provision sont inchangées, et sa grille présente la
-  réestimation. » : `CostStructure` dit un devis propre à jour à la déclaration du risque et après
-  sa mise à jour, en retard dès qu'une écriture change la structure principale, qu'elle touche ou
-  non ce qu'il désigne, hors l'écriture d'une ligne de provision ;
+  identifié est en retard, et sa gravité et sa provision sont inchangées ; ouvert, il est mis à jour
+  sans confirmation, et sa grille présente la réestimation. » : `CostStructure` dit un devis propre
+  à jour à la déclaration du risque et après sa mise à jour, en retard dès qu'une écriture change la
+  structure principale, qu'elle touche ou non ce qu'il désigne, hors l'écriture d'une ligne de
+  provision ;
 - propre à l'US, texte proposé pour WF-RIS-0070 : « La mise à jour du devis propre d'un risque ne
   met pas en retard celui d'un autre. » : elle réécrit sa ligne de provision dans la structure
   principale, et l'écriture d'une ligne de provision — son montant, sa catégorie, son sous-projet,
@@ -661,14 +968,16 @@ gravité d'un projet qui n'existe plus.
 - propre à l'US, texte proposé pour WF-RIS-0070 : « Au marquage d'une révision, le devis propre en
   retard d'un risque identifié est mis à jour sans confirmation quand sa mise à jour ne signale rien
   ; lorsqu'elle garde une valeur ou qu'elle est refusée, le marquage n'aboutit pas et nomme le
-  risque. » : `markRevision` répond 409 `STATE_FORBIDS_OPERATION` tant qu'un risque identifié a son
-  devis propre en retard, par la condition que le lot du contrat nomme, et la commande de marquage
-  la dit d'avance (WF-IHM-0090) ; le devis propre d'un risque écarté ou survenu ne compte pas ;
+  risque. » : la tâche de fond du marquage recompose et met à jour, avant toute autre écriture, le
+  devis propre de chaque risque identifié ; elle échoue en nommant les risques dont la mise à jour
+  garde une valeur ou est refusée, rien n'étant écrit ; le devis propre entier d'un risque écarté
+  est mis à jour d'office, sans que ce qu'il garde soit présenté, et celui d'un risque survenu ne
+  compte pas ;
 - propre à l'US, texte proposé pour WF-RIS-0070 : « La contractualisation d'un avenant met à jour de
   même les devis propres en retard, et n'aboutit pas lorsque l'une de ces mises à jour garde une
-  valeur ou est refusée. » : `getStructureMergeReport` et `mergeCostStructure` répondent 409, cette
-  condition placée dans l'ordre que le lot du contrat arrête ; la fusion n'écrit aucun devis propre
-  ;
+  valeur ou est refusée. » : la tâche de fond de la fusion fait de même avant d'écrire la structure
+  principale, et échoue de même ; la fusion n'écrit aucun devis propre, et la révision qu'elle
+  marque les garde entiers, en retard ;
 - propre à l'US : la gravité qu'une révision marquée fige est ainsi calculée sur sa structure
   principale ; la révision qu'un avenant marque fige celle du projet d'avant l'avenant, sa fusion
   écrivant la structure principale et marquant dans la même opération, et la mise à jour la
@@ -678,11 +987,11 @@ gravité d'un projet qui n'existe plus.
   date au-delà de l'horizon ou une tâche sans heure travaillée, le motif et la tâche nommés au
   compte rendu (`ReportRefusal`), rien n'étant écrit ; le lien fautif retiré du devis propre, elle
   aboutit ;
-- propre à l'US : `getStructureRebaseReport` sur un devis propre est une lecture qui n'écrit rien :
-  ce que le devis propre garde contre le projet (`kept`), les motifs qui refusent la mise à jour, la
-  gravité et la provision qu'elle enregistrerait, et les compteurs lus de la structure principale et
-  du risque ; il ne présente rien de ce que la structure principale a reçu, que la grille montre
-  déjà ;
+- propre à l'US : `getStructureRebaseReport` sur un devis propre est celui d'un différentiel, une
+  lecture qui n'écrit rien : ce que la mise à jour reporte de la structure principale, ce que le
+  devis propre garde contre elle (`kept`), les motifs qui la refusent, les compteurs lus, et en plus
+  la gravité et la provision qu'elle enregistrerait ; sur un devis propre élagué, il est refusé, la
+  condition nommée, et l'écran le recompose d'abord ;
 - propre à l'US : `rebaseCostStructure` sur un devis propre, avec les compteurs lus, écrit ce que le
   compte rendu a présenté ; le devis propre est à jour, et la structure principale n'est écrite que
   par la ligne de provision ; un compteur changé depuis la lecture, 412 `STALE_LOCK_VERSION`, rien
@@ -690,8 +999,8 @@ gravité d'un projet qui n'existe plus.
 - propre à l'US : la mise à jour d'un devis propre est une saisie des risques, sous leur permission
   d'écriture, et non sous celle de l'ouverture d'un différentiel ; elle est offerte sur le devis
   propre d'un risque identifié ou écarté de la révision en cours, et refusée par 409 sur celui d'un
-  risque survenu, sur une révision marquée, pendant un traitement de fond et sur un devis propre à
-  jour, la première condition qui manque nommée dans l'ordre du contrat ;
+  risque survenu, sur une révision marquée, pendant un traitement de fond et sur un devis propre
+  élagué ou à jour, la première condition qui manque nommée dans l'ordre du contrat ;
 - propre à l'US : la mise à jour n'entre pas à l'historique annulable, comme celle d'un différentiel
   ; une saisie du devis propre faite avant elle s'annule encore, sauf sur ce qu'elle a réglé, où
   l'annulation est refusée en nommant l'objet (WF-IHM-0110) ; l'annulation d'un réexamen rend au
@@ -710,9 +1019,9 @@ gravité d'un projet qui n'existe plus.
 **Notes de réalisation.** EP-08 tient l'état « à jour » d'un différentiel par le compteur que la
 structure principale portait quand sa base a été prise, et sa mise à jour par deux registres
 (`register_rebase`, `register_rebase_end`) où `core/planning` et `core/estimate` donnent chacun leur
-part, sans nommer la nature du différentiel. Un devis propre n'a pas de base conservée : ce que sa
-mise à jour compare, et ce qu'elle écrit, est à la conception. Le réexamen lui-même (`reviewRisk`)
-ne change que par son refus. Le marquage et la fusion sont de `core/revisions`, dont `core/risks`
+part, sans nommer la nature du différentiel. Le devis propre entier a sa base, comme un différentiel
+: sa mise à jour est celle d'EP-08, étendue à sa nature. Le réexamen lui-même (`reviewRisk`) ne
+change que par son refus. Le marquage et la fusion sont de `core/revisions`, dont `core/risks`
 dépend et non l'inverse : ce qu'ils doivent savoir des devis propres en retard passe par un
 registre, comme la copie et la désignation d'une révision (EP-08, « Modules »).
 
@@ -1016,7 +1325,10 @@ qu'il est.
 
 - propre à l'US : le devis propre d'un risque s'ouvre dans les grilles de planning et de devis sur
   le projet du jour ; ce qu'il désigne y est présenté ajouté, modifié ou retiré, comme sur un
-  avenant, et l'écran nomme le devis propre qu'il lit (WF-IHM-0020) ;
+  avenant, et l'écran nomme le devis propre qu'il lit (WF-IHM-0020) ; à son ouverture, l'écran
+  recompose un devis propre élagué, puis le met à jour sans rien demander quand rien n'est à
+  signaler ; dans une révision marquée, la grille présente ce qu'il désignait, sous ses tâches
+  parentes ;
 - propre à l'US : sur un devis propre en retard, l'écran le dit ; à la première saisie, il lit le
   compte rendu de la mise à jour : s'il ne signale rien, il met à jour puis enregistre la saisie
   sans rien demander ; s'il garde une valeur contre le projet, il le présente à confirmer, avec la
@@ -1028,9 +1340,10 @@ qu'il est.
   périodique fait de même pour chaque risque ;
 - propre à l'US : au marquage d'une révision et à la contractualisation d'un avenant, les devis
   propres en retard dont la mise à jour ne signale rien sont mis à jour sans rien demander, et le
-  geste se poursuit ; pour les autres, l'écran nomme les risques et présente leurs comptes rendus, à
-  confirmer ou à corriger, avant de reprendre le geste ; l'aide en ligne de la revue en dit l'ordre
-  : le projet, les risques, le marquage ;
+  geste se poursuit ; quand sa tâche échoue pour un devis propre dont la mise à jour garde une
+  valeur ou est refusée, l'écran nomme les risques et mène à leurs comptes rendus, à confirmer ou à
+  corriger, avant de reprendre le geste ; l'aide en ligne de la revue en dit l'ordre : le projet,
+  les risques, le marquage ;
 - propre à l'US : le compte rendu d'une survenance présente ce que la survenance ajoute et modifie,
   les tâches qu'elle termine et la valeur acquise qu'elles apportent, les tâches terminées qu'elle
   rouvre, et ce qui la refuse ; les deux signalements d'EP-08 n'y sont plus (#4133, #4134) ;
