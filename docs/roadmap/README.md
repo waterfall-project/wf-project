@@ -178,7 +178,7 @@ closes. Four rules, which each slice follows:
 | [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning: engine and Gantt | prêt | EP-08 |
 | [EP-33](EP-33-imports-et-exports-de-fichiers.md) | File imports and exports | en cours | EP-08 |
 | [EP-34](EP-34-grilles-saisie-et-collage.md) | Grids: entry and pasting | à planifier | EP-08 |
-| [EP-36](EP-36-tests-et-preuve-des-exigences.md) | Tests and proof of the requirements | à planifier | EP-08, EP-11 |
+| [EP-36](EP-36-tests-et-preuve-des-exigences.md) | Tests and proof of the requirements | en cours | EP-08, EP-11 |
 | [EP-35](EP-35-projets-chiffrage-couts-et-indicateurs.md) | Projects, estimate, costs and indicators: rules and computations | à planifier | EP-30 |
 | [EP-37](EP-37-ecrans-et-ergonomie.md) | Screens and ergonomics | à planifier | EP-08, EP-11 |
 | [EP-39](EP-39-exploitation-et-deploiement-suites.md) | Operations and deployment: follow-ups of EP-13 | à planifier | EP-13 |
