@@ -92,6 +92,7 @@ const PLATFORM_COMPONENTS: Readonly<Record<PlatformComponent, true>> = {
   object_storage: true,
   identity_provider: true,
   metrics: true,
+  front: true,
 };
 
 /** Whether a value is a component of the platform the contract names. */

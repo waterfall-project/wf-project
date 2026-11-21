@@ -3361,7 +3361,8 @@
       "cache": "Cache",
       "object_storage": "Stockage des fichiers",
       "identity_provider": "Fournisseur d’identité",
-      "metrics": "Métriques"
+      "metrics": "Métriques",
+      "front": "Interface web"
     },
     "AlertZone": {
       "nominal": "Nominal",
