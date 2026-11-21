@@ -302,12 +302,12 @@ def test_the_estimate_and_the_indicators_of_a_project_marked_at_0_and_at_100_per
     now_is(monkeypatch)
     reader = fabrics.stage.reader
 
-    def indicators(project_id: UUID, names: tuple[str, ...]) -> dict[str, str]:
-        found: dict[str, str] = {}
+    def indicators(project_id: UUID, names: tuple[str, ...]) -> dict[str, Any]:
+        found: dict[str, Any] = {}
         for name in names:
             answer = api.get(f"/api/v1/projects/{project_id}/{name}", headers=reader.headers)
             assert answer.status_code == 200, (name, answer.text)
-            found[name] = anonymous(answer.json())
+            found[name] = answer.json()
         return found
 
     offer, _ = offer_being_priced(api, fabrics, "Offre à pondérer", Decimal(0))
@@ -315,14 +315,14 @@ def test_the_estimate_and_the_indicators_of_a_project_marked_at_0_and_at_100_per
     for probability in (Decimal(0), Decimal(1)):
         probability_written(fabrics, offer, probability)
         read_at[probability] = indicators(offer, INDICATORS[:2])
-    assert read_at[Decimal(0)] == read_at[Decimal(1)]
+    assert anonymous(read_at[Decimal(0)]) == anonymous(read_at[Decimal(1)])
     at_nought = another_in_progress(api, fabrics, "Chantier jumeau", "PRJ-2680", Decimal(0))
     at_one = another_in_progress(api, fabrics, "Chantier jumeau", "PRJ-2681", Decimal(1))
     for number, project_id in enumerate((at_nought, at_one)):
         load_import(fabrics.stage, project_id, [cost(f"FA-4{number}", None, "100.00")])
     found = {each: indicators(each, INDICATORS) for each in (at_nought, at_one)}
-    assert found[at_nought] == found[at_one]
-    assert Decimal(json.loads(found[at_one]["indicators"])["actual_cost"]) > 0
+    assert anonymous(found[at_nought]) == anonymous(found[at_one])
+    assert Decimal(found[at_one]["indicators"]["actual_cost"]) > 0
 
 
 # --- The numbers of a query ----------------------------------------------------------------------

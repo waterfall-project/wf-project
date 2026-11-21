@@ -16,10 +16,10 @@ A curve of a project is cumulative and stepped at its points: its value at a dat
 last point on or before it (``value_at``), nought before its first and its final value after its
 last — a series without points, a project that kept no curves, adds nothing. The reference
 budget is read at the end of each month of the window; the actual cost at the end of each month
-before the date of calculation and at that date; the projection of the project manager at that date
-and at the end of each month after it. With the payment delays the series are those of the cash-out
-of each project, and ``cash_out_by_month`` sums the details of theirs by month, a month of the
-window none holds being nought; without them it is null.
+before the date of calculation and at that date; the projection of the project manager at that
+date and at the end of each month after it. With the payment delays the series are those of the
+cash-out of each project, and ``cash_out_by_month`` sums the details of theirs by month, a month
+of the window none holds being nought; without them it is null.
 
 Declared by US-2670/L1, the socle of EP-11; filled by US-2740.
 """

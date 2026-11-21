@@ -3813,8 +3813,9 @@ déclaration de son refus, avec un exemple de période inversée.
 *Complété par US-0701/L6 (#1606, G-05) : `getPortfolioCostStructure` et `getPortfolioCostCurve`
 prennent aussi `from` et `to` et déclarent `PortfolioPeriodRefused` ; six vues le partagent.*
 
-*Complété par US-2670/L4 (#4176, décision de l'auteur du 2026-11-19) : la période de
-`getPortfolioPerformance` est bornée à **cinq ans**, la seule vue qui lise un document conservé par
+*Complété par US-2670/L4 (#4176, décision de l'auteur du 2026-11-19 : borner la période, durée
+proposée par le lot) : la période de `getPortfolioPerformance` est bornée à **cinq ans**
+(commentaire de #3873), la seule vue qui lise un document conservé par
 trimestre que la période touche. Une fin au-delà du début de plus de cinq ans (le 28 février pour un
 29 février que l'année n'a pas) est refusée par 422 `VALIDATION_FAILED`, `/query/to` par
 `VALUE_OUT_OF_RANGE`, `params.maximum` la dernière fin admise ; quand le début seul est envoyé, la

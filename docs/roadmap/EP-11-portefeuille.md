@@ -271,8 +271,8 @@ section qui la porte, et rien d'autre dans la conception ne change.
   maximale, 422 `VALUE_OUT_OF_RANGE` sur la période, au lieu d'une lecture par trimestre touché sans
   limite. Écartées : lire les documents conservés de tous les trimestres en une requête ; laisser
   tel quel et attendre la mesure. Porté par US-2670/L4 #3873, qui éprouve la règle des périodes sur
-  les six vues ; **la durée maximale n'est pas fixée** : le lot la propose dans son issue : cinq ans,
-  proposés dans un commentaire de #3873.
+  les six vues ; **la durée maximale n'est pas fixée** : le lot la propose dans son issue.
+  Proposée par US-2670/L4 : cinq ans (commentaire de #3873).
 - **Un exemple de 422 de `getPortfolioProjects` sur la période du périmètre** (#4164) : période
   inversée avec `as_of`, champs `/query/from` et `/query/to`, au contrat, que le test de l'écran lit
   au lieu de composer ses champs. Porté par US-2760/L2 #3884.
@@ -579,7 +579,8 @@ de** comparer les vues entre elles et de retrouver le portefeuille tel qu'il ét
   (`evaluation.py`) lit celle de `Viewer.sees_all`, et un test éprouve que le jugement d'accès d'un
   projet et `can_open` du portefeuille s'accordent (#4131, décision du 2026-11-19 ; US-2670/L4) ;
 - propre à l'US : la période de `getPortfolioPerformance` est bornée par le contrat : au-delà de
-  cinq ans, 422 `VALUE_OUT_OF_RANGE` (#4176, décision du 2026-11-19 ; US-2670/L4) ;
+  cinq ans, durée proposée par le lot, 422 `VALUE_OUT_OF_RANGE` (#4176, décision du 2026-11-19 ;
+  US-2670/L4) ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
 
 **Notes de réalisation.** `docs/api/DECISIONS.md` : « Le portefeuille : horizon, projets terminés,
