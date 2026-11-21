@@ -19,7 +19,9 @@ The failure of a test — the number of the projects that differs — is held by
 (``backend/tests/test_restore_trial.py``), not here.
 """
 
+import subprocess
 from collections.abc import Callable
+from typing import Protocol
 
 from wftools import REPOSITORY
 from wftools.restoration_trial import PATIENCE, PAUSE, Clock, TrialError
@@ -38,9 +40,24 @@ TESTED = (
     "WHERE b.origin = 'scheduled' ORDER BY t.finished_at DESC LIMIT 1"
 )
 """Whether the latest test restored a backup scheduled, and succeeded: ``t``."""
+OPEN = (
+    "SELECT count(*) FROM background_task WHERE kind = 'backup' AND status IN ('queued', 'running')"
+)
+"""The tasks of a backup not ended: the one that holds the lock of the backups is among them."""
+LIMIT = 1800.0
+"""The seconds the script of the test has to end, before it is asked to stop (TERM)."""
+GRACE = 180.0
+"""The seconds the script has, once asked to stop, to remove its platform before it is killed."""
 
-Run = Callable[[list[str]], int]
 Read = Callable[[list[str]], tuple[int, str]]
+
+
+class Run(Protocol):
+    """Run a command, which a ``limit`` in seconds bounds: TERM, and ``TimeoutExpired`` raised."""
+
+    def __call__(self, command: list[str], limit: float | None = None, /) -> int:
+        """Return the status of the command."""
+        raise NotImplementedError
 
 
 def psql(compose: list[str], statement: str) -> list[str]:
@@ -69,7 +86,11 @@ def _output(read: Read, command: list[str], what: str) -> str:
 
 
 def scheduled_backup(compose: list[str], read: Read, clock: Clock | None = None) -> None:
-    """Have the schedule deposit a backup, and wait for it to be listed verified."""
+    """Have the schedule deposit a backup, and wait for it to be listed verified and ended.
+
+    The line of the backup is verified before its task ends: the manual backup that follows would
+    meet the lock of the backups still held, and be refused. The task is waited for as well.
+    """
     clock = clock or Clock()
     _output(read, psql(compose, DUE), "making the backup due")
     deposit = [*compose, "exec", "-T", "scheduler", "waterfall-worker", "schedule"]
@@ -78,10 +99,12 @@ def scheduled_backup(compose: list[str], read: Read, clock: Clock | None = None)
     while clock.now() < deadline:
         counted = _output(read, psql(compose, VERIFIED), "counting the scheduled backups")
         if counted.isdigit() and int(counted) > 0:
-            print("  the schedule deposited a backup, which is listed verified")
-            return
+            open_tasks = _output(read, psql(compose, OPEN), "counting the tasks of backup open")
+            if open_tasks.isdigit() and int(open_tasks) == 0:
+                print("  the schedule deposited a backup, which is listed verified and ended")
+                return
         clock.pause(PAUSE)
-    message = f"no backup scheduled was listed verified in {PATIENCE:.0f} s"
+    message = f"no backup scheduled was listed verified, its task ended, in {PATIENCE:.0f} s"
     raise TrialError(message)
 
 
@@ -100,10 +123,21 @@ def remains(read: Read) -> list[str]:
     return left
 
 
-def restore_test(compose: list[str], run: Run, read: Read, project: str) -> None:
-    """Run the script of the test beside the production ``project``, and hold what it must do."""
+def restore_test(
+    compose: list[str], run: Run, read: Read, project: str, limit: float = LIMIT
+) -> None:
+    """Run the script of the test beside the production ``project``, and hold what it must do.
+
+    The script is bounded: ``docker compose wait`` does not end of itself if the test hangs.
+    """
+    # ``env`` executes the script: the signal of the bound reaches the shell and its traps.
     command = ["env", f"WATERFALL_PRODUCTION_PROJECT={project}", "sh", str(SCRIPT)]
-    if code := run(command):
+    try:
+        code = run(command, limit)
+    except subprocess.TimeoutExpired as error:
+        message = f"restore-test.sh did not end in {limit:.0f} s; it was asked to stop"
+        raise TrialError(message) from error
+    if code:
         message = f"restore-test.sh failed ({code})"
         raise TrialError(message)
     print("  restore-test.sh succeeded")

@@ -821,7 +821,7 @@ class Docker:
         self.live = live
         self.ran: list[list[str]] = []
 
-    def run(self, command: list[str]) -> int:
+    def run(self, command: list[str], _limit: float | None = None) -> int:
         self.ran.append(command)
         return self.up if "up" in command else 0
 
@@ -834,7 +834,8 @@ class Docker:
         if transport.PROBE in command:
             return 0, json.dumps(dict(REFUSED))
         if "--dbname=waterfall" in command:
-            return 0, "t\n" if "restore_test" in command[-1] else "1\n"
+            kinds = {"restore_test": "t\n", "background_task": "0\n"}
+            return 0, next((v for k, v in kinds.items() if k in command[-1]), "1\n")
         if "exec" in command:
             return 0, self.rights if "postgres" in command else self.live
         if "cp" in command:

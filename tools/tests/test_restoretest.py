@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from wftools import REPOSITORY, restoretest_trial
+from wftools import REPOSITORY, production, restoretest_trial
 from wftools.restoration_trial import PATIENCE, Clock, TrialError
 
 if TYPE_CHECKING:
@@ -173,8 +173,16 @@ def test_an_interrupted_script_removes_the_platform_with_its_volumes(tmp_path: P
 class Compose:
     """A Compose, a database and a Docker that answer as a test tells them."""
 
-    def __init__(self, *, verified: str = "1", tested: str = "t", left: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        verified: str = "1",
+        tested: str = "t",
+        left: str | None = None,
+        open_tasks: list[str] | None = None,
+    ) -> None:
         self.verified = verified
+        self.open_tasks = open_tasks or ["0"]
         self.tested = tested
         self.left = left
         self.ran: list[str] = []
@@ -184,6 +192,9 @@ class Compose:
         self.ran.append(said)
         if restoretest_trial.VERIFIED in said:
             return 0, self.verified + "\n"
+        if restoretest_trial.OPEN in said:
+            left = self.open_tasks.pop(0) if len(self.open_tasks) > 1 else self.open_tasks[0]
+            return 0, left + "\n"
         if restoretest_trial.TESTED in said:
             return 0, self.tested + "\n"
         if self.left is not None and command[:2] == ["docker", self.left]:
@@ -206,13 +217,17 @@ def test_a_schedule_that_deposits_no_verified_backup_fails_the_trial() -> None:
 
 def test_a_script_that_fails_fails_the_trial() -> None:
     with pytest.raises(TrialError, match=r"restore-test.sh failed \(1\)"):
-        restoretest_trial.restore_test(["compose"], lambda _command: 1, Compose().read, "p")
+        restoretest_trial.restore_test(
+            ["compose"], lambda _command, _limit=None: 1, Compose().read, "p"
+        )
 
 
 def test_a_test_not_inscribed_as_succeeded_on_a_scheduled_backup_fails_the_trial() -> None:
     compose = Compose(tested="")
     with pytest.raises(TrialError, match="holds no test of a restoration that succeeded"):
-        restoretest_trial.restore_test(["compose"], lambda _command: 0, compose.read, "p")
+        restoretest_trial.restore_test(
+            ["compose"], lambda _command, _limit=None: 0, compose.read, "p"
+        )
 
 
 @pytest.mark.parametrize(
@@ -221,8 +236,48 @@ def test_a_test_not_inscribed_as_succeeded_on_a_scheduled_backup_fails_the_trial
 def test_what_the_ephemeral_project_leaves_fails_the_trial(verb: str, kind: str) -> None:
     compose = Compose(left=verb)
     with pytest.raises(TrialError, match=f"leaves {kind} abc123"):
-        restoretest_trial.restore_test(["compose"], lambda _command: 0, compose.read, "p")
+        restoretest_trial.restore_test(
+            ["compose"], lambda _command, _limit=None: 0, compose.read, "p"
+        )
 
 
 def test_a_test_that_succeeded_and_left_nothing_passes() -> None:
-    restoretest_trial.restore_test(["compose"], lambda _command: 0, Compose().read, "p")
+    restoretest_trial.restore_test(
+        ["compose"], lambda _command, _limit=None: 0, Compose().read, "p"
+    )
+
+
+def test_a_backup_listed_verified_whose_task_is_open_is_waited_for_until_it_ends() -> None:
+    # The line is verified before the task ends: the manual backup would meet the lock held.
+    compose = Compose(open_tasks=["1", "1", "0"])
+    pauses: list[float] = []
+    clock = Clock(now=iter(range(100)).__next__, pause=pauses.append)
+    restoretest_trial.scheduled_backup(["compose"], compose.read, clock)
+    assert len(pauses) == 2
+    assert sum(restoretest_trial.OPEN in said for said in compose.ran) == 3
+
+
+def test_a_backup_whose_task_never_ends_fails_the_trial() -> None:
+    clock = Clock(now=iter([0.0, 1.0, 2.0, PATIENCE + 2]).__next__, pause=lambda _seconds: None)
+    with pytest.raises(TrialError, match="its task ended"):
+        restoretest_trial.scheduled_backup(["compose"], Compose(open_tasks=["1"]).read, clock)
+
+
+def test_a_script_that_exceeds_its_bound_fails_the_trial_saying_so() -> None:
+    def hangs(command: list[str], limit: float | None = None) -> int:
+        raise subprocess.TimeoutExpired(command, limit or 0)
+
+    with pytest.raises(TrialError, match=r"did not end in 5 s; it was asked to stop"):
+        restoretest_trial.restore_test(["compose"], hangs, Compose().read, "p", 5.0)
+
+
+def test_the_bound_asks_the_script_itself_to_stop_so_that_its_trap_removes_the_platform(
+    tmp_path: Path,
+) -> None:
+    marker = tmp_path / "trapped"
+    script = f"trap 'echo term > {marker}; exit 143' TERM; while :; do sleep 0.1; done"
+    started = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired):
+        production.runner({"PATH": os.environ["PATH"]})(["env", "X=1", "sh", "-c", script], 1.0)
+    assert marker.read_text() == "term\n"
+    assert time.monotonic() - started < 30

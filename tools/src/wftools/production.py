@@ -67,7 +67,7 @@ from wftools.restoration_trial import (
     probe_of,
     wanted,
 )
-from wftools.restoretest_trial import restore_test, scheduled_backup
+from wftools.restoretest_trial import GRACE, Run, restore_test, scheduled_backup
 from wftools.transport import PROBE, SERVED, TransportError, check_clear_refused
 
 COMPOSE = REPOSITORY / "deploy" / "compose"
@@ -116,7 +116,6 @@ _LINK = re.compile(r"^https://\S+$", re.MULTILINE)
 _FORM_ACTION = re.compile(r'<form[^>]*\baction="([^"]*)"')
 _CONFIRMATION = re.compile(r'href="([^"]*login-actions/action-token[^"]*)"')
 
-Run = Callable[[list[str]], int]
 Read = Callable[[list[str]], tuple[int, str]]
 
 
@@ -541,7 +540,7 @@ def main(
     except (ProductionError, OSError, subprocess.CalledProcessError) as error:
         print(f"wftools.production: {error}", file=sys.stderr)
         return 1
-    run = run or _runner(started)
+    run = run or runner(started)
     read = read or _reader(started)
     restoration = None
     if wanted(given):
@@ -580,11 +579,23 @@ def _head() -> str:
     ).stdout.strip()
 
 
-def _runner(environment: Mapping[str, str]) -> Run:
-    def run(command: list[str]) -> int:
-        return subprocess.run(
-            command, cwd=REPOSITORY, env=dict(environment), check=False
-        ).returncode
+def runner(environment: Mapping[str, str]) -> Run:
+    """Return the function that runs a command, bounded by its ``limit`` if it has one."""
+
+    def run(command: list[str], limit: float | None = None) -> int:
+        with subprocess.Popen(command, cwd=REPOSITORY, env=dict(environment)) as process:
+            try:
+                return process.wait(timeout=limit)
+            except subprocess.TimeoutExpired:
+                # TERM, not KILL: the script removes its platform in a trap. ``command`` is
+                # ``env ... sh script``, and ``env`` executes: the process is the shell itself.
+                process.terminate()
+                try:
+                    process.wait(timeout=GRACE)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+                raise
 
     return run
 
