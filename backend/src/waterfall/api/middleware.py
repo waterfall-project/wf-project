@@ -6,6 +6,7 @@ The request is counted in the metrics of the process with its operation, its sta
 duration (WF-OBS-0010): the operation by its identifier in the contract, never by its path.
 """
 
+import re
 import time
 from typing import TYPE_CHECKING
 
@@ -22,6 +23,11 @@ if TYPE_CHECKING:
     from waterfall.platform.metrics import ApiMetrics
 
 logger = get_logger(__name__)
+
+# The project a path names: the contract puts every route of a project under ``/projects/{id}``.
+PROJECT_PATH = re.compile(
+    r"/api/v\d+/projects/([0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12})(?:/|$)"
+)
 
 
 def operation_of(scope: Scope) -> str | None:
@@ -62,7 +68,11 @@ class CorrelationMiddleware:
                 MutableHeaders(scope=message)[HEADER] = correlation_id
             await send(message)
 
-        with logging_context(correlation_id=correlation_id, actor=ANONYMOUS):
+        context = {"correlation_id": correlation_id, "actor": ANONYMOUS}
+        named = PROJECT_PATH.match(scope["path"])
+        if named is not None:
+            context["project_id"] = named[1].lower()
+        with logging_context(**context):
             try:
                 await self.app(scope, receive, send_with_header)
             except Exception:

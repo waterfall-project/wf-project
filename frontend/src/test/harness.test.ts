@@ -224,9 +224,17 @@ describe("the end-to-end harness", () => {
     vi.stubEnv("E2E_BUILT", "1");
     const config = await harness();
     expect(serversOf(config).map((server) => server.command)).toEqual([
-      "pnpm start --hostname 0.0.0.0 --port 3100",
+      "mkdir -p .e2e && pnpm start --hostname 0.0.0.0 --port 3100 >> .e2e/front.log 2>&1",
     ]);
     expect(projectsOf(config).map(([name]) => name)).not.toContain("measure");
+  });
+
+  it("keeps the output of the build in the log of the front too, against the service", async () => {
+    againstTheService();
+    const config = await harness();
+    expect(serversOf(config)[0]?.command).toBe(
+      "mkdir -p .e2e && WATERFALL_API_ADDRESS=http://127.0.0.1:9 pnpm build >> .e2e/front.log 2>&1 && mkdir -p .e2e && pnpm start --hostname 0.0.0.0 --port 3100 >> .e2e/front.log 2>&1",
+    );
   });
 
   it("plays the paths against the service in projects, those that change the whole after the others (US-1910)", async () => {
@@ -322,7 +330,9 @@ describe("the paths against the development server, on a workstation (E2E_DEV_SE
   it("plays the paths against the service on next dev, on every interface", async () => {
     againstTheService();
     vi.stubEnv("E2E_DEV_SERVER", "1");
-    expect((await frontOf()).command).toBe("pnpm dev --hostname 0.0.0.0 --port 3100");
+    expect((await frontOf()).command).toBe(
+      "mkdir -p .e2e && pnpm dev --hostname 0.0.0.0 --port 3100 >> .e2e/front.log 2>&1",
+    );
   });
 
   it("never plays the measure against it: the measure alone is built and started", async () => {

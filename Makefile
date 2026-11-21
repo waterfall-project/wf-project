@@ -26,6 +26,10 @@ COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
 # platform runs under the project of the slot of the worktree (WATERFALL_SERVICE_PROJECT, below).
 COMPOSE_SERVICE_FILE = PRISM_VERSION=$(PRISM_VERSION) docker compose -f deploy/compose/compose.service.yaml
 COMPOSE_SERVICE = $(COMPOSE_SERVICE_FILE) -p $(WATERFALL_SERVICE_PROJECT)
+# The profiles of the services of that file the platform starts: service-down stops them, and the
+# logs are read under them, Compose leaving out of its commands the services of a profile not given.
+SERVICE_PROFILES = e2e install witness load
+COMPOSE_SERVICE_ALL = $(COMPOSE_SERVICE) $(addprefix --profile ,$(SERVICE_PROFILES))
 # The services of the tests (US-1110), under the project of the slot of the worktree.
 COMPOSE_TEST = docker compose -f deploy/compose/compose.test.yaml -p $(WATERFALL_TEST_PROJECT)
 # The production platform (US-0430), under a local name: Caddy's own authority makes its certificate.
@@ -42,6 +46,7 @@ TOOLS   := tools
 DOC_TOOLS := ../docs/api/tools ../docs/spec/tools
 BACK    := backend
 FRONT   := frontend
+FRONT_LOG = $(FRONT)/.e2e/front.log
 # An address where no API answers: the front builds without reaching one (#131).
 NOWHERE := http://127.0.0.1:9
 PNPM_ENV := NEXT_TELEMETRY_DISABLED=1
@@ -68,7 +73,7 @@ FRONT_TOOLS = $(FRONT_WITNESS)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-purge service-logs service-down measure-core migrate \
+	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-purge service-logs service-logs-search service-logs-fields service-down measure-core migrate \
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production kube-tools lint-chart test-chart chart-trial check-chart \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
@@ -180,7 +185,7 @@ SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_OPE
 	WATERFALL_POSTGRES_PORT WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT \
 	WATERFALL_MAILPIT_PORT WATERFALL_PROXY_PORT
 SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT E2E_METRICS_FRONT_PORT E2E_METRICS_PORT
-$(call slot-export,service-up service-install service-witness service-purge keycloak-authority service-logs service-down service-api-processes \
+$(call slot-export,service-up service-install service-witness service-purge keycloak-authority service-logs service-logs-search service-logs-fields service-down service-api-processes \
 	test-keycloak e2e-service,$(SLOT_SERVICE))
 # e2e-down is not tolerant of a worktree without a slot, on purpose: its first command, stop-servers,
 # already stops on "run make slot" (US-1300), because without a slot there are no ports to look at and
@@ -412,10 +417,26 @@ keycloak-authority: ## Copy out of the service platform the root of the authorit
 	@echo "  -> $(KEYCLOAK_AUTHORITY)"
 
 service-logs: ## Print the logs of the services of the platform (SERVICES, all of them by default)
-	@$(COMPOSE_SERVICE) logs --no-color $(SERVICES)
+	@$(COMPOSE_SERVICE_ALL) logs --no-color $(SERVICES)
+
+# The logs the search reads (WF-OBS-0020, US-2900), put in a file — a pipe would pass whatever the
+# reading did, the shell having no pipefail: those of every service of Compose, under all its
+# profiles, and the log of the front end of the paths (FRONT_LOG, which Compose does not hold: the
+# server of Next is a web server of Playwright). A reading that fails fails the search; so does an
+# empty text (logsearch).
+SERVICE_LOGS = $(FRONT)/.e2e/service-logs.txt
+SERVICE_LOGS_OF_WATERFALL = $(FRONT)/.e2e/service-logs-waterfall.txt
+service-logs-text = mkdir -p $(FRONT)/.e2e && { $(COMPOSE_SERVICE_ALL) logs --no-color $(SERVICES) && { test ! -f $(FRONT_LOG) || cat $(FRONT_LOG); }; } > $(SERVICE_LOGS)
+service-logs-secrets = $(service-logs-text) && $(WFTOOLS).logsearch secrets $(SERVICE_LOGS)
+service-logs-check = mkdir -p $(FRONT)/.e2e && $(COMPOSE_SERVICE_ALL) logs --no-color api worker scheduler restore > $(SERVICE_LOGS_OF_WATERFALL) && $(WFTOOLS).logsearch fields $(SERVICE_LOGS_OF_WATERFALL)
+service-logs-search: ## Search the logs of the platform and the log of the front of the last e2e-service for the secrets and tokens known; CORRELATION=<identifier>: the story of an identifier instead (its lines, and those of the deposit, the import and the task they name). The front log is the last run's, kept until e2e-service empties it
+	@$(if $(CORRELATION),$(service-logs-text) && $(WFTOOLS).logsearch follow $(CORRELATION) $(SERVICE_LOGS),$(service-logs-secrets))
+
+service-logs-fields: ## Check that every record of the logs of the API, the worker, its schedule and the service of the restoration carries its correlation identifier, its author and its severity (WF-OBS-0020, US-2900)
+	@$(service-logs-check)
 
 service-down: ## Stop the service platform, the proxy of e2e-service and the load of make measure-version included; WATERFALL_RESET_DATA=yes also drops its databases, its directory and its authority
-	@$(COMPOSE_SERVICE) --profile e2e --profile install --profile witness --profile load down $(if $(filter yes,$(WATERFALL_RESET_DATA)),--volumes)
+	@$(COMPOSE_SERVICE_ALL) down $(if $(filter yes,$(WATERFALL_RESET_DATA)),--volumes)
 
 migrate: ## Apply the migrations to the database WATERFALL_DATABASE_URL designates (the guide, "Migrations")
 	@cd $(BACK) && uv run --frozen waterfall-migrate
@@ -857,7 +878,13 @@ e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end pat
 		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
 		export E2E_INSTALLATION_LINK E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
 		part= && $(e2e-service-part) \
-		cd $(FRONT) && { $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $$part $(TESTS); }
+		mkdir -p $(FRONT)/.e2e && : > $(FRONT_LOG) && \
+		{ ( cd $(FRONT) && { $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $$part $(TESTS); } ); played=$$?; \
+		echo 'Searching the logs of the platform and of the front for the secrets and tokens known (WF-OBS-0020, US-2900).'; \
+		$(service-logs-secrets); found=$$?; \
+		echo 'Checking the records of the services of Waterfall for their fields (WF-OBS-0020, US-2900).'; \
+		$(service-logs-check); fields=$$?; \
+		if [ $$played -ne 0 ]; then exit $$played; fi; if [ $$found -ne 0 ]; then exit $$found; fi; exit $$fields; }
 
 # The measure of the journey of the grids against the service (US-2210, frontend/e2e/measure/): the
 # platform started as e2e-service starts it — its realm told the address of the front of the

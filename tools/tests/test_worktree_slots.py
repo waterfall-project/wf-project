@@ -727,6 +727,9 @@ def test_a_target_of_a_worktree_without_a_slot_stops_saying_make_slot(
     assert workstation.make(tree, "lint-front").returncode == 0, "a target without ports runs"
 
 
+PROFILES = "--profile e2e --profile install --profile witness --profile load"
+
+
 def test_the_targets_of_a_slot_get_its_ports_and_names(workstation: Workstation) -> None:
     """US-1100: at slot 1, the service platform, the paths and the images are on its block."""
     tree = workstation.worktree("lot")
@@ -734,7 +737,7 @@ def test_the_targets_of_a_slot_get_its_ports_and_names(workstation: Workstation)
     workstation.logged()
     assert workstation.make(tree, "service-logs").returncode == 0
     said = workstation.logged()
-    assert docker_asked(said)[0].endswith("-p waterfall-service-s1 logs --no-color")
+    assert docker_asked(said)[0].endswith(f"-p waterfall-service-s1 {PROFILES} logs --no-color")
     for line in (
         "WATERFALL_POSTGRES_PORT=20110",
         "WATERFALL_REDIS_PORT=20111",
@@ -773,7 +776,7 @@ def test_the_main_repository_keeps_its_ports_and_names(workstation: Workstation)
     """US-1100: in the main repository, the targets get the ports and names of before."""
     assert workstation.make(workstation.main, "service-logs").returncode == 0
     said = workstation.logged()
-    assert docker_asked(said)[0].endswith("-p waterfall-service logs --no-color")
+    assert docker_asked(said)[0].endswith(f"-p waterfall-service {PROFILES} logs --no-color")
     assert "WATERFALL_API_PORT=8000" in said.splitlines()
     assert "WATERFALL_KEYCLOAK_PORT=8443" in said.splitlines()
     workstation.make(workstation.main, "e2e", "TESTS=x", "E2E_DEV_SERVER=1")

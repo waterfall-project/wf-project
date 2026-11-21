@@ -424,9 +424,18 @@ function fronts(): WebServer[] {
     // Built as `make build-front` builds it: with no API to reach, which the address of the API
     // given to the server is not while it builds (#131). The build writes `.next`, the development
     // server `.next/dev`: the two live side by side.
-    const build = BUILT || index > 0 ? "" : `WATERFALL_API_ADDRESS=${NOWHERE} pnpm build && `;
+    // Against the service, its output joins the log of the server, searched in the same way.
+    const kept = PLAYS_SERVICE ? " >> .e2e/front.log 2>&1" : "";
+    const keeping = PLAYS_SERVICE ? "mkdir -p .e2e && " : "";
+    const build =
+      BUILT || index > 0 ? "" : `${keeping}WATERFALL_API_ADDRESS=${NOWHERE} pnpm build${kept} && `;
+    // Against the service, the output of the server is kept in `.e2e/front.log`, which Compose does
+    // not hold: `make e2e-service` searches it, after the paths, for the secrets and the tokens the
+    // platform knows (WF-OBS-0020, US-2900).
     return {
-      command: DEVELOPMENT ? `pnpm dev ${listening}` : `${build}pnpm start ${listening}`,
+      command: DEVELOPMENT
+        ? `${keeping}pnpm dev ${listening}${kept}`
+        : `${build}${keeping}pnpm start ${listening}${kept}`,
       url: frontAt(index),
       env: MEASURES_SERVICE ? USERS_FRONT_ENV : FRONT_ENV,
       reuseExistingServer: false,

@@ -2,11 +2,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Structured logs, in JSON, one record per line (WF-OBS-0020).
 
-Every record carries its severity, its time, the author of the action and the correlation
-identifier bound to the context. A field whose name suggests a secret is removed from the
-record, whatever put it there: the logs are not a place a password or a token ends up. The
-value of every secret the settings hold is replaced, wherever it shows up in the text of a
-record — message, trace, ``repr``. A secret the settings do not know cannot be masked by value.
+Every record carries its severity, its time, the author of the action and a correlation
+identifier — the one bound to the context, the process's own outside any request or task —, and
+the project it concerns when the context binds one. A field whose name suggests a secret is
+removed from the record, whatever put it there: the logs are not a place a password or a token
+ends up. The value of every secret the settings hold is replaced, wherever it shows up in the
+text of a record — message, trace, ``repr``. A secret the settings do not know cannot be masked
+by value.
 """
 
 import json
@@ -16,7 +18,9 @@ from contextlib import contextmanager
 from typing import IO, TYPE_CHECKING, Any, cast
 
 import structlog
-from structlog.contextvars import bound_contextvars
+from structlog.contextvars import bind_contextvars, clear_contextvars, get_contextvars
+
+from waterfall.platform.correlation import correlation_id_from
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterable
@@ -54,6 +58,17 @@ def drop_secrets(_logger: WrappedLogger, _method: str, event: EventDict) -> Even
     return cast("EventDict", _without_secrets(event))
 
 
+# The correlation of what the process writes outside any request, command or task: its start-up,
+# the access log of its server. Made once, so that one search finds all of it.
+PROCESS_CORRELATION = correlation_id_from(None)
+
+
+def add_correlation(_logger: WrappedLogger, _method: str, event: EventDict) -> EventDict:
+    """Give the record its correlation identifier: the process's own if the context binds none."""
+    event.setdefault("correlation_id", PROCESS_CORRELATION)
+    return event
+
+
 def add_author(_logger: WrappedLogger, _method: str, event: EventDict) -> EventDict:
     """Give the record its author: the platform itself unless the context names someone."""
     event.setdefault("actor", PLATFORM)
@@ -64,6 +79,7 @@ SHARED: list[Processor] = [
     structlog.contextvars.merge_contextvars,
     structlog.processors.add_log_level,
     structlog.processors.TimeStamper(fmt="iso", utc=True),
+    add_correlation,
     add_author,
     drop_secrets,
 ]
@@ -132,8 +148,25 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     return logger
 
 
+def bind_logging(**context: Any) -> None:
+    """Bind more fields — the project a request or a task turns out to concern — to the context.
+
+    They last as long as the ``logging_context`` they are bound in, which restores what it found.
+    """
+    bind_contextvars(**context)
+
+
 @contextmanager
 def logging_context(**context: Any) -> Generator[None]:
-    """Bind fields — the correlation identifier, the actor — to every record written inside."""
-    with bound_contextvars(**context):
+    """Bind fields — the correlation identifier, the actor — to every record written inside.
+
+    What the context held before is restored on leaving, whatever was bound inside it
+    (``bind_logging``): a field never outlives the request or the task it was bound for.
+    """
+    previous = get_contextvars()
+    bind_contextvars(**context)
+    try:
         yield
+    finally:
+        clear_contextvars()
+        bind_contextvars(**previous)

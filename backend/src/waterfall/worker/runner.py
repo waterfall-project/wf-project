@@ -38,6 +38,7 @@ from waterfall.platform.queue import SWEEP_START, Entry, TaskQueue
 from waterfall.platform.tasks import (
     FINISHED,
     PENDING,
+    PROJECT,
     BackgroundTask,
     Task,
     TaskHandler,
@@ -124,14 +125,22 @@ def end(
 
 
 def context_of(task: Task) -> dict[str, str]:
-    """Give what the logs of a task carry: its correlation, its requester, the task."""
+    """Give what the logs of a task carry: its correlation, its requester, the task, its project.
+
+    The project is the one the payload names, if it does; a task that learns it later binds it
+    (``bind_logging``).
+    """
     actor = PLATFORM if task.requested_by is None else str(task.requested_by)
-    return {
+    context = {
         "correlation_id": task.correlation_id,
         "actor": actor,
         "task_id": str(task.task_id),
         "kind": task.kind,
     }
+    project = task.payload.get(PROJECT)
+    if project is not None:
+        context["project_id"] = str(project)
+    return context
 
 
 @dataclass(frozen=True, slots=True)

@@ -72,6 +72,7 @@ from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import BadRequestError, PayloadTooLargeError, UnavailableError
 from waterfall.platform.identifiers import new_id
+from waterfall.platform.logs import get_logger
 from waterfall.platform.storage import MissingObjectError
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.platform.uploads import object_key_of
@@ -80,6 +81,7 @@ if TYPE_CHECKING:
     from starlette.types import Message
 
 router = APIRouter(tags=["exchanges"])
+logger = get_logger(__name__)
 
 CONSULT = "planning.read"
 FILE_TOO_LARGE = "FILE_TOO_LARGE"
@@ -165,7 +167,7 @@ def post_file_upload(
             kept = deposit(
                 session, upload_id, filename, len(sent.content), Act(account.user_id, utc_now())
             )
-            return FileUpload.model_validate(
+            deposited = FileUpload.model_validate(
                 {
                     "upload_id": kept.upload_id,
                     "purpose": "import",
@@ -182,6 +184,10 @@ def post_file_upload(
         with suppress(UnavailableError, MissingObjectError):
             services.backups.remove(key)
         raise
+    # Said once the deposit is committed, under the correlation of the request: the import that
+    # opens on it names the deposit, so that a search by the import finds this line (WF-OBS-0020).
+    logger.info("upload.deposited", upload_id=str(upload_id), size_bytes=deposited.size_bytes)
+    return deposited
 
 
 def confirmer_of(actor: Actor) -> Confirmer:
@@ -299,7 +305,15 @@ def post_import(
             head = None
     with services.database.transaction() as session:
         view = open_import(session, services.queue, opening, head, confirmer)
-        return detailed(session, view)
+        opened = detailed(session, view)
+    logger.info(
+        "import.opened",
+        import_id=str(view.import_id),
+        upload_id=str(opening.upload_id),
+        task_id=str(view.task_id),
+        status=view.status,
+    )
+    return opened
 
 
 @router.get(
@@ -356,6 +370,9 @@ def post_application(
         )
     if isinstance(answer, ImportRefused):
         raise answer.refusal
+    logger.info(
+        "import.apply_requested", import_id=str(import_id), task_id=str(answer.task_id.root)
+    )
     return answer
 
 
