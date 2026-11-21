@@ -123,10 +123,9 @@ test("the periodicity shipped is read without having been entered, set weekly fr
     expect(elsewhere.status()).toBe(200);
     await stale.getByLabel("Heure (UTC)").fill("05:00");
     await stale.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(stale.getByRole("alert")).toContainText(
-      catalogue.errors.STALE_LOCK_VERSION,
-      { timeout: WORKING },
-    );
+    await expect(stale.getByRole("alert")).toContainText(catalogue.errors.STALE_LOCK_VERSION, {
+      timeout: WORKING,
+    });
     await expect(stale).toBeVisible();
     await expect(stale.getByLabel("Heure (UTC)")).toHaveValue("05:00");
     expect((await current()).at_time).toBe("04:45");
