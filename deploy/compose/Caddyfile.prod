@@ -54,7 +54,7 @@ http://{$WATERFALL_DOMAIN} {
 
 	# The console of Keycloak and its realm master, whose administrator holds every realm, are not
 	# served: they are reached on the machine alone (README.md, « Administrer Keycloak »). The API and
-	# the worker reach the administration API of the realm inside the network, at keycloak:8080.
+	# the worker reach the administration API of the realm inside the network, at keycloak:8443.
 	@keycloak-admin path /auth/admin /auth/admin/* /auth/realms/master /auth/realms/master/*
 	handle @keycloak-admin {
 		respond 404
@@ -67,9 +67,17 @@ http://{$WATERFALL_DOMAIN} {
 		reverse_proxy grafana:3000
 	}
 
-	# Keycloak, built under /auth: its pages and its endpoints, those of the realm waterfall.
+	# Keycloak, built under /auth: its pages and its endpoints, those of the realm waterfall. It
+	# serves in TLS alone, with the certificate the authority of the platform issued it, which this
+	# door checks against the root of that authority (US-2840, WF-SEC-0010). The host of the request
+	# goes to Keycloak as the browser gave it, as it did in HTTP: Caddy would give the upstream's.
 	handle /auth/* {
-		reverse_proxy keycloak:8080
+		reverse_proxy https://keycloak:8443 {
+			header_up Host {host}
+			transport http {
+				tls_trust_pool file /trust/root.crt
+			}
+		}
 	}
 
 	handle {

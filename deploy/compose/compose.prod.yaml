@@ -19,6 +19,14 @@
 # written in a URL — PostgreSQL's, Redis's — holds letters and digits only. The environment of a
 # container stays readable by `docker inspect` on the machine, as for any service: what these files
 # avoid is a secret in a command line or in an image.
+#
+# Every exchange inside the platform is encrypted (US-2840, WF-SEC-0010): PostgreSQL, Redis, the API
+# and Keycloak serve in TLS alone, the object storage behind a proxy in TLS, and their clients check
+# the certificate and its name against the root of the authority of the platform — the operator's,
+# put in ./authority (ca.crt and ca.key), or one the service authority makes at the first start and
+# keeps. That service issues again the certificate of each server at each start, in a volume of its
+# own, and the root in the volume trust, which every client reads at /trust/root.crt. The metrics
+# alone stay in HTTP, on ports no door routes (TFX-09).
 name: waterfall
 
 # Where the browser reaches the platform: the domain, and the port of HTTPS when it is not 443.
@@ -37,33 +45,45 @@ x-postgres-image: &postgres-image ${WATERFALL_MIRROR:-}postgres:18-trixie@sha256
 # tables grant it, waterfall_service (#701); the migrations and the bootstrap, as waterfall, the
 # owner of the tables, no superuser. The administrator of the server, postgres, is the services' of
 # initialisation alone, which create the roles and the databases (x-administrator).
+#
+# Each address of PostgreSQL asks libpq, or the driver of Keycloak, to check the certificate and its
+# name against the root of the platform (sslmode=verify-full), and Redis is reached in rediss://,
+# its certificate checked against the same root (ssl_ca_certs). WATERFALL_TLS_AUTHORITY gives it to
+# the clients of Keycloak and of the storage, and makes a process of the back refuse to start on an
+# address in the clear, naming it (TFX-03, TFX-04, TFX-10).
+x-trust: &trust trust:/trust:ro
 x-back-environment: &back-environment
-  WATERFALL_DATABASE_URL: postgresql://waterfall_service:${WATERFALL_SERVICE_DATABASE_PASSWORD:?set WATERFALL_SERVICE_DATABASE_PASSWORD in .env}@postgres:5432/waterfall
-  WATERFALL_REDIS_URL: redis://:${WATERFALL_REDIS_PASSWORD:?set WATERFALL_REDIS_PASSWORD in .env}@redis:6379/0
+  WATERFALL_DATABASE_URL: postgresql://waterfall_service:${WATERFALL_SERVICE_DATABASE_PASSWORD:?set WATERFALL_SERVICE_DATABASE_PASSWORD in .env}@postgres:5432/waterfall?sslmode=verify-full&sslrootcert=/trust/root.crt
+  WATERFALL_REDIS_URL: rediss://:${WATERFALL_REDIS_PASSWORD:?set WATERFALL_REDIS_PASSWORD in .env}@redis:6379/0?ssl_ca_certs=/trust/root.crt
+  WATERFALL_TLS_AUTHORITY: /trust/root.crt
 x-administrator: &administrator
   PGHOST: postgres
   PGUSER: postgres
   PGPASSWORD: ${WATERFALL_POSTGRES_ADMIN_PASSWORD:?set WATERFALL_POSTGRES_ADMIN_PASSWORD in .env}
-x-owner-database-url: &owner-database-url postgresql://waterfall:${WATERFALL_POSTGRES_PASSWORD:?set WATERFALL_POSTGRES_PASSWORD in .env}@postgres:5432/waterfall
+  PGSSLMODE: verify-full
+  PGSSLROOTCERT: /trust/root.crt
+x-owner-database-url: &owner-database-url postgresql://waterfall:${WATERFALL_POSTGRES_PASSWORD:?set WATERFALL_POSTGRES_PASSWORD in .env}@postgres:5432/waterfall?sslmode=verify-full&sslrootcert=/trust/root.crt
 # The database of Keycloak, as its owner: Keycloak, the application of its realm, and the service of
-# the restoration, which replaces it (#953).
+# the restoration, which replaces it (#953). In TLS, its certificate checked (TFX-12).
 x-keycloak-database: &keycloak-database
-  KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+  KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak?sslmode=verify-full&sslrootcert=/trust/root.crt
   KC_DB_USERNAME: keycloak
   KC_DB_PASSWORD: ${WATERFALL_KEYCLOAK_DATABASE_PASSWORD:?set WATERFALL_KEYCLOAK_DATABASE_PASSWORD in .env}
 
 # The issuer of every token is the address the browser reaches Keycloak at; the API and the worker
 # reach it inside the network of the platform, for its keys and its administration API, as its
-# service account. The encryption between the services is EP-13's (WF-SEC-0010).
+# service account, in HTTPS (TFX-08).
 x-keycloak-client-environment: &keycloak-client-environment
   WATERFALL_KEYCLOAK_ADDRESS: *keycloak-address
-  WATERFALL_KEYCLOAK_BACKCHANNEL: http://keycloak:8080/auth
+  WATERFALL_KEYCLOAK_BACKCHANNEL: https://keycloak:8443/auth
   WATERFALL_SERVICE_CLIENT_SECRET: ${WATERFALL_SERVICE_CLIENT_SECRET:?set WATERFALL_SERVICE_CLIENT_SECRET in .env}
+  WATERFALL_TLS_AUTHORITY: /trust/root.crt
 
 x-storage-key: &storage-key ${WATERFALL_STORAGE_ACCESS_KEY:-GK000000000000000000000001}
 x-storage-secret: &storage-secret ${WATERFALL_STORAGE_SECRET:?set WATERFALL_STORAGE_SECRET in .env}
+# The storage behind its proxy in TLS (storage-proxy, TFX-05).
 x-storage-environment: &storage-environment
-  WATERFALL_STORAGE_ADDRESS: http://storage:3900
+  WATERFALL_STORAGE_ADDRESS: https://storage:3900
   WATERFALL_STORAGE_ACCESS_KEY: *storage-key
   WATERFALL_STORAGE_SECRET: *storage-secret
   WATERFALL_BACKUPS_BUCKET: backups
@@ -82,9 +102,43 @@ x-done: &done
   condition: service_completed_successfully
 
 services:
+  # The authority of the platform (US-2840, waterfall.platform.authority): at each start, before any
+  # other service, it issues the key and the certificate of each server in TLS — named as the
+  # network names it, owned by the user it runs as, the key readable by it alone — and writes the
+  # root every client trusts, then stops. The root is the operator's when ./authority holds ca.crt
+  # and ca.key; else the one it made at its first start, kept in the volume authority, which no
+  # other service mounts. A provided authority it cannot read stops it, and the platform with it,
+  # saying why. As root, to give each key to its user.
+  authority:
+    image: *waterfall-image
+    user: "0:0"
+    command:
+      - waterfall-authority
+      - --provided=/authority/provided
+      - --kept=/authority/kept
+      - --trust=/trust
+      - --certificates=/certificates
+      # <name in the network>:<user>:<group> of each server: those of its image.
+      - postgres:999:999
+      - redis:999:1000
+      - api:1000:1000
+      - keycloak:1000:0
+      - storage:0:0
+    volumes:
+      - ${WATERFALL_AUTHORITY_DIRECTORY:-./authority}:/authority/provided:ro
+      - authority:/authority/kept
+      - trust:/trust
+      - certificates-postgres:/certificates/postgres
+      - certificates-redis:/certificates/redis
+      - certificates-api:/certificates/api
+      - certificates-keycloak:/certificates/keycloak
+      - certificates-storage:/certificates/storage
+    restart: "no"
+
   # The only door: 80, which Let's Encrypt asks and which sends to HTTPS, and 443. It answers for
   # the domain under its own name too, inside the network: the front reaches Keycloak there, in
-  # HTTPS, at the address the browser knows.
+  # HTTPS, at the address the browser knows. It reaches Keycloak in TLS, trusting the root of the
+  # platform (Caddyfile.prod).
   caddy:
     image: ${WATERFALL_MIRROR:-}caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
     command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.prod", "--adapter", "caddyfile"]
@@ -98,6 +152,9 @@ services:
       # The certificates and the account of Let's Encrypt: kept, or every start would ask again.
       - caddy-data:/data
       - caddy-config:/config
+      - *trust
+    depends_on:
+      authority: *done
     ports:
       - "${WATERFALL_HTTP_PORT:-80}:80"
       - "${WATERFALL_HTTPS_PORT:-443}:443"
@@ -110,7 +167,10 @@ services:
   front:
     image: ghcr.io/waterfall-project/front:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
     environment:
-      WATERFALL_API_ADDRESS: http://api:8000
+      # The API and Redis in TLS (TFX-02, TFX-04), their certificates checked against the root of
+      # the platform, which NODE_EXTRA_CA_CERTS adds to the authorities the server of Next knows.
+      WATERFALL_API_ADDRESS: https://api:8443
+      NODE_EXTRA_CA_CERTS: /trust/root.crt
       WATERFALL_FRONT_ADDRESS: *address
       WATERFALL_KEYCLOAK_ADDRESS: *keycloak-address
       # The server of Next reaches Keycloak through Caddy, on its name in the network, in HTTPS: its
@@ -120,9 +180,11 @@ services:
       # The port of the metrics of the front (WF-OBS-0010), the worker's variable: published nowhere,
       # and Caddy sends to port 3000 alone, which answers 404 to /metrics (TFX-09).
       WATERFALL_METRICS_PORT: ${WATERFALL_METRICS_PORT:-9100}
-      WATERFALL_REDIS_URL: redis://:${WATERFALL_REDIS_PASSWORD:?set WATERFALL_REDIS_PASSWORD in .env}@redis:6379/0
+      WATERFALL_REDIS_URL: rediss://:${WATERFALL_REDIS_PASSWORD:?set WATERFALL_REDIS_PASSWORD in .env}@redis:6379/0
       # The key of the server actions, the same for every start and every instance (#825).
       NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${WATERFALL_SERVER_ACTIONS_KEY:?set WATERFALL_SERVER_ACTIONS_KEY in .env}
+    volumes:
+      - *trust
     depends_on:
       api: *healthy
       redis: *healthy
@@ -160,36 +222,47 @@ services:
     # max_connections carries the connections of every process of the platform: fifteen for each
     # process of the API, two hundred for the others, Keycloak's hundred included (README.md, « Les
     # processus de l'API »). Computed from their number by the shell, which then hands over to the
-    # entry point of the image.
+    # entry point of the image. In TLS, with the certificate of the authority (TFX-03, TFX-10,
+    # TFX-12); pg_hba.conf refuses a connection in the clear through the network, whoever asks. A
+    # certificate missing stops the server, which names the file.
     entrypoint:
       - /bin/sh
       - -c
-      - case "$$WATERFALL_API_PROCESSES" in ''|*[!0-9]*|0*) echo "WATERFALL_API_PROCESSES must be a whole number above zero, without leading zero" >&2; exit 1;; esac; exec docker-entrypoint.sh postgres -c max_locks_per_transaction=1024 -c max_connections=$$((15 * WATERFALL_API_PROCESSES + 200))
+      - case "$$WATERFALL_API_PROCESSES" in ''|*[!0-9]*|0*) echo "WATERFALL_API_PROCESSES must be a whole number above zero, without leading zero" >&2; exit 1;; esac; exec docker-entrypoint.sh postgres -c max_locks_per_transaction=1024 -c max_connections=$$((15 * WATERFALL_API_PROCESSES + 200)) -c ssl=on -c ssl_cert_file=/tls/tls.crt -c ssl_key_file=/tls/tls.key -c hba_file=/etc/waterfall/pg_hba.conf
     environment:
       WATERFALL_API_PROCESSES: *api-processes
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${WATERFALL_POSTGRES_ADMIN_PASSWORD:?set WATERFALL_POSTGRES_ADMIN_PASSWORD in .env}
     volumes:
       - postgres-data:/var/lib/postgresql
+      - certificates-postgres:/tls:ro
+      - ./pg_hba.conf:/etc/waterfall/pg_hba.conf:ro
     restart: unless-stopped
     depends_on:
       postgres-volume: *done
+      authority: *done
     healthcheck:
       test: ["CMD-SHELL", "pg_isready --host 127.0.0.1 --username postgres --dbname postgres"]
       interval: 2s
       timeout: 3s
       retries: 30
 
-  # Nothing durable is kept in Redis: the queue and the sessions are lost with it, not the data.
+  # Nothing durable is kept in Redis: the queue and the sessions are lost with it, not the data. In
+  # TLS alone (TFX-04, TFX-10): no port in the clear (--port 0); no certificate asked of its
+  # clients, who sign in with the password.
   redis:
     image: ${WATERFALL_MIRROR:-}redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
     user: redis
-    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDISCLI_AUTH\" --save ''"]
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDISCLI_AUTH\" --save '' --port 0 --tls-port 6379 --tls-cert-file /tls/tls.crt --tls-key-file /tls/tls.key --tls-ca-cert-file /tls/ca.crt --tls-auth-clients no"]
     environment:
       REDISCLI_AUTH: ${WATERFALL_REDIS_PASSWORD:?set WATERFALL_REDIS_PASSWORD in .env}
+    volumes:
+      - certificates-redis:/tls:ro
     restart: unless-stopped
+    depends_on:
+      authority: *done
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      test: ["CMD-SHELL", "redis-cli --tls --cacert /tls/ca.crt -h localhost ping | grep -q PONG"]
       interval: 2s
       timeout: 3s
       retries: 30
@@ -206,6 +279,7 @@ services:
       OWNER_DATABASE_PASSWORD: ${WATERFALL_POSTGRES_PASSWORD:?set WATERFALL_POSTGRES_PASSWORD in .env}
     volumes:
       - ./waterfall-database.sql:/waterfall-database.sql:ro
+      - *trust
     restart: "no"
     depends_on:
       postgres: *healthy
@@ -218,6 +292,8 @@ services:
       <<: *back-environment
       WATERFALL_DATABASE_URL: *owner-database-url
     command: ["waterfall-migrate"]
+    volumes:
+      - *trust
     restart: "no"
     depends_on:
       waterfall-database: *done
@@ -233,6 +309,7 @@ services:
       SERVICE_DATABASE_PASSWORD: ${WATERFALL_SERVICE_DATABASE_PASSWORD:?set WATERFALL_SERVICE_DATABASE_PASSWORD in .env}
     volumes:
       - ./service-database-role.sql:/service-database-role.sql:ro
+      - *trust
     restart: "no"
     depends_on:
       migrate: *done
@@ -249,6 +326,7 @@ services:
       BACKUP_DATABASE_PASSWORD: ${WATERFALL_BACKUP_DATABASE_PASSWORD:?set WATERFALL_BACKUP_DATABASE_PASSWORD in .env}
     volumes:
       - ./backup-database-role.sql:/backup-database-role.sql:ro
+      - *trust
     restart: "no"
     depends_on:
       waterfall-database: *done
@@ -264,10 +342,15 @@ services:
       KEYCLOAK_DATABASE_PASSWORD: ${WATERFALL_KEYCLOAK_DATABASE_PASSWORD:?set WATERFALL_KEYCLOAK_DATABASE_PASSWORD in .env}
     volumes:
       - ./keycloak-database.sql:/keycloak-database.sql:ro
+      - *trust
     restart: "no"
     depends_on:
       postgres: *healthy
 
+  # The API in TLS alone, with the certificate of the authority (TFX-02): the front reaches it at
+  # https://api:8443. Its metrics stay in HTTP, at /api/v1/metrics of port 8000, published nowhere,
+  # where Prometheus collects them as the chart's does (prometheus.yml), and nothing else is served
+  # there: any other path is not found (TFX-09).
   api:
     image: *waterfall-image
     environment:
@@ -278,13 +361,20 @@ services:
       # alert of a full storage could never appear (#4229).
       WATERFALL_DATABASE_CAPACITY_BYTES: ${WATERFALL_DATABASE_CAPACITY_BYTES:?set WATERFALL_DATABASE_CAPACITY_BYTES in .env}
       WATERFALL_STORAGE_CAPACITY_BYTES: ${WATERFALL_STORAGE_CAPACITY_BYTES:?set WATERFALL_STORAGE_CAPACITY_BYTES in .env}
+      WATERFALL_PORT: 8443
+      WATERFALL_TLS_CERTIFICATE: /tls/tls.crt
+      WATERFALL_TLS_KEY: /tls/tls.key
+      WATERFALL_METRICS_PORT: 8000
+    volumes:
+      - certificates-api:/tls:ro
+      - *trust
     depends_on:
       service-database-role: *done
       redis: *healthy
       storage-buckets: *done
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2)"]
+      test: ["CMD", "python", "-c", "import ssl, urllib.request; urllib.request.urlopen('https://localhost:8443/api/v1/health', timeout=2, context=ssl.create_default_context(cafile='/trust/root.crt'))"]
       interval: 2s
       timeout: 3s
       retries: 30
@@ -295,8 +385,8 @@ services:
     image: *waterfall-image
     environment:
       <<: [*back-environment, *keycloak-client-environment, *storage-environment]
-      WATERFALL_BACKUP_DATABASE_URL: postgresql://waterfall_backup:${WATERFALL_BACKUP_DATABASE_PASSWORD:?set WATERFALL_BACKUP_DATABASE_PASSWORD in .env}@postgres:5432/waterfall
-      WATERFALL_KEYCLOAK_DATABASE_URL: postgresql://waterfall_backup:${WATERFALL_BACKUP_DATABASE_PASSWORD:?set WATERFALL_BACKUP_DATABASE_PASSWORD in .env}@postgres:5432/keycloak
+      WATERFALL_BACKUP_DATABASE_URL: postgresql://waterfall_backup:${WATERFALL_BACKUP_DATABASE_PASSWORD:?set WATERFALL_BACKUP_DATABASE_PASSWORD in .env}@postgres:5432/waterfall?sslmode=verify-full&sslrootcert=/trust/root.crt
+      WATERFALL_KEYCLOAK_DATABASE_URL: postgresql://waterfall_backup:${WATERFALL_BACKUP_DATABASE_PASSWORD:?set WATERFALL_BACKUP_DATABASE_PASSWORD in .env}@postgres:5432/keycloak?sslmode=verify-full&sslrootcert=/trust/root.crt
       # Its metrics, on every interface of the container, on a port published nowhere, where
       # Prometheus collects them (TFX-09, #4229).
       WATERFALL_HOST: 0.0.0.0
@@ -305,6 +395,8 @@ services:
       WATERFALL_UNDO_RETENTION_HOURS: ${WATERFALL_UNDO_RETENTION_HOURS:-12}
       WATERFALL_BACKGROUND_TASK_RETENTION_DAYS: ${WATERFALL_BACKGROUND_TASK_RETENTION_DAYS:-30}
     command: ["waterfall-worker"]
+    volumes:
+      - *trust
     restart: unless-stopped
     depends_on:
       service-database-role: *done
@@ -336,6 +428,8 @@ services:
           waterfall-worker schedule || [ "$$?" -ne 2 ] || exit 2
         done
         exit 2
+    volumes:
+      - *trust
     restart: unless-stopped
     depends_on:
       service-database-role: *done
@@ -352,12 +446,13 @@ services:
     environment:
       <<: [*back-environment, *keycloak-client-environment, *storage-environment]
       WATERFALL_DATABASE_URL: *owner-database-url
-      WATERFALL_KEYCLOAK_DATABASE_URL: postgresql://keycloak:${WATERFALL_KEYCLOAK_DATABASE_PASSWORD:?set WATERFALL_KEYCLOAK_DATABASE_PASSWORD in .env}@postgres:5432/keycloak
+      WATERFALL_KEYCLOAK_DATABASE_URL: postgresql://keycloak:${WATERFALL_KEYCLOAK_DATABASE_PASSWORD:?set WATERFALL_KEYCLOAK_DATABASE_PASSWORD in .env}@postgres:5432/keycloak?sslmode=verify-full&sslrootcert=/trust/root.crt
       WATERFALL_INSTALLATION_CLIENT_SECRET: ${WATERFALL_INSTALLATION_CLIENT_SECRET:?set WATERFALL_INSTALLATION_CLIENT_SECRET in .env}
       WATERFALL_REALM_REQUESTS: /realm-requests
     command: ["waterfall-restore"]
     volumes:
       - realm-requests:/realm-requests
+      - *trust
     restart: unless-stopped
     depends_on:
       migrate: *done
@@ -385,6 +480,8 @@ services:
       WATERFALL_COMPANY_NAME: "${WATERFALL_COMPANY_NAME:?set WATERFALL_COMPANY_NAME in .env}"
       WATERFALL_TIME_ZONE: ${WATERFALL_TIME_ZONE:-}
     command: ["waterfall-api", "install"]
+    volumes:
+      - *trust
     restart: "no"
     depends_on:
       postgres: *healthy
@@ -393,7 +490,9 @@ services:
       keycloak-realm: *healthy
 
   # The object storage (PBS-3.3): Garage on one node, its layout made at its start and the key of the
-  # platform taken from the environment (garage.toml), its memory bounded (WF-CMP-0020).
+  # platform taken from the environment (garage.toml), its memory bounded (WF-CMP-0020). It does not
+  # encrypt by itself: it is on the network storage alone, which no service but its proxy in TLS
+  # joins, and is reached there as garage (TFX-05).
   storage:
     image: ${WATERFALL_MIRROR:-}dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
     command: ["/garage", "server", "--single-node", "--default-access-key"]
@@ -404,10 +503,36 @@ services:
     volumes:
       - ./garage.toml:/etc/garage.toml:ro
       - storage-data:/var/lib/garage
+    networks:
+      storage:
+        aliases: [garage]
     mem_limit: 256m
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "/garage", "status"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # The object storage in TLS (TFX-05, Caddyfile.storage): the services reach it at
+  # https://storage:3900, with the certificate the authority issues for that name, and the proxy
+  # reaches Garage on the network they alone share.
+  storage-proxy:
+    image: ${WATERFALL_MIRROR:-}caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.storage", "--adapter", "caddyfile"]
+    volumes:
+      - ./Caddyfile.storage:/etc/caddy/Caddyfile.storage:ro
+      - certificates-storage:/tls:ro
+    networks:
+      default:
+        aliases: [storage]
+      storage: {}
+    restart: unless-stopped
+    depends_on:
+      authority: *done
+      storage: *healthy
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "3900"]
       interval: 2s
       timeout: 3s
       retries: 30
@@ -417,19 +542,24 @@ services:
     image: ${WATERFALL_MIRROR:-}curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93
     entrypoint: ["/bin/sh", "/storage-buckets.sh"]
     environment:
-      STORAGE_ADDRESS: http://storage:3900
+      STORAGE_ADDRESS: https://storage:3900
+      STORAGE_AUTHORITY: /trust/root.crt
       STORAGE_ACCESS_KEY: *storage-key
       STORAGE_SECRET: *storage-secret
       STORAGE_BUCKETS: backups imports
     volumes:
       - ./storage-buckets.sh:/storage-buckets.sh:ro
+      - *trust
     restart: "no"
     depends_on:
-      storage: *healthy
+      storage-proxy: *healthy
 
   # Keycloak behind Caddy, under /auth: the issuer of every token is the address of the browser; the
-  # services reach it at keycloak:8080, on the back channel. No mail server: the links that set a
-  # password are handed over by createPasswordSetupLink (WF-CMP-0030).
+  # services reach it at keycloak:8443, on the back channel. No mail server: the links that set a
+  # password are handed over by createPasswordSetupLink (WF-CMP-0030). In TLS alone, with the
+  # certificate of the authority (TFX-08): no listener in HTTP. Its interface of management, which
+  # answers its health check, stays in HTTP on the loopback of its container, which no other
+  # service reaches.
   keycloak:
     image: *keycloak-image
     environment:
@@ -439,15 +569,22 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${WATERFALL_KEYCLOAK_ADMIN_PASSWORD:?set WATERFALL_KEYCLOAK_ADMIN_PASSWORD in .env}
       KC_HOSTNAME: *keycloak-address
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
-      KC_HTTP_ENABLED: "true"
+      KC_HTTP_ENABLED: "false"
+      KC_HTTPS_CERTIFICATE_FILE: /tls/tls.crt
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /tls/tls.key
+      KC_HTTP_MANAGEMENT_SCHEME: http
+      KC_HTTP_MANAGEMENT_HOST: 127.0.0.1
       KC_PROXY_HEADERS: xforwarded
+    volumes:
+      - certificates-keycloak:/tls:ro
+      - *trust
     restart: unless-stopped
     depends_on:
       keycloak-database: *done
     healthcheck:
       # Read on the status line: readiness answers 503 while the schema migrates, with a body
       # whose database check already says "UP" (#1079).
-      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && head -n 1 <&3 | grep -q ' 200 '"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && head -n 1 <&3 | grep -q ' 200 '"]
       interval: 5s
       timeout: 3s
       retries: 60
@@ -463,7 +600,9 @@ services:
     entrypoint: ["/opt/keycloak/bin/realm-service", "/opt/keycloak/bin/apply-realm"]
     environment:
       <<: *keycloak-database
-      KEYCLOAK_URL: http://keycloak:8080/auth
+      KEYCLOAK_URL: https://keycloak:8443/auth
+      # The root keycloak-config-cli and kcadm check Keycloak's certificate against (realm-service).
+      WATERFALL_TLS_AUTHORITY: /trust/root.crt
       KEYCLOAK_USER: admin
       KEYCLOAK_PASSWORD: ${WATERFALL_KEYCLOAK_ADMIN_PASSWORD:?set WATERFALL_KEYCLOAK_ADMIN_PASSWORD in .env}
       WATERFALL_FRONT_ADDRESS: *address
@@ -474,6 +613,7 @@ services:
       WATERFALL_REALM_REQUESTS: /realm-requests
     volumes:
       - realm-requests:/realm-requests
+      - *trust
     restart: unless-stopped
     depends_on:
       keycloak: *healthy
@@ -566,6 +706,11 @@ services:
       timeout: 3s
       retries: 30
 
+networks:
+  # Where Garage listens in the clear: its proxy in TLS alone joins it, and nothing leaves it.
+  storage:
+    internal: true
+
 volumes:
   caddy-data:
   caddy-config:
@@ -573,6 +718,17 @@ volumes:
   storage-data:
   prometheus-data:
   alertmanager-data:
+  # The root the platform made and its key, when the operator provides none: the service authority
+  # alone mounts it. Kept, so that the clients trust the same root from one start to the next.
+  authority:
+  # The root every client trusts, at /trust/root.crt.
+  trust:
+  # The key and the certificate of each server in TLS, each mounted by its server alone.
+  certificates-postgres:
+  certificates-redis:
+  certificates-api:
+  certificates-keycloak:
+  certificates-storage:
   # Where the service of the restoration asks keycloak-realm to apply the realm again, and reads the
   # answer: in memory, theirs alone, written by the user of both images.
   realm-requests:

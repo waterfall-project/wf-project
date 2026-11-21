@@ -68,6 +68,34 @@ def _left[T](listed: list[T], kept: Callable[[Sequence[T]], Collection[T]] | Non
     return [each for each in listed if each not in out]
 
 
+def _client(
+    address: str, region: str, access_key: str, secret_key: str, *, verify: bool | str
+) -> S3Client:
+    """Make the client of the storage at an address, signing with a key and its secret.
+
+    The addresses are by path, which every storage serves; a checksum is sent and checked only
+    where S3 requires one, as every storage accepts. ``verify`` is the file of the roots the
+    certificate of the storage is checked against, or ``True`` for the usual ones.
+    """
+    config = Config(
+        s3={"addressing_style": "path"},
+        connect_timeout=5,
+        read_timeout=60,
+        retries={"mode": "standard", "max_attempts": 3},
+        request_checksum_calculation="when_required",
+        response_checksum_validation="when_required",
+    )
+    return boto3.client(
+        "s3",
+        endpoint_url=address,
+        region_name=region,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        config=config,
+        verify=verify,
+    )
+
+
 class Bucket:
     """A bucket of the object storage, and what Waterfall does with its objects."""
 
@@ -81,26 +109,9 @@ class Bucket:
     ) -> Bucket:
         """Open a bucket of the storage at an address, signing with a key and its secret.
 
-        The addresses are by path, which every storage serves; a checksum is sent and checked only
-        where S3 requires one, as every storage accepts.
+        Its certificate, in HTTPS, is checked against the usual roots.
         """
-        config = Config(
-            s3={"addressing_style": "path"},
-            connect_timeout=5,
-            read_timeout=60,
-            retries={"mode": "standard", "max_attempts": 3},
-            request_checksum_calculation="when_required",
-            response_checksum_validation="when_required",
-        )
-        client: S3Client = boto3.client(
-            "s3",
-            endpoint_url=address,
-            region_name=region,
-            aws_access_key_id=access_key,
-            aws_secret_access_key=secret_key,
-            config=config,
-        )
-        return cls(client, name)
+        return cls(_client(address, region, access_key, secret_key, verify=True), name)
 
     @classmethod
     def of_backups(cls, settings: StorageSettings) -> Bucket:
@@ -108,15 +119,17 @@ class Bucket:
 
         One bucket carries the three prefixes (EP-06, "Ce que le cadrage décide"): the backups, the
         files in transit under ``uploads/`` and the exports under ``exports/``; the purge of the
-        last two opens it by this name too.
+        last two opens it by this name too. The certificate of the storage is checked against the
+        roots of the platform when the settings give them (``tls_authority``, US-2840).
         """
-        return cls.connect(
-            settings.backups_bucket,
+        client = _client(
             settings.storage_address,
             settings.storage_region,
             settings.storage_access_key,
             settings.storage_secret.get_secret_value(),
+            verify=True if settings.tls_authority is None else settings.tls_authority,
         )
+        return cls(client, settings.backups_bucket)
 
     def reach(self) -> None:
         """Ask the storage whether the bucket is there; refuse as unavailable if it does not say."""

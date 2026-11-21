@@ -38,6 +38,7 @@ waterfall-api = "waterfall.witness.main:main"
 waterfall-worker = "waterfall.worker.main:main"
 waterfall-migrate = "waterfall.migrations.runner:main"
 waterfall-restore = "waterfall.restore.main:main"
+waterfall-authority = "waterfall.platform.authority:main"
 
 [build-system]
 requires = ["uv_build>=0.13.8,<0.14.0"]

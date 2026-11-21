@@ -5,11 +5,16 @@
 # Creates each bucket of STORAGE_BUCKETS on the object storage at STORAGE_ADDRESS, unless it is
 # there, by the CreateBucket of S3 signed with the key of the platform: the standard operation any
 # storage serves. The key reaches curl by a file of its configuration, never by its command line.
+# Given STORAGE_AUTHORITY, the root of the authority of the platform, the certificate of the storage
+# is checked against it alone (US-2840).
 set -eu
 
 configuration=$(mktemp)
 trap 'rm -f "$configuration"' EXIT
 printf 'user = "%s:%s"\n' "$STORAGE_ACCESS_KEY" "$STORAGE_SECRET" > "$configuration"
+if [ -n "${STORAGE_AUTHORITY:-}" ]; then
+	printf 'cacert = "%s"\n' "$STORAGE_AUTHORITY" >> "$configuration"
+fi
 
 for bucket in $STORAGE_BUCKETS; do
 	status=$(curl --silent --output /dev/null --write-out '%{http_code}' \

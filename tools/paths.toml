@@ -271,6 +271,11 @@ paths = [
     "deploy/compose/compose.prod.local.yaml",
     "deploy/compose/Caddyfile.prod",
     "deploy/compose/production.env.example",
+    # The encryption between its services (US-2840): the proxy of the storage, the access to
+    # PostgreSQL, and the trial of the clear refused.
+    "deploy/compose/Caddyfile.storage",
+    "deploy/compose/pg_hba.conf",
+    "tools/src/wftools/transport.py",
     "deploy/compose/garage.toml",
     "deploy/compose/storage-buckets.sh",
     "deploy/compose/postgres-volume.sh",
@@ -339,6 +344,7 @@ paths = [
     "tools/src/wftools/charttrial.py",
     "tools/src/wftools/production.py",
     "tools/src/wftools/restoration_trial.py",
+    "tools/src/wftools/transport.py",
     "tools/src/wftools/images.py",
     "tools/tests/test_chart.py",
     "tools/tests/test_chartprometheus.py",
