@@ -595,7 +595,7 @@ toutes.
 
 ## US-2680 — Ce que le marquage conserve pour le portefeuille
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-DAT-0040-A`
 - **opérations** : `markRevision`, `mergeCostStructure` (la conservation), `getPortfolioProjects`,
   `getPortfolioValue`, `getPortfolioWorkload`, `getPortfolioPerformance`,
