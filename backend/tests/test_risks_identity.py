@@ -425,10 +425,11 @@ def test_a_risk_renamed_renames_its_own_estimate_and_its_provision_line_outside_
     assert main_counter(project) == counted + 1
 
 
+@pytest.mark.requirement("WF-DAT-0020-A")
 def test_a_risk_renamed_leaves_the_marked_revisions_with_the_names_they_were_marked_with(
     risks: Risks, project: Costed
 ) -> None:
-    # The revision marked is frozen (WF-DAT-0020): only the current one follows the label.
+    # The revision marked is frozen: only the current one follows the label.
     risk = risks.declared()
     marked = project.revision_id
     mark(project.stage, {"revision_id": str(marked)})
