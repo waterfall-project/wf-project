@@ -423,6 +423,8 @@ def witness() -> Member:
                 known.severity,
                 reference_provision(risk),
                 known.state,
+                # ``held`` counts for an occurred or dismissed risk alone; for an identified one,
+                # it only repeats the provision and no total reads it.
                 reference_provision(risk),
             )
             for risk in REGISTER
@@ -473,14 +475,19 @@ def witness() -> Member:
 
 
 def pricing_offer() -> Member:
-    """Return PRJ-002, in pricing since its creation, without a revision marked."""
+    """Return PRJ-002 as the witness loads it: created, no revision opened, none marked.
+
+    The contract's example shows it in pricing (``project_pricing``); the loader of the witness
+    loads it as the chronology leaves it, Created (EP-04: the chronology does not date it), a state
+    no view of the portfolio counts.
+    """
     offer = fixture("project_pricing")
     created = datetime.fromisoformat(cast("str", offer["audit"]["created_at"]))
     return Member(
         cast("str", offer["project_id"]),
         cast("str", offer["label"]),
         cast("str", offer["code"]),
-        ((created, cast("str", offer["state"])),),
+        ((created, "created"),),
         (),
     )
 

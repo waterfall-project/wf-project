@@ -7,7 +7,7 @@
     "states": "in_progress,pricing,completed"
   },
   "value": {
-    "scope": {"states":["in_progress","pricing","completed"],"as_of":"2026-06-03","from":"2025-06-04","to":"2026-06-03","org_node_id":null,"org_node_label":null,"project_count":10},
+    "scope": {"states":["in_progress","pricing","completed"],"as_of":"2026-06-03","from":"2025-06-04","to":"2026-06-03","org_node_id":null,"org_node_label":null,"project_count":9},
     "budget_by_cost_type": [
       {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"9692035.67","share":{"is_computable":true,"value":"0.1375","reason":null}},
       {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"60792285.89","share":{"is_computable":true,"value":"0.8625","reason":null}}

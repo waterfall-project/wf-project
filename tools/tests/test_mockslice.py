@@ -149,6 +149,24 @@ def test_the_dates_of_the_slice_keep_to_the_rules_that_spare_its_readings_any_do
 
 
 @pytest.mark.requirement(REQUIREMENT)
+def test_no_milestone_of_the_portfolio_is_dated_from_the_first_to_the_third_of_june() -> None:
+    # The curve is exact at 3 June only if nothing is due from the 1st (WF-PTF-0100): the tasks, the
+    # imports and the markings of the slice say so above; its projects hold no milestone — a task of
+    # a duration of nought, none of ``mockslice`` — and the milestones of the portfolio are those
+    # of PRJ-001, whose reference dates this reads, the date of its completion with them.
+    month = AS_OF.replace(day=1)
+    dated = [
+        day
+        for each in members()
+        for _, _, reference, completed in each.milestones
+        for day in (reference, completed)
+        if day is not None
+    ]
+    assert dated
+    assert not [day for day in dated if month <= day <= AS_OF]
+
+
+@pytest.mark.requirement(REQUIREMENT)
 def test_no_instant_of_the_witness_falls_on_another_day_in_the_zone_of_the_installation() -> None:
     # The readings date an instant by its day in universal time, the service by its day in the
     # zone of the installation (WF-DAT-0040): no instant of the projects read lies near midnight,
@@ -240,12 +258,14 @@ def test_the_readings_carry_the_figures_computed_by_hand() -> None:
     assert rows["PRJ-302"]["project_manager_projection"] == "65820.00"
     # PRJ-304: its frame planned and not completed, 9,000 earned of 10,500 planned.
     assert rows["PRJ-304"]["schedule_index"]["zone"] == "watch"
-    # The offers never marked, and PRJ-002, are listed without an amount (US-2670).
-    for code in ("PRJ-002", "PRJ-307", "PRJ-308"):
+    # The offers never marked are listed without an amount (US-2670).
+    for code in ("PRJ-307", "PRJ-308"):
         assert rows[code]["win_probability"] is None
         assert rows[code]["last_marked_at"] is None
-    assert "PRJ-309" not in rows
-    assert "PRJ-310" not in rows
+    # Not listed: PRJ-002, which the witness loads Created; PRJ-305, completed, a list read without
+    # a period retaining none (EP-11, decision of 19 November 2026); the lost and the abandoned.
+    for code in ("PRJ-002", "PRJ-305", "PRJ-309", "PRJ-310"):
+        assert code not in rows
     health = _readings()["pilot_health"]["signals"]
     weeks = {
         s["project_label"]: s["params"]["weeks_since_last_mark"]
@@ -416,18 +436,20 @@ def test_the_declaration_of_a_risk_is_its_first_review_for_the_health_of_the_ste
 
 @pytest.mark.requirement("WF-PTF-0010-A")
 def test_the_scope_of_each_view_counts_the_projects_it_retains() -> None:
-    # US-2670, « le nombre de projets retenus »: PRJ-001, PRJ-002, the four projects in progress
-    # of the slice, PRJ-305 completed in the period and its three offers; the workload counts
-    # those in progress and in pricing, the performance and the health those in progress alone.
+    # US-2670, « le nombre de projets retenus »: PRJ-001, the four projects in progress of the
+    # slice, PRJ-305 completed in the period and its three offers — PRJ-002, which the witness loads
+    # Created, is counted by none; the list, read without a period, counts no completed project;
+    # the workload counts those in progress and in pricing, the performance and the health those in
+    # progress alone.
     counts = {name: value["scope"]["project_count"] for name, value in _readings().items()}
     assert counts == {
-        "portfolio_projects": 10,
-        "portfolio_value": 10,
-        "portfolio_workload": 9,
+        "portfolio_projects": 8,
+        "portfolio_value": 9,
+        "portfolio_workload": 8,
         "portfolio_performance": 5,
-        "portfolio_cost_structure": 10,
-        "portfolio_risks": 10,
-        "portfolio_cost_curve": 10,
+        "portfolio_cost_structure": 9,
+        "portfolio_risks": 9,
+        "portfolio_cost_curve": 9,
         "pilot_health": 5,
     }
 
@@ -439,7 +461,7 @@ def test_a_project_without_a_marked_revision_is_listed_without_its_probability()
     # PRJ-308 carry a probability of their own, and no marking kept it.
     assert (mockslice.O2.probability, mockslice.O3.probability) == (Decimal("0.3"), Decimal("0.8"))
     rows = _rows()
-    for code in ("PRJ-002", "PRJ-307", "PRJ-308"):
+    for code in ("PRJ-307", "PRJ-308"):
         assert rows[code]["win_probability"] is None
     assert rows["PRJ-306"]["win_probability"] == "0.6"
 

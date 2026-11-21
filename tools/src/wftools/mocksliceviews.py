@@ -158,7 +158,10 @@ def _row(each: Member, day: date) -> JsonObject:
     }
     if last is None:
         return row
-    row["win_probability"] = decimal(last.probability)
+    # Only an offer has a probability of winning: null for a project in progress or completed
+    # (EP-11, decision of 19 November 2026, #4137).
+    if state == PRICING:
+        row["win_probability"] = decimal(last.probability)
     if last.offer:
         if state == PRICING:
             row["current_estimate"] = money(last.estimate)
@@ -173,11 +176,20 @@ def _row(each: Member, day: date) -> JsonObject:
 
 
 def projects(portfolio: Portfolio) -> JsonObject:
-    """Return the list, sorted by label as without ``sort_by``: code points, then identifier."""
-    rows = [_row(each, portfolio.day) for each in portfolio.retained(STATES)]
+    """Return the list, sorted by label as without ``sort_by``: code points, then identifier.
+
+    Read without a period, it retains no completed project: there is no period in which one would
+    have completed (EP-11, decision of 19 November 2026, #4020 and #4136); ``scope.from`` and
+    ``scope.to`` are null.
+    """
+    retained = portfolio.retained(STATES)
+    kept = [each for each in retained if each.state_on(portfolio.day) != COMPLETED]
+    rows = [_row(each, portfolio.day) for each in kept]
     rows.sort(key=lambda row: (str(row["label"]), str(row["project_id"])))
+    scope = portfolio.scope(STATES, period=False)
+    scope["project_count"] = len(rows)
     return {
-        "scope": portfolio.scope(STATES, period=False),
+        "scope": scope,
         "items": cast("list[JsonValue]", rows),
         "meta": {"limit": 50, "offset": 0, "total": len(rows)},
     }
