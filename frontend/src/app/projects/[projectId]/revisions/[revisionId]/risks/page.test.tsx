@@ -139,6 +139,13 @@ function text(markup: string): string {
     .trim();
 }
 
+/**
+ * The comments React writes into the markup it streams, and only those: the separator of two texts
+ * (`<!-- -->`), the bounds of a Suspense boundary (`<!--$-->`, `<!--$?-->`, `<!--$!-->`, `<!--/$-->`)
+ * and of an Activity (`<!--&-->`, `<!--/&-->`). Named one by one, it removes no other text.
+ */
+const REACT_MARKERS = /<!--(?: |\/?[$&]|\$[?!])-->/g;
+
 /** Render the screen of the risks in English, at the query given. */
 async function risksAt(search: PageSearchParams = {}) {
   const page = await RisksPage({
@@ -154,7 +161,7 @@ async function risksAt(search: PageSearchParams = {}) {
     { progressiveChunkSize: Infinity },
   );
   await stream.allReady;
-  return (await new Response(stream).text()).replace(/<!--.*?-->/g, "").replace(/&#x27;/g, "'");
+  return (await new Response(stream).text()).replace(REACT_MARKERS, "").replace(/&#x27;/g, "'");
 }
 
 /** The calls the page made to an operation. */

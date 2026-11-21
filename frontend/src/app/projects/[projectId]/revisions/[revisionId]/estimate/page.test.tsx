@@ -81,6 +81,13 @@ function queryOf(end: string): URLSearchParams | undefined {
     ?.query;
 }
 
+/**
+ * The comments React writes into the markup it streams, and only those: the separator of two texts
+ * (`<!-- -->`), the bounds of a Suspense boundary (`<!--$-->`, `<!--$?-->`, `<!--$!-->`, `<!--/$-->`)
+ * and of an Activity (`<!--&-->`, `<!--/&-->`). Named one by one, it removes no other text.
+ */
+const REACT_MARKERS = /<!--(?: |\/?[$&]|\$[?!])-->/g;
+
 /** The markup of the estimate of the witness revision for the session given. */
 async function estimatePage(
   session: "me" | "me_estimator" | "me_manager",
@@ -100,7 +107,7 @@ async function estimatePage(
     { progressiveChunkSize: Infinity },
   );
   await stream.allReady;
-  return (await new Response(stream).text()).replace(/<!--.*?-->/g, "").replace(/&#x27;/g, "'");
+  return (await new Response(stream).text()).replace(REACT_MARKERS, "").replace(/&#x27;/g, "'");
 }
 
 /** Read the estimate of the witness revision for the session given; its grid as handed. */
