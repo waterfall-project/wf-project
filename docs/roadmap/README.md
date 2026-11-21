@@ -172,7 +172,7 @@ closes. Four rules, which each slice follows:
 | [EP-11](EP-11-portefeuille.md) | Portfolio | en cours | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | File exchanges (FLX-01 to FLX-06) | abandonné : each round trip is validated in its functional block | — |
 | [EP-13](EP-13-exploitation.md) | Operations and going to production | en cours | EP-04 |
-| [EP-28](EP-28-chaine-et-outillage.md) | Chain and development tooling | en cours | nothing |
+| [EP-28](EP-28-chaine-et-outillage.md) | Chain and development tooling | livré | nothing |
 | [EP-29](EP-29-habilitations-specification-1-0-7.md) | Access rights and accounts: follow-ups of specification 1.0.7 | à planifier | EP-08 |
 | [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risks prepared as differentials | à planifier | EP-08 |
 | [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning: engine and Gantt | à planifier | EP-08 |
