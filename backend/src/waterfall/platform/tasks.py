@@ -62,9 +62,9 @@ KINDS = (*CONTRACT_KINDS, *SCHEDULED_KINDS)
 STATUSES = ("queued", "running", "succeeded", "failed")
 PENDING = ("queued", "running")
 # The kinds the platform deposits of itself, whose latest the purge spares: those the planned
-# command schedules (``waterfall.worker.schedule.planned``), and the two it does not schedule yet,
-# ``backup_copy``, which a backup deposits, and ``restore_test``, whose planning US-2930 adds. A
-# test compares this list to ``planned``, those two excepted.
+# command schedules (``waterfall.worker.schedule.planned``), and two it does not always schedule,
+# ``backup_copy``, which a backup deposits, and ``restore_test``, which it runs under Kubernetes
+# alone (US-2930). A test compares this list to ``planned``, those two excepted.
 PLANNED_KINDS: tuple[str, ...] = ("identity_sync", "backup", *SCHEDULED_KINDS)
 FINISHED = ("succeeded", "failed")
 # The key of the payload of a task that names the project it aims at, which waits for it.
@@ -206,6 +206,38 @@ def last_submitted(session: Session, kind: TaskKind | ScheduledKind) -> datetime
     """
     kept = (BackgroundTask.kind == kind, BackgroundTask.requested_by.is_(None))
     return session.scalar(select(func.max(BackgroundTask.submitted_at)).where(*kept))
+
+
+def record_ran(
+    session: Session, task_id: UUID, kind: ScheduledKind, result: Mapping[str, Any]
+) -> None:
+    """Write a task the schedule ran itself, at once, as succeeded, with what it produced.
+
+    No worker takes it, no queue holds it: it says when the platform did it, which the schedule
+    reads as it reads a deposit (``last_submitted``), and which the purge spares as the latest of
+    its kind.
+    """
+    correlation_id = get_contextvars().get("correlation_id")
+    if not isinstance(correlation_id, str):
+        message = "a task is written inside a request or a command, under its correlation"
+        raise TaskError(message)
+    now = utc_now()
+    session.execute(
+        insert(BackgroundTask).values(
+            id=task_id,
+            kind=kind,
+            status="succeeded",
+            progress=100,
+            payload={},
+            result=to_jsonable_python(result),
+            requested_by=None,
+            correlation_id=correlation_id,
+            attempts=1,
+            submitted_at=now,
+            started_at=now,
+            finished_at=now,
+        )
+    )
 
 
 def purge_ended(session: Session, before: datetime, spared: Collection[UUID]) -> int:

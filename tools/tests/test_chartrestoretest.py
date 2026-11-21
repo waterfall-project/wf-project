@@ -4,10 +4,11 @@
 
 The environment of the test holds a copy of the production not anonymised (WF-EXP-0010). The chart,
 rendered by Helm (marker ``chart``), describes its Job: one pod whose services listen on its
-loopback, which declares no port, which no Service selects and a NetworkPolicy closes, deleted with
-its volumes once the test has ended; and the worker, which makes it, may create Jobs and nothing
-else. That it holds on a cluster is the trial of the chart (``wftools.chartrestoretest``), whose
-steps are held here against a ``kubectl`` that answers as a test tells it.
+loopback, which declares no port, which no Service selects and a NetworkPolicy closes — nothing in,
+out to named peers alone —, deleted with its volumes once the test has ended; and the scheduler,
+which makes it, may create Jobs and nothing else, the worker nothing. That it holds on a cluster
+is the trial of the chart (``wftools.chartrestoretest``), whose steps are held here against a
+``kubectl`` that answers as a test tells it.
 """
 
 import json
@@ -17,6 +18,7 @@ import pytest
 import yaml
 
 from wftools import REPOSITORY, chart, chartrestoretest, restoretest_trial
+from wftools.chart import ChartError
 from wftools.chartrestoretest import RestoreTestTrial
 from wftools.restoration_trial import Clock, TrialError
 
@@ -29,6 +31,8 @@ TESTER = {
     "app.kubernetes.io/component": "restore-test",
 }
 SIDECARS = ("postgres", "keycloak", "api")
+POSTGRES = {"app.kubernetes.io/component": "postgres"}
+STORAGE = {"app.kubernetes.io/component": "storage"}
 
 Objects = list[dict[str, Any]]
 
@@ -45,7 +49,7 @@ def named(objects: Objects, kind: str, name: str) -> dict[str, Any]:
 
 
 def job_of(objects: Objects) -> dict[str, Any]:
-    """Return the Job the worker makes, as the chart describes it to it."""
+    """Return the Job the scheduler makes, as the chart describes it to it."""
     configmap = named(objects, "ConfigMap", "waterfall-restore-test")
     return json.loads(configmap["data"]["job.json"])
 
@@ -109,14 +113,25 @@ def test_no_service_selects_the_pod_of_the_test_and_a_network_policy_lets_nothin
     assert policy["podSelector"]["matchLabels"] == TESTER
     assert policy["policyTypes"] == ["Ingress", "Egress"]
     assert policy["ingress"] == []
-    # Out, only the names, the PostgreSQL and the storage of the production, which the test reads.
-    (egress,) = policy["egress"]
-    assert "to" not in egress
-    assert {(port["protocol"], port["port"]) for port in egress["ports"]} == {
-        ("UDP", 53),
-        ("TCP", 53),
-        ("TCP", 5432),
-        ("TCP", 3900),
+    # Out, each rule names where it leads: the DNS of the cluster, the PostgreSQL and the storage
+    # of the production, by their pods; no rule without its `to`, which would lead anywhere.
+    egress = policy["egress"]
+    assert all(rule.get("to") for rule in egress)
+    led = {
+        tuple((port["protocol"], port["port"]) for port in rule["ports"]): rule["to"]
+        for rule in egress
+    }
+    assert led == {
+        (("UDP", 53), ("TCP", 53)): [
+            {
+                "namespaceSelector": {
+                    "matchLabels": {"kubernetes.io/metadata.name": "kube-system"}
+                },
+                "podSelector": {"matchLabels": {"k8s-app": "kube-dns"}},
+            }
+        ],
+        (("TCP", 5432),): [{"podSelector": {"matchLabels": {**TESTER, **POSTGRES}}}],
+        (("TCP", 3900),): [{"podSelector": {"matchLabels": {**TESTER, **STORAGE}}}],
     }
 
 
@@ -140,23 +155,32 @@ def test_the_job_its_pod_and_its_volumes_are_deleted_once_the_test_has_ended(
 
 
 @pytest.mark.chart
-def test_the_worker_may_create_jobs_and_nothing_else_and_reads_the_job_the_chart_describes(
+@pytest.mark.requirement("WF-EXP-0060-A")
+def test_the_scheduler_alone_may_create_jobs_and_the_worker_holds_no_right_of_the_cluster(
     objects: Objects,
 ) -> None:
+    # The scheduler runs a fixed command and reads no file of a user; the worker reads the imports:
+    # the token that may create a Job — any pod, any Secret of the namespace — is the scheduler's.
     role = named(objects, "Role", "waterfall-restore-test")
     assert role["rules"] == [{"apiGroups": ["batch"], "resources": ["jobs"], "verbs": ["create"]}]
     binding = named(objects, "RoleBinding", "waterfall-restore-test")
     assert binding["roleRef"]["name"] == "waterfall-restore-test"
-    assert [subject["name"] for subject in binding["subjects"]] == ["waterfall-worker"]
-    worker = named(objects, "Deployment", "waterfall-worker")["spec"]["template"]["spec"]
-    assert worker["serviceAccountName"] == "waterfall-worker"
-    (main,) = worker["containers"]
-    assert environment(main)["WATERFALL_RESTORE_TEST_JOB"] == "/restore-test/job.json"
-    (mount,) = main["volumeMounts"]
-    assert (mount["mountPath"], mount["readOnly"]) == ("/restore-test", True)
+    assert [subject["name"] for subject in binding["subjects"]] == ["waterfall-scheduler"]
+    accounts = [item["metadata"]["name"] for item in objects if item["kind"] == "ServiceAccount"]
+    assert accounts == ["waterfall-scheduler"]
+    assert len([item for item in objects if item["kind"] == "RoleBinding"]) == 1
     scheduler = named(objects, "CronJob", "waterfall-scheduler")
-    (schedule,) = scheduler["spec"]["jobTemplate"]["spec"]["template"]["spec"]["containers"]
+    spec = scheduler["spec"]["jobTemplate"]["spec"]["template"]["spec"]
+    assert spec["serviceAccountName"] == "waterfall-scheduler"
+    (schedule,) = spec["containers"]
+    assert schedule["command"] == ["waterfall-worker", "schedule"]
+    assert environment(schedule)["WATERFALL_RESTORE_TEST_JOB"] == "/restore-test/job.json"
     assert environment(schedule)["WATERFALL_RESTORE_TEST_INTERVAL"] == "2592000"
+    (mount,) = schedule["volumeMounts"]
+    assert (mount["mountPath"], mount["readOnly"]) == ("/restore-test", True)
+    worker = named(objects, "Deployment", "waterfall-worker")["spec"]["template"]["spec"]
+    assert "serviceAccountName" not in worker
+    assert "WATERFALL_RESTORE_TEST_JOB" not in environment(worker["containers"][0])
 
 
 @pytest.mark.chart
@@ -172,25 +196,69 @@ def test_without_the_test_the_chart_makes_none_of_it() -> None:
     assert not [
         item["metadata"]["name"] for item in objects if "restore-test" in item["metadata"]["name"]
     ]
-    worker = named(objects, "Deployment", "waterfall-worker")["spec"]["template"]["spec"]
-    assert "serviceAccountName" not in worker
-    assert "WATERFALL_RESTORE_TEST_JOB" not in environment(worker["containers"][0])
+    assert not [item for item in objects if item["kind"] in {"ServiceAccount", "RoleBinding"}]
     scheduler = named(objects, "CronJob", "waterfall-scheduler")
-    (schedule,) = scheduler["spec"]["jobTemplate"]["spec"]["template"]["spec"]["containers"]
+    spec = scheduler["spec"]["jobTemplate"]["spec"]["template"]["spec"]
+    assert "serviceAccountName" not in spec
+    (schedule,) = spec["containers"]
+    assert "WATERFALL_RESTORE_TEST_JOB" not in environment(schedule)
     assert "WATERFALL_RESTORE_TEST_INTERVAL" not in environment(schedule)
 
 
+PROVIDED_STORAGE = [{"ipBlock": {"cidr": "10.0.0.6/32"}}]
+PROVIDED_POSTGRES = [{"ipBlock": {"cidr": "10.0.0.5/32"}}]
+
+
 @pytest.mark.chart
+@pytest.mark.requirement("WF-EXP-0060-A")
 @pytest.mark.parametrize(
     ("address", "port"),
     [("https://s3.example.org", 443), ("http://s3.example.org", 80), ("http://s3:9000", 9000)],
 )
-def test_the_test_leaves_for_the_port_of_the_storage_an_operator_provides(
+def test_the_test_leaves_for_the_storage_an_operator_provides_at_its_peers_and_its_port(
     address: str, port: int
 ) -> None:
-    objects = rendered({"storage": {"enabled": False, "address": address}})
-    (egress,) = named(objects, "NetworkPolicy", "waterfall-restore-test")["spec"]["egress"]
-    assert {"protocol": "TCP", "port": port} in egress["ports"]
+    objects = rendered(
+        {
+            "storage": {"enabled": False, "address": address},
+            "postgresql": {"enabled": False, "host": "db.example.org", "port": 6432},
+            "secrets": {"existingSecret": "operator", "values": None},
+            "restoreTest": {
+                "egress": {"storage": PROVIDED_STORAGE, "postgresql": PROVIDED_POSTGRES}
+            },
+        }
+    )
+    egress = named(objects, "NetworkPolicy", "waterfall-restore-test")["spec"]["egress"]
+    assert all(rule.get("to") for rule in egress)
+    led = {rule["ports"][0]["port"]: rule["to"] for rule in egress}
+    assert led[port] == PROVIDED_STORAGE
+    assert led[6432] == PROVIDED_POSTGRES
+
+
+@pytest.mark.chart
+@pytest.mark.requirement("WF-EXP-0060-A")
+@pytest.mark.parametrize(
+    ("given", "said"),
+    [
+        (
+            {"storage": {"enabled": False, "address": "https://s3.example.org"}},
+            r"restoreTest\.egress\.storage",
+        ),
+        (
+            {
+                "postgresql": {"enabled": False, "host": "db.example.org"},
+                "secrets": {"existingSecret": "operator", "values": None},
+            },
+            r"restoreTest\.egress\.postgresql",
+        ),
+    ],
+    ids=["storage", "postgresql"],
+)
+def test_a_component_provided_without_its_peers_stops_the_rendering_rather_than_let_the_copy_out(
+    given: dict[str, Any], said: str
+) -> None:
+    with pytest.raises(ChartError, match=said):
+        rendered(given)
 
 
 POD = {
@@ -203,6 +271,7 @@ POD = {
     "status": {"phase": "Running", "podIP": "10.244.0.42"},
 }
 SINCE = "2026-11-21 19:00:00+00"
+DECOY_ADDRESS = "10.244.0.77"
 
 
 class Cluster:
@@ -215,8 +284,11 @@ class Cluster:
         left: list[str] | None = None,
         tested: str = "t",
         services: list[dict[str, Any]] | None = None,
+        confined: tuple[str, str] = ("5432", ""),
     ) -> None:
         self.reached = reached
+        # What the pod of the test reaches on 5432: the PostgreSQL of the production, the decoy.
+        self.production, self.escaped = confined
         self.left = left or [""]
         self.tested = tested
         self.services = services or []
@@ -236,6 +308,12 @@ class Cluster:
         }
         if "get jobs,pods" in said:
             return 0, self.left.pop(0) if len(self.left) > 1 else self.left[0]
+        if f"get pod {chartrestoretest.DECOY}" in said:
+            return 0, DECOY_ADDRESS
+        if said.endswith(f"{DECOY_ADDRESS} 5432"):
+            return 0, f"reached:{self.escaped}\n"
+        if said.endswith("waterfall-postgres 5432"):
+            return 0, f"reached:{self.production}\n"
         for marker, answer in answers.items():
             if marker in said:
                 return 0, answer
@@ -262,6 +340,30 @@ def test_the_trial_plans_the_test_finds_it_closed_then_gone_and_inscribed() -> N
     assert "--image=image:tag" in probe
     assert sum("get jobs,pods" in said for said in cluster.ran) == 2
     assert any(f"finished_at >= '{SINCE}'" in said for said in cluster.ran)
+    # The decoy started before the test, probed from the pod of the test, then deleted.
+    decoy = chartrestoretest.DECOY
+    started = next(i for i, said in enumerate(cluster.ran) if f"run {decoy}" in said)
+    scheduled = next(i for i, said in enumerate(cluster.ran) if "schedule-restore-test" in said)
+    assert started < scheduled
+    pod = "exec waterfall-restore-test-0193a0b2-x -c api"
+    probes = [said for said in cluster.ran if pod in said and said.endswith(" 5432")]
+    assert [said.split()[-2] for said in probes] == ["waterfall-postgres", DECOY_ADDRESS]
+    assert f"kubectl -n waterfall delete pod {decoy} --wait=false --ignore-not-found" in cluster.ran
+
+
+@pytest.mark.requirement("WF-EXP-0060-A")
+def test_a_pod_of_the_test_that_reaches_a_pod_the_policy_does_not_name_fails_the_trial() -> None:
+    cluster = Cluster(confined=("5432", "5432"))
+    with pytest.raises(TrialError, match="does not name"):
+        trial_on(cluster).hold()
+    decoy = chartrestoretest.DECOY
+    assert f"kubectl -n waterfall delete pod {decoy} --wait=false --ignore-not-found" in cluster.ran
+
+
+def test_a_probe_that_reaches_not_even_the_production_fails_the_trial() -> None:
+    # Else a probe that reaches nothing would say the test confined.
+    with pytest.raises(TrialError, match="does not reach the PostgreSQL"):
+        trial_on(Cluster(confined=("", ""))).hold()
 
 
 def test_a_port_of_the_test_reached_from_the_namespace_fails_the_trial() -> None:

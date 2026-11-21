@@ -12,7 +12,9 @@ A kind is scheduled by one line of ``planned``: the kind, and what says it is du
 the purge is due at an interval of the installation; the backup (US-2910) and the reading of the
 accounts (US-3040) are due when their schedules, which an administrator sets, say so, each asking
 the module that holds its planning; the test of a restoration (US-2930), under Kubernetes alone, at
-an interval of the installation, once a scheduled backup is there to test.
+an interval of the installation, once a scheduled backup is there to test. That one the schedule
+starts itself rather than queue: it makes the Job of the test (``waterfall.worker.restore_test``),
+and writes its task, ended.
 A task of a kind is never deposited while one of that kind is queued or running, and two
 schedules, run together, deposit it once: they wait on one advisory lock. A backup is deposited
 as ``startBackup`` does, under the same locks in the same order (``waterfall.platform.locks``) and
@@ -32,9 +34,11 @@ from waterfall.platform.database import Database, utc_now
 from waterfall.platform.locks import BACKUP_LOCK, RESTORE_LOCK
 from waterfall.platform.logs import get_logger
 from waterfall.platform.tasks import ScheduledKind, TaskKind, last_submitted, pending_task, submit
+from waterfall.worker.restore_test import start_restore_test
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from uuid import UUID
 
     from sqlalchemy.orm import Session
 
@@ -57,6 +61,9 @@ class Planned:
     lacks: Callable[[Session], list[str]] = lambda _session: []
     # The advisory locks of the kind, taken in order before it looks for what holds it back.
     locks: tuple[tuple[int, bool], ...] = ()
+    # What starts a kind the schedule runs itself, rather than queue: it writes its task, ended,
+    # and gives it; ``None`` when it did not start, which leaves it due.
+    start: Callable[[Session], UUID | None] | None = None
 
 
 def every(kind: TaskKind | ScheduledKind, seconds: int) -> Planned:
@@ -88,21 +95,30 @@ def planned(settings: ScheduleSettings) -> tuple[Planned, ...]:
 
 
 def restore_test_planned(settings: ScheduleSettings) -> tuple[Planned, ...]:
-    """Plan the test of a restoration when the installation gives its interval, else nothing.
+    """Plan the test of a restoration when the installation gives its Job, else nothing.
 
-    Without a scheduled backup verified, none is deposited: the test would have nothing to restore.
+    Without a scheduled backup verified, none is started: the test would have nothing to restore.
+    The interval counts from the latest test started, whose task the purge spares.
     """
-    if settings.restore_test_interval is None:
+    path = settings.restore_test_job
+    if path is None:
         return ()
     interval = every("restore_test", settings.restore_test_interval)
-    return (replace(interval, lacks=backups_interface.restore_test_lacks),)
+    return (
+        replace(
+            interval,
+            lacks=backups_interface.restore_test_lacks,
+            start=lambda session: start_restore_test(session, path),
+        ),
+    )
 
 
 def deposit_due(database: Database, queue: TaskQueue, plan: tuple[Planned, ...]) -> list[str]:
     """Deposit the tasks due, none of a kind that has one queued or running; give their kinds.
 
     Each task is written in the transaction of the schedule, and put in the queue once it is
-    committed; a deposit Redis refuses leaves the task queued, which the worker deposits again.
+    committed; a deposit Redis refuses leaves the task queued, which the worker deposits again. A
+    kind the schedule starts itself writes its task, ended, in the same transaction.
     """
     deposited: list[str] = []
     with database.transaction() as session:
@@ -119,7 +135,10 @@ def deposit_due(database: Database, queue: TaskQueue, plan: tuple[Planned, ...])
             elif lacking:
                 logger.info("task.held_back", kind=each.kind, missing_condition=lacking[0])
             elif each.due(session, now):
-                task_id = submit(session, queue, each.kind, None)
-                logger.info("task.enqueued", kind=each.kind, task_id=str(task_id))
+                if each.start is None:
+                    task_id = submit(session, queue, each.kind, None)
+                    logger.info("task.enqueued", kind=each.kind, task_id=str(task_id))
+                elif each.start(session) is None:
+                    continue
                 deposited.append(each.kind)
     return deposited

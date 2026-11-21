@@ -2,36 +2,57 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # The test of a restoration (US-2930, WF-EXP-0060), as compose.restore-test.yaml makes it under
-# Compose. The schedule deposits the task restore_test once a month (restoreTest.interval), once a
-# scheduled backup verified is there to test; the worker makes the Job below, named after its task,
-# in the namespace of the installation (waterfall.worker.restore_test), as the service account
-# <release>-worker, which may create Jobs and nothing else.
+# Compose. Once a month (restoreTest.interval), once a scheduled backup verified is there to test,
+# the schedule — the CronJob of scheduler.yaml, which runs one fixed command and reads no file of a
+# user — makes the Job below, named after its task, in the namespace of the installation
+# (waterfall.worker.restore_test), as the service account <release>-scheduler, which may create
+# Jobs and nothing else. The worker, which reads the files the users give, holds no right of the
+# cluster. A Role does not bound what a Job holds: the token that may create one is the
+# scheduler's alone.
 #
 # The Job is one pod: the PostgreSQL, the Keycloak and the API of the test, sidecars that listen on
 # its loopback alone, and the test, `waterfall-restore test`, which restores the latest scheduled
 # backup verified into that PostgreSQL, then writes /restore-test/restored, on which Keycloak and
 # the API start; it counts, compares, and gives its outcome to the production, which inscribes it.
 # The pod declares no port, no Service selects it, it mounts no token of the cluster, and the
-# NetworkPolicy below closes it to every other pod: none of it is reachable by a user. It leaves
-# only for the names, the PostgreSQL and the storage of the production. Its password is drawn at
-# each test, in memory; its databases are on a volume of the pod: once the test has ended, the
-# sidecars stop, and Kubernetes deletes the Job, its pod and its volumes at once
+# NetworkPolicy below lets nothing in, and lets out only to the DNS of the cluster
+# (restoreTest.egress.dns), the PostgreSQL and the storage of the production, each rule naming its
+# peers: the pods of the chart's own component, or, for a component the operator provides, the
+# peers restoreTest.egress gives for it, without which the chart does not render. Its password is
+# drawn at each test, in memory; its databases are on a volume of the pod: once the test has ended,
+# the sidecars stop, and Kubernetes deletes the Job, its pod and its volumes at once
 # (ttlSecondsAfterFinished: 0) — the only place out of the production where a copy not anonymised
 # exists (WF-EXP-0010) does not outlive the test. restoreTest.deadline bounds it.
 {{- if .Values.restoreTest.enabled }}
+{{- $egress := .Values.restoreTest.egress }}
+{{- $postgres := list (dict "podSelector" (dict "matchLabels" (include "waterfall.selector" (list . "postgres") | fromYaml))) }}
+{{- if not .Values.postgresql.enabled }}
+{{- if not $egress.postgresql }}
+{{- fail "restoreTest.egress.postgresql: where the pod of the test reaches the PostgreSQL the operator provides (postgresql.enabled is false), as NetworkPolicy peers — an ipBlock of its address —, or restoreTest.enabled: false" }}
+{{- end }}
+{{- $postgres = $egress.postgresql }}
+{{- end }}
+{{- $storagePeers := list (dict "podSelector" (dict "matchLabels" (include "waterfall.selector" (list . "storage") | fromYaml))) }}
+{{- $storagePort := 3900 }}
+{{- if not .Values.storage.enabled }}
+{{- if not $egress.storage }}
+{{- fail "restoreTest.egress.storage: where the pod of the test reaches the object storage the operator provides (storage.enabled is false), as NetworkPolicy peers — an ipBlock of its address —, or restoreTest.enabled: false" }}
+{{- end }}
+{{- $storagePeers = $egress.storage }}
 {{- $storage := urlParse (include "waterfall.storageAddress" .) }}
-{{- $storagePort := 80 }}
+{{- $storagePort = 80 }}
 {{- if contains ":" $storage.host }}
 {{- $storagePort = splitList ":" $storage.host | last | int }}
 {{- else if eq $storage.scheme "https" }}
 {{- $storagePort = 443 }}
 {{- end }}
+{{- end }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ include "waterfall.name" (list . "worker") }}
+  name: {{ include "waterfall.name" (list . "scheduler") }}
   labels:
-    {{- include "waterfall.labels" (list . "worker") | nindent 4 }}
+    {{- include "waterfall.labels" (list . "scheduler") | nindent 4 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -57,7 +78,7 @@ roleRef:
   name: {{ include "waterfall.name" (list . "restore-test") }}
 subjects:
   - kind: ServiceAccount
-    name: {{ include "waterfall.name" (list . "worker") }}
+    name: {{ include "waterfall.name" (list . "scheduler") }}
     namespace: {{ .Release.Namespace }}
 ---
 apiVersion: v1
@@ -84,11 +105,23 @@ spec:
   policyTypes: [Ingress, Egress]
   # No rule: nothing enters.
   ingress: []
+  # Each rule names where it leads: a rule without its `to` would lead anywhere on its ports.
   egress:
-    - ports:
+    # The names, from the DNS of the cluster.
+    - to:
+        {{- required "restoreTest.egress.dns: the DNS of the cluster, as NetworkPolicy peers" $egress.dns | toYaml | nindent 8 }}
+      ports:
         - { protocol: UDP, port: 53 }
         - { protocol: TCP, port: 53 }
+    # The PostgreSQL of the production: the backup to restore, the outcome to inscribe.
+    - to:
+        {{- toYaml $postgres | nindent 8 }}
+      ports:
         - { protocol: TCP, port: {{ include "waterfall.postgresPort" . | int }} }
+    # The storage of the production: the archive of the backup.
+    - to:
+        {{- toYaml $storagePeers | nindent 8 }}
+      ports:
         - { protocol: TCP, port: {{ $storagePort }} }
 {{- end }}
 

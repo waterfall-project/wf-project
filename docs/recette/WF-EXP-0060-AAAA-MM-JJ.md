@@ -45,12 +45,19 @@ ou le client de l'exploitant si PostgreSQL est fourni.
 ```
 kubectl -n NS get networkpolicy,role,rolebinding,configmap \
   -l app.kubernetes.io/component=restore-test
+kubectl -n NS get cronjob RELEASE-scheduler \
+  -o jsonpath='{.spec.jobTemplate.spec.template.spec.serviceAccountName}'
 kubectl -n NS get deployment RELEASE-worker -o jsonpath='{.spec.template.spec.serviceAccountName}'
 kubectl -n NS get role RELEASE-restore-test -o yaml
+kubectl -n NS get rolebinding RELEASE-restore-test -o jsonpath='{.subjects[*].name}'
+kubectl -n NS get networkpolicy RELEASE-restore-test -o jsonpath='{.spec.egress}'
 ```
 
 Attendu : la politique réseau, le rôle, sa liaison et le ConfigMap `RELEASE-restore-test` existent ;
-le worker tourne sous le compte `RELEASE-worker` ; le rôle ne permet que `create` sur `jobs`.
+la commande planifiée tourne sous le compte `RELEASE-scheduler`, seul sujet de la liaison ; le
+worker n'a pas de compte de service propre (sortie vide : le compte `default`, sans droit) ; le rôle
+ne permet que `create` sur `jobs` ; chaque règle de sortie de la politique réseau porte un `to` —
+le DNS du cluster, le PostgreSQL et le stockage de la production —, aucune n'en est dépourvue.
 
 Constaté :
 
@@ -74,13 +81,14 @@ puis tous les `restoreTest.interval` secondes) :
 ```
 psql -c "SELECT id, status, requested_by, submitted_at, result FROM background_task \
   WHERE kind = 'restore_test' ORDER BY submitted_at DESC LIMIT 3"
-kubectl -n NS logs deployment/RELEASE-worker | grep restore_test.job_made
+kubectl -n NS logs -l app.kubernetes.io/component=scheduler --tail=-1 | grep restore_test.job_
 kubectl -n NS get jobs,pods -l app.kubernetes.io/component=restore-test -o wide
 ```
 
-Attendu : une tâche `restore_test` déposée par la plateforme (`requested_by` nul), réussie, son
-résultat nommant le Job `RELEASE-restore-test-<8 caractères>` ; ce Job et son pod existent, le pod
-en cours d'exécution.
+Attendu : une tâche `restore_test` inscrite par la plateforme (`requested_by` nul), réussie, son
+résultat nommant le Job `RELEASE-restore-test-<8 caractères>` ; le journal de la commande planifiée
+dit `restore_test.job_made` pour ce Job (tant que Kubernetes garde le Job de la CronJob) ; ce Job et
+son pod existent, le pod en cours d'exécution.
 
 Constaté (heure du dépôt, nom du Job) :
 
@@ -100,10 +108,24 @@ for port in (5432, 8000, 8080, 9000):
         print(port, 'refusé', error)"
 ```
 
+Puis, depuis le pod du test, joindre le PostgreSQL de la production et une adresse qu'aucune règle
+ne nomme, sur un port pourtant permis — par exemple l'adresse d'un pod de l'espace de noms qui
+n'est pas le PostgreSQL, ou une adresse hors du cluster, sur le port 5432 :
+
+```
+kubectl -n NS exec <pod> -c api -- python3 -c "import socket
+for host in ('RELEASE-postgres', '<IP-autre-pod>', '<adresse-hors-cluster>'):
+    try:
+        socket.create_connection((host, 5432), timeout=3).close(); print(host, 'joint')
+    except OSError as error:
+        print(host, 'refusé', error)"
+```
+
 Attendu : aucun Service ne sélectionne le pod du test (aucun sélecteur ne porte
 `app.kubernetes.io/component: restore-test`) ; depuis un autre pod de l'espace de noms, aucun des
 ports du PostgreSQL (5432), de l'API (8000) et de Keycloak (8080, 9000) n'est joint ; l'ingress
-n'a aucune route vers lui.
+n'a aucune route vers lui ; depuis le pod du test, le PostgreSQL de la production est joint, les
+deux autres adresses ne le sont pas.
 
 Constaté :
 

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from sqlalchemy import insert, select
+from sqlalchemy import func, insert, select
 
 from waterfall.core.backups.tables import RESTORE_TEST_FAILURE_LENGTH, Backup, RestoreTest
 from waterfall.platform.identifiers import new_id
@@ -128,11 +128,13 @@ class RestoreTestResult:
 
 
 def latest_restore_test(session: Session, now: datetime) -> RestoreTestResult | None:
-    """Give the result of the latest test at ``now``, or ``None`` if no test was ever inscribed.
+    """Give the result of the latest test at ``now``, or ``None`` if none was due yet.
 
-    A test that did not take place — no backup to test, the production out of reach — inscribes
-    nothing: the latest one, older than ``RESTORE_TEST_PERIOD``, says the monthly test missed rather
-    than a success of long ago (WF-EXP-0060, #4643).
+    A test that did not take place — no backup to test, its Job never made or never started, the
+    production out of reach — inscribes nothing: the latest one, older than ``RESTORE_TEST_PERIOD``,
+    says the monthly test missed rather than a success of long ago (WF-EXP-0060, #4643). Before any
+    test, the first was due a period after the oldest scheduled backup verified, which it could have
+    restored: past that, it is said missed as well; before, or without such a backup, nothing is.
     """
     latest = session.execute(
         select(RestoreTest.finished_at, RestoreTest.succeeded)
@@ -140,8 +142,24 @@ def latest_restore_test(session: Session, now: datetime) -> RestoreTestResult | 
         .limit(1)
     ).first()
     if latest is None:
-        return None
+        return first_test_missed(session, now)
     due = latest.finished_at + RESTORE_TEST_PERIOD
     if now >= due:
         return RestoreTestResult(due, succeeded=False)
     return RestoreTestResult(latest.finished_at, succeeded=latest.succeeded)
+
+
+def first_test_missed(session: Session, now: datetime) -> RestoreTestResult | None:
+    """Say the first test missed once a period has passed since a backup could be tested, else none.
+
+    No test inscribed, the first was due ``RESTORE_TEST_PERIOD`` after the oldest scheduled backup
+    whose verification passed (#4643).
+    """
+    oldest = session.scalar(
+        select(func.min(Backup.taken_at)).where(
+            Backup.origin == "scheduled", Backup.verification == "passed"
+        )
+    )
+    if oldest is None or now < oldest + RESTORE_TEST_PERIOD:
+        return None
+    return RestoreTestResult(oldest + RESTORE_TEST_PERIOD, succeeded=False)

@@ -4,7 +4,8 @@
 
 The tests are inscribed as ``waterfall-restore test`` inscribes them (``record_restore_test``);
 the screen reads the latest, and says a failure once it is older than a month: a test that could
-not run — no backup to test, the production out of reach — inscribes nothing (#4643).
+not run — no backup to test, its Job never made, the production out of reach — inscribes nothing
+(#4643). Before any test, the first is said missed a month after a backup could have been tested.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -12,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import pytest
+from backup_rows import Row, recorded
 from fastapi.testclient import TestClient
 from installed_reference import holding, install
 from support import ContractClient, nowhere
@@ -138,3 +140,29 @@ def test_no_test_inscribed_is_none_and_the_latest_is_read_whatever_the_order_ins
     inscribed(database, NOW - timedelta(days=1), "not_started")
     inscribed(database, NOW - timedelta(days=9))
     assert latest_at(database, NOW) == RestoreTestResult(NOW - timedelta(days=1), succeeded=False)
+
+
+@pytest.mark.requirement("WF-EXP-0060-A")
+def test_no_test_inscribed_a_month_after_the_first_backup_verified_says_the_first_test_missed(
+    database: Database,
+) -> None:
+    # #4643: a Job that never starts — its image, a quota, a Role — inscribes nothing, even the
+    # first time. The first test was due a period after the oldest scheduled backup verified: a
+    # manual backup, or one whose verification failed, could not be tested, and does not count.
+    recorded(database, NOW - timedelta(days=60), Row(origin="manual"))
+    recorded(database, NOW - timedelta(days=50), Row(origin="scheduled", verification="failed"))
+    oldest = NOW - timedelta(days=40)
+    recorded(database, oldest, Row(origin="scheduled"))
+    recorded(database, NOW - timedelta(days=1), Row(origin="scheduled"))
+    assert latest_at(database, NOW) == RestoreTestResult(
+        oldest + RESTORE_TEST_PERIOD, succeeded=False
+    )
+
+
+@pytest.mark.story("US-2930")
+def test_no_test_inscribed_before_a_month_after_the_first_backup_verified_says_nothing(
+    database: Database,
+) -> None:
+    recorded(database, NOW - timedelta(days=60), Row(origin="manual"))
+    recorded(database, NOW - timedelta(days=10), Row(origin="scheduled"))
+    assert latest_at(database, NOW) is None

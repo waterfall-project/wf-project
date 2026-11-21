@@ -9,9 +9,11 @@ does not outlive it:
 - the schedule deposits a backup *scheduled*, which the test alone restores — the schedule made due
   as under Compose (``wftools.restoretest_trial``), the CronJob of the scheduler run once by a Job
   of its own —, and the trial waits for it listed verified;
-- the scheduler run again deposits the test, and the worker makes its Job: its pod is found, its API
-  listening on its loopback, and then held closed — it declares no port and mounts no token of the
-  cluster, no Service selects it, and a pod of the namespace reaches none of its ports;
+- the scheduler run again makes the Job of the test: its pod is found, its API listening on its
+  loopback, and then held closed — it declares no port and mounts no token of the cluster, no
+  Service selects it, and a pod of the namespace reaches none of its ports — and confined: from it,
+  the PostgreSQL of the production is reached, a pod of the namespace that listens on the same port
+  is not;
 - the test ends, and neither its Job nor its pod remains; the production holds a test that
   succeeded, inscribed since the trial began.
 """
@@ -42,6 +44,17 @@ PROBE = (
 """What a pod of the namespace runs against the pod of the test: the ports it reaches."""
 LISTENING = "import socket; socket.create_connection(('127.0.0.1', 8000), timeout=3).close()"
 """What the container of the API of the test runs: whether it listens, on its loopback."""
+DECOY = "trial-restore-test-decoy"
+"""A pod of the namespace that listens on the port of PostgreSQL, where the test may not go."""
+LISTEN = (
+    "import socket\n"
+    "server = socket.create_server(('0.0.0.0', 5432))\n"
+    "while True:\n"
+    "    server.accept()[0].close()\n"
+)
+"""What the decoy runs: it accepts every connection on the port of PostgreSQL."""
+LISTENS = "import socket; socket.create_connection(('127.0.0.1', 5432), timeout=3).close()"
+"""Whether the decoy listens, asked inside it."""
 TESTED = (
     "SELECT succeeded FROM restore_test WHERE finished_at >= '{since}' "
     "ORDER BY finished_at DESC LIMIT 1"
@@ -138,9 +151,14 @@ class RestoreTestTrial:
         restoretest_trial.deposited_backup(
             self.sql, self.schedule("trial-schedule-backup"), self.read, self.clock
         )
-        for command in self.schedule("trial-schedule-restore-test"):
-            _output(self.read, command, "the schedule of the test")
-        pod = self.running()
+        decoy = self.decoy()
+        try:
+            for command in self.schedule("trial-schedule-restore-test"):
+                _output(self.read, command, "the schedule of the test")
+            pod = self.running()
+            self.confined(pod, decoy)
+        finally:
+            self.read([*self.kubectl, "delete", "pod", DECOY, "--wait=false", "--ignore-not-found"])
         services = _output(
             self.read, [*self.kubectl, "get", "services", "--output", "json"], "list the Services"
         )
@@ -173,11 +191,66 @@ class RestoreTestTrial:
                 name = pod["metadata"]["name"]
                 probe = [*self.kubectl, "exec", name, "-c", "api", "--", "python3", "-c", LISTENING]
                 if pod.get("status", {}).get("phase") == "Running" and self.read(probe)[0] == 0:
-                    print(f"  the worker made the Job of the test; {name} runs its API")
+                    print(f"  the scheduler made the Job of the test; {name} runs its API")
                     return pod
             self.clock.pause(PAUSE)
         message = f"no pod of the test ran its API in {TEST_PATIENCE:.0f} s"
         raise TrialError(message)
+
+    def decoy(self) -> str:
+        """Start a pod of the namespace listening on the port of PostgreSQL; return its address."""
+        _output(
+            self.read,
+            [
+                *self.kubectl,
+                "run",
+                DECOY,
+                f"--image={self.image}",
+                "--restart=Never",
+                "--command",
+                "--",
+                "python3",
+                "-c",
+                LISTEN,
+            ],
+            "start the decoy",
+        )
+        deadline = self.clock.now() + PATIENCE
+        while self.clock.now() < deadline:
+            if self.read([*self.kubectl, "exec", DECOY, "--", "python3", "-c", LISTENS])[0] == 0:
+                found = _output(
+                    self.read,
+                    [*self.kubectl, "get", "pod", DECOY, "--output", "jsonpath={.status.podIP}"],
+                    "read the address of the decoy",
+                )
+                print(f"  a decoy of the namespace listens on 5432 at {found}")
+                return found
+            self.clock.pause(PAUSE)
+        message = f"the decoy did not listen in {PATIENCE:.0f} s"
+        raise TrialError(message)
+
+    def confined(self, pod: Mapping[str, Any], decoy: str) -> None:
+        """Hold that the test reaches the PostgreSQL of the production, and not the decoy.
+
+        Both on the same port: the NetworkPolicy lets the test out to the pods it names alone.
+        """
+        name = cast("str", pod["metadata"]["name"])
+
+        def probe(address: str) -> list[str]:
+            command = [
+                *[*self.kubectl, "exec", name, "-c", "api", "--", "python3", "-c", PROBE],
+                address,
+                "5432",
+            ]
+            return reached(_output(self.read, command, "probe from the pod of the test"))
+
+        if probe(f"{chart.RELEASE}-postgres") != ["5432"]:
+            message = "the pod of the test does not reach the PostgreSQL of the production"
+            raise TrialError(message)
+        if probe(decoy):
+            message = "the pod of the test reaches a pod of the namespace the policy does not name"
+            raise TrialError(message)
+        print("  the pod of the test reaches the PostgreSQL of the production, not the decoy")
 
     def unreachable(self, pod: Mapping[str, Any]) -> None:
         """Hold that a pod of the namespace reaches none of the ports of the test, its API up."""

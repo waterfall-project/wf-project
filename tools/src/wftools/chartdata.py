@@ -163,11 +163,24 @@ def manifests(given: Mapping[str, str], mirror: str) -> list[dict[str, Any]]:
     return objects
 
 
+def peer(component: str) -> dict[str, Any]:
+    """Return a component as a NetworkPolicy names it: its pods, in the namespace of the data."""
+    return {
+        "namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": NAMESPACE}},
+        "podSelector": {"matchLabels": _labels(component)},
+    }
+
+
 def provided_values(base: Mapping[str, Any]) -> dict[str, Any]:
-    """Return the values of an installation on these components: the Secret of the operator's."""
+    """Return the values of an installation on these components: the Secret of the operator's.
+
+    The pod of the test of a restoration reaches the PostgreSQL and the storage by their pods alone.
+    """
     values = {key: value for key, value in base.items() if key != "secrets"}
     values["secrets"] = {"existingSecret": KEYS}
     values["postgresql"] = {"enabled": False, "host": host(POSTGRES)}
     values["redis"] = {"enabled": False, "host": host(REDIS)}
     values["storage"] = {"enabled": False, "address": f"http://{host(STORAGE)}:3900"}
+    egress = {"postgresql": [peer(POSTGRES)], "storage": [peer(STORAGE)]}
+    values["restoreTest"] = {**base.get("restoreTest", {}), "egress": egress}
     return values
