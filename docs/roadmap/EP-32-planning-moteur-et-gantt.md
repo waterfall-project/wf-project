@@ -1,10 +1,10 @@
 ---
 id: EP-32
 titre: Corriger le moteur de planning sur les liaisons de récapitulatives, l'état d'une feuille qui devient récapitulative et le redatage, et le Gantt zoomé
-statut: prêt
+statut: en cours
 depend_de: EP-08
 famille: front, back
-issue:
+issue: 4549
 ---
 
 # EP-32 — Planning : moteur et Gantt
@@ -170,6 +170,14 @@ jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
   et le jugement « en retard » (BEX-15)
 - #4417 — les inscriptions orphelines à l'abandon d'une révision (BPL-10)
 - #4418 — le Gantt zoomé : niveau heures, axe, clavier (FPL-04, FPL-05, FPL-06)
+
+Ouverts au cadrage du 2026-11-21, avec les issues de l'EPIC :
+
+- #4564 — spec : WF-PLA-0040, une feuille démarrée ou terminée qui reçoit une sous-tâche garde son
+  état — bloque US-3310, jusqu'à la fusion de la spécification 1.0.9
+- #4565 — contrat : `LinkConflict` nomme la tâche manuelle en cause
+- #4566 — contrat : `createRevision` déclare le refus d'une tâche sans heure travaillée
+- #4567 — contrat : `updateResourceRole` déclare les refus du redatage
 
 ## Conception
 
@@ -352,7 +360,7 @@ autres sont des refus que les écrans montrent déjà par leur message.
 - **statut** : à faire
 - **exigences** : `WF-PLA-0090-A`
 - **opérations** : `listNodes`
-- **issue** :
+- **issue** : #4550
 
 **En tant que** développeur, **je veux** qu'un test du back cite `WF-PLA-0090-A` sur ce que le
 service doit au diagramme de Gantt — la hiérarchie, les liaisons et le chemin critique qu'il rend —,
@@ -383,7 +391,7 @@ l'étiquette `@shared` à `wftools.coverage` : ce que `make requirements` ne lit
 - **exigences** : `WF-PLA-0100-A`, `WF-PLA-0020-A`, `WF-PLA-0030-A`, `WF-PLA-0160-A`
 - **opérations** : aucune en propre — le moteur ; `listNodes` rend les marges, le chemin critique et
   les conflits qu'il calcule
-- **issue** :
+- **issue** : #4551
 
 **En tant que** chef de projet, **je veux** qu'un planning tout automatique ne porte aucune marge
 négative ni aucune tâche critique à tort, qu'une liaison parte d'une récapitulative ou qu'une durée
@@ -456,7 +464,7 @@ champs inertes ; les lectures de `node` sans le projet — EP-40.
 - **statut** : à faire
 - **exigences** : `WF-PLA-0040-A`, `WF-PLA-0070-A`
 - **opérations** : `createNode`, `moveNodes`, `applyPaste`, `applyImport`, `deleteNode`, `listNodes`
-- **issue** :
+- **issue** : #4556
 
 **En tant que** chef de projet, **je veux** qu'une tâche démarrée que je détaille en sous-tâches
 reste démarrée, à sa date, **afin que** l'avancement constaté ne disparaisse ni du Kanban, ni des
@@ -516,7 +524,7 @@ défaut ne sont pas réparées : la date effacée n'est écrite nulle part.
 - **statut** : à faire
 - **exigences** : `WF-PLA-0010-A`, `WF-REF-0130-A`
 - **opérations** : `updateCalendar`, `updateResourceRole`, `listNodes`
-- **issue** :
+- **issue** : #4552
 
 **En tant que** chef de projet, **je veux** que les dates et les montants de ma révision en cours
 suivent le calendrier d'un rôle dès qu'il change, **afin qu'**ils ne sautent pas plus tard, à la
@@ -559,7 +567,7 @@ L'ordre des verrous est celui d'EP-06 : le référentiel, la ligne, puis les str
 - **statut** : à faire
 - **exigences** : `WF-PLA-0010-A`
 - **opérations** : `createRevision`, `createNode`
-- **issue** :
+- **issue** : #4553
 
 **En tant que** chef de projet, **je veux** que l'ouverture d'une révision dont une tâche n'a plus
 d'heure travaillée — un calendrier a changé pendant que le projet était au repos — soit refusée en
@@ -599,7 +607,7 @@ d'une révision, qui montre déjà un refus 422 par son message.
 - **statut** : à faire
 - **exigences** : `WF-DAT-0010-A`
 - **opérations** : `abandonRevision`, `deleteRisk`, `listNodes`, `requestExport`
-- **issue** :
+- **issue** : #4554
 
 **En tant qu'**exploitant, **je veux** que l'abandon d'une révision supprime les inscriptions des
 tâches qu'elle seule portait, **afin qu'**aucune ligne invisible ne reste en base (#4417, BPL-10) ;
@@ -634,7 +642,7 @@ d'une tâche (`shaping.deleted`) : elle se met en commun. Le second site du jour
 - **statut** : à faire
 - **exigences** : `WF-PLA-0090-A`, `WF-IHM-0100-A`
 - **opérations** : `listNodes`, `getDurationUnits`
-- **issue** :
+- **issue** : #4555
 
 **En tant que** chef de projet, **je veux** qu'au niveau des heures le Gantt place chaque tâche aux
 heures où elle se fait, que deux tâches enchaînées le même jour se suivent au lieu de se superposer,
