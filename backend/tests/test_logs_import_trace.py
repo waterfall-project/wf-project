@@ -9,11 +9,9 @@ record of the API and of the worker carries the correlation, the author, the sev
 there is one, the project.
 """
 
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
-import yaml
 from fastapi.testclient import TestClient
 from imports_trial import (
     ROWS,
@@ -35,6 +33,7 @@ from waterfall.api.authentication import Services
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 
 if TYPE_CHECKING:
+    from jsonschema_path import SchemaPath
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
@@ -198,7 +197,6 @@ def test_what_a_task_binds_to_its_records_does_not_outlive_it(
     assert all("project_id" not in r and "import_id" not in r for r in logs.records)
 
 
-BUNDLE = Path(__file__).resolve().parents[2] / "docs" / "api" / "waterfall.bundle.yaml"
 # What the contract lets a request name a project by, outside the path /projects/{id}: a filter of
 # the query of the journal of audit, which the middleware (PROJECT_PATH) does not read. Reported
 # by the test, not decided: a new one must be looked at before it is added here.
@@ -206,31 +204,32 @@ PROJECT_OUTSIDE_THE_PATH = {("/audit-events", "get", "project_id", "query")}
 
 
 @pytest.mark.story("US-2900")
-def test_the_contract_designates_a_project_only_by_the_path_the_middleware_reads() -> None:
-    contract: dict[str, Any] = yaml.safe_load(BUNDLE.read_text(encoding="utf-8"))
-
-    def resolved(node: Any) -> Any:
-        while "$ref" in node:
-            target: Any = contract
-            reference: str = node["$ref"]
-            for key in reference[2:].split("/"):
-                target = target[key]
-            node = target
-        return node
+def test_the_contract_designates_a_project_only_by_the_path_the_middleware_reads(
+    contract: OpenAPI,
+) -> None:
+    # Read through the loaded contract, whose references are resolved as it is walked: nothing
+    # generated (the bundle) is needed.
+    def parameters_of(node: SchemaPath) -> list[SchemaPath]:
+        if "parameters" not in node:
+            return []
+        count = len(node.read_value()["parameters"])
+        return [node / "parameters" / index for index in range(count)]
 
     found: set[tuple[str, str, str, str]] = set()
-    paths: dict[str, dict[str, Any]] = contract["paths"]
-    for path, item in paths.items():
+    paths = contract.spec / "paths"
+    for key in sorted(paths.keys(), key=str):
+        path = str(key)
         if path.startswith("/projects/{"):
             continue
-        shared: list[Any] = item.get("parameters", [])
-        for method, operation_node in item.items():
-            operation: Any = operation_node
-            if method == "parameters" or not isinstance(operation_node, dict):
+        item = paths / path
+        shared = parameters_of(item)
+        for verb in sorted(item.keys(), key=str):
+            method = str(verb)
+            if method == "parameters":
                 continue
-            parameters: list[Any] = [*shared, *operation.get("parameters", [])]
-            for parameter in parameters:
-                named = resolved(parameter)
-                if "project" in named["name"].lower():
-                    found.add((path, method, named["name"], named["in"]))
+            operation = item / method
+            for named in [*shared, *parameters_of(operation)]:
+                name = str((named / "name").read_value())
+                if "project" in name.lower():
+                    found.add((path, method, name, str((named / "in").read_value())))
     assert found == PROJECT_OUTSIDE_THE_PATH
