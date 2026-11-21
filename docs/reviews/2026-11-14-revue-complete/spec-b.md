@@ -28,6 +28,7 @@ Aucun.
 
 ### SPB-01 — La référence se corrige encore après la réception d'un coût réel
 
+- **Issue** : #4440 (EP-35), ouverte le 2026-11-21, avec BPR-02.
 - **Où** : `docs/spec/waterfall-spec.md:1960-1962` (WF-REV-0040) ;
   `backend/src/waterfall/core/revisions/interface/reference.py:77-99` (`reference_correctable`) et
   `:162-170` ; `docs/roadmap/EP-04-projets-et-revisions.md:1326-1334` ;
@@ -57,6 +58,7 @@ Aucun.
 
 ### SPB-02 — Au changement d'année de référence, une ligne hors main-d'œuvre perd une année d'inflation
 
+- **Issue** : #3366 (fermée), #3983 (ouverte).
 - **Où** : `docs/spec/waterfall-spec.md:1984-1986` (WF-REV-0060), `:2557-2559` (WF-DEV-0030),
   `:2010` (Vérif de WF-REV-0080 : « sur chaque ligne de débours, dont le montant est projeté de
   même ») ; `backend/src/waterfall/core/estimate/keeping.py:191-232` (`copy_rates`),
@@ -85,6 +87,7 @@ Aucun.
 
 ### SPB-03 — Une tâche ou une ligne budgétée se supprime en revue : la valeur acquise ne peut plus atteindre le budget
 
+- **Issue** : #3367 (fermée).
 - **Où** : `docs/spec/waterfall-spec.md:2710` (WF-RAE-0040 : « créer, déplacer et supprimer des
   tâches … des lignes »), `:2314` (WF-PLA-0070 : seule une tâche démarrée ou terminée résiste),
   `:2984-2986` (WF-IND-0030), `:2581` (WF-DEV-0080) ;
@@ -113,6 +116,7 @@ Aucun.
 
 ### SPB-04 — Aucune règle pour une liaison portée par une récapitulative ; une subordonnée manuelle donne une marge négative sans conflit signalé
 
+- **Issue** : #3335 (ouverte), #3368 (fermée), #3984 (ouverte).
 - **Où** : `docs/spec/waterfall-spec.md:788-792` (§3.2.4), `:2266` (WF-PLA-0030), `:2254`
   (WF-PLA-0020), `:2422-2424` (WF-PLA-0100) ;
   `backend/src/waterfall/core/planning/scheduling/engine.py:237`, `:281-287`, `:343`.
@@ -138,6 +142,7 @@ Aucun.
 
 ### SPB-05 — L'arrondi d'un montant calculé n'est écrit que dans le contrat
 
+- **Issue** : #3369 (fermée).
 - **Où** : `docs/spec/waterfall-spec.md:4043` (WF-DAT-0100), `:2557`, `:2569-2571` ;
   `docs/api/DECISIONS.md:11325` ; `core/estimate/pricing/amounts.py:47-55`,
   `core/estimate/keeping.py:104-112`.
@@ -152,6 +157,7 @@ Aucun.
 
 ### SPB-06 — Le code projet : ni la barre oblique interdite ni sa longueur ne sont dans WF-PRJ-0010
 
+- **Issue** : #3370 (fermée).
 - **Où** : `docs/spec/waterfall-spec.md:2075-2077`, `:2863` ; `docs/api/DECISIONS.md:9864-9871` ;
   `core/costs/extraction.py:275`.
 - **Quoi** : WF-CRE-0020 fait de la barre oblique le seul séparateur ; un code projet qui en
@@ -162,6 +168,7 @@ Aucun.
 
 ### SPB-07 — Le code d'un sous-projet : liste de caractères ambiguë, et des noms d'onglet que la règle ne réserve pas
 
+- **Issue** : #3371 (fermée).
 - **Où** : `docs/spec/waterfall-spec.md:2151-2153`, `:5002` ;
   `core/projects/interface/subprojects.py:85-87` ; `core/estimate/remaining/excel/layout.py:36-39` ;
   `core/estimate/excel/names.py:21-23`.
@@ -179,6 +186,7 @@ Aucun.
 
 ### SPB-08 — La phase du reste à engager et du Kanban n'est pas dite ; l'exception de WF-DEV-0050 est hors d'atteinte
 
+- **Issue** : #3372 (fermée).
 - **Où** : `docs/spec/waterfall-spec.md:2541-2543`, `:2692`, `:2710` ;
   `docs/api/DECISIONS.md:6700-6704`, `:7944-7946` ; `core/planning/interface/progress.py:12-15`.
 - **Quoi** : WF-RAE-0040 ne retire avant En cours que « création et suppression » ; le contrat
@@ -193,6 +201,7 @@ Aucun.
 
 ### SPB-09 — « L'année de consommation » d'une ligne est un scalaire ici, une répartition là
 
+- **Issue** : #3373 (fermée).
 - **Où** : `docs/spec/waterfall-spec.md:2569` (répartie entre les années) contre `:2133`, `:2509`,
   `:2660`, `:2010` (« son année de consommation ») ; `core/estimate/costing.py:186`.
 - **Quoi** : pour une tâche à cheval sur deux années, le texte ne dit pas quelle année est
@@ -202,6 +211,7 @@ Aucun.
 
 ### SPB-10 — Une tâche sans aucune heure travaillée entre ses dates, qui n'est pas un jalon
 
+- **Issue** : #3374 (fermée).
 - **Où** : `docs/spec/waterfall-spec.md:2254` (une date importée sur un jour non travaillé est
   gardée), `:2569`, `:2581` ; `core/estimate/spreading/spread.py:116-118`, `planned.py:60-63`.
 - **Quoi** : une tâche manuelle importée de MS Project sur un samedi et un dimanche ne compte
@@ -211,6 +221,7 @@ Aucun.
 
 ### SPB-11 — Une avance peut placer une tâche avant la date de début de planning
 
+- **Issue** : #3375 (fermée).
 - **Où** : `docs/spec/waterfall-spec.md:2254`, `:2266`, `:2350` ; `scheduling/engine.py:228-252`.
 - **Quoi** : un décalage négatif plus long que ce qui précède fait commencer le successeur avant la
   date de début de planning (rejoué : prédécesseur d'un jour, avance de cinq jours, successeur six
@@ -219,6 +230,8 @@ Aucun.
 
 ### SPB-12 — La marge d'une révision marquée mêle son reste à engager et le coût réel du jour
 
+- **Issue** : #4457 (EP-36), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue.
 - **Où** : `docs/spec/waterfall-spec.md:2676-2678` (WF-RAE-0020), `:2960` (WF-IND-0010) ;
   `core/estimate/interface/remaining_indicators.py:219-221` ; `core/costs/interface/tracked_costs.py:43-54`.
 - **Quoi** : WF-RAE-0020 ne dit pas à quelle date se lit le coût réel d'une révision marquée
@@ -230,6 +243,7 @@ Aucun.
 
 ### SPB-13 — Lignes de provision : trois phrases en retard (non encore réalisé, EP-08)
 
+- **Issue** : #3376 (fermée).
 - **Où** : `docs/spec/waterfall-spec.md:2692` (« un jalon qui ne porte aucune ligne ») contre
   `:2302` (« aucune ligne hors lignes de provision ») ; `:2710` (« toutes les lignes d'une tâche »)
   contre `:2290` ; `:2662` (« lignes des tâches non terminées, lignes de provision … comprises »)
@@ -240,12 +254,14 @@ Aucun.
 
 ### SPB-14 — Survenance : une récapitulative sans prédécesseur « passe en mode manuel » (non encore réalisé, EP-08)
 
+- **Issue** : #3377 (fermée).
 - **Où** : `docs/spec/waterfall-spec.md:2831` contre `:2290` (« Une tâche récapitulative est
   toujours en mode automatique »). **Proposition** : « une tâche feuille sans prédécesseur ».
   **Confiance** : confirmé (texte).
 
 ### SPB-15 — « Translatée de 60 jours » sur une courbe au pas du mois (non encore réalisé, EP-10)
 
+- **Issue** : #3378 (fermée).
 - **Où** : `docs/spec/waterfall-spec.md:3104-3106`. **Quoi** : les courbes portent un point par fin
   de mois ; soixante jours ne font pas un nombre entier de mois (un montant du 31 janvier glisse
   de trois points, un du 1er janvier de deux) : le Vérif ne peut pas être constaté tel quel.
@@ -254,6 +270,7 @@ Aucun.
 
 ### SPB-16 — Le Vérif de WF-IHM-0100 ne constate que trois des « quatre points exigés »
 
+- **Issue** : #3379 (fermée).
 - **Où** : `docs/spec/waterfall-spec.md:3364-3366`. **Quoi** : le libellé associé à chaque champ et
   la description de chaque image porteuse d'information ne sont pas vérifiés.
   **Proposition** : ajouter « un contrôle automatisé ne relève aucun champ sans libellé ni image

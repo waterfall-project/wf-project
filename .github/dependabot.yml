@@ -68,6 +68,11 @@ updates:
       interval: monthly
     commit-message:
       prefix: "Chaîne :"
+    # A minor of Python is a raise of the language of the back and of the tools (.python-version,
+    # pyproject.toml, the Python of the image of the paths), not of an image alone: it is its own work.
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-minor"]
     groups:
       docker-minor-patch:
         update-types:

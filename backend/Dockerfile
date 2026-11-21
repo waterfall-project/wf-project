@@ -12,7 +12,7 @@
 # the major version of the server of the platform, 16 (#982).
 # Docker Hub, unless the chain gives the registry of its mirror (docs/dev/README.md, « The chain »).
 ARG WATERFALL_MIRROR=
-FROM ${WATERFALL_MIRROR}python:3.14-slim-trixie@sha256:930e1abba7c4e8f96ed93e8012c35d174d7732752731bbd5e8e757d7ec6f3966 AS python
+FROM ${WATERFALL_MIRROR}python:3.14-slim-trixie@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f AS python
 
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app

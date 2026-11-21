@@ -75,6 +75,7 @@ Aucun.
 
 ### CTA-02 — La garde du dernier administrateur laisse fermer l'administration : elle ignore les permissions de consulter que le contrat exige pour écrire
 
+- **Issue** : #3342 (EP-29), à laquelle la ventilation du 2026-11-21 joint ce constat.
 - **Où** : `docs/api/components/schemas/access.yaml:109-118` (`UserCommand` : « the last active
   account that holds both the permissions to modify accounts and access roles (`users.write`,
   `access_roles.write`) ») ; `docs/api/paths/access.yaml:488-493` (409 de `setUserAccessRoles`),
@@ -117,6 +118,8 @@ Aucun.
 
 ### CTA-03 — `getIdentitySyncSchedule` et `setIdentitySyncSchedule` : au contrat et à l'écran, servies par personne, dues par aucun EPIC
 
+- **Suite** : sans issue propre, vérifié le 2026-11-21 — tombera avec US-3040, issue #4065 (EP-13),
+  lot unique ; dépend d'US-2910/L1 #4098 et d'US-2830/L2 #4079.
 - **Où** : `docs/api/paths/access.yaml:708-776` ; `docs/api/components/schemas/platform.yaml:534-565`
   (`IdentitySyncSchedule`). **Non servies** : aucune route (`grep -rn "identity-sync-schedule"
   backend/src/waterfall` ne rend que le modèle engendré) ; la lecture planifiée est une commande
@@ -148,6 +151,7 @@ Aucun.
 
 ### CTA-04 — Les paramètres d'erreur les plus partagés ne sont pas typés, et une décision croit le contraire
 
+- **Issue** : #4465 (EP-38), ouverte le 2026-11-21, avec BAC-06, CTA-05, CTA-06.
 - **Où** : `docs/api/components/common.yaml:820-932` (`ProblemParams` : douze propriétés typées, ni
   `missing_condition`, ni `missing_permission`, ni `expected_lock_version`, ni `component`) ; `:188-194`
   (« `missing_permission` (a `PermissionCode`), `missing_condition` (a `CommandCondition`) », en
@@ -169,6 +173,7 @@ Aucun.
 
 ### CTA-05 — `Problem.correlation_id` reste facultatif alors qu'il est toujours rendu
 
+- **Issue** : #4465 (EP-38), ouverte le 2026-11-21, avec BAC-06, CTA-04, CTA-06.
 - **Où** : `docs/api/components/common.yaml:169` (`required: [code, status]`), `:420-428` ;
   `docs/api/components/responses.yaml:121-127` ; service `backend/src/waterfall/api/problems.py:64-70`.
 - **Quoi** : WF-OBS-0020 veut l'identifiant « repris dans le message d'erreur présenté à
@@ -184,6 +189,7 @@ Aucun.
 
 ### CTA-06 — Le corps entier d'un avatar refusé se désigne par `""`, la convention dit `/body`
 
+- **Issue** : #4465 (EP-38), ouverte le 2026-11-21, avec BAC-06, CTA-04, CTA-05.
 - **Où** : `docs/api/paths/me.yaml:159-161`, `:194-198` (pointeur `""`) ;
   `fixtures/api/avatar_not_image.json` ; contre `docs/api/README-fr.md:54` (« un corps qui n'est pas
   un objet, `/body` ») et `docs/api/components/common.yaml:805-812` (« a body that is not a JSON
@@ -199,6 +205,7 @@ Aucun.
 
 ### CTA-07 — Deux composants morts, que le lint ne peut pas voir
 
+- **Issue** : #4467 (EP-38), ouverte le 2026-11-21, avec CTB-09, CTB-10, CTB-13, CTB-14.
 - **Où** : `docs/api/components/responses.yaml:53-66` (réponse `Conflict`, et son exemple
   `fixtures/api/grid_write_marked_refused.json`) ; `docs/api/components/schemas/reference.yaml:6-12`
   (`ActiveFlag`). Hors de mon périmètre, même cas : `components/schemas/projects.yaml`
@@ -217,6 +224,7 @@ Aucun.
 
 ### CTA-08 — Le contrat ne dit pas qu'une tâche d'un autre compte est un 404
 
+- **Issue** : #4466 (EP-38), ouverte le 2026-11-21, avec CTA-09, CTB-08, CTC-02.
 - **Où** : `docs/api/paths/system.yaml:218-225` (`getBackgroundTask`), `:263-275`
   (`getBackgroundTaskResult`) ; seule `listBackgroundTasks` le dit (`:166-168`). Opérations servies :
   `backend/src/waterfall/api/tasks.py:5,89-93`, `api/exports.py:107-125`.
@@ -231,6 +239,7 @@ Aucun.
 
 ### CTA-09 — `setHourlyRate` : la correction d'une année sans taux est un 404 que le contrat ne décrit pas
 
+- **Issue** : #4466 (EP-38), ouverte le 2026-11-21, avec CTA-08, CTB-08, CTC-02.
 - **Où** : `docs/api/paths/reference.yaml:1921-1929`, `:1951` (404 partagé), `:1962-1967` (412) ;
   `components/schemas/reference.yaml:736-753`. Servie :
   `backend/src/waterfall/core/cost_settings/interface/hourly_rates.py:302-303,341-342`.
@@ -245,6 +254,9 @@ Aucun.
 
 ### CTA-10 — Bornes hautes absentes sur des entrées, là où `Offset` a reçu la sienne
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — la revue le dit « plausible » sans
+  défaillance montrée, et chaque borne ajoutée est un refus nouveau à décider selon la règle d'après
+  le gel.
 - **Où** : `docs/api/components/parameters.yaml:104` (`row_number`), `:218` (`max_level`), `:377` et
   `:386` (`payment_delay_days_*`), `:868` (`part_number`), `:258` (`description`, sans `maxLength`
   quand `Search` en a un) ; `paths/access.yaml:844,851` (`holder_count_*`) ; `paths/platform.yaml:60,66`
@@ -265,6 +277,7 @@ Aucun.
 
 ### CTA-11 — La sonde publique `getReadiness` rend la version de chaque composant sans session
 
+- **Issue** : #4478 (EP-39), ouverte le 2026-11-21.
 - **Où** : `docs/api/paths/system.yaml:70-95` (`security: []`, `components` de `ComponentHealth`) ;
   `components/schemas/platform.yaml:124-135` (`version`) ; `fixtures/api/readiness.json` (PostgreSQL
   16.4, Redis 7.4.1, fournisseur d'identité 26.0.5). **Non servie** (due par EP-13,
@@ -279,6 +292,10 @@ Aucun.
 
 ### CTA-12 — `RoleCapacity.monthly_hours` saisi, quand WF-REF-0100 le déduit de l'effectif et du calendrier — déjà connu (#2836, EP-10)
 
+- **Suite** : corrigé depuis la revue, vérifié le 2026-11-21 — EP-10 (US-2410/L1, commit 6023d936e)
+  : `RoleCapacity` dit « the headcount […] entered (`RoleCapacityWrite`), and the hours per month it
+  gives, calculated, never entered », et le service calcule `_monthly_hours` à la lecture. #2836 est
+  close.
 - **Où** : `docs/api/components/schemas/reference.yaml:225-234`, `:236-261`. Servie.
 - **Quoi** : la spécification en vigueur dit les heures mensuelles calculées (effectif × heures
   hebdomadaires × 52 / 12) ; le contrat les fait saisir. Écart reporté par décision du 2026-11-12

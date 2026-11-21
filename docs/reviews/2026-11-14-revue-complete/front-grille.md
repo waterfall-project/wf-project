@@ -71,6 +71,7 @@ lignes.
 
 ### FGR-02 — Une valeur retapée pendant qu'une écriture de la même cellule est en route n'est pas envoyée
 
+- **Issue** : #4430 (EP-34), ouverte le 2026-11-21, avec FGR-09, FGR-10.
 - **Où** : `grid-keyboard.ts:503` (`parsed.value !== (entry.value(cell.row) ?? null)`),
   `dense-grid.tsx:636` (`rows: shownRows`), `cell-writes.ts:338-344` (les lignes ne portent que ce
   qui est **répondu**).
@@ -90,6 +91,7 @@ lignes.
 
 ### FGR-03 — Le menu d'une cellule garde l'indice de sa ligne : une relecture arrivée menu ouvert le fait agir sur une autre ligne
 
+- **Issue** : #4431 (EP-34), ouverte le 2026-11-21.
 - **Où** : `undo-commands.tsx:471`, `:494` (`setAt(positionOf(opened))`), `:387-389`
   (`rowAt(at.row)`, `acted(at.row)` à chaque rendu), `dense-grid.tsx:693-700` ;
   `structure-gestures.tsx:695-698` (indisponible : le menu reste ouvert), `:564-566` (une feuille
@@ -109,6 +111,7 @@ lignes.
 
 ### FGR-04 — Une écriture en route quand la grille change d'adresse par son tri, sa recherche ou un filtre : sa réponse est abandonnée, son refus n'est dit nulle part
 
+- **Issue** : #4432 (EP-34), ouverte le 2026-11-21, avec FGR-08.
 - **Où** : `cell-writes.ts:296-306` (`fresh`), `:375-382` (`current` ignore une autre époque),
   l'en-tête `:40-42` (« A navigation of the page waits for the writes under way ») ;
   `dense-grid.tsx:538-579` (`changeSort`, `search` → `router.push`) ;
@@ -133,6 +136,7 @@ lignes.
 
 ### FGR-05 — Pendant la relecture qui suit un geste ou une annulation, les cellules restent saisissables avec des versions périmées
 
+- **Issue** : #4433 (EP-34), ouverte le 2026-11-21.
 - **Où** : `structure-gestures.tsx:472-513` (la réponse d'un geste n'est pas appliquée aux lignes,
   seulement `account.reach`), `grid-keyboard.ts:424-437` (`start` ne lit aucun `busy`),
   `undo-run.ts` (aucune attente de la relecture) ; service :
@@ -153,6 +157,7 @@ lignes.
 
 ### FGR-06 — Les liens en conflit d'une tâche redatée ne suivent pas l'écriture
 
+- **Issue** : #4434 (EP-34), ouverte le 2026-11-21.
 - **Où** : `nodes.tsx:318` (`SCHEDULE` sans `link_conflicts`), `:324-335` ; lu par
   `planning.tsx:109`, `link-conflicts.tsx:52`, `frontend/src/components/gantt/layout.ts:43`.
 - **Quoi** : `NodeSchedule` rend `link_conflicts` (requis) « so that the flag follows the write that
@@ -168,6 +173,7 @@ lignes.
 
 ### FGR-07 — (hors périmètre strict, back — relevé au titre de l'angle « collage ») Les nombres collés sont lus sans la langue de l'utilisateur
 
+- **Issue** : #4435 (EP-34), ouverte le 2026-11-21, avec BCH-09.
 - **Où** : `backend/src/waterfall/core/estimate/pasting.py:81-87` (`_number`),
   `backend/src/waterfall/core/planning/interface/paste.py:198-199`, `:321-339` ; le front envoie le
   bloc tel que copié (`paste.ts:454`), et affiche en français un séparateur de milliers U+202F
@@ -191,28 +197,35 @@ lignes.
   l'onglet fermé perd celles qui n'ont pas quitté le navigateur, sans avis (les cellules sont
   grisées « en attente », seul indice). Proposition : `beforeunload` tant que `underWay > 0`.
   Confiance : confirmé.
+  **Issue** : #4432 (EP-34), ouverte le 2026-11-21, avec FGR-04.
 - **FGR-09 — La marque « en attente » d'une seconde écriture de la même cellule est levée par la
   réponse de la première.** `cell-writes.ts:493` supprime l'attente par clé de cellule : taper 20
   puis 30 dans la même cellule montre 20, non grisé et sans `aria-busy`, le temps de la seconde
   écriture. Proposition : compter les attentes par cellule. Confiance : confirmé.
+  **Issue** : #4430 (EP-34), ouverte le 2026-11-21, avec FGR-02, FGR-10.
 - **FGR-10 — Le refus d'une cellule n'est pas levé quand on retape la valeur que porte la ligne, et
   le test qui l'annonce ne passe pas par l'écran.** `cell-writes.dom.test.tsx:545` (« lifts the
   refusal of a cell typed anew as the row holds it ») appelle `writes.write` ; à l'écran,
   `grid-keyboard.ts:503` n'appelle rien pour une valeur égale à celle de la ligne : la cellule reste
   `aria-invalid` jusqu'à la fermeture de l'avis (défaut n° 8). Se corrige avec FGR-02.
+  **Issue** : #4430 (EP-34), ouverte le 2026-11-21, avec FGR-02, FGR-09.
 - **FGR-11 — Une saisie invalide quittée au clic est abandonnée sans rien dire.**
   `cell-editor.tsx:178-184`. En français le point du pavé numérique tape « . » : « 12.5 » puis clic
   ailleurs → la cellule revient à sa valeur, sans avis (Entrée et Tab, eux, gardent la saisie et
   disent pourquoi). Comportement voulu et testé (`entry.dom.test.tsx:583`), mais c'est une saisie
   perdue en silence. Proposition : dire l'abandon dans la région des avis, avec le texte tapé.
+  **Issue** : #4438 (EP-34), ouverte le 2026-11-21, avec FGR-12.
 - **FGR-12 — Composition de caractères.** `cell-editor.tsx:34-45` valide sur Entrée sans lire
   `isComposing` (un IME confirme par Entrée) ; `grid-keyboard.ts:190` n'ouvre aucune saisie sur une
   touche morte (`key === "Dead"`), la lettre suivante ouvrant la saisie sans son accent sur une
   cellule non éditable. Portée faible (interface fr/en), mais les libellés sont libres.
+  **Issue** : #4438 (EP-34), ouverte le 2026-11-21, avec FGR-11.
 - **FGR-13 — Un maillon de la file d'une ligne qui lève condamne la file.** `cell-writes.ts:454` :
   `(queue ?? resolve()).then(async …)` sans rattrapage ; une exception hors de `entry.write` (qui
   est rattrapé) laisserait la cellule en attente pour toujours et sauterait les écritures suivantes
   de la ligne. Aucun chemin trouvé qui lève aujourd'hui : plausible seulement.
+  **Suite** : abandonné le 2026-11-21, par décision de l'auteur — la revue le dit « plausible
+  seulement », sans scénario ni chemin qui lève aujourd'hui.
 - **FGR-14 — Rendus et recalculs évitables.** `dense-grid.tsx:701-740` (`cells` neuf à chaque rendu,
   `BodyRow`/`BodyCell` sans mémo : chaque déplacement du curseur rend toutes les cellules de la
   fenêtre) ; `estimate-grid.tsx:301-337` et `planning-grid.tsx:367-479` refont la configuration, donc
@@ -220,6 +233,9 @@ lignes.
   collage la lit) ; `row-selection.tsx:622-623` (`carried`, O(lignes × sélection) à chaque
   `dragover`). Coût de la correction modéré, gain à mesurer : à ranger dans la mesure d'EP-26, qui
   ne liste pas ces points.
+  **Suite** : abandonné le 2026-11-21, par décision de l'auteur — le point principal est mesuré et
+  clos sans changement (#620 : 35 ms sur mille tâches) ; les deux autres n'ont ni mesure ni
+  scénario, et la règle du dépôt est « aucune optimisation sans mesure ».
 
 ## Points forts
 

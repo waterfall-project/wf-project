@@ -68,7 +68,8 @@ leur Vérif demande une ligne de provision, un différentiel, une fusion ou la d
 risque (cadrage d'EP-07, décision de l'auteur du 2026-11-07). WF-RAE-0010, WF-RAE-0020, WF-PLA-0040,
 WF-PLA-0050, WF-PRJ-0050 et WF-INTF-0120 sont commencées par EP-09 ou avant lui et closes ici : leur
 Vérif demande une ligne de provision, un risque identifié, écarté ou survenu, ou un avenant (cadrage
-d'EP-09, décision de l'auteur du 2026-11-07).
+d'EP-09, décision de l'auteur du 2026-11-07). WF-REV-0110 est écrite par la
+spécification 1.0.8 (#4132), d'après la reprise du 2026-11-19, et entière ici.
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -76,6 +77,7 @@ d'EP-09, décision de l'auteur du 2026-11-07).
 | `WF-REV-0050-A` | Fusion d’un différentiel | fin — amorcée en EP-15 | US-2560 |
 | `WF-PLA-0170-A` | Rattachement au lotissement | fin — amorcée en EP-06 | US-2560 |
 | `WF-REV-0100-A` | Structures de coûts d'une révision | fin — amorcée en EP-04, EP-15 | US-2550, US-3050 |
+| `WF-REV-0110-A` | Base et mise à jour d'un différentiel | entière | US-3050 |
 | `WF-IHM-0020-A` | Contexte de lecture affiché | fin — amorcée en EP-02, EP-15, EP-27 | US-2640 |
 | `WF-IHM-0110-A` | Annulation et rétablissement des saisies | fin — amorcée en EP-02, EP-06, EP-07 | US-2590 |
 | `WF-DEV-0080-A` | Valeur planifiée | fin — amorcée en EP-07 | US-2630 |
@@ -463,7 +465,12 @@ l'a copiée, ou à sa dernière mise à jour.
   qui la nomme répond 404, comme pour une structure inconnue ; ce qui parcourt les structures d'une
   révision — la grille, les imports, les indicateurs et leur empreinte, `generate_skeleton` — ne la
   compte pas. Seules l'écrivent l'ouverture d'une révision, qui la copie et la redate avec les
-  autres, et la mise à jour.
+  autres, et la mise à jour, qui la remplace ; entre les deux, elle suit les rechiffrages et les
+  redatages de la révision (changement de taux, d'inflation, désignation de la référence, moteur de
+  dates) comme les autres structures, sans quoi chaque ligne chiffrée du différentiel se lirait
+  `modified` contre elle jusqu'à la mise à jour (#4210, décision de l'utilisateur du 2026-11-19,
+  tranchée contre la lettre de la phrase écrite le 2026-11-19 ; écartée : ne pas rechiffrer la base
+  et ne comparer que les grandeurs saisies à la lecture).
 - **Elle suit son différentiel.** L'abandon du différentiel la supprime ; la copie d'une révision la
   reprend avec un différentiel non fusionné, sous la lignée de sa structure, et garde l'état du
   différentiel : à jour dans la révision marquée, il l'est dans la révision ouverte ; en retard, il
@@ -474,6 +481,13 @@ l'a copiée, ou à sa dernière mise à jour.
   le différentiel à sa base, et non plus à la structure principale : la lecture est celle
   d'US-2550/L3, dont seule la base change. Une ligne de provision de la principale n'y est plus
   présentée retirée, la base n'en portant pas (#4035).
+- **Les gardes de calendrier comptent la base.** Une tâche de la base, redatée avec les autres, doit
+  garder une heure travaillée : les gardes de calendrier (`tasks_left_idle`,
+  `idle_tasks_for_role_calendar`) la comptent donc, et un test le fixe ; un refus qui concerne une
+  tâche de la base nomme la tâche visible du différentiel de même lignée, jamais un nœud de la base,
+  que personne ne lit (#4213, décision de l'utilisateur du 2026-11-19, avec #4210 ; US-3060/L9).
+  Écartée : exclure la base des gardes et ne pas la redater quand une tâche y resterait sans heure,
+  qui laisserait lire `modified` ce que le calendrier seul a changé.
 - **« À jour » se lit sur la structure.** Un différentiel est à jour tant que la structure
   principale porte le compteur qu'elle avait quand sa base a été prise ; toute écriture qui avance
   ce compteur le met en retard, qu'elle touche ou non ce qu'il désigne. L'état est rendu avec la
@@ -563,9 +577,16 @@ seule opération, et la création préalable de la révision en cours.
   courantes et le montant réestimé de toutes les autres lignes sont conservés », et du contrat de
   `mergeCostStructure`, qui le répète). Les grandeurs courantes d'une ligne réestimée ou d'une tâche
   démarrée sont gardées quand le différentiel en change le rôle, et le rejeu rechiffre la ligne au
-  taux du rôle désigné : le contrat le précise (US-3060/L1), et l'écart de la spécification est une
-  issue (#4271). Écarté : garder le montant réestimé à la lettre en ajustant les heures, règle que
+  taux du rôle désigné : le contrat le précise (US-3060/L1), et la spécification 1.0.8 l'écrit
+  (#4271). Écarté : garder le montant réestimé à la lettre en ajustant les heures, règle que
   ni la spécification ni cette conception ne disent.
+- **Ce que la survenance fait d'une tâche terminée sous laquelle elle greffe** (#4240, décision de
+  l'utilisateur du 2026-11-20 ; EP-30 rend la règle provisoire). La tâche porteuse devient
+  récapitulative et repasse « non démarrée », et sa valeur acquise retombe : le compte rendu le
+  signale, sans refuser ni changer ce que la greffe écrit, comme pour #4133 — un champ de plus de
+  `RiskOccurrenceReport` (US-3060/L8), rempli par US-3060/L9. Écartées : refuser la greffe, et garder
+  la valeur acquise des lignes de la tâche devenue récapitulative, qui ajoutent une règle que la
+  spécification ne dit pas.
 
 Écarté : un module `core/amendments` à côté de `core/revisions`, qui aurait dû lire ses tables ;
 une fusion qui appliquerait des écritures une à une par les fonctions de saisie, des états
@@ -607,7 +628,9 @@ arrête les noms, et les dit dans `docs/api/DECISIONS.md` :
   différentiel déjà à jour — ; 412 à un compteur périmé ; et, quand un motif la refuse, le refus
   que le lot du contrat arrête, rien n'étant écrit.
 - **`CostStructure`** dit si un différentiel est à jour, par un champ nul pour toute autre
-  structure ; `StructureCommand` reçoit la commande de la mise à jour, listée sur un différentiel
+  structure **et pour un différentiel fusionné**, qui ne se met plus à jour : l'état n'y aurait pas de
+  sens (#4172, décision de l'utilisateur du 2026-11-19 ; écarté : le calculer contre la principale de
+  la révision marquée) ; `StructureCommand` reçoit la commande de la mise à jour, listée sur un différentiel
   non fusionné, sous la permission de `create_structure`, indisponible sur un différentiel à jour.
 - **`getStructureMergeReport` et `mergeCostStructure`** déclarent leur refus sur un différentiel en
   retard : 409 `STATE_FORBIDS_OPERATION`, par une condition nouvelle de `CommandCondition`, nommée
@@ -617,10 +640,18 @@ arrête les noms, et les dit dans `docs/api/DECISIONS.md` :
   avec le différentiel.
 - **`RiskOccurrenceReport`** : la description de `differences` reçoit les tâches de la structure
   principale que la greffe redate (#4134), et le compte rendu le signalement d'un devis propre qui
-  commence avant le jour de la déclaration (#4133), par US-2620/L2.
+  commence avant le jour de la déclaration (#4133), par US-2620/L2 ; puis, par US-3060/L8, celui
+  d'une greffe sous une tâche terminée (#4240).
 - **Exemples**, engendrés par `make mock-data` : le compte rendu d'une mise à jour de l'avenant 2,
   avec une différence de chaque sorte, sa variante refusée, et l'avenant 2 en retard dans
-  `structures_amendments`.
+  `structures_amendments`. Sur cette référence, l'avenant 2 est ouvert avant la fusion de l'avenant 1
+  qui marque la 101 : en retard, et une révision marquée ne se met pas à jour. L'exemple de son
+  compte rendu sans révision en cours devient le refus 409 `structure_up_to_date`, les résumés des
+  deux autres exemples de la fusion disent que l'avenant 2 est en retard, et la fusion applicable se
+  montre sur la révision en cours (#4174, décision de l'utilisateur du 2026-11-20, option mixte ;
+  US-3060/L8). Écartés : une variante contrefactuelle d'un différentiel à jour sur une révision
+  marquée, un état que le témoin ne charge pas ; une chronologie du témoin changée, qui touche le
+  chargeur et les exemples de la mise à jour.
 
 Aucun schéma servi par un EPIC livré ne change, hors le champ que `CostStructure` reçoit, que les
 écrans livrés ne lisent pas, et les commandes ajoutées à `StructureCommand`. Le succès d'une
@@ -990,25 +1021,35 @@ ni ce qui a été réestimé, ni ce qui a été fait.
 - propre à l'US : le différentiel fusionné se lit `is_merged` dans la révision marquée et n'est pas
   repris par la suivante ; un autre différentiel de la même révision est intact, repris par la
   révision suivante, et reste fusionnable (WF-REV-0100, US-2550) ;
-- propre à l'US : la fusion n'applique que ce que le différentiel désigne (#4034, reprise du
-  2026-11-19) : une tâche ajoutée à la structure principale après l'ouverture du différentiel, que
-  celui-ci ne désigne pas, figure toujours dans la structure principale après la fusion ; une ligne
-  réestimée à 140 après l'ouverture, pour un montant budgété de 100, non désignée, porte toujours
-  100 et 140 ; une ligne que le différentiel porte à 120 et que la principale a réestimée à 140
-  depuis porte 120 de budgété et 140 de réestimé ; de deux différentiels ouverts le même jour, la
-  fusion du second, mis à jour dans la révision suivante, laisse dans la structure principale tout
-  ce que la fusion du premier y a apporté ;
-- propre à l'US : `getStructureMergeReport` et `mergeCostStructure` d'un différentiel en retard
-  sont refusés par 409 `STATE_FORBIDS_OPERATION`, la condition nouvelle que le contrat ajoute,
-  nommée après les autres ; sur un différentiel à jour, le compte rendu est celui d'US-2560/L1,
-  inchangé ; une écriture de la structure principale entre le compte rendu et la confirmation est
-  un 412, et rien n'est fusionné (US-3050) ;
+- `WF-REV-0050-A` — « Une tâche ajoutée à la structure principale après la création du différentiel,
+  que celui-ci ne désigne pas, figure toujours dans la structure principale après la fusion. » : la
+  fusion n'applique que ce que le différentiel désigne (#4034, reprise du 2026-11-19 ; spécification
+  1.0.8, #4132) : la tâche figure toujours dans la structure principale après la fusion ;
+- `WF-REV-0050-A` — « Une ligne réestimée à 140 après la création du différentiel, pour un montant
+  budgété de 100, non désignée, porte toujours 100 et 140. » : la ligne porte toujours 100 de
+  budgété et 140 de réestimé ; une ligne que le différentiel porte à 120 et que la principale a
+  réestimée à 140 depuis porte 120 de budgété et 140 de réestimé ;
+- `WF-REV-0050-A` — « De deux différentiels créés le même jour, la fusion du second laisse dans la
+  structure principale tout ce que la fusion du premier y a apporté. » : la fusion du second, mis à
+  jour dans la révision suivante, laisse dans la structure principale tout ce que la fusion du
+  premier y a apporté ;
+- `WF-REV-0050-A` — « La fusion d'un différentiel en retard est refusée et nomme la condition ; mis
+  à jour, il se fusionne. » : `getStructureMergeReport` et `mergeCostStructure` d'un différentiel en
+  retard sont refusés par 409 `STATE_FORBIDS_OPERATION`, la condition nouvelle que le contrat
+  ajoute, nommée après les autres ; sur un différentiel à jour, le compte rendu est celui
+  d'US-2560/L1, inchangé ; une écriture de la structure principale entre le compte rendu et la
+  confirmation est un 412, et rien n'est fusionné (US-3050) ;
+- `WF-REV-0050-A` — « Une ligne réestimée à dix heures, dont le différentiel change le rôle pour un
+  rôle d'une autre catégorie, garde dix heures après la fusion, et son montant réestimé est celui de
+  ces heures au taux du rôle désigné. » : les grandeurs courantes d'une ligne réestimée ou d'une
+  tâche démarrée sont gardées quand le différentiel en change le rôle, et le rejeu rechiffre la
+  ligne au taux du rôle désigné (décision de l'utilisateur du 2026-11-20, #4246 ; US-3060/L1 ;
+  spécification 1.0.8, #4271) ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
 
 **Notes de réalisation.** La fusion compare un différentiel à jour à la structure principale, en
 deux voies : c'est sa base, que la mise à jour vient de reprendre (US-3050), qui fait de cet écart
-ce que le différentiel désigne. La spécification le dira par #4132 ; d'ici là, les deux critères
-ci-dessus sont propres à l'US. `docs/api/DECISIONS.md` : « La fusion : cycle, horizon, et fusion sans
+ce que le différentiel désigne. La spécification 1.0.8 le dit (WF-REV-0050, WF-REV-0110 ; #4132). `docs/api/DECISIONS.md` : « La fusion : cycle, horizon, et fusion sans
 révision en cours » (#1331), « Les révisions et les structures » (E-04, E-10 : la description à la
 fusion, les grandeurs qu'elle donne), « Le réestimé après une fusion, selon l'année de référence »
 (E-02). La marque d'une ligne réestimée, que la fusion épargne, est écrite par EP-09 (US-1580). Les
@@ -1023,7 +1064,7 @@ d'un différentiel et sa mise à jour (US-3050).
 ## US-3050 — La base d'un différentiel et sa mise à jour depuis la structure principale
 
 - **statut** : fini
-- **exigences** : `WF-REV-0100-A`
+- **exigences** : `WF-REV-0100-A`, `WF-REV-0110-A`
 - **opérations** : `getStructureRebaseReport`, `rebaseCostStructure` (nouvelles, écrites par la
   conception), `createCostStructure`, `listCostStructures`, `deleteCostStructure`, `createRevision`,
   `listNodes` sur un différentiel, `getStructureMergeReport`, `mergeCostStructure` (leur refus)
@@ -1052,6 +1093,29 @@ projet a reçu entre-temps.
 - `WF-REV-0100-A` — « Un risque déclaré ajoute une structure propre, présente dans chaque révision
   marquée postérieure tant qu'il n'est pas survenu. » : tenu par US-2570, non touché ici ; un devis
   propre n'a ni base ni mise à jour (EP-30) ;
+- `WF-REV-0110-A` — « Après l'ajout d'une tâche à la structure principale, la grille d'un
+  différentiel ouvert auparavant ne la présente pas retirée, et le dit en retard. » : `listNodes`
+  d'un différentiel le compare à sa base, et `CostStructure` le dit en retard dès qu'une écriture
+  avance le compteur de la structure principale ;
+- `WF-REV-0110-A` — « Un différentiel créé dans une révision, repris par la suivante puis mis à
+  jour, présente les tâches que la structure principale a reçues entre-temps, sans les désigner. » :
+  la copie d'une révision marquée reprend avec le différentiel sa base et son état ;
+  `rebaseCostStructure` y reporte ce que la structure principale a reçu, que le différentiel lit
+  ensuite `unchanged` ;
+- `WF-REV-0110-A` — « Après la mise à jour, le différentiel n'est plus en retard, et ce qu'il
+  désignait est inchangé. » : le différentiel est à jour, les nœuds qu'il désignait se lisent comme
+  avant, sous leur identifiant, et la structure principale n'est pas écrite ;
+- `WF-REV-0110-A` — « Une valeur changée à la fois dans le différentiel et dans la structure
+  principale garde, après la mise à jour, celle du différentiel, et le compte rendu la nomme. » : la
+  valeur du différentiel est gardée, et le compte rendu de la mise à jour la nomme (`kept`, ses
+  champs) ;
+- `WF-REV-0110-A` — « Une tâche que le différentiel modifie et que la structure principale a perdue
+  depuis y figure, après la mise à jour, comme une tâche ajoutée. » : la tâche reste au
+  différentiel, qui la présente ensuite `added`, signalée au compte rendu ;
+- `WF-REV-0110-A` — « Une mise à jour qui laisserait une boucle de liaisons dans le différentiel est
+  refusée et nomme le motif. » : la mise à jour est refusée, le motif et la tâche nommés au compte
+  rendu (`ReportRefusal`), et rien n'est écrit ; le lien fautif retiré du différentiel, elle aboutit
+  ;
 - propre à l'US : `createCostStructure` crée avec le différentiel sa base, copie de la structure
   principale au même instant ; `listCostStructures` ne la rend pas, et toute opération qui la nomme
   par son identifiant répond 404 ; `deleteCostStructure` la supprime avec son différentiel ; une
@@ -1100,9 +1164,9 @@ projet a reçu entre-temps.
 
 **Notes de réalisation.** Écrite à la reprise du 2026-11-19 (#4034) : la conception, « La base d'un
 différentiel et sa mise à jour », dit la forme de la base, ce qu'une structure désigne et les
-quatre règles de ce qu'une mise à jour ne reporte pas. La spécification 1.0.7 ne dit ni la base ni
-la mise à jour : #4132 en propose le texte, et les critères ci-dessus sont propres à l'US jusqu'à
-sa révision. La lecture d'un différentiel (`compare_differential`, US-2550/L3) et le compte rendu
+quatre règles de ce qu'une mise à jour ne reporte pas. La spécification 1.0.8 écrit la base et
+la mise à jour dans WF-REV-0110 (#4132) : ses Vérif sont cités ci-dessus, et les critères propres à
+l'US en disent la forme au contrat. La lecture d'un différentiel (`compare_differential`, US-2550/L3) et le compte rendu
 d'une fusion (`merge_plan`, `merge_lines`, US-2560/L1) comparent deux structures par la lignée : ce
 qu'une structure désigne est le même calcul, la base à la place de la structure principale. La copie
 d'une structure dans une autre (`copy_structure_nodes`) pose la base comme elle pose le
@@ -1265,6 +1329,10 @@ font peser sur le projet se lise là où il se lirait s'ils survenaient.
   de S2 ; sans sous-projet désigné, elle compte hors sous-projet. » : la provision compte au reste à
   engager de S2 (`getRemainingIndicators` par sous-projet) et, sans sous-projet, dans l'ensemble «
   hors sous-projet » ;
+- écart : `WF-RIS-0010-A` — « Un risque survenu dont le devis propre totalisait 200 présente une
+  gravité de 200 dans la révision suivante, qui ne reprend pas ce devis. » : ajouté par la
+  spécification 1.0.8 (décision de l'auteur du 2026-11-19, #4178), hors du périmètre de l'EPIC, qui
+  ne prend pas de fonction nouvelle (décision de l'auteur du 2026-11-21) ; #4400 l'éprouve ;
 - `WF-DEV-0010-A` — « Le refus énumère les catégories de coût sans taux horaire pour l'année de
   référence. » : tenu par EP-07, non touché ici ;
 - `WF-DEV-0010-A` — « Le calcul aboutit dès que ces taux sont renseignés. » : tenu par EP-07, non
@@ -1997,7 +2065,8 @@ US-2640.
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par les US qui les
   réalisent
 - **opérations** : aucune nouvelle ; `mergeCostStructure`, `getStructureMergeReport`,
-  `getRiskOccurrenceReport` et `deleteSubproject` (leurs descriptions et leurs refus)
+  `getRiskOccurrenceReport` et `deleteSubproject` (leurs descriptions et leurs refus) ; `getRevision`
+  et `getStructureMergeReport` (leurs exemples)
 - **issue** : #4264
 
 **En tant que** développeur, **je veux** que les constats mineurs que la livraison d'EP-08 a laissés
@@ -2041,7 +2110,15 @@ l'EPIC ne laisse pas derrière lui la dette qu'il a relevée.
   un test de cohérence du catalogue (#4299) ; l'attente de la grille de reste à engager comparée a
   le délai des lectures lentes, d'après la mesure (#4326) ; le reste à engager, qui ne lit que la
   structure principale, n'a pas de note d'avenant en retard, et le critère d'US-2640 ne vise que le
-  devis (#4298).
+  devis (#4298) ;
+- propre à l'US : le compte rendu de la survenance signale que la tâche sous laquelle il greffe est
+  terminée, et que la greffe la fait repasser non démarrée, sa valeur acquise retombant ; il ne
+  refuse pas, et la greffe n'écrit rien d'autre (#4240) ;
+- propre à l'US : les exemples de la fusion de l'avenant 2 sur la référence disent qu'il est en
+  retard : le compte rendu sans révision en cours est le refus 409 `structure_up_to_date`, les deux
+  autres résumés le disent, la fusion applicable se montre sur la révision en cours (#4174) ;
+- propre à l'US : les gardes de calendrier comptent les tâches de la base d'un différentiel, un test
+  le fixe, et un refus qui les concerne nomme la tâche visible de même lignée (#4213).
 
 **Notes de réalisation.** Chaque constat garde son issue, rattachée au lot qui le corrige. Le lot du
 contrat précède le code ; les lots du code qui touchent les modules que le chargeur du témoin exerce
@@ -2050,7 +2127,12 @@ attendent US-2650/L1. La note « avenant en retard » du devis (#4255) et les li
 L6 (la ligne de provision, #4274 ; pas avec L3, qui touche aussi `core/estimate/merged.py`) et L7 (les
 tests du témoin et le reste à engager, #4287, #4288, #4308, #4307, #4299, #4326, #4298), tous deux après
 US-2650/L1 ; #4304 et #4310 sont portés par L3. Les écarts du témoin de #4278 attendent la
-confirmation de l'auteur (#4337) : aucun lot ne les porte encore.
+confirmation de l'auteur (#4337) : aucun lot ne les porte encore. Le cadrage complémentaire du 2026-11-21 ajoute L8, le contrat (le
+signalement d'une greffe sous une tâche terminée, #4240 ; les exemples de l'avenant 2, #4174), et L9,
+le code (#4240 ; les gardes de calendrier, #4213), après L8 et US-2650/L1 ; les phrases de la
+conception pour #4172 et #4210 s'écrivent avec ce cadrage. L9 n'est pas « pas avec » L6 : L6 touche
+`core/estimate` (`merged.py`, `uniting.py`, `copying.py`, `comparing.py`, `reading.py`) et `api/nodes.py`,
+L9 `core/planning` et `core/estimate/interface/calendars.py`, sans fichier commun.
 
 **Hors périmètre.** Tout constat relevé pendant la livraison, rattaché selon « Suivi sur GitHub » ;
-les constats de spécification (#3850, #4132, #4178, #4210, #4222, #4260, #4271, #4337).
+les constats de spécification (#3850, #4132, #4178, #4222, #4260, #4271, #4337).

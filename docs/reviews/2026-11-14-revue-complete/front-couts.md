@@ -34,6 +34,7 @@ Aucun.
 
 ### FCO-01 — Les cartes d'indicateurs du devis et du reste à engager restent celles d'avant la saisie
 
+- **Issue** : #4437 (EP-34), ouverte le 2026-11-21.
 - **Où** : `app/projects/[projectId]/revisions/[revisionId]/estimate/page.tsx:322` (`EstimateSummary`, lu
   une fois par la page, `readEstimateFigures`) et `…/remaining/page.tsx:285` (`RemainingSummary`,
   `readIndicators`) ; les écritures de cellule `api/actions/nodes.ts:119-150` (`updateEstimateLine`,
@@ -67,6 +68,7 @@ Aucun.
 
 ### FCO-02 — « Relancer » est offert pour l'application échouée d'un import, que le service refuse toujours
 
+- **Issue** : #4424 (EP-33), ouverte le 2026-11-21, avec FCO-04.
 - **Où** : `components/exchanges/report-commands.tsx:78-85` (`const command = () => applyFileImport(…)`,
   `track(result.data, { command, subject: filename })`) ; le suivi `components/tasks/task-entry.tsx:431-442`
   offre « Relancer » dès qu'une tâche échouée porte sa commande, et ne la retire que sur un refus `stale`
@@ -93,6 +95,7 @@ Aucun.
 
 ### FCO-03 — La réponse d'un dépôt ferme le formulaire d'une autre nature ouvert entre-temps ; « Annuler » n'annule pas l'import
 
+- **Issue** : #4429 (EP-33), ouverte le 2026-11-21, avec FCO-05, FCO-14.
 - **Où** : `components/exchanges/import-commands.tsx:139-146` (`onClose()` à la réponse), `:232-237`
   (`close` met `open` à `undefined`, quel que soit le formulaire ouvert), `:251-253` (la bascule n'est
   pas retenue pendant l'envoi : `Command` ne reçoit pas `writing`) ; `open-import.ts:42-44`.
@@ -113,6 +116,7 @@ Aucun.
 
 ### FCO-04 — Un refus définitif de l'application (409) laisse le compte rendu affiché « analysé », « Appliquer » toujours offert
 
+- **Issue** : #4424 (EP-33), ouverte le 2026-11-21, avec FCO-02.
 - **Où** : `components/exchanges/report-commands.tsx:88-90` (`setOutcome(result)` seul) ;
   `api/actions/exchanges.ts:90-92` (`refresh()` sur succès seulement). À comparer à
   `duration-rule.tsx:137-140`, qui relit l'écran sur un 409.
@@ -131,6 +135,7 @@ Aucun.
 
 ### FCO-05 — La zone de dépôt du démarrage d'un projet reste verrouillée après un import abandonné ou refusé par son compte rendu
 
+- **Issue** : #4429 (EP-33), ouverte le 2026-11-21, avec FCO-03, FCO-14.
 - **Où** : `components/exchanges/file-drop.tsx:83-85` (`sent !== undefined` → retour sans rien dire),
   `:74-80` (seul l'échec de la tâche d'analyse libère la zone), `:163`.
 - **Quoi** : une fois un fichier envoyé, la zone n'en prend plus d'autre. Si l'analyse réussit mais que le
@@ -149,6 +154,7 @@ Aucun.
 
 ### FCO-06 — Le compte rendu d'un import rend tous ses écarts et tous ses rejets, sans borne
 
+- **Issue** : #4425 (EP-33), ouverte le 2026-11-21, avec BEX-07, BEX-10, BEX-11, DON-05.
 - **Où** : `components/exchanges/import-report.tsx:195` (`differences.map`), `:107` (`rejected.map`) ; lu
   entier à chaque rendu de l'écran par `shown-import.ts:20-24`.
 - **Quoi** : pour une extraction de coûts réels, chaque ligne créée ou modifiée est un écart (exemple
@@ -165,6 +171,7 @@ Aucun.
 
 ### FCO-07 — Indicateurs : l'avis « Calculé sur une autre révision » nomme « sans nom » la révision affichée
 
+- **Issue** : #4443 (EP-35), ouverte le 2026-11-21, avec FCO-08, FCO-09.
 - **Où** : `app/projects/[projectId]/revisions/[revisionId]/indicators/page.tsx:416`
   (`<ComputedElsewhere history={named.get(history)} />`), `:242` (`readRevisionsOf` écarte la révision
   affichée de `named`), `:264-267`.
@@ -182,6 +189,7 @@ Aucun.
 
 ### FCO-08 — Évolution d'un indice : les seuils sortent du graphique quand tous les points sont sous eux
 
+- **Issue** : #4443 (EP-35), ouverte le 2026-11-21, avec FCO-07, FCO-09.
 - **Où** : `components/indicators/index-chart.tsx:128-135` (axe `min: 0`, sans `max`), `:147-157`
   (seuils en `markLine`).
 - **Quoi** : ECharts ne tient pas compte d'une ligne marquée pour l'étendue d'un axe — le dépôt le sait et
@@ -194,6 +202,7 @@ Aucun.
 
 ### FCO-09 — Évolution d'un indice : clés en double et libellé « Révision en cours » sur un projet sans révision en cours
 
+- **Issue** : #4443 (EP-35), ouverte le 2026-11-21, avec FCO-07, FCO-08.
 - **Où** : `components/indicators/index-chart.tsx:188` (`key={`${scope.scope}-${point.revision_id}`}`),
   `:192` (`point.version_name ?? t("currentRevision")`).
 - **Quoi** : le contrat dit que le dernier point porte « `revision_id` … of the last marked revision on a
@@ -208,6 +217,9 @@ Aucun.
 
 ### FCO-10 — Kanban : chaque choix de carte rend à nouveau toutes les cartes
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — la revue le dit « plausible, non
+  mesuré » : aucun profil ne montre de lenteur à mille cartes, et le gain reste à prouver avant d'y
+  passer une demi-journée.
 - **Où** : `components/remaining/kanban.tsx:303-357` (`actions`, objet neuf à chaque rendu, donné à chaque
   `Card`), `components/remaining/kanban-card.tsx:511` (`Card` sans `memo`).
 - **Quoi** : le Kanban rend toutes les tâches du projet (mille sur le témoin, sans fenêtre) ; un focus,
@@ -220,6 +232,9 @@ Aucun.
 
 ### FCO-11 — Portefeuille : un refus 422 autre qu'une période mène à l'écran de panne, ou est dit « période refusée »
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — portée faible, dite par la revue :
+  seule une adresse tapée à la main y mène, les menus et les préférences conservées n'offrent que
+  des valeurs admises.
 - **Où** : `app/portfolio/workload/page.tsx:73` (`readOrFail("getPortfolioWorkload")`),
   `components/portfolio/address.ts:145-148` (`readThreshold` admet « -1 » ou « 17 »), `:120-123`
   (`org_node_id` admis sur `[\w-]+`) ; `app/portfolio/refused.tsx:32-40`.
@@ -237,6 +252,7 @@ Aucun.
 
 ### FCO-12 — Chaînes bâties à la main dans des phrases d'interface
 
+- **Issue** : #4462 (EP-37), ouverte le 2026-11-21, avec FAR-07.
 - **Où** : `components/exchanges/calendar-gap.tsx:37-39` (`.join(", ")` des jours et de leurs heures),
   `:68` (`${time.from}–${time.to}`), `components/exchanges/import-commands.tsx:214-217` (`.join(", ")`
   et l'espace de fin collé à la phrase), `components/risks/risk-form.tsx:235` (`"—"`),
@@ -250,6 +266,7 @@ Aucun.
 
 ### FCO-13 — Deux tests citent une exigence sans son indice de révision : la citation n'est pas comptée
 
+- **Issue** : #4451 (EP-36), ouverte le 2026-11-21, avec BAC-10, BRC-10, FAR-05.
 - **Où** : `components/estimate/estimate-summary.dom.test.tsx:60`,
   `components/remaining/remaining-summary.dom.test.tsx:17` (`[WF-IHM-0020]`).
 - **Quoi** : `make requirements` ne lit que `\[(WF-[A-Z]+-\d{4}-[A-Z])\]`
@@ -260,6 +277,8 @@ Aucun.
 
 ### FCO-14 — Rien ne montre qu'un envoi ou une demande est en route, et l'écran des imports n'est pas relu à la fin d'une application — déjà connu (#3103, #3217, EP-25 US-2170)
 
+- **Issue** : #4429 (EP-33), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue, avec FCO-03, FCO-05.
 - **Où** : `components/exchanges/import-commands.tsx:150-200` (`aria-busy` seul, bouton « Analyser »
   inchangé pendant un dépôt de 10 Mio), `export-form.tsx:113-121` (rien dans le formulaire après la
   demande), `duration-rule.tsx:148-158` (le bouton radio revient à la règle en vigueur pendant la requête,
@@ -272,6 +291,9 @@ Aucun.
 
 ### FCO-15 — Le jour proposé pour démarrer ou terminer une tâche est celui du poste — déjà connu (#2527, #3199, EP-25 US-2200)
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — le reste est un raccourci de
+  filtre au jour UTC, choix écrit dans le code, décalé d'un jour seulement pour un marquage fait
+  dans l'heure ou les deux heures après minuit.
 - **Où** : `components/remaining/address.ts:150-154` (`today()`), employé par
   `components/remaining/kanban-card.tsx:284` et `components/grid/completion-date.tsx:33` ;
   `components/risks/address.ts:26-28` (`universalDay`, jour UTC du dernier marquage).

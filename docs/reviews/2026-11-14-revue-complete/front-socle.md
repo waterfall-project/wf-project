@@ -30,6 +30,7 @@ Aucun.
 
 ### FSO-01 — Après une connexion refusée par le fournisseur d'identité, l'écran ne dit pas le refus
 
+- **Issue** : #4473 (EP-39), ouverte le 2026-11-21.
 - **Où** : `frontend/src/app/auth/callback/route.ts:95-100` (retour refusé → accueil, témoin
   `wf_sign_in_refused`) ; `frontend/src/session/tokens.ts:266-276` (la requête part sans jeton) ;
   `frontend/src/components/system/failure.ts:184` (`signed_out` → textes `failure.signedOut`) ;
@@ -64,6 +65,7 @@ Aucun.
 
 ### FSO-02 — Le témoin qui lie une connexion à son navigateur n'a pas de préfixe `__Host-` : un sous-domaine voisin peut le poser
 
+- **Issue** : #4480 (EP-39), ouverte le 2026-11-21, avec FSO-03, FSO-08.
 - **Où** : `frontend/src/session/tokens.ts:102-111` (`wf_sign_in_<state>`, `Path=/auth/callback`,
   sans préfixe) ; `frontend/src/app/auth/callback/route.ts:124` (`holdsSignIn`).
 - **Quoi** : la défense contre le retour porté à un autre navigateur (RFC 9700 §4.7) repose sur la
@@ -84,6 +86,7 @@ Aucun.
 
 ### FSO-03 — L'adresse du « retour au projet » lue du témoin n'est pas tenue à un chemin du front
 
+- **Issue** : #4480 (EP-39), ouverte le 2026-11-21, avec FSO-02, FSO-08.
 - **Où** : `frontend/src/navigation/context.ts:235-242` (`rememberedAddress`) et `:142`
   (`pathname.split("/").slice(1)` jette ce qui précède la première barre) ;
   `frontend/src/app/layout.tsx:89` ; `frontend/src/components/shell/navigation.tsx:340-352, 384`.
@@ -106,6 +109,7 @@ Aucun.
 
 ### FSO-04 — La sortie d'un projet et le marquage d'une révision ne retiennent pas la navigation (#688)
 
+- **Issue** : #4459 (EP-37), ouverte le 2026-11-21, avec FSO-05.
 - **Où** : `frontend/src/components/commands/exit-command.tsx:244-260` et
   `frontend/src/components/commands/mark-command.tsx:87-98` : `command().catch(rejected).then(…)`
   sans `useHeldCommand` (aucune occurrence de `held` dans les deux fichiers).
@@ -125,6 +129,7 @@ Aucun.
 
 ### FSO-05 — Défaut n° 24 dans `MarkCommand` et `ExitCommands` : la commande reste active pendant l'écriture
 
+- **Issue** : #4459 (EP-37), ouverte le 2026-11-21, avec FSO-04.
 - **Où** : `frontend/src/components/commands/mark-command.tsx:150` (« Annuler » actif pendant
   `busy`), `:95` (`onClose()` à la réponse, sans égard à l'ouverture), `:180-194` (`Command` sans
   `writing`) ; `frontend/src/components/commands/exit-command.tsx:443-460` (`Command` sans
@@ -148,6 +153,7 @@ Aucun.
 
 ### FSO-06 — Le code d'un refus par champ n'est pas tenu à la règle du catalogue : une clé brute peut s'afficher
 
+- **Issue** : #4460 (EP-37), ouverte le 2026-11-21, avec FSO-07.
 - **Où** : `frontend/src/api/problem.ts:141-152` (`envelope` ne juge que `body.code`, et rend
   `body` tel quel, `fields` compris, `:146`) ; `frontend/src/i18n/problem.ts:555-566`
   (`furtherReasons` → `t("errors.<code du champ>")`) et tout formulaire qui rend un champ par
@@ -165,6 +171,7 @@ Aucun.
 
 ### FSO-07 — Aucun délai sur les appels du serveur de Next à l'API
 
+- **Issue** : #4460 (EP-37), ouverte le 2026-11-21, avec FSO-06.
 - **Où** : `frontend/src/api/client.ts:154-177, 189` : `fetch(request)` sans `AbortSignal` ni
   dispatcher réglé (aucun `timeout`/`signal` dans `src/api/*.ts`, `startup.ts`,
   `instrumentation.ts`). Le royaume, lui, a cinq secondes (`provider.ts:95`).
@@ -186,6 +193,7 @@ Aucun.
 
 ### FSO-08 — `/login` écrit dans Redis à chaque requête anonyme, sans borne
 
+- **Issue** : #4480 (EP-39), ouverte le 2026-11-21, avec FSO-02, FSO-03.
 - **Où** : `frontend/src/app/login/route.ts:53-67` (`rememberSignIn`, clé de quinze minutes par
   appel) ; `deploy/compose/Caddyfile.prod` ne limite aucun débit.
 - **Quoi / scénario** : toute requête `GET /login`, sans session, crée une clé `wf:sign-in:<state>`
@@ -201,6 +209,7 @@ Aucun.
 
 ### FSO-09 — La recherche de la barre du haut est un champ inerte, sans le dire à qui voit l'écran
 
+- **Issue** : #4461 (EP-37), ouverte le 2026-11-21, avec FSO-10.
 - **Où** : `frontend/src/components/shell/top-bar.tsx:61-76`.
 - **Quoi** : un `<input type="search">` « Rechercher une fonction, un projet… » accepte la saisie
   et ne fait rien ; « La recherche est à venir » n'est écrit que pour les lecteurs d'écran
@@ -212,6 +221,7 @@ Aucun.
 
 ### FSO-10 — Le catalogue entier (199 Ko) est sérialisé dans chaque document et chaque relecture
 
+- **Issue** : #4461 (EP-37), ouverte le 2026-11-21, avec FSO-09.
 - **Où** : `frontend/src/components/shell/shell.tsx:72`
   (`<NextIntlClientProvider messages={CATALOGUES[locale]}>`, composant client alimenté par un
   composant serveur) ; `frontend/messages/fr.json` : 199 218 octets, 72 espaces de noms.

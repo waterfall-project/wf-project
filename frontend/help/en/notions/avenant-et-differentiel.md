@@ -4,7 +4,7 @@
 
 > **Amendment** — Designates a contractual modification of the project during its execution. It is prepared as a differential structure, then merged at its contractualisation, which produces a new reference revision.
 
-> **Differential** — Designates a cost structure that describes a difference from the main structure: tasks and lines added, modified or removed. An amendment is prepared as a differential, then merged.
+> **Differential** — Designates a cost structure that describes a difference from the state of the main structure it relates to, its base: tasks and lines added, modified or removed. An amendment is prepared as a differential, then merged.
 
 > **Cost structure** — Designates a tree of tasks bearing estimate lines. Its kind indicates what it describes: the main structure of the project, the differential of an amendment, or the estimate proper to a risk. A revision bears a main structure, and where applicable differentials and risk estimates.
 

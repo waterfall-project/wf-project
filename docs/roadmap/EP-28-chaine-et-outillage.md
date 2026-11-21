@@ -1,7 +1,7 @@
 ---
 id: EP-28
 titre: Tenir la chaîne et les outils du dépôt
-statut: en cours
+statut: livré
 depend_de: rien
 famille: plateforme
 issue: 3679
@@ -685,7 +685,7 @@ pull request qui le porte, et non celle du lot suivant ou de `main` après la fu
 
 ## US-2490 — La chaîne : caches, veille, droits, traces et miroir
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #3685

@@ -72,6 +72,7 @@ l'axe dans chaque ligne une fois zoomé, et ne défile pas dans le temps au clav
 
 ### FPL-02 — Un chef de projet ne peut inscrire que les comptes que le serveur propose
 
+- **Issue** : #4487 (EP-29), ouverte le 2026-11-21.
 - **Où** : `frontend/src/components/projects/contributor-commands.tsx:332-595` (`ContributorEditor` :
   lignes du brouillon, changement de qualité, retrait, et la seule section « propositions »,
   lignes 362 et 526-570) ; `frontend/src/app/projects/[projectId]/settings/page.tsx:135-155`.
@@ -100,6 +101,7 @@ l'axe dans chaque ligne une fois zoomé, et ne défile pas dans le temps au clav
 
 ### FPL-03 — Revenue par « Précédent », une grille montre les données d'avant la saisie
 
+- **Issue** : #4436 (EP-34), ouverte le 2026-11-21.
 - **Où** : `frontend/src/api/actions/nodes.ts:100-320` (`updateTaskFacet`, `updateEstimateLine`,
   `setLineRemaining`, `setPredecessors`, `createNode`, `deleteNode`, `moveNodes` ne relisent pas la
   page ; seul `updateStructure`, ligne 370, appelle `refresh()`) ;
@@ -135,6 +137,7 @@ l'axe dans chaque ligne une fois zoomé, et ne défile pas dans le temps au clav
 
 ### FPL-04 — Le Gantt place les barres au jour, même au niveau « jours/heures travaillées »
 
+- **Issue** : #4418 (EP-32), ouverte le 2026-11-21, avec FPL-05, FPL-06.
 - **Où** : `frontend/src/components/gantt/layout.ts:66-78` (`startTime`, `finishTime` : minuit du
   jour, + 1 jour si `hours` ≠ 0), `layout.ts:124-131`, `gantt.tsx:663` (`rightward`),
   `scale.ts:36` (niveau heures).
@@ -153,6 +156,7 @@ l'axe dans chaque ligne une fois zoomé, et ne défile pas dans le temps au clav
 
 ### FPL-05 — Zoomé, chaque ligne du Gantt dessine toutes les graduations de l'axe entier
 
+- **Issue** : #4418 (EP-32), ouverte le 2026-11-21, avec FPL-04, FPL-06.
 - **Où** : `frontend/src/components/gantt/gantt.tsx:556-573` et `786` (`Months` : une `<line>` par
   graduation basse de tout l'axe, dans chaque cellule), `595-622` et `783` (`DaysOff` : toutes les
   bandes de l'axe), `382-405` (`view` recréé à chaque rendu : chaque cellule abonnée au contexte se
@@ -173,6 +177,7 @@ l'axe dans chaque ligne une fois zoomé, et ne défile pas dans le temps au clav
 
 ### FPL-06 — Zoomé, le Gantt du planning ne défile pas dans le temps au clavier
 
+- **Issue** : #4418 (EP-32), ouverte le 2026-11-21, avec FPL-04, FPL-05.
 - **Où** : `frontend/src/components/gantt/gantt.tsx:838-847` (le cadre qui défile : ni `tabIndex`,
   ni rôle, ni nom), `343-365` (molette seule), `320-327` (`reveal`, appelé par la seule frise,
   `timeline-chart.tsx:361`).
@@ -189,6 +194,7 @@ l'axe dans chaque ligne une fois zoomé, et ne défile pas dans le temps au clav
 
 ### FPL-07 — Une révision abandonnée rend « introuvables » les écrans du projet qui la portent encore
 
+- **Issue** : #4458 (EP-37), ouverte le 2026-11-21, avec FPL-08.
 - **Où** : `frontend/src/components/context/reading.ts:195-197` (404 de la révision → `not_found`),
   `frontend/src/navigation/context.ts:155-161` (`revision_id` porté par les écrans de projet),
   `frontend/src/app/projects/[projectId]/screen.ts:68-74`.
@@ -207,6 +213,8 @@ l'axe dans chaque ligne une fois zoomé, et ne défile pas dans le temps au clav
 
 ### FPL-08 — Les listes du plan de charge et de la comparaison ne suivent pas l'adresse au retour arrière
 
+- **Issue** : #4458 (EP-37), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue, avec FPL-07.
 - **Où** : `frontend/src/components/workload/workload-section.tsx:166`,
   `frontend/src/components/revisions/revision-comparison.tsx:121` (`<NativeSelect defaultValue=…>`
   dans un `next/form` qui n'est pas remonté).
@@ -222,6 +230,9 @@ l'axe dans chaque ligne une fois zoomé, et ne défile pas dans le temps au clav
 
 ### FPL-09 — Divers, de faible portée
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — ce qui reste est une adresse
+  écrite à la main (1), une règle que la revue dit de ne pas corriger au front (2), un coût non
+  mesuré (4) et un point du back hors périmètre (5).
 - **Comparaison, paramètres d'adresse** (`app/projects/[projectId]/revisions/page.tsx:134-147`,
   `revision-comparison.tsx:57-63`) : `from_revision_id`/`to_revision_id` partent tels quels ; un
   identifiant mal formé (422) ou la révision en cours (409) font tomber tout l'écran « Révisions »

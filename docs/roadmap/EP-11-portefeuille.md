@@ -1,6 +1,6 @@
 ---
 id: EP-11
-titre: Voir l'ensemble des projets : valeur, charge, performance, risques, courbe en S, santé
+titre: Voir l'ensemble des projets — valeur, charge, performance, risques, courbe en S, santé
 statut: en cours
 depend_de: EP-08
 famille: front, back

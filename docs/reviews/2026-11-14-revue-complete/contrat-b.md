@@ -32,6 +32,7 @@ Aucun.
 
 ### CTB-01 — L'application d'un import n'est pas liée au compte rendu confirmé ; le planning MS Project supprime ce qui a été saisi depuis l'analyse
 
+- **Issue** : #4420 (EP-33), ouverte le 2026-11-21, avec BEX-02.
 - **Où** : `docs/api/components/schemas/exchanges.yaml:1009-1019` (`ImportApply` : `confirmed` seul,
   aucun compteur) ; `docs/api/paths/exchanges.yaml:470-547` (`applyImport` : ni 412, ni règle sur
   une structure modifiée depuis l'analyse ; le principe n'est dit que pour la correspondance,
@@ -64,6 +65,7 @@ Aucun.
 
 ### CTB-02 — `uploadFile` : une écriture sans permission, sans 403 et sans quota
 
+- **Issue** : #4423 (EP-33), ouverte le 2026-11-21, avec BAC-09.
 - **Où** : `docs/api/paths/exchanges.yaml:4-45` (réponses 201/400/401/413/422/500/503, aucune
   permission nommée) ; servie par `backend/src/waterfall/api/imports.py:148-151` (dépendance
   `Caller` seule). Aucune décision ne le motive (`grep uploadFile docs/api/DECISIONS.md` : usage et
@@ -82,6 +84,7 @@ Aucun.
 
 ### CTB-03 — Les couloirs d'une chronologie sont rangés par `node_id`, qui change à chaque révision
 
+- **Issue** : #4463 (EP-38), ouverte le 2026-11-21.
 - **Où** : `docs/api/components/schemas/access.yaml:416-433` (`TimelinePreferences.lanes`, « by its
   `node_id` ») et la décision `docs/api/DECISIONS.md:7716-7729` — famille `me`, hors de mon
   périmètre strict, relevé parce qu'il découle du modèle des nœuds ; `docs/api/components/schemas/revisions.yaml:687-690`
@@ -102,6 +105,7 @@ Aucun.
 ## Constats mineurs
 
 ### CTB-04 — `payment_delay_days` sans borne haute
+- **Issue** : #4464 (EP-38), ouverte le 2026-11-21, avec 7 autres constats.
 - **Où** : `schemas/revisions.yaml:2122-2123` (`EstimateLineWrite`), `:2167-2168` (`EstimateLineUpdate`),
   `:1736-1737` (lecture) : `integer, minimum: 0`, sans `maximum`. Servie (`createNode`,
   `updateEstimateLine`). Colonne `Integer` (`backend/src/waterfall/migrations/versions/0025_estimate.py:286`),
@@ -114,6 +118,7 @@ Aucun.
   les bornes des décimaux (`numeric(12,2)`, `numeric(14,2)`) restent de même absentes du contrat.
 
 ### CTB-05 — Textes libres sans `maxLength`
+- **Issue** : #4464 (EP-38), ouverte le 2026-11-21, avec 7 autres constats.
 - **Où** : `schemas/projects.yaml:631-633`, `:649-651` (`description` du projet), `:750-754`
   (`ProjectExit.reason`), `:802-806` ; `schemas/revisions.yaml:299-305`, `:327-331`, `:590-595`
   (descriptions de révision), `:1997-1999`, `:2063-2065` (description de tâche), `:2296-2301`
@@ -127,6 +132,7 @@ Aucun.
 - **Confiance** : confirmé.
 
 ### CTB-06 — Listes d'écriture sans `maxItems`
+- **Issue** : #4464 (EP-38), ouverte le 2026-11-21, avec 7 autres constats.
 - **Où** : `schemas/projects.yaml:839-842`, `:880-882`, `:891-893` (`setWorkBreakdown`, d'où naît le
   squelette) ; `schemas/revisions.yaml:400-409` (`RateUpdateApply.cost_category_ids`), `:1891-1900`
   (`predecessors`), `:2235-2238` (`NodeMove.node_ids`) ; `paths/revisions.yaml:2151-2157`
@@ -136,6 +142,7 @@ Aucun.
 - **Confiance** : confirmé.
 
 ### CTB-07 — Le plan d'un collage : durée de vie et refus non dits
+- **Issue** : #4398 (EP-31), à laquelle la ventilation du 2026-11-21 joint ce constat.
 - **Où** : `schemas/revisions.yaml:2471-2502` (`PastePlan` sans `expires_at`), `paths/revisions.yaml:2441-2531`
   (`applyPaste` : 404 commun seul). Servie : le plan vit une heure et n'appartient qu'à son auteur
   (`backend/src/waterfall/core/history/tables.py:118-148`), sinon 404 (`core/planning/interface/paste.py:896`) ;
@@ -147,6 +154,7 @@ Aucun.
 - **Confiance** : confirmé.
 
 ### CTB-08 — `revision_id` des indicateurs de devis et de reste à engager : ni défaut, ni refus décrits
+- **Issue** : #4466 (EP-38), ouverte le 2026-11-21, avec CTA-08, CTA-09, CTC-02.
 - **Où** : `paths/analysis.yaml:23-25` (`getEstimateIndicators`), `:65-67` (`getMissingRates`),
   `:163-165` (`getRemainingIndicators`) : paramètre sans description ; réponses `:40-45`, `:80-81`, `:176-177`.
   Servies : « the revision named, else the current one, else the last one marked », sinon 404
@@ -159,6 +167,7 @@ Aucun.
 - **Confiance** : confirmé.
 
 ### CTB-09 — Champs nullables tantôt absents, tantôt nuls
+- **Issue** : #4467 (EP-38), ouverte le 2026-11-21, avec CTA-07, CTB-10, CTB-13, CTB-14.
 - **Où** : `schemas/costs.yaml:5-17` contre `:43-48` (`ActualCostLine.subproject_id` hors `required`,
   son code et son libellé exigés) ; `schemas/revisions.yaml:425-433` contre `:449-453`
   (`CostStructure.risk_id`, « Null for the main structure », absent de l'exemple `structures.json`) ;
@@ -174,6 +183,7 @@ Aucun.
 - **Confiance** : confirmé.
 
 ### CTB-10 — Listes sans pagination qui ne disent pas pourquoi (README, `:64`)
+- **Issue** : #4467 (EP-38), ouverte le 2026-11-21, avec CTA-07, CTB-09, CTB-13, CTB-14.
 - **Où** : `paths/analysis.yaml:181-222` (`listStartableTasks` : toutes les tâches de la structure
   principale, chacune un `Node` entier, sans `fields`, sans filtre — 960 tâches et 1,6 Mo dans
   l'exemple de volume `fixtures/api/startable_tasks.json`, la colonne des terminées croissant toute
@@ -185,6 +195,7 @@ Aucun.
   (#646, EP-09/US-1590) ; reste le silence du contrat.
 
 ### CTB-11 — Tables plates sans filtre ou sans tri par colonne
+- **Issue** : #4468 (EP-38), ouverte le 2026-11-21.
 - **Où** : `paths/costs.yaml:13-60` (`listActualCosts` : chaque colonne se trie, trois seulement se
   filtrent — ni pièce, ni poste, ni montant, ni motif, ni colonnes conservées) ; `:159-170`
   (`listCostImports`) et `paths/exchanges.yaml:202-214` (`listImports`) : ni tri, ni filtre.
@@ -196,6 +207,9 @@ Aucun.
   si le coordinateur lit ainsi la portée ; le contrat, lui, est dit figé sur tout l'horizon.
 
 ### CTB-12 — Deux vocabulaires pour une même notion
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — préférence de vocabulaire ; la
+  fenêtre que la revue visait (« avant qu'EP-08 ne serve la fusion ») est passée, et renommer
+  toucherait le contrat figé, le service, le client et le catalogue du front pour un gain nul.
 - **Où** : `schemas/revisions.yaml:799-801` (`NodeDifference` : `modified`) contre
   `schemas/exchanges.yaml:897-899` (`ImportDifference.change` : `updated`), repris par
   `StructureMergeReport.differences` (`revisions.yaml:647-659`) : le même différentiel dit
@@ -206,6 +220,7 @@ Aucun.
 - **Confiance** : confirmé.
 
 ### CTB-13 — `WorkloadPlan.roles` décrit moins que ce qui est servi
+- **Issue** : #4467 (EP-38), ouverte le 2026-11-21, avec CTA-07, CTB-09, CTB-10, CTB-14.
 - **Où** : `schemas/indicators.yaml:509-514` (« Every active role ») ; servie :
   `backend/src/waterfall/api/workload.py:14`, `:283` (les rôles actifs *et* ceux que la révision
   emploie, désactivés compris). À la lettre du contrat, la charge d'un rôle désactivé manquerait,
@@ -213,10 +228,16 @@ Aucun.
 - **Proposition** : écrire au contrat la règle du service. **Confiance** : confirmé.
 
 ### CTB-14 — `ProjectSummary` défini, jamais employé
+- **Issue** : #4467 (EP-38), ouverte le 2026-11-21, avec CTA-07, CTB-09, CTB-10, CTB-13.
 - **Où** : `schemas/projects.yaml:572-581`, cité par `ProjectCode` (`:592`) ; aucun `$ref` dans
   `docs/api` (recherche par script sur tous les fichiers). **Proposition** : le retirer. **Confiance** : confirmé.
 
 ### CTB-15 — `compareRevisions` refuse la révision en cours, que la spécification 1.0.6 admet
+- **Suite** : corrigé depuis la revue, vérifié le 2026-11-21 — le contrat dit maintenant que la
+  révision lue (`to_revision_id`) est « the current revision or a marked one », seule la base devant
+  être marquée (409 `revision_marked` sur `from_revision_id`, « The current revision read is not
+  refused »), avec l'exemple `comparison_current.json` ; le service suit (US-2320/L3, 46fce83b2).
+  #3176 est fermée depuis le 2026-11-14.
 - **Où** : `paths/revisions.yaml:629-633` (409 `revision_marked`) contre WF-REV-0080
   (`docs/spec/waterfall-spec.md:2008-2010`). **Déjà connu (#3176, EP-27)**
   (`docs/roadmap/EP-07-chiffrage-et-devis.md:1556-1566`).
