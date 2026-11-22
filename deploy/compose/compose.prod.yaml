@@ -169,7 +169,7 @@ services:
 
   # Nothing durable is kept in Redis: the queue and the sessions are lost with it, not the data.
   redis:
-    image: ${WATERFALL_MIRROR:-}redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
+    image: ${WATERFALL_MIRROR:-}redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
     user: redis
     command: ["sh", "-c", "exec redis-server --requirepass \"$$REDISCLI_AUTH\" --save ''"]
     environment:

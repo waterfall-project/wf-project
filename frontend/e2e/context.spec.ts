@@ -13,10 +13,8 @@ import { rowAt } from "./scroll";
 // The reading context of the screens of a project, against the fake back and, tagged `@shared`,
 // against the service. The service plays the banner on the screens it serves: those of a project
 // created, its settings, its revisions, its planning (EP-06, US-1470), its estimate (EP-07, US-1560),
-// its remaining to commit (EP-09) and its indicators (EP-10, US-1730). The screen of the risks waits
-// for its EPIC, which lifts its own entry.
-const BEFORE_THE_RISKS = "EP-08 serves the risks";
-const BEFORE_THE_DIFFERENTIALS = "EP-08 serves the differential structures of a revision";
+// its remaining to commit (EP-09), its indicators (EP-10, US-1730), its risks and its differential
+// structures (EP-08, US-2640).
 
 // The fake back serves the first example of each operation: the project in progress, its
 // current revision — a draft, without a version name —, its structures — the main one, the
@@ -36,10 +34,6 @@ function banner(page: Page) {
 test("each screen of the data of a project names the project and the revision shown @shared [WF-IHM-0020-A]", async ({
   page,
 }) => {
-  // Against the service, the planning alone: the page of a project leads to the planning of its
-  // revision in progress, which names the project and the revision (the last path below). This
-  // one goes through the risks, which EP-08 serves.
-  test.skip(inService, BEFORE_THE_RISKS);
   // The risks, a screen of its own reached by a click, and the planning the page of the project
   // leads to, compiled first (`e2e/compile.ts`).
   await compile(page.request, `${IN_REVISION}/risks`, `${IN_REVISION}/planning`);
@@ -101,7 +95,6 @@ test("an active filter is visible without opening the panel of filters @shared [
 test("a grid opened on a differential structure names it, chosen in the banner, and the main structure again @shared [WF-IHM-0020-A]", async ({
   page,
 }) => {
-  test.skip(inService, BEFORE_THE_DIFFERENTIALS);
   // Une grille ouverte sur une structure différentielle nomme cette structure. The fake back serves
   // the nodes of the amendment at its address (`nodes_amendment`, #1219): what the page asks of each
   // structure is proven by `planning/page.test.tsx`.
@@ -124,19 +117,35 @@ test("a grid opened on a differential structure names it, chosen in the banner, 
   await expect(facts.filter({ hasText: /^Avenant 2 — reprise des essais$/ })).toBeVisible();
   await expect(facts.filter({ hasText: /^Avenant$/ })).toBeVisible();
   // The grid reads the nodes of the amendment, each marked by the difference the server renders
-  // (US-0500): a task modified, a task added, a task modified again. The planning asks for tasks
-  // alone (`kinds`): the lines of the amendment, one unchanged and one removed, are not among its
-  // rows. The first five tasks, in this order, are those
+  // (US-0500). The planning asks for tasks alone (`kinds`): the lines of the amendment are not among
+  // its rows. The fake back marks its first five tasks, in this order, as
   // `test_the_ranks_among_the_tasks_the_planning_journeys_read` holds (tools/tests/
-  // test_mockstructure.py), with the difference each bears.
+  // test_mockstructure.py): a task modified, a task added, a task modified again. The service marks
+  // the tasks the amendment 2 touches among the thousand of the witness: modified from the seventh
+  // row, two added at the fifteenth, a task modified again at the seventeenth.
   const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   const mark = (row: number) => rowAt(grid, row).getByRole("gridcell").first();
   await expect(grid.getByRole("columnheader").first()).toHaveAccessibleName("Écart");
-  await expect(mark(1)).toHaveText("MModifié");
-  await expect(mark(2)).toHaveText("MModifié");
-  await expect(mark(3)).toHaveText("+Ajouté");
-  await expect(mark(4)).toHaveText("+Ajouté");
-  await expect(mark(5)).toHaveText("MModifié");
+  const marks: readonly (readonly [row: number, shown: string])[] = inService
+    ? [
+        [6, ""],
+        [7, "MModifié"],
+        [8, "MModifié"],
+        [9, ""],
+        [15, "+Ajouté"],
+        [16, "+Ajouté"],
+        [17, "MModifié"],
+      ]
+    : [
+        [1, "MModifié"],
+        [2, "MModifié"],
+        [3, "+Ajouté"],
+        [4, "+Ajouté"],
+        [5, "MModifié"],
+      ];
+  for (const [row, shown] of marks) {
+    await expect(mark(row)).toHaveText(shown, { timeout: WORKING });
+  }
   // The head of the grid names it too.
   await expect(page.getByRole("main")).toContainText("Avenant 2 — reprise des essais ·");
 

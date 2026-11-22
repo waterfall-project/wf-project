@@ -23,7 +23,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Numeric, SmallInteger, Uuid, column, select, update, values
+from sqlalchemy import Numeric, SmallInteger, Uuid, column, inspect, select, update, values
 from sqlalchemy.orm.attributes import flag_modified, set_committed_value
 
 from waterfall.core.cost_settings.interface import categories_of_kind
@@ -122,6 +122,14 @@ def _priced_draft(
     rate = None
     if draft.role is not None:
         if judging.role_changes:
+            # The roles of the other lines of the task are read as the database holds them: under a
+            # load of lines, what it changed or created and did not flush yet goes out first, lest
+            # the hours be judged on roles the load has replaced (#4403); with no line pending, the
+            # load keeps its single flush.
+            if remembers(session) and any(
+                isinstance(each, EstimateLine) for each in (*session.new, *session.dirty)
+            ):
+                session.flush()
             judge_working_hours(session, held, draft.role.resource_role_id, judging.earlier)
         calendar_id, category_id = draft.role.calendar_id, draft.cost_category_id
         week = recalled(
@@ -188,12 +196,15 @@ def judged_priced(
     """Judge what is sent of a line, created or changed, as far as its price; nothing is written.
 
     What ``create_line`` and ``change_line`` refuse before they write: the entry (``entries``), the
-    hours of the task when the role is new, the rate of the category. A paste judges its cells so,
-    at its preview and again at its confirmation. ``earlier`` is the role the lines of the task that
-    the cells before it were accepted with leave them: the hours of the task are judged on them.
+    hours of the task when the role is new, the rate of the category; a provision line, whose label
+    alone is written, is not priced. A paste judges its cells so, at its preview and again at its
+    confirmation. ``earlier`` is the role the lines of the task that the cells before it were
+    accepted with leave them: the hours of the task are judged on them.
     """
     project_id, bearer = held
     draft = judged_line(session, held, entry, current)
+    if draft.provision:
+        return draft
     basis = basis_of(session, project_id, bearer.revision_id)
     line = None if current is None else current.node_id
     new_role = current is None or draft.resource_role_id != current.resource_role_id
@@ -290,12 +301,17 @@ def read_ahead(session: Session, project_id: UUID, node_ids: Collection[UUID]) -
 def read_line(session: Session, project_id: UUID, node_id: UUID) -> EstimateLine:
     """Read the facet of a line under the lock its structure holds, as it is now.
 
-    Under a load of lines, the facet its load read ahead, the first time (``read_ahead``).
+    Under a load of lines, the facet its load read ahead, the first time (``read_ahead``). A line
+    the load changed already and has not flushed is flushed first: read afresh, it would otherwise
+    lose that change, its counter with it (#4403).
     """
     if remembers(session):
         line = _ahead(session, project_id).pop(node_id, None)
         if line is not None:
             return line
+        held = session.identity_map.get(session.identity_key(EstimateLine, (project_id, node_id)))
+        if held is not None and inspect(held).modified:
+            session.flush()
     return session.scalars(
         select(EstimateLine)
         .where(EstimateLine.project_id == project_id, EstimateLine.node_id == node_id)
@@ -330,12 +346,17 @@ def _change_line(write: FacetWrite, sent: LineEntry | HoursJudged) -> None:
         ("basis", project_id, revision_id),
         lambda: basis_of(session, project_id, revision_id),
     )
-    amounts = _priced_draft(
-        session,
-        (project_id, write.bearer, write.node_id),
-        draft,
-        basis,
-        Judging(role_changes=not judged and draft.resource_role_id != line.resource_role_id),
+    # A provision line keeps the amounts its risk wrote, never projected (WF-RIS-0010; #4378).
+    amounts = (
+        Priced(line.base_amount, line.reestimated_amount, line.consumption_year)
+        if draft.provision
+        else _priced_draft(
+            session,
+            (project_id, write.bearer, write.node_id),
+            draft,
+            basis,
+            Judging(role_changes=not judged and draft.resource_role_id != line.resource_role_id),
+        )
     )
     line.label = draft.label
     line.cost_category_id = draft.cost_category_id

@@ -127,7 +127,7 @@ services:
       retries: 30
 
   redis:
-    image: ${WATERFALL_MIRROR:-}redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
+    image: ${WATERFALL_MIRROR:-}redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
     # Nothing durable is kept in Redis: the queue and the sessions are lost with it, not the data.
     # The shell of the container reads the password from the environment (`$$` keeps Compose from
     # expanding it): the command line `docker inspect` shows names the variable, not its value.
@@ -530,7 +530,7 @@ services:
 
   # Receives every mail Keycloak sends; read at http://127.0.0.1:8025.
   mailpit:
-    image: ${WATERFALL_MIRROR:-}axllent/mailpit:v1.33.0@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
+    image: ${WATERFALL_MIRROR:-}axllent/mailpit:v1.34.0@sha256:23a2ef85bc50853ab3093645d1d64679afd8887e89da5e48a88940c172591a4e
     user: "${WATERFALL_UID:-1000}:${WATERFALL_GID:-1000}"
     ports:
       - "127.0.0.1:${WATERFALL_MAILPIT_PORT:-8025}:8025"
@@ -556,7 +556,7 @@ services:
   # the API.
   contract-proxy:
     profiles: [e2e]
-    image: ${WATERFALL_MIRROR:-}node:26-alpine@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94
+    image: ${WATERFALL_MIRROR:-}node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5
     command:
       - node
       - /bench/contract-proxy.ts

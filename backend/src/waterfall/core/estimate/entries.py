@@ -14,6 +14,14 @@ a line of a task started or completed does not leave a subproject that received 
 (``SUBPROJECT_HAS_ACTUAL_COSTS``, WF-PRJ-0050, never before EP-09). Every fault is named at once
 (422 ``VALIDATION_FAILED``), on the field as the body names it.
 
+A provision line — a line of a category of the provision kind, the question its reading asks
+(``reading``, ``is_computed``) — is judged as its reading closes it (WF-RIS-0010; #4378): its
+figures and its subproject, which its risk writes, are refused by ``COMPUTED_VALUE`` even sent at
+the value they hold (``PROVISION_COMPUTED``), every other field but its label by
+``FIELD_NOT_ACCEPTED`` — its payment delay, which it carries none of, and its category, its role
+and its hours, which its reading neither computes nor accepts —; its label alone is written
+(``PROVISION_EDITABLE``).
+
 A line absent its label takes the one composed of its task's and its role's, separated by an em dash
 between two spaces, cut at 300 characters. Absent at the creation, the hours of a labour line and
 the unit disbursement of another are nought, the payment delay nought.
@@ -25,6 +33,7 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.cost_settings.interface import category_labels
 from waterfall.core.estimate.pricing import disbursement_base_amount
+from waterfall.core.estimate.reading import EDITABLE, PROVISION_COMPUTED, PROVISION_EDITABLE
 from waterfall.core.estimate.recalling import recalled
 from waterfall.core.estimate.tables import (
     AMOUNT_PRECISION,
@@ -77,6 +86,14 @@ AMOUNT_DIGITS = AMOUNT_PRECISION - AMOUNT_SCALE
 
 
 CREATED_LINE = "/estimate_line"
+# What a provision line refuses of a write, by field, in the order of ``EditableField``: what its
+# reading says it computes, then all but what it says it accepts (#4378).
+_FIELD = "estimate_line."
+PROVISION_REFUSED = {
+    name: COMPUTED_VALUE if f"{_FIELD}{name}" in PROVISION_COMPUTED else FIELD_NOT_ACCEPTED
+    for name in EDITABLE
+    if f"{_FIELD}{name}" not in PROVISION_EDITABLE
+}
 
 
 class AmountOverflowError(RepricedBeyondColumnError):
@@ -144,6 +161,11 @@ class Draft:
         """Tell whether the line is a labour line: it names a role."""
         return self.resource_role_id is not None
 
+    @property
+    def provision(self) -> bool:
+        """Tell whether the line is a provision line: of a category of the provision kind."""
+        return self.category.cost_type_kind == PROVISION
+
 
 class _Faults:
     """The faults of a write, each on its field as the body names it."""
@@ -199,16 +221,21 @@ def _role(
     return found[0]
 
 
+def _labelled(session: Session, category_id: UUID) -> CategoryLabel | None:
+    """Read a category of the reference, once by a load of lines; none if it is unknown."""
+    labels = recalled(
+        session, ("category", category_id), lambda: category_labels(session, [category_id])
+    )
+    return labels.get(category_id)
+
+
 def _category(
     session: Session, faults: _Faults, category_id: UUID | None, *, changed: bool
 ) -> CategoryLabel | None:
     """Read the category a line names; refuse it unknown, the risk's, or deactivated if given."""
     if category_id is None:
         return None
-    labels = recalled(
-        session, ("category", category_id), lambda: category_labels(session, [category_id])
-    )
-    category = labels.get(category_id)
+    category = _labelled(session, category_id)
     if category is None:
         faults.add("cost_category_id", UNKNOWN_COST_CATEGORY)
     elif category.cost_type_kind == PROVISION:
@@ -355,9 +382,14 @@ def judged_line(
     """Judge what a write sends of a line, created (``current`` none) or changed; or refuse (422).
 
     ``held`` is the project and the task that bears the line. ``locking`` false for the analysis
-    of an import, which cannot lock what it reads.
+    of an import, which cannot lock what it reads. A provision line is judged as its reading closes
+    it (``_provision``).
     """
     project_id, bearer = held
+    if current is not None:
+        category = _labelled(session, current.cost_category_id)
+        if category is not None and category.cost_type_kind == PROVISION:
+            return _provision(entry, current, category)
     faults = _Faults(CREATED_LINE if current is None else "")
     role_id, role, category_id, category = _kind(session, faults, entry, current)
     labour = role_id is not None
@@ -386,6 +418,34 @@ def judged_line(
         unit_disbursement=disbursement,
         payment_delay_days=delay,
         subproject_id=subproject,
+    )
+
+
+def _provision(entry: LineEntry, current: EstimateLine, category: CategoryLabel) -> Draft:
+    """Judge what a write sends of a provision line: its label alone; or refuse (422, #4378).
+
+    Each field sent but the label is refused, null or at the value the line holds: what the line
+    computes by ``COMPUTED_VALUE``, the rest by ``FIELD_NOT_ACCEPTED`` (``PROVISION_REFUSED``), all
+    at once; nothing else of the line changes, its payment delay kept as its risk wrote it.
+    """
+    faults = _Faults("")
+    if entry.given("label") and entry.label is None:
+        faults.add("label", VALUE_REQUIRED)
+    for name, code in PROVISION_REFUSED.items():
+        if entry.given(name):
+            faults.add(name, code)
+    faults.raise_any()
+    return Draft(
+        label=current.label if entry.label is None else entry.label,
+        cost_category_id=current.cost_category_id,
+        category=category,
+        resource_role_id=current.resource_role_id,
+        role=None,
+        quantity=current.quantity,
+        hours=current.hours,
+        unit_disbursement=current.unit_disbursement,
+        payment_delay_days=current.payment_delay_days,
+        subproject_id=current.subproject_id,
     )
 
 

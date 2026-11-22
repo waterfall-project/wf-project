@@ -59,12 +59,15 @@ class Grafted:
     ``differences`` as ``ImportDifference``, in the order of the report — the nodes grafted, added,
     in the order of the plan of the structure grafted; the task they go under, updated, unless a
     milestone; the lines removed —; ``refusals`` as ``ReportRefusal``, empty when the graft
-    applies; ``copies`` the node each node of the structure grafted is copied under.
+    applies; ``copies`` the node each node of the structure grafted is copied under; ``reopened``
+    the task they go under, by its node and its label (``ProvisionTask``), when it is completed: a
+    warning, not a refusal — become their summary, it is not started again (#4240) —, none else.
     """
 
     differences: tuple[Mapping[str, object], ...]
     refusals: tuple[Mapping[str, object], ...]
     copies: Mapping[UUID, UUID]
+    reopened: Mapping[str, object] | None = None
 
 
 def graft(session: Session, asked: Graft, act: Act | None = None) -> Grafted:
@@ -89,7 +92,7 @@ def graft(session: Session, asked: Graft, act: Act | None = None) -> Grafted:
     )
     if act is not None:
         write_graft(session, plan, act)
-    return Grafted(tuple(plan.differences), tuple(plan.refusals), dict(plan.copies))
+    return Grafted(tuple(plan.differences), tuple(plan.refusals), dict(plan.copies), plan.reopened)
 
 
 def release_origin(session: Session, project_id: UUID, revision_id: UUID, risk_id: UUID) -> None:

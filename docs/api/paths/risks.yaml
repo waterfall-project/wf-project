@@ -590,7 +590,10 @@
       what it read: an entry made in the meantime in the main structure, on the risk or in its
       own estimate — which advances `Risk.lock_version` —, or a current revision born since
       the read, has it refused with 412 (WF-IHM-0110). As long as `refusals` is not empty, the
-      occurrence does not apply, and the screen does not offer its confirmation. Refused with
+      occurrence does not apply, and the screen does not offer its confirmation; its warnings —
+      an own estimate starting in the past, a completed carrying task that the graft makes not
+      started again (`own_estimate_past_planning_start_on`, `completed_provision_task`, #4133,
+      #4240) — refuse nothing. Refused with
       409 when the state forbids the occurrence, on the conditions of its 409 and in the same
       order (`declareRiskOccurrence`): a report of an occurrence that could not apply is not
       read.
@@ -605,6 +608,7 @@
             schema: { $ref: ../components/schemas/risks.yaml#/RiskOccurrenceReport }
             examples:
               witness: { $ref: ../../../fixtures/api/risk_occurrence_report.json }
+              completed_task: { $ref: ../../../fixtures/api/risk_occurrence_report_completed_task.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':

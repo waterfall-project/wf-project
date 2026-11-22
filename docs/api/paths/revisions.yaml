@@ -976,7 +976,6 @@
               link_cycle: { $ref: ../../../fixtures/api/structure_merge_report_link_cycle.json }
               link_forbidden: { $ref: ../../../fixtures/api/structure_merge_report_link_forbidden.json }
               horizon_exceeded: { $ref: ../../../fixtures/api/structure_merge_report_horizon_exceeded.json }
-              without_current_revision: { $ref: ../../../fixtures/api/structure_merge_report_without_current_revision.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -984,13 +983,16 @@
           This structure has no merge report: `STATE_FORBIDS_OPERATION`,
           `params.missing_condition` the first missing condition, as in the 409 of its merge
           (`mergeCostStructure`) — `structure_up_to_date` for a differential out of date, which
-          is first updated (`rebaseCostStructure`).
+          is first updated (`rebaseCostStructure`); on the last marked revision of a project
+          without a current revision, which no update reaches, it waits for the current revision
+          that takes it over (#4174).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               revision_marked: { $ref: ../../../fixtures/api/merge_revision_marked_refused.json }
               out_of_date: { $ref: ../../../fixtures/api/merge_out_of_date_refused.json }
+              reference_out_of_date: { $ref: ../../../fixtures/api/merge_reference_out_of_date_refused.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
@@ -1109,6 +1111,7 @@
               revision_marked: { $ref: ../../../fixtures/api/merge_revision_marked_refused.json }
               may_create_revision: { $ref: ../../../fixtures/api/merge_may_create_revision_refused.json }
               out_of_date: { $ref: ../../../fixtures/api/merge_out_of_date_refused.json }
+              reference_out_of_date: { $ref: ../../../fixtures/api/merge_reference_out_of_date_refused.json }
               version_name_taken: { $ref: ../../../fixtures/api/merge_version_name_taken.json }
       '412':
         description: >-

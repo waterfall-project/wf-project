@@ -123,19 +123,6 @@ def test_the_witness_structures_start_where_their_tasks_are_dated() -> None:
             assert structure["planning_start_on"] == PLANNING_START.isoformat()
 
 
-def test_a_report_without_current_revision_carries_the_counters_of_the_reference() -> None:
-    # E-10: the merge asked on the reference reads its structures, whose counters its marking
-    # froze — the main structure and the amendment 2, not merged, of `structures_amendments`.
-    report = fixture("structure_merge_report_without_current_revision")
-    structures = fixture("structures_amendments")
-    [main] = [each for each in structures if each["kind"] == "main"]
-    [amendment] = [
-        each for each in structures if each["kind"] == "amendment" and not each["is_merged"]
-    ]
-    assert report["main_structure_lock_version"] == main["lock_version"]
-    assert report["amendment_lock_version"] == amendment["lock_version"]
-
-
 def _revisions() -> list[Node]:
     return [revision for name in LISTS for revision in fixture(name)["items"]]
 

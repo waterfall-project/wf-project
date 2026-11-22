@@ -12,7 +12,14 @@ from typing import Any
 
 import pytest
 
-from wftools import mockcore, mockdata, mockhistory, mockwitness, mockwitnessrisks
+from wftools import (
+    mockcore,
+    mockdata,
+    mockhistory,
+    mockriskwrites,
+    mockwitness,
+    mockwitnessrisks,
+)
 from wftools.mockids import universe
 from wftools.mockwitness import AMENDMENT_MERGED, TODAY
 from wftools.mockwitnessrisks import REGISTER
@@ -216,3 +223,18 @@ def test_the_coverage_sets_the_reserve_against_what_the_risks_cost_today(
         covered["occurred_cost"],
         covered["coverage_variance"],
     ) == ("850060.00", "500000.00", "200.00", "349860.00")
+
+
+def test_the_counters_of_the_register_are_those_the_witness_leaves_on_its_risks() -> None:
+    # #4287: the counter of a risk, its reviews and the writes the loader adds, is read from the
+    # example of the register, not written by hand in two places; and the one of the nodes of the
+    # own estimate of 751, from its example.
+    risks = json.loads((mockwitness.FIXTURES / "risks.json").read_text(encoding="utf-8"))
+    counters = {item["label"]: item["lock_version"] for item in risks["value"]["items"]}
+    assert counters == {risk.label: risk.lock_version for risk in REGISTER}
+    estimate = json.loads(
+        (mockwitness.FIXTURES / "nodes_risk_estimate.json").read_text(encoding="utf-8")
+    )
+    assert {item["lock_version"] for item in estimate["value"]["items"]} == {
+        mockriskwrites.OWN_ESTIMATE_COUNTER
+    }

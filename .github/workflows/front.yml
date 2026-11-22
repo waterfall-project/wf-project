@@ -45,7 +45,7 @@ jobs:
       # The store of pnpm is read, never written: front-cache.yml writes it.
       - uses: ./.github/actions/pnpm-store
       # The check of the catalogues is held by the repository tools, in Python.
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           enable-cache: true
           save-cache: false
@@ -81,7 +81,7 @@ jobs:
     # against Redis"), the image of the service platform, which lives for the job.
     services:
       redis:
-        image: ghcr.io/waterfall-project/mirror/redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
+        image: ghcr.io/waterfall-project/mirror/redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
         credentials:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
@@ -138,7 +138,7 @@ jobs:
       # The store of pnpm is read, never written: front-cache.yml writes it.
       - uses: ./.github/actions/pnpm-store
       # The thresholds are held by the repository tools, in Python.
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           enable-cache: true
           save-cache: false

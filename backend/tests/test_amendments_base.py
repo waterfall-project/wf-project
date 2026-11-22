@@ -39,6 +39,7 @@ from estimate_support import Costing, costing
 from nodes_support import Tree, mark
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
+from rebases_support import confirmation
 from risks_support import STUDY, Costed, Risks, costed, declared
 from sqlalchemy import delete, select, update
 
@@ -226,6 +227,7 @@ def test_a_revision_that_bears_a_base_lists_its_commands_and_its_indicators_as_w
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
+@pytest.mark.requirement("WF-REV-0110-A")
 def test_a_differential_is_read_against_its_base_whatever_the_main_structure_received(
     api: ContractClient, project: Costed
 ) -> None:
@@ -297,6 +299,7 @@ def test_a_merged_differential_is_read_in_the_revision_marked_against_the_base_i
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
+@pytest.mark.requirement("WF-REV-0110-A")
 def test_a_differential_is_up_to_date_until_a_write_advances_the_main_structure(
     api: ContractClient, project: Costed
 ) -> None:
@@ -394,3 +397,42 @@ def test_a_revision_created_takes_up_each_differential_with_its_base_and_its_sta
     assert {
         each["difference"] for each in on(copied, taken["Avenant à jour"]["structure_id"]).items()
     } == {"unchanged"}
+
+
+@pytest.mark.requirement("WF-REV-0110-A")
+def test_a_differential_taken_up_by_the_next_revision_and_updated_presents_what_the_main_received(
+    api: ContractClient, project: Costed
+) -> None:
+    # « un différentiel créé dans une révision, repris par la suivante puis mis à jour, présente les
+    # tâches que la structure principale a reçues entre-temps, sans les désigner » : the task the
+    # main structure received after the opening is read unchanged, what the differential
+    # designated stays designated, and the differential is up to date.
+    stage = project.stage
+    structure_id = opened_amendment(api, project)
+    on(project.tree, structure_id).made(OWN_ADDED)
+    project.tree.made(MAIN_ADDED)
+    mark(stage, project.tree.revision)
+    created = api.post(
+        f"{PROJECTS}/{project.project_id}/revisions", headers=stage.manager.headers, json={}
+    )
+    assert created.status_code == 201, created.text
+    new_id = created.json()["revision_id"]
+    path = structures_path(project).replace(str(project.revision_id), new_id)
+    taken = next(
+        each
+        for each in api.get(path, headers=stage.manager.headers).json()
+        if each["kind"] == "amendment"
+    )
+    assert taken["is_up_to_date"] is False
+    own = on(Tree(api, stage, created.json()), taken["structure_id"])
+    rebase = f"{path}/{taken['structure_id']}/rebase"
+    report = api.get(rebase, headers=stage.manager.headers)
+    assert report.status_code == 200, report.text
+    updated = api.post(rebase, headers=stage.manager.headers, json=confirmation(report.json()))
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["is_up_to_date"] is True
+    differences = {
+        (each["task"] or each["estimate_line"])["label"]: each["difference"] for each in own.items()
+    }
+    assert differences[MAIN_ADDED] == "unchanged"
+    assert differences[OWN_ADDED] == "added"

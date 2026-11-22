@@ -101,8 +101,12 @@ function Counts({ report }: { readonly report: Report }) {
   );
 }
 
-/** The report of the merge as the server read it, and the motives that refuse it. */
-function ReportBody({ report }: { readonly report: Report }) {
+/**
+ * The report of the merge as the server read it, and the motives that refuse it. Exported for the
+ * tests alone, which render it on a counterfactual variant of an example of the contract: a report
+ * that creates the revision in progress, which no example carries any more (#4174).
+ */
+export function MergeReportBody({ report }: { readonly report: Report }) {
   const t = useTranslations("mergeReport");
   const locale = useLocale();
   const messages = useMessages();
@@ -179,7 +183,7 @@ function ReportPanel({
       <section aria-label={t("title")} aria-busy={report === undefined} className="space-y-2">
         <h2 className={HEADING}>{t("title")}</h2>
         {report === undefined ? <p role="status">{t("reading")}</p> : null}
-        {report?.kind === "done" ? <ReportBody report={report.data} /> : null}
+        {report?.kind === "done" ? <MergeReportBody report={report.data} /> : null}
         {report !== undefined && report.kind !== "done" ? (
           <OutcomeNotice
             outcome={report}

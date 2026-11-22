@@ -6,7 +6,9 @@ The facet of the lines copies them under the nodes the planning copied (``copy_l
 ``copy`` hook of ``LINE_FACET``), by one ``INSERT … SELECT`` joined to the identifiers of the
 copies (``copies``): five thousand lines sent one by one were most of the ten seconds of the
 opening of a revision (US-2240, #3102). The budgeted amount of each comes from the line of its
-lineage in the reference revision, read beside: the lineages are the planning's.
+lineage in the reference revision, read beside: the lineages are the planning's. A provision line
+takes so the provision its risk carried in the reference, which the merge that marked the reference
+gave the line there (``merged``; #4274).
 """
 
 from decimal import Decimal

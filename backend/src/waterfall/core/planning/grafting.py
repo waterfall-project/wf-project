@@ -33,7 +33,9 @@ found, under the lock of the two structures, so that what the report presented i
   (``ReportRefusal``): those the facets give (``FacetHooks.judge_graft``), then a planning beyond
   fifteen years
   (``PROJECT_HORIZON_EXCEEDED``, WF-PLA-0150), the engine replayed on the structure the graft
-  leaves.
+  leaves. And a warning, which refuses nothing: the task named, when it is completed and the tasks
+  go under it, by its node and its label; become their summary, it is not started again, and the
+  earned value it had acquired falls back (#4240, a provisional rule that EP-30 takes over).
 """
 
 from dataclasses import dataclass, field
@@ -76,7 +78,7 @@ from waterfall.core.planning.scheduling import Task as Planned
 from waterfall.core.planning.shaping import closed_above, deleted, reopened, stamp
 from waterfall.core.planning.tables import Node, Task, TaskLink
 from waterfall.core.planning.tree import TASK, read_links, read_tree
-from waterfall.core.planning.views import NOT_STARTED, state_of
+from waterfall.core.planning.views import COMPLETED, NOT_STARTED, state_of
 from waterfall.core.revisions.interface import structure_facts
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.identifiers import new_id
@@ -144,7 +146,8 @@ class GraftPlan:
     ``copies`` the node of the structure grafted into each node grafted is copied under, in the
     order of the plan of the structure grafted; ``parent`` and ``first_rank`` where its tasks of the
     first level go; ``shifted`` the siblings after a milestone, moved down by their number;
-    ``manual`` the leaves without predecessor, in manual mode at their dates.
+    ``manual`` the leaves without predecessor, in manual mode at their dates; ``reopened`` the task
+    named, by its node and its label, when it is completed and the tasks go under it (#4240).
     """
 
     asked: GraftAsked
@@ -156,6 +159,7 @@ class GraftPlan:
     manual: frozenset[UUID]
     differences: list[Json] = field(default_factory=list[Json])
     refusals: list[Json] = field(default_factory=list[Json])
+    reopened: Json | None = None
 
     @property
     def source(self) -> Tree:
@@ -473,6 +477,9 @@ def _report(session: Session, plan: GraftPlan) -> None:
         named = (target.nodes[asked.bearer_id].lineage_id, target.tasks[asked.bearer_id].label)
         plan.differences.append(_difference("updated", TASK, named, fields))
     plan.differences.extend(_redated(plan, computed))
+    bearer = asked.bearer_id
+    if plan.roots and not plan.onto_milestone and state_of(target, bearer).progress == COMPLETED:
+        plan.reopened = {"node_id": str(bearer), "label": target.tasks[bearer].label}
     removed = _labels(session, asked.project_id, target, list(asked.removed))
     plan.differences.extend(
         _difference(

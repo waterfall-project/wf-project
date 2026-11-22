@@ -28,9 +28,28 @@ lines (``place_merged_lines``), then this module their facets:
   nought by the function of ``setLineRemaining`` (``reestimate``): their quantity nought, priced
   again, marked, the reason of a former re-estimate cleared; their budgeted amount kept — a line
   that read its budget from its re-estimated amount, the project having no reference yet, has it
-  written first. The provision lines are never touched.
+  written first.
+- **A provision line** keeps its figures, its risk's alone; it takes as its budgeted amount the
+  provision it carries, which the reference the merge marks fixes: "le montant budgété est celui
+  que la référence a fixé" (WF-DEV-0020, WF-RIS-0050; #4274). Written here, before the marking,
+  after which the database refuses any write of a line of the revision; a revision opened from it
+  takes it by the lineage (``copy_lines``). It never enters the reference budget, the sum of the
+  budgeted amounts of the lines but the provisions (``lines_for_indicators``,
+  ``reference_budgets``), nor does it advance a counter: a budgeted amount is computed.
+  The designation of a marked revision by the command (``reference_correctable``) writes nothing,
+  and has nothing to write: a revision it can designate was marked while the project had no
+  reference, so that its provision lines bear a budgeted amount of null (``budgeted_of`` reads a
+  null as the re-estimated amount, the provision, which is never projected), and the revision
+  opened after it copies that null by the lineage. Only a merge, which marks a reference whose
+  figures it has just changed, has a budgeted amount to fix (``test_risk_provision_lines.py``, the
+  provision line marked plainly then designated). The write here is neither stamped
+  (``lock_version``, ``updated_at``, ``updated_by``) as ``_stamped`` and ``_zeroed`` stamp theirs: a
+  provision line is closed to the entry, its risk alone writing it, so no entry holds its counter
+  to lose, and the revision is marked in the same transaction, which freezes the line and its
+  history whole; the amount it gives is the one the line read before, null read as the provision.
 
-The amounts are priced again by the replay of the dates that ends the merge.
+The amounts are priced again by the replay of the dates that ends the merge; a provision line is
+never priced again.
 """
 
 from dataclasses import dataclass
@@ -178,7 +197,7 @@ def write_lines(
     held_nodes += [
         each.node_id
         for each in where.main
-        if each.task_lineage_id in where.completing and not each.is_provision
+        if each.is_provision or each.task_lineage_id in where.completing
     ]
     held: Mapping[UUID, EstimateLine] = {
         each.node_id: each for each in rows_of(session, project_id, held_nodes)
@@ -195,6 +214,17 @@ def write_lines(
             _stamped(row, merging)
     for each in where.main:
         completing = each.task_lineage_id in where.completing
-        if completing and not each.is_provision and each.node_id not in sent:
+        if each.is_provision:
+            _provision_budgeted(held[each.node_id])
+        elif completing and each.node_id not in sent:
             _zeroed(held[each.node_id], merging, where.bearers[each.task_lineage_id])
     session.flush()
+
+
+def _provision_budgeted(row: EstimateLine) -> None:
+    """Give a provision line of the reference the merge marks its provision as its budgeted amount.
+
+    Its re-estimated amount, which is its provision, never projected (``set_provision``).
+    """
+    if row.budgeted_amount != row.reestimated_amount:
+        row.budgeted_amount = row.reestimated_amount

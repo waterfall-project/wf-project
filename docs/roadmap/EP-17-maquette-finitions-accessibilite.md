@@ -119,7 +119,7 @@ demandent le service sont des écarts, qui nomment l'EPIC qui les clôt.
 |---|---|---|---|
 | `WF-RAE-0030-A` | Démarrage d’une tâche | début — close en EP-10 | US-0730 |
 | `WF-PLA-0040-A` | Hiérarchie des tâches | début — close en EP-08 | US-0730 |
-| `WF-RIS-0040-A` | Grille de suivi des risques | début — close en EP-08 | US-0740 |
+| `WF-RIS-0040-A` | Grille de suivi des risques | début — close en EP-30 | US-0740 |
 | `WF-PLA-0080-A` | Grille de planning | début — close en EP-06 | US-0750 |
 | `WF-PLA-0090-A` | Diagramme de Gantt | début — close en EP-06 | US-0750 |
 | `WF-PLA-0050-A` | Jalons | début — close en EP-08 | US-0750 |
@@ -128,9 +128,9 @@ demandent le service sont des écarts, qui nomment l'EPIC qui les clôt.
 | `WF-IHM-0140-A` | Aide en ligne | début — close en EP-11 | US-0790 |
 | `WF-REF-0150-A` | Affichage des objets désactivés | début — close en EP-05 | US-1010 |
 | `WF-RIS-0020-A` | États d’un risque | début — close en EP-08 | US-1020 |
-| `WF-RIS-0050-A` | Réserve pour risques et couverture | début — close en EP-08 | US-1020, US-1210 |
+| `WF-RIS-0050-A` | Réserve pour risques et couverture | début — close en EP-30 | US-1020, US-1210 |
 | `WF-PTF-0090-A` | Risques du portefeuille | début — close en EP-11 | US-1210 |
-| `WF-RIS-0060-A` | Survenance d’un risque | début — close en EP-08 | US-1020 |
+| `WF-RIS-0060-A` | Survenance d’un risque | début — close en EP-30 | US-1020 |
 
 Les exigences déjà closes par un EPIC livré que ces travaux touchent restent closes, et leurs tests
 existants continuent de les citer ; trois d'entre elles sont citées par une US, avec tout leur
@@ -1050,6 +1050,18 @@ la zone que le serveur lui rend, **afin de** voir d'un coup d'œil où sont les 
   l’historique. » : constaté par EP-15 (US-0550), inchangé ici ; EP-08 clôt.
 - écart : `WF-RIS-0040-A` — « Le tri par provision classe les risques du plus lourd au plus
   léger. » : idem ; EP-08 clôt.
+- écart : `WF-RIS-0040-A` — « Un risque de gravité négative est présenté comme une opportunité, avec
+  une provision nulle, et figure dans la matrice au plus bas niveau de gravité. » : ajouté par la
+  spécification 1.0.9 (#4517) ; EP-30 (US-3080).
+- écart : `WF-RIS-0040-A` — « Un risque identifié dont le produit de la gravité par la probabilité
+  est passé de 60 à 75 depuis la révision marquée précédente est présenté en hausse ; passé de 60 à
+  45, en baisse ; resté à 60, stable. » : ajouté par la spécification 1.0.9 (#4517) ; EP-30
+  (US-3160).
+- écart : `WF-RIS-0040-A` — « Un risque identifié qui ne l'était pas dans la révision marquée
+  précédente est présenté comme nouveau ; un risque écarté ou survenu ne présente aucune tendance. »
+  : ajouté par la spécification 1.0.9 (#4517) ; EP-30 (US-3160).
+- écart : `WF-RIS-0040-A` — « Le registre se filtre et se trie sur la tendance. » : ajouté par la
+  spécification 1.0.9 (#4517) ; EP-30 (US-3160).
 - `WF-IHM-0070-A` — « Aucun écran ne distingue deux états par la seule couleur. » : la zone d'une
   bulle se distingue aussi sans sa couleur, par sa forme, qui ne sert plus à l'état ;
 - `WF-IHM-0070-A` — « Une copie d'écran en niveaux de gris laisse identifier chaque signalement. »
@@ -1433,18 +1445,22 @@ la main (#1787, #1763).
   le registre, pour chaque survenu, son réestimé (`occurred_reestimated_amount`) en regard de son
   coût à la survenance ; les montants sont ceux que le serveur rend, que le front ne calcule pas
   (WF-ARC-0020), et le calcul est d'EP-08, qui clôt (#1763) ;
+- écart : `WF-RIS-0050-A` — « Un risque survenu qui abandonne une tâche de 100 et ajoute une ligne
+  de 300 a un coût à la survenance de 200. » : ajouté par la spécification 1.0.9 (#4518) ; EP-30
+  (US-3110) ;
+- écart : `WF-RIS-0050-A` — « Un risque survenu à 250, dont 150 de lignes ajoutées et 100 de lignes
+  modifiées, présente 250 en regard de 250 ; la réestimation à 200 des lignes ajoutées présente 300,
+  et celle des lignes modifiées ne change pas ce montant. » : ajouté par la spécification 1.0.9
+  (#4518) ; EP-30 (US-3110) ;
+- écart : `WF-RIS-0050-A` — « Sur un projet de réserve 60 dont un risque est survenu à 250, la
+  survenance d'une opportunité de −50 porte le coût des survenus à 200 et l'écart de couverture de
+  −190 à −140. » : ajouté par la spécification 1.0.9 (#4518) ; EP-30 (US-3110) ;
 - écart : `WF-RIS-0060-A` — « Après déclaration de survenance d’un risque dont le devis propre porte
   deux lignes de 120 et 80, ces lignes figurent dans la structure principale de la révision en cours
   avec des montants budgétés nuls et des montants réestimés de 120 et 80 ; la ligne de provision a
   disparu ; le budget de référence et la révision de référence sont inchangés ; le reste à engager a
   augmenté de 200 moins la provision retirée ; la terminaison de ces tâches n’acquiert aucune
   valeur. » : du service ; EP-08 clôt.
-- écart : `WF-RIS-0060-A` — « Les tâches fusionnées se trouvent sous la tâche qui portait la
-  provision, aux dates qu’elles avaient dans le devis propre ; le total du lot dont cette tâche
-  relève augmente de leur montant, moins la provision retirée ; une tâche feuille fusionnée qui
-  n’avait pas de prédécesseur est en mode manuel. » : idem ; EP-08 clôt.
-- écart : `WF-RIS-0060-A` — « La survenance d’un risque dont la provision était portée par un jalon
-  place ses tâches après ce jalon, qui reste un jalon sans sous-tâche. » : idem ; EP-08 clôt.
 - `WF-RIS-0060-A` — « Une ligne fusionnée par la survenance d’un risque est encore désignée comme
   issue de ce risque dans la révision suivante, et après son déplacement sous une autre tâche ; une
   ligne ajoutée ensuite sous une tâche issue du risque ne l’est pas. » : les grilles de planning et
@@ -1456,6 +1472,26 @@ la main (#1787, #1763).
   choix d'un risque survenu passent `is_from_risk` et `origin_risk_ids` par l'adresse, comme les
   autres filtres des grilles, et le registre mène d'un risque survenu à la grille filtrée sur lui ;
   le serveur filtre (#1763) ;
+- écart : `WF-RIS-0060-A` — « Les tâches ajoutées se trouvent à la place, avec les liaisons et aux
+  dates que le devis propre leur donnait ; la tâche qui portait la provision ne reçoit aucune tâche.
+  » : réécrit par la spécification 1.0.9 (#4518) ; EP-30 (US-3100) ;
+- écart : `WF-RIS-0060-A` — « Après la survenance d'un risque qui porte de 100 à 130 le montant
+  réestimé d'une ligne budgétée à 100, la ligne porte un montant budgété de 100 et un montant
+  réestimé de 130 ; elle n'est pas désignée comme issue de ce risque. » : ajouté par la
+  spécification 1.0.9 (#4518) ; EP-30 (US-3100) ;
+- écart : `WF-RIS-0060-A` — « Une tâche non démarrée budgétée à 100 que le risque abandonne est
+  conservée, terminée le jour de la survenance, son reste à engager est nul, et le montant budgété
+  de ses lignes est inchangé. » : ajouté par la spécification 1.0.9 (#4518) ; EP-30 (US-3100) ;
+- écart : `WF-RIS-0060-A` — « Le compte rendu d'une survenance qui abandonne une tâche budgétée à
+  100 nomme cette tâche comme terminée et annonce une valeur acquise de 100 ; l'abandon à cette
+  étape laisse la révision en cours inchangée. » : ajouté par la spécification 1.0.9 (#4518) ; EP-30
+  (US-3100) ;
+- écart : `WF-RIS-0060-A` — « La survenance d'un risque qui modifie une ligne d'une tâche terminée
+  rouvre cette tâche, et le compte rendu le signale sans refuser. » : ajouté par la spécification
+  1.0.9 (#4518) ; EP-30 (US-3100) ;
+- écart : `WF-RIS-0060-A` — « Une tâche ajoutée à la structure principale après la préparation du
+  devis propre, que celui-ci ne désigne pas, figure toujours dans la structure principale après la
+  survenance. » : ajouté par la spécification 1.0.9 (#4518) ; EP-30 (US-3100) ;
 - propre à l'US : le registre se filtre sur chacune de ses colonnes depuis son adresse, comme le
   contrat le permet (WF-IHM-0130) — la zone par une liste, chaque colonne de nombres (probabilité,
   gravité, provision, coût à la survenance, réestimé des survenus) par ses deux bornes, la date du
@@ -1604,6 +1640,16 @@ et de suivre mon import sans recompter à la main (#1947, #1953, #1922).
   survenus, comme une information hors de l'écart de couverture ; les montants sont ceux que le
   serveur rend, que le front ne calcule pas (WF-ARC-0020), et le calcul est d'EP-08, qui clôt
   (#1947, #1953) ;
+- écart : `WF-RIS-0050-A` — « Un risque survenu qui abandonne une tâche de 100 et ajoute une ligne
+  de 300 a un coût à la survenance de 200. » : ajouté par la spécification 1.0.9 (#4518) ; EP-30
+  (US-3110) ;
+- écart : `WF-RIS-0050-A` — « Un risque survenu à 250, dont 150 de lignes ajoutées et 100 de lignes
+  modifiées, présente 250 en regard de 250 ; la réestimation à 200 des lignes ajoutées présente 300,
+  et celle des lignes modifiées ne change pas ce montant. » : ajouté par la spécification 1.0.9
+  (#4518) ; EP-30 (US-3110) ;
+- écart : `WF-RIS-0050-A` — « Sur un projet de réserve 60 dont un risque est survenu à 250, la
+  survenance d'une opportunité de −50 porte le coût des survenus à 200 et l'écart de couverture de
+  −190 à −140. » : ajouté par la spécification 1.0.9 (#4518) ; EP-30 (US-3110) ;
 - écart : `WF-PTF-0090-A` — « Le total des provisions identifiées égale la somme des provisions des
   risques identifiés des projets du périmètre. » : du service ; EP-11 clôt.
 - écart : `WF-PTF-0090-A` — « La matrice compte chaque risque identifié une fois. » : idem ; EP-11

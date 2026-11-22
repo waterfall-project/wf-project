@@ -346,6 +346,32 @@ def test_after_an_occurrence_the_projection_carries_the_cost_of_the_risk_and_the
     assert spent["projections"]["project_manager"] == "1200.00"
 
 
+@pytest.mark.requirement("WF-RIS-0060-A")
+@pytest.mark.story("US-3060")
+def test_the_report_tells_a_completed_task_the_graft_reopens_and_the_occurrence_applies(
+    ready: Occurring, worker: Worker
+) -> None:
+    # Propre à l'US (#4240) : la survenance greffe le devis propre sous les études, qui portent
+    # la provision ; terminées, elles deviennent la récapitulative des tâches greffées, non
+    # démarrée, et leur valeur acquise, 600, retombe (1 000 à 400). Le compte rendu les nomme,
+    # sans refuser ; une écriture des études le rend périmé ; la survenance s'applique, et la
+    # valeur acquise retombée n'est pas corrigée (règle provisoire, EP-30).
+    open_report = ready.reported()
+    assert open_report["completed_provision_task"] is None
+    tree = main_tree(ready)
+    studies = task_named(tree, "Étude")
+    finish(tree, "Étude", "Plans")
+    report = ready.reported()
+    named = {"node_id": studies["node_id"], "label": "Étude"}
+    assert (report["completed_provision_task"], report["refusals"]) == (named, [])
+    assert report["main_structure_lock_version"] != open_report["main_structure_lock_version"]
+    assert read(ready)["earned_value"] == "1000.00"
+    occurred(ready, worker)
+    reopened = task_named(main_tree(ready), "Étude")["task"]
+    assert reopened["progress"] == "not_started"
+    assert read(ready)["earned_value"] == "400.00"
+
+
 @pytest.mark.requirement("WF-IND-0100-A")
 def test_the_documents_a_marking_keeps_count_the_provisions(ready: Occurring) -> None:
     # Propre à l'US : les documents conservés au marquage comptent les provisions, comme la lecture

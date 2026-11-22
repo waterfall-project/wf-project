@@ -55,6 +55,11 @@ def get_risk_occurrence_report(
             "provision_amount": f"{report.provision_amount:.2f}",
             "refusals": [dict(each) for each in report.refusals],
             "own_estimate_past_planning_start_on": report.own_estimate_past_planning_start_on,
+            "completed_provision_task": (
+                None
+                if report.completed_provision_task is None
+                else dict(report.completed_provision_task)
+            ),
         }
     )
 

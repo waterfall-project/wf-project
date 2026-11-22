@@ -46,6 +46,25 @@
 export const WORKING = 15_000;
 
 /**
+ * How long a slow read is waited for, in milliseconds: the measure waits so for a grid, a page
+ * settled, an answer, under the load of eight users at once, where the estimate took past fifteen
+ * seconds to show (`measure/steps.ts`); and a path of the service waits so for the remaining to
+ * commit compared, the heaviest read of PRJ-001 (#4326).
+ *
+ * Measured on 2026-11-21 by `make e2e-service` on a quiet slot (`revisions.spec.ts`, the comparison
+ * of the current revision of PRJ-001 to its reference): the address of the remaining to commit
+ * compared 0.11 s after the click, its grid shown 3.5 s after it. In the queue, at one process of
+ * the API under three workers, the same wait overran `WORKING` twice (runs 44769093797,
+ * 44773195266 and 44872667894, `service / paths (2/4)`), the screen still « Chargement de l'écran »:
+ * a read slowed by the load, not an error: the quiet measure is under a quarter of `WORKING`, and the
+ * queue took it past it. The read is not accelerated, nothing in the measure asks it. Forty
+ * seconds, eleven times the quiet measure, and less than what `test.slow` leaves of the budget of
+ * the path when the wait comes: a read really degraded fails on this wait, which names the grid,
+ * and not on the « Test timeout » of the whole path.
+ */
+export const LOADED = 40_000;
+
+/**
  * How long the worker is given to mark a revision: a task taken from the queue, one transaction.
  *
  * Measured on 2026-11-16 by `make measure-version MEASURE_VERSION=0.4.0` (US-2300, fifty users of
