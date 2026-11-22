@@ -96,9 +96,6 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _indicators(database: Database, place: Place, runs: int) -> tuple[Measure, ...]:
-    # The day of the key is that of the time zone of the installation, which the service reads from
-    # this database at its start.
-    TIME_ZONE.read_from(stored_in(database))
     cache = cache_from_environment()
     try:
         return measure_cache(database, place.project_id, cache, runs)
@@ -109,6 +106,9 @@ def _indicators(database: Database, place: Place, runs: int) -> tuple[Measure, .
 def _passage(address: str, target: Target, runs: int, parts: Sequence[str]) -> tuple[Measure, ...]:
     database = database_of(address)
     place = target.place
+    # The day of an indicator, of a key, of a marking is that of the time zone of the installation,
+    # which the service reads from this database at its start.
+    TIME_ZONE.read_from(stored_in(database))
     plan: dict[str, Callable[[], tuple[Measure, ...]]] = {
         "read": lambda: (
             measure_whole(database, place, runs, None),
