@@ -676,7 +676,8 @@ def test_an_occurrence_that_changes_the_quantity_alone_leaves_the_hours_of_a_lin
     # « Plans » is labour in the main structure and in the own estimate, which changes its quantity
     # alone (the differential is read against the main structure): neither the category nor the
     # role is designated, so the kind columns are left to ``reestimate`` and no constraint breaks
-    # (#4591); a line whose kind differs from its source designates its category (#4750).
+    # (#4591). A non-regression test of the quantity-alone path: it does not test the guard on the
+    # category and the role, which no observable behaviour discriminates (#4750).
     risk = risk_differential(project)
     nodes = select(Node.id).where(Node.structure_id.in_([project.structure_id, risk.structure_id]))
     with project.stage.owner.begin() as connection:

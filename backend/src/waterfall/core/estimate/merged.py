@@ -188,9 +188,11 @@ def _current(
     reference and its budgeted amount kept — a line that read its budget from its re-estimated
     amount, the project having no reference yet, has it written first, as ``_zeroed`` does. The
     write is counted: ``reestimate`` counts the line it writes, a line it does not price is counted
-    here. The reason of a line already re-estimated is kept; the hours and the unit disbursement are
-    the source's, so that a line that changes from labour to disbursement, or back, loses the column
-    it no longer has.
+    here. The reason of a line already re-estimated is kept. A line that changes its nature receives
+    the hours and the unit disbursement of the source with its category and its role, so that a
+    line that changes from labour to disbursement, or back, loses the column it no longer has;
+    otherwise ``reestimate`` carries those the fields name. The guard on the category and the role
+    only holds the category, the role, the hours and the disbursement together.
     """
     for name, column in OWN:
         if name in line.fields:
