@@ -444,10 +444,14 @@ CostStructure:
         The structure's planning start date, entered (`updateCostStructure`): by default the day
         of its first creation; a structure taken over from a marked revision keeps its own
         (WF-PLA-0020, WF-REV-0100, WF-REV-0010), and a differential, a copy of the main
-        structure at its creation, takes the main structure's. An automatic task without a
-        predecessor starts on it, at the first working hour of its applicable calendar
-        (WF-PLA-0020). The MS Project import reads it from the file's project start date, and
-        the export writes it there (WF-INTF-0040, WF-INTF-0050).
+        structure at its creation, takes the main structure's. The own estimate of a risk has
+        no date of its own: it is the main structure's, copied at its birth (`createRisk`), at
+        its recomposition (`recomposeCostStructure`) and at its update
+        (`rebaseCostStructure`), and `updateCostStructure` refuses it (`FIELD_READ_ONLY`;
+        WF-RIS-0030). An automatic task without a predecessor starts on it, at the first working
+        hour of its applicable calendar (WF-PLA-0020). The MS Project import reads it from the
+        file's project start date, and the export writes it there (WF-INTF-0040,
+        WF-INTF-0050).
     risk_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
@@ -474,9 +478,37 @@ CostStructure:
         touches what the differential designates or not. An out of date differential is not
         merged (`mergeCostStructure`, `structure_up_to_date`); its `rebase` command is available.
         A differential taken over by a new revision keeps its state, up to date or out of date
-        (`createRevision`). Null for every other structure: the main structure, the own estimate
-        of a risk, which has neither base nor update, and a merged differential, consumed by its
-        merge (WF-REV-0100, WF-REV-0050; #4034).
+        (`createRevision`). Likewise for the own estimate of a risk that is not consumed
+        (`is_merged` false), whole or pruned (`is_pruned`): up to date at the declaration of the
+        risk (`createRisk`) and after its update (`rebaseCostStructure`), out of date as soon as
+        a write changes the main structure, the write of a provision line apart — a risk that
+        rewrites its provision leaves the own estimates that were up to date so
+        (`updateRiskProvision`, `reviewRisk`, the update of another own estimate). A recomposition
+        leaves it out of date when the main structure of the current revision has changed since
+        the marked revision it names (`recomposeCostStructure`). An out of date own estimate
+        waits for its update before an entry, a review that leaves or makes the risk identified,
+        and an occurrence (`own_estimate_up_to_date`); its gravity and its provision are those
+        of its last update or of its last entry (WF-RIS-0070). Null for every other structure:
+        the main structure, and a merged differential or a consumed own estimate, consumed by
+        their merge or by the occurrence of their risk (WF-REV-0100, WF-REV-0050, WF-RIS-0060;
+        #4034).
+    is_pruned:
+      anyOf: [{ type: boolean }, { type: 'null' }]
+      description: >-
+        For the own estimate of a risk, whether it is pruned. False when it is whole: its
+        structure bears every node of the project, copied under their lineages, with what it
+        designates, and it has its base, like a differential (`NodeDifference`) — born so with
+        its risk (`createRisk`), and so again after its recomposition
+        (`recomposeCostStructure`). True when it is pruned: its structure bears only what it
+        designates — the nodes it adds or modifies, their ancestors and the ends of the links it
+        adds —, and what it abandons; it has no base, and its differences are exact against the
+        main structure of the marked revision whose marking pruned it. A marking prunes an own
+        estimate whole and up to date; out of date, it stays whole. A pruned own estimate is
+        read, but neither entered nor updated before its recomposition
+        (`own_estimate_whole`); the next revision takes it over pruned (`createRevision`). The
+        own estimate of an occurred risk, consumed (`is_merged`), is pruned to what it
+        designated. Null for every other structure: the main structure and a differential
+        (WF-RIS-0030, WF-RIS-0070, WF-REV-0100).
     available_commands:
       type: array
       description: >-
@@ -506,15 +538,20 @@ StructureCommand:
     - edit_remaining
     - delete
     - rebase
+    - recompose
   description: >-
     Entry commands of a structure, one per grid that writes it: the planning, the estimate, the
     remaining to commit (WF-PLA-0080, WF-DEV-0050, WF-RAE-0040); the abandonment of a
-    differential (`delete`, `deleteCostStructure`, WF-REV-0100) and its update from the main
-    structure (`rebase`, `rebaseCostStructure`, #4034). Each entry command is guarded by
+    differential (`delete`, `deleteCostStructure`, WF-REV-0100), its update from the main
+    structure (`rebase`, `rebaseCostStructure`, #4034), which also updates the own estimate of a
+    risk, and the recomposition of a pruned own estimate (`recompose`,
+    `recomposeCostStructure`; WF-RIS-0030, WF-RIS-0070). Each entry command is guarded by
     the permission of the revision's command of the same name (`RevisionCommand`,
     `planning.write`, `estimate.write`, `remaining.write`), present or absent like it
-    (WF-ADM-0100); `delete` and `rebase` by that of the opening of a differential
-    (`RevisionCommand.create_structure`). The server
+    (WF-ADM-0100); `delete` and `rebase` on a differential by that of the opening of a
+    differential (`RevisionCommand.create_structure`); `rebase` and `recompose` on the own
+    estimate of a risk by that of the entry of the risks (`RevisionCommand.edit_risks`,
+    `risks.write`): updating an own estimate is an entry of the risks. The server
     accepts the same writes from the three grids — a task or a line created on the main
     structure of an In progress project is the same write from the planning and from the
     remaining to commit —: it is the structure's command that tells which grid enters it,
@@ -532,7 +569,12 @@ StructureCommand:
     own estimate, `edit_planning` and `edit_estimate` have no phase condition — an amendment and
     a risk are priced whatever the project's state (WF-DEV-0050, WF-REV-0100, WF-RIS-0030) — and
     `edit_remaining` is never listed: only the main structure has a remaining to commit
-    (WF-RAE-0040).
+    (WF-RAE-0040). On the own estimate of a risk, `edit_planning` and `edit_estimate` lack, after
+    the revision's state conditions, `own_estimate_whole` on a pruned own estimate, which is
+    first recomposed (`recompose`), then `own_estimate_up_to_date` on an out of date one, which
+    is first updated (`rebase`): its grid presents itself read-only until then, and the writes
+    of the tree, the paste and the application of an import on it name them in their 409
+    (WF-RIS-0030, WF-RIS-0070).
 
     The quality condition comes first, `is_contributor`, which the caller lacks when they
     take no part in the project; then the phase condition, specific to the
@@ -550,11 +592,23 @@ StructureCommand:
     marked revision, `no_background_task_running` during a background task that writes into the
     current revision or freezes it —, in the same order (WF-REV-0100, WF-DAT-0020).
 
-    `rebase` is listed where `delete` is, on a differential that is not merged alone, and lacks
+    `rebase` is listed where `delete` is, on a differential that is not merged, and lacks
     the same state conditions in the same order, then, last, `structure_out_of_date` on a
     differential up to date (`CostStructure.is_up_to_date`), which has nothing to carry over:
     it is available on an out of date differential of the current revision
-    (`rebaseCostStructure`, #4034).
+    (`rebaseCostStructure`, #4034). It is listed too on the own estimate of a risk that is not
+    consumed, identified or dismissed, under the entry of the risks, and lacks the same state
+    conditions in the same order, then `own_estimate_whole` on a pruned own estimate, which the
+    update does not reach before its recomposition, then, last, `structure_out_of_date` on an
+    own estimate up to date: it is available on a whole and out of date own estimate of the
+    current revision (WF-RIS-0070). It is listed neither on the main structure, nor on a merged
+    differential or a consumed own estimate, on which it would never become available:
+    `rebaseCostStructure` names `unmerged_amendment_exists` for the first two, and
+    `risk_not_occurred` for the last, in its 409.
+
+    `recompose` is listed on the own estimate of a risk that is pruned and not consumed, and on
+    no other structure, and lacks the same state conditions in the same order: it is available on
+    a pruned own estimate of the current revision (`recomposeCostStructure`, WF-RIS-0030).
 
 StructureCommandAvailability:
   type: object
@@ -595,7 +649,10 @@ StructureUpdate:
       allOf: [{ $ref: ../common.yaml#/PlanningDate }]
       description: >-
         The planning start date (`CostStructure.planning_start_on`), on a day that has at
-        least one working hour in the default calendar (WF-PLA-0010, WF-PLA-0020).
+        least one working hour in the default calendar (WF-PLA-0010, WF-PLA-0020). Not on the own
+        estimate of a risk, whose date is the main structure's: sent, it is refused with 422,
+        `fields` on `/planning_start_on` with `FIELD_READ_ONLY`, and nothing is written
+        (WF-RIS-0030).
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
@@ -715,9 +772,11 @@ StructureRebase:
   type: object
   required: [confirmed, main_structure_lock_version, structure_lock_version]
   description: >-
-    Updates the differential from the main structure (`rebaseCostStructure`, #4034): writes into
-    it what the main structure has received since its base, as the preliminary report presented
-    it (`getStructureRebaseReport`), and makes the main structure its new base. The confirmation
+    Updates the differential, or the whole own estimate of a risk, from the main structure
+    (`rebaseCostStructure`, #4034): writes into it what the main structure has received since
+    its base, as the preliminary report presented it (`getStructureRebaseReport`), and makes the
+    main structure its new base; for an own estimate, it also records the severity and the
+    provision that the report announced (WF-RIS-0070). The confirmation
     carries the two counters the report read: if the main structure or the differential has
     changed since, it is refused with 412 and nothing is written — it is this report that the
     user confirmed (WF-IHM-0110).
@@ -740,15 +799,20 @@ StructureRebaseReport:
   type: object
   required: [main_structure_lock_version, structure_lock_version, differences, refusals]
   description: >-
-    Report of the update of a differential from the main structure, presented before it is
-    applied (`getStructureRebaseReport`, #4034), and computed by the same function as the update:
-    what it presents is what is written. It reads like the report of an import or of a merge,
-    with the same elements (`ImportDifference`, `ReportRefusal`), no other: what the update
-    carries from the main structure into the differential — `added`, `updated`, `removed` —, and
-    what the differential keeps against it — `kept` —; then the reasons that refuse it. The two
-    arrays are always returned, empty when there is nothing to say; the update applies only if
-    `refusals` is empty. It returns the counters of the two structures read, which the
-    confirmation sends back (`StructureRebase`).
+    Report of the update of a differential, or of the whole own estimate of a risk, from the main
+    structure, presented before it is applied (`getStructureRebaseReport`, #4034), and computed by
+    the same function as the update: what it presents is what is written. It reads like the
+    report of an import or of a merge, with the same elements (`ImportDifference`,
+    `ReportRefusal`), no other: what the update carries from the main structure into the
+    differential — `added`, `updated`, `removed` —, and what the differential keeps against it —
+    `kept` —; then the reasons that refuse it. The two arrays are always returned, empty when
+    there is nothing to say; the update applies only if `refusals` is empty. It returns the
+    counters of the two structures read, which the confirmation sends back (`StructureRebase`).
+    The own estimate of a risk is a differential of the main structure (WF-RIS-0030): its report
+    has the same rules, the same differences and the same reasons for refusal, and announces in
+    addition the severity and the provision that the update would record (WF-RIS-0070). A report
+    that keeps nothing and refuses nothing signals nothing, the severity recomputed not being a
+    signal: the screen then applies the update without asking for a confirmation (WF-RIS-0070).
   properties:
     main_structure_lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
@@ -793,6 +857,21 @@ StructureRebaseReport:
         node in the differential and their label. Empty when the update applies; otherwise
         `rebaseCostStructure` is refused with 422, the first reason named.
       items: { $ref: exchanges.yaml#/ReportRefusal }
+    severity:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      description: >-
+        For the own estimate of a risk, the severity that the update would record: the gap of
+        the re-estimated totals of the own estimate as the update leaves it and of the main
+        structure as it is, neither bearing a provision line — signed, negative for an
+        opportunity (`Risk.severity`, WF-RIS-0010, WF-RIS-0070). Null for a differential, which
+        has no severity, and when `refusals` is not empty: the update records nothing, and a loop
+        of links leaves the dates of the own estimate uncomputed.
+    provision_amount:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      description: >-
+        For the own estimate of a risk, the provision that the update would record and that its
+        provision line would carry: the severity weighted by the probability of the risk, to the
+        cent, never below zero (`Risk.provision_amount`, WF-RIS-0040). Null when `severity` is.
 
 NodeKind:
   type: string
@@ -903,11 +982,12 @@ Node:
       anyOf: [{ $ref: '#/NodeDifference' }, { type: 'null' }]
       description: >-
         The node's difference, which the server returns and the front does not compute: on the
-        read of a differential, with its base (`NodeDifference`); in a comparison of two
-        revisions (`RevisionComparison`), with the base revision (WF-REV-0080, WF-REV-0100,
-        C-361). Always returned on these two reads, whether `fields` names it or not; null — or
-        omitted — on the main structure and on a risk's own estimate, which are read relative
-        to nothing.
+        read of a differential, with its base (`NodeDifference`); on the read of the own estimate
+        of a risk, with its base when it is whole, with the main structure of the marked revision
+        it names when it is pruned (WF-RIS-0030); in a comparison of two revisions
+        (`RevisionComparison`), with the base revision (WF-REV-0080, WF-REV-0100, C-361). Always
+        returned on these reads, whether `fields` names it or not; null — or omitted — on the
+        main structure, which is read relative to nothing.
     changes:
       type: array
       description: >-
@@ -925,7 +1005,12 @@ NodeDifference:
     base structure — for a differential its base, the copy of the main structure it keeps,
     taken at its opening (`createCostStructure`) or at its last update (`rebaseCostStructure`),
     and not the main structure as it is, so that what is marked is what the differential
-    designates, whatever the main structure has received since (#4034); the base revision for a
+    designates, whatever the main structure has received since (#4034); for the whole own
+    estimate of a risk likewise its base, taken at the declaration of the risk (`createRisk`),
+    at its recomposition (`recomposeCostStructure`) or at its last update; for a pruned own
+    estimate, which has no base, the main structure of the marked revision it names, against
+    which its differences are exact — it presents what it designates, its ancestors
+    `unchanged`, what it abandons `removed` (WF-RIS-0030) —; the base revision for a
     comparison —;
     `removed`, absent from the structure read, returned at the place it had, between the nodes
     that surrounded it, read-only (`editable_fields` empty); `modified`, present on both sides,

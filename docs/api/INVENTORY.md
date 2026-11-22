@@ -6,8 +6,8 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**174 opérations sur 134 chemins, dans 13 familles.**
-Le contrat cite **195 des 224 exigences** de la spécification.
+**175 opérations sur 135 chemins, dans 13 familles.**
+Le contrat cite **196 des 224 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
@@ -155,7 +155,7 @@ Le contrat cite **195 des 224 exigences** de la spécification.
 
 ## Révisions, structures et arbre commun
 
-`paths/revisions.yaml` — 34 opérations
+`paths/revisions.yaml` — 35 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -163,20 +163,21 @@ Le contrat cite **195 des 224 exigences** de la spécification.
 | POST | `/projects/{project_id}/revisions` | Open the current revision | WF-CYC-0020, WF-DAT-0010, WF-DAT-0020, WF-PLA-0170, WF-REV-0010, WF-REV-0050, WF-REV-0060, WF-REV-0090, WF-REV-0100, WF-RIS-0060 |
 | GET | `/projects/{project_id}/revisions/{revision_id}` | A revision and its snapshot | WF-REV-0030, WF-REV-0090 |
 | DELETE | `/projects/{project_id}/revisions/{revision_id}` | Abandon the current revision | WF-CYC-0020, WF-DAT-0010, WF-DAT-0020, WF-IHM-0110, WF-REV-0010, WF-RIS-0020, WF-RIS-0060 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/mark` | Mark the revision | WF-ARC-0090, WF-DAT-0040, WF-DEV-0010, WF-IHM-0080, WF-REV-0020, WF-SEC-0030 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/mark` | Mark the revision | WF-ARC-0090, WF-DAT-0040, WF-DEV-0010, WF-IHM-0080, WF-REV-0020, WF-RIS-0030, WF-RIS-0070, WF-SEC-0030 |
 | PUT | `/projects/{project_id}/reference-revision` | Designate the reference revision | WF-CYC-0030, WF-IHM-0110, WF-REV-0040, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/rate-update` | Proposed rate difference, category by category | WF-REV-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/rate-update` | Apply the rate update | WF-DAT-0020, WF-REF-0130, WF-REV-0060 |
 | GET | `/projects/{project_id}/revisions/comparison` | Compare the revision read with a marked base revision | WF-DAT-0030, WF-IHM-0130, WF-IHM-0150, WF-IHM-0160, WF-IHM-0170, WF-REV-0060, WF-REV-0080 |
-| GET | `/projects/{project_id}/revisions/{revision_id}/structures` | Cost structures of the revision | WF-DEV-0050, WF-IHM-0090, WF-RAE-0040, WF-REV-0100 |
+| GET | `/projects/{project_id}/revisions/{revision_id}/structures` | Cost structures of the revision | WF-DEV-0050, WF-IHM-0090, WF-RAE-0040, WF-REV-0100, WF-RIS-0030, WF-RIS-0070 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures` | Open a differential | WF-REV-0050, WF-REV-0100, WF-RIS-0030 |
-| PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}` | Modify the planning start date and the label of a structure | WF-PLA-0010, WF-PLA-0020, WF-REV-0100 |
+| PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}` | Modify the planning start date and the label of a structure | WF-PLA-0010, WF-PLA-0020, WF-REV-0100, WF-RIS-0030 |
 | DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}` | Abandon a differential | WF-IHM-0110, WF-REV-0050, WF-REV-0100, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Preliminary report of the merge of a differential | WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0050 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Merge a differential into the main structure | WF-ARC-0090, WF-DEV-0020, WF-IHM-0080, WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0020, WF-REV-0050, WF-REV-0060, WF-SEC-0030 |
-| GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase` | Preliminary report of the update of a differential | WF-REV-0050, WF-REV-0100 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase` | Update a differential from the main structure | WF-IHM-0110, WF-REV-0010, WF-REV-0100 |
-| GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Common tree of the structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-IHM-0060, WF-IHM-0130, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110, WF-PLA-0140, WF-PLA-0170, WF-REV-0100, WF-RIS-0060 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Merge a differential into the main structure | WF-ARC-0090, WF-DEV-0020, WF-IHM-0080, WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0020, WF-REV-0050, WF-REV-0060, WF-RIS-0070, WF-SEC-0030 |
+| GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase` | Preliminary report of the update of a differential | WF-REV-0050, WF-REV-0100, WF-RIS-0030, WF-RIS-0070 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase` | Update a differential from the main structure | WF-IHM-0110, WF-REV-0010, WF-REV-0100, WF-RIS-0040, WF-RIS-0070 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/recompose` | Recompose a pruned own estimate | WF-RIS-0030, WF-RIS-0070 |
+| GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Common tree of the structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-IHM-0060, WF-IHM-0130, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110, WF-PLA-0140, WF-PLA-0170, WF-REV-0100, WF-RIS-0030, WF-RIS-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Create a task or an estimate line | WF-CYC-0100, WF-DAT-0020, WF-DEV-0020, WF-DEV-0050, WF-PLA-0010, WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0080, WF-PLA-0150, WF-PLA-0170, WF-RAE-0040, WF-RAE-0050, WF-REV-0050, WF-RIS-0010 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}` | The node that carries a row number | WF-ADM-0110, WF-PLA-0080 |
 | DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}` | Delete a node | WF-DAT-0090, WF-DEV-0040, WF-DEV-0050, WF-IHM-0110, WF-PLA-0020, WF-PLA-0040, WF-PLA-0070, WF-PLA-0100, WF-PLA-0160, WF-PLA-0170, WF-RAE-0030, WF-RAE-0040, WF-REV-0050, WF-RIS-0010 |
@@ -276,7 +277,7 @@ Le contrat cite **195 des 224 exigences** de la spécification.
 
 ## Exigences que le contrat ne cite pas
 
-29 sur 224. Aucune n'est un oubli : ce sont celles qui n'ont pas de
+28 sur 224. Aucune n'est un oubli : ce sont celles qui n'ont pas de
 surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 
 | Domaine | Exigences | Pourquoi aucune surface d'API |
@@ -291,4 +292,4 @@ surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 | INTF | WF-INTF-0010, WF-INTF-0020, WF-INTF-0030, WF-INTF-0170 | Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par le catalogue des permissions ; la règle de traduction vit dans le front. |
 | QUA | WF-QUA-0010, WF-QUA-0020, WF-QUA-0030, WF-QUA-0040, WF-QUA-0050, WF-QUA-0060, WF-QUA-0070, WF-QUA-0080 | Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle s'exerce sur le contrat, elle n'y figure pas. |
 | REV | WF-REV-0110 | La base d'un différentiel et sa mise à jour (WF-REV-0110), ajoutées par la spécification 1.0.8 : les opérations qu'EP-08 écrit pour elles (US-3050) les servent, et leur citation au contrat reste à écrire (#4402). |
-| RIS | WF-RIS-0070, WF-RIS-0080 | La mise à jour du devis propre d'un risque (WF-RIS-0070) et la gravité d'un risque (WF-RIS-0080), ajoutées par la spécification 1.0.9 : EP-30 écrit leur contrat (US-3090, US-3080), dont les issues s'ouvrent avec celles de ses lots. |
+| RIS | WF-RIS-0080 | La mise à jour du devis propre d'un risque (WF-RIS-0070) et la gravité d'un risque (WF-RIS-0080), ajoutées par la spécification 1.0.9 : EP-30 écrit leur contrat (US-3090, US-3080), dont les issues s'ouvrent avec celles de ses lots. |

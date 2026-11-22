@@ -117,13 +117,47 @@ def test_the_nodes_of_an_amendment_are_served_at_its_address_leading_with_its_ex
     }
 
 
+RISK = "01926f3a-7c00-7000-8000-000000000204"
+NODES = f"{STRUCTURES}/{{structure_id}}/nodes"
+
+
+def risks_contract() -> dict[str, object]:
+    """Return the contract of the amendments whose listing names the own estimate of a risk too."""
+    contract = amendments_contract()
+    components = cast("dict[str, Any]", contract["components"])
+    components["examples"]["structures"]["value"].append({"structure_id": RISK, "kind": "risk"})
+    examples_of(paths_of(contract)[NODES])["risk_estimate"] = {"$ref": "#/x/risk_estimate"}
+    return contract
+
+
+@pytest.mark.story("US-3070")
+def test_the_nodes_of_the_own_estimate_of_a_risk_are_served_at_its_address() -> None:
+    # #4409: the own estimate of a risk is read at its address, not as the main structure.
+    paths = paths_of(mock.derive(risks_contract()))
+    served = paths[f"/api/v1{STRUCTURES}/{RISK}/nodes"]
+    assert list(examples_of(served)) == ["risk_estimate", "witness", "amendment"]
+    assert served["get"]["parameters"] == [{"$ref": "#/components/parameters/ProjectId"}]
+    amendment = paths[f"/api/v1{STRUCTURES}/{AMENDMENT}/nodes"]
+    assert next(iter(examples_of(amendment))) == "amendment"
+    templated = paths[f"/api/v1{NODES}"]
+    assert next(iter(examples_of(templated))) == "witness"
+
+
+@pytest.mark.story("US-3070")
+def test_the_writes_of_the_own_estimate_of_a_risk_answer_as_the_main_structure() -> None:
+    paths = paths_of(mock.derive(with_paste(risks_contract())))
+    assert f"/api/v1{STRUCTURES}/{RISK}/nodes/paste" not in paths
+
+
+def test_a_listing_without_a_risk_routes_none() -> None:
+    paths = paths_of(mock.derive(amendments_contract()))
+    assert not any(path.endswith(f"{RISK}/nodes") for path in paths)
+
+
 def test_the_templated_nodes_keep_their_first_example() -> None:
     paths = paths_of(mock.derive(amendments_contract()))
     templated = paths[f"/api/v1{STRUCTURES}/{{structure_id}}/nodes"]
     assert list(examples_of(templated)) == ["witness", "amendment"]
-
-
-NODES = f"{STRUCTURES}/{{structure_id}}/nodes"
 
 
 def with_paste(contract: dict[str, object]) -> dict[str, object]:
@@ -339,6 +373,8 @@ def test_the_bundle_of_the_repository_serves_the_amendment_203_the_volume_and_th
         (f"{at}/paste", "post"),
     ):
         assert next(iter(examples_of(served[path], method))) == "amendment", path
+    own = f"/api/v1{STRUCTURES}/{RISK}/nodes"
+    assert next(iter(examples_of(served[own]))) == "risk_estimate"
     volume = served[f"/api/v1{COMPARISON.replace('{project_id}', mock.VOLUME_PROJECT)}"]
     assert next(iter(examples_of(volume))) == "volume"
     assert next(iter(examples_of(served[f"/api/v1{COMPARISON}"]))) == "witness"

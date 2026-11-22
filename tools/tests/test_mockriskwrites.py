@@ -44,7 +44,6 @@ CITED = (
     ("risks.yaml", "createRisk", "422", "risk_provision_task_refused"),
     ("revisions.yaml", "moveNodes", "422", "nodes_move_provision_refused"),
     ("revisions.yaml", "setLineRemaining", "409", "remaining_provision_refused"),
-    ("revisions.yaml", "listNodes", "200", "nodes_risk_estimate"),
     ("risks.yaml", "getRiskOccurrenceReport", "200", "risk_occurrence_report"),
     ("risks.yaml", "getRiskOccurrenceReport", "200", "risk_occurrence_report_completed_task"),
     ("risks.yaml", "getRiskOccurrenceReport", "409", "risk_occurrence_not_identified"),
@@ -305,35 +304,6 @@ def _structures() -> list[dict[str, Any]]:
     return cast("list[dict[str, Any]]", mockwitness.fixture("structures"))
 
 
-def _structure(structure_id: str) -> dict[str, Any]:
-    [found] = [each for each in _structures() if each["structure_id"] == structure_id]
-    return found
-
-
-def test_the_own_estimate_of_the_rework_totals_its_severity_on_its_own_structure() -> None:
-    # The severity of a risk is the total of its own estimate (WF-RIS-0010): the structure 204,
-    # which `structures` lists as the rework's, totals the 1,250,000 the register reads.
-    estimate = example("nodes_risk_estimate")["value"]
-    risk = example("risk")["value"]
-    assert risk["risk_id"] == universe(mockwitnessrisks.REWORK.number)
-    assert estimate["totals"]["reestimated_amount"] == risk["severity"] == "1250000.00"
-    structure = _structure(risk["structure_id"])
-    assert (structure["kind"], structure["risk_id"]) == ("risk", risk["risk_id"])
-    assert risk["structure_id"] == universe(204)
-
-
-def test_the_own_estimate_is_read_unmarked_and_accepts_nothing_of_the_main_structure() -> None:
-    # WF-PLA-0170: neither a lot, nor a post, nor an inscription on an own estimate; and an own
-    # estimate is read against nothing (`Node.difference`).
-    items = example("nodes_risk_estimate")["value"]["items"]
-    assert [item["kind"] for item in items] == ["task", "estimate_line", "task", "estimate_line"]
-    for item in items:
-        assert "difference" not in item
-        assert not set(item["editable_fields"]) & set(mockamendment.MAIN_ONLY)
-    main = {row.number for row in mockcore.current()}
-    assert not {universe(number) for number in main} & {item["node_id"] for item in items}
-
-
 def _label(node: dict[str, Any]) -> str:
     return cast("str", node[node["kind"]]["label"])
 
@@ -364,7 +334,7 @@ def _redated(differences: list[dict[str, Any]], bearer: str) -> list[dict[str, A
 
 def test_the_report_adds_the_own_estimate_modifies_the_bearer_and_removes_the_provision() -> None:
     report = example("risk_occurrence_report")["value"]
-    items = example("nodes_risk_estimate")["value"]["items"]
+    items = mockriskwrites.nodes_risk_estimate()["items"]
     added = [each for each in report["differences"] if each["change"] == "added"]
     assert [(each["target"], each["label"]) for each in added] == [
         (item["kind"], _label(item)) for item in items
@@ -432,7 +402,7 @@ def test_the_bearer_is_changed_by_the_dates_it_comes_to_span() -> None:
     updated = _difference(report["differences"], ("updated", "task", _bearer_label()))
     tasks = [
         item["task"]
-        for item in example("nodes_risk_estimate")["value"]["items"]
+        for item in mockriskwrites.nodes_risk_estimate()["items"]
         if item["kind"] == "task"
     ]
     rows = {row.number: row for row in mockcore.current()}

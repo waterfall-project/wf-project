@@ -254,7 +254,17 @@
       is refused as long as a labour category used by the role of a line has no hourly rate
       for the reference year of the revision: the task fails without freezing anything, its
       reason `HOURLY_RATE_MISSING`, `params.missing_rates` naming the categories one by one
-      (`BackgroundTaskRef.problem`, `task_failed`; WF-DEV-0010, WF-IHM-0080).
+      (`BackgroundTaskRef.problem`, `task_failed`; WF-DEV-0010, WF-IHM-0080). Before any other
+      write, the task brings up to date the own estimate of each identified risk: a pruned and
+      out of date one is recomposed, then each out of date one is updated without a
+      confirmation when its update signals nothing (`StructureRebaseReport`); when the update of
+      one of them keeps a value against the project or is refused, the task fails without
+      writing anything, its reason `OWN_ESTIMATES_OUT_OF_DATE`, `params.risks` naming these
+      risks, which the user updates from their own estimate before marking again. The whole own
+      estimate of a dismissed risk is updated as a matter of course, what it keeps not being
+      presented; that of an occurred risk does not count. The marking then prunes each own
+      estimate whole and up to date to what it designates (`CostStructure.is_pruned`); one out
+      of date at that moment stays whole (WF-RIS-0070, WF-RIS-0030).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -690,7 +700,9 @@
     summary: Cost structures of the revision
     description: >-
       A main structure, and where applicable differentials and one own structure per risk
-      (WF-REV-0100). Each one states its entry commands
+      (WF-REV-0100), each own estimate saying whether it is whole or pruned and up to date
+      (`CostStructure.is_pruned`, `is_up_to_date`; WF-RIS-0030, WF-RIS-0070). Each one states
+      its entry commands
       (`available_commands`): the planning, estimate or remaining to commit grid that reads it
       offers entry or not depending on the phase of the project, which the front end does not
       infer (WF-DEV-0050, WF-RAE-0040, WF-IHM-0090).
@@ -790,8 +802,11 @@
       not moving. The response is that of a grid write, without a node written
       (`NodesWritten`). The date is judged on the default calendar, the structure having no
       calendar of its own: a day without any worked hour is refused, and the refusal names the
-      next working day; nothing is written (WF-PLA-0010, WF-PLA-0020). A write of the caller's
-      undoable history (`undoLastChange`, `UndoneKind.structure_update`).
+      next working day; nothing is written (WF-PLA-0010, WF-PLA-0020). The own estimate of a
+      risk has no planning start date of its own, its date being the main structure's: sent on
+      it, the date is refused (`FIELD_READ_ONLY`), its label alone being modified here
+      (WF-RIS-0030). A write of the caller's undoable history (`undoLastChange`,
+      `UndoneKind.structure_update`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -823,8 +838,10 @@
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` the first condition it lacks, in
           the order in which it names them — `revision_draft` on a marked revision
           (WF-DAT-0020), then `no_background_task_running` during a background task that writes
-          into the current revision or freezes it (`StructureCommand`); `project_not_terminal`
-          on a terminal project (WF-CYC-0100). Nothing is written.
+          into the current revision or freezes it (`StructureCommand`), then, on the own estimate
+          of a risk, `own_estimate_whole` on a pruned one and `own_estimate_up_to_date` on an out
+          of date one (WF-RIS-0030, WF-RIS-0070); `project_not_terminal` on a terminal project
+          (WF-CYC-0100). Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -849,7 +866,9 @@
           (WF-PLA-0020, WF-PLA-0010). Or, without `fields`, a date that would take the duration
           of the project beyond fifteen years: `PROJECT_HORIZON_EXCEEDED`, `params.task` naming
           the task by its node and its label (WF-PLA-0150). Or an empty label
-          (`VALIDATION_FAILED`).
+          (`VALIDATION_FAILED`). Or a planning start date sent on the own estimate of a risk,
+          whose date is the main structure's: `fields` on `/planning_start_on` with
+          `FIELD_READ_ONLY`; nothing is written (WF-RIS-0030).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1046,7 +1065,13 @@
       copying it (WF-REV-0010), priced at the kept rates, projected (WF-REV-0060), merges the
       copy of the differential into it and marks it; the marked revision is not modified. The
       task is a single operation: on failure, it leaves neither a current revision nor a
-      merge, and the project remains without a current revision (#790). To price the revision
+      merge, and the project remains without a current revision (#790). Before writing the main
+      structure, the task brings up to date the own estimates of the identified risks as the
+      marking does, and fails likewise, its reason `OWN_ESTIMATES_OUT_OF_DATE`, `params.risks`
+      naming the risks whose update keeps a value or is refused, nothing being written
+      (`markRevision`, WF-RIS-0070); the merge itself writes no own estimate, and the revision it
+      marks keeps them whole and out of date, the merge having written the main structure. To
+      price the revision
       at the rates of the new year, it is created first (`createRevision`), and the merge is
       requested on it. On an older marked revision, or on the last one once a revision is
       current, the merge is refused with 409, like the report.
@@ -1151,7 +1176,16 @@
       As long as `refusals` is not empty, the update does not apply, and the screen does not
       offer its confirmation; the user lifts the reason by an entry in the differential, then
       reads the report again. Only an unmerged differential of the current revision that is out
-      of date has a report: another structure is refused with 409, like its update.
+      of date has a report: another structure is refused with 409, like its update. The whole
+      and out of date own estimate of an identified or dismissed risk has one too, under the
+      entry of the risks (`StructureCommand.rebase`): it is a differential of the main structure,
+      read against its base (WF-RIS-0030), and its report has the same rules, the same
+      differences and the same reasons for refusal, and announces in addition the severity and the
+      provision that the update would record (`StructureRebaseReport.severity`,
+      `provision_amount`; WF-RIS-0070). A pruned own estimate is refused, `own_estimate_whole`
+      missing: the screen first recomposes it (`recomposeCostStructure`). A report that keeps
+      nothing and refuses nothing signals nothing: the screen applies it without a confirmation
+      (WF-RIS-0070).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1165,18 +1199,21 @@
             examples:
               applicable: { $ref: ../../../fixtures/api/structure_rebase_report.json }
               refused: { $ref: ../../../fixtures/api/structure_rebase_report_refused.json }
+              risk: { $ref: ../../../fixtures/api/structure_rebase_report_risk.json }
+              risk_refused: { $ref: ../../../fixtures/api/structure_rebase_report_risk_refused.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
           This structure has no update report: `STATE_FORBIDS_OPERATION`,
           `params.missing_condition` the first missing condition, as in the 409 of its update
-          (`rebaseCostStructure`).
+          (`rebaseCostStructure`) — `own_estimate_whole` for a pruned own estimate.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               up_to_date: { $ref: ../../../fixtures/api/structure_rebase_up_to_date_refused.json }
+              risk_pruned: { $ref: ../../../fixtures/api/structure_rebase_risk_pruned_refused.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
@@ -1194,7 +1231,13 @@
       (`CostStructure.is_up_to_date`); the dates of the differential are computed again. The main
       structure is not written. Under the command of the structure
       (`StructureCommand.rebase`), guarded by the permission of the opening of a differential
-      (`RevisionCommand.create_structure`). Synchronous, like the opening of a differential,
+      (`RevisionCommand.create_structure`). The whole own estimate of an identified or dismissed
+      risk is updated likewise, under the permission of the entry of the risks
+      (`RevisionCommand.edit_risks`, `risks.write`), not under that of the opening of a
+      differential: the update records in the same write the severity and the provision that the
+      report announced, its provision line in the main structure taking the amount — the only
+      write of the main structure, which leaves no own estimate out of date (WF-RIS-0070,
+      WF-RIS-0040). Synchronous, like the opening of a differential,
       which copies the main structure likewise. It is not recorded in the undoable history: an
       entry of the differential made before it can still be undone, except on a node it has
       written, where the undo is refused, naming the object (`UNDO_CONFLICT`, WF-IHM-0110); nor in
@@ -1222,6 +1265,7 @@
             schema: { $ref: ../components/schemas/revisions.yaml#/CostStructure }
             examples:
               rebased: { $ref: ../../../fixtures/api/structure_rebased.json }
+              risk_rebased: { $ref: ../../../fixtures/api/structure_rebased_risk.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -1234,15 +1278,19 @@
           `project_not_terminal` on a terminal project (WF-CYC-0100), then `revision_draft` on a
           marked revision (WF-DAT-0020), then `no_background_task_running` during a marking, a
           merge, the processing of an occurrence or the application of an import, then
-          `unmerged_amendment_exists` for a structure that is not an unmerged differential — the
-          main structure, the own estimate of a risk, a merged differential —; then
-          `structure_out_of_date` for a differential already up to date, whose base is the main
-          structure as it is: there is nothing to carry over (#4034). Nothing is written.
+          `unmerged_amendment_exists` for a structure that is neither an unmerged differential nor
+          the own estimate of a risk — the main structure, a merged differential —, then
+          `risk_not_occurred` for the own estimate of an occurred risk, consumed by its
+          occurrence, then `own_estimate_whole` for a pruned own estimate, which is first
+          recomposed (`recomposeCostStructure`); then `structure_out_of_date` for a differential
+          or an own estimate already up to date, whose base is the main structure as it is: there
+          is nothing to carry over (#4034, WF-RIS-0070). Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               up_to_date: { $ref: ../../../fixtures/api/structure_rebase_up_to_date_refused.json }
+              risk_pruned: { $ref: ../../../fixtures/api/structure_rebase_risk_pruned_refused.json }
       '412':
         description: >-
           `STALE_LOCK_VERSION`: the main structure or the differential has changed since the
@@ -1273,6 +1321,66 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               link_cycle: { $ref: ../../../fixtures/api/structure_rebase_link_cycle.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/recompose:
+  post:
+    operationId: recomposeCostStructure
+    tags: [revisions]
+    summary: Recompose a pruned own estimate
+    description: >-
+      A marking prunes the own estimate of a risk, whole and up to date, to what it designates —
+      the nodes it adds or modifies, their ancestors, the ends of the links it adds, and what it
+      abandons —, and the next revision takes it over so (`CostStructure.is_pruned`,
+      `createRevision`): the marked revisions, which accumulate, keep only that (WF-RIS-0030). The
+      recomposition makes it whole again in the current revision, where it is read against its
+      base, entered and updated like a differential: its base and its structure are copied from
+      the main structure of the marked revision it names, priced and dated again in the current
+      revision as the opening of a revision does of every structure; what it designates is laid
+      on its structure by the lineage — the nodes it keeps replace or complete those of the
+      copy, what it abandons leaves it —, and the dates are computed once. Its differences being
+      exact against that main structure, it meets no conflict and changes nothing of what the own
+      estimate designates: neither report, nor confirmation, nor body. It enters neither the
+      undoable history nor the audit log, and leaves the own estimate out of date when the main
+      structure of the current revision has changed since the marked revision
+      (`CostStructure.is_up_to_date`), its update following (`rebaseCostStructure`). Under the
+      command of the structure (`StructureCommand.recompose`), guarded by the permission of the
+      entry of the risks (`RevisionCommand.edit_risks`, `risks.write`). Synchronous, like the
+      update; the screen recomposes a pruned own estimate when it opens its grid (WF-RIS-0030,
+      WF-RIS-0070).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RevisionId
+      - $ref: ../components/parameters.yaml#/StructureId
+    responses:
+      '200':
+        description: >-
+          Own estimate recomposed: the structure, whole, its counter advanced, up to date or
+          out of date (`CostStructure`); the grid reads its nodes again (`listNodes`).
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/revisions.yaml#/CostStructure }
+            examples:
+              recomposed: { $ref: ../../../fixtures/api/structure_recomposed.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          The `recompose` command of the structure is unavailable: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` the first condition it lacks, in the order in which it
+          names them — `project_not_terminal` on a terminal project (WF-CYC-0100), then
+          `revision_draft` on a marked revision, which keeps the own estimate pruned
+          (WF-DAT-0020), then `no_background_task_running` during a marking, a merge, the
+          processing of an occurrence or the application of an import, then `risk_not_occurred`
+          for the own estimate of an occurred risk, consumed by its occurrence (WF-RIS-0060).
+          Nothing is written.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              revision_marked: { $ref: ../../../fixtures/api/structure_recompose_revision_marked.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1375,8 +1483,14 @@
       including their ancestors, themselves modified by their content: the filtered tree
       remains a tree, and the totals remain those of the read without it
       (`NodeDifferenceFilter`, `amendment_differences`, #1398).
-      On the main structure and on the own estimate of a risk, `difference` is null or
-      omitted, and the `difference` filter has no effect there: the read is the one without it.
+      The own estimate of a risk is read likewise (WF-RIS-0030): whole, against its base, like a
+      differential (`risk_estimate`); pruned, it presents what it designates — the nodes it adds
+      or modifies, compared by the lineage with the main structure of the marked revision it
+      names, under their ancestors, `unchanged`, and what it abandons, `removed`, in the place it
+      had —, and not the project whole (`risk_estimate_pruned`). It bears no provision line, its
+      own no more than those of the other risks.
+      On the main structure, `difference` is null or omitted, and the `difference` filter has
+      no effect there: the read is the one without it.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1482,6 +1596,7 @@
               amendment: { $ref: ../../../fixtures/api/nodes_amendment.json }
               amendment_differences: { $ref: ../../../fixtures/api/nodes_amendment_differences.json }
               risk_estimate: { $ref: ../../../fixtures/api/nodes_risk_estimate.json }
+              risk_estimate_pruned: { $ref: ../../../fixtures/api/nodes_risk_estimate_pruned.json }
               awaiting_own_lines: { $ref: ../../../fixtures/api/nodes_awaiting_own_lines.json }
               from_risk: { $ref: ../../../fixtures/api/nodes_from_risk.json }
               risk_estimate_occurred:
@@ -1613,6 +1728,10 @@
           #1184, #1766). In a differential, a line is created under a completed task as under
           any other, the amendment rebudgeting it (WF-REV-0050, #1765). The phase of the
           project refuses nothing (C-358).
+          On the own estimate of a risk, right after the state conditions of the revision:
+          `own_estimate_whole` on a pruned own estimate, which is first recomposed, then
+          `own_estimate_up_to_date` on an out of date one, which is first updated, as the
+          command of the structure says (`StructureCommand`, WF-RIS-0030, WF-RIS-0070).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1834,6 +1953,10 @@
           removes — its dismissal, its occurrence, its deletion —, `params.risks` naming that
           risk (`provision_line_refused`; WF-RIS-0010; #4007).
           In a differential, the line of a completed task can be deleted (WF-REV-0050).
+          On the own estimate of a risk, right after the state conditions of the revision:
+          `own_estimate_whole` on a pruned own estimate, which is first recomposed, then
+          `own_estimate_up_to_date` on an out of date one, which is first updated, as the
+          command of the structure says (`StructureCommand`, WF-RIS-0030, WF-RIS-0070).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1982,6 +2105,10 @@
           of the revision, `revision_draft` on a marked revision (`marked_refused`,
           WF-DAT-0020), and `no_background_task_running` while a background task writes to the
           revision or freezes it, as the command of the structure says (WF-IHM-0090).
+          On the own estimate of a risk, right after the state conditions of the revision:
+          `own_estimate_whole` on a pruned own estimate, which is first recomposed, then
+          `own_estimate_up_to_date` on an out of date one, which is first updated, as the
+          command of the structure says (`StructureCommand`, WF-RIS-0030, WF-RIS-0070).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -2114,6 +2241,10 @@
           `editable_fields` (`completed_refused`; WF-RAE-0040, WF-DEV-0050; F-01, #1766). In a
           differential, the line of a completed task can be modified (WF-REV-0050). The phase of
           the project refuses nothing (C-358).
+          On the own estimate of a risk, right after the state conditions of the revision:
+          `own_estimate_whole` on a pruned own estimate, which is first recomposed, then
+          `own_estimate_up_to_date` on an out of date one, which is first updated, as the
+          command of the structure says (`StructureCommand`, WF-RIS-0030, WF-RIS-0070).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -2206,6 +2337,10 @@
           of the revision, `revision_draft` on a marked revision (`marked_refused`,
           WF-DAT-0020), and `no_background_task_running` while a background task writes to the
           revision or freezes it, as the command of the structure says (WF-IHM-0090).
+          On the own estimate of a risk, right after the state conditions of the revision:
+          `own_estimate_whole` on a pruned own estimate, which is first recomposed, then
+          `own_estimate_up_to_date` on an out of date one, which is first updated, as the
+          command of the structure says (`StructureCommand`, WF-RIS-0030, WF-RIS-0070).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -2573,6 +2708,10 @@
           rebudgeting it (WF-REV-0050, #1765). The phase of the project refuses nothing (C-358).
           A selection names the condition of the first node concerned in plan order, like its
           other refusals.
+          On the own estimate of a risk, right after the state conditions of the revision:
+          `own_estimate_whole` on a pruned own estimate, which is first recomposed, then
+          `own_estimate_up_to_date` on an out of date one, which is first updated, as the
+          command of the structure says (`StructureCommand`, WF-RIS-0030, WF-RIS-0070).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -2804,6 +2943,10 @@
           WF-DAT-0020), `no_background_task_running` while a background task runs on the
           revision (WF-IHM-0050, WF-IHM-0090). The refusal of a line of the block is not a 409:
           it is returned in `rejected`, with its reason (`PasteRejection`).
+          On the own estimate of a risk, right after the state conditions of the revision:
+          `own_estimate_whole` on a pruned own estimate, which is first recomposed, then
+          `own_estimate_up_to_date` on an out of date one, which is first updated, as the
+          command of the structure says (`StructureCommand`, WF-RIS-0030, WF-RIS-0070).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

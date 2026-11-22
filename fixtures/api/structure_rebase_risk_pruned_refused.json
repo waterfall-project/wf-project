@@ -1,0 +1,10 @@
+{
+  "summary": "Variante déclarée : la révision 104, ouverte après le marquage de nodes_risk_estimate_pruned, reprend le devis propre de « Risque de reprise du câblage » élagué, structure 209, ses écarts exacts contre la structure principale de la révision 102. Le compte rendu de sa mise à jour demandé avant sa recomposition : un devis propre élagué n'a pas de base ; refusé par la condition qui manque, own_estimate_whole, comme la mise à jour elle-même ; l'écran le recompose d'abord (structure_recomposed). Rien n'est écrit (WF-RIS-0070, #4585).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"own_estimate_whole"},
+    "correlation_id": "01926f3a-7c00-7000-8000-061a4ae38721"
+  }
+}

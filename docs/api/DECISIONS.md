@@ -12902,6 +12902,91 @@ précède le service : US-3060/L9 remplit le champ nouveau, que le service dit n
   témoin ne charge pas ; une chronologie du témoin changée, qui touche le chargeur et les
   exemples de la mise à jour.
 
+### Le devis propre d'un risque, différentiel de la structure principale (US-3070/L2, #4619 à #4626)
+
+EP-30 fait du devis propre d'un risque un différentiel de la structure principale, entier dans la
+révision en cours et élagué au marquage (conception d'EP-30, « Les états d'un devis propre », « Le
+contrat »). Les constats « contrat » #4619, #4620, #4621, #4623, #4625 et #4626, que l'auteur a
+tranchés à la validation de la conception le 2026-11-21, laissaient au lot les noms et l'ordre des
+conditions ; ce sont eux qu'on arrête ici, avant le code qui les sert (US-3070/L3 et suivants).
+`info.version` reste `1.0.0` : une opération, deux propriétés facultatives, une commande, deux
+conditions, un code d'échec et des exemples de plus ; aucune propriété existante n'est exigée de
+plus. Les autres modifications du contrat d'EP-30 — `Risk`, `RiskReview`, `listRisks`,
+`RiskOccurrenceReport`, `getEarnedValueCurves`, `ChartPreferences` — sont d'US-3080/L1.
+
+- **`CostStructure.is_pruned`**, booléen ou nul, facultatif comme `is_up_to_date` (#4619) : faux
+  pour un devis propre entier, vrai pour un devis propre élagué, celui d'un risque survenu,
+  consommé, compris ; nul pour la principale et un différentiel. Le nom dit l'état rare, celui que
+  l'écran traite (la recomposition à l'ouverture). Écartés : `is_whole`, qui se lit vrai presque
+  toujours ; un champ qui nommerait la révision marquée contre laquelle les écarts d'un devis
+  propre élagué sont exacts, que ni le constat ni la conception ne demandent au contrat.
+- **`CostStructure.is_up_to_date`** se dit aussi d'un devis propre non consommé, entier ou élagué,
+  sur le compteur retenu de la principale, l'écriture d'une ligne de provision mise à part ; nul pour
+  un devis propre consommé, comme pour un différentiel fusionné.
+- **La date de début d'un devis propre ne se saisit pas** : `updateCostStructure` la refuse par 422,
+  `fields` sur `/planning_start_on` avec `FIELD_READ_ONLY` — le code d'une propriété déclarée
+  qu'une modification ne change pas —, qu'elle soit renvoyée inchangée ou non : le devis propre n'a
+  pas de date à lui. Son libellé reste modifiable. Les exemples des structures donnent à chaque
+  devis propre la date de la principale.
+- **La recomposition, `recomposeCostStructure`**, `POST …/structures/{structure_id}/recompose`, sans
+  corps (#4620) : 200 et la structure, entière, à jour ou en retard ; ni historique annulable ni
+  journal. « Recompose » reprend le mot de la conception ; le chemin suit `…/rebase`. Sous la
+  commande **`StructureCommand.recompose`**, rangée après `rebase`, gardée par la permission de la
+  saisie des risques (`RevisionCommand.edit_risks`) ; listée sur un devis propre élagué non consommé
+  seul, comme `delete` l'est sur un différentiel non fusionné seul. Son 409 nomme, dans l'ordre,
+  `project_not_terminal`, `revision_draft`, `no_background_task_running`, puis `risk_not_occurred`
+  pour un devis propre consommé.
+- **La mise à jour d'un devis propre** (#4621) : `getStructureRebaseReport` et `rebaseCostStructure`
+  l'acceptent, la commande `rebase` listée sur un devis propre non consommé, sous la permission de la
+  saisie des risques et non de l'ouverture d'un différentiel. Leur 409, dans l'ordre :
+  `project_not_terminal`, `revision_draft`, `no_background_task_running`,
+  `unmerged_amendment_exists` pour la principale et un différentiel fusionné (le devis propre en
+  sort), `risk_not_occurred` pour un devis propre consommé, `own_estimate_whole` pour un devis
+  propre élagué, enfin `structure_out_of_date` pour une structure à jour. **`StructureRebaseReport`**
+  reçoit **`severity`** et **`provision_amount`**, `Money` ou nuls, facultatifs : les noms de `Risk`.
+  Nuls pour un différentiel, et quand `refusals` n'est pas vide — la mise à jour n'enregistre rien,
+  et une boucle laisse les dates du devis propre sans calcul.
+- **Deux conditions, `own_estimate_whole` puis `own_estimate_up_to_date`** (#4623), rangées après
+  `structure_out_of_date` : la recomposition vient avant la mise à jour. Elles manquent, après les
+  conditions d'état de chaque opération, aux écritures de l'arbre et au collage sur un devis propre
+  (`createNode`, `updateTaskFacet`, `updateEstimateLine`, `setPredecessors`, `moveNodes`,
+  `deleteNode`, `applyPaste`, et `updateCostStructure` sous `edit_planning`), à `applyImport` sur un
+  devis propre, à `reviewRisk` qui laisse ou rend le risque identifié, et à
+  `getRiskOccurrenceReport` et `declareRiskOccurrence`, en dernier ; `own_estimate_whole` manque
+  aussi à la mise à jour. `edit_planning` et `edit_estimate` les nomment d'avance sur un devis
+  propre non consommé. Le nom dit le devis propre, non la structure : `structure_up_to_date` est la
+  condition de la fusion d'un différentiel. Écartée : `structure_up_to_date` reprise pour le devis
+  propre, que le constat veut distincte.
+- **L'échec nommé du marquage et de la fusion** (#4625) : le code **`OWN_ESTIMATES_OUT_OF_DATE`**,
+  motif de l'échec des tâches `revision_mark` et `structure_merge`, `params.risks` (`ProblemRisk`,
+  déjà employé par `deleteNode`) les risques dont la mise à jour garde une valeur ou est refusée,
+  dans l'ordre de la liste des risques ; rien n'est écrit. Le nom dit l'état qui reste, ces devis
+  propres demeurant en retard. Écarté : un paramètre par motif, garder ou refuser, que l'écran lit
+  au compte rendu de chaque risque.
+- **`NodeDifference` sur un devis propre** (#4626) : contre sa base s'il est entier, contre la
+  principale de la révision marquée qu'il nomme s'il est élagué, ses ancêtres `unchanged`, ce qu'il
+  abandonne `removed`. Aucun schéma ne change ; `Node.difference` est rendu sur un devis propre.
+
+Exemples, engendrés par `wftools.mockownestimate` et tenus par
+`tools/tests/test_mockownestimate.py` : le devis propre de 751 (structure 204), entier, ajoute la
+« Reprise du câblage des armoires » après le câblage, sous-traitée, que la mise en service suit
+aussi, porte le « Raccordement des borniers » de 12,5 à 25 h et abandonne le « Dossier de
+conception », terminé ; la reprise est chiffrée pour que l'écart des totaux au réestimé reste la
+gravité du registre, 1 250 000,00 (`nodes_risk_estimate`, lu par ses écarts). Une variante déclarée
+marque la révision courante et l'élague (`nodes_risk_estimate_pruned`) ; la révision 104 ouverte
+ensuite le reprend élagué, structure 209, et le recompose (`structure_recomposed`), la mise à jour
+demandée avant étant refusée (`structure_rebase_risk_pruned_refused`) comme la recomposition sur la
+révision marquée (`structure_recompose_revision_marked`). Les écritures de la principale de
+`structure_rebase_report` le mettent en retard : son compte rendu garde la charge du raccordement
+(`structure_rebase_report_risk`), sa variante refusée ferme une boucle par la reprise
+(`structure_rebase_report_risk_refused`), et la mise à jour aboutie l'enregistre
+(`structure_rebased_risk`). Dans `structures`, 204 est entier et à jour, 206, celui d'un risque
+écarté, entier et en retard, 205, consommé, élagué ; dans `structures_amendments`, que la fusion de
+l'avenant 1 a marquée, les trois sont entiers et en retard. Le faux back sert `risk_estimate` à
+l'adresse de chaque devis propre que liste `structures` (`wftools.mock`, #4409). La survenance de
+751 (`risk_occurrence_report`) et le chargeur du témoin lisent encore le devis propre d'EP-08, que
+US-3080, US-3100 et US-3150 réécrivent.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

@@ -3119,7 +3119,10 @@ added line entered, and a block pasted on its lines 7 to 9, previewed then appli
 (`wftools.mockamendmentwrites`). Prism ranks a path by its written segments, ahead of the one that
 leaves them as templates. No response is written by hand: the choice follows the identifier of the
 path. The other paths of the amendment — its gestures, its planning — answer like those of the main
-structure; amendments 212 and 213 and the risk structures are not routed (EP-16). **Where the
+structure; amendments 212 and 213 are not routed (EP-16). The path of `listNodes` is repeated
+likewise for each structure of kind `risk` of the same example, the `risk_estimate` example at its
+head, the own estimate of risk 751 read as a differential; its writes answer like those of the main
+structure (#4409, US-3070/L2). **Where the
 writing paths play.** The main structure of the project in progress lists the estimate read-only
 (#1176): a path that writes the estimate therefore does not read it there. The one of the entry of a
 line (`entry.spec.ts`) and the one of the paste (`paste.spec.ts`) play on amendment 2, structure

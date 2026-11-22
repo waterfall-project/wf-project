@@ -46,8 +46,8 @@ from wftools import (
     mockcore,
     mockdata,
     mockids,
+    mockownestimate,
     mockreview,
-    mockriskwrites,
     mocktext,
     mockwitness,
     mockwitnessrisks,
@@ -367,6 +367,8 @@ _RENAMED = {
             "redo_task_renamed_two_left.json",
             "structure_rebase_report.json",
             "structure_rebase_report_refused.json",
+            "structure_rebase_report_risk.json",
+            "structure_rebase_report_risk_refused.json",
         )
         for identifier in (universe(WIRING), mockcore.lineage(WIRING))
     ),
@@ -596,7 +598,8 @@ def test_a_reading_says_the_level_of_the_deepest_summary_of_its_structure_whatev
         "nodes_summaries": nested,
         "nodes_amendment": mockamendment.rows(),
         "nodes_amendment_differences": mockamendment.rows(),
-        "nodes_risk_estimate": mockriskwrites.risk_estimate(),
+        "nodes_risk_estimate": mockownestimate.rows(mockownestimate.own_estimate()),
+        "nodes_risk_estimate_pruned": mockownestimate.pruned_rows(),
         "nodes_awaiting_own_lines": mockcore.current(described(mockreview.awaiting_roots())),
         "nodes_from_risk": current,
         "nodes_risk_estimate_occurred": mockreview.delivery_delay_rows(),
@@ -677,7 +680,7 @@ def test_each_task_read_bears_the_fewest_hours_of_the_calendars_of_its_labour_li
         "nodes_core": mockcore.alone(),
         "nodes_nested": mockcore.alone(mockdata.nested()),
         "nodes_amendment": mockamendment.rows(),
-        "nodes_risk_estimate": mockriskwrites.risk_estimate(),
+        "nodes_risk_estimate": mockownestimate.rows(mockownestimate.own_estimate()),
     }
     for name, rows in structures.items():
         borne: dict[str, list[str]] = {}

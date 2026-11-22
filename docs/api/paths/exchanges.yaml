@@ -535,6 +535,12 @@
           the project moved to In progress is no longer applied after it:
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` set to
           `project_before_in_progress`, as at the opening (`openImport`, WF-INTF-0100; C-358).
+          On the own estimate of a risk, last of the state conditions, `own_estimate_whole` on a
+          pruned own estimate, then `own_estimate_up_to_date` on an out of date one, as its entry
+          commands say (`StructureCommand`): the import applies there as on a differential, once
+          the own estimate is recomposed and updated (WF-INTF-0090, WF-RIS-0070); like
+          `no_background_task_running`, these conditions refuse the application without refusing
+          the import, which stays `analysed`.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

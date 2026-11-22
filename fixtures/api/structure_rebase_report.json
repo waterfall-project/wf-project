@@ -11,6 +11,8 @@
       {"change":"removed","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000654","label":"Borniers","predecessor_label":null,"fields":[]},
       {"change":"kept","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000666","label":"Mise en service sur site","predecessor_label":null,"fields":["hours"]}
     ],
-    "refusals": []
+    "refusals": [],
+    "severity": null,
+    "provision_amount": null
   }
 }

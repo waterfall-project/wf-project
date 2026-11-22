@@ -165,7 +165,8 @@ def test_the_counters_follow_the_structures_of_the_witness() -> None:
 
 
 def test_the_state_is_said_of_an_unmerged_differential_alone() -> None:
-    # « À jour » se lit sur la structure (#4034): null for every other structure; the amendment 2
+    # « À jour » se lit sur la structure (#4034): null for the main structure and a merged
+    # differential or a consumed own estimate; the amendment 2
     # is out of date in the reference, which the merge of the amendment 1 marked, up to date in the
     # current revision; rebase is listed where delete is, unavailable on an up to date one.
     expected = {"structures": True, "structures_amendments": False}
@@ -176,6 +177,11 @@ def test_the_state_is_said_of_an_unmerged_differential_alone() -> None:
                 assert structure["is_up_to_date"] is state, name
                 assert ("structure_out_of_date" in commands["rebase"]) is state, name
                 assert commands["rebase"][: len(commands["delete"])] == commands["delete"]
+            elif structure["kind"] == "risk" and not structure["is_merged"]:
+                # EP-30: the own estimate of a risk not consumed is up to date or not
+                # (US-3070/L2, test_mockownestimate).
+                assert isinstance(structure["is_up_to_date"], bool), (name, structure["label"])
+                assert "rebase" in commands, (name, structure["label"])
             else:
                 assert structure["is_up_to_date"] is None, (name, structure["label"])
                 assert "rebase" not in commands, (name, structure["label"])

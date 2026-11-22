@@ -150,13 +150,13 @@ export interface Examples {
     200: "structure_merge_report" | "structure_merge_report_horizon_exceeded" | "structure_merge_report_link_cycle" | "structure_merge_report_link_forbidden" | "structure_merge_report_provision_moved" | "structure_merge_report_refused" | "structure_merge_report_started_task";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
-    200: "nodes" | "nodes_amendment" | "nodes_amendment_differences" | "nodes_awaiting_own_lines" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_filtered" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_from_risk" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_estimate" | "nodes_risk_estimate_occurred" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
+    200: "nodes" | "nodes_amendment" | "nodes_amendment_differences" | "nodes_awaiting_own_lines" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_filtered" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_from_risk" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_estimate" | "nodes_risk_estimate_occurred" | "nodes_risk_estimate_pruned" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
     200: "dependencies_labour" | "dependencies_labour_category" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_provision_subproject" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase": {
-    200: "structure_rebase_report" | "structure_rebase_report_refused";
+    200: "structure_rebase_report" | "structure_rebase_report_refused" | "structure_rebase_report_risk" | "structure_rebase_report_risk_refused";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}": {
     200: "row_number_estimate_line" | "row_number_task";
@@ -364,7 +364,10 @@ export interface Examples {
     200: "paste_plan" | "paste_plan_amendment" | "paste_plan_amendment_skipping" | "paste_plan_amendment_target_removed" | "paste_plan_creating" | "paste_plan_creating_lines" | "paste_plan_subproject_held" | "paste_plan_unknown_category" | "paste_plan_without_hours";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase": {
-    200: "structure_rebased";
+    200: "structure_rebased" | "structure_rebased_risk";
+  };
+  "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/recompose": {
+    200: "structure_recomposed";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/undo": {
     200: "undo_task_renamed" | "undo_task_renamed_one_left";

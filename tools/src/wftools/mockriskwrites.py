@@ -712,37 +712,23 @@ def _reviews_examples() -> dict[str, JsonObject]:
 
 def _occurrence_examples() -> dict[str, JsonObject]:
     """Return the named examples of the occurrence of a risk before its confirmation."""
-    estimate = nodes_risk_estimate()
     report = risk_occurrence_report()
     tasks = [row for row in risk_estimate() if row.kind == mockcore.TASK]
     said = mocktext.listed([f"« {row.label} »" for row in tasks])
-    entered = next(each.manual for each in REWORK_ESTIMATE if each.manual is not None)
     task = bearer()
     main = {row.number: row for row in mockcore.current()}
     line = main[cast("int", OCCURRING.provision_line)]
     changed = mocktext.listed([SCHEDULE_SAID[cast("str", name)] for name in bearer_changes()])
     redated = graft_redates()
     started = date.fromisoformat(cast("str", report["own_estimate_past_planning_start_on"]))
-    severity = cast("JsonObject", estimate["totals"])["reestimated_amount"]
     reviewed = NOT_IDENTIFIED.last.at.date()
     return {
-        "nodes_risk_estimate.json": mocktext.example(
-            f"Le devis propre de « {OCCURRING.label} », structure {OCCURRING.own_structure} de la "
-            f"révision courante, lu le {mocktext.day(mockcore.READ_ON)} : {said}, sous-traitées, "
-            f"la première en mode manuel du {mocktext.day(entered[0])} au "
-            f"{mocktext.day(entered[1])}, la seconde à sa suite ; leur total, "
-            f"{mocktext.amount(Decimal(cast('str', severity)))}, est la gravité du risque "
-            f"(risk). Les tâches n'y portent ni lot, ni poste, ni "
-            f"inscription, et ne les nomment pas parmi les champs qu'elles acceptent ; aucun nœud "
-            f"n'est marqué, le devis propre ne se lisant contre rien (WF-RIS-0010, WF-RIS-0030, "
-            f"WF-PLA-0170, US-0680).",
-            estimate,
-        ),
         "risk_occurrence_report.json": mocktext.example(
             f"Le compte rendu préalable de la survenance de « {OCCURRING.label} », risque "
             f"identifié du témoin : {said}, avec leurs lignes, ajoutées en dernière position sous "
             f"le « {task.label} », qui "
-            f"portait la ligne de provision et n'est pas un jalon (nodes_risk_estimate) ; le "
+            f"portait la ligne de provision et n'est pas un jalon — le devis propre tel qu'EP-08 le "
+            f"décrivait, qu'EP-30 réécrit (nodes_risk_estimate, #4585) ; le "
             f"« {task.label} » modifié par {changed}, devenu la récapitulative de ces tâches, "
             f"dont il couvre les dates ; {mocktext.count(len(redated))} autres tâches de la "
             f"structure principale, que le moteur de dates redate quand il rejoue la structure "

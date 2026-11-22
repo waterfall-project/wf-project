@@ -3136,8 +3136,10 @@ chemin, et y place l'exemple `amendment` de chaque opération en tête (`wftools
 sur ses lignes 7 à 9, aperçu puis appliqué (`wftools.mockamendmentwrites`). Prism classe un chemin
 par ses segments écrits, devant celui qui les laisse en gabarit. Aucune réponse n'est écrite à la
 main : le choix suit l'identifiant du chemin. Les autres chemins de l'avenant — ses gestes, son
-planning — répondent comme ceux de la principale ; les avenants 212 et 213 et les structures de
-risque ne sont pas aiguillés (EP-16). **Où jouent les parcours d'écriture.** La structure principale
+planning — répondent comme ceux de la principale ; les avenants 212 et 213 ne sont pas aiguillés
+(EP-16). Le chemin de `listNodes` est répété de même pour chaque structure de nature `risk` du même
+exemple, en tête l'exemple `risk_estimate`, le devis propre du risque 751 lu comme un différentiel ;
+ses écritures répondent comme celles de la principale (#4409, US-3070/L2). **Où jouent les parcours d'écriture.** La structure principale
 du projet en cours liste le devis en lecture seule (#1176) : un parcours qui écrit le devis ne le
 lit donc pas là. Celui de la saisie d'une ligne (`entry.spec.ts`) et celui du collage
 (`paste.spec.ts`) jouent sur l'avenant 2, structure 203, dont le faux back sert les trois exemples

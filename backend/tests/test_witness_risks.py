@@ -319,6 +319,21 @@ def test_the_reviews_and_the_coverage_read_are_the_examples(
     assert without(coverage, {"computed_at"}) == without(expected, {"computed_at"})
 
 
+# What the examples say of the own estimate of a risk that the service does not serve yet: EP-30
+# writes into the contract the state of an own estimate, whole or pruned and up to date, its date,
+# which is the main structure's, and its update (US-3070/L2, #4585); the service says them from
+# US-3070/L3 and US-3090, which take this set apart back.
+OWN_STRUCTURE_APART = frozenset(
+    {"is_up_to_date", "is_pruned", "planning_start_on", "available_commands"}
+)
+
+
+def served(structure: dict[str, Any]) -> dict[str, Any]:
+    """Give what the service serves of a structure today, the state of an own estimate set apart."""
+    apart = OWN_STRUCTURE_APART if structure["kind"] == "risk" else {"is_pruned"}
+    return {key: value for key, value in structure.items() if key not in apart}
+
+
 @pytest.mark.story("US-2650")
 def test_the_structures_of_the_101_and_of_the_102_read_are_the_examples(
     api: ContractClient, witness: Database, realm: TestRealm
@@ -332,7 +347,7 @@ def test_the_structures_of_the_101_and_of_the_102_read_are_the_examples(
         expected = keyed(example(name), "structure_id")
         assert body.keys() == expected.keys()
         for identifier, item in body.items():
-            assert item == expected[identifier], identifier
+            assert served(item) == served(expected[identifier]), identifier
 
 
 @pytest.mark.story("US-2650")
@@ -373,9 +388,10 @@ OWN_ESTIMATE_APART = {
 }
 
 
-# The own estimates the examples read: of 751 in the 102, of 752 in the 101 that froze it.
+# The own estimates the examples read: of 752 in the 101 that froze it. That of 751 in the 102,
+# ``nodes_risk_estimate``, is read as a differential of the main structure since EP-30
+# (US-3070/L2, #4585), which the loader of the witness loads so from US-3150.
 OWN_ESTIMATES = {
-    "nodes_risk_estimate": (REVISION_102, OWN_102[REWORK]),
     "nodes_risk_estimate_occurred": (REVISION_101, OWN_101[DELAY]),
 }
 
