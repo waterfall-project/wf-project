@@ -53,7 +53,10 @@ import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../title";
 
-/** The refusal of filters the server cannot apply — a period or bounds inverted (`listBackups`, 422). */
+/**
+ * The refusal of filters the server cannot apply — a period or bounds inverted (`listBackups`,
+ * 422).
+ */
 const FILTERS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
 
 /** Title the tab with the function. */
