@@ -55,9 +55,11 @@ def get_risk_occurrence_report(
             "provision_amount": f"{report.provision_amount:.2f}",
             "refusals": [dict(each) for each in report.refusals],
             "own_estimate_past_planning_start_on": report.own_estimate_past_planning_start_on,
-            # TODO(#4240): the report tells a completed carrying task (US-3060/L9); said null
-            # until then, as the example of the witness, whose carrying task is only started.
-            "completed_provision_task": None,
+            "completed_provision_task": (
+                None
+                if report.completed_provision_task is None
+                else dict(report.completed_provision_task)
+            ),
         }
     )
 

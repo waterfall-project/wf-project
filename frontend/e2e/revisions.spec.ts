@@ -232,7 +232,9 @@ test("the comparison of the current revision of PRJ-001 to its reference, from t
   await functions.getByRole("link", { name: "Planification", exact: true }).click();
   await expect(page).toHaveURL(`${BASE}/planning${compared}`, { timeout: WORKING });
   const planning = page.getByRole("treegrid", { name: "Grille de planning" });
-  await expect(planning).toBeVisible({ timeout: WORKING });
+  // The planning compared is a read slowed by the queue: past 15 s, the screen still « Chargement
+  // de l'écran », where the quiet measure is far under (`LOADED`, #4326, #4678).
+  await expect(planning).toBeVisible({ timeout: LOADED });
   await expect(comparedTo).toContainText(named);
 
   // The branches without difference fold, each run said in its place with its number of rows, and

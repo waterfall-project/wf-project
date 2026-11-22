@@ -67,7 +67,9 @@ class OccurrenceReport:
 
     ``differences`` as ``ImportDifference``, ``refusals`` as ``ReportRefusal``; the provision line
     the occurrence removes, by its amount; the planning start of the own estimate when it precedes
-    the day of the read, which warns and refuses nothing (#4133).
+    the day of the read, which warns and refuses nothing (#4133); the task that bears the
+    provision line when it is completed, by its node and its label, which the graft reopens: a
+    warning too (#4240).
     """
 
     main_structure_lock_version: int
@@ -77,6 +79,7 @@ class OccurrenceReport:
     provision_amount: Decimal
     refusals: tuple[Mapping[str, object], ...]
     own_estimate_past_planning_start_on: date | None = None
+    completed_provision_task: Mapping[str, object] | None = None
 
 
 def judge_project(session: Session, project_id: UUID, besides: UUID | None = None) -> None:
@@ -148,6 +151,7 @@ def report_occurrence(
         own_estimate_past_planning_start_on=(
             start.planning_start_on if start.planning_start_on < today else None
         ),
+        completed_provision_task=grafted.reopened,
     )
 
 
