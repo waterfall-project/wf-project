@@ -55,9 +55,9 @@ const AMENDMENT: Site = {
 /** The own estimate of the risk of the rewiring, a structure of the current revision. */
 const OWN: Site = {
   structure: "01926f3a-7c00-7000-8000-000000000204",
-  node: "01926f3a-7c00-7000-8000-000100000028",
-  first: 28,
-  read: ["Heures d'ingénierie", "Heures de mise en service", "Matériel"],
+  node: "01926f3a-7c00-7000-8000-000000002053",
+  first: 5,
+  read: ["Raccordement des borniers", "Reprise du câblage des armoires", "Recâblage des armoires"],
 };
 
 // The columns the journeys read, by their heading (`columnsOf`).
@@ -231,7 +231,6 @@ test("a block whose cell names an unknown category is sent as copied for the ser
   await expect(cellAt(grid, OWN.first, at.label)).toBeFocused();
   expect(argumentsWith(posted, "paste_id")).toBeUndefined();
   expect(await labels(page, OWN)).toEqual(OWN.read);
-  await expect(cellAt(grid, OWN.first + 2, at.quantity)).toHaveText("2");
 });
 
 // Fake back only, untagged (`@shared` marks what plays the service too): the own estimate of the

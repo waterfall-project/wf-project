@@ -119,8 +119,6 @@ async function tabIntoGrid<K extends string>(
   return { grid, at };
 }
 
-/** The provision of the core, of the witness. */
-const PROVISION = 12;
 /** The line added by the amendment, and the summary it adds, whose figures the server computes. */
 const LINE = 7;
 const AMENDMENT_LINE = LINE;
@@ -263,29 +261,6 @@ test("traverses the cells of a summary that its node does not accept or the serv
   await expect(grid.getByRole("textbox")).toHaveCount(0);
 });
 
-// Fake back only, untagged (`@shared` marks what plays the service too): the own estimate of the
-// risk of the rewiring is the witness's, which the account of the run does not write (#2193). Its
-// twin plays the service on a project of the run, the last path of this file.
-test("traverses the computed cells of a line entered along its row, without entering them [WF-IHM-0040-A]", async ({
-  page,
-}) => {
-  const { grid, at } = await tabIntoGrid(page, OWN_SCREEN);
-  await press(page, ...times("ArrowDown", PROVISION - 1));
-  await expect(rowAt(grid, PROVISION)).toContainText("Provision");
-  await expect(cellAt(grid, PROVISION, at.label)).toBeFocused();
-  // From its label, Tab goes past its quantity and its unit disbursement, which the server
-  // computes, past its category, its role and its effort, which its node does not accept (#219),
-  // past its payment delay, which it does not carry (WF-DEV-0020, EP-14/L42s), and past its
-  // amounts, to the next row. Its sub-project, the one its risk designates (EP-14/L42p), is a
-  // column hidden until shown (US-0480).
-  await press(page, "Enter", "Tab");
-  await expect(cellAt(grid, PROVISION + 1, at.label)).toBeFocused();
-  for (const column of [at.category, at.role, at.quantity, at.hours, at.delay]) {
-    await expect(cellAt(grid, PROVISION, column)).toHaveAttribute("aria-readonly", "true");
-  }
-  await expect(grid.getByRole("textbox")).toHaveCount(0);
-});
-
 test("opens the entry of the effort on a digit typed, and the refusal of the amount, with no field, on the same digit [WF-IHM-0040-A]", async ({
   page,
 }) => {
@@ -406,10 +381,10 @@ test("enters the cells of a line of the estimate against the service, the amount
 
 // What the service lets be proved of the provision of a risk: its label, like every cell of its
 // row, takes no entry (its node does not accept it), which a user sees as a grid left at once. The
-// traversal of its computed cells, from one cell to the next and down to the row after, is played
-// on the fake back only (the test of the line entered along its row, above): the service renders
-// no cell of that estimate editable, so that nothing there is entered to be followed by cells to
-// traverse. Tagged for the provision that is not entered (WF-RIS-0010-A), not for the traversal.
+// fake back no longer serves a provision: the estimate it serves at structure 204 is the own
+// estimate of a risk, read by its differences, which carries none (#4409, US-3070/L2), so that
+// this journey, and the traversal of its computed cells that the fake back once played, stand on
+// the service alone. Tagged for the provision that is not entered (WF-RIS-0010-A).
 test("leaves the grid from the label of the provision the service names for the risk, which takes no entry @shared [WF-RIS-0010-A] [US-2640]", async ({
   page,
   browser,

@@ -3164,6 +3164,7 @@
     "RESOURCE_ROLE_REQUIRED": "A resource role is required.",
     "LABOUR_CATEGORY_REQUIRED": "A labour cost category is required.",
     "HOURLY_RATE_MISSING": "No hourly rate is set for this role and year.",
+    "OWN_ESTIMATES_OUT_OF_DATE": "The own estimate of some risks is behind the main structure and its update keeps a value or is refused: nothing was written. Update them from their own estimate, then try again.",
     "PASTE_TOO_WIDE": "The pasted data has more columns than the grid.",
     "FILE_FORMAT_UNREADABLE": "The file format cannot be read.",
     "TASK_WITHOUT_WORKING_HOURS": "A task would have no working hour left in the week.",
@@ -3680,6 +3681,9 @@
       "main_structure": "operation allowed on the main structure only",
       "structure_up_to_date": "amendment up to date with the main structure",
       "structure_out_of_date": "amendment behind the main structure",
+      "own_estimate_whole": "own estimate whole",
+      "own_estimate_up_to_date": "own estimate up to date with the main structure",
+      "own_estimate_pruned": "own estimate pruned",
       "main_structure_without_tasks": "main structure without any task",
       "import_awaiting_decision": "import awaiting a decision",
       "import_file_accepted": "file accepted by the report",
@@ -3796,7 +3800,8 @@
       "edit_estimate": "Edit the estimate",
       "edit_remaining": "Re-estimate the remaining to commit",
       "delete": "Abandon the amendment",
-      "rebase": "Update the amendment"
+      "rebase": "Update the amendment",
+      "recompose": "Recompose the own estimate"
     },
     "StructureCreate": {
       "kind": {

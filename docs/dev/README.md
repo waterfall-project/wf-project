@@ -3130,8 +3130,9 @@ line (`entry.spec.ts`) and the one of the paste (`paste.spec.ts`) play on amendm
 the three lines of the block of `paste_applied_amendment` written after the confirmation. The paths
 that have no example of their own on the amendment stay on the structure that serves them, the own
 estimate of the rewiring risk (structure 204, which receives the first example of each operation):
-the paste of an unknown category, the paste of a block too wide, and the provision line, which the
-amendment does not carry. A path that writes on another differential awaits its examples, at EP-16.
+the paste of an unknown category and the paste of a block too wide, on its lines 8 to 10, read by
+its differences. This own estimate carries no provision line: that one plays against the service
+only. A path that writes on another differential awaits its examples, at EP-16.
 Nothing else changes. The contract keeps the `bearer` scheme, and the front sends it all the same:
 in `WATERFALL_AUTH=mock` mode, `serverClient()` sets `Authorization: Bearer` with a fixed token
 (`MOCK_TOKEN`, `src/api/server.ts`, with no secret value), which only the Next server holds — the
