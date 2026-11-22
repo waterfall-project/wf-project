@@ -52,11 +52,19 @@ def download_lacks(verification: str) -> list[str]:
     return [] if verification == "passed" else [VERIFIED]
 
 
-def restoration_lacks(verification: str, platform: Platform) -> list[str]:
-    """Give what the restoration of a backup lacks: a verification passed, nothing else running."""
+def deposit_restoration_lacks(platform: Platform) -> list[str]:
+    """Give what the restoration of a deposited backup lacks: nothing else running (#4365).
+
+    The deposit is verified by the task, not here: only what runs is read, backup first.
+    """
     running = [NO_BACKUP_RUNNING] if platform.backup_running else []
     restoring = [NO_RESTORE_RUNNING] if platform.restore_running else []
-    return [*download_lacks(verification), *running, *restoring]
+    return [*running, *restoring]
+
+
+def restoration_lacks(verification: str, platform: Platform) -> list[str]:
+    """Give what the restoration of a backup lacks: a verification passed, nothing else running."""
+    return [*download_lacks(verification), *deposit_restoration_lacks(platform)]
 
 
 def backup_start_lacks(platform: Platform) -> list[str]:

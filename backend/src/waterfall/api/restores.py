@@ -26,7 +26,7 @@ from waterfall.api.evaluation import Acting, Requires
 from waterfall.api.tasks import task_ref
 from waterfall.core.access_roles.interface import require
 from waterfall.core.backups.interface import (
-    NO_RESTORE_RUNNING,
+    deposit_restoration_lacks,
     platform_of,
     read_backup,
     refuse_if_lacking,
@@ -81,7 +81,7 @@ def post_restore(
     the schema leaves it to this guard (US-0702/L3). A restoration the state forbids is refused
     (409) with the first condition the backup's ``restore`` command lacks — a verification not
     passed, a backup running, a restoration queued or running — named (#1035); an uploaded backup
-    is verified by the task, and lacks only the last.
+    is verified by the task, and lacks only the last two (#4365).
     """
     asked = request.root
     if not asked.confirmed:
@@ -114,8 +114,8 @@ def post_restore(
     platform = platform_of(session)
     if verification is not None:
         refuse_if_lacking(restoration_lacks(verification, platform))
-    elif platform.restore_running:
-        refuse_if_lacking([NO_RESTORE_RUNNING])
+    else:
+        refuse_if_lacking(deposit_restoration_lacks(platform))
     restores = services.queue.restores()
     task_id = submit(session, restores, "restore", account.user_id, payload)
     return task_ref(session.get_one(BackgroundTask, task_id))
