@@ -78,6 +78,13 @@ d'autre : il lit lui-même ses règles et le lot, et prend son créneau avant to
 - **Lot fusionné** : rien à faire, le tableau est tenu par le livreur (`make tracking`).
 - **Lot `question`** : préviens l'utilisateur (« Prévenir »), et passe à un autre lot.
 - **Lot bloqué** : passe à un autre lot ; le blocage figure au relevé final.
+- **« Instabilité vue deux fois : #n »** (`docs/dev/agents.md`, « Une instabilité de la
+  file ») : ouvre un petit lot qui la corrige, dans la branche de l'EPIC où vit le test. Tu
+  ouvres son issue au gabarit d'un lot, rattachée à l'US de l'EPIC dont un lot a écrit ou
+  modifié le test en dernier, et tu l'ajoutes au tableau avec
+  `make tracking ISSUE=<n> ADD_LOT=<US-nnnn/Ln> AFTER=<lot> LOT_ISSUE=<n>`. Si le test vit dans
+  un autre EPIC que le tien, préviens l'utilisateur (« Prévenir ») sans rien ouvrir. Ce lot
+  passe avant les autres lots prêts : au réveil qui suit, il prend le premier créneau libre.
 - **« Aucun créneau libre »** : le livreur a rendu la main sans rien faire, parce qu'un autre
   pilote a pris le dernier créneau entre ta lecture de `make slots` et la sienne. Traite-le
   comme une limite d'usage : ne relance aucun livreur pour ce lot à ce réveil-ci, le prochain

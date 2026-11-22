@@ -88,20 +88,19 @@ test("a user who opened no project reaches the administration and the status scr
   await expect(page.getByRole("link", { name: "Retour au projet" })).toHaveCount(0);
 });
 
-// Played in service too (`@shared`, EP-08): it leads to the remaining and to the risks of PRJ-001,
-// which the service serves, and leaves the project by a function the service serves too — the settings
-// of costs, the portfolio being EP-11's.
+// Played in service too (`@shared`, EP-08): it leads to the risks of PRJ-001, which the service
+// serves, and leaves the project by a function the service serves too — the settings of costs, the
+// portfolio being EP-11's.
 test("the way back to the previous project from a function outside any project finds the same context [WF-IHM-0010-A] @shared", async ({
   page,
 }) => {
-  // About 26 s to 37 s against the service, opening and compiling three screens included, under
-  // the 30 s test timeout (#4326: the remaining reads are slow there): the slow-path margin.
-  test.slow();
-  // The screens of their own reached by a click, compiled first (`e2e/compile.ts`).
-  await compile(page.request, "/reference/costs", `${IN_PROJECT}/risks`);
-  await page.goto(`${IN_PROJECT}/remaining${CONTEXT}`);
-  await open(page, "Gestion des risques");
-  await expect(page).toHaveURL(`${IN_PROJECT}/risks${CONTEXT}`);
+  // From the risks, not from the remaining to commit: the remaining of PRJ-001 is the slowest read
+  // of the service (#4326), which the path does not need, and which took it from 26 to 37 s, past
+  // the 30 s of a test, under `test.slow` (#4714). The screen of its own reached by a click,
+  // compiled first (`e2e/compile.ts`).
+  await compile(page.request, "/reference/costs");
+  await page.goto(`${IN_PROJECT}/risks${CONTEXT}`);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Gestion des risques");
   await expect(page).toHaveTitle(
     "Gestion des risques · Modernisation du poste de commande — Waterfall",
   );
