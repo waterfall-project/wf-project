@@ -42,10 +42,10 @@ from waterfall.core.planning.dating import conflicts_of
 from waterfall.core.planning.merging import MergePlan, merge_plan, reopening, task_fields
 from waterfall.core.planning.rebasing import COLUMNS, PARENT
 from waterfall.core.planning.rescheduling import Holding, replayed
-from waterfall.core.planning.shaping import PARKED, deleted, emptied, stamp
+from waterfall.core.planning.shaping import PARKED, deleted, emptied, reopened, stamp
 from waterfall.core.planning.tables import Node, Task, TaskLink
 from waterfall.core.planning.tree import LINE, TASK, read_links, read_tree
-from waterfall.core.planning.views import COMPLETED, NOT_STARTED, STARTED
+from waterfall.core.planning.views import COMPLETED
 from waterfall.core.projects.interface import current_day
 from waterfall.platform.identifiers import new_id
 
@@ -54,7 +54,6 @@ if TYPE_CHECKING:
 
     from waterfall.core.planning.tree import NodeRow, TaskRow, Tree
     from waterfall.core.revisions.interface import StructureMerging
-    from waterfall.platform.audit import Act
 
 # Where what the writing of the tasks leaves is kept for the lines and the end of the merge.
 WRITTEN = "planning.merge_written"
@@ -369,22 +368,6 @@ def place_lines(merging: StructureMerging) -> dict[UUID, UUID]:
     return {each: node.id for each, node in created.items()}
 
 
-def _reopened(tree: Tree, task_id: UUID, act: Act) -> None:
-    """Put back a completed task an occurrence reopens, as its reopening from the Kanban does.
-
-    A milestone leaf to not started, without its dates; any other task to started, its start kept.
-    A summary whose facet keeps no completion is left as it is: its state is derived.
-    """
-    task = tree.tasks[task_id]
-    if task.progress != COMPLETED:
-        return
-    if tree.is_milestone(task_id):
-        task.progress, task.started_on, task.completed_on = NOT_STARTED, None, None
-    else:
-        task.progress, task.completed_on = STARTED, None
-    stamp(tree.nodes[task_id], act)
-
-
 def finish(merging: StructureMerging) -> None:
     """Delete the tasks the merge removes, complete the ones it keeps, replay the engine.
 
@@ -406,11 +389,11 @@ def finish(merging: StructureMerging) -> None:
             continue
         task = tree.tasks[task_id]
         task.progress, task.completed_on = COMPLETED, day
-        if task.started_on is None or tree.is_milestone(task_id):
+        # A milestone completed by an occurrence stands on that day, whatever its dates were.
+        if task.started_on is None or (plan.occurrence and tree.is_milestone(task_id)):
             task.started_on = day
         stamp(tree.nodes[task_id], act)
-    for task_id in reopening(plan):
-        _reopened(tree, task_id, act)
+    reopened(tree, reopening(plan), act, milestones_unstarted=True)
     session.flush()
     repriced = tuple(written.nodes[each] for each in plan.order)
     held = Holding(conflicts=written.conflicts, repriced=repriced)

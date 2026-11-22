@@ -19,14 +19,14 @@ from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from merges_support import client, costed_project, project_of, revision_of
 from nodes_support import set_progress
-from own_estimates_support import ADDED, MODIFIED, risk_differential
+from own_estimates_support import ADDED, MODIFIED, RiskDifferential, risk_differential
 from planning_support import insert_task
-from risks_support import MAKING, STUDY, material_line
+from risks_support import MAKING, STUDY, differential, material, material_line
 from sqlalchemy import select, update
 
 from waterfall.core.estimate.tables import EstimateLine
@@ -47,7 +47,6 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
     from openapi_core import OpenAPI
-    from own_estimates_support import RiskDifferential
     from realm import TestRealm
     from risks_support import Costed
     from sqlalchemy import Engine
@@ -403,3 +402,195 @@ def test_the_merge_of_an_amendment_ignores_what_the_estimate_tells_of_the_lines_
     with framed(risk, AMENDMENT_MERGE) as merging:
         found = merge_parts(merging)
         assert merge_parts(merging).reopened_tasks == found.reopened_tasks == ()
+
+
+# --- The cases the report and the application both meet -------------------------------------------
+
+MILESTONE = "Jalon"
+MOVED = "Montage"
+LOT = ("Lot", "Pose", "Pose ligne", "80.00")
+
+
+def in_main(project: Costed, label: str, **values: object) -> None:
+    """Write columns of a line of the main structure by its label, around the service."""
+    nodes = select(Node.id).where(Node.structure_id == project.structure_id)
+    with project.stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.label == label, EstimateLine.node_id.in_(nodes))
+            .values(**values)
+        )
+
+
+def test_an_occurrence_is_refused_for_an_own_estimate_that_belongs_to_no_risk(
+    project: Costed,
+) -> None:
+    # Everything an occurrence adds bears the trace of its risk: the differential of an amendment,
+    # which names none, is a defect of the caller, not a merge that leaves its additions without.
+    own = RiskDifferential(project, uuid4(), differential(project), None, {}, uuid4())
+    with pytest.raises(RuntimeError, match="belongs to no risk"):
+        reported(own)
+
+
+def test_an_occurrence_freezes_the_null_budget_of_a_line_it_designates_at_what_it_was_before(
+    project: Costed,
+) -> None:
+    # « Plans », whose budgeted amount is null — the project having no reference yet, the line
+    # reads it from its re-estimated amount of 600 —, is brought to 700 by the own estimate: its
+    # budget is written first, at 600, so that it does not follow the 700 it now re-estimates.
+    risk = risk_differential(project)
+    in_main(project, MODIFIED[0], budgeted_amount=None)
+    applied(risk)
+    modified, _ = line(project, MODIFIED[0])
+    assert (modified.budgeted_amount, modified.reestimated_amount) == (MODIFIED[1], MODIFIED[2])
+
+
+def test_an_occurrence_marks_a_line_it_designates_re_estimated_and_an_amendment_leaves_it(
+    project: Costed,
+) -> None:
+    # « Plans », budgeted 600, is re-estimated at 700 by the occurrence and marked
+    # (``reestimated_at``), its budget and its figures of reference kept. The own estimate then
+    # brings it to 800 and is merged as an amendment: the line takes 800 as its budget and its
+    # reference, and keeps the 700 it was re-estimated at, as a line re-estimated is.
+    risk = risk_differential(project)
+    before, _ = line(project, MODIFIED[0])
+    assert before.reestimated_at is None
+    applied(risk)
+    marked, _ = line(project, MODIFIED[0])
+    assert marked.reestimated_at is not None
+    assert marked.lock_version == before.lock_version + 1
+    assert marked.reference_unit_disbursement == before.reference_unit_disbursement
+    amount = Decimal("800.00")
+    with project.stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.node_id == risk.nodes[MODIFIED[0]])
+            .values(unit_disbursement=amount, base_amount=amount, reestimated_amount=amount)
+        )
+    with framed(risk, AMENDMENT_MERGE) as merging:
+        merge_parts(merging)
+        merge_parts(replace(merging, applying=True))
+    later, _ = line(project, MODIFIED[0])
+    assert (later.budgeted_amount, later.reestimated_amount) == (amount, MODIFIED[2])
+    assert later.reestimated_at == marked.reestimated_at
+
+
+def test_an_occurrence_reopens_a_completed_milestone_to_not_started_without_its_dates(
+    project: Costed,
+) -> None:
+    # « Jalon », a milestone completed, receives a line the own estimate adds: it is put back to
+    # not started as its reopening from the Kanban does, both its dates cleared, where any other
+    # task keeps its start.
+    made = project.tree.made(MILESTONE)
+    risk = risk_differential(project)
+    for facet in (project.structure_id, risk.structure_id):
+        with project.stage.owner.begin() as connection:
+            connection.execute(
+                update(Task)
+                .where(Task.structure_id == facet, Task.label == MILESTONE)
+                .values(duration_value=0)
+            )
+    set_progress(project.stage, made["node_id"], "completed", DAY)
+    with project.stage.owner.begin() as connection:
+        material_line(
+            connection,
+            (project.project_id, project.revision_id, risk.structure_id, risk.nodes[MILESTONE]),
+            project.costs.material,
+            SURVEY[1],
+        )
+    found, _ = applied(risk)
+    assert found.reopened_tasks == ({"node_id": made["node_id"], "label": MILESTONE},)
+    milestone = task(project, MILESTONE)
+    assert (milestone.progress, milestone.started_on, milestone.completed_on) == (
+        "not_started",
+        None,
+        None,
+    )
+
+
+def test_an_occurrence_names_a_completed_task_it_moves_a_task_under_reopened(
+    project: Costed,
+) -> None:
+    # « Montage », not completed, is put under « Contrôle », completed, by the own estimate: the
+    # occurrence names « Contrôle » reopened, and writes it so.
+    project.tree.made(CONTROL)
+    moved = project.tree.made(MOVED)
+    risk = risk_differential(project)
+    with project.stage.owner.begin() as connection:
+        connection.execute(
+            update(Node)
+            .where(Node.id == risk.nodes[MOVED])
+            .values(parent_id=risk.nodes[CONTROL], rank=1)
+        )
+    control = task(project, CONTROL)
+    set_progress(project.stage, str(control.node_id), "completed", DAY)
+    assert reported(risk).reopened_tasks == ({"node_id": str(control.node_id), "label": CONTROL},)
+    found, _ = applied(risk)
+    assert found.reopened_tasks == ({"node_id": str(control.node_id), "label": CONTROL},)
+    assert task(project, CONTROL).progress == "started"
+    assert task(project, MOVED).node_id == UUID(moved["node_id"])
+
+
+def test_an_occurrence_reopens_the_completed_summary_above_a_completed_task_it_reopens(
+    project: Costed,
+) -> None:
+    # « Lot », whose facet keeps its completion, bears « Pose », completed, whose line the own
+    # estimate brings to 100: both are reopened, the summary named first, in the order of the plan.
+    lot = project.tree.made(LOT[0])
+    pose = project.tree.made(LOT[1], parent_id=lot["node_id"])
+    project.lines.made(pose, **material(project.costs, LOT[2], LOT[3]))
+    risk = risk_differential(project)
+    amount = Decimal("100.00")
+    with project.stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.node_id == risk.nodes[LOT[2]])
+            .values(unit_disbursement=amount, base_amount=amount, reestimated_amount=amount)
+        )
+    for node in (pose, lot):
+        set_progress(project.stage, node["node_id"], "completed", DAY)
+    found, _ = applied(risk)
+    assert found.reopened_tasks == (
+        {"node_id": lot["node_id"], "label": LOT[0]},
+        {"node_id": pose["node_id"], "label": LOT[1]},
+    )
+    assert [task(project, each).progress for each in LOT[:2]] == ["started", "started"]
+    assert task(project, LOT[0]).completed_on is None
+
+
+def test_an_occurrence_only_moves_a_line_the_own_estimate_only_moves(project: Costed) -> None:
+    # « Plans » is put under « Contrôle » and changes nothing else: it keeps its budget, its
+    # figures and its counter, marked of nothing, and stands under its new task.
+    project.tree.made(CONTROL)
+    risk = risk_differential(project)
+    with project.stage.owner.begin() as connection:
+        connection.execute(
+            update(Node)
+            .where(Node.id == risk.nodes[MODIFIED[0]])
+            .values(parent_id=risk.nodes[CONTROL], rank=1)
+        )
+    # The own estimate keeps its other change to « Plans »: this one changes only its parent.
+    with project.stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.node_id == risk.nodes[MODIFIED[0]])
+            .values(
+                unit_disbursement=MODIFIED[1],
+                base_amount=MODIFIED[1],
+                reestimated_amount=MODIFIED[1],
+            )
+        )
+    before, _ = line(project, MODIFIED[0])
+    assert ("updated", "estimate_line", MODIFIED[0], ["parent"]) in changes(reported(risk))
+    found, _ = applied(risk)
+    after, _ = line(project, MODIFIED[0])
+    assert (after.budgeted_amount, after.reestimated_amount, after.reestimated_at) == (
+        before.budgeted_amount,
+        before.reestimated_amount,
+        None,
+    )
+    assert after.lock_version == before.lock_version
+    with project.stage.database.transaction() as session:
+        parent = session.scalar(select(Node.parent_id).where(Node.id == after.node_id))
+    assert parent == task(project, CONTROL).node_id
+    assert found.refusals == ()

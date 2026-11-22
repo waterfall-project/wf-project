@@ -134,6 +134,20 @@ def merge_lines_worked(merging: StructureMerging, tasks: Collection[UUID]) -> No
     merge_plan(merging).worked.update(tasks)
 
 
+def merge_bearing(merging: StructureMerging, line_id: UUID) -> BearingTask:
+    """Give the task of the main structure that bears a line of it, as the facet is told of it.
+
+    As the structure stands before the merge writes its nodes: the task the line was under, which
+    the replay that ends the merge prices it again on, wherever the merge places it.
+    """
+    plan = merge_plan(merging)
+    task_id = plan.main.nodes[line_id].parent_id
+    if task_id is None:
+        msg = "A line of the main structure stands under no task"
+        raise RuntimeError(msg)
+    return bearing(merging.session, merging.project_id, plan.main, task_id, is_main=True)
+
+
 def place_merged_lines(merging: StructureMerging) -> Mapping[UUID, UUID]:
     """Write the nodes of the lines a merge leaves in the main structure, after its tasks.
 

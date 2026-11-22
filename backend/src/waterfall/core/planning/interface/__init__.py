@@ -339,6 +339,9 @@ from waterfall.core.planning.interface.merging import (
     load_merge as load_merge,
 )
 from waterfall.core.planning.interface.merging import (
+    merge_bearing as merge_bearing,
+)
+from waterfall.core.planning.interface.merging import (
     merge_end as merge_end,
 )
 from waterfall.core.planning.interface.merging import (

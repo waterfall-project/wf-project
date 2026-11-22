@@ -205,6 +205,10 @@ def merge_plan(merging: StructureMerging) -> MergePlan:
     if merging.mode == OCCURRENCE_MERGE:
         plan.occurrence = True
         plan.risk_id = structure_facts(session, project_id, amendment_id, lock=False).risk_id
+        if plan.risk_id is None:
+            # Everything the merge adds bears the trace of the risk: none, it would leave without.
+            msg = "The own estimate merged as an occurrence belongs to no risk"
+            raise RuntimeError(msg)
     _placed(plan, read_link_rows(session, project_id, amendment_id))
     merging.shared[SHARED] = plan
     return plan

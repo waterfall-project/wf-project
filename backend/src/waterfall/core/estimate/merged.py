@@ -51,8 +51,10 @@ figures alone, and neither marks nor designates a reference:
   the planning gives its node the trace of the risk.
 - **A line it designates** takes the columns it changes that are the line's own, and, when it
   changes what prices it, its figures as current figures, whatever the state of its task and its
-  re-estimate (``_current``): its figures of reference and its budgeted amount stay — a line
-  budgeted at 100 that the own estimate brings to 130 bears 100 budgeted and 130 re-estimated.
+  re-estimate (``_current``), by the function of ``setLineRemaining`` that marks it re-estimated
+  (``reestimated_at``): its figures of reference and its budgeted amount stay — a line budgeted at
+  100 that the own estimate brings to 130 bears 100 budgeted and 130 re-estimated, and the
+  amendment after it leaves those 130 (``_designated``).
 - **The lines of every task it abandons** stay with the task, which the planning keeps and
   completes, and are brought to a remaining of nought as an amendment brings those of a started
   task (``_zeroed``), the task started or not.
@@ -71,7 +73,7 @@ from waterfall.core.estimate.entries import LineEntry
 from waterfall.core.estimate.reading import rows_of
 from waterfall.core.estimate.remaining.reviewing import reestimate
 from waterfall.core.estimate.tables import EstimateLine
-from waterfall.core.planning.interface import FacetWrite, place_merged_lines
+from waterfall.core.planning.interface import FacetWrite, merge_bearing, place_merged_lines
 from waterfall.core.revisions.interface import OCCURRENCE_MERGE
 
 if TYPE_CHECKING:
@@ -174,23 +176,45 @@ def _designated(
             setattr(row, figure, getattr(source, figure))
 
 
-def _current(row: EstimateLine, source: EstimateLine, line: LineMerged) -> None:
+def _current(
+    row: EstimateLine, source: EstimateLine, line: LineMerged, merging: StructureMerging
+) -> None:
     """Give a line of the main structure what an occurrence designates of it: the current alone.
 
     The columns it changes that are the line's own; its figures, when it changes what prices it, as
-    its current figures, its reference and its budgeted amount kept — a line that read its budget
-    from its re-estimated amount, the project having no reference yet, has it written first, as
-    ``_zeroed`` does.
+    its current figures — by the function of ``setLineRemaining`` (``reestimate``), as ``_zeroed``
+    brings a line to nought: the line priced again and marked (``reestimated_at``), so that an
+    amendment after it takes it for a line re-estimated and leaves its current figures —, its
+    reference and its budgeted amount kept — a line that read its budget from its re-estimated
+    amount, the project having no reference yet, has it written first, as ``_zeroed`` does. The
+    write is counted: ``reestimate`` counts the line it writes, a line it does not price is counted
+    here.
     """
     for name, column in OWN:
         if name in line.fields:
             setattr(row, column, getattr(source, column))
     if not line.fields & PRICING:
+        _stamped(row, merging)
         return
     if row.budgeted_amount is None:
         row.budgeted_amount = row.reestimated_amount
-    for figure in FIGURES:
-        setattr(row, figure, getattr(source, figure))
+    # The figures the line takes, as the source has them: a labour line has its hours, a line that
+    # is not its unit disbursement (``FIELD_NOT_ACCEPTED`` otherwise), both their quantity.
+    sent = {"quantity"}
+    sent.update(
+        each for each in ("hours", "unit_disbursement") if getattr(source, each) is not None
+    )
+    entry = LineEntry(
+        quantity=source.quantity,
+        hours=source.hours,
+        unit_disbursement=source.unit_disbursement,
+        sent=frozenset(sent),
+    )
+    bearer = merge_bearing(merging, row.node_id)
+    write = FacetWrite(
+        merging.session, merging.project_id, merging.revision_id, row.node_id, bearer, merging.act
+    )
+    reestimate(write, entry, None)
 
 
 def _zeroed(row: EstimateLine, merging: StructureMerging, bearer: BearingTask) -> None:
@@ -248,10 +272,10 @@ def write_lines(
         row = held[line.held]
         if line.fields - {"parent"}:
             if occurrence:
-                _current(row, source, line)
+                _current(row, source, line, merging)
             else:
                 _designated(row, source, line, current=line.task not in where.started)
-            _stamped(row, merging)
+                _stamped(row, merging)
     for each in where.main:
         completing = each.task_lineage_id in where.completing
         if each.is_provision:

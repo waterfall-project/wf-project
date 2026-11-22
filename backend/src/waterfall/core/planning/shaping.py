@@ -20,7 +20,14 @@ from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.interface.open_lines import held_open, zeroed_at
 from waterfall.core.planning.tables import Node, TrackingEntry
 from waterfall.core.planning.tree import LINE, TASK
-from waterfall.core.planning.views import COMPLETED, STARTED, State, state_of, states_without
+from waterfall.core.planning.views import (
+    COMPLETED,
+    NOT_STARTED,
+    STARTED,
+    State,
+    state_of,
+    states_without,
+)
 from waterfall.core.projects.interface import current_day
 from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
@@ -91,16 +98,24 @@ def closed_above(tree: Tree, parent_id: UUID | None) -> tuple[UUID, ...]:
     )
 
 
-def reopened(tree: Tree, node_ids: Collection[UUID], act: Act) -> None:
+def reopened(
+    tree: Tree, node_ids: Collection[UUID], act: Act, *, milestones_unstarted: bool = False
+) -> None:
     """Put back to started the tasks whose completion is stale, and clear the day they closed at.
 
     Written once: a task whose facet keeps no completion any more is left as it is.
+    ``milestones_unstarted``: a milestone is put back to not started, both its dates cleared, as
+    its reopening from the Kanban does (the reopening of an occurrence; US-3100).
     """
     for each in node_ids:
         task = tree.tasks[each]
-        if task.progress == COMPLETED:
+        if task.progress != COMPLETED:
+            continue
+        if milestones_unstarted and tree.is_milestone(each):
+            task.progress, task.started_on, task.completed_on = NOT_STARTED, None, None
+        else:
             task.progress, task.completed_on = STARTED, None
-            stamp(tree.nodes[each], act)
+        stamp(tree.nodes[each], act)
 
 
 def closed_again(
