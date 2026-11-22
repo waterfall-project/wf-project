@@ -30,7 +30,7 @@ from own_estimates_support import (
 from projects_support import Scene
 from projects_support import scene as make_scene
 from risks_support import ESTIMATE, SEVERITY, STUDY, Costed, Risks, costed
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from waterfall.core.planning.tables import Node
 from waterfall.core.revisions.interface import (
@@ -135,30 +135,52 @@ def test_the_state_of_a_structure_that_is_no_own_estimate_is_not_found(project: 
         state(project, project.structure_id)
 
 
+def _counter_retained(project: Costed, structure_id: UUID) -> int | None:
+    """Read the counter of the main structure an own estimate retained, around the service."""
+    with project.stage.owner.connect() as connection:
+        return connection.scalar(
+            select(CostStructure.main_lock_version).where(CostStructure.id == structure_id)
+        )
+
+
+def _consumed(project: Costed, structure_id: UUID) -> int | None:
+    """Consume an own estimate around the service, as an occurrence does; give its counter retained."""
+    with project.stage.owner.begin() as connection:
+        connection.execute(
+            update(CostStructure).where(CostStructure.id == structure_id).values(is_merged=True)
+        )
+    return _counter_retained(project, structure_id)
+
+
 def test_an_own_estimate_stays_up_to_date_across_the_writes_of_a_provision_line(
     api: ContractClient, project: Costed
 ) -> None:
     # Two risks declared through the service: each own estimate born up to date, the declaration of
     # the second — its provision line created in the main structure — leaves the first so; the
-    # severity of the first written, its provision line with it, leaves both so. A task of the
-    # main structure puts both out of date, and a provision written after does not bring them back.
+    # severity of the first written, its provision line with it, leaves both so, and does not carry
+    # over a consumed own estimate, which keeps its counter. A task of the main structure puts both
+    # out of date, and a provision written after does not bring them back.
     risks = Risks(api, project)
     first = risks.declared(label="Grue")
+    consumed = UUID(risks.declared(label="Grève")["structure_id"])
     second = risks.declared(label="Météo")
     assert [state(project, each["structure_id"]).up_to_date for each in (first, second)] == [
         True,
         True,
     ]
+    held = _consumed(project, consumed)
     risks.costed_in(first, "200.00")
     assert [state(project, each["structure_id"]).up_to_date for each in (first, second)] == [
         True,
         True,
     ]
+    assert _counter_retained(project, consumed) == held
+    assert (state(project, consumed).consumed, state(project, consumed).up_to_date) == (True, False)
     project.tree.made(MAIN_ADDED)
     risks.costed_in(second, "100.00")
     with project.stage.database.transaction() as session:
         states = own_estimate_states(session, project.project_id, project.revision_id)
-    assert [each.up_to_date for each in states] == [False, False]
+    assert [each.up_to_date for each in states] == [False, False, False]
 
 
 def test_the_copy_of_a_revision_keeps_the_state_of_an_own_estimate_and_what_it_abandons(

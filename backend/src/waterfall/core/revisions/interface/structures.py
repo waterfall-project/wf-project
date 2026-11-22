@@ -182,6 +182,8 @@ def _counted(
     structure, written for a provision line (``provision_written``), carries the own estimates of
     its revision that were up to date over to its new counter: the counter advances by one under
     the lock of the structure, so those that bore the one before were up to date until now (EP-30).
+    A consumed own estimate, which its risk's occurrence merged, has no update left and is not
+    carried over, as ``keep_differential_states`` leaves it.
     """
     row = session.execute(
         update(CostStructure)
@@ -205,6 +207,7 @@ def _counted(
                 CostStructure.project_id == project_id,
                 CostStructure.revision_id == revision_id,
                 CostStructure.kind == RISK,
+                CostStructure.is_merged.is_(False),
                 CostStructure.main_lock_version == counter - 1,
             )
             .values(main_lock_version=counter)
