@@ -8,6 +8,7 @@
   "[service] › service/login-theme.spec.ts": 13.5,
   "[service] › service/password.spec.ts": 15.5,
   "[service] › service/planning-readers.spec.ts": 29.2,
+  "[service] › service/portfolio-manager.spec.ts": 6.2,
   "[service] › service/project-manager-indicators.spec.ts": 24.5,
   "[service] › service/project-readers.spec.ts": 15.6,
   "[service] › service/reference-manager.spec.ts": 34.3,
