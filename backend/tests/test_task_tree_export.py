@@ -253,7 +253,7 @@ def test_the_image_is_drawn_by_the_worker_and_downloaded_as_png_in_the_account_l
     assert answer.content != drawn(columns, other, day, 2)
 
 
-@pytest.mark.requirement("WF-DAT-0010-A")
+@pytest.mark.story("US-3340")
 def test_the_image_is_computed_on_the_day_of_the_installation_not_of_universal_time(
     api: ContractClient, stage: Scene, tree: Tree, worker: Worker, monkeypatch: pytest.MonkeyPatch
 ) -> None:

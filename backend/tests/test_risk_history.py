@@ -310,7 +310,7 @@ def test_a_deletion_undone_brings_back_the_risk_and_its_own_estimate_and_redone_
     assert not structure_held(stage, held["structure_id"])
 
 
-@pytest.mark.requirement("WF-DAT-0010-A")
+@pytest.mark.story("US-3340")
 def test_a_risk_deleted_takes_the_inscriptions_of_its_own_estimate_and_the_undoing_gives_them_back(
     risks: Risks, stage: Scene, who: Person
 ) -> None:

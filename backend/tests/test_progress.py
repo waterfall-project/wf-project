@@ -409,7 +409,7 @@ def test_a_summary_of_milestones_returns_to_not_started_when_they_all_are_reopen
     assert summary["completed_on"] is None
 
 
-@pytest.mark.requirement("WF-DAT-0010-A")
+@pytest.mark.story("US-3340")
 def test_a_started_task_is_overdue_by_the_day_of_the_installation_not_of_universal_time(
     tree: Tree, stage: Scene
 ) -> None:
