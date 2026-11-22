@@ -192,7 +192,7 @@ OBSERVATION_SECONDS = 3
 CONNECT_TIMEOUT = 2
 # How long a request waits for a connection of its pool to be lent: no longer than a connection
 # takes to open, so that the probe of liveness, which reads the maintenance through that pool, says
-# so within what the healthcheck waits when the pool is spent (#4189). The bound is the one of every
+# so within what the healthcheck waits when the pool is spent (#4189). The bound is the one of the
 # engine ``create_database_engine`` makes — the worker's, the restoration's, the bootstrap's, the
 # witness's, the migrations' —, a choice kept on purpose: a burst that holds the reserve longer
 # than this is a database refused naming ``database`` (``is_unreachable``), not a request that
@@ -202,7 +202,8 @@ POOL_TIMEOUT = CONNECT_TIMEOUT
 
 # The SQLSTATE of a server that does not answer: a connection exception (class 08) and the shutdown
 # or the start of the server (57P01 to 57P03). A statement the server judged — a lock refused, a
-# deadlock, a statement cancelled — has another, and is not the database out of reach.
+# deadlock, a statement cancelled — has another, and is not the database out of reach. So does 53300
+# (too many connections): the server answers and refuses, it is full, not out of reach.
 UNREACHABLE_STATES = frozenset({"57P01", "57P02", "57P03"})
 
 
@@ -243,7 +244,7 @@ def engine_url(address: str) -> URL:
     return url
 
 
-def connect_timeout_of(url: URL) -> int | str:
+def connect_timeout_of(url: URL) -> int:
     """Give the seconds a connection may take: the address's ``connect_timeout``, else the default.
 
     An operator who writes ``?connect_timeout=10`` in the address (TLS, a remote server) is
@@ -259,7 +260,7 @@ def connect_timeout_of(url: URL) -> int | str:
         seconds = int(last)
     except ValueError:
         return CONNECT_TIMEOUT
-    return last if seconds > 0 else CONNECT_TIMEOUT
+    return seconds if seconds > 0 else CONNECT_TIMEOUT
 
 
 def create_database_engine(address: str) -> Engine:

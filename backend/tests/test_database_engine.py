@@ -50,6 +50,8 @@ ADDRESS = "postgresql://nobody:nothing@127.0.0.1:9/nowhere"
         ("", CONNECT_TIMEOUT),
         ("?connect_timeout=10", 10),
         ("?connect_timeout=1&x=2", 1),
+        ("?connect_timeout=1_0", 10),
+        ("?connect_timeout=%2B5", 5),
         ("?connect_timeout=0", CONNECT_TIMEOUT),
         ("?connect_timeout=-3", CONNECT_TIMEOUT),
         ("?connect_timeout=soon", CONNECT_TIMEOUT),
@@ -58,6 +60,8 @@ ADDRESS = "postgresql://nobody:nothing@127.0.0.1:9/nowhere"
         "by default",
         "the address says ten",
         "the address says one",
+        "an underscore Python reads and libpq does not",
+        "a sign Python reads",
         "zero is unbounded for libpq",
         "negative",
         "not a number",
@@ -74,7 +78,7 @@ def test_the_connect_timeout_the_address_declares_is_the_one_kept(
 
     monkeypatch.setattr(database_module, "create_engine", keep)
     create_database_engine(ADDRESS + query)
-    assert int(given["connect_args"]["connect_timeout"]) == waited
+    assert given["connect_args"]["connect_timeout"] == waited
 
 
 @pytest.mark.story("US-2860")
