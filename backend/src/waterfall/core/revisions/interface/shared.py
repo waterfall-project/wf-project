@@ -4,7 +4,9 @@
 
 The opening, the abandonment and the marking of a revision each lock the revision, judge it, and
 inscribe what they did in the journal; this module holds the one lock, the one refusal and the one
-inscription, so that they cannot drift apart.
+inscription, so that they cannot drift apart. It holds likewise the one rule by which a differential
+or an own estimate is up to date (``bears_main_counter``), and the counter of the main structure it
+is judged against (``main_counter``).
 
 The current revision of a project is held, besides, before its project is locked (US-1500/L2,
 ``hold_current_revision``). A write that holds the lock of a project and then writes in its current
@@ -33,7 +35,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from waterfall.core.projects.interface import project_code, project_facts, project_label
-from waterfall.core.revisions.tables import STRUCTURE_KINDS, Revision
+from waterfall.core.revisions.tables import STRUCTURE_KINDS, CostStructure, Revision
 from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import (
     AuditObject,
@@ -90,6 +92,26 @@ def provision_written(session: Session) -> Generator[None]:
 def writing_provision(session: Session) -> bool:
     """Tell whether what is written of the main structure now is a provision line."""
     return bool(session.info.get(_PROVISION_WRITTEN, False))
+
+
+def bears_main_counter(row: CostStructure, counter: int | None) -> bool:
+    """Tell whether a differential or an own estimate is up to date: the one rule, every reading's.
+
+    Up to date while the main structure of its revision, whose counter is ``counter``, bears
+    the counter it retained (``main_lock_version``; US-3050, EP-30).
+    """
+    return row.main_lock_version == counter
+
+
+def main_counter(session: Session, project_id: UUID, revision_id: UUID) -> int | None:
+    """Give the counter of the main structure of a revision."""
+    return session.scalar(
+        select(CostStructure.lock_version).where(
+            CostStructure.project_id == project_id,
+            CostStructure.revision_id == revision_id,
+            CostStructure.kind == MAIN,
+        )
+    )
 
 
 def refuse(condition: str) -> ConflictError:

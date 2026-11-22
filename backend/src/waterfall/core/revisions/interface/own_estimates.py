@@ -48,7 +48,7 @@ from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import insert, select
 
-from waterfall.core.revisions.interface.shared import MAIN, RISK
+from waterfall.core.revisions.interface.shared import RISK, bears_main_counter, main_counter
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.tables import CostStructure, OwnEstimateAbandonment
 from waterfall.platform.errors import NOT_FOUND, NotFoundError
@@ -96,8 +96,8 @@ class OwnEstimateState:
         return self.pruned_revision_id is not None
 
 
-def own_estimate_state_of(row: CostStructure, main_counter: int | None) -> OwnEstimateState:
-    """Give the state of an own estimate read, ``main_counter`` that of its main structure.
+def own_estimate_state_of(row: CostStructure, counter: int | None) -> OwnEstimateState:
+    """Give the state of an own estimate read, ``counter`` that of its main structure.
 
     Up to date while the main structure bears the counter it retained, as a differential is.
     """
@@ -108,19 +108,8 @@ def own_estimate_state_of(row: CostStructure, main_counter: int | None) -> OwnEs
         structure_id=row.id,
         risk_id=row.risk_id,
         pruned_revision_id=row.pruned_revision_id,
-        up_to_date=row.main_lock_version == main_counter,
+        up_to_date=bears_main_counter(row, counter),
         consumed=row.is_merged,
-    )
-
-
-def _main_counter(session: Session, project_id: UUID, revision_id: UUID) -> int | None:
-    """Give the counter of the main structure of a revision."""
-    return session.scalar(
-        select(CostStructure.lock_version).where(
-            CostStructure.project_id == project_id,
-            CostStructure.revision_id == revision_id,
-            CostStructure.kind == MAIN,
-        )
     )
 
 
@@ -135,7 +124,7 @@ def own_estimate_state(session: Session, project_id: UUID, structure_id: UUID) -
     ).first()
     if row is None:
         raise NotFoundError(NOT_FOUND)
-    return own_estimate_state_of(row, _main_counter(session, project_id, row.revision_id))
+    return own_estimate_state_of(row, main_counter(session, project_id, row.revision_id))
 
 
 def own_estimate_states(
@@ -151,7 +140,7 @@ def own_estimate_states(
         )
         .order_by(CostStructure.id)
     ).all()
-    counter = _main_counter(session, project_id, revision_id)
+    counter = main_counter(session, project_id, revision_id)
     return tuple(own_estimate_state_of(row, counter) for row in rows)
 
 

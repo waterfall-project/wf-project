@@ -70,6 +70,7 @@ from waterfall.core.revisions.interface.shared import (
     BASE,
     MAIN,
     RISK,
+    bears_main_counter,
     inscribe_structure,
     writing_provision,
 )
@@ -584,7 +585,7 @@ def _up_to_date(row: CostStructure, main_counter: int | None) -> bool | None:
     """
     if row.kind != AMENDMENT or row.is_merged:
         return None
-    return row.main_lock_version == main_counter
+    return bears_main_counter(row, main_counter)
 
 
 def _nature(row: CostStructure, main_counter: int | None) -> StructureNature:

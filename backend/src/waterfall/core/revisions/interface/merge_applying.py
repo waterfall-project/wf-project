@@ -30,8 +30,9 @@ finished, the journal), and the reference designated by the way of the designati
   inscribed in the journal (``structure_merge``), the revision marked under the name confirmed,
   then made the reference. Before the merge writes — once the revision is opened, when the task
   opens it —, the modules registered do what they do before a marking, on the revision the merge
-  marks (``register_before_marking``: the risks update their own estimates, EP-30). A reason of the report fails the task with its code and its parameters, nothing written; so does
-  any failure, no revision left opened (WF-DAT-0040).
+  marks (``register_before_marking``: the risks update their own estimates, EP-30). A reason of
+  the report fails the task with its code and its parameters, nothing written; so does any
+  failure, no revision left opened (WF-DAT-0040).
 
 ``load_merge_at`` merges a differential of the witness at the instant it imposes, by the same
 transaction as the worker, without a report to confirm.

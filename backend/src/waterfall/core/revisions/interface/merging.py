@@ -47,7 +47,7 @@ from waterfall.core.revisions.commands import (
     merge_conditions,
 )
 from waterfall.core.revisions.interface.revisions import last_marked_revision
-from waterfall.core.revisions.interface.shared import refuse
+from waterfall.core.revisions.interface.shared import bears_main_counter, refuse
 from waterfall.core.revisions.interface.structures import AMENDMENT, BASE, MAIN
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.tables import CostStructure, Revision
@@ -256,7 +256,7 @@ def merging_of(
         no_task_running=no_background_task_running(session, project_id, besides),
         mergeable=amendment.kind == AMENDMENT and not amendment.is_merged,
         creates=creates,
-        up_to_date=amendment.main_lock_version == main.lock_version,
+        up_to_date=bears_main_counter(amendment, main.lock_version),
     )
     missing = merge_conditions(state)
     if missing and missing[0] != STRUCTURE_UP_TO_DATE:
