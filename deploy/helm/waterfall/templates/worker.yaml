@@ -3,8 +3,8 @@
 
 # The worker (compose.prod.yaml, worker), a deployment of its own, of worker.replicas replicas: it
 # runs the background tasks of the queue (WF-ARC-0090). A backup dumps both databases as the role of
-# the backup (#895) into the bucket of the backups.
-{{- $host := include "waterfall.postgresAddress" . }}
+# the backup (#895) into the bucket of the backups. Every component in TLS, checked against the
+# roots of the pod (US-2840).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -23,6 +23,7 @@ spec:
     spec:
       {{- include "waterfall.podDefaults" . | nindent 6 }}
       initContainers:
+        {{- include "waterfall.transportInit" (list .) | nindent 8 }}
         {{- include "waterfall.waitForDatabase" (list . "waterfall_service" "waterfall" "WATERFALL_SERVICE_DATABASE_PASSWORD") | nindent 8 }}
       containers:
         - name: worker
@@ -41,9 +42,9 @@ spec:
             - name: WATERFALL_UNKNOWN_KIND_WAIT_SECONDS
               value: {{ .Values.worker.unknownKindWaitSeconds | quote }}
             - name: WATERFALL_BACKUP_DATABASE_URL
-              value: {{ printf "postgresql://waterfall_backup:$(WATERFALL_BACKUP_DATABASE_PASSWORD)@%s/waterfall" $host | quote }}
+              value: {{ include "waterfall.databaseUrl" (list . "waterfall_backup" "$(WATERFALL_BACKUP_DATABASE_PASSWORD)" "waterfall") | quote }}
             - name: WATERFALL_KEYCLOAK_DATABASE_URL
-              value: {{ printf "postgresql://waterfall_backup:$(WATERFALL_BACKUP_DATABASE_PASSWORD)@%s/keycloak" $host | quote }}
+              value: {{ include "waterfall.databaseUrl" (list . "waterfall_backup" "$(WATERFALL_BACKUP_DATABASE_PASSWORD)" "keycloak") | quote }}
             # The metrics, on every interface of the pod, on a port no Service but the headless one
             # of Prometheus routes (prometheus.yaml, TFX-09).
             - name: WATERFALL_HOST
@@ -53,5 +54,9 @@ spec:
           ports:
             - name: metrics
               containerPort: {{ .Values.metrics.port }}
+          volumeMounts:
+            {{- include "waterfall.trustMount" . | nindent 12 }}
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
+      volumes:
+        {{- include "waterfall.transportVolumes" (list .) | nindent 8 }}

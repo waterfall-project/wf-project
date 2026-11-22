@@ -13,7 +13,11 @@ has just built (``make check-chart``) and which are loaded into the cluster. The
 ``WATERFALL_CHART_CLUSTER`` (``waterfall-chart``), is made by kind, with Traefik as its controller
 of ingresses, the one k3s ships, and is reached on a free port of the loopback; under a local name,
 ``waterfall.localhost``, whose certificate an authority of the trial signs, which the front and
-this tool alone trust. Every secret of the platform is drawn for it. Then it holds, as
+this tool alone trust. That authority is the platform's too (``transport.authority``, US-2840): it
+signs the certificate of each service, which Traefik reaches in HTTPS without checking it — the
+check is the controller's configuration, which a cluster of kind has no root for —, and those of the
+data components of the operator, whose root the platform is given apart
+(``transport.providedAuthority``). Every secret of the platform is drawn for it. Then it holds, as
 ``wftools.production`` holds the Compose, and by its functions, that, in each case:
 
 - the installation ends, its hooks included: the migrations, the realm applied, and the bootstrap,
@@ -245,24 +249,20 @@ def _output(read: Read, command: list[str], what: str) -> str:
     return output
 
 
+KEY = ["-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-noenc"]
+"""A key of the trial, made with its request: P-256, unencrypted."""
+
+
 def make_authority(read: Read, folder: Path, domain: str) -> None:
     """Make an authority of the trial, and the certificate of the domain it signs, by OpenSSL."""
-    extensions = folder / "server.ext"
-    extensions.write_text(
-        f"subjectAltName=DNS:{domain}\nbasicConstraints=critical,CA:FALSE\n"
-        "keyUsage=critical,digitalSignature\nextendedKeyUsage=serverAuth\n"
-        "subjectKeyIdentifier=hash\nauthorityKeyIdentifier=keyid\n",
-        encoding="utf-8",
-    )
-    key = ["-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-noenc"]
-    authority, certificate = folder / "ca", folder / "tls"
+    authority = folder / "ca"
     _output(
         read,
         [
             "openssl",
             "req",
             "-x509",
-            *key,
+            *KEY,
             "-days",
             "1",
             "-subj",
@@ -278,14 +278,30 @@ def make_authority(read: Read, folder: Path, domain: str) -> None:
         ],
         "make the authority of the trial",
     )
+    issue(read, folder, "tls", domain)
+
+
+def issue(read: Read, folder: Path, stem: str, name: str) -> None:
+    """Issue, by the authority of the trial, the key and the certificate of a server of a name.
+
+    They are ``<stem>.key`` and ``<stem>.crt`` of the folder, beside the authority, ``ca.crt``.
+    """
+    extensions = folder / f"{stem}.ext"
+    extensions.write_text(
+        f"subjectAltName=DNS:{name}\nbasicConstraints=critical,CA:FALSE\n"
+        "keyUsage=critical,digitalSignature\nextendedKeyUsage=serverAuth\n"
+        "subjectKeyIdentifier=hash\nauthorityKeyIdentifier=keyid\n",
+        encoding="utf-8",
+    )
+    authority, certificate = folder / "ca", folder / stem
     _output(
         read,
         [
             "openssl",
             "req",
-            *key,
+            *KEY,
             "-subj",
-            f"/CN={domain}",
+            f"/CN={name}",
             "-keyout",
             f"{certificate}.key",
             "-out",
@@ -378,8 +394,19 @@ class Trial:
         )
 
     def ingress(self) -> str:
-        """Install Traefik, serving HTTPS on the port of the node; return its address inside."""
-        settings = ["service.spec.type=NodePort", f"ports.websecure.nodePort={NODE_PORT}"]
+        """Install Traefik, serving HTTPS on the port of the node; return its address inside.
+
+        It reaches the front, Keycloak and Grafana in HTTPS, by the name https of the port of their
+        Services, without checking their certificates: Traefik checks a server by the address it
+        dials, an address of a pod, which no certificate names, unless a resource of its own says
+        another name, which the chart does not write (WF-CMP-0020, docs/exploitation/
+        chiffrement-chart.md).
+        """
+        settings = [
+            "service.spec.type=NodePort",
+            f"ports.websecure.nodePort={NODE_PORT}",
+            "additionalArguments[0]=--serversTransport.insecureSkipVerify=true",
+        ]
         _must(
             self.run,
             [
@@ -407,7 +434,11 @@ class Trial:
         return found.strip()
 
     def prepare(self) -> None:
-        """Make the namespace of the platform, with its certificate and the authority."""
+        """Make the namespace of the platform, with its certificate and the authority.
+
+        The authority is the platform's: its certificate and its key, which sign the certificates of
+        the services (US-2840).
+        """
         _must(
             self.run,
             [*self.tools.kubectl, "create", "namespace", NAMESPACE],
@@ -438,6 +469,7 @@ class Trial:
                 "generic",
                 AUTHORITY,
                 f"--from-file=ca.crt={self.folder / 'ca.crt'}",
+                f"--from-file=ca.key={self.folder / 'ca.key'}",
             ],
             "make the secret of the authority",
         )
@@ -446,8 +478,12 @@ class Trial:
         """Pose the data components of an operator, and the Secret of the platform it gives.
 
         The Secret holds the keys of the platform, as the operator makes it before the installation:
-        from a file, never the command line, which the processes of the workstation list.
+        from a file, never the command line, which the processes of the workstation list. Each
+        component serves in TLS, with the certificate the authority of the trial issues for its
+        name; the operator gives the root of them to the platform apart (``chartdata.ROOTS``).
         """
+        for component in chartdata.COMPONENTS:
+            issue(self.read, self.folder, component, chartdata.host(component))
         manifests = self.folder / "data.json"
         manifests.write_text(
             json.dumps(
@@ -461,6 +497,33 @@ class Trial:
             "pose the data components of the operator",
         )
         data = [*self.tools.kubectl, "--namespace", chartdata.NAMESPACE]
+        for component in chartdata.COMPONENTS:
+            _must(
+                self.run,
+                [
+                    *data,
+                    "create",
+                    "secret",
+                    "generic",
+                    chartdata.certificates(component),
+                    f"--from-file=tls.crt={self.folder / f'{component}.crt'}",
+                    f"--from-file=tls.key={self.folder / f'{component}.key'}",
+                    f"--from-file=ca.crt={self.folder / 'ca.crt'}",
+                ],
+                f"make the secret of the certificate of {component}",
+            )
+        _must(
+            self.run,
+            [
+                *self.kubectl,
+                "create",
+                "secret",
+                "generic",
+                chartdata.ROOTS,
+                f"--from-file=ca.crt={self.folder / 'ca.crt'}",
+            ],
+            "make the secret of the roots of the data components",
+        )
         _must(
             self.run,
             [*data, "rollout", "status", "deployment", "--timeout", ROLLOUT],

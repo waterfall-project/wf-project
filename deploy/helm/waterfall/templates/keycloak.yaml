@@ -5,6 +5,10 @@
 # is the address of the browser; the services reach it at its service, on the back channel, and its
 # management port, 9000, answers its health. No mail server: the links that set a password are
 # handed over by createPasswordSetupLink (WF-CMP-0030). Its realm is applied by a hook (hooks.yaml).
+# In TLS alone, with the certificate its container of initialisation issues (TFX-08, US-2840): no
+# listener in HTTP, its management in HTTPS too; it reaches its database in TLS (TFX-12), and the
+# front on its back channel in HTTPS (TFX-17), trusting the roots of the pod. One instance, its caches
+# its own (KC_CACHE=local): it opens no port of a cluster, where JGroups would speak in the clear.
 {{- $name := include "waterfall.name" (list . "keycloak") }}
 apiVersion: v1
 kind: Service
@@ -16,9 +20,9 @@ spec:
   selector:
     {{- include "waterfall.selector" (list . "keycloak") | nindent 4 }}
   ports:
-    - name: http
-      port: 8080
-      targetPort: http
+    - name: https
+      port: 8443
+      targetPort: https
     - name: management
       port: 9000
       targetPort: management
@@ -41,6 +45,7 @@ spec:
     spec:
       {{- include "waterfall.podDefaults" . | nindent 6 }}
       initContainers:
+        {{- include "waterfall.transportInit" (list . "keycloak" 1000 0) | nindent 8 }}
         {{- include "waterfall.waitForDatabase" (list . "keycloak" "keycloak" "WATERFALL_KEYCLOAK_DATABASE_PASSWORD") | nindent 8 }}
       containers:
         - name: keycloak
@@ -57,12 +62,20 @@ spec:
             - name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC
               value: "true"
             - name: KC_HTTP_ENABLED
-              value: "true"
+              value: "false"
+            - name: KC_HTTPS_CERTIFICATE_FILE
+              value: /tls/tls.crt
+            - name: KC_HTTPS_CERTIFICATE_KEY_FILE
+              value: /tls/tls.key
+            - name: KC_TRUSTSTORE_PATHS
+              value: {{ include "waterfall.roots" . }}
+            - name: KC_CACHE
+              value: local
             - name: KC_PROXY_HEADERS
               value: xforwarded
           ports:
-            - name: http
-              containerPort: 8080
+            - name: https
+              containerPort: 8443
             - name: management
               containerPort: 9000
           # Readiness answers 503 while the schema migrates (#1079): the status is what counts.
@@ -70,19 +83,27 @@ spec:
             httpGet:
               path: /auth/health/ready
               port: management
+              scheme: HTTPS
             periodSeconds: 5
             timeoutSeconds: 3
           startupProbe:
             httpGet:
               path: /auth/health/started
               port: management
+              scheme: HTTPS
             periodSeconds: 5
             failureThreshold: 60
           livenessProbe:
             httpGet:
               path: /auth/health/live
               port: management
+              scheme: HTTPS
             periodSeconds: 10
             timeoutSeconds: 3
+          volumeMounts:
+            {{- include "waterfall.trustMount" . | nindent 12 }}
+            {{- include "waterfall.tlsMount" (list . "keycloak") | nindent 12 }}
           resources:
             {{- toYaml .Values.keycloak.resources | nindent 12 }}
+      volumes:
+        {{- include "waterfall.transportVolumes" (list . "serves") | nindent 8 }}

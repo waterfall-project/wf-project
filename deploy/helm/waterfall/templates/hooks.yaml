@@ -19,6 +19,8 @@
 #   administrator is in the log of its Job, which stays until the next installation.
 #
 # Helm waits for each hook, by its weight, and fails the installation with the first that fails.
+# Each reaches its components in TLS, their certificates checked against the roots of its pod
+# (US-2840): the authority the chart makes is the first hook of the installation (transport.yaml).
 {{- if and (not .Values.postgresql.enabled) (not .Values.secrets.existingSecret) }}
 {{- fail "secrets.existingSecret: the Secret of the operator is required when PostgreSQL is provided (postgresql.enabled is false): the migrations run before the installation, which has not made the Secret of the chart yet" }}
 {{- end }}
@@ -60,6 +62,7 @@ spec:
       # A step that fails — PostgreSQL or the storage not ready yet — is run again where it stopped.
       restartPolicy: OnFailure
       initContainers:
+        {{- include "waterfall.transportInit" (list .) | nindent 8 }}
         # The database of Waterfall and its owner, no superuser, and the role of the service,
         # without the right to sign in yet; the database of Keycloak and its role; the role of the
         # backup — each created when missing.
@@ -80,6 +83,7 @@ spec:
           volumeMounts:
             - name: files
               mountPath: /files
+            {{- include "waterfall.trustMount" . | nindent 12 }}
         - name: keycloak-database
           image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
           imagePullPolicy: IfNotPresent
@@ -92,6 +96,7 @@ spec:
           volumeMounts:
             - name: files
               mountPath: /files
+            {{- include "waterfall.trustMount" . | nindent 12 }}
         - name: backup-database-role
           image: {{ include "waterfall.thirdParty" (list . .Values.postgresql.image) }}
           imagePullPolicy: IfNotPresent
@@ -104,6 +109,7 @@ spec:
           volumeMounts:
             - name: files
               mountPath: /files
+            {{- include "waterfall.trustMount" . | nindent 12 }}
         # The migrations, as the owner of the tables (#701, WF-DAT-0140).
         - name: migrate
           image: {{ include "waterfall.image" (list . "waterfall") }}
@@ -111,6 +117,8 @@ spec:
           command: [waterfall-migrate]
           env:
             {{- include "waterfall.backEnvironment" (list . "owner") | nindent 12 }}
+          volumeMounts:
+            {{- include "waterfall.trustMount" . | nindent 12 }}
       containers:
         # The role of the service, which the migrations create, may now sign in with its password.
         - name: service-database-role
@@ -125,10 +133,12 @@ spec:
           volumeMounts:
             - name: files
               mountPath: /files
+            {{- include "waterfall.trustMount" . | nindent 12 }}
       volumes:
         - name: files
           configMap:
             name: {{ $hookFiles }}
+        {{- include "waterfall.transportVolumes" (list .) | nindent 8 }}
 ---
 # The buckets of the platform, the backups and the imports, created when missing: on the storage of
 # the chart, once it is there, or on the operator's, at its address. A Job of its own, not a step of
@@ -152,6 +162,8 @@ spec:
       {{- include "waterfall.podDefaults" . | nindent 6 }}
       # The storage not ready yet is run again.
       restartPolicy: OnFailure
+      initContainers:
+        {{- include "waterfall.transportInit" (list .) | nindent 8 }}
       containers:
         - name: storage-buckets
           image: {{ include "waterfall.thirdParty" (list . .Values.storage.bucketsImage) }}
@@ -165,13 +177,18 @@ spec:
             {{- include "waterfall.secretEnv" (list . "WATERFALL_STORAGE_SECRET" "STORAGE_SECRET") | nindent 12 }}
             - name: STORAGE_BUCKETS
               value: backups imports
+            # In HTTPS, its certificate checked against the roots of the pod (TFX-05).
+            - name: STORAGE_AUTHORITY
+              value: {{ include "waterfall.roots" . }}
           volumeMounts:
             - name: files
               mountPath: /files
+            {{- include "waterfall.trustMount" . | nindent 12 }}
       volumes:
         - name: files
           configMap:
             name: {{ $files }}
+        {{- include "waterfall.transportVolumes" (list .) | nindent 8 }}
 ---
 # The realm of the image applied to Keycloak, once it is ready: a setting changed by hand in the
 # console comes back to what the realm says. As the administrator of master, whose password the
@@ -194,6 +211,7 @@ spec:
       {{- include "waterfall.podDefaults" . | nindent 6 }}
       restartPolicy: OnFailure
       initContainers:
+        {{- include "waterfall.transportInit" (list .) | nindent 8 }}
         {{- include "waterfall.waitForKeycloak" (list . "9000" "/auth/health/ready") | nindent 8 }}
       containers:
         - name: realm
@@ -202,8 +220,12 @@ spec:
           command: [/opt/keycloak/bin/apply-realm]
           env:
             {{- include "waterfall.realmEnvironment" . | nindent 12 }}
+          volumeMounts:
+            {{- include "waterfall.trustMount" . | nindent 12 }}
           resources:
             {{- toYaml .Values.keycloak.realm.resources | nindent 12 }}
+      volumes:
+        {{- include "waterfall.transportVolumes" (list .) | nindent 8 }}
 ---
 # The bootstrap (US-0420): the migrations, then what nobody may enter without, and the link of the
 # first administrator, alone on its standard output. As the owner of the tables (#701), with the
@@ -225,6 +247,8 @@ spec:
     spec:
       {{- include "waterfall.podDefaults" . | nindent 6 }}
       restartPolicy: Never
+      initContainers:
+        {{- include "waterfall.transportInit" (list .) | nindent 8 }}
       containers:
         - name: install
           image: {{ include "waterfall.image" (list . "waterfall") }}
@@ -234,7 +258,9 @@ spec:
             {{- include "waterfall.keycloakClientEnvironment" . | nindent 12 }}
             {{- include "waterfall.secretEnv" (list . "WATERFALL_POSTGRES_PASSWORD") | nindent 12 }}
             - name: WATERFALL_DATABASE_URL
-              value: {{ printf "postgresql://waterfall:$(WATERFALL_POSTGRES_PASSWORD)@%s/waterfall" (include "waterfall.postgresAddress" .) | quote }}
+              value: {{ include "waterfall.databaseUrl" (list . "waterfall" "$(WATERFALL_POSTGRES_PASSWORD)" "waterfall") | quote }}
+            - name: WATERFALL_TLS_AUTHORITY
+              value: {{ include "waterfall.roots" . }}
             {{- include "waterfall.secretEnv" (list . "WATERFALL_INSTALLATION_CLIENT_SECRET") | nindent 12 }}
             - name: WATERFALL_ADMIN_EMAIL
               value: {{ required "bootstrap.adminEmail: the address of the first administrator" .Values.bootstrap.adminEmail | quote }}
@@ -246,3 +272,10 @@ spec:
               value: {{ required "bootstrap.companyName: the name of the company" .Values.bootstrap.companyName | quote }}
             - name: WATERFALL_TIME_ZONE
               value: {{ .Values.bootstrap.timeZone | quote }}
+            # The largest avatar, which the bootstrap writes for the installation (#4636).
+            - name: WATERFALL_AVATAR_MAX_BYTES
+              value: {{ include "waterfall.wholeNumber" (list "bootstrap.avatarMaxBytes" .Values.bootstrap.avatarMaxBytes) | quote }}
+          volumeMounts:
+            {{- include "waterfall.trustMount" . | nindent 12 }}
+      volumes:
+        {{- include "waterfall.transportVolumes" (list .) | nindent 8 }}

@@ -25,6 +25,13 @@ pytestmark = [pytest.mark.chart]
 
 PRODUCTION = REPOSITORY / "deploy" / "compose" / "compose.prod.yaml"
 MIRROR = "${WATERFALL_MIRROR:-}"
+# The thresholds and the window the chart ships, as the API reads them (WF-OBS-0030).
+SHIPPED = {
+    "WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS": "900",
+    "WATERFALL_STORAGE_USAGE_THRESHOLD": "0.85",
+    "WATERFALL_ERROR_RATE_THRESHOLD": "0.05",
+    "WATERFALL_ERROR_RATE_WINDOW_SECONDS": "300",
+}
 
 Objects = list[dict[str, Any]]
 
@@ -82,7 +89,13 @@ def test_the_chart_runs_prometheus_on_a_configuration_promtool_accepts(
     assert "--config.file=/etc/prometheus/prometheus.yml" in prometheus["args"]
     assert "--storage.tsdb.path=/prometheus" in prometheus["args"]
     mounts = {mount["name"]: mount["mountPath"] for mount in prometheus["volumeMounts"]}
-    assert mounts == {"data": "/prometheus", "configuration": "/etc/prometheus"}
+    # In TLS alone, with the certificate its container of initialisation issues (US-2840).
+    assert mounts == {
+        "data": "/prometheus",
+        "configuration": "/etc/prometheus",
+        "certificates": "/tls",
+    }
+    assert "--web.config.file=/etc/prometheus/web.yml" in prometheus["args"]
     for name, content in configuration(objects).items():
         (tmp_path / name).write_text(content, encoding="utf-8")
     checked = promtool("check", "config", str(tmp_path / "prometheus.yml"))
@@ -197,6 +210,38 @@ def test_the_api_declares_the_capacities_of_the_volumes_of_the_chart(objects: Ob
     assert api["WATERFALL_STORAGE_CAPACITY_BYTES"] == str(2 * 1024**4)
     with pytest.raises(ChartError, match=r"storage\.persistence\.size"):
         rendered({"storage": {"persistence": {"size": "2 TB"}}})
+
+
+@pytest.mark.requirement("WF-ADM-0130-A")
+def test_the_api_presents_the_values_the_rules_and_the_worker_are_given(objects: Objects) -> None:
+    # #4636: the status screen presents the operating parameters in force — the thresholds the
+    # rules are written with, the retention the purge of the worker applies —, and reads the
+    # Prometheus of the chart in HTTPS (TFX-14); the bootstrap writes the largest avatar.
+    def api(values: dict[str, Any] | None = None) -> dict[str, Any]:
+        return environment(container(rendered(values) if values else objects, "Deployment", "api"))
+
+    shipped = api()
+    assert {name: shipped[name] for name in SHIPPED} == SHIPPED
+    worker = environment(container(objects, "Deployment", "worker"))
+    retention = "WATERFALL_BACKGROUND_TASK_RETENTION_DAYS"
+    assert shipped[retention] == worker[retention] == "30"
+    assert shipped["WATERFALL_PROMETHEUS_ADDRESS"] == "https://waterfall-prometheus:9090"
+    changed = {
+        "prometheus": {"thresholds": {"taskQueueAgeSeconds": 600, "storageUsage": "0.9"}},
+        "worker": {"backgroundTaskRetentionDays": 7},
+    }
+    given = api(changed)
+    rules = configuration(rendered(changed))["alerts.yml"]
+    assert given["WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS"] == "600"
+    assert "> 600" in rules
+    assert given["WATERFALL_STORAGE_USAGE_THRESHOLD"] == "0.9"
+    assert given[retention] == "7"
+    # The Prometheus of the operator is not given to the API: the screen says the metrics
+    # unavailable.
+    operator = api({"prometheus": {"enabled": False}, "grafana": {"prometheusUrl": "https://p"}})
+    assert "WATERFALL_PROMETHEUS_ADDRESS" not in operator
+    (install,) = named(objects, "Job", "install")["spec"]["template"]["spec"]["containers"]
+    assert environment(install)["WATERFALL_AVATAR_MAX_BYTES"] == str(512 * 1024)
 
 
 @pytest.mark.requirement("WF-OBS-0030-A")

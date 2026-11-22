@@ -10,9 +10,11 @@ sur `ghcr.io/waterfall-project`, derrière un frontal HTTPS (US-0430, WF-ARC-005
 Compose est `compose.prod.yaml` ; les autres fichiers de ce répertoire servent la plateforme de
 développement et la plateforme de service, sauf ceux qu'il monte : `Caddyfile.prod`,
 `garage.toml`, `storage-buckets.sh`, `postgres-volume.sh`, les scripts SQL des rôles et des
-bases, ceux de Prometheus : `prometheus.sh`, `prometheus.yml` et `prometheus-alerts.yml`, celui d'Alertmanager,
-`alertmanager.sh`, et ceux de Grafana : `grafana-datasource.yml`, `grafana-dashboards.yml` et
-`grafana-dashboard.json`.
+bases, ceux de Prometheus : `prometheus.sh`, `prometheus.yml` et `prometheus-alerts.yml`, ceux
+d'Alertmanager, `alertmanager.sh`, `alertmanager-web.yml` et `alertmanager-client.yml`, ceux de
+Grafana : `grafana-datasource.yml`, `grafana-dashboards.yml` et `grafana-dashboard.json`, et ceux
+du chiffrement : `pg_hba.conf`, `Caddyfile.storage`, `Caddyfile.front`, `prometheus-web.yml` et
+`prometheus-client.yml`.
 
 La plateforme compte un frontal Caddy, seul port ouvert, qui obtient ses certificats de Let's
 Encrypt et sert le front à la racine, Keycloak sous `/auth`, hors sa console, et Grafana sous `/grafana` ; le front, l'API, le worker et le
@@ -98,11 +100,16 @@ accordent ; les sauvegardes, par le rôle de sauvegarde.
 ### Le chiffrement entre les services
 
 Tout échange à l'intérieur de la plateforme est chiffré (US-2840, WF-SEC-0010) : PostgreSQL, Redis,
-l'API, Keycloak et Prometheus — que l'API et Grafana lisent en HTTPS (TFX-14,
-`prometheus-web.yml`) — ne servent qu'en TLS, le stockage objet derrière un mandataire TLS
-(`storage-proxy`, `Caddyfile.storage`) — Garage, qui ne chiffre pas, n'est joint que par lui, sur
-un réseau qu'ils sont seuls à partager. Chaque client vérifie le certificat du serveur et son nom
-contre la racine de l'autorité de la plateforme ; une connexion en clair est refusée. Keycloak, seule
+l'API, Keycloak, Prometheus — que l'API et Grafana lisent en HTTPS (TFX-14,
+`prometheus-web.yml`) —, Alertmanager — à qui Prometheus envoie les alertes en HTTPS
+(`alertmanager-web.yml`) — et Grafana ne servent qu'en TLS, le stockage objet derrière un
+mandataire TLS (`storage-proxy`, `Caddyfile.storage`) — Garage, qui ne chiffre pas, n'est joint que
+par lui, sur un réseau qu'ils sont seuls à partager —, et le front de même (`front-proxy`,
+`Caddyfile.front`) : le serveur de Next n'écoute que sur la boucle locale du réseau de son
+mandataire, qu'il partage, et la porte, comme Keycloak sur son canal arrière (TFX-17), le joint à
+`https://front:3443` (#4508). Chaque client — la porte comprise, vers le front, Keycloak et Grafana
+— vérifie le certificat du serveur et son nom contre la racine de l'autorité de la plateforme ; une
+connexion en clair est refusée. Keycloak, seule
 instance, garde ses caches pour lui (`KC_CACHE=local`) : il n'ouvre aucun port de grappe, ni 7800
 ni 57800, où JGroups parlerait en clair. Seuls les
 points de métriques restent en HTTP, sur un port que la porte ne route pas (TFX-09).

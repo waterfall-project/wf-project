@@ -383,6 +383,7 @@ paths = [
     "tools/tests/test_chartprovided.py",
     "tools/tests/test_chartrestoretest.py",
     "tools/tests/test_chartstateless.py",
+    "tools/tests/test_charttransport.py",
     "tools/tests/test_alerts.py",
     "tools/tests/test_chartnotification.py",
     "tools/tests/test_notification.py",

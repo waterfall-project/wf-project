@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # The files the Compose of production mounts, the same ones (files/ links to deploy/compose): the
-# steps of the database, the making of the buckets, the control of the volume of PostgreSQL, and the
-# configuration of Garage. None holds a secret.
+# steps of the database, the making of the buckets, the control of the volume of PostgreSQL, and
+# who may connect to PostgreSQL. None holds a secret.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -11,7 +11,7 @@ metadata:
   labels:
     {{- include "waterfall.labels" (list . "files") | nindent 4 }}
 data:
-  {{- range $name := list "waterfall-database.sql" "keycloak-database.sql" "backup-database-role.sql" "service-database-role.sql" "storage-buckets.sh" "postgres-volume.sh" "garage.toml" }}
+  {{- range $name := list "waterfall-database.sql" "keycloak-database.sql" "backup-database-role.sql" "service-database-role.sql" "storage-buckets.sh" "postgres-volume.sh" "pg_hba.conf" }}
   {{ $name }}: |-
     {{- $.Files.Get (printf "files/%s" $name) | trimSuffix "\n" | nindent 4 }}
   {{- end }}

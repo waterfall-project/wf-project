@@ -64,7 +64,8 @@ of the object storage (x-capacities). */}}
 {{- end -}}
 
 {{/* What Prometheus collects: the jobs of the Compose (prometheus.yml), each component found by its
-headless Service in the namespace of the release. */}}
+headless Service in the namespace of the release, in HTTP (TFX-09); and the Alertmanager it sends the
+alerts to, in HTTPS, its certificate checked against the root written beside its own (US-2840). */}}
 {{- define "waterfall.prometheusConfiguration" -}}
 {{- $port := include "waterfall.wholeNumber" (list "metrics.port" .Values.metrics.port) -}}
 global:
@@ -74,7 +75,10 @@ rule_files:
   - alerts.yml
 alerting:
   alertmanagers:
-    - static_configs:
+    - scheme: https
+      tls_config:
+        ca_file: /tls/ca.crt
+      static_configs:
         - targets: [{{ printf "%s:9093" (include "waterfall.name" (list $ "alertmanager")) }}]
 scrape_configs:
 {{- range $component := list "front" "api" "worker" }}

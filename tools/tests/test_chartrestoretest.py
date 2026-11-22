@@ -91,7 +91,8 @@ def test_the_test_is_one_pod_whose_services_listen_on_its_loopback_and_declare_n
     # The API listens on the address of WATERFALL_HOST, the loopback when it is not given.
     assert "WATERFALL_HOST" not in environment(container(spec, "api"))
     tester = environment(container(spec, "restore-test"))
-    assert tester["WATERFALL_RESTORE_TEST_API_ADDRESS"] == "http://127.0.0.1:8000"
+    # In TLS, under the authority of the test (US-2840).
+    assert tester["WATERFALL_RESTORE_TEST_API_ADDRESS"] == "https://127.0.0.1:8000"
     assert tester["WATERFALL_RESTORE_TEST_PATIENCE"] == "1800"
 
 
@@ -176,7 +177,7 @@ def test_the_scheduler_alone_may_create_jobs_and_the_worker_holds_no_right_of_th
     assert schedule["command"] == ["waterfall-worker", "schedule"]
     assert environment(schedule)["WATERFALL_RESTORE_TEST_JOB"] == "/restore-test/job.json"
     assert environment(schedule)["WATERFALL_RESTORE_TEST_INTERVAL"] == "2592000"
-    (mount,) = schedule["volumeMounts"]
+    (mount,) = [mount for mount in schedule["volumeMounts"] if mount["name"] == "restore-test"]
     assert (mount["mountPath"], mount["readOnly"]) == ("/restore-test", True)
     worker = named(objects, "Deployment", "waterfall-worker")["spec"]["template"]["spec"]
     assert "serviceAccountName" not in worker
@@ -207,6 +208,8 @@ def test_without_the_test_the_chart_makes_none_of_it() -> None:
 
 PROVIDED_STORAGE = [{"ipBlock": {"cidr": "10.0.0.6/32"}}]
 PROVIDED_POSTGRES = [{"ipBlock": {"cidr": "10.0.0.5/32"}}]
+# The roots of the certificates of the components of the operator (US-2840).
+TRUSTED = {"providedAuthority": "operator-roots"}
 
 
 @pytest.mark.chart
@@ -223,6 +226,7 @@ def test_the_test_leaves_for_the_storage_an_operator_provides_at_its_peers_and_i
             "storage": {"enabled": False, "address": address},
             "postgresql": {"enabled": False, "host": "db.example.org", "port": 6432},
             "secrets": {"existingSecret": "operator", "values": None},
+            "transport": TRUSTED,
             "restoreTest": {
                 "egress": {"storage": PROVIDED_STORAGE, "postgresql": PROVIDED_POSTGRES}
             },
@@ -241,13 +245,17 @@ def test_the_test_leaves_for_the_storage_an_operator_provides_at_its_peers_and_i
     ("given", "said"),
     [
         (
-            {"storage": {"enabled": False, "address": "https://s3.example.org"}},
+            {
+                "storage": {"enabled": False, "address": "https://s3.example.org"},
+                "transport": TRUSTED,
+            },
             r"restoreTest\.egress\.storage",
         ),
         (
             {
                 "postgresql": {"enabled": False, "host": "db.example.org"},
                 "secrets": {"existingSecret": "operator", "values": None},
+                "transport": TRUSTED,
             },
             r"restoreTest\.egress\.postgresql",
         ),

@@ -128,7 +128,10 @@ def test_the_settings_of_the_check_are_those_of_the_front_in_the_production_comp
     # and not here, would go untried (#952).
     production = REPOSITORY / "deploy" / "compose" / "compose.prod.yaml"
     front = yaml.safe_load(production.read_text(encoding="utf-8"))["services"]["front"]
-    assert set(frontimage.SETTINGS) == set(front["environment"])
+    # Not where it listens: the loopback behind its proxy in TLS under Compose (US-2840), every
+    # interface of its container, as the image has it, for the check, which reaches it by the port
+    # Docker publishes.
+    assert set(frontimage.SETTINGS) == set(front["environment"]) - {"HOSTNAME"}
 
 
 def test_what_the_check_removes_one_by_one_is_what_the_front_does_not_start_without() -> None:

@@ -318,16 +318,27 @@ def issued(authority: Authority, name: str, now: datetime) -> tuple[bytes, bytes
         .add_extension(usage, critical=True)
         .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
         .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
-        .add_extension(
-            x509.AuthorityKeyIdentifier.from_issuer_public_key(authority.key.public_key()),
-            critical=False,
-        )
+        .add_extension(_issuer_identifier(authority), critical=False)
         .sign(authority.key, _signature(authority.key))
     )
     private = key.private_bytes(
         serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
     )
     return private, certificate.public_bytes(serialization.Encoding.PEM) + authority.pem()
+
+
+def _issuer_identifier(authority: Authority) -> x509.AuthorityKeyIdentifier:
+    """Name the key of the authority as its certificate names it, else from the key itself.
+
+    A client finds the issuer of a certificate by that identifier: computed otherwise than the
+    authority declares its own — Helm's ``genCA``, whose Go takes a truncated SHA-256 where the
+    method of RFC 5280 takes SHA-1 —, OpenSSL finds no issuer, and refuses the certificate.
+    """
+    try:
+        declared = authority.issuer.extensions.get_extension_for_class(x509.SubjectKeyIdentifier)
+    except x509.ExtensionNotFound:
+        return x509.AuthorityKeyIdentifier.from_issuer_public_key(authority.key.public_key())
+    return x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(declared.value)
 
 
 def _write(path: Path, content: bytes, mode: int, owner: tuple[int, int] | None = None) -> None:

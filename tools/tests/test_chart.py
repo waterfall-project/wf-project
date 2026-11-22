@@ -96,13 +96,13 @@ def test_the_worker_of_the_chart_keeps_what_the_worker_of_the_compose_keeps(
         assert variables[name] == re.sub(r"\$\{[A-Z_]+:-(.*)\}", r"\1", compose[name])
 
 
-def test_the_front_listens_on_every_interface_whatever_kubernetes_sets_hostname(
+def test_the_front_listens_on_the_loopback_alone_whatever_kubernetes_sets_hostname(
     objects: Objects,
 ) -> None:
-    # Kubernetes sets HOSTNAME to the name of the pod over the ENV of the image (#826).
-    (front,) = pod(of_kind(objects, "Deployment")["front"])["containers"]
-    # Every interface: the address of none.
-    assert ipaddress.ip_address(environment(front)["HOSTNAME"]).is_unspecified
+    # Kubernetes sets HOSTNAME to the name of the pod over the ENV of the image (#826). The front
+    # listens on the loopback of its pod alone, behind its proxy in TLS (US-2840, #4508).
+    front, _ = pod(of_kind(objects, "Deployment")["front"])["containers"]
+    assert ipaddress.ip_address(environment(front)["HOSTNAME"]).is_loopback
     names = [variable["name"] for variable in front["env"]]
     assert names.count("HOSTNAME") == 1
 
@@ -115,7 +115,11 @@ def test_the_front_the_api_the_worker_and_the_restoration_are_deployments_of_the
         component: [container["image"] for container in pod(deployments[component])["containers"]]
         for component in ("front", "api", "worker", "restore")
     }
-    assert images["front"] == ["ghcr.io/waterfall-project/front:chain"]
+    # The front, and its proxy in TLS beside it (US-2840).
+    assert images["front"] == [
+        "ghcr.io/waterfall-project/front:chain",
+        MIRRORED.sub("", services()["front-proxy"]["image"]),
+    ]
     assert images["api"] == images["worker"] == ["ghcr.io/waterfall-project/waterfall:chain"]
     # The restoration, with the application of the realm beside it (#955), never two at once.
     assert images["restore"] == [
@@ -174,22 +178,23 @@ def test_the_chart_describes_the_services_the_ingress_the_secrets_and_the_volume
         component: {port["name"]: port["port"] for port in item["spec"]["ports"]}
         for component, item in of_kind(objects, "Service").items()
     }
+    # In TLS alone, those the ingress routes named https (US-2840); the metrics alone in HTTP.
     assert ports == {
-        "front": {"http": 3000},
-        "api": {"http": 8000},
-        "keycloak": {"http": 8080, "management": 9000},
+        "front": {"https": 3443},
+        "api": {"https": 8443},
+        "keycloak": {"https": 8443, "management": 9000},
         "postgres": {"postgres": 5432},
         "redis": {"redis": 6379},
         "storage": {"s3": 3900},
-        "prometheus": {"http": 9090},
-        "alertmanager": {"http": 9093},
-        "grafana": {"http": 3000},
+        "prometheus": {"https": 9090},
+        "alertmanager": {"https": 9093},
+        "grafana": {"https": 3000},
         # Headless, by which Prometheus finds every instance (US-2880).
         "front-metrics": {"metrics": 9100},
-        "api-metrics": {"http": 8000},
+        "api-metrics": {"metrics": 8000},
         "worker-metrics": {"metrics": 9100},
     }
-    (secret,) = of_kind(objects, "Secret").values()
+    secret = of_kind(objects, "Secret")["secrets"]
     assert set(secret["stringData"]) == set(chart.SECRET_KEYS)
     volumes = {
         component: [claim["metadata"]["name"] for claim in item["spec"]["volumeClaimTemplates"]]
@@ -199,11 +204,15 @@ def test_the_chart_describes_the_services_the_ingress_the_secrets_and_the_volume
 
 
 def test_the_ingress_serves_keycloak_under_auth_and_the_front_elsewhere(objects: Objects) -> None:
-    (ingress,) = of_kind(objects, "Ingress").values()
-    (rule,) = ingress["spec"]["rules"]
-    assert rule["host"] == "waterfall.localhost"
+    # One Ingress for each server behind it, each in HTTPS (US-2840): the longest path wins
+    # across them, as within one.
+    ingresses = [item for item in objects if item["kind"] == "Ingress"]
+    assert len(ingresses) == 3
+    rules = [rule for ingress in ingresses for rule in ingress["spec"]["rules"]]
+    assert {rule["host"] for rule in rules} == {"waterfall.localhost"}
     routes = {
         (path["path"], path["pathType"]): path["backend"]["service"]["name"]
+        for rule in rules
         for path in rule["http"]["paths"]
     }
     assert routes == {
@@ -239,16 +248,18 @@ def test_the_realm_is_applied_by_a_hook_after_each_installation_and_upgrade(
     (realm,) = pod(jobs["realm"])["containers"]
     assert realm["command"] == ["/opt/keycloak/bin/apply-realm"]
     keycloak_realm = services()["keycloak-realm"]["environment"]
-    # The root of the platform: the Compose's alone until the chart encrypts too (US-2840/L2).
-    left = {"KC_DB_URL", "KC_DB_USERNAME", "KC_DB_PASSWORD", "WATERFALL_TLS_AUTHORITY"}
+    left = {"KC_DB_URL", "KC_DB_USERNAME", "KC_DB_PASSWORD"}
     assert set(keycloak_realm) - left <= set(environment(realm))
 
 
 def test_the_migrations_run_in_the_order_of_the_compose_as_the_roles_it_names(
     objects: Objects,
 ) -> None:
+    # After the roots of the pod, which its container of initialisation writes (US-2840).
     steps = {
-        container["name"]: container for container in containers(of_kind(objects, "Job")["migrate"])
+        container["name"]: container
+        for container in containers(of_kind(objects, "Job")["migrate"])
+        if container["name"] != "transport"
     }
     assert list(steps) == [
         "waterfall-database",
@@ -258,9 +269,9 @@ def test_the_migrations_run_in_the_order_of_the_compose_as_the_roles_it_names(
         "service-database-role",
     ]
     # The buckets are a hook of their own, which the storage of the chart may not precede.
-    (buckets,) = containers(of_kind(objects, "Job")["buckets"])
+    (buckets,) = pod(of_kind(objects, "Job")["buckets"])["containers"]
     assert buckets["name"] == "storage-buckets"
-    assert environment(buckets)["STORAGE_ADDRESS"] == "http://waterfall-storage:3900"
+    assert environment(buckets)["STORAGE_ADDRESS"] == "https://waterfall-storage:3900"
     assert environment(steps["migrate"])["WATERFALL_DATABASE_URL"].startswith(
         "postgresql://waterfall:$(WATERFALL_POSTGRES_PASSWORD)@"
     )
@@ -268,8 +279,8 @@ def test_the_migrations_run_in_the_order_of_the_compose_as_the_roles_it_names(
     roles = {"api": "waterfall_service", "worker": "waterfall_service", "restore": "waterfall"}
     for name, role in roles.items():
         deployment = of_kind(objects, "Deployment")[name]
-        url = environment(next(containers(deployment)))
-        assert url["PGUSER"] == role, name
+        wait = next(c for c in containers(deployment) if c["name"] == "wait-for-database")
+        assert environment(wait)["PGUSER"] == role, name
 
 
 @pytest.mark.story("US-2800")
@@ -281,7 +292,7 @@ def test_the_tasks_planned_are_one_cronjob_that_runs_the_one_command_of_the_sche
     # loop of the Compose runs, every five minutes, never two at once, and no storage to reach.
     loop = services()["scheduler"]["command"][-1]
     (job,) = [item for item in objects if item["kind"] == "CronJob"]
-    (container,) = containers(job)
+    (container,) = pod(job)["containers"]
     assert container["command"] == ["waterfall-worker", "schedule"]
     assert "waterfall-worker schedule" in loop
     assert job["spec"]["schedule"] == "*/5 * * * *"
@@ -300,12 +311,12 @@ def test_the_chart_reads_the_images_of_the_compose(objects: Objects) -> None:
         for service in services().values()
         if (match := PUBLISHED.match(service["image"]))
     }
-    # Caddy is the door of the Compose alone: the ingress is the chart's. It is also the proxy in
-    # TLS of the storage of the Compose, which the chart does not have yet (US-2840/L2).
+    # Caddy is the door of the Compose: the ingress is the chart's. It is also the proxy in TLS of
+    # the storage and of the front, in their pods as in the Compose (US-2840).
     third_parties = {
         MIRRORED.sub("", service["image"])
         for name, service in services().items()
-        if MIRRORED.match(service["image"]) and name not in {"caddy", "storage-proxy"}
+        if MIRRORED.match(service["image"]) and name != "caddy"
     }
     images = {
         container["image"]
@@ -335,7 +346,7 @@ def test_no_pod_reads_the_variables_of_the_services_of_its_namespace(objects: Ob
 
 def test_a_secret_of_the_operator_replaces_the_one_the_chart_makes() -> None:
     objects = rendered({"secrets": {"existingSecret": "operator", "values": None}})
-    assert of_kind(objects, "Secret") == {}
+    assert "secrets" not in of_kind(objects, "Secret")
     (api,) = pod(of_kind(objects, "Deployment")["api"])["containers"]
     read = environment(api)["WATERFALL_SERVICE_DATABASE_PASSWORD"]
     assert read == {
@@ -350,13 +361,15 @@ def test_a_value_the_chart_cannot_do_without_stops_the_rendering_naming_it() -> 
         rendered({"platform": {"domain": ""}})
 
 
+@pytest.mark.requirement("WF-SEC-0010-A")
 def test_the_front_trusts_the_authority_it_is_given() -> None:
+    # Its server reaches the API, Redis, and Keycloak through the ingress, trusting the root of
+    # the platform: a certificate of the domain the authority of the operator signs is trusted.
     objects = rendered({"transport": {"authority": "local-root"}})
     front = pod(of_kind(objects, "Deployment")["front"])
-    assert environment(front["containers"][0])["NODE_EXTRA_CA_CERTS"] == "/authority/ca.crt"
-    assert front["volumes"] == [
-        {
-            "name": "authority",
-            "secret": {"secretName": "local-root", "items": [{"key": "ca.crt", "path": "ca.crt"}]},
-        }
+    assert environment(front["containers"][0])["NODE_EXTRA_CA_CERTS"] == "/trust/root.crt"
+    volumes = {volume["name"]: volume for volume in front["volumes"]}
+    assert volumes["roots"]["projected"]["sources"] == [
+        {"secret": {"name": "local-root", "items": [{"key": "ca.crt", "path": "platform.crt"}]}}
     ]
+    assert of_kind(objects, "Secret").keys() == {"secrets"}

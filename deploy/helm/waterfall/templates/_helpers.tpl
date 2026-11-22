@@ -119,34 +119,45 @@ passwords of the Secret, which holds the same keys. */}}
 {{- printf "%s:%d" (required "redis.host: the address of the Redis the operator provides (redis.enabled is false)" .Values.redis.host) (.Values.redis.port | default 6379 | int) -}}
 {{- end -}}
 {{- end -}}
+{{/* Redis in TLS (TFX-04, TFX-10), its certificate checked against the roots of the pod. */}}
 {{- define "waterfall.redisUrl" -}}
-{{- printf "redis://:$(WATERFALL_REDIS_PASSWORD)@%s/0" (include "waterfall.redisAddress" .) -}}
+{{- printf "rediss://:$(WATERFALL_REDIS_PASSWORD)@%s/0?ssl_ca_certs=%s" (include "waterfall.redisAddress" .) (include "waterfall.roots" .) -}}
 {{- end -}}
 {{- define "waterfall.storageAddress" -}}
 {{- if .Values.storage.enabled -}}
-{{- printf "http://%s:3900" (include "waterfall.name" (list . "storage")) -}}
+{{- printf "https://%s:3900" (include "waterfall.name" (list . "storage")) -}}
 {{- else -}}
 {{- required "storage.address: the address of the object storage the operator provides (storage.enabled is false)" .Values.storage.address -}}
 {{- end -}}
 {{- end -}}
 
+{{/* An address of PostgreSQL, as a role, to a database: in TLS, its certificate and its name checked
+against the roots of the pod (sslmode=verify-full, TFX-03, TFX-10, TFX-12):
+(list $ "role" "$(KEY OF ITS PASSWORD)" "database"). */}}
+{{- define "waterfall.databaseUrl" -}}
+{{- $ := index . 0 -}}
+{{- printf "postgresql://%s:%s@%s/%s?sslmode=verify-full&sslrootcert=%s" (index . 1) (index . 2) (include "waterfall.postgresAddress" $) (index . 3) (include "waterfall.roots" $) -}}
+{{- end -}}
+
 {{/* The database of Waterfall and Redis, as the role of the service — or as the owner of the
-tables, waterfall, with (list $ "owner") — (x-back-environment, #701). */}}
+tables, waterfall, with (list $ "owner") — (x-back-environment, #701), and the roots the process
+trusts, which make it refuse an address in the clear (WATERFALL_TLS_AUTHORITY, US-2840). */}}
 {{- define "waterfall.backEnvironment" -}}
 {{- $ := index . 0 -}}
-{{- $host := include "waterfall.postgresAddress" $ -}}
 {{ include "waterfall.secretEnv" (list $ "WATERFALL_REDIS_PASSWORD") }}
 {{- if eq (index . 1) "owner" }}
 {{ include "waterfall.secretEnv" (list $ "WATERFALL_POSTGRES_PASSWORD") }}
 - name: WATERFALL_DATABASE_URL
-  value: {{ printf "postgresql://waterfall:$(WATERFALL_POSTGRES_PASSWORD)@%s/waterfall" $host | quote }}
+  value: {{ include "waterfall.databaseUrl" (list $ "waterfall" "$(WATERFALL_POSTGRES_PASSWORD)" "waterfall") | quote }}
 {{- else }}
 {{ include "waterfall.secretEnv" (list $ "WATERFALL_SERVICE_DATABASE_PASSWORD") }}
 - name: WATERFALL_DATABASE_URL
-  value: {{ printf "postgresql://waterfall_service:$(WATERFALL_SERVICE_DATABASE_PASSWORD)@%s/waterfall" $host | quote }}
+  value: {{ include "waterfall.databaseUrl" (list $ "waterfall_service" "$(WATERFALL_SERVICE_DATABASE_PASSWORD)" "waterfall") | quote }}
 {{- end }}
 - name: WATERFALL_REDIS_URL
   value: {{ include "waterfall.redisUrl" $ | quote }}
+- name: WATERFALL_TLS_AUTHORITY
+  value: {{ include "waterfall.roots" $ }}
 {{- end -}}
 
 {{/* Keycloak as the browser reaches it, and inside the cluster, for its keys and its
@@ -155,8 +166,13 @@ administration API, as its service account (x-keycloak-client-environment). */}}
 - name: WATERFALL_KEYCLOAK_ADDRESS
   value: {{ printf "%s/auth" (include "waterfall.address" .) | quote }}
 - name: WATERFALL_KEYCLOAK_BACKCHANNEL
-  value: {{ printf "http://%s:8080/auth" (include "waterfall.name" (list . "keycloak")) | quote }}
+  value: {{ include "waterfall.keycloakUrl" . | quote }}
 {{ include "waterfall.secretEnv" (list . "WATERFALL_SERVICE_CLIENT_SECRET") }}
+{{- end -}}
+
+{{/* Keycloak inside the cluster, in HTTPS alone (TFX-08). */}}
+{{- define "waterfall.keycloakUrl" -}}
+{{- printf "https://%s:8443/auth" (include "waterfall.name" (list . "keycloak")) -}}
 {{- end -}}
 
 {{/* The object storage, and the bucket of the backups (x-storage-environment). */}}
@@ -173,7 +189,7 @@ administration API, as its service account (x-keycloak-client-environment). */}}
 {{/* The database of Keycloak, as its owner (x-keycloak-database). */}}
 {{- define "waterfall.keycloakDatabase" -}}
 - name: KC_DB_URL
-  value: {{ printf "jdbc:postgresql://%s/keycloak" (include "waterfall.postgresAddress" .) | quote }}
+  value: {{ printf "jdbc:postgresql://%s/keycloak?sslmode=verify-full&sslrootcert=%s" (include "waterfall.postgresAddress" .) (include "waterfall.roots" .) | quote }}
 - name: KC_DB_USERNAME
   value: keycloak
 {{ include "waterfall.secretEnv" (list . "WATERFALL_KEYCLOAK_DATABASE_PASSWORD" "KC_DB_PASSWORD") }}
@@ -185,14 +201,16 @@ the service of the restoration asks for it again (#955). */}}
 {{- define "waterfall.realmEnvironment" -}}
 {{ include "waterfall.keycloakDatabase" . }}
 - name: KEYCLOAK_URL
-  value: {{ printf "http://%s:8080/auth" (include "waterfall.name" (list . "keycloak")) | quote }}
+  value: {{ include "waterfall.keycloakUrl" . | quote }}
+- name: WATERFALL_TLS_AUTHORITY
+  value: {{ include "waterfall.roots" . }}
 - name: KEYCLOAK_USER
   value: admin
 {{ include "waterfall.secretEnv" (list . "WATERFALL_KEYCLOAK_ADMIN_PASSWORD" "KEYCLOAK_PASSWORD") }}
 - name: WATERFALL_FRONT_ADDRESS
   value: {{ include "waterfall.address" . | quote }}
 - name: WATERFALL_FRONT_BACKCHANNEL
-  value: {{ printf "http://%s:3000" (include "waterfall.name" (list . "front")) | quote }}
+  value: {{ printf "https://%s:3443" (include "waterfall.name" (list . "front")) | quote }}
 {{ include "waterfall.secretEnv" (list . "WATERFALL_FRONT_CLIENT_SECRET") }}
 {{ include "waterfall.secretEnv" (list . "WATERFALL_SERVICE_CLIENT_SECRET") }}
 {{ include "waterfall.secretEnv" (list . "WATERFALL_INSTALLATION_CLIENT_SECRET") }}
@@ -200,7 +218,8 @@ the service of the restoration asks for it again (#955). */}}
   value: /realm-requests
 {{- end -}}
 
-{{/* PostgreSQL as its administrator, postgres: the steps of initialisation alone (x-administrator). */}}
+{{/* PostgreSQL as its administrator, postgres: the steps of initialisation alone (x-administrator),
+in TLS, its certificate checked. */}}
 {{- define "waterfall.administrator" -}}
 - name: PGHOST
   value: {{ include "waterfall.postgresHost" . }}
@@ -209,6 +228,15 @@ the service of the restoration asks for it again (#955). */}}
 - name: PGUSER
   value: {{ .Values.postgresql.adminUser | quote }}
 {{ include "waterfall.secretEnv" (list . "WATERFALL_POSTGRES_ADMIN_PASSWORD" "PGPASSWORD") }}
+{{ include "waterfall.verifiedPostgres" . }}
+{{- end -}}
+
+{{/* What makes psql reach PostgreSQL in TLS alone, its certificate and its name checked. */}}
+{{- define "waterfall.verifiedPostgres" -}}
+- name: PGSSLMODE
+  value: verify-full
+- name: PGSSLROOTCERT
+  value: {{ include "waterfall.roots" . }}
 {{- end -}}
 
 {{/* A container that waits until a role signs in to its database, which it can once the steps
@@ -238,33 +266,35 @@ dependencies of compose.prod.yaml on service-database-role and keycloak-database
     - name: PGDATABASE
       value: {{ index . 2 }}
 {{ include "waterfall.secretEnv" (list $ (index . 3) "PGPASSWORD") | indent 4 }}
+{{ include "waterfall.verifiedPostgres" $ | indent 4 }}
+  volumeMounts:
+    {{- include "waterfall.trustMount" $ | nindent 4 }}
 {{- end -}}
 
-{{/* A container that waits until Keycloak answers 200 at a port and a path, its status line read
-as compose.prod.yaml reads it — its readiness, 9000 /auth/health/ready, answers 503 while the
-schema migrates (#1079): (list $ "9000" "/auth/health/ready"). */}}
+{{/* A container that waits until Keycloak answers 200 at a port and a path, in HTTPS, its
+certificate checked against the roots of the pod — its readiness, 9000 /auth/health/ready, answers
+503 while the schema migrates (#1079), which urllib takes for a failure: (list $ "9000"
+"/auth/health/ready"). */}}
 {{- define "waterfall.waitForKeycloak" -}}
 {{- $ := index . 0 -}}
 - name: wait-for-keycloak
-  image: {{ include "waterfall.image" (list $ "keycloak") }}
+  image: {{ include "waterfall.image" (list $ "waterfall") }}
   imagePullPolicy: {{ $.Values.images.pullPolicy }}
   command:
-    - bash
+    - sh
     - -c
     - |-
-      until (exec 3<>"/dev/tcp/$KEYCLOAK_HOST/$KEYCLOAK_PORT" \
-          && printf 'GET %s HTTP/1.0\r\nHost: %s\r\n\r\n' "$KEYCLOAK_PATH" "$KEYCLOAK_HOST" >&3 \
-          && head -n 1 <&3 | grep -q ' 200 ') 2>/dev/null; do
-        echo "waiting for Keycloak to answer $KEYCLOAK_PATH"
+      until python -c 'import os, ssl, urllib.request; urllib.request.urlopen(os.environ["KEYCLOAK_ADDRESS"], timeout=3, context=ssl.create_default_context(cafile=os.environ["ROOTS"]))' 2>/dev/null; do
+        echo "waiting for Keycloak to answer $KEYCLOAK_ADDRESS"
         sleep 3
       done
   env:
-    - name: KEYCLOAK_HOST
-      value: {{ include "waterfall.name" (list $ "keycloak") }}
-    - name: KEYCLOAK_PORT
-      value: {{ index . 1 | quote }}
-    - name: KEYCLOAK_PATH
-      value: {{ index . 2 | quote }}
+    - name: KEYCLOAK_ADDRESS
+      value: {{ printf "https://%s:%s%s" (include "waterfall.name" (list $ "keycloak")) (index . 1) (index . 2) | quote }}
+    - name: ROOTS
+      value: {{ include "waterfall.roots" $ }}
+  volumeMounts:
+    {{- include "waterfall.trustMount" $ | nindent 4 }}
 {{- end -}}
 
 {{/* When the steps of the database and the migrations run at the installation: after it, for the
