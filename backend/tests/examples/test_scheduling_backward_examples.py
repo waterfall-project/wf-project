@@ -175,21 +175,39 @@ def test_an_elapsed_duration_shorter_than_a_day_floats_as_its_hours_of_work_do(
         assert not of(dated, n).is_critical
 
 
-@pytest.mark.requirement("WF-PLA-0160-A")
-def test_elapsed_hours_finishing_at_the_end_of_a_day_from_any_start_in_it_leave_a_nil_float() -> (
-    None
-):
-    # « Un décalage de 2 ej [...] s'achève le dimanche »: an elapsed duration finishes on the day it
-    # reaches, its hours bounded to that day's. A of thirty elapsed hours finishes on the Tuesday at
-    # its sixth hour of work; B, ten elapsed hours after it, at the Tuesday's eighth, as it would
-    # from the Tuesday's first. Gone back to that first hour, B's latest start gave A a float of
-    # minus 0.75 day, critical without a conflict (#4412); B starts no earlier at the latest than
-    # it does, and A is critical with a float of nil.
+@pytest.mark.story("US-3300")
+def test_elapsed_hours_finishing_at_the_end_of_a_day_from_any_start_leave_a_nil_float() -> None:
+    # Propre à l'US, « une durée écoulée recule juste » (#4412) pour les heures qui outrepassent
+    # celles du jour : an elapsed duration finishes on the day it reaches, its hours bounded to
+    # that day's. A of thirty elapsed hours finishes on the Tuesday at its sixth hour of work; B,
+    # ten elapsed hours after it, at the Tuesday's eighth, as it would from the Tuesday's first.
+    # Gone back to that first hour, B's latest start gave A a float of minus 0.75 day, critical
+    # without a conflict; B starts no earlier at the latest than it does, and A is critical with a
+    # float of nil — a float is what A may slip by with the finish kept, and the latest start of B
+    # that keeps it is not a count a start can be placed at (the end of the day's work is the next
+    # day's first hour).
     dated = planned([task(1, "30 eh"), task(2, "10 eh")], [link(1, 2)])
     assert (of(dated, 1).finish, of(dated, 2).start) == (day(1, "6"), day(1, "6"))
     assert of(dated, 2).finish == day(1, "8")
     assert dated.link_conflicts == ()
     assert [of(dated, n).total_float for n in (1, 2)] == [Decimal(0), Decimal(0)]
+
+
+@pytest.mark.story("US-3300")
+def test_a_late_automatic_task_of_elapsed_hours_keeps_its_negative_float() -> None:
+    # Propre à l'US (#4412, #3984) : the floor on the latest start of a task finishing on time does
+    # not lift the float of one that finishes late. A (10 j) → B (10 eh, automatic) → M, manual and
+    # dated on the Monday of the second week, before the end of A and of B: both keep a negative
+    # float, and are critical.
+    manual = Task(ident(3), None, "manual", duration("1"), EIGHT_HOURS, day(7), day(7, "8"))
+    tasks = [task(1, "10"), task(2, "10 eh"), manual]
+    dated = planned(tasks, [link(1, 2), link(2, 3)])
+    assert of(dated, 2).finish > of(dated, 3).start
+    for n in (1, 2):
+        total = of(dated, n).total_float
+        assert total is not None
+        assert total < 0
+        assert of(dated, n).is_critical
 
 
 # --- The finish of a manual task of an elapsed duration (US-3300) -------------------------------
