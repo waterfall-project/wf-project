@@ -2,7 +2,7 @@
 id: EP-38
 titre: Resserrer le contrat et le schéma — bornes des entrées, refus déclarés, enveloppe d'erreur, descriptions, contraintes et clés
 statut: à planifier
-depend_de: EP-13
+depend_de: EP-13, EP-11
 famille: back
 issue:
 ---
@@ -96,6 +96,27 @@ Reporté d'EP-08 le 2026-11-21 (décision de l'auteur) :
 
 - #4646 — des lignes de descriptions de `docs/api/components/common.yaml` dépassent 100 colonnes —
   détaché de #4367 ; à recouper avec les descriptions de #4467
+
+Reportées d'EP-11 le 2026-11-21 au soir (décision de l'utilisateur, « Reprise du 2026-11-21
+soir » du fichier d'EP-11), à rattacher à un lot :
+
+- #4507 — contrat : les rôles du plan de charge, les points de la matrice et les signaux de la
+  santé du pilotage, rangés par libellé puis identifiant (décidé le 2026-11-21)
+- #4164 — contrat : aucun exemple d'un 422 de getPortfolioProjects sur la période du périmètre
+- #1714 — contrat : aucun exemple de getPortfolioWorkload ni de getPortfolioPilotHealth ne retient
+  completed
+- #4137 — contrat : la probabilité de gain d'un projet en cours dans la liste du portefeuille, 1 ou
+  nulle ?
+
+Issues ouvertes, reportées d'EP-08 le 2026-11-22 :
+
+- #3746 — contrat : deux compositions ambiguës dans des corps de requête
+  (`ProjectExit.current_revision`, `CurrentRevisionFate`) ; la sonde les garde dans
+  `KNOWN_AMBIGUOUS`
+- #4322 — contrat : l'avatar d'un compte n'a pas de version, et le contributeur ne porte pas
+  `has_avatar` (bloque #4323, EP-37)
+- #4669 — contrat : le refus du redatage d'une base nomme une tâche que le différentiel a supprimée
+  par son libellé, nœud nul (documentation seule)
 
 ## Conception
 
