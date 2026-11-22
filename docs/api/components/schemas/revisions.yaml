@@ -1495,18 +1495,29 @@ NodeSchedule:
 
 LinkConflict:
   type: object
-  required: [predecessor_node_id, successor_node_id, link_type]
+  required: [predecessor_node_id, successor_node_id, manual_node_id, link_type]
   description: >-
     A link that an automatic predecessor cannot satisfy with a manual task — finishing or
     starting before the date that the link imposes, according to its type
-    (WF-PLA-0030) —: the planning grid and the Gantt chart flag both tasks, naming the link,
-    without recomputing any date (WF-PLA-0020, WF-IHM-0070,
-    WF-ARC-0020). Computed, never entered; it disappears as soon as the dates allow.
+    (WF-PLA-0030) —: the planning grid and the Gantt chart flag the predecessor and that manual
+    task, naming the link, without recomputing any date (WF-PLA-0020, WF-IHM-0070,
+    WF-ARC-0020). Returned on the predecessor and on the manual task (`manual_node_id`), not on
+    the successor when it is a summary task (`TaskFacet.link_conflicts`). Computed, never
+    entered; it disappears as soon as the dates allow.
   properties:
     predecessor_node_id: { $ref: ../common.yaml#/Uuid }
     successor_node_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
-      description: The manual task that the link connects to its predecessor.
+      description: >-
+        The successor of the link: the manual task itself, or a summary task under which the
+        manual task lies (`manual_node_id`).
+    manual_node_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        The manual task that the predecessor cannot satisfy: the successor itself, or, when the
+        successor is a summary task, its manual subordinate in conflict, at any depth
+        (WF-PLA-0020, WF-PLA-0100). A link between a predecessor and a summary task names one
+        conflict per manual subordinate that it cannot satisfy.
     link_type: { $ref: '#/LinkType' }
 
 NodeInflation:
@@ -1728,10 +1739,12 @@ TaskFacet:
       type: array
       description: >-
         The conflicting links (WF-PLA-0020), always returned, empty without conflict: on a
-        manual task, those that its automatic predecessors cannot
-        satisfy; on such a predecessor, those it does not satisfy. Each one names its
-        two tasks and its type, in outline order of their predecessor, then of their
-        successor; the grid and the Gantt flag both tasks according to the common
+        manual task, those that name it (`LinkConflict.manual_node_id`), whose automatic
+        predecessor cannot satisfy it, whether the link reaches it or a summary task above it;
+        on such a predecessor, those it does not satisfy. Each one names the two ends of the
+        link, the manual task and its type, in outline order of their predecessor, then of
+        their successor, then of the manual task; the grid and the Gantt flag the predecessor
+        and the manual task according to the common
         scale (WF-IHM-0070) without cross-checking the floats or recomputing any date
         (WF-ARC-0020). A summary task carries none. Computed, never entered, they disappear as
         soon as the dates allow; a write that creates or lifts some returns them

@@ -12902,6 +12902,65 @@ précède le service : US-3060/L9 remplit le champ nouveau, que le service dit n
   témoin ne charge pas ; une chronologie du témoin changée, qui touche le chargeur et les
   exemples de la mise à jour.
 
+### Le conflit d'une liaison nomme sa tâche manuelle (US-3300/L1, #4565)
+
+WF-PLA-0020-A (septième phrase, spécification 1.0.7) veut qu'une tâche manuelle sous une
+récapitulative liée, que le prédécesseur ne peut pas satisfaire, soit signalée, et le prédécesseur
+« avec cette subordonnée ». `LinkConflict` ne savait nommer que les deux bouts de la liaison, et
+décrivait `successor_node_id` comme la tâche manuelle : faux dès que le successeur est une
+récapitulative. Décision de la conception d'EP-32 (« Ce que le cadrage décide », #3984) :
+
+- **`LinkConflict.manual_node_id`, exigé** : la tâche manuelle que le prédécesseur ne peut pas
+  satisfaire — le successeur lui-même, ou, quand il est une récapitulative, sa subordonnée
+  manuelle en conflit ; une liaison vers une récapitulative rend un conflit par subordonnée
+  manuelle en cause. `successor_node_id` reste le successeur de la liaison, et sa description le
+  dit.
+- **Où il est rendu** : `link_conflicts` du prédécesseur et de la tâche manuelle
+  (`TaskFacet.link_conflicts`, `NodeSchedule.link_conflicts`), triés par la ligne du prédécesseur,
+  puis du successeur, puis de la tâche manuelle ; une récapitulative n'en porte toujours aucun.
+- **Les exemples** : le témoin n'a aucun conflit sous une récapitulative ; le seul exemple qui en
+  porte, `task_dates_conflicting`, gagne le champ, égal au successeur, et le faux back le rend
+  ainsi (`wftools.mockcore`, `wftools.mockamendment`). Le service le rend égal au successeur
+  jusqu'à ce que le moteur juge les feuilles manuelles d'une récapitulative (US-3300/L3).
+
+Écarté : signaler à la lecture toutes les subordonnées manuelles de la récapitulative ; une
+subordonnée datée assez tard serait signalée à tort, et la lecture ne rejoue pas le moteur.
+
+### L'ouverture d'une révision refuse une tâche sans heure travaillée (US-3300/L1, #4566)
+
+L'ouverture d'une révision rejoue le moteur sur la copie de la dernière révision marquée. Un
+calendrier changé pendant que le projet était au repos peut laisser une tâche de la copie sans
+heure travaillée : le service levait une exception que rien ne traduisait (500, #4413), et
+`createRevision` ne déclarait aucun refus pour ce cas. Décision de l'auteur du 2026-11-21 :
+**`createRevision` déclare le 422 `TASK_WITHOUT_WORKING_HOURS`**, sans `fields`,
+`params.resource_roles` et `params.tasks` comme une saisie les rend (`ProblemTask`) ; rien n'est
+créé. La tâche est nommée par son nœud dans la copie, comme le refus `PROJECT_HORIZON_EXCEEDED` de
+la même opération nomme la sienne ; les rôles sont vides pour une tâche sans ligne de main-d'œuvre,
+sous le calendrier par défaut. `ProblemParams.tasks` et `ProblemTask` nomment l'ouverture. Pas
+d'exemple : aucune tâche du témoin n'est sans heure. La déclaration précède US-3330, qui sert le refus : le service ne le rend pas encore. Écarté : étendre la garde de
+la modification d'un calendrier à la dernière révision marquée des projets au repos, au-delà de
+WF-PLA-0010 (« d'une révision en cours »).
+
+### Le changement de calendrier d'un rôle déclare les refus du redatage (US-3300/L1, #4567)
+
+Un rôle qui change de calendrier ne redatait aucune révision en cours (#4411). US-3320 fait le
+redatage et le rechiffrage dans la transaction du changement, comme pour les heures d'un
+calendrier (WF-PLA-0010, WF-PLA-0020 : « recalculées à chaque modification […] d'un
+calendrier ») : `updateResourceRole` peut alors rendre les refus qu'`updateCalendar` déclare
+déjà, et il les déclare dans les mêmes termes :
+
+- **`PROJECT_HORIZON_EXCEEDED`**, 422 sans `fields`, `params.projects` nommant chaque projet
+  concerné par son libellé et son code, sans identifiant ni tâche (WF-PLA-0150, WF-ADM-0110 ;
+  #2505) ; un seul projet à la limite suffit ;
+- **une ligne rechiffrée au-delà de sa colonne**, 422 `VALIDATION_FAILED`, `fields` sur
+  `/calendar_id`, de code `VALIDATION_FAILED`, sans paramètre : la règle générale « Un montant
+  dérivé qui déborde sa colonne est refusé au champ qui le provoque » (US-2260/L3, #3401), dont
+  `/calendar_id` est le champ qui provoque le redatage.
+
+Rien n'est écrit. La déclaration précède US-3320, qui sert ces refus (#4411) : le service ne
+redate pas encore, et le contrat décrit le comportement voulu. Pas d'exemple ajouté : la conception d'EP-32 n'en prévoit pas, et le refus
+d'horizon d'`updateCalendar` (`calendar_update_horizon_exceeded`) en montre déjà la forme.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

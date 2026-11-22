@@ -126,8 +126,17 @@
           project beyond fifteen years, the opening is refused, nothing being created —
           `PROJECT_HORIZON_EXCEEDED`, without `fields`, `params.task` naming the task of the copy
           that finishes last, not a summary task, the first in plan order in case of a tie, by
-          its node and its label (`horizon_exceeded`; WF-PLA-0150, #2505). Or a value outside
-          the rules, `fields` locating it, as the common response `UnprocessableEntity` says.
+          its node and its label (`horizon_exceeded`; WF-PLA-0150, #2505). When a task of the
+          copy would have no worked hour in the week — a calendar changed while the project had
+          no current revision: the calendars of the roles of its labour lines no longer overlap
+          on any day, the calendar of its only role, or the default calendar for a task without
+          a labour line, no longer has any hour —, the opening is likewise refused, nothing
+          being created: `TASK_WITHOUT_WORKING_HOURS`, without `fields`, `params.resource_roles`
+          and `params.tasks` naming the roles and the task, as an entry names them — the task of
+          the copy by its project, its node and its label, as `PROJECT_HORIZON_EXCEEDED` names
+          it; the roles empty for a task without a labour line (WF-PLA-0010; #4413). Or a value
+          outside the rules, `fields` locating it, as the common response
+          `UnprocessableEntity` says.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
