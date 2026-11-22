@@ -11,8 +11,11 @@ as what precedes a summary precedes them; a task in manual mode keeps its dates,
 links; a summary spans its subordinates (WF-PLA-0040).
 
 Backward, in the reverse order, each task in automatic mode may finish as late as its successors
-allow, at the finish of the structure without any — a link from a summary binding each of its
-subordinates, as what follows a summary follows them. A task in manual mode is a date imposed: its
+allow, at the finish of the structure without any. A link from the finish of a summary binds each of
+its subordinates, as what follows a summary follows them; a link from its start binds only those
+that start with it, the others leaving its start where it is (#3335). The bound a link leaves is
+found once, in the measure of its successors, then read on the calendar of each task it binds
+(#4414). A task in manual mode is a date imposed: its
 predecessors are bound by its dates, not by a latest date of its own (WF-PLA-0100). The total float
 is the work, in days, from a task's finish to its latest finish; the critical path, the tasks in
 automatic mode whose float is nil or negative.
@@ -39,7 +42,12 @@ from waterfall.core.planning.scheduling.structure import (
     ScheduledTask,
     TaskWithoutWorkingHoursError,
 )
-from waterfall.core.planning.scheduling.units import Span, decimal_of, rounded
+from waterfall.core.planning.scheduling.units import (
+    HOURS_PER_ELAPSED_DAY,
+    Span,
+    decimal_of,
+    rounded,
+)
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -75,6 +83,23 @@ def schedule(structure: Structure, origin: Origin = None) -> Schedule:
     the dates without a calculation, and the horizon is then not judged. A structure dated beyond
     fifteen years is rendered without its dates, naming the task that finishes last (WF-PLA-0150).
     """
+    calculated = _calculated(structure, origin)
+    return calculated if isinstance(calculated, Schedule) else calculated.rendered()
+
+
+def counted_bounds(structure: Structure) -> int:
+    """Return how many bounds the backward pass of a structure computes, refusing as ``schedule``.
+
+    What a test counts the work of the backward pass by, rather than by a clock (#4414): the
+    bounds a link leaves at the latest dates of the tasks it reaches, and those it leaves the tasks
+    it binds. Nought for a structure without dates to render, empty or beyond its horizon.
+    """
+    calculated = _calculated(structure, None)
+    return 0 if isinstance(calculated, Schedule) else calculated.bounds
+
+
+def _calculated(structure: Structure, origin: Origin) -> Schedule | _Engine:
+    """Return the calculation of a structure, or its schedule when it has no dates to render."""
     plan = plan_of(structure)
     order = dating_order(structure, plan, origin)
     for task in structure.tasks:
@@ -88,7 +113,7 @@ def schedule(structure: Structure, origin: Origin = None) -> Schedule:
     if beyond is not None:
         return Schedule({}, (), beyond)
     engine.backward(order)
-    return engine.rendered()
+    return engine
 
 
 def horizon_of(start: date) -> date | None:
@@ -116,6 +141,7 @@ class _Engine:
         ]
         self.early: dict[UUID, _Span] = {}
         self.late: dict[UUID, Moment] = {}
+        self.bounds = 0
 
     def span(self, duration: Duration) -> Span:
         """Return a duration in exact hours, by the constants of the structure."""
@@ -154,11 +180,13 @@ class _Engine:
         elapsed duration finishes on the day it reaches, even without hours of work: it goes back
         from the last moment that still holds the count, the first hour of work that follows. A
         start reached outside the hours of work would be placed at the first hour of work after
-        it, and finish too late: it starts then at the first hour of work of the last working day
-        before — the latest start of that day, as near as a whole day goes. Two elapsed days that
-        may finish by the end of a Friday start on the Friday's first hour of work and finish on
-        the Sunday; started at the end of the Friday's work, they would be placed on the Monday
-        and finish on the Wednesday.
+        it, and finish too late: it starts then on the last working day before, as late as its
+        elapsed hours still end within that day's hours of work — the end of that work less them,
+        its first hour when they outlast it (#4412). Half an elapsed hour that may finish by the end
+        of a Tuesday starts half an hour before that end, as half an hour of work does, rather than
+        at the Tuesday's first hour of work. Two elapsed days that may finish by the end of a
+        Friday start on the Friday's first hour of work and finish on the Sunday; started at the
+        end of the Friday's work, they would be placed on the Monday and finish on the Wednesday.
         """
         span = self.span(duration)
         if not span.is_elapsed:
@@ -168,7 +196,10 @@ class _Engine:
         if calendar.count(reached) <= finish:
             return start
         day = calendar.moment(start, finish=True).ordinal
-        return calendar.count(Moment(day))
+        first = calendar.count(Moment(day))
+        # A moment at the last hour of a day of twenty-four counts as the end of that day's work.
+        end = calendar.count(Moment(day, Fraction(HOURS_PER_ELAPSED_DAY)))
+        return max(first, end - span.hours)
 
     def placed(
         self, calendar: Calendar, start: Fraction, duration: Duration, *, finish_reading: bool
@@ -273,39 +304,62 @@ class _Engine:
     # --- Backward -----------------------------------------------------------------------------
 
     def backward(self, order: list[Point]) -> None:
-        """Give each task in automatic mode its latest finish, after those of its successors."""
+        """Give each task in automatic mode its latest finish, after those of its successors.
+
+        A link held by a summary above the task binds it when it counts from the summary's finish,
+        or from a start the task carries: what follows the start of a summary follows that of the
+        subordinates it starts with, not of the others (#3335). The moment a link leaves is reached
+        once (``reached``), whatever the count of the tasks it binds (#4414).
+        """
         finish = max(self.early[task_id].finish for task_id in self.leaves)
+        reached: dict[Link, Moment] = {}
         for task_id, end in reversed(order):
-            if end == FINISH and self.is_automatic_leaf(task_id):
-                bounds = [finish]
-                for holder in [task_id, *self.plan.ancestors(task_id)]:
-                    for link in self.plan.outgoing.get(holder, []):
-                        span = self.span_of_lag(link)
-                        bounds.extend(
-                            self.bound(task_id, link, span, successor)
-                            for successor in self.plan.leaves(link.successor_id)
-                        )
-                self.late[task_id] = min(bounds)
+            if end != FINISH or not self.is_automatic_leaf(task_id):
+                continue
+            start = self.early[task_id].start
+            bounds = [finish]
+            for holder in [task_id, *self.plan.ancestors(task_id)]:
+                carried = self.early[holder].start == start
+                for link in self.plan.outgoing.get(holder, []):
+                    if link.link_type not in FROM_FINISH and not carried:
+                        continue
+                    if link not in reached:
+                        reached[link] = self.reached(link)
+                    bounds.append(self.bound(task_id, link, reached[link]))
+            self.late[task_id] = min(bounds)
 
     def late_span(self, task_id: UUID) -> _Span:
-        """Return the latest dates of a successor: its own dates when in manual mode."""
+        """Return the latest dates of a successor: its own dates when in manual mode.
+
+        A task that finishes by its latest finish starts no earlier at the latest than it does: an
+        elapsed duration finishes at the end of the hours of its day from any start late enough
+        that day, and the latest start found for that end may lie before the one the forward pass
+        gave it — ten elapsed hours started at a Tuesday's sixth hour of work finish at its eighth,
+        as from its first (#4412). For a duration of work, its own start is never the later.
+        """
         if not self.is_automatic_leaf(task_id):
             return self.early[task_id]
         task, finish = self.tasks[task_id], self.late[task_id]
         if self.span(task.duration).hours == 0:
             return _Span(finish, finish)
-        count = task.calendar.count(finish)
-        start = self.latest_start(task.calendar, count, task.duration)
-        return _Span(task.calendar.moment(start, finish=False), finish)
+        calendar, early = task.calendar, self.early[task_id]
+        count = calendar.count(finish)
+        start = self.latest_start(calendar, count, task.duration)
+        if calendar.count(early.finish) <= count:
+            start = max(start, calendar.count(early.start))
+        return _Span(calendar.moment(start, finish=False), finish)
 
-    def bound(self, task_id: UUID, link: Link, span: Span, successor_id: UUID) -> Moment:
-        """Return the latest finish a link to one successor leaves a task.
+    def reached(self, link: Link) -> Moment:
+        """Return the latest moment the successors of a link leave the end it counts from.
 
-        The lag goes back from the successor's latest start, or finish, on its calendar, as the
-        forward pass placed it; a link from a start bounds the task's start, its finish following.
-        The count reached is the successor's: the task's end may lie up to the last instant that
-        count holds — read as a start, the first hour of work that follows —, and is then counted
-        on the task's own calendar, whose hours do not measure the same day (WF-PLA-0010).
+        The earliest of those each task without subordinates under the successor leaves, as the
+        forward pass binds each of them. The lag goes back from the successor's latest start, or
+        finish, on its calendar, as the forward pass placed it; the count reached is the
+        successor's, and the end may lie up to the last instant that count holds — read as a
+        start, the first hour of work that follows. A moment rather than a count: the calendars of
+        the tasks it binds do not measure the same day (WF-PLA-0010), and each counts it in its own
+        hours (``bound``) — the earliest moment the earliest count on any of them, a count never
+        falling as its moment grows.
 
         An elapsed lag reached forward past the hours of a day counts as their end, even on a day
         without hours of work (WF-PLA-0160): it goes back, as the latest start of an elapsed
@@ -318,14 +372,27 @@ class _Engine:
         The rule holds for any successor: a manual one, whose own dates stand for its latest ones,
         as an automatic one, and for a link to a start as to a finish.
         """
-        calendar = self.tasks[successor_id].calendar
-        latest = self.late_span(successor_id)
-        target = latest.start if link.link_type in TO_START else latest.finish
-        if span.is_elapsed:
-            target = calendar.moment(calendar.count(target), finish=False)
-        count = self.shifted(calendar, target, -span)
+        span = -self.span_of_lag(link)
+        found: list[Moment] = []
+        for successor_id in self.plan.leaves(link.successor_id):
+            self.bounds += 1
+            calendar = self.tasks[successor_id].calendar
+            latest = self.late_span(successor_id)
+            target = latest.start if link.link_type in TO_START else latest.finish
+            if span.is_elapsed:
+                target = calendar.moment(calendar.count(target), finish=False)
+            found.append(calendar.moment(self.shifted(calendar, target, span), finish=False))
+        return min(found)
+
+    def bound(self, task_id: UUID, link: Link, reached: Moment) -> Moment:
+        """Return the latest finish a link leaves a task, from the moment its successors leave.
+
+        Counted on the task's own calendar; a link from a start bounds the task's start, its
+        finish following.
+        """
+        self.bounds += 1
         task = self.tasks[task_id]
-        end = task.calendar.count(calendar.moment(count, finish=False))
+        end = task.calendar.count(reached)
         if link.link_type in FROM_FINISH:
             return task.calendar.moment(end, finish=True)
         return self.placed(task.calendar, end, task.duration, finish_reading=False).finish
