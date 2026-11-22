@@ -196,12 +196,15 @@ def judged_priced(
     """Judge what is sent of a line, created or changed, as far as its price; nothing is written.
 
     What ``create_line`` and ``change_line`` refuse before they write: the entry (``entries``), the
-    hours of the task when the role is new, the rate of the category. A paste judges its cells so,
-    at its preview and again at its confirmation. ``earlier`` is the role the lines of the task that
-    the cells before it were accepted with leave them: the hours of the task are judged on them.
+    hours of the task when the role is new, the rate of the category; a provision line, whose label
+    alone is written, is not priced. A paste judges its cells so, at its preview and again at its
+    confirmation. ``earlier`` is the role the lines of the task that the cells before it were
+    accepted with leave them: the hours of the task are judged on them.
     """
     project_id, bearer = held
     draft = judged_line(session, held, entry, current)
+    if draft.provision:
+        return draft
     basis = basis_of(session, project_id, bearer.revision_id)
     line = None if current is None else current.node_id
     new_role = current is None or draft.resource_role_id != current.resource_role_id
@@ -343,12 +346,17 @@ def _change_line(write: FacetWrite, sent: LineEntry | HoursJudged) -> None:
         ("basis", project_id, revision_id),
         lambda: basis_of(session, project_id, revision_id),
     )
-    amounts = _priced_draft(
-        session,
-        (project_id, write.bearer, write.node_id),
-        draft,
-        basis,
-        Judging(role_changes=not judged and draft.resource_role_id != line.resource_role_id),
+    # A provision line keeps the amounts its risk wrote, never projected (WF-RIS-0010; #4378).
+    amounts = (
+        Priced(line.base_amount, line.reestimated_amount, line.consumption_year)
+        if draft.provision
+        else _priced_draft(
+            session,
+            (project_id, write.bearer, write.node_id),
+            draft,
+            basis,
+            Judging(role_changes=not judged and draft.resource_role_id != line.resource_role_id),
+        )
     )
     line.label = draft.label
     line.cost_category_id = draft.cost_category_id
