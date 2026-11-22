@@ -42,6 +42,8 @@ class Stand:
         self.name = name
         self.backup = f"{name}_backup"
         self.keycloak = f"{name}_keycloak"
+        # The administrator of a PostgreSQL provided, when the script runs as it (#4170).
+        self.administrator: str | None = None
 
     def address(self, role: str, password: str) -> str:
         """Give the address of the database as one of its roles reaches it."""
@@ -64,6 +66,8 @@ class Stand:
             SCRIPT.read_text(encoding="utf-8"),
         )
         address = engine_url(self.server).set(drivername="postgresql", database="postgres")
+        if self.administrator is not None:
+            address = address.set(username=self.administrator, password=PASSWORD)
         ran = subprocess.run(
             [
                 PSQL,
@@ -93,9 +97,48 @@ def stand(database_url: str) -> Iterator[Stand]:
         connection.execute(text(f'CREATE DATABASE "{made.keycloak}" OWNER "{made.keycloak}"'))
     yield made
     with server.connect() as connection:
-        connection.execute(text(f'DROP DATABASE "{made.keycloak}" WITH (FORCE)'))
+        connection.execute(text(f'DROP DATABASE IF EXISTS "{made.keycloak}" WITH (FORCE)'))
         connection.execute(text(f'DROP ROLE IF EXISTS "{made.backup}"'))
-        connection.execute(text(f'DROP ROLE "{made.keycloak}"'))
+        connection.execute(text(f'DROP ROLE IF EXISTS "{made.keycloak}"'))
+    server.dispose()
+
+
+@pytest.fixture
+def managed_stand(stand: Stand) -> Iterator[Stand]:
+    """Make the administrator of a PostgreSQL provided, as ``postgresql-fourni.md`` describes it.
+
+    Not a superuser, ``CREATEROLE CREATEDB``, the ``ADMIN`` option on ``pg_read_all_data``, and the
+    creator of the role of Keycloak, whose database was made for it beforehand.
+    """
+    admin = f"{stand.name}_admin"
+    server = create_database_engine(stand.server).execution_options(isolation_level="AUTOCOMMIT")
+    with server.connect() as connection:
+        # The stand made the role of Keycloak as a superuser: remake it as the administrator.
+        connection.execute(text(f'DROP DATABASE "{stand.keycloak}" WITH (FORCE)'))
+        connection.execute(text(f'DROP ROLE "{stand.keycloak}"'))
+        connection.execute(
+            text(f"CREATE ROLE \"{admin}\" LOGIN CREATEROLE CREATEDB PASSWORD '{PASSWORD}'")
+        )
+        connection.execute(text(f'GRANT pg_read_all_data TO "{admin}" WITH ADMIN OPTION'))
+    as_admin = create_database_engine(
+        engine_url(stand.server)
+        .set(username=admin, password=PASSWORD)
+        .render_as_string(hide_password=False)
+    ).execution_options(isolation_level="AUTOCOMMIT")
+    with as_admin.connect() as connection:
+        connection.execute(
+            text(f"CREATE ROLE \"{stand.keycloak}\" LOGIN PASSWORD '{stand.keycloak}'")
+        )
+    as_admin.dispose()
+    with server.connect() as connection:
+        connection.execute(text(f'CREATE DATABASE "{stand.keycloak}" OWNER "{stand.keycloak}"'))
+    stand.administrator = admin
+    yield stand
+    with server.connect() as connection:
+        connection.execute(text(f'DROP DATABASE IF EXISTS "{stand.keycloak}" WITH (FORCE)'))
+        connection.execute(text(f'DROP ROLE IF EXISTS "{stand.backup}"'))
+        connection.execute(text(f'DROP ROLE IF EXISTS "{stand.keycloak}"'))
+        connection.execute(text(f'DROP ROLE IF EXISTS "{admin}"'))
     server.dispose()
 
 
@@ -150,3 +193,20 @@ def test_without_the_grant_the_dump_of_a_database_with_a_large_object_fails(
     server.dispose()
     with pytest.raises(DumpError):
         dump("identity_provider", stand.as_backup(), tmp_path)
+
+
+def test_the_script_runs_as_the_administrator_of_a_postgresql_provided(
+    managed_stand: Stand, tmp_path: Path
+) -> None:
+    # [US-2940] #4170: the chart plays the script with ON_ERROR_STOP=1 as the administrator of a
+    # PostgreSQL provided, who is not a superuser: ``CREATEROLE CREATEDB``, the creator of the role
+    # of Keycloak. The script must not fail there, or the init-container fails and the platform
+    # does not start; and the large objects are readable, those there before and those after.
+    before = written_by_keycloak(managed_stand, "before")
+    managed_stand.run_script()
+    assert read_by_the_backup(managed_stand, before) == b"before"
+    after = written_by_keycloak(managed_stand, "after")
+    assert read_by_the_backup(managed_stand, after) == b"after"
+    assert dump("identity_provider", managed_stand.as_backup(), tmp_path).size_bytes > 0
+    # At each start: a second time fails nothing either.
+    managed_stand.run_script()

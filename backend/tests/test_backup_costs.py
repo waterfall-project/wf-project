@@ -11,6 +11,7 @@ import socket
 import subprocess
 import time
 from contextlib import closing, contextmanager
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
@@ -135,6 +136,8 @@ def test_a_dump_that_waits_for_a_lock_fails_after_the_wait_it_is_given_and_says_
     (failed,) = logs.named("backup.dump_failed")
     assert failed["database"] == "identity_provider"
     assert "LOCK TABLE public.realm" in failed["said"]
+    # The failure is the wait for the lock that ran out, not any other.
+    assert "canceling statement due to statement timeout" in failed["said"]
 
 
 def test_a_dump_that_lasts_beyond_its_deadline_is_stopped_and_says_so(
@@ -147,6 +150,67 @@ def test_a_dump_that_lasts_beyond_its_deadline_is_stopped_and_says_so(
         dump("waterfall", databases["waterfall"], tmp_path)
     (stopped,) = logs.named("backup.dump_timed_out")
     assert stopped["database"] == "waterfall"
+
+
+class Slow(Bucket):
+    """A bucket whose upload takes a long time, by a clock that it moves forward."""
+
+    elapsed: list[float]
+
+    def upload(self, key: str, path: Path) -> None:
+        super().upload(key, path)
+        self.elapsed[0] += 2 * backup_module.TASK_DEADLINE
+
+
+def test_a_task_that_outlasts_its_deadline_stops_says_so_and_leaves_nothing(
+    database: Database,
+    run: Run,
+    databases: dict[str, str],
+    backups_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # [US-2940] #896: the deadline is the task's, the dumps and the rest of it included, and not
+    # each dump's: the task that lasts beyond it — here, an upload after which the clock stands
+    # beyond the deadline — stops, says it, writes no row and leaves no archive. Each dump is given
+    # what is left, never more than its own deadline.
+    slow = Slow(backups_bucket.client, backups_bucket.name)
+    slow.elapsed = [0.0]
+    real = time.monotonic
+    monkeypatch.setattr(
+        backup_module, "time", SimpleNamespace(monotonic=lambda: real() + slow.elapsed[0])
+    )
+    allowed: list[float] = []
+    real_dump = backup_module.dump
+
+    def spy(name: str, address: str, folder: Path, timeout: float | None = None) -> Any:
+        allowed.append(cast("float", timeout))
+        return real_dump(name, address, folder, timeout)
+
+    monkeypatch.setattr(backup_module, "dump", spy)
+    with captured_logs() as logs:
+        task_id = run(BackupTask(databases, slow))
+    failed = task(database, task_id)
+    assert (failed.status, failed.problem) == (
+        "failed",
+        {"code": "INTERNAL_ERROR", "status": 500, "correlation_id": REQUEST},
+    )
+    (stopped,) = logs.named("backup.deadline_exceeded")
+    assert stopped["seconds"] == backup_module.TASK_DEADLINE
+    assert len(allowed) == 2
+    assert 0 < allowed[1] <= allowed[0] <= backup_module.TASK_DEADLINE
+    assert keys_under(backups_bucket, f"backup-{task_id}") == []
+    with database.transaction() as session:
+        assert session.execute(text("SELECT count(*) FROM backup")).scalar_one() == 0
+
+
+def test_a_dump_begun_with_no_time_left_is_refused_before_it_runs(
+    databases: dict[str, str], tmp_path: Path
+) -> None:
+    # [US-2940] #896: a dump is given what is left of the task, and none is begun when it is spent.
+    spent = backup_module.Deadline(-1)
+    with captured_logs() as logs, pytest.raises(backup_module.DeadlineError):
+        dump("waterfall", databases["waterfall"], tmp_path, spent.left())
+    assert logs.named("backup.deadline_exceeded")
 
 
 def test_the_dump_of_a_database_that_a_role_cannot_read_says_why_in_the_journal(

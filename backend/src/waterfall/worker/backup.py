@@ -25,9 +25,15 @@ says the failure (#4230).
 What the task costs is bounded (#896, #4191): a connection waits a few seconds to be made, and
 ``pg_dump`` a minute for a lock and hours for its dump; the folder of the task holds the dumps and
 the archive made of them, then the archive read back, one dump of it at a time, never about four
-times the databases; and an archive no row names is removed, whatever stops the task once it may be
-in the bucket. The transaction of the worker stays open while the databases are dumped, for the lock
-of the run it holds (``waterfall.worker.runner``): the deadline of a dump is what bounds it.
+times the databases; and an archive no row names is removed when the task stops by an exception
+once it may be in the bucket. Two cases stay outside that guard (#4679): the validation of the
+transaction that follows the task, which may still fail once the task has returned, and the death
+of the worker, which leaves the archive in the bucket without a row. The transaction of the worker
+stays open for the whole task — the dumps, the upload, the reading back, the verification —, for
+the lock of the run it holds (``waterfall.worker.runner``, whose closing is #4681):
+``TASK_DEADLINE`` bounds the task, and not each dump alone. Each dump is given what is left of it,
+and the task, checked between its steps, stops and says so (``backup.deadline_exceeded``) once it
+is spent; a step in progress — an upload, a download — is not interrupted by it.
 """
 
 import hashlib
@@ -37,6 +43,7 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any
@@ -78,10 +85,11 @@ COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
 # What the task spends, bounded (#896, #4191), in seconds: how long a connection to a database waits
 # to be made — a database that does not answer fails the task as unavailable instead of holding it
 # —, and how long a dump may last. ``pg_dump`` waits a minute for a lock on a table, by the option
-# it is given. The transaction of the worker stays open while the databases are dumped, for its
-# lock of the run (``runner``): the deadline of a dump is what bounds it.
+# it is given. The transaction of the worker stays open for the whole task, for its lock of the run
+# (``runner``, #4681): the deadline of the task, which the dumps share, is what bounds it.
 CONNECT_TIMEOUT = 10
 DUMP_DEADLINE = 4 * 3600
+TASK_DEADLINE = 4 * 3600
 # The databases of the platform, by their name in the archive: Waterfall's, the identity provider's.
 DATABASES = ("waterfall", "identity_provider")
 # The connection service a dump reaches its database by.
@@ -96,6 +104,10 @@ logger = get_logger(__name__)
 
 class UnverifiedArchiveError(RuntimeError):
     """An archive that failed its verification: the task fails as an internal error (#4230)."""
+
+
+class DeadlineError(RuntimeError):
+    """The task lasted beyond its deadline: it stops, as an internal error (#896)."""
 
 
 class DumpError(RuntimeError):
@@ -186,7 +198,7 @@ def unavailable_database() -> UnavailableError:
     return UnavailableError(COMPONENT_UNAVAILABLE, {"component": "database"})
 
 
-def dump(name: str, address: str, folder: Path) -> Dumped:
+def dump(name: str, address: str, folder: Path, timeout: float | None = None) -> Dumped:
     """Dump a database in the custom format, in one snapshot, once it has been reached.
 
     A database that stops answering while it is dumped — PostgreSQL restarted, its connections
@@ -194,16 +206,19 @@ def dump(name: str, address: str, folder: Path) -> Dumped:
     again. One that still answers and that ``pg_dump`` cannot dump — a right it lacks, a version it
     does not read — is an internal error, which says why to the journal of the service.
 
+    The dump is stopped after ``timeout`` seconds, ``DUMP_DEADLINE`` unless given.
+
     The tools of PostgreSQL are those of the system, which Debian and Ubuntu put in ``/usr/bin``.
     """
+    allowed = DUMP_DEADLINE if timeout is None else min(timeout, DUMP_DEADLINE)
     path = folder / f"{name}.dump"
     environment = connection(address, folder / f"{name}.service")
     with path.open("wb") as written:
         try:
-            done = _pg_dump(written, environment)
+            done = _pg_dump(written, environment, allowed)
         except subprocess.TimeoutExpired:
             reached(address)
-            logger.exception("backup.dump_timed_out", database=name, seconds=DUMP_DEADLINE)
+            logger.exception("backup.dump_timed_out", database=name, seconds=allowed)
             raise DumpError(name) from None
     if done.returncode != 0:
         said = done.stderr.decode(errors="replace").strip()
@@ -214,7 +229,7 @@ def dump(name: str, address: str, folder: Path) -> Dumped:
 
 
 def _pg_dump(
-    written: IO[bytes], environment: Mapping[str, str]
+    written: IO[bytes], environment: Mapping[str, str], timeout: float
 ) -> subprocess.CompletedProcess[bytes]:
     """Run pg_dump into a file: it waits for a lock for a time, and runs for a time, bounded."""
     return subprocess.run(
@@ -233,7 +248,7 @@ def _pg_dump(
         stdout=written,
         stderr=subprocess.PIPE,
         env=environment,
-        timeout=DUMP_DEADLINE,
+        timeout=timeout,
         check=False,
     )
 
@@ -328,6 +343,22 @@ def _member(tar: tarfile.TarFile, name: str) -> IO[bytes]:
     return member
 
 
+class Deadline:
+    """What is left of the time of a task, from the moment it began."""
+
+    def __init__(self, seconds: float) -> None:
+        self.seconds = seconds
+        self.began = time.monotonic()
+
+    def left(self) -> float:
+        """Give the seconds left, or stop the task, saying so, once there are none."""
+        left = self.seconds - (time.monotonic() - self.began)
+        if left <= 0:
+            logger.error("backup.deadline_exceeded", seconds=self.seconds)
+            raise DeadlineError(self.seconds)
+        return left
+
+
 class BackupTask:
     """Take a backup of the two databases, as the worker runs a task of the kind ``backup``."""
 
@@ -348,12 +379,13 @@ class BackupTask:
     def __call__(self, session: Session, task: Task) -> dict[str, Any]:
         """Dump, archive, store, read back and verify; record the backup, and inscribe it."""
         taken_at = utc_now()
+        deadline = Deadline(TASK_DEADLINE)
         key = f"backup-{task.task_id}.tar"
         with tempfile.TemporaryDirectory(prefix="waterfall-backup-") as work:
             folder = Path(work)
             revision = schema_revision(self.databases["waterfall"])
             reached(self.databases["identity_provider"])
-            dumps, inventory = self._dumped(folder)
+            dumps, inventory = self._dumped(folder, deadline)
             path = folder / "backup.tar"
             archive(path, manifest(taken_at, revision, dumps, inventory), dumps)
             size_bytes = path.stat().st_size
@@ -362,11 +394,15 @@ class BackupTask:
             # about twice the dumps (#896).
             _free(folder / MANIFEST, *(dumped.path for dumped in dumps))
             try:
+                deadline.left()
                 self.bucket.upload(key, path)
                 _free(path)
+                deadline.left()
                 stored = folder / "stored.tar"
                 self.bucket.download(key, stored)
+                deadline.left()
                 is_verified = verified(stored, folder)
+                deadline.left()
                 taken = TakenBackup(
                     task.task_id,
                     taken_at,
@@ -383,14 +419,16 @@ class BackupTask:
                     logger.info("backup.taken", backup_id=str(backup_id), size_bytes=size_bytes)
                     return {"backup_id": str(backup_id), "verification": "passed"}
             except BaseException:
-                # Whatever stops the work once the archive may be in the bucket: no row names it.
+                # Any exception that stops the work once the archive may be in the bucket — the
+                # deadline included — leaves no row to name it. Not the validation of the
+                # transaction that follows, nor the death of the worker (#4679).
                 self._discard(key)
                 raise
             # The archive stays: the row the trace writes names it (#4230).
             trace = self._failed_trace(task, taken, lambda: self._discard(key))
             raise UndoneError(UnverifiedArchiveError(key), trace)
 
-    def _dumped(self, folder: Path) -> tuple[list[Dumped], Inventory | None]:
+    def _dumped(self, folder: Path, deadline: Deadline) -> tuple[list[Dumped], Inventory | None]:
         """Count what each database holds, then dump it, so that the manifest says what it holds.
 
         The accounts are counted in the database of the identity provider, the rest in Waterfall's;
@@ -398,11 +436,11 @@ class BackupTask:
         """
         waterfall, provider = (self.databases[name] for name in DATABASES)
         accounts = read_or_none(provider, lambda connection: accounts_of(connection, self.realm))
-        provided = dump(DATABASES[1], provider, folder)
+        provided = dump(DATABASES[1], provider, folder, deadline.left())
         inventory = None
         if accounts is not None:
             inventory = read_or_none(waterfall, lambda connection: counted_in(connection, accounts))
-        dumped = dump(DATABASES[0], waterfall, folder)
+        dumped = dump(DATABASES[0], waterfall, folder, deadline.left())
         return [dumped, provided], inventory
 
     @staticmethod

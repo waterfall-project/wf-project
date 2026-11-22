@@ -7,10 +7,17 @@ object open, and with it a connection to the storage, until the garbage collecto
 the framework closes the iterator it was given. This response closes the stream when its work ends,
 by whichever way, and journals the stream that failed once the answer had begun, which no status
 can say any more: the connection is cut short, and the client sees a body shorter than its length.
+
+Only a ``ServiceError`` is journaled here, as ``download.interrupted``: any other exception met
+while the stream is read — a fault of the framework, of the code — goes up unchanged, the stream
+closed, to the server, which journals it as it does any unhandled fault. The closing is shielded
+from the cancellation of the task (a server that stops, a timeout): under a cancel scope every
+``await`` raises again, and a closing awaited unshielded would never run.
 """
 
 from typing import TYPE_CHECKING
 
+import anyio
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import StreamingResponse
 
@@ -45,4 +52,5 @@ class ObjectResponse(StreamingResponse):
             logger.exception("download.interrupted", key=self.stream.key, code=error.code)
             raise
         finally:
-            await run_in_threadpool(self.stream.close)
+            with anyio.CancelScope(shield=True):
+                await run_in_threadpool(self.stream.close)

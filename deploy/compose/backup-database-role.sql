@@ -6,11 +6,14 @@
 -- the trigger of the journal of audit (#701). A member of pg_read_all_data, it reads every table of
 -- every database, and can neither write nor turn a trigger off; it owns nothing. Created when
 -- missing, at each start of the platform; its password follows the environment, read by psql from
--- BACKUP_DATABASE_PASSWORD, never from a command line.
+-- BACKUP_DATABASE_PASSWORD, never from a command line. It is created without the right to be a
+-- superuser or to bypass the row security; the ALTER does not name those two attributes, which an
+-- administrator who is no superuser may not even name (a PostgreSQL provided, #4170): the role is
+-- never given them, here or by the platform.
 \getenv backup_password BACKUP_DATABASE_PASSWORD
-SELECT 'CREATE ROLE waterfall_backup LOGIN'
+SELECT 'CREATE ROLE waterfall_backup LOGIN NOSUPERUSER NOBYPASSRLS'
 WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'waterfall_backup') \gexec
-ALTER ROLE waterfall_backup LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS
+ALTER ROLE waterfall_backup LOGIN NOCREATEDB NOCREATEROLE
     PASSWORD :'backup_password';
 GRANT pg_read_all_data TO waterfall_backup;
 
@@ -20,6 +23,12 @@ GRANT pg_read_all_data TO waterfall_backup;
 -- The right is granted in that database, whose default privileges are its own: on the objects
 -- Keycloak creates from now on, and, at each start, on those it created before. The database exists
 -- by now: the platform creates it before this script (keycloak-database).
+-- The administrator of a PostgreSQL provided is no superuser, and owns nothing of Keycloak's: it
+-- made the role keycloak, so it holds the ADMIN option on it, which lets it give itself the rights
+-- of that role (INHERIT), that default privileges and a grant on its large objects take. A
+-- superuser has them already, and is given nothing.
+SELECT 'GRANT keycloak TO CURRENT_USER WITH INHERIT TRUE'
+WHERE NOT (SELECT rolsuper FROM pg_roles WHERE rolname = CURRENT_USER) \gexec
 \connect keycloak
 ALTER DEFAULT PRIVILEGES FOR ROLE keycloak GRANT SELECT ON LARGE OBJECTS TO waterfall_backup;
 SELECT format('GRANT SELECT ON LARGE OBJECT %s TO waterfall_backup', oid)

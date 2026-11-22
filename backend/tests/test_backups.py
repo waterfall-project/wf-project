@@ -20,6 +20,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
+import anyio
 import pytest
 from access_rows import account, role
 from backup_support import Corrupting, Run, worker_of
@@ -890,3 +891,30 @@ def test_a_download_the_client_leaves_closes_the_body_read_from_the_storage(
     # [US-2940] #897: by the send that fails (ASGI 2.4) or the disconnection message before it,
     # nothing in the framework closes the iterator it is given: the response does.
     asyncio.run(disconnecting(receive_first))
+
+
+async def cancelled_while_sending() -> None:
+    """Send a stream to a client that stalls, under a cancel scope that ends while it waits."""
+    body = Body([b"a", b"b", b"c"])
+    response = ObjectResponse(streamed(body, 3), "application/octet-stream")
+
+    async def send(message: MutableMapping[str, Any]) -> None:
+        if message["type"] == "http.response.body":
+            await asyncio.sleep(10)
+
+    async def receive() -> MutableMapping[str, Any]:
+        await asyncio.sleep(10)
+        return {"type": "http.disconnect"}
+
+    scope = {"type": "http", "asgi": {"spec_version": "2.3"}}
+    with anyio.move_on_after(0.2) as scope_of_the_task:
+        await response(scope, receive, send)
+    assert scope_of_the_task.cancelled_caught
+    assert body.closed
+
+
+@pytest.mark.story("US-2940")
+def test_a_download_whose_task_is_cancelled_closes_the_body_all_the_same() -> None:
+    # [US-2940] #897: under a cancel scope — the server that stops, a timeout — every await of the
+    # task raises again, the one of the closing included: the closing is shielded from it.
+    asyncio.run(cancelled_while_sending())
