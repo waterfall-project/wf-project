@@ -23,11 +23,11 @@
 # Every exchange inside the platform is encrypted (US-2840, WF-SEC-0010): PostgreSQL, Redis, the API,
 # Keycloak, Prometheus, Alertmanager and Grafana serve in TLS alone, the object storage and the front
 # behind a proxy in TLS each, and their clients — the door Caddy included — check the certificate
-# and its name against the root of the authority of the platform —
-# the operator's, put in ./authority (ca.crt and ca.key), or one the service authority makes at the
-# first start and keeps. That service issues again the certificate of each server at each start, in a volume of its
-# own, and the root in the volume trust, which every client reads at /trust/root.crt. The metrics
-# alone stay in HTTP, on ports no door routes (TFX-09).
+# and its name against the root of the authority of the platform — the operator's, put in
+# ./authority (ca.crt and ca.key), or one the service authority makes at the first start and keeps.
+# That service issues again the certificate of each server at each start, in a volume of its own,
+# and the root in the volume trust, which every client reads at /trust/root.crt. The metrics alone
+# stay in HTTP, on ports no door routes (TFX-09).
 name: waterfall
 
 # Where the browser reaches the platform: the domain, and the port of HTTPS when it is not 443.
@@ -605,10 +605,9 @@ services:
   # password are handed over by createPasswordSetupLink (WF-CMP-0030). In TLS alone, with the
   # certificate of the authority (TFX-08): no listener in HTTP. It reaches the front on its back
   # channel in HTTPS, trusting the root of the platform (TFX-17, KC_TRUSTSTORE_PATHS). Its interface
-  # of management, which
-  # answers its health check, stays in HTTP on the loopback of its container, which no other
-  # service reaches. One instance, its caches its own (KC_CACHE=local): it opens no port of a
-  # cluster, neither 7800 nor 57800, where JGroups would detect its peers in the clear.
+  # of management, which answers its health check, stays in HTTP on the loopback of its container,
+  # which no other service reaches. One instance, its caches its own (KC_CACHE=local): it opens no
+  # port of a cluster, neither 7800 nor 57800, where JGroups would detect its peers in the clear.
   keycloak:
     image: *keycloak-image
     environment:

@@ -10,8 +10,9 @@
 # (TFX-09). Every server behind it is reached in TLS, its certificate checked against the root of
 # the authority of the platform (US-2840, WF-SEC-0010): the front, through its proxy, Keycloak and
 # Grafana. The host of a request goes to each as the browser gave it: Caddy would give the
-# upstream's to an upstream in HTTPS. A local name — localhost, *.localhost, *.internal, an address — gets its certificate
-# from Caddy's own authority instead, whose root is kept in its volume (compose.prod.local.yaml).
+# upstream's to an upstream in HTTPS. A local name — localhost, *.localhost, *.internal, an
+# address — gets its certificate from Caddy's own authority instead, whose root is kept in its
+# volume (compose.prod.local.yaml).
 {
 	# The account Let's Encrypt writes to before a certificate expires.
 	email {$WATERFALL_ACME_EMAIL}
