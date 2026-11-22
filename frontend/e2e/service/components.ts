@@ -16,9 +16,10 @@ import { execFileSync } from "node:child_process";
 const CONTAINERS = {
   cache: "E2E_SERVICE_CACHE",
   directory: "E2E_SERVICE_DIRECTORY",
+  worker: "E2E_SERVICE_WORKER",
 } as const;
 
-/** A component of the platform the paths stop: Redis, the directory of the enterprise. */
+/** A component of the platform the paths stop: Redis, the directory of the enterprise, the worker. */
 export type Stoppable = keyof typeof CONTAINERS;
 
 /** The identifier of the container of a component, as `make e2e-service` gave it. */
@@ -32,9 +33,14 @@ function container(component: Stoppable): string {
   return name;
 }
 
-/** What Docker says of a container: its health, `healthy` once its check passes. */
+/**
+ * What Docker says of a container: its health, `healthy` once its check passes — or, for one that
+ * has no check, as the worker has none, `healthy` once it runs.
+ */
 function health(id: string): string {
-  return execFileSync("docker", ["inspect", "--format", "{{.State.Health.Status}}", id], {
+  const format =
+    "{{if .State.Health}}{{.State.Health.Status}}{{else if .State.Running}}healthy{{else}}{{.State.Status}}{{end}}";
+  return execFileSync("docker", ["inspect", "--format", format, id], {
     encoding: "utf8",
   }).trim();
 }
@@ -59,6 +65,27 @@ function startAgain(id: string): Promise<void> {
     execFileSync("docker", ["start", id], { stdio: "ignore" });
   }
   return untilHealthy(id);
+}
+
+/** Stop a component, for a path that does something while it is stopped; `startAgain` after. */
+export function stop(component: Stoppable): void {
+  execFileSync("docker", ["stop", "--time", "10", container(component)], { stdio: "ignore" });
+}
+
+/** Start a component again, and wait until it is healthy. */
+export function start(component: Stoppable): Promise<void> {
+  return startAgain(container(component));
+}
+
+/**
+ * Empty Redis, every database of it, as a restart of it with nothing kept would: the sessions of
+ * the front and the queue of the tasks are gone (WF-ARC-0040-A). The password is the one Redis
+ * holds for its own `redis-cli` (`REDISCLI_AUTH` of its container), which this never reads.
+ */
+export function emptyCache(): void {
+  execFileSync("docker", ["exec", container("cache"), "redis-cli", "FLUSHALL"], {
+    stdio: "ignore",
+  });
 }
 
 /**

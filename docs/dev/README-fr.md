@@ -4664,7 +4664,7 @@ le service authentifie, et son refus passe tel quel, confronté au contrat. Il l
 avec, dans son environnement — jamais en ligne de commande, où le mot de passe de Redis se lirait —,
 `E2E_PART=service`, `WATERFALL_API_ADDRESS` (le mandataire), `E2E_CONTRACT_PROXY` (son conteneur),
 `E2E_SERVICE_DATABASE` (celui de PostgreSQL), `E2E_SERVICE_CACHE` (celui de Redis),
-`E2E_SERVICE_DIRECTORY` (celui d'OpenLDAP), `WATERFALL_KEYCLOAK_ADDRESS`,
+`E2E_SERVICE_DIRECTORY` (celui d'OpenLDAP), `E2E_SERVICE_WORKER` (celui du worker), `WATERFALL_KEYCLOAK_ADDRESS`,
 `WATERFALL_FRONT_ADDRESS`, `WATERFALL_REDIS_URL` (le Redis de la plateforme) et
 `NODE_EXTRA_CA_CERTS` (la racine de l'autorité du frontal de Keycloak) ; le secret du client du
 front, et celui de l'administrateur de Keycloak, viennent de l'environnement. La plateforme reste
