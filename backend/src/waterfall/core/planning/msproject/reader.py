@@ -248,9 +248,9 @@ def _field_lineage(element: Tag, lineage_field: str | None) -> UUID | None:
     """Return the identifier a task carries in the custom field of the lineages, if it does."""
     for attribute in element.every("ExtendedAttribute"):
         field_id = _value(attribute, "FieldID")
-        if field_id is not None and field_id in {lineage_field, LINEAGE_FIELD_ID}:
-            if (lineage := _uuid(_value(attribute, "Value"))) is not None:
-                return lineage
+        lineage = _uuid(_value(attribute, "Value"))
+        if field_id is not None and field_id in {lineage_field, LINEAGE_FIELD_ID} and lineage:
+            return lineage
     return None
 
 
