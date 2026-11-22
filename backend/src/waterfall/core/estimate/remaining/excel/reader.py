@@ -252,7 +252,12 @@ def read_remaining_workbook(content: bytes) -> RemainingRead:
     tab read beyond its rows or columns, or whose first tab does not say the format « Reste à
     engager » and a known version.
     """
-    sheets = load_sheets(content, _UNREAD_SHEETS, FORMAT_KIND, FORMAT_VERSION)
+    sheets = load_sheets(
+        content,
+        unread=_UNREAD_SHEETS,
+        expected_format=FORMAT_KIND,
+        expected_version=FORMAT_VERSION,
+    )
     if not sheets:
         raise unreadable(FORMAT_KIND, FORMAT_VERSION)
     _check_header(sheets[0][1])

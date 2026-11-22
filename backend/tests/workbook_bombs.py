@@ -11,6 +11,7 @@ memory the test then measures. And the measure: the peak of what Python allocate
 """
 
 import tracemalloc
+import warnings
 import zipfile
 import zlib
 from contextlib import contextmanager
@@ -116,6 +117,39 @@ def compressed_by(base: bytes, method: int) -> bytes:
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as target:
         _copied(base, target)
         target.writestr(HUGE, b" " * 1024, compress_type=method)
+    return out.getvalue()
+
+
+def encrypted(base: bytes) -> bytes:
+    """Give the workbook with one member more, whose "encrypted" bit is set (APPNOTE 4.4.4)."""
+    out = BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as target:
+        _copied(base, target)
+        target.writestr(HUGE, b" " * 1024)
+    raw = bytearray(out.getvalue())
+    with zipfile.ZipFile(BytesIO(bytes(raw))) as archive:
+        local = archive.getinfo(HUGE).header_offset
+    raw[local + 6] |= 1
+    at = raw.find(b"PK\x01\x02")
+    while at >= 0:
+        length = int.from_bytes(raw[at + 28 : at + 30], "little")
+        if bytes(raw[at + 46 : at + 46 + length]) == HUGE.encode():
+            raw[at + 8] |= 1
+        at = raw.find(b"PK\x01\x02", at + 4)
+    return bytes(raw)
+
+
+def duplicated(
+    base: bytes, size: int, *, copies: int = 2, method: int = zipfile.ZIP_STORED
+) -> bytes:
+    """Give the workbook with ``copies`` members of the same name, each of ``size`` bytes."""
+    out = BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as target:
+        _copied(base, target)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            for _ in range(copies):
+                target.writestr(HUGE, b" " * size, compress_type=method)
     return out.getvalue()
 
 

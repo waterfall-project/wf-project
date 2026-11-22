@@ -29,6 +29,8 @@ from workbook_bombs import (
     announcing,
     compressed_by,
     crowded,
+    duplicated,
+    encrypted,
     grown,
     lying,
     measured,
@@ -106,6 +108,7 @@ BOMBS: dict[str, Callable[[bytes], bytes]] = {
     "declares-past-200-MiB": lambda base: swollen(base, LARGEST_INFLATED + MEBIBYTE),
     "1001-members": lambda base: crowded(base, MOST_MEMBERS + 1),
     "bzip2-member": lambda base: compressed_by(base, zipfile.ZIP_BZIP2),
+    "encrypted-member": encrypted,
     "lzma-member": lambda base: compressed_by(base, zipfile.ZIP_LZMA),
 }
 
@@ -219,6 +222,28 @@ def test_an_archive_at_the_bounds_of_its_members_and_their_sizes_is_read(
 
 
 @pytest.mark.requirement("WF-INTF-0070-A")
+def test_an_honest_stored_member_is_read() -> None:
+    content = duplicated(_base("estimate"), 1024, copies=1)
+    assert estimate_reader.read_workbook(content).lines == ()
+
+
+@pytest.mark.requirement("WF-INTF-0070-A")
+@pytest.mark.parametrize("method", [zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED])
+def test_members_of_one_name_are_all_counted_in_the_sizes_declared(
+    monkeypatch: pytest.MonkeyPatch, method: int
+) -> None:
+    base = _base("estimate")
+    with zipfile.ZipFile(BytesIO(base)) as archive:
+        declared = sum(item.file_size for item in archive.infolist())
+    # Two members of 1 KiB under one name: the bound holds both, or refuses the pair.
+    content = duplicated(base, 1024, method=method)
+    monkeypatch.setattr(workbooks, "LARGEST_INFLATED", declared + 2048)
+    assert estimate_reader.read_workbook(content).lines == ()
+    monkeypatch.setattr(workbooks, "LARGEST_INFLATED", declared + 2047)
+    _refused(estimate_reader.read_workbook, content)
+
+
+@pytest.mark.requirement("WF-INTF-0070-A")
 def test_the_prototypes_of_the_specification_pass_the_bounds() -> None:
     # « les classeurs que Waterfall exporte et ceux du témoin passent la borne » : the prototypes
     # the writers reproduce, read whole.
@@ -243,7 +268,11 @@ def test_the_readers_materialise_the_tabs_their_format_reads_alone() -> None:
     assert "Paramètres" not in sheets
     assert (len(sheets["Présentation"]), "Tâches" in sheets) == (2, True)
     rae = (PROTOTYPES / "rae-prototype.xlsx").read_bytes()
-    read = dict(remaining_reader.load_sheets(rae, ("Paramètres",), "remaining", 1))
+    read = dict(
+        remaining_reader.load_sheets(
+            rae, unread=("Paramètres",), expected_format="remaining", expected_version=1
+        )
+    )
     assert list(read) == ["Synthèse", "SP-PRE", "SP-MAT", "Hors sous-projet", "Tâches"]
 
 

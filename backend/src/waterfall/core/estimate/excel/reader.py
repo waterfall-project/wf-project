@@ -321,6 +321,7 @@ def _read_sheet(
 
 def load_sheets(
     content: bytes,
+    *,
     unread: Collection[str] = UNREAD_SHEETS,
     expected_format: str = FORMAT_KIND,
     expected_version: int = FORMAT_VERSION,
