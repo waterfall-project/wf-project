@@ -7,13 +7,16 @@
  *
  * Nothing is scheduled here. The dates are those the API gives (`TaskFacet.start`, `finish`), and
  * the Gantt only places them on its axis, as a chart places the points it is given: at the scale of
- * the day, a task running from its start to its finish, each an instant placed at its day plus its
- * hours over the hours of that day on the calendar of the task (`calendar_hours`); without a calendar
- * — the frieze of a timeline — or on a day without hours, from the start of its first day to the end
- * of its last, a finish at hour 0 of a day being its very start —, a milestone standing at its finish. The axis runs from
- * the first of the month of the earliest start to the first of the month after the latest finish
- * (`monthTicks`), and a place on it is a share of its width: the drawing follows the width of its
- * column, whatever the user sets it to.
+ * the day, a task running from its start to its finish, a milestone standing at its finish.
+ *
+ * Each instant is placed at its day plus its hours over the hours of that day on the calendar of
+ * the task (`calendar_hours`). Without a calendar (the frieze of a timeline) or on a day without
+ * hours, a task runs from the start of its first day to the end of its last, a finish at hour 0
+ * of a day being its very start.
+ *
+ * The axis runs from the first of the month of the earliest start to the first of the month after
+ * the latest finish (`monthTicks`), and a place on it is a share of its width: the drawing follows
+ * the width of its column, whatever the user sets it to.
  *
  * A link joins the place its type names on the predecessor — its finish, or its start for a link
  * from start — to the place it names on the task — its start, or its finish for a link to finish
@@ -22,6 +25,7 @@
  */
 import type { components } from "@/api/generated/schema";
 import { monthTicks } from "@/components/chart/ticks";
+import { shareOfDecimal } from "@/i18n/format";
 
 /** The hours of each day of the week of the calendar that applies to a task. */
 type WeeklyHours = components["schemas"]["WeeklyHours"];
@@ -83,19 +87,15 @@ const WEEKDAYS = [
 /**
  * The share of its day that the hours of an instant take on a calendar: the hours elapsed over the
  * hours of that weekday, from 0 to 1 (WF-PLA-0090, FPL-04). Undefined without a calendar, for a day
- * without hours, or for hours the exact decimal does not read: the instant is then placed by the day.
+ * without hours, or for hours that are no decimal of the contract: the instant is then placed by
+ * the day. The decimals are never read through a float (`shareOfDecimal`).
  */
 function shareOfDay(instant: WorkInstant, calendar: WeeklyHours | undefined): number | undefined {
   if (calendar === undefined) {
     return undefined;
   }
   const weekday = WEEKDAYS[new Date(midnight(instant.date)).getUTCDay()];
-  const dayHours = weekday === undefined ? Number.NaN : Number(calendar[weekday]);
-  const hours = Number(instant.hours);
-  if (!(dayHours > 0) || !Number.isFinite(hours)) {
-    return undefined;
-  }
-  return Math.min(Math.max(hours / dayHours, 0), 1);
+  return weekday === undefined ? undefined : shareOfDecimal(instant.hours, calendar[weekday]);
 }
 
 /**

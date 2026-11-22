@@ -31,7 +31,7 @@ import { DAY_OFF_HATCH, type DayOffBand, dayOffBands } from "./days-off";
 import type { GanttBar, GanttLayout, GanttLinkPart, GanttRow } from "./layout";
 
 /** The height of a row and of the axis, as the grid draws them, in pixels. */
-const ROW = 28;
+export const ROW = 28;
 const AXIS = 36;
 
 /** The margin around the drawing, the height of the legend, and the narrowest image. */

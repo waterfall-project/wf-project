@@ -134,6 +134,19 @@ describe("the layout of the Gantt", () => {
       expect(finishTime(sunday, calendar)).toBe(day("2026-04-13"));
     });
 
+    it("bounds the share of the day to 0 and 1, and reads a decimal of hours exactly [WF-PLA-0090-A]", () => {
+      const calendar = a?.task.calendar_hours;
+      // More hours than the day has: the end of the day. Negative hours: its start.
+      expect(finishTime({ date: "2026-04-13", hours: "10" }, calendar)).toBe(day("2026-04-14"));
+      expect(startTime({ date: "2026-04-13", hours: "10" }, calendar)).toBe(day("2026-04-14"));
+      expect(finishTime({ date: "2026-04-13", hours: "-2" }, calendar)).toBe(day("2026-04-13"));
+      expect(startTime({ date: "2026-04-13", hours: "-2" }, calendar)).toBe(day("2026-04-13"));
+      // 2.5 hours of 8 take 0.3125 of the day.
+      expect(startTime({ date: "2026-04-13", hours: "2.5" }, calendar)).toBe(
+        day("2026-04-13") + 0.3125 * 86_400_000,
+      );
+    });
+
     it("puts the bar of A on the first half of the day, that of B on the second, the link reaching to the right [WF-PLA-0090-A]", () => {
       const rows = [a, b].filter((row) => row !== undefined);
       const layout = ganttLayout(rows);
