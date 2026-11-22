@@ -171,7 +171,7 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "work_breakdown",
     },
     "history": {"closing", "plans", "purge", "recording", "undo", "undoable"},
-    "exchanges": {"damages", "exports", "imports", "loading", "purge", "xml"},
+    "exchanges": {"damages", "exports", "imports", "loading", "purge", "workbooks", "xml"},
     "indicators": {
         "curves",
         "documents",

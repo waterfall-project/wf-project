@@ -8,18 +8,17 @@ empty lines and the line of total of the table are ignored, a number is read in 
 a number written as text is rejected (``NUMBER_INVALID``), each line read and each rejection named
 by its tab and its Excel row number (WF-INTF-0070, WF-INTF-0080, WF-INTF-0100); « Tâches » gives
 the lineage of the task each entry names, and the header alone is read at the opening of an import
-(``check_header``, US-1550/L3). openpyxl reads, in
-``read_only`` mode and by values; nothing here touches a database or a session.
+(``check_header``, US-1550/L3). The workbook is opened by the opener of the exchanges, which
+refuses an archive beyond its bounds before openpyxl reads it, read-only and by values; only the
+tabs the format reads are materialised, each within its bounds of rows and columns
+(``opened_workbook``, ``bounded_rows``; US-3190). Nothing here touches a database or a session.
 """
 
 import math
 from dataclasses import dataclass
 from decimal import Decimal
-from io import BytesIO
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
-
-from openpyxl import load_workbook
 
 from waterfall.core.estimate.excel.writer import (
     FIXED_TABS,
@@ -27,11 +26,11 @@ from waterfall.core.estimate.excel.writer import (
     FORMAT_VERSION,
     TASKS,
 )
-from waterfall.core.exchanges.interface import DAMAGES
+from waterfall.core.exchanges.interface import DAMAGES, bounded_rows, opened_workbook
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Mapping, Sequence
+    from collections.abc import Collection, Iterator, Mapping, Sequence
 
 FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
 NUMBER_INVALID = "NUMBER_INVALID"
@@ -43,8 +42,12 @@ FORMAT_LABEL = "Format"
 VERSION_LABEL = "Version"
 
 # The tabs that are not tabs of lines are the writer's fixed tabs: written for the reading, never
-# read as lines.
+# read as lines. Of them, the reading reads « Tâches » alone, and the header of the first tab.
 NOT_LINE_SHEETS = frozenset(FIXED_TABS)
+UNREAD_SHEETS = NOT_LINE_SHEETS - {TASKS}
+# The rows and the columns of the first tab its header is in: A1, B1, A2, B2.
+HEADER_ROWS = 2
+HEADER_COLUMNS = 2
 
 # The headers of the columns read; the other columns are written for the reader and ignored.
 TASK_HEADER = "Tâche"
@@ -183,6 +186,11 @@ def check_header_rows(
         raise unreadable(expected_format, version)
 
 
+def header_cells(sheet: Any) -> Iterator[tuple[Any, ...]]:
+    """Give the cells of the header of a tab, A1 to B2, whatever the width of the tab."""
+    return sheet.iter_rows(max_row=HEADER_ROWS, max_col=HEADER_COLUMNS, values_only=True)
+
+
 def check_header(
     content: bytes,
     format_name: str = FORMAT_NAME,
@@ -196,12 +204,9 @@ def check_header(
     slot's, as ``check_header_rows`` has them: the remaining to commit reads its header so too.
     """
     try:
-        workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
-        try:
+        with opened_workbook(content) as workbook:
             sheets = workbook.worksheets
-            rows = list(sheets[0].iter_rows(max_row=2, values_only=True)) if sheets else None
-        finally:
-            workbook.close()
+            rows = bounded_rows(header_cells(sheets[0])) if sheets else None
     except DAMAGES as error:
         raise unreadable(expected_format, version) from error
     if rows is None:
@@ -315,28 +320,38 @@ def _read_sheet(
 
 
 def load_sheets(
-    content: bytes, expected_format: str = FORMAT_KIND, expected_version: int = FORMAT_VERSION
+    content: bytes,
+    *,
+    unread: Collection[str] = UNREAD_SHEETS,
+    expected_format: str = FORMAT_KIND,
+    expected_version: int = FORMAT_VERSION,
 ) -> list[tuple[str, list[tuple[Any, ...]]]]:
-    """Open the workbook and read every tab; any damage of the file is ``FILE_FORMAT_UNREADABLE``.
+    """Open the workbook and read the tabs the format reads, in their order, each within bounds.
 
-    In ``read_only`` mode the XML of a tab is parsed while iterating, so both steps are guarded.
+    A tab of ``unread`` is not materialised: the first tab, its header rows alone, any other
+    left out. Any damage of the file, an archive beyond the bounds of the opener, or a tab read
+    beyond its rows or columns is ``FILE_FORMAT_UNREADABLE`` (US-3190). In ``read_only`` mode the
+    XML of a tab is parsed while iterating, so both steps are guarded.
     """
+    sheets: list[tuple[str, list[tuple[Any, ...]]]] = []
     try:
-        workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
-        try:
-            return [(sheet.title, list(sheet.iter_rows(values_only=True))) for sheet in workbook]
-        finally:
-            workbook.close()
+        with opened_workbook(content) as workbook:
+            for rank, sheet in enumerate(workbook.worksheets):
+                if sheet.title not in unread:
+                    sheets.append((sheet.title, bounded_rows(sheet.iter_rows(values_only=True))))
+                elif rank == 0:
+                    sheets.append((sheet.title, bounded_rows(header_cells(sheet))))
     except DAMAGES as error:
         raise unreadable(expected_format, expected_version) from error
+    return sheets
 
 
 def read_workbook(content: bytes) -> WorkbookRead:
     """Read the workbook of an estimate: its header, then every tab of lines.
 
     Raises ``FILE_FORMAT_UNREADABLE`` (``expected_format``, ``expected_version``) for a file that
-    is no workbook, whose XML is damaged, or whose first tab does not say the format "Devis" and a
-    known version.
+    is no workbook, whose XML is damaged, beyond the bounds of the opener or with a tab read beyond
+    its rows or columns, or whose first tab does not say the format "Devis" and a known version.
     """
     sheets = load_sheets(content)
     if not sheets:
