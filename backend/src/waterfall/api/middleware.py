@@ -13,8 +13,9 @@ from typing import TYPE_CHECKING
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.requests import Request
 
-from waterfall.api.problems import internal_error_response
+from waterfall.api.problems import internal_error_response, problem_response
 from waterfall.platform.correlation import HEADER, SCOPE_KEY, correlation_id_from
+from waterfall.platform.database import is_unreachable
 from waterfall.platform.logs import ANONYMOUS, get_logger, logging_context
 
 if TYPE_CHECKING:
@@ -23,6 +24,8 @@ if TYPE_CHECKING:
     from waterfall.platform.metrics import ApiMetrics
 
 logger = get_logger(__name__)
+
+COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
 
 # The project a path names: the contract puts every route of a project under ``/projects/{id}``.
 PROJECT_PATH = re.compile(
@@ -75,10 +78,25 @@ class CorrelationMiddleware:
         with logging_context(**context):
             try:
                 await self.app(scope, receive, send_with_header)
-            except Exception:
-                logger.exception("request.failed")
+            except Exception as error:
+                unreachable = is_unreachable(error)
+                if unreachable:
+                    # The component is out of reach: said by its name, with the cause in a line.
+                    logger.warning(
+                        "request.database_unreachable",
+                        error=type(error).__name__,
+                        reason=(str(error).splitlines() or [""])[0],
+                    )
+                else:
+                    logger.exception("request.failed")
                 if not answered:
-                    response = internal_error_response(Request(scope))
+                    response = (
+                        problem_response(
+                            Request(scope), 503, COMPONENT_UNAVAILABLE, {"component": "database"}
+                        )
+                        if unreachable
+                        else internal_error_response(Request(scope))
+                    )
                     await response(scope, receive, send_with_header)
             finally:
                 seconds = time.perf_counter() - started

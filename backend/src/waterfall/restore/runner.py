@@ -21,7 +21,7 @@ and nothing has changed.
 """
 
 import dataclasses
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import ColumnElement, inspect, select
 
@@ -31,6 +31,7 @@ from waterfall.platform.tasks import BackgroundTask, Task, TaskHandler
 from waterfall.worker.runner import (
     INTERNAL_ERROR,
     MAX_ATTEMPTS,
+    WAITS,
     Timing,
     Worker,
     context_of,
@@ -104,6 +105,8 @@ class Restorer(Worker):
             if not lock_run(session, task_id):
                 return False
             task = self.start(task_id)
+            if task == WAITS:
+                return False
             if task is None:
                 return True
             with logging_context(**context_of(task)):
@@ -119,7 +122,7 @@ class Restorer(Worker):
         with logging_context(correlation_id=correlation_id, task_id=str(task_id)):
             logger.info("restore.maintenance_lifted")
 
-    def start(self, task_id: UUID) -> Task | None:
+    def start(self, task_id: UUID) -> Task | Literal["waits"] | None:
         """Start one more attempt of a restoration: counted in the maintenance once it holds one.
 
         A restoration whose task has succeeded already, the maintenance not lifted after — the

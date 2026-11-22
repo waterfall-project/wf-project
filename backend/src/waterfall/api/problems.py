@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Any, cast
 
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from psycopg.errors import LockNotAvailable
+from sqlalchemy.exc import OperationalError
 from starlette.exceptions import HTTPException
 
 from waterfall.api.contract.base import PLACED_FAULTS
@@ -102,6 +104,20 @@ def _on_service_error(request: Request, error: Exception) -> JSONResponse:
     refusal = cast("ServiceError", error)
     logger.info("request.refused", code=refusal.code, status=refusal.status)
     return problem_response(request, refusal.status, refusal.code, refusal.params, refusal.fields)
+
+
+def _on_database_error(request: Request, error: Exception) -> JSONResponse:
+    """Answer a lock the database did not give in the time a transaction bounds it to (503).
+
+    The wait of a write of the administration is bounded (#924): beyond, the database does not
+    let the operation through, which is not presented as done. Any other error of the database is
+    the error nobody expected it was, left to the 500 of the middleware.
+    """
+    if not isinstance(cast("OperationalError", error).orig, LockNotAvailable):
+        raise error
+    logger.warning("request.lock_not_obtained")
+    params = {"component": "database"}
+    return problem_response(request, 503, ErrorCode.COMPONENT_UNAVAILABLE, params)
 
 
 def _on_http_error(request: Request, error: Exception) -> JSONResponse:
@@ -246,5 +262,6 @@ def internal_error_response(request: Request) -> JSONResponse:
 def install_problem_handlers(app: FastAPI) -> None:
     """Route every kind of error of the application to the envelope."""
     app.add_exception_handler(ServiceError, _on_service_error)
+    app.add_exception_handler(OperationalError, _on_database_error)
     app.add_exception_handler(HTTPException, _on_http_error)
     app.add_exception_handler(RequestValidationError, _on_validation_error)

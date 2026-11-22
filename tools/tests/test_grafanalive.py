@@ -6,8 +6,9 @@ The image pinned by its digest runs with the variables GF_* and the mounts of th
 compose.prod.yaml, and a password of the test: it answers under /grafana, loads the dashboard the
 platform delivers and the one source that is Prometheus, read in HTTPS against the root of the
 platform (US-2840), and the account ``operator`` opens a session there, a wrong password not. The
-volume trust, where the platform writes its root, is a folder of the test that holds one. Docker and
-OpenSSL are needed: a test skips without them, and says so.
+volume trust, where the platform writes its root, is a folder of the test that holds one. A docker
+daemon and OpenSSL are needed: a test skips without them, and says so; the image is pulled behind
+``WATERFALL_MIRROR``, as the Compose pulls it (#4321).
 """
 
 import base64
@@ -22,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
+from dockerdaemon import answers, mirrored
 from test_notification import COMPOSE, DASHBOARD, PRODUCTION
 
 if TYPE_CHECKING:
@@ -30,10 +32,10 @@ if TYPE_CHECKING:
 
 pytestmark = [
     pytest.mark.skipif(
-        shutil.which("docker") is None or shutil.which("openssl") is None,
-        reason="docker or openssl is not installed",
+        not answers() or shutil.which("openssl") is None,
+        reason="no docker daemon answers, or openssl is not installed",
     ),
-    pytest.mark.unexecuted("skipped where docker or openssl is not installed"),
+    pytest.mark.unexecuted("skipped where no docker daemon answers or openssl is not installed"),
 ]
 
 PHRASE = "grafana-test-only"
@@ -62,7 +64,7 @@ def production() -> dict[str, Any]:
 
 
 def image() -> str:
-    return str(production()["image"]).removeprefix("${WATERFALL_MIRROR:-}")
+    return mirrored(str(production()["image"]))
 
 
 def get(port: int, path: str, password: str | None = None) -> tuple[int, Any]:

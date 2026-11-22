@@ -14,8 +14,10 @@ import pytest
 import uvicorn
 from fastapi import FastAPI, Header, Path, Query
 from fastapi.testclient import TestClient
+from psycopg.errors import DeadlockDetected, LockNotAvailable
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_core import PydanticCustomError
+from sqlalchemy.exc import OperationalError
 from support import PLATFORM_SECRETS, Logs, found_in
 
 from waterfall.api.app import create_app
@@ -122,6 +124,8 @@ ERRORS: dict[str, Exception] = {
         },
     ),
     "unknown_code": ServiceError("NO_SUCH_CODE"),
+    "lock": OperationalError("SELECT 1", {}, LockNotAvailable("lock timeout")),
+    "closed": OperationalError("SELECT 1", {}, DeadlockDetected("closed")),
     "unexpected": RuntimeError(f"cannot connect to {PLATFORM_SECRETS['WATERFALL_DATABASE_URL']}"),
 }
 
@@ -338,6 +342,24 @@ def test_the_correlation_identifier_of_the_request_is_in_the_envelope_and_the_he
     response = TestClient(app).get("/fail/missing", headers={"X-Correlation-ID": "trace-42"})
     assert problem_of(response).correlation_id == "trace-42"
     assert response.headers["X-Correlation-ID"] == "trace-42"
+
+
+@pytest.mark.story("US-3020")
+def test_a_lock_the_database_refuses_is_a_503_on_a_route_that_set_no_bound_but_no_other_error_is(
+    app: FastAPI,
+) -> None:
+    # #924: a lock refused within the delay a transaction gave itself is no internal error, on any
+    # route; an error of the database that is neither a lock refused nor a database out of
+    # reach (a deadlock, 40P01) stays the 500.
+    client = TestClient(app, raise_server_exceptions=False)
+    refused = client.get("/fail/lock")
+    problem = problem_of(refused)
+    assert (refused.status_code, problem.code.value) == (503, "COMPONENT_UNAVAILABLE")
+    assert problem.params is not None
+    assert problem.params.model_dump(exclude_unset=True) == {"component": "database"}
+    closed = client.get("/fail/closed")
+    assert (closed.status_code, problem_of(closed).code.value) == (500, "INTERNAL_ERROR")
+    assert "closed" not in closed.text
 
 
 def test_an_unexpected_exception_is_a_500_with_a_correlation_and_no_detail(

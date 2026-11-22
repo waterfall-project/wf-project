@@ -9,43 +9,53 @@ test gives it, and calls the API with a token of the realm of test; every answer
 the contract (``ContractClient``).
 """
 
+import asyncio
 import io
 import json
 import subprocess
 import tarfile
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, MutableMapping
+from contextlib import suppress
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
+import anyio
 import pytest
 from access_rows import account, role
+from backup_support import Corrupting, Run, worker_of
+from botocore.exceptions import ReadTimeoutError
 from fastapi.testclient import TestClient
 from realm import KEY, TestRealm
-from sqlalchemy import Engine, select, text
+from sqlalchemy import Engine, select, text, update
 from sqlalchemy.exc import ProgrammingError
-from support import ContractClient, as_backup, bearer, captured_logs
+from starlette.requests import ClientDisconnect
+from support import ContractClient, bearer, captured_logs
 from task_handlers import REQUEST, deposit, task
 
 from waterfall import __version__
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.core.backups.interface import TakenBackup, add_backup
+from waterfall.api.streams import ObjectResponse
+from waterfall.core.backups.interface import TakenBackup, add_backup, last_scheduled_outcome
+from waterfall.core.backups.tables import BackupSchedule
 from waterfall.platform.audit import Act, AuditEntry
-from waterfall.platform.database import Database, create_database_engine, engine_url, utc_now
+from waterfall.platform.database import Database, create_database_engine, utc_now
 from waterfall.platform.errors import UnavailableError
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import ServiceSettings, load_worker_settings
-from waterfall.platform.storage import Bucket
+from waterfall.platform.storage import Bucket, ObjectStream
+from waterfall.platform.tasks import BackgroundTask
 from waterfall.worker import backup as backup_module
 from waterfall.worker.backup import MANIFEST, BackupTask, DumpError, connection, dump, verified
-from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from botocore.response import StreamingBody
     from openapi_core import OpenAPI
+    from sqlalchemy.orm import Session
 
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
@@ -53,64 +63,16 @@ if TYPE_CHECKING:
 BACKUPS = "/api/v1/backups"
 READ = "backups.read"
 WRITE = "backups.write"
+DATABASE = "database"
 UNREACHABLE = "postgresql://nobody:nothing@127.0.0.1:9/nowhere"
 
 type Person = Callable[..., tuple[UUID, dict[str, str]]]
-
-
-@pytest.fixture(scope="session")
-def provider_url(database_url: str) -> Iterator[str]:
-    """Create, for this run, a database that stands for the identity provider's, with a realm."""
-    name = f"waterfall_test_idp_{uuid4().hex}"
-    server = create_database_engine(database_url).execution_options(isolation_level="AUTOCOMMIT")
-    with server.connect() as connection:
-        connection.execute(text(f'CREATE DATABASE "{name}"'))
-    url = engine_url(database_url).set(database=name).render_as_string(hide_password=False)
-    provider = create_database_engine(url)
-    with provider.begin() as connection:
-        connection.execute(text("CREATE TABLE realm (id text PRIMARY KEY)"))
-        connection.execute(text("INSERT INTO realm VALUES ('waterfall')"))
-    provider.dispose()
-    yield url
-    with server.connect() as connection:
-        connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
-    server.dispose()
-
-
-@pytest.fixture
-def databases(database_url: str, provider_url: str, backup_role: tuple[str, str]) -> dict[str, str]:
-    """Give the two databases of the test as the role of the backup reaches them, by backup name."""
-    return {
-        "waterfall": as_backup(database_url, backup_role),
-        "identity_provider": as_backup(provider_url, backup_role),
-    }
 
 
 @pytest.fixture
 def taking(databases: dict[str, str], backups_bucket: Bucket) -> BackupTask:
     """Give the task that backs up the two databases of the test into the bucket of the test."""
     return BackupTask(databases, backups_bucket)
-
-
-def worker_of(database: Database, queue: TaskQueue, taking: BackupTask) -> Worker:
-    """Give a worker of the queue of the test that runs the backups."""
-    queue.prepare()
-    return Worker(database, queue, {"backup": taking}, "worker-backup", Timing(0, 0.1))
-
-
-type Run = Callable[[BackupTask], UUID]
-
-
-@pytest.fixture
-def run(database: Database, queue: TaskQueue) -> Run:
-    """Give a runner: it deposits a backup the platform asks for, which a worker then takes."""
-
-    def backup(taking: BackupTask) -> UUID:
-        task_id = deposit(database, queue, "backup")
-        assert worker_of(database, queue, taking).step()
-        return task_id
-
-    return backup
 
 
 type ApiOn = Callable[[Bucket], ContractClient]
@@ -298,31 +260,135 @@ def member(tar: tarfile.TarFile, name: str) -> bytes:
     return read.read()
 
 
-class Corrupting(Bucket):
-    """A bucket that gives back every object with bytes of its middle overwritten."""
-
-    def download(self, key: str, path: Path) -> None:
-        super().download(key, path)
-        damaged = bytearray(path.read_bytes())
-        middle = len(damaged) // 2
-        damaged[middle : middle + 16] = b"\xff" * 16
-        path.write_bytes(bytes(damaged))
+FAILED_VERIFICATION = {
+    "code": "INTERNAL_ERROR",
+    "status": 500,
+    "correlation_id": REQUEST,
+}
 
 
-def test_an_archive_that_does_not_read_back_whole_is_listed_with_a_verification_failed(
-    database: Database, run: Run, databases: dict[str, str], backups_bucket: Bucket
+def failed_problem(database: Database, task_id: UUID) -> dict[str, Any]:
+    """Read the problem of a task that failed, whole."""
+    failed = task(database, task_id)
+    assert failed.status == "failed"
+    assert failed.result is None
+    assert failed.problem is not None
+    return dict(failed.problem)
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_an_archive_that_does_not_read_back_whole_fails_its_scheduled_task_and_stays_listed(
+    database: Database,
+    run: Run,
+    databases: dict[str, str],
+    backups_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The verification is what tells a backup from a file one hopes to restore (WF-ADM-0150): read
-    # back damaged, the backup is listed, and says it failed.
+    # « Une archive qui échoue à sa vérification fait échouer sa tâche » (#4230, US-2910): read
+    # back damaged, the backup is listed with its archive, ``failed``; its task fails by an
+    # INTERNAL_ERROR under its correlation, and neither rotation nor copy follows.
+    rotations: list[int] = []
+
+    def rotate_spy(session: Session, retained_count: int) -> list[str]:
+        del session, retained_count
+        rotations.append(1)
+        return []
+
+    monkeypatch.setattr(backup_module, "rotate", rotate_spy)
+    copy_set(database)
     corrupting = Corrupting(backups_bucket.client, backups_bucket.name)
     task_id = run(BackupTask(databases, corrupting))
-    assert task(database, task_id).result is not None
+    problem = failed_problem(database, task_id)
+    assert {key: problem[key] for key in FAILED_VERIFICATION} == FAILED_VERIFICATION
+    with database.transaction() as session:
+        rows = session.execute(text("SELECT verification, origin, object_key FROM backup")).all()
+        # One source of the failure: the task, which the gauge and the screen of the state read.
+        outcome = last_scheduled_outcome(session)
+    assert [tuple(row) for row in rows] == [("failed", "scheduled", f"backup-{task_id}.tar")]
+    assert keys_of(backups_bucket, f"backup-{task_id}") == [f"backup-{task_id}.tar"]
+    assert rotations == []
+    # The copy is set and enabled: a backup verified would deposit it (the test below), this one
+    # deposits none (US-2910/L3, #4100).
+    assert copies_deposited(database) == []
+    assert outcome is not None
+    assert not outcome.succeeded
+
+
+def copy_set(database: Database, *, is_enabled: bool = True) -> None:
+    """Set the copy of the scheduled backups, to a location, enabled or suspended."""
+    with database.transaction() as session:
+        session.execute(
+            update(BackupSchedule).values(
+                external_copy_is_enabled=is_enabled,
+                external_copy_location="secours-lyon",
+                external_copy_path="waterfall/sauvegardes",
+                external_copy_retained_count=30,
+            )
+        )
+
+
+def copies_deposited(database: Database) -> list[dict[str, Any]]:
+    """Give the payloads of the copies deposited, queued, by the platform."""
+    with database.transaction() as session:
+        return list(
+            session.scalars(
+                select(BackgroundTask.payload).where(
+                    BackgroundTask.kind == "backup_copy",
+                    BackgroundTask.status == "queued",
+                    BackgroundTask.requested_by.is_(None),
+                )
+            )
+        )
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_a_scheduled_backup_verified_deposits_its_copy_and_a_manual_one_none(
+    database: Database,
+    queue: TaskQueue,
+    run: Run,
+    databases: dict[str, str],
+    backups_bucket: Bucket,
+) -> None:
+    # « la copie attend la vérification de la sauvegarde » (US-2910): a scheduled backup verified,
+    # under a schedule whose copy is set and enabled, deposits the task of its copy, in its own
+    # transaction; a manual backup, copied out by its download, deposits none, nor a scheduled one
+    # whose copy is suspended.
+    copy_set(database)
+    task_id = run(BackupTask(databases, backups_bucket))
+    backup_id = task(database, task_id).result or {}
+    assert copies_deposited(database) == [{"backup_id": backup_id["backup_id"]}]
+    asker = account(database, "Martin", uuid4().hex[:8])
+    worker = worker_of(database, queue, BackupTask(databases, backups_bucket))
+    deposit(database, queue, "backup", requested_by=asker)
+    assert worker.step()
+    assert len(copies_deposited(database)) == 1
+    copy_set(database, is_enabled=False)
+    run(BackupTask(databases, backups_bucket))
+    assert len(copies_deposited(database)) == 1
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_an_archive_that_does_not_read_back_whole_fails_a_manual_backup_the_same_way(
+    database: Database,
+    queue: TaskQueue,
+    databases: dict[str, str],
+    backups_bucket: Bucket,
+) -> None:
+    # The same for a backup an account asked for: a row ``failed`` and its archive, the task failed,
+    # the journal inscribing the backup by its author (#4230).
+    asker = account(database, "Martin", uuid4().hex[:8])
+    corrupting = Corrupting(backups_bucket.client, backups_bucket.name)
+    worker = worker_of(database, queue, BackupTask(databases, corrupting))
+    task_id = deposit(database, queue, "backup", requested_by=asker)
+    assert worker.step()
+    problem = failed_problem(database, task_id)
+    assert {key: problem[key] for key in FAILED_VERIFICATION} == FAILED_VERIFICATION
     with database.transaction() as session:
         rows = session.execute(text("SELECT verification, origin FROM backup")).all()
-    assert [tuple(row) for row in rows] == [("failed", "scheduled")]
-
-
-DATABASE = "database"
+        outcome = last_scheduled_outcome(session)
+    assert [tuple(row) for row in rows] == [("failed", "manual")]
+    assert keys_of(backups_bucket, f"backup-{task_id}") == [f"backup-{task_id}.tar"]
+    assert outcome is None
 
 
 def keys_of(bucket: Bucket, prefix: str = "") -> list[str]:
@@ -394,6 +460,7 @@ def test_an_archive_written_and_not_recorded_leaves_no_object_under_its_key(
     assert keys_of(backups_bucket, f"backup-{task_id}") == []
 
 
+@pytest.mark.story("US-2940")
 @pytest.mark.requirement("WF-DAT-0120-A")
 def test_an_archive_whose_verification_raises_leaves_no_object_under_its_key(
     database: Database,
@@ -409,7 +476,11 @@ def test_an_archive_whose_verification_raises_leaves_no_object_under_its_key(
     monkeypatch.setattr(backup_module, "verified", raising)
     task_id = run(BackupTask(databases, backups_bucket))
     failed = task(database, task_id)
-    assert failed.status == "failed"
+    # The outage rendered is the one ``verified`` raised (#2880).
+    assert (failed.status, (failed.problem or {}).get("params")) == (
+        "failed",
+        {"component": "object_storage"},
+    )
     assert keys_of(backups_bucket, f"backup-{task_id}") == []
 
 
@@ -685,3 +756,165 @@ def test_a_backup_whose_archive_is_gone_or_out_of_reach_is_not_copied(
         503,
         {"component": "object_storage"},
     )
+
+
+class Body:
+    """The body the storage gives of an object: some chunks, then a fault if one is given."""
+
+    def __init__(self, chunks: list[bytes], fault: Exception | None = None) -> None:
+        self.chunks = chunks
+        self.fault = fault
+        self.closed = False
+
+    def iter_chunks(self, _size: int) -> Iterator[bytes]:
+        yield from self.chunks
+        if self.fault is not None:
+            raise self.fault
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def streamed(body: Body, length: int | None, key: str = "kept.tar") -> ObjectStream:
+    """Give the stream of a body, as the bucket opens it."""
+    return ObjectStream(cast("StreamingBody", body), length, key)
+
+
+class Serving(Bucket):
+    """A bucket that serves the stream it is given, whatever the key."""
+
+    served: ObjectStream
+
+    def stream(self, key: str) -> ObjectStream:
+        del key
+        return self.served
+
+
+def serving(stream: ObjectStream, bucket: Bucket) -> Serving:
+    """Give a bucket that serves a stream."""
+    served = Serving(bucket.client, bucket.name)
+    served.served = stream
+    return served
+
+
+FAULT = ReadTimeoutError(endpoint_url="http://storage")
+
+
+@pytest.mark.story("US-2940")
+def test_a_stream_of_the_storage_closes_its_body_when_it_ends_and_says_when_it_fails() -> None:
+    # [US-2940] #897: the body is closed at the end of the object, and a fault of the storage once
+    # the stream has begun is the refusal it is before it (503, the object storage), journaled.
+    body = Body([b"ab", b"c"])
+    stream = streamed(body, 3)
+    assert b"".join(stream) == b"abc"
+    assert body.closed
+    broken = Body([b"ab"], FAULT)
+    interrupted = streamed(broken, 10)
+    with captured_logs() as logs, pytest.raises(UnavailableError) as raised:
+        list(interrupted)
+    assert dict(raised.value.params) == {"component": "object_storage"}
+    assert broken.closed
+    (said,) = logs.named("storage.stream_interrupted")
+    assert said["key"] == "kept.tar"
+
+
+@pytest.mark.story("US-2940")
+def test_a_download_carries_the_length_the_storage_gives_and_closes_the_body_it_read(
+    api_on: ApiOn,
+    database: Database,
+    queue: TaskQueue,
+    backups_bucket: Bucket,
+    person: Person,
+) -> None:
+    # [US-2940] #897: Content-Length is the size of the object the storage gives, which is what the
+    # body holds, and the body is closed once read.
+    backup_id = backup_row(database, queue, "kept.tar")
+    _, headers = person(READ, WRITE)
+    body = Body([b"abc", b"de"])
+    api = api_on(serving(streamed(body, 5), backups_bucket))
+    copied = api.get(f"{BACKUPS}/{backup_id}/content", headers=headers)
+    assert (copied.status_code, copied.content) == (200, b"abcde")
+    assert copied.headers["content-length"] == "5"
+    assert body.closed
+
+
+@pytest.mark.story("US-2940")
+def test_a_download_that_fails_once_it_has_begun_is_journaled_and_closes_its_body(
+    api_on: ApiOn,
+    database: Database,
+    queue: TaskQueue,
+    backups_bucket: Bucket,
+    person: Person,
+) -> None:
+    # [US-2940] #897: a fault in the middle of the stream cannot change the status, which was sent;
+    # the connection ends short of its length, and the journal says the object and the refusal.
+    backup_id = backup_row(database, queue, "kept.tar")
+    _, headers = person(READ, WRITE)
+    body = Body([b"abc"], FAULT)
+    api = api_on(serving(streamed(body, 10), backups_bucket))
+    with captured_logs() as logs:
+        copied = api.get(f"{BACKUPS}/{backup_id}/content", headers=headers)
+    assert len(copied.content) < 10
+    assert body.closed
+    assert logs.named("storage.stream_interrupted")
+    (interrupted,) = logs.named("download.interrupted")
+    assert interrupted["code"] == "COMPONENT_UNAVAILABLE"
+
+
+async def disconnecting(receive_first: bool) -> None:
+    """Send a stream to a client that leaves after its first chunk, by one of the two protocols."""
+    body = Body([b"a", b"b", b"c"])
+    response = ObjectResponse(streamed(body, 3), "application/octet-stream")
+    sent: list[str] = []
+
+    async def send(message: MutableMapping[str, Any]) -> None:
+        sent.append(message["type"])
+        if len(sent) == 2:
+            raise OSError
+
+    async def receive() -> MutableMapping[str, Any]:
+        await asyncio.sleep(0)
+        return {"type": "http.disconnect"}
+
+    spec = "2.4" if receive_first else "2.3"
+    scope = {"type": "http", "asgi": {"spec_version": spec}}
+    with suppress(ClientDisconnect):
+        await response(scope, receive, send)
+    assert body.closed
+
+
+@pytest.mark.story("US-2940")
+@pytest.mark.parametrize("receive_first", [True, False], ids=["asgi-2.4", "asgi-2.3"])
+def test_a_download_the_client_leaves_closes_the_body_read_from_the_storage(
+    receive_first: bool,
+) -> None:
+    # [US-2940] #897: by the send that fails (ASGI 2.4) or the disconnection message before it,
+    # nothing in the framework closes the iterator it is given: the response does.
+    asyncio.run(disconnecting(receive_first))
+
+
+async def cancelled_while_sending() -> None:
+    """Send a stream to a client that stalls, under a cancel scope that ends while it waits."""
+    body = Body([b"a", b"b", b"c"])
+    response = ObjectResponse(streamed(body, 3), "application/octet-stream")
+
+    async def send(message: MutableMapping[str, Any]) -> None:
+        if message["type"] == "http.response.body":
+            await asyncio.sleep(10)
+
+    async def receive() -> MutableMapping[str, Any]:
+        await asyncio.sleep(10)
+        return {"type": "http.disconnect"}
+
+    scope = {"type": "http", "asgi": {"spec_version": "2.3"}}
+    with anyio.move_on_after(0.2) as scope_of_the_task:
+        await response(scope, receive, send)
+    assert scope_of_the_task.cancelled_caught
+    assert body.closed
+
+
+@pytest.mark.story("US-2940")
+def test_a_download_whose_task_is_cancelled_closes_the_body_all_the_same() -> None:
+    # [US-2940] #897: under a cancel scope — the server that stops, a timeout — every await of the
+    # task raises again, the one of the closing included: the closing is shielded from it.
+    asyncio.run(cancelled_while_sending())

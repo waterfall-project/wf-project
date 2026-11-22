@@ -332,6 +332,7 @@ services:
     restart: "no"
     depends_on:
       waterfall-database: *done
+      keycloak-database: *done
 
   # The database of Keycloak on the same server, with its role, created when missing.
   keycloak-database:
@@ -398,6 +399,8 @@ services:
       # What its purge keeps: the undo history of a session, the result of a task ended (US-2830).
       WATERFALL_UNDO_RETENTION_HOURS: ${WATERFALL_UNDO_RETENTION_HOURS:-12}
       WATERFALL_BACKGROUND_TASK_RETENTION_DAYS: ${WATERFALL_BACKGROUND_TASK_RETENTION_DAYS:-30}
+      # How long a task of a kind it does not run waits for a newer worker, then fails (#809).
+      WATERFALL_UNKNOWN_KIND_WAIT_SECONDS: ${WATERFALL_UNKNOWN_KIND_WAIT_SECONDS:-3600}
     command: ["waterfall-worker"]
     volumes:
       - *trust

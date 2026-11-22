@@ -187,7 +187,9 @@ the service role reads and the owner alone writes (`waterfall.platform.maintenan
 `0035`): a backup dumps only `public`, and a restore replaces only it, so emptying Redis during a
 restore does not lift the maintenance (EP-13, US-2830, #956). Every request of the API thus reads
 the maintenance in the database, one more read per request (the liveness probe reads it to say it),
-bounded by `CONNECT_TIMEOUT`; a database that does not answer or whose pool is spent says "no
+bounded by `CONNECT_TIMEOUT` for the
+connection to the database — the one the address declares by `?connect_timeout=` wins — and by `POOL_TIMEOUT` for the
+pool (#4189, #4190); a database that does not answer or whose pool is spent says "no
 maintenance" and the probe answers. A maintenance held whose state is missing stays held, as an
 abandoned restore. Scheduled
 tasks are deposited by `waterfall-worker schedule`, the one command the planners call: it writes
@@ -208,6 +210,11 @@ Whoever opens the queue says how long it waits for Redis: a request or the sched
 hold back the response; the worker `WORKER_TIMEOUT`, longer than each of its reads. An error the
 worker does not expect — Redis or PostgreSQL out of reach — stops it in failure (1), said in its
 logs by `worker.failed`, secrets masked.
+A task of a kind the worker does not know — one a newer version deposited, during a rolling update —
+stays waiting: the worker does not acknowledge its entry, counts no attempt and logs `task.left`; an
+entry idle for `claim_after` is claimed by a newer worker that has its handler. It fails
+(`INTERNAL_ERROR`, `kind_unhandled`) only once `WATERFALL_UNKNOWN_KIND_WAIT_SECONDS` seconds have
+passed since its deposit, 3600 by default (#809).
 
 **The marking, the first task of the trade** (US-0970). A task that aims at a project names it in
 its payload, under `project_id` (`PROJECT` of `waterfall.platform.tasks`): while it is queued or
@@ -3192,7 +3199,7 @@ its side; a failure of the chain is therefore reproduced by the same command.
 | `make check-front-image`                                                | the `front-image` family: builds the `production` stage of the front (`frontend/Dockerfile`), starts it, and asserts that `/` answers with the settings of the `front` service of the production Compose, that the front stops without each of the variables it cannot do without, naming it (#825), that `WATERFALL_AUTH=mock` without `WATERFALL_E2E` is refused, and that `next build` prerendered only `/_global-error` and `/icon.svg` (`wftools.frontimage`, « The chain »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `make production-trial`                                                 | starts the production platform (`deploy/compose/compose.prod.yaml`, US-0430) on the images of the tag `WATERFALL_IMAGE_TAG` — the commit of the repository by default —, under a local name (`WATERFALL_DOMAIN`, `waterfall.localhost` by default, with `compose.prod.local.yaml`), bootstraps it, asserts the liveness probe of the API, that the owner of the tables, `waterfall`, is not a superuser, the redirect from HTTP to the same page on the published address, port included, Caddy's headers in HTTPS, HSTS first, that Keycloak's console and the `master` realm answer 404, and that the first administrator sets their password through the link, signs in through the front and Keycloak and that the front names them; with `WATERFALL_TRIAL_RESTORATION=1`, a backup then its restoration requested through the API, the restoration followed through the liveness probe until `ok` (`wftools.restoration_trial`, US-0440, #948), which the chain requests (`production.yml`, `images.yml`); then removes it with its volumes (`wftools.production`); its secrets come from the environment, as `deploy/compose/production.env.example` names them; its Compose project is `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
 | `make check-production`                                                 | the `production` family, at the full tier only: `make images`, without a push, then `make production-trial` on the built images                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `make kube-tools` | downloads Helm, kind, kubectl, promtool and amtool — those of the releases of Prometheus and of Alertmanager the platform runs, by which the tests of the chart play its rules of alert and check its configuration (US-2880), the first some 100 MB — at the versions and digests `wftools.kubetools` pins — PyPI does not hold them as it holds actionlint, hadolint and shellcheck —, and keeps them under `~/.cache/waterfall/bin` (`XDG_CACHE_HOME`), one folder per version, shared by the worktrees; a download of another digest is refused (US-2800) |
+| `make kube-tools` | downloads Helm, kind, kubectl, promtool, amtool and alertmanager — those of the releases of Prometheus and of Alertmanager the platform runs, by which the tests of the chart play its rules of alert and check its configuration (US-2880), the first some 100 MB; the trials of the notification start the `alertmanager` server (`tools/tests/test_notificationlive.py`) — at the versions and digests `wftools.kubetools` pins — PyPI does not hold them as it holds actionlint, hadolint and shellcheck —, and keeps them under `~/.cache/waterfall/bin` (`XDG_CACHE_HOME`), one folder per version, shared by the worktrees; a download of another digest is refused (US-2800) |
 | `make lint-chart` | checks the chart (`deploy/helm/waterfall`) by `helm lint --strict`, with the values of the chain (`wftools.chart`, US-2800) |
 | `make test-chart` | renders the chart by Helm and asserts what its objects say, against the production Compose: the distinct deployments, the API and the worker multiplied by a value, the services, the ingress, the secret and the volumes, the hooks, the CronJobs, the same images and the same files, `HOSTNAME` set for the front (#826); the tests of the marker `chart`, which `make test-tools` leaves out |
 | `make chart-trial` | installs the chart on a throwaway kind cluster, `WATERFALL_CHART_CLUSTER` (`waterfall-chart-s<slot>`), with Traefik for the ingress, from the images of the tag `WATERFALL_IMAGE_TAG` — the commit by default, `make images` first —, under `waterfall.localhost` on a free port of the loopback; asserts that the installation succeeds, its hooks included — migrations, realm, bootstrap —, that the liveness probe of the API answers and that the first administrator signs in, by the functions of `wftools.production`, then deletes the cluster (`wftools.charttrial`); a heavy run, which waits for its turn |
@@ -4618,7 +4625,8 @@ an address outside the contract a 404 (`NO_PATH_MATCHED_ERROR`), a request outsi
 service authenticates, and its refusal passes as it is, checked against the contract. It finally
 launches Playwright with, in its environment — never on the command line, where the password of
 Redis could be read —, `E2E_PART=service`, `WATERFALL_API_ADDRESS` (the proxy), `E2E_CONTRACT_PROXY`
-(its container), `E2E_SERVICE_DATABASE` (PostgreSQL's), `WATERFALL_KEYCLOAK_ADDRESS`,
+(its container), `E2E_SERVICE_DATABASE` (PostgreSQL's), `E2E_SERVICE_CACHE` (Redis's), `E2E_SERVICE_DIRECTORY`
+(OpenLDAP's), `WATERFALL_KEYCLOAK_ADDRESS`,
 `WATERFALL_FRONT_ADDRESS`, `WATERFALL_REDIS_URL` (the Redis of the platform) and
 `NODE_EXTRA_CA_CERTS` (the root of the authority of Keycloak's front end); the secret of the front's
 client, and that of Keycloak's administrator, come from the environment. The platform stays up:
@@ -5374,6 +5382,15 @@ the computation epics (EP-06 to EP-11).
 The envelope is fixed by the contract (`docs/api/README.md`, WF-ARC-0110): a machine code and
 its parameters, never a sentence.
 
+- **A component down, on the back side** — a database that does not answer a request, because the
+  connection fails or is lost, the server stops or starts, or the pool stays taken past
+  `POOL_TIMEOUT`, is refused by the 503 `COMPONENT_UNAVAILABLE` that names `database`, not by a 500
+  (`is_unreachable` of `waterfall.platform.database`, read by the correlation middleware,
+  US-2860); a statement the server judged — a lock refused, a deadlock — stays what it was. The
+  other components are named where they are reached (`platform/storage.py`,
+  `platform/keycloak.py`); the trials of one component stopped at a time, behind a gate the test
+  closes and opens again (`backend/tests/degraded_platform.py`), are in `test_degraded_mode.py`.
+
 - **Adding a code on the front side** — a new code is first a change to the contract
   (`ErrorCode`, `docs/api/components/common.yaml`), followed by `make generate-client`. The
   front gives it its sentence, `errors.<CODE>`, in both catalogues: what is refused,
@@ -5475,6 +5492,20 @@ its parameters, never a sentence.
   text parameter is a `Text`, that the code and the status are those of the contract for the
   operation, the review, then the validation of the responses of the API tests against the
   contract.
+
+- **A lock refused is a 503, on every route** — the handler of `OperationalError` in
+  `backend/src/waterfall/api/problems.py` answers 503 `COMPONENT_UNAVAILABLE`
+  (`params.component` = `database`) to any lock PostgreSQL refuses (`LockNotAvailable`) within
+  the delay a transaction gave itself through `lock_timeout`: it is not an internal error, the
+  database does not let the operation through, and nothing was written. The rule holds for every
+  route, those that set their own bound (`bound_lock_waits`, `platform/database.py`) as the
+  others; any other error of the database stays the 500 of the middleware. A route of the
+  administration that takes the lock of the rule of the administrators opens its transaction with
+  `bounded_transaction` (`api/authentication.py`, #924); the inventory of
+  `test_users_under_load.py` fails on a write operation of `/users` or `/access-roles` that is not
+  in it.
+
+  _Checks_: `make test-back` (`test_users_under_load.py`, `test_api_problems.py`).
 
 - **Logs and responses of the API tests** — an API test goes through `ContractClient`
   (`backend/tests/support.py`), which validates every response against the contract with
@@ -5840,6 +5871,15 @@ on two heads.
 **The rows the migration writes.** The catalogue of permissions, for instance, is a
 data migration, separate from that of the schema. The rows of the installation, for their part, are
 those of the installer: the bootstrap writes them, not a migration (US-0420).
+
+**Known gaps.** A migration applied is not rewritten (WF-DAT-0140): a gap found afterwards is
+recorded here, and is corrected only by a new migration, if a decision asks for one. Migration
+`0016`, published since v0.1.0, carries two, left as they are (#979, decision of the author of
+2026-11-14): on the upgrade, a former `LAST_ADMINISTRATOR` entry of the report of a reading of the
+accounts is attached to the account that bears its address at the migration, which may have changed
+since that reading — until the next reading, whose report is right; on the downgrade, it keeps the
+`EMAIL_MISSING` entries, which the `ErrorCode` before it does not have — a workstation only, no
+installation going back below a published version.
 
 **Lot size.** The migrations are written by hand: they count in the size of a
 lot, and only the revisions a tool generates on its own would be declared in

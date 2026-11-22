@@ -17,8 +17,7 @@
  * write then erase a witness file there (`testExternalBackupLocation`), and says its outcome.
  *
  * The answer takes the place of what the screen shows as long as it is newer than the schedule read
- * (`lock_version`) — against the fake back, which keeps nothing, for as long as the screen stays
- * —, and the page is read anew; the command that opens the form waits while a
+ * (`lock_version`), and the page is read anew; the command that opens the form waits while a
  * write of a dialog closed is under way, for the form to open on the version its answer brings
  * (#661). A refusal by field is said at its field — a location the installation does not declare, a
  * path that is not relative, too few copies —, any other under the form, the version stale (412)

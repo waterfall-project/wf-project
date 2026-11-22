@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import pytest
 from access_rows import role
+from backup_support import stand_in_realm, worker_of
 from estimate_support import pin_year
 from fastapi.testclient import TestClient
 from installations import Installation, Take, installed, taker
@@ -31,6 +32,7 @@ from support import (
     Logs,
     PartSessions,
     ReferenceSessions,
+    as_backup,
     bearer,
     captured_logs,
     emptied,
@@ -38,6 +40,7 @@ from support import (
     raw_account,
     service_role,
 )
+from task_handlers import deposit
 from witness_rows import WitnessRows, copied, laid
 
 from waterfall.api.app import create_app
@@ -57,6 +60,11 @@ from waterfall.witness.main import load_witness
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from uuid import UUID
+
+    from backup_support import Run
+
+    from waterfall.worker.backup import BackupTask
 
 # A test that skips without declaring it by the mark ``unexecuted`` fails (US-2440): the plugin is
 # the tools', shared with their tests, and found on the ``pythonpath`` of pyproject.toml.
@@ -567,3 +575,42 @@ def reference_sessions(database: Database, realm: TestRealm) -> ReferenceSession
         return PartSessions(holding(), holding(read), holding(read, write))
 
     return sessions
+
+
+@pytest.fixture(scope="session")
+def provider_url(database_url: str) -> Iterator[str]:
+    """Create, for this run, a database that stands for the identity provider's, with a realm."""
+    name = f"waterfall_test_idp_{uuid4().hex}"
+    server = create_database_engine(database_url).execution_options(isolation_level="AUTOCOMMIT")
+    with server.connect() as connection:
+        connection.execute(text(f'CREATE DATABASE "{name}"'))
+    url = engine_url(database_url).set(database=name).render_as_string(hide_password=False)
+    provider = create_database_engine(url)
+    with provider.begin() as connection:
+        stand_in_realm(connection)
+    provider.dispose()
+    yield url
+    with server.connect() as connection:
+        connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
+    server.dispose()
+
+
+@pytest.fixture
+def databases(database_url: str, provider_url: str, backup_role: tuple[str, str]) -> dict[str, str]:
+    """Give the two databases of the test as the role of the backup reaches them, by backup name."""
+    return {
+        "waterfall": as_backup(database_url, backup_role),
+        "identity_provider": as_backup(provider_url, backup_role),
+    }
+
+
+@pytest.fixture
+def run(database: Database, queue: TaskQueue) -> Run:
+    """Give a runner: it deposits a backup the platform asks for, which a worker then takes."""
+
+    def backup(taking: BackupTask) -> UUID:
+        task_id = deposit(database, queue, "backup")
+        assert worker_of(database, queue, taking).step()
+        return task_id
+
+    return backup

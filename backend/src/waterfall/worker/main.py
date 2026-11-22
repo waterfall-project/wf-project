@@ -25,7 +25,7 @@ from waterfall.platform.correlation import correlation_id_from
 from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.installation import TIME_ZONE, stored_in
 from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, logging_context
-from waterfall.platform.metrics import MetricsRegistry, WorkerMetrics
+from waterfall.platform.metrics import Announced, MetricsRegistry, WorkerMetrics
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import (
     ENV_PREFIX,
@@ -38,10 +38,11 @@ from waterfall.platform.settings import (
 )
 from waterfall.worker import exchanges
 from waterfall.worker.backup import BackupTask
+from waterfall.worker.backup_copy import CopyTask
 from waterfall.worker.identity_sync import IdentitySync
 from waterfall.worker.marking import mark
 from waterfall.worker.purge import PurgeTask
-from waterfall.worker.runner import Worker
+from waterfall.worker.runner import Timing, Worker
 from waterfall.worker.schedule import deposit_due, planned
 
 if TYPE_CHECKING:
@@ -70,16 +71,18 @@ EXTENDING = (
 def handlers(
     settings: WorkerSettings, metrics: WorkerMetrics | None = None
 ) -> dict[str, TaskHandler]:
-    """Give what the worker runs, by kind of task: a backup, the reading of the accounts, a purge.
+    """Give what the worker runs, by kind of task: a backup, its copy, the reading of the accounts.
 
     The marking is the first task of the trade (US-0970); the analysis and the application of an
     import and an export are the exchanges' (EP-06). The reading of the accounts counts in
     ``metrics`` the directories it could not read (#917). The purge is the task of what expired,
-    which the schedule deposits (EP-13, "Une commande planifiée unique").
+    which the schedule deposits (EP-13, "Une commande planifiée unique"); the copy of a backup, the
+    task a scheduled backup deposits once verified (US-2910/L3).
     """
     imports = exchanges.ImportTasks.of(settings)
     return {
         "backup": BackupTask.of(settings),
+        "backup_copy": CopyTask.of(settings),
         "identity_sync": IdentitySync.of(settings, metrics),
         "revision_mark": mark,
         "import_analysis": imports.analyse,
@@ -139,6 +142,8 @@ def _work(settings: WorkerSettings) -> int:
     logger.info("worker.starting", version=__version__)
     registry = MetricsRegistry()
     metrics = WorkerMetrics(registry)
+    # Its version, which the status screen presents beside the API's (WF-EXP-0030).
+    registry.read_at_collection.append(Announced("worker", __version__))
     # The worker listens to nothing but its metrics, on a port of their own (WF-OBS-0010); a port
     # that cannot be taken is said, as a setting is, before anything is opened.
     try:
@@ -161,7 +166,9 @@ def _run(settings: WorkerSettings, metrics: WorkerMetrics) -> int:
         TIME_ZONE.read_from(stored_in(database))
         queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=WORKER_TIMEOUT)
         try:
-            return serve(Worker(database, queue, handlers(settings, metrics)).count_in(metrics))
+            timing = Timing(unknown_kind_wait=settings.unknown_kind_wait_seconds)
+            worker = Worker(database, queue, handlers(settings, metrics), timing=timing)
+            return serve(worker.count_in(metrics))
         finally:
             queue.close()
     finally:

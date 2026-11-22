@@ -324,7 +324,7 @@ lint-docker: ## Lint the Dockerfiles
 
 # Helm, kind and kubectl, which PyPI does not hold as it holds the linters above: downloaded at the
 # versions and digests wftools.kubetools pins, kept under the cache of the user, shared by worktrees.
-kube-tools: ## Install Helm, kind, kubectl, promtool and amtool at their pinned versions, under ~/.cache/waterfall/bin
+kube-tools: ## Install Helm, kind, kubectl, promtool, amtool and alertmanager at their pinned versions, under ~/.cache/waterfall/bin
 	@$(WFTOOLS).kubetools
 
 lint-chart: kube-tools ## Lint the chart strictly, with the values of the chain (US-2800)
@@ -332,10 +332,11 @@ lint-chart: kube-tools ## Lint the chart strictly, with the values of the chain 
 
 # The chart installed on a cluster of kind made for it, from the images of WATERFALL_IMAGE_TAG (the
 # commit by default) built here, bootstrapped, its liveness and the sign-in of its first
-# administrator held, then deleted (wftools.charttrial). A heavy run: a cluster, Keycloak twice and
+# administrator held, the test of a restoration played as the platform plans it, then deleted
+# (wftools.charttrial). A heavy run: a cluster, Keycloak three times — the test starts its own — and
 # PostgreSQL. The cluster is named after the slot, so that two worktrees never share one.
 chart-trial: export WATERFALL_CHART_CLUSTER ?= waterfall-chart-s$(call slot-value,WATERFALL_SLOT)
-chart-trial: kube-tools ## Install the chart on a throwaway cluster of kind from the images of WATERFALL_IMAGE_TAG (the commit by default, make images first), bootstrap it, hold its liveness, the sign-in of its first administrator and its services without state (one token answered the same by each instance, a worker killed in a marking), then delete the cluster
+chart-trial: kube-tools ## Install the chart on a throwaway cluster of kind from the images of WATERFALL_IMAGE_TAG (the commit by default, make images first), bootstrap it, hold its liveness, the sign-in of its first administrator and its services without state (one token answered the same by each instance, a worker killed in a marking) and the test of a restoration the platform plans (closed while it runs, gone after), then delete the cluster
 	@$(heavy) $(WFTOOLS).charttrial
 
 # Keycloak answers before its realm is applied: the application starts once it does, anew at each
@@ -475,6 +476,9 @@ lint-compose: ## Validate the Compose files
 		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_STORAGE_RPC_SECRET=stand-in \
 		WATERFALL_GRAFANA_ADMIN_PASSWORD=stand-in \
 		$(COMPOSE_PRODUCTION) --profile install config --quiet
+	@WATERFALL_DOMAIN=waterfall.localhost WATERFALL_IMAGE_TAG=stand-in WATERFALL_SERVICE_DATABASE_PASSWORD=stand-in \
+		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_RESTORE_TEST_PASSWORD=stand-in \
+		docker compose -f deploy/compose/compose.restore-test.yaml --profile restore-test config --quiet
 	@WATERFALL_DOMAIN=demo.localhost WATERFALL_ACME_EMAIL=stand-in WATERFALL_IMAGE_TAG=stand-in \
 		WATERFALL_DEMO_USER=stand-in WATERFALL_DEMO_PASSWORD_HASH=stand-in \
 		WATERFALL_SERVER_ACTIONS_KEY=stand-in PRISM_VERSION=$(PRISM_VERSION) \
@@ -515,7 +519,7 @@ images: ## Build the images front, waterfall and keycloak, tagged by commit, by 
 # environment, as production.env.example names them; the project of Compose is
 # WATERFALL_PRODUCTION_PROJECT (waterfall-production-trial). Outside the slots, at slot 0 alone: from
 # the worktree of a lot, it would take the ports 80 and 443 of the workstation (US-1100).
-production-trial: ## Start the production platform on the images of WATERFALL_IMAGE_TAG (the commit by default) under a local name, bootstrap it, hold its liveness and the sign-in of its first administrator, back it up and restore it by the API with WATERFALL_TRIAL_RESTORATION=1, then remove it (needs its secrets); at slot 0 alone, the main repository
+production-trial: ## Start the production platform on the images of WATERFALL_IMAGE_TAG (the commit by default) under a local name, bootstrap it, hold its liveness and the sign-in of its first administrator, back it up and restore it by the API, then play the test of a restoration (deploy/compose/restore-test.sh) on a scheduled backup, with WATERFALL_TRIAL_RESTORATION=1, then remove it (needs its secrets); at slot 0 alone, the main repository
 	@[ "$$($(SLOTS) which 2>/dev/null)" = 0 ] || { echo "make production-trial runs at slot 0 alone, from the main repository, never from the worktree of a lot" >&2; exit 1; }
 	@$(WFTOOLS).production
 
@@ -885,11 +889,13 @@ e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end pat
 		$(call run-logged,witness,$(WITNESS_LOG),> $(WITNESS_LOG) 2>&1) && \
 		E2E_CONTRACT_PROXY=$$($(COMPOSE_SERVICE) ps --quiet contract-proxy) && \
 		E2E_SERVICE_DATABASE=$$($(COMPOSE_SERVICE) ps --quiet postgres) && \
+		E2E_SERVICE_CACHE=$$($(COMPOSE_SERVICE) ps --quiet redis) && \
+		E2E_SERVICE_DIRECTORY=$$($(COMPOSE_SERVICE) ps --quiet openldap) && \
 		WATERFALL_API_ADDRESS=http://127.0.0.1:$(WATERFALL_PROXY_PORT) && \
 		WATERFALL_KEYCLOAK_ADDRESS=$(KEYCLOAK_ADDRESS) && \
 		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
 		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
-		export E2E_INSTALLATION_LINK E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
+		export E2E_INSTALLATION_LINK E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE E2E_SERVICE_CACHE E2E_SERVICE_DIRECTORY WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
 		part= && $(e2e-service-part) \
 		mkdir -p $(FRONT)/.e2e && : > $(FRONT_LOG) && \
 		{ ( cd $(FRONT) && { $(e2e-browser) $(PNPM_ENV) pnpm exec playwright test $$part $(TESTS); } ); played=$$?; \

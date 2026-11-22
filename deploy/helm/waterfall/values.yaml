@@ -64,6 +64,8 @@ worker:
   # What its purge keeps: the history of a session, in hours; a task ended, in days.
   undoRetentionHours: 12
   backgroundTaskRetentionDays: 30
+  # How long a task of a kind it does not run waits for a newer worker, in seconds, then fails.
+  unknownKindWaitSeconds: 3600
   resources: {}
 
 # The service of the restoration (WF-ADM-0160), one alone, with the application of the realm beside
@@ -219,3 +221,35 @@ grafana:
 
 # The backups planned, kept and copied outside the platform (US-2910).
 backups: {}
+
+# The test of a restoration (US-2930, WF-EXP-0060): every `interval` seconds, thirty days, once a
+# scheduled backup verified is there to test, the schedule makes its Job (templates/restore-test.yaml),
+# as the service account <release>-scheduler, which may create Jobs in the namespace and nothing
+# else. One pod holds a PostgreSQL, a Keycloak and an API made for the test, which no user reaches,
+# restores the latest scheduled backup verified, compares, and is deleted with its volumes once the
+# test has ended; the production inscribes the result, which the status screen presents.
+# The pod holds a copy of both databases while it runs: its node must have the room for it.
+# `deadline` bounds the test, in seconds, its restoration included; `patience` is how long the
+# platform of the test has to start once restored. `enabled: false` plans no test: a planned task
+# runs deploy/compose/restore-test.sh then, as under Compose (docs/exploitation/test-de-restauration.md).
+# `egress` is where its pod may go out, as the peers of a NetworkPolicy: `dns`, the DNS of the
+# cluster (the pods k8s-app=kube-dns of kube-system; another for a cache of the node); `postgresql`
+# and `storage`, the PostgreSQL and the storage the operator provides — the chart names its own by
+# their pods —, an ipBlock of their addresses, required when postgresql.enabled or storage.enabled
+# is false: the chart does not render without them, rather than let the copy out anywhere.
+restoreTest:
+  enabled: true
+  interval: 2592000
+  deadline: 21600
+  patience: 1800
+  resources: {}
+  egress:
+    dns:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: kube-system
+        podSelector:
+          matchLabels:
+            k8s-app: kube-dns
+    postgresql: []
+    storage: []

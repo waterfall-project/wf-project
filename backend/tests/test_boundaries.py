@@ -97,6 +97,8 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "skeleton",
         "days",
         "estimate_facts",
+        # What a backup counts, which the test of its restoration compares (US-2930/L1).
+        "inventory",
     },
     # ``rates``: the update of the rates a revision frames (US-1500/L1).
     "revisions": {
@@ -107,6 +109,7 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "shared",
         "closing",
         "rates",
+        "inventory",
     },
 }
 # The modules of the planning, the history and the exchanges (EP-06), and of the indicators (EP-10),
@@ -148,6 +151,8 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "documents",
         "estimate_documents",
         "index_history",
+        # The digest of what a marked revision kept, which a backup compares (US-2930/L1).
+        "inventory",
         "milestone_tracking",
         "physical_progress",
         "project_indicators",

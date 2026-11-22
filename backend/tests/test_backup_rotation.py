@@ -15,6 +15,7 @@ import pytest
 from backup_rows import Row, days, listed, recorded
 from installations import Installation, Take, taker
 from sqlalchemy import select, update
+from sqlalchemy.pool import QueuePool
 
 from waterfall.core.backups.interface import (
     ScheduleWriting,
@@ -32,6 +33,7 @@ from waterfall.worker import backup as backup_module
 from waterfall.worker.backup import BackupTask
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
     from uuid import UUID
 
@@ -113,15 +115,31 @@ def archive_of(task_id: UUID) -> str:
 
 
 @pytest.mark.requirement("WF-ADM-0170-A")
+@pytest.mark.story("US-3020")
 def test_a_backup_verified_turns_the_list_and_its_deleted_archive_leaves_the_bucket(
-    installation: Installation, take: Take
+    installation: Installation, take: Take, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # The worker takes a backup, verifies it, then rotates under the retention of the schedule: with
-    # one kept, the second backup deletes the first, its archive with it once the task is committed.
+    # one kept, the second backup deletes the first, its archive with it once the task is committed,
+    # the connection of the transaction given back (#977).
+    pool = installation.database.engine.pool
+    assert isinstance(pool, QueuePool)
+    lent: list[int] = []
+    registering = backup_module.after_commit
+
+    def noting(session: Session, action: Callable[[], None]) -> None:
+        def noted() -> None:
+            lent.append(pool.checkedout())
+            action()
+
+        registering(session, noted)
+
+    monkeypatch.setattr(backup_module, "after_commit", noting)
     set_retention(installation.database, 1)
     first = take()
     assert installation.bucket.size(archive_of(first)) is not None
     second = take()
+    assert lent == [0, 0]
     with installation.database.transaction() as session:
         assert list(session.scalars(select(Backup.task_id))) == [second]
     assert installation.bucket.size(archive_of(first)) is None
@@ -159,14 +177,15 @@ class Corrupting(Bucket):
 def test_a_backup_that_failed_its_verification_does_not_turn_the_list(
     installation: Installation, queue: TaskQueue
 ) -> None:
-    # « Vérifiée, une sauvegarde fait tourner la liste » : one that did not pass is listed and
-    # deletes nothing, so that a damaged archive never costs a good one.
+    # « Vérifiée, une sauvegarde fait tourner la liste » : one that did not pass fails its task, is
+    # listed and deletes nothing, so that a damaged archive never costs a good one.
     set_retention(installation.database, 1)
     first = taker(installation, queue)()
     corrupting = Corrupting(installation.bucket.client, installation.bucket.name)
     second = taker(installation, queue, BackupTask(installation.backup, corrupting))()
     with installation.database.transaction() as session:
         verifications = list(session.scalars(select(Backup.verification).order_by(Backup.taken_at)))
+        assert session.get_one(BackgroundTask, second).status == "failed"
     assert verifications == ["passed", "failed"]
     assert installation.bucket.size(archive_of(first)) is not None
     assert installation.bucket.size(archive_of(second)) is not None
@@ -199,14 +218,54 @@ def test_a_task_that_fails_after_the_rotation_keeps_the_list_and_the_archives(
 
 
 @pytest.mark.requirement("WF-ADM-0170-A")
-def test_a_backup_whose_verification_failed_is_counted_in_the_retention(database: Database) -> None:
-    # Pinned as the letter of WF-ADM-0170-A has it, until the specification says otherwise (#4366):
-    # a failed backup takes a place of the retention, and the oldest verified one goes for it.
-    oldest = recorded(database, days(1), Row(key="good.tar"))
-    failed = [
+def test_seven_failed_backups_newer_than_a_good_one_leave_it_with_a_retention_of_seven(
+    database: Database,
+) -> None:
+    # [US-2910] (#4366): the failed ones are not counted, so that the last restorable backup
+    # survives; they go, the oldest first, with no ceiling.
+    good = recorded(database, days(1), Row(key="good.tar"))
+    for day in range(7):
         recorded(database, days(2 + day), Row(verification="failed", key=f"bad-{day}.tar"))
-        for day in range(3)
-    ]
-    assert rotated(database, 3) == ["good.tar"]
+    assert rotated(database, 7) == [f"bad-{day}.tar" for day in range(7)]
+    assert listed(database) == [good]
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_the_failed_backups_go_before_any_verified_one_the_oldest_first(
+    database: Database,
+) -> None:
+    # [US-2910]: the failed ones, not marked, are deleted before the verified ones beyond the
+    # retention, each kind oldest first, and they do not take a place of the retention.
+    oldest = recorded(database, days(1), Row(key="old.tar"))
+    recorded(database, days(3), Row(verification="failed", key="bad-late.tar"))
+    recorded(database, days(2), Row(verification="failed", key="bad-early.tar"))
+    newer = recorded(database, days(4), Row(key="new.tar"))
+    latest = recorded(database, days(5), Row(key="latest.tar"))
+    assert rotated(database, 2) == ["bad-early.tar", "bad-late.tar", "old.tar"]
+    assert listed(database) == [newer, latest]
     assert oldest not in listed(database)
-    assert listed(database) == failed
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_the_last_verified_backup_is_never_deleted_whatever_the_retention(
+    database: Database,
+) -> None:
+    # [US-2910]: even a retention of zero keeps the latest verified backup, the failed ones going.
+    recorded(database, days(1), Row(key="old.tar"))
+    latest = recorded(database, days(2), Row(key="latest.tar"))
+    recorded(database, days(3), Row(verification="failed", key="bad.tar"))
+    assert rotated(database, 0) == ["bad.tar", "old.tar"]
+    assert listed(database) == [latest]
+
+
+@pytest.mark.requirement("WF-ADM-0170-A")
+def test_a_marked_backup_whose_verification_failed_is_neither_counted_nor_deleted(
+    database: Database,
+) -> None:
+    # [US-2910]: a marked backup is never counted nor deleted, whatever its verification says.
+    marked = recorded(
+        database, days(1), Row(verification="failed", is_retained=True, key="marked.tar")
+    )
+    good = recorded(database, days(2), Row(key="good.tar"))
+    assert rotated(database, 1) == []
+    assert listed(database) == [marked, good]

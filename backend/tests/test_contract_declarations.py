@@ -622,6 +622,12 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
         "declared pattern='^(display_name|kind|is_active)$', "
         "contract enum={'display_name', 'is_active', 'kind'}"
     ),
+    # The name of a location tested, read as text: one the installation does not declare, well
+    # formed or not, is a location that does not exist, 404 as the contract says, never a 422
+    # (``testExternalBackupLocation``, US-2910/L3).
+    ("testExternalBackupLocation", "path", "location_name"): (
+        "declared nothing, contract pattern='^[a-z0-9][a-z0-9_-]{0,62}$'"
+    ),
 }
 
 

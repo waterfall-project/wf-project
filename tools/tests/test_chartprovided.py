@@ -25,6 +25,12 @@ PROVIDED: dict[str, dict[str, Any]] = {
     "redis": {"enabled": False, "host": "redis.data.svc", "port": 6380},
     "storage": {"enabled": False, "address": "https://s3.data.svc:9000"},
     "secrets": {"existingSecret": "operator", "values": None},
+    "restoreTest": {
+        "egress": {
+            "postgresql": [{"ipBlock": {"cidr": "10.0.0.5/32"}}],
+            "storage": [{"ipBlock": {"cidr": "10.0.0.6/32"}}],
+        }
+    },
 }
 CHART_OWN = {"postgres", "redis", "storage"}
 
@@ -65,6 +71,8 @@ def test_each_data_component_is_disabled_alone_for_an_address_and_a_secret_of_th
     values = dict(given)
     # The migrations of a PostgreSQL of the operator's run before the installation: its Secret too.
     values["secrets"] = PROVIDED["secrets"]
+    # The pod of the test of a restoration reaches it at the peers the operator names (US-2930).
+    values["restoreTest"] = PROVIDED["restoreTest"]
     objects = rendered(values)
     served = (
         components(objects, "Service")

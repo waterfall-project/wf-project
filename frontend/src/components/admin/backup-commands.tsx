@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The commands of the backups (FBS-1.4, EP-02/L43c, EP-14/L42h, US-0440): start one, under the
- * permission of the catalogue that guards it (`backups.write`, WF-ADM-0100); deposit a backup copied
- * out of another installation, in the parts the server cuts it into (#350), then restore the
+ * permission of the catalogue that guards it (`backups.write`, WF-ADM-0100); deposit a backup
+ * copied out of another installation, in the parts the server cuts it into (#350), then restore the
  * platform from it, under the permission of the restoration (`platform_restore`) — the deposit is
  * no command of a backup of the list, which none lists —; and, on each backup, those it lists
  * (`available_commands`, WF-IHM-0090) — mark it to be kept or no longer, whichever changes its
  * marking; download it; restore the platform from it —, each absent when the backup does not list
- * it, available, or unavailable with the conditions it lacks, as the server says them: a backup not
- * yet verified neither downloads nor restores, nothing restores while a backup runs, and nothing but
- * a download goes while a restoration runs. The front deduces none of it from the session nor from
- * the state of the backup. None deletes a backup. The rules are the guide's: « Les écrans de
- * l'administration ».
+ * it, available, or unavailable with the conditions it lacks, as the server says them: a backup
+ * not yet verified neither downloads nor restores, nothing restores while a backup runs, and
+ * nothing but a download goes while a restoration runs. The front deduces none of it from the
+ * session nor from the state of the backup. None deletes a backup. The rules are the guide's:
+ * « Les écrans de l'administration ».
  *
  * A command the server lists unavailable stays presented, marked `aria-disabled` and described by
  * the conditions it lacks, as the activations of the reference data are (`UnavailableCellCommand`):
@@ -21,10 +21,9 @@
  * told above the list as any other (`useListReport`).
  *
  * A backup has no counter: a marking answered shows the backup as the server answered it while each
- * reading anew of the page reads it as the one before did (`BackupCommands`) — against the fake back,
- * which keeps nothing, for as long as the screen stays. A restoration, from a backup of the list or
- * from a deposit, is confirmed in the one dialog (`RestoreDialog`), then followed by the screen of
- * its maintenance (`Restoration`).
+ * reading anew of the page reads it as the one before did (`BackupCommands`). A restoration, from
+ * a backup of the list or from a deposit, is confirmed in the one dialog (`RestoreDialog`), then
+ * followed by the screen of its maintenance (`Restoration`).
  */
 "use client";
 
@@ -186,8 +185,8 @@ export function StartBackupButton({ variant }: { readonly variant: PrincipalVari
   const track = useTrackTask();
   const own = useHeldCommand();
   const held = list?.held ?? own;
-  // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
-  // whose end would wait for every other async action of the page (#1484).
+  // Busy from the press to the answer, and lifted in the very update that tells it — not a
+  // transition, whose end would wait for every other async action of the page (#1484).
   const [busy, setBusy] = useState(false);
   // A write of the list lost once sent: the list is read anew, and this waits until it is back (US-2240).
   const reading = useListReading();
@@ -533,32 +532,102 @@ interface Sending {
 }
 
 /**
+ * A deposit open on the server, kept while the same file stays chosen: what the last answer said,
+ * so that a deposit interrupted resumes where it stopped — the parts received are not sent again,
+ * and the opening is not made anew (#2258).
+ */
+interface OpenDeposit {
+  readonly file: File;
+  readonly id: string;
+  readonly count: number;
+  readonly size: number;
+  readonly received: Set<number>;
+}
+
+/** Whether two choices are the same file: what the browser says of it, not the object it made. */
+function sameFile(a: File, b: File): boolean {
+  return a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
+}
+
+/** What an action gives back when the API refuses, or does not answer: no data. */
+type Refusal = Exclude<Outcome<unknown>, { readonly kind: "done" }>;
+
+/** Whether the server no longer knows the deposit (404, expired or completed): it is forgotten. */
+function unknownDeposit(outcome: Outcome<unknown>): boolean {
+  return "problem" in outcome && outcome.problem.status === 404;
+}
+
+/** The numbers of the missing parts a refusal of the completion states, `params.missing_parts`. */
+function missingParts(outcome: Refusal): number[] {
+  const missing: unknown = "problem" in outcome ? outcome.problem.params?.missing_parts : undefined;
+  return Array.isArray(missing)
+    ? missing.filter((part): part is number => Number.isInteger(part))
+    : [];
+}
+
+/**
  * Deposit an archive, part after part, as the server cut it: the parts it says received are not
- * sent again. The first refusal stops the deposit.
+ * sent again. The first refusal stops the deposit, which stays open (`kept`) to be resumed: the
+ * parts missing are sent, then the completion asked again — alone when only it failed. A completion
+ * the server refuses for the parts it lacks (409) has them sent, once, then asks again.
  */
 async function deposit(
   file: File,
+  kept: { current: OpenDeposit | undefined },
   held: ReturnType<typeof useHeldCommand>,
   progress: (sending: Sending) => void,
 ): Promise<Outcome<FileUpload>> {
-  const opened = await held(openBackupDeposit(file.name, file.size));
-  if (opened.kind !== "done") {
-    return opened;
+  let open = kept.current;
+  if (open === undefined || !sameFile(open.file, file)) {
+    kept.current = undefined;
+    const opened = await held(openBackupDeposit(file.name, file.size));
+    if (opened.kind !== "done") {
+      return opened;
+    }
+    const { chunked_upload_id: id, part_count: count, part_size_bytes: size } = opened.data;
+    open = { file, id, count, size, received: new Set(opened.data.received_parts) };
+    kept.current = open;
   }
-  const { chunked_upload_id: id, part_count: count, part_size_bytes: size } = opened.data;
-  const received = new Set(opened.data.received_parts);
-  for (let part = 1; part <= count; part += 1) {
-    if (!received.has(part)) {
-      progress({ part, count });
-      const form = new FormData();
-      form.set("part", file.slice((part - 1) * size, part * size));
-      const sent = await held(sendBackupPart(id, part, form));
-      if (sent.kind !== "done") {
-        return sent;
+  const current = open;
+  const sendMissing = async (): Promise<Refusal | undefined> => {
+    for (let part = 1; part <= current.count; part += 1) {
+      if (!current.received.has(part)) {
+        progress({ part, count: current.count });
+        const form = new FormData();
+        form.set("part", file.slice((part - 1) * current.size, part * current.size));
+        const sent = await held(sendBackupPart(current.id, part, form));
+        if (sent.kind !== "done") {
+          if (unknownDeposit(sent)) {
+            kept.current = undefined;
+          }
+          return sent;
+        }
+        current.received.add(part);
       }
     }
+    return undefined;
+  };
+  const stopped = await sendMissing();
+  if (stopped !== undefined) {
+    return stopped;
   }
-  return held(completeBackupDeposit(id));
+  let completed = await held(completeBackupDeposit(current.id));
+  if (completed.kind === "conflict") {
+    const lacking = missingParts(completed);
+    if (lacking.length > 0) {
+      lacking.forEach((part) => current.received.delete(part));
+      const again = await sendMissing();
+      if (again !== undefined) {
+        return again;
+      }
+      completed = await held(completeBackupDeposit(current.id));
+    }
+  }
+  // Done, or an upload the server no longer knows: the next one opens anew.
+  if (completed.kind === "done" || unknownDeposit(completed)) {
+    kept.current = undefined;
+  }
+  return completed;
 }
 
 /**
@@ -591,6 +660,8 @@ export function BackupDeposit() {
   const field = useId();
   const restore = useRef<HTMLButtonElement>(null);
   const [file, setFile] = useState<File>();
+  // The deposit open on the server, while the same file is chosen (#2258).
+  const kept = useRef<OpenDeposit>(undefined);
   const [sending, setSending] = useState<Sending>();
   const [upload, setUpload] = useState<FileUpload>();
   const [confirming, setConfirming] = useState(false);
@@ -609,7 +680,7 @@ export function BackupDeposit() {
     setUpload(undefined);
     setOutcome(undefined);
     setBusy(true);
-    void deposit(file, held, setSending).then((result) => {
+    void deposit(file, kept, held, setSending).then((result) => {
       setBusy(false);
       setSending(undefined);
       if (result.kind === "done") {

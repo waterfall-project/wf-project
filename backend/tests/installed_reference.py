@@ -21,6 +21,7 @@ from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.installation import THE_ROW, Installation
+from waterfall.platform.settings import SHIPPED_AVATAR_MAX_BYTES
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -39,7 +40,7 @@ def install(owner: Engine, choice: Chosen = CHOSEN) -> None:
                 id=THE_ROW,
                 default_language=choice.language,
                 time_zone="UTC",
-                avatar_max_bytes=2 * 1024**2,
+                avatar_max_bytes=SHIPPED_AVATAR_MAX_BYTES,
                 external_backup_max_bytes=20 * 1024**3,
                 installed_at=utc_now(),
             )

@@ -52,7 +52,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { FALLBACK_LOCALE } from "@/i18n/locale";
 import { asksIdentifiers } from "@/navigation/login";
 
-import { Dropped, Unreachable } from "./client";
+import { ComponentUnreachable, Dropped, Unreachable } from "./client";
 import {
   type AccountRefusalCode,
   accountRefusalOf,
@@ -450,6 +450,19 @@ export async function decodeOrLost<T>(call: () => Promise<Answer<T>>): Promise<O
   }
   if (answer instanceof Dropped) {
     return { kind: "unreachable", sent: true };
+  }
+  if (answer instanceof ComponentUnreachable) {
+    // A component the front needs before the request leaves is down: nothing was sent, and the
+    // action is refused naming it (WF-EXP-0040-A), as the API names one it cannot reach.
+    return {
+      kind: "refused",
+      problem: {
+        code: "COMPONENT_UNAVAILABLE",
+        status: 503,
+        params: { component: answer.component },
+      },
+      conflictingObjectId: null,
+    };
   }
   return answer instanceof Unreachable ? { kind: "unreachable" } : decodeAnswer(answer);
 }

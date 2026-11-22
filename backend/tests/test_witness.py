@@ -70,6 +70,7 @@ pytestmark = pytest.mark.requirement("WF-QUA-0040-A")
 ALREADY_EXISTS = "ALREADY_EXISTS"
 # The order EP-05 fixes ("Le chargeur du témoin"): each slice after those it names.
 ORDER = [
+    "installation",
     "reference_settings",
     "duration_units",
     "cost_types",
@@ -413,6 +414,19 @@ def test_the_witness_of_the_tests_is_installed_as_the_bootstrap_does_then_loaded
         8,
     )
     assert mapping.is_complete
+
+
+@pytest.mark.story("US-2890")
+def test_the_witness_bounds_the_avatars_at_two_mebibytes_over_the_shipped_bound(
+    api: ContractClient, witness: Database
+) -> None:
+    # Proper to US-2890 (#3965): the bootstrap ships 512 KB; the witness alone carries 2 MiB, as
+    # its example ``installation`` says, read by the front without a session.
+    del witness
+    answer = api.get("/api/v1/installation")
+    assert answer.status_code == 200
+    assert answer.json()["avatar_max_bytes"] == example("installation")["avatar_max_bytes"]
+    assert example("installation")["avatar_max_bytes"] == 2 * 1024**2
 
 
 def test_a_slice_finds_its_objects_all_there_none_there_or_a_platform_half_loaded() -> None:

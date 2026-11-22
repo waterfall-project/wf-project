@@ -30,6 +30,7 @@ from waterfall.api import (
     estimate_indicators,
     estimate_lines,
     exports,
+    external_backup_locations,
     history,
     hourly_rates,
     identity_sync_schedule,
@@ -69,6 +70,7 @@ from waterfall.api import (
 from waterfall.api.maintenance import MaintenanceMiddleware
 from waterfall.api.middleware import CorrelationMiddleware
 from waterfall.api.problems import install_problem_handlers
+from waterfall.api.status import StatusSources
 from waterfall.core.costs import interface as costs_interface
 from waterfall.core.estimate import interface as estimate_interface
 from waterfall.core.exchanges import interface as exchanges_interface
@@ -102,7 +104,10 @@ EXTENDING = (
 
 
 def create_app(
-    services: Services, lifespan: Lifespan | None = None, capacities: Capacities | None = None
+    services: Services,
+    lifespan: Lifespan | None = None,
+    capacities: Capacities | None = None,
+    sources: StatusSources | None = None,
 ) -> FastAPI:
     """Build the application on its services: its routes, its correlation, its envelope of errors.
 
@@ -110,9 +115,11 @@ def create_app(
     Keycloak. ``lifespan`` runs around the serving of the application: the process that opened
     the services closes them by it (``api.main``). Its metrics are its own, in a registry of the
     process; ``capacities`` is the space the deployment declares, none by default (WF-OBS-0010).
+    ``sources`` is what the status screen reads besides the database: the operating parameters,
+    shipped by default, and Prometheus, none by default (WF-ADM-0130).
     """
     schema.declared()
-    observed = system.observed(services, capacities or Capacities())
+    observed = system.observed(services, capacities or Capacities(), sources or StatusSources())
 
     @asynccontextmanager
     async def around(application: FastAPI) -> AsyncGenerator[None]:
@@ -151,6 +158,7 @@ def create_app(
     app.include_router(audit.router, prefix=PREFIX)
     app.include_router(backups.router, prefix=PREFIX)
     app.include_router(backup_schedule.router, prefix=PREFIX)
+    app.include_router(external_backup_locations.router, prefix=PREFIX)
     app.include_router(restores.router, prefix=PREFIX)
     app.include_router(uploads.router, prefix=PREFIX)
     # The reference (EP-05): a router per story, each registered here from the start.

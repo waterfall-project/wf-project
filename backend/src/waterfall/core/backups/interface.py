@@ -14,6 +14,9 @@ head of its archive (#350). The outcome of the latest backup the platform schedu
 the metrics, which its alert reads (WF-OBS-0030). The schedule of the backups, read and written
 whole (``waterfall.core.backups.schedule``, US-2910), is offered here, with when a backup is due,
 the list filtered and sorted (``listing``), the mark of a backup and the rotation (``rotation``).
+The test of a restoration reads here the backup it restores, and inscribes its outcome; the
+status screen and the schedule read the latest test and what holds one back (``restore_tests``,
+US-2930).
 """
 
 import io
@@ -32,11 +35,24 @@ from waterfall.core.backups.conditions import (
     NO_RESTORE_RUNNING,
     Platform,
     backup_start_lacks,
+    deposit_restoration_lacks,
     download_lacks,
+    lock_backup_deposit,
     marking_lacks,
     platform_of,
     refuse_if_lacking,
     restoration_lacks,
+)
+from waterfall.core.backups.copies import (
+    CopyMade,
+    CopyToMake,
+    FailedCopy,
+    copies_beyond,
+    copy_to_make,
+    deposit_copy,
+    failed_copy,
+    last_copy_outcome,
+    record_copy,
 )
 from waterfall.core.backups.listing import (
     BackupColumn,
@@ -46,6 +62,17 @@ from waterfall.core.backups.listing import (
     list_backups,
     view_of,
 )
+from waterfall.core.backups.restore_tests import (
+    RESTORE_TEST_PERIOD,
+    BackupToTest,
+    RestoreCounts,
+    RestoreTestOutcome,
+    RestoreTestResult,
+    backup_to_test,
+    latest_restore_test,
+    record_restore_test,
+    restore_test_lacks,
+)
 from waterfall.core.backups.rotation import mark_backup, rotate
 from waterfall.core.backups.schedule import (
     BackupScheduleView,
@@ -54,6 +81,7 @@ from waterfall.core.backups.schedule import (
     ScheduleWriting,
     backup_is_due,
     judged_schedule,
+    path_faults,
     read_backup_schedule,
     write_backup_schedule,
 )
@@ -96,13 +124,21 @@ __all__ = [
     "MANIFEST_HEAD",
     "NO_BACKUP_RUNNING",
     "NO_RESTORE_RUNNING",
+    "RESTORE_TEST_PERIOD",
     "BackupColumn",
     "BackupFilters",
     "BackupScheduleView",
     "BackupSort",
+    "BackupToTest",
     "BackupView",
+    "CopyMade",
+    "CopyToMake",
     "ExternalCopy",
+    "FailedCopy",
     "Platform",
+    "RestoreCounts",
+    "RestoreTestOutcome",
+    "RestoreTestResult",
     "Schedule",
     "ScheduleWriting",
     "TakenBackup",
@@ -111,20 +147,33 @@ __all__ = [
     "backup_is_due",
     "backup_start_lacks",
     "backup_task_ids",
+    "backup_to_test",
     "confirmed_taken_at",
+    "copies_beyond",
+    "copy_to_make",
+    "deposit_copy",
+    "deposit_restoration_lacks",
     "download_lacks",
+    "failed_copy",
     "inscribe_restoration",
     "judged_schedule",
     "keep_for_restoration",
+    "last_copy_outcome",
     "last_scheduled_outcome",
+    "latest_restore_test",
     "list_backups",
+    "lock_backup_deposit",
     "mark_backup",
     "marking_lacks",
+    "path_faults",
     "platform_of",
     "read_backup",
     "read_backup_schedule",
+    "record_copy",
+    "record_restore_test",
     "refuse_if_lacking",
     "restoration_lacks",
+    "restore_test_lacks",
     "restored_object",
     "rotate",
     "write_back_after_restoration",

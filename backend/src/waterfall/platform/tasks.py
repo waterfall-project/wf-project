@@ -62,9 +62,9 @@ KINDS = (*CONTRACT_KINDS, *SCHEDULED_KINDS)
 STATUSES = ("queued", "running", "succeeded", "failed")
 PENDING = ("queued", "running")
 # The kinds the platform deposits of itself, whose latest the purge spares: those the planned
-# command schedules (``waterfall.worker.schedule.planned``), and the two it does not schedule yet,
-# ``backup_copy``, which a backup deposits, and ``restore_test``, whose planning US-2930 adds. A
-# test compares this list to ``planned``, those two excepted.
+# command schedules (``waterfall.worker.schedule.planned``), and two it does not always schedule,
+# ``backup_copy``, which a backup deposits, and ``restore_test``, which it runs under Kubernetes
+# alone (US-2930). A test compares this list to ``planned``, those two excepted.
 PLANNED_KINDS: tuple[str, ...] = ("identity_sync", "backup", *SCHEDULED_KINDS)
 FINISHED = ("succeeded", "failed")
 # The key of the payload of a task that names the project it aims at, which waits for it.
@@ -152,18 +152,13 @@ class UndoneError(Exception):
         self.trace = trace
 
 
-def submit(
+def _written(
     session: Session,
-    queue: TaskQueue,
     kind: TaskKind | ScheduledKind,
     requested_by: UUID | None,
-    payload: Mapping[str, Any] | None = None,
+    payload: Mapping[str, Any] | None,
 ) -> UUID:
-    """Write a task, queued, in the transaction of ``session``, and deposit it once committed.
-
-    The deposit never fails the transaction, which is already committed: if Redis refuses it, the
-    task stays queued, and the worker deposits it again.
-    """
+    """Write a task, queued, under the correlation of what submits it; give its identifier."""
     correlation_id = get_contextvars().get("correlation_id")
     if not isinstance(correlation_id, str):
         message = "a task is submitted inside a request or a command, under its correlation"
@@ -182,6 +177,35 @@ def submit(
             submitted_at=utc_now(),
         )
     )
+    return task_id
+
+
+def submit_after(
+    session: Session, kind: ScheduledKind, payload: Mapping[str, Any] | None = None
+) -> UUID:
+    """Write a task the platform deposits after another, in the transaction of the one that runs.
+
+    The worker that runs the first puts it in the queue: it deposits again, at its start and at
+    each sweep (``Worker.redeposit``, a minute apart), every task queued that the queue does not
+    name. A handler holds no queue of its own, and the task waits that long at most; the copy of
+    a backup, which follows it, is one (EP-13, "Les sauvegardes").
+    """
+    return _written(session, kind, None, payload)
+
+
+def submit(
+    session: Session,
+    queue: TaskQueue,
+    kind: TaskKind | ScheduledKind,
+    requested_by: UUID | None,
+    payload: Mapping[str, Any] | None = None,
+) -> UUID:
+    """Write a task, queued, in the transaction of ``session``, and deposit it once committed.
+
+    The deposit never fails the transaction, which is already committed: if Redis refuses it, the
+    task stays queued, and the worker deposits it again.
+    """
+    task_id = _written(session, kind, requested_by, payload)
 
     def deposit(_session: Session) -> None:
         try:
@@ -206,6 +230,38 @@ def last_submitted(session: Session, kind: TaskKind | ScheduledKind) -> datetime
     """
     kept = (BackgroundTask.kind == kind, BackgroundTask.requested_by.is_(None))
     return session.scalar(select(func.max(BackgroundTask.submitted_at)).where(*kept))
+
+
+def record_ran(
+    session: Session, task_id: UUID, kind: ScheduledKind, result: Mapping[str, Any]
+) -> None:
+    """Write a task the schedule ran itself, at once, as succeeded, with what it produced.
+
+    No worker takes it, no queue holds it: it says when the platform did it, which the schedule
+    reads as it reads a deposit (``last_submitted``), and which the purge spares as the latest of
+    its kind.
+    """
+    correlation_id = get_contextvars().get("correlation_id")
+    if not isinstance(correlation_id, str):
+        message = "a task is written inside a request or a command, under its correlation"
+        raise TaskError(message)
+    now = utc_now()
+    session.execute(
+        insert(BackgroundTask).values(
+            id=task_id,
+            kind=kind,
+            status="succeeded",
+            progress=100,
+            payload={},
+            result=to_jsonable_python(result),
+            requested_by=None,
+            correlation_id=correlation_id,
+            attempts=1,
+            submitted_at=now,
+            started_at=now,
+            finished_at=now,
+        )
+    )
 
 
 def purge_ended(session: Session, before: datetime, spared: Collection[UUID]) -> int:
@@ -255,7 +311,9 @@ class Outcome:
     succeeded: bool
 
 
-def last_ended(session: Session, kind: TaskKind, *, by_platform: bool = False) -> Ended | None:
+def last_ended(
+    session: Session, kind: TaskKind | ScheduledKind, *, by_platform: bool = False
+) -> Ended | None:
     """Give the latest task of a kind that has ended, or ``None`` if none has yet.
 
     ``by_platform`` keeps only the tasks the platform deposited of itself, without a requester:

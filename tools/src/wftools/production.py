@@ -27,7 +27,9 @@ come from the environment, as the chain gives them; no file holds them. Then it 
   page of the front that names them;
 - asked for by ``WATERFALL_TRIAL_RESTORATION=1``, as the chain does, a backup and its restoration by
   the API, which the service of the restoration runs, followed by the liveness probe to its end
-  (``wftools.restoration_trial``, US-0440, #948).
+  (``wftools.restoration_trial``, US-0440, #948), and the test of a restoration under Compose
+  (``deploy/compose/restore-test.sh``) on a backup the schedule took, which leaves nothing of its
+  ephemeral platform behind (``wftools.restoretest_trial``, US-2930).
 
 Every request reaches the platform at the loopback, under the name of the domain, which no resolver
 is asked for. The platform is removed at the end, its volumes with it, whatever the outcome; what
@@ -65,6 +67,7 @@ from wftools.restoration_trial import (
     probe_of,
     wanted,
 )
+from wftools.restoretest_trial import GRACE, Run, restore_test, scheduled_backup
 from wftools.transport import PROBE, SERVED, TransportError, check_clear_refused
 
 COMPOSE = REPOSITORY / "deploy" / "compose"
@@ -113,7 +116,6 @@ _LINK = re.compile(r"^https://\S+$", re.MULTILINE)
 _FORM_ACTION = re.compile(r'<form[^>]*\baction="([^"]*)"')
 _CONFIRMATION = re.compile(r'href="([^"]*login-actions/action-token[^"]*)"')
 
-Run = Callable[[list[str]], int]
 Read = Callable[[list[str]], tuple[int, str]]
 
 
@@ -433,7 +435,13 @@ def back_up_and_restore(
 ) -> None:
     """Back the platform up by its API, and restore it (``wftools.restoration_trial``)."""
     signed_in, sent = signed
-    administrator = Administrator(signed_in, sent, platform.address, restoration.client_secret)
+    administrator = Administrator(
+        signed_in,
+        sent,
+        platform.address,
+        restoration.client_secret,
+        (ProductionError, TrialError, OSError),
+    )
     api = Api(compose, restoration.ask)
     probe = probe_of(read, liveness_command(compose))
     RestorationTrial(api, administrator, probe, restoration.clock).run()
@@ -538,13 +546,14 @@ def main(
     except (ProductionError, OSError, subprocess.CalledProcessError) as error:
         print(f"wftools.production: {error}", file=sys.stderr)
         return 1
-    run = run or _runner(started)
+    run = run or runner(started)
     read = read or _reader(started)
     restoration = None
     if wanted(given):
         secret = given.get("WATERFALL_FRONT_CLIENT_SECRET", "")
         restoration = Restoration(ask or _asker(started), secret)
-    compose = compose_command(given.get("WATERFALL_PRODUCTION_PROJECT") or PROJECT)
+    project = given.get("WATERFALL_PRODUCTION_PROJECT") or PROJECT
+    compose = compose_command(project)
     up = [*compose, "up", "--detach", "--wait", "--quiet-pull"]
     print(f"  the images {tag}, at {platform.address}", flush=True)
     failed = True
@@ -556,7 +565,9 @@ def main(
         if restoration is None:
             print("  the backup and its restoration are left out (WATERFALL_TRIAL_RESTORATION)")
         else:
+            scheduled_backup(compose, read)
             back_up_and_restore(compose, read, platform, signed, restoration)
+            restore_test(compose, run, read, project)
         failed = False
     except (ProductionError, TrialError) as error:
         print(f"wftools.production: {error}", file=sys.stderr)
@@ -574,11 +585,23 @@ def _head() -> str:
     ).stdout.strip()
 
 
-def _runner(environment: Mapping[str, str]) -> Run:
-    def run(command: list[str]) -> int:
-        return subprocess.run(
-            command, cwd=REPOSITORY, env=dict(environment), check=False
-        ).returncode
+def runner(environment: Mapping[str, str]) -> Run:
+    """Return the function that runs a command, bounded by its ``limit`` if it has one."""
+
+    def run(command: list[str], limit: float | None = None) -> int:
+        with subprocess.Popen(command, cwd=REPOSITORY, env=dict(environment)) as process:
+            try:
+                return process.wait(timeout=limit)
+            except subprocess.TimeoutExpired:
+                # TERM, not KILL: the script removes its platform in a trap. ``command`` is
+                # ``env ... sh script``, and ``env`` executes: the process is the shell itself.
+                process.terminate()
+                try:
+                    process.wait(timeout=GRACE)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+                raise
 
     return run
 

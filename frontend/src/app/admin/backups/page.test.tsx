@@ -352,19 +352,21 @@ describe("the backups", () => {
     expect(queriesOf("GET /backups")).toEqual([NEWEST_BACKUPS]);
   });
 
-  it("list the backups and offer their commands without the schedule nor the locations the API does not find [WF-ADM-0150-A]", async () => {
-    // The service answers 404 to the schedule and to the locations until it serves them (EP-13).
+  it("read the schedule and the locations of the service, none left out when it does not find them [WF-ADM-0170-A]", async () => {
+    // `readOrFail` turns a 404 into the not-found page of Next: neither read is left out.
+    const notFound = { digest: "NEXT_HTTP_ERROR_FALLBACK;404" };
+    server.answers = { ...server.answers, "GET /backup-schedule": NOT_FOUND };
+    await expect(BackupsPage(searched())).rejects.toMatchObject(notFound);
+    expect(queriesOf("GET /backup-schedule")).toHaveLength(1);
+    server.clients = [];
     server.answers = {
       ...server.answers,
-      "GET /backup-schedule": NOT_FOUND,
+      "GET /backup-schedule": "backup_schedule",
       "GET /external-backup-locations": NOT_FOUND,
     };
-    const page = rendered(await BackupsPage(searched()));
-    expect(text(page)).not.toContain("Planification");
-    expect(rows(page, "Sauvegardes")[1]).toContain("1,2 gigaoctet Vérifiée Planifiée");
-    expect(buttons(page)).toContain("Sauvegarder maintenant");
-    expect(buttons(page)).toContain("Déposer");
-    expect(links(page)).toHaveLength(8);
+    // The session of the contract may modify the backups: the locations are read, and tried.
+    await expect(BackupsPage(searched())).rejects.toMatchObject(notFound);
+    expect(queriesOf("GET /external-backup-locations")).toHaveLength(1);
   });
 
   it("present the download and the restoration of a backup not verified unavailable, with the condition it lacks, as the backups list it [WF-IHM-0090-A]", async () => {

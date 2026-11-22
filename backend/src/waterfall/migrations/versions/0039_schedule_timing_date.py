@@ -6,6 +6,13 @@
 backup (WF-ADM-0170) is read from the date its timing — enabled, frequency, time, weekday — last
 changed, which a writing of the retention or of the copy alone does not move. The column takes,
 for the row there, the date of its last writing, which is what the timing was dated by until then.
+
+In one step, by decided exception to "Migrations : deux temps" (``docs/dev/sql.md``, #4375): the
+column is added, filled and required at once, where an update would else have the code of 0038 —
+which writes the row without it, at a restoration (``replace_by_kept``) — fail beside the
+migrated database. No installation runs that code: 0037 and 0038, which create the schedule, are
+in no release, neither ``main`` nor a tag, and arrive with this one. A release that holds 0038
+alone would ask for the two steps.
 """
 
 from typing import TYPE_CHECKING

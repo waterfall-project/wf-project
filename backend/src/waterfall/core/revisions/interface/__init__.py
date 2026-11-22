@@ -38,6 +38,12 @@ from waterfall.core.revisions.interface.closing import (
     register_closing,
 )
 
+# ``inventory`` (US-2930/L1): the marked revisions a backup counts and samples.
+from waterfall.core.revisions.interface.inventory import (
+    count_marked_revisions,
+    sampled_marked_revisions,
+)
+
 # ``marking`` (US-0970; what EP-07 keeps, US-1490/L1, US-1500/L2; the indicators, EP-10).
 from waterfall.core.revisions.interface.marking import (
     KEPT,
@@ -163,6 +169,7 @@ __all__ = [
     "closers",
     "compute_indicators",
     "copy_revision",
+    "count_marked_revisions",
     "create_project_partitions",
     "create_revision",
     "current_revision",
@@ -202,6 +209,7 @@ __all__ = [
     "revision_version_names",
     "revisions_present",
     "run_marking",
+    "sampled_marked_revisions",
     "structure_commands",
     "structure_counted",
     "structure_facts",

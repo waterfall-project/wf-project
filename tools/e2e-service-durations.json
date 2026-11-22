@@ -2,6 +2,7 @@
   "[service] › service/account.spec.ts": 52.5,
   "[service] › service/accounts.spec.ts": 19.7,
   "[service] › service/audit.spec.ts": 16.5,
+  "[service] › service/backup-schedule.spec.ts": 12.5,
   "[service] › service/contract.spec.ts": 0.4,
   "[service] › service/grid-reset.spec.ts": 15.1,
   "[service] › service/identity-sync-schedule.spec.ts": 4.5,

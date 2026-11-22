@@ -17,8 +17,11 @@ Not given, the addresses are taken as they are: the workstation and the tests re
 components on the loopback.
 """
 
+import json
 import ssl
 from contextlib import suppress
+from dataclasses import dataclass
+from decimal import Decimal
 from functools import cache
 from pathlib import Path
 from typing import Annotated, Any, Literal, Self
@@ -27,8 +30,11 @@ from zoneinfo import available_timezones
 
 from pydantic import (
     AfterValidator,
+    BaseModel,
     BeforeValidator,
+    ConfigDict,
     Field,
+    PrivateAttr,
     SecretStr,
     ValidationError,
     model_validator,
@@ -288,8 +294,211 @@ class StorageSettings(PlatformSettings):
         ]
 
 
+# The external locations of the backups (US-2910/L3): declared in a file the deployment mounts.
+
+# The name of a location, a key of the file (`ExternalBackupLocationName`).
+# What botocore takes for a region: a label of a host name.
+REGION = "^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$"
+LOCATION_NAME = "^[a-z0-9][a-z0-9_-]{0,62}$"
+# The longest description the contract presents (`ExternalBackupLocation.description`).
+DESCRIPTION_LENGTH = 500
+
+
+class S3Location(BaseModel):
+    """A bucket of an S3 storage, on another site: where it is, and the key that writes in it.
+
+    ``address`` is the endpoint of the storage, ``bucket`` the bucket the copies go to;
+    ``access_key`` and ``secret_key`` sign the requests, secrets both. ``authority`` is the file of
+    the roots its certificate is checked against, the usual ones when it is not given.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    kind: Literal["s3"]
+    description: str | None = Field(default=None, max_length=DESCRIPTION_LENGTH)
+    address: str = Field(pattern="^https?://")
+    region: str = Field(default="us-east-1", pattern=REGION)
+    bucket: str = Field(min_length=1)
+    access_key: SecretStr = Field(min_length=1)
+    secret_key: SecretStr = Field(min_length=1)
+    authority: Roots = None
+
+    @model_validator(mode="after")
+    def _address_without_credentials(self) -> Self:
+        """Refuse an address that is not an endpoint: no host, credentials, query or fragment.
+
+        The key and its secret are fields apart; a token in a parameter is a credential as well.
+        Never the value itself in the message.
+        """
+        try:
+            parts = urlsplit(self.address)
+            host = parts.hostname
+            _ = parts.port  # reading the port checks it
+        except ValueError:
+            message = "the address does not read as a URL"
+            raise ValueError(message) from None
+        if not host:
+            message = "the address must name a host"
+            raise ValueError(message)
+        if parts.query or parts.fragment or "?" in self.address or "#" in self.address:
+            message = "the address must carry no query nor fragment: it is an endpoint"
+            raise ValueError(message)
+        if parts.username is not None or parts.password is not None:
+            message = "the address must not carry credentials: give them as access_key, secret_key"
+            raise ValueError(message)
+        return self
+
+    def secrets(self) -> tuple[str, ...]:
+        """Give what the logs must never show of it: its key and the secret of the key."""
+        return (self.access_key.get_secret_value(), self.secret_key.get_secret_value())
+
+
+class MountedShare(BaseModel):
+    """A network share mounted on the server: the folder, absolute, where it is mounted."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    kind: Literal["mounted_share"]
+    description: str | None = Field(default=None, max_length=DESCRIPTION_LENGTH)
+    directory: str = Field(pattern="^/")
+
+    def secrets(self) -> tuple[str, ...]:
+        """Give what the logs must never show of it: nothing, the mount holds its credentials."""
+        return ()
+
+
+type DeclaredLocation = Annotated[S3Location | MountedShare, Field(discriminator="kind")]
+
+
+class ExternalLocations(BaseModel):
+    """The external locations an installation declares, by their name (WF-ADM-0170).
+
+    Read from a file in JSON that the deployment mounts, an object whose keys are the names: each
+    with its nature, its description, and what reaches it — secrets included, which only the server
+    reads, and which no reading of the API, no log and no error gives back
+    (`ExternalBackupLocation`). None declared, an installation offers no copy.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    locations: dict[Annotated[str, Field(pattern=LOCATION_NAME)], DeclaredLocation] = Field(
+        default_factory=dict
+    )
+
+    def declared(self) -> list[tuple[str, DeclaredLocation]]:
+        """Give the locations declared, in the order of their names."""
+        return sorted(self.locations.items())
+
+    def names(self) -> frozenset[str]:
+        """Give the names of the locations declared."""
+        return frozenset(self.locations)
+
+    def get(self, name: str) -> DeclaredLocation | None:
+        """Give the location of a name, or ``None`` if none is declared under it."""
+        return self.locations.get(name)
+
+    def secrets(self) -> tuple[str, ...]:
+        """Give the secrets of every location, for the logs to mask."""
+        return tuple(secret for _, each in self.declared() for secret in each.secrets())
+
+
+# An installation that declares none, as it is without a file.
+NO_LOCATIONS = ExternalLocations()
+LOCATIONS_VARIABLE = f"{ENV_PREFIX}EXTERNAL_BACKUP_LOCATIONS_FILE"
+
+
+def read_external_locations(path: Path) -> ExternalLocations:
+    """Read the external locations a file declares; refuse a file that does not declare them.
+
+    The refusal names the variable, the file and the place of each fault, and its rule, never a
+    value the file holds: a secret badly placed would else be written to the journal of the start.
+    """
+    try:
+        read = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError) as error:
+        message = f"{LOCATIONS_VARIABLE}: {path} cannot be read ({type(error).__name__})"
+        raise ValueError(message) from None
+    except json.JSONDecodeError as error:
+        where = f"line {error.lineno}, column {error.colno}"
+        message = f"{LOCATIONS_VARIABLE}: {path} is not JSON ({error.msg}, {where})"
+        raise ValueError(message) from None
+    try:
+        return ExternalLocations.model_validate({"locations": read})
+    except ValidationError as error:
+        faults = [
+            f"{'.'.join(str(part) for part in fault['loc'][1:]) or 'the file'}: {fault['msg']}"
+            for fault in error.errors(include_input=False, include_url=False, include_context=False)
+        ]
+        message = f"{LOCATIONS_VARIABLE}: {path} does not declare locations: " + "; ".join(faults)
+        raise ValueError(message) from None
+
+
 class ServiceSettings(Settings, KeycloakSettings, StorageSettings):
-    """What a service that reaches Keycloak reads: the API, and the worker after it."""
+    """What a service that reaches Keycloak reads: the API, and the worker after it.
+
+    ``background_task_retention_days`` is how long the result of a task ended is kept, thirty days
+    by default (WF-DAT-0080, §4.4.1): an operating parameter, which the worker's purge applies and
+    the status screen presents.
+    """
+
+    background_task_retention_days: int = Field(default=30, ge=1)
+    # The file of the external locations of the backups (US-2910/L3), read at start: none by
+    # default, and then no location is declared. A bucket reached in the clear is refused when an
+    # authority is given, as every other address is (US-2840).
+    external_backup_locations_file: Annotated[str | None, BeforeValidator(_none_when_empty)] = None
+    _external_locations: ExternalLocations = PrivateAttr(default=NO_LOCATIONS)
+
+    @model_validator(mode="after")
+    def _locations_declared(self) -> Self:
+        if self.external_backup_locations_file is None:
+            return self
+        declared = read_external_locations(Path(self.external_backup_locations_file))
+        clear = [
+            name
+            for name, each in declared.declared()
+            if isinstance(each, S3Location) and not each.address.startswith("https://")
+        ]
+        if self.tls_authority is not None and clear:
+            message = (
+                f"{LOCATIONS_VARIABLE}: the address of {', '.join(clear)} must be in https:// "
+                f"when {ENV_PREFIX}TLS_AUTHORITY is given"
+            )
+            raise ValueError(message)
+        self._external_locations = declared
+        return self
+
+    @property
+    def external_locations(self) -> ExternalLocations:
+        """Give the external locations the file declares; none without a file."""
+        return self._external_locations
+
+    def secret_values(self) -> tuple[str, ...]:
+        """Add the secrets of the external locations, which the logs mask as the others."""
+        found = (*super().secret_values(), *self._external_locations.secrets())
+        return tuple(dict.fromkeys(value for value in found if value))
+
+
+# A ratio of the thresholds of the alerts: above zero, at most one (``Percent`` of the contract).
+type Ratio = Annotated[Decimal, Field(gt=0, le=1)]
+
+
+@dataclass(frozen=True, slots=True)
+class OperatingParameters:
+    """The operating parameters a process of the API reads, at their shipped values (§4.5.1).
+
+    Set by the operator at the deployment (WF-ARC-0050), never by an operation; the status screen
+    presents them (WF-ADM-0130). The three thresholds of the alerts are those the rules of
+    Prometheus are written with (WF-OBS-0030), which the API receives to present them. The seventh,
+    the largest avatar, is the installation's: the bootstrap writes it from its own setting
+    (``InstallationSettings.avatar_max_bytes``), and the front reads it there without a session.
+    """
+
+    cache_validity_seconds: int = 600
+    background_task_retention_days: int = 30
+    task_queue_age_threshold_seconds: int = 900
+    storage_usage_threshold: Decimal = Decimal("0.85")
+    error_rate_threshold: Decimal = Decimal("0.05")
+    error_rate_window_seconds: int = 300
 
 
 class ApiSettings(ServiceSettings):
@@ -305,16 +514,15 @@ class ApiSettings(ServiceSettings):
     the root — and of its key, in PEM (US-2840, TFX-02): given together, the API serves in TLS
     alone; neither, in HTTP, as on the workstation. ``metrics_port`` is a port of its own where it
     serves its metrics over HTTP, and nothing else (``getMetrics``, TFX-09): none by default, and
-    then they are served on the port of the API alone. ``prometheus_address`` is where the API
-    reads the metrics and the alerts by the query API of Prometheus (TFX-14, US-2890): in
-    ``https://``, the certificate checked against ``tls_authority``, when an authority is given;
-    none by default, and then the status screen says Prometheus is not reached.
+    then they are served on the port of the API alone.
+    ``prometheus_address`` is where it reaches the query API of Prometheus, for the status screen
+    (TFX-14): in ``https://``, the certificate checked against ``tls_authority``, when an authority
+    is given (US-2840); none by default, and then the screen says the metrics unavailable. The
+    thresholds of the alerts are those the rules of Prometheus are written with, which it presents
+    (``OperatingParameters``).
     """
 
     api_processes: int = Field(default=1, ge=1)
-    prometheus_address: Annotated[
-        Annotated[str, Field(pattern="^https?://")] | None, BeforeValidator(_none_when_empty)
-    ] = None
     database_capacity_bytes: int | None = Field(default=None, ge=1)
     storage_capacity_bytes: int | None = Field(default=None, ge=1)
     tls_certificate: Annotated[str | None, BeforeValidator(_none_when_empty)] = None
@@ -322,6 +530,33 @@ class ApiSettings(ServiceSettings):
     metrics_port: Annotated[
         Annotated[int, Field(ge=1, le=65535)] | None, BeforeValidator(_none_when_empty)
     ] = None
+    prometheus_address: Annotated[
+        Annotated[str, Field(pattern="^https?://")] | None, BeforeValidator(_none_when_empty)
+    ] = None
+    task_queue_age_threshold_seconds: int = Field(default=900, ge=1)
+    storage_usage_threshold: Ratio = Decimal("0.85")
+    error_rate_threshold: Ratio = Decimal("0.05")
+    error_rate_window_seconds: int = Field(default=300, ge=1)
+
+    def transport_faults(self) -> list[str]:
+        """Add Prometheus, when given, which must be reached in ``https://`` (TFX-14)."""
+        address = self.prometheus_address
+        encrypted = address is None or address.startswith("https://")
+        return [
+            *super().transport_faults(),
+            *encrypted_fault("prometheus_address", encrypted=encrypted, wanted="be in https://"),
+        ]
+
+    def operating_parameters(self) -> OperatingParameters:
+        """Give the operating parameters in force, as the environment sets them."""
+        return OperatingParameters(
+            cache_validity_seconds=self.indicators_cache_ttl,
+            background_task_retention_days=self.background_task_retention_days,
+            task_queue_age_threshold_seconds=self.task_queue_age_threshold_seconds,
+            storage_usage_threshold=self.storage_usage_threshold,
+            error_rate_threshold=self.error_rate_threshold,
+            error_rate_window_seconds=self.error_rate_window_seconds,
+        )
 
     @model_validator(mode="after")
     def _served(self) -> Self:
@@ -334,15 +569,6 @@ class ApiSettings(ServiceSettings):
             message = f"{ENV_PREFIX}METRICS_PORT must not be {ENV_PREFIX}PORT"
             raise ValueError(message)
         return self
-
-    def transport_faults(self) -> list[str]:
-        """Add Prometheus, when the API reads it, which must be reached in ``https://`` (TFX-14)."""
-        address = self.prometheus_address
-        encrypted = address is None or address.startswith("https://")
-        return [
-            *super().transport_faults(),
-            *encrypted_fault("prometheus_address", encrypted=encrypted, wanted="be in https://"),
-        ]
 
 
 def _served_pair(certificate: str, key: str) -> None:
@@ -372,9 +598,15 @@ class ScheduleSettings(Settings):
     the retention of the tasks does not make a task due again at each purge. Under Helm the first
     reading may leave before the realm of Keycloak is applied (a hook after the installation): it
     then fails and the next is due at the next occurrence of its schedule.
+    ``restore_test_job`` is the file of the Job of the test of a restoration, which the chart
+    mounts: under Kubernetes the schedule makes it in its namespace every ``restore_test_interval``
+    seconds, thirty days; none, the default, plans no test: under Compose a planned task of the
+    host runs it (US-2930).
     """
 
     purge_interval: int = Field(default=600, ge=1)
+    restore_test_job: str | None = Field(default=None, min_length=1)
+    restore_test_interval: int = Field(default=2_592_000, ge=1)
 
 
 class WorkerSettings(ServiceSettings):
@@ -383,8 +615,11 @@ class WorkerSettings(ServiceSettings):
     ``metrics_port`` is where it serves its metrics, on the address of ``host`` (WF-OBS-0010).
     The purge it runs keeps the history of a session ``undo_retention_hours`` hours, twelve by
     default: the longest session of the realm (EP-06, "L'historique annulable et le collage"); and
-    a task ended ``background_task_retention_days`` days, thirty by default, the retention of its
-    result (WF-DAT-0080, §4.4.1), the operating parameter of the same name.
+    a task ended ``background_task_retention_days`` days, the operating parameter of the same name
+    (``ServiceSettings``).
+    A task of a kind it does not run waits ``unknown_kind_wait_seconds`` seconds, an hour by
+    default, for a worker that does — during a rolling update —, counted from its submission, then
+    fails (#809).
     ``backup_database_url`` is the database of Waterfall, the journal of audit included, and
     ``keycloak_database_url`` the database of the identity provider, both as the role of the backup
     reaches them: a member of ``pg_read_all_data``, which reads every table and can neither write
@@ -397,7 +632,11 @@ class WorkerSettings(ServiceSettings):
     keycloak_database_url: SecretStr = Field(min_length=1)
     metrics_port: int = Field(default=9100, ge=1, le=65535)
     undo_retention_hours: int = Field(default=12, ge=1)
-    background_task_retention_days: int = Field(default=30, ge=1)
+    unknown_kind_wait_seconds: int = Field(default=3600, ge=1)
+
+
+# The largest avatar a new installation accepts, as the specification ships it (§4.4.1).
+SHIPPED_AVATAR_MAX_BYTES = 512 * 1024
 
 
 @cache
@@ -431,8 +670,9 @@ class InstallationSettings(KeycloakSettings):
     ``time_zone`` the name of its time zone in the IANA database, optional, in which the
     current day is taken (WF-EXP-0020, WF-PLA-0130, US-2200), written once too, ``UTC`` when none is
     given at that first writing — the bootstrap refuses a name it
-    does not know. It deposits no task and serves nothing: it reads neither Redis nor where the API
-    listens.
+    does not know. ``avatar_max_bytes`` is the largest avatar, an operating parameter (§4.4.1),
+    shipped at 512 KB and never above 8 MiB, which every run writes in the installation (#3965). It
+    deposits no task and serves nothing: it reads neither Redis nor where the API listens.
     """
 
     installation_client_secret: SecretStr = Field(min_length=1)
@@ -443,6 +683,7 @@ class InstallationSettings(KeycloakSettings):
     time_zone: Annotated[
         str | None, BeforeValidator(_none_when_empty), AfterValidator(_known_time_zone_if_given)
     ] = None
+    avatar_max_bytes: int = Field(default=SHIPPED_AVATAR_MAX_BYTES, ge=1, le=8 * 1024**2)
 
 
 class RestoreSettings(ServiceSettings):
@@ -461,6 +702,40 @@ class RestoreSettings(ServiceSettings):
     keycloak_database_url: SecretStr = Field(min_length=1)
     installation_client_secret: SecretStr = Field(min_length=1)
     realm_requests: str = Field(min_length=1)
+
+
+class RestoreTestSettings(StorageSettings):
+    """What the test of a restoration reads, ``waterfall-restore test`` (WF-EXP-0060, US-2930).
+
+    ``database_url`` designates the database of Waterfall of the production, as the role of the
+    service, which reads the backups and inscribes the test; the storage, its bucket of the backups.
+    ``restore_test_database_url`` and ``restore_test_keycloak_database_url`` designate the two
+    databases of the ephemeral platform, as their owners, which the test replaces by the backup;
+    ``restore_test_api_address`` the API of that platform, whose readiness says it started, checked
+    against the roots of ``restore_test_authority``, or of ``tls_authority`` if none is given.
+    ``restore_test_restored_file`` is the file the test writes once the databases are restored,
+    which the platform waits for to start, and ``restore_test_patience`` how long, in seconds, it is
+    given to start then: thirty minutes by default. ``keycloak_realm`` is the realm whose accounts
+    are counted, that of the installation.
+    """
+
+    restore_test_database_url: SecretStr = Field(min_length=1)
+    restore_test_keycloak_database_url: SecretStr = Field(min_length=1)
+    restore_test_api_address: str = Field(min_length=1, pattern="^https?://")
+    restore_test_authority: Roots = None
+    restore_test_restored_file: str = Field(min_length=1)
+    restore_test_patience: int = Field(default=1800, ge=1)
+    keycloak_realm: str = Field(default="waterfall", pattern="^[A-Za-z0-9_-]+$")
+
+    def transport_faults(self) -> list[str]:
+        """Add the API of the ephemeral platform, which must be reached in ``https://``."""
+        encrypted = self.restore_test_api_address.startswith("https://")
+        return [
+            *super().transport_faults(),
+            *encrypted_fault(
+                "restore_test_api_address", encrypted=encrypted, wanted="be in https://"
+            ),
+        ]
 
 
 class WitnessSettings(PlatformSettings):
@@ -511,6 +786,11 @@ def load_worker_settings() -> WorkerSettings:
 def load_restore_settings() -> RestoreSettings:
     """Read the settings of the service of the restoration, as ``load_settings`` does."""
     return _load(RestoreSettings)
+
+
+def load_restore_test_settings() -> RestoreTestSettings:
+    """Read the settings of the test of a restoration, as ``load_settings`` does."""
+    return _load(RestoreTestSettings)
 
 
 def load_installation_settings() -> InstallationSettings:

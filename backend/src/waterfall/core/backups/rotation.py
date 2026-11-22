@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The rotation of the backups, and the mark that spares one of it (WF-ADM-0170).
 
-A backup verified turns the list: the oldest backups not marked beyond the retention of the
-schedule go, manual and scheduled counted together; a backup marked is never counted, and never
-deleted. Only the rotation deletes a backup, and the task it took goes after it (the purge of the
-tasks, which spares that of each backup listed). The archive of a backup deleted is the caller's to
-remove from the bucket, once its transaction is committed.
+A backup verified turns the list: the oldest backups not marked and verified beyond the retention
+of the schedule go, manual and scheduled counted together, and so do those whose verification
+failed, first; the last backup verified is never deleted; a backup marked is never counted, and
+never deleted. Only the rotation deletes a backup, and the task it took goes after it (the purge
+of the tasks, which spares that of each backup listed). The archive of a backup deleted is the
+caller's to remove from the bucket, once its transaction is committed.
 """
 
 from typing import TYPE_CHECKING
@@ -24,25 +25,42 @@ if TYPE_CHECKING:
 
 
 def rotate(session: Session, retained_count: int) -> list[str]:
-    """Delete the oldest backups not marked beyond ``retained_count``; give their archives' keys.
+    """Turn the list: delete what falls beyond the retention; give the archives' keys.
 
-    The mark is judged again by the deletion: a backup marked meanwhile survives it.
+    The retention keeps the most recent backups not marked whose verification passed; the last of
+    them is never deleted, whatever the retention (#4366). A backup not marked whose verification
+    failed is not counted, and goes first, the oldest first, with no ceiling; a backup marked is
+    neither counted nor deleted. The rule is the verification's, not the task's: it holds however
+    the failure is represented. The mark is judged again by the deletion: a backup marked meanwhile
+    survives it.
 
-    A backup whose verification failed is counted in the retention like any other, as the letter of
-    WF-ADM-0170-A has it ("the oldest backups not marked beyond the retention"): whether it should
-    be, with the risk that failures push the good ones out, is open in the specification (#4366).
+    This deviates deliberately from the letter of WF-ADM-0170-A ("the oldest backups not marked
+    beyond the retention"), which counted the failed ones: with a retention of seven and seven
+    failures newer than a good backup, the last restorable one would go.
     """
     unmarked = ~Backup.is_retained
-    oldest = (
-        select(Backup.id)
-        .where(unmarked)
+    passed = Backup.verification == "passed"
+    failed = session.execute(
+        select(Backup.id, Backup.object_key)
+        .where(unmarked, ~passed)
+        .order_by(Backup.taken_at, Backup.id)
+    ).all()
+    beyond = session.execute(
+        select(Backup.id, Backup.object_key)
+        .where(unmarked, passed)
         .order_by(Backup.taken_at.desc(), Backup.id.desc())
-        .offset(retained_count)
+        .offset(max(retained_count, 1))
+    ).all()
+    # The oldest of each kind first: the failed ones, then the verified ones beyond the retention.
+    doomed = [*failed, *reversed(beyond)]
+    gone = set(
+        session.scalars(
+            delete(Backup)
+            .where(Backup.id.in_([row.id for row in doomed]), unmarked)
+            .returning(Backup.id)
+        )
     )
-    gone = session.execute(
-        delete(Backup).where(Backup.id.in_(oldest), unmarked).returning(Backup.object_key)
-    )
-    return list(gone.scalars())
+    return [row.object_key for row in doomed if row.id in gone]
 
 
 def mark_backup(session: Session, backup_id: UUID, *, is_retained: bool) -> BackupView:

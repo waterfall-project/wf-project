@@ -36,6 +36,7 @@ from collections.abc import Callable, Generator, Iterator, Mapping
 from concurrent.futures import Future, wait
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import timedelta
 from socketserver import ThreadingMixIn
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, get_args, override
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
@@ -47,7 +48,7 @@ from prometheus_client.multiprocess import MultiProcessCollector
 from sqlalchemy import Boolean, Text, column, func, select, table, true
 from sqlalchemy.exc import SQLAlchemyError
 
-from waterfall.platform.database import OBSERVATION_SECONDS, utc_now
+from waterfall.platform.database import OBSERVATION_SECONDS, bound_lock_waits, utc_now
 from waterfall.platform.errors import UnavailableError
 from waterfall.platform.keycloak import expect
 from waterfall.platform.logs import get_logger
@@ -88,6 +89,9 @@ LAST_RUN_SUCCESS = "waterfall_last_run_success"
 LAST_RUN_TIMESTAMP = "waterfall_last_run_timestamp_seconds"
 STORAGE_USED = "waterfall_storage_used_bytes"
 STORAGE_AVAILABLE = "waterfall_storage_available_bytes"
+# The version each component announces, in a label, the value always 1 (WF-CMP-0020): the API's
+# and the worker's their own, the others' as their probe found it.
+COMPONENT_VERSION = "waterfall_component_version"
 
 # The operation a request that reached no route is counted under: refused before, or unknown.
 UNROUTED = "unrouted"
@@ -96,7 +100,7 @@ TASK_BUCKETS = (0.1, 0.5, 1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0, 1800.
 # How long a collection waits for the probes, in seconds: one that has not answered is down.
 PROBE_SECONDS = float(OBSERVATION_SECONDS)
 # How long a reading of the database waits for a statement or a lock, at a collection.
-READING_TIMEOUT = "2s"
+READING_WAIT = timedelta(seconds=2)
 
 # The catalogue of the databases of the server, read for their size.
 PG_DATABASE = table(
@@ -381,8 +385,9 @@ def probes_of(
 
 def bound_waiting(session: Session) -> None:
     """Bound how long the statements of a transaction wait, and the locks they take."""
-    for setting in ("statement_timeout", "lock_timeout"):
-        session.execute(select(func.set_config(setting, READING_TIMEOUT, true())))
+    statement = f"{round(READING_WAIT.total_seconds() * 1000)}ms"
+    session.execute(select(func.set_config("statement_timeout", statement, true())))
+    bound_lock_waits(session, READING_WAIT)
 
 
 # What reads the latest outcome of one such operation in the database; ``None`` if none has ended.
@@ -433,6 +438,8 @@ class PlatformState:
         self.storage = storage
         self.outcomes = outcomes
         self.capacities = capacities
+        # The version of the process itself, by its component; none until its entry point says it.
+        self.announced: Mapping[str, str] = {}
         self.flights = Flights()
 
     def probe(self) -> list[Health]:
@@ -450,6 +457,8 @@ class PlatformState:
         for health in healths:
             up.add_metric((health.component,), 1.0 if health.is_available else 0.0)
         yield up
+        found = {health.component: health.version for health in healths if health.version}
+        yield versions({**self.announced, **found})
         answering = {health.component for health in healths if health.is_available}
         used: dict[str, int] = {}
         if "database" in answering:
@@ -522,6 +531,30 @@ class PlatformState:
                 left.add_metric((component,), float(max(capacity - size, 0)))
         yield taken
         yield left
+
+
+def versions(announced: Mapping[str, str]) -> Metric:
+    """Give the version of each component, in a label of a sample of value 1 (WF-CMP-0020)."""
+    family = GaugeMetricFamily(
+        COMPONENT_VERSION,
+        "The version a component announces, in its label; always 1.",
+        labels=("component", "version"),
+    )
+    for component, version in announced.items():
+        family.add_metric((component, version), 1.0)
+    return family
+
+
+class Announced:
+    """What a process that reads nothing of the platform announces of itself: its version."""
+
+    def __init__(self, component: str, version: str) -> None:
+        self.component = component
+        self.version = version
+
+    def collect(self) -> Iterator[Metric]:
+        """Give the version of the process, as its component."""
+        yield versions({self.component: self.version})
 
 
 def _outcome_metrics(outcomes: Mapping[str, Outcome | None]) -> list[Metric]:

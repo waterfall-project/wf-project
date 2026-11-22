@@ -75,6 +75,11 @@ def test_the_operator_values_name_each_component_by_its_service_and_the_operator
         "enabled": False,
         "address": "http://storage.data.svc.cluster.local:3900",
     }
+    # The pod of the test of a restoration goes out to the pods of the two components alone.
+    postgres, storage = (values["restoreTest"]["egress"][key] for key in ("postgresql", "storage"))
+    assert postgres == [chartdata.peer(chartdata.POSTGRES)]
+    assert storage == [chartdata.peer(chartdata.STORAGE)]
+    assert storage[0]["namespaceSelector"]["matchLabels"]["kubernetes.io/metadata.name"] == "data"
     # The values the trial installed the first time are not touched.
     assert base["secrets"] == {"values": {"K": "v"}}
 

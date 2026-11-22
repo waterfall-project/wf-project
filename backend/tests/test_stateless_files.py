@@ -60,7 +60,12 @@ ALLOWED = {
     "restore/task.py": "the archive of a restoration and its dumps, in the temporary folder of its "
     "task",
     "worker/restore.py": "the dumps of a restoration, taken out of its archive into the folder of "
-    "its task (restore/task.py)",
+    "its task (restore/task.py) or of the test of a restoration (restore/trial.py)",
+    # No service: the command of the test of a restoration, which runs once beside the ephemeral
+    # platform and stops (US-2930); the file that says the databases are restored is written by
+    # ``restore/main.py`` in the container of the test, which dies with it.
+    "restore/trial.py": "the archive of a test of a restoration and its dumps, in the temporary "
+    "folder of its run",
     "restore/provider.py": "the request to keycloak-realm, a file of a folder the two services "
     "share: the emptyDir in memory of the pod of the restoration, which passes from one request to "
     "the next and which each request cleans (``apply`` removes the answers of an earlier one, and "
@@ -76,11 +81,17 @@ ALLOWED = {
     "platform/authority.py": "the root of the platform, the key and the certificate of each "
     "server, written by the service authority of the Compose in the volumes it is given, before "
     "any service starts: no request nor task writes them",
+    # The external copy of the backups (US-2910/L3).
+    "worker/backup_copy.py": "the archive of a backup read from the bucket, in the temporary "
+    "folder of its task of copy",
+    "platform/external_locations.py": "a copy, or the witness of a test, written to a share "
+    "mounted on the server — the external location itself, not the disk of the service —, and the "
+    "witness first in the temporary folder of its test",
 }
 # What a ``with`` must wrap: a temporary folder that a ``finally`` or the end of a block removes.
 # ``worker/restore.py`` makes none and ``restore/provider.py`` neither: the first writes in the
 # folder of its caller, held below; the second in the folder of the chart, not of the code.
-LIVES = ("worker/backup.py", "restore/task.py", "platform/metrics.py")
+LIVES = ("worker/backup.py", "restore/task.py", "restore/trial.py", "platform/metrics.py")
 # What starts a process, or opens a file by what a call does not name.
 INDIRECT = {"subprocess", "FileHandler", "RotatingFileHandler", "WatchedFileHandler", "pickle"}
 
@@ -259,7 +270,7 @@ def test_the_restoration_writes_in_the_temporary_folder_of_its_task_alone() -> N
         for call in ast.walk(function)
         if isinstance(call, ast.Call) and getattr(call.func, "id", "") == "extracted"
     ]
-    assert {module for module, _ in callers} == {"restore/task.py"}
+    assert {module for module, _ in callers} == {"restore/task.py", "restore/trial.py"}
     for module, function in callers:
         made = [
             item.context_expr

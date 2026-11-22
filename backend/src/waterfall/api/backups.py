@@ -16,7 +16,6 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, Query
-from fastapi.responses import StreamingResponse
 from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy import func, select
 
@@ -33,6 +32,7 @@ from waterfall.api.contract.models import (
 )
 from waterfall.api.evaluation import Acting, Requires
 from waterfall.api.queries import Offset, read_list, refuse_query
+from waterfall.api.streams import ObjectResponse
 from waterfall.api.tasks import task_ref
 from waterfall.core.access_roles.interface import Actor
 from waterfall.core.backups.interface import (
@@ -41,9 +41,9 @@ from waterfall.core.backups.interface import (
     BackupSort,
     BackupView,
     Platform,
-    backup_start_lacks,
     download_lacks,
     list_backups,
+    lock_backup_deposit,
     mark_backup,
     marking_lacks,
     platform_of,
@@ -56,7 +56,7 @@ from waterfall.platform.errors import (
     FieldError,
     NotFoundError,
 )
-from waterfall.platform.locks import BACKUP_LOCK, RESTORE_LOCK
+from waterfall.platform.locks import RESTORE_LOCK
 from waterfall.platform.storage import MissingObjectError
 from waterfall.platform.tasks import BackgroundTask, submit
 
@@ -209,9 +209,7 @@ def post_backup(account: Caller, session: Transaction, services: ServicesOf) -> 
     named (#1035). Two requests that ask at once wait for each other, and a restoration deposited
     meanwhile is waited for, or seen.
     """
-    session.execute(select(func.pg_advisory_xact_lock(BACKUP_LOCK)))
-    session.execute(select(func.pg_advisory_xact_lock_shared(RESTORE_LOCK)))
-    refuse_if_lacking(backup_start_lacks(platform_of(session)))
+    refuse_if_lacking(lock_backup_deposit(session))
     task_id = submit(session, services.queue, "backup", account.user_id)
     return task_ref(session.get_one(BackgroundTask, task_id))
 
@@ -251,24 +249,28 @@ def get_backup(backup_id: UUID, session: Transaction, actor: Acting) -> Backup:
 
 
 @router.get("/backups/{backup_id}/content", operation_id="downloadBackup", dependencies=COPY)
-def get_backup_content(backup_id: UUID, services: ServicesOf) -> StreamingResponse:
+def get_backup_content(backup_id: UUID, services: ServicesOf) -> ObjectResponse:
     """Stream the archive of a backup out of the platform (WF-ADM-0150).
 
     The backup is read in a transaction of its own, closed before the archive streams: no
     connection is held while the bucket is read. An archive the bucket no longer holds is a backup
     that cannot be copied, refused as one that does not exist (404); a backup whose verification
-    has not passed is not copied (409, ``backup_verified``, #1035).
+    has not passed is not copied (409, ``backup_verified``, #1035). The stream is closed when the
+    response ends, a client that disconnects included, and a failure once it began is journaled
+    (#897).
     """
     with services.database.transaction() as session:
         view = read_backup(session, backup_id)
     refuse_if_lacking(download_lacks(view.verification))
     try:
-        chunks = services.backups.stream(view.object_key)
+        stream = services.backups.stream(view.object_key)
     except MissingObjectError:
         raise NotFoundError(NOT_FOUND) from None
     name = f"waterfall-backup-{view.taken_at:%Y%m%dT%H%M%SZ}.tar"
+    # The length the storage gives the object, which is what is sent; the row's, if it gives none.
+    length = view.size_bytes if stream.length is None else stream.length
     headers = {
         "Content-Disposition": f'attachment; filename="{name}"',
-        "Content-Length": str(view.size_bytes),
+        "Content-Length": str(length),
     }
-    return StreamingResponse(chunks, media_type="application/octet-stream", headers=headers)
+    return ObjectResponse(stream, "application/octet-stream", headers)

@@ -8,18 +8,22 @@ nothing is served (§4.5.4, table 12), whereas without Redis, the object storage
 provider an instance still serves what does not need them — the calls that carry a valid token,
 the consultation and the entry (WF-EXP-0040). The others are said all the same, and never as
 available when they are not.
+
+The status screen reads Prometheus and the database (``waterfall.api.status``).
 """
 
 from dataclasses import dataclass
 from typing import Any, cast
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from waterfall import __version__
 from waterfall.api.authentication import Services, ServicesOf, Transaction
-from waterfall.api.contract.models import ComponentHealth, Installation
+from waterfall.api.contract.models import ComponentHealth, Installation, SystemStatus
+from waterfall.api.evaluation import Requires
 from waterfall.api.maintenance import in_maintenance
+from waterfall.api.status import StatusSources, system_status
 from waterfall.core.backups import interface as backups_interface
 from waterfall.platform.database import Database, create_observation_engine, utc_now
 from waterfall.platform.errors import UnavailableError
@@ -50,9 +54,10 @@ def identity_sync_outcome(session: Session) -> Outcome | None:
 
 
 # The operations the platform runs on a schedule whose latest outcome the metrics give, by the name
-# the rules of the alerts read (WF-OBS-0030); the external copy of a backup comes with US-2910.
+# the rules of the alerts read (WF-OBS-0030): a test compares these names to the rules (#4301).
 OUTCOMES: dict[str, OutcomeReader] = {
     "scheduled_backup": backups_interface.last_scheduled_outcome,
+    "scheduled_backup_copy": backups_interface.last_copy_outcome,
     "identity_sync": identity_sync_outcome,
 }
 
@@ -66,24 +71,29 @@ class Observed:
     state: PlatformState
     # The connection of the observation, apart from the pool of the requests.
     database: Database
+    # What the status screen reads besides the database.
+    sources: StatusSources
 
     def close(self) -> None:
-        """Close the connection of the observation."""
+        """Close the connection of the observation, and the client of Prometheus."""
         self.database.dispose()
+        self.sources.close()
 
 
-def observed(services: Services, capacities: Capacities) -> Observed:
+def observed(services: Services, capacities: Capacities, sources: StatusSources) -> Observed:
     """Make the registry of a process of the API, on the components its services reach.
 
     The database is probed and read on a connection of its own, on the same database as the
-    requests: saturated, their pool does not make the database look down.
+    requests: saturated, their pool does not make the database look down. The process announces
+    its own version beside those its probes find (WF-CMP-0020).
     """
     registry = MetricsRegistry()
     database = Database(create_observation_engine(services.database.engine.url))
     probes = probes_of(database, services.queue, services.backups, services.keycloak)
     state = PlatformState(database, probes, services.backups, OUTCOMES, capacities)
+    state.announced = {"api": __version__}
     registry.read_at_collection.append(state)
-    return Observed(registry, ApiMetrics(registry), state, database)
+    return Observed(registry, ApiMetrics(registry), state, database, sources)
 
 
 def observed_of(request: Request) -> Observed:
@@ -153,3 +163,21 @@ def get_installation(session: Transaction) -> Installation:
             "external_backup_max_bytes": settings.external_backup_max_bytes,
         }
     )
+
+
+@router.get(
+    "/system/status",
+    operation_id="getSystemStatus",
+    dependencies=[Depends(Requires("system_status.read"))],
+    response_model_exclude_unset=True,
+)
+def get_system_status(request: Request, services: ServicesOf) -> SystemStatus:
+    """Give the state of the platform, to whoever may view it, without any project (WF-ADM-0130).
+
+    Prometheus is asked before the transaction opens: no connection is held while it answers.
+    """
+    sources = observed_of(request).sources
+    now = utc_now()
+    observation = sources.observe()
+    with services.database.transaction() as session:
+        return system_status(session, sources, observation, now)

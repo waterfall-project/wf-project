@@ -113,6 +113,7 @@ def test_with_its_secrets_the_worker_runs_the_kinds_it_has_a_handler_for(
     (worker,) = served
     assert set(worker.handlers) == {
         "backup",
+        "backup_copy",
         "identity_sync",
         "revision_mark",
         "import_analysis",
@@ -124,6 +125,26 @@ def test_with_its_secrets_the_worker_runs_the_kinds_it_has_a_handler_for(
     # A read as long as the socket's wait would end in a timeout, and stop the worker.
     waits = worker.queue.client.connection_pool.connection_kwargs["socket_timeout"]
     assert worker.timing.block < waits == WORKER_TIMEOUT
+    assert worker.timing.unknown_kind_wait == 3600
+
+
+@pytest.mark.story("US-2850")
+@pytest.mark.usefixtures("platform_environment", "logs")
+def test_the_wait_of_the_deployment_is_the_one_the_worker_keeps_for_an_unknown_kind(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("WATERFALL_METRICS_PORT", str(free_port()))
+    monkeypatch.setenv("WATERFALL_UNKNOWN_KIND_WAIT_SECONDS", "7200")
+    served: list[Worker] = []
+
+    def serve(worker: Worker) -> int:
+        served.append(worker)
+        return 0
+
+    monkeypatch.setattr(worker_main, "serve", serve)
+    assert worker_main.main([]) == 0
+    (worker,) = served
+    assert worker.timing.unknown_kind_wait == 7200
 
 
 @pytest.mark.requirement("WF-OBS-0010-A")
@@ -148,6 +169,10 @@ def test_the_worker_answers_on_its_metrics_endpoint_while_it_runs(
     assert answer.status_code == 200
     assert "# TYPE waterfall_worker_tasks_total counter" in answer.text
     assert "waterfall_identity_directory_sync_failures_total 0.0" in answer.text
+    # Its version, which the status screen presents (WF-EXP-0030, US-2890).
+    version = waterfall.__version__
+    announced = f'waterfall_component_version{{component="worker",version="{version}"}} 1.0'
+    assert announced in answer.text
     with pytest.raises(httpx2.TransportError):
         httpx2.get(f"http://127.0.0.1:{port}/metrics", timeout=1)
 

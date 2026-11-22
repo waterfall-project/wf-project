@@ -8,16 +8,16 @@ configuration, it empties and seeds again the volume of the data only if the mar
 loading the seed is there — a seeding interrupted — or if the volume is empty; data without marker
 are a directory that has served, and it refuses. Volumes laid without the entrypoint, as the image
 of osixia left them, are served as they are; a marker left beside the configuration by a stop
-between its copy and the removal is removed, and nothing is emptied. Docker is needed: a test
-skips without it.
+between its copy and the removal is removed, and nothing is emptied. A docker daemon is needed: a
+test skips without one (#4321).
 """
 
-import shutil
 import subprocess
 import uuid
 from typing import TYPE_CHECKING
 
 import pytest
+from dockerdaemon import answers
 
 from wftools import REPOSITORY
 
@@ -31,8 +31,8 @@ MARKER = ".seeding"
 
 pytestmark = [
     pytest.mark.openldap,
-    pytest.mark.skipif(shutil.which("docker") is None, reason="docker is not installed"),
-    pytest.mark.unexecuted("skipped where docker is not installed"),
+    pytest.mark.skipif(not answers(), reason="no docker daemon answers"),
+    pytest.mark.unexecuted("skipped where no docker daemon answers"),
 ]
 
 

@@ -162,3 +162,37 @@ def test_the_permissions_of_the_installation_arrive_by_a_migration_to_whoever_ad
     # And up again: the catalogue and the grants of the first rise (0029, the head, 0029, the head).
     upgrade(empty_engine)
     assert catalogue_and_grants(empty_engine) == (catalogue, grants)
+
+
+# The columns of the schedule of the backups, and whether the date of its timing may be null.
+SCHEDULE_COLUMNS = text(
+    "SELECT column_name, is_nullable FROM information_schema.columns "
+    "WHERE table_name = 'backup_schedule'"
+)
+
+
+@pytest.mark.story("US-2910")
+def test_the_schedule_of_the_backups_that_exists_is_dated_by_its_last_writing_at_0039(
+    empty_engine: Engine,
+) -> None:
+    # #4375: 0039 dates the timing of the schedule there by its last writing, ``updated_at``, so
+    # that an installation that exists does not owe at once the occurrence it had passed before its
+    # update; the column is then required, and the descent drops it.
+    upgrade(empty_engine, "0038")
+    written_at = datetime(2026, 11, 15, 8, 30, tzinfo=UTC)
+    with empty_engine.begin() as connection:
+        connection.execute(
+            text("UPDATE backup_schedule SET updated_at = :at, retained_count = 9"),
+            {"at": written_at},
+        )
+    upgrade(empty_engine, "0039")
+    with empty_engine.connect() as connection:
+        row = connection.execute(
+            text("SELECT timing_changed_at, updated_at, retained_count FROM backup_schedule")
+        ).one()
+        columns = dict(connection.execute(SCHEDULE_COLUMNS).all())
+    assert tuple(row) == (written_at, written_at, 9)
+    assert columns["timing_changed_at"] == "NO"
+    downgrade(empty_engine, "0038")
+    with empty_engine.connect() as connection:
+        assert "timing_changed_at" not in dict(connection.execute(SCHEDULE_COLUMNS).all())

@@ -19,7 +19,14 @@ from uuid import UUID, uuid4
 import pytest
 from access_rows import account, role
 from fastapi.testclient import TestClient
-from installations import Installation, Provider, Take, installed, restorer_headers
+from installations import (
+    Installation,
+    Provider,
+    Take,
+    installed,
+    restorer_headers,
+    written_task,
+)
 from realm import KEY, TestRealm
 from sqlalchemy import insert, select
 from support import ContractClient, bearer
@@ -531,6 +538,45 @@ def test_a_restoration_refuses_a_deposit_unknown_without_date_or_made_for_an_imp
     without = {**asked, "external_backup_upload_id": str(undated)}
     unnamed = installation_api.post(RESTORES, json=without, headers=headers)
     assert (unnamed.status_code, unnamed.json()["code"]) == (400, "CONFIRMATION_REQUIRED")
+
+
+@pytest.mark.story("US-2910")
+@pytest.mark.requirement("WF-ADM-0160-A")
+@pytest.mark.parametrize(
+    ("running", "condition"),
+    [
+        (("backup",), "no_backup_running"),
+        (("restore",), "no_restore_running"),
+        (("backup", "restore"), "no_backup_running"),
+    ],
+)
+def test_a_restoration_of_a_deposit_is_refused_while_a_backup_or_a_restoration_runs(
+    installation: Installation,
+    installation_api: ContractClient,
+    realm: TestRealm,
+    running: tuple[str, ...],
+    condition: str,
+) -> None:
+    # [US-2910] startRestore of a deposit refused during a backup (#4365): 409
+    # STATE_FORBIDS_OPERATION, ``no_backup_running`` first, then ``no_restore_running``, as the
+    # contract says; nothing is queued.
+    taken_at = utc_now()
+    deposit = recorded(installation, "external_backup", taken_at)
+    for kind in running:
+        written_task(installation.database, kind, "running")
+    asked = {
+        "confirmed": True,
+        "acknowledged_backup_taken_at": iso(taken_at),
+        "external_backup_upload_id": str(deposit),
+    }
+    headers = restorer_headers(installation, realm)
+    refused = installation_api.post(RESTORES, json=asked, headers=headers)
+    assert refused.status_code == 409, refused.text
+    assert refused.json()["code"] == "STATE_FORBIDS_OPERATION"
+    assert refused.json()["params"] == {"missing_condition": condition}
+    with installation.database.transaction() as session:
+        queued = session.scalars(select(BackgroundTask.id).where(BackgroundTask.kind == "restore"))
+        assert len(queued.all()) == ("restore" in running)
 
 
 def test_the_head_of_a_file_that_is_no_archive_says_no_date() -> None:

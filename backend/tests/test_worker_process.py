@@ -263,7 +263,9 @@ def test_the_two_compose_files_schedule_the_same_loop_with_the_same_settings() -
     }
     # What the purge keeps is the worker's, which runs it.
     undo, tasks = "WATERFALL_UNDO_RETENTION_HOURS", "WATERFALL_BACKGROUND_TASK_RETENTION_DAYS"
-    retentions = {undo: f"${{{undo}:-12}}", tasks: f"${{{tasks}:-30}}"}
+    # The wait of a task of an unknown kind (US-2850) is the worker's too, an hour by default.
+    wait = "WATERFALL_UNKNOWN_KIND_WAIT_SECONDS"
+    retentions = {undo: f"${{{undo}:-12}}", tasks: f"${{{tasks}:-30}}", wait: f"${{{wait}:-3600}}"}
     for compose in (COMPOSE, PRODUCTION):
         worker = yaml.safe_load(compose.read_text(encoding="utf-8"))["services"]["worker"]
         assert {name: worker["environment"][name] for name in retentions} == retentions
