@@ -1157,6 +1157,10 @@ d'un risque, et qu'EP-08 le serve tel qu'il est validé.
 - écart : `WF-RIS-0010-A` — « Un risque survenu dont le devis propre totalisait 200 présente une
   gravité de 200 dans la révision suivante, qui ne reprend pas ce devis. » : ajouté par la
   spécification 1.0.8 (#4178) ; #4400 l'éprouve.
+- écart : `WF-RIS-0010-A` — « Un risque de gravité 200 et de probabilité 30 % porte une provision de
+  60. » : ajouté par la spécification 1.0.9 (#4517) ; EP-30 (US-3080).
+- écart : `WF-RIS-0010-A` — « Un risque de gravité −100 et de même probabilité porte une provision
+  nulle, et non de −30. » : ajouté par la spécification 1.0.9 (#4517) ; EP-30 (US-3080).
 - `WF-RIS-0020-A` — « Les transitions entre identifié et écarté sont possibles dans les deux
   sens. » : par « Réexaminer », l'état retenu parmi ceux que le risque liste.
 - `WF-RIS-0020-A` — « Toute transition depuis l’état survenu est refusée. » : un risque survenu n'a
@@ -1177,6 +1181,16 @@ d'un risque, et qu'EP-08 le serve tel qu'il est validé.
   budget de référence, ni la valeur planifiée, ni la valeur acquise, ni les indices de coût et de
   délai ; elle change la provision, donc le reste à engager, l’avancement financier et la projection
   du chef de projet (WF-RAE-0010). » : EP-08 et EP-10.
+- écart : `WF-RIS-0030-A` — « La grille d'un devis propre qui vient d'être créé présente les tâches
+  et les lignes de la structure principale, aucune n'étant présentée ajoutée, modifiée ou retirée. »
+  : ajouté par la spécification 1.0.9 (#4516) ; EP-30 (US-3070).
+- écart : `WF-RIS-0030-A` — « Dans le devis propre d'un risque, une tâche ajoutée après une tâche du
+  projet, une ligne existante portée de 100 à 130 heures et une tâche existante abandonnée sont
+  présentées ajoutée, modifiée et retirée ; la structure principale est inchangée. » : ajouté par la
+  spécification 1.0.9 (#4516) ; EP-30 (US-3070).
+- écart : `WF-RIS-0030-A` — « Une tâche ajoutée à la structure principale figure, sans y être
+  désignée, dans la grille du devis propre d'un risque ouverte ensuite. » : ajouté par la
+  spécification 1.0.9 (#4516) ; EP-30 (US-3070).
 - propre à l'US : « Identifier un risque » est un formulaire — libellé, description, actions de
   mitigation, probabilité, catégorie et sous-projet de la provision — qui crée le risque
   (`createRisk`) puis ouvre son devis propre dans la grille de devis ; « Modifier » et
@@ -1396,6 +1410,18 @@ pour un projet et pour le portefeuille, et atteindre le plan de charge depuis le
 - écart : `WF-RIS-0040-A` — « Un risque dont la probabilité augmente change de couleur conformément
   à la matrice. » : la bulle se place aux valeurs que le serveur rend ; le changement est du
   service — EP-08.
+- écart : `WF-RIS-0040-A` — « Un risque de gravité négative est présenté comme une opportunité, avec
+  une provision nulle, et figure dans la matrice au plus bas niveau de gravité. » : ajouté par la
+  spécification 1.0.9 (#4517) ; EP-30 (US-3080).
+- écart : `WF-RIS-0040-A` — « Un risque identifié dont le produit de la gravité par la probabilité
+  est passé de 60 à 75 depuis la révision marquée précédente est présenté en hausse ; passé de 60 à
+  45, en baisse ; resté à 60, stable. » : ajouté par la spécification 1.0.9 (#4517) ; EP-30
+  (US-3160).
+- écart : `WF-RIS-0040-A` — « Un risque identifié qui ne l'était pas dans la révision marquée
+  précédente est présenté comme nouveau ; un risque écarté ou survenu ne présente aucune tendance. »
+  : ajouté par la spécification 1.0.9 (#4517) ; EP-30 (US-3160).
+- écart : `WF-RIS-0040-A` — « Le registre se filtre et se trie sur la tendance. » : ajouté par la
+  spécification 1.0.9 (#4517) ; EP-30 (US-3160).
 - `WF-IHM-0130-A` — « Le plan de charge d’un projet exporté est une image PNG qui porte le nom du
   projet, la révision et la date de calcul ; le plan de charge agrégé exporté porte le périmètre et
   la date de calcul. » : les deux histogrammes et les deux matrices s'exportent avec leur

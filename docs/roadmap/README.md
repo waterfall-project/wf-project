@@ -173,12 +173,12 @@ closes. Four rules, which each slice follows:
 | [EP-12](EP-12-echanges-de-fichiers.md) | File exchanges (FLX-01 to FLX-06) | abandonné : each round trip is validated in its functional block | — |
 | [EP-13](EP-13-exploitation.md) | Operations and going to production | en cours | EP-04 |
 | [EP-28](EP-28-chaine-et-outillage.md) | Chain and development tooling | livré | nothing |
-| [EP-29](EP-29-habilitations-specification-1-0-7.md) | Access rights and accounts: follow-ups of specification 1.0.7 | à planifier | EP-08 |
-| [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risks prepared as differentials | prêt | EP-08, EP-11 |
-| [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning: engine and Gantt | à planifier | EP-08 |
-| [EP-33](EP-33-imports-et-exports-de-fichiers.md) | File imports and exports | à planifier | EP-08 |
+| [EP-29](EP-29-habilitations-specification-1-0-7.md) | Access rights and accounts: follow-ups of specification 1.0.7 | prêt | EP-08 |
+| [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risks prepared as differentials | en cours | EP-08, EP-11 |
+| [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning: engine and Gantt | prêt | EP-08 |
+| [EP-33](EP-33-imports-et-exports-de-fichiers.md) | File imports and exports | en cours | EP-08 |
 | [EP-34](EP-34-grilles-saisie-et-collage.md) | Grids: entry and pasting | à planifier | EP-08 |
-| [EP-36](EP-36-tests-et-preuve-des-exigences.md) | Tests and proof of the requirements | à planifier | EP-08, EP-11 |
+| [EP-36](EP-36-tests-et-preuve-des-exigences.md) | Tests and proof of the requirements | en cours | EP-08, EP-11 |
 | [EP-35](EP-35-projets-chiffrage-couts-et-indicateurs.md) | Projects, estimate, costs and indicators: rules and computations | à planifier | EP-30 |
 | [EP-37](EP-37-ecrans-et-ergonomie.md) | Screens and ergonomics | à planifier | EP-08, EP-11 |
 | [EP-39](EP-39-exploitation-et-deploiement-suites.md) | Operations and deployment: follow-ups of EP-13 | à planifier | EP-13 |

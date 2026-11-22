@@ -85,6 +85,18 @@ jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 - #4469 — le schéma : contraintes, clés et droits à resserrer (DON-07, DON-08, DON-09, DON-14,
   BPR-11) — après les comptes rendus d’import (EP-33)
 
+Reporté par le cadrage d'EP-36 du 2026-11-21 (décision de l'auteur) :
+
+- #4456 — les compteurs `lock_version` naissent à 0 ou à 1 selon la table, quand le contrat dit
+  « Toute ressource naît à `lock_version` 1 » (RMP-10 ; #2779, #2240 et #2843, fermées le
+  2026-11-11 sur « rien avant la v1 ») — à aligner avant la première installation qui garde ses
+  données
+
+Reporté d'EP-08 le 2026-11-21 (décision de l'auteur) :
+
+- #4646 — des lignes de descriptions de `docs/api/components/common.yaml` dépassent 100 colonnes —
+  détaché de #4367 ; à recouper avec les descriptions de #4467
+
 ## Conception
 
 À écrire au cadrage.
