@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page } from "@playwright/test";
 
+import { contractualise, prepare } from "./amendment-flow";
 import { WORKING } from "./bounds";
 import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
-import { type Seeded, seedPlanning } from "./planning-seed";
+import { seedPlanning } from "./planning-seed";
 import { API } from "./service/realm";
 
 // What the fake back cannot replay: it keeps nothing, so the amendment « Préparer un avenant » creates
@@ -24,18 +25,6 @@ function named(page: Page, structure: string) {
   });
 }
 
-/** Prepare an amendment from the revisions screen, as a user does, and return the address it opens. */
-async function prepare(page: Page, seeded: Seeded, label: string): Promise<string> {
-  await openHydrated(page, `${seeded.own.path}/revisions?revision_id=${seeded.ids.revision}`);
-  const commands = page.getByRole("main").getByRole("region", { name: "Commandes" });
-  await commands.getByRole("button", { name: "Préparer un avenant" }).click();
-  const form = commands.getByRole("form", { name: "Préparer un avenant" });
-  await form.getByRole("textbox", { name: "Libellé de l’avenant" }).fill(label);
-  await form.getByRole("button", { name: "Créer l’avenant" }).click();
-  await expect(page).toHaveURL(/\/planning\?structure=[0-9a-f-]{36}$/, { timeout: WORKING });
-  return page.url();
-}
-
 test("opens the amendment « Préparer un avenant » creates, names it in the banner, and abandons it back to the main structure @shared [US-2640] [WF-IHM-0020-A]", async ({
   page,
   browser,
@@ -47,7 +36,7 @@ test("opens the amendment « Préparer un avenant » creates, names it in the ba
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
     const seeded = await seedPlanning(page, browser, calls, manager, "Avenant ouvert");
-    await prepare(page, seeded, "Avenant service");
+    await prepare(page, seeded.own.path, seeded.ids.revision, "Avenant service");
     // The amendment is found by the service, listed, and its grid opens under its name (#1363).
     await expect(named(page, "Avenant service")).toBeVisible({ timeout: WORKING });
     await expect(page.getByRole("treegrid", { name: "Grille de planning" })).toBeVisible();
@@ -79,7 +68,12 @@ test("says an amendment in arrears is late, updates it from the report, and offe
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
     const seeded = await seedPlanning(page, browser, calls, manager, "Avenant retard");
-    const amendment = await prepare(page, seeded, "Avenant en retard");
+    const amendment = await prepare(
+      page,
+      seeded.own.path,
+      seeded.ids.revision,
+      "Avenant en retard",
+    );
     // The main structure receives a task after the amendment was opened: the amendment is late.
     const written = await calls.post(
       `${API}/projects/${seeded.ids.project}/revisions/${seeded.ids.revision}/structures/${seeded.ids.structure}/nodes`,
@@ -112,23 +106,8 @@ test("says an amendment in arrears is late, updates it from the report, and offe
     });
     await expect(page.getByRole("button", { name: "Contractualiser l’avenant" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Mettre à jour l’avenant" })).toHaveCount(0);
-    // Contractualised at last, against the service: the report read, the version name asked, the
-    // merge handed to the worker and followed to its end, which marks the revision that carries it.
-    await page.getByRole("button", { name: "Contractualiser l’avenant" }).click();
-    const merge = page.getByRole("form", { name: "Contractualiser l’avenant" });
-    await expect(merge.getByRole("list", { name: "Écarts par objet" })).toBeVisible({
-      timeout: WORKING,
-    });
-    await merge.getByRole("textbox", { name: "Nom de version" }).fill("Avenant contractualisé");
-    await merge.getByRole("button", { name: "Confirmer la fusion" }).click();
-    await expect(merge).toHaveCount(0, { timeout: WORKING });
-    // The worker ends: the screen tells the reference, and no more offers the merge of what is merged.
-    await expect(
-      page
-        .getByRole("status")
-        .filter({ hasText: "« Avenant contractualisé » est la nouvelle révision de référence" }),
-    ).toBeVisible({ timeout: WORKING });
-    await expect(page.getByRole("button", { name: "Contractualiser l’avenant" })).toHaveCount(0);
+    // Contractualised at last, against the service, to the end of the worker.
+    await contractualise(page, "Avenant contractualisé");
   } finally {
     await calls.dispose();
   }

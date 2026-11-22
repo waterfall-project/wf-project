@@ -4945,6 +4945,18 @@ FBS-4.8) ; un devis exporté en Excel, réimporté sans écart et confirmé (`ex
 et FLX-04) ; cinquante saisies d'une ligne annulées une à une puis rétablies dans l'ordre
 (`undo.spec.ts`, WF-IHM-0110-A).
 
+La définition de fini d'EP-08, qui clôt WF-INTF-0010-A, se constate par le parcours du même compte
+(`service/project-manager-risks.spec.ts`, WF-INTF-0010-A, FBS-4.6, US-2650) : sur un projet qu'il crée
+et porte En cours, il déclare un risque, chiffre son devis propre (une tâche et une ligne), le
+réexamine, le déclare survenu — la tâche du worker suivie jusqu'à sa réussite —, prépare un avenant
+et le contractualise, la fusion faisant de sa révision la référence. Les gestes de l'avenant
+(`prepare`, `contractualise`) sont ceux d'`amendment-flow.ts`, que rejoue aussi
+`amendment-service.spec.ts`. Les parcours de FBS-4.1 à 4.9 et de FLX-01 à FLX-07 se jouent ainsi
+tous contre le service, dans la même course (`make e2e-service`) ; seul FLX-07 n'a pas son écran
+joué : l'extraction des coûts réels s'importe par l'API (`importActualCosts`, `in-progress.ts`).
+EP-08 n'a laissé aucune garde `inService` à lever dans ces listes : celles qui restent, et les
+EPIC qui les lèvent, sont celles de la liste ci-dessus.
+
 Les deux lecteurs d'un projet (`service/project-readers.spec.ts`, WF-ADM-0040-A) se jouent contre le
 service seul : deux comptes locaux qui portent « Manager » et « Chef de projet », l'un lisant en
 français et gardant toutes les colonnes, l'autre en anglais avec une colonne masquée, lisent le même

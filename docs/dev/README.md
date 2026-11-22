@@ -4899,6 +4899,18 @@ the reading of the indicators of the revision marked
 Excel, imported back without a difference and confirmed (`exchanges.spec.ts`, FLX-03 and FLX-04);
 fifty entries of a line undone one by one then redone in order (`undo.spec.ts`, WF-IHM-0110-A).
 
+The definition of done of EP-08, which closes WF-INTF-0010-A, is observed by the path of the same
+account (`service/project-manager-risks.spec.ts`, WF-INTF-0010-A, FBS-4.6, US-2650): on a project
+she creates and takes In progress, she declares a risk, prices its own estimate (a task and a line),
+reviews it, declares it occurred — the task of the worker followed to its success —, prepares an
+amendment and contractualises it, the merge making its revision the reference. The gestures of the
+amendment (`prepare`, `contractualise`) are those of `amendment-flow.ts`, which
+`amendment-service.spec.ts` plays too. The paths of FBS-4.1 to 4.9 and of FLX-01 to FLX-07 thus all
+play against the service, in the same run (`make e2e-service`); only FLX-07 has no screen played:
+the extraction of the actual costs is imported through the API (`importActualCosts`,
+`in-progress.ts`). EP-08 left no `inService` guard to lift in these lists: those that remain, and
+the EPICs that lift them, are those of the list above.
+
 The two readers of a project (`service/project-readers.spec.ts`, WF-ADM-0040-A) play against the
 service alone: two local accounts holding « Manager » and « Chef de projet », one reading in French
 and keeping every column, the other in English with a column hidden, read the same project, its

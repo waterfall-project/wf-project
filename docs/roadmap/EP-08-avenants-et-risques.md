@@ -2032,7 +2032,7 @@ d'EP-25 ; cette US ne les redessine pas.
 
 ## US-2650 — Le témoin : les risques, les provisions et les avenants de PRJ-001, et le parcours du chef de projet
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0010-A`
 - **opérations** : celles des US-2550 à US-2630, lues sur le témoin chargé
 - **issue** : #3821
