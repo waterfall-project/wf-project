@@ -144,7 +144,7 @@ def _counter_retained(project: Costed, structure_id: UUID) -> int | None:
 
 
 def _consumed(project: Costed, structure_id: UUID) -> int | None:
-    """Consume an own estimate around the service, as an occurrence does; give its counter retained."""
+    """Consume an own estimate around the service, as an occurrence does; give its counter kept."""
     with project.stage.owner.begin() as connection:
         connection.execute(
             update(CostStructure).where(CostStructure.id == structure_id).values(is_merged=True)
