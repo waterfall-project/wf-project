@@ -25,6 +25,7 @@ from estimate_import_support import workbook as estimate_workbook
 from remaining_import_support import workbook as remaining_workbook
 from workbook_bombs import (
     CALM,
+    GIBIBYTE,
     MEBIBYTE,
     announcing,
     compressed_by,
@@ -32,6 +33,7 @@ from workbook_bombs import (
     duplicated,
     encrypted,
     grown,
+    in_zip64,
     lying,
     measured,
     swollen,
@@ -110,6 +112,7 @@ BOMBS: dict[str, Callable[[bytes], bytes]] = {
     "bzip2-member": lambda base: compressed_by(base, zipfile.ZIP_BZIP2),
     "encrypted-member": encrypted,
     "lzma-member": lambda base: compressed_by(base, zipfile.ZIP_LZMA),
+    "zip64-announces-5-GiB": lambda base: in_zip64(base, 5 * GIBIBYTE),
 }
 
 
@@ -225,6 +228,20 @@ def test_an_archive_at_the_bounds_of_its_members_and_their_sizes_is_read(
 def test_an_honest_stored_member_is_read() -> None:
     content = duplicated(_base("estimate"), 1024, copies=1)
     assert estimate_reader.read_workbook(content).lines == ()
+
+
+@pytest.mark.requirement("WF-INTF-0070-A")
+@pytest.mark.parametrize("name", list(READINGS))
+def test_a_workbook_in_zip64_within_the_bounds_is_read(name: str) -> None:
+    # « Un fichier conforme à chacun des formats […] est accepté » : ZIP64 is no refusal of its own
+    # (#4740); its sizes, read in the ZIP64 field, are judged as any other (the 5 GiB it may
+    # announce are refused with the bombs).
+    reading, content = READINGS[name], in_zip64(_base(name))
+    assert b"PK\x06\x06" in content
+    with zipfile.ZipFile(BytesIO(content)) as archive:
+        assert all(item.extra[:2] == b"\x01\x00" for item in archive.infolist())
+    assert reading.header(content) == reading.header(_base(name))
+    assert reading.prepare(content) == reading.prepare(_base(name))
 
 
 @pytest.mark.requirement("WF-INTF-0070-A")

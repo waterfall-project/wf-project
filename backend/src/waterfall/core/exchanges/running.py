@@ -86,7 +86,7 @@ if TYPE_CHECKING:
     from waterfall.platform.tasks import Task
 
     # What finds the format of a kind of import, ``None`` if no module serves the kind.
-    type Formats = Callable[[str], Format[Any] | None]
+    type Formats = Callable[[str], Format[Any, Any] | None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,7 +102,7 @@ def _content(files: Bucket, key: str) -> bytes:
     return b"".join(files.stream(key))
 
 
-def _format(formats: Formats, kind: str) -> Format[Any]:
+def _format(formats: Formats, kind: str) -> Format[Any, Any]:
     """Give the format of a kind; one withdrawn since the opening fails the task (500)."""
     form = formats(kind)
     if form is None:
@@ -228,7 +228,7 @@ class _Prepared:
     refusal: ServiceError | None
 
     @classmethod
-    def of(cls, form: Format[Any], content: bytes) -> _Prepared:
+    def of(cls, form: Format[Any, Any], content: bytes) -> _Prepared:
         """Have a format read a file, holding no lock; keep its refusal for the application.
 
         A refusal of the file (``FILE_FORMAT_UNREADABLE``, a ``ServiceError``) waits for the
@@ -249,7 +249,7 @@ class _Prepared:
 
 
 def _judged(
-    session: Session, row: ImportReport, form: Format[Any], requester: Requester, task: Task
+    session: Session, row: ImportReport, form: Format[Any, Any], requester: Requester, task: Task
 ) -> ImportTarget:
     """Judge an import again as its task runs, then give what it writes; or raise the refusal.
 

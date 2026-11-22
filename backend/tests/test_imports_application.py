@@ -5,7 +5,8 @@
 The task judges the import again as it runs — its requester as it stands then, the state of the
 project —, creates the current revision when there is none, and applies in one transaction: an
 application refused, broken or interrupted writes nothing of the project. Two applications of one
-import at once give one task.
+import at once give one task. And the opening, as the application: the head of the file parsed
+before the lock of the project, judged under it (US-3190/L2).
 """
 
 import ast
@@ -25,8 +26,10 @@ from imports_trial import (
     TrialFormat,
     analysed,
     apply,
+    deposited,
     import_worker,
     nodes,
+    open_import,
     opened,
     path,
     read,
@@ -34,13 +37,16 @@ from imports_trial import (
     run,
     stand_in,
     stored,
+    trial_file,
     withdraw,
 )
 from planning_support import give_a_task
 from projects_support import Scene, put_in_state
 from projects_support import scene as make_scene
 from sqlalchemy import select, update
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
+from sqlalchemy.pool import QueuePool
 from support import ContractClient, wait_for_a_lock
 
 from waterfall.api.app import create_app
@@ -500,6 +506,69 @@ def test_the_file_is_read_before_the_application_takes_a_lock_then_applied_under
     assert held == [UUID(found["import_id"]), UUID(stage.project["project_id"])]
     assert read(api, stage, found["import_id"])["status"] == "applied"
     assert len(nodes(database)) == before + len(ROWS)
+
+
+def _project_locked(database: Database, project_id: UUID) -> bool:
+    """Tell whether another transaction holds the lock of a project, without waiting for it."""
+    with Session(database.engine) as other:
+        try:
+            other.scalar(
+                select(Project.id).where(Project.id == project_id).with_for_update(nowait=True)
+            )
+        except OperationalError:
+            return True
+        return False
+
+
+@pytest.mark.story("US-3190")
+def test_the_head_is_parsed_before_the_opening_takes_the_lock_of_the_project_then_judged_under_it(
+    api: ContractClient, stage: Scene, database: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # « l'ouverture d'un import lit et juge l'en-tête du fichier avant de prendre le verrou du
+    # projet, puis rejuge sous le verrou ce qui dépend du projet : une écriture qui verrouille le
+    # projet n'attend pas la lecture d'un classeur » : while the format parses the head, holding
+    # no connection, another transaction takes at once the lock of the project; the opening,
+    # resumed, judges the head under that lock, then opens the import.
+    entered, release = Event(), Event()
+    project_id = UUID(stage.project["project_id"])
+    pool = database.engine.pool
+    assert isinstance(pool, QueuePool)
+    lent: list[int] = []
+    judged_locked: list[bool] = []
+
+    class Slow(TrialFormat):
+        def parse_header(self, head: bytes) -> Any:
+            lent.append(pool.checkedout())
+            entered.set()
+            assert release.wait(20)
+            return super().parse_header(head)
+
+        def judge_header(self, session: Session, parsed: Any) -> None:
+            judged_locked.append(_project_locked(database, project_id))
+            super().judge_header(session, parsed)
+
+    stand_in(monkeypatch, "remaining", Slow())
+    upload_id = deposited(api, stage.manager, trial_file(*ROWS))
+    try:
+        with ThreadPoolExecutor(1) as others:
+            opening = others.submit(
+                open_import, api, stage.manager, stage.project["project_id"], upload_id
+            )
+            assert entered.wait(20)
+            with Session(database.engine) as holding:
+                held = holding.scalar(
+                    select(Project.id).where(Project.id == project_id).with_for_update(nowait=True)
+                )
+                holding.commit()
+            release.set()
+            response = opening.result(timeout=20)
+    finally:
+        release.set()
+    assert held == project_id
+    assert lent == [0]
+    assert response.status_code == 202, response.text
+    assert judged_locked == [True]
+    assert stored(database, response.json()["import_id"]).status == "analysing"
 
 
 @pytest.mark.requirement("WF-INTF-0080-A")

@@ -457,7 +457,7 @@ quatrième valeur hostile de BEX-08, que `uploadFile` refuse avec sa permission 
 
 ## US-3190 — Un classeur téléversé est borné avant d'être ouvert, et son en-tête se lit hors du verrou du projet
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-INTF-0070-A`
 - **opérations** : `openImport`, `getImport`, `applyImport`
 - **issue** : #4527
