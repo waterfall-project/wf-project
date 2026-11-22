@@ -4691,11 +4691,18 @@ que Compose ne tient pas), et dans ceux de l'amorçage et du témoin, qu'il lanc
 garde dans `frontend/.e2e/install.log` et `witness.log` — de l'amorçage, son journal seul : sa
 sortie standard est le lien du premier administrateur, imprimé exprès (#4395) —, les secrets et les
 jetons connus (`make service-logs-search`, WF-OBS-0020, US-2900) ; il échoue s'il en trouve un, ou
-si les journaux n'ont pas pu être lus ou sont vides. Il cherche aussi ces secrets, par leurs valeurs,
-dans chaque fichier que git suit (`python -m wftools.logsearch repository`, WF-SEC-0010, US-2840),
-et échoue s'il en trouve un. Il vérifie ensuite que chaque ligne des journaux de l'API, du worker, de son ordonnanceur et du
-service de restauration est un enregistrement qui porte son identifiant de corrélation, son auteur et
-sa gravité (`make service-logs-fields`). Un import qui échoue dans le worker se suit dans ces journaux
+si les journaux n'ont pas pu être lus ou sont vides. Il cherche aussi, dans chaque fichier que git
+suit, les secrets de la plateforme de service (`python -m wftools.logsearch repository`,
+WF-SEC-0010, US-2840), et échoue s'il en trouve un. Cette recherche-là a une portée plus étroite que
+celle des journaux : les seules valeurs que la chaîne tire à l'exécution et donne à la plateforme —
+les variables de `SECRET_VARIABLES`, absentes du dépôt par construction —, telles qu'elles sont
+écrites, échappées en JSON ou citées dans une URL. Elle ne cherche ni les formes des jetons, que des
+tests écrivent exprès, ni le mot de passe des comptes des parcours (`FIXED_SECRETS`), constante du
+dépôt écrite dans `frontend/e2e/service/realm.ts`, et non secret d'une plateforme ; elle ne dit donc
+rien d'un secret d'exploitation qu'un développeur aurait écrit sans que la chaîne le tire. Il vérifie
+ensuite que chaque ligne des journaux de l'API, du worker, de son ordonnanceur et du service de
+restauration est un enregistrement qui porte son identifiant de corrélation, son auteur et sa
+gravité (`make service-logs-fields`). Un import qui échoue dans le worker se suit dans ces journaux
 par l'identifiant que son message donne (`frontend/e2e/service/import-trace.spec.ts`).
 
 Les parcours se jouent en six projets Playwright. `installation` d'abord

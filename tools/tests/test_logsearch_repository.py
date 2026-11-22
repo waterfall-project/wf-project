@@ -63,6 +63,27 @@ def test_a_repository_without_the_secrets_passes_and_tokens_written_in_tests_are
 
 
 @pytest.mark.requirement("WF-SEC-0010-A")
+def test_the_search_of_the_repository_reaches_the_secrets_the_chain_draws_alone(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Its reach (guide, « Un parcours de bout en bout »): the values of SECRET_VARIABLES, each
+    # found in a tracked file; the password of the paths, a constant of the repository written in
+    # realm.ts, is not one of them.
+    drawn = {
+        name: f"drawn-{index}-for-{name.lower()}"
+        for index, name in enumerate(logsearch.SECRET_VARIABLES)
+    }
+    (constant,) = logsearch.FIXED_SECRETS.values()
+    _repository(tmp_path, {"realm.ts": f'const LOCAL_PASSWORD = "{constant}";\n'})
+    assert logsearch.search_repository(drawn, tmp_path) == 0
+    for name, value in drawn.items():
+        (tmp_path / "leak.env").write_text(f"X={value}\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(tmp_path), "add", "leak.env"], check=True)
+        assert logsearch.search_repository(drawn, tmp_path) == 1, name
+        assert f"found in leak.env: {name}" in capsys.readouterr().err
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
 def test_the_search_of_the_repository_without_any_secret_known_fails(tmp_path: Path) -> None:
     _repository(tmp_path, {"a.txt": "text\n"})
     assert logsearch.search_repository({}, tmp_path) == 2

@@ -22,11 +22,15 @@ variables it left out, absent or too short. ``fields`` ends with 2 on an empty t
 the search of the logs of the platform (WF-OBS-0020, US-2900) and that of the repository
 (WF-SEC-0010, US-2840) are this one.
 
-``repository`` looks for the same secrets, by their values alone, in every file git tracks: no
-secret is written in the repository (WF-SEC-0010, US-2840). It prints the file and the name of
-each one found, never the value, and ends as ``secrets`` does. Neither the shapes of the tokens nor
-the password of the accounts of the paths are looked for there: the tests write such shapes on
-purpose, and that password is a constant of the repository, no secret of a platform.
+``repository`` looks in every file git tracks for the secrets of the platform of service — the
+values of ``SECRET_VARIABLES`` alone, which the chain draws at run time, and which are therefore
+absent from the repository unless written there —, in each of their spellings: no secret is
+written in the repository (WF-SEC-0010, US-2840). It prints the file and the name of each one
+found, never the value, and ends as ``secrets`` does. Its reach is narrower than that of
+``secrets``: neither the shapes of the tokens nor the password of the accounts of the paths
+(``FIXED_SECRETS``) are looked for there — the tests write such shapes on purpose, and that
+password is a constant of the repository, no secret of a platform —, and a secret no variable of
+the chain holds is not known to it.
 
 ``follow`` prints the lines of the logs of an identifier of correlation, and those that name what
 they name — the deposit a file was made under, the import, the task (``LINKS``) —: the story of an
@@ -268,9 +272,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def search_repository(environment: Mapping[str, str], root: Path = REPOSITORY) -> int:
-    """Look for the secrets of the environment in the repository.
+    """Look for the secrets the environment holds, those of ``SECRET_VARIABLES``, in the repository.
 
-    1 if one is found, 2 if none is known, 0 otherwise.
+    Their values alone, in each of their spellings; never ``FIXED_SECRETS`` nor the shapes of the
+    tokens. 1 if one is found, 2 if none is known, 0 otherwise.
     """
     known = secrets_from(environment)
     skipped = left_out(environment)
