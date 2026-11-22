@@ -22,6 +22,7 @@ from witness_template import (
     built,
     cloned,
     dropped,
+    quoted,
     recorded,
     said_loaded,
     start,
@@ -75,6 +76,10 @@ def left(template: Template, address: str) -> tuple[list[str], list[str]]:
 def silent(_settings: WitnessSettings) -> int:
     """End as the command that loads the witness does when it succeeds, without saying it did."""
     return 0
+
+
+def unpinned(_patch: pytest.MonkeyPatch) -> None:
+    """Pin no clock: the ones ``pinned_year`` set stay in place."""
 
 
 def accounts(engine: Engine) -> int:
@@ -166,8 +171,8 @@ def test_dropping_after_a_dead_loading_removes_the_template_its_copies_and_roles
     """The end of a run drops what a loading that died left: databases, roles, directory."""
     engine = server(process_database_url)
     with engine.connect() as connection:
-        connection.execute(text(f'CREATE DATABASE "{planned.name}"'))
-        connection.execute(text(f'CREATE DATABASE "{planned.name}_left"'))
+        connection.execute(text(f"CREATE DATABASE {quoted(engine, planned.name)}"))
+        connection.execute(text(f"CREATE DATABASE {quoted(engine, f'{planned.name}_left')}"))
         connection.execute(text(f'CREATE ROLE "{planned.service}"'))
         connection.execute(text(f'CREATE ROLE "{planned.signing}" IN ROLE "{planned.service}"'))
     engine.dispose()
@@ -181,19 +186,20 @@ def test_dropping_after_a_dead_loading_removes_the_template_its_copies_and_roles
 
 
 def test_a_loading_whose_command_does_not_say_it_loaded_writes_no_record(
-    planned: Template, process_database_url: str, monkeypatch: pytest.MonkeyPatch
+    planned: Template, process_database_url: str
 ) -> None:
     """A command that ends without saying it loaded the witness fails the loading: no records.
 
-    The loading runs here as in its process, whose clocks no test has pinned (``pinned_year``).
+    The loading pins no clock of its own here: the ones ``pinned_year`` set are already in place.
     """
     loading = start(planned, IDLE)
     assert loading is not None
     assert loading.ended() == 0
-    monkeypatch.undo()
-    monkeypatch.setattr("witness_template.load_witness", silent)
-    with pytest.raises(RuntimeError, match="the command ended with 0"):
-        recorded(planned, process_database_url)
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("witness_template.load_witness", silent)
+        patch.setattr("witness_template.pin_year", unpinned)
+        with pytest.raises(RuntimeError, match="the command ended with 0"):
+            recorded(planned, process_database_url)
     assert not (planned.directory / "records").exists()
     dropped(planned, process_database_url)
     assert left(planned, process_database_url) == ([], [])

@@ -77,9 +77,9 @@ _LOG = "loading.log"
 _TAIL = 4000
 # The seconds a loading may last. It took 134 to 290 seconds on a runner of the chain, loaded by
 # each of the four processes of a part at once (#4657), a runner up to twice as slow as another:
-# 420 seconds leave half of the longest again. Under the eight minutes of a test (``timeout``,
-# pyproject.toml), so that the test that waits fails with what the loading said, rather than by
-# its own timeout.
+# 420 seconds leave it a margin of 130 seconds, nearly half of the longest again. Under the eight
+# minutes of a test (``timeout``, pyproject.toml), so that the test that waits fails with what the
+# loading said, rather than by its own timeout.
 LOADING_TIMEOUT = 420
 # The seconds the end of a run waits past the deadline, for the process that started the loading to
 # kill it, before it drops the template whatever still holds it.
@@ -155,7 +155,7 @@ def _server(address: str) -> Engine:
     return create_database_engine(address).execution_options(isolation_level="AUTOCOMMIT")
 
 
-def _quoted(server: Engine, name: str) -> str:
+def quoted(server: Engine, name: str) -> str:
     """Quote a name of the server as an identifier, whatever it holds."""
     return server.dialect.identifier_preparer.quote_identifier(name)
 
@@ -208,13 +208,17 @@ def start(
         try:
             fcntl.flock(descriptor, fcntl.LOCK_EX)
             with (template.directory / _LOG).open("wb") as log:
-                process = subprocess.Popen(
-                    [*loader, str(template.directory)],
-                    pass_fds=(descriptor,),
-                    stdin=subprocess.DEVNULL,
-                    stdout=log,
-                    stderr=subprocess.STDOUT,
-                )
+                try:
+                    process = subprocess.Popen(
+                        [*loader, str(template.directory)],
+                        pass_fds=(descriptor,),
+                        stdin=subprocess.DEVNULL,
+                        stdout=log,
+                        stderr=subprocess.STDOUT,
+                    )
+                except OSError as error:
+                    log.write(f"the loader did not start: {error}\n".encode())
+                    raise
         finally:
             os.close(descriptor)
         loading = Loading(process, deadline)
@@ -289,15 +293,15 @@ def cloned(template: Template, address: str) -> Generator[str]:
         with server.connect() as connection:
             connection.execute(
                 text(
-                    f"CREATE DATABASE {_quoted(server, name)} "
-                    f"TEMPLATE {_quoted(server, template.name)}"
+                    f"CREATE DATABASE {quoted(server, name)} "
+                    f"TEMPLATE {quoted(server, template.name)}"
                 )
             )
         try:
             yield template.owned(address, name)
         finally:
             with server.connect() as connection:
-                connection.execute(text(f"DROP DATABASE {_quoted(server, name)} WITH (FORCE)"))
+                connection.execute(text(f"DROP DATABASE {quoted(server, name)} WITH (FORCE)"))
     finally:
         server.dispose()
 
@@ -324,9 +328,9 @@ def dropped(template: Template, address: str | None) -> None:
             ).all()
             # The copies first: the roles go with the last of the rights they hold.
             for name in sorted(found, key=lambda each: each == template.name):
-                connection.execute(text(f"DROP DATABASE {_quoted(server, name)} WITH (FORCE)"))
+                connection.execute(text(f"DROP DATABASE {quoted(server, name)} WITH (FORCE)"))
             for role in (template.signing, template.service):
-                connection.execute(text(f"DROP ROLE IF EXISTS {_quoted(server, role)}"))
+                connection.execute(text(f"DROP ROLE IF EXISTS {quoted(server, role)}"))
         server.dispose()
     shutil.rmtree(template.directory, ignore_errors=True)
 
@@ -371,25 +375,27 @@ def load(template: Template, address: str) -> str:
     server = _server(address)
     try:
         with server.connect() as connection:
-            connection.execute(text(f"CREATE DATABASE {_quoted(server, template.name)}"))
+            connection.execute(text(f"CREATE DATABASE {quoted(server, template.name)}"))
         owner = create_database_engine(template.owned(address, template.name))
         upgrade(owner)
         with server.connect() as connection:
             connection.execute(
                 text(
-                    f"CREATE ROLE {_quoted(server, template.signing)} "
+                    f"CREATE ROLE {quoted(server, template.signing)} "
                     f"LOGIN PASSWORD '{template.password}' "
-                    f"IN ROLE {_quoted(server, template.service)}"
+                    f"IN ROLE {quoted(server, template.service)}"
                 )
             )
         service = template.as_service(template.owned(address, template.name))
         settings = WitnessSettings(database_url=SecretStr(service), witness_path=str(WITNESS))
-        with pytest.MonkeyPatch.context() as patch, recorded_logs() as records:
-            pin_year(patch)
-            TIME_ZONE.read_from(lambda: DELIVERED_TIME_ZONE)
-            install(owner)
-            status = load_witness(settings)
-        owner.dispose()
+        try:
+            with pytest.MonkeyPatch.context() as patch, recorded_logs() as records:
+                pin_year(patch)
+                TIME_ZONE.read_from(lambda: DELIVERED_TIME_ZONE)
+                install(owner)
+                status = load_witness(settings)
+        finally:
+            owner.dispose()
         said = records.getvalue()
         if status != 0 or not said_loaded(said):
             message = f"the command ended with {status}, saying:\n{said}"
@@ -397,9 +403,7 @@ def load(template: Template, address: str) -> str:
         with server.connect() as connection:
             _alone(connection, template.name)
             connection.execute(
-                text(
-                    f"ALTER DATABASE {_quoted(server, template.name)} WITH ALLOW_CONNECTIONS false"
-                )
+                text(f"ALTER DATABASE {quoted(server, template.name)} WITH ALLOW_CONNECTIONS false")
             )
     finally:
         server.dispose()
