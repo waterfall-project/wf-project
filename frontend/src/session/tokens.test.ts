@@ -9,6 +9,7 @@ import { updateEstimateLine } from "@/api/actions/nodes";
 import type { ApiClient } from "@/api/client";
 import { readOrFail } from "@/api/problem";
 import {
+  componentDigest,
   SESSION_LOST_DIGEST,
   SESSION_REQUIRED_DIGEST,
   UNREACHABLE_DIGEST,
@@ -205,7 +206,7 @@ describe("the token of a request", () => {
     expect(await readSession(expired)).toBeDefined();
   });
 
-  it("fails as the service out of reach when Redis cannot be reached, a read and a write alike, never as an unexpected error (#861)", async () => {
+  it("fails as the cache out of reach, still the service out of reach to a write, when Redis cannot be reached, never as an unexpected error (#861) [WF-EXP-0040-A]", async () => {
     await signedIn();
     const client = fakeClient(
       { "GET /projects": "projects", [LINE]: SESSION_REQUIRED },
@@ -218,7 +219,8 @@ describe("the token of a request", () => {
     vi.stubEnv("WATERFALL_REDIS_URL", "redis://127.0.0.1:1/0");
     try {
       const failure = await failureOfRead(client);
-      expect(failure).toMatchObject({ digest: UNREACHABLE_DIGEST });
+      // The screen of failure names the component: the cache.
+      expect(failure).toMatchObject({ digest: componentDigest("cache") });
       // The log of the server names Redis, not the API.
       expect((failure as Error).message).toMatch(/Redis/);
       const outcome = await updateEstimateLine(STRUCTURE, NODE, { hours: "15", lock_version: 3 });
