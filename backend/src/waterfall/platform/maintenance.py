@@ -31,6 +31,10 @@ creation of a project, nor any of the writings that could empty the reference, c
 restoration has drained the writes, until it lifts the maintenance.
 
 A restoration holds the maintenance for ``DEADLINE`` at most, from its first attempt (#1016).
+Given up before it touched a database, it lifts the maintenance; given up once it may have, it
+leaves the maintenance held, marked ``abandoned``, for an operator to restore again or to lift
+(decision of the author of 2026-11-22, #1016): the probe of liveness says it, and a gauge of the
+metrics that an alert reads (``abandoned_held``).
 """
 
 from contextlib import contextmanager
@@ -47,6 +51,7 @@ from sqlalchemy import (
     Text,
     delete,
     event,
+    exists,
     func,
     select,
     true,
@@ -64,6 +69,7 @@ if TYPE_CHECKING:
     from redis import Redis
     from sqlalchemy import Connection, Engine
     from sqlalchemy.engine.interfaces import DBAPICursor
+    from sqlalchemy.orm import Session
 
     from waterfall.platform.database import Database
     from waterfall.platform.queue import TaskQueue
@@ -147,7 +153,8 @@ class RestorationState(Base):
 
     ``payload`` is that of its task — the backup or the deposit restored, the date confirmed —, and
     the requester as they were named when it was asked; ``attempts``, ``caches_cleared`` and
-    ``abandoned`` its step, ``held_at`` since when it holds the maintenance (``Restoring``).
+    ``abandoned`` its step, ``held_at`` since when it holds the maintenance (``Restoring``). An
+    operator lifts the maintenance by deleting both rows, this one and that of ``HeldMaintenance``.
     """
 
     __tablename__ = "restoration"
@@ -178,10 +185,13 @@ class Restoring:
     or taking over what another restoration kept and never wrote back —: from then on, Keycloak may
     serve the realm of the backup, whose secrets are not the installation's, until the realm of the
     installation is applied again, whether the caches were cleared or Keycloak restarted alone
-    (#1017); and the databases may no longer be the installation's. ``abandoned`` for a maintenance
-    held without its state, or a restoration abandoned by a version that left it for an operator:
-    nothing takes it up, its service gives it up (#1016). ``held_at`` since when it holds the
-    maintenance, ``None`` until it is held: one held longer than ``DEADLINE`` is given up.
+    (#1017); and the databases may no longer be the installation's. It is the mark that the
+    replacement has begun: held before the first database is touched, and gone with the state once
+    the restoration has succeeded. ``abandoned`` once the restoration is given up with that mark:
+    its task failed, nothing takes it up, and the maintenance stays, for an operator (#1016).
+    ``stateless`` for a maintenance held without its state, which its service gives up; its
+    databases may have changed, for all it says. ``held_at`` since when it holds the maintenance,
+    ``None`` until it is held: one held longer than ``DEADLINE`` is given up.
     """
 
     task_id: UUID
@@ -192,6 +202,7 @@ class Restoring:
     caches_cleared: bool = False
     abandoned: bool = False
     held_at: datetime | None = field(default=None, compare=False)
+    stateless: bool = False
 
     def left(self, now: datetime) -> timedelta:
         """Give the time left before the deadline; all of it while the maintenance is not held."""
@@ -234,9 +245,9 @@ class Maintenance:
         code of a version runs on the schema of the one before for the time of an update
         (``docs/dev/sql.md``), and a restoration reads a backup of an earlier revision there.
 
-        A maintenance held whose state is missing is still held: it is given as a restoration
-        abandoned, which nothing takes up and which its service gives up, rather than as none,
-        which would lift it unseen; its databases may have changed, for all it says.
+        A maintenance held whose state is missing is still held: it is given ``stateless``, which
+        nothing takes up and which its service gives up, rather than as none, which would lift it
+        unseen; its databases may have changed, for all it says.
         """
         held = select(HeldMaintenance.task_id, RestorationState).outerjoin(
             RestorationState, HeldMaintenance.task_id == RestorationState.task_id
@@ -254,7 +265,7 @@ class Maintenance:
         # The outer join gives no state where the table of the states lacks the row.
         state = cast("RestorationState | None", row[1])
         if state is None:
-            return Restoring(task_id, {}, None, "", 1, caches_cleared=True, abandoned=True)
+            return Restoring(task_id, {}, None, "", 1, caches_cleared=True, stateless=True)
         return Restoring(
             state.task_id,
             state.payload,
@@ -304,6 +315,21 @@ class Maintenance:
     def close_front_sessions(self) -> int:
         """Delete every session and sign-in the front keeps, and say how many keys went."""
         return int(cast("int", self.client.eval(FORGET_SESSIONS, 0, self.sessions)))
+
+
+def abandoned_held(session: Session) -> bool:
+    """Tell whether a restoration given up holds the platform in maintenance, for an operator.
+
+    Its databases may have changed: the maintenance stays until an operator restores again or lifts
+    it (#1016). A database the migrations have not brought to the schema ``platform`` holds none.
+    """
+    table = f"{SCHEMA}.{RestorationState.__tablename__}"
+    if session.scalar(select(func.to_regclass(table))) is None:
+        return False
+    held = exists().where(
+        HeldMaintenance.task_id == RestorationState.task_id, RestorationState.abandoned
+    )
+    return bool(session.scalar(select(held)))
 
 
 def _dated(restoring: Restoring) -> Restoring:

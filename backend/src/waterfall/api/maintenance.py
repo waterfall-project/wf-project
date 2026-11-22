@@ -4,7 +4,8 @@
 
 While a restoration holds the platform in maintenance, every operation but the probe of liveness
 and the metrics answers 503 ``COMPONENT_UNAVAILABLE``, the database being replaced; the probe says
-the maintenance, and its end. The maintenance is read in the schema ``platform`` of the database,
+the maintenance, and its end, and a restoration given up that keeps it for an operator (#1016).
+The maintenance is read in the schema ``platform`` of the database,
 which the restoration leaves in place (``waterfall.platform.maintenance``): Redis emptied lifts
 nothing (#956). A database out of reach — refusing, mute, or its pool spent — says no
 maintenance: the operations that need it say so themselves, and the probe of liveness answers.
@@ -23,7 +24,7 @@ from waterfall.platform.logs import get_logger
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Receive, Scope, Send
 
-    from waterfall.platform.maintenance import Maintenance
+    from waterfall.platform.maintenance import Maintenance, Restoring
 
 COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
 # The path of the probe of liveness (``getLiveness``), served in maintenance; and that of the
@@ -37,17 +38,22 @@ logger = get_logger(__name__)
 
 def in_maintenance(maintenance: Maintenance | None) -> bool:
     """Tell whether a restoration holds the platform in maintenance; not if the database is mute."""
+    return holding(maintenance) is not None
+
+
+def holding(maintenance: Maintenance | None) -> Restoring | None:
+    """Give the restoration that holds the platform in maintenance; none if the database is mute."""
     if maintenance is None:
-        return False
+        return None
     try:
-        return maintenance.current() is not None
+        return maintenance.current()
     except (DBAPIError, PoolTimeoutError) as error:
         # The cause in a line, not its traceback: rendered with its locals, it held the probe for
         # seconds, longer than the healthcheck waits.
         logger.warning(
             "maintenance.unread", error=type(error).__name__, reason=str(error).splitlines()[0]
         )
-        return False
+        return None
 
 
 class MaintenanceMiddleware:

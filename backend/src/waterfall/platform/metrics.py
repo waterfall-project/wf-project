@@ -7,8 +7,9 @@ library: the API counts its requests in it (``ApiMetrics``), the worker its task
 of the directories it has synchronised (``WorkerMetrics``, #917). What the API reads besides at each
 collection, ``PlatformState`` reads then, and nothing keeps it between two: the availability of
 each component of data and of the identity provider, probed together within a delay; the tasks
-queued and the age of the oldest; the latest outcome of what the platform runs on a schedule; and
-the space PostgreSQL and the object storage use, and what is left of the capacity the deployment
+queued and the age of the oldest; the latest outcome of what the platform runs on a schedule;
+whether a restoration given up keeps the platform in maintenance, for an operator (#1016); and the
+space PostgreSQL and the object storage use, and what is left of the capacity the deployment
 declares. A gauge that cannot be read — the database down, a capacity not declared — is left out,
 never given a value it does not have. The API serves the metrics on ``getMetrics`` — and, when it
 serves in TLS, in HTTP at the same path of a port of their own, shared by its processes
@@ -52,6 +53,7 @@ from waterfall.platform.database import OBSERVATION_SECONDS, bound_lock_waits, u
 from waterfall.platform.errors import UnavailableError
 from waterfall.platform.keycloak import expect
 from waterfall.platform.logs import get_logger
+from waterfall.platform.maintenance import abandoned_held
 from waterfall.platform.storage import MissingObjectError
 from waterfall.platform.tasks import waiting
 
@@ -87,6 +89,8 @@ QUEUED_TASKS = "waterfall_queued_tasks"
 OLDEST_QUEUED_TASK_AGE = "waterfall_oldest_queued_task_age_seconds"
 LAST_RUN_SUCCESS = "waterfall_last_run_success"
 LAST_RUN_TIMESTAMP = "waterfall_last_run_timestamp_seconds"
+# Whether a restoration given up, its databases possibly changed, holds the maintenance (#1016).
+RESTORATION_ABANDONED = "waterfall_restoration_abandoned"
 STORAGE_USED = "waterfall_storage_used_bytes"
 STORAGE_AVAILABLE = "waterfall_storage_available_bytes"
 # The version each component announces, in a label, the value always 1 (WF-CMP-0020): the API's
@@ -462,6 +466,9 @@ class PlatformState:
         answering = {health.component for health in healths if health.is_available}
         used: dict[str, int] = {}
         if "database" in answering:
+            abandoned = self.restoration_abandoned()
+            if abandoned is not None:
+                yield abandoned
             read = self.read_database()
             if read is not None:
                 metrics, used["database"] = read
@@ -493,6 +500,26 @@ class PlatformState:
         )
         age.add_metric((), oldest)
         return [count, age, *_outcome_metrics(outcomes)], used
+
+    def restoration_abandoned(self) -> Metric | None:
+        """Read whether a restoration given up holds the maintenance, in a transaction of its own.
+
+        Apart from the rest of the database: in that maintenance, the tables the rest reads may be
+        half replaced, and unread, while the schema ``platform`` it reads is in place (#1016).
+        """
+        try:
+            with self.database.transaction() as session:
+                bound_waiting(session)
+                held = abandoned_held(session)
+        except SQLAlchemyError:
+            logger.warning("metrics.restoration_unread", exc_info=True)
+            return None
+        gauge = GaugeMetricFamily(
+            RESTORATION_ABANDONED,
+            "Whether a restoration given up keeps the platform in maintenance (1) or not (0).",
+        )
+        gauge.add_metric((), 1.0 if held else 0.0)
+        return gauge
 
     def storage_used(self) -> int | None:
         """Sum the objects of the bucket; ``None`` if the listing fails or outlasts the budget.

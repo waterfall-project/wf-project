@@ -463,11 +463,12 @@ def test_the_probe_of_liveness_answers_when_the_pool_of_connections_is_spent(
 
 
 @pytest.mark.requirement("WF-ARC-0090-A")
-def test_a_maintenance_held_without_its_state_stays_held_as_a_restoration_abandoned(
+def test_a_maintenance_held_without_its_state_stays_held_and_is_said_without_it(
     database: Database, owned: Database, queue: TaskQueue
 ) -> None:
     # The state missing while the maintenance is held is an inconsistency to see, not a platform
-    # to serve: the maintenance stays, abandoned, for an operator.
+    # to serve: the maintenance stays, said without its state, its databases possibly changed,
+    # which its service gives up and keeps for an operator (#1016).
     with owned.transaction() as session:
         session.execute(insert(HeldMaintenance).values(**VALID[HeldMaintenance]))
     try:
@@ -476,7 +477,11 @@ def test_a_maintenance_held_without_its_state_stays_held_as_a_restoration_abando
         with owned.transaction() as session:
             session.execute(delete(HeldMaintenance))
     assert current is not None
-    assert (current.task_id, current.abandoned) == (VALID[HeldMaintenance]["task_id"], True)
+    assert (current.task_id, current.stateless, current.caches_cleared) == (
+        VALID[HeldMaintenance]["task_id"],
+        True,
+        True,
+    )
 
 
 @pytest.mark.requirement("WF-ARC-0090-A")

@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * Liveness probe, and the maintenance of a restore
-         * @description Answers as soon as the process has started; the only data it reads is the maintenance, held in the schema `platform` of the database, which a restore leaves in place. It also reports the maintenance of a restore (`startRestore`, WF-ADM-0160): `status` is `maintenance` as long as the platform is in maintenance, every other operation but `getMetrics` then answering 503 `COMPONENT_UNAVAILABLE` (#4226), and `ok` once the maintenance is lifted, the restore completed. The front polls it to know when the restore has completed: the maintenance state does not depend on the database that the restore recreates, and the restore's task cannot be read during the maintenance (#604). A platform in maintenance is alive: the probe answers 200.
+         * @description Answers as soon as the process has started; the only data it reads is the maintenance, held in the schema `platform` of the database, which a restore leaves in place. It also reports the maintenance of a restore (`startRestore`, WF-ADM-0160): `status` is `maintenance` as long as the platform is in maintenance, every other operation but `getMetrics` then answering 503 `COMPONENT_UNAVAILABLE` (#4226), and `ok` once the maintenance is lifted, the restore completed. The front polls it to know when the restore has completed: the maintenance state does not depend on the database that the restore recreates, and the restore's task cannot be read during the maintenance (#604). A restore given up once the replacement of the databases had begun keeps the maintenance, which nothing lifts until the operator restores again or lifts it once the databases are checked: `restoration` is then `abandoned`, for the front to say so and send to the operator's recourse (#1016). A platform in maintenance is alive: the probe answers 200.
          */
         get: operations["getLiveness"];
         put?: never;
@@ -6651,6 +6651,11 @@ export interface operations {
                          * @enum {string}
                          */
                         status: "ok" | "maintenance";
+                        /**
+                         * @description Present only with `status` at `maintenance`, when the restore that holds it was given up — its attempts spent, its deadline passed, or its state lost — once the replacement of the databases had begun: its task failed, and the maintenance stays until the operator restores again or lifts it (#1016). Absent, the maintenance ends with the restore.
+                         * @enum {string}
+                         */
+                        restoration?: "abandoned";
                     };
                 };
             };

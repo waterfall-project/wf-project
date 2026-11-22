@@ -22,7 +22,7 @@ from waterfall import __version__
 from waterfall.api.authentication import Services, ServicesOf, Transaction
 from waterfall.api.contract.models import ComponentHealth, Installation, SystemStatus
 from waterfall.api.evaluation import Requires
-from waterfall.api.maintenance import in_maintenance
+from waterfall.api.maintenance import holding
 from waterfall.api.status import StatusSources, system_status
 from waterfall.core.backups import interface as backups_interface
 from waterfall.platform.database import Database, create_observation_engine, utc_now
@@ -106,10 +106,17 @@ def get_liveness(services: ServicesOf) -> dict[str, str]:
     """Answer as soon as the process is up; say a maintenance.
 
     A restoration that holds the platform in maintenance is said, and its end, which the front
-    waits for (#604): the process is alive all the same. The maintenance is the one row of the
-    database it reads; a database out of reach says none (``waterfall.api.maintenance``).
+    waits for (#604): the process is alive all the same. A restoration given up that keeps it, its
+    databases possibly changed, is said too, ``restoration`` at ``abandoned``: the front shows
+    the operator's recourse, and nothing lifts it alone (#1016). The maintenance is the one row of
+    the database it reads; a database out of reach says none (``waterfall.api.maintenance``).
     """
-    return {"status": "maintenance" if in_maintenance(services.maintenance) else "ok"}
+    restoring = holding(services.maintenance)
+    if restoring is None:
+        return {"status": "ok"}
+    if restoring.abandoned:
+        return {"status": "maintenance", "restoration": "abandoned"}
+    return {"status": "maintenance"}
 
 
 def _described(health: Health) -> ComponentHealth:

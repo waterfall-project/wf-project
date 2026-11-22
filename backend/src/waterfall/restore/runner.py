@@ -14,10 +14,14 @@ longer hold its row (WF-ARC-0090). An attempt interrupted — the process stoppe
 Keycloak out of reach — leaves the maintenance and the entry: the restoration starts again from the
 beginning when the entry is taken over, and the maintenance is lifted once it has ended, its task
 succeeded and committed. One whose attempts are spent, one that has held the maintenance beyond
-its deadline (``DEADLINE``), and one abandoned — a maintenance held without its state — is given up,
-at its next attempt, at the start of the service or periodically after: its task fails, and the
-maintenance is lifted (#1016). A restoration refused before the maintenance — an archive of a newer
-version, one that does not read back — fails, and nothing has changed.
+its deadline (``DEADLINE``), and a maintenance held without its state are given up, at the next
+attempt, at the start of the service or periodically after: the task fails (#1016). Given up before
+the replacement began, the maintenance is lifted, the databases as they were; once it may have
+begun (``caches_cleared``), the maintenance is kept, the restoration marked ``abandoned``, and left
+to an operator, who restores again or lifts it once the databases are checked (decision of the
+author of 2026-11-22, #1016): lifted, the platform would serve databases half replaced
+(WF-ARC-0090). A restoration refused before the maintenance — an archive of a newer version, one
+that does not read back — fails, and nothing has changed.
 """
 
 import dataclasses
@@ -53,7 +57,10 @@ if TYPE_CHECKING:
 
 KIND = "restore"
 # What the operator does once a restoration that may have changed the databases is given up.
-RESTORE_AGAIN = "restore a backup again: it takes over what this restoration kept"
+RECOURSE = (
+    "the maintenance is kept: restore again, or lift it once the databases are checked "
+    "(deploy/compose/README.md, Restaurer)"
+)
 
 logger = get_logger(__name__)
 
@@ -157,8 +164,10 @@ class Restorer(Worker):
         """Take up the restoration a maintenance holds; ``None`` once it is given up.
 
         Given up once its attempts are spent, once it has held the maintenance beyond its deadline,
-        or abandoned (``given_up``).
+        or held without its state (``give_up``); one abandoned already is left to the operator.
         """
+        if restoring.abandoned:
+            return None
         reason = self.reason_to_give_up(restoring)
         if reason is None and restoring.attempts >= MAX_ATTEMPTS:
             reason = "attempts_spent"
@@ -171,36 +180,40 @@ class Restorer(Worker):
 
     @staticmethod
     def reason_to_give_up(restoring: Restoring) -> str | None:
-        """Say why a restoration no attempt runs is given up, if it is: abandoned, or overdue."""
-        if restoring.abandoned:
-            return "abandoned"
+        """Say why a restoration no attempt runs is given up, if it is: no state, or overdue."""
+        if restoring.stateless:
+            return "no_state"
         if restoring.overdue(utc_now()):
             return "deadline_passed"
         return None
 
     def give_up(self, restoring: Restoring, reason: str) -> None:
-        """Fail the task of a restoration that holds the maintenance, then lift it (#1016).
+        """Fail the task of a restoration that holds the maintenance; lift it, or keep it (#1016).
 
         Its task fails, if the database holds it pending. If the databases have not changed, what
-        the restoration kept is dropped: the platform serves them as they were, and a restoration
-        asked later keeps them again, rather than take over what this one kept. If they may have
-        changed, what it kept stays, which a restoration asked again takes over, and the log says
-        so: the platform serves the databases as the attempt left them.
+        the restoration kept is dropped and the maintenance lifted: the platform serves them as
+        they were, and a restoration asked later keeps them again, rather than take over what this
+        one kept. If they may have changed, what it kept stays, which a restoration taken up again
+        takes over, and the maintenance is kept, the restoration marked ``abandoned``: the log says
+        what the operator does, and nothing takes it up before they do.
         """
+        changed = restoring.caches_cleared
         with logging_context(**context_of(task_of(restoring, restoring.attempts))):
-            changed = restoring.caches_cleared
             logger.error(
                 "task.failed",
                 reason=reason,
                 attempts=restoring.attempts,
                 databases_changed=changed,
-                **({"action": RESTORE_AGAIN} if changed else {}),
+                **({"action": RECOURSE} if changed else {}),
             )
         with self.database.transaction() as session:
             fail_pending(session, restoring.task_id, restoring.correlation_id)
             if not changed and kept_for(session.connection()) == restoring.task_id:
                 forget_keeping(session.connection())
-        self.lift(restoring.task_id, restoring.correlation_id)
+        if changed:
+            self.maintenance.hold(dataclasses.replace(restoring, abandoned=True, stateless=False))
+        else:
+            self.lift(restoring.task_id, restoring.correlation_id)
 
     def execute(self, session: Session, task: Task) -> bool:
         """Run the restoration, end its task, tell whether it succeeded; once held, an error stops.
@@ -233,14 +246,16 @@ class Restorer(Worker):
         """Deposit again the restorations the stream no longer names; give up one that is done for.
 
         At the start of the service, then periodically, between two attempts (#1016): a maintenance
-        held by a restoration abandoned, or beyond its deadline, is given up — its task failed, the
-        maintenance lifted —; one held by a restoration that goes on is deposited again, its row
-        the database may no longer hold. Out of maintenance, those the database holds pending, as
-        the worker does for its own.
+        held without its state, or beyond its deadline, is given up (``give_up``); one held by a
+        restoration abandoned is left to the operator; one held by a restoration that goes on is
+        deposited again, its row the database may no longer hold. Out of maintenance, those the
+        database holds pending, as the worker does for its own.
         """
         restoring = self.restoring()
         if restoring is None:
             super().redeposit()
+            return
+        if restoring.abandoned:
             return
         reason = self.reason_to_give_up(restoring)
         if reason is not None:

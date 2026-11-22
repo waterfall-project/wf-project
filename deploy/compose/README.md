@@ -230,7 +230,9 @@ quinze jours dans le volume `prometheus-data`, et ne publie aucun port. Il éval
 alertes de WF-OBS-0030 — un composant arrêté, une tâche en file depuis plus que le seuil, l'échec
 d'une sauvegarde planifiée, de sa copie externe et d'une lecture des comptes, un espace occupé au-delà
 du seuil, un taux d'erreur des requêtes au-delà du seuil sur sa fenêtre —, chacune nommée par son
-code du contrat, et qui cesse avec sa cause.
+code du contrat, et qui cesse avec sa cause ; et une huitième, `restoration_abandoned`, tant
+qu'une restauration abandonnée garde la plateforme en maintenance (« Restaurer », #1016), que
+l'écran d'état, non servi en maintenance, ne montre pas : l'écran de maintenance le dit.
 
 Les seuils et la fenêtre sont des réglages de `.env`, livrés à quinze minutes, 85 % et 5 % sur cinq
 minutes : `WATERFALL_TASK_QUEUE_AGE_THRESHOLD_SECONDS`, `WATERFALL_STORAGE_USAGE_THRESHOLD`,
@@ -313,8 +315,8 @@ que chaque écriture de l'API et du worker prend en partage et qu'elle prend en 
 refuse en 503 celles qui arrivent après (#2229). Elle ne tient pas la maintenance plus de quatre
 heures, le délai de remise en service de WF-EXP-0050 (#1016) : après trois tentatives, ou ce délai
 passé, ou une maintenance posée sans l'état de sa restauration, le service `restore` l'abandonne —
-à la tentative suivante, à son démarrage ou dans la minute —, passe sa tâche en échec et lève la
-maintenance. Les journaux disent pourquoi (`task.failed`, avec `reason`) :
+à la tentative suivante, à son démarrage ou dans la minute — et passe sa tâche en échec. Les
+journaux disent pourquoi (`task.failed`, avec `reason`) :
 
 ```sh
 docker compose -f compose.prod.yaml logs restore keycloak-realm
@@ -337,18 +339,42 @@ docker compose -f compose.prod.yaml restart keycloak-realm
 ```
 
 Abandonnée avant de toucher aux bases, une restauration les laisse telles qu'elles étaient : ce
-qu'elle avait gardé est retiré, et la plateforme reprend son service. Abandonnée une fois les bases
-remplacées ou sur le point de l'être, elle les laisse telles que la tentative les a laissées, et
-le journal le dit (`databases_changed` à vrai, avec l'action à mener) : ce qu'elle avait gardé
-reste, et une nouvelle restauration, demandée à l'écran des sauvegardes, le reprend. La maintenance
-est la ligne de la table `platform.maintenance` de la base `waterfall`, hors du schéma `public` que
-la restauration remplace : vider Redis ne la lève pas (#956). La table `platform.restoration` nomme
-la tâche de la restauration, compte ses tentatives, dit depuis quand elle tient la maintenance
-(`held_at`) et si les bases ont pu changer (`caches_cleared`) :
+qu'elle avait gardé est retiré, la maintenance levée, et la plateforme reprend son service.
+Abandonnée une fois le remplacement des bases commencé, ou sans l'état qui dirait s'il l'était, elle
+les laisse telles que la tentative les a laissées, à demi remplacées peut-être : la maintenance
+est **gardée**, et rien ne la lève seul (#1016). Le journal le dit (`databases_changed` à vrai,
+avec l'action à mener), l'alerte `restoration_abandoned` se déclenche, et l'écran de maintenance du
+front le dit, renvoyant ici. La maintenance est la ligne de la table `platform.maintenance` de la
+base `waterfall`, hors du schéma `public` que la restauration remplace : vider Redis ne la lève
+pas (#956). La table `platform.restoration` nomme la tâche de la restauration, compte ses
+tentatives, dit depuis quand elle tient la maintenance (`held_at`), si le remplacement des bases a
+pu commencer (`caches_cleared`) et si elle est abandonnée, la maintenance gardée (`abandoned`) :
 
 ```sh
 docker compose -f compose.prod.yaml exec postgres psql -U postgres -d waterfall \
-  -c "SELECT task_id, attempts, held_at, caches_cleared FROM platform.restoration"
+  -c "SELECT task_id, attempts, held_at, caches_cleared, abandoned FROM platform.restoration"
+```
+
+Aucune commande de Waterfall ne lève cette maintenance : l'exploitant agit sur ces deux tables,
+après avoir lu le journal de `restore` et corrigé la cause (Keycloak, l'espace, l'archive). Le
+recours sûr est de **relancer la restauration** abandonnée : elle reprend depuis le début, avec la
+même sauvegarde, trois tentatives et un nouveau délai de quatre heures, reprend ce qu'elle avait
+gardé, et lève la maintenance une fois finie :
+
+```sh
+docker compose -f compose.prod.yaml exec postgres psql -U postgres -d waterfall \
+  -c "UPDATE platform.restoration SET abandoned = false, attempts = 1, held_at = now()"
+```
+
+Le service `restore` la redépose dans la minute. Une maintenance posée sans l'état de sa
+restauration ne se relance pas ainsi : rien ne dit quelle sauvegarde elle restaurait. Sinon, après avoir vérifié que les deux bases sont
+utilisables — remplacées entières, ou jamais touchées —, l'exploitant **lève la maintenance** ; ce
+que la restauration avait gardé reste, qu'une restauration demandée ensuite à l'écran des
+sauvegardes reprend :
+
+```sh
+docker compose -f compose.prod.yaml exec postgres psql -U postgres -d waterfall \
+  -c "DELETE FROM platform.restoration; DELETE FROM platform.maintenance"
 ```
 
 ## Les processus de l'API

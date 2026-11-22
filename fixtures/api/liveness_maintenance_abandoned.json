@@ -1,0 +1,4 @@
+{
+  "summary": "Une restauration abandonnée une fois le remplacement des bases commencé garde la plateforme en maintenance : sa tâche a échoué, et rien ne lève la maintenance avant que l'exploitant ne restaure de nouveau ou ne la lève après vérification des bases (WF-ADM-0160, #1016).",
+  "value": { "status": "maintenance", "restoration": "abandoned" }
+}

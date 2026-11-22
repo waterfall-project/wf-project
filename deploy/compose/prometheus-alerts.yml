@@ -106,3 +106,14 @@ groups:
               unless max(waterfall_last_run_success{run="identity_sync"}))
         labels:
           severity: alert
+
+      # A restoration given up once the replacement of the databases had begun keeps the platform
+      # in maintenance, which nothing lifts until the operator restores again or lifts it
+      # (#1016, deploy/compose/README.md, « Restaurer »); it ends when the maintenance is lifted.
+      # Not a code of the contract (`Alert.code`): it fires only in maintenance, when the status
+      # screen is not served; the front says it from the probe of liveness, the notification and
+      # the dashboard of the operator from here.
+      - alert: restoration_abandoned
+        expr: max(waterfall_restoration_abandoned) == 1
+        labels:
+          severity: alert

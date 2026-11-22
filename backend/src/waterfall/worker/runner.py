@@ -123,9 +123,18 @@ def end(
     result: Mapping[str, Any] | None = None,
     problem: Mapping[str, Any] | None = None,
 ) -> None:
-    """End a task: failed if a ``problem`` is given, succeeded with its ``result`` otherwise."""
+    """End a task: failed if a ``problem`` is given, succeeded with its ``result`` otherwise.
+
+    A task that succeeds carries no problem: a restoration given up, failed, then restored again by
+    the operator, had one (#1016).
+    """
     changes: dict[str, Any] = (
-        {"status": "succeeded", "progress": 100, "result": to_jsonable_python(result)}
+        {
+            "status": "succeeded",
+            "progress": 100,
+            "result": to_jsonable_python(result),
+            "problem": None,
+        }
         if problem is None
         else {"status": "failed", "problem": dict(problem)}
     )
