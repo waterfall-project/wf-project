@@ -4,8 +4,11 @@
 # The tasks planned (PBS-5.3): one CronJob, which runs the one command the planners call, as the
 # loop of the service scheduler of the Compose does — `waterfall-worker schedule`. It deposits
 # what is due, the reading of the accounts and the purge of what expired, unless a task of the kind
-# is queued or running, and stops (TFX-10): it reaches PostgreSQL and Redis alone, the worker runs
-# the tasks and holds the storage. Never two of it at once.
+# is queued or running, and stops (TFX-10): it reaches PostgreSQL and Redis, the worker runs the
+# tasks and holds the storage. Never two of it at once. The test of a restoration it starts itself
+# (restore-test.yaml): it makes its Job by the API of Kubernetes, as its service account, which may
+# create Jobs and nothing else — this pod runs a fixed command and reads no file of a user, which
+# the worker does.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -24,6 +27,9 @@ spec:
             {{- include "waterfall.selector" (list . "scheduler") | nindent 12 }}
         spec:
           {{- include "waterfall.podDefaults" . | nindent 10 }}
+          {{- if .Values.restoreTest.enabled }}
+          serviceAccountName: {{ include "waterfall.name" (list . "scheduler") }}
+          {{- end }}
           restartPolicy: Never
           containers:
             - name: schedule
@@ -34,5 +40,23 @@ spec:
                 {{- include "waterfall.backEnvironment" (list . "service") | nindent 16 }}
                 - name: WATERFALL_PURGE_INTERVAL
                   value: {{ .Values.scheduler.purgeInterval | quote }}
+                {{- if .Values.restoreTest.enabled }}
+                - name: WATERFALL_RESTORE_TEST_JOB
+                  value: /restore-test/job.json
+                - name: WATERFALL_RESTORE_TEST_INTERVAL
+                  value: {{ .Values.restoreTest.interval | int | toString | quote }}
+                {{- end }}
               resources:
                 {{- toYaml .Values.scheduler.resources | nindent 16 }}
+              {{- if .Values.restoreTest.enabled }}
+              volumeMounts:
+                - name: restore-test
+                  mountPath: /restore-test
+                  readOnly: true
+          volumes:
+            - name: restore-test
+              configMap:
+                name: {{ include "waterfall.name" (list . "restore-test") }}
+                items:
+                  - { key: job.json, path: job.json }
+              {{- end }}

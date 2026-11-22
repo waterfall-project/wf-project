@@ -597,9 +597,15 @@ class ScheduleSettings(Settings):
     the retention of the tasks does not make a task due again at each purge. Under Helm the first
     reading may leave before the realm of Keycloak is applied (a hook after the installation): it
     then fails and the next is due at the next occurrence of its schedule.
+    ``restore_test_job`` is the file of the Job of the test of a restoration, which the chart
+    mounts: under Kubernetes the schedule makes it in its namespace every ``restore_test_interval``
+    seconds, thirty days; none, the default, plans no test: under Compose a planned task of the
+    host runs it (US-2930).
     """
 
     purge_interval: int = Field(default=600, ge=1)
+    restore_test_job: str | None = Field(default=None, min_length=1)
+    restore_test_interval: int = Field(default=2_592_000, ge=1)
 
 
 class WorkerSettings(ServiceSettings):
