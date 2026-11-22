@@ -232,15 +232,17 @@ def test_the_service_platform_runs_the_same_alertmanager_and_grafana_on_the_same
         assert beside["image"] == production["image"], name
         assert beside["profiles"] == ["supervision"], name
         assert beside.get("entrypoint") == production.get("entrypoint"), name
-        # The TLS of the production is its own: the service platform serves in the clear.
+        # In TLS as in production (US-2840), under the authority of the supervision of the service
+        # platform: its root and its certificates in volumes of its own.
         kept = [
-            str(volume)
-            for volume in production["volumes"]
-            if str(volume).startswith("./")
-            and not str(volume).startswith("./Caddyfile")
-            and not any(f"/{name}:" in str(volume) for name in TLS)
+            f"supervision-{volume}" if volume.endswith((":/tls:ro", ":/trust:ro")) else volume
+            for volume in map(str, production["volumes"])
+            if volume.startswith(("./", "trust:", "certificates-"))
         ]
         assert [str(volume) for volume in beside["volumes"]] == kept, name
+        assert beside["depends_on"] == {
+            "supervision-authority": {"condition": "service_completed_successfully"}
+        }, name
 
 
 @pytest.mark.story("US-2880")

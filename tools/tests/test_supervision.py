@@ -14,7 +14,7 @@ import ipaddress
 import os
 import re
 import subprocess
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 import yaml
@@ -22,6 +22,7 @@ import yaml
 from wftools import REPOSITORY, production
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from pathlib import Path
 
 COMPOSE = REPOSITORY / "deploy" / "compose"
@@ -102,11 +103,20 @@ def test_prometheus_is_a_service_of_the_platform_its_series_kept_in_a_volume() -
         "prometheus-data:/prometheus",
         "certificates-prometheus:/tls:ro",
     ]
-    # The service platform runs the same image, on the same files, for the tests that read it.
+    # The service platform runs the same image, on the same files, for the tests that read it; in
+    # TLS too, with the certificate of the authority of its supervision.
     beside = services(SERVICE)["prometheus"]
     assert beside["image"] == prometheus["image"]
     assert beside["profiles"] == ["supervision"]
-    assert [str(volume) for volume in beside["volumes"]] == read
+    assert [str(volume) for volume in beside["volumes"]] == [
+        *read,
+        *in_tls,
+        "supervision-certificates-prometheus:/tls:ro",
+    ]
+    assert beside["command"] == [
+        "--storage.tsdb.path=/prometheus",
+        "--web.config.file=/etc/waterfall/prometheus-web.yml",
+    ]
 
 
 @pytest.mark.requirement("WF-OBS-0030-A")
@@ -234,3 +244,77 @@ def test_the_environment_of_compose_takes_the_defaults_of_a_local_trial() -> Non
     }
     command = production.compose_command("p")
     assert command[-4:] == ["--file", str(PRODUCTION), "--file", str(LOCAL)]
+
+
+# A file of configuration that names a root to trust: Prometheus's ca_file, Grafana's $__file{}.
+ROOT_FILE = re.compile(r"\$__file\{([^}]+)\}")
+BIND = re.compile(r"^(?P<source>\./[^:]+):(?P<target>/[^:]*)(?::\w+)?$")
+NAMED = re.compile(r"^(?P<source>[^./][^:]*):(?P<target>/[^:]*)(?::\w+)?$")
+
+
+def roots_read(configuration: Any) -> Iterator[str]:
+    """Give each root a file of configuration reads, wherever it names it."""
+    if isinstance(configuration, dict):
+        for key, value in cast("dict[str, Any]", configuration).items():
+            if key == "ca_file" and isinstance(value, str):
+                yield value
+            else:
+                yield from roots_read(value)
+    elif isinstance(configuration, list):
+        for value in cast("list[Any]", configuration):
+            yield from roots_read(value)
+    elif isinstance(configuration, str):
+        yield from ROOT_FILE.findall(configuration)
+
+
+def mounted(root: str, targets: list[str]) -> bool:
+    """Tell whether a file is in one of the mounts of a service."""
+    return any(root == target or root.startswith(f"{target.rstrip('/')}/") for target in targets)
+
+
+def unmounted_roots(found: dict[str, Any], folder: Path = COMPOSE) -> list[str]:
+    """Name each service that mounts a configuration whose root it does not mount."""
+    faults: list[str] = []
+    for name, service in found.items():
+        volumes = [str(volume) for volume in service.get("volumes", [])]
+        targets = [match["target"] for v in volumes if (match := BIND.match(v) or NAMED.match(v))]
+        for volume in volumes:
+            bound = BIND.match(volume)
+            if bound is None or not bound["source"].endswith((".yml", ".yaml")):
+                continue
+            source = bound["source"]
+            configuration = yaml.safe_load((folder / source).read_text(encoding="utf-8"))
+            faults.extend(
+                f"{name} reads {root} ({source}), which it does not mount"
+                for root in roots_read(configuration)
+                if not mounted(root, targets)
+            )
+    return faults
+
+
+@pytest.mark.requirement("WF-SEC-0010-A")
+@pytest.mark.parametrize("path", sorted(COMPOSE.glob("compose.*.yaml")), ids=lambda path: path.name)
+def test_every_root_a_mounted_configuration_reads_is_mounted_too(path: Path) -> None:
+    # A profile that mounts the configuration of the production, whose roots it does not mount,
+    # does not start (US-2840): Prometheus checks Alertmanager against /tls/ca.crt, Grafana
+    # Prometheus against /trust/root.crt.
+    assert unmounted_roots(services(path)) == []
+
+
+def test_a_configuration_mounted_without_its_root_is_named() -> None:
+    found = services(SERVICE)
+    taken = {
+        "prometheus": {
+            **found["prometheus"],
+            "volumes": [v for v in found["prometheus"]["volumes"] if not v.endswith(":/tls:ro")],
+        },
+        "grafana": {
+            **found["grafana"],
+            "volumes": [v for v in found["grafana"]["volumes"] if not v.endswith(":/trust:ro")],
+        },
+    }
+    assert unmounted_roots(taken) == [
+        "prometheus reads /tls/ca.crt (./prometheus.yml), which it does not mount",
+        "prometheus reads /tls/ca.crt (./prometheus-client.yml), which it does not mount",
+        "grafana reads /trust/root.crt (./grafana-datasource.yml), which it does not mount",
+    ]
