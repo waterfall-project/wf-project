@@ -358,3 +358,38 @@ def test_shortening_the_predecessor_or_withdrawing_the_link_lifts_the_signal(
     assert withdrawn["nodes"][0]["predecessors"] == []
     assert scheduled(withdrawn)[predecessor["node_id"]]["link_conflicts"] == []
     assert tree.node(predecessor["node_id"])["task"]["link_conflicts"] == []
+
+
+# --- What the Gantt reads: hierarchy, links and the critical path -------------------------------
+
+
+@pytest.mark.requirement("WF-PLA-0090-A")
+def test_listing_the_nodes_gives_the_parent_the_links_and_the_critical_path_the_gantt_draws(
+    tree: Tree,
+) -> None:
+    # « Les liaisons et la hiérarchie sont visibles, ainsi que le chemin critique. » The part the
+    # service owes: on the two parallel branches of different durations of WF-PLA-0100, under a
+    # summary, listNodes gives each task its parent, its predecessors and is_critical.
+    summary = tree.made("Phase")
+    under = {"parent_id": summary["node_id"]}
+    long_first = tree.made("Longue 1", task={"duration": days("4")}, **under)
+    long_second = tree.made("Longue 2", task={"duration": days("6")}, **under)
+    short_first = tree.made("Courte 1", task={"duration": days("3")}, **under)
+    short_second = tree.made("Courte 2", task={"duration": days("3")}, **under)
+    linked(tree, tree.node(long_second["node_id"]), after(long_first))
+    linked(tree, tree.node(short_second["node_id"]), after(short_first))
+    read = {item["task"]["label"]: item for item in tree.items()}
+    assert read["Phase"]["parent_id"] is None
+    for label in ("Longue 1", "Longue 2", "Courte 1", "Courte 2"):
+        assert read[label]["parent_id"] == summary["node_id"]
+    assert [each["predecessor_node_id"] for each in read["Longue 2"]["predecessors"]] == [
+        long_first["node_id"]
+    ]
+    assert [each["predecessor_node_id"] for each in read["Courte 2"]["predecessors"]] == [
+        short_first["node_id"]
+    ]
+    assert read["Longue 1"]["predecessors"] == read["Courte 1"]["predecessors"] == []
+    assert [read[label]["task"]["is_critical"] for label in ("Longue 1", "Longue 2")] == [True] * 2
+    assert read["Phase"]["task"]["is_critical"]
+    assert [read[label]["task"]["is_critical"] for label in ("Courte 1", "Courte 2")] == [False] * 2
+    assert read["Courte 1"]["task"]["total_float"] == {"value": "4", "unit": "d"}
