@@ -4,6 +4,10 @@
 # Les échecs connus de la file de fusion (`chain`, `merge_group`), contre lesquels
 # `make queue-report` classe ce qu'il lit (wftools.queue, US-1880).
 #
+# Le livreur qui remet une pull request en file après une instabilité en écrit l'entrée, ou ajoute le
+# passage à ses `runs` ; vue deux fois, elle est corrigée par un lot (docs/dev/agents.md, « Une
+# instabilité de la file »).
+#
 # Une entrée `[[known]]` par instabilité connue. Elle reconnaît un échec quand tous les motifs
 # qu'elle donne s'y retrouvent (expressions régulières de Python, cherchées et non ancrées) :
 #   job      le nom du job (« service / paths (1/4) », « e2e / paths (2/5) ») ; `service / paths`
