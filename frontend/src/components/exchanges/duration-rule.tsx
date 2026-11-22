@@ -130,9 +130,11 @@ function Choice({
         if (result.kind === "done") {
           // 202: the import is analysing again, followed to its end; 200: the rule is already
           // in force, nothing changes, and the screen is read anew in case it was stale.
-          if (result.data.status === "analysing") {
-            track(result.data.task, { subject: filename });
-            onAnalysing(result.data.task.task_id);
+          // An import without a task — deleted at the end of its retention — is followed to nothing.
+          const { task } = result.data;
+          if (result.data.status === "analysing" && task !== null) {
+            track(task, { subject: filename });
+            onAnalysing(task.task_id);
           }
           reread();
           return;

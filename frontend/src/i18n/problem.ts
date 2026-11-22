@@ -488,8 +488,17 @@ const DETAILS: readonly Reader[] = [
   // The columns required that a file of actual costs lacks, each with the labels the correspondence
   // declares for it (`FILE_FORMAT_UNREADABLE`, WF-REF-0190, WF-INTF-0070).
   ({ missing_columns = [] }, label, locale, say) => {
-    const named = missing_columns.flatMap(({ column, labels }) => {
-      const name = label("enums.ActualCostSourceColumn", column);
+    const named = missing_columns.flatMap((missing) => {
+      // An estimate or a remaining to commit: the header as the format writes it, and its sheet.
+      if (missing.header !== undefined) {
+        return [
+          missing.sheet === undefined
+            ? say("declaredLabel", { label: missing.header })
+            : say("missingHeader", { header: missing.header, sheet: missing.sheet }),
+        ];
+      }
+      const { column, labels = [] } = missing;
+      const name = column === undefined ? undefined : label("enums.ActualCostSourceColumn", column);
       if (name === undefined) {
         return [];
       }
@@ -517,8 +526,25 @@ const DETAILS: readonly Reader[] = [
  * `ALREADY_EXISTS`, the holder of a value, which the form says at its field.
  */
 const OWN: Readonly<
-  Partial<Record<ProblemText["code"], (params: Readonly<Params>) => Detail | undefined>>
+  Partial<
+    Record<ProblemText["code"], (params: Readonly<Params>, locale: Locale) => Detail | undefined>
+  >
 > = {
+  // The amount a line of a remaining to commit carries in the file and the one the import writes
+  // (`AMOUNT_ROUNDED`, `ImportSignal`, WF-INTF-0120), both as the contract gives them.
+  AMOUNT_ROUNDED: ({ typed_amount, written_amount }, locale) =>
+    typeof typed_amount === "string" &&
+    DECIMAL.test(typed_amount) &&
+    typeof written_amount === "string" &&
+    DECIMAL.test(written_amount)
+      ? [
+          "amount_rounded",
+          {
+            typed: formatDecimal(typed_amount, locale),
+            written: formatDecimal(written_amount, locale),
+          },
+        ]
+      : undefined,
   UNDO_CONFLICT: ({ conflicting_object_label: label }) =>
     typeof label === "string" && label !== "" ? ["conflicting_object", { label }] : undefined,
 };
@@ -593,7 +619,7 @@ export function problemMessage(
       pointer: field.pointer,
     })),
   ];
-  const own = OWN[problem.code]?.(problem.params ?? {});
+  const own = OWN[problem.code]?.(problem.params ?? {}, locale);
   const details = [
     ...every.flatMap(({ params, pointer }) =>
       DETAILS.map((detail) => detail(params, label, locale, say, names, pointer)),

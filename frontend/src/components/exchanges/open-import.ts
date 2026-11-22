@@ -44,7 +44,7 @@ export function useOpenImport(
     const result = await held(openFileImport(projectId, asked, form));
     if (result.kind === "done") {
       const opened = result.data;
-      if (opened.task !== undefined) {
+      if (opened.task !== undefined && opened.task !== null) {
         track(opened.task, { subject: opened.filename, aim: analysisAim(projectId) });
       }
       // The report is shown only if the screen is still the one the file was sent from.

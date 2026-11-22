@@ -65,6 +65,27 @@ describe("the report of an import, what the file dates otherwise", () => {
   });
 });
 
+describe("the report of an import without a task", () => {
+  it("reads an import whose task was deleted, and follows none [US-3250]", () => {
+    const purged = example("import_actual_costs_task_purged") as Import;
+    expect(purged.task).toBeNull();
+    open(purged);
+    expect(screen.getByText(/4 lignes lues/)).toBeVisible();
+  });
+
+  it("follows no task for an import still analysing that has none [US-3250]", () => {
+    const analysing = { ...(example("import_analysing") as Import), task: null };
+    open(analysing);
+    expect(screen.getByText(CATALOGUES.fr.exchanges.report.analysing)).toBeVisible();
+  });
+
+  it("signals a rounded amount with both amounts [WF-INTF-0120-A]", () => {
+    open(example("import_remaining_amount_rounded") as Import);
+    expect(screen.getByText("Montant arrondi")).toBeVisible();
+    expect(screen.getByText(/montant écrit\s: 1\s230,00/)).toBeVisible();
+  });
+});
+
 // The head of the sentence, read from the catalogue: a wording that changes moves it along, so that
 // the absence asserted below cannot pass for want of a phrase to find.
 const FILE_CONSTANTS = CATALOGUES.fr.exchanges.report.unitConstants.split("{", 1).join("").trim();

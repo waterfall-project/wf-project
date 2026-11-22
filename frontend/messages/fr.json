@@ -3215,6 +3215,7 @@
     "DUPLICATE_COLUMN_LABEL": "Cet intitulé de colonne figure déjà dans la correspondance, sans égard à la casse, aux accents ni aux espaces en bout : chacun ne désigne qu’une colonne.",
     "DUPLICATE_COST_LINE": "Cette ligne partage sa pièce et son poste, poste vide compris, avec d’autres lignes du fichier : toutes sont rejetées, aucune n’est préférée. Corrigez ou retirez les doublons dans le fichier.",
     "DUPLICATE_LINEAGE": "Cette ligne porte un identifiant de ligne (« ID ligne ») que d’autres lignes du fichier portent aussi : toutes sont rejetées, aucune n’est préférée, et la ligne de la révision est laissée telle quelle. Retirez ou corrigez les copies dans le fichier.",
+    "AMOUNT_ROUNDED": "Le montant de cette ligne est arrondi : l’import écrit le débours unitaire au centime, et le montant écrit diffère de celui du fichier.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
     "INTERNAL_ERROR": "Erreur inattendue du service.",
     "ACCOUNT_DEACTIVATED": "Ce compte est désactivé ; contactez un administrateur.",
@@ -3259,6 +3260,7 @@
     "missing_columns": "{count, plural, one {Colonne exigée absente du fichier} other {Colonnes exigées absentes du fichier}} : {columns}.",
     "missingColumn": "{column} ({count, plural, one {intitulé déclaré} other {intitulés déclarés}} : {labels})",
     "declaredLabel": "« {label} »",
+    "missingHeader": "« {header} » (onglet « {sheet} »)",
     "work_package_task": "Tâche du lot : {task}.",
     "order_item_tasks": "{count, plural, one {Tâche du poste en cause} other {Tâches des postes en cause}} : {tasks}.",
     "subproject": "Sous-projet qui a reçu des coûts réels, que la ligne ne quitte pas : « {label} ».",
@@ -3284,6 +3286,7 @@
     "missingRateYear": "une catégorie en {year}",
     "risks": "{count, plural, one {Risque concerné} other {Risques concernés}} : {risks}.",
     "riskName": "« {label} »",
+    "amount_rounded": "Montant du fichier : {typed} ; montant écrit : {written}.",
     "conflicting_object": "Objet repris depuis : « {label} »."
   },
   "permissions": {
@@ -3685,6 +3688,8 @@
       "import_file_accepted": "fichier accepté par le compte rendu",
       "import_not_applied": "import non appliqué",
       "import_calendar_gap": "écart de calendrier au compte rendu",
+      "import_structure_unchanged": "structure inchangée depuis l’analyse",
+      "pending_uploads_below_limit": "moins de vingt imports en attente pour le compte",
       "is_local_account": "compte créé dans Waterfall",
       "is_active_account": "compte actif",
       "is_deactivated_account": "compte désactivé",
@@ -4129,7 +4134,8 @@
     "ImportSignal": {
       "code": {
         "NON_WORKING_DAY": "Jour non travaillé",
-        "SUMMARY_TASK_DERIVED": "Tâche récapitulative dérivée de ses tâches"
+        "SUMMARY_TASK_DERIVED": "Tâche récapitulative dérivée de ses tâches",
+        "AMOUNT_ROUNDED": "Montant arrondi"
       }
     },
     "ActualCostSourceColumn": {
