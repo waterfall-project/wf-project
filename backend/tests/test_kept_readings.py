@@ -183,13 +183,15 @@ def test_a_current_revision_and_a_filtered_reading_keep_nothing_and_read_the_row
     assert tasks == TASKS_DIGESTS["kinds=task of a marked revision"]
 
 
+@pytest.mark.parametrize("other", [FORMAT - 1, FORMAT + 1])
 def test_a_reading_kept_of_another_format_is_ignored_and_made_again(
-    api: ContractClient, witness: Database, realm: TestRealm
+    api: ContractClient, witness: Database, realm: TestRealm, other: int
 ) -> None:
+    """Ignore a reading kept of the format before (US-3300), or after, and make it again."""
     place = place_of(witness, REVISION_100)
     headers = person(witness, realm, *READING).headers
     read(api, headers, url_of(place))
-    forge(witness, place, format=FORMAT + 1)
+    forge(witness, place, format=other)
     assert sha(read(api, headers, url_of(place))) == MARKED_DIGEST
     row = kept_row(witness, place)
     assert row is not None
