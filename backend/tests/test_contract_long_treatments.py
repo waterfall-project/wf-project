@@ -123,7 +123,8 @@ def kinds_of_examples(answer: SchemaPath) -> set[str]:
     content = answer / "content" / "application/json"
     if "examples" not in content:
         return kinds
-    for _, example in (content / "examples").items():  # noqa: PERF102 (a path has no values())
+    examples = content / "examples"
+    for example in examples:
         value = (example / "value").read_value()
         task = value if "task_id" in value else value.get("task")
         if task:
