@@ -1,7 +1,7 @@
 ---
 id: EP-08
 titre: Gérer les risques, leurs provisions et la réserve, et déplacer la référence par avenant
-statut: en cours
+statut: livré
 depend_de: EP-10, EP-27
 famille: front, back
 issue: 3809

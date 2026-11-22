@@ -166,14 +166,14 @@ sommer (décision de l'auteur du 2026-11-17), les trois cents projets en EP-13, 
 | [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Lecture et performance des grilles | livré | EP-25 |
 | [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparaison dans les grilles | livré | EP-26 |
 | [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | livré | EP-25, EP-26 |
-| [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | en cours | EP-10, EP-27 |
-| [EP-11](EP-11-portefeuille.md) | Portefeuille | en cours | EP-08 |
+| [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | livré | EP-10, EP-27 |
+| [EP-11](EP-11-portefeuille.md) | Portefeuille | livré | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
 | [EP-13](EP-13-exploitation.md) | Exploitation et mise en production | en cours | EP-04 |
 | [EP-28](EP-28-chaine-et-outillage.md) | Chaîne et outillage de développement | livré | rien |
 | [EP-29](EP-29-habilitations-specification-1-0-7.md) | Habilitations et comptes : suites de la spécification 1.0.7 | prêt | EP-08 |
 | [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risques préparés comme des différentiels | en cours | EP-08, EP-11 |
-| [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning : moteur et Gantt | prêt | EP-08 |
+| [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning : moteur et Gantt | en cours | EP-08 |
 | [EP-33](EP-33-imports-et-exports-de-fichiers.md) | Imports et exports de fichiers | en cours | EP-08 |
 | [EP-34](EP-34-grilles-saisie-et-collage.md) | Grilles : saisie et collage | à planifier | EP-08 |
 | [EP-36](EP-36-tests-et-preuve-des-exigences.md) | Tests et preuve des exigences | en cours | EP-08, EP-11 |

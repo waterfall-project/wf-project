@@ -168,14 +168,14 @@ closes. Four rules, which each slice follows:
 | [EP-26](EP-26-lecture-et-performance-des-grilles.md) | Reading and performance of the grids | livré | EP-25 |
 | [EP-27](EP-27-comparaison-dans-les-grilles.md) | Comparison in the grids | livré | EP-26 |
 | [EP-10](EP-10-indicateurs.md) | Project indicators | livré | EP-25, EP-26 |
-| [EP-08](EP-08-avenants-et-risques.md) | Amendments, risks and provisions | en cours | EP-10, EP-27 |
-| [EP-11](EP-11-portefeuille.md) | Portfolio | en cours | EP-08 |
+| [EP-08](EP-08-avenants-et-risques.md) | Amendments, risks and provisions | livré | EP-10, EP-27 |
+| [EP-11](EP-11-portefeuille.md) | Portfolio | livré | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | File exchanges (FLX-01 to FLX-06) | abandonné : each round trip is validated in its functional block | — |
 | [EP-13](EP-13-exploitation.md) | Operations and going to production | en cours | EP-04 |
 | [EP-28](EP-28-chaine-et-outillage.md) | Chain and development tooling | livré | nothing |
 | [EP-29](EP-29-habilitations-specification-1-0-7.md) | Access rights and accounts: follow-ups of specification 1.0.7 | prêt | EP-08 |
 | [EP-30](EP-30-risques-prepares-comme-des-differentiels.md) | Risks prepared as differentials | en cours | EP-08, EP-11 |
-| [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning: engine and Gantt | prêt | EP-08 |
+| [EP-32](EP-32-planning-moteur-et-gantt.md) | Planning: engine and Gantt | en cours | EP-08 |
 | [EP-33](EP-33-imports-et-exports-de-fichiers.md) | File imports and exports | en cours | EP-08 |
 | [EP-34](EP-34-grilles-saisie-et-collage.md) | Grids: entry and pasting | à planifier | EP-08 |
 | [EP-36](EP-36-tests-et-preuve-des-exigences.md) | Tests and proof of the requirements | en cours | EP-08, EP-11 |

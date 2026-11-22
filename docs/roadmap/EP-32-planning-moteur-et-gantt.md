@@ -1,7 +1,7 @@
 ---
 id: EP-32
 titre: Corriger le moteur de planning sur les liaisons de récapitulatives, l'état d'une feuille qui devient récapitulative et le redatage, et le Gantt zoomé
-statut: prêt
+statut: en cours
 depend_de: EP-08
 famille: front, back
 issue: 4549
