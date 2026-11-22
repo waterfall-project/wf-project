@@ -52,6 +52,7 @@ from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.database import utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
+from waterfall.platform.storage import Bucket
 from waterfall.platform.tasks import submit
 from waterfall.platform.uploads import LIFETIME, FileUpload
 
@@ -66,7 +67,6 @@ if TYPE_CHECKING:
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
     from waterfall.platform.settings import ServiceSettings
-    from waterfall.platform.storage import Bucket
     from waterfall.worker.runner import Worker
 
 
@@ -158,21 +158,32 @@ def test_a_deposit_refused_writes_nothing(
 
 @pytest.mark.requirement("WF-ADM-0020-A")
 def test_a_deposit_asks_for_one_of_the_permissions_of_an_import(
-    api: ContractClient, stage: Scene, realm: TestRealm, backups_bucket: Bucket
+    api: ContractClient, stage: Scene, realm: TestRealm, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # Vérif : « Réciproquement, un rôle privé d'une permission empêche l'action correspondante,
     # quel que soit l'acteur auquel l'utilisateur ressemble. » An account that holds none of the
     # four permissions of an import deposits nothing: 403, the first of them named, nothing written
-    # to the storage nor to the database; one of them is enough (#4423).
+    # to the storage nor to the database; one of them is enough (#4423). The bucket is shared by
+    # the tests that run beside this one: what is written to it is counted here, not listed.
+    written: list[str] = []
+    put = Bucket.put
+
+    def counted(bucket: Bucket, key: str, content: bytes, media_type: str | None = None) -> None:
+        written.append(key)
+        put(bucket, key, content, media_type)
+
+    monkeypatch.setattr(Bucket, "put", counted)
     content = trial_file(*ROWS)
     viewer = person(stage.database, realm, "all_projects_read", name="Lou")
     refused = upload(api, viewer, content)
     assert refusal(refused) == (403, "PERMISSION_MISSING", {"missing_permission": "planning.write"})
     with stage.database.transaction() as session:
         assert session.scalars(select(FileUpload)).all() == []
-    assert backups_bucket.keys_before("uploads/", utc_now() + timedelta(hours=1)) == []
+    assert written == []
     estimator = person(stage.database, realm, "remaining.write", name="Sam")
-    assert upload(api, estimator, content).status_code == 201
+    kept = upload(api, estimator, content)
+    assert kept.status_code == 201, kept.text
+    assert written == [f"uploads/{kept.json()['upload_id']}"]
 
 
 def project_rows(database: Database) -> list[list[dict[str, Any]]]:
