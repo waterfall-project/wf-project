@@ -16,9 +16,10 @@ import { execFileSync } from "node:child_process";
 const CONTAINERS = {
   cache: "E2E_SERVICE_CACHE",
   directory: "E2E_SERVICE_DIRECTORY",
+  worker: "E2E_SERVICE_WORKER",
 } as const;
 
-/** A component of the platform the paths stop: Redis, the directory of the enterprise. */
+/** A component of the platform the paths stop: Redis, the directory of the enterprise, the worker. */
 export type Stoppable = keyof typeof CONTAINERS;
 
 /** The identifier of the container of a component, as `make e2e-service` gave it. */
@@ -32,16 +33,34 @@ function container(component: Stoppable): string {
   return name;
 }
 
-/** What Docker says of a container: its health, `healthy` once its check passes. */
+/**
+ * What Docker says of a container: its health, `healthy` once its check passes — or, for one that
+ * has no check, as the worker has none, `healthy` once it runs.
+ *
+ * That says only that the process of the worker runs, not that it takes tasks: the worker exposes
+ * no port nor command that tells it is ready, and adding a check to its image is out of the scope
+ * of the paths. The paths that need it wait for what the worker does (a marking run), not for it.
+ */
 function health(id: string): string {
-  return execFileSync("docker", ["inspect", "--format", "{{.State.Health.Status}}", id], {
+  const format =
+    "{{if .State.Health}}{{.State.Health.Status}}{{else if .State.Running}}healthy{{else}}{{.State.Status}}{{end}}";
+  return execFileSync("docker", ["inspect", "--format", format, id], {
     encoding: "utf8",
   }).trim();
 }
 
+/** The longest `untilHealthy` waits for one container. */
+const HEALTHY_WITHIN = 60_000;
+
+/**
+ * The time a hook has to start every component again (`startAllAgain`): the wait of each, and a
+ * margin for the `docker start` calls, so that it grows with the components and is never short.
+ */
+export const START_ALL_AGAIN_TIMEOUT = Object.keys(CONTAINERS).length * HEALTHY_WITHIN + 20_000;
+
 /** Wait, up to a minute, for a container whose health check passes. */
 async function untilHealthy(id: string): Promise<void> {
-  const until = Date.now() + 60_000;
+  const until = Date.now() + HEALTHY_WITHIN;
   while (health(id) !== "healthy") {
     if (Date.now() > until) {
       throw new Error(`the container ${id} is not healthy a minute after it started`);
@@ -59,6 +78,32 @@ function startAgain(id: string): Promise<void> {
     execFileSync("docker", ["start", id], { stdio: "ignore" });
   }
   return untilHealthy(id);
+}
+
+/** Stop a component, for a path that does something while it is stopped; `startAgain` after. */
+export function stop(component: Stoppable): void {
+  execFileSync("docker", ["stop", "--time", "10", container(component)], { stdio: "ignore" });
+}
+
+/** Start a component again, and wait until it is healthy. */
+export function start(component: Stoppable): Promise<void> {
+  return startAgain(container(component));
+}
+
+/**
+ * Empty Redis, every database of it, as a restart of it with nothing kept would: the sessions of
+ * the front and the queue of the tasks are gone (WF-ARC-0040-A). The password is the one Redis
+ * holds for its own `redis-cli` (`REDISCLI_AUTH` of its container), which this never reads.
+ */
+export function emptyCache(): void {
+  const id = container("cache");
+  const redis = (...command: string[]): string =>
+    execFileSync("docker", ["exec", id, "redis-cli", ...command], { encoding: "utf8" }).trim();
+  // `redis-cli` exits 0 on an error reply (`NOAUTH`, `ERR`): the reply is what says it worked. DBSIZE is not read: the platform writes there again at once.
+  const flushed = redis("FLUSHALL");
+  if (flushed !== "OK") {
+    throw new Error(`FLUSHALL did not empty Redis: ${flushed}`);
+  }
 }
 
 /**

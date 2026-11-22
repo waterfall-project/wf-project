@@ -13,6 +13,7 @@ import hashlib
 import io
 import json
 import tarfile
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
@@ -36,6 +37,8 @@ from installations import (
     written_task,
 )
 from project_rows import AT, MARKED, insert_project, insert_revision
+from projects_support import PROJECTS, Scene, create
+from projects_support import scene as make_scene
 from realm import KEY, TestRealm
 from sqlalchemy import func, insert, select, text, update
 from sqlalchemy.exc import DBAPIError
@@ -66,13 +69,17 @@ from waterfall.platform.restoration import begin_keeping, keep
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.worker import backup
 from waterfall.worker.backup import DATABASES, MANIFEST, BackupTask, dump
+from waterfall.worker.marking import mark
 from waterfall.worker.restore import RestoreError, errors_of, extracted, replace
 from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from pathlib import Path
 
     from openapi_core import OpenAPI
+    from projects_support import Person
+    from sqlalchemy import Engine
 
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
@@ -220,6 +227,102 @@ def test_an_inscription_made_while_the_backup_ran_is_written_back_once_and_the_b
         latest = AuditEntry.occurred_at.desc(), AuditEntry.id.desc()
         last = session.scalars(select(AuditEntry).order_by(*latest).limit(1)).one()
     assert (last.action, last.object_kind, last.object_id) == ("restore", "backup", taken.id)
+
+
+def carried(api: ContractClient, reader: Person, owner: Engine) -> tuple[dict[str, str], ...]:
+    """Read what a platform carries: its projects, their revisions, and its accounts.
+
+    The projects and their revisions as the service lists them to a session that reads every
+    project, the accounts as their owner reads them: each by its identifier.
+    """
+    every = "states=created,pricing,in_progress"
+    listed = api.get(f"{PROJECTS}?{every}", headers=reader.headers)
+    assert listed.status_code == 200, listed.text
+    projects = {each["project_id"]: each["label"] for each in listed.json()["items"]}
+    revisions: dict[str, str] = {}
+    for project_id in projects:
+        found = api.get(f"{PROJECTS}/{project_id}/revisions", headers=reader.headers)
+        assert found.status_code == 200, found.text
+        for each in found.json()["items"]:
+            revisions[each["revision_id"]] = f"{each['status']}:{each['version_name']}"
+    with owner.connect() as connection:
+        accounts = {str(each): "" for each in connection.scalars(select(UserAccount.id))}
+    return projects, revisions, accounts
+
+
+def open_and_mark(
+    api: ContractClient, who: Person, project_id: str, marking: Worker, name: str
+) -> None:
+    """Open the current revision of a project, then mark it under a name by the worker."""
+    path = f"{PROJECTS}/{project_id}/revisions"
+    opened = api.post(path, headers=who.headers, json={})
+    assert opened.status_code == 201, opened.text
+    sent = {"version_name": name, "lock_version": opened.json()["lock_version"]}
+    asked = api.post(f"{path}/{opened.json()['revision_id']}/mark", headers=who.headers, json=sent)
+    assert asked.status_code == 202, asked.text
+    assert marking.step()
+
+
+@dataclass(frozen=True)
+class Carrying:
+    """A platform that carries projects: its API, its sessions, its owner, a worker that marks."""
+
+    api: ContractClient
+    stage: Scene
+    owner: Engine
+    marking: Worker
+
+
+@pytest.fixture
+def carrying(
+    installation: Installation, backups_api: ContractClient, realm: TestRealm, queue: TaskQueue
+) -> Iterator[Carrying]:
+    """Give the installation a project, its sessions, and a worker that marks the revisions."""
+    owner = create_database_engine(installation.owner["waterfall"])
+    stage = make_scene(backups_api, owner, installation.database, realm)
+    queue.prepare()
+    handlers = {"revision_mark": mark}
+    marking = Worker(installation.database, queue, handlers, "marking", Timing(0, 0.1))
+    yield Carrying(backups_api, stage, owner, marking)
+    owner.dispose()
+
+
+@pytest.mark.requirement("WF-ARC-0040-A")
+def test_a_backup_then_a_restoration_give_back_the_projects_the_revisions_and_the_accounts(
+    installation: Installation, take: Take, carrying: Carrying, tmp_path: Path
+) -> None:
+    # « Une sauvegarde puis une restauration de PostgreSQL et de la base du fournisseur d'identité
+    # restituent tous les projets, révisions et comptes. » (WF-ADM-0160, tenu par EP-03 et EP-04),
+    # rejoué sur une plateforme qui porte des projets et leurs révisions, faits par le service : un
+    # projet dont une révision est marquée et une autre ouverte, un projet dont la révision est
+    # marquée après la sauvegarde. Ce que la plateforme porte après elle — un projet, un compte, ce
+    # marquage, une ligne du fournisseur d'identité — n'est plus là ensuite, et le compte qui lit
+    # est celui que la sauvegarde portait.
+    api, stage, owner, marking = carrying.api, carrying.stage, carrying.owner, carrying.marking
+    first, manager = stage.project["project_id"], stage.manager
+    second = create(api, manager, label="Second projet")["project_id"]
+    open_and_mark(api, manager, first, marking, "v1.0")
+    opened = api.post(f"{PROJECTS}/{first}/revisions", headers=manager.headers, json={})
+    assert opened.status_code == 201, opened.text
+    held = carried(api, stage.reader, owner)
+    assert len(held[0]) == 2
+    assert sorted(held[1].values()) == ["draft:None", "marked:v1.0"]
+    backup_task = take()
+    create(api, manager, label="Projet postérieur")
+    account(installation.database, "Durand", "Paul")
+    open_and_mark(api, manager, second, marking, "v2.0")
+    provider = create_database_engine(installation.owner["identity_provider"])
+    try:
+        with provider.begin() as connection:
+            connection.execute(text("INSERT INTO realm VALUES ('after-the-backup')"))
+        assert carried(api, stage.reader, owner) != held
+        restore(installation, backup_task, tmp_path)
+        assert carried(api, stage.reader, owner) == held
+        with provider.connect() as connection:
+            realms = connection.scalars(text("SELECT id FROM realm ORDER BY id")).all()
+        assert realms == ["waterfall"]
+    finally:
+        provider.dispose()
 
 
 @pytest.mark.requirement("WF-ADM-0160-A")

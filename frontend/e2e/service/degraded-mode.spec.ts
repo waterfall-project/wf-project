@@ -17,7 +17,7 @@
  */
 import { type Browser, expect, type Page, type PlaywrightWorkerArgs, test } from "@playwright/test";
 
-import { startAllAgain, whileStopped } from "./components";
+import { START_ALL_AGAIN_TIMEOUT, startAllAgain, whileStopped } from "./components";
 import { heldToTheContract } from "./contract";
 import {
   accountAdministrator,
@@ -42,7 +42,7 @@ const SESSION_COOKIE = "__Host-wf_session";
 // in a new worker then, so that no component stays stopped for the paths after. Each component
 // is waited for up to 60 s (`startAllAgain`): the hook gets the time of all of them.
 test.afterAll(async () => {
-  test.setTimeout(150_000);
+  test.setTimeout(START_ALL_AGAIN_TIMEOUT);
   await startAllAgain();
 });
 
