@@ -668,3 +668,37 @@ def test_an_occurrence_gives_a_line_that_becomes_material_the_figures_of_its_sou
         MODIFIED[2],
         None,
     )
+
+
+def test_an_occurrence_that_changes_the_quantity_alone_leaves_the_hours_of_a_line_of_labour(
+    project: Costed,
+) -> None:
+    # « Plans » is labour in the main structure and in the own estimate, which changes its quantity
+    # alone (the differential is read against the main structure): neither the category nor the
+    # role is designated, so the kind columns are left to ``reestimate`` and no constraint breaks
+    # (#4591); a line whose kind differs from its source designates its category (#4750).
+    risk = risk_differential(project)
+    nodes = select(Node.id).where(Node.structure_id.in_([project.structure_id, risk.structure_id]))
+    with project.stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.label == MODIFIED[0], EstimateLine.node_id.in_(nodes))
+            .values(
+                cost_category_id=project.costs.labour,
+                resource_role_id=project.costs.role,
+                hours=Decimal(10),
+                unit_disbursement=None,
+            )
+        )
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.node_id == risk.nodes[MODIFIED[0]])
+            .values(quantity=Decimal(3))
+        )
+    found, _ = applied(risk)
+    assert found.refusals == ()
+    assert ("updated", "estimate_line", MODIFIED[0], ["quantity"]) in changes(found)
+    labour, _ = line(project, MODIFIED[0])
+    figures = (labour.quantity, labour.hours, labour.unit_disbursement)
+    assert figures == (Decimal(3), Decimal(10), None)
+    assert labour.resource_role_id == project.costs.role

@@ -203,7 +203,10 @@ def _current(
     # Its hours and its unit disbursement as the source has them, the column it does not have
     # null, written with its category and its role: ``reestimate`` cannot change the kind of a line,
     # and a flush between the two would break the constraints that tie them (#4591).
-    row.hours, row.unit_disbursement = source.hours, source.unit_disbursement
+    # Only when the line changes its kind: otherwise the columns stay and ``reestimate`` decides
+    # (#4750).
+    if line.fields & {"cost_category", "resource_role"}:
+        row.hours, row.unit_disbursement = source.hours, source.unit_disbursement
     # The figures the line takes, as the source has them: a labour line has its hours, a line that
     # is not its unit disbursement (``FIELD_NOT_ACCEPTED`` otherwise), both their quantity.
     sent = {"quantity"}
