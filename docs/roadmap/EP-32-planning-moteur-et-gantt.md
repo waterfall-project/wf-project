@@ -363,7 +363,7 @@ autres sont des refus que les écrans montrent déjà par leur message.
 
 ## US-3290 — Le chemin critique que le Gantt montre est prouvé par un test du service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0090-A`
 - **opérations** : `listNodes`
 - **issue** : #4550
