@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 from waterfall.witness import (
     contributors,
     estimate_lines,
+    portfolio,
     projects,
     revisions,
     subprojects,
@@ -41,7 +42,8 @@ if TYPE_CHECKING:
 
 # A contributor names its project and its account, a subproject, an element of the work breakdown
 # and a timeline their project; a revision and its events come last, the code entered among them,
-# the tasks of a revision inscribed to the timelines.
+# the tasks of a revision inscribed to the timelines. The slice of the portfolio comes last, after
+# the march of the events of PRJ-001, the risks and the amendments of EP-08 among them (EP-11).
 SLICES: tuple[tuple[str, Slice], ...] = (
     ("projects", projects.load),
     ("contributors", contributors.load),
@@ -49,6 +51,7 @@ SLICES: tuple[tuple[str, Slice], ...] = (
     ("work_breakdown", work_breakdown.load),
     ("timelines", timelines.load),
     ("revisions", revisions.load),
+    ("portfolio", portfolio.load),
 )
 # The tasks of a revision, then its lines, which name them, written once it is opened, before its
 # marking; the actual costs come after them, written by the march of the events at their instants

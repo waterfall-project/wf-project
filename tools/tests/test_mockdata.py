@@ -15,6 +15,7 @@ from wftools import (
     REPOSITORY,
     mockdata,
     mockportfolio,
+    mocksliceviews,
     mockstructure,
     mocktoday,
     mockvolumes,
@@ -165,6 +166,7 @@ def test_every_volume_is_an_example_of_the_contract(volumes: dict[str, Any]) -> 
         "portfolio_cost_structure.json",
         "portfolio_performance.json",
         "portfolio_projects.json",
+        "portfolio_projects_filtered.json",
         "portfolio_projects_page.json",
         "portfolio_risks.json",
         "portfolio_value.json",
@@ -848,6 +850,7 @@ def test_writing_removes_a_file_the_generator_no_longer_makes(tmp_path: Path) ->
     assert mockdata.check(tmp_path / "absent") == [
         *(f"volume/{name} is missing" for name in mockvolumes.volumes()),
         *(f"{name} is missing" for name in mockdata.named()),
+        *(f"witness/portfolio/{name} is missing" for name in mocksliceviews.documents()),
     ]
 
 

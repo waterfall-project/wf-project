@@ -59,13 +59,15 @@ type Person = Callable[..., tuple[UUID, dict[str, str]]]
 
 
 @pytest.fixture(scope="session")
-def provider_url(database_url: str) -> Iterator[str]:
+def provider_url(process_database_url: str) -> Iterator[str]:
     """Create, for this run, a database that stands for the identity provider's, with a realm."""
     name = f"waterfall_test_idp_{uuid4().hex}"
-    server = create_database_engine(database_url).execution_options(isolation_level="AUTOCOMMIT")
+    server = create_database_engine(process_database_url).execution_options(
+        isolation_level="AUTOCOMMIT"
+    )
     with server.connect() as connection:
         connection.execute(text(f'CREATE DATABASE "{name}"'))
-    url = engine_url(database_url).set(database=name).render_as_string(hide_password=False)
+    url = engine_url(process_database_url).set(database=name).render_as_string(hide_password=False)
     provider = create_database_engine(url)
     with provider.begin() as connection:
         connection.execute(text("CREATE TABLE realm (id text PRIMARY KEY)"))

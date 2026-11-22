@@ -1,0 +1,308 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+"""The contribution of a project to the portfolio, computed once for both dates (US-2680/L2).
+
+One computation gives the documents of the portfolio of a revision, at the marking and on the
+current day (EP-11, "La contribution d'un projet"): ``portfolio_documents``. The marking keeps what
+it gives (``store_contribution``, in the interface); the day adds the document the list and the
+value read — ``project`` or ``estimate``, EP-10's — and keeps the whole in the cache of the
+indicators (``day_contribution``). Their forms are those of the interface
+(``core/portfolio/interface/contribution.py``), which the views read.
+
+Which kinds a revision gives follows the state of its project: a project In progress or Completed
+gives the workload, the structure of the costs, the risks and the milestones; an offer the workload
+and the structure of the costs on its estimate, its risks and its curves — not the milestones,
+which ask for a reference. A marking keeps the kinds of the state of its project then: a project In
+progress, or an offer; a project in another state keeps none.
+
+Each part reads through the interfaces of the modules, never their tables: the workload of the
+estimate (``workload``, EP-07, on a remaining; ``offer_workload`` on the estimate of an offer), its
+totals (``portfolio_totals``), the risks of the revision (``portfolio_risks``, US-2680/L3), the
+tracked milestones of the planning and the curves of an offer of the indicators (``offer_curves``).
+Nothing is weighted: the views weigh an offer by its probability (EP-11, "La contribution d'un
+projet"); the risks never are.
+"""
+
+from typing import TYPE_CHECKING, Any
+
+from waterfall.core.costs.interface import PROJECT
+from waterfall.core.estimate import interface as estimate
+from waterfall.core.estimate.interface import (
+    IndicatorsAsked,
+    WorkloadAsked,
+    WorkloadBasis,
+    estimate_indicators,
+    offer_workload,
+    portfolio_totals,
+)
+from waterfall.core.indicators.interface import (
+    Contributing,
+    day_indicators,
+    day_reading_of,
+    estimate_document,
+    missing_rate_document,
+    offer_curves,
+)
+from waterfall.core.planning.interface import (
+    milestone_forecasts,
+    tasks_for_indicators,
+    tracked_milestones,
+)
+from waterfall.core.portfolio.states import IN_PROGRESS, PRICING
+from waterfall.core.projects.interface import NOBODY, project_facts
+from waterfall.core.revisions.interface import reference_at_marking
+from waterfall.core.risks.interface import portfolio_risks
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+    from datetime import date, datetime
+    from decimal import Decimal
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
+
+    from waterfall.core.estimate.interface import Lacking, MissingRate, RoleLoad
+    from waterfall.core.indicators.interface import Document, IndicatorKind
+    from waterfall.core.projects.interface import ProjectFacts
+
+COMPLETED_TASK = "completed"
+
+WORKLOAD: IndicatorKind = "portfolio_workload"
+COST_STRUCTURE: IndicatorKind = "portfolio_cost_structure"
+RISKS: IndicatorKind = "portfolio_risks"
+MILESTONES: IndicatorKind = "portfolio_milestones"
+OFFER_CURVES: IndicatorKind = "portfolio_offer_curves"
+
+# The kinds every entry of the day answers, a document or none (``day_documents_of``, #4193): those
+# of EP-10 the list and the value read, and those of the portfolio.
+DAY_KINDS: tuple[IndicatorKind, ...] = (
+    "project",
+    "estimate",
+    WORKLOAD,
+    COST_STRUCTURE,
+    RISKS,
+    MILESTONES,
+    OFFER_CURVES,
+)
+
+type Documents = Mapping[IndicatorKind, Document]
+
+
+def _decimal_text(value: Decimal) -> str:
+    """Write hours, an amount, a probability or a severity as the contract does, no exponent."""
+    return format(value, "f")
+
+
+def workload_document(
+    session: Session, facts: ProjectFacts, project_id: UUID, revision_id: UUID, at: datetime
+) -> Document:
+    """Give the hours of each role by month of a revision: its remaining, or an offer's estimate.
+
+    A project that is not an offer on its remaining to commit (``getProjectWorkload``): that of the
+    current revision from the day of ``at``, that of a marked one from the day of its marking. An
+    offer on its estimate, every line whole over its task, whatever the day (``offer_workload``;
+    EP-11, "Tables et migrations"). Only the roles loaded, in the order of the workload, each with
+    its months loaded in order.
+    """
+    roles: Sequence[RoleLoad]
+    if facts.state == PRICING:
+        roles = offer_workload(session, project_id, revision_id, at)
+    else:
+        current = revision_id == facts.current_revision_id
+        basis = WorkloadBasis.CURRENT_REMAINING if current else WorkloadBasis.MARKED_REMAINING
+        asked = WorkloadAsked(basis, None if current else revision_id, None, at, NOBODY)
+        # Read on the interface itself: ``workload`` names a file of it too.
+        roles = estimate.workload(session, project_id, asked).roles
+    return {
+        "roles": [
+            {
+                "resource_role_id": str(role.resource_role_id),
+                "months": [
+                    {"month": each.month, "hours": _decimal_text(each.hours)}
+                    for each in role.months
+                ],
+            }
+            for role in roles
+            if role.months
+        ]
+    }
+
+
+def _entry(
+    key: tuple[str, UUID], amount: Decimal, lacking: Mapping[UUID, tuple[MissingRate, ...]]
+) -> dict[str, Any]:
+    """Write an amount by key; one a rate missing prevents from computing is null, the rates named.
+
+    As the document ``estimate`` writes an amount not computed (``hourly_rate_missing``,
+    WF-DEV-0010): no reader can sum it in silence (#4283).
+    """
+    name, identifier = key
+    missing = lacking.get(identifier, ())
+    if not missing:
+        return {name: str(identifier), "amount": _decimal_text(amount)}
+    return {
+        name: str(identifier),
+        "amount": None,
+        "missing_rates": [missing_rate_document(each) for each in missing],
+    }
+
+
+def cost_structure_document(session: Session, project_id: UUID, revision_id: UUID) -> Document:
+    """Give the totals by cost type of the budget and of the remaining, and their labour by role.
+
+    An amount whose labour lines lack an hourly rate — a revision not marked only — is null, with
+    ``missing_rates`` naming the categories and the years (#4283).
+    """
+    totals = portfolio_totals(session, project_id, revision_id)
+
+    def by_type(
+        amounts: Mapping[UUID, Decimal], labels: Mapping[UUID, str], lacking: Lacking
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                **_entry(("cost_type_id", each), amounts[each], lacking.by_cost_type),
+                "label": labels[each],
+            }
+            for each in sorted(amounts)
+        ]
+
+    def by_role(amounts: Mapping[UUID, Decimal], lacking: Lacking) -> list[dict[str, Any]]:
+        return [
+            _entry(("resource_role_id", each), amounts[each], lacking.by_role)
+            for each in sorted(amounts)
+        ]
+
+    budget, remaining = totals.budget_lacking, totals.remaining_lacking
+    return {
+        "budget_revision_id": str(totals.budget_revision_id),
+        "budget_by_cost_type": by_type(
+            totals.budget_by_cost_type, totals.budget_cost_type_labels, budget
+        ),
+        "remaining_by_cost_type": by_type(
+            totals.remaining_by_cost_type, totals.remaining_cost_type_labels, remaining
+        ),
+        "budget_labour_by_role": by_role(totals.budget_labour_by_role, budget),
+        "remaining_labour_by_role": by_role(totals.remaining_labour_by_role, remaining),
+    }
+
+
+def _amount(value: Decimal | None) -> str | None:
+    """Write an amount that may be null: ``None`` for none."""
+    return None if value is None else _decimal_text(value)
+
+
+def risks_document(session: Session, project_id: UUID, revision_id: UUID) -> Document:
+    """Give the risks of a revision, in the order of their declaration, and the base of the project.
+
+    Each as the register reads it in the revision: its probability, its severity, its provision,
+    its state, and for an occurred one its cost at occurrence and the re-estimated amount of the
+    lines that came from it, null otherwise (WF-DAT-0040, WF-PTF-0090). Nothing is classed: the
+    portfolio places each risk in the matrix at the reading, from its probability, its severity and
+    the base, on the bounds of that day.
+    """
+    read = portfolio_risks(session, project_id, revision_id)
+    return {
+        "base": _decimal_text(read.base),
+        "risks": [
+            {
+                "risk_id": str(each.risk_id),
+                "label": each.label,
+                "probability": _decimal_text(each.probability),
+                "severity": _decimal_text(each.severity),
+                "provision_amount": _decimal_text(each.provision_amount),
+                "state": each.state,
+                "occurrence_cost": _amount(each.occurrence_cost),
+                "occurred_reestimated_amount": _amount(each.occurred_reestimated_amount),
+            }
+            for each in read.risks
+        ],
+    }
+
+
+def milestones_document(
+    session: Session, facts: ProjectFacts, project_id: UUID, revision_id: UUID
+) -> Document:
+    """Give the milestones of a revision inscribed in the time/time tracking, in the plan's order.
+
+    Each with its lineage, its label, its date in the reference — none when the reference does
+    not hold it — and the day it was completed, none while it is not (WF-PTF-0110, WF-IND-0090).
+    """
+    tracked = set(tracked_milestones(session, project_id))
+    tasks = [
+        each
+        for each in tasks_for_indicators(session, project_id, revision_id)
+        if each.is_milestone and each.lineage_id in tracked
+    ]
+    reference = reference_at_marking(session, revision_id, facts.reference_revision_id)
+    dates: Mapping[UUID, date] = {}
+    if reference is not None:
+        lineages = [each.lineage_id for each in tasks]
+        dates = milestone_forecasts(session, project_id, lineages, [reference]).get(reference, {})
+    milestones: list[dict[str, str | None]] = []
+    for task in tasks:
+        planned = dates.get(task.lineage_id)
+        done = task.completed_on if task.progress == COMPLETED_TASK else None
+        milestones.append(
+            {
+                "lineage_id": str(task.lineage_id),
+                "label": task.label,
+                "reference_date": None if planned is None else planned.isoformat(),
+                "completed_on": None if done is None else done.isoformat(),
+            }
+        )
+    return {"milestones": milestones}
+
+
+def portfolio_documents(
+    session: Session, project_id: UUID, revision_id: UUID, at: datetime, *, marking: bool
+) -> dict[IndicatorKind, Document]:
+    """Give the documents of the portfolio of a revision of a project, by kind, at ``at``.
+
+    ``marking`` is the revision being marked at the instant ``at`` of its act: its state then
+    decides — In progress, or an offer —, and the curves of an offer bear the context a marking
+    keeps. On the current day, a project that is not an offer gives what a project In progress
+    gives. Nothing is caught: a computation that raises fails the marking whole.
+    """
+    facts = project_facts(session, project_id)
+    if facts.state == PRICING:
+        return {
+            WORKLOAD: workload_document(session, facts, project_id, revision_id, at),
+            COST_STRUCTURE: cost_structure_document(session, project_id, revision_id),
+            RISKS: risks_document(session, project_id, revision_id),
+            OFFER_CURVES: offer_curves(session, revision_id, at, marking=marking),
+        }
+    if marking and facts.state != IN_PROGRESS:
+        return {}
+    return {
+        WORKLOAD: workload_document(session, facts, project_id, revision_id, at),
+        COST_STRUCTURE: cost_structure_document(session, project_id, revision_id),
+        RISKS: risks_document(session, project_id, revision_id),
+        MILESTONES: milestones_document(session, facts, project_id, revision_id),
+    }
+
+
+def day_contribution(
+    session: Session, *, project_id: UUID, revision_id: UUID, at: datetime
+) -> Documents:
+    """Give the documents of the day a project contributes, every kind its state calls for.
+
+    Its estimate if an offer, else its own indicators — the same documents as the readings of the
+    project give (``getEstimateIndicators``, ``getProjectIndicators``), on the revision of the day,
+    zones null: they are classified when the list is read, on the thresholds of that day
+    (WF-REF-0170) —; then the documents of the portfolio, as a marking would keep them on that
+    revision (``portfolio_documents``). One computation for every view, written whole in the cache:
+    an entry never holds some of the kinds alone (#4193).
+    """
+    found: dict[IndicatorKind, Document]
+    if project_facts(session, project_id).state == PRICING:
+        asked = IndicatorsAsked(revision_id, str(PROJECT), at)
+        found = {"estimate": estimate_document(estimate_indicators(session, project_id, asked))}
+    else:
+        reading = day_reading_of(session, project_id, revision_id, at)
+        found = {"project": day_indicators(session, reading, (PROJECT,), None)[PROJECT]}
+    found.update(portfolio_documents(session, project_id, revision_id, at, marking=False))
+    return found
+
+
+# The contribution of the day, with the kinds every entry of the cache answers.
+DAY_CONTRIBUTION = Contributing(day_contribution, DAY_KINDS)

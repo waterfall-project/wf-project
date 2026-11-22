@@ -333,13 +333,13 @@ def test_every_registry_holds_what_the_socle_of_ep09_registers_after_the_estimat
 def test_every_registry_holds_what_the_socle_of_ep10_registers_after_the_others(
     everything: dict[str, list[str]],
 ) -> None:
-    # The indicators keep their part of a marking, beside the socles before them: nothing else
-    # computes indicators at the marking before EP-11. They alone answer the physical progress of
-    # the summaries (US-1680).
+    # The indicators keep their part of a marking, beside the socles before them, first: the
+    # portfolio keeps its own after (test_registries_portfolio). They alone answer the physical
+    # progress of the summaries (US-1680).
     others = before(REGISTERED, REGISTERED_BY_EP07, REGISTERED_BY_EP08, REGISTERED_BY_EP09)
     for name, entries in REGISTERED_BY_EP10.items():
         held = [entry for entry in everything[name] if entry not in others.get(name, set())]
-        assert held == entries, name
+        assert held[: len(entries)] == entries, name
 
 
 def test_every_registry_holds_what_the_risks_register_after_the_estimate(
@@ -377,7 +377,7 @@ def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
     assert {name: held.get(name) for name in read} == read
     assert held["projects.cost_facts"] == REGISTERED_BY_EP09["projects.cost_facts"]
     assert f"actual_costs:{COSTS}.actual_costs.ActualCostsFormat" in held["exchanges.formats"]
-    assert held["revisions.indicators"] == REGISTERED_BY_EP10["revisions.indicators"]
+    assert held["revisions.indicators"][:1] == REGISTERED_BY_EP10["revisions.indicators"]
     assert held["planning.physical_progress"] == REGISTERED_BY_EP10["planning.physical_progress"]
 
 

@@ -318,6 +318,17 @@ def designated_at_marking(session: Session, revision_id: UUID) -> bool:
     return session.info.get(_DESIGNATES) == revision_id
 
 
+def reference_at_marking(
+    session: Session, revision_id: UUID, reference: UUID | None
+) -> UUID | None:
+    """Give the reference of a project as the revision being marked sees it.
+
+    ``reference`` is the one the project holds; a revision a merge marks and designates at once is
+    the reference from that instant (``designated_at_marking``), the one the documents kept draw on.
+    """
+    return revision_id if designated_at_marking(session, revision_id) else reference
+
+
 def register_marking(keep: Callable[[RevisionMarking], None]) -> Callable[[], None]:
     """Add what a module keeps of a revision being marked; give its withdrawal.
 

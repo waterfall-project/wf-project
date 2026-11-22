@@ -57,9 +57,9 @@ from waterfall.core.planning.interface import (
     list_nodes,
 )
 from waterfall.core.projects.interface import (
+    NOBODY,
     SubprojectFilters,
     SubprojectSort,
-    Viewer,
     current_day,
     list_subprojects,
     read_project,
@@ -132,7 +132,7 @@ def remaining_of(
     of the revision compute them; ``at`` is the instant of the export.
     """
     project_id, revision_id, structure_id = order.project_id, order.revision_id, order.structure_id
-    viewer = Viewer(exporting.NOBODY, frozenset())
+    viewer = NOBODY
     project = read_project(session, project_id, viewer)
     revision = read_revision(session, project_id, revision_id, viewer)
     structure = structure_facts(session, project_id, structure_id, lock=False)

@@ -53,6 +53,36 @@ from waterfall.core.indicators.interface.estimate_documents import (
     risk_coverage_document as risk_coverage_document,
 )
 
+# ``formulas`` (US-2670/L2): the formulas of the indices and the projections, which the portfolio
+# applies to sums.
+from waterfall.core.indicators.interface.formulas import (
+    NO_REFERENCE_BUDGET as NO_REFERENCE_BUDGET,
+)
+from waterfall.core.indicators.interface.formulas import (
+    Computable as Computable,
+)
+from waterfall.core.indicators.interface.formulas import (
+    Projections as Projections,
+)
+from waterfall.core.indicators.interface.formulas import (
+    cost_index as cost_index,
+)
+from waterfall.core.indicators.interface.formulas import (
+    cost_variance as cost_variance,
+)
+from waterfall.core.indicators.interface.formulas import (
+    projections as projections,
+)
+from waterfall.core.indicators.interface.formulas import (
+    schedule_index as schedule_index,
+)
+from waterfall.core.indicators.interface.formulas import (
+    schedule_variance as schedule_variance,
+)
+from waterfall.core.indicators.interface.formulas import (
+    zone_of as zone_of,
+)
+
 # ``index_history`` (US-1660/L1; US-1700): the evolution of the indices.
 from waterfall.core.indicators.interface.index_history import (
     index_history as index_history,
@@ -66,6 +96,30 @@ from waterfall.core.indicators.interface.milestone_tracking import (
 # ``physical_progress`` (US-1660/L1; US-1680): the physical progress of the summary tasks.
 from waterfall.core.indicators.interface.physical_progress import (
     physical_progress as physical_progress,
+)
+
+# ``portfolio`` (US-2670/L1; US-2680/L1, US-2680/L2): the documents of the projects the portfolio
+# sums, kept at the marking and of the day.
+from waterfall.core.indicators.interface.portfolio import (
+    PORTFOLIO_KINDS as PORTFOLIO_KINDS,
+)
+from waterfall.core.indicators.interface.portfolio import (
+    Contribute as Contribute,
+)
+from waterfall.core.indicators.interface.portfolio import (
+    Contributing as Contributing,
+)
+from waterfall.core.indicators.interface.portfolio import (
+    day_documents_of as day_documents_of,
+)
+from waterfall.core.indicators.interface.portfolio import (
+    keep_document as keep_document,
+)
+from waterfall.core.indicators.interface.portfolio import (
+    kept_documents_of as kept_documents_of,
+)
+from waterfall.core.indicators.interface.portfolio import (
+    offer_curves as offer_curves,
 )
 
 # ``project_indicators`` (US-1660/L1; US-1660/L3, US-1670/L2): the indicators of a project, and
@@ -83,6 +137,9 @@ from waterfall.core.indicators.interface.project_indicators import (
 )
 from waterfall.core.indicators.interface.project_indicators import (
     day_reading as day_reading,
+)
+from waterfall.core.indicators.interface.project_indicators import (
+    day_reading_of as day_reading_of,
 )
 from waterfall.core.indicators.interface.project_indicators import (
     project_indicators as project_indicators,

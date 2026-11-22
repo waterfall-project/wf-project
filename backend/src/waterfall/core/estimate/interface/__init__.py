@@ -248,10 +248,16 @@ from waterfall.core.estimate.interface.indicators import (
     MissingRate as MissingRate,
 )
 from waterfall.core.estimate.interface.indicators import (
+    distribution as distribution,
+)
+from waterfall.core.estimate.interface.indicators import (
     estimate_indicators as estimate_indicators,
 )
 from waterfall.core.estimate.interface.indicators import (
     missing_rates as missing_rates,
+)
+from waterfall.core.estimate.interface.indicators import (
+    share_of as share_of,
 )
 from waterfall.core.estimate.interface.indicators import (
     shown as shown,
@@ -292,6 +298,21 @@ from waterfall.core.estimate.interface.lines import (
 # ``merging`` (US-2560/L1): the part of the estimate in the merge of a differential.
 from waterfall.core.estimate.interface.merging import (
     merge_lines as merge_lines,
+)
+
+# ``portfolio`` (US-2670/L1; US-2680/L2): the totals by nature and the labour by role the
+# portfolio sums (EP-11).
+from waterfall.core.estimate.interface.portfolio import (
+    Lacking as Lacking,
+)
+from waterfall.core.estimate.interface.portfolio import (
+    PortfolioTotals as PortfolioTotals,
+)
+from waterfall.core.estimate.interface.portfolio import (
+    offer_workload as offer_workload,
+)
+from waterfall.core.estimate.interface.portfolio import (
+    portfolio_totals as portfolio_totals,
 )
 
 # ``rates`` (US-1490/L1; US-1500): the rates of a revision and what it keeps of the reference.
@@ -498,11 +519,6 @@ from waterfall.core.estimate.severities import (
 )
 from waterfall.core.estimate.severities import (
     structure_amounts as structure_amounts,
-)
-
-# ``shares`` (US-2600/L2): the share of an amount in a total, to the four places the contract says.
-from waterfall.core.estimate.shares import (
-    share_of as share_of,
 )
 
 # ``spreading`` (US-1520/L1; US-2040/L2): the line the planned value is computed on, which EP-10

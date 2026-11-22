@@ -57,9 +57,9 @@ from waterfall.core.planning.interface import (
     list_nodes,
 )
 from waterfall.core.projects.interface import (
+    NOBODY,
     SubprojectFilters,
     SubprojectSort,
-    Viewer,
     WorkBreakdownFilters,
     list_subprojects,
     read_project,
@@ -84,7 +84,6 @@ if TYPE_CHECKING:
 TASK = "task"
 IN_PROGRESS_VERSION = "En cours"
 IN_PROGRESS_FILE = "en-cours"
-NOBODY = UUID(int=0)
 # The kinds of a nature, as the reference says them, and as the workbook does.
 KINDS: Mapping[str, NatureKind] = {
     "labor": "labour",
@@ -404,7 +403,7 @@ def estimate_of(
     Read in the transaction of the task; ``now`` is the instant of the export, the clock's if none.
     """
     project_id, revision_id, structure_id = order.project_id, order.revision_id, order.structure_id
-    viewer = Viewer(NOBODY, frozenset())
+    viewer = NOBODY
     project = read_project(session, project_id, viewer)
     revision = read_revision(session, project_id, revision_id, viewer)
     structure = structure_facts(session, project_id, structure_id, lock=False)

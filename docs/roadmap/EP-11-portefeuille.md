@@ -41,10 +41,8 @@ sur un dépôt qui les porte tous (WF-ARC-0010).
   PRJ-001 et de PRJ-002, pour que chaque vue ait de quoi sommer : des offres, un projet terminé, une
   offre perdue, des projets en cours — chargée par `waterfall-api load-witness` (décision de
   l'auteur du 2026-11-17) ;
-- les tests du harnais qui manquent aux exemples chiffrés de calcul des EPIC livrés, et le contrôle
-  qui échoue désormais sur un exemple sans test (WF-QUA-0020) ;
-- la mesure des huit vues, sur le témoin chargé, par l'outil d'EP-26 ;
-- les constats reçus, soldés.
+- les constats reçus, soldés, ou reportés à l'EPIC qui touche leur code (« Reprise du 2026-11-21
+  soir »).
 
 ## Ce qui n'en fait pas partie
 
@@ -52,7 +50,11 @@ sur un dépôt qui les porte tous (WF-ARC-0010).
 - les trois cents projets du jeu de données de référence, et la mesure des vues à cette échelle —
   EP-13, qui rejoue dessus l'outil d'EP-26 (WF-QUA-0060) et les tests de la lecture conservée ;
 - la reprise des révisions marquées avant cet EPIC : elles ne conservent pas ce que le portefeuille
-  lit de plus, et rien ne le recalcule (décision de l'auteur du 2026-11-17).
+  lit de plus, et rien ne le recalcule (décision de l'auteur du 2026-11-17) ;
+- reportés le 2026-11-21 soir (« Reprise du 2026-11-21 soir ») : les tests du harnais qui manquent
+  aux exemples chiffrés et le contrôle qui échoue sur un exemple sans test (US-2780/L2, EP-36) ; la
+  reprise des doublons du noyau (US-2780/L4, retiré : EP-35 et EP-34) ; la mesure des huit vues
+  (US-2790, EP-40).
 
 ## Exigences réalisées
 
@@ -167,17 +169,14 @@ indicateurs, conservés ou calculés, et les risques, leurs provisions et leur c
 
 - les exemples chiffrés des Vérif du §3.4.3, de WF-PRJ-0090, de WF-CYC-0130 et de WF-REF-0100 sont
   des tests qui passent ;
-- `make check-fixtures` échoue sur un exemple chiffré du document qui n'a ni test du harnais ni
-  déclaration hors harnais, et passe (WF-QUA-0020) ;
 - un portefeuille calculé à une date passée ne change pas quand une révision est marquée
   après cette date, et aucune de ses vues ne lit alors de ligne de tâche ni de ligne de devis ;
 - le parcours de bout en bout ouvre chacune des vues du portefeuille, contre le service réel, sur le
   témoin chargé avec la tranche du portefeuille, et le manager y ouvre un projet dont il n'est pas
   contributeur ;
-- `make requirements` ne laisse sans test du back aucune des exigences que cet EPIC clôt ;
-- le rapport de mesures porte les huit vues du portefeuille, mesurées sur le témoin chargé ; les
-  mesures existantes tiennent leurs objectifs et ne se dégradent pas de plus d'un quart
-  (WF-QUA-0060).
+- le témoin se charge une fois par session des tests du back, dans une base modèle que chaque test
+  copie, et chaque part de `back.yml` tient sous son délai de 20 minutes, mesuré en CI (US-2770/L2b,
+  #4653 ; reformulé le 2026-11-22, #4674).
 
 ## Conception
 
@@ -253,6 +252,123 @@ Décisions de l'auteur du 2026-11-17, chacune avec l'option écartée :
   que sous leur libellé et leur code (WF-PTF-0030) — ils y figureraient avec leur budget et leurs
   indices.
 
+### Décisions de l'auteur du 2026-11-19
+
+Prises pendant la livraison, sur les constats que les revues ont relevés ; chacune dit le lot ou la
+section qui la porte, et rien d'autre dans la conception ne change.
+
+- **Une liste lue sans période ne retient aucun projet terminé** (#4020 point 1, #4136) : voir « Les
+  vues ». Déjà appliquée par US-2690/L2 (`docs/api/DECISIONS.md`). Le point 2 de #4020, les états
+  que chaque vue compte, n'est pas tranché ici : chaque lot de vue fixe ses états d'après les
+  documents, la liste suivant `PortfolioStates`.
+- **Toute vue lit par `PortfolioReading(at, cache)`** (#4194) : voir « Les vues ».
+- **`win_probability` vaut `null` pour un projet qui n'est pas une offre** (#4137) : un projet en
+  cours ou terminé n'a pas de probabilité de gain dans la liste. L'exemple `portfolio_projects` du
+  contrat, qui montre `"1"` pour un projet en cours, est aligné par US-2760/L2 #3884, avec les
+  exemples qu'il touche déjà (#1714).
+- **La période de `getPortfolioPerformance` est bornée par le contrat** (#4176) : au-delà de la durée
+  maximale, 422 `VALUE_OUT_OF_RANGE` sur la période, au lieu d'une lecture par trimestre touché sans
+  limite. Écartées : lire les documents conservés de tous les trimestres en une requête ; laisser
+  tel quel et attendre la mesure. Porté par US-2670/L4 #3873, qui éprouve la règle des périodes sur
+  les six vues. Le lot a proposé cinq ans (commentaire de #3873), **confirmés par l'auteur le
+  2026-11-21** : `PERIOD_YEARS = 5`.
+- **Un exemple de 422 de `getPortfolioProjects` sur la période du périmètre** (#4164) : période
+  inversée avec `as_of`, champs `/query/from` et `/query/to`, au contrat, que le test de l'écran lit
+  au lieu de composer ses champs. Porté par US-2760/L2 #3884.
+- **L'empreinte de la contribution d'un projet couvre ce que la contribution lit** (#4158) : le nœud
+  courant d'un rôle et la probabilité de gain d'une offre entrent dans l'empreinte par US-2680/L2
+  #3880 ; les compteurs des risques par US-2680/L3 #3881. Aucune entrée ne tient plus que sa durée de
+  validité là où une valeur change (WF-DAT-0130-A).
+- **Une seule règle « qui peut ouvrir un projet »** (#4131) : `access_roles/evaluation.py` lit la
+  règle de `Viewer.sees_all`, et non plus sa copie ; le jugement d'accès d'un projet et `can_open`
+  du portefeuille ne peuvent plus diverger (WF-PTF-0030). Porté par US-2670/L4 #3873.
+- **La copie d'`IDENTIFIER` de la navigation est corrigée** (#4160, `frontend/src/navigation/
+  context.ts`) : un identifiant qui n'est pas un UUID est ignoré comme un identifiant absent, par la
+  fonction du référentiel. Porté par US-2760/L2 #3884. La copie du registre des risques
+  (`components/risks/address.ts`) reste à EP-08.
+- **Le coût de la lecture du jour projet par projet est laissé à la mesure** (#4165, #4177) :
+  `day_documents_of` (neuf requêtes par projet au cache chaud) et la performance au jour courant
+  (`current_day_reading`, `day_indicators`) ne changent pas avant US-2790 ; si une vue du jour
+  dépasse son objectif, le groupement des empreintes se fait en lot neuf. Écarté : grouper
+  maintenant, ce qui toucherait les interfaces de cinq modules hors d'un lot de correction.
+- **Les tests tiennent les fabriques du portefeuille** (#4051) : le PostgreSQL des tests monte
+  `max_locks_per_transaction` (`deploy/compose/compose.test.yaml`, et le service de `back.yml`), et
+  `drop_partitions` supprime les partitions projet par projet, une transaction chacun. Les deux
+  leviers, non l'un des deux. Porté par US-2680/L2 #3880, que les lots de vue qui écrivent des
+  tests sur les fabriques attendent tous, directement ou non.
+- **Les exemples à barre oblique de WF-CRE-0020 et WF-PRJ-0050** (#4022) entrent au harnais avec le
+  lot qui réalise #3966 : voir US-2780.
+
+### Décisions de l'auteur du 2026-11-21
+
+Prises sur les constats ouverts, en commentaire de leur issue ; chacune dit le lot qui la porte, et
+rien d'autre dans la conception ne change.
+
+- **Un lot neuf, US-2780/L4 « L'unique implémentation, reprise du noyau »** (#4372, #4373, #4363),
+  après US-2780/L3 #3878, qui a posé le contrôle, et avant US-2790 #3868 et US-2770/L3 #3887, qui en
+  dépendent désormais ; « pas avec » US-2770/L2 #3886, qui peut toucher les mêmes fichiers du noyau.
+  Il fait tenir par le dépôt ce que le contrôle de L3 ne pouvait encore constater :
+  - le calendrier des mois de `core/portfolio/aggregation/periods.py` importe celui de
+    `core/indicators/series/months.py` par l'interface d'`indicators`, et l'exemption `[[duplicate]]`
+    de `tools/implementations.toml` est retirée (#4372) ;
+  - les trois calculs écrits deux fois dans le noyau n'ont plus qu'une définition, importée par
+    l'interface : `quality_conditions` (`core/projects/commands.py`, `core/revisions/commands.py`),
+    `month_of` (`core/estimate/disbursing.py`, `core/indicators/series/months.py`), `CENT`
+    (`core/estimate/pricing/amounts.py`, `core/indicators/formulas/rounding.py`) (#4373) ;
+  - **les arrondis de `api/nodes.py` (`_money`) et d'`api/comparison.py`** — `quantize(CENT)`, demi
+    pair — **face à `round_to_cent`, demi supérieur** : le lot commence par un test qui dit si cela
+    change une valeur réelle. Si oui, c'est un constat de contrat à ouvrir à part, non corrigé dans
+    le lot sans décision (#4373) ;
+  - les motifs `\d` d'`api/problems.py`, de `core/costs/extraction.py` et de
+    `core/planning/interface/paste.py` n'acceptent plus les chiffres Unicode (`[0-9]` ou `re.ASCII`),
+    un test par chemin (#4363).
+
+  Écarté : corriger dans US-2780/L3, déjà fusionné ; un lot neuf garde la revue de ces reprises du
+  noyau, qui changent des interfaces qu'EP-09 et EP-10 partagent, séparée de celle du contrôle.
+- **La durée maximale de la performance est de cinq ans** (#4176, `PERIOD_YEARS = 5`) : voir
+  « Décisions de l'auteur du 2026-11-19 ».
+- **Le test des familles d'identifiants reconnaît la corrélation dérivée** d'un exemple d'erreur de
+  `fixtures/api` (#4361, issue de #1007) : corrigé par US-2770/L3 #3887.
+- **La courbe en S du jour ne re-choisit pas la révision que le périmètre a retenue** (#4339) :
+  corrigé par US-2790 #3868.
+- **Les trois gardes du test de la lecture conservée sont durcies** (#4360) : corrigé par
+  US-2770/L2 #3886.
+
+### Reprise du 2026-11-21 soir
+
+Décisions de l'utilisateur, le pilote arrêté : la fusion d'EP-11 retient EP-30, EP-36, EP-37 et
+EP-38, qui l'attendent ; ce qui ne tient pas à une fonction du portefeuille se reporte à l'EPIC
+née de la ventilation du 2026-11-21 qui touche son code. Chaque issue reportée porte le label de
+son EPIC et un commentaire ; son cadreur la rattache à un lot.
+
+- **US-2770/L2** (#3886) est fusionné (#4571) avec un palliatif de la chaîne : `back.yml` en huit
+  parts, délai de 25 minutes. Les tests du back coûtent treize fois plus qu'au 2026-11-07 (#4653).
+- **Un lot neuf, US-2770/L2b** (#4657, #4653) : mesurer en CI le coût du témoin, et le charger une
+  fois par session dans une base modèle, que chaque test copie (`CREATE DATABASE … TEMPLATE`), avec
+  un délai par test (`pytest-timeout`) qui nomme un test figé ; la tranche reste chargée partout, sans
+  variante optionnelle ; `back.yml` est ramené à ce que la mesure justifie (décision de l'utilisateur
+  du 2026-11-21, #4657, options 1 et 4). Avant US-2770/L3, qui en dépend ; US-2760/L2, du front, part
+  en parallèle.
+
+### Reprise du 2026-11-22
+
+Décisions de l'utilisateur, le pilote arrêté sur #4688 :
+
+- **#4688** : les durées des parcours du service sont rafraîchies sur `epic/EP-11` par la reprise,
+  depuis les journaux de la file de #4668 ; US-2770/L2b reprend ensuite sa chaîne.
+- **#4674** : la conception de L2b est mise au texte de la décision du 2026-11-21 ; le critère de
+  coût de la définition de fini se reformule — le témoin chargé une fois par session dans une base
+  modèle, chaque part de `back.yml` sous son délai de 20 minutes —, et la mesure de L2b le constate.
+  Le retour aux quatre parts d'US-1910 n'est plus visé par EP-11.
+- **US-2760** : ses critères partis le 2026-11-21 soir (#1714, #4164, #4137 → EP-38 ; #4160 →
+  EP-37) restent écrits, marqués reportés.
+- **Sortis d'EP-11** : US-2780/L2 (#3877, avec #4021) → EP-36 ; US-2790 (#3868, avec #4165, #4177,
+  #4313, #4339) → EP-40 ; US-2780/L4 (#4494) retiré avant tout commencement, #4372 et #4373 →
+  EP-35, #4363 → EP-34. Les exigences WF-QUA-0020 et WF-ARC-0010 ne se closent donc plus ici.
+- **Constats reportés** : #4547, #4374, #4361, #4163, #4548 → EP-36 ; #4507 (décidé : par libellé
+  puis identifiant), #4164, #1714, #4137 → EP-38 ; #4349, #4160 → EP-37. US-2760/L2 et US-2770/L3
+  n'en portent plus, hors #4513, qui fait partie du parcours du manager.
+
 ### Tables et migrations
 
 Aucune table. Une migration, dans le socle, chaînée sur la dernière d'`epic/EP-08` au tirage de la
@@ -262,7 +378,7 @@ branche (celle de son socle), sans donnée à reprendre : le contrôle `kind_kno
 | Nature | Ce qu'elle conserve | Pour |
 |---|---|---|
 | `portfolio_workload` | les heures par rôle de ressource et par mois chargé — sur le reste à engager d'un projet en cours, sur le devis d'une offre —, sans pondération | US-2700 |
-| `portfolio_cost_structure` | les totaux par nature de coût du budget de référence, hors lignes de provision, et du reste à engager, provisions comprises ; la main-d'œuvre de l'un et de l'autre par rôle, avec le nœud du rôle au marquage ; pour une offre, son devis tient lieu des deux | US-2720 |
+| `portfolio_cost_structure` | les totaux par nature de coût du budget de référence, hors lignes de provision, et du reste à engager, provisions comprises ; la main-d'œuvre de l'un et de l'autre par rôle, groupée par nœud à la lecture, sur l'arbre courant ; pour une offre, son devis tient lieu des deux | US-2720 |
 | `portfolio_risks` | chaque risque de la révision : son identifiant, son libellé, sa probabilité, sa gravité, sa provision, son état, l'assiette de son projet ; le coût à la survenance et le réestimé d'un survenu | US-2730 |
 | `portfolio_milestones` | les jalons inscrits au suivi temps/temps : la lignée, le libellé, la date de référence, la date de terminaison | US-2750 |
 | `portfolio_offer_curves` | pour une offre : les séries au pas du mois de son devis, hors provisions et provisions comprises, sans et avec les délais de paiement | US-2740 |
@@ -283,10 +399,10 @@ Les tests : `test_migrations.py` (le contrôle élargi), `test_database_constrai
 | `core/portfolio` (nouveau, FBS-2) | le périmètre et sa résolution ; la contribution d'un projet ; les huit vues ; le sous-paquet pur `aggregation/` — la pondération, les sommes, les rapports de sommes, les parts, le taux de transformation, la répartition par zone, les trimestres | son interface, un fichier par vue, réexportés par le module ; `store_contribution(session, revision_id, act)`, qu'il enregistre à `register_indicators` après `store_indicators` |
 | `core/indicators` | les cinq natures ; l'écriture d'un document conservé pour un autre module ; la lecture conservée et la lecture du jour de plusieurs projets à la fois ; l'entrée du cache de la contribution d'un projet, sous la même empreinte | `keep_document`, `kept_documents_of` (plusieurs révisions, une requête), `day_documents_of` (plusieurs projets, par le cache), `offer_curves` (les séries d'un devis, par `series/`) ; `formulas/` sert tel quel |
 | `core/estimate` | les totaux par nature et la main-d'œuvre par rôle d'une révision, dans un fichier nouveau de son interface | `portfolio_totals` ; `workload` (EP-07, EP-10) sert tel quel |
-| `core/risks` (EP-08) | les risques d'une révision tels que le portefeuille les lit, et les changements d'état d'une période, dans un fichier nouveau de son interface | `portfolio_risks`, `outcomes_between`, `reviewed_since` ; le registre, la matrice, la réserve et la couverture servent tels quels |
+| `core/risks` (EP-08) | les risques d'une révision tels que le portefeuille les lit, et les changements d'état d'une période, dans un fichier nouveau de son interface | `portfolio_risks`, `outcomes_between`, `not_reviewed_since` (groupé, #4294) ; le registre, la matrice, la réserve et la couverture servent tels quels |
 | `core/planning` | rien | `tracked_milestones`, `milestone_forecasts` (EP-10) servent tels quels |
 | `core/costs` | l'instant du dernier import de plusieurs projets, dans un fichier nouveau de son interface | `last_imports` |
-| `core/revisions` | la dernière révision marquée de plusieurs projets à un instant, et leur révision courante | `last_marked_at_instant`, en une requête |
+| `core/revisions` | la dernière révision marquée de plusieurs projets à un instant, et leur révision courante | `last_marked_at_instant`, en une requête ; `marked_revisions_of` (US-2750) |
 | `core/projects` | les projets retenus par leur état à une date ; les offres sorties du chiffrage dans une période ; ce que l'appelant peut ouvrir, pour plusieurs projets | `projects_in_states_on`, `offers_closed_between`, `openable` ; `ALL_PROJECTS_READ` relu d'une seule définition (#3341) |
 | `core/resource_settings`, `core/indicator_settings`, `core/risk_settings` | rien | les rôles, leur capacité calculée et leur nœud ; le sous-arbre d'un nœud ; les seuils, le délai entre deux revues ; la matrice |
 
@@ -322,10 +438,20 @@ Chaque vue résout le périmètre par une seule fonction — les états à la da
 la période, celle par défaut comprise, et son refus ; le nœud et son libellé —, lit les
 contributions des projets retenus et rend `PortfolioScope`.
 
+- **Toute vue lit par `PortfolioReading(at, cache)`** (décision du 2026-11-19, #4194) : l'instant de
+  la lecture et le cache des indicateurs du jour, passés ensemble, comme US-2690/L2 l'introduit
+  (`core/portfolio/interface/scope.py`) ; une lecture partagée évite la dérive de #4193. Les lots
+  d'US-2700 à US-2750 adaptent leur squelette, où `at: datetime` tient aujourd'hui lieu des deux.
 - **La liste et la valeur** (US-2690) : les documents `project`, `estimate` et `remaining` d'EP-10.
   Le filtre, le tri et la pagination se font sur les lignes formées, en mémoire : trois cents
   projets, et des colonnes calculées qu'aucune table ne porte. Le taux de transformation lit les
-  transitions de la période, périmètre ou non.
+  transitions de la période, périmètre ou non. **Une liste lue sans période ne retient aucun projet
+  terminé** (décision du 2026-11-19, #4020 point 1 et #4136) : sans `from` ni `to`, il n'y a pas de
+  période où un projet aurait été terminé ; la liste retient les projets en cours et en chiffrage,
+  qu'un état `completed` soit demandé ou non, et `scope.from` et `scope.to` sont nuls. Avec l'un des
+  deux, la période par défaut complète l'autre et le projet terminé dans la période est retenu. Écarté :
+  retenir par défaut les projets terminés de la période par défaut, que le contrat (« ne retient
+  aucune période ») ne dit pas.
 - **Le plan de charge** (US-2700) : `portfolio_workload`, pondéré, sommé par rôle et par mois ; les
   rôles retenus et leur capacité par `core/resource_settings` ; la zone de chaque mois.
 - **La performance** (US-2710) : les grandeurs du document `project` sommées, puis les formules
@@ -337,7 +463,7 @@ contributions des projets retenus et rend `PortfolioScope`.
 - **La courbe en S** (US-2740) : les documents `cost_curve` et `cost_curve_payment_delays` d'EP-10,
   et `portfolio_offer_curves` pondéré, sommés mois par mois sur la fenêtre demandée.
 - **La santé du pilotage** (US-2750) : l'instant du dernier marquage face au délai du référentiel ;
-  `reviewed_since` ; `last_imports` ; `portfolio_milestones`.
+  `not_reviewed_since` ; `last_imports` ; `portfolio_milestones`.
 
 ### Le contrat
 
@@ -411,7 +537,8 @@ jour.
 
 ### La mesure
 
-Les huit vues entrent au parcours de `make measure` et de `make measure-version`, au jour courant, à
+Reportée à EP-40 avec US-2790 (« Reprise du 2026-11-21 soir ») ; ce qui suit est la conception que
+son cadreur reprend. Les huit vues entrent au parcours de `make measure` et de `make measure-version`, au jour courant, à
 cache froid puis chaud, et à une date passée ; `make measure-core` relève leur durée et le nombre de
 leurs requêtes dans le noyau. Le rapport dit que le témoin ne porte pas trois cents projets.
 
@@ -428,15 +555,15 @@ leurs requêtes dans le noyau. Le rapport dit que le témoin ne porte pas trois 
    attendent aussi les réexamens d'EP-08 (US-2590/L1).
 4. **Le périmètre éprouvé sur toutes les vues** (US-2670, dernier lot), puis **les écrans**
    (US-2760).
-5. **Le témoin** (US-2770), qui attend tout le back et le témoin d'EP-08 (US-2650/L1), puis **la
-   mesure** (US-2790) et **la vérification d'ensemble**, seule : le parcours du manager, la
-   définition de fini.
+5. **Le témoin** (US-2770), qui attend tout le back et le témoin d'EP-08 (US-2650/L1), puis son
+   coût dans la chaîne (US-2770/L2b) et **la vérification d'ensemble**, seule : le parcours du
+   manager, la définition de fini. La mesure (US-2790) est reportée à EP-40.
 
 ---
 
 ## US-2670 — Le périmètre, la date de calcul et la règle d'agrégation
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PTF-0010-A`, `WF-PTF-0020-A`, `WF-PTF-0030-A`, `WF-CYC-0130-A`,
   `WF-PRJ-0090-A`
 - **opérations** : `getPortfolioProjects`, `getPortfolioValue`, `getPortfolioWorkload`,
@@ -518,6 +645,12 @@ de** comparer les vues entre elles et de retrouver le portefeuille tel qu'il ét
   dans `docs/api/DECISIONS.md`) ;
 - propre à l'US : `ALL_PROJECTS_READ` n'a plus qu'une définition, que `projects` et `access_roles`
   lisent tous deux (#3341) ;
+- propre à l'US : la règle « qui peut ouvrir un projet » n'est écrite qu'une fois : `access_roles`
+  (`evaluation.py`) lit celle de `Viewer.sees_all`, et un test éprouve que le jugement d'accès d'un
+  projet et `can_open` du portefeuille s'accordent (#4131, décision du 2026-11-19 ; US-2670/L4) ;
+- propre à l'US : la période de `getPortfolioPerformance` est bornée par le contrat : au-delà d'une
+  durée maximale, 422 `VALUE_OUT_OF_RANGE` ; le lot propose la durée dans son issue (#4176, décision
+  du 2026-11-19 ; US-2670/L4) ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
 
 **Notes de réalisation.** `docs/api/DECISIONS.md` : « Le portefeuille : horizon, projets terminés,
@@ -533,7 +666,7 @@ toutes.
 
 ## US-2680 — Ce que le marquage conserve pour le portefeuille
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DAT-0040-A`
 - **opérations** : `markRevision`, `mergeCostStructure` (la conservation), `getPortfolioProjects`,
   `getPortfolioValue`, `getPortfolioWorkload`, `getPortfolioPerformance`,
@@ -585,7 +718,15 @@ soit recalculé.
   projets, leurs transitions et les révisions ; elle rend `is_stored` partout où le contrat le
   porte ;
 - propre à l'US : une révision marquée avant cet EPIC n'a pas ces documents, et n'en reçoit pas
-  (décision de l'auteur du 2026-11-17).
+  (décision de l'auteur du 2026-11-17) ;
+- propre à l'US : l'empreinte sous laquelle le cache garde la contribution d'un projet couvre ce que
+  la contribution lit : le nœud courant d'un rôle et la probabilité de gain d'une offre (US-2680/L2),
+  les compteurs des risques (US-2680/L3) ; un changement de l'une de ces valeurs n'est pas servi
+  d'après l'entrée ancienne (WF-DAT-0130-A ; #4158, décision du 2026-11-19) ;
+- propre à l'US : le PostgreSQL des tests monte `max_locks_per_transaction`, et la fixture
+  `database` supprime les partitions projet par projet, une transaction chacun, pour que les lots de
+  vue écrivent leurs tests sur les fabriques sans épuiser les verrous (#4051, décision du
+  2026-11-19 ; US-2680/L2, que ces lots attendent).
 
 **Notes de réalisation.** Le registre `register_indicators` est déclaré par `core/revisions`
 (EP-04) et reçoit l'`Act` du marquage (EP-10) ; le déclencheur de `revision_indicator` refuse une
@@ -600,7 +741,7 @@ ne s'étend pas au portefeuille.
 
 ## US-2690 — La liste des projets et la valeur du portefeuille
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PTF-0040-A`, `WF-PTF-0050-A`
 - **opérations** : `getPortfolioProjects`, `getPortfolioValue`
 - **issue** : #3858
@@ -662,7 +803,7 @@ portefeuille disent si le projet s'ouvre » (#389). Le filtre par colonne suit l
 
 ## US-2700 — Le plan de charge agrégé
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PTF-0060-A`, `WF-REF-0100-A`, `WF-REF-0070-A`
 - **opérations** : `getPortfolioWorkload`, `updateOrgNode`, `getMe`, `updateMyPreferences`
 - **issue** : #3861
@@ -725,7 +866,7 @@ l'écran et son export (US-2760).
 
 ## US-2710 — La performance du portefeuille
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PTF-0070-A`
 - **opérations** : `getPortfolioPerformance`, `getReferenceSettings`
 - **issue** : #3862
@@ -773,7 +914,7 @@ couverture, offres » (G-03, G-08, G-14, M-16). Les ratios et les projections so
 
 ## US-2720 — La structure des coûts du portefeuille
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PTF-0080-A`
 - **opérations** : `getPortfolioCostStructure`
 - **issue** : #3863
@@ -818,7 +959,7 @@ de référence agrégé sans nature « Provision »), M-07 (la contribution d'un
 
 ## US-2730 — Les risques du portefeuille
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PTF-0090-A`
 - **opérations** : `getPortfolioRisks`
 - **issue** : #3865
@@ -861,7 +1002,7 @@ réserve et la couverture.
 
 ## US-2740 — La courbe en S du portefeuille
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PTF-0100-A`
 - **opérations** : `getPortfolioCostCurve`
 - **issue** : #3864
@@ -903,7 +1044,7 @@ décaissements sont ceux de `series/` d'EP-10.
 
 ## US-2750 — La santé du pilotage
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PTF-0110-A`, `WF-REF-0180-A`
 - **opérations** : `getPortfolioPilotHealth`, `getReferenceSettings`, `updateReferenceSettings`
 - **issue** : #3866
@@ -952,7 +1093,7 @@ conservé (US-2680).
 
 ## US-2760 — Les écrans du portefeuille, branchés sur le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0130-A`, `WF-IHM-0140-A`
 - **opérations** : `getPortfolioProjects`, `getPortfolioValue`, `getPortfolioWorkload`,
   `getPortfolioPerformance`, `getPortfolioCostStructure`, `getPortfolioRisks`,
@@ -989,10 +1130,18 @@ montrés.
 - propre à l'US : les parcours du portefeuille se jouent contre le service sur le témoin chargé
   avec la tranche du portefeuille ; ce qui affirmait les trois cents projets du faux back reste joué
   contre lui seul, et se rejoue contre le service en EP-13 ;
-- propre à l'US : un périmètre qui nomme `completed` se lit sur le plan de charge agrégé et la
-  santé du pilotage, avec l'avis que ces projets y sont sans effet (#1714) ;
+- reporté → EP-38 (décision de l'utilisateur du 2026-11-21 soir) : un périmètre qui nomme
+  `completed` se lit sur le plan de charge agrégé et la santé du pilotage, avec l'avis que ces
+  projets y sont sans effet (#1714) ;
 - propre à l'US : un identifiant de l'adresse qui n'est pas un UUID est ignoré comme un identifiant
-  absent, par la fonction du référentiel et non plus par une copie (#2867) ;
+  absent, par la fonction du référentiel et non plus par une copie (#2867) ; reporté → EP-37
+  (décision de l'utilisateur du 2026-11-21 soir) : la copie d'`IDENTIFIER` de la navigation
+  (`navigation/context.ts`) corrigée de même (#4160, décision du 2026-11-19) ; celle du registre
+  des risques reste à EP-08 ;
+- reporté → EP-38 (décision de l'utilisateur du 2026-11-21 soir) : le contrat reçoit l'exemple d'un
+  422 de `getPortfolioProjects` sur la période du périmètre (#4164), que le test de l'écran lit, et
+  l'exemple `portfolio_projects` montre une probabilité de gain nulle pour un projet en cours
+  (#4137), décisions du 2026-11-19 ;
 - propre à l'US : un projet que l'appelant ne peut pas ouvrir est nommé sans lien, dans la liste,
   les risques les plus lourds et les signaux ; aucun écran ne porte de commande de saisie ;
 - propre à l'US : le guide de l'utilisateur dit ce que le service sert désormais.
@@ -1009,7 +1158,7 @@ filtres de la liste, et ce que le service rend autrement que le faux back. Le cl
 
 ## US-2770 — Le témoin : la tranche du portefeuille, et le parcours du manager
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0020-A`
 - **opérations** : les huit opérations du portefeuille ; `getReferenceSettings`,
   `updateReferenceSettings`, `listProjects`, `getProject`
@@ -1063,7 +1212,7 @@ du paramétrage (`reference-*.spec.ts`).
 
 ## US-2780 — Les exemples chiffrés ont tous leur test, chaque calcul une seule implémentation
 
-- **statut** : à faire
+- **statut** : fini dans EP-11 — L2 reporté à EP-36, L4 retiré (« Reprise du 2026-11-21 soir »)
 - **exigences** : `WF-QUA-0020-A`, `WF-ARC-0010-A`, `WF-INTF-0150-A`
 - **opérations** : aucune en propre
 - **issue** : #3859
@@ -1107,6 +1256,20 @@ pas en silence ce que le document a décidé.
 - propre à l'US : `make requirements` ne laisse sans test du back aucune des exigences que cet EPIC
   clôt.
 
+**Les exemples à barre oblique** (#4022, décision du 2026-11-19). WF-CRE-0020-A#327d63bf4748,
+WF-CRE-0020-A#80d94ea6d2fe et WF-PRJ-0050-A#38958d887e9a entrent au harnais avec le lot qui réalise
+#3966 (l'élément d'OTP comparé en entier, spécification 1.0.7), non avec un lot de cet EPIC : le
+noyau refuse encore ces codes. **Aucun lot de l'EPIC ni d'un autre EPIC ne réalise #3966 à ce
+jour** (issue sans EPIC) ; ce lot reste à nommer quand #3966 sera planifié, et c'est lui qui écrit
+ces trois exemples dans `backend/tests/examples/test_wbs_element_examples.py`. Ils restent hors de la
+liste versionnée des exemples hors du harnais, qui ne reçoit que ce que le noyau ne calcule pas.
+
+**La reprise du noyau** (#4372, #4373, #4363, décision du 2026-11-21) : le contrôle de L3 constate ce
+que le noyau ne tenait pas encore ; US-2780/L4 reprend les doublons que L3 a trouvés, retire
+l'exemption de `tools/implementations.toml` et ferme les motifs `\d` : voir « Décisions de l'auteur
+du 2026-11-21 ». Il ne ferme aucun critère de plus : il tient celui de `WF-ARC-0010-A` sur « qu'une
+implémentation ».
+
 **Notes de réalisation.** Le relevé compte 98 exemples au cadrage ; les exemples d'EP-10 et d'EP-08
 entrent au harnais par leurs propres lots. Le harnais est `backend/tests/examples`, l'outil
 `wftools.examples`.
@@ -1118,7 +1281,7 @@ noyau ; la traçabilité des exigences par les tests (WF-QUA-0010, EP-13).
 
 ## US-2790 — Les vues du portefeuille sont mesurées
 
-- **statut** : à faire
+- **statut** : reporté → EP-40 (« Reprise du 2026-11-21 soir »)
 - **exigences** : aucune en propre — l'outil de WF-QUA-0060, que clôt US-2300 (EP-26)
 - **opérations** : `getPortfolioProjects`, `getPortfolioValue`, `getPortfolioWorkload`,
   `getPortfolioPerformance`, `getPortfolioCostStructure`, `getPortfolioRisks`,
@@ -1141,7 +1304,11 @@ mesures, **afin de** savoir si elles tiennent leur objectif avant de publier la 
 - écart : les trois cents projets de l'objectif sont à EP-13, qui rejoue la mesure sur le jeu aux
   volumes ; le rapport le dit ;
 - propre à l'US : les mesures existantes tiennent leurs objectifs et ne se dégradent pas de plus
-  d'un quart ; un dépassement documenté passe, non documenté il fait échouer la chaîne (US-2300).
+  d'un quart ; un dépassement documenté passe, non documenté il fait échouer la chaîne (US-2300) ;
+- propre à l'US : la mesure décide du coût de la lecture du jour projet par projet (`day_documents_of`,
+  neuf requêtes par projet au cache chaud ; la performance au jour courant, #4165 et #4177, décision du
+  2026-11-19) : aucune vue ne change avant elle, et une vue du jour qui dépasse son objectif ouvre un
+  lot neuf de groupement des empreintes.
 
 **Notes de réalisation.** La mesure prend le poste pour elle seule (`docs/dev/agents.md`, « Une
 mesure prend le poste »). Le rapport est versionné dans `docs/measures/`.

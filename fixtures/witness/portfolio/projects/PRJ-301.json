@@ -1,0 +1,40 @@
+{
+  "summary": "PRJ-301, « Modernisation de la chaufferie — Valence », de la tranche du portefeuille du témoin : en cours depuis le 2025-09-29, 3 tâche(s), 3 révision(s), 1 risque(s), 3 import(s) de coûts réels (WF-QUA-0040, EP-11/US-2770).",
+  "description": "Description de la tranche du portefeuille engendrée par `make mock-data` (`wftools.mockslice`) : elle ne se retouche pas.",
+  "value": {
+    "project_id": "01926f3a-7c00-7000-8000-001100000001",
+    "created_at": "2025-09-08T09:00:00Z",
+    "project": {"label":"Modernisation de la chaufferie — Valence","description":null,"client":null,"code":"PRJ-301"},
+    "inflation_rate": "0",
+    "win_probability": "0.7",
+    "reference_revision_id": "01926f3a-7c00-7000-8000-001200000101",
+    "transitions": [
+      {"from_state":null,"to_state":"created","occurred_at":"2025-09-08T09:00:00Z","actor":{"kind":"platform"},"reason":null},
+      {"from_state":"created","to_state":"pricing","occurred_at":"2025-09-08T09:30:00Z","actor":{"kind":"platform"},"reason":null},
+      {"from_state":"pricing","to_state":"in_progress","occurred_at":"2025-09-29T09:00:00Z","actor":{"kind":"platform"},"reason":null}
+    ],
+    "revisions": [
+      {"revision_id":"01926f3a-7c00-7000-8000-001200000101","opened_at":"2025-09-08T09:30:00Z","create":{"description":null},"marked_at":"2025-09-22T09:00:00Z","mark":{"action":"mark","version_name":"Offre"},"abandoned_at":null},
+      {"revision_id":"01926f3a-7c00-7000-8000-001200000102","opened_at":"2025-09-29T10:00:00Z","create":{"description":null},"marked_at":"2025-11-10T09:00:00Z","mark":{"action":"mark","version_name":"Revue de novembre"},"abandoned_at":null},
+      {"revision_id":"01926f3a-7c00-7000-8000-001200000103","opened_at":"2025-11-10T10:00:00Z","create":{"description":null},"marked_at":"2026-05-04T09:00:00Z","mark":{"action":"mark","version_name":"Revue de mai"},"abandoned_at":null}
+    ],
+    "tasks": [
+      {"node_id":"01926f3a-7c00-7000-8000-001300001001","node":{"kind":"task","parent_id":null,"task":{"label":"Études","scheduling_mode":"manual","start":{"date":"2025-10-06"},"finish":{"date":"2025-10-24"}}},"started_on":"2025-10-06","completed_on":"2025-10-24"},
+      {"node_id":"01926f3a-7c00-7000-8000-001300001002","node":{"kind":"task","parent_id":null,"task":{"label":"Fabrication","scheduling_mode":"manual","start":{"date":"2026-01-05"},"finish":{"date":"2026-01-30"}}},"started_on":"2026-01-05","completed_on":"2026-01-30"},
+      {"node_id":"01926f3a-7c00-7000-8000-001300001003","node":{"kind":"task","parent_id":null,"task":{"label":"Mise en service","scheduling_mode":"manual","start":{"date":"2026-07-06"},"finish":{"date":"2026-07-24"}}},"started_on":null,"completed_on":null}
+    ],
+    "lines": [
+      {"node_id":"01926f3a-7c00-7000-8000-001300001011","node":{"kind":"estimate_line","parent_id":"01926f3a-7c00-7000-8000-001300001001","estimate_line":{"label":"Études de détail","cost_category_id":"01926f3a-7c00-7000-8000-000000000402","quantity":"1","resource_role_id":"01926f3a-7c00-7000-8000-000000000451","hours":"100","unit_disbursement":null,"payment_delay_days":0}}},
+      {"node_id":"01926f3a-7c00-7000-8000-001300001021","node":{"kind":"estimate_line","parent_id":"01926f3a-7c00-7000-8000-001300001002","estimate_line":{"label":"Fabrication de la chaudière","cost_category_id":"01926f3a-7c00-7000-8000-000000000401","quantity":"1","resource_role_id":null,"hours":null,"unit_disbursement":"20000.00","payment_delay_days":0}}},
+      {"node_id":"01926f3a-7c00-7000-8000-001300001031","node":{"kind":"estimate_line","parent_id":"01926f3a-7c00-7000-8000-001300001003","estimate_line":{"label":"Mise en service","cost_category_id":"01926f3a-7c00-7000-8000-000000000405","quantity":"1","resource_role_id":"01926f3a-7c00-7000-8000-000000000452","hours":"80","unit_disbursement":null,"payment_delay_days":0}}}
+    ],
+    "risks": [
+      {"risk_id":"01926f3a-7c00-7000-8000-001400000011","declared_at":"2025-10-13T09:00:00Z","risk":{"label":"Défaillance d'un sous-traitant","description":null,"mitigation_notes":null,"probability":"0.1","provision_cost_category_id":"01926f3a-7c00-7000-8000-000000000404","provision_subproject_id":null,"provision_task_id":"01926f3a-7c00-7000-8000-001300001003"},"own_estimate":[{"node_id":"01926f3a-7c00-7000-8000-001300001510","node":{"kind":"task","parent_id":null,"task":{"label":"Défaillance d'un sous-traitant"}}},{"node_id":"01926f3a-7c00-7000-8000-001300001511","node":{"kind":"estimate_line","parent_id":"01926f3a-7c00-7000-8000-001300001510","estimate_line":{"label":"Défaillance d'un sous-traitant","cost_category_id":"01926f3a-7c00-7000-8000-000000000401","quantity":"1","resource_role_id":null,"hours":null,"unit_disbursement":"3000.00","payment_delay_days":0}}}],"reviews":[]}
+    ],
+    "imports": [
+      {"cost_import_id":"01926f3a-7c00-7000-8000-001600000011","imported_at":"2025-11-04T09:00:00Z","lines":[{"cost_line_id":"01926f3a-7c00-7000-8000-001500000111","document_number":"FA-PRJ-301-01","document_item":"1","document_date":"2025-10-31","amount":"7500.00","project_id":"01926f3a-7c00-7000-8000-001100000001","subproject_id":null,"subproject_code":null,"subproject_label":null,"is_in_tracked_scope":true,"excluded_reason":null,"passthrough":{},"audit":{"created_at":"2025-11-04T09:00:00Z","created_by":{"kind":"platform"},"updated_at":"2025-11-04T09:00:00Z","updated_by":{"kind":"platform"}}}]},
+      {"cost_import_id":"01926f3a-7c00-7000-8000-001600000012","imported_at":"2026-02-03T09:00:00Z","lines":[{"cost_line_id":"01926f3a-7c00-7000-8000-001500000121","document_number":"FA-PRJ-301-02","document_item":"1","document_date":"2026-01-30","amount":"19000.00","project_id":"01926f3a-7c00-7000-8000-001100000001","subproject_id":null,"subproject_code":null,"subproject_label":null,"is_in_tracked_scope":true,"excluded_reason":null,"passthrough":{},"audit":{"created_at":"2026-02-03T09:00:00Z","created_by":{"kind":"platform"},"updated_at":"2026-02-03T09:00:00Z","updated_by":{"kind":"platform"}}}]},
+      {"cost_import_id":"01926f3a-7c00-7000-8000-001600000013","imported_at":"2026-04-07T09:00:00Z","lines":[{"cost_line_id":"01926f3a-7c00-7000-8000-001500000131","document_number":"FA-PRJ-301-03","document_item":"1","document_date":"2026-03-31","amount":"500.00","project_id":"01926f3a-7c00-7000-8000-001100000001","subproject_id":null,"subproject_code":null,"subproject_label":null,"is_in_tracked_scope":true,"excluded_reason":null,"passthrough":{},"audit":{"created_at":"2026-04-07T09:00:00Z","created_by":{"kind":"platform"},"updated_at":"2026-04-07T09:00:00Z","updated_by":{"kind":"platform"}}}]}
+    ]
+  }
+}

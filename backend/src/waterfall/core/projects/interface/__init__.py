@@ -90,9 +90,18 @@ from waterfall.core.projects.interface.lifecycle import (
     stored_lock_version,
 )
 
+# ``portfolio`` (US-2670/L1; US-2670/L3): what the portfolio reads of several projects at once.
+from waterfall.core.projects.interface.portfolio import (
+    ClosedOffer,
+    ProjectAtDate,
+    offers_closed_between,
+    openable,
+    projects_in_states_on,
+)
+
 # ``projects`` (US-0920): the project, its commands, its names for the journal.
 from waterfall.core.projects.interface.projects import (
-    ALL_PROJECTS_READ,
+    NOBODY,
     CommandAvailability,
     ProjectChange,
     ProjectColumn,
@@ -188,16 +197,17 @@ from waterfall.core.projects.interface.work_breakdown import (
 
 __all__ = [
     "ACTIVE_PROVISION_CATEGORY",
-    "ALL_PROJECTS_READ",
     "AT_LEAST_ONE_TASK",
     "BEFORE_IN_PROGRESS",
     "BORN_LOCK_VERSION",
+    "NOBODY",
     "NO_BACKGROUND_TASK_RUNNING",
     "PROJECT_BEFORE_IN_PROGRESS",
     "PROJECT_NOT_TERMINAL",
     "RISK_ENTRIES",
     "TERMINAL",
     "Attachments",
+    "ClosedOffer",
     "CommandAvailability",
     "ContributorColumn",
     "ContributorEntry",
@@ -221,6 +231,7 @@ __all__ = [
     "NextState",
     "OrderItemEntry",
     "OrderItemView",
+    "ProjectAtDate",
     "ProjectChange",
     "ProjectColumn",
     "ProjectDraft",
@@ -280,6 +291,8 @@ __all__ = [
     "lock_project",
     "next_state",
     "no_background_task_running",
+    "offers_closed_between",
+    "openable",
     "opening_main_with_tasks",
     "project_code",
     "project_commands",
@@ -287,6 +300,7 @@ __all__ = [
     "project_facts",
     "project_label",
     "project_subproject_labels",
+    "projects_in_states_on",
     "projects_named",
     "projects_present",
     "read_next_state",

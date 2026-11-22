@@ -26,7 +26,6 @@ reserve.
 
 import json
 import re
-import shutil
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
@@ -53,7 +52,7 @@ from test_witness_projects import (
     without,
 )
 from test_witness_tasks import difference, structure_of
-from witness_support import PRJ_001, READ_AT, example, read
+from witness_support import PRJ_001, READ_AT, copied_description, example, read
 
 from waterfall.core.costs.tables import CostImport, CostLine
 from waterfall.core.exchanges.interface import ImportLoad, load_import
@@ -135,8 +134,16 @@ def test_the_five_imports_of_costs_are_loaded_at_their_events_by_the_manager(
     entries = {UUID(each["cost_import_id"]): each for each in described()["imports"]}
     listed = keyed(example("imports")["items"], "import_id")
     with witness.transaction() as session:
-        journal = {row.id: row for row in session.scalars(select(CostImport))}
-        reports = {row.id: row for row in session.scalars(select(ImportReport))}
+        journal = {
+            row.id: row
+            for row in session.scalars(select(CostImport).where(CostImport.project_id == PRJ_001))
+        }
+        reports = {
+            row.id: row
+            for row in session.scalars(
+                select(ImportReport).where(ImportReport.project_id == PRJ_001)
+            )
+        }
     assert journal.keys() == entries.keys()
     assert len(journal) == 5
     for cost_import_id, row in journal.items():
@@ -205,7 +212,10 @@ def test_the_twenty_eight_lines_are_those_of_the_description_imputed_by_the_serv
     instants = {each["cost_import_id"]: each["imported_at"] for each in described()["imports"]}
     lines = {UUID(each["cost_line_id"]): each for each in described()["lines"]}
     with witness.transaction() as session:
-        rows = {row.id: row for row in session.scalars(select(CostLine))}
+        rows = {
+            row.id: row
+            for row in session.scalars(select(CostLine).where(CostLine.project_id == PRJ_001))
+        }
     assert rows.keys() == lines.keys()
     assert len(rows) == 28
     for line_id, row in rows.items():
@@ -425,11 +435,15 @@ def identifying(database: Database) -> dict[str, list[tuple[object, ...]]]:
         return {
             "cost_import": sorted(
                 (row.id, row.import_report_id, row.imported_at, row.requested_by)
-                for row in session.scalars(select(CostImport))
+                for row in session.scalars(
+                    select(CostImport).where(CostImport.project_id == PRJ_001)
+                )
             ),
             "import": sorted(
                 (row.id, row.status, row.created_at, row.analysed_at, row.applied_at)
-                for row in session.scalars(select(ImportReport))
+                for row in session.scalars(
+                    select(ImportReport).where(ImportReport.project_id == PRJ_001)
+                )
             ),
             "cost_line": sorted(
                 (
@@ -440,12 +454,13 @@ def identifying(database: Database) -> dict[str, list[tuple[object, ...]]]:
                     row.last_import_id,
                     row.updated_at,
                 )
-                for row in session.scalars(select(CostLine))
+                for row in session.scalars(select(CostLine).where(CostLine.project_id == PRJ_001))
             ),
             "totals": [
                 tuple(
                     session.execute(
                         select(CostLine.is_in_tracked_scope, func.sum(CostLine.amount))
+                        .where(CostLine.project_id == PRJ_001)
                         .group_by(CostLine.is_in_tracked_scope)
                         .order_by(CostLine.is_in_tracked_scope)
                     ).all()
@@ -498,8 +513,7 @@ def test_no_address_and_no_project_but_the_witness_s_appear_in_the_costs() -> No
 
 def copied(tmp_path: Path, name: str, mutate: Any) -> Path:
     """Copy the description of the witness, the file ``name`` changed by ``mutate``."""
-    directory = tmp_path / "witness"
-    shutil.copytree(WITNESS, directory)
+    directory = copied_description(tmp_path)
     path = directory / name
     document = json.loads(path.read_text(encoding="utf-8"))
     mutate(document["value"])

@@ -97,6 +97,8 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "skeleton",
         "days",
         "estimate_facts",
+        # What the portfolio reads of several projects at once (US-2670/L1, EP-11).
+        "portfolio",
         # The subprojects the provisions of the risks designate (US-3060/L4, #4208).
         "risk_designations",
     },
@@ -111,6 +113,8 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "rates",
         # The parts of the modules in the merge of an amendment (US-2550/L1).
         "merging",
+        # The revisions of several projects the portfolio retains (US-2670/L1, EP-11).
+        "portfolio",
         # The base of a differential (US-3050/L2).
         "bases",
         # The parts of the modules in the update of a differential (US-3050/L3).
@@ -119,9 +123,10 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "merge_applying",
     },
 }
-# The modules of the planning, the history and the exchanges (EP-06), of the indicators (EP-10) and
-# of the risks (EP-08), one file per story or subject, laid by their socle (US-1380/L1, US-1660/L1,
-# US-2550/L1) so that no later story opens their ``__init__``.
+# The modules of the planning, the history and the exchanges (EP-06), of the indicators (EP-10), of
+# the risks (EP-08) and of the portfolio (EP-11), one file per story, subject or view, laid by their
+# socle (US-1380/L1, US-1660/L1, US-2550/L1, US-2670/L1) so that no later story opens their
+# ``__init__``.
 PLANNING_INTERFACES: dict[str, set[str]] = {
     "planning": {
         # The tasks a risk names and the provision line it asks for (US-2570/L1, EP-08).
@@ -171,9 +176,13 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "curves",
         "documents",
         "estimate_documents",
+        # The formulas of the indices, which the portfolio applies to sums (US-2670/L2, EP-11).
+        "formulas",
         "index_history",
         "milestone_tracking",
         "physical_progress",
+        # The documents of the projects the portfolio sums (US-2670/L1, EP-11).
+        "portfolio",
         "project_indicators",
         "reading",
         "stored_documents",
@@ -184,10 +193,24 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "deletion",
         "matrix",
         "occurrence",
+        # The risks as the portfolio reads them (EP-11, US-2680/L3).
+        "portfolio",
         "provisions",
         "register",
         "reviews",
         "risks",
+    },
+    "portfolio": {
+        "contribution",
+        "cost_curve",
+        "cost_structure",
+        "performance",
+        "pilot_health",
+        "projects",
+        "risks",
+        "scope",
+        "value",
+        "workload",
     },
 }
 # What the design names of each (EP-04, "Modules"), declared from US-0910/L1 on, which the other
@@ -207,6 +230,10 @@ DESIGNED: dict[str, set[str]] = {
         "project_label",
         "project_code",
         "load_project",
+        # EP-11, "Modules": the readings of several projects the portfolio asks (US-2670/L3).
+        "projects_in_states_on",
+        "offers_closed_between",
+        "openable",
     },
     "revisions": {
         "list_revisions",
@@ -222,6 +249,9 @@ DESIGNED: dict[str, set[str]] = {
         "revision_draft",
         "create_project_partitions",
         "load_revision",
+        # EP-11, "Modules": the revisions the portfolio retains at an instant (US-2670/L3).
+        "last_marked_at_instant",
+        "marked_revisions_of",
     },
     # EP-06, "Modules": what each story calls of another before it fills its own.
     "planning": {
@@ -297,6 +327,11 @@ DESIGNED: dict[str, set[str]] = {
         "store_indicators",
         "physical_progress",
         "stored_document",
+        # EP-11, "Modules": what the portfolio reads of the indicators (US-2680/L1).
+        "keep_document",
+        "kept_documents_of",
+        "day_documents_of",
+        "offer_curves",
     },
     # EP-08, "Modules": one function by operation of the contract, which the API and the worker
     # call before the story that fills each.
@@ -315,6 +350,24 @@ DESIGNED: dict[str, set[str]] = {
         "occurrence_report",
         "submit_occurrence",
         "run_occurrence",
+        # EP-11, "Modules": what the portfolio reads of the risks (US-2680/L3).
+        "portfolio_risks",
+        "outcomes_between",
+        "not_reviewed_since",
+    },
+    # EP-11, "Les vues" and "La contribution d'un projet": a function by view, which the API calls
+    # before the story that fills each; the scope of the eight; what the marking keeps.
+    "portfolio": {
+        "resolve_scope",
+        "store_contribution",
+        "read_portfolio_projects",
+        "read_portfolio_value",
+        "read_portfolio_workload",
+        "read_portfolio_performance",
+        "read_portfolio_cost_structure",
+        "read_portfolio_risks",
+        "read_portfolio_cost_curve",
+        "read_pilot_health",
     },
 }
 
@@ -765,7 +818,7 @@ def test_a_stub_of_an_interface_refuses_naming_the_story_that_fills_it() -> None
     assert [
         (file, message)
         for file, name, message in stubs()
-        if not re.fullmatch(rf"{name} is filled by US-\d{{4}}(/L\d+)?", message)
+        if not re.fullmatch(rf"{name} is filled by US-\d{{4}}(/L\d+[a-z]?)?", message)
     ] == []
 
 
@@ -886,10 +939,12 @@ def test_the_package_itself_keeps_its_contracts() -> None:
     assert result.returncode == 0, result.stdout
 
 
-# A code, a condition or a set of states several modules judge by, and the one module that declares
-# it: the others import it from that module (its interface, for a module of the core), never copy
-# it (#2471, #2555, #2763).
+# A code, a condition, a set of states or a permission several modules judge by, and the one module
+# that declares it: the others import it from that module (its interface, for a module of the core),
+# never copy it (#2471, #2555, #2763); the permission to read every project, which the access roles
+# and the projects both judge by, below both (#3341).
 SHARED = {
+    "ALL_PROJECTS_READ": "platform/permissions.py",
     "STATE_FORBIDS_OPERATION": "platform/errors.py",
     "NOT_FOUND": "platform/errors.py",
     "STALE_LOCK_VERSION": "platform/errors.py",

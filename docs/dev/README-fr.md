@@ -62,8 +62,14 @@ correspondance de l'extraction des coûts réels ; puis, par une seule entrée
 de leurs contributeurs, les contributeurs, les sous-projets, le lotissement, les révisions et les
 événements de la chronologie du témoin, aux instants qu'elle impose — chaque révision ouverte par
 les règles de l'ouverture, marquée par la transaction même du worker (`load_marking`), sous le nom
-de version et la description de `revisions.json`, que la chronologie ne fait qu'ordonner. Une tranche n'écrit rien de ce que la plateforme
-tient déjà : relancé, il n'écrit rien et réussit, en disant le témoin là
+de version et la description de `revisions.json`, que la chronologie ne fait qu'ordonner.
+Après eux, la tranche du portefeuille (EP-11, `waterfall.witness.portfolio`) : les dix projets de
+`fixtures/witness/portfolio/projects/`, lus à côté du répertoire de la description
+(`../witness/portfolio`), écrits un à un par les interfaces des modules aux instants qu'ils datent —
+création, révisions ouvertes et marquées, risques et réexamens, imports de coûts réels, désignation
+de la référence, sorties —, le chef de projet du témoin pour contributeur de chacun, les
+identifiants du témoin imposés et les autres dérivés d'eux. Une tranche n'écrit rien de ce que la
+plateforme tient déjà : relancé, il n'écrit rien et réussit, en disant le témoin là
 (`witness.already_loaded`) ; un refus ou une erreur n'écrit rien et l'arrête en échec (1). Chaque US
 du référentiel et des projets remplit sa tranche, dans son fichier de `waterfall.witness`, sans
 toucher l'ordre. Son module,
@@ -72,13 +78,15 @@ lui, qui passe à l'amorçage tout autre argument. Le Compose de service l'offre
 `make service-witness`), celui de production non : une installation réelle ne porte pas le témoin.
 `make service-witness` ne prend aucune variable propre : le Compose de service passe au service
 `witness` le rôle du service (`WATERFALL_DATABASE_URL`, par `WATERFALL_POSTGRES_PASSWORD`, qu'il
-faut exporter comme pour `make service-up`) et monte `fixtures/api/` en lecture seule sur
-`WATERFALL_WITNESS_PATH` (`/witness`) ; la plateforme doit être démarrée et amorcée
+faut exporter comme pour `make service-up`) et monte `fixtures/api/` et `fixtures/witness/` en
+lecture seule, `WATERFALL_WITNESS_PATH` étant `/fixtures/api` : la tranche du portefeuille (`fixtures/witness/portfolio/`) se lit à côté des
+exemples ; la plateforme doit être démarrée et amorcée
 (`make service-install`), car la commande n'écrit pas ce que l'amorçage écrit — la ligne de
 l'installation, les paramètres communs, les unités, la correspondance, le calendrier par défaut
-et la provision —, elle règle ce qu'il a posé. La fixture `witness` de `backend/tests/conftest.py`
-fait de même sur la base des tests : elle installe d'abord ce que l'amorçage écrit, puis lance la
-commande. `backend/tests/test_witness.py` éprouve le témoin entier : ses volumes, deux plateformes
+et la provision —, elle règle ce qu'il a posé. Les tests font de même, une fois par exécution, sur
+une base modèle (`backend/tests/witness_template.py`) : ils installent d'abord ce que l'amorçage
+écrit, puis lancent la commande ; la fixture `witness` donne à chaque test une copie de cette base.
+`backend/tests/test_witness.py` éprouve le témoin entier : ses volumes, deux plateformes
 neuves chargées identiques, une seconde exécution qui n'écrit rien, les dates et les auteurs de la
 plateforme, l'arrêt en le disant sur un témoin que les règles refusent, et les listes du service
 comparées aux exemples du contrat, aux colonnes d'audit près. `fixtures/api/` et Prism restent les
@@ -169,6 +177,32 @@ _Contrôle_ : `make imports-back` (import-linter, contrats dans `backend/pyproje
 un test les éprouve sur un paquet d'essai (`backend/tests/test_boundaries.py`). Une requête
 SQL écrite en texte, qui nommerait la table d'un autre module, échappe à l'analyse des
 imports : elle relève des règles SQL d'EP-03 et de la revue.
+
+**Une seule implémentation de chaque calcul** (WF-ARC-0010, US-2780/L3). La machine d'état, le
+planning, le chiffrage et les indicateurs ne s'écrivent qu'une fois, dans leur module du noyau, que
+l'API, le worker et le portefeuille importent. La table versionnée `tools/implementations.toml` nomme,
+pour chaque fichier du noyau qui porte l'un de ces calculs, les noms par lesquels on l'appelle — ses
+fonctions qui calculent, les constantes qui en fixent le résultat —, et pour chaque fichier du
+portefeuille, les formules d'EP-10 qu'il applique à des sommes. Un fichier hors de `core/` et de
+`migrations/` — l'API, le worker, les autres points d'entrée, la plateforme — ou du portefeuille ne
+définit aucun de ces noms (ni fonction, à toute profondeur, ni affectation au niveau du module), et
+ne les importe que du module du noyau qui les porte ; un fichier du portefeuille importe et appelle
+les formules que la table lui donne. Un calcul nouveau d'un de ces quatre ajoute ses noms à la table.
+Deux déclarations y gardent un écart dit sans échouer : un homonyme (`[[homonym]]`), autre calcul d'un
+module du noyau sous un nom de la table, qui peut s'importer de ce module, et un doublon connu
+(`[[duplicate]]`), dit à chaque passage avec sa raison jusqu'à ce qu'il disparaisse ; chacune échoue
+quand elle ne tient plus ; un doublon peut copier un nom de la table sous un autre (`of`, et `of_file`
+pour un nom privé que la table ne porte pas). « Appliquer » une formule, c'est l'appeler ou la passer
+pour qu'on l'appelle (`map(cost_index, …)`) ; le contrôle ne vérifie pas que l'argument est une somme,
+ce qui relève de la revue. Le contrôle juge par le nom : un calcul récrit sous un autre nom lui
+échappe, et relève de la revue — l'arrondi d'un montant récrit par `quantize`, sans nom de la table,
+en est un (le cas de `_money` de l'API est ouvert à part, #4373) ; les générateurs du faux back, qui
+ne sont pas livrés, en sont hors. Un fichier tenu qui nomme `schedule`, `advance`, `margin`,
+`balances`, `distribution` ou `cumulative` autre chose qu'un calcul de la table n'a pas
+d'échappatoire : il renomme sa méthode.
+
+_Contrôle_ : `make implementations` (`wftools.implementations`, famille `repo`, qui s'exécute sur
+toute modification).
 
 **Les tâches de fond** (WF-ARC-0090). Une tâche vit dans la table `background_task`
 (`waterfall.platform.tasks`), qui fait foi ; le flux Redis (`waterfall.platform.queue`) n'en porte
@@ -3062,6 +3096,15 @@ Ce que la même commande engendre ne se relit jamais sur le disque : les indicat
 et les courbes du témoin, que le portefeuille somme, lui sont passés en mémoire, pour qu'une seule
 exécution de `make mock-data` atteigne son point fixe.
 
+**La tranche du portefeuille**, hors du contrat, s'écrit sous `fixtures/witness/portfolio/` : la
+description des dix projets que le chargeur du témoin ajoute à PRJ-001 et à PRJ-002, chaque écriture
+dans la forme de son schéma du contrat (`projects/`, `wftools.mockslice`), et les lectures attendues
+des huit vues du portefeuille au 3 juin 2026, lues par `as_of` (`readings/`,
+`wftools.mockslicereadings` et `wftools.mocksliceviews`), calculées sans rien importer du back
+(EP-11, US-2770 ; tenues par `tools/tests/test_mockslice.py` et
+`backend/tests/test_witness_portfolio_slice.py`, chargées et comparées aux réponses du service par
+`backend/tests/test_witness_portfolio.py` et `backend/tests/test_witness_portfolio_readings.py`).
+
 **Ce qui reste écrit à la main** — sessions, comptes et rôles, référentiel (rôles de ressources et
 leurs effectifs, calendriers, nœuds d'organisation), le projet, ses révisions et ses transitions,
 imports et leurs comptes rendus, tâches de fond, état du système et sauvegardes, variantes
@@ -3684,9 +3727,10 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   six dans l'ordre de leur collecte (`--shard`, `backend/tests/conftest.py`), plutôt que des
   fichiers entiers : les fichiers qui chargent le témoin, les plus longs, sont répartis sur les
   six.
-  Le témoin n'est chargé par la commande qu'une fois par processus de pytest ; les tests suivants
-  retrouvent ses lignes recopiées (`backend/tests/witness_rows.py`, #2157). Sur un runner, chaque
-  test qui le demandait payait son chargement, plus de six minutes en tout. `keycloak.yml`
+  Le témoin n'est chargé par la commande qu'une fois par part, dans une base modèle que copie
+  chaque test qui le demande (`backend/tests/witness_template.py`, #4653, « Un test contre
+  PostgreSQL ») : les huit parts de 10 à 17 minutes, dont plusieurs figées, sont passées à 6 à
+  10 minutes (passages 44945620214, puis 44957647502), puis les six parts de 7 à 14 minutes (passage 44958967745), chacune sous 20 minutes. `keycloak.yml`
   construit l'image de Keycloak et l'éprouve sur la plateforme de service, son royaume appliqué
   (`make check-keycloak`), aux deux paliers : la famille `keycloak` se réveille sur
   `deploy/keycloak/`, sur les fichiers de la plateforme qui la démarrent, sur ses tests, sur tout le
@@ -4335,16 +4379,47 @@ procès-verbal, dont la forme n'est pas encore définie : le relevé le dit.
 Un test d'intégration du back joint la vraie base, PostgreSQL, jamais une autre à sa place
 (`python.md`, « Les tests »). La variable `WATERFALL_TEST_DATABASE_URL` désigne un serveur et un
 rôle qui peut créer des bases et des rôles, un superutilisateur
-(`postgresql://rôle@hôte:5432/postgres`) : à chaque session de tests, la fixture `database_url`
-(`backend/tests/conftest.py`) y crée une base de nom unique, y applique les migrations, et la
-supprime à la fin, avec le rôle du service que les migrations lui ont créé. La fixture
-`database` rend cette base telle que le service la voit — par un rôle de connexion membre du
-rôle du service de cette base, créé pour la session (sql.md, « Le rôle du service ») —, et en
-supprime après chaque test les lignes de toutes les tables que la `Base` déclare, en
-propriétaire, journal d'audit compris, que son déclencheur ne protège pas d'un superutilisateur
-qui coupe les déclencheurs — sauf celles qu'une migration écrit, le catalogue des permissions,
-que sa table marque (`WRITTEN_BY_MIGRATION` dans son `info`) ; `session` rend une session que le
-test défait.
+(`postgresql://rôle@hôte:5432/postgres`) : à chaque session de tests, c'est-à-dire pour chaque
+processus, la fixture `process_database_url` (`backend/tests/conftest.py`) y crée une base de nom
+unique, y applique les migrations, et la supprime à la fin, avec le rôle du service que les
+migrations lui ont créé. `database_url` et `service_database_url` désignent la base du test : celle
+du processus, sauf pour un test sur le témoin. La fixture `database` rend cette base telle que le
+service la voit — par un rôle de connexion membre du rôle du service de cette base, créé pour la
+session (sql.md, « Le rôle du service ») —, et en supprime après chaque test les lignes de toutes
+les tables que la `Base` déclare, en propriétaire, journal d'audit compris, que son déclencheur ne
+protège pas d'un superutilisateur qui coupe les déclencheurs — sauf celles qu'une migration écrit,
+le catalogue des permissions, que sa table marque (`WRITTEN_BY_MIGRATION` dans son `info`) ;
+`session` rend une session que le test défait.
+
+Le témoin se charge une fois par exécution, par un processus à lui, dans une base modèle
+(`backend/tests/witness_template.py`, #4653) : le premier processus dont les tests le demandent
+lance ce chargement dès leur collecte, et ces tests passent après les autres, le temps qu'il se
+fasse. Un test sur le témoin (`witness`, `witness_logged`) reçoit une base à lui, copie du modèle
+(`CREATE DATABASE … TEMPLATE`, 0,2 à 0,4 s pour la créer, 0,1 s pour la supprimer, mesurées sur un poste), supprimée après lui : lignes,
+identifiants, partitions des projets et séquences sont ceux que la commande a écrits, et aucune
+ligne n'est reposée ni aucune partition supprimée. Le service y entre par un rôle de connexion
+membre du rôle du service du modèle, dont la copie garde les droits. Le témoin chargé par chaque
+processus, puis reposé et ses partitions supprimées autour de chaque test (#2157), prenait le
+tiers du temps des tests. Un test qui change la façon dont la commande le charge le charge
+lui-même, sur la base du processus (`witness_loaded`).
+
+Un test qui se fige échoue au bout de huit minutes, nommé, sa trace là où il s'est arrêté
+(`pytest-timeout`, `timeout` de `backend/pyproject.toml`, par `SIGALRM`) : son processus passe au
+suivant, au lieu de figer sa part de la chaîne jusqu'à l'annulation du travail (#4653). Le plus
+long test qui ne se fige pas charge le témoin lui-même : 216 secondes au plus sur un runner
+(passage 44957647502), et un runner est jusqu'à deux fois plus lent qu'un autre. Le chargement du
+modèle a son échéance, sept minutes (`LOADING_TIMEOUT`, pour 134 à 290 secondes mesurées), sous
+celle d'un test : passé ce délai, le test qui l'attend échoue avec ce que le chargement a dit, le
+chargement s'arrête et la fin de pytest ne l'attend plus. Le délai d'un test couvre l'item entier, démontage compris :
+un démontage qui suit un gel peut se figer à son tour, et le délai du travail (20 minutes) reste
+le filet.
+
+Un pytest tué (`SIGTERM`, `SIGKILL`) avant sa fin laisse la base `waterfall_witness_*` (et ses
+copies), les rôles `waterfall_witness_*_signing` et `waterfall_witness_*_service` et le répertoire
+`waterfall-witness-*` du répertoire temporaire du système ; le chargement, lui, s'arrête seul à
+son échéance. Rien ne les balaie : supprime à la main les bases (`DROP DATABASE … WITH (FORCE)`),
+puis les rôles (`DROP ROLE`), puis le répertoire. Le service d'un créneau, en mémoire, les perd
+avec `make test-services-down`.
 
 - **Dans la chaîne**, `back.yml` démarre PostgreSQL en service du travail et pose la variable.
 - **Sur un poste**, le Makefile s'en charge : `make test-back` et `make coverage-back` démarrent

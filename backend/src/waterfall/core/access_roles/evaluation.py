@@ -13,7 +13,8 @@ declared by the catalogue (``CONSULTATION``), not read from its code (#754).
 An action on a project has a second term, the quality of the caller on it, which the module of the
 projects reads (``contributor_kind``): the project exists for the caller who holds the permission
 to consult and is its contributor, or holds ``all_projects_read`` besides (WF-ADM-0110,
-WF-PRJ-0060). A project that does not exist and one the caller may not consult are refused alike.
+WF-PRJ-0060), the one rule of ``Viewer.sees_all``, which the portfolio reads too (``can_open``,
+#4131). A project that does not exist and one the caller may not consult are refused alike.
 A write asks for the quality of contributor, and an action reserved to the project managers for
 theirs: each missing is named by a 403, to a caller who may consult the project.
 """
@@ -31,7 +32,12 @@ from waterfall.core.access_roles.tables import (
     Permission,
     UserAccessRole,
 )
-from waterfall.core.projects.interface import ContributorKind, contributor_kind, project_exists
+from waterfall.core.projects.interface import (
+    ContributorKind,
+    Viewer,
+    contributor_kind,
+    project_exists,
+)
 from waterfall.platform.errors import NOT_FOUND, ForbiddenError, NotFoundError
 
 if TYPE_CHECKING:
@@ -45,8 +51,6 @@ NOT_PROJECT_MANAGER = "NOT_PROJECT_MANAGER"
 # The qualities a refusal names, as the contract says them (``CommandCondition``).
 IS_CONTRIBUTOR = "is_contributor"
 IS_PROJECT_MANAGER = "is_project_manager"
-# The permission that opens to consultation the projects its holder does not contribute to.
-ALL_PROJECTS_READ = "all_projects_read"
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,7 +170,7 @@ def judge_project(
     not first. Each quality missing is named by ``params.missing_condition``.
     """
     if not standing.exists or (
-        standing.kind is None and ALL_PROJECTS_READ not in actor.permissions
+        standing.kind is None and not Viewer(actor.user_id, actor.permissions).sees_all
     ):
         raise NotFoundError(NOT_FOUND)
     for permission in permissions:

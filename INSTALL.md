@@ -190,10 +190,15 @@ services :
 - les projets et leurs révisions (EP-04) ;
 - le planning et l'aller-retour avec MS Project (EP-06) ;
 - le chiffrage et le devis (EP-07) ;
-- les coûts réels importés de l'ERP et le reste à engager (EP-09).
+- les coûts réels importés de l'ERP et le reste à engager (EP-09) ;
+- le portefeuille (EP-11) : sa valeur, la liste de ses projets, le plan de charge agrégé, la
+  performance, la structure des coûts, les risques, la courbe en S et la santé du pilotage, lus à
+  la date de calcul de votre choix, avec leurs filtres, leurs exports en image et leur aide. Une
+  vue consolide tous les projets de son périmètre ; elle n'ouvre que ceux que vous pouvez
+  consulter et nomme les autres sans lien. Elle ne se saisit pas.
 
-Les écrans des avenants et des risques (EP-08), des indicateurs (EP-10) et du portefeuille (EP-11)
-ne sont pas encore servis : ils se parcourent contre le faux back.
+Les écrans des avenants et des risques (EP-08) et des indicateurs (EP-10) ne sont pas encore
+servis : ils se parcourent contre le faux back.
 
 Le front ne lit qu'une adresse d'API à la fois, il n'y a pas de mode mixte. Pour parcourir ces
 écrans, on lance la maquette (`make dev`) à la place du front contre le service : les deux

@@ -12,12 +12,12 @@
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
-import { useChipKit } from "@/components/grid/chip-kit";
 import { DenseGrid } from "@/components/grid/dense-grid";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 
-import { type AlertZone, ZONES } from "./address";
+import type { ProjectFilters } from "./address";
+import { useProjectChips } from "./project-chips";
 import {
   PROJECT_GRID,
   type ProjectPage,
@@ -32,8 +32,8 @@ export interface ProjectsGridProps {
   readonly page: ProjectPage;
   readonly query: GridQuery<ProjectSortColumn>;
   readonly preferences: GridPreferences | undefined;
-  /** The zones of the indices the address restricts the projects to, told as a chip under the bar. */
-  readonly zones?: readonly AlertZone[] | undefined;
+  /** The filters the address sets on the projects, each told as a chip under the bar. */
+  readonly filters?: ProjectFilters | undefined;
   /** The filters of the screen, which the bar folds into its panel (#2916); none, no panel. */
   readonly panel?: ReactNode;
 }
@@ -44,16 +44,11 @@ export function ProjectsGrid({
   page,
   query,
   preferences,
-  zones,
+  filters,
   panel,
 }: ProjectsGridProps) {
   const t = useTranslations();
-  const kit = useChipKit();
-  kit.values(
-    ZONES,
-    t("portfolio.projects.zoneChip"),
-    (zones ?? []).map((zone) => t(`enums.AlertZone.${zone}`)),
-  );
+  const chips = useProjectChips(filters);
   return (
     <DenseGrid
       config={PROJECT_GRID}
@@ -62,7 +57,7 @@ export function ProjectsGrid({
       totalsCaption={(retained) => t("portfolio.projects.retained", { count: retained.total })}
       query={query}
       preferences={preferences}
-      filtering={panel === undefined ? undefined : { panel, chips: kit.chips }}
+      filtering={panel === undefined ? undefined : { panel, chips }}
     />
   );
 }

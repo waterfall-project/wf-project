@@ -29,6 +29,10 @@ bodies differ only by ``task.physical_progress`` of the summaries that bear a bu
 of the 40 of the current revision, the 39 of the marked one —, from "not computable" to a value, a
 leaf's null in both (EP-10, "L'avancement physique").
 
+The witness now also carries the slice of the portfolio (EP-11, US-2770/L2), loaded after PRJ-001
+under derived identifiers: the bodies of PRJ-001 read here do not depend on it, but for the
+comparisons, whose identifiers it shifts (``COMPARED_DIGESTS``).
+
 US-3060/L6 reads a provision line as computed, its budgeted amount the provision the reference
 fixed (#4274): the SHA-256 of the bodies that hold one, or a sum of budgeted amounts, are taken
 again after it. Read before and after, field by field, they differ only by the three provision
@@ -130,7 +134,7 @@ DIGESTS = {
     "filtered by a line, sorted": (
         "8d1e236bb53024c1e416646256f07201aa05cab4d23acc1cbc3315a598293d9f"
     ),
-    "whole comparison": "d5ecbfc93a7036b7dc1feaa1a46bdaef697428d6e2cb5bae61a10b3817d9dd50",
+    "whole comparison": "3699796e0c85c057ed56cf42bd580c2460b7e9cbd57522960ee19e6bac67a46a",
     "comparison filtered and sorted": (
         "908485770a32aeba12ade836c31fd12d034ff77e4446d27b7297a3e8f40b0c03"
     ),
@@ -141,10 +145,14 @@ DIGESTS = {
 # every value it carries: ``difference=modified`` retains more nodes than before. Taken again when
 # epic/EP-10 took back main, after US-1680: its 39 summaries put back "not computable", the body
 # read then gives the SHA-256 of US-2320/L3, bd5415c9…; nothing else differs, no mark included.
-# Taken again after US-3060/L6, the budgeted amounts of its provisions written (#4274).
+# Taken again after US-3060/L6, the budgeted amounts of its provisions written (#4274). Taken again
+# when epic/EP-11 and epic/EP-08 met: each marking keeps four documents of the portfolio (EP-11),
+# drawn from the loader's count of identifiers, so that every node the witness creates after the
+# first marking has its identifier 4 greater — and nothing else of the body changes (checked field
+# by field against epic/EP-08: 12 997 identifiers, all shifted by 4).
 COMPARED_DIGESTS = {
     "comparison filtered and sorted": (
-        "e301557b6e0016d3f40a132116a280b55cd76b7d2b6b8617943adee6109f16d6"
+        "709e123f35d91b44a3c2faf867d479fc6d825de902a2284339f9355fe29ead34"
     ),
 }
 

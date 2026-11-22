@@ -788,7 +788,13 @@
       "reason": " — {reason}",
       "zoneChip": "Zone des indices",
       "zones": "Filtre par zone des indices",
-      "everyZone": "Toutes les zones"
+      "everyZone": "Toutes les zones",
+      "codeFilter": "Filtre par code",
+      "amountBounds": "Bornes des montants",
+      "probabilityBounds": "Bornes de la probabilité de gain, de 0 à 1",
+      "indexBounds": "Bornes de la valeur des indices",
+      "markedPeriod": "Période de la dernière révision marquée",
+      "refused": "Les projets ne sont pas lus : le serveur refuse les filtres demandés."
     },
     "pages": {
       "title": "Projets",

@@ -17,6 +17,7 @@ from uuid import UUID, uuid4
 import pytest
 from project_rows import insert_project
 from sqlalchemy import select
+from witness_support import PRJ_001
 
 from waterfall.core.costs.interface import ACTUAL_COSTS_FORMAT
 from waterfall.core.estimate.interface import (
@@ -323,7 +324,7 @@ def test_the_witness_fills_each_structure_it_opens_before_the_next_event(
 ) -> None:
     # The offer's main structure, the amendment 1 of the 101, the 102's, its amendment 2 (EP-08).
     with witness_loaded.transaction() as session:
-        opened = select(Revision.id).order_by(Revision.created_at, Revision.id)
-        offer, reference, current = session.scalars(opened).all()
+        ids = select(Revision.id).where(Revision.project_id == PRJ_001)
+        offer, reference, current = session.scalars(ids.order_by(Revision.created_at, Revision.id))
     first, second = (UUID(f"01926f3a-7c00-7000-8000-000000000{n}") for n in (212, 203))
     assert fillers == [(offer, None), (reference, first), (current, None), (current, second)]

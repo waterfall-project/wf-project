@@ -788,7 +788,13 @@
       "reason": " — {reason}",
       "zoneChip": "Index zone",
       "zones": "Filter by zone of the indices",
-      "everyZone": "Every zone"
+      "everyZone": "Every zone",
+      "codeFilter": "Filter by code",
+      "amountBounds": "Bounds of the amounts",
+      "probabilityBounds": "Bounds of the win probability, from 0 to 1",
+      "indexBounds": "Bounds of the value of the indices",
+      "markedPeriod": "Period of the last marked revision",
+      "refused": "The projects are not read: the server refuses the filters asked."
     },
     "pages": {
       "title": "Projects",

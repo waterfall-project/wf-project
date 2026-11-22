@@ -1004,7 +1004,11 @@ PortfolioFrom:
     `params.maximum` the end filled in (`PortfolioPeriodRefused`). Without either, the
     statistics, the quarterly evolution, the cost structure and the S-curve
     retain the default period, the twelve months that end at the calculation date, and the
-    list of projects no period; `scope.from` and `scope.to` say the period retained.
+    list of projects no period; `scope.from` and `scope.to` say the period retained. On
+    `getPortfolioPerformance` only, the period is bounded to five years: an end more than five
+    years after the start is refused with 422, `/query/to` (`VALUE_OUT_OF_RANGE`, `params.maximum`
+    the last end admitted), or `/query/from` when the start alone is sent (`params.minimum` the
+    first start admitted).
   schema: { $ref: common.yaml#/PlanningDate }
 
 PortfolioTo:
@@ -1015,7 +1019,9 @@ PortfolioTo:
     422 (`PortfolioPeriodRefused`). Without `from`, the start is that of the default period:
     the calculation date minus twelve months (28 February for a 29 February), then the next day —
     4 June 2025 for 3 June 2026, 1 March 2027 for 29 February 2028; an end that
-    is earlier than it is refused likewise, `params.minimum` the start filled in.
+    is earlier than it is refused likewise, `params.minimum` the start filled in. On
+    `getPortfolioPerformance` only, an end more than five years after the start is refused with
+    422, `params.maximum` the last end admitted (`PortfolioFrom`).
   schema: { $ref: common.yaml#/PlanningDate }
 
 PortfolioOrgNode:
@@ -1024,8 +1030,183 @@ PortfolioOrgNode:
   description: >-
     Restricts only the labour lines whose role falls under the node — attached to
     it or to one of its descendants; a project belongs to no department
-    (WF-PTF-0010).
+    (WF-PTF-0010). The node therefore restricts only the aggregated workload
+    (`getPortfolioWorkload`) and the labour of the cost structure
+    (`getPortfolioCostStructure`): it changes no amount of the project list, of the value nor of
+    the performance (`getPortfolioProjects`, `getPortfolioValue`, `getPortfolioPerformance`),
+    which retain the same projects and the same figures with or without it, and only return it
+    in their scope (`scope.org_node_id`, `scope.org_node_label`). A row of the list, an index or
+    a value is never restricted to the labour of the node: that would set an earned value
+    restricted to labour against a whole actual cost (the author's decision of 2026-11-17,
+    design of EP-11).
   schema: { $ref: common.yaml#/Uuid }
+
+# The column filters of the project list of the portfolio (US-2690, the author's decision of
+# 2026-11-17 against the freeze of EP-16): the code like that of a node, each number column by
+# its two bounds, the instant of the last marked revision by its period, each named after its
+# column (README of the contract, "A column of numbers…", "A period…"; WF-IHM-0130). A
+# project whose column is null — or, for an index, not computed — is retained by no bound of
+# that column.
+
+PortfolioCode:
+  name: code
+  in: query
+  description: >-
+    Restricts to the projects whose code contains the given text, compared like the search
+    (README, "A search…"); a project without a code is not retained (WF-PTF-0040, WF-IHM-0130).
+  schema: { type: string, minLength: 1, maxLength: 50 }
+
+PortfolioReferenceBudgetMin:
+  name: reference_budget_min
+  in: query
+  description: >-
+    Restricts to the projects whose reference budget (`PortfolioProjectRow.reference_budget`)
+    reaches this bound, inclusive; a project without a reference budget — before In progress —
+    is not retained (WF-PTF-0040, WF-IHM-0130).
+  schema: { $ref: common.yaml#/Money }
+
+PortfolioReferenceBudgetMax:
+  name: reference_budget_max
+  in: query
+  description: >-
+    Restricts to the projects whose reference budget does not exceed this bound, inclusive; a
+    project without a reference budget is not retained. Lower than `reference_budget_min`,
+    refused with 422 `VALUE_OUT_OF_RANGE` on `/query/reference_budget_max`.
+  schema: { $ref: common.yaml#/Money }
+
+PortfolioCurrentEstimateMin:
+  name: current_estimate_min
+  in: query
+  description: >-
+    Restricts to the projects whose current estimate (`PortfolioProjectRow.current_estimate`)
+    reaches this bound, inclusive: projects in pricing, since another project has none; one
+    without a revision is not retained either (WF-PTF-0040, WF-IHM-0130).
+  schema: { $ref: common.yaml#/Money }
+
+PortfolioCurrentEstimateMax:
+  name: current_estimate_max
+  in: query
+  description: >-
+    Restricts to the projects in pricing whose current estimate does not exceed this bound,
+    inclusive; a project without a current estimate is not retained. Lower than
+    `current_estimate_min`, refused with 422 `VALUE_OUT_OF_RANGE` on
+    `/query/current_estimate_max`.
+  schema: { $ref: common.yaml#/Money }
+
+PortfolioWinProbabilityMin:
+  name: win_probability_min
+  in: query
+  description: >-
+    Restricts to the projects whose win probability (`PortfolioProjectRow.win_probability`)
+    reaches this bound, inclusive, a share (`0.4` for 40 %); a project without a probability is
+    not retained (WF-PTF-0040, WF-IHM-0130).
+  schema: { $ref: common.yaml#/Percent }
+
+PortfolioWinProbabilityMax:
+  name: win_probability_max
+  in: query
+  description: >-
+    Restricts to the projects whose win probability does not exceed this bound, inclusive, a
+    share (`0.4` for 40 %); a project without a probability is not retained. Lower than
+    `win_probability_min`, refused with 422 `VALUE_OUT_OF_RANGE` on
+    `/query/win_probability_max`.
+  schema: { $ref: common.yaml#/Percent }
+
+PortfolioProjectionMin:
+  name: project_manager_projection_min
+  in: query
+  description: >-
+    Restricts to the projects whose project manager's projection
+    (`PortfolioProjectRow.project_manager_projection`) reaches this bound, inclusive: projects
+    in progress, since another project has none (WF-PTF-0040, WF-IHM-0130).
+  schema: { $ref: common.yaml#/Money }
+
+PortfolioProjectionMax:
+  name: project_manager_projection_max
+  in: query
+  description: >-
+    Restricts to the projects in progress whose project manager's projection does not exceed
+    this bound, inclusive; a project without a projection is not retained. Lower than
+    `project_manager_projection_min`, refused with 422 `VALUE_OUT_OF_RANGE` on
+    `/query/project_manager_projection_max`.
+  schema: { $ref: common.yaml#/Money }
+
+PortfolioDeltaToReferenceMin:
+  name: delta_to_reference_min
+  in: query
+  description: >-
+    Restricts to the projects whose variance to the reference budget
+    (`PortfolioProjectRow.delta_to_reference`, positive beyond the budget) reaches this bound,
+    inclusive — `0` for the projects whose projection reaches or exceeds their budget: projects
+    in progress, since another project has none (WF-PTF-0040, WF-IHM-0130). The bound may be
+    negative.
+  schema: { $ref: common.yaml#/Money }
+
+PortfolioDeltaToReferenceMax:
+  name: delta_to_reference_max
+  in: query
+  description: >-
+    Restricts to the projects in progress whose variance to the reference budget does not
+    exceed this bound, inclusive; a project without a variance is not retained. Lower than
+    `delta_to_reference_min`, refused with 422 `VALUE_OUT_OF_RANGE` on
+    `/query/delta_to_reference_max`.
+  schema: { $ref: common.yaml#/Money }
+
+PortfolioCostIndexMin:
+  name: cost_index_min
+  in: query
+  description: >-
+    Restricts to the projects whose cost index (`PortfolioProjectRow.cost_index.value`) reaches
+    this bound, inclusive; a project without a cost index, or whose index is not computed
+    (`is_computable` false), is not retained (WF-PTF-0040, WF-IHM-0130).
+  schema: { $ref: common.yaml#/Decimal }
+
+PortfolioCostIndexMax:
+  name: cost_index_max
+  in: query
+  description: >-
+    Restricts to the projects whose cost index does not exceed this bound, inclusive; a
+    project without a computed cost index is not retained. Lower than `cost_index_min`, refused
+    with 422 `VALUE_OUT_OF_RANGE` on `/query/cost_index_max`.
+  schema: { $ref: common.yaml#/Decimal }
+
+PortfolioScheduleIndexMin:
+  name: schedule_index_min
+  in: query
+  description: >-
+    Restricts to the projects whose schedule index (`PortfolioProjectRow.schedule_index.value`)
+    reaches this bound, inclusive; a project without a schedule index, or whose index is not
+    computed, is not retained (WF-PTF-0040, WF-IHM-0130).
+  schema: { $ref: common.yaml#/Decimal }
+
+PortfolioScheduleIndexMax:
+  name: schedule_index_max
+  in: query
+  description: >-
+    Restricts to the projects whose schedule index does not exceed this bound, inclusive; a
+    project without a computed schedule index is not retained. Lower than
+    `schedule_index_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/schedule_index_max`.
+  schema: { $ref: common.yaml#/Decimal }
+
+PortfolioLastMarkedAtFrom:
+  name: last_marked_at_from
+  in: query
+  description: >-
+    Start, inclusive, of the period of the last marked revision: restricts to the projects whose
+    last marked revision (`PortfolioProjectRow.last_marked_at`) was marked at this instant or
+    after it; a project that has none is not retained (WF-PTF-0040, WF-IHM-0130).
+  schema: { $ref: common.yaml#/Timestamp }
+
+PortfolioLastMarkedAtTo:
+  name: last_marked_at_to
+  in: query
+  description: >-
+    End, exclusive, of the period of the last marked revision: restricts to the projects whose
+    last marked revision was marked before this instant — those not marked since a date —; a
+    project that has none is not retained (WF-IHM-0130). Earlier than `last_marked_at_from`, it
+    is refused with 422, `fields[]` designating `/query/last_marked_at_to` with
+    `VALUE_OUT_OF_RANGE`, `params.minimum` the start given; equal, the period is empty.
+  schema: { $ref: common.yaml#/Timestamp }
 
 # The audit columns of a flat table (WF-DAT-0070), each sorted and filtered (WF-IHM-0060,
 # WF-IHM-0130): a period per date column, named after it like the bounds of a

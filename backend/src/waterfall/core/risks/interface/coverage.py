@@ -40,7 +40,8 @@ def kept_coverage(
 ) -> dict[str, Any] | None:
     """Give the coverage a marked revision kept, with the reserve the reference conserves now.
 
-    None when the marking kept no coverage (``kept`` absent or without its figures): the reading
-    computes it then.
+    None when the marking kept no coverage (``kept`` absent or without its figures). The register of
+    the project computes it then (``risk_coverage_of``); a view of the portfolio at a past date adds
+    nothing for it, no line of a quote being read there (WF-DAT-0040).
     """
     return conserved_coverage(session, project_id, kept)

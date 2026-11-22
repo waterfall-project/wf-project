@@ -3813,6 +3813,25 @@ déclaration de son refus, avec un exemple de période inversée.
 *Complété par US-0701/L6 (#1606, G-05) : `getPortfolioCostStructure` et `getPortfolioCostCurve`
 prennent aussi `from` et `to` et déclarent `PortfolioPeriodRefused` ; six vues le partagent.*
 
+*Complété par US-2670/L4 (#4176, décision de l'auteur du 2026-11-19 : borner la période, durée
+proposée par le lot) : la période de `getPortfolioPerformance` est bornée à **cinq ans**
+(commentaire de #3873), la seule vue qui lise un document conservé par
+trimestre que la période touche. Une fin au-delà du début de plus de cinq ans (le 28 février pour un
+29 février que l'année n'a pas) est refusée par 422 `VALIDATION_FAILED`, `/query/to` par
+`VALUE_OUT_OF_RANGE`, `params.maximum` la dernière fin admise ; quand le début seul est envoyé, la
+fin étant la date de calcul, `/query/from`, `params.minimum` le premier début admis. Une seule
+constante, `PERIOD_YEARS` (`core/portfolio/interface/performance.py`), que `resolve_scope` reçoit.
+L'exemple `period_too_long` s'écrit dans le contrat (`paths/portfolio.yaml`), non sous `fixtures/api/` :
+la dernière fin admise d'un exemple tombe hors de l'univers des fixtures, entre son installation et
+son jour (`test_mockhistory`), et la corrélation dérivée du nom d'un exemple n'est d'aucune famille
+d'identifiants (`test_mockwitness`, #1007). Écartée : lire les documents conservés de tous les
+trimestres en une requête.*
+
+*Complété par US-2670/L4 (#4333) : le dernier marquage d'un projet tombé à l'instant même de son
+passage à En cours (`end == entered_at`) est la référence que ce passage désigne, non une revue :
+`review_interval` rend `None`, la santé du pilotage ne lève ni « risques non revus » ni « aucun coût
+réel » pour ce projet, et le retard de revue se dit seul (WF-PTF-0110).*
+
 Engendrés par `wftools.mocklists`, des comptes et des rôles écrits à la main et du lotissement du
 témoin, dont il écrit désormais la forme pour `mockdata` : `users_by_access_role`, `users_search`,
 `users_inactive`, `access_roles_composed`, `access_roles_unheld`, `work_breakdown_search`,
@@ -12657,6 +12676,89 @@ citées, qui diront les formes et la version.
 Le contrat, le service, le front, le témoin et la reprise des codes déjà saisis suivent par
 #3966.
 
+### Les filtres par colonne de la liste du portefeuille, le nœud qui ne change aucun montant, les révisions marquées avant EP-11 (US-2690/L1, #3874)
+
+Trois décisions de l'auteur du 2026-11-17, prises au cadrage d'EP-11 (conception, « Ce que le
+cadrage décide », « Le contrat »), écrites ici avant le code qui les sert (US-2690, US-2680).
+`info.version` reste `1.0.0` : des paramètres de requête facultatifs de plus et un exemple ; aucun
+schéma de réponse ne change, aucune propriété n'est exigée de plus.
+
+- **`getPortfolioProjects` reçoit un filtre par colonne, contre le gel d'EP-16** (décision du
+  2026-10-22, « La règle d'après le gel ») : WF-IHM-0130 veut une liste filtrée par le serveur sur
+  chacune de ses colonnes, et la liste n'avait que l'état, la période, la zone et la recherche sur
+  le libellé. Chaque filtre est nommé d'après sa colonne, comme ceux des tables plates (README,
+  « A column of numbers… », « A period… ») : `code`, le texte que le code contient, comparé comme
+  la recherche, comme le code d'un nœud d'organisation ; `<colonne>_min` et `<colonne>_max`,
+  bornes incluses, pour `reference_budget`, `current_estimate`, `win_probability`,
+  `project_manager_projection`, `delta_to_reference` (`Money`, une borne négative admise),
+  `cost_index` et `schedule_index` (`Decimal`, la valeur de l'indice) ; `last_marked_at_from` et
+  `last_marked_at_to`, la période de l'instant du dernier marquage, fin exclue comme tout instant —
+  la liste porte déjà `from` et `to`, la période du périmètre, d'où le nom préfixé de la colonne,
+  comme les colonnes d'audit. Les filtres s'appliquent ensemble, aux valeurs que la ligne rend à la
+  date de calcul ; `meta.total` compte les projets que tous retiennent. **Un projet dont la colonne
+  est nulle n'est retenu par aucune borne de cette colonne** — une offre n'a ni budget de référence
+  ni indice, un projet en cours n'a pas de devis courant, un projet sans code n'est retenu par aucun
+  `code`. Un indice non calculé (`Computable`, `is_computable` faux) a une valeur nulle : il suit la
+  même règle, sans décision de plus. Refus : une borne
+  haute inférieure à la basse, 422 `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_max`,
+  `params.minimum` la borne basse donnée ; une fin de la période du marquage antérieure à son
+  début, `/query/last_marked_at_to`, `params.minimum` le début ; égale, la période est vide ; une
+  borne ou un instant mal formé, `NUMBER_INVALID` ou `DATE_INVALID`. Le 422 de l'opération, qui
+  renvoyait à `PortfolioPeriodRefused`, s'écrit en propre : il dit la règle des périodes du
+  portefeuille, dont il garde les deux exemples, et les refus des colonnes. Exemple :
+  `portfolio_projects_filtered`, engendré par `wftools.mockportfolio` depuis les trois cents
+  projets — `cost_index_max=0.9`, `delta_to_reference_min=0`,
+  `last_marked_at_to=2026-04-01T00:00:00Z`, triés par l'indice de coût : 49 projets en cours, aucune
+  offre —, tenu par `tools/tests/test_mockportfoliofilter.py`. Écartés : tenir le seul Vérif de
+  WF-IHM-0130 par un constat de spécification ; filtrer dans le front une liste que le serveur
+  pagine, qui ne filtrerait que la page lue.
+- **Le nœud d'organisation ne change aucun montant de la liste, de la valeur ni de la
+  performance.** `PortfolioOrgNode` ne restreint que les lignes de main-d'œuvre dont le rôle
+  relève du nœud, et un projet n'appartient à aucun département (WF-PTF-0010) : il restreint donc
+  le plan de charge agrégé et la main-d'œuvre de la structure des coûts, et rien d'autre.
+  `getPortfolioProjects`, `getPortfolioValue` et `getPortfolioPerformance` le gardent dans le
+  périmètre rendu (`scope.org_node_id`, `scope.org_node_label`), et rendent les mêmes projets et
+  les mêmes montants avec ou sans lui. La description de `PortfolioOrgNode` le dit ; la question
+  restait ouverte depuis la revue du contrat avant le gel (« `getPortfolioProjects` prend
+  `PortfolioOrgNode` », non tranché). Écartés : restreindre ce qui se ventile par ligne, qui
+  rapporterait une valeur acquise restreinte à la main-d'œuvre à un coût réel entier ; retirer le
+  paramètre de ces trois vues, un changement d'écran de plus.
+- **Une révision marquée avant EP-11 ne reçoit rien** : ni reprise des documents que le marquage
+  conserve désormais pour le portefeuille, ni repli sur un calcul à la lecture. À une date passée,
+  elle ne contribue que par ce qu'elle a conservé (US-2680, US-2670). Le contrat ne change pas pour
+  elle. Écartés : étendre au portefeuille le repli d'EP-10 (« Une révision marquée avant EP-10, sans
+  document conservé, est calculée à la lecture », #3612), qui ferait lire des lignes de tâche et de
+  devis à une date passée, contre le Vérif de WF-DAT-0040 ; une reprise au déploiement, qui
+  écrirait dans `revision_indicator` hors d'un marquage et calculerait sur les coûts d'aujourd'hui.
+
+### La liste et la valeur du portefeuille servies (US-2690/L2, #3875)
+
+Ce que le service fait là où le contrat laissait un choix ; `info.version` reste `1.0.0`, seule la
+description de `sort_by` de `getPortfolioProjects` gagne la place d'une valeur absente.
+
+- **Une liste lue sans période ne retient aucun projet terminé** (décision de l'auteur du
+  2026-11-19, #4020). Sans `from` ni `to`, il n'y a pas de période où un projet aurait été terminé :
+  `PortfolioStates` s'applique, la liste retient les projets en cours et en chiffrage, le projet
+  terminé n'est pas retenu qu'il soit demandé ou non, et `scope.from` et `scope.to` sont nuls. Avec
+  l'un des deux, la période par défaut complète l'autre et le projet terminé dans la période est
+  retenu. Un état créé, perdu ou abandonné, demandé, est sans effet, jamais refusé.
+- **Un projet sans valeur dans la colonne triée vient après les autres dans l'ordre croissant, avant
+  eux dans l'ordre décroissant** : la convention des tris du contrat (le code d'un projet,
+  `listProjects`), étendue aux colonnes de la liste du portefeuille. Le tri par indice de coût,
+  croissant, place les projets en alerte en tête, puis les autres, puis les offres sans indice ; un
+  indice non calculé est sans valeur. Les égalités suivent le README : l'ordre de la liste non triée,
+  le libellé comparé par points de code, puis l'identifiant, dans les deux sens.
+- **Une ligne ne porte que ce que son état donne** : une offre, son devis courant et sa probabilité
+  de gain ; un projet en cours ou terminé, son budget de référence et ses indices, sans devis
+  courant ni probabilité (la décision du critère de l'US ; l'exemple `portfolio_projects` montre
+  encore « 1 » à la probabilité d'un projet en cours, #4137, à trancher) ; la projection du chef de
+  projet et l'écart à la référence, ceux d'un projet en cours seul, comme les descriptions des
+  colonnes le disent. Un projet que nul document n'atteint — aucune révision marquée à la date, ou
+  une révision qui n'a pas conservé le document de son état — figure sans montant.
+- **Le réalisé est le coût réel que le document `project` du projet terminé donne**, le carnet la
+  somme des budgets de référence des projets en cours, le pipeline celle des devis courants des
+  offres, brut, et pondéré par la probabilité que la révision retenue a gardée, chaque part arrondie
+  au centime une fois. Un devis qu'un taux manquant empêche de calculer n'entre dans aucune somme.
 ### La ligne de provision d'un risque suit sa tâche et compte au reste à engager (US-2580/L1)
 
 Aucune forme du contrat ne change ; ce que `updateRiskProvision` et `deleteNode` disent déjà se
@@ -12907,6 +13009,86 @@ comme avant ; rien ne change sur le fil hors d'un collage, et `info.version` res
 dialogue ; `row` nul hors d'un collage, qui l'aurait ajouté à tous les refus d'horizon et à leurs
 exemples pour ne rien dire ; nommer la tâche créée par un identifiant provisoire, qu'aucune lecture
 ne connaît.
+
+### Les risques du portefeuille servis (US-2730, #3865)
+
+Ce que le service fait là où le contrat laissait un choix ; aucune forme du contrat ne change.
+
+- **Sans pondération, tous les états du périmètre.** Le total des provisions identifiées, les dix
+  plus lourds et la matrice comptent les risques identifiés de chaque projet retenu — une offre en
+  chiffrage pour sa provision entière (WF-PTF-0020), un projet terminé dans la période pour les
+  siens. La matrice classe chaque risque à la lecture, sur les bornes courantes et sur l'assiette de
+  son propre projet ; ses points sont les seuls risques identifiés, ses cases les comptent une fois.
+  `matrix.totals` compte chaque risque conservé une fois, dans l'état où le document le tient
+  (`identified`, `occurred`, `dismissed`, la provision d'un survenu ou d'un écarté étant la part
+  qu'il portait dans la référence), avec la réserve de la couverture à côté. Les égalités de
+  provision se départagent par le libellé du projet, son identifiant, le libellé du risque, son
+  identifiant.
+- **La couverture agrégée** (G-06) somme celles des projets en cours et terminés du périmètre, un
+  projet en chiffrage n'y entrant pas ; l'écart est la différence des sommes, et la somme des
+  réestimés des survenus est rendue à côté de leur coût, jamais à sa place (#2002). Au jour courant,
+  celle de la révision du jour de chaque projet, calculée comme `getRemainingIndicators` la donne ;
+  à une date passée, celle que le document `remaining` de la dernière révision marquée a conservée,
+  avec la réserve que la référence conserve (`kept_coverage`) ; un marquage qui n'en a conservé que
+  des chiffres incomplets, comme une révision qui n'a conservé aucun `remaining`, n'y ajoute rien :
+  aucune vue à une date passée ne lit de ligne de devis ni ne recalcule (WF-DAT-0040).
+- **`period_outcome` ne vient d'aucun document conservé** (#4294, point 2). Les provisions des
+  survenus et des écartés de la période sont celles que `outcomes_between` donne, par la date du
+  réexamen qui a changé l'état du risque, tous les marquages confondus ; la provision d'une issue est
+  la part du risque dans la référence que le projet a **aujourd'hui** (WF-RIS-0040), nulle sans
+  référence. À un `as_of` passé, `period_outcome` suit donc la référence du jour, non celle que le
+  projet avait alors, et peut compter une issue que la matrice, lue sur les documents conservés,
+  tient encore pour identifiée ; la réserve de la couverture suit la même référence. Écarté :
+  conserver les issues au marquage, ce qu'aucune nature de `portfolio_risks` ne prévoit ; la lecture
+  groupée par projet d'`outcomes_between` reste à la mesure (#4165).
+
+**Les signaux de santé du pilotage jugent un intervalle de revue** (US-2750, #3866, décision de
+l'auteur du 2026-11-20). `risks_not_reviewed` et `no_actual_cost_since_last_review` se jugent de
+l'avant-dernière à la dernière révision marquée ; à la première revue marquée depuis le passage à
+En cours, de ce passage à cette revue. Un projet en cours sans révision marquée depuis ce passage —
+celle qu'il porte est la référence désignée par le passage, WF-CYC — ne porte ni l'un ni l'autre :
+son retard est dit par `review_overdue`. Un import de coûts de zéro ligne compte comme un import :
+sa date dit de quand datent les chiffres (WF-CRE-0050-A). Les deux bornes de l'intervalle sont
+incluses. `weeks_since_last_mark` est le plancher des jours écoulés divisé par sept.
+
+### La structure des coûts du portefeuille servie (US-2720, #3863, #4283)
+
+Ce que le service fait là où le contrat laissait un choix ; seule la description de
+`PortfolioCostStructure` change, aucun schéma.
+
+- **Qui contribue, et comment.** Les projets en cours, les terminés de la période — celle par défaut
+  comprise — et les offres en chiffrage demandées, chacun par la révision que le périmètre retient ;
+  une offre pour son devis pondéré par sa probabilité (M-07), le budget hors lignes de provision
+  (G-15), le reste à engager avec elles. Chaque montant d'un projet est pondéré et arrondi une fois,
+  au centime ; la main-d'œuvre d'un projet est d'abord sommée par nœud, puis pondérée une fois.
+- **La main-d'œuvre par nœud** est celle du budget, par rôle, groupée par le nœud **courant** du rôle
+  à toute date (WF-REF-0070), comme le générateur du témoin la calcule. `org_node_id` la restreint aux
+  rôles du nœud et de ses descendants ; les ventilations par nature ne sont pas restreintes, la
+  main-d'œuvre comprise (`PortfolioOrgNode`). Écarté : restreindre aussi la nature « main-d'œuvre »,
+  que le document ne ventile pas par nœud et dont la part changerait avec le filtre.
+- **Les libellés** sont ceux du référentiel à la lecture (`AmountByKey.label`) ; une nature que le
+  référentiel n'a plus garde le libellé que le document a conservé. Les clés suivent l'ordre de leurs
+  identifiants.
+- **Un taux horaire manquant** (#4283, décision de l'auteur du 2026-11-20). Au jour courant, une
+  révision non marquée dont une ligne de main-d'œuvre emploie une catégorie sans taux pour son année
+  de référence écrit, dans son document `portfolio_cost_structure`, la nature et le rôle de ces lignes
+  sans montant (`amount` nul) et avec les taux manquants (`missing_rates`), comme le document
+  `estimate` les nomme. La vue n'ajoute pas cette part — un devis non calculé n'entre dans aucune somme
+  de la liste (US-2690/L2) — et rend la nature et le nœud concernés non calculés : leur part
+  `hourly_rate_missing`, `params.missing_rates` nommant les catégories et les années, leur montant la
+  somme de ce que les autres projets calculent ; toute autre part de la même ventilation est non
+  calculée, `hourly_rate_missing` sans `params`, son total ne l'étant pas (la règle des parts de
+  `EstimateIndicators`). Une révision marquée n'en a jamais : son marquage refuse un taux manquant.
+  Écartés : sommer le montant que les lignes gardent, ce que la décision refuse ; un montant à zéro
+  (`_remaining_by_key`), qui ne dit pas ce que les autres projets calculent ; ne marquer que la part de
+  la nature concernée et calculer les autres sur un total amputé, que le front montrerait sommant à
+  un ; `params` sur toutes les parts, comme le devis, qui ne dirait plus quelle nature manque, le
+  montant étant ici un `Money` exigé.
+- **L'empreinte** de la contribution du jour lit le tampon des taux horaires du référentiel (nombre,
+  somme des compteurs, dernière écriture : `rates_stamp`), une fois par lecture : un taux saisi ou
+  corrigé change la clé (WF-DAT-0130-A), et le document `estimate` d'une offre, qui en dépend aussi,
+  n'est plus servi périmé. Un taux n'est jamais supprimé ; ceux qu'une révision garde s'écrivent à son
+  ouverture et à son marquage, que l'empreinte voit déjà. La forme de l'entrée passe à « 4 ».
 
 ## Organisation des fichiers
 

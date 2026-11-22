@@ -184,6 +184,20 @@ def current_day_reading(session: Session, project_id: UUID, at: datetime) -> Day
     return _reading_of(session, project_id, facts, IndicatorsReading(PROJECT, at), None)
 
 
+def day_reading_of(
+    session: Session, project_id: UUID, revision_id: UUID, at: datetime
+) -> DayReading:
+    """Say what the current day computes on when the revision is given, never chosen here.
+
+    For the portfolio, which selects the revision of each project once (``RetainedProject``): a
+    project never In progress is refused, a revision that is not the project's is a 404.
+    """
+    facts = project_facts(session, project_id)
+    _refuse_before_in_progress(session, project_id, facts.state)
+    named = read_revision_for(session, project_id, revision_id)
+    return _reading_of(session, project_id, facts, IndicatorsReading(PROJECT, at), named)
+
+
 def day_indicators(
     session: Session,
     reading: DayReading,

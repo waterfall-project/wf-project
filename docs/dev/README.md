@@ -71,12 +71,15 @@ bootstrap. The service Compose offers it (service `witness`, `make service-witne
 production one does not: a real installation holds no witness. `make service-witness` takes no
 variable of its own: the service Compose gives the `witness` service the role of the service
 (`WATERFALL_DATABASE_URL`, by `WATERFALL_POSTGRES_PASSWORD`, which must be exported as for
-`make service-up`) and mounts `fixtures/api/` read-only on `WATERFALL_WITNESS_PATH` (`/witness`);
+`make service-up`) and mounts `fixtures/api/` and `fixtures/witness/` read-only,
+`WATERFALL_WITNESS_PATH` being `/fixtures/api`: the slice of the portfolio (`fixtures/witness/portfolio/`) is read beside the
+examples;
 the platform must be started and bootstrapped (`make service-install`), for the command does not
 write what the bootstrap writes — the row of the installation, the common settings, the units, the
-mapping, the default calendar and the provision —, it sets what the bootstrap laid. The `witness`
-fixture of `backend/tests/conftest.py` does likewise on the database of the tests: it first
-installs what the bootstrap writes, then runs the command. `backend/tests/test_witness.py` tries
+mapping, the default calendar and the provision —, it sets what the bootstrap laid. The tests do
+likewise, once a run, on a template database (`backend/tests/witness_template.py`): they first
+install what the bootstrap writes, then run the command; the `witness` fixture gives each test a
+copy of that database. `backend/tests/test_witness.py` tries
 the witness whole: its volumes, two new platforms loaded identical, a second run that writes
 nothing, the dates and authors of the platform, the stop, saying so, on a witness the rules refuse,
 and the lists of the service compared with the examples of the contract, the audit columns apart.
@@ -166,6 +169,32 @@ _Check_: `make imports-back` (import-linter, contracts in `backend/pyproject.tom
 exercises them on a trial package (`backend/tests/test_boundaries.py`). An SQL query written
 as text, which would name the table of another module, escapes the analysis of the imports:
 it falls under the SQL rules of EP-03 and under review.
+
+**One implementation of each calculation** (WF-ARC-0010, US-2780/L3). The state machine, the
+planning, the estimate and the indicators are written once only, in their module of the core, which
+the API, the worker and the portfolio import. The versioned table `tools/implementations.toml`
+names, for each file of the core that carries one of these calculations, the names it is called
+by — its functions that compute, the constants that fix its result —, and for each file of the
+portfolio, the formulas of EP-10 it applies to sums. A file outside `core/` and `migrations/` — the
+API, the worker, the other entry points, the platform — or of the portfolio defines none of these
+names (neither a function, at any depth, nor an assignment at the level of the module), and imports
+them only from the module of the core that owns them; a file of the portfolio imports and calls the
+formulas the table gives it. A new calculation of one of these four adds its names to the table.
+Two declarations keep a gap there, said without failing: a homonym (`[[homonym]]`), another
+calculation of a module of the core under a name of the table, which may be imported from that
+module, and a known duplicate (`[[duplicate]]`), said at each run with its reason until it is gone;
+each fails once it no longer holds; a duplicate may copy a name of the table under another (`of`, and
+`of_file` for a private name the table does not hold). To « apply » a formula is to call it or to
+pass it on to be called (`map(cost_index, …)`); the check does not verify that the argument is a sum,
+which falls under review. The check judges by name: a calculation written again under another name
+escapes it, and falls under review — the rounding of an amount rewritten by `quantize`, without a
+name of the table, is one (the case of the API's `_money` is open apart, #4373); the generators of
+the fake back, which are not delivered, are out of it. A held file that names `schedule`, `advance`,
+`margin`, `balances`, `distribution` or `cumulative` something that is not a calculation of the
+table has no escape hatch: it renames its method.
+
+_Check_: `make implementations` (`wftools.implementations`, family `repo`, which runs on every
+change).
 
 **Background tasks** (WF-ARC-0090). A task lives in the `background_task` table
 (`waterfall.platform.tasks`), which is authoritative; the Redis stream (`waterfall.platform.queue`)
@@ -3050,6 +3079,14 @@ What the same command generates is never re-read from the disk: the indicators, 
 curves of the witness, which the portfolio sums, are passed to it in memory, so that one single run
 of `make mock-data` reaches its fixed point.
 
+**The slice of the portfolio**, out of the contract, is written under `fixtures/witness/portfolio/`:
+the description of the ten projects the loader of the witness adds to PRJ-001 and PRJ-002, each
+write in the form of its schema of the contract (`projects/`, `wftools.mockslice`), and the expected
+readings of the eight views of the portfolio on 3 June 2026, read by `as_of` (`readings/`,
+`wftools.mockslicereadings` and `wftools.mocksliceviews`), computed without importing anything of
+the back (EP-11, US-2770; held by `tools/tests/test_mockslice.py` and
+`backend/tests/test_witness_portfolio_slice.py`).
+
 **What stays written by hand** — sessions, accounts and roles, reference data (resource roles and
 their headcounts, calendars, organisation nodes), the project, its revisions and its transitions,
 imports and their reports, background tasks, state of the system and backups, counterfactual
@@ -3663,9 +3700,10 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   their coverage and holds it to its thresholds (`make coverage-back-merge`). A sixth is one test
   in six in the order of their collection (`--shard`, `backend/tests/conftest.py`), rather than
   whole files: the files that load the witness, the longest, are spread over all six. The witness
-  is loaded by the command once per pytest process; the tests after it find its rows copied back
-  (`backend/tests/witness_rows.py`, #2157). On a runner, each test that asked for it paid its
-  loading, over six minutes in all.
+  is loaded by the command once per part, into a template database that each test asking for it
+  copies (`backend/tests/witness_template.py`, #4653, « A test against PostgreSQL »): the eight parts
+  of 10 to 17 minutes, several of them frozen, went down to 6 to 10 minutes (runs 44945620214, then
+  44957647502), then the six parts 7 to 14 minutes (run 44958967745), each under 20 minutes.
   `keycloak.yml` builds the image of Keycloak and puts it to the proof on the service platform, its
   realm applied (`make check-keycloak`), at both tiers: the `keycloak` family wakes on
   `deploy/keycloak/`, on the files of the platform that start it, on its tests, on all the code of
@@ -4302,14 +4340,45 @@ report says so.
 An integration test of the back joins the real database, PostgreSQL, never another in its place
 (`python.md`, « Les tests »). The variable `WATERFALL_TEST_DATABASE_URL` names a server and a role
 that can create databases and roles, a superuser (`postgresql://rôle@hôte:5432/postgres`): at each
-test session, the `database_url` fixture (`backend/tests/conftest.py`) creates there a database with
-a unique name, applies the migrations to it, and drops it at the end, with the service role the
-migrations created for it. The `database` fixture returns this database as the service sees it —
-through a login role that is a member of the service role of this database, created for the session
-(sql.md, « Le rôle du service ») —, and deletes after each test the rows of every table the `Base`
-declares, as owner, audit log included, which its trigger does not protect from a superuser who
-disables the triggers — except those a migration writes, the catalogue of permissions, which its
-table marks (`WRITTEN_BY_MIGRATION` in its `info`); `session` returns a session the test rolls back.
+test session, that is for each process, the `process_database_url` fixture
+(`backend/tests/conftest.py`) creates there a database with a unique name, applies the migrations to
+it, and drops it at the end, with the service role the migrations created for it. `database_url` and
+`service_database_url` name the database of the test: the process's, but for a test on the witness.
+The `database` fixture returns this database as the service sees it — through a login role that is a
+member of the service role of this database, created for the session (sql.md, « Le rôle du
+service ») —, and deletes after each test the rows of every table the `Base` declares, as owner,
+audit log included, which its trigger does not protect from a superuser who disables the triggers —
+except those a migration writes, the catalogue of permissions, which its table marks
+(`WRITTEN_BY_MIGRATION` in its `info`); `session` returns a session the test rolls back.
+
+The witness is loaded once a run, by a process of its own, into a template database
+(`backend/tests/witness_template.py`, #4653): the first process whose tests ask for it starts that
+loading as soon as they are collected, and those tests run after the others, while it is done. A
+test on the witness (`witness`, `witness_logged`) is given a database of its own, a copy of the
+template (`CREATE DATABASE … TEMPLATE`, 0.2 to 0.4 second to create, 0.1 to drop, measured on a workstation), dropped after it: rows,
+identifiers, the partitions of the projects and the sequences are those the command wrote, and no
+row is laid again nor any partition dropped. The service reaches it through a login role member of
+the service role of the template, whose rights the copy keeps. The witness loaded by each process,
+then laid again and its partitions dropped around each test (#2157), took a third of the time of the
+tests. A test that changes how the command loads it loads it itself, on the process's database
+(`witness_loaded`).
+
+A test that hangs fails after eight minutes, named, its traceback where it stopped (`pytest-timeout`,
+`timeout` of `backend/pyproject.toml`, by `SIGALRM`): its process goes on with the next, instead of
+freezing its part of the chain until the job is cancelled (#4653). The longest test that does not
+hang loads the witness itself: 216 seconds at most on a runner (run 44957647502), and a runner is up
+to twice as slow as another. The loading of the template has its deadline, seven minutes
+(`LOADING_TIMEOUT`, for 134 to 290 seconds measured), under that of a test: past it, the test that
+waits for it fails with what the loading said, the loading stops, and the end of pytest no longer
+waits for it. The delay of a test covers the whole item, its teardown included: a teardown that
+follows a freeze may freeze in turn, and the delay of the job (20 minutes) remains the net.
+
+A pytest killed (`SIGTERM`, `SIGKILL`) without reaching its end leaves the database
+`waterfall_witness_*` (and its copies), the roles `waterfall_witness_*_signing` and
+`waterfall_witness_*_service` and the directory `waterfall-witness-*` of the temporary directory
+of the system; the loading stops by itself at its deadline. Nothing sweeps them: drop the
+databases (`DROP DATABASE … WITH (FORCE)`), then the roles (`DROP ROLE`), then remove the
+directory, by hand. The service of a slot, in memory, loses them with `make test-services-down`.
 
 - **In the chain**, `back.yml` starts PostgreSQL as a service of the job and sets the variable.
 - **On a workstation**, the Makefile does it: `make test-back` and `make coverage-back` start

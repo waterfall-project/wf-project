@@ -1,0 +1,7 @@
+{
+  "summary": "Sur le projet de code A.ABC.26001, une ligne d'élément A.ABC.26001 est imputée au seul projet ; une ligne d'élément 10001, une d'élément A.ABC.26002 et une d'élément vide sont rejetées, nommées par leur élément (WF-CRE-0020).",
+  "examples": ["WF-CRE-0020-A#327d63bf4748", "WF-CRE-0020-A#80d94ea6d2fe"],
+  "project_code": "A.ABC.26001",
+  "project_element": "A.ABC.26001",
+  "rejected_elements": ["10001", "A.ABC.26002", ""]
+}

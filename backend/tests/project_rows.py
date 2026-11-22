@@ -179,6 +179,9 @@ PARTITIONS_OF = text(
 )
 
 
+# The length of the identifier of a project that ends the name of each of its partitions.
+HEX = 32
+
 # The role under which the triggers and the keys of a transaction are off, a superuser's alone.
 REPLICA = text("SET LOCAL session_replication_role = replica")
 
@@ -205,6 +208,28 @@ def drop_partitions(connection: Connection, project_id: UUID | None = None) -> N
                 connection.execute(delete(table(name)))
                 connection.execute(text(f'ALTER TABLE "{parent}" DETACH PARTITION "{name}"'))
                 connection.execute(text(f'DROP TABLE "{name}"'))
+
+
+def partitioned_projects(connection: Connection) -> list[UUID]:
+    """Give the projects that have partitions, by the suffix of their names, in their order."""
+    names = [
+        name for parent in REVISED for name in connection.scalars(PARTITIONS_OF, {"parent": parent})
+    ]
+    return sorted({UUID(hex=name[-HEX:]) for name in names})
+
+
+def drop_every_partition(owner: Engine) -> None:
+    """Drop the partitions of every project, a transaction for each project (#4051).
+
+    One transaction for all held a lock on every partition at once — fourteen tables a project,
+    five projects a fabric of the portfolio —, beyond what the server holds; each project now holds
+    its own, released at its commit.
+    """
+    with owner.connect() as connection:
+        projects = partitioned_projects(connection)
+    for project_id in projects:
+        with owner.begin() as connection:
+            drop_partitions(connection, project_id)
 
 
 @contextmanager

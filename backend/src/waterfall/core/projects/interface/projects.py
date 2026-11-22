@@ -21,6 +21,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Literal
+from uuid import UUID
 
 from sqlalchemy import ColumnElement, SQLColumnExpression, case, func, or_, select
 from sqlalchemy.exc import IntegrityError
@@ -66,12 +67,12 @@ from waterfall.platform.errors import (
     UnprocessableError,
 )
 from waterfall.platform.identifiers import new_id
+from waterfall.platform.permissions import ALL_PROJECTS_READ
 from waterfall.platform.tasks import projects_with_task_pending
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Generator, Iterable, Mapping
     from datetime import date, datetime
-    from uuid import UUID
 
     from sqlalchemy.orm import Session
 
@@ -104,9 +105,6 @@ MODIFIABLE = (
     "order_received_on",
 )
 
-
-# The permission that opens to consultation the projects its holder does not contribute to.
-ALL_PROJECTS_READ = "all_projects_read"
 # The states a list keeps unless it names some: the projects in progress alone.
 DEFAULT_STATES: frozenset[str] = frozenset({"in_progress"})
 
@@ -128,6 +126,11 @@ class Viewer:
     def sees_all(self) -> bool:
         """Whether every project that exists is open to the reader (``all_projects_read``)."""
         return ALL_PROJECTS_READ in self.permissions
+
+
+# Who reads for a computation that is no one's: no account, no permission. The reader of the
+# commands of a project, of a revision or of a risk the computation does not return (#4295).
+NOBODY = Viewer(UUID(int=0), frozenset())
 
 
 @dataclass(frozen=True, slots=True)

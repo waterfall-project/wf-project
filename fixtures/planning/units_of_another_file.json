@@ -1,0 +1,7 @@
+{
+  "summary": "Un fichier MS Project à 7 heures par jour, 35 par semaine et 20 jours par mois, importé en gardant les durées : une tâche de 2 j (14 heures dans le fichier) vaut deux jours, soit seize heures avec les valeurs par défaut (WF-PLA-0160).",
+  "examples": ["WF-PLA-0160-A#952783e2946d"],
+  "file_constants": {"minutes_per_day": 420, "minutes_per_week": 2100, "days_per_month": 20},
+  "default_constants": {"hours_per_day": "8", "hours_per_week": "40", "days_per_month": "20"},
+  "task": {"duration_hours": 14, "kept": {"value": "2", "unit": "d"}, "default_hours": "16"}
+}

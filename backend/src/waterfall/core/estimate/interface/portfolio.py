@@ -1,0 +1,236 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+"""What the portfolio reads of the estimate of a revision: its totals by nature and by role (EP-11).
+
+The structure of the costs of the portfolio (WF-PTF-0080) sums, by project, the totals of the
+reference budget by cost type, provision lines left out, and those of the remaining to commit,
+provisions included; and the labour of each, by role of resources. The estimate of an offer stands
+for both. Each amount is rounded once, to the cent, as the indicators round it (EP-11, "Ce que le
+cadrage décide").
+
+- The reference budget is that of ``budget_revision_id``: the reference of the project, or, for an
+  offer, which has none, the revision itself — its estimate. Each line counts its budgeted amount
+  (``budgeted_of``, a line of the reference itself its re-estimated one), as the balances of the
+  subprojects read it (``reference_budgets``, US-1600); a provision line, none.
+- The remaining to commit is that of the revision, provisions included, as its indicators read it
+  (``remaining_indicators``, WF-RAE-0010; US-2580/L1): a line of a task not completed counts its
+  re-estimated amount, a provision line counts whatever the state of its task.
+- The nature of a line is that of its category, on the images a marked revision kept, else on the
+  reference as it stands (``natures_of``); the label of each nature with it, read on the revision
+  of each total: the budget names its natures as its revision kept them, the remaining as the
+  revision reads them, two labels of a nature kept apart. The labour is the
+  lines that name a role, by that role: the portfolio groups the roles by their current node when
+  it reads them (EP-11, "Ce que le cadrage décide"), so no node is kept here.
+
+The amounts of the lines are in cents, and their sums are exact: nothing is rounded again.
+
+A revision not marked whose labour lines employ a category without an hourly rate for its year of
+reference names, for each cost type and each role those lines fall under, the rates it lacks
+(``budget_lacking``, ``remaining_lacking``): a total that depends on them is not computed, never
+summed in silence (WF-DEV-0010; #4283, decision of the author of 2026-11-20). Their amounts are
+still summed here, as the lines keep them: the portfolio says them not computed. A marked revision
+lacks none: its marking refused a rate missing, and its amounts are frozen (WF-DAT-0040).
+
+``offer_workload`` gives the load of the estimate of an offer, by role and by month: the
+portfolio reads it on the estimate, not on a remaining (EP-11, "Tables et migrations",
+``portfolio_workload``).
+
+Neither writes nor reads the clock.
+
+Declared by US-2670/L1, the socle of EP-11; filled by US-2680/L2.
+"""
+
+from dataclasses import dataclass
+from decimal import Decimal
+from typing import TYPE_CHECKING
+
+from waterfall.core.estimate.indicating import missing_rates_of, natures_of
+from waterfall.core.estimate.placing import placed_lines
+from waterfall.core.estimate.reading import budgeted_of, rows_of
+from waterfall.core.estimate.remaining.reviewing import provisions_of, remaining_of_placed
+from waterfall.core.estimate.workloading import estimate_workload
+from waterfall.core.planning.interface import lines_of_structure
+from waterfall.core.revisions.interface import (
+    aimed_structure,
+    read_revision_for,
+    reference_at_marking,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+    from datetime import datetime
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
+
+    from waterfall.core.estimate.indicating import MissingRate, Nature
+    from waterfall.core.estimate.tables import EstimateLine
+    from waterfall.core.estimate.workloading import RoleLoad
+    from waterfall.core.revisions.interface import RevisionRead
+
+# An empty sum, to the cent.
+NOUGHT = Decimal("0.00")
+
+
+@dataclass(frozen=True, slots=True)
+class Lacking:
+    """The rates a total lacks, by the cost type and by the role of the labour lines that lack them.
+
+    A key absent lacks none; each tuple is in the order ``missing_rates`` gives, by label.
+    """
+
+    by_cost_type: Mapping[UUID, tuple[MissingRate, ...]]
+    by_role: Mapping[UUID, tuple[MissingRate, ...]]
+
+
+# What a total lacks when no rate is missing.
+LACKING_NONE = Lacking({}, {})
+
+
+@dataclass(frozen=True, slots=True)
+class PortfolioTotals:
+    """The totals of a revision by cost type, and its labour by role, each an amount.
+
+    ``budget`` leaves the provision lines out; ``remaining`` includes them. ``budget_revision_id``
+    is the revision the budget is read on: the reference of the project, or the revision itself
+    for an offer. ``budget_cost_type_labels`` names each cost type of the budget as its revision
+    reads it — on the images it kept —, ``remaining_cost_type_labels`` each of the remaining as the
+    revision reads it: a nature renamed between the two keeps both. A key without an amount is
+    absent: no total holds a zero it did not sum.
+    """
+
+    budget_by_cost_type: Mapping[UUID, Decimal]
+    remaining_by_cost_type: Mapping[UUID, Decimal]
+    budget_labour_by_role: Mapping[UUID, Decimal]
+    remaining_labour_by_role: Mapping[UUID, Decimal]
+    budget_revision_id: UUID
+    budget_cost_type_labels: Mapping[UUID, str]
+    remaining_cost_type_labels: Mapping[UUID, str]
+    budget_lacking: Lacking = LACKING_NONE
+    remaining_lacking: Lacking = LACKING_NONE
+
+
+def _summed(
+    lines: Iterable[tuple[EstimateLine, Decimal]], natures: Mapping[UUID, Nature]
+) -> tuple[dict[UUID, Decimal], dict[UUID, Decimal]]:
+    """Sum amounts of lines by the nature of their category, and those of the labour by role."""
+    by_type: dict[UUID, Decimal] = {}
+    by_role: dict[UUID, Decimal] = {}
+    for line, amount in lines:
+        cost_type = natures[line.cost_category_id].cost_type_id
+        by_type[cost_type] = by_type.get(cost_type, NOUGHT) + amount
+        if line.resource_role_id is not None:
+            role = line.resource_role_id
+            by_role[role] = by_role.get(role, NOUGHT) + amount
+    return by_type, by_role
+
+
+def _missing(session: Session, project_id: UUID, read: RevisionRead) -> dict[UUID, MissingRate]:
+    """Give the rates a revision not marked lacks, by category; a marked revision lacks none.
+
+    The rates ``getMissingRates`` names (``missing_rates_of``), in its order, by label. A marked
+    revision is priced on what its marking kept, whatever the reference became since.
+    """
+    if read.marked:
+        return {}
+    return {each.cost_category_id: each for each in missing_rates_of(session, project_id, read)}
+
+
+def _lacking(
+    lines: Iterable[EstimateLine],
+    natures: Mapping[UUID, Nature],
+    missing: Mapping[UUID, MissingRate],
+) -> Lacking:
+    """Name the rates the labour lines given lack, by the cost type and by the role of each."""
+    if not missing:
+        return LACKING_NONE
+    by_type: dict[UUID, set[UUID]] = {}
+    by_role: dict[UUID, set[UUID]] = {}
+    for line in lines:
+        if line.resource_role_id is None or line.cost_category_id not in missing:
+            continue
+        cost_type = natures[line.cost_category_id].cost_type_id
+        by_type.setdefault(cost_type, set()).add(line.cost_category_id)
+        by_role.setdefault(line.resource_role_id, set()).add(line.cost_category_id)
+
+    def named(categories: set[UUID]) -> tuple[MissingRate, ...]:
+        return tuple(rate for key, rate in missing.items() if key in categories)
+
+    return Lacking(
+        {key: named(each) for key, each in by_type.items()},
+        {key: named(each) for key, each in by_role.items()},
+    )
+
+
+def _budget_lines(session: Session, project_id: UUID, revision_id: UUID) -> list[EstimateLine]:
+    """Read the lines of the main structure of a revision, provision lines left out."""
+    structure_id = aimed_structure(session, project_id, revision_id, None)
+    if structure_id is None:
+        return []
+    lines = rows_of(session, project_id, lines_of_structure(session, project_id, structure_id))
+    provisions = provisions_of(session, lines)
+    return [line for line in lines if line.node_id not in provisions]
+
+
+def portfolio_totals(session: Session, project_id: UUID, revision_id: UUID) -> PortfolioTotals:
+    """Give the totals by cost type and the labour by role of a revision of a project.
+
+    The budget on the reference of the project, or on the revision itself without one (an offer)
+    or while a merge marks it and designates it at once (``designated_at_marking``: it is the
+    reference from that instant, #4282); the remaining on the revision. A revision unknown is
+    refused (404).
+    """
+    read = read_revision_for(session, project_id, revision_id)
+    placed = placed_lines(session, project_id, read.revision_id)
+    _, by_line = remaining_of_placed(session, placed, provisions=True)
+    remaining = [
+        (each.line, by_line[each.line.node_id]) for each in placed if each.line.node_id in by_line
+    ]
+    natures = natures_of(
+        session, project_id, read, {line.cost_category_id for line, _ in remaining}
+    )
+    budget_id = (
+        reference_at_marking(session, read.revision_id, read.reference_revision_id)
+        or read.revision_id
+    )
+    budget_read = (
+        read if budget_id == read.revision_id else read_revision_for(session, project_id, budget_id)
+    )
+    budgeted = _budget_lines(session, project_id, budget_id)
+    budget_natures = natures_of(
+        session, project_id, budget_read, {line.cost_category_id for line in budgeted}
+    )
+    budget_by_type, budget_by_role = _summed(
+        ((line, budgeted_of(line)) for line in budgeted), budget_natures
+    )
+    remaining_by_type, remaining_by_role = _summed(remaining, natures)
+    missing = _missing(session, project_id, read)
+    budget_missing = missing if budget_read is read else _missing(session, project_id, budget_read)
+    return PortfolioTotals(
+        budget_by_type,
+        remaining_by_type,
+        budget_by_role,
+        remaining_by_role,
+        budget_id,
+        _labels(budget_natures),
+        _labels(natures),
+        _lacking(budgeted, budget_natures, budget_missing),
+        _lacking((line for line, _ in remaining), natures, missing),
+    )
+
+
+def _labels(natures: Mapping[UUID, Nature]) -> dict[UUID, str]:
+    """Name each cost type of the natures of a revision, as that revision reads it."""
+    return {each.cost_type_id: each.label for each in natures.values()}
+
+
+def offer_workload(
+    session: Session, project_id: UUID, revision_id: UUID, at: datetime
+) -> tuple[RoleLoad, ...]:
+    """Give the load of the estimate of an offer by role, each with its months loaded in order.
+
+    Every labour line whole over its task, on its own figures, whatever the day: the estimate is
+    the whole of an offer (``estimate_workload``). The roles in the order of the plan of workload,
+    a role without load with no month. A revision unknown is refused (404).
+    """
+    return estimate_workload(session, project_id, revision_id, at)

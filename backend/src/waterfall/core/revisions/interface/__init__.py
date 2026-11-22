@@ -68,6 +68,7 @@ from waterfall.core.revisions.interface.marking import (
     keep_project_ratios,
     load_marking,
     mark_revision,
+    reference_at_marking,
     register_indicators,
     register_marking,
     run_marking,
@@ -92,6 +93,13 @@ from waterfall.core.revisions.interface.merging import (
     merge_report,
     register_merge,
     register_merge_end,
+)
+
+# ``portfolio`` (US-2670/L1; US-2670/L3): the revisions of several projects the portfolio retains.
+from waterfall.core.revisions.interface.portfolio import (
+    RetainedRevisions,
+    last_marked_at_instant,
+    marked_revisions_of,
 )
 
 # ``rates`` (US-1500/L1): the update of the rates of a revision, as the revision frames it.
@@ -226,6 +234,7 @@ __all__ = [
     "RebaseReport",
     "ReferenceDesignated",
     "ReferenceToDesignate",
+    "RetainedRevisions",
     "RevisionAsked",
     "RevisionClosing",
     "RevisionCopy",
@@ -266,6 +275,7 @@ __all__ = [
     "hold_current_revision",
     "holds_its_lineages",
     "keep_project_ratios",
+    "last_marked_at_instant",
     "last_marked_revision",
     "last_marked_revisions",
     "list_cost_structures",
@@ -278,6 +288,7 @@ __all__ = [
     "mark_revision",
     "marked_revisions",
     "marked_revisions_at",
+    "marked_revisions_of",
     "merge_parts",
     "merge_report",
     "not_a_base",
@@ -290,6 +301,7 @@ __all__ = [
     "rebase_report",
     "rebased_structure",
     "rebasing_of",
+    "reference_at_marking",
     "reference_correctable",
     "reference_history",
     "reference_year_of",

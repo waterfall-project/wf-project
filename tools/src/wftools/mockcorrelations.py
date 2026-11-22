@@ -232,6 +232,8 @@ NUMBERED = frozenset(
         "paste_too_wide",
         "portfolio_open_period_inverted",
         "portfolio_period_inverted",
+        "portfolio_projects_bounds_inverted",
+        "portfolio_projects_marking_period_inverted",
         "portfolio_workload_horizon_refused",
         "predecessors_cycle_refused",
         "predecessors_duplicate",

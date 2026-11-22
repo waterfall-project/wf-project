@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
 import type { ApiClient } from "@/api/client";
+import type { Problem } from "@/api/problem";
 import {
   type ChartPalette,
   type ChartProps,
@@ -30,6 +31,7 @@ import {
   PROJECTS_LIST,
   type ProjectState,
   readPerimeter,
+  readProjectFilters,
   type Takes,
 } from "./address";
 
@@ -37,6 +39,7 @@ import { type NodeChoice, PerimeterBar, type ViewParameters } from "./perimeter"
 import { CashOutChart, monthAfter, PortfolioCurveChart, QuarterlyChart } from "./portfolio-charts";
 import type { ProjectPage, ProjectRow } from "./portfolio-grid";
 import { PortfolioValueView } from "./portfolio-value";
+import { ProjectFilterPanel } from "./project-filters";
 import { ProjectsGrid } from "./projects-grid";
 import { ZoneFilter } from "./zone-filter";
 
@@ -370,7 +373,7 @@ describe("the filter of the list of the projects by zone", () => {
           page={LIST.meta}
           query={{ sort: undefined, search: undefined, size: undefined }}
           preferences={undefined}
-          zones={["watch", "alert"]}
+          filters={readProjectFilters(new URLSearchParams("zones=watch,alert"))}
           panel={<ZoneFilter zones={["watch", "alert"]} />}
         />,
       ),
@@ -384,6 +387,70 @@ describe("the filter of the list of the projects by zone", () => {
       }),
     );
     expect(await lastAddress()).toBe(`${PATHNAME}?states=in_progress`);
+  });
+});
+
+describe("the filters of the columns of the list of the projects", () => {
+  it.each([
+    ["the code", "code=PRJ", "Code : PRJ"],
+    ["the budget of reference", "reference_budget_min=1000", "Budget de référence"],
+    ["the current estimate", "current_estimate_max=5000", "Devis courant"],
+    [
+      "the projection of the project manager",
+      "project_manager_projection_min=100",
+      "Projection du chef de projet",
+    ],
+    ["the delta to the reference", "delta_to_reference_max=50", "Écart à la référence"],
+    ["the win probability", "win_probability_min=0.5", "Probabilité de gain"],
+    ["the cost index", "cost_index_max=0.9", "Indice de coût"],
+    ["the schedule index", "schedule_index_min=0.8", "Indice de délai"],
+    [
+      "the period of the last marking",
+      "last_marked_at_from=2026-03-01T00:00:00Z",
+      "Dernière révision marquée",
+    ],
+    ["the zones", "zones=alert", "Zone des indices : Alerte"],
+  ])(
+    "are folded into the bar of the grid, %s told by its chip, the panel closed [WF-IHM-0130-A]",
+    (_filter, search, chip) => {
+      page.search = search;
+      const filters = readProjectFilters(new URLSearchParams(search));
+      render(
+        inLanguage(
+          <ProjectsGrid
+            projects={LIST.items}
+            page={LIST.meta}
+            query={{ sort: undefined, search: undefined, size: undefined }}
+            preferences={undefined}
+            filters={filters}
+            panel={<ProjectFilterPanel filters={filters} fields={[]} />}
+          />,
+        ),
+      );
+      expect(screen.getByRole("list", { name: "Filtres actifs" })).toHaveTextContent(chip);
+      expect(screen.queryByRole("searchbox", { name: "Filtre par code" })).not.toBeInTheDocument();
+    },
+  );
+
+  it("offers the bounds of the columns of figures and says at its field a bound the server refused [WF-IHM-0130-A]", () => {
+    const refused = example("portfolio_projects_bounds_inverted") as Problem;
+    page.search = "reference_budget_min=10000&reference_budget_max=1000";
+    render(
+      inLanguage(
+        <ProjectFilterPanel
+          filters={readProjectFilters(new URLSearchParams(page.search))}
+          fields={refused.fields ?? []}
+        />,
+      ),
+    );
+    expect(screen.getByRole("group", { name: "Indice de coût" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Probabilité de gain" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Budget de référence" })).toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Filtre par code" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Budget de référence, au")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
   });
 });
 
