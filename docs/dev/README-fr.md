@@ -5959,6 +5959,16 @@ sur deux têtes.
 migration de données, séparée de celle du schéma. Les lignes de l'installation, elles, sont
 celles de l'installateur : l'amorçage les écrit, pas une migration (US-0420).
 
+**Les écarts connus.** Une migration appliquée ne se réécrit pas (WF-DAT-0140) : un écart trouvé
+après coup se consigne ici, et ne se corrige que par une migration nouvelle, si une décision la
+demande. La migration `0016`, publiée depuis la v0.1.0, en porte deux, laissés tels quels (#979,
+décision de l'auteur du 2026-11-14) : à la montée, une ancienne entrée `LAST_ADMINISTRATOR` du
+compte rendu d'une lecture des comptes est rattachée au compte qui porte son adresse à la
+migration, qui a pu changer depuis cette lecture — jusqu'à la lecture suivante, dont le compte
+rendu est juste ; à la descente, elle garde les entrées `EMAIL_MISSING`, que l'`ErrorCode` d'avant
+elle n'a pas — un poste de développement seulement, aucune installation ne redescendant sous une
+version publiée.
+
 **Taille d'un lot.** Les migrations sont écrites à la main : elles comptent dans la taille d'un
 lot, et seules les révisions qu'un outil engendre seul seraient déclarées dans
 `tools/paths.toml`.

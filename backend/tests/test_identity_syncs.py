@@ -22,7 +22,7 @@ import pytest
 from access_rows import account, role
 from fastapi.testclient import TestClient
 from realm import KEY, TestRealm
-from sqlalchemy import select, update
+from sqlalchemy import QueuePool, event, func, select, update
 from support import ContractClient, Logs, Watching, bearer, nowhere
 from task_handlers import deposit, task
 
@@ -31,6 +31,7 @@ from waterfall.api.authentication import Services
 from waterfall.core.users.interface import (
     Skipped,
     SkippedAccount,
+    SkippedAddressHeld,
     SkippedPerson,
     SyncReport,
     SyncScheduleWriting,
@@ -234,6 +235,54 @@ def test_the_report_read_is_that_of_the_latest_reading_ended(
     assert api.get(LATEST, headers=outside).status_code == 404
 
 
+@pytest.mark.story("US-3020")
+def test_the_accounts_a_report_names_are_read_in_one_request_however_many(
+    api: ContractClient, database: Database, queue: TaskQueue, person: Person
+) -> None:
+    # #979: the consultation reads the accounts the report names together — a federation set
+    # wrong would else give one request per account, by the thousands.
+    _, headers = person("users.read")
+    kept = [account(database, "Bernard", f"Dominique{rank}") for rank in range(30)]
+    holder = account(database, "Roux", "Camille")
+    statements: list[str] = []
+
+    def count(*arguments: object) -> None:
+        statements.append(str(arguments[2]))
+
+    def consulted(skipped: list[Skipped]) -> list[dict[str, object]]:
+        task_id = deposit(database, queue)
+        with database.transaction() as session:
+            record_report(session, SyncReport(task_id, utc_now(), 0, 0, 0, 0, skipped, []))
+        statements.clear()
+        event.listen(database.engine, "before_cursor_execute", count)
+        try:
+            response = api.get(LATEST, headers=headers)
+        finally:
+            event.remove(database.engine, "before_cursor_execute", count)
+        assert response.status_code == 200, response.text
+        return response.json()["skipped"]
+
+    one = consulted([SkippedAccount(kept[0], "LAST_ADMINISTRATOR")])
+    for_one = len(statements)
+    many = consulted(
+        [
+            *(SkippedAccount(user_id, "LAST_ADMINISTRATOR") for user_id in kept),
+            SkippedAddressHeld("kc-lou", holder, "ALREADY_EXISTS"),
+            SkippedAddressHeld("kc-noa", None, "ALREADY_EXISTS"),
+            HUGO,
+        ]
+    )
+    assert len(statements) == for_one
+    assert one[0]["first_name"] == "Dominique0"
+    assert [entry["first_name"] for entry in many] == [
+        *(f"Dominique{rank}" for rank in range(30)),
+        "Camille",
+        None,
+        "Hugo",
+    ]
+    assert [entry["user_id"] for entry in many[-3:]] == [str(holder), None, None]
+
+
 def anonymized(database: Database, user_id: UUID) -> None:
     """Anonymise an account around the service: no name, no address, deactivated."""
     with database.transaction() as session:
@@ -429,3 +478,29 @@ def test_what_waits_for_the_commit_runs_once_after_it_and_never_after_a_rollback
     with pytest.raises(UndoneError):
         rolled_back()
     assert ran == ["released"]
+
+
+@pytest.mark.story("US-3020")
+def test_what_waits_for_the_commit_runs_with_no_connection_of_the_database_lent(
+    database: Database, queue: TaskQueue
+) -> None:
+    # #977: what a reading asks of Keycloak once committed — the orphans removed, the identities
+    # given back — runs once the connection of its transaction is given back to the pool, the
+    # worker that ran the task holding none while Keycloak answers.
+    pool = database.engine.pool
+    assert isinstance(pool, QueuePool)
+    lent: list[int] = []
+    with database.transaction() as session:
+        after_commit(session, lambda: lent.append(pool.checkedout()))
+        assert session.scalar(select(func.count()).select_from(UserAccount)) is not None
+        assert pool.checkedout() == 1
+    assert lent == [0]
+
+    def reading(session: Session, _task: Task) -> dict[str, int]:
+        after_commit(session, lambda: lent.append(pool.checkedout()))
+        return {}
+
+    task_id = deposit(database, queue)
+    assert Worker(database, queue, {"identity_sync": reading}, "worker").run_task(task_id)
+    assert task(database, task_id).status == "succeeded"
+    assert lent == [0, 0]

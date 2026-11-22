@@ -23,7 +23,8 @@ of the administration that change an account take it (``api/users.py``, not thos
 own preferences, avatar and sessions): the reading and such a route never wait each on what the
 other holds.
 The orphans and the identities to give back are told in the report, and the provider is written
-once it is committed, out of any transaction (#669): a reading stopped before writes nothing there,
+once it is committed, out of any transaction (#669) and with no connection of the database lent
+(#977): a reading stopped before writes nothing there,
 and the next one, which finds them again, does. Each identity given back is read again first, in a
 short transaction of its own that locks nothing: a change of the account committed since is what
 the provider gets, and an account anonymised since is left alone (WF-ADM-0060).
@@ -286,25 +287,34 @@ def after_commit(session: Session, action: Callable[[], None]) -> None:
     Not at the release of a savepoint of it, nor if the transaction it is registered in is rolled
     back: neither the savepoint active then, nor any it is within, nor the root. A savepoint rolled
     back under a root then committed — the worker's run of a task that fails — undoes the action.
-    The session ends with its transaction (``Database.transaction``): the action runs once.
+    It runs once the root transaction has ended, its connection given back to the pool: what it
+    asks of Keycloak holds no connection of the database (#977), where the event ``after_commit``
+    fires before SQLAlchemy gives it back. It runs once: the root ends once.
     """
     context = get_contextvars()
     registered = session.get_nested_transaction() or session.get_transaction()
-    within: set[SessionTransaction] = set()
+    within: list[SessionTransaction] = []
     while registered is not None:
-        within.add(registered)
+        within.append(registered)
         registered = registered.parent
+    root = within[-1] if within else None
     undone = False
+    committed = False
 
     def undo(_session: Session, rolled_back: SessionTransaction) -> None:
         nonlocal undone
         undone = undone or rolled_back in within
 
-    def run(committed: Session) -> None:
-        if undone or committed.get_nested_transaction() is not None:
+    def note(committing: Session) -> None:
+        nonlocal committed
+        committed = committed or committing.get_nested_transaction() is None
+
+    def run(_session: Session, ended: SessionTransaction) -> None:
+        if ended is not root or undone or not committed:
             return
         with logging_context(**context):
             action()
 
     event.listen(session, "after_soft_rollback", undo)
-    event.listen(session, "after_commit", run)
+    event.listen(session, "after_commit", note)
+    event.listen(session, "after_transaction_end", run)

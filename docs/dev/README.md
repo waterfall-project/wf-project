@@ -5837,6 +5837,15 @@ on two heads.
 data migration, separate from that of the schema. The rows of the installation, for their part, are
 those of the installer: the bootstrap writes them, not a migration (US-0420).
 
+**Known gaps.** A migration applied is not rewritten (WF-DAT-0140): a gap found afterwards is
+recorded here, and is corrected only by a new migration, if a decision asks for one. Migration
+`0016`, published since v0.1.0, carries two, left as they are (#979, decision of the author of
+2026-11-14): on the upgrade, a former `LAST_ADMINISTRATOR` entry of the report of a reading of the
+accounts is attached to the account that bears its address at the migration, which may have changed
+since that reading — until the next reading, whose report is right; on the downgrade, it keeps the
+`EMAIL_MISSING` entries, which the `ErrorCode` before it does not have — a workstation only, no
+installation going back below a published version.
+
 **Lot size.** The migrations are written by hand: they count in the size of a
 lot, and only the revisions a tool generates on its own would be declared in
 `tools/paths.toml`.

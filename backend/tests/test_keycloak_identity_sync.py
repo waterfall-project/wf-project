@@ -21,15 +21,15 @@ another identity.
 
 import time
 from contextlib import contextmanager
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
+import keycloak_support
 import pytest
 from access_rows import ADMINISTRATION, role
-from fastapi.testclient import TestClient
+from keycloak_support import Administrator
 from sqlalchemy import Engine, delete, insert, select
-from support import ContractClient, Logs, Watching, captured_logs, nowhere, raw_account
+from support import ContractClient, Logs, Watching, nowhere, raw_account
 from test_keycloak_authentication import (
     DIRECTORY_CREDENTIAL,
     EXTERNAL_CREDENTIAL,
@@ -37,12 +37,9 @@ from test_keycloak_authentication import (
     ME,
     USERS,
     bearer,
-    changing_accounts,
     known,
     served_settings,
-    service_admin,
     tokens_of,
-    with_password,
 )
 from test_keycloak_platform import (
     DIRECTORY_EMAIL,
@@ -53,8 +50,6 @@ from test_keycloak_platform import (
     set_password,
 )
 
-from waterfall.api.app import create_app
-from waterfall.api.authentication import Services
 from waterfall.core.access_roles.interface import roles_held_by
 from waterfall.core.users.interface import (
     NAME_MAX_LENGTH,
@@ -78,10 +73,9 @@ from waterfall.worker.identity_sync import IdentitySync
 from waterfall.worker.runner import Worker
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator, Iterator
+    from collections.abc import Callable, Generator
 
     import httpx2
-    from openapi_core import OpenAPI
 
 pytestmark = pytest.mark.keycloak
 
@@ -95,89 +89,19 @@ EXTERNAL_EMAIL = "camille.externe@external.test"
 SYNCS = "/api/v1/identity-syncs"
 
 
-@pytest.fixture
-def keycloak() -> Iterator[Keycloak]:
-    """Give the client of the realm the API and the worker reach."""
-    client = Keycloak(served_settings())
-    yield client
-    client.close()
-
-
-@pytest.fixture
-def watching(keycloak: Keycloak, database: Database) -> Watching:
-    """Give the administration client of the API, which notes the connections held at each call."""
-    return Watching(keycloak, served_settings(), database)
-
-
-@pytest.fixture
-def api(
-    contract: OpenAPI, database: Database, keycloak: Keycloak, watching: Watching
-) -> ContractClient:
-    """Give a client of the API on the database of the test and the Keycloak of the platform."""
-    app = create_app(Services(database, keycloak, watching, *nowhere()))
-    return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
-
-
-@pytest.fixture
-def admin() -> Iterator[httpx2.Client]:
-    """Reach the administration API of the realm as the service account, as the API does."""
-    with service_admin(served_settings()) as client:
-        yield client
-
-
-@pytest.fixture
-def logs() -> Iterator[Logs]:
-    """Capture the logs in memory, the secrets of the realm masked, then restore them.
-
-    The fixture of ``conftest.py`` would give the process the secrets of a platform of test, which
-    ``served_settings`` reads from then on and the Keycloak of the platform refuses.
-    """
-    with captured_logs(served_settings().secret_values()) as captured:
-        yield captured
+keycloak = keycloak_support.keycloak
+watching = keycloak_support.watching
+api = keycloak_support.api
+admin = keycloak_support.admin
+logs = keycloak_support.logs
+made = keycloak_support.made
+administrator = keycloak_support.administrator
 
 
 @pytest.fixture
 def reading(keycloak: Keycloak) -> IdentitySync:
     """Give the reading of the accounts as the worker runs it."""
     return IdentitySync(KeycloakAdmin(keycloak, served_settings()))
-
-
-@pytest.fixture
-def made(admin: httpx2.Client) -> Iterator[Callable[[str, str], Account]]:
-    """Give a maker of local accounts of the realm with a password, removed after the test."""
-    accounts: list[Account] = []
-
-    def make(first_name: str, last_name: str) -> Account:
-        accounts.append(with_password(admin, first_name, last_name))
-        return accounts[-1]
-
-    yield make
-    for account in accounts:
-        admin.delete(f"/users/{account.id}")
-
-
-@dataclass(frozen=True, slots=True)
-class Administrator:
-    """The administrator of a test, Claude: her account in Waterfall, and her token's header."""
-
-    user_id: UUID
-    headers: dict[str, str]
-
-
-@pytest.fixture
-def administrator(database: Database, made: Callable[[str, str], Account]) -> Administrator:
-    """Make Claude a local account Waterfall knows, which may change the accounts."""
-    claude = made("Claude", "Locale")
-    headers = changing_accounts(database, claude)
-    return Administrator(user_of(database, claude.id), headers)
-
-
-def user_of(database: Database, subject: str) -> UUID:
-    """Give the account Waterfall holds for a subject of the realm."""
-    with database.transaction() as session:
-        return session.scalars(
-            select(UserAccount.id).where(UserAccount.idp_subject == subject)
-        ).one()
 
 
 @pytest.fixture

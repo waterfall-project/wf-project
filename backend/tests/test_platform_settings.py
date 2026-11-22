@@ -15,9 +15,11 @@ from support import (
     PLATFORM_SECRETS,
     PLUS_CREDENTIAL,
     SERVICE_CREDENTIAL,
+    service_settings,
 )
 
 from waterfall.platform.settings import (
+    ServiceSettings,
     Settings,
     SettingsError,
     load_installation_settings,
@@ -86,6 +88,32 @@ def test_the_settings_read_the_secrets_of_the_environment(
         settings.database_url.get_secret_value() == platform_environment["WATERFALL_DATABASE_URL"]
     )
     assert (settings.host, settings.port, settings.log_level) == ("127.0.0.1", 8000, "INFO")
+
+
+@pytest.mark.story("US-3020")
+def test_the_settings_served_on_keycloak_are_those_the_service_reads_but_for_what_is_given(
+    platform_settings: ServiceSettings,
+) -> None:
+    # #891: the settings of the API the tests of Keycloak serve are derived from those a service of
+    # the test platform reads from its environment, and not written by hand: a setting the service
+    # comes to require reaches them with the environment of the platform.
+    assert service_settings() == platform_settings
+    secret = f"served-{DB_CREDENTIAL}"
+    served = service_settings(
+        WATERFALL_KEYCLOAK_ADDRESS="https://keycloak.waterfall.test/auth",
+        WATERFALL_SERVICE_CLIENT_SECRET=secret,
+    )
+    assert served.keycloak_address == "https://keycloak.waterfall.test/auth"
+    assert served.service_client_secret.get_secret_value() == secret
+    assert (
+        served.model_copy(
+            update={
+                "keycloak_address": platform_settings.keycloak_address,
+                "service_client_secret": platform_settings.service_client_secret,
+            }
+        )
+        == platform_settings
+    )
 
 
 @pytest.mark.usefixtures("platform_environment")
