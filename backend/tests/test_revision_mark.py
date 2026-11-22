@@ -63,7 +63,12 @@ AROUND = "around-the-request"
 AT_ONCE = Timing(claim_after=0, block=0.01, redeposit_every=0)
 # How many objects a revision of the marking of the tests holds, and the tables that hold them.
 OBJECTS = 10_000
-OBJECT_TABLES = re.compile(r"\b(?:node|task|task_link|estimate_line)\b")
+# Those of the planning, of the estimate and of the costs that a revision carries and the marking
+# or the copy of the next revision reads: none is named by the request that asks.
+OBJECT_TABLES = re.compile(
+    r"\b(?:node|task|task_link|timeline|tracking_entry|structure_reading|estimate_line|cost_line"
+    r"|cost_import|revision_indicator)\b"
+)
 # Why a computation of the indicators refuses, as EP-10 will: a category without its rate.
 HOURLY_RATE_MISSING = "HOURLY_RATE_MISSING"
 MISSING_RATES = {
@@ -557,8 +562,8 @@ def test_the_marking_of_a_revision_of_ten_thousand_objects_holds_no_request_beyo
     # « Le marquage d'une révision de dix mille objets n'immobilise aucune requête au-delà de la
     # création de la tâche, et l'utilisateur en voit l'aboutissement. » The request that asks reads
     # none of the objects — not a statement of it names the tables of the planning — and ends with
-    # the task queued, the revision as it was; the reads made while the worker marks, its
-    # transaction open, are answered; the user then reads the task ended and the revision marked.
+    # the task queued, the revision as it was; the user then reads the task ended and the
+    # revision marked.
     revision = open_revision(api, stage)
     give_objects(stage.owner, UUID(revision["revision_id"]), OBJECTS)
     statements: list[str] = []
@@ -576,28 +581,18 @@ def test_the_marking_of_a_revision_of_ten_thousand_objects_holds_no_request_beyo
     assert statements
     assert not [each for each in statements if OBJECT_TABLES.search(each)]
     assert task_of(api, stage, task_id)["status"] == "queued"
-    project = f"{PROJECTS}/{stage.project['project_id']}"
     manager = stage.manager.headers
-    meanwhile: list[tuple[str, Any]] = []
 
     def marking_while_asked(session: Session, task: Task) -> None:
         mark(session, task)
-        # The marking is done and not committed: what a user asks now is not held by it. The
-        # revision is read as it stands, still current, and the task as it runs.
-        meanwhile.append(("project", api.get(project, headers=manager).status_code))
-        found = api.get(f"{project}/revisions/{revision['revision_id']}", headers=manager)
-        meanwhile.append(("revision", (found.status_code, found.json()["status"])))
-        running = api.get(f"{TASKS}/{task_id}", headers=manager)
-        meanwhile.append(("task", (running.status_code, running.json()["status"])))
 
+    # The reads a user makes while the worker's transaction is open are not tried here: under
+    # MVCC a read waits for no row lock, so they would discriminate nothing, and the API and the
+    # worker run in this one thread. What carries the sentence is the list of statements of the
+    # request, none naming an object table, and the task queued with the revision as it was.
     queue.prepare()
     waiting = Worker(database, queue, {"revision_mark": marking_while_asked}, "w", AT_ONCE)
     assert waiting.step()
-    assert meanwhile == [
-        ("project", 200),
-        ("revision", (200, "draft")),
-        ("task", (200, "running")),
-    ]
     ended = task_of(api, stage, task_id)
     assert (ended["status"], ended["progress"], ended["problem"]) == ("succeeded", 100, None)
     assert ended["finished_at"] is not None

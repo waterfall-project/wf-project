@@ -312,14 +312,17 @@ def test_a_backup_then_a_restoration_give_back_the_projects_the_revisions_and_th
     account(installation.database, "Durand", "Paul")
     open_and_mark(api, manager, second, marking, "v2.0")
     provider = create_database_engine(installation.owner["identity_provider"])
-    with provider.begin() as connection:
-        connection.execute(text("INSERT INTO realm VALUES ('after-the-backup')"))
-    assert carried(api, stage.reader, owner) != held
-    restore(installation, backup_task, tmp_path)
-    assert carried(api, stage.reader, owner) == held
-    with provider.connect() as connection:
-        assert connection.scalars(text("SELECT id FROM realm ORDER BY id")).all() == ["waterfall"]
-    provider.dispose()
+    try:
+        with provider.begin() as connection:
+            connection.execute(text("INSERT INTO realm VALUES ('after-the-backup')"))
+        assert carried(api, stage.reader, owner) != held
+        restore(installation, backup_task, tmp_path)
+        assert carried(api, stage.reader, owner) == held
+        with provider.connect() as connection:
+            realms = connection.scalars(text("SELECT id FROM realm ORDER BY id")).all()
+        assert realms == ["waterfall"]
+    finally:
+        provider.dispose()
 
 
 @pytest.mark.requirement("WF-ADM-0160-A")

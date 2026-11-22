@@ -339,6 +339,7 @@ def test_no_import_is_applied_from_a_file_absent_from_the_object_storage(
     applied = read(api, stage, found["import_id"])
     assert (applied["status"], applied["expires_at"]) == ("failed", None)
     assert applied["task"]["status"] == "failed"
+    assert applied["task"]["problem"]["code"] == "INTERNAL_ERROR"
     assert (nodes(database), revisions(database), len(trial.seen)) == before
 
 

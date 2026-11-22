@@ -168,6 +168,10 @@ def test_after_redis_is_emptied_the_platform_goes_on_users_sign_in_and_no_projec
     # emptied whole: the probe answers, the sessions held go on, an account signs in again — a new
     # token of the realm — and every row of the database is as it was. What Redis held of the
     # platform, the queue, is made again by the worker: a marking asked for now is run.
+    # What discriminates is the queue: the task asked for after the emptying is run, and the
+    # task marked before it reads succeeded. The new token of the realm and the comparison of the
+    # rows of PostgreSQL are sentinels, passing at once: the API holds no session in Redis. The
+    # session of the front is tried by frontend/e2e/service/redis-emptied.spec.ts.
     manager = stage.manager.headers
     marked = ask_marking(api, stage, "v1.0")
     assert worker.step()

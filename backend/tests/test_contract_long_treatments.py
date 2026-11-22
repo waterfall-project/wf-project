@@ -33,6 +33,13 @@ STARTED_BY = {
 # The operations that answer 200 besides: the rule sent is the one the report holds (nothing is
 # analysed again), and the exit of a project that carries no revision to mark (nothing is marked).
 ANSWERING_WITHOUT_STARTING = {"setImportDurationRule", "exitProject"}
+# The operations that answer 202 and are not in the list above, with why: their treatment is not
+# one of those this file closes (WF-ARC-0090 names the imports, the marking, the exports, the
+# backups, the reading of the accounts and the restoration), and the files of their own EPIC try it.
+STARTING_ELSEWHERE = {
+    "mergeCostStructure": "structure_merge",
+    "declareRiskOccurrence": "risk_occurrence",
+}
 SUCCESSES = {"200", "202"}
 METHODS = {"get", "put", "post", "delete", "patch"}
 # What a body carries when it is a task, or when it gives the last one of what it reads.
@@ -102,12 +109,52 @@ def test_an_operation_that_starts_a_long_treatment_answers_202_and_the_reference
     # accounts, restoration. The answer that starts the treatment is the 202 of the reference of
     # the task, whose ``kind`` the contract lists; any other success starts nothing.
     successes = successes_of(operations_of(contract)[name].node)
-    assert kind in CONTRACT_KINDS
+    assert kind in CONTRACT_KINDS  # the kind of the list; its link to ``name`` is tried below
     assert "202" in successes
     assert carries_a_task(successes["202"])
     assert set(successes) <= SUCCESSES
     if "200" in successes:
         assert name in ANSWERING_WITHOUT_STARTING
+
+
+def kinds_of_examples(answer: SchemaPath) -> set[str]:
+    """Give the kinds of task the examples of an answer show, the task nested in an import too."""
+    kinds: set[str] = set()
+    content = answer / "content" / "application/json"
+    if "examples" not in content:
+        return kinds
+    for _, example in (content / "examples").items():  # noqa: PERF102 (a path has no values())
+        value = (example / "value").read_value()
+        task = value if "task_id" in value else value.get("task")
+        if task:
+            kinds.add(task["kind"])
+    return kinds
+
+
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_every_operation_of_the_contract_that_answers_202_is_listed_or_set_apart_with_its_reason(
+    contract: OpenAPI,
+) -> None:
+    # « Aucun de ces traitements n'est joignable par un endpoint qui répondrait après l'avoir
+    # exécuté. » : the list of the operations that start a treatment is not closed by hand. Each
+    # operation of the contract that answers 202 is in ``STARTED_BY`` or in ``STARTING_ELSEWHERE``,
+    # and neither lists an operation that answers no 202. The kind a listed operation starts is
+    # read in the examples of its 202, which the contract writes: the kind of the task, or of the
+    # task an import holds. The contract states no other link from an operation to a kind (its
+    # description of ``kind`` names them in prose), so an operation without example is refused.
+    listed = {name: kind for kind, name in started_by()} | STARTING_ELSEWHERE
+    answering = {
+        name: operation
+        for name, operation in operations_of(contract).items()
+        if "202" in successes_of(operation.node)
+    }
+    assert set(answering) == set(listed)
+    assert not set(STARTING_ELSEWHERE) & {name for _, name in started_by()}
+    for name, operation in answering.items():
+        shown = kinds_of_examples(successes_of(operation.node)["202"])
+        assert shown, name
+        assert listed[name] in shown, (name, shown)
+        assert shown <= set(CONTRACT_KINDS), name
 
 
 @pytest.mark.requirement("WF-ARC-0090-A")
