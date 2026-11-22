@@ -3147,7 +3147,7 @@ lit donc pas là. Celui de la saisie d'une ligne (`entry.spec.ts`) et celui du c
 `paste_applied_amendment` écrites après la confirmation. Les parcours qui n'ont pas d'exemple propre
 à l'avenant restent sur la structure qui les sert, le devis propre du risque du recâblage (structure
 204, qui reçoit le premier exemple de chaque opération) : le collage d'une catégorie inconnue et
-le collage d'un bloc trop large, sur ses lignes 8 à 10, lues par ses écarts. Ce devis propre ne porte
+le collage d'un bloc trop large, sur trois de ses lignes (rangs 4 à 6 de la grille, lignes 9, 10 et 12 de la fixture), lues par ses écarts. Ce devis propre ne porte
 aucune ligne de provision : celle-ci ne se joue que contre le service. Un parcours qui
 écrit sur un autre différentiel attend ses exemples, à EP-16. Rien d'autre ne change. Le contrat
 garde le schéma `bearer`, et le front l'envoie quand même : en mode `WATERFALL_AUTH=mock`,

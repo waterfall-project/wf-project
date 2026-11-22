@@ -22,11 +22,9 @@ import { isServerAction } from "./server-action";
 // is written. What the grid does with another answer is proven on its own examples by the tests of
 // the grid (`entry.dom.test.tsx`).
 //
-// The provision of the risk (row 12 of the witness, whose quantity and unit disbursement the server
-// computes) is read on the own estimate of the risk of the rewiring (`structure=`, the structure 204
-// of `structures`), which the fake back serves the first example of `listNodes` at — only the paths
-// of the differentials are served their own (#1219): the amendment holds no provision, and the
-// examples of the writes of the other differentials are EP-16's.
+// The own estimate of the risk of the rewiring (`structure=`, the structure 204 of `structures`)
+// is served by the fake back the first example of `listNodes`; it carries no provision line, which
+// plays against the service only (see the end of this file).
 //
 // Every gesture is a key: the grid is reached by Tab, as a user who never takes the mouse.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
