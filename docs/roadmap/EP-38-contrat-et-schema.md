@@ -108,6 +108,16 @@ soir » du fichier d'EP-11), à rattacher à un lot :
 - #4137 — contrat : la probabilité de gain d'un projet en cours dans la liste du portefeuille, 1 ou
   nulle ?
 
+Issues ouvertes, reportées d'EP-08 le 2026-11-22 :
+
+- #3746 — contrat : deux compositions ambiguës dans des corps de requête
+  (`ProjectExit.current_revision`, `CurrentRevisionFate`) ; la sonde les garde dans
+  `KNOWN_AMBIGUOUS`
+- #4322 — contrat : l'avatar d'un compte n'a pas de version, et le contributeur ne porte pas
+  `has_avatar` (bloque #4323, EP-37)
+- #4669 — contrat : le refus du redatage d'une base nomme une tâche que le différentiel a supprimée
+  par son libellé, nœud nul (documentation seule)
+
 ## Conception
 
 À écrire au cadrage.

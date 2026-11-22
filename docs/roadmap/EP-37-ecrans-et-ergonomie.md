@@ -107,6 +107,11 @@ soir » du fichier d'EP-11), à rattacher à un lot :
 - #4160 — front : deux autres copies d'IDENTIFIER laissent passer un identifiant qui n'est pas un
   UUID
 
+Issues ouvertes, reportées d'EP-08 le 2026-11-22 :
+
+- #4323 — front : l'avatar d'un compte n'est affiché nulle part hors de l'écran de l'avatar (bloqué
+  par #4322, EP-38)
+
 Reporté par EP-13 le 2026-11-22 (décision de l'auteur) :
 
 - #4684 — front : aucune garde des 100 colonnes des commentaires ; une règle d'ESLint limitée aux

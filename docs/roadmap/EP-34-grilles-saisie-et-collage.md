@@ -102,6 +102,11 @@ soir » du fichier d'EP-11), à rattacher à un lot :
 - #4363 — back : d'autres motifs \d admettent les chiffres Unicode (problems, import des coûts,
   collage du planning) ; il était porté par US-2780/L4 #4494 d'EP-11, retiré
 
+Issues ouvertes, reportées d'EP-08 le 2026-11-22 :
+
+- #4324 — front : une recherche dans une grille où une branche est repliée boucle sur le rendu («
+  Too many re-renders »)
+
 ## Conception
 
 À écrire au cadrage.
