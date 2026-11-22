@@ -50,13 +50,25 @@ AMOUNT = sa.Numeric(14, 2)
 FORMER_COUNTED = "kind = 'amendment'"
 COUNTED = "kind IN ('amendment', 'risk')"
 
-# The refusal of an own estimate of EP-08, which no data of this migration takes up.
-REFUSE_OWN_ESTIMATES = """
+# The refusal of the ascent over an own estimate of EP-08, which no data of this migration takes up.
+REFUSE_ASCENT = """
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM public.cost_structure WHERE kind = 'risk') THEN
         RAISE EXCEPTION 'an own estimate of a risk exists: no base that holds one is migrated, '
             'make the database again (EP-30)'
+            USING ERRCODE = 'object_not_in_prerequisite_state';
+    END IF;
+END
+$$
+"""
+# The refusal of the descent over an own estimate of EP-30, which the tables of 0043 cannot hold.
+REFUSE_DESCENT = """
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM public.cost_structure WHERE kind = 'risk') THEN
+        RAISE EXCEPTION 'an own estimate of a risk exists: no base that holds one is taken back '
+            'to 0043, make the database again (EP-30)'
             USING ERRCODE = 'object_not_in_prerequisite_state';
     END IF;
 END
@@ -234,7 +246,7 @@ def _risks() -> None:
 
 def upgrade() -> None:
     """Prepare the own estimates as differentials; refused while one of EP-08 exists."""
-    op.execute(REFUSE_OWN_ESTIMATES)
+    op.execute(REFUSE_ASCENT)
     _structures()
     _abandonments()
     _risks()
@@ -245,7 +257,7 @@ def downgrade() -> None:
 
     The abandonments, the severities recorded and the figures of the occurrences are lost.
     """
-    op.execute(REFUSE_OWN_ESTIMATES)
+    op.execute(REFUSE_DESCENT)
     op.create_check_constraint("severity_not_negative", REVIEWS, "severity >= 0")
     op.drop_constraint(op.f(f"ck_{EVALUATIONS}_earned_value_when_occurred"), EVALUATIONS, "check")
     op.drop_constraint(op.f(f"ck_{EVALUATIONS}_frozen_cost_when_occurred"), EVALUATIONS, "check")

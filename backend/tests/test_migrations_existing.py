@@ -253,7 +253,8 @@ def test_the_own_estimates_as_differentials_are_refused_over_an_own_estimate_of_
 ) -> None:
     # EP-30, US-3070/L1: 0044 takes up no own estimate of EP-08 and refuses, saying it, while one
     # exists, nothing applied; without one, it applies, and a project that exists receives its
-    # partition of the abandonments. The descent refuses likewise over an own estimate.
+    # partition of the abandonments. The descent refuses likewise over an own estimate, saying that
+    # it is the descent that is refused.
     upgrade(empty_engine, "0043")
     project_id, revision_id, risk_id, own = uuid4(), uuid4(), uuid4(), uuid4()
     with empty_engine.begin() as connection:
@@ -270,8 +271,8 @@ def test_the_own_estimates_as_differentials_are_refused_over_an_own_estimate_of_
             ),
             {"project": project_id, "id": own, "revision": revision_id, "risk": risk_id, "at": AT},
         )
-    refused = "an own estimate of a risk exists"
-    with pytest.raises(DBAPIError, match=refused):
+    refused = "an own estimate of a risk exists: no base that holds one"
+    with pytest.raises(DBAPIError, match=f"{refused} is migrated"):
         upgrade(empty_engine, "0044")
     version = text("SELECT version_num FROM alembic_version")
     with empty_engine.begin() as connection:
@@ -298,7 +299,7 @@ def test_the_own_estimates_as_differentials_are_refused_over_an_own_estimate_of_
                 updated_at=AT,
             )
         )
-    with pytest.raises(DBAPIError, match=refused):
+    with pytest.raises(DBAPIError, match=f"{refused} is taken back to 0043"):
         downgrade(empty_engine, "0043")
     with empty_engine.connect() as connection:
         assert connection.scalar(version) == "0044"
