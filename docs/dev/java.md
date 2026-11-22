@@ -2,8 +2,11 @@
 
 Pour l'extension Keycloak de Waterfall (`deploy/keycloak/extension/`), et pour elle seule : le
 point d'entrée `password-setup-link`, les règles de politique `not-last-name` et
-`local-account-only`, et le gestionnaire du lien « mot de passe oublié », `reset-credentials`
-(EP-03, « Conception », « L'extension Keycloak »). Ce fichier complète le
+`local-account-only`, le gestionnaire du lien « mot de passe oublié », `reset-credentials`
+(EP-03, « Conception », « L'extension Keycloak »), le formulaire du nouveau mot de passe,
+`UPDATE_PASSWORD`, qui refuse celui qu'un lien oublié a ouvert une fois le mot de passe fixé
+autrement, et le gestionnaire des liens `execute-actions` de la console, qui les refuse tous
+(US-3020, #970). Ce fichier complète le
 [guide](README-fr.md) et les règles de [Python](python.md), dont il reprend la forme ; il ne
 recopie ni la conception d'EP-03, ni la documentation de Keycloak.
 
