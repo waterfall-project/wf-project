@@ -320,6 +320,28 @@ def test_an_application_that_breaks_writes_nothing_and_fails_the_import(
     assert backups_bucket.size(key) is None
 
 
+@pytest.mark.requirement("WF-ARC-0040-A")
+def test_no_import_is_applied_from_a_file_absent_from_the_object_storage(
+    api: ContractClient, stage: Scene, worker: Worker, backups_bucket: Bucket, trial: TrialFormat
+) -> None:
+    # « Aucun import n'est appliqué depuis un fichier absent du stockage objet. » : the file of an
+    # import analysed is gone from the storage before the application runs. The request, which
+    # reads no file, is accepted; the worker, which finds none, judges nothing and writes nothing:
+    # the import fails with its task, the project as it was.
+    database = stage.database
+    found = analysed(api, stage, worker)
+    key = stored(database, found["import_id"]).object_key
+    backups_bucket.remove(key)
+    assert backups_bucket.size(key) is None
+    assert apply(api, stage, found["import_id"]).status_code == 202
+    before = (nodes(database), revisions(database), len(trial.seen))
+    run(worker)
+    applied = read(api, stage, found["import_id"])
+    assert (applied["status"], applied["expires_at"]) == ("failed", None)
+    assert applied["task"]["status"] == "failed"
+    assert (nodes(database), revisions(database), len(trial.seen)) == before
+
+
 @pytest.mark.usefixtures("trial")
 def test_an_import_whose_task_failed_unwritten_reads_failed(
     api: ContractClient, stage: Scene, worker: Worker, database: Database
