@@ -78,7 +78,9 @@ export const PROJECT_LIST_GRID: GridConfig<ListedProjectRow, ListedProjectSort, 
         pinned: true,
         contract: "label",
         value: (project) => project.label,
-        render: (project) => <ProjectLabelCell id={project.project_id} label={project.label} />,
+        render: (project) => (
+          <ProjectLabelCell id={project.project_id} label={project.label} canOpen />
+        ),
       },
       {
         key: "code",

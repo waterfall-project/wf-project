@@ -174,8 +174,9 @@ indicateurs, conservés ou calculés, et les risques, leurs provisions et leur c
 - le parcours de bout en bout ouvre chacune des vues du portefeuille, contre le service réel, sur le
   témoin chargé avec la tranche du portefeuille, et le manager y ouvre un projet dont il n'est pas
   contributeur ;
-- les tests du back reviennent à leur coût d'avant la tranche du portefeuille, mesuré en CI
-  (US-2770/L2b, #4653).
+- le témoin se charge une fois par session des tests du back, dans une base modèle que chaque test
+  copie, et chaque part de `back.yml` tient sous son délai de 20 minutes, mesuré en CI (US-2770/L2b,
+  #4653 ; reformulé le 2026-11-22, #4674).
 
 ## Conception
 
@@ -342,9 +343,25 @@ son EPIC et un commentaire ; son cadreur la rattache à un lot.
 
 - **US-2770/L2** (#3886) est fusionné (#4571) avec un palliatif de la chaîne : `back.yml` en huit
   parts, délai de 25 minutes. Les tests du back coûtent treize fois plus qu'au 2026-11-07 (#4653).
-- **Un lot neuf, US-2770/L2b** (#4657, #4653) : mesurer en CI le coût du témoin, rendre la tranche
-  optionnelle hors des tests du portefeuille, ramener `back.yml` à ce que la mesure justifie. Avant
-  US-2770/L3, qui en dépend ; US-2760/L2, du front, part en parallèle.
+- **Un lot neuf, US-2770/L2b** (#4657, #4653) : mesurer en CI le coût du témoin, et le charger une
+  fois par session dans une base modèle, que chaque test copie (`CREATE DATABASE … TEMPLATE`), avec
+  un délai par test (`pytest-timeout`) qui nomme un test figé ; la tranche reste chargée partout, sans
+  variante optionnelle ; `back.yml` est ramené à ce que la mesure justifie (décision de l'utilisateur
+  du 2026-11-21, #4657, options 1 et 4). Avant US-2770/L3, qui en dépend ; US-2760/L2, du front, part
+  en parallèle.
+
+### Reprise du 2026-11-22
+
+Décisions de l'utilisateur, le pilote arrêté sur #4688 :
+
+- **#4688** : les durées des parcours du service sont rafraîchies sur `epic/EP-11` par la reprise,
+  depuis les journaux de la file de #4668 ; US-2770/L2b reprend ensuite sa chaîne.
+- **#4674** : la conception de L2b est mise au texte de la décision du 2026-11-21 ; le critère de
+  coût de la définition de fini se reformule — le témoin chargé une fois par session dans une base
+  modèle, chaque part de `back.yml` sous son délai de 20 minutes —, et la mesure de L2b le constate.
+  Le retour aux quatre parts d'US-1910 n'est plus visé par EP-11.
+- **US-2760** : ses critères partis le 2026-11-21 soir (#1714, #4164, #4137 → EP-38 ; #4160 →
+  EP-37) restent écrits, marqués reportés.
 - **Sortis d'EP-11** : US-2780/L2 (#3877, avec #4021) → EP-36 ; US-2790 (#3868, avec #4165, #4177,
   #4313, #4339) → EP-40 ; US-2780/L4 (#4494) retiré avant tout commencement, #4372 et #4373 →
   EP-35, #4363 → EP-34. Les exigences WF-QUA-0020 et WF-ARC-0010 ne se closent donc plus ici.
@@ -1076,7 +1093,7 @@ conservé (US-2680).
 
 ## US-2760 — Les écrans du portefeuille, branchés sur le service
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0130-A`, `WF-IHM-0140-A`
 - **opérations** : `getPortfolioProjects`, `getPortfolioValue`, `getPortfolioWorkload`,
   `getPortfolioPerformance`, `getPortfolioCostStructure`, `getPortfolioRisks`,
@@ -1113,15 +1130,18 @@ montrés.
 - propre à l'US : les parcours du portefeuille se jouent contre le service sur le témoin chargé
   avec la tranche du portefeuille ; ce qui affirmait les trois cents projets du faux back reste joué
   contre lui seul, et se rejoue contre le service en EP-13 ;
-- propre à l'US : un périmètre qui nomme `completed` se lit sur le plan de charge agrégé et la
-  santé du pilotage, avec l'avis que ces projets y sont sans effet (#1714) ;
+- reporté → EP-38 (décision de l'utilisateur du 2026-11-21 soir) : un périmètre qui nomme
+  `completed` se lit sur le plan de charge agrégé et la santé du pilotage, avec l'avis que ces
+  projets y sont sans effet (#1714) ;
 - propre à l'US : un identifiant de l'adresse qui n'est pas un UUID est ignoré comme un identifiant
-  absent, par la fonction du référentiel et non plus par une copie (#2867) ; la copie d'`IDENTIFIER`
-  de la navigation (`navigation/context.ts`) est corrigée de même (#4160, décision du 2026-11-19) ;
-  celle du registre des risques reste à EP-08 ;
-- propre à l'US : le contrat reçoit l'exemple d'un 422 de `getPortfolioProjects` sur la période du
-  périmètre (#4164), que le test de l'écran lit, et l'exemple `portfolio_projects` montre une
-  probabilité de gain nulle pour un projet en cours (#4137), décisions du 2026-11-19 ;
+  absent, par la fonction du référentiel et non plus par une copie (#2867) ; reporté → EP-37
+  (décision de l'utilisateur du 2026-11-21 soir) : la copie d'`IDENTIFIER` de la navigation
+  (`navigation/context.ts`) corrigée de même (#4160, décision du 2026-11-19) ; celle du registre
+  des risques reste à EP-08 ;
+- reporté → EP-38 (décision de l'utilisateur du 2026-11-21 soir) : le contrat reçoit l'exemple d'un
+  422 de `getPortfolioProjects` sur la période du périmètre (#4164), que le test de l'écran lit, et
+  l'exemple `portfolio_projects` montre une probabilité de gain nulle pour un projet en cours
+  (#4137), décisions du 2026-11-19 ;
 - propre à l'US : un projet que l'appelant ne peut pas ouvrir est nommé sans lien, dans la liste,
   les risques les plus lourds et les signaux ; aucun écran ne porte de commande de saisie ;
 - propre à l'US : le guide de l'utilisateur dit ce que le service sert désormais.
