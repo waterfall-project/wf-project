@@ -11,7 +11,7 @@ a table sorts is compared code point by code point, and a search ignores case an
 """
 
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from psycopg.errors import UniqueViolation
@@ -32,6 +32,8 @@ from sqlalchemy import (
     create_engine,
     func,
     literal,
+    select,
+    true,
 )
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
@@ -192,6 +194,16 @@ CONNECT_TIMEOUT = 2
 def utc_now() -> datetime:
     """Read the clock, in universal time."""
     return datetime.now(UTC)
+
+
+def bound_lock_waits(session: Session, waited: timedelta) -> None:
+    """Bound how long each statement of the transaction of a session waits for a lock.
+
+    Beyond, PostgreSQL refuses the statement (``LockNotAvailable``), and the transaction is rolled
+    back; the API answers it 503, the database not letting the operation through in time.
+    """
+    milliseconds = max(1, round(waited.total_seconds() * 1000))
+    session.execute(select(func.set_config("lock_timeout", f"{milliseconds}ms", true())))
 
 
 def engine_url(address: str) -> URL:

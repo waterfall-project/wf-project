@@ -11,12 +11,14 @@ guard (``attributions``); the description of the three predefined roles, for the
 (WF-ADM-0010); the guard of the last administrator, which every write that may take the
 administration from an account runs under, the deactivation of an account by its own refusal, that
 account read, and the lock of the rule, which a write takes before any of the rows it locks — a
-write of many accounts before any of their rows (WF-ADM-0120); and what the table of the accounts
+write of many accounts before any of their rows (WF-ADM-0120), and the bound of the waits of a
+write of the administration for it (#924); and what the table of the accounts
 filters and sorts of the roles each one holds (``listUsers``).
 """
 
 from waterfall.core.access_roles.administrators import (
     LAST_ADMINISTRATOR,
+    bound_administration_waits,
     guard_deactivation,
     guard_last_administrator,
     lock_administrators,
@@ -87,6 +89,7 @@ __all__ = [
     "SortColumn",
     "Standing",
     "actor_of",
+    "bound_administration_waits",
     "create_role",
     "delete_role",
     "effective_permissions",

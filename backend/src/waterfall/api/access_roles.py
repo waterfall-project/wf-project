@@ -31,6 +31,7 @@ from waterfall.core.access_roles.interface import (
     RoleView,
     RoleWrite,
     SortColumn,
+    bound_administration_waits,
     create_role,
     delete_role,
     list_permissions,
@@ -188,7 +189,11 @@ def post_access_role(body: AccessRoleWrite, account: Caller, session: Transactio
 def patch_access_role(
     access_role_id: UUID, body: AccessRoleUpdate, account: Caller, session: Transaction
 ) -> AccessRole:
-    """Rename a role and set its permissions, for all its holders at once (WF-ADM-0090)."""
+    """Rename a role and set its permissions, for all its holders at once (WF-ADM-0090).
+
+    Under the guard of the last administrator, its waits for a lock bounded (#924).
+    """
+    bound_administration_waits(session)
     act = Act(account.user_id, utc_now())
     changed = update_role(session, access_role_id, _write(body), body.lock_version.root, act)
     return access_role(changed)
@@ -206,6 +211,10 @@ def remove_access_role(
     account: Caller,
     session: Transaction,
 ) -> Response:
-    """Mark a role deleted unless stale (412) or held (WF-ADM-0090)."""
+    """Mark a role deleted unless stale (412) or held (WF-ADM-0090).
+
+    Under the guard of the last administrator, its waits for a lock bounded (#924).
+    """
+    bound_administration_waits(session)
     delete_role(session, access_role_id, lock_version, Act(account.user_id, utc_now()))
     return Response(status_code=204)
