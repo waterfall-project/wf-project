@@ -9,7 +9,8 @@ and ca.key. In each pod that serves in TLS, a container of initialisation issues
 its server, for the name of its Service, by the command of the Compose, waterfall-authority, as the
 user the server runs as; it alone mounts the key of the authority. In every pod, it writes the
 roots the clients trust, /trust/root.crt: the root of the platform, followed by the roots of the
-data components the operator provides (transport.providedAuthority), when one is.
+data components the operator provides (transport.providedAuthority), when one is; each root
+followed by a line feed, that a file which does not end with one is not glued to the next.
 */ -}}
 
 {{/* The file of the roots every client of a pod checks its servers against. */}}
@@ -48,7 +49,7 @@ user it runs as, the key readable by it alone: (list $) for a client alone, or
     - -c
     - |-
       set -eu
-      cat /roots/*.crt > {{ include "waterfall.roots" $ }}
+      for root in /roots/*.crt; do cat "$root"; echo; done > {{ include "waterfall.roots" $ }}
       {{- if $served }}
       exec waterfall-authority --provided=/authority --kept=/tmp/authority --trust=/tmp/trust --certificates=/certificates {{ printf "%s:%v:%v" (include "waterfall.name" (list $ (index . 1))) (index . 2) (index . 3) }}
       {{- end }}

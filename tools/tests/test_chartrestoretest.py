@@ -97,6 +97,33 @@ def test_the_test_is_one_pod_whose_services_listen_on_its_loopback_and_declare_n
 
 
 @pytest.mark.chart
+@pytest.mark.requirement("WF-SEC-0010-A")
+@pytest.mark.story("US-2840")
+def test_the_key_of_the_authority_of_the_test_stays_in_the_container_that_makes_it(
+    objects: Objects,
+) -> None:
+    # The clients mount the root alone, each server its own certificate: none reads kept/, the key.
+    spec = job_of(objects)["spec"]["template"]["spec"]
+    whole: list[str] = []
+    parts: dict[str, list[str]] = {}
+    for each in [*spec["initContainers"], *spec["containers"]]:
+        for mount in each.get("volumeMounts", []):
+            if mount["name"] != "test-authority":
+                continue
+            if "subPath" in mount:
+                parts.setdefault(each["name"], []).append(mount["subPath"])
+            else:
+                whole.append(each["name"])
+    assert whole == ["restore-test-authority"]
+    assert parts == {
+        "postgres": ["certificates/restore-test-postgres"],
+        "keycloak": ["trust", "certificates/restore-test-keycloak"],
+        "api": ["trust", "certificates/restore-test-api"],
+        "restore-test": ["trust"],
+    }
+
+
+@pytest.mark.chart
 @pytest.mark.requirement("WF-EXP-0060-A")
 def test_no_service_selects_the_pod_of_the_test_and_a_network_policy_lets_nothing_in(
     objects: Objects,

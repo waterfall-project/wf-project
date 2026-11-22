@@ -14,13 +14,17 @@ marker ``chart`` (``make test-chart``): they need Helm.
 """
 
 import re
-from typing import Any
+import subprocess
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
 from test_chart import Objects, containers, environment, of_kind, pod, rendered
 
 from wftools.chart import ChartError
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 pytestmark = [pytest.mark.chart, pytest.mark.requirement("WF-SEC-0010-A")]
 
@@ -39,10 +43,21 @@ SERVERS = {
     "alertmanager": ("Deployment", "alertmanager", "65534:65534"),
     "grafana": ("Deployment", "grafana", "472:472"),
 }
-PROVIDED: dict[str, Any] = {
-    "postgresql": {"enabled": False, "host": "postgres.data.svc"},
-    "secrets": {"existingSecret": "operator", "values": None},
-    "restoreTest": {"egress": {"postgresql": [{"ipBlock": {"cidr": "10.0.0.5/32"}}]}},
+OPERATOR: dict[str, Any] = {"secrets": {"existingSecret": "operator", "values": None}}
+EGRESS = [{"ipBlock": {"cidr": "10.0.0.5/32"}}]
+# Each data component the operator may provide, alone: the values that give it.
+PROVIDED: dict[str, dict[str, Any]] = {
+    "postgresql": {
+        **OPERATOR,
+        "postgresql": {"enabled": False, "host": "postgres.data.svc"},
+        "restoreTest": {"egress": {"postgresql": EGRESS}},
+    },
+    "redis": {**OPERATOR, "redis": {"enabled": False, "host": "redis.data.svc"}},
+    "storage": {
+        **OPERATOR,
+        "storage": {"enabled": False, "address": "https://storage.data.svc:3900"},
+        "restoreTest": {"egress": {"storage": EGRESS}},
+    },
 }
 
 
@@ -212,11 +227,15 @@ def test_the_authority_is_made_once_at_the_installation_unless_the_operator_give
     assert volumes["authority"]["secret"]["secretName"] == "operator-authority"
 
 
-def test_a_component_provided_without_the_roots_of_its_certificate_stops_the_rendering() -> None:
-    # D1 (b): no silent fall back on another root.
+@pytest.mark.parametrize("component", PROVIDED)
+def test_a_component_provided_without_the_roots_of_its_certificate_stops_the_rendering(
+    component: str,
+) -> None:
+    # D1 (b): no silent fall back on another root, whichever data component the operator provides.
+    provided = PROVIDED[component]
     with pytest.raises(ChartError, match=r"transport\.providedAuthority"):
-        rendered(PROVIDED)
-    given = rendered({**PROVIDED, "transport": {"providedAuthority": "operator-roots"}})
+        rendered(provided)
+    given = rendered({**provided, "transport": {"providedAuthority": "operator-roots"}})
     roots = {
         volume["name"]: volume for volume in pod(of_kind(given, "Deployment")["api"])["volumes"]
     }
@@ -236,7 +255,30 @@ def test_a_component_provided_without_the_roots_of_its_certificate_stops_the_ren
     ]
     # The roots of the pod: that of the platform, followed by those the operator gives.
     init = named(of_kind(given, "Deployment")["api"], "transport")
-    assert f"cat /roots/*.crt > {ROOTS}" in init["command"][-1]
+    assert f'for root in /roots/*.crt; do cat "$root"; echo; done > {ROOTS}' in init["command"][-1]
+
+
+def test_the_roots_of_the_pod_are_never_glued_one_to_the_next(tmp_path: Path) -> None:
+    # A root whose file does not end with a line feed is followed by one, that the next begins a
+    # line of its own: else "-----END CERTIFICATE----------BEGIN CERTIFICATE-----" is no PEM.
+    given = rendered({**PROVIDED["redis"], "transport": {"providedAuthority": "operator-roots"}})
+    script = named(of_kind(given, "Deployment")["api"], "transport")["command"][-1]
+    line = next(each for each in script.splitlines() if "/roots/" in each)
+    roots, trust = tmp_path / "roots", tmp_path / "trust"
+    roots.mkdir()
+    trust.mkdir()
+    pem = "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----"
+    (roots / "platform.crt").write_text(pem, encoding="utf-8")
+    (roots / "provided.crt").write_text(pem + "\n", encoding="utf-8")
+    command = line.replace("/roots/", f"{roots}/").replace(ROOTS, str(trust / "root.crt"))
+    subprocess.run(["sh", "-c", f"set -eu; {command}"], check=True)
+    written = (trust / "root.crt").read_text(encoding="utf-8")
+    assert re.findall(r"^-----(BEGIN|END) CERTIFICATE-----$", written, re.MULTILINE) == [
+        "BEGIN",
+        "END",
+        "BEGIN",
+        "END",
+    ]
 
 
 def test_the_ingress_reaches_each_server_in_https_an_ingress_for_each(objects: Objects) -> None:

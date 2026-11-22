@@ -27,7 +27,9 @@
 # Every exchange is encrypted (US-2840), as under Compose: the test reaches the PostgreSQL and the
 # storage of the production in TLS, against the roots of the pod; the platform of the test serves in
 # TLS too, on its loopback, under an authority of its own, made in the pod at each test and gone with
-# it (restore-test-authority), whose root the test and the sidecars trust.
+# it (restore-test-authority), whose root the test and the sidecars trust. Each mounts the root
+# alone (trust), or the certificate of its own server (certificates/<name>): the key of that
+# authority (kept) stays in the container that makes it.
 {{- if .Values.restoreTest.enabled }}
 {{- $egress := .Values.restoreTest.egress }}
 {{- $postgres := list (dict "podSelector" (dict "matchLabels" (include "waterfall.selector" (list . "postgres") | fromYaml))) }}
@@ -253,7 +255,7 @@ spec:
             - { name: KC_CACHE, value: local }
           volumeMounts:
             - { name: shared, mountPath: /restore-test, readOnly: true }
-            - { name: test-authority, mountPath: /restore-test-authority, readOnly: true }
+            - { name: test-authority, mountPath: /restore-test-authority/trust, subPath: trust, readOnly: true }
             - name: test-authority
               mountPath: /tls
               subPath: certificates/restore-test-keycloak
@@ -287,7 +289,7 @@ spec:
             - { name: WATERFALL_TLS_KEY, value: /tls/tls.key }
           volumeMounts:
             - { name: shared, mountPath: /restore-test, readOnly: true }
-            - { name: test-authority, mountPath: /restore-test-authority, readOnly: true }
+            - { name: test-authority, mountPath: /restore-test-authority/trust, subPath: trust, readOnly: true }
             - name: test-authority
               mountPath: /tls
               subPath: certificates/restore-test-api
@@ -319,7 +321,7 @@ spec:
               value: {{ $test.patience | int | toString | quote }}
           volumeMounts:
             - { name: shared, mountPath: /restore-test }
-            - { name: test-authority, mountPath: /restore-test-authority, readOnly: true }
+            - { name: test-authority, mountPath: /restore-test-authority/trust, subPath: trust, readOnly: true }
             {{- include "waterfall.trustMount" . | nindent 12 }}
           resources:
             {{- toYaml $test.resources | nindent 12 }}
