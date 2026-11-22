@@ -260,7 +260,8 @@ const SHARED = /@shared/;
 // the settings, the correspondence of the actual costs —: tagged too, played alone, after the others
 // (US-1330).
 const SERIAL = /@serial/;
-// The paths that replace the whole platform — a restoration —, which closes every session: tagged,
+// The paths that replace the whole platform — a restoration —, which closes every session, or stop
+// a component of it — Redis, the directory — for the time they run (degraded mode, US-2860): tagged,
 // played alone, after all the others.
 const PLATFORM_WIDE = /@platform-wide/;
 // The moment the run started, which the workers inherit: the guard of the run reads the log of the
@@ -370,7 +371,9 @@ function serviceProjects(): Project[] {
       use,
     },
     {
-      // A restoration replaces the whole platform and closes every session: it plays last, alone.
+      // A restoration replaces the whole platform and closes every session, and a path of the
+      // degraded mode stops Redis or the directory for the time it runs, which every other path
+      // would feel: the `@platform-wide` paths of both play last, alone.
       name: "restoration",
       testMatch: SERVICE_PATHS,
       grep: PLATFORM_WIDE,

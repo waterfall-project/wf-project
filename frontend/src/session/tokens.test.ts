@@ -206,7 +206,7 @@ describe("the token of a request", () => {
     expect(await readSession(expired)).toBeDefined();
   });
 
-  it("fails as the cache out of reach, still the service out of reach to a write, when Redis cannot be reached, never as an unexpected error (#861) [WF-EXP-0040-A]", async () => {
+  it("fails as the cache out of reach, a write refused naming it, when Redis cannot be reached, never as an unexpected error (#861) [WF-EXP-0040-A]", async () => {
     await signedIn();
     const client = fakeClient(
       { "GET /projects": "projects", [LINE]: SESSION_REQUIRED },
@@ -224,7 +224,10 @@ describe("the token of a request", () => {
       // The log of the server names Redis, not the API.
       expect((failure as Error).message).toMatch(/Redis/);
       const outcome = await updateEstimateLine(STRUCTURE, NODE, { hours: "15", lock_version: 3 });
-      expect(outcome).toMatchObject({ kind: "unreachable" });
+      expect(outcome).toMatchObject({
+        kind: "refused",
+        problem: { code: "COMPONENT_UNAVAILABLE", params: { component: "cache" } },
+      });
       expect(client.calls).toEqual([]);
     } finally {
       await closeStore();

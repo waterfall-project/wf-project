@@ -17,7 +17,7 @@
  */
 import { type Browser, expect, type Page, type PlaywrightWorkerArgs, test } from "@playwright/test";
 
-import { whileStopped } from "./components";
+import { startAllAgain, whileStopped } from "./components";
 import { heldToTheContract } from "./contract";
 import {
   accountAdministrator,
@@ -37,6 +37,12 @@ heldToTheContract();
 const ACCOUNT = "/account";
 // The cookie of the session of the front (`src/session/tokens.ts`).
 const SESSION_COOKIE = "__Host-wf_session";
+
+// A worker killed on a timeout never runs the `finally` of `whileStopped`: Playwright runs this in a
+// new worker then, so that no component stays stopped for the paths after.
+test.afterAll(async () => {
+  await startAllAgain();
+});
 
 /** A page of a workstation of its own, in French, which trusts the front end of Keycloak. */
 async function workstation(browser: Browser): Promise<Page> {
@@ -76,15 +82,20 @@ test(
     await whileStopped("cache", async () => {
       // A request of the front, its session unreadable: the screen says the cache is down.
       await page.goto(ACCOUNT);
-      const alert = page.getByRole("alert").filter({ hasText: "Composant indisponible" });
-      await expect(alert).toContainText("Composant indisponible");
-      await expect(alert).toContainText("Composant indisponible : Cache");
+      // Beside the alert of the screen, Next keeps an empty one for its route announcer.
+      const alert = page.getByRole("alert").filter({ hasText: "Composant indisponible : Cache" });
+      await expect(alert).toBeVisible();
       await expect(alert).not.toContainText("Erreur inattendue");
       // Nothing of the account is shown as if the read had succeeded.
       await expect(page.getByRole("main")).not.toContainText(person.email);
 
-      // A session cannot be created again either: the sign-in is refused, said as the service
-      // that does not answer, with the way to try again — not a blank page, not a sign-in.
+      // A session cannot be created again either: the sign-in is refused, with the way to try
+      // again — not a blank page, not a sign-in. Only the screen of failure names the cache: the
+      // page of the sign-in that could not be made (`/login/unavailable`) is shared by every cause
+      // — the realm, Redis, a silent store — and says the service does not answer, whichever it
+      // is; naming the cause there asks a parameter the route would forward to a page anyone can
+      // open, which is not this lot's. That screen has no "what remains possible" to say either:
+      // it offers to try again, as the page of the sign-in does.
       const another = await workstation(browser);
       await another.goto(`/login?next=${encodeURIComponent(ACCOUNT)}`);
       await expect(another.getByText("la connexion n’a pas pu se faire")).toBeVisible();
@@ -129,6 +140,13 @@ test(
       await expect(local.getByRole("main")).toContainText(arriving.email);
       await local.context().close();
 
+      // Not proven here: the line also stops "the update of the attributes of those accounts by
+      // the reading of the accounts" (WF-ADM-0070). The reading asked from the screen while the
+      // directory is down was tried: it ends as a success and the report shows no account
+      // updated, but that proves nothing without an account of the directory whose attribute
+      // changed in the directory itself, which the seed of this platform does not offer. The
+      // sub-line stays untested here (said in the report of the lot).
+      //
       // The account of the directory is refused: the realm keeps it on its sign-in page, and the
       // front opens no session.
       const refused = await workstation(browser);

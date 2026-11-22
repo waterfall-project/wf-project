@@ -50,17 +50,47 @@ async function untilHealthy(id: string): Promise<void> {
   }
 }
 
+/** Start a container again and wait for its health check; nothing to do for one that runs. */
+function startAgain(id: string): Promise<void> {
+  const running = execFileSync("docker", ["inspect", "--format", "{{.State.Running}}", id], {
+    encoding: "utf8",
+  }).trim();
+  if (running !== "true") {
+    execFileSync("docker", ["start", id], { stdio: "ignore" });
+  }
+  return untilHealthy(id);
+}
+
 /**
- * Run a path while a component is stopped, then start it again and wait for it — in a `finally`,
- * so that a path that failed leaves the platform whole for the paths after it.
+ * Start every component the paths stop again, whatever the worker that stopped it became: the
+ * `finally` of `whileStopped` does not run for a worker killed on a timeout, so the file that
+ * stops a component calls this in an `afterAll`, which Playwright runs in a new worker then.
+ */
+export async function startAllAgain(): Promise<void> {
+  for (const component of Object.keys(CONTAINERS) as Stoppable[]) {
+    await startAgain(container(component));
+  }
+}
+
+/**
+ * Run a path while a component is stopped, then start it again and wait for it, so that a path
+ * that failed leaves the platform whole for the paths after it. A failure of the path stays the
+ * error thrown: the one of the restart is said on the console, never in its place.
  */
 export async function whileStopped<T>(component: Stoppable, run: () => Promise<T>): Promise<T> {
   const id = container(component);
   execFileSync("docker", ["stop", "--time", "10", id], { stdio: "ignore" });
+  let result: T;
   try {
-    return await run();
-  } finally {
-    execFileSync("docker", ["start", id], { stdio: "ignore" });
-    await untilHealthy(id);
+    result = await run();
+  } catch (error) {
+    try {
+      await startAgain(id);
+    } catch (restart) {
+      console.error(`the container ${id} did not start again after the path failed:`, restart);
+    }
+    throw error;
   }
+  await startAgain(id);
+  return result;
 }

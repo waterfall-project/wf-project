@@ -148,13 +148,19 @@ export class Unreachable extends Error {
  * A component of the platform the front needs before a request leaves — Redis, which holds the
  * session — out of reach: still `Unreachable` to whoever tells the service out of reach, but its
  * digest names the component, so that the screen of failure says which one is down
- * (WF-EXP-0040-A, tableau 12). The message tells the log of the server the same.
+ * (WF-EXP-0040-A, tableau 12). The message tells the log of the server the same. An action it
+ * stops is refused naming the component (`decodeOrLost`, `src/api/problem.ts`), not told as the
+ * service out of reach.
  */
 export class ComponentUnreachable extends Unreachable {
   override readonly digest: string;
 
   /** The component out of reach, the rejection that said so kept as the cause. */
-  constructor(component: PlatformComponent, cause: unknown, message: string) {
+  constructor(
+    readonly component: PlatformComponent,
+    cause: unknown,
+    message: string,
+  ) {
     super(cause, message);
     this.name = "ComponentUnreachable";
     this.digest = componentDigest(component);

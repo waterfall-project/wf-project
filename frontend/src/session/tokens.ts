@@ -258,10 +258,11 @@ export async function armRequestSignOut(): Promise<string | undefined> {
  * (a request without a token) without its cookie when the read is `optional` (the reads of the
  * shell, `serverClient`), or just after a sign-in the realm refused. Redis out of reach is a
  * component of the platform out of reach, as Keycloak is (WF-EXP-0040): the request is
- * `Unreachable`, never an unexpected error (#861), and its digest names the cache, which the screen
- * of failure says (tableau 12, WF-EXP-0040-A); the log of the server says Redis out of reach. Only the network fails so: a variable
- * missing, an address badly written, a password or a database Redis refuses, a certificate of
- * Redis the front refuses, is a defect, thrown as it is.
+ * `Unreachable`, never an unexpected error (#861), and its digest names the cache, which the
+ * screen of failure says (tableau 12, WF-EXP-0040-A); an action it stops is refused naming it
+ * (`COMPONENT_UNAVAILABLE`, `decodeOrLost`), and the log of the server says Redis out of reach.
+ * Only the network fails so: a variable missing, an address badly written, a password or a
+ * database Redis refuses, a certificate of Redis the front refuses, is a defect, thrown as it is.
  */
 export async function requestBearer(optional = false): Promise<string | undefined> {
   const id = await requestSessionId();
