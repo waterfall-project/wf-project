@@ -211,8 +211,8 @@ describe("the Gantt of the planning", () => {
     });
     const bar = (label: string) => within(ganttOf(label)).getByRole("img");
     const named = ` — Liaison en conflit\u00a0: 5FD vers la ligne ${String(studies.row_number)} — tâche manuelle à la ligne ${String(desks.row_number)}`;
-    expect(bar("Pupitres opérateurs").getAttribute("aria-label")).toMatch(new RegExp(`${named}$`));
-    expect(bar("Revue de conception").getAttribute("aria-label")).toMatch(new RegExp(`${named}$`));
+    expect(bar("Pupitres opérateurs").getAttribute("aria-label")?.endsWith(named)).toBe(true);
+    expect(bar("Revue de conception").getAttribute("aria-label")?.endsWith(named)).toBe(true);
     expect(bar("Études")).not.toHaveAccessibleName(/conflit/);
   });
 
