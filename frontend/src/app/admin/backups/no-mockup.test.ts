@@ -4,9 +4,10 @@
  * The screen of the backups is wired to the service (US-2910, #512, #519, #588): no source of its
  * page nor of its components names the notice of the mock-up (`MockupNotice`, its module or its
  * catalogue namespace), and its help (FBS-1.4, in French and in English) speaks of no fake back.
- * The sources are read, as the guard of the reference screens does (`app/reference/no-mockup.test.ts`); the paths against the
- * service play the screen (`e2e/service/backup-schedule.spec.ts`). Tests, which name the notice to
- * assert its absence, are left out.
+ * The sources are read, as the guard of the reference screens does
+ * (`app/reference/no-mockup.test.ts`); the paths against the service play the screen
+ * (`e2e/service/backup-schedule.spec.ts`). Tests, which name the notice to assert its absence, are
+ * left out.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";

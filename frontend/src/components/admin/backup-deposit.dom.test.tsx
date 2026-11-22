@@ -6,7 +6,7 @@
  * manifest says, confirmed in the dialog of a backup of the list (`RestoreDialog`), by the
  * identifier of the deposit typed.
  */
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
@@ -18,7 +18,13 @@ import { formatTimestamp } from "@/i18n/format";
 import { expectAccessible } from "@/test/axe";
 import { atCommit } from "@/test/committed";
 import { expectCommandRule } from "@/test/command-rule";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  type FakeAnswers,
+  type FakeClient,
+  type Problem,
+  example,
+  fakeClient,
+} from "@/test/fixtures";
 
 import { BackupDeposit } from "./backup-commands";
 import { Restoration } from "./restoration";
@@ -275,13 +281,8 @@ describe("the deposit of a backup of another installation", () => {
       const client = serve({
         ...DEPOSITED,
         [COMPLETION]: [
-          {
-            problem: {
-              code: "STATE_FORBIDS_OPERATION",
-              status: 409,
-              params: { missing_parts: [3] },
-            },
-          },
+          // The example of the contract (`missing_part`): the third part is missing.
+          { problem: example("chunked_upload_incomplete") as Problem & { status: 409 } },
           { status: 201, example: "chunked_upload_completed" },
         ],
       });
@@ -290,6 +291,53 @@ describe("the deposit of a backup of another installation", () => {
       await within(region).findByRole("button", { name: "Restaurer cette sauvegarde" });
       expect(paths(client).slice(4)).toEqual([
         `/chunked-uploads/${DEPOSIT}/completion`,
+        `/chunked-uploads/${DEPOSIT}/parts/3`,
+        `/chunked-uploads/${DEPOSIT}/completion`,
+      ]);
+    });
+
+    it.each([
+      ["names no part", { code: "STATE_FORBIDS_OPERATION", status: 409 }],
+      [
+        "names none",
+        { code: "STATE_FORBIDS_OPERATION", status: 409, params: { missing_parts: [] } },
+      ],
+    ] as const)(
+      "says a completion refused (409) that %s, and sends no part again [WF-ADM-0160-A]",
+      async (_name, problem) => {
+        const client = serve({ ...DEPOSITED, [COMPLETION]: { problem } });
+        const region = deposit();
+        await send(region);
+        expect(await within(region).findByRole("alert")).toBeInTheDocument();
+        expect(paths(client).filter((path) => path.includes("/parts/"))).toHaveLength(3);
+        expect(paths(client).filter((path) => path.endsWith("/completion"))).toHaveLength(1);
+      },
+    );
+
+    it("forgets a deposit the server no longer knows (404) at a part, and opens anew [WF-ADM-0160-A]", async () => {
+      const client = serve({
+        ...DEPOSITED,
+        [PART]: [
+          { status: 200, example: "chunked_upload_part" },
+          UNAVAILABLE,
+          { problem: { code: "NOT_FOUND", status: 404 } },
+          { status: 200, example: "chunked_upload_part" },
+        ],
+      });
+      const region = deposit();
+      await send(region);
+      expect(await within(region).findByRole("alert")).toBeInTheDocument();
+      await userEvent.click(within(region).getByRole("button", { name: "Déposer" }));
+      await waitFor(() => {
+        expect(paths(client)).toHaveLength(4);
+      });
+      await userEvent.click(within(region).getByRole("button", { name: "Déposer" }));
+      await within(region).findByRole("button", { name: "Restaurer cette sauvegarde" });
+      expect(paths(client).slice(3)).toEqual([
+        `/chunked-uploads/${DEPOSIT}/parts/2`,
+        "/chunked-uploads",
+        `/chunked-uploads/${DEPOSIT}/parts/1`,
+        `/chunked-uploads/${DEPOSIT}/parts/2`,
         `/chunked-uploads/${DEPOSIT}/parts/3`,
         `/chunked-uploads/${DEPOSIT}/completion`,
       ]);

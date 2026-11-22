@@ -11,8 +11,8 @@
  * it, available, or unavailable with the conditions it lacks, as the server says them: a backup
  * not yet verified neither downloads nor restores, nothing restores while a backup runs, and
  * nothing but a download goes while a restoration runs. The front deduces none of it from the
- * session nor from the state of the backup. None deletes a backup. The rules are the guide's: « Les écrans de
- * l'administration ».
+ * session nor from the state of the backup. None deletes a backup. The rules are the guide's:
+ * « Les écrans de l'administration ».
  *
  * A command the server lists unavailable stays presented, marked `aria-disabled` and described by
  * the conditions it lacks, as the activations of the reference data are (`UnavailableCellCommand`):
@@ -552,6 +552,11 @@ function sameFile(a: File, b: File): boolean {
 /** What an action gives back when the API refuses, or does not answer: no data. */
 type Refusal = Exclude<Outcome<unknown>, { readonly kind: "done" }>;
 
+/** Whether the server no longer knows the deposit (404, expired or completed): it is forgotten. */
+function unknownDeposit(outcome: Outcome<unknown>): boolean {
+  return "problem" in outcome && outcome.problem.status === 404;
+}
+
 /** The numbers of the missing parts a refusal of the completion states, `params.missing_parts`. */
 function missingParts(outcome: Refusal): number[] {
   const missing: unknown = "problem" in outcome ? outcome.problem.params?.missing_parts : undefined;
@@ -592,6 +597,9 @@ async function deposit(
         form.set("part", file.slice((part - 1) * current.size, part * current.size));
         const sent = await held(sendBackupPart(current.id, part, form));
         if (sent.kind !== "done") {
+          if (unknownDeposit(sent)) {
+            kept.current = undefined;
+          }
           return sent;
         }
         current.received.add(part);
@@ -615,8 +623,8 @@ async function deposit(
       completed = await held(completeBackupDeposit(current.id));
     }
   }
-  // Done, or an upload the server no longer knows (404, expired): the next one opens anew.
-  if (completed.kind === "done" || ("problem" in completed && completed.problem.status === 404)) {
+  // Done, or an upload the server no longer knows: the next one opens anew.
+  if (completed.kind === "done" || unknownDeposit(completed)) {
     kept.current = undefined;
   }
   return completed;
