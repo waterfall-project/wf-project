@@ -8754,12 +8754,13 @@ Aucune opération nouvelle.
   n'ouvre la révision 102 — un instant antérieur de la même chronologie, non une variante — : la
   fusion de l'avenant 2, non fusionné, y est offerte, engendré depuis `revision_marked`, la commande
   seule changée (`wftools.mockamendment`) ; `merge_may_create_revision_refused`, engendré, le 409 de
-  cette fusion demandée sans `revisions.write` ; et, écrits à la main,
-  `structure_merge_report_without_current_revision`, son compte rendu, `creates_current_revision`
-  vrai, les écarts de l'avenant que la révision 102 a repris avec lui, et
+  cette fusion demandée sans `revisions.write` ; et, écrit à la main,
   `merge_revision_marked_refused`, le 409 de la même fusion demandée aujourd'hui sur la référence,
-  la révision 102 étant en cours. `structure_merge_report`, engendré, et les trois comptes rendus
-  écrits à la main portent `creates_current_revision` faux. Les tests d'outil sont dans
+  la révision 102 étant en cours. Le compte rendu de cette fusion le 1er février,
+  `structure_merge_report_without_current_revision`, écrit à la main, `creates_current_revision`
+  vrai, a laissé la place au refus `merge_reference_out_of_date_refused`, l'avenant 2 étant en
+  retard sur la référence (« Les exemples de la fusion », US-3060/L8, #4174) : aucun exemple du
+  témoin ne porte plus `creates_current_revision` vrai. Les tests d'outil sont dans
   `tools/tests/test_mockmerge.py`.
 
 - **La fusion échoue sur une liaison entre une récapitulative et sa subordonnée** (#1582, décision de
@@ -12862,6 +12863,44 @@ Aucun schéma ne change : les descriptions disent ce que le service fait déjà.
   (`RiskMatrixPoint.severity_ratio`).
 - **La tâche greffée d'une survenance** est nommée par son nœud du devis propre (#4151, décision
   gardée) : « Le compte rendu préalable de la survenance d'un risque », ci-dessus.
+
+### Le signalement d'une greffe sous une tâche terminée, les exemples de la fusion (US-3060/L8)
+
+Décisions de l'utilisateur du 2026-11-20 sur deux constats de la livraison d'EP-08. Le contrat
+précède le service : US-3060/L9 remplit le champ nouveau, que le service dit nul jusque-là.
+
+- **Une greffe sous une tâche terminée est signalée, non refusée** (#4240, signalement au compte
+  rendu ; conception d'EP-08, « Ce que la survenance fait d'une tâche terminée sous laquelle elle
+  greffe »). La tâche porteuse de la ligne de provision, terminée, devient la récapitulative des
+  tâches greffées, non démarrées : elle repasse « non démarrée », et sa valeur acquise retombe.
+  `RiskOccurrenceReport.completed_provision_task`, facultatif et nul quand il n'y a rien à dire,
+  la nomme alors par son nœud dans la structure principale lue et son libellé, par le schéma
+  qui nomme déjà la tâche d'une provision, `ProvisionTask` (`Risk.provision_task`), comme
+  `own_estimate_past_planning_start_on` signale un devis propre qui commence dans le passé
+  (#4133) : hors de `refusals`, la survenance s'applique et la greffe n'écrit rien d'autre. Un
+  jalon, après lequel la greffe se place, n'est jamais nommé. Le nom dit la tâche, non un
+  booléen, pour que l'écran la nomme. La règle est provisoire : EP-30 la reprend et étend le
+  signalement à toute tâche que la survenance rouvre. Exemple :
+  `risk_occurrence_report_completed_task`, variante contrefactuelle déclarée de
+  `risk_occurrence_report` — le « Câblage des armoires », seulement démarré dans le témoin, tenu
+  pour terminé —, engendrée par `wftools.mockriskwrites` ; l'exemple du témoin porte le champ nul.
+  Écartés : un motif de refus (`ReportRefusal`), et garder la valeur acquise des lignes de la tâche
+  devenue récapitulative, deux règles que la spécification ne dit pas.
+- **Les exemples de la fusion** de l'avenant 2 sur la référence (#4174, option mixte). L'avenant 2
+  est ouvert dans la référence 101 avant la fusion de l'avenant 1 qui la marque : il y est en
+  retard, et une révision marquée ne se met pas à jour. Le compte rendu de sa fusion demandé le
+  1er février, sans révision en cours, `structure_merge_report_without_current_revision`, devient
+  le refus 409 `structure_up_to_date`, `merge_reference_out_of_date_refused`, engendré par
+  `wftools.mockamendment` et cité sous les 409 de `getStructureMergeReport` et de
+  `mergeCostStructure` ; l'exemple 200 disparaît. Les résumés de `revision_marked_merge_offered`
+  (la commande offerte, qui ne juge pas l'état à jour) et de `merge_may_create_revision_refused`
+  (sa condition passe avant `structure_up_to_date`) disent que l'avenant 2 est en retard sur la
+  référence 101 ; la fusion applicable se montre sur la révision en cours, qui a repris l'avenant
+  et l'a mis à jour (`structure_merge_report`). Aucun exemple ne porte plus un compte rendu de
+  fusion `creates_current_revision` vrai : l'état ne s'atteint pas sur le témoin. Écartés : une
+  variante contrefactuelle d'un différentiel à jour sur une révision marquée, un état que le
+  témoin ne charge pas ; une chronologie du témoin changée, qui touche le chargeur et les
+  exemples de la mise à jour.
 
 ## Collage et annulation
 

@@ -37,6 +37,7 @@
 import { type Browser, expect, type Locator, type Page, type Request } from "@playwright/test";
 
 import { ESTIMATE_SEARCH, ESTIMATE_SORT } from "../../bench/screens";
+import { LOADED } from "../bounds";
 import { pick } from "../check-menu";
 import { columnsOf } from "../columns";
 import { scrollToPosition } from "../scroll";
@@ -106,13 +107,6 @@ const REMAINING: GridScreen = {
 function address(screen: GridScreen): string {
   return `/projects/${PROJECT}/revisions/${REVISION}/${screen.segment}`;
 }
-
-/**
- * How long the measure waits for a grid, a page settled, an answer: a bound of its working, as
- * `WORKING` is for the paths, but under the load of eight users at once, where the estimate took
- * past fifteen seconds to show.
- */
-export const LOADED = 60_000;
 
 /** Where the start of a gesture by a key that sends — Enter — is kept, beside that of a click. */
 const KEYED = "wf_measure_keyed";

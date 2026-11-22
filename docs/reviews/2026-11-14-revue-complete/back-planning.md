@@ -122,6 +122,7 @@ feuilles, et liaisons FD vers/depuis une récapitulative. Écarts : DD/DF depuis
 
 ### BPL-03 — Une durée écoulée de moins d'un jour donne encore une marge négative sans conflit
 
+- **Issue** : #4412 (EP-32), ouverte le 2026-11-21, avec BPL-08.
 - **Où** : `core/planning/scheduling/engine.py:150-171` (`latest_start`, repli des l.168-171).
 - **Quoi** : quand le départ au plus tard d'une durée écoulée tombe hors des heures travaillées, le
   repli le ramène « à la première heure du dernier jour ouvré d'avant », soit un jour entier trop
@@ -143,6 +144,8 @@ feuilles, et liaisons FD vers/depuis une récapitulative. Écarts : DD/DF depuis
 
 ### BPL-04 — La passe arrière est quadratique sur une liaison entre récapitulatives, à chaque écriture
 
+- **Issue** : #4414 (EP-32), ouverte le 2026-11-21 pour ce qui en reste, une part étant corrigée
+  depuis la revue.
 - **Où** : `core/planning/scheduling/engine.py:278-288` (trois boucles : feuille × liaisons de ses
   ancêtres × feuilles du successeur) et `scheduling/links.py:57-66` (`below`/`leaves` recalculés,
   récursifs, à chaque tour) ; appelé par toute écriture : `core/planning/rescheduling.py:90-131` (`replayed`).
@@ -173,6 +176,7 @@ feuilles, et liaisons FD vers/depuis une récapitulative. Écarts : DD/DF depuis
 
 ### BPL-05 — « Tâche sans heure travaillée » levé par le moteur n'est traduit nulle part : 500
 
+- **Issue** : #4413 (EP-32), ouverte le 2026-11-21.
 - **Où** : `core/planning/scheduling/engine.py:80-82` (`TaskWithoutWorkingHoursError`, une
   `Exception` hors `ServiceError`), `core/planning/dating.py:152-158` (`dated` ne traduit que
   `LinkCycleError` et `LinkForbiddenError`), `core/planning/interface/reference.py:120-136`
@@ -208,6 +212,7 @@ feuilles, et liaisons FD vers/depuis une récapitulative. Écarts : DD/DF depuis
 
 ### BPL-06 — Marge négative sans signalement quand la liaison vise la récapitulative d'une tâche manuelle
 
+- **Issue** : #3335 (ouverte).
 - **Où** : `core/planning/scheduling/engine.py:335-356` (`conflicts`, l.343 : le successeur doit
   être lui-même une feuille manuelle).
 - **Quoi / scénario** (rejoué) : P 5 j → S (récapitulative) dont la subordonnée M est manuelle,
@@ -221,6 +226,7 @@ feuilles, et liaisons FD vers/depuis une récapitulative. Écarts : DD/DF depuis
 
 ### BPL-07 — Une liaison FF ou DF vers une récapitulative retarde chaque subordonnée, pas la seule fin
 
+- **Issue** : #3335 (ouverte).
 - **Où** : `core/planning/scheduling/engine.py:228-250` (`place`, l.237-242).
 - **Quoi / scénario** (rejoué) : P 5 j (finit vendredi), fin-à-fin vers S = {A 1 j → B 1 j}.
   Chaque feuille doit finir après P : A est placée vendredi, B lundi, S finit **lundi**, un jour
@@ -234,6 +240,7 @@ feuilles, et liaisons FD vers/depuis une récapitulative. Écarts : DD/DF depuis
 
 ### BPL-08 — La fin d'une tâche manuelle à durée écoulée n'est pas bornée aux heures du jour
 
+- **Issue** : #4412 (EP-32), ouverte le 2026-11-21, avec BPL-03.
 - **Où** : `core/planning/entries.py:122-135` (`finish_after`, l.134).
 - **Quoi / scénario** (rejoué) : tâche manuelle commençant lundi 0 h sur un calendrier de 8 h,
   durée saisie « 10 eh » : fin écrite `lundi, hours = 10`, plus que les heures travaillées du
@@ -247,6 +254,7 @@ feuilles, et liaisons FD vers/depuis une récapitulative. Écarts : DD/DF depuis
 
 ### BPL-09 — Récursions non bornées sur la profondeur de l'arbre, qu'aucune règle ne borne
 
+- **Issue** : #4464 (EP-38), ouverte le 2026-11-21, avec 7 autres constats.
 - **Où** : `scheduling/engine.py:360-373` (`total_float`), `scheduling/links.py:57-62` (`below`),
   `views.py:195-204` (`state_of`), `interface/nodes.py:226-229` (`_depth_first.level`, copie d'une
   révision), `restoring.py:343-345` (`_depth`).
@@ -263,6 +271,7 @@ feuilles, et liaisons FD vers/depuis une récapitulative. Écarts : DD/DF depuis
 
 ### BPL-10 — L'abandon d'une révision laisse les inscriptions des lignées qu'elle a créées
 
+- **Issue** : #4417 (EP-32), ouverte le 2026-11-21.
 - **Où** : `core/planning/interface/closing.py:27-37` (`delete_nodes`), à comparer à
   `core/planning/shaping.py:172-195` (`deleted`, qui supprime les inscriptions des lignées
   qu'aucun nœud ne porte plus).
@@ -278,6 +287,9 @@ feuilles, et liaisons FD vers/depuis une récapitulative. Écarts : DD/DF depuis
 
 ### BPL-11 — Les modules privés importent le paquet `interface`, qui les importe : ordre d'import fragile
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — fragilité de développeur sans
+  chemin d'exécution du service : l'erreur se dit d'elle-même à l'import, et le correctif déplace
+  deux modules importés par dix-sept modules privés qu'EP-08 est en train d'écrire.
 - **Où** : `core/planning/tree.py:23`, `shaping.py:19-20`, `rescheduling.py:24`, `carrying.py:18`,
   `views.py:22`, `writing.py:34`, `reading.py:18`, `restoring.py:39-40`.
 - **Quoi** : `import waterfall.core.planning.entries` (ou `dating`, `tree`) **en premier** échoue :
@@ -291,6 +303,9 @@ feuilles, et liaisons FD vers/depuis une récapitulative. Écarts : DD/DF depuis
 
 ### BPL-12 — Lectures de toute la structure pour une ligne, et lectures par ligne dans le collage
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — la revue le dit « plausible, coût
+  non mesuré, à mesurer avant d'optimiser », et le poste principal (calendrier et constantes par
+  ligne) est corrigé.
 - **Où** : `interface/nodes.py:772-783` (`resolve_row_number`) et `:723-756`
   (`computed_value_dependencies`) lisent tout l'arbre (jointure `node`/`task`, puis `held_open`)
   pour rendre une ligne ; `interface/nodes.py:456`, `:462`, `:586`, `:592` (`judge_creation`,

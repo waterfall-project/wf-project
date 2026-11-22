@@ -7,6 +7,7 @@ import { columnsOf } from "./columns";
 import { idle, seedEstimate } from "./estimate-seed";
 import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
+import { identifyRisk } from "./risk-seed";
 import { rowAt } from "./scroll";
 import { isServerAction } from "./server-action";
 
@@ -262,13 +263,12 @@ test("traverses the cells of a summary that its node does not accept or the serv
   await expect(grid.getByRole("textbox")).toHaveCount(0);
 });
 
-// The own estimate of a risk is EP-08's: played against the fake back until then.
-const BEFORE_EP08 = "EP-08 serves the own estimate of a risk";
-
-test("traverses the computed cells of a line entered along its row, without entering them @shared [WF-IHM-0040-A]", async ({
+// Fake back only, untagged (`@shared` marks what plays the service too): the own estimate of the
+// risk of the rewiring is the witness's, which the account of the run does not write (#2193). Its
+// twin plays the service on a project of the run, the last path of this file.
+test("traverses the computed cells of a line entered along its row, without entering them [WF-IHM-0040-A]", async ({
   page,
 }) => {
-  test.skip(inService, BEFORE_EP08);
   const { grid, at } = await tabIntoGrid(page, OWN_SCREEN);
   await press(page, ...times("ArrowDown", PROVISION - 1));
   await expect(rowAt(grid, PROVISION)).toContainText("Provision");
@@ -402,4 +402,62 @@ test("enters the cells of a line of the estimate against the service, the amount
   await expect(cellAt(again, 3, at.label)).toHaveText("Câbles de puissance", { timeout: WORKING });
   await expect(cellAt(again, 3, at.quantity)).toHaveText("4");
   await expect(cellAt(again, 1, at.reference)).toHaveText(/4\s000,00\s€/);
+});
+
+// What the service lets be proved of the provision of a risk: its label, like every cell of its
+// row, takes no entry (its node does not accept it), which a user sees as a grid left at once. The
+// traversal of its computed cells, from one cell to the next and down to the row after, is played
+// on the fake back only (the test of the line entered along its row, above): the service renders
+// no cell of that estimate editable, so that nothing there is entered to be followed by cells to
+// traverse. Tagged for the provision that is not entered (WF-RIS-0010-A), not for the traversal.
+test("leaves the grid from the label of the provision the service names for the risk, which takes no entry @shared [WF-RIS-0010-A] [US-2640]", async ({
+  page,
+  browser,
+  playwright,
+  manager,
+}) => {
+  test.skip(
+    !inService,
+    "the service keeps the risks and their provisions, which the fake back does not",
+  );
+  test.slow();
+  const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  try {
+    const { own } = await identifyRisk(page, browser, calls, manager, "Provision", "Fuite du toit");
+    // The provision is a line of the main structure, under the task its risk designates.
+    await openHydrated(page, own.replace(/\?.*$/, ""));
+    const grid = page.getByRole("treegrid", { name: "Grille de devis" });
+    const at = await columnsOf(grid, COLUMNS);
+    // The line the service names for the risk identified, « Provision — <label of the risk> »: not
+    // any row that carries the word.
+    const provision = grid.getByRole("row", { name: /Provision — Fuite du toit/ });
+    await expect(provision).toBeVisible({ timeout: WORKING });
+    const label = provision.getByRole("gridcell").nth(at.label);
+    await label.click();
+    await expect(label).toBeFocused();
+    // The label of the provision the service names takes no entry (its node does not accept it):
+    // Enter opens no field there, and Tab, the grid being one stop of the tabulation, leaves it
+    // — it does not go along the row, whose cells are all read only, nor down to the next one,
+    // which only an entry validated does. Whatever follows the grid is nothing of it: the focus
+    // is on no element of the grid, and Shift+Tab brings it back to the cell it left, the
+    // active one, so that it was left and not lost.
+    await page.keyboard.press("Enter");
+    await expect(grid.getByRole("textbox")).toHaveCount(0);
+    await expect(label).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect
+      .poll(() => grid.evaluate((element) => element.contains(document.activeElement)))
+      .toBe(false);
+    await page.keyboard.press("Shift+Tab");
+    await expect(label).toBeFocused();
+    for (const column of [at.label, at.category, at.role, at.quantity, at.hours, at.delay]) {
+      await expect(provision.getByRole("gridcell").nth(column)).toHaveAttribute(
+        "aria-readonly",
+        "true",
+      );
+    }
+    await expect(grid.getByRole("textbox")).toHaveCount(0);
+  } finally {
+    await calls.dispose();
+  }
 });

@@ -19,7 +19,7 @@ import { expectAccessible } from "@/test/axe";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { closeTasks, tasksRegion } from "@/test/task-panel";
 
-import { MergeAmendmentCommand } from "./merge-amendment-command";
+import { MergeAmendmentCommand, MergeReportBody } from "./merge-amendment-command";
 
 // The server of Next, as far as these commands need it: the fake back behind serverClient, the
 // render of the page again once a write is answered, and the router that leads the screen.
@@ -437,21 +437,50 @@ describe("the contractualisation of an amendment", () => {
     expect(within(form).getByRole("textbox", { name: "Nom de version" })).toHaveValue("Avenant 2");
   });
 
-  it("is offered on the last revision marked when the project has none in progress, and its report says the merge creates it [WF-REV-0050-A]", async () => {
+  it("is offered on the last revision marked when the project has none in progress, and tells the refusal of an amendment behind the reference [WF-REV-0050-A]", async () => {
     // Lorsque le projet ne comporte pas de révision en cours, elle en crée une au préalable
     // (conception d'EP-16, « Une fusion sans révision en cours », #790 : le Vérif de WF-REV-0050-A
-    // ne dit pas ce cas).
-    const client = serve({ [REPORT]: "structure_merge_report_without_current_revision" });
+    // ne dit pas ce cas). Sur le témoin, l'avenant 2 est en retard sur la référence : le compte
+    // rendu y est refusé par `structure_up_to_date` (#4174).
+    const client = serve({
+      [REPORT]: {
+        problem: {
+          ...(example("merge_reference_out_of_date_refused") as Problem),
+          status: 409 as const,
+        },
+      },
+    });
     open(merging(false, "revision_marked_merge_offered"));
     const form = await openMerge();
-    expect(await within(form).findByRole("note")).toHaveTextContent(
-      "Le projet n’a pas de révision en cours : la fusion la crée d’abord par copie de la dernière révision marquée",
+    expect(await within(form).findByRole("alert")).toHaveTextContent(
+      "Condition non remplie : avenant à jour de la structure principale.",
     );
-    expect(within(form).getByRole("list", { name: "Écarts par objet" })).toBeVisible();
+    expect(within(form).queryByRole("list", { name: "Écarts par objet" })).toBeNull();
     await userEvent.type(within(form).getByRole("textbox", { name: "Nom de version" }), "V3");
     const confirm = within(form).getByRole("button", { name: "Confirmer la fusion" });
-    expect(confirm).not.toHaveAttribute("aria-disabled", "true");
+    expect(confirm).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(confirm);
     expect(client.calls.map((call) => call.route)).toEqual([REPORT]);
+  });
+
+  it("says the merge first creates the revision in progress when its report says so [WF-REV-0050-A]", () => {
+    // Variante contrefactuelle déclarée : `structure_merge_report`, le compte rendu de la fusion
+    // sur la révision en cours, avec `creates_current_revision` vrai et le reste de la ligne
+    // gardé. Aucun exemple du contrat ne porte plus ce cas, la fusion sur la dernière révision
+    // marquée étant refusée sur le témoin (#4174).
+    const report = {
+      ...(example("structure_merge_report") as components["schemas"]["StructureMergeReport"]),
+      creates_current_revision: true,
+    };
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <MergeReportBody report={report} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "Le projet n’a pas de révision en cours : la fusion la crée d’abord par copie de la dernière révision marquée",
+    );
+    expect(screen.getByRole("list", { name: "Écarts par objet" })).toBeVisible();
   });
 
   it("says nothing of a revision created when the project has one in progress [WF-REV-0050-A]", async () => {

@@ -1,0 +1,10 @@
+{
+  "summary": "Le compte rendu de la fusion de « Avenant 2 — reprise des essais », ou sa fusion, demandés le 1er février 2026 sur la référence, quand le projet n'a pas de révision en cours (revision_marked_merge_offered), par une session qui peut la créer : les conditions de la commande sont réunies, mais l'avenant, ouvert avant la fusion de l'avenant 1 qui a écrit la structure principale et marqué la référence, est en retard sur la référence 101 (structures_amendments, is_up_to_date faux), et une révision marquée ne se met pas à jour. Refusés par la condition qui manque, structure_up_to_date, la dernière ; rien n'est lu ni fusionné, aucune révision n'est créée. L'avenant se fusionne une fois repris par la révision en cours et mis à jour (structure_merge_report ; WF-REV-0050, WF-REV-0100, #4034, #4174).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"structure_up_to_date"},
+    "correlation_id": "01926f3a-7c00-7000-8000-fcef92a106bc"
+  }
+}

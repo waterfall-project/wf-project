@@ -325,3 +325,16 @@ def test_an_amount_is_spread_over_the_years_of_a_task_by_the_hours_worked_in_eac
     assert within.projected(Decimal(500), mockstructure.WITNESS) == mockstructure.inflated(
         Decimal(500), 2027
     )
+
+
+def test_a_summary_is_ordered_after_its_subordinates_and_before_what_it_precedes() -> None:
+    # `dating_order` (#4287): the summary is dated from its subordinates, and what it precedes from
+    # it, though the plan lists it first and its successor beside it, whatever the order given.
+    first, second = Task(1, "A", days=1), Task(2, "B", days=1)
+    summary = Task(3, "Sommaire", children=(first, second))
+    after = Task(4, "Après", days=1, links=(mockwitness.Link(3),))
+    plan = [after, summary, first, second]
+    assert [task.number for task in mockdating.dating_order(plan)] == [1, 2, 3, 4]
+    assert [task.number for task in mockdating.dating_order(list(reversed(plan)))] == [2, 1, 3, 4]
+    # Without a summary, the order of the links alone stands (``in_link_order``).
+    assert [task.number for task in mockdating.dating_order([first, second])] == [1, 2]

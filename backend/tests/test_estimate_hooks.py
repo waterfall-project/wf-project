@@ -10,6 +10,9 @@ and their restoration by the history (``snapshot``, ``restore``), the question o
 of the paste.
 """
 
+from dataclasses import dataclass, field
+from datetime import date
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -23,9 +26,11 @@ from sqlalchemy import event, func, select
 from sqlalchemy.orm import Session
 
 from waterfall.core.estimate import writing
+from waterfall.core.estimate.entries import LineEntry
 from waterfall.core.estimate.reading import totals_of
+from waterfall.core.estimate.recalling import remembering
 from waterfall.core.estimate.tables import EstimateLine
-from waterfall.core.planning.interface import facets
+from waterfall.core.planning.interface import BearingTask, FacetWrite, WorkInstant, facets
 from waterfall.core.revisions.interface import mark_revision
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -375,3 +380,153 @@ def test_the_figures_of_no_line_are_read_without_a_statement(stage: Scene) -> No
     finally:
         event.remove(engine, "before_cursor_execute", count)
     assert sent == []
+
+
+# --- A line changed under a load of lines ------------------------------------------------------
+
+
+@dataclass
+class Changing:
+    """The lines of a task, and how a change of one is written, the statements it sends counted."""
+
+    stage: Scene
+    nodes: list[dict[str, Any]]
+    revision_id: UUID
+    task: dict[str, Any]
+    basis_reads: list[UUID] = field(default_factory=list[UUID])
+    flushes: list[int] = field(default_factory=list[int])
+
+    def write(self, session: Session, node_id: str) -> FacetWrite:
+        """Give the write of the facet of a line of the task, as the planning asks for it."""
+        day = WorkInstant(date(2026, 11, 2), Decimal(0))
+        bearer = BearingTask(
+            UUID(self.task["node_id"]),
+            self.revision_id,
+            "Câblage",
+            day,
+            day,
+            (Decimal(8),) * 5 + (Decimal(0),) * 2,
+            "not_started",
+            is_main=True,
+        )
+        return FacetWrite(
+            session,
+            UUID(self.stage.project["project_id"]),
+            self.revision_id,
+            UUID(node_id),
+            bearer,
+            Act(None, utc_now()),
+        )
+
+    def change(self, session: Session, node_id: str, quantity: str) -> None:
+        """Change the quantity of a line, as the load of lines does."""
+        entry = LineEntry(quantity=Decimal(quantity), sent=frozenset({"quantity"}))
+        writing.change_line(self.write(session, node_id), entry)
+
+
+@pytest.fixture
+def changing(
+    stage: Scene,
+    tree: Tree,
+    lines: Lines,
+    costs: Costing,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Changing:
+    """Give three lines of a task, the reads of the basis of their revision counted."""
+    task = tree.made("Câblage")
+    nodes = [lines.made(task, **worked(costs.role, label=f"Ligne {n}"))["nodes"][0] for n in "123"]
+    changing = Changing(stage, nodes, UUID(tree.revision["revision_id"]), task)
+    real = writing.basis_of
+
+    def counting(session: Session, project_id: UUID, revision_id: UUID) -> Any:
+        changing.basis_reads.append(revision_id)
+        return real(session, project_id, revision_id)
+
+    monkeypatch.setattr(writing, "basis_of", counting)
+    return changing
+
+
+def flushed(changing: Changing, session: Session) -> None:
+    """Count the flushes the session sends from now on, in ``changing``."""
+    event.listen(session, "before_flush", lambda *_: changing.flushes.append(1))
+
+
+def line_held(session: Session, node_id: str) -> tuple[Decimal, int]:
+    """Read a line as the database holds it: its quantity and its counter."""
+    row = session.execute(
+        select(EstimateLine.quantity, EstimateLine.lock_version)
+        .where(EstimateLine.node_id == UUID(node_id))
+        .execution_options(populate_existing=True)
+    ).one()
+    return row.quantity, row.lock_version
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+def test_lines_changed_under_a_load_read_their_basis_once_and_are_not_flushed_one_by_one(
+    changing: Changing,
+) -> None:
+    # The change of a line under a load of lines (``remembering``) reads the basis of its revision
+    # once for all, and writes nothing until the load asks for the set of its lines (#2716).
+    with changing.stage.database.transaction() as session, remembering(session):
+        flushed(changing, session)
+        for number, node in enumerate(changing.nodes, start=2):
+            changing.change(session, node["node_id"], str(number))
+        assert changing.basis_reads == [changing.revision_id]
+        assert changing.flushes == []
+        session.flush()
+        assert changing.flushes == [1]
+    with changing.stage.database.transaction() as session:
+        assert [line_held(session, node["node_id"]) for node in changing.nodes] == [
+            (Decimal(2), 2),
+            (Decimal(3), 2),
+            (Decimal(4), 2),
+        ]
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+def test_a_line_changed_twice_under_a_load_keeps_both_of_its_changes(changing: Changing) -> None:
+    # The lines of a load are not flushed one by one: a line changed twice must read, the second
+    # time, what the first wrote and not yet flushed (#4403).
+    node_id = changing.nodes[0]["node_id"]
+    with changing.stage.database.transaction() as session, remembering(session):
+        changing.change(session, node_id, "2")
+        changing.change(session, node_id, "3")
+    with changing.stage.database.transaction() as session:
+        assert line_held(session, node_id) == (Decimal(3), 3)
+
+
+@pytest.mark.requirement("WF-PLA-0010-A")
+def test_the_hours_of_a_task_are_judged_on_the_roles_a_load_gave_its_other_lines(
+    changing: Changing,
+) -> None:
+    # Under a load of lines, the roles the load gave the other lines of the task and did not flush
+    # yet are those the hours are judged on (#4403): two lines moved to a role that works every day
+    # leave the third free to take one that works the week-end only.
+    database = changing.stage.database
+    every_day = add_role(database, "ALL", (8, 8, 8, 8, 8, 8, 8))
+    weekend = add_role(database, "WE", (0, 0, 0, 0, 0, 8, 8))
+    roles = (every_day, every_day, weekend)
+    with database.transaction() as session, remembering(session):
+        for node, role in zip(changing.nodes, roles, strict=True):
+            entry = LineEntry(resource_role_id=role, sent=frozenset({"resource_role_id"}))
+            writing.change_line(changing.write(session, node["node_id"]), entry)
+    with database.transaction() as session:
+        held = session.scalars(
+            select(EstimateLine.resource_role_id).where(
+                EstimateLine.node_id.in_([UUID(node["node_id"]) for node in changing.nodes])
+            )
+        ).all()
+    assert sorted(map(str, held)) == sorted(map(str, roles))
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+def test_lines_changed_outside_a_load_are_flushed_one_by_one_and_read_their_basis_each_time(
+    changing: Changing,
+) -> None:
+    # The API writes a line at a time: each change is written when it is made, as it was before.
+    with changing.stage.database.transaction() as session:
+        flushed(changing, session)
+        for node in changing.nodes:
+            changing.change(session, node["node_id"], "2")
+        assert changing.flushes == [1, 1, 1]
+        assert changing.basis_reads == [changing.revision_id] * 3

@@ -119,6 +119,7 @@ def test_the_update_writes_what_the_report_presented_and_everything_reads_unchan
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
+@pytest.mark.requirement("WF-REV-0110-A")
 def test_what_the_differential_designated_keeps_its_nodes_and_reads_as_before(
     api: ContractClient, late: OutOfDate
 ) -> None:
@@ -146,6 +147,7 @@ def test_what_the_differential_designated_keeps_its_nodes_and_reads_as_before(
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
+@pytest.mark.requirement("WF-REV-0110-A")
 def test_the_main_structure_is_not_written_and_the_differential_is_up_to_date_on_its_base(
     api: ContractClient, late: OutOfDate
 ) -> None:
@@ -397,6 +399,7 @@ def test_a_link_the_main_adds_changes_or_removes_is_written_in_the_differential(
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
+@pytest.mark.requirement("WF-REV-0110-A")
 def test_a_value_both_change_keeps_the_differential_s_after_the_update(
     api: ContractClient, late: OutOfDate
 ) -> None:
@@ -419,6 +422,7 @@ def test_a_value_both_change_keeps_the_differential_s_after_the_update(
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
+@pytest.mark.requirement("WF-REV-0110-A")
 def test_a_task_the_differential_modifies_and_the_main_removed_stays_as_an_addition(
     api: ContractClient, project: Costed
 ) -> None:

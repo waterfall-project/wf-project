@@ -241,7 +241,8 @@ def judge_working_hours(
     creation: the roles of the other labour lines of the task and this one are intersected day by
     day; none left, the roles are named by their label, and the task. ``earlier`` gives the role a
     paste has left, or gives, to lines of the task (a line created included) before this one is
-    judged: it takes the place of the role they have in the base.
+    judged: it takes the place of the role they have in the base. The other lines are read as the
+    database holds them: a load of lines flushes what it holds before (``writing``, #4403).
     """
     project_id, bearer, line_id = held
     others = [

@@ -118,8 +118,8 @@ afterEach(() => {
   router.refresh.mockReset();
 });
 
-describe("« Réexaminer » a risk after its own estimate was written [US-2640] [WF-IHM-0110-A]", () => {
-  it("reads the risk anew when the detail is mounted, before any write, and reviews from the version read (#1626)", async () => {
+describe("« Réexaminer » a risk after its own estimate was written [US-2640]", () => {
+  it("reads the risk anew when the detail is mounted, and reviews from the version read (#1626)", async () => {
     const client = serve();
     // What the client had sent when the page was asked to be read anew: nothing yet.
     const sentBefore: number[] = [];
@@ -162,7 +162,7 @@ describe("« Réexaminer » a risk after its own estimate was written [US-2640] 
   });
 });
 
-describe("« Modifier » a risk after its own estimate was written [US-2640] [WF-IHM-0110-A]", () => {
+describe("« Modifier » a risk after its own estimate was written [US-2640]", () => {
   it("offers to read the page anew on a stale version (412), and writes from the version it brings", async () => {
     const client = serve({
       [UPDATE]: [

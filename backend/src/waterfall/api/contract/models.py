@@ -6182,6 +6182,12 @@ class RiskOccurrenceReport(ContractModel):
             description="The planning start date of the own estimate (`CostStructure.planning_start_on`) when it precedes the day of the declaration — the day of the read, in the time zone of the installation —; null otherwise, and when absent. A warning, not a refusal: it is not in `refusals`, the occurrence applies, and it redates nothing — the tasks keep the dates they had in the own estimate (WF-RIS-0060, WF-PLA-0020), which then lie in the past (#4133). A change of the start date of the own estimate (`updateCostStructure`) advances `risk_lock_version`, so that a report read before it is stale."
         ),
     ] = None
+    completed_provision_task: Annotated[
+        ProvisionTask | None,
+        Field(
+            description="The task that carries the provision line (`Risk.provision_task`) when it is completed and the own estimate is grafted under it — a milestone, after which the graft goes, is never named —, by its node in the main structure read and its label; null otherwise, and when absent. A warning, not a refusal: it is not in `refusals`, the occurrence applies, and the graft writes nothing else. The task becomes the summary task of the grafted tasks, its state derived from theirs, not started (WF-PLA-0040): it is not started again, and the earned value it had acquired falls back (WF-IND-0030) — `differences` does not say it: no column of `NodeColumn` names the state (#4240). A provisional rule: EP-30, which prepares the own estimate as a differential, takes it over, extending the warning to every task the occurrence reopens."
+        ),
+    ] = None
 
 
 class RiskOccurrence(ContractModel):

@@ -10,7 +10,14 @@ import { findOffer } from "@/components/commands/offer";
 import type { Revision } from "@/components/context/read-only";
 import { forgetMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  held,
+  reached,
+} from "@/test/fixtures";
 import { APPLY, BLOCK, cell, copied, FIRST, pasteOn, PREVIEW, renderGrid } from "@/test/paste-grid";
 
 import type { NodeList, NodeSortColumn } from "./nodes";
@@ -47,9 +54,6 @@ const STRUCTURE = {
 };
 const AMENDMENT = { ...STRUCTURE, structure_id: "01926f3a-7c00-7000-8000-000000000203" };
 const VERSION = 1;
-/** The version of the structure an example of the contract answers. */
-const reached = (name: string) =>
-  (example(name) as { structure_lock_version: number }).structure_lock_version;
 const nested = example("nodes_nested") as NodeList;
 const breakdown = breakdownItems(example("work_breakdown") as WorkBreakdownReading);
 const MOUNTING = nested.items.findIndex(
@@ -198,6 +202,7 @@ describe("a grid busy with any of its writes", () => {
     });
     await indent(MOUNTING);
     await screen.findByText(/indentée\.$/);
+    expect(reached("nodes_indented")).not.toBe(VERSION);
     expect(moves(client)).toMatchObject([{ lock_version: reached("nodes_indented") }]);
   });
 
@@ -357,6 +362,8 @@ describe("a grid busy with any of its writes", () => {
     await vi.waitFor(() => {
       expect(moves(client)).toHaveLength(3);
     });
+    // The versions read differ from each other and from the page's: else these checks would not tell them apart.
+    expect(new Set([VERSION, reached("nodes_indented"), reached("nodes_moved")]).size).toBe(3);
     expect(moves(client)[2]).toMatchObject({ lock_version: reached("nodes_indented") });
     // Back on the main structure, the next move carries the version its own answer reached.
     view.rerender(grid());

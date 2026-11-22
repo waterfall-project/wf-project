@@ -30,6 +30,7 @@ Aucun.
 
 ### BRC-01 — Un calendrier de rôle modifié, ou un rôle changé de calendrier, ne redate aucune révision en cours
 
+- **Issue** : #4411 (EP-32), ouverte le 2026-11-21, avec BCH-07.
 - **Où** : `core/resource_settings/interface/calendars.py:446-450` (`redating = calendar.is_default and …`),
   `core/resource_settings/interface/resource_roles.py:590-633` (`update_role` : garde `_role_left_idle`
   puis `_write`, aucun `recalculate`, aucun `lock_reference`) ; test qui épingle l'ancien
@@ -70,6 +71,7 @@ Aucun.
 
 ### BRC-02 — Un classeur à forte décompression est ouvert sans borne, dans l'API dès `openImport`
 
+- **Issue** : #4419 (EP-33), ouverte le 2026-11-21, avec BEX-03, BCH-06, BRC-03, BEX-05.
 - **Où** : `core/costs/extraction.py:93-109` (`sheet_rows` : `load_workbook(BytesIO(content),
   read_only=True, …)` puis `list(iter_rows(...))`), appelé par
   `core/costs/interface/actual_costs.py:79` (`read_header`, dans la requête `openImport`),
@@ -101,6 +103,7 @@ Aucun.
 
 ### BRC-03 — L'en-tête du classeur est lu verrou du projet tenu, à l'ouverture d'un import
 
+- **Issue** : #4419 (EP-33), ouverte le 2026-11-21, avec BEX-03, BRC-02, BCH-06, BEX-05.
 - **Où** : `core/exchanges/interface/imports.py:437` (`lock_project`) puis `:452`
   (`form.read_header(session, head)`) ; pour les coûts réels, `core/costs/interface/actual_costs.py:64-80`.
 - **Quoi** : `read_header` ouvre le classeur entier par openpyxl (zip, chaînes partagées) et
@@ -116,6 +119,7 @@ Aucun.
 
 ### BRC-04 — Une ligne du projet est rejetée « doublée » à cause d'une ligne d'un autre projet du même fichier
 
+- **Issue** : #3966 (EP-33), à laquelle la ventilation du 2026-11-21 joint ce constat.
 - **Où** : `core/costs/analysing.py:67-90` (`doubled_lines` compare toute ligne dont la pièce est
   lisible, rejetées comprises) ; `core/costs/extraction.py:352-359` (`_key` sans le code projet).
 - **Quoi** : WF-DAT-0110 identifie une ligne par **le projet**, la pièce et le poste ; le
@@ -134,6 +138,7 @@ Aucun.
 
 ### BRC-05 — Les bornes de la matrice de risques ne sont jugées ni en signe ni en étendue
 
+- **Issue** : #4464 (EP-38), ouverte le 2026-11-21, avec 7 autres constats.
 - **Où** : `core/risk_settings/matrix.py:29-49` (`matrix_faults` : précision et ordre seuls),
   `api/reference_settings_write.py:86-87` ; la base ne contraint que l'ordre
   (`core/cost_settings/tables.py:84-92`).
@@ -148,6 +153,7 @@ Aucun.
 
 ### BRC-06 — La capacité d'un rôle n'a pas de borne de précision : 500 au lieu de 422 — déjà connu (#2875, EP-10)
 
+- **Issue** : #4464 (EP-38), ouverte le 2026-11-21, avec 7 autres constats.
 - **Où** : `api/resource_roles.py:133-135` (`capacity_of`), `core/resource_settings/interface/resource_roles.py:382-392`
   (`_capacity_faults` : le signe seul), colonnes `numeric` sans précision (`tables.py:140-141`).
 - **Quoi** : un `headcount` de plus de 16 383 décimales (ou 131 072 chiffres) passe la validation et
@@ -157,6 +163,9 @@ Aucun.
 
 ### BRC-07 — Les unités de durée répondent 500 sur une installation dont l'amorçage n'a pas écrit la ligne
 
+- **Suite** : abandonné le 2026-11-21, par décision de l'auteur — le scénario demande une
+  installation amorcée avant EP-05 puis migrée sans rejouer l'amorçage, ce qui n'existera pas en
+  production ; le gain est un 503 au lieu d'un 500 sur une installation de toute façon inutilisable.
 - **Où** : `core/resource_settings/interface/duration_units.py:100-107` et `:141-148` (`.one()`).
 - **Quoi** : `getDurationUnits`/`setDurationUnits` lèvent `NoResultFound` là où les paramètres
   communs et la correspondance répondent 503 (`core/cost_settings/refusals.py`, #2235 corrigé par
@@ -168,6 +177,7 @@ Aucun.
 
 ### BRC-08 — Le poste d'une ligne de coût et le motif d'exclusion n'ont aucune borne
 
+- **Issue** : #4464 (EP-38), ouverte le 2026-11-21, avec 7 autres constats.
 - **Où** : `core/costs/extraction.py:339` (`document_item = text_of(...)`, sans longueur, quand la
   pièce est bornée à 200), `core/costs/tables.py:140,144` (ni `bounded` ni `CHECK`),
   `core/costs/scoping.py:87-90` (motif écrit tel quel, chaîne vide comprise) ; le contrat ne borne
@@ -184,6 +194,7 @@ Aucun.
 
 ### BRC-09 — `api/cost_types.py` importe un fichier privé du module
 
+- **Issue** : #4454 (EP-36), ouverte le 2026-11-21.
 - **Où** : `api/cost_types.py:39` (`from waterfall.core.cost_settings.commands import CommandAvailability`).
 - **Quoi** : le nom n'est pas réexporté par `core/cost_settings/interface/__init__.py` ; la règle
   « toujours depuis `…interface`, jamais depuis le fichier d'un objet » n'est tenue par
@@ -195,6 +206,7 @@ Aucun.
 
 ### BRC-10 — `tests/test_cost_imports.py` est un fichier vide qui annonce des tests écrits ailleurs
 
+- **Issue** : #4451 (EP-36), ouverte le 2026-11-21, avec BAC-10, FCO-13, FAR-05.
 - **Où** : `backend/tests/test_cost_imports.py` (7 lignes, une docstring : « US-1610/L2 writes its
   tests here ») ; les tests du journal sont dans `test_actual_costs_apply.py:365-510`.
 - **Proposition** : supprimer le fichier ou y déplacer les quatre tests du journal.

@@ -9,6 +9,7 @@ import { seedEstimate } from "./estimate-seed";
 import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
 import { createOwnProject, openRevision } from "./own-project";
+import { identifyRisk } from "./risk-seed";
 import { rowAt, scrollToPosition } from "./scroll";
 import { isServerAction } from "./server-action";
 
@@ -204,13 +205,13 @@ test("a block of three rows and four columns pasted from a spreadsheet produces 
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 
-// The own estimate of a risk is EP-08's: played against the fake back until then.
-const BEFORE_EP08 = "EP-08 serves the own estimate of a risk";
-
-test("a block whose cell names an unknown category is sent as copied for the server to judge, and modifies no row once abandoned @shared [WF-IHM-0050-A]", async ({
+// Fake back only, untagged (`@shared` marks what plays the service too): the own estimate of the
+// risk of the rewiring is the witness's, which the account of the run does not write (#2193). Its
+// twin plays the service on a project of the run, the path of the own estimate of a risk the run
+// identifies, below.
+test("a block whose cell names an unknown category is sent as copied for the server to judge, and modifies no row once abandoned [WF-IHM-0050-A]", async ({
   page,
 }) => {
-  test.skip(inService, BEFORE_EP08);
   const posted = actions(page);
   const { grid, at } = await openOnFirstLine(page, OWN);
   const unknown = [BLOCK[0] ?? [], ["Heures d'essais", "Essais", "", "1"], BLOCK[2] ?? []];
@@ -233,10 +234,11 @@ test("a block whose cell names an unknown category is sent as copied for the ser
   await expect(cellAt(grid, OWN.first + 2, at.quantity)).toHaveText("2");
 });
 
-test("a paste wider than the grid is refused, saying so @shared [WF-IHM-0050-A]", async ({
-  page,
-}) => {
-  test.skip(inService, BEFORE_EP08);
+// Fake back only, untagged (`@shared` marks what plays the service too): the own estimate of the
+// risk of the rewiring is the witness's, which the account of the run does not write (#2193). Its
+// twin plays the service on a project of the run, the path of the own estimate of a risk the run
+// identifies, below.
+test("a paste wider than the grid is refused, saying so [WF-IHM-0050-A]", async ({ page }) => {
   const posted = actions(page);
   const { grid, at } = await openOnFirstLine(page, OWN);
   // Eighteen columns from the label, where a line has seventeen in the contract (#223, #424).
@@ -426,4 +428,93 @@ test("a block pasted on the last line of the estimate of a project the run creat
   await page.getByRole("button", { name: "Rétablir", exact: true }).click();
   await expect(label(4)).toContainText("Câbles B", { timeout: WORKING });
   await idle();
+});
+
+test("a block pasted in the own estimate of a risk the run identifies is refused when it is too wide, reported with the row it refuses, written once confirmed, and undone as one entry @shared [WF-IHM-0050-A] [WF-IHM-0110-A] [WF-RIS-0010-A] [US-2640]", async ({
+  page,
+  browser,
+  playwright,
+  manager,
+}) => {
+  test.skip(!inService, "the fake back keeps no risk and creates no line by a paste");
+  test.slow();
+  const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  try {
+    const { own } = await identifyRisk(
+      page,
+      browser,
+      calls,
+      manager,
+      "Collage risque",
+      "Fuite du toit",
+    );
+    await openHydrated(page, own);
+    const grid = page.getByRole("treegrid", { name: "Grille de devis" });
+    const idle = () => expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+    // Its own estimate is empty: a task is made first, the paste writes under it.
+    await page.getByRole("button", { name: "Insérer une tâche" }).click();
+    const creation = page.getByRole("dialog", { name: "Insérer une tâche" });
+    await creation.getByRole("textbox", { name: "Libellé" }).fill("Bâche");
+    await creation.getByRole("button", { name: "Créer" }).click();
+    await expect(page.getByText("« Bâche » créée.")).toBeVisible({ timeout: WORKING });
+    await idle();
+    const at = await columnsOf(grid, COLUMNS);
+    const label = (row: number) => cellAt(grid, row, at.label);
+    await expect(label(1)).toContainText("Bâche", { timeout: WORKING });
+    // Then a line under it, from the menu of its cell: the paste starts from a line.
+    await label(1).click();
+    await label(1).click({ button: "right" });
+    await page
+      .getByRole("menu", { name: "Menu de la cellule" })
+      .getByRole("menuitem", { name: "Insérer une ligne" })
+      .click();
+    const line = page.getByRole("dialog", { name: "Insérer une ligne" });
+    await line.getByRole("combobox", { name: "Rôle ou catégorie" }).selectOption({
+      label: "Matériel électrique",
+    });
+    await line.getByRole("textbox", { name: "Libellé" }).fill("Câbles");
+    await line.getByRole("textbox", { name: "Quantité" }).fill("1");
+    await line.getByRole("button", { name: "Créer" }).click();
+    await expect(page.getByText("« Câbles » créée.")).toBeVisible({ timeout: WORKING });
+    await idle();
+    await expect(label(2)).toContainText("Câbles", { timeout: WORKING });
+    await label(2).click();
+    await expect(label(2)).toBeFocused();
+
+    // Wider than the grid: refused, saying so, nothing asked.
+    await paste(
+      page,
+      BLOCK.map((row) => [...row, ...Array.from({ length: 14 }, () => "")]),
+    );
+    const alert = page.getByRole("main").getByRole("alert");
+    await expect(alert).toContainText("Les données collées ont plus de colonnes que la grille.");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // A block whose second row names an unknown category: the server judges it, in its report.
+    await label(2).click();
+    await paste(page, [
+      ["Câbles B", "Matériel électrique", "", "3"],
+      ["Câbles A", "Matériel électrique", "", "2"],
+      ["Câbles D", "Essais", "", "1"],
+    ]);
+    const dialog = page.getByRole("dialog", { name: "Coller depuis un tableur" });
+    await expect(dialog).toBeVisible({ timeout: WORKING });
+    await expect(dialog).toContainText("Catégorie de coût inconnue.");
+    await dialog.getByRole("button", { name: "Appliquer le collage" }).click();
+    await expect(dialog).toHaveCount(0, { timeout: WORKING });
+    await idle();
+    await expect(grid.getByRole("gridcell", { name: "Câbles B" })).toBeVisible({
+      timeout: WORKING,
+    });
+    await expect(grid.getByRole("gridcell", { name: "Câbles D" })).toHaveCount(0);
+
+    // One entry of the history: one Undo removes what the paste wrote.
+    await page.getByRole("button", { name: "Annuler", exact: true }).click();
+    await expect(grid.getByRole("gridcell", { name: "Câbles B" })).toHaveCount(0, {
+      timeout: WORKING,
+    });
+    await expect(label(2)).toContainText("Câbles", { timeout: WORKING });
+  } finally {
+    await calls.dispose();
+  }
 });

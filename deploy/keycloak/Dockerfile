@@ -12,11 +12,11 @@
 # (.dockerignore). Every image is pinned by the digest of its index; raise the version of Keycloak
 # here and in extension/pom.xml together, and keycloak-config-cli with it.
 
-# The extension, compiled and tested here: no JVM is asked of the workstation. The JDK is 25, but
-# the extension targets Java 21 (extension/pom.xml), the Java that runs Keycloak 26.8.1.
+# The extension, compiled and tested here: no JVM is asked of the workstation. The JDK is 27, but
+# the extension targets Java 21 (extension/pom.xml), the Java that runs Keycloak 26.8.2.
 # Docker Hub, unless the chain gives the registry of its mirror (docs/dev/README.md, « The chain »).
 ARG WATERFALL_MIRROR=
-FROM ${WATERFALL_MIRROR}maven:3-eclipse-temurin-26@sha256:69a6c37f0a91fca2c9d0cdd684c9c0ea7b1bc00d4196749c24440b2e02ad163d AS extension
+FROM ${WATERFALL_MIRROR}maven:3-eclipse-temurin-27@sha256:3175c44b207d6698aecb9bbb5bf285b5b4efcf7f567d6f65d88cd218276a6ab2 AS extension
 WORKDIR /build
 COPY extension/pom.xml ./
 RUN --mount=type=cache,target=/root/.m2 mvn --batch-mode --quiet dependency:go-offline
@@ -29,7 +29,7 @@ FROM ${WATERFALL_MIRROR}adorsys/keycloak-config-cli:6.5.1-26.5.5@sha256:0955d98c
 
 # Keycloak runs as its own unprivileged user, 1000, that of its image, said again at the end of the
 # stage: the image never runs as root, whatever its base sets.
-FROM ${WATERFALL_MIRROR}keycloak/keycloak:26.8.1@sha256:3f3c5f8e03c614774b4bd9173b88391fefa4153bfc010d8012d59ad825377332 AS production
+FROM ${WATERFALL_MIRROR}keycloak/keycloak:26.8.2-2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0 AS production
 COPY --from=extension /build/target/waterfall-keycloak-extension.jar /opt/keycloak/providers/
 COPY themes/ /opt/keycloak/themes/
 # The options Keycloak fixes at build time: started with --optimized, it does not rebuild. Under
