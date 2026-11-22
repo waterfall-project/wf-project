@@ -163,7 +163,7 @@ def looks(oks: int) -> Iterator[str]:
 
 def trial_of(api: FakeApi, said: Iterator[str], clock: FakeClock | None = None) -> RestorationTrial:
     # Each sign-in opens a session of its own; the realm issues token-1, token-2, and so on.
-    administrator = Administrator(Realm, Realm().send, ADDRESS, FRONT_CLIENT)
+    administrator = Administrator(Realm, Realm().send, ADDRESS, FRONT_CLIENT, (TrialError, OSError))
     timed = clock or FakeClock()
     return RestorationTrial(
         Api(COMPOSE, api.ask), administrator, lambda: next(said), Clock(timed.now, timed.pause)
@@ -296,7 +296,7 @@ def test_the_task_is_read_apart_from_the_looks_at_the_probe_before_the_maintenan
         seen.append(clock.now())
         return "maintenance" if len(seen) > 8 else "ok"
 
-    administrator = Administrator(Realm, Realm().send, ADDRESS, FRONT_CLIENT)
+    administrator = Administrator(Realm, Realm().send, ADDRESS, FRONT_CLIENT, (TrialError, OSError))
     trial = RestorationTrial(Api(COMPOSE, ask), administrator, probe, Clock(clock.now, clock.pause))
     with pytest.raises(TrialError, match="did not end in 600 s"):
         trial.restored("token-1", "r")
@@ -463,5 +463,21 @@ def test_a_sign_in_that_fails_without_the_maintenance_fails_the_trial_after_the_
     missed = {**ANSWERS, "GET /tasks/r": [(401, {"code": "SESSION_REVOKED"})] * 100}
     clock = FakeClock()
     trial = trial_with_realm_down(FakeApi(missed), probes(*["ok"] * 1300), clock, realm_down_once())
-    with pytest.raises(TrialError, match=f"did not say the maintenance in {GRACE:.0f} s"):
+    failure = r"s \(the sign-in again failed: the realm is down\)"
+    with pytest.raises(TrialError, match=failure) as raised:
+        trial.restored("token-1", "r")
+    assert isinstance(raised.value.__cause__, ProductionError)
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
+def test_an_error_out_of_the_listed_ones_of_the_sign_in_is_not_swallowed() -> None:
+    # [US-2940] #997: only the errors of a sign-in that cannot be had leave the refusal; any
+    # other (here a KeyError) is a defect, and rises out of the restoration.
+    def broken() -> Realm:
+        message = "session"
+        raise KeyError(message)
+
+    answers = {**ANSWERS, "GET /tasks/r": [(401, {"code": "SESSION_REVOKED"})] * 3}
+    trial = trial_with_realm_down(FakeApi(answers), looks(8), FakeClock(), broken)
+    with pytest.raises(KeyError):
         trial.restored("token-1", "r")

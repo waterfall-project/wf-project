@@ -222,19 +222,12 @@ class Administrator:
     send: Post
     address: str
     client_secret: str
-    unreached: tuple[type[Exception], ...] = (TrialError, OSError)
+    unreached: tuple[type[Exception], ...]
     """The errors of a sign-in that cannot be had: the realm or the front is down, or refuses."""
 
     def token(self) -> str:
         """Sign in in a new browser, and take a token from the session it opens."""
         return access_token(self.signed_in(), self.send, self.address, self.client_secret)
-
-    def token_if_reached(self) -> str | None:
-        """Sign in again; give no token, rather than fail, when the realm cannot be reached."""
-        try:
-            return self.token()
-        except self.unreached:
-            return None
 
 
 @dataclass(slots=True)
@@ -350,6 +343,14 @@ class RestorationTrial:
             raise TrialError(message)
         return backup
 
+    def signed_again(self, token: str, task_id: str) -> tuple[str, int, Exception | None]:
+        """Sign in again and read the task again; keep the refusal, and why, if it cannot be."""
+        try:
+            fresh = self.administrator.token()
+        except self.administrator.unreached as error:
+            return token, UNAUTHORIZED, error
+        return fresh, self.not_begun(fresh, task_id), None
+
     def restored(self, token: str, task_id: str) -> str:
         """Follow a restoration to its end, through the maintenance; give a token taken after it.
 
@@ -373,6 +374,7 @@ class RestorationTrial:
         read: float | None = None
         refused: float | None = None
         renewed = False
+        lost: Exception | None = None
         deadline = self.clock.now() + PATIENCE
         while self.clock.now() < deadline:
             if self.probe() == "maintenance":
@@ -388,10 +390,7 @@ class RestorationTrial:
                         # The sessions close just before the maintenance: the realm may be
                         # down, and the refusal then stands, without a fresh token.
                         renewed = True
-                        fresh = self.administrator.token_if_reached()
-                        if fresh is not None:
-                            token = fresh
-                            status = self.not_begun(token, task_id)
+                        token, status, lost = self.signed_again(token, task_id)
                     if status == OK:
                         refused = None
                     elif refused is None:
@@ -401,7 +400,9 @@ class RestorationTrial:
                         f"the liveness probe did not say the maintenance in {GRACE:.0f} s "
                         "after the task of the restoration was refused"
                     )
-                    raise TrialError(message)
+                    if lost is not None:
+                        message += f" (the sign-in again failed: {lost})"
+                    raise TrialError(message) from lost
                 self.clock.pause(WATCH)
                 continue
             else:
