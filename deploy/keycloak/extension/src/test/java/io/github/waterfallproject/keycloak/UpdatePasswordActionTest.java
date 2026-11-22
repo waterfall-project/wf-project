@@ -39,6 +39,12 @@ class UpdatePasswordActionTest {
   }
 
   @Test
+  void aLinkTheSessionKeptButCannotBeReadIsHeldSpent() {
+    assertTrue(UpdatePasswordAction.spent("not-a-token", null));
+    assertTrue(UpdatePasswordAction.spent("not-a-token", ISSUED * 1000));
+  }
+
+  @Test
   void theActionTakesThePlaceOfKeycloaksOwn() {
     UpdatePasswordAction action = new UpdatePasswordAction();
     assertEquals(UserModel.RequiredAction.UPDATE_PASSWORD.name(), action.getId());

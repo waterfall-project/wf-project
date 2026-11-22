@@ -76,17 +76,28 @@ public final class UpdatePasswordAction extends UpdatePassword {
     if (link == null) {
       return false;
     }
+    return spent(
+        link,
+        ResetCredentialEmail.getLastChangedTimestamp(
+            context.getSession(), context.getRealm(), context.getUser()));
+  }
+
+  /**
+   * Tells whether the link Keycloak kept, as the session holds it, has served since the password
+   * was set; one that cannot be read is held spent.
+   *
+   * @param link the link as the session holds it, a signed token
+   * @param passwordSetAt when the password was last set, in milliseconds since the epoch; {@code
+   *     null} for an account without a password
+   */
+  static boolean spent(String link, Long passwordSetAt) {
     DefaultActionTokenKey token;
     try {
       token = TokenVerifier.create(link, DefaultActionTokenKey.class).getToken();
     } catch (VerificationException unreadable) {
       return true;
     }
-    return spent(
-        token.getActionId(),
-        token.getIat(),
-        ResetCredentialEmail.getLastChangedTimestamp(
-            context.getSession(), context.getRealm(), context.getUser()));
+    return spent(token.getActionId(), token.getIat(), passwordSetAt);
   }
 
   /**

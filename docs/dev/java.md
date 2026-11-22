@@ -86,7 +86,9 @@ dans sa réponse.
   statique de portée paquet, éprouvée par JUnit (`src/test/java/`).
 - Le reste s'éprouve contre le Keycloak de la plateforme, par
   `backend/tests/test_keycloak_platform.py` : aucune doublure de Keycloak, pas plus qu'une
-  doublure de PostgreSQL pour le back.
+  doublure de PostgreSQL pour le back. Un parcours de connexion — un lien mailé, le formulaire
+  qu'il ouvre, une session d'authentification — s'éprouve dans `test_keycloak_sign_in.py`, qui
+  porte le navigateur, la boîte aux lettres et les tests du lien oublié : il ne se déplace pas.
 - Un refus a son test, comme le cas nominal ; un test affirme un résultat.
 - Un test JUnit ne cite aucune exigence : `make requirements` ne lit pas le Java. Une exigence
   s'éprouve contre la plateforme, en Python, par un test qui la cite.
@@ -103,3 +105,8 @@ Un défaut trouvé en revue et qui peut revenir s'ajoute ici, comme dans `python
    jusqu'à son heure. Ce qui rend un lien inemployable s'écrit en base — l'attribut du compte
    retiré dès la confirmation — ou, pour un lien de Keycloak qu'on ne forge pas, une date que
    Keycloak garde en base, comme celle du mot de passe (reset-credentials, #852).
+2. **Une session ouverte par un lien qui survit à ce qui rend le lien caduc.** Le formulaire
+   qu'un lien a ouvert vit jusqu'à la fin de sa session d'authentification : refuser le lien à
+   l'ouverture ne suffit pas, le mot de passe fixé entre-temps par la console ou un autre lien
+   laisse le formulaire servir. Un jeton d'action se juge à chaque affichage et à chaque
+   soumission du formulaire qu'il a ouvert, pas seulement à l'ouverture du lien (#970).
