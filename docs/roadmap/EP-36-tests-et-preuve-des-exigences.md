@@ -266,6 +266,14 @@ soir » du fichier d'EP-11), à rattacher à un lot :
   porte
 - #4548 — outil : deux lignes du guide du développeur dépassent la largeur de leurs voisines
 
+Reportés par EP-13 le 2026-11-22 (décision de l'auteur), rattachés à #4596, à placer :
+
+- #4396 — back : le test des projets désignés hors du chemin ne lit pas les corps de requête du
+  contrat → proposé : US-3460 ;
+- #4397 — front : le test du harnais compare en littéral la commande du front contre le service
+  → proposé : US-3420 ;
+- #4638 — outil : l'essai réel de Grafana importe un autre module de test → proposé : US-3460.
+
 ## Conception
 
 Écrite le 2026-11-21, après la validation des US par l'auteur le même jour, contre `main`

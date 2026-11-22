@@ -107,6 +107,11 @@ soir » du fichier d'EP-11), à rattacher à un lot :
 - #4160 — front : deux autres copies d'IDENTIFIER laissent passer un identifiant qui n'est pas un
   UUID
 
+Reporté par EP-13 le 2026-11-22 (décision de l'auteur) :
+
+- #4684 — front : aucune garde des 100 colonnes des commentaires ; une règle d'ESLint limitée aux
+  commentaires et un passage sur tout le front, avec #3479 et #3523
+
 ## Conception
 
 À écrire au cadrage.
