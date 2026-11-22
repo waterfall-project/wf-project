@@ -314,6 +314,7 @@ def test_a_manual_task_before_the_finish_of_its_predecessor_is_signalled_until_d
     conflict = {
         "predecessor_node_id": predecessor["node_id"],
         "successor_node_id": fixed["node_id"],
+        "manual_node_id": fixed["node_id"],
         "link_type": "finish_to_start",
     }
     assert written["nodes"][0]["task"]["link_conflicts"] == [conflict]

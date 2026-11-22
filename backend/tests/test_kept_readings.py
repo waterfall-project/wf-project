@@ -56,13 +56,16 @@ if TYPE_CHECKING:
 FORMAT_SHAPES = {
     1: "b6ea495a278e259e6c01f87644f2905e907b2592bbea8c8c46c9903444023da7",
     2: "b6ea495a278e259e6c01f87644f2905e907b2592bbea8c8c46c9903444023da7",
+    3: "830a4c76c3b031aa300035acb46f0124bb89fb58821796102f5861b3ccb97ff7",
 }
 # The body of the marked revision 100 as a format writes it, as the rows give it: a value written
 # otherwise, the shape the same, changes it, and fails the test until ``FORMAT`` changes with it.
-# 2: the physical progress of its summaries computed (US-1680), not computable in 1.
+# 2: the physical progress of its summaries computed (US-1680), not computable in 1. 3: the manual
+# task of a conflict named (US-3300): the same body, the revision bearing no conflict.
 FORMAT_BODIES = {
     1: "eaadbe84e77482ac75b037e5a3269ab44183badd3154112f6d9818a503967dae",
     2: "29cbdfd16bd179c92aed66a6684a5bb5d7086c7a6fe4e679bd0669980dea3f75",
+    3: "29cbdfd16bd179c92aed66a6684a5bb5d7086c7a6fe4e679bd0669980dea3f75",
 }
 # A body no reading gives, which a reading kept is replaced by to tell it is read.
 FORGED = b'{"items":[],"totals":{},"meta":{}}'

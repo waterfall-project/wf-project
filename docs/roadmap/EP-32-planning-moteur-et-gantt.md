@@ -393,7 +393,7 @@ l'étiquette `@shared` à `wftools.coverage` : ce que `make requirements` ne lit
 
 ## US-3300 — Le moteur de planning : les liaisons d'une récapitulative et les durées écoulées de moins d'un jour rendent des marges justes, et une liaison entre récapitulatives se calcule une fois
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-PLA-0100-A`, `WF-PLA-0020-A`, `WF-PLA-0030-A`, `WF-PLA-0160-A`
 - **opérations** : aucune en propre — le moteur ; `listNodes` rend les marges, le chemin critique et
   les conflits qu'il calcule
