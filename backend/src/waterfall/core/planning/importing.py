@@ -267,23 +267,39 @@ class Plan:
 
 
 def _matched(project: MsProject, tree: Tree) -> list[Row]:
-    """Match each task of the file: by its lineage, then by its ``UID``, else created."""
+    """Match each task of the file, in two passes, else created (#3337).
+
+    The first pass takes, in the order of the file, each row whose lineage is one of the structure.
+    The second falls back on the ``UID`` (``external_id``) among the tasks the first left, for the
+    rows without such a lineage; but not in a file that defines the field of the lineages: it is an
+    export of Waterfall, whose ``UID`` are ranks, and a row without a known lineage is a task the
+    user added.
+    """
     by_lineage = {tree.nodes[each].lineage_id: each for each in tree.order if each in tree.tasks}
     by_external: dict[str, UUID] = {}
     for each in tree.order:
         external = tree.tasks[each].external_id if each in tree.tasks else None
         if external is not None:
             by_external.setdefault(external, each)
+    found: dict[int, UUID] = {}
     taken: set[UUID] = set()
+    for number, task in enumerate(project.tasks, start=1):
+        node_id = None if task.lineage is None else by_lineage.get(task.lineage)
+        if node_id is not None and node_id not in taken:
+            found[number] = node_id
+            taken.add(node_id)
     rows: list[Row] = []
     for number, task in enumerate(project.tasks, start=1):
-        found = None if task.lineage is None else by_lineage.get(task.lineage)
-        if found is None or found in taken:
-            found = by_external.get(str(task.uid))
-        if found is not None and found not in taken:
-            taken.add(found)
-            old = tree.tasks[found]
-            rows.append(Row(number, task, found, old, tree.nodes[found].lineage_id))
+        node_id = found.get(number)
+        if node_id is None and not project.lineage_declared:
+            node_id = by_external.get(str(task.uid))
+            if node_id in taken:
+                node_id = None
+            elif node_id is not None:
+                taken.add(node_id)
+        if node_id is not None:
+            old = tree.tasks[node_id]
+            rows.append(Row(number, task, node_id, old, tree.nodes[node_id].lineage_id))
         else:
             rows.append(Row(number, task, new_id(), None, None))
     return rows

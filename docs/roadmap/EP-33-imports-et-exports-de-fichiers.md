@@ -370,7 +370,7 @@ Trois règles de cet ordre, arrêtées avec le plan de lots, validé par l'auteu
 
 ## US-3170 — Un planning réimporté de MS Project rapproche ses tâches par la lignée d'abord, et n'adopte aucune tâche par coïncidence d'UID
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0040-A`
 - **opérations** : `openImport`, `getImport`, `applyImport`
 - **issue** : #4531

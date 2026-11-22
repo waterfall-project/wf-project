@@ -75,6 +75,7 @@ def read_project(content: bytes) -> ReadProject:
         days_per_month=_integer(root, "DaysPerMonth"),
         calendars=tuple(_calendar(element) for element in _every(root, "Calendars", "Calendar")),
         tasks=tasks,
+        lineage_declared=lineage_field is not None,
     )
     return ReadProject(project, _ignored(root, project))
 
