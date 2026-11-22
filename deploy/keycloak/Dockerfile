@@ -19,7 +19,16 @@ ARG WATERFALL_MIRROR=
 FROM ${WATERFALL_MIRROR}maven:3-eclipse-temurin-27@sha256:3175c44b207d6698aecb9bbb5bf285b5b4efcf7f567d6f65d88cd218276a6ab2 AS extension
 WORKDIR /build
 COPY extension/pom.xml ./
-RUN --mount=type=cache,target=/root/.m2 mvn --batch-mode --quiet dependency:go-offline
+# The dependencies from Maven Central, three times at most, thirty seconds apart, each connection
+# given twenty seconds: in the queue, Central left a build hanging until Maven gave up, five minutes
+# later, finding no plugin (run 44885271614, 2026-11-21, six such failures from the 16th to the
+# 22nd). A second attempt finds what the first downloaded in the cache.
+RUN --mount=type=cache,target=/root/.m2 for attempt in 1 2 3; do \
+      mvn --batch-mode --quiet -Daether.connector.connectTimeout=20000 \
+        -Daether.connector.requestTimeout=60000 dependency:go-offline && exit 0; \
+      echo "Maven Central did not give the dependencies at attempt $attempt" >&2; \
+      [ "$attempt" = 3 ] || sleep 30; \
+    done; exit 1
 COPY extension/src ./src
 RUN --mount=type=cache,target=/root/.m2 mvn --batch-mode --quiet package
 
