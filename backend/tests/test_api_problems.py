@@ -10,12 +10,11 @@ from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
 import httpx2
-import psycopg
 import pytest
 import uvicorn
 from fastapi import FastAPI, Header, Path, Query
 from fastapi.testclient import TestClient
-from psycopg.errors import LockNotAvailable
+from psycopg.errors import DeadlockDetected, LockNotAvailable
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_core import PydanticCustomError
 from sqlalchemy.exc import OperationalError
@@ -126,7 +125,7 @@ ERRORS: dict[str, Exception] = {
     ),
     "unknown_code": ServiceError("NO_SUCH_CODE"),
     "lock": OperationalError("SELECT 1", {}, LockNotAvailable("lock timeout")),
-    "closed": OperationalError("SELECT 1", {}, psycopg.OperationalError("closed")),
+    "closed": OperationalError("SELECT 1", {}, DeadlockDetected("closed")),
     "unexpected": RuntimeError(f"cannot connect to {PLATFORM_SECRETS['WATERFALL_DATABASE_URL']}"),
 }
 
@@ -350,7 +349,8 @@ def test_a_lock_the_database_refuses_is_a_503_on_a_route_that_set_no_bound_but_n
     app: FastAPI,
 ) -> None:
     # #924: a lock refused within the delay a transaction gave itself is no internal error, on any
-    # route; an error of the database that is not a lock refused stays the 500.
+    # route; an error of the database that is neither a lock refused nor a database out of
+    # reach (a deadlock, 40P01) stays the 500.
     client = TestClient(app, raise_server_exceptions=False)
     refused = client.get("/fail/lock")
     problem = problem_of(refused)
