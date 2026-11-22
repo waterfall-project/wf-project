@@ -104,6 +104,14 @@ export default defineConfig({
           name: "dom",
           include: [DOM],
           environment: "happy-dom",
+          // Fifteen seconds for a test of a component, not the five of Vitest. A scenario that
+          // opens a form twice, runs axe on it and clicks through it takes a second alone
+          // (`risk-lifecycle.dom.test.tsx`, « Déclarer survenu », 1.1 s on the workstation,
+          // 2026-11-22); measured on three workers that share a runner with the coverage, it overran
+          // the five seconds in the queue of #4717 (runs 45016155370 and 45024108511), and three
+          // times its merge was played again for it. A slow test is not a defect; one that waits
+          // forever still fails here, its wait named.
+          testTimeout: 15_000,
           setupFiles: [SERVER_ONLY, "src/test/setup-dom.ts"],
         },
       },

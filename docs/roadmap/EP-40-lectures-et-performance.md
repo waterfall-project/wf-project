@@ -2,7 +2,7 @@
 id: EP-40
 titre: Tenir les objectifs de temps de réponse — requêtes qui parcourent toutes les partitions, grilles comparées, marquage, écran des indicateurs, et les outils de mesure
 statut: à planifier
-depend_de: EP-13
+depend_de: EP-13, EP-11
 famille: front, back
 issue:
 ---
@@ -113,6 +113,16 @@ Reporté par le cadrage d'EP-36 du 2026-11-21 (décision de l'auteur) :
 - #4446 — aucun test ne cite WF-IHM-0080-A sur le marquage d'une révision de dix mille objets
   (« laisse l'écran utilisable et présente son avancement ») : un parcours au volume, sur le jeu
   qu'EP-13 charge (RMP-03) ; EP-36 (US-3490) corrige le renvoi circulaire d'EP-09 et d'EP-04
+
+Reportées d'EP-11 le 2026-11-21 au soir (décision de l'utilisateur, « Reprise du 2026-11-21
+soir » du fichier d'EP-11), à rattacher à un lot :
+
+- #3868 — US-2790 d'EP-11 entière : les vues du portefeuille mesurées, au jour courant et à une
+  date passée ; la mesure prend le poste
+- #4165, #4177, #4313 — back : les lectures du jour projet par projet (empreinte, indicateurs,
+  couverture des risques), que la mesure d'US-2790 décide
+- #4339 — back : la courbe en S du jour re-choisit la révision que le périmètre a retenue (décision
+  du 2026-11-21 : corrigé avec US-2790)
 
 ## Conception
 

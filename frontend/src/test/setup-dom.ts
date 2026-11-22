@@ -17,9 +17,12 @@
  * and Alt with a key would read as a character typed, never as a shortcut (`triesEntry`,
  * `foldShortcut`). Set before each test, as a test file restores its spies after each.
  *
+ * A render never yields (`render-without-yield.ts`), so that the load of the machine fails no test.
+ *
  * The inside of an element measures its box (`measureInsideByBox`): a test sizes the element that
  * scrolls by its box, and the window of the rows of a grid is measured by its inside.
  */
+import "./render-without-yield";
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup } from "@testing-library/react";

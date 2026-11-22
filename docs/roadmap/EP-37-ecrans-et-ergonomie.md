@@ -100,6 +100,23 @@ jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 - #4462 — les chaînes d'interface bâties à la main (FCO-12, FAR-07) — sans effet visible en français
   ni en anglais : candidat à l'abandon
 
+Reportées d'EP-11 le 2026-11-21 au soir (décision de l'utilisateur, « Reprise du 2026-11-21
+soir » du fichier d'EP-11), à rattacher à un lot :
+
+- #4349 — front : la structure des coûts affiche le montant d'une nature non calculée comme partiel
+- #4160 — front : deux autres copies d'IDENTIFIER laissent passer un identifiant qui n'est pas un
+  UUID
+
+Issues ouvertes, reportées d'EP-08 le 2026-11-22 :
+
+- #4323 — front : l'avatar d'un compte n'est affiché nulle part hors de l'écran de l'avatar (bloqué
+  par #4322, EP-38)
+
+Reporté par EP-13 le 2026-11-22 (décision de l'auteur) :
+
+- #4684 — front : aucune garde des 100 colonnes des commentaires ; une règle d'ESLint limitée aux
+  commentaires et un passage sur tout le front, avec #3479 et #3523
+
 ## Conception
 
 À écrire au cadrage.
