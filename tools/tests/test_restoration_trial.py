@@ -463,7 +463,7 @@ def test_a_sign_in_that_fails_without_the_maintenance_fails_the_trial_after_the_
     missed = {**ANSWERS, "GET /tasks/r": [(401, {"code": "SESSION_REVOKED"})] * 100}
     clock = FakeClock()
     trial = trial_with_realm_down(FakeApi(missed), probes(*["ok"] * 1300), clock, realm_down_once())
-    failure = r"s \(the sign-in again failed: the realm is down\)"
+    failure = r"was refused \(the sign-in again failed: the realm is down\)"
     with pytest.raises(TrialError, match=failure) as raised:
         trial.restored("token-1", "r")
     assert isinstance(raised.value.__cause__, ProductionError)
