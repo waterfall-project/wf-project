@@ -22,7 +22,7 @@ from waterfall.core.cost_settings.interface import read_actual_cost_mapping
 from waterfall.core.costs import analysing, applying
 from waterfall.core.costs.applying import Applied
 from waterfall.core.costs.extraction import HEADER_ROW, read_header, sheet_rows
-from waterfall.core.exchanges.interface import LARGEST_FILE
+from waterfall.core.exchanges.interface import LARGEST_FILE, kept
 from waterfall.core.projects.interface import (
     NO_BACKGROUND_TASK_RUNNING,
     no_background_task_running,
@@ -75,7 +75,7 @@ class ActualCostsFormat:
         try:
             rows = sheet_rows(head, max_row=HEADER_ROW)
         except UnprocessableError as refusal:
-            return refusal
+            return kept(refusal)
         return rows[0] if rows else ()
 
     def judge_header(self, session: Session, parsed: tuple[Any, ...] | UnprocessableError) -> None:

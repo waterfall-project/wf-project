@@ -132,9 +132,11 @@ class Format[Prepared, Parsed](Protocol):
     permission it asks of who opens, applies or abandons it — and of its requester again when its
     task runs —, the quality of contributor with it (``planning.write`` for a planning).
     The header is read in two steps (US-3190/L2). ``parse_header`` parses the head of a file before
-    the opening takes the lock of the project, reading nothing of the database and raising nothing:
-    the refusal of a head it does not recognise is kept in what it gives, ``Parsed``, as is what the
-    second step needs of the head. ``judge_header`` judges that under the lock, at the place the
+    the opening takes the lock of the project, reading nothing of the database. The refusals of
+    format it knows — a head it does not recognise, a file damaged or beyond the bounds — are kept
+    in what it gives, ``Parsed``, never raised, as is what the second step needs of the head; a
+    defect it does not know still raises. ``Parsed`` is typed inside each format only: the registry
+    holds ``Format[Any, Any]``, and erases it. ``judge_header`` judges that under the lock, at the place the
     contract gives the refusal in the order of ``openImport``, raising it then by a typed exception
     (422 ``FILE_FORMAT_UNREADABLE``, ``expected_format``, ``expected_version``) — and judging what
     depends on the database, the mapping of the actual costs. ``judge`` refuses an
@@ -458,8 +460,20 @@ def kept_refusal(check: Callable[[bytes], None], head: bytes) -> UnprocessableEr
     try:
         check(head)
     except UnprocessableError as refusal:
-        return refusal
+        return kept(refusal)
     return None
+
+
+def kept(refusal: UnprocessableError) -> UnprocessableError:
+    """Give a refusal without its trace, to be kept until it is raised under the lock.
+
+    The traceback of a refusal, and the exception it was raised in the midst of, hold the frames
+    that held the bytes of the workbook: a refusal kept has none, and is raised afresh.
+    """
+    refusal.__traceback__ = None
+    refusal.__context__ = None
+    refusal.__cause__ = None
+    return refusal
 
 
 def _judge_period(opening: ImportOpening) -> None:
