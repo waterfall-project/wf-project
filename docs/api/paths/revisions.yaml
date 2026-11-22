@@ -1374,7 +1374,9 @@
           `revision_draft` on a marked revision, which keeps the own estimate pruned
           (WF-DAT-0020), then `no_background_task_running` during a marking, a merge, the
           processing of an occurrence or the application of an import, then `risk_not_occurred`
-          for the own estimate of an occurred risk, consumed by its occurrence (WF-RIS-0060).
+          for the own estimate of an occurred risk, consumed by its occurrence (WF-RIS-0060), then
+          `own_estimate_pruned` for a structure that is not a pruned own estimate — the main
+          structure, a differential, a whole own estimate, which has nothing to recompose.
           Nothing is written.
         content:
           application/problem+json:

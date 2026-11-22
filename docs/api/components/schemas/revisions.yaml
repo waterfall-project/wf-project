@@ -608,7 +608,10 @@ StructureCommand:
 
     `recompose` is listed on the own estimate of a risk that is pruned and not consumed, and on
     no other structure, and lacks the same state conditions in the same order: it is available on
-    a pruned own estimate of the current revision (`recomposeCostStructure`, WF-RIS-0030).
+    a pruned own estimate of the current revision (`recomposeCostStructure`, WF-RIS-0030). Its
+    409 names, after the state conditions, `risk_not_occurred` for a consumed own estimate, then
+    `own_estimate_pruned` for the main structure, a differential and a whole own estimate, on
+    which the command is not listed.
 
 StructureCommandAvailability:
   type: object

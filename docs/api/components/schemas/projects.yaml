@@ -410,7 +410,11 @@ CommandCondition:
     its entry, for the review that leaves or makes its risk identified, and for the report and
     the declaration of its occurrence, which wait for its update (`rebaseCostStructure`): an entry
     on an out of date own estimate would be priced on a project that no longer exists, and an
-    occurrence would merge a designation that has not been confronted with it. The review that
+    occurrence would merge a designation that has not been confronted with it.
+    `own_estimate_pruned` is missing on a structure that is not a pruned own estimate — the main
+    structure, a differential, a whole own estimate —, for its recomposition
+    (`StructureCommand.recompose`, `recomposeCostStructure`), which is listed on a pruned own
+    estimate only. The review that
     dismisses the risk requires neither. The structure names them in its commands
     (`StructureCommand`), the risk in its own (`Risk.available_commands`), and each of these
     operations in its 409, after its state conditions; nothing is written.
@@ -488,6 +492,7 @@ CommandCondition:
     - structure_out_of_date
     - own_estimate_whole
     - own_estimate_up_to_date
+    - own_estimate_pruned
     - import_awaiting_decision
     - import_file_accepted
     - import_not_applied

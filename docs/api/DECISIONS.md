@@ -12935,7 +12935,11 @@ plus. Les autres modifications du contrat d'EP-30 — `Risk`, `RiskReview`, `lis
   saisie des risques (`RevisionCommand.edit_risks`) ; listée sur un devis propre élagué non consommé
   seul, comme `delete` l'est sur un différentiel non fusionné seul. Son 409 nomme, dans l'ordre,
   `project_not_terminal`, `revision_draft`, `no_background_task_running`, puis `risk_not_occurred`
-  pour un devis propre consommé.
+  pour un devis propre consommé, puis **`own_estimate_pruned`** pour une structure qui n'est pas un
+  devis propre élagué (la principale, un avenant, un devis propre entier). Cette troisième valeur de
+  `CommandCondition` complète les deux conditions de #4623 (ci-dessous) : le 409 de la recomposition,
+  décidé par #4620, doit nommer une condition qui manquait ; elle suit `own_estimate_up_to_date` dans
+  l'énumération.
 - **La mise à jour d'un devis propre** (#4621) : `getStructureRebaseReport` et `rebaseCostStructure`
   l'acceptent, la commande `rebase` listée sur un devis propre non consommé, sous la permission de la
   saisie des risques et non de l'ouverture d'un différentiel. Leur 409, dans l'ordre :

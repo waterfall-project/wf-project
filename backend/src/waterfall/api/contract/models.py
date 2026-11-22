@@ -1038,6 +1038,7 @@ class CommandCondition(StrEnum):
     structure_out_of_date = "structure_out_of_date"
     own_estimate_whole = "own_estimate_whole"
     own_estimate_up_to_date = "own_estimate_up_to_date"
+    own_estimate_pruned = "own_estimate_pruned"
     import_awaiting_decision = "import_awaiting_decision"
     import_file_accepted = "import_file_accepted"
     import_not_applied = "import_not_applied"
