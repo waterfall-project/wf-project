@@ -215,3 +215,27 @@ def test_the_copy_of_a_revision_keeps_an_own_estimate_whole_and_up_to_date(
     with project.stage.database.transaction() as session:
         [copied] = own_estimate_states(session, project.project_id, opened["revision_id"])
     assert (copied.risk_id, copied.whole, copied.up_to_date) == (risk.risk_id, True, True)
+
+
+def test_the_copy_of_a_consumed_own_estimate_pruned_is_consumed_and_names_no_marked_revision(
+    api: ContractClient, project: Costed
+) -> None:
+    # An own estimate consumed is taken up empty: it holds no difference, and names no marked
+    # revision its differences would be exact against, even pruned in the revision copied.
+    risk = risk_differential(project)
+    with project.stage.owner.begin() as connection:
+        connection.execute(
+            update(CostStructure)
+            .where(CostStructure.id == risk.structure_id)
+            .values(is_merged=True, pruned_revision_id=project.revision_id)
+        )
+    mark(project.stage, {"revision_id": str(project.revision_id)})
+    opened = Risks(api, project).revision()
+    with project.stage.database.transaction() as session:
+        [copied] = own_estimate_states(session, project.project_id, opened["revision_id"])
+    assert copied.structure_id != risk.structure_id
+    assert (copied.risk_id, copied.consumed, copied.pruned_revision_id) == (
+        risk.risk_id,
+        True,
+        None,
+    )

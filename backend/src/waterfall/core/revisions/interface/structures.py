@@ -346,7 +346,8 @@ def copy_consumed_estimate(copy: RevisionCopy, structure_id: UUID) -> UUID:
     row it is — merged, its lineage and its start kept — but not its content, which the occurrence
     consumed and which is read in the revision it occurred in (WF-REV-0100, WF-RIS-0060). Its nodes,
     its lines and its images are not taken up: ``copy_structures`` leaves it out of the identifiers
-    the copies of the planning and of the estimate follow.
+    the copies of the planning and of the estimate follow. Empty, it holds no difference to be exact
+    against a marked revision: a pruned one's copy names none (``pruned_revision_id`` null).
     """
     row = copy.session.scalars(
         select(CostStructure).where(
@@ -365,7 +366,7 @@ def copy_consumed_estimate(copy: RevisionCopy, structure_id: UUID) -> UUID:
             lineage_id=row.lineage_id,
             risk_id=row.risk_id,
             main_lock_version=NEVER_BORNE,
-            pruned_revision_id=row.pruned_revision_id,
+            pruned_revision_id=None,
             planning_start_on=row.planning_start_on,
             scheduled_at=row.scheduled_at or row.created_at,
             lock_version=FIRST_VERSION,
