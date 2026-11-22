@@ -4625,7 +4625,8 @@ an address outside the contract a 404 (`NO_PATH_MATCHED_ERROR`), a request outsi
 service authenticates, and its refusal passes as it is, checked against the contract. It finally
 launches Playwright with, in its environment — never on the command line, where the password of
 Redis could be read —, `E2E_PART=service`, `WATERFALL_API_ADDRESS` (the proxy), `E2E_CONTRACT_PROXY`
-(its container), `E2E_SERVICE_DATABASE` (PostgreSQL's), `WATERFALL_KEYCLOAK_ADDRESS`,
+(its container), `E2E_SERVICE_DATABASE` (PostgreSQL's), `E2E_SERVICE_CACHE` (Redis's), `E2E_SERVICE_DIRECTORY`
+(OpenLDAP's), `WATERFALL_KEYCLOAK_ADDRESS`,
 `WATERFALL_FRONT_ADDRESS`, `WATERFALL_REDIS_URL` (the Redis of the platform) and
 `NODE_EXTRA_CA_CERTS` (the root of the authority of Keycloak's front end); the secret of the front's
 client, and that of Keycloak's administrator, come from the environment. The platform stays up:

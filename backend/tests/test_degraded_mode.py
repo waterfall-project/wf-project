@@ -38,7 +38,7 @@ from projects_support import scene as make_scene
 from prometheus_support import TestPrometheus
 from redis.exceptions import RedisError
 from sqlalchemy import event, select
-from support import ContractClient
+from support import ContractClient, Logs
 
 from waterfall.api.app import create_app
 from waterfall.api.contract.models import PlatformComponent
@@ -270,6 +270,25 @@ def stop_at_the_journal(platform: Degradable) -> None:
     event.listen(engine, "before_cursor_execute", stop)
 
 
+def tasks_held(database: Database, task_id: str) -> list[tuple[str, int]]:
+    """Read the status and the attempts of every row of the table holding a task: one, or none."""
+    with database.transaction() as session:
+        rows = session.execute(
+            select(BackgroundTask.status, BackgroundTask.attempts).where(
+                BackgroundTask.id == UUID(task_id)
+            )
+        ).all()
+    return [(status, attempts) for status, attempts in rows]
+
+
+def preferences_held(database: Database, user_id: UUID) -> dict[str, Any]:
+    """Read the display preferences an account holds."""
+    with database.transaction() as session:
+        return session.scalars(
+            select(UserAccount.display_preferences).where(UserAccount.id == user_id)
+        ).one()
+
+
 def stop_as_the_write_commits(platform: Degradable) -> None:
     """Stop Redis as the write commits, before the task it wrote is deposited in the queue."""
     engine = platform.gated_database.engine
@@ -316,19 +335,31 @@ def test_a_task_written_as_redis_stops_is_not_lost_and_is_taken_when_it_returns(
     platform: Degradable, stage: Scene
 ) -> None:
     # Redis stops as the task commits: it is written, queued, and not in the stream; the worker
-    # that starts once Redis is back deposits again what the table holds, and ends it.
+    # that starts once Redis is back deposits again what the table holds, and ends it. By
+    # construction the task is deposited in the stream after its row is committed, so Redis stopping
+    # at the commit leaves the row whole and the stream without it: nothing is half written, and the
+    # test holds the row to be exactly what a task asked for is, once and unstarted.
     direct = platform.servers
     revision = open_revision(platform, stage)
+    before = row_counts(direct.owner)
     stop_as_the_write_commits(platform)
     asked = ask_marking(platform, stage, revision)
     assert asked.status_code == 202, asked.text
     task_id = asked.json()["task_id"]
     assert status_of(platform, stage, task_id) == "queued"
     assert direct.queue.waiting() == set()
+    assert tasks_held(direct.database, task_id) == [("queued", 0)]
+    written = row_counts(direct.owner)
+    assert written["background_task"] == before["background_task"] + 1
     platform.restore("cache")
     worker = import_worker(direct.database, direct.queue, direct.bucket)
     worker.redeposit()
+    assert tasks_held(direct.database, task_id) == [("queued", 0)]
+    assert direct.queue.waiting() == {UUID(task_id)}
+    assert row_counts(direct.owner) == written
     run(worker)
+    assert tasks_held(direct.database, task_id) == [("succeeded", 1)]
+    assert row_counts(direct.owner)["background_task"] == written["background_task"]
     assert status_of(platform, stage, task_id) == "succeeded"
     assert read_revision(platform, stage, revision["revision_id"])["status"] == "marked"
 
@@ -377,21 +408,20 @@ def test_a_language_met_by_an_identity_provider_that_stops_is_written_nowhere_un
     assert isinstance(administration, Cutting)
     administration.cut = lambda: platform.stop("identity_provider")
     before = row_counts(direct.owner)
+    # The counts do not see an ``UPDATE``: the language is read in the column itself.
+    kept = preferences_held(direct.database, manager.user_id)
     asked = {"language": "en"}
     refused = platform.api.patch(PREFERENCES, headers=manager.headers, json=asked)
     refused_naming(refused, "identity_provider")
     assert row_counts(direct.owner) == before
+    assert preferences_held(direct.database, manager.user_id) == kept
     assert realm.accounts[subject]["attributes"] == {"locale": ["fr"]}
     platform.restore("identity_provider")
     administration.cut = None
     again = platform.api.patch(PREFERENCES, headers=manager.headers, json=asked)
     assert again.status_code == 200, again.text
     assert realm.accounts[subject]["attributes"]["locale"] == ["en"]
-    with direct.database.transaction() as session:
-        held = session.scalars(
-            select(UserAccount.display_preferences).where(UserAccount.id == manager.user_id)
-        ).one()
-    assert held["language"] == "en"
+    assert preferences_held(direct.database, manager.user_id)["language"] == "en"
 
 
 # Each line of the table 12 (§4.5.4), a component stopped at a time: what continues continues, and
@@ -422,6 +452,20 @@ def test_table_12_postgresql_stopped_the_service_says_so_and_the_dashboard_of_th
     platform.restore("database")
     consult_and_enter(platform, stage, "Reprise")
     assert api.get("/api/v1/health/ready").status_code == 200
+
+
+@pytest.mark.story("US-2860")
+def test_a_request_met_by_a_postgresql_that_stopped_logs_the_cause_in_a_line(
+    platform: Degradable, stage: Scene, logs: Logs
+) -> None:
+    # #4189: the log of the refusal names the error and says why, in the first line of it.
+    platform.stop("database")
+    logs.clear()
+    refused_naming(platform.api.get(PROJECTS, headers=stage.manager.headers), "database")
+    (written,) = logs.named("request.database_unreachable")
+    assert written["error"]
+    assert written["reason"]
+    assert "\n" not in written["reason"]
 
 
 @pytest.mark.story("US-2860")

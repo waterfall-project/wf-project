@@ -46,8 +46,22 @@ ADDRESS = "postgresql://nobody:nothing@127.0.0.1:9/nowhere"
 @pytest.mark.story("US-2860")
 @pytest.mark.parametrize(
     ("query", "waited"),
-    [("", CONNECT_TIMEOUT), ("?connect_timeout=10", 10), ("?connect_timeout=1&x=2", 1)],
-    ids=["by default", "the address says ten", "the address says one"],
+    [
+        ("", CONNECT_TIMEOUT),
+        ("?connect_timeout=10", 10),
+        ("?connect_timeout=1&x=2", 1),
+        ("?connect_timeout=0", CONNECT_TIMEOUT),
+        ("?connect_timeout=-3", CONNECT_TIMEOUT),
+        ("?connect_timeout=soon", CONNECT_TIMEOUT),
+    ],
+    ids=[
+        "by default",
+        "the address says ten",
+        "the address says one",
+        "zero is unbounded for libpq",
+        "negative",
+        "not a number",
+    ],
 )
 def test_the_connect_timeout_the_address_declares_is_the_one_kept(
     monkeypatch: pytest.MonkeyPatch, query: str, waited: int
@@ -93,6 +107,26 @@ def test_the_probe_of_liveness_answers_within_the_pool_timeout_when_every_connec
     assert elapsed < POOL_TIMEOUT + 1
 
 
+@pytest.mark.story("US-2860")
+def test_a_pool_spent_for_longer_than_its_timeout_is_the_database_out_of_reach(
+    database: Database,
+) -> None:
+    # #4189 (a choice, kept): the bound is the same for every engine made by
+    # ``create_database_engine``; a burst that holds the whole reserve past it is a refusal naming
+    # the database, within the bound.
+    held = [database.engine.connect() for _ in range(POOL_SIZE + POOL_OVERFLOW)]
+    try:
+        began = time.monotonic()
+        with pytest.raises(PoolTimeoutError) as spent:
+            database.engine.connect()
+        elapsed = time.monotonic() - began
+    finally:
+        for each in held:
+            each.close()
+    assert is_unreachable(spent.value)
+    assert elapsed < POOL_TIMEOUT + 1
+
+
 def driver_failure(driver: psycopg.Error) -> OperationalError:
     """Give what SQLAlchemy raises when the driver fails with ``driver``."""
     return OperationalError("SELECT 1", {}, driver)
@@ -107,6 +141,10 @@ def driver_failure(driver: psycopg.Error) -> OperationalError:
         (driver_failure(errors.CannotConnectNow("starting")), True),
         (driver_failure(errors.ConnectionFailure("lost")), True),
         (PoolTimeoutError("the pool is spent"), True),
+        # Class 53, insufficient resources: the server answers and refuses to take one more
+        # connection. It is not out of reach — it is full — and a retry of the request may pass, so
+        # it stays an internal error rather than naming the database as down.
+        (driver_failure(errors.TooManyConnections("too many connections")), False),
         (driver_failure(errors.LockNotAvailable("lock")), False),
         (driver_failure(errors.DeadlockDetected("deadlock")), False),
         (driver_failure(errors.QueryCanceled("cancelled")), False),
@@ -119,6 +157,7 @@ def driver_failure(driver: psycopg.Error) -> OperationalError:
         "starting",
         "connection lost",
         "pool spent",
+        "too many connections",
         "lock refused",
         "deadlock",
         "cancelled",

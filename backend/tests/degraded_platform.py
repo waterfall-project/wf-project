@@ -9,7 +9,7 @@ tests of the slot, shared by the run: a test closes a gate, never a server (WF-E
 """
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
@@ -29,6 +29,7 @@ from waterfall.platform.database import (
 )
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
+from waterfall.platform.maintenance import Maintenance
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
 from waterfall.platform.storage import Bucket
 
@@ -160,6 +161,9 @@ def build(
         queue,
         storage_through(gates.object_storage, servers.bucket),
     )
+    # As in production, every request reads the maintenance first, through the gated database: a
+    # database that stops is met there before the route is (``api/maintenance.py``).
+    services = replace(services, maintenance=Maintenance.of(database, queue))
     app = create_app(services)
     api = ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
@@ -174,6 +178,9 @@ def build(
 
 def row_counts(owner: Engine) -> dict[str, int]:
     """Count the rows of every table the code declares, as the owner reads them.
+
+    It sees the rows that exist, not the ones changed in place: an ``UPDATE`` leaves every count
+    as it was, and a test of a write that updates reads the column itself before and after.
 
     A write that left something half done changes a count that the whole of it would have changed
     with the others, or not at all: two counts taken around a refused request must be equal.

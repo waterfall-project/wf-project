@@ -82,7 +82,11 @@ class CorrelationMiddleware:
                 unreachable = is_unreachable(error)
                 if unreachable:
                     # The component is out of reach: said by its name, with the cause in a line.
-                    logger.warning("request.database_unreachable", error=type(error).__name__)
+                    logger.warning(
+                        "request.database_unreachable",
+                        error=type(error).__name__,
+                        reason=(str(error).splitlines() or [""])[0],
+                    )
                 else:
                     logger.exception("request.failed")
                 if not answered:

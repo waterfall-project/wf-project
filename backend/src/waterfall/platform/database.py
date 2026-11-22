@@ -192,7 +192,11 @@ OBSERVATION_SECONDS = 3
 CONNECT_TIMEOUT = 2
 # How long a request waits for a connection of its pool to be lent: no longer than a connection
 # takes to open, so that the probe of liveness, which reads the maintenance through that pool, says
-# so within what the healthcheck waits when the pool is spent (#4189).
+# so within what the healthcheck waits when the pool is spent (#4189). The bound is the one of every
+# engine ``create_database_engine`` makes — the worker's, the restoration's, the bootstrap's, the
+# witness's, the migrations' —, a choice kept on purpose: a burst that holds the reserve longer
+# than this is a database refused naming ``database`` (``is_unreachable``), not a request that
+# waits thirty seconds behind it.
 POOL_TIMEOUT = CONNECT_TIMEOUT
 
 
@@ -248,7 +252,14 @@ def connect_timeout_of(url: URL) -> int | str:
     given = url.query.get("connect_timeout")
     if given is None:
         return CONNECT_TIMEOUT
-    return given if isinstance(given, str) else given[-1]
+    last = given if isinstance(given, str) else given[-1]
+    # libpq reads zero as « without a bound » and ignores a negative or a non-number: none of them
+    # may leave the connection unbounded, so each falls back to the default.
+    try:
+        seconds = int(last)
+    except ValueError:
+        return CONNECT_TIMEOUT
+    return last if seconds > 0 else CONNECT_TIMEOUT
 
 
 def create_database_engine(address: str) -> Engine:
