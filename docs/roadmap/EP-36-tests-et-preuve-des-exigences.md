@@ -252,6 +252,14 @@ Reçu d'EP-08 le 2026-11-21 (décision de l'auteur) :
 Reçu du cadrage d'EP-32 (« ce que `make requirements` ne lit pas d'un parcours joué contre le
 service — EP-36 ») : écarté, voir « Ce qui n'en fait pas partie ».
 
+Reportés par EP-13 le 2026-11-22 (décision de l'auteur), rattachés à #4596, à placer :
+
+- #4396 — back : le test des projets désignés hors du chemin ne lit pas les corps de requête du
+  contrat → proposé : US-3460 ;
+- #4397 — front : le test du harnais compare en littéral la commande du front contre le service
+  → proposé : US-3420 ;
+- #4638 — outil : l'essai réel de Grafana importe un autre module de test → proposé : US-3460.
+
 ## Conception
 
 Écrite le 2026-11-21, après la validation des US par l'auteur le même jour, contre `main`
