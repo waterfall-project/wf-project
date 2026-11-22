@@ -20,7 +20,13 @@ tasks and links in its part, the nodes of the lines when the estimate asks it
 (``place_merged_lines``), whose facets the estimate writes, and, at the end, removes the tasks the
 merge does not keep, completes the started ones it keeps, and replays the engine.
 
-Written by US-2560/L1; the application by US-2560/L2.
+In the mode of an occurrence (``OCCURRENCE_MERGE``; EP-30, "La survenance"), the same part keeps
+and completes every task the own estimate abandons, whatever its state, the nodes it adds bear the
+trace of the risk, and the end names the completed tasks the occurrence reopens
+(``MergePart.reopened_tasks``) — of the lines, those the estimate tells it it adds or designates
+(``merge_lines_worked``) —, which the application reopens before the engine is replayed.
+
+Written by US-2560/L1; the application by US-2560/L2; the mode of an occurrence by US-3100/L1.
 """
 
 from dataclasses import dataclass, field
@@ -30,10 +36,15 @@ from uuid import UUID
 from waterfall.core.planning.carrying import bearing
 from waterfall.core.planning.interface.facets import BearingTask
 from waterfall.core.planning.interface.rebased import load_rebase
-from waterfall.core.planning.merging import merge_plan, merge_refusals, task_differences
+from waterfall.core.planning.merging import (
+    merge_plan,
+    merge_refusals,
+    reopened_named,
+    task_differences,
+)
 from waterfall.core.planning.merging_writing import finish, place_lines, write_tasks
 from waterfall.core.planning.tree import LINE
-from waterfall.core.planning.views import NOT_STARTED, STARTED, state_of
+from waterfall.core.planning.views import NOT_STARTED, state_of
 from waterfall.core.revisions.interface import (
     MergePart,
     MergeRequest,
@@ -42,7 +53,7 @@ from waterfall.core.revisions.interface import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Collection, Mapping
 
     from sqlalchemy.orm import Session
 
@@ -66,10 +77,11 @@ class MergedLine:
 class MergedLines:
     """Where the lines of a merge stand, each structure in the order of its plan.
 
-    ``kept`` the lineages of the tasks the differential removes and the merge keeps, started;
-    ``moved`` the lineage of each task it removes whose provision lines go to another task, with
-    the node of that task — in the main structure, or in the differential for a task it adds;
-    ``completing`` the lineages of the tasks kept that are started, which the merge completes;
+    ``kept`` the lineages of the tasks the differential removes and the merge keeps — started, or
+    all of them in an occurrence —; ``moved`` the lineage of each task it removes whose provision
+    lines go to another task, with the node of that task — in the main structure, or in the
+    differential for a task it adds; ``completing`` the lineages of the tasks kept the merge
+    completes — the started ones, or, in an occurrence, every one not completed —;
     ``started`` those of the tasks of the main structure that are started or completed; ``tasks``
     each task the merge leaves, by its lineage, in the order of the plan, with its node in the main
     structure — none for a task the differential adds — and its label; ``bearers`` each task it
@@ -103,12 +115,23 @@ def merge_tasks(merging: StructureMerging) -> MergePart:
 def merge_end(merging: StructureMerging) -> MergePart:
     """Judge the structure a merge leaves, once every part is given (#3946); give its refusals.
 
-    The application judged them before it wrote: it ends the merge instead (``finish``).
+    And the completed tasks an occurrence reopens, none for an amendment. The application judged
+    the refusals before it wrote: it ends the merge instead (``finish``), reopening those tasks.
     """
+    reopened = reopened_named(merge_plan(merging))
     if merging.applying:
         finish(merging)
-        return MergePart()
-    return MergePart(refusals=merge_refusals(merging))
+        return MergePart(reopened_tasks=reopened)
+    return MergePart(refusals=merge_refusals(merging), reopened_tasks=reopened)
+
+
+def merge_lines_worked(merging: StructureMerging, tasks: Collection[UUID]) -> None:
+    """Tell the plan of a merge the tasks, by their lineage, whose lines it adds or designates.
+
+    The estimate tells them in its part, before the end, which names those of them an occurrence
+    reopens (``MergePart.reopened_tasks``).
+    """
+    merge_plan(merging).worked.update(tasks)
 
 
 def place_merged_lines(merging: StructureMerging) -> Mapping[UUID, UUID]:
@@ -144,9 +167,7 @@ def merged_lines(merging: StructureMerging) -> MergedLines:
     main = plan.main
     kept = frozenset(main.nodes[each].lineage_id for each in plan.kept)
     completing = frozenset(
-        main.nodes[each].lineage_id
-        for each in plan.kept
-        if state_of(main, each).progress == STARTED
+        main.nodes[each].lineage_id for each in plan.kept if plan.completes(each)
     )
     started = frozenset(
         main.nodes[each].lineage_id

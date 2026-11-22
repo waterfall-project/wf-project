@@ -325,7 +325,7 @@ from waterfall.core.planning.interface.loading import (
 
 # ``merging`` (US-2560/L1): the part of the planning in the merge of a differential, its end, and
 # where the lines stand for the estimate's; the nodes of the lines it writes, and the merge of the
-# witness (US-2560/L2).
+# witness (US-2560/L2); the tasks whose lines a merge writes, told by the estimate (US-3100/L1).
 from waterfall.core.planning.interface.merging import (
     MergedLine as MergedLine,
 )
@@ -340,6 +340,9 @@ from waterfall.core.planning.interface.merging import (
 )
 from waterfall.core.planning.interface.merging import (
     merge_end as merge_end,
+)
+from waterfall.core.planning.interface.merging import (
+    merge_lines_worked as merge_lines_worked,
 )
 from waterfall.core.planning.interface.merging import (
     merge_tasks as merge_tasks,

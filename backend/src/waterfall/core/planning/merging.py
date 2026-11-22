@@ -11,6 +11,15 @@ under its parent after the tasks of the differential (WF-REV-0050); that parent 
 either, being started. The links are the differential's; the attachments to the work breakdown the
 main structure's, a differential bearing none (WF-PLA-0170).
 
+The occurrence of a risk merges its own estimate in a mode of its own (``OCCURRENCE_MERGE``; EP-30,
+"La survenance"): every task it no longer carries is kept and completed, whatever its state — the
+rule an amendment applies to a started task (WF-REV-0050; decision of the author of 2026-11-19) —,
+the tasks and the lines it adds bear the trace of the risk (``origin_risk_id``), and the completed
+tasks of the main structure it reopens are named (``reopening``): each that bears a line the
+merge adds or designates (``MergePlan.worked``, which the estimate tells), and each under which a
+task not completed comes — added, or moved there —, with the completed summaries above them. The
+report names them without refusing, as EP-08 named a graft under a completed task (#4240).
+
 What the report gives of it, in the forms of the contract (``ImportDifference``): each task added
 or updated — by its label, its description, its mode, its duration, its dates in manual mode and
 its parent, what the differential designates: the dates of an automatic task are computed, not
@@ -22,7 +31,8 @@ work package, then the engine replayed once — a loop, a link across the hierar
 each task named by its node in the main structure and its label, a node null for a task added. A
 task left without a working hour the estimate names, its lines' roles being its own.
 
-Written by US-2560/L1; what the application writes of it, by US-2560/L2 (``merging_writing``).
+Written by US-2560/L1; what the application writes of it, by US-2560/L2 (``merging_writing``);
+the mode of an occurrence by US-3100/L1.
 """
 
 from dataclasses import dataclass, field
@@ -52,9 +62,9 @@ from waterfall.core.planning.scheduling import (
 )
 from waterfall.core.planning.scheduling import Task as Planned
 from waterfall.core.planning.tree import LinkRow, read_link_rows, read_rows
-from waterfall.core.planning.views import NOT_STARTED, STARTED, state_of
+from waterfall.core.planning.views import COMPLETED, NOT_STARTED, STARTED, state_of
 from waterfall.core.projects.interface import current_day, work_breakdown_items
-from waterfall.core.revisions.interface import structure_facts
+from waterfall.core.revisions.interface import OCCURRENCE_MERGE, structure_facts
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
@@ -80,7 +90,10 @@ class MergePlan:
     A task merged is named by its node in the main structure, or in the differential for a task it
     adds; ``sources`` the node of the differential each task of it is merged from. ``parents`` and
     ``order`` place them; ``kept`` and ``removed`` are the tasks of the main structure the
-    differential no longer carries; ``links`` its links, between tasks merged.
+    differential no longer carries; ``links`` its links, between tasks merged. ``occurrence``
+    whether the merge is the occurrence of a risk, ``risk_id`` that risk, whose trace the nodes
+    it adds bear; ``worked`` the lineages of the tasks whose lines the merge adds or designates,
+    which the estimate tells (``merge_lines_worked``).
     """
 
     main: Tree[NodeRow, TaskRow]
@@ -94,6 +107,17 @@ class MergePlan:
     removed: list[UUID] = field(default_factory=list[UUID])
     links: dict[Pair, LinkRow] = field(default_factory=dict[Pair, LinkRow])
     summaries: set[UUID] = field(default_factory=set[UUID])
+    occurrence: bool = False
+    risk_id: UUID | None = None
+    worked: set[UUID] = field(default_factory=set[UUID])
+
+    def completes(self, task_id: UUID) -> bool:
+        """Tell whether the merge completes a task of the main structure it keeps.
+
+        A started one; in the mode of an occurrence, every one not completed, started or not.
+        """
+        progress = state_of(self.main, task_id).progress
+        return progress != COMPLETED if self.occurrence else progress == STARTED
 
     def facet(self, task_id: UUID) -> TaskRow:
         """Give the facet of a task: the differential's for a task merged from it, else its own."""
@@ -127,7 +151,11 @@ class MergePlan:
 
 
 def _placed(plan: MergePlan, amendment_links: list[LinkRow]) -> None:
-    """Place the tasks merged: the differential's in its order, then the kept under their parent."""
+    """Place the tasks merged: the differential's in its order, then the kept under their parent.
+
+    An occurrence keeps every task the differential no longer carries, an amendment the started
+    and the completed ones.
+    """
     main, amendment = plan.main, plan.amendment
     by_lineage = {main.nodes[each].lineage_id: each for each in main.tasks}
     for node_id in amendment.order:
@@ -140,10 +168,11 @@ def _placed(plan: MergePlan, amendment_links: list[LinkRow]) -> None:
     for task_id in main.order:
         if task_id in main.tasks and task_id not in plan.sources:
             started = state_of(main, task_id).progress != NOT_STARTED
-            (plan.kept if started else plan.removed).append(task_id)
+            (plan.kept if started or plan.occurrence else plan.removed).append(task_id)
     staying = {*plan.sources, *plan.kept}
     for task_id in plan.kept:
-        # A started task's parent is started too: merged from the differential, or kept.
+        # A started task's parent is started too: merged from the differential, or kept; in an
+        # occurrence, every task absent is kept, its parent among them.
         parent = main.nodes[task_id].parent_id
         plan.parents[task_id] = parent if parent in staying else None
     children: dict[UUID | None, list[UUID]] = {}
@@ -173,6 +202,9 @@ def merge_plan(merging: StructureMerging) -> MergePlan:
         read_link_rows(session, project_id, main_id),
         start,
     )
+    if merging.mode == OCCURRENCE_MERGE:
+        plan.occurrence = True
+        plan.risk_id = structure_facts(session, project_id, amendment_id, lock=False).risk_id
     _placed(plan, read_link_rows(session, project_id, amendment_id))
     merging.shared[SHARED] = plan
     return plan
@@ -268,9 +300,10 @@ def _absent(plan: MergePlan, items: Mapping[UUID, WorkBreakdownItem]) -> Iterato
 def task_differences(
     merging: StructureMerging,
 ) -> tuple[tuple[Json, ...], tuple[Json, ...]]:
-    """Give what the planning finds of a merge: its differences, and the started tasks it completes.
+    """Give what the planning finds of a merge: its differences, and the tasks it completes.
 
-    A started task the merge completes takes the day it is applied; none in the report.
+    A task the merge completes (``MergePlan.completes``) takes the day it is applied; none in the
+    report.
     """
     plan = merge_plan(merging)
     differences: list[Json] = []
@@ -294,9 +327,49 @@ def task_differences(
             "completed_on": day,
         }
         for task_id in plan.kept
-        if state_of(plan.main, task_id).progress == STARTED
+        if plan.completes(task_id)
     )
     return tuple(differences), completed
+
+
+def reopening(plan: MergePlan) -> list[UUID]:
+    """Give the completed tasks of the main structure an occurrence reopens, in the plan's order.
+
+    Each that bears a line the merge adds or designates (``MergePlan.worked``), each under which a
+    task not completed comes — added, or moved there from another parent —, and the summaries
+    above them, each one completed before the merge; none for an amendment, whose rule is
+    unchanged.
+    """
+    if not plan.occurrence:
+        return []
+    main = plan.main
+    by_lineage = {main.nodes[each].lineage_id: each for each in plan.order if each in main.nodes}
+    starts = {by_lineage[each] for each in plan.worked if each in by_lineage}
+    for task_id in plan.order:
+        parent = plan.parents[task_id]
+        if parent is None or task_id in plan.kept:
+            continue
+        held = main.nodes.get(task_id)
+        if held is None or (
+            held.parent_id != parent and state_of(main, task_id).progress != COMPLETED
+        ):
+            starts.add(parent)
+    reached: set[UUID] = set()
+    for each in starts:
+        above: UUID | None = each
+        while above is not None and above not in reached:
+            reached.add(above)
+            above = plan.parents[above]
+    return [
+        each
+        for each in plan.order
+        if each in reached and each in main.nodes and state_of(main, each).progress == COMPLETED
+    ]
+
+
+def reopened_named(plan: MergePlan) -> tuple[Json, ...]:
+    """Name the tasks an occurrence reopens by their node in the main structure and their label."""
+    return tuple(plan.named(each) for each in reopening(plan))
 
 
 # --- The refusals ---------------------------------------------------------------------------------

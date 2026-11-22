@@ -760,7 +760,7 @@ class StructureFacts:
 
     ``planning_start_on`` and ``scheduled_at`` are derived as the list reads them when the
     migration left them null (#2170); ``lock_version`` is the counter of its writes, ``kind`` its
-    nature.
+    nature; ``risk_id`` the risk whose own estimate it is, none for another kind (EP-30).
     """
 
     structure_id: UUID
@@ -772,6 +772,7 @@ class StructureFacts:
     label: str
     kind: str = MAIN
     is_merged: bool = False
+    risk_id: UUID | None = None
 
     @property
     def is_differential(self) -> bool:
@@ -816,6 +817,7 @@ def structure_facts(
         row.label,
         row.kind,
         row.is_merged,
+        row.risk_id,
     )
 
 

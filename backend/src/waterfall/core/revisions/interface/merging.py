@@ -27,7 +27,8 @@ date (#4034).
 
 Declared by US-2550/L1, the socle of EP-08, with nothing registered; filled by US-2560/L1 (the
 report, the end) and US-2560/L2 (the judgement shared with the application, ``merge_applying``).
-The mode of a merge (``MergeMode``) declared by US-3070/L1: the occurrence of a risk (US-3100).
+The mode of a merge (``MergeMode``) declared by US-3070/L1: the occurrence of a risk (US-3100),
+whose parts the planning and the estimate give from US-3100/L1 on.
 """
 
 from dataclasses import dataclass, field
@@ -106,13 +107,17 @@ class StructureMerging:
 class MergePart:
     """What a module finds of a merge, each in the form of the contract, empty when nothing.
 
-    ``differences`` as ``ImportDifference``, ``completed_tasks`` the started tasks the amendment
-    removes and the merge completes as ``ImportCompletedTask``, ``refusals`` as ``ReportRefusal``.
+    ``differences`` as ``ImportDifference``, ``completed_tasks`` the tasks the differential removes
+    and the merge keeps and completes as ``ImportCompletedTask`` — the started ones, or, in the mode
+    ``occurrence``, every one not completed —, ``refusals`` as ``ReportRefusal``; ``reopened_tasks``
+    the completed tasks of the main structure an occurrence reopens, by their node and their label,
+    as the warning of a graft under a completed task named its task (#4240), none for an amendment.
     """
 
     differences: tuple[Mapping[str, object], ...] = ()
     completed_tasks: tuple[Mapping[str, object], ...] = ()
     refusals: tuple[Mapping[str, object], ...] = ()
+    reopened_tasks: tuple[Mapping[str, object], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -159,8 +164,9 @@ def merge_parts(merging: StructureMerging) -> MergePart:
     """Give what every module registered finds of a merge, the parts then the ends; empty if none.
 
     The differences in the order of their change — added, updated, removed, kept —, each in the
-    order of the parts; the completed tasks and the refusals in the order of the parts. A difference
-    of a change unknown is a defect of the module that gave it: ``MergePartError``.
+    order of the parts; the completed tasks, the refusals and the tasks reopened in the order of the
+    parts. A difference of a change unknown is a defect of the module that gave it:
+    ``MergePartError``.
     """
     found = [part(merging) for part in _MERGES.entries()]
     found += [end(merging) for end in _ENDS.entries()]
@@ -168,6 +174,7 @@ def merge_parts(merging: StructureMerging) -> MergePart:
         differences=by_change([each for part in found for each in part.differences], "merge"),
         completed_tasks=tuple(each for part in found for each in part.completed_tasks),
         refusals=tuple(each for part in found for each in part.refusals),
+        reopened_tasks=tuple(each for part in found for each in part.reopened_tasks),
     )
 
 
