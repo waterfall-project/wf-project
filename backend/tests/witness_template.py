@@ -60,7 +60,7 @@ from waterfall.witness.main import load_witness
 if TYPE_CHECKING:
     from collections.abc import Generator, Sequence
 
-    from sqlalchemy import Engine
+    from sqlalchemy import Connection, Engine
 
 # The server and the superuser the tests are given (the guide, "Tests").
 TEST_DATABASE_VARIABLE = "WATERFALL_TEST_DATABASE_URL"
@@ -84,6 +84,8 @@ LOADING_TIMEOUT = 420
 # The seconds the end of a run waits past the deadline, for the process that started the loading to
 # kill it, before it drops the template whatever still holds it.
 _GRACE = 60
+# The seconds the loading waits for the sessions on the template to end, before it closes it.
+_ALONE = 30
 # The seconds between two tries of the lock of the loading.
 _POLL = 0.2
 
@@ -151,6 +153,11 @@ def _locked(path: Path, operation: int) -> Generator[None]:
 
 def _server(address: str) -> Engine:
     return create_database_engine(address).execution_options(isolation_level="AUTOCOMMIT")
+
+
+def _quoted(server: Engine, name: str) -> str:
+    """Quote a name of the server as an identifier, whatever it holds."""
+    return server.dialect.identifier_preparer.quote_identifier(name)
 
 
 @dataclass(frozen=True)
@@ -280,12 +287,17 @@ def cloned(template: Template, address: str) -> Generator[str]:
     server = _server(address)
     try:
         with server.connect() as connection:
-            connection.execute(text(f'CREATE DATABASE "{name}" TEMPLATE "{template.name}"'))
+            connection.execute(
+                text(
+                    f"CREATE DATABASE {_quoted(server, name)} "
+                    f"TEMPLATE {_quoted(server, template.name)}"
+                )
+            )
         try:
             yield template.owned(address, name)
         finally:
             with server.connect() as connection:
-                connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
+                connection.execute(text(f"DROP DATABASE {_quoted(server, name)} WITH (FORCE)"))
     finally:
         server.dispose()
 
@@ -312,9 +324,9 @@ def dropped(template: Template, address: str | None) -> None:
             ).all()
             # The copies first: the roles go with the last of the rights they hold.
             for name in sorted(found, key=lambda each: each == template.name):
-                connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
-            connection.execute(text(f'DROP ROLE IF EXISTS "{template.signing}"'))
-            connection.execute(text(f'DROP ROLE IF EXISTS "{template.service}"'))
+                connection.execute(text(f"DROP DATABASE {_quoted(server, name)} WITH (FORCE)"))
+            for role in (template.signing, template.service):
+                connection.execute(text(f"DROP ROLE IF EXISTS {_quoted(server, role)}"))
         server.dispose()
     shutil.rmtree(template.directory, ignore_errors=True)
 
@@ -333,6 +345,21 @@ def said_loaded(records: str) -> bool:
     return False
 
 
+def _alone(connection: Connection, name: str) -> None:
+    """Wait until no session is left on the database ``name``, which a copy of it requires.
+
+    The engines are disposed, but the server ends a session a moment after its client closed it.
+    """
+    until = time.monotonic() + _ALONE
+    while connection.scalar(
+        text("SELECT count(*) FROM pg_stat_activity WHERE datname = :name"), {"name": name}
+    ):
+        if time.monotonic() >= until:
+            message = f"sessions are still open on the template {name} after {_ALONE} seconds"
+            raise RuntimeError(message)
+        time.sleep(_POLL)
+
+
 def load(template: Template, address: str) -> str:
     """Create the template, migrated, installed, the witness loaded; give the command's records.
 
@@ -344,14 +371,15 @@ def load(template: Template, address: str) -> str:
     server = _server(address)
     try:
         with server.connect() as connection:
-            connection.execute(text(f'CREATE DATABASE "{template.name}"'))
+            connection.execute(text(f"CREATE DATABASE {_quoted(server, template.name)}"))
         owner = create_database_engine(template.owned(address, template.name))
         upgrade(owner)
         with server.connect() as connection:
             connection.execute(
                 text(
-                    f"CREATE ROLE \"{template.signing}\" LOGIN PASSWORD '{template.password}' "
-                    f'IN ROLE "{template.service}"'
+                    f"CREATE ROLE {_quoted(server, template.signing)} "
+                    f"LOGIN PASSWORD '{template.password}' "
+                    f"IN ROLE {_quoted(server, template.service)}"
                 )
             )
         service = template.as_service(template.owned(address, template.name))
@@ -367,8 +395,11 @@ def load(template: Template, address: str) -> str:
             message = f"the command ended with {status}, saying:\n{said}"
             raise RuntimeError(message)
         with server.connect() as connection:
+            _alone(connection, template.name)
             connection.execute(
-                text(f'ALTER DATABASE "{template.name}" WITH ALLOW_CONNECTIONS false')
+                text(
+                    f"ALTER DATABASE {_quoted(server, template.name)} WITH ALLOW_CONNECTIONS false"
+                )
             )
     finally:
         server.dispose()

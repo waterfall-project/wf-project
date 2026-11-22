@@ -3729,7 +3729,7 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   Le témoin n'est chargé par la commande qu'une fois par part, dans une base modèle que copie
   chaque test qui le demande (`backend/tests/witness_template.py`, #4653, « Un test contre
   PostgreSQL ») : les huit parts de 10 à 17 minutes, dont plusieurs figées, sont passées à 6 à
-  10 minutes (passages 44945620214, puis 44957647502), d'où six parts sous 20 minutes. `keycloak.yml`
+  10 minutes (passages 44945620214, puis 44957647502), puis les six parts de 7 à 14 minutes (passage 44958967745), chacune sous 20 minutes. `keycloak.yml`
   construit l'image de Keycloak et l'éprouve sur la plateforme de service, son royaume appliqué
   (`make check-keycloak`), aux deux paliers : la famille `keycloak` se réveille sur
   `deploy/keycloak/`, sur les fichiers de la plateforme qui la démarrent, sur ses tests, sur tout le
@@ -4394,7 +4394,7 @@ Le témoin se charge une fois par exécution, par un processus à lui, dans une 
 (`backend/tests/witness_template.py`, #4653) : le premier processus dont les tests le demandent
 lance ce chargement dès leur collecte, et ces tests passent après les autres, le temps qu'il se
 fasse. Un test sur le témoin (`witness`, `witness_logged`) reçoit une base à lui, copie du modèle
-(`CREATE DATABASE … TEMPLATE`, quelques dixièmes de seconde), supprimée après lui : lignes,
+(`CREATE DATABASE … TEMPLATE`, 0,2 à 0,4 s pour la créer, 0,1 s pour la supprimer, mesurées sur un poste), supprimée après lui : lignes,
 identifiants, partitions des projets et séquences sont ceux que la commande a écrits, et aucune
 ligne n'est reposée ni aucune partition supprimée. Le service y entre par un rôle de connexion
 membre du rôle du service du modèle, dont la copie garde les droits. Le témoin chargé par chaque
@@ -4409,7 +4409,16 @@ long test qui ne se fige pas charge le témoin lui-même : 216 secondes au plus 
 (passage 44957647502), et un runner est jusqu'à deux fois plus lent qu'un autre. Le chargement du
 modèle a son échéance, sept minutes (`LOADING_TIMEOUT`, pour 134 à 290 secondes mesurées), sous
 celle d'un test : passé ce délai, le test qui l'attend échoue avec ce que le chargement a dit, le
-chargement s'arrête et la fin de pytest ne l'attend plus.
+chargement s'arrête et la fin de pytest ne l'attend plus. Le délai d'un test couvre l'item entier, démontage compris :
+un démontage qui suit un gel peut se figer à son tour, et le délai du travail (20 minutes) reste
+le filet.
+
+Un pytest tué (`SIGTERM`, `SIGKILL`) avant sa fin laisse la base `waterfall_witness_*` (et ses
+copies), les rôles `waterfall_witness_*_signing` et `waterfall_witness_*_service` et le répertoire
+`waterfall-witness-*` du répertoire temporaire du système ; le chargement, lui, s'arrête seul à
+son échéance. Rien ne les balaie : supprime à la main les bases (`DROP DATABASE … WITH (FORCE)`),
+puis les rôles (`DROP ROLE`), puis le répertoire. Le service d'un créneau, en mémoire, les perd
+avec `make test-services-down`.
 
 - **Dans la chaîne**, `back.yml` démarre PostgreSQL en service du travail et pose la variable.
 - **Sur un poste**, le Makefile s'en charge : `make test-back` et `make coverage-back` démarrent

@@ -54,8 +54,9 @@ jobs:
     # of EP-08 (US-2650/L1) doubled the cost of a load, and the slice of the portfolio (US-2770/L2)
     # again: eight parts took 10 to 17 minutes, several frozen (runs 44945586307, 44945620214). The
     # witness is now loaded once by a part, into a template each test on it copies (US-2770/L2b,
-    # #4653): the eight parts took 6 to 10 minutes (run 44957647502), so six bring each under the
-    # delay of 20 minutes, a margin to the slowest runner rather than a wait.
+    # #4653): the eight parts took 6 to 10 minutes (run 44957647502), then the six 7 to 14 minutes
+    # (run 44958967745), each under the delay of 20 minutes, a margin to the slowest runner rather
+    # than a wait.
     timeout-minutes: 20
     services:
       postgres:
