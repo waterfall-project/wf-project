@@ -377,18 +377,18 @@ def load(template: Template, address: str) -> str:
         with server.connect() as connection:
             connection.execute(text(f"CREATE DATABASE {quoted(server, template.name)}"))
         owner = create_database_engine(template.owned(address, template.name))
-        upgrade(owner)
-        with server.connect() as connection:
-            connection.execute(
-                text(
-                    f"CREATE ROLE {quoted(server, template.signing)} "
-                    f"LOGIN PASSWORD '{template.password}' "
-                    f"IN ROLE {quoted(server, template.service)}"
-                )
-            )
-        service = template.as_service(template.owned(address, template.name))
-        settings = WitnessSettings(database_url=SecretStr(service), witness_path=str(WITNESS))
         try:
+            upgrade(owner)
+            with server.connect() as connection:
+                connection.execute(
+                    text(
+                        f"CREATE ROLE {quoted(server, template.signing)} "
+                        f"LOGIN PASSWORD '{template.password}' "
+                        f"IN ROLE {quoted(server, template.service)}"
+                    )
+                )
+            service = template.as_service(template.owned(address, template.name))
+            settings = WitnessSettings(database_url=SecretStr(service), witness_path=str(WITNESS))
             with pytest.MonkeyPatch.context() as patch, recorded_logs() as records:
                 pin_year(patch)
                 TIME_ZONE.read_from(lambda: DELIVERED_TIME_ZONE)

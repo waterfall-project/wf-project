@@ -136,6 +136,16 @@ def test_a_loading_that_fails_fails_the_test_that_waits_with_what_it_said(
     assert start(planned, FAILING) is None, "a template is loaded once, failed or not"
 
 
+def test_a_loader_that_does_not_start_fails_the_test_that_waits_with_the_reason(
+    planned: Template,
+) -> None:
+    """A loader the system cannot run is written in the records, and fails the test that waits."""
+    with pytest.raises(OSError, match="nonexistent"):
+        start(planned, ["/nonexistent"])
+    with pytest.raises(pytest.fail.Exception, match="the loader did not start"):
+        built(planned)
+
+
 def test_a_loading_past_its_deadline_fails_the_test_that_waits_and_is_killed(
     planned: Template,
 ) -> None:
