@@ -731,7 +731,7 @@ qualité de contributeur, que `openImport` juge sur son projet.
 
 ## US-3250 — Les comptes rendus d'import : supprimés à l'échéance et à l'abandon, listés sans leur contenu, lisibles sans leur tâche
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-DAT-0080-A`, `WF-ARC-0100-A`
 - **opérations** : `listImports`, `getImport`, `abandonImport`
 - **issue** : #4524

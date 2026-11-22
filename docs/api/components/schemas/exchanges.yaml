@@ -223,8 +223,13 @@ Import:
         application; `failed`, the task of its analysis or of its application failed
         (`task.problem`), without writing anything (WF-INTF-0080); `refused`, the application
         was refused — when checking again the permission, the contributor status or the state of
-        the project, or because the report rejected the file —, the file is deleted
-        (WF-ARC-0100), and the import no longer applies (I-01, #1789). Only an `analysed` import
+        the project, because the report rejected the file, or because the structure has been
+        written since the analysis (`import_structure_unchanged`, #4420) —, the file is deleted
+        (WF-ARC-0100), and the import no longer applies (I-01, #1789). An import `abandoned` or
+        `expired` is deleted, its report included, by the pass of the purge that follows its
+        abandonment or its expiry: neither the list nor the reading returns it any more, and every
+        operation on it is a 404 (§4.4.1, WF-DAT-0080); an import `applied`, `failed` or
+        `refused` stays, in the log of the imports (#4425). Only an `analysed` import
         applies (`import_awaiting_decision`); an `applying` or `applied` import cannot be
         abandoned (`import_not_applied`), and abandoning an import that ended without writing —
         `abandoned`, `expired`, `failed`, `refused` — returns 204 without effect.
@@ -242,11 +247,13 @@ Import:
         The report of the analysis, null as long as it is running or when it failed; returned by
         reading an import (`ImportDetail`), omitted by the list.
     task:
-      allOf: [{ $ref: ../common.yaml#/BackgroundTaskRef }]
+      anyOf: [{ $ref: ../common.yaml#/BackgroundTaskRef }, { type: 'null' }]
       description: >-
         The last background task of the import, that of its analysis or of its application, which
         the screen follows (WF-IHM-0080); returned by reading an import (`ImportDetail`), omitted by
-        the list.
+        the list. Null once that task has been deleted, at the end of the retention of its result
+        (`OperatingParameters.background_task_retention_days`, §4.4.1, WF-DAT-0080), and for an
+        import that has none: the import is still read, and the screen follows no task (#4425).
     available_commands:
       type: array
       description: >-
@@ -260,7 +267,8 @@ ImportDetail:
   description: >-
     An import as reading it (`getImport`) and opening it (`openImport`) return it: an
     `Import`, whose properties it takes over, and always its report — null as long as the analysis
-    is running or when it failed —, its task and its commands, which the list omits (I-06, #1780).
+    is running or when it failed —, its task — null once deleted, or when it has none (#4425) —
+    and its commands, which the list omits (I-06, #1780).
   allOf:
     - $ref: '#/Import'
     - type: object
@@ -270,8 +278,11 @@ ImportDetail:
           anyOf: [{ $ref: '#/ImportReport' }, { type: 'null' }]
           description: The report of the analysis, that of `Import`, always returned here.
         task:
-          allOf: [{ $ref: ../common.yaml#/BackgroundTaskRef }]
-          description: The last background task of the import, that of `Import`, always returned here.
+          anyOf: [{ $ref: ../common.yaml#/BackgroundTaskRef }, { type: 'null' }]
+          description: >-
+            The last background task of the import, that of `Import`, always returned here; null
+            once deleted at the end of the retention of its result, or for an import that has
+            none (#4425).
         available_commands:
           type: array
           description: The commands of the import, those of `Import`, always returned here.
@@ -284,7 +295,8 @@ ImportCommand:
     The commands of an import (WF-IHM-0090; I-01, I-02, #1789): applying it (`applyImport`),
     available for an `analysed` import whose report accepts the file — otherwise
     `import_awaiting_decision`, then `import_file_accepted` —, the rights and
-    state conditions checked again at execution being stated only by the 409; abandoning it
+    state conditions checked again at execution, and the structure written since the analysis
+    (`import_structure_unchanged`, #4420), being stated only by the 409; abandoning it
     (`abandonImport`), unavailable for an import applied or being applied,
     `import_not_applied`.
 
@@ -437,8 +449,11 @@ ImportReport:
         an MS Project file is kept and signalled in the report" (WF-PLA-0020; #1271, #1289) —,
         and what it corrects: a summary task in manual mode in the file, imported in automatic
         mode, "signalled with the date difference" (WF-INTF-0040). A piece of information, not a
-        reason for confirmation or rejection. Empty when there is nothing to signal, and for
-        Excel imports.
+        reason for confirmation or rejection. For a remaining to commit, a line other than labour
+        whose amount the application writes — its unit disbursement rounded to the cent, its
+        quantity and the inflation coefficient of its task kept — is not the amount the file
+        carries (`AMOUNT_ROUNDED`, WF-INTF-0120; #4428). Empty when there is nothing to signal,
+        and for an estimate and an actual cost extraction.
       items: { $ref: '#/ImportSignal' }
     requires_confirmation_reasons:
       type: array
@@ -738,8 +753,8 @@ ImportSignal:
   type: object
   required: [lineage_id, label, column, code, params]
   description: >-
-    A value of the file kept and signalled (`ImportReport.signals`): the task, the column that
-    carries the value, and the reason, with the parameters it carries in a refusal
+    A value of the file kept, corrected or rounded, and signalled (`ImportReport.signals`): the
+    task or the line, the column that carries the value, and the reason, with the parameters it carries in a refusal
     (`Problem.params`), so that entry and import are expressed in the same sentence
     (WF-ARC-0110). Thus `NON_WORKING_DAY`, a start or finish date of a manual task on a day
     without any working hour in its applicable calendar, kept as it is, the start and the finish
@@ -751,24 +766,38 @@ ImportSignal:
     entry dates on a summary task: a summary task that the file carries in manual mode, imported
     in automatic mode, its dates deriving from its subordinates, the column `scheduling_mode`,
     `params.start` and `params.finish` the dates of the file; the difference with the dates that
-    Waterfall recalculates is in `date_mismatches` (WF-INTF-0040, WF-PLA-0040).
+    Waterfall recalculates is in `date_mismatches` (WF-INTF-0040, WF-PLA-0040). And
+    `AMOUNT_ROUNDED`, for a remaining to commit, a line other than labour whose amount the
+    application writes is not the amount the file carries: the import keeps the quantity of the
+    line and writes its unit disbursement, the amount divided by the quantity and the inflation
+    coefficient of its task, rounded to the cent, and a division followed by a rounding does not
+    give back the amount — 1,234.56 entered on a quantity of 1,000 write 1,230.00. The line, by
+    its lineage and its label, the column `unit_disbursement`, `params.typed_amount` the amount
+    of the file and `params.written_amount` the amount the application writes, both as strings
+    (`Money`); a line whose amount divides exactly is not signalled, and the rule of the
+    calculation does not change (WF-INTF-0120; #4428).
   properties:
     lineage_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-      description: The lineage of the task; null for a task that the import creates.
-    label: { type: string }
+      description: >-
+        The lineage of the task, or of the line for `AMOUNT_ROUNDED`; null for a task that the
+        import creates.
+    label:
+      type: string
+      description: The label of the task, or of the line for `AMOUNT_ROUNDED`.
     column:
       allOf: [{ $ref: revisions.yaml#/NodeColumn }]
       description: >-
-        The column of the planning grid that carries the value: `start` or `finish` for
-        `NON_WORKING_DAY`, `scheduling_mode` for `SUMMARY_TASK_DERIVED`.
+        The column of the grid that carries the value: of the planning grid, `start` or `finish`
+        for `NON_WORKING_DAY`, `scheduling_mode` for `SUMMARY_TASK_DERIVED`; of the
+        remaining-to-commit grid, `unit_disbursement` for `AMOUNT_ROUNDED`.
     code:
       allOf:
         - $ref: ../common.yaml#/ErrorCode
-        - enum: [NON_WORKING_DAY, SUMMARY_TASK_DERIVED]
+        - enum: [NON_WORKING_DAY, SUMMARY_TASK_DERIVED, AMOUNT_ROUNDED]
       description: >-
         The reason for the signal, an error code so that entry and import are expressed in the same
-        sentence: `NON_WORKING_DAY` and `SUMMARY_TASK_DERIVED` only; a new signal
+        sentence: `NON_WORKING_DAY`, `SUMMARY_TASK_DERIVED` and `AMOUNT_ROUNDED` only; a new signal
         extends this list, through a change to the contract.
     params: { $ref: ../common.yaml#/ProblemParams }
 

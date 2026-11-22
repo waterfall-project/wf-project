@@ -875,7 +875,8 @@ gel ») ; `info.version` reste `1.0.0`.
   choix, comme `import_file_accepted` refuse l'application d'un fichier rejeté. Aucune commande ne
   l'annonce : `calendar_gap` le dit, comme `UndoResult.remaining_depth` annonce
   `undo_history_not_empty`. Pas de compteur : aucune opération d'import n'en porte, et la règle se
-  pose sous le verrou de l'import. Les conditions de l'état du projet ne sont pas jugées : l'analyse
+  pose sous le verrou de l'import — révisé pour l'application, qui compare celui de la structure
+  que le service garde à l'analyse (« Le contrat des échanges d'EP-33 », US-3250/L1, #4420). Les conditions de l'état du projet ne sont pas jugées : l'analyse
   n'écrit rien, et `applyImport` les rejuge. `applyImport` ne change pas : il applique le compte
   rendu tel qu'analysé.
 - **Le catalogue du front** reçoit `enums.ImportDurationRule.*` et
@@ -12901,6 +12902,109 @@ précède le service : US-3060/L9 remplit le champ nouveau, que le service dit n
   variante contrefactuelle d'un différentiel à jour sur une révision marquée, un état que le
   témoin ne charge pas ; une chronologie du témoin changée, qui touche le chargeur et les
   exemples de la mise à jour.
+
+### Le contrat des échanges d'EP-33 : le compte rendu périmé, le dépôt sous permission, la tâche purgée, les colonnes d'un onglet, le montant écrit (US-3250/L1, #4525)
+
+Décisions de l'auteur du 2026-11-21, au cadrage d'EP-33 (conception, « Modifications du contrat »),
+sur cinq constats de la revue complète du 2026-11-14. Le contrat précède le service : chaque US
+remplit ce qu'il déclare (US-3200, US-3210, US-3230, US-3240, US-3250/L2), et jusque-là le service ne
+rend ni la condition nouvelle de l'application, ni le plafond des dépôts, ni la colonne d'un onglet,
+ni le signal du montant écrit. `info.version` reste `1.0.0` (« La règle d'après le gel »). Exemples
+engendrés par `wftools.mockimportfindings`, tenus par `tools/tests/test_mockimportfindings.py`.
+
+- **L'application d'un import compare le compteur de la structure que son analyse a lue** (#4420,
+  BEX-02, CTB-01 ; US-3210). Une valeur nouvelle de `CommandCondition`,
+  `import_structure_unchanged`, manque à l'application d'un planning, d'un devis ou d'un reste à
+  engager dont la structure a été écrite depuis l'analyse — une cellule, un collage, un déplacement,
+  une création, une suppression — ; elle ne vaut pas pour une extraction de coûts réels, qui n'écrit
+  dans aucune structure. `applyImport` la nomme en 409 `STATE_FORBIDS_OPERATION` après
+  `import_file_accepted`, avant les conditions d'état, parmi les refus définitifs : l'import passe
+  `refused`, son fichier est supprimé, l'utilisateur redépose. La comparaison se fait deux fois, à la
+  demande et à l'exécution sous le verrou de la structure : une écriture arrivée entre les deux fait
+  échouer la tâche d'application sur le même motif, l'import `refused`. Une structure analysée dans
+  la révision marquée, le projet sans révision en cours, reste inchangée quand une révision ouverte
+  depuis la copie sans y écrire ; la révision que la tâche crée elle-même n'est pas comparée. Aucune
+  commande ne l'annonce (`ImportDetail.available_commands`, `ImportCommand`) : la conception ne
+  compare qu'à la demande et à l'exécution, et une lecture qui jugerait le compteur ajouterait une
+  troisième comparaison qu'elle ne prévoit pas. Un compte rendu au compteur nul — analysé avant la
+  colonne du service — s'applique sans comparaison, pendant les vingt-quatre heures qu'il vit ;
+  c'est une règle du service, que le contrat ne dit pas. Exemple : `import_apply_structure_changed`,
+  le devis de l'avenant 2 (`import_analysed`) appliqué après la saisie de
+  `estimate_line_updated_amendment`, qui avance le compteur de sa structure. Écartés :
+  `ImportApply.lock_version`, que le client ne ferait que recopier d'une réponse ; un 412 sur ce
+  compteur ; recalculer le compte rendu sous verrou et le comparer à celui confirmé.
+- **« Pas de compteur : aucune opération d'import n'en porte » est révisée** (setImportDurationRule,
+  « L'import en deux temps » ci-dessus ; conception d'EP-33, « Décisions prises »). Aucune opération
+  n'en porte toujours : le client n'envoie rien, `ImportApply` ne change pas. Mais l'application en
+  compare un, que le service garde à l'analyse ; la nouvelle analyse que lance
+  `setImportDurationRule` garde celui qu'elle lit, et c'est lui que l'application compare
+  (WF-INTF-0080).
+- **Déposer un fichier demande l'une des quatre permissions d'import, et un compte garde vingt dépôts
+  en attente au plus** (#4423, CTB-02, BAC-09 ; US-3240). `uploadFile` déclare 403
+  `PERMISSION_MISSING` pour un compte qui ne porte ni `planning.write`, ni `estimate.write`, ni
+  `remaining.write`, ni `actual_costs.write` ; `params.missing_permission` nomme `planning.write`, la
+  première, comme les écritures des grilles que l'une de trois permissions ouvre nomment la leur
+  (#2601). Et 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à
+  `pending_uploads_below_limit`, valeur nouvelle de `CommandCondition`, et `params.maximum` à `20`,
+  le nom que le contrat donne déjà à la plus grande valeur admise, pour le vingt et unième dépôt d'un
+  compte qui en garde vingt qu'aucun import n'a employés et qui n'ont pas expiré ; jugé après la
+  permission, rien n'étant écrit au stockage. Le plafond se compte sans verrou et n'est pas un
+  invariant : deux dépôts simultanés peuvent le passer d'un. Aucune commande ne l'annonce. Écartés :
+  un 429 et un code propre (règle unique des refus d'état, J-01) ; un verrou par compte. Exemples :
+  `file_upload_permission_missing`, `file_upload_pending_limit`. **Le service** prend la garde de
+  la permission dès ce lot : `test_access_evaluation.py` refuse un 403 déclaré qu'aucune garde ne
+  rend, et `Requires` (`waterfall.api.evaluation`) gagne `one_of`, comme `RequiresProject` ; le
+  plafond reste à US-3240.
+- **Un nom de fichier qui porte le caractère NUL est refusé sur `/file`** (BEX-08 de #4426, #4423 ;
+  US-3240), 422 `VALIDATION_FAILED`, le motif `VALIDATION_FAILED`, comme tout texte qui le porte
+  (« Session et erreurs », #743) : le nom n'est pas un champ d'un corps JSON, que la base des
+  modèles refuse déjà. Le 422 d'`uploadFile` dit désormais ses motifs — le dépôt d'une sauvegarde,
+  un fichier vide ou sans nom, un nom de plus de 255 caractères, `max_length` à `255` comme tout
+  `VALUE_TOO_LONG`, et le NUL — ; le service rend aujourd'hui `maximum` au lieu de `max_length`
+  (#4732). Exemple : `file_upload_filename_nul`.
+- **La tâche d'un import se lit nulle, et la purge supprime l'import expiré ou abandonné** (#4425,
+  BEX-07, BEX-11, DON-05 ; US-3250). `Import.task` et `ImportDetail.task` deviennent
+  `BackgroundTaskRef` ou nul : nul une fois la tâche supprimée au terme de la rétention de son
+  résultat (`OperatingParameters.background_task_retention_days`, §4.4.1), et pour un import qui
+  n'en a pas ; l'import se lit toujours, jamais 500. La passe de purge supprime un import `expired`
+  ou `abandoned`, compte rendu compris ; `applied`, `failed` et `refused` restent, au journal des
+  imports. `listImports`, `getImport`, `abandonImport` et `applyImport`, et la description des
+  états, le disent : jusqu'à la passe, l'import se lit, l'application le refuse par son état et
+  l'abandon rend 204 — l'idempotence de l'abandon (#1789) tient jusqu'à elle ; après, 404, et la
+  liste ne le compte plus. Exemple : `import_actual_costs_task_purged`, l'extraction d'avril
+  appliquée le 4 mai et lue aujourd'hui, la tâche de son application supprimée au bout de trente
+  jours. Les exemples de liste et le témoin, qui portent encore un import expiré et un import
+  abandonné, suivent avec le service (US-3250/L2, #4526). Écartés : vider la seule colonne `report`,
+  qui amendait la spécification ; supprimer à l'abandon même, qui romprait l'idempotence.
+- **`ProblemMissingColumn` nomme aussi la colonne qu'un onglet d'un devis ou d'un reste à engager a
+  perdue** (#4421, BCH-03 ; US-3200). Deux formes, l'une ou l'autre (`oneOf`) : la colonne exigée
+  d'une extraction de coûts réels par son identifiant et les intitulés que la correspondance
+  déclare (`column`, `labels`), sans onglet ; la colonne d'un classeur par son en-tête tel que le
+  format l'écrit — « ID ligne », « Quantité », « Heures », « Débours unitaire » au devis, « ID
+  ligne », « Jours restants », « Débours restant » au reste à engager — et son onglet tel que le
+  fichier le nomme (`header`, `sheet`). Un en-tête renommé est une colonne absente ; une colonne que
+  l'import ne lit pas peut manquer. `params.missing_columns` les range onglet par onglet dans l'ordre
+  du fichier, puis dans l'ordre du format. Le refus garde `FILE_FORMAT_UNREADABLE`, le format et la
+  version attendus nommés. Écartés : `labels` à un seul élément, qui dit les intitulés d'une
+  correspondance et non l'en-tête d'un format ; un identifiant de colonne, que le format n'a pas.
+  Exemple : `import_remaining_column_missing`, l'onglet du poste de commande dont « Débours restant »
+  a été renommé.
+- **Le compte rendu d'un reste à engager signale le montant qu'il écrit** (#4428, BCH-11 ; US-3230).
+  `AMOUNT_ROUNDED` entre au catalogue des codes (`ErrorCode`), un signal et jamais un refus, et à
+  `ImportSignal.code` : une ligne hors main-d'œuvre dont le montant que l'application écrit — le
+  débours unitaire arrondi au centime, la quantité et le coefficient d'inflation de sa tâche gardés
+  — n'est pas le montant du fichier, nommée par sa lignée et son libellé, la colonne
+  `unit_disbursement`, `params.typed_amount` et `params.written_amount`, deux montants en chaîne
+  (`Money`). Une ligne dont le montant se divise juste n'est pas signalée ; la règle de calcul
+  d'EP-09 ne change pas. `ImportReport.signals` n'est plus dit vide pour les imports Excel : il
+  l'est pour un devis et une extraction de coûts réels. Exemple : `import_remaining_amount_rounded`,
+  variante contrefactuelle d'`import_remaining_analysed`, les borniers comptés par mille, 1 234,56
+  saisis écrivant 1 230,00. Écartés : ramener la quantité à 1 (conception d'EP-09) ; ne corriger
+  que la phrase de la décision #2797.
+- **Le catalogue du front** reçoit `errors.AMOUNT_ROUNDED`,
+  `enums.CommandCondition.import_structure_unchanged` et
+  `enums.CommandCondition.pending_uploads_below_limit`, et l'écran des imports lit un import sans
+  tâche sans la suivre : la part TypeScript du même lot.
 
 ## Collage et annulation
 

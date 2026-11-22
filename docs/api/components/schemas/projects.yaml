@@ -281,7 +281,24 @@ CommandCondition:
     duration rule of an import whose report presents no calendar gap (`ImportReport.calendar_gap`
     null, WF-INTF-0040): there is no choice to make, and `setImportDurationRule` names it in its
     409 after `import_awaiting_decision`; no command states it in advance, the report saying it
-    by its `calendar_gap` (#2977). One depends on the accounts, and the account names it
+    by its `calendar_gap` (#2977). `import_structure_unchanged` is missing for the application of
+    an import whose structure has been written since its analysis: the analysis keeps the write
+    counter of the structure it read, and the application is refused once that counter has
+    moved — "between the analysis and the confirmation, no data of the project has changed"
+    (WF-ARC-0100). The rule holds for the three kinds that write a structure, an MS Project
+    schedule, an estimate and a remaining to commit, any write of the tree of the structure
+    making the report obsolete — a cell, a paste, a move, a creation, a deletion —; it does not
+    hold for an actual cost extraction, which writes in no structure (WF-CRE-0010). A structure
+    analysed in the last marked revision, the project having no current revision, remains
+    unchanged when a revision opened since copies it, as long as nothing has been written in that
+    copy; the revision the application creates itself is not compared (WF-INTF-0090). `applyImport` names it in its 409 after `import_file_accepted`, the import refused
+    for good, and the task of the application fails on the same reason when the structure is
+    written between the request and the execution; no command states it in advance, the
+    comparison being made at the request and at the execution only (#4420).
+    `pending_uploads_below_limit` is missing for the upload of an import file by an account that
+    already holds twenty uploads for an import that no import has used and that have not expired
+    (WF-DAT-0120): `uploadFile` names it in its 409, `params.maximum` at `20`; no command states
+    it in advance (#4423). One depends on the accounts, and the account names it
     (`User.available_commands`): `last_administrator` is missing for the deactivation of the
     last active account that holds the permissions to modify the accounts and the access roles
     (WF-ADM-0120); `setUserActivation` names it in its 409. Two depend on the nature of the
@@ -471,6 +488,8 @@ CommandCondition:
     - import_file_accepted
     - import_not_applied
     - import_calendar_gap
+    - import_structure_unchanged
+    - pending_uploads_below_limit
     - is_local_account
     - is_active_account
     - is_deactivated_account

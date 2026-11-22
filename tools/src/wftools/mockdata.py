@@ -66,7 +66,9 @@ its code refused and its readings by the quality of its reader, by ``wftools.moc
 refusals the contract declared without a code, a condition nor an example, by
 ``wftools.mockdeclared`` (US-0702/L2); and the examples of the majors of the review of the
 2026-10-31, by ``wftools.mockreview`` (US-0704), with the Kanban of the summary that awaits its own
-lines (US-1240); and the chronology, the tasks, the lines and the costs of the witness, by
+lines (US-1240); and the examples of the contract of the exchanges that EP-33 changes, by
+``wftools.mockimportfindings`` (US-3250/L1); and the chronology, the tasks, the lines and the costs
+of the witness, by
 ``wftools.mockchronology`` and ``mockwitness*``.
 
 They live in the universe of the other examples: identifiers are kept, and what the witness project,
@@ -104,6 +106,7 @@ from wftools import (
     mockexchanges,
     mockgestures,
     mockhistory,
+    mockimportfindings,
     mockkanban,
     mocklists,
     mocknonworking,
@@ -194,7 +197,8 @@ def named() -> dict[str, JsonObject]:
     anonymised (``mockanonymized``); the exit of the witness (``mockproject``); the refusals of one
     form each (``mockrefusals``), those the contract declared without a code, a condition nor an
     example (``mockdeclared``), of the administration (``mockadminrefusals``), served undeclared
-    (``mockservedrefusals``), of the differentials (``mockdifferentials``); the update of the
+    (``mockservedrefusals``), of the differentials (``mockdifferentials``); the contract of the
+    exchanges of EP-33 (``mockimportfindings``); the update of the
     amendment 2 (``mockrebase``); the majors of the
     review (``mockreview``); the loaders' (``mockwitness*``, ``mockchronology``).
     """
@@ -231,6 +235,7 @@ def named() -> dict[str, JsonObject]:
         **mockdifferentials.examples(),
         **mockrebase.examples(),
         **mockservedrefusals.examples(),
+        **mockimportfindings.examples(),
         **mockspendingrefusals.examples(),
         **mockchronology.examples(),
         **mockwitnesstasks.examples(),

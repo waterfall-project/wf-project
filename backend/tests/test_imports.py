@@ -38,7 +38,7 @@ from imports_trial import (
     upload,
     withdraw,
 )
-from projects_support import Scene, contribute, person, put_in_state
+from projects_support import READING, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
 from sqlalchemy import insert, inspect, select, update
 from support import ContractClient
@@ -154,6 +154,25 @@ def test_a_deposit_refused_writes_nothing(
         assert [field["pointer"] for field in body["fields"]] == [pointer]
     with stage.database.transaction() as session:
         assert session.scalars(select(FileUpload)).all() == []
+
+
+@pytest.mark.requirement("WF-ADM-0020-A")
+def test_a_deposit_asks_for_one_of_the_permissions_of_an_import(
+    api: ContractClient, stage: Scene, realm: TestRealm, backups_bucket: Bucket
+) -> None:
+    # Vérif : « Réciproquement, un rôle privé d'une permission empêche l'action correspondante,
+    # quel que soit l'acteur auquel l'utilisateur ressemble. » An account that holds none of the
+    # four permissions of an import deposits nothing: 403, the first of them named, nothing written
+    # to the storage nor to the database; one of them is enough (#4423).
+    content = trial_file(*ROWS)
+    viewer = person(stage.database, realm, "all_projects_read", name="Lou")
+    refused = upload(api, viewer, content)
+    assert refusal(refused) == (403, "PERMISSION_MISSING", {"missing_permission": "planning.write"})
+    with stage.database.transaction() as session:
+        assert session.scalars(select(FileUpload)).all() == []
+    assert backups_bucket.keys_before("uploads/", utc_now() + timedelta(hours=1)) == []
+    estimator = person(stage.database, realm, "remaining.write", name="Sam")
+    assert upload(api, estimator, content).status_code == 201
 
 
 def project_rows(database: Database) -> list[list[dict[str, Any]]]:
@@ -358,14 +377,17 @@ def test_an_opening_is_refused_for_the_state_of_the_project_in_the_order_of_the_
 
 
 def test_an_opening_is_refused_without_the_permission_of_its_kind_or_the_quality(
-    api: ContractClient, stage: Scene, trial: TrialFormat
+    api: ContractClient, stage: Scene, trial: TrialFormat, realm: TestRealm
 ) -> None:
     project_id = stage.project["project_id"]
     upload_id = deposited(api, stage.outsider, trial_file(*ROWS))
     outside = open_import(api, stage.outsider, project_id, upload_id)
     assert refusal(outside)[:2] == (404, "NOT_FOUND")
-    reader_upload = deposited(api, stage.reader, trial_file(*ROWS))
-    reading = open_import(api, stage.reader, project_id, reader_upload)
+    # A reader of every project who may import the actual costs, and not the kind of the trial:
+    # its deposit passes, which one of the permissions of an import opens (#4423), its opening not.
+    reader = person(stage.database, realm, *READING, "actual_costs.write", name="Dominique")
+    reader_upload = deposited(api, reader, trial_file(*ROWS))
+    reading = open_import(api, reader, project_id, reader_upload)
     assert refusal(reading) == (403, "PERMISSION_MISSING", {"missing_permission": trial.permission})
 
 

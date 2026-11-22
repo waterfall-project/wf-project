@@ -401,7 +401,9 @@ by = "make fixtures"
 # tools/tests/test_mockrefusals.py), and those the contract declared without a code, a condition
 # nor an example (wftools.mockdeclared, held by tools/tests/test_mockdeclared.py), and those the
 # service served undeclared (wftools.mockservedrefusals, held by
-# tools/tests/test_mockservedrefusals.py), and the examples
+# tools/tests/test_mockservedrefusals.py), and the examples of the contract of the exchanges that
+# EP-33 changes (wftools.mockimportfindings, held by tools/tests/test_mockimportfindings.py), and
+# the examples
 # of the majors of the review of the 2026-10-31 (wftools.mockreview, held by
 # tools/tests/test_mockreview.py), and the chronology of the witness the loader of the projects
 # reads (wftools.mockchronology, held by tools/tests/test_mockchronology.py), and its tasks the
@@ -835,6 +837,13 @@ paths = [
     "fixtures/api/import_duration_rule_applied.json",
     "fixtures/api/import_apply_refused_permission.json",
     "fixtures/api/import_remaining_completed_task.json",
+    "fixtures/api/import_apply_structure_changed.json",
+    "fixtures/api/file_upload_permission_missing.json",
+    "fixtures/api/file_upload_pending_limit.json",
+    "fixtures/api/file_upload_filename_nul.json",
+    "fixtures/api/import_actual_costs_task_purged.json",
+    "fixtures/api/import_remaining_column_missing.json",
+    "fixtures/api/import_remaining_amount_rounded.json",
     "fixtures/api/users_by_access_role.json",
     "fixtures/api/users_without_access_role.json",
     "fixtures/api/users_search.json",

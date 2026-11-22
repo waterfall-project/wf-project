@@ -391,6 +391,9 @@ def test_an_import_expires_a_day_after_its_analysis_and_is_said_expired_once_pas
             assert item["expires_at"] is None, name
             continue
         expiries[item["import_id"]].add(item["expires_at"])
+        # An import whose task was deleted at the end of its retention reads it null (#4425).
+        if item["task"] is None:
+            continue
         finished = item["task"]["finished_at"]
         if item["task"]["kind"] == "import_analysis" and finished is not None:
             expected = mockhistory.stamp(moment(finished) + timedelta(hours=24))

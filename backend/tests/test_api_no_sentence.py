@@ -154,6 +154,11 @@ DATA = {
     "ProblemSubproject.label": "a label",
     "ProblemRisk.label": "a label",
     "ProblemMissingColumn.labels": "labels of the extraction",
+    # The header of a column an estimate or a remaining to commit lacks, as the format writes it —
+    # the headers of a workbook do not depend on the language (WF-INTF-0180) —, and the sheet that
+    # lacks it, as the file names it (US-3200, #4421).
+    "ProblemMissingColumn.header": "a header of the format",
+    "ProblemMissingColumn.sheet": "a name of a sheet",
     # The codes and the labels a person gave a nature and a category of cost, and the label of the
     # nature a category is read under (US-0820).
     "CostType.code": "a code",
