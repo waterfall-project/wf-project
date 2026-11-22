@@ -252,6 +252,20 @@ Reçu d'EP-08 le 2026-11-21 (décision de l'auteur) :
 Reçu du cadrage d'EP-32 (« ce que `make requirements` ne lit pas d'un parcours joué contre le
 service — EP-36 ») : écarté, voir « Ce qui n'en fait pas partie ».
 
+Reportées d'EP-11 le 2026-11-21 au soir (décision de l'utilisateur, « Reprise du 2026-11-21
+soir » du fichier d'EP-11), à rattacher à un lot :
+
+- #3877 — US-2780/L2 d'EP-11 entier : le contrôle des exemples, aucun sans test, la liste hors
+  harnais, la constante modifiée (WF-QUA-0020), avec #4021
+- #4021 — back : deux tests du harnais d'exemples jugent l'effet d'une entrée posée à la main
+- #4374 — outil : make requirements ne porte pas « aucune exigence de l'EPIC sans test du back »
+- #4361 — outil : la corrélation dérivée d'un exemple d'erreur de fixtures/api n'est d'aucune
+  famille d'identifiants
+- #4547 — back : le test du chargement de la tranche ne compare les réexamens qu'en inclusion
+- #4163 — front : le test du refus de la période de dernière révision n'éprouve pas le champ qui le
+  porte
+- #4548 — outil : deux lignes du guide du développeur dépassent la largeur de leurs voisines
+
 Reportés par EP-13 le 2026-11-22 (décision de l'auteur), rattachés à #4596, à placer :
 
 - #4396 — back : le test des projets désignés hors du chemin ne lit pas les corps de requête du

@@ -96,6 +96,12 @@ jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 - #4438 — l'éditeur de cellule : saisie invalide quittée au clic, composition de caractères (FGR-11,
   FGR-12) — FGR-11 est un choix d'ergonomie à trancher
 
+Reportées d'EP-11 le 2026-11-21 au soir (décision de l'utilisateur, « Reprise du 2026-11-21
+soir » du fichier d'EP-11), à rattacher à un lot :
+
+- #4363 — back : d'autres motifs \d admettent les chiffres Unicode (problems, import des coûts,
+  collage du planning) ; il était porté par US-2780/L4 #4494 d'EP-11, retiré
+
 Issues ouvertes, reportées d'EP-08 le 2026-11-22 :
 
 - #4324 — front : une recherche dans une grille où une branche est repliée boucle sur le rendu («
