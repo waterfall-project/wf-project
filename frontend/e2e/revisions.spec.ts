@@ -163,30 +163,50 @@ async function reachByKeyboard(page: Page, from: Locator, to: Locator): Promise<
   }).toPass({ timeout: WORKING });
 }
 
-test("the comparison of the current revision of PRJ-001 to its reference, from the estimate to the planning and the remaining to commit, the cell marked and the value of its base read at the keyboard, the branches without difference folded, the comparison lifted @shared [WF-IHM-0010-A] [WF-IHM-0020-A] [WF-IHM-0150-A] [WF-IHM-0160-A] [WF-IHM-0170-A]", async ({
-  page,
-}) => {
-  // Three grids of PRJ-001 read in turn, each given the bound of a screen of grid.
-  test.slow();
-  await openHydrated(page, `${BASE}/estimate`);
+/** The base the banner names, and the locator that says it. */
+interface Compared {
+  /** The definition « Comparée à … » of the banner. */
+  comparedTo: Locator;
+  /** The name of the reference, as the banner says it. */
+  named: string;
+  /** The query of the address that carries the base. */
+  compared: string;
+}
+
+/**
+ * Open a screen of the current revision of PRJ-001 and compare it to the reference of the project,
+ * chosen in the banner without leaving the screen, which names it.
+ */
+async function compareToReference(page: Page, screen: string): Promise<Compared> {
+  await openHydrated(page, `${BASE}/${screen}`);
   const comparedTo = banner(page)
     .getByRole("definition")
     .filter({ hasText: /^Comparée à / });
   await expect(comparedTo).toHaveCount(0);
-
-  // From the estimate of the revision under way, the reference is chosen for base, without leaving
-  // the screen, which names it.
   await banner(page).getByRole("button", { name: "Choisir une base de comparaison" }).click();
   // The reference of the project is the one of the bases that says so: « Référence » itself against
   // the fake back, the offer v1.0 designated in the witness of the service.
   const reference = page.getByRole("menuitemradio", { name: /\(référence\)$/ });
   const named = (await reference.innerText()).replace(/\s*\(référence\)$/, "");
   await reference.click();
-  await expect(page).toHaveURL(new RegExp(`${BASE}/estimate\\?${REFERENCE_PARAMETER}$`), {
+  await expect(page).toHaveURL(new RegExp(`${BASE}/${screen}\\?${REFERENCE_PARAMETER}$`), {
     timeout: WORKING,
   });
-  const compared = new URL(page.url()).search;
   await expect(comparedTo).toContainText(named);
+  return { comparedTo, named, compared: new URL(page.url()).search };
+}
+
+// The comparison of PRJ-001 is played in two paths, the estimate in one, the planning and the
+// remaining to commit in the other. Each read of it compared took 11 to 24 s in the queue, where the
+// quiet measure is 3.5 s (`LOADED`): the six of a single path, each under its own bound, overran its
+// ninety seconds together (run 45006353429, 92 s, #4678). Each path keeps the margin of `test.slow`
+// for three or four of them.
+test("the comparison of the current revision of PRJ-001 to its reference on the estimate, the cell marked and the value of its base read at the keyboard, the totals and the differences of the amounts, the comparison lifted @shared [WF-IHM-0010-A] [WF-IHM-0020-A] [WF-IHM-0150-A] [WF-IHM-0160-A]", async ({
+  page,
+}) => {
+  // The estimate of PRJ-001 read twice, compared then not, and walked at the keyboard.
+  test.slow();
+  const { comparedTo, named } = await compareToReference(page, "estimate");
   const estimate = page.getByRole("treegrid", { name: "Grille de devis" });
   await expect(estimate).toBeVisible({ timeout: WORKING });
 
@@ -226,16 +246,27 @@ test("the comparison of the current revision of PRJ-001 to its reference, from t
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 
-  // The planning, then the remaining to commit, with the same base: the banner names it, the
-  // address carries it.
-  const functions = page.getByRole("navigation", { name: "Fonctions" });
-  await functions.getByRole("link", { name: "Planification", exact: true }).click();
-  await expect(page).toHaveURL(`${BASE}/planning${compared}`, { timeout: WORKING });
+  // The comparison lifted: the base leaves the address and the banner offers the choice again.
+  await banner(page)
+    .getByRole("link", { name: `Lever la comparaison avec «\u00a0${named}\u00a0»` })
+    .click();
+  await expect(page).toHaveURL(`${BASE}/estimate`, { timeout: WORKING });
+  await expect(comparedTo).toHaveCount(0);
+  await expect(
+    banner(page).getByRole("button", { name: "Choisir une base de comparaison" }),
+  ).toBeVisible();
+});
+
+test("the comparison of the current revision of PRJ-001 to its reference on the planning, the branches without difference folded, then on the remaining to commit with the same base @shared [WF-IHM-0010-A] [WF-IHM-0020-A] [WF-IHM-0170-A]", async ({
+  page,
+}) => {
+  // The planning and the remaining to commit of PRJ-001, the slowest reads of the comparison.
+  test.slow();
+  const { comparedTo, named, compared } = await compareToReference(page, "planning");
   const planning = page.getByRole("treegrid", { name: "Grille de planning" });
   // The planning compared is a read slowed by the queue: past 15 s, the screen still « Chargement
   // de l'écran », where the quiet measure is far under (`LOADED`, #4326, #4678).
   await expect(planning).toBeVisible({ timeout: LOADED });
-  await expect(comparedTo).toContainText(named);
 
   // The branches without difference fold, each run said in its place with its number of rows, and
   // unfold. Every node of the example of the fake back is in difference: none folds there; the
@@ -261,6 +292,8 @@ test("the comparison of the current revision of PRJ-001 to its reference, from t
   await only.click();
   await expect(only).toHaveAttribute("aria-pressed", "false");
 
+  // The remaining to commit with the same base: the banner names it, the address carries it.
+  const functions = page.getByRole("navigation", { name: "Fonctions" });
   await functions.getByRole("link", { name: "Estimation du reste à engager", exact: true }).click();
   await expect(page).toHaveURL(`${BASE}/remaining${compared}`, { timeout: WORKING });
   const remaining = page.getByRole("treegrid", { name: "Grille de reste à engager" });
@@ -268,16 +301,6 @@ test("the comparison of the current revision of PRJ-001 to its reference, from t
   await expect(remaining).toBeVisible({ timeout: LOADED });
   await expect(comparedTo).toContainText(named);
   await expect(page.getByRole("button", { name: "Écarts de montants" })).toBeVisible();
-
-  // The comparison lifted: the base leaves the address and the banner offers the choice again.
-  await banner(page)
-    .getByRole("link", { name: `Lever la comparaison avec «\u00a0${named}\u00a0»` })
-    .click();
-  await expect(page).toHaveURL(`${BASE}/remaining`, { timeout: WORKING });
-  await expect(comparedTo).toHaveCount(0);
-  await expect(
-    banner(page).getByRole("button", { name: "Choisir une base de comparaison" }),
-  ).toBeVisible();
 });
 
 // The writing of a finish needs a service that remembers it, and a project the account of the run
