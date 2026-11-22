@@ -645,7 +645,7 @@ d'une tâche (`shaping.deleted`) : elle se met en commun. Le second site du jour
 
 ## US-3350 — Le Gantt zoomé : les barres et les liaisons à l'heure, un axe dessiné sur la seule fenêtre visible, la barre de la tâche active ramenée dans le cadre
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-PLA-0090-A`, `WF-IHM-0100-A`
 - **opérations** : `listNodes`, `getDurationUnits`
 - **issue** : #4555

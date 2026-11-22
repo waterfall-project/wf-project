@@ -7,8 +7,10 @@
  *
  * Nothing is scheduled here. The dates are those the API gives (`TaskFacet.start`, `finish`), and
  * the Gantt only places them on its axis, as a chart places the points it is given: at the scale of
- * the day, a task running from the start of its first day to the end of its last — a finish at
- * hour 0 of a day being its very start —, a milestone standing at its finish. The axis runs from
+ * the day, a task running from its start to its finish, each an instant placed at its day plus its
+ * hours over the hours of that day on the calendar of the task (`calendar_hours`); without a calendar
+ * — the frieze of a timeline — or on a day without hours, from the start of its first day to the end
+ * of its last, a finish at hour 0 of a day being its very start —, a milestone standing at its finish. The axis runs from
  * the first of the month of the earliest start to the first of the month after the latest finish
  * (`monthTicks`), and a place on it is a share of its width: the drawing follows the width of its
  * column, whatever the user sets it to.
@@ -67,14 +69,50 @@ function midnight(date: string): number {
   return Date.parse(`${date}T00:00:00Z`);
 }
 
-/** Where a task starts on the axis: the start of its first day. */
-export function startTime(instant: WorkInstant): number {
-  return midnight(instant.date);
+/** The days of the week by `Date.getUTCDay`, Sunday first. */
+const WEEKDAYS = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+] as const;
+
+/**
+ * The share of its day that the hours of an instant take on a calendar: the hours elapsed over the
+ * hours of that weekday, from 0 to 1 (WF-PLA-0090, FPL-04). Undefined without a calendar, for a day
+ * without hours, or for hours the exact decimal does not read: the instant is then placed by the day.
+ */
+function shareOfDay(instant: WorkInstant, calendar: WeeklyHours | undefined): number | undefined {
+  if (calendar === undefined) {
+    return undefined;
+  }
+  const weekday = WEEKDAYS[new Date(midnight(instant.date)).getUTCDay()];
+  const dayHours = weekday === undefined ? Number.NaN : Number(calendar[weekday]);
+  const hours = Number(instant.hours);
+  if (!(dayHours > 0) || !Number.isFinite(hours)) {
+    return undefined;
+  }
+  return Math.min(Math.max(hours / dayHours, 0), 1);
 }
 
-/** Where a task finishes on the axis: the end of its last day, or its start at hour 0. */
-export function finishTime(instant: WorkInstant): number {
-  return midnight(instant.date) + (ZERO.test(instant.hours) ? 0 : DAY);
+/**
+ * Where a task starts on the axis: its day, plus its hours over those of that day on its calendar —
+ * the start of its first day without a calendar, or on a day without hours.
+ */
+export function startTime(instant: WorkInstant, calendar?: WeeklyHours): number {
+  return midnight(instant.date) + (shareOfDay(instant, calendar) ?? 0) * DAY;
+}
+
+/**
+ * Where a task finishes on the axis: its day, plus its hours over those of that day on its calendar.
+ * Without a calendar, or on a day without hours, the end of its last day, or its start at hour 0.
+ */
+export function finishTime(instant: WorkInstant, calendar?: WeeklyHours): number {
+  const share = shareOfDay(instant, calendar) ?? (ZERO.test(instant.hours) ? 0 : 1);
+  return midnight(instant.date) + share * DAY;
 }
 
 /** A task as the Gantt draws it: where it starts and finishes, a share of the axis each. */
@@ -125,9 +163,11 @@ function anchor(task: GanttTask | null | undefined, finish: boolean): number | u
   if (finish || task?.is_milestone === true) {
     return task?.finish === null || task?.finish === undefined
       ? undefined
-      : finishTime(task.finish);
+      : finishTime(task.finish, task.calendar_hours);
   }
-  return task?.start === null || task?.start === undefined ? undefined : startTime(task.start);
+  return task?.start === null || task?.start === undefined
+    ? undefined
+    : startTime(task.start, task.calendar_hours);
 }
 
 /** The links between the rows of an answer whose ends both have dates, as times. */

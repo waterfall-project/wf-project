@@ -1223,8 +1223,12 @@ largeur de sa colonne, en part de cette largeur. La disposition (`ganttLayout`, 
 calcule une fois pour les lignes que la grille montre, écritures comprises, que `DenseGrid` remet à
 ce qu'un écran met autour d'elle (`around`, `GanttRows`) — jamais en prop de chaque ligne ;
 l'en-tête dessine l'axe (`GridColumn.axis`), son libellé ne nommant plus la colonne qu'aux lecteurs
-d'écran. Rien n'y est planifié : une tâche va du début de son premier jour à la fin du dernier, une
-fin à l'heure 0 étant le début de son jour, un jalon se tient à sa fin, et l'axe va du premier du
+d'écran. Rien n'y est planifié : une tâche va de son début à sa fin, chacun placé à son jour plus ses
+heures rapportées aux heures de ce jour sur le calendrier de la tâche (`calendar_hours`) — deux
+tâches de 4 h enchaînées le même jour de 8 h se suivent, la liaison arrive à droite de son départ,
+et l'image exportée suit le même placement —, et, sans calendrier (la frise d'une chronologie) ou un
+jour sans heure, du début de son premier jour à la fin du dernier, une fin à l'heure 0 étant le
+début de son jour ; un jalon se tient à sa fin, et l'axe va du premier du
 mois du plus tôt au premier du mois qui suit le plus tard (`monthTicks`, `chart/ticks.ts`, sans
 ECharts). Une liaison joint l'endroit que son type nomme sur le prédécesseur à celui qu'il nomme sur
 la tâche ; un prédécesseur hors de la réponse n'en dessine aucune. Une récapitulative est un

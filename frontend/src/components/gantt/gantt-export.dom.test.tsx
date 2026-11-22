@@ -467,6 +467,55 @@ describe("the export of the Gantt", () => {
     expect(vi.mocked(dayOffBands)).toHaveBeenCalledTimes(2);
   });
 
+  it("draws the bars of two tasks of 4 hours the same day one after the other, as the screen places them [WF-PLA-0090-A]", () => {
+    // The contract example, its detailed studies (A) and its review (B), linked from finish to
+    // start, brought to the Monday 13 April of 8 hours: A works the first four, B the last four.
+    const [, studies, , review] = planning.items;
+    const same = (item: typeof studies, from: string, to: string) =>
+      item?.task === undefined || item.task === null
+        ? []
+        : [
+            {
+              ...item,
+              task: {
+                ...item.task,
+                start: { date: "2026-04-13", hours: from },
+                finish: { date: "2026-04-13", hours: to },
+              },
+            },
+          ];
+    const rows = [...same(studies, "0", "4"), ...same(review, "4", "8")];
+    expect(rows).toHaveLength(2);
+    const layout = ganttLayout(rows);
+    const drawing = {
+      rows,
+      layout,
+      width: 1000,
+      lower: [],
+      upper: [],
+      labels: { upper: [], lower: [] },
+      dayWidth: 24,
+      legend: undefined,
+    };
+    const colours = { font: "sans-serif" } as GanttColours;
+    canvases.drawn.length = 0;
+    expect(
+      exportGanttPng(drawing, colours, { title: "Gantt", subtitle: "r", fileName: "g.png" }),
+    ).toBeUndefined();
+    // Each bar is a rectangle a half row high; the image draws them where the layout places them.
+    const bars = image()
+      .calls.filter(([name, args]) => name === "fillRect" && args[3] === 14)
+      .map(([, args]) => args as number[]);
+    const half =
+      1000 *
+      (layout.at(Date.parse("2026-04-13T12:00:00Z")) -
+        layout.at(Date.parse("2026-04-13T00:00:00Z")));
+    expect(bars).toHaveLength(2);
+    expect(bars[0]?.[2]).toBeCloseTo(half);
+    expect(bars[1]?.[2]).toBeCloseTo(half);
+    expect((bars[1]?.[0] ?? 0) - (bars[0]?.[0] ?? 0)).toBeCloseTo(half);
+  });
+
   it("saves no file when the canvas gives no picture", async () => {
     canvases.blank = true;
     renderPlanning();

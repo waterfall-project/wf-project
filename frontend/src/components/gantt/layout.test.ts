@@ -100,4 +100,53 @@ describe("the layout of the Gantt", () => {
     expect(layout.links("unknown")).toEqual([]);
     expect(ganttLayout([undated]).ticks).toEqual([]);
   });
+
+  describe("at the hour", () => {
+    // The contract example, its two tasks linked from finish to start brought to one day of 8
+    // hours, Monday 13 April: A (the detailed studies) works the first four, B (the review) the
+    // last four.
+    const same = (task: typeof detailed, from: string, to: string) =>
+      task?.task === undefined || task.task === null
+        ? undefined
+        : {
+            ...task,
+            task: {
+              ...task.task,
+              start: { date: "2026-04-13", hours: from },
+              finish: { date: "2026-04-13", hours: to },
+            },
+          };
+    const a = same(detailed, "0", "4");
+    const b = same(review, "4", "8");
+
+    it("places a task at its day plus its hours over those of the day on its calendar [WF-PLA-0090-A]", () => {
+      expect(a?.task.calendar_hours.monday).toBe("8");
+      const calendar = a?.task.calendar_hours;
+      expect(startTime({ date: "2026-04-13", hours: "4" }, calendar)).toBe(
+        day("2026-04-13") + 43_200_000,
+      );
+      expect(finishTime({ date: "2026-04-13", hours: "8" }, calendar)).toBe(day("2026-04-14"));
+      expect(finishTime({ date: "2026-04-13", hours: "0" }, calendar)).toBe(day("2026-04-13"));
+      // Without a calendar, or on a day without hours, the placement stays at the day.
+      expect(finishTime({ date: "2026-04-13", hours: "4" })).toBe(day("2026-04-14"));
+      expect(startTime({ date: "2026-04-13", hours: "4" })).toBe(day("2026-04-13"));
+      const sunday = { date: "2026-04-12", hours: "4" };
+      expect(finishTime(sunday, calendar)).toBe(day("2026-04-13"));
+    });
+
+    it("puts the bar of A on the first half of the day, that of B on the second, the link reaching to the right [WF-PLA-0090-A]", () => {
+      const rows = [a, b].filter((row) => row !== undefined);
+      const layout = ganttLayout(rows);
+      const noon = (date: string) => layout.at(day(date) + 43_200_000);
+      const [barA, barB] = rows.map((row) => layout.bar(row));
+      expect(barA?.from).toBe(layout.at(day("2026-04-13")));
+      expect(barA?.to).toBe(noon("2026-04-13"));
+      expect(barB?.from).toBe(noon("2026-04-13"));
+      expect(barB?.to).toBe(layout.at(day("2026-04-14")));
+      const link = layout.links(b?.node_id ?? "").find(({ part }) => part === "arrives");
+      expect(link?.out).toBe(noon("2026-04-13"));
+      expect(link?.in).toBe(noon("2026-04-13"));
+      expect((link?.in ?? 0) >= (link?.out ?? 1)).toBe(true);
+    });
+  });
 });
