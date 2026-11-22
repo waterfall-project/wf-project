@@ -8,7 +8,9 @@ completed and not signalled, a milestone that bears it alone is completed from t
 (WF-PLA-0040, WF-PLA-0050) —; it needs no hourly rate (WF-DEV-0010), is never projected
 (WF-DEV-0030), and moves with the rate of inflation only by what its own estimate, priced again,
 gives its severity (WF-PRJ-0040); the grid neither moves nor deletes it, its risk alone writing it
-(#4007). Every answer is checked against the contract (``ContractClient``).
+(#4007), and its writes — the entry, the paste, the remaining to commit — judge it as its reading
+closes it, its label alone accepted (#4378). Every answer is checked against the contract
+(``ContractClient``).
 """
 
 from datetime import date, timedelta
@@ -18,7 +20,8 @@ from uuid import UUID
 
 import pytest
 from estimate_support import YEAR, Costing, Lines, costing
-from nodes_support import Tree, mark, refusal
+from nodes_support import Tree, faults, mark, refusal
+from paste_support import applied, planned
 from planning_support import DAY, insert_task
 from projects_support import PROJECTS, Scene, designate
 from projects_support import scene as make_scene
@@ -504,3 +507,266 @@ def test_a_line_of_a_category_of_provision_in_a_differential_is_deleted_as_any_o
     )
     answer = risks.api.delete(path, headers=risks.headers, params={"lock_version": held})
     assert answer.status_code == 200, answer.text
+
+
+# --- The writes: judged as its reading closes it (#4378) ------------------------------------------
+
+
+def reestimate(tree: Tree, node: dict[str, Any]) -> Any:
+    """Re-estimate a line at the counter read, as the manager does in the grid; give the answer."""
+    sent = {
+        "reestimated_amount_basis": {"unit_disbursement": "10.00"},
+        "lock_version": node["lock_version"],
+        "completed_on": str(DAY),
+    }
+    path = f"{tree.path}/nodes/{node['node_id']}/remaining"
+    return tree.api.put(path, headers=tree.stage.manager.headers, json=sent)
+
+
+def kept(node: dict[str, Any]) -> tuple[Any, ...]:
+    """Give what a refused write leaves of a line: its counter, its label, its figures, amounts."""
+    line = node["estimate_line"]
+    return (
+        node["lock_version"],
+        line["label"],
+        line["quantity"],
+        line["unit_disbursement"],
+        line["subproject_id"],
+        line["base_amount"],
+        line["reestimated_amount"],
+    )
+
+
+def reasons(plan: dict[str, Any]) -> list[tuple[int, str | None, str]]:
+    """Give the refusals of a paste: the row, the column if there is one, the code."""
+    return [(each["row"], each.get("column"), each["code"]) for each in plan["rejected"]]
+
+
+@pytest.mark.story("US-3060")
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_a_provision_line_is_not_reestimated_its_condition_named_before_the_phase_of_the_project(
+    risks: Risks, project: Costed
+) -> None:
+    # #4378: in pricing, the provision line is refused by ``line_not_provision``, which comes
+    # before the phase of the project, as its ``remaining_entry`` orders them; the material beside
+    # lacks the phase alone. Nothing is written.
+    risk = risks.declared_costed()
+    line = project.tree.node(risk["provision_node_id"])
+    assert refusal(reestimate(project.tree, line)) == (
+        409,
+        STATE,
+        {"missing_condition": "line_not_provision"},
+    )
+    assert refusal(reestimate(project.tree, line_named(project.tree, "Plans"))) == (
+        409,
+        STATE,
+        {"missing_condition": "project_in_progress"},
+    )
+    assert kept(project.tree.node(risk["provision_node_id"])) == kept(line)
+
+
+@pytest.mark.story("US-3060")
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_a_line_of_a_category_of_provision_in_a_differential_is_not_reestimated_either(
+    risks: Risks, project: Costed
+) -> None:
+    # #4378: ``line_not_provision`` holds on every structure, not on the main one alone: the line
+    # of the category of provision a differential holds is refused as the line of a risk is, and
+    # nothing is written.
+    structure_id = differential(project)
+    with project.stage.owner.begin() as connection:
+        task = insert_task(
+            connection, project.project_id, project.revision_id, structure_id, label="Avenant"
+        )
+        line = material_line(
+            connection,
+            (project.project_id, project.revision_id, structure_id, task),
+            project.costs.provision,
+            Decimal("50.00"),
+        )
+        held = connection.scalar(select(Node.lock_version).where(Node.id == line))
+    path = (
+        f"{PROJECTS}/{project.project_id}/revisions/{project.revision_id}"
+        f"/structures/{structure_id}/nodes/{line}/remaining"
+    )
+    sent = {
+        "reestimated_amount_basis": {"unit_disbursement": "10.00"},
+        "lock_version": held,
+        "completed_on": str(DAY),
+    }
+    answer = risks.api.put(path, headers=project.stage.manager.headers, json=sent)
+    assert refusal(answer) == (409, STATE, {"missing_condition": "line_not_provision"})
+    with project.stage.owner.begin() as connection:
+        assert connection.scalar(select(Node.lock_version).where(Node.id == line)) == held
+
+
+@pytest.mark.story("US-3060")
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_a_provision_line_is_not_reestimated_its_completed_task_named_first(
+    api: ContractClient, stage: Scene, costs: Costing
+) -> None:
+    # #4378: In progress, the provision line of a task not completed is refused by the line alone;
+    # that of the milestone completed from the Kanban by ``task_not_completed``, which comes first.
+    risks = running(api, stage, costs)
+    tree = risks.project.tree
+    pending = risks.declared_costed(provision_task_id=str(risks.project.tasks["Montage"]))
+    done = risks.declared_costed(
+        label="Sol instable", provision_task_id=str(risks.project.tasks["Jalon"])
+    )
+    moved(tree, "Jalon", "completed", DAY)
+    for risk, missing in ((pending, "line_not_provision"), (done, "task_not_completed")):
+        line = tree.node(risk["provision_node_id"])
+        assert refusal(reestimate(tree, line)) == (409, STATE, {"missing_condition": missing})
+        assert kept(tree.node(risk["provision_node_id"])) == kept(line)
+
+
+@pytest.mark.story("US-3060")
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_what_a_provision_line_computes_is_refused_even_sent_at_the_value_it_holds(
+    risks: Risks, project: Costed
+) -> None:
+    # #4378: its figures and its subproject are its risk's (``PROVISION_COMPUTED``): sent, even
+    # unchanged — the contract silent, decided by the user —, ``COMPUTED_VALUE``.
+    risk = risks.declared_costed()
+    line = project.tree.node(risk["provision_node_id"])
+    figures = line["estimate_line"]
+    sent = {name: figures[name] for name in ("quantity", "unit_disbursement", "subproject_id")}
+    assert faults(project.lines.change(line, **sent)) == [
+        ("/quantity", "COMPUTED_VALUE", {}),
+        ("/unit_disbursement", "COMPUTED_VALUE", {}),
+        ("/subproject_id", "COMPUTED_VALUE", {}),
+    ]
+    assert kept(project.tree.node(risk["provision_node_id"])) == kept(line)
+
+
+@pytest.mark.story("US-3060")
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_what_a_provision_line_does_not_accept_is_refused_its_payment_delay_first(
+    risks: Risks, project: Costed
+) -> None:
+    # #4378: it carries no payment delay, ``FIELD_NOT_ACCEPTED``; nor do its category, its role
+    # and its hours, which its reading neither computes nor accepts — decided by the user.
+    risk = risks.declared_costed()
+    line = project.tree.node(risk["provision_node_id"])
+    assert faults(project.lines.change(line, payment_delay_days=0)) == [
+        ("/payment_delay_days", "FIELD_NOT_ACCEPTED", {})
+    ]
+    sent = {
+        "cost_category_id": line["estimate_line"]["cost_category_id"],
+        "resource_role_id": str(project.costs.role),
+        "hours": "1",
+    }
+    assert faults(project.lines.change(line, **sent)) == [
+        ("/cost_category_id", "FIELD_NOT_ACCEPTED", {}),
+        ("/resource_role_id", "FIELD_NOT_ACCEPTED", {}),
+        ("/hours", "FIELD_NOT_ACCEPTED", {}),
+    ]
+    assert kept(project.tree.node(risk["provision_node_id"])) == kept(line)
+
+
+@pytest.mark.story("US-3060")
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_every_refusal_of_a_provision_line_is_named_at_once_and_nothing_is_written(
+    risks: Risks, project: Costed
+) -> None:
+    # #4378: a body that sends its label with all the rest is refused whole, each field named in
+    # the order of ``EditableField``; the label sent is not written either.
+    risk = risks.declared_costed()
+    line = project.tree.node(risk["provision_node_id"])
+    sent = {
+        "label": "Provision renommée",
+        "cost_category_id": str(project.costs.material),
+        "resource_role_id": str(project.costs.role),
+        "quantity": "2",
+        "hours": "1",
+        "unit_disbursement": "70.00",
+        "payment_delay_days": 30,
+        "subproject_id": None,
+    }
+    assert faults(project.lines.change(line, **sent)) == [
+        ("/cost_category_id", "FIELD_NOT_ACCEPTED", {}),
+        ("/resource_role_id", "FIELD_NOT_ACCEPTED", {}),
+        ("/quantity", "COMPUTED_VALUE", {}),
+        ("/hours", "FIELD_NOT_ACCEPTED", {}),
+        ("/unit_disbursement", "COMPUTED_VALUE", {}),
+        ("/payment_delay_days", "FIELD_NOT_ACCEPTED", {}),
+        ("/subproject_id", "COMPUTED_VALUE", {}),
+    ]
+    assert kept(project.tree.node(risk["provision_node_id"])) == kept(line)
+    assert risks.indicators()["total"]["value"] == "1060.00"
+
+
+@pytest.mark.story("US-3060")
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_the_label_of_a_provision_line_is_accepted_alone_and_its_amount_not_projected(
+    risks: Risks, project: Costed
+) -> None:
+    # #4378: its label is the one field it accepts (``PROVISION_EDITABLE``); written, the line is
+    # not priced again — borne two years after the reference at 3 %, it stays at the 60 its risk
+    # wrote, never projected (WF-DEV-0030) —, and it is read computed still.
+    inflated(risks, "0.03")
+    task = project.tree.made("Exploitation", task=later(2))
+    risk = risks.declared_costed(provision_task_id=task["node_id"])
+    line = project.tree.node(risk["provision_node_id"])
+    project.lines.changed(line, label="Provision renommée")
+    after = project.tree.node(risk["provision_node_id"])
+    assert kept(after) == (line["lock_version"] + 1, "Provision renommée", *kept(line)[2:])
+    assert kept(after)[-2:] == ("60.00", "60.00")
+    assert after["estimate_line"]["is_computed"] is True
+
+
+@pytest.mark.story("US-3060")
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_a_null_label_on_a_provision_line_is_refused_as_required_and_nothing_is_written(
+    risks: Risks, project: Costed
+) -> None:
+    # #4378: the label is the one field the line accepts, and it is required: sent null it is
+    # ``VALUE_REQUIRED`` on ``/label``, and the line is left as it was.
+    risk = risks.declared_costed()
+    line = project.tree.node(risk["provision_node_id"])
+    assert faults(project.lines.change(line, label=None)) == [("/label", "VALUE_REQUIRED", {})]
+    assert kept(project.tree.node(risk["provision_node_id"])) == kept(line)
+
+
+@pytest.mark.story("US-3060")
+@pytest.mark.requirement("WF-IHM-0050-A")
+def test_a_paste_on_a_provision_line_is_refused_its_cells_at_the_preview_and_the_confirmation(
+    risks: Risks, project: Costed
+) -> None:
+    # #4378: the cells judged as ``updateEstimateLine`` judges them (``judge_line_cell``): the
+    # quantity and the unit disbursement computed, the hours and the payment delay not accepted;
+    # the confirmation judges them again, and writes nothing.
+    risk = risks.declared_costed()
+    tree = project.tree
+    line = tree.node(risk["provision_node_id"])
+    blocks = (
+        (
+            "quantity",
+            ["2", "1", "70"],
+            [
+                (0, "quantity", "COMPUTED_VALUE"),
+                (0, "hours", "FIELD_NOT_ACCEPTED"),
+                (0, "unit_disbursement", "COMPUTED_VALUE"),
+            ],
+        ),
+        ("payment_delay_days", ["30"], [(0, "payment_delay_days", "FIELD_NOT_ACCEPTED")]),
+    )
+    for column, row, refused in blocks:
+        plan = planned(tree, line, column, [row])
+        assert (plan["accepted"], reasons(plan)) == (0, refused)
+        assert reasons(applied(tree, plan)) == refused
+    assert kept(tree.node(risk["provision_node_id"])) == kept(line)
+
+
+@pytest.mark.story("US-3060")
+@pytest.mark.requirement("WF-IHM-0050-A")
+def test_a_paste_writes_the_label_of_a_provision_line_alone(risks: Risks, project: Costed) -> None:
+    # #4378: the label pasted is accepted, at the preview and at the confirmation, and written; the
+    # figures and the amounts of the line are its risk's still.
+    risk = risks.declared_costed()
+    tree = project.tree
+    line = tree.node(risk["provision_node_id"])
+    plan = planned(tree, line, "label", [["Provision collée"]])
+    assert (plan["accepted"], reasons(plan)) == (1, [])
+    assert reasons(applied(tree, plan)) == []
+    assert kept(tree.node(risk["provision_node_id"]))[1:] == ("Provision collée", *kept(line)[2:])
