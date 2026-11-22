@@ -109,7 +109,8 @@ test("the schedule shipped is read without having been entered, set weekly from 
   try {
     await administrator.give(holder.id, KEEPER, PERMISSIONS);
     shipped = await current();
-    // What the platform ships, read before anything was entered: every path puts it back at its end.
+    // What the platform ships, read before anything was entered: every path puts it back at its
+    // end.
     expect(shipped).toMatchObject({
       is_enabled: true,
       frequency: "daily",
@@ -198,7 +199,10 @@ test("the schedule shipped is read without having been entered, set weekly from 
   }
 });
 
-/** The identifiers of the backups a grid lists, by the download each row offers, in the order shown. */
+/**
+ * The identifiers of the backups a grid lists, by the download each row offers, in the order
+ * shown.
+ */
 async function listed(grid: Locator): Promise<string[]> {
   const links = grid.getByRole("link", { name: /^Télécharger la sauvegarde du / });
   return Promise.all(

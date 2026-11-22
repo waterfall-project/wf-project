@@ -349,7 +349,9 @@ CHANGED = (
 def readable_by_the_backup(installation: Installation) -> None:
     """Let the role of the backup read the large objects, which ``pg_read_all_data`` does not.
 
-    The platform does not give that right yet (#4170): a backup of a database that holds one fails.
+    The role of the tests is made without the script of the platform, which grants that right
+    (``backup-database-role.sql``, #4170, tested by ``test_backup_role_script``): without it, a
+    backup of a database that holds one fails.
     """
     backup = engine_url(installation.backup["identity_provider"]).username or ""
     with connect(installation.owner["identity_provider"]) as session:

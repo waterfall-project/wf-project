@@ -38,6 +38,8 @@ spec:
               value: {{ .Values.worker.undoRetentionHours | quote }}
             - name: WATERFALL_BACKGROUND_TASK_RETENTION_DAYS
               value: {{ .Values.worker.backgroundTaskRetentionDays | quote }}
+            - name: WATERFALL_UNKNOWN_KIND_WAIT_SECONDS
+              value: {{ .Values.worker.unknownKindWaitSeconds | quote }}
             - name: WATERFALL_BACKUP_DATABASE_URL
               value: {{ printf "postgresql://waterfall_backup:$(WATERFALL_BACKUP_DATABASE_PASSWORD)@%s/waterfall" $host | quote }}
             - name: WATERFALL_KEYCLOAK_DATABASE_URL

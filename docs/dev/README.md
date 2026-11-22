@@ -187,7 +187,9 @@ the service role reads and the owner alone writes (`waterfall.platform.maintenan
 `0035`): a backup dumps only `public`, and a restore replaces only it, so emptying Redis during a
 restore does not lift the maintenance (EP-13, US-2830, #956). Every request of the API thus reads
 the maintenance in the database, one more read per request (the liveness probe reads it to say it),
-bounded by `CONNECT_TIMEOUT`; a database that does not answer or whose pool is spent says "no
+bounded by `CONNECT_TIMEOUT` for the
+connection to the database — the one the address declares by `?connect_timeout=` wins — and by `POOL_TIMEOUT` for the
+pool (#4189, #4190); a database that does not answer or whose pool is spent says "no
 maintenance" and the probe answers. A maintenance held whose state is missing stays held, as an
 abandoned restore. Scheduled
 tasks are deposited by `waterfall-worker schedule`, the one command the planners call: it writes
@@ -208,6 +210,11 @@ Whoever opens the queue says how long it waits for Redis: a request or the sched
 hold back the response; the worker `WORKER_TIMEOUT`, longer than each of its reads. An error the
 worker does not expect — Redis or PostgreSQL out of reach — stops it in failure (1), said in its
 logs by `worker.failed`, secrets masked.
+A task of a kind the worker does not know — one a newer version deposited, during a rolling update —
+stays waiting: the worker does not acknowledge its entry, counts no attempt and logs `task.left`; an
+entry idle for `claim_after` is claimed by a newer worker that has its handler. It fails
+(`INTERNAL_ERROR`, `kind_unhandled`) only once `WATERFALL_UNKNOWN_KIND_WAIT_SECONDS` seconds have
+passed since its deposit, 3600 by default (#809).
 
 **The marking, the first task of the trade** (US-0970). A task that aims at a project names it in
 its payload, under `project_id` (`PROJECT` of `waterfall.platform.tasks`): while it is queued or
@@ -4618,7 +4625,8 @@ an address outside the contract a 404 (`NO_PATH_MATCHED_ERROR`), a request outsi
 service authenticates, and its refusal passes as it is, checked against the contract. It finally
 launches Playwright with, in its environment — never on the command line, where the password of
 Redis could be read —, `E2E_PART=service`, `WATERFALL_API_ADDRESS` (the proxy), `E2E_CONTRACT_PROXY`
-(its container), `E2E_SERVICE_DATABASE` (PostgreSQL's), `WATERFALL_KEYCLOAK_ADDRESS`,
+(its container), `E2E_SERVICE_DATABASE` (PostgreSQL's), `E2E_SERVICE_CACHE` (Redis's), `E2E_SERVICE_DIRECTORY`
+(OpenLDAP's), `E2E_SERVICE_WORKER` (the worker's), `WATERFALL_KEYCLOAK_ADDRESS`,
 `WATERFALL_FRONT_ADDRESS`, `WATERFALL_REDIS_URL` (the Redis of the platform) and
 `NODE_EXTRA_CA_CERTS` (the root of the authority of Keycloak's front end); the secret of the front's
 client, and that of Keycloak's administrator, come from the environment. The platform stays up:
@@ -5370,6 +5378,15 @@ the computation epics (EP-06 to EP-11).
 The envelope is fixed by the contract (`docs/api/README.md`, WF-ARC-0110): a machine code and
 its parameters, never a sentence.
 
+- **A component down, on the back side** — a database that does not answer a request, because the
+  connection fails or is lost, the server stops or starts, or the pool stays taken past
+  `POOL_TIMEOUT`, is refused by the 503 `COMPONENT_UNAVAILABLE` that names `database`, not by a 500
+  (`is_unreachable` of `waterfall.platform.database`, read by the correlation middleware,
+  US-2860); a statement the server judged — a lock refused, a deadlock — stays what it was. The
+  other components are named where they are reached (`platform/storage.py`,
+  `platform/keycloak.py`); the trials of one component stopped at a time, behind a gate the test
+  closes and opens again (`backend/tests/degraded_platform.py`), are in `test_degraded_mode.py`.
+
 - **Adding a code on the front side** — a new code is first a change to the contract
   (`ErrorCode`, `docs/api/components/common.yaml`), followed by `make generate-client`. The
   front gives it its sentence, `errors.<CODE>`, in both catalogues: what is refused,
@@ -5471,6 +5488,20 @@ its parameters, never a sentence.
   text parameter is a `Text`, that the code and the status are those of the contract for the
   operation, the review, then the validation of the responses of the API tests against the
   contract.
+
+- **A lock refused is a 503, on every route** — the handler of `OperationalError` in
+  `backend/src/waterfall/api/problems.py` answers 503 `COMPONENT_UNAVAILABLE`
+  (`params.component` = `database`) to any lock PostgreSQL refuses (`LockNotAvailable`) within
+  the delay a transaction gave itself through `lock_timeout`: it is not an internal error, the
+  database does not let the operation through, and nothing was written. The rule holds for every
+  route, those that set their own bound (`bound_lock_waits`, `platform/database.py`) as the
+  others; any other error of the database stays the 500 of the middleware. A route of the
+  administration that takes the lock of the rule of the administrators opens its transaction with
+  `bounded_transaction` (`api/authentication.py`, #924); the inventory of
+  `test_users_under_load.py` fails on a write operation of `/users` or `/access-roles` that is not
+  in it.
+
+  _Checks_: `make test-back` (`test_users_under_load.py`, `test_api_problems.py`).
 
 - **Logs and responses of the API tests** — an API test goes through `ContractClient`
   (`backend/tests/support.py`), which validates every response against the contract with
@@ -5836,6 +5867,15 @@ on two heads.
 **The rows the migration writes.** The catalogue of permissions, for instance, is a
 data migration, separate from that of the schema. The rows of the installation, for their part, are
 those of the installer: the bootstrap writes them, not a migration (US-0420).
+
+**Known gaps.** A migration applied is not rewritten (WF-DAT-0140): a gap found afterwards is
+recorded here, and is corrected only by a new migration, if a decision asks for one. Migration
+`0016`, published since v0.1.0, carries two, left as they are (#979, decision of the author of
+2026-11-14): on the upgrade, a former `LAST_ADMINISTRATOR` entry of the report of a reading of the
+accounts is attached to the account that bears its address at the migration, which may have changed
+since that reading — until the next reading, whose report is right; on the downgrade, it keeps the
+`EMAIL_MISSING` entries, which the `ErrorCode` before it does not have — a workstation only, no
+installation going back below a published version.
 
 **Lot size.** The migrations are written by hand: they count in the size of a
 lot, and only the revisions a tool generates on its own would be declared in

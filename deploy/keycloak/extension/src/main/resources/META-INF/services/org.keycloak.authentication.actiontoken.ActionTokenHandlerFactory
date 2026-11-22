@@ -2,3 +2,4 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 io.github.waterfallproject.keycloak.PasswordSetupTokenHandler
 io.github.waterfallproject.keycloak.ResetCredentialsTokenHandler
+io.github.waterfallproject.keycloak.ExecuteActionsTokenHandler

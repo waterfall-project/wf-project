@@ -435,7 +435,13 @@ def back_up_and_restore(
 ) -> None:
     """Back the platform up by its API, and restore it (``wftools.restoration_trial``)."""
     signed_in, sent = signed
-    administrator = Administrator(signed_in, sent, platform.address, restoration.client_secret)
+    administrator = Administrator(
+        signed_in,
+        sent,
+        platform.address,
+        restoration.client_secret,
+        (ProductionError, TrialError, OSError),
+    )
     api = Api(compose, restoration.ask)
     probe = probe_of(read, liveness_command(compose))
     RestorationTrial(api, administrator, probe, restoration.clock).run()

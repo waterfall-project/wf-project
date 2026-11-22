@@ -49,6 +49,13 @@ PATIENCE = 600.0
 PAUSE = 2.0
 WATCH = 0.5
 """The pause, in seconds, between two looks for the maintenance, short enough not to miss it."""
+GRACE = 10.0
+"""How long, in seconds, the probe may stay without saying the maintenance once the task is refused.
+
+The restoration puts the platform in maintenance before it closes the sessions: a task refused
+(401) or unavailable (503) while the probe says ``ok`` is a maintenance already past, or not yet
+said by the probe; beyond this, it was missed, and the trial says so without the whole patience.
+"""
 MARKER = "Essai de restauration : fait après la sauvegarde"
 """The label of the role made after the backup, which its restoration takes away."""
 API_REACHED = (
@@ -215,6 +222,8 @@ class Administrator:
     send: Post
     address: str
     client_secret: str
+    unreached: tuple[type[Exception], ...]
+    """The errors of a sign-in that cannot be had: the realm or the front is down, or refuses."""
 
     def token(self) -> str:
         """Sign in in a new browser, and take a token from the session it opens."""
@@ -334,24 +343,66 @@ class RestorationTrial:
             raise TrialError(message)
         return backup
 
+    def signed_again(self, token: str, task_id: str) -> tuple[str, int, Exception | None]:
+        """Sign in again and read the task again; keep the refusal, and why, if it cannot be."""
+        try:
+            fresh = self.administrator.token()
+        except self.administrator.unreached as error:
+            return token, UNAUTHORIZED, error
+        return fresh, self.not_begun(fresh, task_id), None
+
     def restored(self, token: str, task_id: str) -> str:
         """Follow a restoration to its end, through the maintenance; give a token taken after it.
 
         The probe must say the maintenance, in which the API answers 503; until it does, the
         restoration has not begun, and its task is read with the token that asked for it: one that
         has failed fails the trial with its problem, one that has succeeded without the maintenance
-        seen fails it too. The restoration closes every session before it lifts the maintenance:
-        the administrator signs in again at the first ``ok`` after it, and again, after a pause, if
-        the token is refused (401). It has ended when its task has succeeded.
+        seen fails it too. That task is read apart from the looks at the probe, once per ``PAUSE``
+        (each read is a ``compose exec``), so the gap between two looks stays ``WATCH`` but for one
+        in four, which carries the read. A first refusal (401) may be a token that has expired
+        since it was taken, before the backup: the administrator signs in again and the task is
+        read again, unless that sign-in fails (the realm closing), which leaves the refusal. A
+        refusal (401 or 503) arms ``GRACE``, and a read that answers 200 again disarms it (a 503
+        of an API restarting). Beyond ``GRACE`` armed
+        without the maintenance said, the trial fails. The restoration closes every session before
+        it lifts the maintenance: the administrator signs in again at the first ``ok`` after it,
+        and again, after a pause, if the token is refused (401). It has ended when its task has
+        succeeded.
         """
         seen = False
         after: str | None = None
+        read: float | None = None
+        refused: float | None = None
+        renewed = False
+        lost: Exception | None = None
         deadline = self.clock.now() + PATIENCE
         while self.clock.now() < deadline:
             if self.probe() == "maintenance":
                 seen = True
             elif not seen:
-                self.not_begun(token, task_id)
+                # The task is read apart from the looks at the probe (each read is a ``compose
+                # exec``), every ``PAUSE``: the gap between two looks stays near ``WATCH``.
+                now = self.clock.now()
+                if read is None or now - read >= PAUSE:
+                    read = now
+                    status = self.not_begun(token, task_id)
+                    if status == UNAUTHORIZED and not renewed:
+                        # The sessions close just before the maintenance: the realm may be
+                        # down, and the refusal then stands, without a fresh token.
+                        renewed = True
+                        token, status, lost = self.signed_again(token, task_id)
+                    if status == OK:
+                        refused = None
+                    elif refused is None:
+                        refused = now
+                if refused is not None and now - refused >= GRACE:
+                    message = (
+                        f"the liveness probe did not say the maintenance in {GRACE:.0f} s "
+                        "after the task of the restoration was refused"
+                    )
+                    if lost is not None:
+                        message += f" (the sign-in again failed: {lost})"
+                    raise TrialError(message) from lost
                 self.clock.pause(WATCH)
                 continue
             else:
@@ -371,10 +422,11 @@ class RestorationTrial:
         message = f"the restoration did not end in {PATIENCE:.0f} s"
         raise TrialError(message)
 
-    def not_begun(self, token: str, task_id: str) -> None:
+    def not_begun(self, token: str, task_id: str) -> int:
         """Read the task of a restoration not seen in maintenance; fail if it has already ended.
 
-        A session closed (401) or the API in maintenance (503) says the restoration under way.
+        Give the status read: 200 for a task not yet ended; a session closed (401) or the API in
+        maintenance (503) says the restoration under way.
         """
         status, task = self.api.call("GET", f"/tasks/{task_id}", token)
         if status == OK and self.finished(as_object(task)):
@@ -383,6 +435,7 @@ class RestorationTrial:
         if status not in {OK, UNAUTHORIZED, UNAVAILABLE}:
             message = f"the task of the restoration does not read ({status}): {task!r}"
             raise TrialError(message)
+        return status
 
 
 def probe_of(read: Read, command: list[str]) -> Callable[[], str]:

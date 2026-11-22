@@ -43,7 +43,7 @@ from waterfall.worker.backup_copy import CopyTask
 from waterfall.worker.identity_sync import IdentitySync
 from waterfall.worker.marking import mark
 from waterfall.worker.purge import PurgeTask
-from waterfall.worker.runner import Worker
+from waterfall.worker.runner import Timing, Worker
 from waterfall.worker.schedule import deposit_due, planned
 
 if TYPE_CHECKING:
@@ -169,7 +169,9 @@ def _run(settings: WorkerSettings, metrics: WorkerMetrics) -> int:
         TIME_ZONE.read_from(stored_in(database))
         queue = TaskQueue.connect(settings.redis_url.get_secret_value(), timeout=WORKER_TIMEOUT)
         try:
-            return serve(Worker(database, queue, handlers(settings, metrics)).count_in(metrics))
+            timing = Timing(unknown_kind_wait=settings.unknown_kind_wait_seconds)
+            worker = Worker(database, queue, handlers(settings, metrics), timing=timing)
+            return serve(worker.count_in(metrics))
         finally:
             queue.close()
     finally:

@@ -7,12 +7,9 @@ test; the schedule is the command of the service ``scheduler`` of the Compose fi
 platform, run as its shell runs it, with ``waterfall-worker schedule``.
 """
 
-import os
 import signal
-import subprocess
 import sys
 import time
-from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -21,6 +18,7 @@ from uuid import UUID, uuid4
 import pytest
 import yaml
 from access_rows import holder
+from process_support import PATIENCE, started, wait_for
 from sqlalchemy import insert, select, update
 from support import raw_account
 from task_handlers import REQUEST, Runs, deposit, inscriptions, task
@@ -34,8 +32,6 @@ from waterfall.worker.purge import PurgeTask
 from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
-
     from waterfall.platform.database import Database
     from waterfall.platform.queue import TaskQueue
     from waterfall.platform.storage import Bucket
@@ -43,40 +39,9 @@ if TYPE_CHECKING:
 TESTS = Path(__file__).resolve().parent
 COMPOSE = TESTS.parents[1] / "deploy" / "compose" / "compose.service.yaml"
 PRODUCTION = TESTS.parents[1] / "deploy" / "compose" / "compose.prod.yaml"
-# Long enough for a process to start, and short enough for a test to fail in reasonable time.
-PATIENCE = 30.0
 INTERVAL = 1
 PURGE = "WATERFALL_PURGE_INTERVAL"
 SCHEDULE = "WATERFALL_SCHEDULE_INTERVAL"
-
-
-def wait_for(condition: Callable[[], bool]) -> None:
-    """Wait until a condition holds, or fail."""
-    deadline = time.monotonic() + PATIENCE
-    while not condition():
-        assert time.monotonic() < deadline, "the condition never held"
-        time.sleep(0.05)
-
-
-@contextmanager
-def started(arguments: list[str], environment: dict[str, str]) -> Generator[subprocess.Popen[str]]:
-    """Run a process, in a group of its own, and stop the whole group when the block ends."""
-    process = subprocess.Popen(
-        arguments,
-        env={"PATH": os.environ["PATH"], **environment},
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-        text=True,
-        start_new_session=True,
-    )
-    try:
-        yield process
-    finally:
-        if process.poll() is None:
-            os.killpg(process.pid, signal.SIGKILL)
-        _, errors = process.communicate(timeout=PATIENCE)
-        # What the process said, shown with the failure of the test.
-        sys.stderr.write(errors)
 
 
 @pytest.mark.requirement("WF-ARC-0090-A")
@@ -263,7 +228,9 @@ def test_the_two_compose_files_schedule_the_same_loop_with_the_same_settings() -
     }
     # What the purge keeps is the worker's, which runs it.
     undo, tasks = "WATERFALL_UNDO_RETENTION_HOURS", "WATERFALL_BACKGROUND_TASK_RETENTION_DAYS"
-    retentions = {undo: f"${{{undo}:-12}}", tasks: f"${{{tasks}:-30}}"}
+    # The wait of a task of an unknown kind (US-2850) is the worker's too, an hour by default.
+    wait = "WATERFALL_UNKNOWN_KIND_WAIT_SECONDS"
+    retentions = {undo: f"${{{undo}:-12}}", tasks: f"${{{tasks}:-30}}", wait: f"${{{wait}:-3600}}"}
     for compose in (COMPOSE, PRODUCTION):
         worker = yaml.safe_load(compose.read_text(encoding="utf-8"))["services"]["worker"]
         assert {name: worker["environment"][name] for name in retentions} == retentions

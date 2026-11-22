@@ -9,6 +9,7 @@ the request would refuse is written around it, by ``submit``, to prove that the 
 again.
 """
 
+import re
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from typing import TYPE_CHECKING, Any
@@ -16,15 +17,18 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
+from planning_support import main_structure, node_row, task_row
 from projects_support import PROJECTS, READING, Scene, person
 from projects_support import scene as make_scene
-from sqlalchemy import select, text, update
+from sqlalchemy import event, insert, select, text, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from support import ContractClient, nowhere, wait_for_a_lock
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.planning.tables import Node
+from waterfall.core.planning.tables import Task as PlannedTask
 from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.interface import register_indicators
 from waterfall.core.revisions.tables import Revision
@@ -57,6 +61,14 @@ EVENTS = "/api/v1/audit-events"
 AROUND = "around-the-request"
 # Every entry pending is taken at once.
 AT_ONCE = Timing(claim_after=0, block=0.01, redeposit_every=0)
+# How many objects a revision of the marking of the tests holds, and the tables that hold them.
+OBJECTS = 10_000
+# Those of the planning, of the estimate and of the costs that a revision carries and the marking
+# or the copy of the next revision reads: none is named by the request that asks.
+OBJECT_TABLES = re.compile(
+    r"\b(?:node|task|task_link|timeline|tracking_entry|structure_reading|estimate_line|cost_line"
+    r"|cost_import|revision_indicator)\b"
+)
 # Why a computation of the indicators refuses, as EP-10 will: a category without its rate.
 HOURLY_RATE_MISSING = "HOURLY_RATE_MISSING"
 MISSING_RATES = {
@@ -528,6 +540,63 @@ def test_a_worker_stopped_during_the_marking_leaves_the_database_unchanged(
     assert task_of(api, stage, task_id)["status"] == "succeeded"
     assert read(api, stage, revision["revision_id"], stage.manager.headers)["status"] == "marked"
     assert len(markings(database)) == 1
+
+
+def give_objects(owner: Engine, revision_id: UUID, count: int) -> None:
+    """Give the main structure of a revision ``count`` tasks at its root, as the tables' owner."""
+    with owner.begin() as connection:
+        project_id, structure_id = main_structure(connection, revision_id)
+        rows = [
+            node_row(project_id, revision_id, structure_id, rank=rank)
+            for rank in range(1, count + 1)
+        ]
+        connection.execute(insert(Node), rows)
+        facets = [task_row(project_id, UUID(str(row["id"])), structure_id) for row in rows]
+        connection.execute(insert(PlannedTask), facets)
+
+
+@pytest.mark.requirement("WF-ARC-0090-A")
+def test_the_marking_of_a_revision_of_ten_thousand_objects_holds_no_request_beyond_its_task(
+    api: ContractClient, stage: Scene, database: Database, queue: TaskQueue
+) -> None:
+    # « Le marquage d'une révision de dix mille objets n'immobilise aucune requête au-delà de la
+    # création de la tâche, et l'utilisateur en voit l'aboutissement. » The request that asks reads
+    # none of the objects — not a statement of it names the tables of the planning — and ends with
+    # the task queued, the revision as it was; the user then reads the task ended and the
+    # revision marked.
+    revision = open_revision(api, stage)
+    give_objects(stage.owner, UUID(revision["revision_id"]), OBJECTS)
+    statements: list[str] = []
+
+    def recorded(_connection: Any, _cursor: Any, statement: str, *_rest: Any) -> None:
+        statements.append(statement)
+
+    event.listen(database.engine, "before_cursor_execute", recorded)
+    try:
+        asked = ask_marking(api, stage, revision)
+    finally:
+        event.remove(database.engine, "before_cursor_execute", recorded)
+    assert asked.status_code == 202, asked.text
+    task_id = asked.json()["task_id"]
+    assert statements
+    assert not [each for each in statements if OBJECT_TABLES.search(each)]
+    assert task_of(api, stage, task_id)["status"] == "queued"
+    manager = stage.manager.headers
+
+    def marking_while_asked(session: Session, task: Task) -> None:
+        mark(session, task)
+
+    # The reads a user makes while the worker's transaction is open are not tried here: under
+    # MVCC a read waits for no row lock, so they would discriminate nothing, and the API and the
+    # worker run in this one thread. What carries the sentence is the list of statements of the
+    # request, none naming an object table, and the task queued with the revision as it was.
+    queue.prepare()
+    waiting = Worker(database, queue, {"revision_mark": marking_while_asked}, "w", AT_ONCE)
+    assert waiting.step()
+    ended = task_of(api, stage, task_id)
+    assert (ended["status"], ended["progress"], ended["problem"]) == ("succeeded", 100, None)
+    assert ended["finished_at"] is not None
+    assert read(api, stage, revision["revision_id"], manager)["status"] == "marked"
 
 
 @pytest.mark.requirement("WF-ADM-0060-A")

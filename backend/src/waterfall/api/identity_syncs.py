@@ -7,25 +7,28 @@ the report of the latest reading that ended — asked for, or the one the platfo
 apart. Asking for one is a write of the accounts; reading its report, a consultation of them. An
 account of Waterfall the report names — one left as it was, or the one that bears the address of a
 person left without an account — is read as it is when the report is: an account anonymised since
-has no name nor address (#920).
+has no name nor address (#920). The accounts a report names are read together, in one request,
+however many it names (#979).
 """
 
+from collections.abc import Mapping
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 
 from waterfall.api.authentication import Caller, ServicesOf, Transaction
 from waterfall.api.contract.models import BackgroundTaskRef, IdentitySyncReport
 from waterfall.api.evaluation import Requires
 from waterfall.api.tasks import task_ref
 from waterfall.core.users.interface import (
+    AccountLabel,
     Skipped,
     SkippedAccount,
     SkippedAddressHeld,
+    SkippedPerson,
     latest_report,
-    read_account_label,
+    read_account_labels,
 )
 from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.tasks import BackgroundTask, submit
@@ -58,6 +61,8 @@ def get_latest_identity_sync(session: Transaction) -> IdentitySyncReport:
     report = latest_report(session)
     if report is None:
         raise NotFoundError(NOT_FOUND)
+    named = [entry.user_id for entry in report.skipped if not isinstance(entry, SkippedPerson)]
+    labels = read_account_labels(session, [user_id for user_id in named if user_id is not None])
     return IdentitySyncReport.model_validate(
         {
             "task_id": report.task_id,
@@ -66,18 +71,21 @@ def get_latest_identity_sync(session: Transaction) -> IdentitySyncReport:
             "updated": report.updated,
             "deactivated": report.deactivated,
             "restored": report.restored,
-            "skipped": [skipped(session, each) for each in report.skipped],
+            "skipped": [skipped(labels, each) for each in report.skipped],
             "removed": report.removed,
         }
     )
 
 
-def skipped(session: Session, entry: Skipped) -> dict[str, Any]:
-    """Describe what a reading left as it was: an account as it is now, or a person."""
+def skipped(labels: Mapping[UUID, AccountLabel], entry: Skipped) -> dict[str, Any]:
+    """Describe what a reading left as it was: an account as it is now, or a person.
+
+    ``labels`` are the accounts the report names, read together.
+    """
     if isinstance(entry, SkippedAccount):
         return {
             "kind": "account",
-            **named(session, entry.user_id),
+            **named(labels, entry.user_id),
             "subject": None,
             "code": entry.code,
         }
@@ -85,7 +93,7 @@ def skipped(session: Session, entry: Skipped) -> dict[str, Any]:
         # The account that bears her address, as it is now: no copy of it was kept (#920).
         return {
             "kind": "person",
-            **named(session, entry.user_id),
+            **named(labels, entry.user_id),
             "subject": entry.subject,
             "code": entry.code,
         }
@@ -100,9 +108,9 @@ def skipped(session: Session, entry: Skipped) -> dict[str, Any]:
     }
 
 
-def named(session: Session, user_id: UUID | None) -> dict[str, Any]:
+def named(labels: Mapping[UUID, AccountLabel], user_id: UUID | None) -> dict[str, Any]:
     """Name an account of Waterfall as it is now: no name nor address if anonymised, or if none."""
-    label = None if user_id is None else read_account_label(session, user_id)
+    label = None if user_id is None else labels.get(user_id)
     return {
         "user_id": user_id,
         "last_name": None if label is None else label.last_name,

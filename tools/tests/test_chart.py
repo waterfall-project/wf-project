@@ -83,7 +83,12 @@ def test_the_worker_of_the_chart_keeps_what_the_worker_of_the_compose_keeps(
 ) -> None:
     # propre à US-2830 : « background_task_retention_days est un paramètre d'exploitation » :
     # the two retentions of the purge are set on the worker of the chart as on the Compose's.
-    names = ("WATERFALL_UNDO_RETENTION_HOURS", "WATERFALL_BACKGROUND_TASK_RETENTION_DAYS")
+    # And, of US-2850, the wait of a task of a kind the worker does not run.
+    names = (
+        "WATERFALL_UNDO_RETENTION_HOURS",
+        "WATERFALL_BACKGROUND_TASK_RETENTION_DAYS",
+        "WATERFALL_UNKNOWN_KIND_WAIT_SECONDS",
+    )
     compose = services()["worker"]["environment"]
     (container,) = pod(of_kind(objects, "Deployment")["worker"])["containers"]
     variables = environment(container)
@@ -322,9 +327,7 @@ def test_the_files_the_chart_mounts_are_those_of_the_compose(objects: Objects) -
 
 def test_no_pod_reads_the_variables_of_the_services_of_its_namespace(objects: Objects) -> None:
     workloads = [
-        item
-        for item in objects
-        if item["kind"] not in {"Service", "Secret", "ConfigMap", "Ingress"}
+        item for item in objects if item["kind"] in {"Deployment", "StatefulSet", "Job", "CronJob"}
     ]
     assert workloads
     assert all(pod(item)["enableServiceLinks"] is False for item in workloads)

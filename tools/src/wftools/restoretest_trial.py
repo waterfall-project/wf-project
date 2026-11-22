@@ -9,14 +9,15 @@ restoration, plays after them the test of a restoration the host runs once a mon
 - before the manual backup the trial asks of the API, a backup *scheduled*, which the test alone
   restores: the schedule is made due — the date of its last change set back past its latest
   occurrence, as the database of the trial is its own to write —, ``waterfall-worker schedule`` is
-  run in the container of the scheduler, which deposits the backup, and the trial waits for it to
-  be listed verified;
+  run in the container of the scheduler, which deposits the backup, and the trial waits for a backup
+  taken since to be listed verified;
 - after the restoration, the script is run: its status must be 0; the production holds a test
   that succeeded, on a backup scheduled; and nothing of the project of the test remains, neither
   container, nor network, nor volume, which the copy not anonymised would outlive in.
 
 The failure of a test — the number of the projects that differs — is held by the tests of the back
-(``backend/tests/test_restore_trial.py``), not here.
+(``backend/tests/test_restore_trial.py``), not here. The trial of the chart deposits its scheduled
+backup by the same steps (``wftools.chartrestoretest``).
 """
 
 import subprocess
@@ -33,7 +34,11 @@ DUE = (
     "UPDATE backup_schedule SET is_enabled = true, "
     "timing_changed_at = timing_changed_at - interval '8 days'"
 )
-"""Make the backup due: a weekly schedule has had an occurrence in the 8 days before."""
+"""Make the backup due: the schedule the migrations ship, daily at 01:00, has had an occurrence
+since its last change once that change is set back 8 days, and no backup the platform scheduled
+followed it."""
+NOW = "SELECT now()"
+"""The instant of the database before the backup is deposited: a backup taken before is not its."""
 VERIFIED = "SELECT count(*) FROM backup WHERE origin = 'scheduled' AND verification = 'passed'"
 TESTED = (
     "SELECT t.succeeded FROM restore_test t JOIN backup b ON b.id = t.backup_id "
@@ -85,21 +90,40 @@ def _output(read: Read, command: list[str], what: str) -> str:
     return output.strip()
 
 
-def scheduled_backup(compose: list[str], read: Read, clock: Clock | None = None) -> None:
-    """Have the schedule deposit a backup, and wait for it to be listed verified and ended.
+def verified_since(since: str) -> str:
+    """Count the scheduled backups listed verified, taken at or after an instant of the database."""
+    return f"{VERIFIED} AND taken_at >= '{since}'"
 
+
+def scheduled_backup(compose: list[str], read: Read, clock: Clock | None = None) -> None:
+    """Have the schedule of the Compose deposit a backup, and wait for it verified and ended."""
+    deposit = [*compose, "exec", "-T", "scheduler", "waterfall-worker", "schedule"]
+    deposited_backup(lambda statement: psql(compose, statement), [deposit], read, clock)
+
+
+def deposited_backup(
+    sql: Callable[[str], list[str]],
+    schedule: list[list[str]],
+    read: Read,
+    clock: Clock | None = None,
+) -> None:
+    """Make the backup due, run the commands of ``schedule``, and wait for it verified and ended.
+
+    ``sql`` gives the command that runs a statement on the database of Waterfall. Only a backup
+    taken since the trial asked counts: one listed before is not the one the schedule deposited.
     The line of the backup is verified before its task ends: the manual backup that follows would
     meet the lock of the backups still held, and be refused. The task is waited for as well.
     """
     clock = clock or Clock()
-    _output(read, psql(compose, DUE), "making the backup due")
-    deposit = [*compose, "exec", "-T", "scheduler", "waterfall-worker", "schedule"]
-    _output(read, deposit, "the schedule")
+    since = _output(read, sql(NOW), "reading the instant of the database")
+    _output(read, sql(DUE), "making the backup due")
+    for command in schedule:
+        _output(read, command, "the schedule")
     deadline = clock.now() + PATIENCE
     while clock.now() < deadline:
-        counted = _output(read, psql(compose, VERIFIED), "counting the scheduled backups")
+        counted = _output(read, sql(verified_since(since)), "counting the scheduled backups")
         if counted.isdigit() and int(counted) > 0:
-            open_tasks = _output(read, psql(compose, OPEN), "counting the tasks of backup open")
+            open_tasks = _output(read, sql(OPEN), "counting the tasks of backup open")
             if open_tasks.isdigit() and int(open_tasks) == 0:
                 print("  the schedule deposited a backup, which is listed verified and ended")
                 return

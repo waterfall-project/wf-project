@@ -7,9 +7,15 @@ permission to change the accounts and that to change the roles. Every write that
 them from an account — a role changed or deleted, the roles of an account set, an account
 deactivated — runs under one advisory lock of transaction, always the same, and reads the
 administrators under it: two such writes never decide each on what the other is changing.
+
+The reading of the accounts of the provider holds that lock for all its writes, which it commits
+together (WF-ARC-0090): a write of the administration asked meanwhile waits for it. That wait is
+bounded (#924): such a write waits ``ADMINISTRATION_WAIT`` at most for each lock it needs, and is
+refused beyond (503, the database), having written nothing.
 """
 
 from contextlib import AbstractContextManager, contextmanager
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import distinct, func, select
@@ -21,6 +27,7 @@ from waterfall.core.access_roles.tables import (
     UserAccessRole,
 )
 from waterfall.core.users.interface import LAST_ADMINISTRATOR_CONDITION, active_accounts
+from waterfall.platform.database import bound_lock_waits
 from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
@@ -34,11 +41,27 @@ ADMINISTRATION = ("users.write", "access_roles.write")
 
 # The key of the advisory lock of the rule, distinct from that of the migrations.
 ADMINISTRATORS_LOCK = 1_200_120
+# How long a write of the administration waits for a lock it needs (#924). A change of an account
+# asked while the worker reads five hundred persons of a directory — the effective of table 13 —
+# waited on a workstation 1.5 s as it deactivated them all, 0.7 s as it created them
+# (``test_users_under_load.py``), and renaming them takes 0.9 s: some six times that leaves a loaded
+# platform its margin, and a reading of a directory many times larger refuses the writes asked
+# meanwhile, rather than holding them its whole length, longer than a person waits for an answer.
+ADMINISTRATION_WAIT = timedelta(seconds=10)
 
 
 def lock_administrators(session: Session) -> None:
     """Wait for, then hold until the end of the transaction, the lock of the rule."""
     session.execute(select(func.pg_advisory_xact_lock(ADMINISTRATORS_LOCK)))
+
+
+def bound_administration_waits(session: Session) -> None:
+    """Bound the waits of a write of the administration for its locks, the rule's included (#924).
+
+    For the rest of its transaction: taken before the lock of the rule, it bounds that wait, and
+    those for the rows of the accounts a reading of the accounts holds until it is committed.
+    """
+    bound_lock_waits(session, ADMINISTRATION_WAIT)
 
 
 def administrators(session: Session) -> frozenset[UUID]:

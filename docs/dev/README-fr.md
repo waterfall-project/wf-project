@@ -190,7 +190,9 @@ au plus dans chacune de ses deux tables, que le rôle du service lit et que le p
 écrit (`waterfall.platform.maintenance`, migration `0035`) : une sauvegarde ne vide que `public`, et
 une restauration ne remplace que lui, si bien que vider Redis pendant une restauration ne lève pas
 la maintenance (EP-13, US-2830, #956). Chaque requête de l'API lit donc la maintenance en base, une
-lecture de plus par requête (la sonde de vie la lit pour la dire), bornée par `CONNECT_TIMEOUT` ; une
+lecture de plus par requête (la sonde de vie la lit pour la dire), bornée par `CONNECT_TIMEOUT` pour la
+connexion à la base — celle que l'adresse déclare par `?connect_timeout=` l'emporte — et par `POOL_TIMEOUT` pour le
+réservoir (#4189, #4190) ; une
 base qui ne répond pas ou dont le réservoir est épuisé dit « pas de maintenance » et la sonde répond.
 Une maintenance posée dont l'état manque reste posée, comme une restauration abandonnée. Les tâches planifiées se déposent par `waterfall-worker schedule`, la seule commande que les
 planificateurs appellent : elle inscrit et met en file ce qui est dû — la lecture des comptes et la sauvegarde à
@@ -210,6 +212,11 @@ Qui ouvre la file dit combien il attend Redis : une requête ou le planificateur
 retienne pas la réponse ; le worker `WORKER_TIMEOUT`, plus long que chacune de ses lectures. Une
 erreur que le worker n'attend pas — Redis ou PostgreSQL hors d'atteinte — l'arrête en échec (1),
 dite dans ses journaux par `worker.failed`, secrets masqués.
+Une tâche d'un genre que le worker ne connaît pas — celle qu'une version plus récente a déposée,
+pendant une mise à jour progressive — reste en attente : le worker n'acquitte pas son entrée, ne compte
+aucune tentative et journalise `task.left` ; une entrée au repos depuis `claim_after` est reprise, par un
+worker plus récent qui en a le traitement. Elle n'échoue (`INTERNAL_ERROR`, `kind_unhandled`) qu'une fois
+`WATERFALL_UNKNOWN_KIND_WAIT_SECONDS` secondes écoulées depuis son dépôt, 3600 par défaut (#809).
 
 **Le marquage, premier traitement du métier** (US-0970). Une tâche qui vise un projet le nomme dans
 sa charge, sous `project_id` (`PROJECT` de `waterfall.platform.tasks`) : tant qu'elle est en file
@@ -4656,7 +4663,8 @@ contrat un 422, et Prism écrit chacune à son journal sous sa requête. Prism n
 le service authentifie, et son refus passe tel quel, confronté au contrat. Il lance enfin Playwright
 avec, dans son environnement — jamais en ligne de commande, où le mot de passe de Redis se lirait —,
 `E2E_PART=service`, `WATERFALL_API_ADDRESS` (le mandataire), `E2E_CONTRACT_PROXY` (son conteneur),
-`E2E_SERVICE_DATABASE` (celui de PostgreSQL), `WATERFALL_KEYCLOAK_ADDRESS`,
+`E2E_SERVICE_DATABASE` (celui de PostgreSQL), `E2E_SERVICE_CACHE` (celui de Redis),
+`E2E_SERVICE_DIRECTORY` (celui d'OpenLDAP), `E2E_SERVICE_WORKER` (celui du worker), `WATERFALL_KEYCLOAK_ADDRESS`,
 `WATERFALL_FRONT_ADDRESS`, `WATERFALL_REDIS_URL` (le Redis de la plateforme) et
 `NODE_EXTRA_CA_CERTS` (la racine de l'autorité du frontal de Keycloak) ; le secret du client du
 front, et celui de l'administrateur de Keycloak, viennent de l'environnement. La plateforme reste
@@ -5482,6 +5490,15 @@ les EPIC de calcul (EP-06 à EP-11).
 L'enveloppe est fixée par le contrat (`docs/api/README-fr.md`, WF-ARC-0110) : un code machine et
 ses paramètres, jamais une phrase.
 
+- **Un composant tombé côté back** — une base qui ne répond pas à une requête, parce que la connexion
+  échoue ou se perd, que le serveur s'arrête ou démarre, ou que le réservoir reste pris au-delà de
+  `POOL_TIMEOUT`, est refusée par le 503 `COMPONENT_UNAVAILABLE` qui nomme `database`, non par un 500
+  (`is_unreachable` de `waterfall.platform.database`, lu par le middleware de la corrélation,
+  US-2860) ; une instruction que le serveur a jugée — un verrou refusé, un interblocage — reste ce
+  qu'elle était. Les autres composants se nomment là où ils sont atteints (`platform/storage.py`,
+  `platform/keycloak.py`) ; les essais d'un composant arrêté à la fois, derrière une porte que le test
+  ferme et rouvre (`backend/tests/degraded_platform.py`), sont dans `test_degraded_mode.py`.
+
 - **Ajouter un code côté front** — un code nouveau est d'abord une modification du contrat
   (`ErrorCode`, `docs/api/components/common.yaml`), suivie de `make generate-client`. Le
   front lui donne sa phrase, `errors.<CODE>`, dans les deux catalogues : ce qui est refusé,
@@ -5585,6 +5602,19 @@ ses paramètres, jamais une phrase.
   `test_access_roles_guard.py` pour le NUL, `test_contract_digits.py` pour les chiffres) ; que
   tout paramètre en texte est un `Text`, que le code et le statut sont ceux du contrat pour
   l'opération, la revue, puis la validation des réponses des tests d'API contre le contrat.
+
+- **Un verrou refusé est un 503, sur toute route** — le gestionnaire d'`OperationalError` de
+  `backend/src/waterfall/api/problems.py` répond 503 `COMPONENT_UNAVAILABLE` (`params.component`
+  = `database`) à tout verrou que PostgreSQL refuse (`LockNotAvailable`) dans le délai qu'une
+  transaction s'est donné par `lock_timeout` : ce n'est pas une erreur interne, la base ne laisse
+  pas passer l'opération, qui n'a rien écrit. La règle vaut pour toute route, celles qui posent
+  leur propre borne (`bound_lock_waits`, `platform/database.py`) comme les autres ; toute autre
+  erreur de la base reste le 500 du middleware. Une route d'administration qui prend le verrou de
+  la règle des administrateurs ouvre sa transaction par `bounded_transaction`
+  (`api/authentication.py`, #924) ; l'inventaire de `test_users_under_load.py` échoue sur une
+  opération d'écriture de `/users` ou de `/access-roles` qui n'y est pas.
+
+  _Contrôles_ : `make test-back` (`test_users_under_load.py`, `test_api_problems.py`).
 
 - **Journaux et réponses des tests d'API** — un test d'API passe par `ContractClient`
   (`backend/tests/support.py`), qui valide chaque réponse contre le contrat avec openapi-core :
@@ -5958,6 +5988,16 @@ sur deux têtes.
 **Les lignes que la migration écrit.** Le catalogue des permissions, par exemple, est une
 migration de données, séparée de celle du schéma. Les lignes de l'installation, elles, sont
 celles de l'installateur : l'amorçage les écrit, pas une migration (US-0420).
+
+**Les écarts connus.** Une migration appliquée ne se réécrit pas (WF-DAT-0140) : un écart trouvé
+après coup se consigne ici, et ne se corrige que par une migration nouvelle, si une décision la
+demande. La migration `0016`, publiée depuis la v0.1.0, en porte deux, laissés tels quels (#979,
+décision de l'auteur du 2026-11-14) : à la montée, une ancienne entrée `LAST_ADMINISTRATOR` du
+compte rendu d'une lecture des comptes est rattachée au compte qui porte son adresse à la
+migration, qui a pu changer depuis cette lecture — jusqu'à la lecture suivante, dont le compte
+rendu est juste ; à la descente, elle garde les entrées `EMAIL_MISSING`, que l'`ErrorCode` d'avant
+elle n'a pas — un poste de développement seulement, aucune installation ne redescendant sous une
+version publiée.
 
 **Taille d'un lot.** Les migrations sont écrites à la main : elles comptent dans la taille d'un
 lot, et seules les révisions qu'un outil engendre seul seraient déclarées dans

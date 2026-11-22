@@ -35,7 +35,8 @@ if TYPE_CHECKING:
     from waterfall.platform.settings import ServiceSettings
     from waterfall.platform.tasks import Task
 
-AT_ONCE = Timing(claim_after=0, block=0.01, redeposit_every=0)
+# A task of a kind no handler runs fails at once: its wait is spent (#809).
+AT_ONCE = Timing(claim_after=0, block=0.01, redeposit_every=0, unknown_kind_wait=0)
 TASKS = "waterfall_worker_tasks_total"
 DURATIONS = "waterfall_worker_task_duration_seconds_count"
 

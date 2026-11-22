@@ -11,9 +11,10 @@ a table sorts is compared code point by code point, and a search ignores case an
 """
 
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+from psycopg import OperationalError as DriverOperationalError
 from psycopg.errors import UniqueViolation
 from sqlalchemy import (
     ARRAY,
@@ -32,8 +33,12 @@ from sqlalchemy import (
     create_engine,
     func,
     literal,
+    select,
+    true,
 )
 from sqlalchemy.engine import URL, make_url
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.types import TypeDecorator
 
@@ -187,11 +192,60 @@ OBSERVATION_SECONDS = 3
 # The seconds a connection to the server may take, libpq's shortest: a server that answers no more
 # holds its caller, the probe of liveness first, for that long and not for ever.
 CONNECT_TIMEOUT = 2
+# How long a request waits for a connection of its pool to be lent: no longer than a connection
+# takes to open, so that the probe of liveness, which reads the maintenance through that pool, says
+# so within what the healthcheck waits when the pool is spent (#4189). The bound is the one of the
+# engine ``create_database_engine`` makes — the worker's, the restoration's, the bootstrap's, the
+# witness's, the migrations' —, a choice kept on purpose: a burst that holds the reserve longer
+# than this is a database refused naming ``database`` (``is_unreachable``), not a request that
+# waits thirty seconds behind it.
+POOL_TIMEOUT = CONNECT_TIMEOUT
+
+
+# The SQLSTATE of a server that does not answer: a connection exception (class 08) and the shutdown
+# or the start of the server (57P01 to 57P03). A statement the server judged — a lock refused, a
+# deadlock, a statement cancelled — has another, and is not the database out of reach. So does 53300
+# (too many connections): the server answers and refuses, it is full, not out of reach.
+UNREACHABLE_STATES = frozenset({"57P01", "57P02", "57P03"})
+
+
+def is_unreachable(error: BaseException) -> bool:
+    """Tell whether an error is the database not answering, rather than a statement it refused.
+
+    A connection that fails to open or is lost — the driver says none of the SQLSTATE of a statement
+    refused —, a server that shuts down or starts, a pool whose every connection stays taken past
+    ``POOL_TIMEOUT``: each is the component out of reach (WF-EXP-0040, §4.5.4, table 12), and a
+    request that meets one is refused naming the database, not answered as an internal error.
+    """
+    seen: BaseException | None = error
+    while seen is not None:
+        if isinstance(seen, PoolTimeoutError):
+            return True
+        if isinstance(seen, DBAPIError):
+            driver = seen.orig
+            if seen.connection_invalidated:
+                return True
+            if isinstance(driver, DriverOperationalError):
+                state = driver.sqlstate
+                return state is None or state.startswith("08") or state in UNREACHABLE_STATES
+            return False
+        seen = seen.__cause__
+    return False
 
 
 def utc_now() -> datetime:
     """Read the clock, in universal time."""
     return datetime.now(UTC)
+
+
+def bound_lock_waits(session: Session, waited: timedelta) -> None:
+    """Bound how long each statement of the transaction of a session waits for a lock.
+
+    Beyond, PostgreSQL refuses the statement (``LockNotAvailable``), and the transaction is rolled
+    back; the API answers it 503, the database not letting the operation through in time.
+    """
+    milliseconds = max(1, round(waited.total_seconds() * 1000))
+    session.execute(select(func.set_config("lock_timeout", f"{milliseconds}ms", true())))
 
 
 def engine_url(address: str) -> URL:
@@ -202,6 +256,25 @@ def engine_url(address: str) -> URL:
     return url
 
 
+def connect_timeout_of(url: URL) -> int:
+    """Give the seconds a connection may take: the address's ``connect_timeout``, else the default.
+
+    An operator who writes ``?connect_timeout=10`` in the address (TLS, a remote server) is
+    obeyed, not overridden by ``CONNECT_TIMEOUT`` (#4190).
+    """
+    given = url.query.get("connect_timeout")
+    if given is None:
+        return CONNECT_TIMEOUT
+    last = given if isinstance(given, str) else given[-1]
+    # libpq reads zero as « without a bound » and ignores a negative or a non-number: none of them
+    # may leave the connection unbounded, so each falls back to the default.
+    try:
+        seconds = int(last)
+    except ValueError:
+        return CONNECT_TIMEOUT
+    return seconds if seconds > 0 else CONNECT_TIMEOUT
+
+
 def create_database_engine(address: str) -> Engine:
     """Open the engine on the database, whose sessions keep time in universal time.
 
@@ -209,12 +282,14 @@ def create_database_engine(address: str) -> Engine:
     all taken; with the two of the observation, ``CONNECTIONS_PER_ENGINE`` at most, which
     ``max_connections`` of the server carries for each process of the platform (US-2230).
     """
+    url = engine_url(address)
     return create_engine(
-        engine_url(address),
-        connect_args={"options": "-c timezone=UTC", "connect_timeout": CONNECT_TIMEOUT},
+        url,
+        connect_args={"options": "-c timezone=UTC", "connect_timeout": connect_timeout_of(url)},
         pool_pre_ping=True,
         pool_size=POOL_SIZE,
         max_overflow=POOL_OVERFLOW,
+        pool_timeout=POOL_TIMEOUT,
     )
 
 

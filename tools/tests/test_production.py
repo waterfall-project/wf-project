@@ -335,6 +335,9 @@ def test_the_worker_backs_up_as_the_role_of_the_backup_and_the_owner_migrates_al
     script = (COMPOSE / "backup-database-role.sql").read_text(encoding="utf-8")
     assert "GRANT pg_read_all_data TO waterfall_backup;" in script
     assert "NOSUPERUSER" in script
+    assert "FOR ROLE keycloak GRANT SELECT ON LARGE OBJECTS TO waterfall_backup;" in script
+    assert "\\connect keycloak" in script
+    assert "keycloak-database" in services()["backup-database-role"]["depends_on"]
 
 
 def test_the_owner_of_the_tables_is_no_superuser_and_the_administrator_initialises_alone() -> None:

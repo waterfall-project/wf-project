@@ -9,28 +9,34 @@ test gives it, and calls the API with a token of the realm of test; every answer
 the contract (``ContractClient``).
 """
 
+import asyncio
 import io
 import json
 import subprocess
 import tarfile
-from collections.abc import Callable
+from collections.abc import Callable, Iterator, MutableMapping
+from contextlib import suppress
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
+import anyio
 import pytest
 from access_rows import account, role
 from backup_support import Corrupting, Run, worker_of
+from botocore.exceptions import ReadTimeoutError
 from fastapi.testclient import TestClient
 from realm import KEY, TestRealm
 from sqlalchemy import Engine, select, text, update
 from sqlalchemy.exc import ProgrammingError
+from starlette.requests import ClientDisconnect
 from support import ContractClient, bearer, captured_logs
 from task_handlers import REQUEST, deposit, task
 
 from waterfall import __version__
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.api.streams import ObjectResponse
 from waterfall.core.backups.interface import TakenBackup, add_backup, last_scheduled_outcome
 from waterfall.core.backups.tables import BackupSchedule
 from waterfall.platform.audit import Act, AuditEntry
@@ -39,7 +45,7 @@ from waterfall.platform.errors import UnavailableError
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import ServiceSettings, load_worker_settings
-from waterfall.platform.storage import Bucket
+from waterfall.platform.storage import Bucket, ObjectStream
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.worker import backup as backup_module
 from waterfall.worker.backup import MANIFEST, BackupTask, DumpError, connection, dump, verified
@@ -47,6 +53,7 @@ from waterfall.worker.backup import MANIFEST, BackupTask, DumpError, connection,
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from botocore.response import StreamingBody
     from openapi_core import OpenAPI
     from sqlalchemy.orm import Session
 
@@ -56,6 +63,7 @@ if TYPE_CHECKING:
 BACKUPS = "/api/v1/backups"
 READ = "backups.read"
 WRITE = "backups.write"
+DATABASE = "database"
 UNREACHABLE = "postgresql://nobody:nothing@127.0.0.1:9/nowhere"
 
 type Person = Callable[..., tuple[UUID, dict[str, str]]]
@@ -383,9 +391,6 @@ def test_an_archive_that_does_not_read_back_whole_fails_a_manual_backup_the_same
     assert outcome is None
 
 
-DATABASE = "database"
-
-
 def keys_of(bucket: Bucket, prefix: str = "") -> list[str]:
     """List the keys, under ``prefix``, of the objects the bucket holds, paginated."""
     pages = bucket.client.get_paginator("list_objects_v2").paginate(
@@ -455,6 +460,7 @@ def test_an_archive_written_and_not_recorded_leaves_no_object_under_its_key(
     assert keys_of(backups_bucket, f"backup-{task_id}") == []
 
 
+@pytest.mark.story("US-2940")
 @pytest.mark.requirement("WF-DAT-0120-A")
 def test_an_archive_whose_verification_raises_leaves_no_object_under_its_key(
     database: Database,
@@ -470,7 +476,11 @@ def test_an_archive_whose_verification_raises_leaves_no_object_under_its_key(
     monkeypatch.setattr(backup_module, "verified", raising)
     task_id = run(BackupTask(databases, backups_bucket))
     failed = task(database, task_id)
-    assert failed.status == "failed"
+    # The outage rendered is the one ``verified`` raised (#2880).
+    assert (failed.status, (failed.problem or {}).get("params")) == (
+        "failed",
+        {"component": "object_storage"},
+    )
     assert keys_of(backups_bucket, f"backup-{task_id}") == []
 
 
@@ -746,3 +756,165 @@ def test_a_backup_whose_archive_is_gone_or_out_of_reach_is_not_copied(
         503,
         {"component": "object_storage"},
     )
+
+
+class Body:
+    """The body the storage gives of an object: some chunks, then a fault if one is given."""
+
+    def __init__(self, chunks: list[bytes], fault: Exception | None = None) -> None:
+        self.chunks = chunks
+        self.fault = fault
+        self.closed = False
+
+    def iter_chunks(self, _size: int) -> Iterator[bytes]:
+        yield from self.chunks
+        if self.fault is not None:
+            raise self.fault
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def streamed(body: Body, length: int | None, key: str = "kept.tar") -> ObjectStream:
+    """Give the stream of a body, as the bucket opens it."""
+    return ObjectStream(cast("StreamingBody", body), length, key)
+
+
+class Serving(Bucket):
+    """A bucket that serves the stream it is given, whatever the key."""
+
+    served: ObjectStream
+
+    def stream(self, key: str) -> ObjectStream:
+        del key
+        return self.served
+
+
+def serving(stream: ObjectStream, bucket: Bucket) -> Serving:
+    """Give a bucket that serves a stream."""
+    served = Serving(bucket.client, bucket.name)
+    served.served = stream
+    return served
+
+
+FAULT = ReadTimeoutError(endpoint_url="http://storage")
+
+
+@pytest.mark.story("US-2940")
+def test_a_stream_of_the_storage_closes_its_body_when_it_ends_and_says_when_it_fails() -> None:
+    # [US-2940] #897: the body is closed at the end of the object, and a fault of the storage once
+    # the stream has begun is the refusal it is before it (503, the object storage), journaled.
+    body = Body([b"ab", b"c"])
+    stream = streamed(body, 3)
+    assert b"".join(stream) == b"abc"
+    assert body.closed
+    broken = Body([b"ab"], FAULT)
+    interrupted = streamed(broken, 10)
+    with captured_logs() as logs, pytest.raises(UnavailableError) as raised:
+        list(interrupted)
+    assert dict(raised.value.params) == {"component": "object_storage"}
+    assert broken.closed
+    (said,) = logs.named("storage.stream_interrupted")
+    assert said["key"] == "kept.tar"
+
+
+@pytest.mark.story("US-2940")
+def test_a_download_carries_the_length_the_storage_gives_and_closes_the_body_it_read(
+    api_on: ApiOn,
+    database: Database,
+    queue: TaskQueue,
+    backups_bucket: Bucket,
+    person: Person,
+) -> None:
+    # [US-2940] #897: Content-Length is the size of the object the storage gives, which is what the
+    # body holds, and the body is closed once read.
+    backup_id = backup_row(database, queue, "kept.tar")
+    _, headers = person(READ, WRITE)
+    body = Body([b"abc", b"de"])
+    api = api_on(serving(streamed(body, 5), backups_bucket))
+    copied = api.get(f"{BACKUPS}/{backup_id}/content", headers=headers)
+    assert (copied.status_code, copied.content) == (200, b"abcde")
+    assert copied.headers["content-length"] == "5"
+    assert body.closed
+
+
+@pytest.mark.story("US-2940")
+def test_a_download_that_fails_once_it_has_begun_is_journaled_and_closes_its_body(
+    api_on: ApiOn,
+    database: Database,
+    queue: TaskQueue,
+    backups_bucket: Bucket,
+    person: Person,
+) -> None:
+    # [US-2940] #897: a fault in the middle of the stream cannot change the status, which was sent;
+    # the connection ends short of its length, and the journal says the object and the refusal.
+    backup_id = backup_row(database, queue, "kept.tar")
+    _, headers = person(READ, WRITE)
+    body = Body([b"abc"], FAULT)
+    api = api_on(serving(streamed(body, 10), backups_bucket))
+    with captured_logs() as logs:
+        copied = api.get(f"{BACKUPS}/{backup_id}/content", headers=headers)
+    assert len(copied.content) < 10
+    assert body.closed
+    assert logs.named("storage.stream_interrupted")
+    (interrupted,) = logs.named("download.interrupted")
+    assert interrupted["code"] == "COMPONENT_UNAVAILABLE"
+
+
+async def disconnecting(receive_first: bool) -> None:
+    """Send a stream to a client that leaves after its first chunk, by one of the two protocols."""
+    body = Body([b"a", b"b", b"c"])
+    response = ObjectResponse(streamed(body, 3), "application/octet-stream")
+    sent: list[str] = []
+
+    async def send(message: MutableMapping[str, Any]) -> None:
+        sent.append(message["type"])
+        if len(sent) == 2:
+            raise OSError
+
+    async def receive() -> MutableMapping[str, Any]:
+        await asyncio.sleep(0)
+        return {"type": "http.disconnect"}
+
+    spec = "2.4" if receive_first else "2.3"
+    scope = {"type": "http", "asgi": {"spec_version": spec}}
+    with suppress(ClientDisconnect):
+        await response(scope, receive, send)
+    assert body.closed
+
+
+@pytest.mark.story("US-2940")
+@pytest.mark.parametrize("receive_first", [True, False], ids=["asgi-2.4", "asgi-2.3"])
+def test_a_download_the_client_leaves_closes_the_body_read_from_the_storage(
+    receive_first: bool,
+) -> None:
+    # [US-2940] #897: by the send that fails (ASGI 2.4) or the disconnection message before it,
+    # nothing in the framework closes the iterator it is given: the response does.
+    asyncio.run(disconnecting(receive_first))
+
+
+async def cancelled_while_sending() -> None:
+    """Send a stream to a client that stalls, under a cancel scope that ends while it waits."""
+    body = Body([b"a", b"b", b"c"])
+    response = ObjectResponse(streamed(body, 3), "application/octet-stream")
+
+    async def send(message: MutableMapping[str, Any]) -> None:
+        if message["type"] == "http.response.body":
+            await asyncio.sleep(10)
+
+    async def receive() -> MutableMapping[str, Any]:
+        await asyncio.sleep(10)
+        return {"type": "http.disconnect"}
+
+    scope = {"type": "http", "asgi": {"spec_version": "2.3"}}
+    with anyio.move_on_after(0.2) as scope_of_the_task:
+        await response(scope, receive, send)
+    assert scope_of_the_task.cancelled_caught
+    assert body.closed
+
+
+@pytest.mark.story("US-2940")
+def test_a_download_whose_task_is_cancelled_closes_the_body_all_the_same() -> None:
+    # [US-2940] #897: under a cancel scope — the server that stops, a timeout — every await of the
+    # task raises again, the one of the closing included: the closing is shielded from it.
+    asyncio.run(cancelled_while_sending())
