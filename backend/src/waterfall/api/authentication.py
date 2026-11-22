@@ -26,6 +26,7 @@ slow would exhaust the pool, and requests that do not need Keycloak would fail (
 """
 
 from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass, fields
 from datetime import datetime
 from typing import Annotated, cast
@@ -34,6 +35,7 @@ from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 from structlog.contextvars import bind_contextvars
 
+from waterfall.core.access_roles.interface import bound_administration_waits
 from waterfall.core.users.interface import (
     Account,
     Admission,
@@ -112,6 +114,18 @@ ServicesOf = Annotated[Services, Depends(services_of)]
 def transaction(services: ServicesOf) -> Generator[Session]:
     """Run the request in one transaction, committed once the route has built its answer."""
     with services.database.transaction() as session:
+        yield session
+
+
+@contextmanager
+def bounded_transaction(services: Services) -> Generator[Session]:
+    """Open a transaction of a route of the administration whose waits for a lock are bounded.
+
+    Before anything else, the lock of the rule included (#924): every route that takes it opens its
+    transaction so, and a test lists the write operations of the administration to keep it so.
+    """
+    with services.database.transaction() as session:
+        bound_administration_waits(session)
         yield session
 
 

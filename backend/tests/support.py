@@ -38,6 +38,7 @@ from waterfall.platform.keycloak_admin import (
 )
 from waterfall.platform.logs import configure_logging
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
+from waterfall.platform.settings import ENV_PREFIX, ServiceSettings
 from waterfall.platform.storage import Bucket
 
 if TYPE_CHECKING:
@@ -47,7 +48,6 @@ if TYPE_CHECKING:
     from httpx2 import Response
 
     from waterfall.platform.keycloak import Keycloak
-    from waterfall.platform.settings import ServiceSettings
 
 CONTRACT = Path(__file__).resolve().parents[2] / "docs" / "api" / "openapi.yaml"
 # The description of the witness, the examples of the contract the fake back serves (EP-05).
@@ -99,6 +99,22 @@ SECRETS = [
     DECODED_CREDENTIAL,
     *PLATFORM_SECRETS.values(),
 ]
+
+
+def service_settings(**variables: str) -> ServiceSettings:
+    """Read the settings of a service of the test platform, the variables given in their place.
+
+    From the environment a service of the test platform starts with — its secrets and its
+    addresses, those ``conftest.py`` gives the process —, read by their names as the service reads
+    them, and not from the environment of the process. A setting the service comes to require is
+    given there, where every test that starts a service needs it: the settings of the API served
+    on the Keycloak of the platform, derived from these, read it too, and are no longer written by
+    hand (#891).
+    """
+    environment = {**PLATFORM_SECRETS, **PLATFORM_ADDRESSES, **variables}
+    return ServiceSettings.model_validate(
+        {name.removeprefix(ENV_PREFIX).lower(): value for name, value in environment.items()}
+    )
 
 
 def nowhere() -> tuple[TaskQueue, Bucket]:

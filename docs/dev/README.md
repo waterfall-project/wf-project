@@ -5489,6 +5489,20 @@ its parameters, never a sentence.
   operation, the review, then the validation of the responses of the API tests against the
   contract.
 
+- **A lock refused is a 503, on every route** — the handler of `OperationalError` in
+  `backend/src/waterfall/api/problems.py` answers 503 `COMPONENT_UNAVAILABLE`
+  (`params.component` = `database`) to any lock PostgreSQL refuses (`LockNotAvailable`) within
+  the delay a transaction gave itself through `lock_timeout`: it is not an internal error, the
+  database does not let the operation through, and nothing was written. The rule holds for every
+  route, those that set their own bound (`bound_lock_waits`, `platform/database.py`) as the
+  others; any other error of the database stays the 500 of the middleware. A route of the
+  administration that takes the lock of the rule of the administrators opens its transaction with
+  `bounded_transaction` (`api/authentication.py`, #924); the inventory of
+  `test_users_under_load.py` fails on a write operation of `/users` or `/access-roles` that is not
+  in it.
+
+  _Checks_: `make test-back` (`test_users_under_load.py`, `test_api_problems.py`).
+
 - **Logs and responses of the API tests** — an API test goes through `ContractClient`
   (`backend/tests/support.py`), which validates every response against the contract with
   openapi-core: a response outside the schema fails the test. The logs are those of structlog in
@@ -5853,6 +5867,15 @@ on two heads.
 **The rows the migration writes.** The catalogue of permissions, for instance, is a
 data migration, separate from that of the schema. The rows of the installation, for their part, are
 those of the installer: the bootstrap writes them, not a migration (US-0420).
+
+**Known gaps.** A migration applied is not rewritten (WF-DAT-0140): a gap found afterwards is
+recorded here, and is corrected only by a new migration, if a decision asks for one. Migration
+`0016`, published since v0.1.0, carries two, left as they are (#979, decision of the author of
+2026-11-14): on the upgrade, a former `LAST_ADMINISTRATOR` entry of the report of a reading of the
+accounts is attached to the account that bears its address at the migration, which may have changed
+since that reading — until the next reading, whose report is right; on the downgrade, it keeps the
+`EMAIL_MISSING` entries, which the `ErrorCode` before it does not have — a workstation only, no
+installation going back below a published version.
 
 **Lot size.** The migrations are written by hand: they count in the size of a
 lot, and only the revisions a tool generates on its own would be declared in
