@@ -76,9 +76,10 @@ variable of its own: the service Compose gives the `witness` service the role of
 examples;
 the platform must be started and bootstrapped (`make service-install`), for the command does not
 write what the bootstrap writes — the row of the installation, the common settings, the units, the
-mapping, the default calendar and the provision —, it sets what the bootstrap laid. The `witness`
-fixture of `backend/tests/conftest.py` does likewise on the database of the tests: it first
-installs what the bootstrap writes, then runs the command. `backend/tests/test_witness.py` tries
+mapping, the default calendar and the provision —, it sets what the bootstrap laid. The tests do
+likewise, once a run, on a template database (`backend/tests/witness_template.py`): they first
+install what the bootstrap writes, then run the command; the `witness` fixture gives each test a
+copy of that database. `backend/tests/test_witness.py` tries
 the witness whole: its volumes, two new platforms loaded identical, a second run that writes
 nothing, the dates and authors of the platform, the stop, saying so, on a witness the rules refuse,
 and the lists of the service compared with the examples of the contract, the audit columns apart.
@@ -3694,14 +3695,15 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   `front-cache.yml` writes that cache and the pnpm store after each merge, on the branch whose
   caches the pull requests and the merge queue read: without it, they would find nothing.
   `back.yml` spreads the back likewise: one runner holds the lint, the types and the boundaries of
-  the core (`make check-back-static`), eight each play an eighth of the tests, with their services
-  (`make check-back-tests`, `SHARD=1/8` to `SHARD=8/8`), and in the full tier a last one gathers
-  their coverage and holds it to its thresholds (`make coverage-back-merge`). An eighth is one test
-  in eight in the order of their collection (`--shard`, `backend/tests/conftest.py`), rather than
-  whole files: the files that load the witness, the longest, are spread over all eight. The witness
-  is loaded by the command once per pytest process; the tests after it find its rows copied back
-  (`backend/tests/witness_rows.py`, #2157). On a runner, each test that asked for it paid its
-  loading, over six minutes in all.
+  the core (`make check-back-static`), six each play a sixth of the tests, with their services
+  (`make check-back-tests`, `SHARD=1/6` to `SHARD=6/6`), and in the full tier a last one gathers
+  their coverage and holds it to its thresholds (`make coverage-back-merge`). A sixth is one test
+  in six in the order of their collection (`--shard`, `backend/tests/conftest.py`), rather than
+  whole files: the files that load the witness, the longest, are spread over all six. The witness
+  is loaded by the command once per part, into a template database that each test asking for it
+  copies (`backend/tests/witness_template.py`, #4653, « A test against PostgreSQL »): the eight parts
+  of 10 to 17 minutes, several of them frozen, went down to 6 to 10 minutes (runs 44945620214, then
+  44957647502), then the six parts 7 to 14 minutes (run 44958967745), each under 20 minutes.
   `keycloak.yml` builds the image of Keycloak and puts it to the proof on the service platform, its
   realm applied (`make check-keycloak`), at both tiers: the `keycloak` family wakes on
   `deploy/keycloak/`, on the files of the platform that start it, on its tests, on all the code of
@@ -4338,14 +4340,45 @@ report says so.
 An integration test of the back joins the real database, PostgreSQL, never another in its place
 (`python.md`, « Les tests »). The variable `WATERFALL_TEST_DATABASE_URL` names a server and a role
 that can create databases and roles, a superuser (`postgresql://rôle@hôte:5432/postgres`): at each
-test session, the `database_url` fixture (`backend/tests/conftest.py`) creates there a database with
-a unique name, applies the migrations to it, and drops it at the end, with the service role the
-migrations created for it. The `database` fixture returns this database as the service sees it —
-through a login role that is a member of the service role of this database, created for the session
-(sql.md, « Le rôle du service ») —, and deletes after each test the rows of every table the `Base`
-declares, as owner, audit log included, which its trigger does not protect from a superuser who
-disables the triggers — except those a migration writes, the catalogue of permissions, which its
-table marks (`WRITTEN_BY_MIGRATION` in its `info`); `session` returns a session the test rolls back.
+test session, that is for each process, the `process_database_url` fixture
+(`backend/tests/conftest.py`) creates there a database with a unique name, applies the migrations to
+it, and drops it at the end, with the service role the migrations created for it. `database_url` and
+`service_database_url` name the database of the test: the process's, but for a test on the witness.
+The `database` fixture returns this database as the service sees it — through a login role that is a
+member of the service role of this database, created for the session (sql.md, « Le rôle du
+service ») —, and deletes after each test the rows of every table the `Base` declares, as owner,
+audit log included, which its trigger does not protect from a superuser who disables the triggers —
+except those a migration writes, the catalogue of permissions, which its table marks
+(`WRITTEN_BY_MIGRATION` in its `info`); `session` returns a session the test rolls back.
+
+The witness is loaded once a run, by a process of its own, into a template database
+(`backend/tests/witness_template.py`, #4653): the first process whose tests ask for it starts that
+loading as soon as they are collected, and those tests run after the others, while it is done. A
+test on the witness (`witness`, `witness_logged`) is given a database of its own, a copy of the
+template (`CREATE DATABASE … TEMPLATE`, 0.2 to 0.4 second to create, 0.1 to drop, measured on a workstation), dropped after it: rows,
+identifiers, the partitions of the projects and the sequences are those the command wrote, and no
+row is laid again nor any partition dropped. The service reaches it through a login role member of
+the service role of the template, whose rights the copy keeps. The witness loaded by each process,
+then laid again and its partitions dropped around each test (#2157), took a third of the time of the
+tests. A test that changes how the command loads it loads it itself, on the process's database
+(`witness_loaded`).
+
+A test that hangs fails after eight minutes, named, its traceback where it stopped (`pytest-timeout`,
+`timeout` of `backend/pyproject.toml`, by `SIGALRM`): its process goes on with the next, instead of
+freezing its part of the chain until the job is cancelled (#4653). The longest test that does not
+hang loads the witness itself: 216 seconds at most on a runner (run 44957647502), and a runner is up
+to twice as slow as another. The loading of the template has its deadline, seven minutes
+(`LOADING_TIMEOUT`, for 134 to 290 seconds measured), under that of a test: past it, the test that
+waits for it fails with what the loading said, the loading stops, and the end of pytest no longer
+waits for it. The delay of a test covers the whole item, its teardown included: a teardown that
+follows a freeze may freeze in turn, and the delay of the job (20 minutes) remains the net.
+
+A pytest killed (`SIGTERM`, `SIGKILL`) without reaching its end leaves the database
+`waterfall_witness_*` (and its copies), the roles `waterfall_witness_*_signing` and
+`waterfall_witness_*_service` and the directory `waterfall-witness-*` of the temporary directory
+of the system; the loading stops by itself at its deadline. Nothing sweeps them: drop the
+databases (`DROP DATABASE … WITH (FORCE)`), then the roles (`DROP ROLE`), then remove the
+directory, by hand. The service of a slot, in memory, loses them with `make test-services-down`.
 
 - **In the chain**, `back.yml` starts PostgreSQL as a service of the job and sets the variable.
 - **On a workstation**, the Makefile does it: `make test-back` and `make coverage-back` start

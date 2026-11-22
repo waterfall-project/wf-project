@@ -83,9 +83,10 @@ lecture seule, `WATERFALL_WITNESS_PATH` étant `/fixtures/api` : la tranche du p
 exemples ; la plateforme doit être démarrée et amorcée
 (`make service-install`), car la commande n'écrit pas ce que l'amorçage écrit — la ligne de
 l'installation, les paramètres communs, les unités, la correspondance, le calendrier par défaut
-et la provision —, elle règle ce qu'il a posé. La fixture `witness` de `backend/tests/conftest.py`
-fait de même sur la base des tests : elle installe d'abord ce que l'amorçage écrit, puis lance la
-commande. `backend/tests/test_witness.py` éprouve le témoin entier : ses volumes, deux plateformes
+et la provision —, elle règle ce qu'il a posé. Les tests font de même, une fois par exécution, sur
+une base modèle (`backend/tests/witness_template.py`) : ils installent d'abord ce que l'amorçage
+écrit, puis lancent la commande ; la fixture `witness` donne à chaque test une copie de cette base.
+`backend/tests/test_witness.py` éprouve le témoin entier : ses volumes, deux plateformes
 neuves chargées identiques, une seconde exécution qui n'écrit rien, les dates et les auteurs de la
 plateforme, l'arrêt en le disant sur un témoin que les règles refusent, et les listes du service
 comparées aux exemples du contrat, aux colonnes d'audit près. `fixtures/api/` et Prism restent les
@@ -3719,15 +3720,16 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   écrit ce cache et le magasin de pnpm après chaque fusion, sur la branche dont les pull requests et
   la file de fusion lisent les caches : sans lui, elles ne trouveraient rien.
   `back.yml` répartit de même le back : un runner tient le lint, les types et les frontières du
-  cœur (`make check-back-static`), huit jouent chacun le huitième des tests, avec leurs services
-  (`make check-back-tests`, `SHARD=1/8` à `SHARD=8/8`), et au palier complet un dernier rassemble
-  leur couverture et la tient à ses seuils (`make coverage-back-merge`). Un huitième est un test sur
-  huit dans l'ordre de leur collecte (`--shard`, `backend/tests/conftest.py`), plutôt que des
+  cœur (`make check-back-static`), six jouent chacun le sixième des tests, avec leurs services
+  (`make check-back-tests`, `SHARD=1/6` à `SHARD=6/6`), et au palier complet un dernier rassemble
+  leur couverture et la tient à ses seuils (`make coverage-back-merge`). Un sixième est un test sur
+  six dans l'ordre de leur collecte (`--shard`, `backend/tests/conftest.py`), plutôt que des
   fichiers entiers : les fichiers qui chargent le témoin, les plus longs, sont répartis sur les
-  huit.
-  Le témoin n'est chargé par la commande qu'une fois par processus de pytest ; les tests suivants
-  retrouvent ses lignes recopiées (`backend/tests/witness_rows.py`, #2157). Sur un runner, chaque
-  test qui le demandait payait son chargement, plus de six minutes en tout. `keycloak.yml`
+  six.
+  Le témoin n'est chargé par la commande qu'une fois par part, dans une base modèle que copie
+  chaque test qui le demande (`backend/tests/witness_template.py`, #4653, « Un test contre
+  PostgreSQL ») : les huit parts de 10 à 17 minutes, dont plusieurs figées, sont passées à 6 à
+  10 minutes (passages 44945620214, puis 44957647502), puis les six parts de 7 à 14 minutes (passage 44958967745), chacune sous 20 minutes. `keycloak.yml`
   construit l'image de Keycloak et l'éprouve sur la plateforme de service, son royaume appliqué
   (`make check-keycloak`), aux deux paliers : la famille `keycloak` se réveille sur
   `deploy/keycloak/`, sur les fichiers de la plateforme qui la démarrent, sur ses tests, sur tout le
@@ -4376,16 +4378,47 @@ procès-verbal, dont la forme n'est pas encore définie : le relevé le dit.
 Un test d'intégration du back joint la vraie base, PostgreSQL, jamais une autre à sa place
 (`python.md`, « Les tests »). La variable `WATERFALL_TEST_DATABASE_URL` désigne un serveur et un
 rôle qui peut créer des bases et des rôles, un superutilisateur
-(`postgresql://rôle@hôte:5432/postgres`) : à chaque session de tests, la fixture `database_url`
-(`backend/tests/conftest.py`) y crée une base de nom unique, y applique les migrations, et la
-supprime à la fin, avec le rôle du service que les migrations lui ont créé. La fixture
-`database` rend cette base telle que le service la voit — par un rôle de connexion membre du
-rôle du service de cette base, créé pour la session (sql.md, « Le rôle du service ») —, et en
-supprime après chaque test les lignes de toutes les tables que la `Base` déclare, en
-propriétaire, journal d'audit compris, que son déclencheur ne protège pas d'un superutilisateur
-qui coupe les déclencheurs — sauf celles qu'une migration écrit, le catalogue des permissions,
-que sa table marque (`WRITTEN_BY_MIGRATION` dans son `info`) ; `session` rend une session que le
-test défait.
+(`postgresql://rôle@hôte:5432/postgres`) : à chaque session de tests, c'est-à-dire pour chaque
+processus, la fixture `process_database_url` (`backend/tests/conftest.py`) y crée une base de nom
+unique, y applique les migrations, et la supprime à la fin, avec le rôle du service que les
+migrations lui ont créé. `database_url` et `service_database_url` désignent la base du test : celle
+du processus, sauf pour un test sur le témoin. La fixture `database` rend cette base telle que le
+service la voit — par un rôle de connexion membre du rôle du service de cette base, créé pour la
+session (sql.md, « Le rôle du service ») —, et en supprime après chaque test les lignes de toutes
+les tables que la `Base` déclare, en propriétaire, journal d'audit compris, que son déclencheur ne
+protège pas d'un superutilisateur qui coupe les déclencheurs — sauf celles qu'une migration écrit,
+le catalogue des permissions, que sa table marque (`WRITTEN_BY_MIGRATION` dans son `info`) ;
+`session` rend une session que le test défait.
+
+Le témoin se charge une fois par exécution, par un processus à lui, dans une base modèle
+(`backend/tests/witness_template.py`, #4653) : le premier processus dont les tests le demandent
+lance ce chargement dès leur collecte, et ces tests passent après les autres, le temps qu'il se
+fasse. Un test sur le témoin (`witness`, `witness_logged`) reçoit une base à lui, copie du modèle
+(`CREATE DATABASE … TEMPLATE`, 0,2 à 0,4 s pour la créer, 0,1 s pour la supprimer, mesurées sur un poste), supprimée après lui : lignes,
+identifiants, partitions des projets et séquences sont ceux que la commande a écrits, et aucune
+ligne n'est reposée ni aucune partition supprimée. Le service y entre par un rôle de connexion
+membre du rôle du service du modèle, dont la copie garde les droits. Le témoin chargé par chaque
+processus, puis reposé et ses partitions supprimées autour de chaque test (#2157), prenait le
+tiers du temps des tests. Un test qui change la façon dont la commande le charge le charge
+lui-même, sur la base du processus (`witness_loaded`).
+
+Un test qui se fige échoue au bout de huit minutes, nommé, sa trace là où il s'est arrêté
+(`pytest-timeout`, `timeout` de `backend/pyproject.toml`, par `SIGALRM`) : son processus passe au
+suivant, au lieu de figer sa part de la chaîne jusqu'à l'annulation du travail (#4653). Le plus
+long test qui ne se fige pas charge le témoin lui-même : 216 secondes au plus sur un runner
+(passage 44957647502), et un runner est jusqu'à deux fois plus lent qu'un autre. Le chargement du
+modèle a son échéance, sept minutes (`LOADING_TIMEOUT`, pour 134 à 290 secondes mesurées), sous
+celle d'un test : passé ce délai, le test qui l'attend échoue avec ce que le chargement a dit, le
+chargement s'arrête et la fin de pytest ne l'attend plus. Le délai d'un test couvre l'item entier, démontage compris :
+un démontage qui suit un gel peut se figer à son tour, et le délai du travail (20 minutes) reste
+le filet.
+
+Un pytest tué (`SIGTERM`, `SIGKILL`) avant sa fin laisse la base `waterfall_witness_*` (et ses
+copies), les rôles `waterfall_witness_*_signing` et `waterfall_witness_*_service` et le répertoire
+`waterfall-witness-*` du répertoire temporaire du système ; le chargement, lui, s'arrête seul à
+son échéance. Rien ne les balaie : supprime à la main les bases (`DROP DATABASE … WITH (FORCE)`),
+puis les rôles (`DROP ROLE`), puis le répertoire. Le service d'un créneau, en mémoire, les perd
+avec `make test-services-down`.
 
 - **Dans la chaîne**, `back.yml` démarre PostgreSQL en service du travail et pose la variable.
 - **Sur un poste**, le Makefile s'en charge : `make test-back` et `make coverage-back` démarrent
