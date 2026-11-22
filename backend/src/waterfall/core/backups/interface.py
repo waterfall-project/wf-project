@@ -26,7 +26,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from sqlalchemy import Connection, insert, select
+from sqlalchemy import Connection, delete, exists, insert, select
 from sqlalchemy.orm import Session
 
 from waterfall.core.backups.conditions import (
@@ -97,12 +97,16 @@ from waterfall.platform.restoration import (
     end_keeping,
     keep,
     keep_grants,
+    kept,
     kept_for,
     replace_by_kept,
+    table_of,
     take_over,
     write_back,
 )
 from waterfall.platform.tasks import (
+    PENDING,
+    BackgroundTask,
     Outcome,
     keep_more_tasks,
     keep_tasks,
@@ -177,6 +181,8 @@ MANIFEST = "manifest.json"
 MANIFEST_HEAD = 64 * 1024
 # The authors of the schedule, accounts the restored database may not hold.
 AUTHORS = frozenset({"created_by", "updated_by"})
+# The kind of the task of a backup.
+BACKUP = "backup"
 
 
 @dataclass(frozen=True, slots=True)
@@ -337,7 +343,10 @@ def write_back_after_restoration(
 ) -> list[str]:
     """Write back, in the restored database, what ``keep_for_restoration`` kept, then forget it.
 
-    The tasks first, which the backups name, in their state kept (#987); the backups, which the
+    The backups of the restored database go first, with their tasks that ended and that no backup
+    kept names: listed succeeded, they would name a backup the list does not hold (#2879); a task
+    of a backup the restored database holds pending is kept, which fails with the others. Then the
+    tasks kept, which the backups name, in their state kept (#987); the backups, which the
     restored database holds only as kept, so that none names an archive of another installation
     (#2230); the schedule kept in place of the backup's, so that a retention the backup held
     smaller deletes nothing more of the list kept (#1743), without its authors where the restored
@@ -355,8 +364,10 @@ def write_back_after_restoration(
     the rights kept are those of its tables, which a backup of an earlier revision lacks — the
     columns of a table, or the table itself — until its migrations have run.
     """
+    connection.execute(delete(Backup))
+    forget_backup_tasks(connection)
     write_back_tasks(connection, restoration, at)
-    replace_by_kept(connection, Backup)
+    write_back(connection, Backup)
     replace_by_kept(connection, BackupSchedule, unsure=AUTHORS)
     write_back(connection, AuditEntry)
     replace_by_kept(connection, FileUpload, unsure={"uploaded_by"})
@@ -364,3 +375,18 @@ def write_back_after_restoration(
         subjects = anonymize_again(session)
     end_keeping(connection)
     return subjects
+
+
+def forget_backup_tasks(connection: Connection) -> None:
+    """Delete the tasks of a backup the restored database holds ended, that no backup kept names.
+
+    Those it holds pending are left, which the restoration fails (WF-ADM-0160).
+    """
+    named = kept(table_of(Backup))
+    connection.execute(
+        delete(BackgroundTask).where(
+            BackgroundTask.kind == BACKUP,
+            BackgroundTask.status.not_in(PENDING),
+            ~exists().where(named.c.task_id == BackgroundTask.id),
+        )
+    )

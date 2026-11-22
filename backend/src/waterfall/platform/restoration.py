@@ -11,7 +11,7 @@ a restoration that finds what another kept and never wrote back takes it over (#
 keeps and writes back its own table through these functions, by its table: no text here names one.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     Column,
@@ -172,10 +172,31 @@ def overwrite(connection: Connection, entity: type[Base], unsure: Collection[str
     connection.execute(update(table).where(table.c.id == copy.c.id).values(values))
 
 
+class UnsureColumnError(LookupError):
+    """A column written back null where its row lacks names no single column it refers to."""
+
+
 def _sure(table: Table, copy: FromClause, name: str) -> ColumnElement[object]:
-    target = next(iter(table.c[name].foreign_keys)).column
+    target = referred(table, name)
     held = exists().where(target == copy.c[name])
     return case((held, copy.c[name]), else_=None).label(name)
+
+
+def referred(table: Table, name: str) -> Column[Any]:
+    """Give the column a column of ``table`` refers to, by its one foreign key (#989).
+
+    A key declared by another module — that of the account that asked for a task, added by the
+    tables of the users — is there once that module is imported: a column without it, or with
+    several, is an error that names it, not a row written back unsure.
+    """
+    keys = table.c[name].foreign_keys
+    if len(keys) != 1:
+        message = (
+            f"{table.name}.{name} refers to {len(keys)} columns, not one: "
+            "its foreign key is not declared, or its module not imported"
+        )
+        raise UnsureColumnError(message)
+    return next(iter(keys)).column
 
 
 def end_keeping(connection: Connection) -> None:
@@ -183,3 +204,8 @@ def end_keeping(connection: Connection) -> None:
     for statement in connection.scalars(select(GRANTS.c.statement)).all():
         connection.execute(text(statement))
     connection.execute(DropSchema(SCHEMA, cascade=True))
+
+
+def forget_keeping(connection: Connection) -> None:
+    """Drop what a restoration kept, its databases not replaced: the rights are still in place."""
+    connection.execute(DropSchema(SCHEMA, cascade=True, if_exists=True))

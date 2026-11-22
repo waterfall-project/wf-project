@@ -104,11 +104,16 @@ def test_the_owner_holds_the_maintenance_which_the_service_reads_and_may_not_wri
     # One row each, rewritten by each attempt: the service reads what the owner held, and is
     # refused the writing.
     held, read = Maintenance.of(owned, queue), Maintenance.of(database, queue)
-    held.hold(HELD)
+    first = held.hold(HELD)
     assert read.current() == HELD
-    taken_up = dataclasses.replace(HELD, attempts=2, caches_cleared=True)
+    taken_up = dataclasses.replace(first, attempts=2, caches_cleared=True)
     held.hold(taken_up)
-    assert read.current() == taken_up
+    current = read.current()
+    assert current == taken_up
+    # Dated at its first attempt, the date kept by the next: its deadline counts from it (#1016).
+    assert current is not None
+    assert first.held_at is not None
+    assert current.held_at == first.held_at
     with owned.engine.connect() as connection:
         rows = [connection.scalar(select(func.count()).select_from(table)) for table in TABLES]
     assert rows == [1, 1]

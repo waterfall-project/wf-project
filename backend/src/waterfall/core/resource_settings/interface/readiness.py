@@ -12,6 +12,13 @@ one of them false (#2154). It lives in this module because the cost settings alr
 resource settings, never the opposite: both can reach it without a cycle. Taken first by every
 write, before the lock of the natures, the one of the tree or of the designation and any row, so
 that none waits for another in a circle.
+
+A restoration replaces the reference whole without this lock: the lock of the drain orders it with
+these writes (``waterfall.platform.maintenance``, #2301). Each of them takes that lock shared at its
+first write and is refused once the maintenance is held; the restoration takes it exclusively before
+it keeps anything, then replaces the databases. None of them commits between the drain and the
+lifting of the maintenance, and the reference the restoration leaves is that of the backup, which
+held the invariant when it was taken.
 """
 
 from typing import TYPE_CHECKING
