@@ -29,10 +29,12 @@ import { isServerAction } from "./server-action";
 // 204 of `structures`), which the fake back serves the first example of `listNodes` at, the
 // `risk_estimate` example (`nodes_risk_estimate.json`): the own estimate of the risk 751, read as
 // a differential, by its differences, seven rows of the tree. The journeys read three of them by
-// their rank in the grid (`data-row`, counted from 1 over the rows served, not the `row_number` of
-// the fixture, which skips the rows the differential does not carry): the ranks 4 to 6, the task
-// « Raccordement des borniers » (row_number 9), its line « Reprise du câblage des armoires »
-// (row_number 10, the node 2053, rank 5) and the task « Recâblage des armoires » (row_number 12).
+// their place among the rows served, not the `row_number` of the fixture, which skips the rows
+// the differential does not carry: the places 5 to 7 (`first` is 5, counted from 1 like `rowAt`,
+// whose `aria-rowindex` has the header first), the line « Raccordement des borniers »
+// (row_number 10, the node 2053, where the paste starts), the task « Reprise du câblage des
+// armoires » (row_number 12) and the line « Recâblage des armoires » (row_number 13). The
+// `data-row` of a cell counts from 0 over the same rows, so `labels` reads 4 to 6.
 // The case of an unknown category and the one of a block too wide have no example of their own on
 // the amendment, and need none: the front judges neither, and the
 // examples of the other differentials, like those of the risks, are EP-16's.
