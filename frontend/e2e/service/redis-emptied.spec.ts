@@ -17,7 +17,7 @@ import { type Browser, expect, type Page, type PlaywrightWorkerArgs, test } from
 
 import { MARKING, WORKING } from "../bounds";
 import { createOwnProject, openRevision, type OwnProject } from "../own-project";
-import { emptyCache, start, startAllAgain, stop } from "./components";
+import { emptyCache, START_ALL_AGAIN_TIMEOUT, startAllAgain, whileStopped } from "./components";
 import { heldToTheContract } from "./contract";
 import {
   accountAdministrator,
@@ -38,7 +38,7 @@ const ROLES = [
 // A worker killed on a timeout never runs what follows the path: Playwright runs this in a new
 // worker then, so that Redis and the worker are never left stopped for the paths after.
 test.afterAll(async () => {
-  test.setTimeout(150_000);
+  test.setTimeout(START_ALL_AGAIN_TIMEOUT);
   await startAllAgain();
 });
 
@@ -66,19 +66,24 @@ async function projectManager(
 
 /**
  * The user goes back to a screen after Redis was emptied: her cookie names a session that is gone,
- * the front sends her to sign in, and the realm, which still holds her session, answers for her —
- * or asks her identifiers, which she gives. Either way she lands on the screen she asked for.
+ * so the front sends her to sign in — the request to the realm is what proves the session was
+ * lost, and fails the path if none comes — and the realm, which still holds her session, answers
+ * for her, or asks her identifiers, which she gives. Either way she lands on the screen she asked
+ * for, and its history of revisions is shown.
  */
 async function reconnect(page: Page, person: LocalPerson, address: string): Promise<void> {
+  const sentToTheRealm = page.waitForRequest((request) => request.url().startsWith(REALM), {
+    timeout: WORKING,
+  });
   await page.goto(address);
-  await expect
-    .poll(() => page.url().startsWith(REALM) || page.url().endsWith(address), {
-      timeout: WORKING,
-    })
-    .toBe(true);
-  if (page.url().startsWith(REALM)) {
+  await sentToTheRealm;
+  const history = page.getByRole("main").getByRole("region", { name: "Historique des révisions" });
+  const signIn = page.getByRole("button", { name: /^(Connexion|Sign In)$/ });
+  await expect(signIn.or(history)).toBeVisible({ timeout: WORKING });
+  if (await signIn.isVisible()) {
     await giveIdentifiers(page, person);
   }
+  await expect(history).toBeVisible({ timeout: WORKING });
   await expect(page).toHaveURL((url) => url.pathname + url.search === address);
 }
 
@@ -98,24 +103,23 @@ test(
     test.setTimeout(240_000);
     const person = await projectManager(browser, playwright);
     const page = await workstation(browser);
-    await page.goto(`/login?next=${encodeURIComponent("/")}`);
-    await giveIdentifiers(page, person);
-    const { own, revision } = await projectWithARevision(page);
-    const screen = `${own.path}/revisions?revision_id=${revision}`;
+    try {
+      await page.goto(`/login?next=${encodeURIComponent("/")}`);
+      await giveIdentifiers(page, person);
+      const { own, revision } = await projectWithARevision(page);
+      const screen = `${own.path}/revisions?revision_id=${revision}`;
 
-    emptyCache();
+      emptyCache();
 
-    // Her session of the front is gone: she signs in again, and the screen she asked for is there.
-    await reconnect(page, person, screen);
-    const history = page
-      .getByRole("main")
-      .getByRole("region", { name: "Historique des révisions" });
-    await expect(history).toBeVisible({ timeout: WORKING });
+      // Her session of the front is gone: she signs in again, and the screen she asked for is there.
+      await reconnect(page, person, screen);
 
-    // Her project is on her home, and the platform serves it as it did.
-    await page.goto("/");
-    await expect(page.getByRole("main").getByText(own.label)).toBeVisible({ timeout: WORKING });
-    await page.context().close();
+      // Her project is on her home, and the platform serves it as it did.
+      await page.goto("/");
+      await expect(page.getByRole("main").getByText(own.label)).toBeVisible({ timeout: WORKING });
+    } finally {
+      await page.context().close();
+    }
   },
 );
 
@@ -126,39 +130,41 @@ test(
     test.setTimeout(300_000);
     const person = await projectManager(browser, playwright);
     const page = await workstation(browser);
-    await page.goto(`/login?next=${encodeURIComponent("/")}`);
-    await giveIdentifiers(page, person);
-    const { own, revision } = await projectWithARevision(page);
-    const screen = `${own.path}/revisions?revision_id=${revision}`;
-    const main = page.getByRole("main");
-    const history = main.getByRole("region", { name: "Historique des révisions" });
-
-    // No worker takes the task: it is deposited in the table of the tasks and in the queue.
-    stop("worker");
     try {
-      const commands = main.getByRole("region", { name: "Commandes" });
-      await commands.getByRole("button", { name: "Marquer la révision" }).click();
-      const marking = commands.getByRole("form");
-      await marking.getByRole("textbox", { name: "Nom de version" }).fill("v1.0");
-      await marking.getByRole("button", { name: "Marquer", exact: true }).click();
-      await expect(commands.getByRole("form")).toHaveCount(0);
-      await expect(
-        page.getByRole("button", { name: /^Tâches et messages\s: 1 tâche suivie/ }),
-      ).toBeVisible();
+      await page.goto(`/login?next=${encodeURIComponent("/")}`);
+      await giveIdentifiers(page, person);
+      const { own, revision } = await projectWithARevision(page);
+      const screen = `${own.path}/revisions?revision_id=${revision}`;
+      const main = page.getByRole("main");
+      const history = main.getByRole("region", { name: "Historique des révisions" });
 
-      // The queue is gone with Redis: only the table of the tasks remembers the marking.
-      emptyCache();
-    } finally {
-      await start("worker");
-    }
+      // No worker takes the task: it is deposited in the table of the tasks and in the queue. The
+      // worker is started again whatever happens, and a failure of the path stays the error thrown.
+      await whileStopped("worker", async () => {
+        const commands = main.getByRole("region", { name: "Commandes" });
+        await commands.getByRole("button", { name: "Marquer la révision" }).click();
+        const marking = commands.getByRole("form");
+        await marking.getByRole("textbox", { name: "Nom de version" }).fill("v1.0");
+        await marking.getByRole("button", { name: "Marquer", exact: true }).click();
+        await expect(commands.getByRole("form")).toHaveCount(0);
+        await expect(
+          page.getByRole("button", { name: /^Tâches et messages\s: 1 tâche suivie/ }),
+        ).toBeVisible();
 
-    // The worker is back: the marking is run, and the user, signed in again, sees its end.
-    await expect(async () => {
-      await reconnect(page, person, screen);
-      await expect(history.getByRole("row").filter({ hasText: "v1.0" })).toBeVisible({
-        timeout: 5_000,
+        // The queue is gone with Redis: only the table of the tasks remembers the marking.
+        emptyCache();
       });
-    }).toPass({ timeout: MARKING });
-    await page.context().close();
+
+      // The worker is back: the marking is run, and the user, signed in again, sees its end.
+      await reconnect(page, person, screen);
+      await expect(async () => {
+        await page.reload();
+        await expect(history.getByRole("row").filter({ hasText: "v1.0" })).toBeVisible({
+          timeout: 5_000,
+        });
+      }).toPass({ timeout: MARKING });
+    } finally {
+      await page.context().close();
+    }
   },
 );

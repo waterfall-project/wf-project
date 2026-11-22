@@ -36,6 +36,10 @@ function container(component: Stoppable): string {
 /**
  * What Docker says of a container: its health, `healthy` once its check passes — or, for one that
  * has no check, as the worker has none, `healthy` once it runs.
+ *
+ * That says only that the process of the worker runs, not that it takes tasks: the worker exposes
+ * no port nor command that tells it is ready, and adding a check to its image is out of the scope
+ * of the paths. The paths that need it wait for what the worker does (a marking run), not for it.
  */
 function health(id: string): string {
   const format =
@@ -45,9 +49,18 @@ function health(id: string): string {
   }).trim();
 }
 
+/** The longest `untilHealthy` waits for one container. */
+const HEALTHY_WITHIN = 60_000;
+
+/**
+ * The time a hook has to start every component again (`startAllAgain`): the wait of each, and a
+ * margin for the `docker start` calls, so that it grows with the components and is never short.
+ */
+export const START_ALL_AGAIN_TIMEOUT = Object.keys(CONTAINERS).length * HEALTHY_WITHIN + 20_000;
+
 /** Wait, up to a minute, for a container whose health check passes. */
 async function untilHealthy(id: string): Promise<void> {
-  const until = Date.now() + 60_000;
+  const until = Date.now() + HEALTHY_WITHIN;
   while (health(id) !== "healthy") {
     if (Date.now() > until) {
       throw new Error(`the container ${id} is not healthy a minute after it started`);
@@ -83,9 +96,14 @@ export function start(component: Stoppable): Promise<void> {
  * holds for its own `redis-cli` (`REDISCLI_AUTH` of its container), which this never reads.
  */
 export function emptyCache(): void {
-  execFileSync("docker", ["exec", container("cache"), "redis-cli", "FLUSHALL"], {
-    stdio: "ignore",
-  });
+  const id = container("cache");
+  const redis = (...command: string[]): string =>
+    execFileSync("docker", ["exec", id, "redis-cli", ...command], { encoding: "utf8" }).trim();
+  // `redis-cli` exits 0 on an error reply (`NOAUTH`, `ERR`): the reply is what says it worked. DBSIZE is not read: the platform writes there again at once.
+  const flushed = redis("FLUSHALL");
+  if (flushed !== "OK") {
+    throw new Error(`FLUSHALL did not empty Redis: ${flushed}`);
+  }
 }
 
 /**
