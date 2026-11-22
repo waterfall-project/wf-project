@@ -24,6 +24,7 @@ from measure.reading import (
     measure_whole,
 )
 from measure.report import Measure, Report, render_json, render_text
+from measure.risks import measure_merge, measure_occurrence
 from measure.target import (
     PROJECT_CODE,
     MeasureError,
@@ -48,7 +49,18 @@ DEFAULT_RUNS = 5
 """Identical runs of the whole reading, a cell entered and a revision opened: the spread of five is
 what a gain must exceed. The profile and the waves of reads make one pass."""
 
-PARTS = ("read", "profile", "parallel", "write", "revision", "kept", "current", "indicators")
+PARTS = (
+    "read",
+    "profile",
+    "parallel",
+    "write",
+    "revision",
+    "kept",
+    "current",
+    "indicators",
+    "merge",
+    "occurrence",
+)
 
 
 def _at_least_one(text: str) -> int:
@@ -84,9 +96,6 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _indicators(database: Database, place: Place, runs: int) -> tuple[Measure, ...]:
-    # The day of the key is that of the time zone of the installation, which the service reads from
-    # this database at its start.
-    TIME_ZONE.read_from(stored_in(database))
     cache = cache_from_environment()
     try:
         return measure_cache(database, place.project_id, cache, runs)
@@ -97,6 +106,9 @@ def _indicators(database: Database, place: Place, runs: int) -> tuple[Measure, .
 def _passage(address: str, target: Target, runs: int, parts: Sequence[str]) -> tuple[Measure, ...]:
     database = database_of(address)
     place = target.place
+    # The day of an indicator, of a key, of a marking is that of the time zone of the installation,
+    # which the service reads from this database at its start.
+    TIME_ZONE.read_from(stored_in(database))
     plan: dict[str, Callable[[], tuple[Measure, ...]]] = {
         "read": lambda: (
             measure_whole(database, place, runs, None),
@@ -117,6 +129,8 @@ def _passage(address: str, target: Target, runs: int, parts: Sequence[str]) -> t
             measure_filtered(database, target, runs),
         ),
         "current": lambda: measure_current(database, target, runs),
+        "merge": lambda: (measure_merge(database, target, runs),),
+        "occurrence": lambda: (measure_occurrence(database, target, runs),),
     }
     return tuple(measure for part in PARTS if part in parts for measure in plan[part]())
 

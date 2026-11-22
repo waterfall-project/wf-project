@@ -294,6 +294,7 @@ def test_a_link_the_main_structure_adds_changes_or_removes_is_carried(
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
+@pytest.mark.requirement("WF-REV-0110-A")
 def test_a_value_both_change_keeps_the_differential_s_and_the_report_names_it(
     api: ContractClient, late: OutOfDate
 ) -> None:

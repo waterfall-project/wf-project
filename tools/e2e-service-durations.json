@@ -9,6 +9,7 @@
   "[service] › service/password.spec.ts": 24.0,
   "[service] › service/planning-readers.spec.ts": 37.4,
   "[service] › service/project-manager-indicators.spec.ts": 24.2,
+  "[service] › service/project-manager-risks.spec.ts": 22.2,
   "[service] › service/project-readers.spec.ts": 25.1,
   "[service] › service/reference-manager.spec.ts": 33.1,
   "[service] › service/roles.spec.ts": 11.9,

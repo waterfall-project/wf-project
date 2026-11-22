@@ -216,6 +216,7 @@ def without_hours(late: OutOfDate) -> None:
     ],
 )
 @pytest.mark.requirement("WF-REV-0100-A")
+@pytest.mark.requirement("WF-REV-0110-A")
 def test_a_reason_of_the_report_refuses_the_update_by_its_code_and_nothing_is_written(
     api: ContractClient, late: OutOfDate, make: Callable[[OutOfDate], None], code: str
 ) -> None:

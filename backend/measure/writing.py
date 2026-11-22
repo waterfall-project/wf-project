@@ -94,7 +94,8 @@ def entered_leaf(nodes: tuple[NodeView, ...]) -> NodeView:
     return max(candidates, key=lambda each: _downstream(each.node_id, followers))
 
 
-def _entry(leaf: NodeView, kind: str) -> TaskEntry:
+def entry(leaf: NodeView, kind: str) -> TaskEntry:
+    """Give the entry of a cell of a leaf: its label lengthened, or its duration stepped."""
     task = leaf.task
     if task is None:
         message = "a leaf is a task"
@@ -112,12 +113,12 @@ def _entry(leaf: NodeView, kind: str) -> TaskEntry:
 
 def write_once(database: Database, place: Place, leaf: NodeView, kind: str) -> Written:
     """Enter one cell, as a route does, and roll the transaction back: nothing stays written."""
-    entry = _entry(leaf, kind)
+    entered = entry(leaf, kind)
     with Session(database.engine) as session:
         try:
             started = perf_counter()
             written = update_task_facet(
-                session, place, leaf.node_id, entry, Writer(Act(None, utc_now()), None)
+                session, place, leaf.node_id, entered, Writer(Act(None, utc_now()), None)
             )
             session.flush()
             seconds = perf_counter() - started
