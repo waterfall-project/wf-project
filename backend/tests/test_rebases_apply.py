@@ -119,6 +119,7 @@ def test_the_update_writes_what_the_report_presented_and_everything_reads_unchan
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
+@pytest.mark.requirement("WF-REV-0110-A")
 def test_what_the_differential_designated_keeps_its_nodes_and_reads_as_before(
     api: ContractClient, late: OutOfDate
 ) -> None:

@@ -4,11 +4,13 @@
 
 ``make measure-core`` reads their duration, without an objective (the definition of done of EP-08,
 decision of the author of 2026-11-17): the merge of a differential the measure opens itself, one
-cell entered in it, into the current revision, which it marks and makes the reference; the
-occurrence of an identified risk of the project, its own estimate grafted into the main structure.
-Both are the witness's own functions, those the worker applies, without a report to confirm, and
-the transaction is rolled back whole: the next measure, and the other parts, read the witness as
-it was.
+cell entered in it, merged by the witness loader (``load_merge``) under the version name
+``measure``, without a description; the occurrence of an identified risk of the project, its own
+estimate grafted into the main structure (``load_occurrence``). Each is the loader's call, which
+runs the worker's own merge or occurrence with no report to confirm: the merge marks the revision
+and makes it the reference as the worker does, and updates the differential first if it is out of
+date. The transaction is rolled back whole: the next measure, and the other parts, read the witness
+as it was.
 """
 
 from functools import partial

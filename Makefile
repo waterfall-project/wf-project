@@ -354,8 +354,8 @@ service-purge: ## Purge what expired on the service platform, started: imports, 
 # changes nothing of the next. It never fails on a duration and the chain does not run it. RUNS
 # identical runs of the whole read, the cell entered and the revision opened (5; the profile and the
 # waves of reads make one pass), ONLY=<part> one of read, profile, parallel, write, revision, kept,
-# current, indicators, merge, occurrence (several by repeating: ONLY="read write"), JSON=<file> the report also written
-# as JSON. A lot that corrects the back measures before and after it in one pass: ONLY and RUNS the
+# current, indicators, merge, occurrence (several by repeating: ONLY="read write"), JSON=<file> the
+# report also written as JSON. A lot that corrects the back measures before and after it in one pass: ONLY and RUNS the
 # same, two commands in one.
 .PHONY: measure-core measure-core-run measure-fresh-witness measure-secrets
 # The secrets of service-up, asked before the workstation is taken: the Compose file refuses to
