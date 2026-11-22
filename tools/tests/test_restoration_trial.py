@@ -10,6 +10,7 @@ chain, once the service of the restoration is started there (#948, point 2).
 
 import base64
 import hashlib
+import itertools
 import json
 import re
 from dataclasses import dataclass, field
@@ -21,6 +22,7 @@ import pytest
 from wftools.production import Answer
 from wftools.restoration_trial import (
     API_CALL,
+    GRACE,
     MARKER,
     PATIENCE,
     PAUSE,
@@ -257,6 +259,41 @@ def test_a_restoration_that_fails_before_the_maintenance_fails_the_trial_with_it
     with pytest.raises(TrialError, match=re.escape("failed: {'code': 'Z'}")):
         trial_of(FakeApi(failed), probes("ok", "ok"), clock).run()
     assert clock.time < PATIENCE
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
+def test_a_maintenance_missed_behind_a_refused_task_fails_the_trial_within_a_short_grace() -> None:
+    # [US-2940] #997, point 1: the sessions are closed (401) and the probe says ok: the
+    # maintenance was missed; the trial says so after the grace, not after the whole patience.
+    missed = {**ANSWERS, "GET /tasks/r": [(401, {"code": "SESSION_REVOKED"})] * 100}
+    clock = FakeClock()
+    with pytest.raises(TrialError, match=f"did not say the maintenance in {GRACE:.0f} s"):
+        trial_of(FakeApi(missed), probes(*["ok"] * 1300), clock).run()
+    assert clock.time < PATIENCE / 10
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
+def test_the_task_is_read_apart_from_the_looks_at_the_probe_before_the_maintenance() -> None:
+    # [US-2940] #997, point 2: between two looks at the probe, the trial only pauses ``WATCH``;
+    # the task is read once per ``PAUSE``, not at each look.
+    running = {**ANSWERS, "GET /tasks/r": [(200, {"status": "running"})] * 10}
+    api = FakeApi(running)
+    clock = FakeClock()
+    looks: list[float] = []
+
+    def probe() -> str:
+        looks.append(clock.now())
+        return "maintenance" if len(looks) > 8 else "ok"
+
+    administrator = Administrator(Realm, Realm().send, ADDRESS, FRONT_CLIENT)
+    trial = RestorationTrial(
+        Api(COMPOSE, api.ask), administrator, probe, Clock(clock.now, clock.pause)
+    )
+    with pytest.raises(TrialError, match="did not end in 600 s"):
+        trial.restored("token-1", "r")
+    before = looks[:9]
+    assert [after - first for first, after in itertools.pairwise(before)] == [WATCH] * 8
+    assert api.calls() == [("GET", "/tasks/r")] * 2
 
 
 def test_a_role_made_after_the_backup_that_is_refused_or_survives_its_restoration_fails() -> None:

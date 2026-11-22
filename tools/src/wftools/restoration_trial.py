@@ -49,6 +49,13 @@ PATIENCE = 600.0
 PAUSE = 2.0
 WATCH = 0.5
 """The pause, in seconds, between two looks for the maintenance, short enough not to miss it."""
+GRACE = 10.0
+"""How long, in seconds, the probe may stay without saying the maintenance once the task is refused.
+
+The restoration puts the platform in maintenance before it closes the sessions: a task refused
+(401) or unavailable (503) while the probe says ``ok`` is a maintenance already past, or not yet
+said by the probe; beyond this, it was missed, and the trial says so without the whole patience.
+"""
 MARKER = "Essai de restauration : fait après la sauvegarde"
 """The label of the role made after the backup, which its restoration takes away."""
 API_REACHED = (
@@ -346,12 +353,26 @@ class RestorationTrial:
         """
         seen = False
         after: str | None = None
+        read: float | None = None
+        refused: float | None = None
         deadline = self.clock.now() + PATIENCE
         while self.clock.now() < deadline:
             if self.probe() == "maintenance":
                 seen = True
             elif not seen:
-                self.not_begun(token, task_id)
+                # The task is read apart from the looks at the probe (each read is a ``compose
+                # exec``), every ``PAUSE``: the gap between two looks stays near ``WATCH``.
+                now = self.clock.now()
+                if read is None or now - read >= PAUSE:
+                    read = now
+                    if self.not_begun(token, task_id) and refused is None:
+                        refused = now
+                if refused is not None and now - refused >= GRACE:
+                    message = (
+                        f"the liveness probe did not say the maintenance in {GRACE:.0f} s "
+                        "after the task of the restoration was refused"
+                    )
+                    raise TrialError(message)
                 self.clock.pause(WATCH)
                 continue
             else:
@@ -371,10 +392,11 @@ class RestorationTrial:
         message = f"the restoration did not end in {PATIENCE:.0f} s"
         raise TrialError(message)
 
-    def not_begun(self, token: str, task_id: str) -> None:
+    def not_begun(self, token: str, task_id: str) -> bool:
         """Read the task of a restoration not seen in maintenance; fail if it has already ended.
 
-        A session closed (401) or the API in maintenance (503) says the restoration under way.
+        A session closed (401) or the API in maintenance (503) says the restoration under way:
+        give ``True`` then.
         """
         status, task = self.api.call("GET", f"/tasks/{task_id}", token)
         if status == OK and self.finished(as_object(task)):
@@ -383,6 +405,7 @@ class RestorationTrial:
         if status not in {OK, UNAUTHORIZED, UNAVAILABLE}:
             message = f"the task of the restoration does not read ({status}): {task!r}"
             raise TrialError(message)
+        return status != OK
 
 
 def probe_of(read: Read, command: list[str]) -> Callable[[], str]:
