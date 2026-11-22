@@ -23,7 +23,7 @@ import type { Outcome } from "@/api/problem";
 import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Differences } from "@/components/exchanges/import-report";
 import { useCurrency } from "@/currency/context";
-import { formatMoney } from "@/i18n/format";
+import { formatMoney, formatPlanningDate } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 
 /** The report of the occurrence of a risk, as the contract gives it. */
@@ -31,8 +31,13 @@ export type OccurrenceReport = components["schemas"]["RiskOccurrenceReport"];
 
 const HEADING = "text-sm font-semibold";
 
-/** The report as the server read it, and the motives that refuse it. */
-function ReportBody({ report }: { readonly report: OccurrenceReport }) {
+/**
+ * The report as the server read it, and the motives that refuse it. A own estimate that starts
+ * before the day of the declaration is signalled, never refused nor redated (#4133): the tasks keep
+ * the dates it gave them, which then lie in the past. The tasks of the main structure that the graft
+ * redates are differences like the others, `updated` (#4134).
+ */
+export function ReportBody({ report }: { readonly report: OccurrenceReport }) {
   const t = useTranslations("riskOccurrenceReport");
   const locale = useLocale();
   const currency = useCurrency();
@@ -40,6 +45,13 @@ function ReportBody({ report }: { readonly report: OccurrenceReport }) {
   return (
     <div className="space-y-3">
       {report.creates_current_revision ? <p role="note">{t("createsRevision")}</p> : null}
+      {report.own_estimate_past_planning_start_on == null ? null : (
+        <p role="note">
+          {t("pastStart", {
+            date: formatPlanningDate(report.own_estimate_past_planning_start_on, locale),
+          })}
+        </p>
+      )}
       <p>{t("provision", { amount: formatMoney(report.provision_amount, locale, currency) })}</p>
       {report.refusals.length === 0 ? null : (
         <div role="alert" className="space-y-1 text-destructive">

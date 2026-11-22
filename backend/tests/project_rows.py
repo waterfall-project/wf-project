@@ -10,10 +10,10 @@ function, then dropped, so that the database of the tests keeps none of them.
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, delete, func, insert, select, table, text
+from sqlalchemy import delete, func, insert, select, table, text
 
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.tables import Node, Task
@@ -23,7 +23,7 @@ from waterfall.core.revisions.tables import CostStructure, Revision
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from sqlalchemy import Engine, Table
+    from sqlalchemy import Engine
     from sqlalchemy.engine import Connection
     from sqlalchemy.sql import Executable
 
@@ -64,8 +64,13 @@ MARKED: dict[str, object] = {"status": "marked", "version_name": "v1.0", "marked
 
 
 def structure_row(project_id: UUID, revision_id: UUID, **overrides: object) -> dict[str, object]:
-    """Give the columns of the main structure of a revision, with the changes asked for."""
+    """Give the columns of the main structure of a revision, with the changes asked for.
+
+    A differential keeps the counter of the main structure its base was taken at (US-3050): the
+    first, unless the changes say another.
+    """
     structure_id = uuid4()
+    differential = overrides.get("kind") == "amendment"
     return {
         "project_id": project_id,
         "id": structure_id,
@@ -74,6 +79,35 @@ def structure_row(project_id: UUID, revision_id: UUID, **overrides: object) -> d
         "label": "Principale",
         "is_merged": False,
         "lineage_id": structure_id,
+        **({"main_lock_version": 1} if differential else {}),
+        **STAMP,
+        **overrides,
+    }
+
+
+def base_row(project_id: UUID, revision_id: UUID, differential_id: object) -> dict[str, object]:
+    """Give the columns of the base of a differential, empty, in its revision (US-3050).
+
+    What the reading of a differential written around the service compares it to: every node it
+    holds is added.
+    """
+    return structure_row(
+        project_id, revision_id, kind="base", label="Base", differential_id=differential_id
+    )
+
+
+def risk_row(project_id: UUID, **overrides: object) -> dict[str, object]:
+    """Give the columns of a risk of a project, at its first counter, with the changes asked for.
+
+    What a structure of the kind ``risk`` and a node an occurrence merged name (EP-08).
+    """
+    return {
+        "id": uuid4(),
+        "project_id": project_id,
+        "label": "Retard du fournisseur",
+        "description": None,
+        "mitigation_notes": None,
+        "lock_version": 1,
         **STAMP,
         **overrides,
     }
@@ -84,13 +118,18 @@ def delete_structure(owner: Engine, structure_id: UUID) -> None:
 
     The one place that knows what hangs from a structure: a test that wrote one by hand calls it in
     its ``finally``, and a table that comes to depend on the nodes is added here, not in each test.
+    The base of a differential goes first, which names it (US-3050).
     """
     with owner.begin() as connection:
-        nodes = select(Node.id).where(Node.structure_id == structure_id)
-        connection.execute(delete(EstimateLine).where(EstimateLine.node_id.in_(nodes)))
-        connection.execute(delete(Task).where(Task.node_id.in_(nodes)))
-        connection.execute(delete(Node).where(Node.structure_id == structure_id))
-        connection.execute(delete(CostStructure).where(CostStructure.id == structure_id))
+        bases = connection.scalars(
+            select(CostStructure.id).where(CostStructure.differential_id == structure_id)
+        ).all()
+        for each in (*bases, structure_id):
+            nodes = select(Node.id).where(Node.structure_id == each)
+            connection.execute(delete(EstimateLine).where(EstimateLine.node_id.in_(nodes)))
+            connection.execute(delete(Task).where(Task.node_id.in_(nodes)))
+            connection.execute(delete(Node).where(Node.structure_id == each))
+            connection.execute(delete(CostStructure).where(CostStructure.id == each))
 
 
 def insert_project(**overrides: object) -> Executable:
@@ -115,8 +154,12 @@ def partition_of(project_id: UUID) -> str:
 
 # The revised tables, each before the tables its keys name: the partition of a table that another
 # names is dropped after the other's. The rates and the images of the estimate, and the indicators,
-# name a revision alone, which is no partitioned table.
+# name a revision alone, which is no partitioned table; the rows of the risks name the structures
+# and the nodes (EP-08).
 REVISED = (
+    "risk_reference_share",
+    "risk_review",
+    "risk_evaluation",
     "revision_indicator",
     "structure_reading",
     "estimate_line",
@@ -162,46 +205,6 @@ def drop_partitions(connection: Connection, project_id: UUID | None = None) -> N
                 connection.execute(delete(table(name)))
                 connection.execute(text(f'ALTER TABLE "{parent}" DETACH PARTITION "{name}"'))
                 connection.execute(text(f'DROP TABLE "{name}"'))
-
-
-KIND_CHECK = "ck_cost_structure_kind_known"
-
-
-def _kind_predicate() -> str:
-    """Give the predicate of the check on the kind of a structure, as the model says."""
-    structures = cast("Table", CostStructure.__table__)
-    for constraint in structures.constraints:
-        if isinstance(constraint, CheckConstraint) and constraint.name == KIND_CHECK:
-            return str(constraint.sqltext)
-    message = f"{KIND_CHECK} is not on the model of the cost structures"
-    raise LookupError(message)
-
-
-@contextmanager
-def lifted_kind_check(owner: Engine) -> Generator[None]:
-    """Lift the check on the kind of a structure, as the owner, and restore it whatever happens.
-
-    No differential is written before EP-08, and the kind is checked: a test that needs one lifts
-    the check and removes the rows it wrote in the body's own ``finally``. The check comes back
-    ``NOT VALID`` in a ``finally`` and a transaction of its own, which no row left can refuse: it
-    holds for every row written after, and the error of the body comes up as it was. Only a body
-    that ends well has the rows it left validated, so that one it forgot fails the test.
-    """
-    predicate = _kind_predicate()
-    with owner.begin() as connection:
-        connection.execute(text(f"ALTER TABLE cost_structure DROP CONSTRAINT {KIND_CHECK}"))
-    try:
-        yield
-    finally:
-        with owner.begin() as connection:
-            connection.execute(
-                text(
-                    f"ALTER TABLE cost_structure ADD CONSTRAINT {KIND_CHECK} "
-                    f"CHECK ({predicate}) NOT VALID"
-                )
-            )
-    with owner.begin() as connection:
-        connection.execute(text(f"ALTER TABLE cost_structure VALIDATE CONSTRAINT {KIND_CHECK}"))
 
 
 @contextmanager

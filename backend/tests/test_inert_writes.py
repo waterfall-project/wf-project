@@ -273,7 +273,10 @@ def line_label(session: Session, read: Read, writer: Writer) -> NodesWritten:
 
 def payment_delay(session: Session, read: Read, writer: Writer) -> NodesWritten:
     node, view = read.line(f"{LINE}.payment_delay_days")
-    later = view.payment_delay_days + 30
+    # A line that accepts a payment delay carries one: a provision line alone has none (#4274).
+    held = view.payment_delay_days
+    assert held is not None
+    later = held + 30
     return _line(session, read, node, writer, payment_delay_days=later)
 
 
@@ -741,9 +744,9 @@ def structure(session: Session, read: Read, writer: Writer) -> NodesWritten:
     return update_cost_structure(session, read.place, change, writer)
 
 
-def _undone(session: Session, read: Read, writer: Writer) -> NodesWritten:
+def _undone(session: Session, read: Read, writer: Writer, turn: Any = undo_last_change) -> Any:
     place = read.place
-    return undo_last_change(session, place.project_id, place.revision_id, writer, ENTRIES).written
+    return turn(session, place.project_id, place.revision_id, writer, ENTRIES).written
 
 
 def undo_deletion(session: Session, read: Read, writer: Writer) -> NodesWritten:
@@ -755,8 +758,7 @@ def undo_deletion(session: Session, read: Read, writer: Writer) -> NodesWritten:
 def redo_deletion(session: Session, read: Read, writer: Writer) -> NodesWritten:
     # The subtree created again deleted again.
     undo_deletion(session, read, writer)
-    place = read.place
-    return redo_last_undo(session, place.project_id, place.revision_id, writer, ENTRIES).written
+    return _undone(session, read, writer, redo_last_undo)
 
 
 def undo_creation(session: Session, read: Read, writer: Writer) -> NodesWritten:

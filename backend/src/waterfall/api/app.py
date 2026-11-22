@@ -16,6 +16,7 @@ from waterfall.api import (
     access_roles,
     actual_cost_mapping,
     actual_costs,
+    amendments,
     audit,
     avatars,
     backups,
@@ -35,6 +36,7 @@ from waterfall.api import (
     indicator_curves,
     lifecycle,
     me,
+    merges,
     milestone_tracking,
     nodes,
     org_nodes,
@@ -42,6 +44,7 @@ from waterfall.api import (
     project_indicators,
     projects,
     rate_update,
+    rebases,
     reference,
     reference_settings,
     remaining_indicators,
@@ -49,6 +52,12 @@ from waterfall.api import (
     resource_roles,
     restores,
     revisions,
+    risk_coverage,
+    risk_occurrences,
+    risk_provisions,
+    risk_register,
+    risk_reviews,
+    risks,
     scheduling,
     skeleton,
     spending,
@@ -71,6 +80,7 @@ from waterfall.core.exchanges import interface as exchanges_interface
 from waterfall.core.history import interface as history_interface
 from waterfall.core.indicators import interface as indicators_interface
 from waterfall.core.planning import interface as planning_interface
+from waterfall.core.risks import interface as risks_interface
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -93,6 +103,7 @@ EXTENDING = (
     history_interface,
     indicators_interface,
     planning_interface,
+    risks_interface,
 )
 
 
@@ -196,4 +207,19 @@ def create_app(services: Services, lifespan: Lifespan | None = None) -> FastAPI:
         milestone_tracking.router,
     ):
         app.include_router(indicators_router, prefix=PREFIX)
+    # The amendments and the risks (EP-08): a router per story, each registered here from the start.
+    for risks_router in (
+        amendments.router,
+        merges.router,
+        # The update of a differential from the main structure (US-3050/L3).
+        rebases.router,
+        # The routes named under ``/risks`` (``matrix``, ``coverage``) before ``/risks/{risk_id}``.
+        risk_register.router,
+        risk_coverage.router,
+        risks.router,
+        risk_provisions.router,
+        risk_reviews.router,
+        risk_occurrences.router,
+    ):
+        app.include_router(risks_router, prefix=PREFIX)
     return app

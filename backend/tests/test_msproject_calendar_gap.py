@@ -63,6 +63,7 @@ if TYPE_CHECKING:
     from waterfall.worker.runner import Worker
 
 KIND = "ms_project_schedule"
+HORIZON_EXCEEDED = "11-horizon-sixteen-years.xml"
 SYNTHETIC = "14-calendar-gap-seven-hours.xml"
 DAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 
@@ -468,7 +469,12 @@ def test_a_file_of_the_corpus_that_says_constants_differ_says_a_calendar_gap_too
 ) -> None:
     # The constants that differ are said in a gap, which offers the choice of the rule: on every
     # file of the corpus, ``unit_constants`` set implies ``calendar_gap`` set.
+    # The file 11, which the horizon rejects (``horizon_exceeded``), has no report to read: it is
+    # excluded by its name, not masked by an absent report (#3156).
+    differing = 0
     for file in sorted(CORPUS.glob("*.xml")):
+        if file.name == HORIZON_EXCEEDED:
+            continue
         upload_id = deposited(api, stage.manager, file.read_bytes())
         response = api.post(
             path(stage), headers=stage.manager.headers, json={"kind": KIND, "upload_id": upload_id}
@@ -476,8 +482,12 @@ def test_a_file_of_the_corpus_that_says_constants_differ_says_a_calendar_gap_too
         assert response.status_code == 202, response.text
         run(worker)
         report = read(api, stage, response.json()["import_id"])["report"]
-        if report is not None and report["unit_constants"] is not None:
+        assert report is not None, file.name
+        if report["unit_constants"] is not None:
+            differing += 1
             assert report["calendar_gap"] is not None, file.name
+    # The files 10 and 14 carry constants that differ: the test never passes on nothing.
+    assert differing >= 2
 
 
 @pytest.mark.requirement("WF-PLA-0160-A")

@@ -109,7 +109,16 @@ from waterfall.core.estimate.interface.calendars import (
 
 # ``comparison`` (US-1490/L1; US-1530): the comparison of two revisions.
 from waterfall.core.estimate.interface.comparison import (
+    DifferentialRow as DifferentialRow,
+)
+from waterfall.core.estimate.interface.comparison import (
     compare_revisions as compare_revisions,
+)
+from waterfall.core.estimate.interface.comparison import (
+    differential_rows as differential_rows,
+)
+from waterfall.core.estimate.interface.comparison import (
+    read_differential as read_differential,
 )
 
 # ``contributors`` (US-1490/L1; US-1540): the roles the lines employ.
@@ -123,6 +132,9 @@ from waterfall.core.estimate.interface.contributors import (
 # ``employment`` (US-1490/L1; US-1490/L4): what the lines employ of the reference and the project.
 from waterfall.core.estimate.interface.employment import (
     category_is_employed as category_is_employed,
+)
+from waterfall.core.estimate.interface.employment import (
+    forget_subproject as forget_subproject,
 )
 from waterfall.core.estimate.interface.employment import (
     subproject_estimate_lines as subproject_estimate_lines,
@@ -277,6 +289,11 @@ from waterfall.core.estimate.interface.lines import (
     update_line as update_line,
 )
 
+# ``merging`` (US-2560/L1): the part of the estimate in the merge of a differential.
+from waterfall.core.estimate.interface.merging import (
+    merge_lines as merge_lines,
+)
+
 # ``rates`` (US-1490/L1; US-1500): the rates of a revision and what it keeps of the reference.
 from waterfall.core.estimate.interface.rates import (
     apply_rate_update as apply_rate_update,
@@ -295,6 +312,11 @@ from waterfall.core.estimate.interface.rates import (
 )
 from waterfall.core.estimate.interface.rates import (
     reinflate_project as reinflate_project,
+)
+
+# ``rebasing`` (US-3050/L3): the part of the estimate in the update of a differential.
+from waterfall.core.estimate.interface.rebasing import (
+    rebase_lines as rebase_lines,
 )
 
 # ``remaining`` (US-1580/L1; US-1580/L2): a line reestimated.
@@ -433,6 +455,27 @@ from waterfall.core.estimate.pricing import (
     round_to_cent as round_to_cent,
 )
 
+# ``provisioning`` (US-2570/L1; US-2580/L1): the provision line of a risk, which the risks alone ask
+# for and write again (EP-08).
+from waterfall.core.estimate.provisioning import (
+    ProvisionEntry as ProvisionEntry,
+)
+from waterfall.core.estimate.provisioning import (
+    provision_amount as provision_amount,
+)
+from waterfall.core.estimate.provisioning import (
+    rename_provision as rename_provision,
+)
+from waterfall.core.estimate.provisioning import (
+    rename_provisions as rename_provisions,
+)
+from waterfall.core.estimate.provisioning import (
+    set_provision as set_provision,
+)
+from waterfall.core.estimate.provisioning import (
+    set_provision_bearing as set_provision_bearing,
+)
+
 # ``reading`` (US-1490/L3): the lines as ``listNodes`` reads them, and what it filters.
 from waterfall.core.estimate.reading import (
     LineFilters as LineFilters,
@@ -444,6 +487,22 @@ from waterfall.core.estimate.reading import (
 # ``repricing`` (US-1500/L2): a current revision priced again after a rate of the reference.
 from waterfall.core.estimate.repricing import (
     reprice_after_rate as reprice_after_rate,
+)
+
+# ``severities`` (US-2570/L1): the total of an own estimate and the base of the matrix (EP-08).
+from waterfall.core.estimate.severities import (
+    risk_base as risk_base,
+)
+from waterfall.core.estimate.severities import (
+    structure_amount as structure_amount,
+)
+from waterfall.core.estimate.severities import (
+    structure_amounts as structure_amounts,
+)
+
+# ``shares`` (US-2600/L2): the share of an amount in a total, to the four places the contract says.
+from waterfall.core.estimate.shares import (
+    share_of as share_of,
 )
 
 # ``spreading`` (US-1520/L1; US-2040/L2): the line the planned value is computed on, which EP-10
@@ -515,7 +574,9 @@ from waterfall.core.revisions.interface import (
     register_copy,
     register_designation,
     register_marking,
+    register_merge,
     register_rate_update,
+    register_rebase,
     register_tasks_and_lines,
 )
 
@@ -530,7 +591,8 @@ from waterfall.core.revisions.interface import (
 # review before is written by the copy of the lines since US-2240/L2), each without effect until
 # its story (US-1580/L1); the own lines that hold a summary task open, which the planning asks at
 # the reading (US-1590/L1), and when they were set to nought, which a summary completed again reads
-# (US-1650/L2, #2803).
+# (US-1650/L2, #2803). Its part of the merge of a differential, after the planning's (US-2560/L1),
+# and of the update of a differential, likewise (US-3050/L3).
 register_facet("estimate_line", LINE_FACET)
 register_tasks_and_lines("lines", revision_has_lines)
 register_copy(copy_rates)
@@ -544,6 +606,7 @@ register_estimate_facts(
         subproject_is_cited,
         subproject_is_estimated,
         subproject_estimate_lines,
+        forget_subproject,
         roles_employed,
         marked_revision_has_lines,
         reinflate_project,
@@ -557,3 +620,5 @@ register_format("remaining", REMAINING_FORMAT)
 register_exporter("remaining", REMAINING_EXPORTER)
 register_open_lines(open_lines)
 register_zeroed_at(zeroed_lines)
+register_merge(merge_lines)
+register_rebase(rebase_lines)

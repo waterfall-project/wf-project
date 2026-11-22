@@ -38,10 +38,11 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from waterfall.platform.database import CODE_POINTS, Base, UtcDateTime, bounded, counted
 
-# The statuses of a revision and the kinds of structure EP-04 writes (``RevisionStatus``; the main
-# structure of ``StructureKind`` alone: the amendments and the risks' own come with EP-08).
+# The statuses of a revision and the kinds of a structure (``RevisionStatus``, ``StructureKind``):
+# the main one, an amendment (a differential), the own estimate of a risk (EP-08), and the base of a
+# differential, which no operation serves (US-3050, migration ``0038``).
 STATUSES = ("draft", "marked")
-STRUCTURE_KINDS = ("main",)
+STRUCTURE_KINDS = ("main", "amendment", "risk", "base")
 # The bounds the contract puts on a name of version and on a label of structure, and on a year.
 VERSION_NAME_LENGTH = 100
 LABEL_LENGTH = 300
@@ -150,9 +151,15 @@ class Revision(Audited):
 
 
 class CostStructure(Audited):
-    """A cost structure of a revision: its main one alone here (WF-REV-0100), one per revision.
+    """A cost structure of a revision: its main one, its amendments, its risks' own (WF-REV-0100).
 
-    The first revised table, partitioned by project. ``lineage_id`` is kept by the copy of the
+    The first revised table, partitioned by project. A revision has one main structure; the own
+    estimate of a risk names its risk (``risk_id``, there for that kind alone), one at most by risk
+    and by revision (EP-08, migration ``0035``). The base of a differential names its differential
+    (``differential_id``, there for that kind alone), of the same revision, one base at most by
+    differential; a differential keeps the counter the main structure bore when its base was taken
+    (``main_lock_version``, there for that kind alone): it is up to date while the main structure
+    bears it (US-3050, migration ``0038``). ``lineage_id`` is kept by the copy of the
     revision, its own identifier at the creation of the structure (WF-DAT-0030). The date its
     planning starts on and the instant its dates were computed (EP-06, #2170) are null for a row
     the migration ``0023`` did not fill, which the code reads as their derived values: the day of
@@ -166,10 +173,32 @@ class CostStructure(Audited):
             ["revision.project_id", "revision.id"],
             ondelete="RESTRICT",
         ),
+        # The risk of an own estimate, with its project; it refuses (EP-08).
+        ForeignKeyConstraint(
+            ["project_id", "risk_id"], ["risk.project_id", "risk.id"], ondelete="RESTRICT"
+        ),
         CheckConstraint(_in("kind", STRUCTURE_KINDS), name="kind_known"),
+        CheckConstraint("(risk_id IS NOT NULL) = (kind = 'risk')", name="risk_of_its_kind"),
+        # The differential of a base, with its revision; it refuses (US-3050).
+        ForeignKeyConstraint(
+            ["project_id", "differential_id", "revision_id"],
+            ["cost_structure.project_id", "cost_structure.id", "cost_structure.revision_id"],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "(differential_id IS NOT NULL) = (kind = 'base')", name="differential_of_its_kind"
+        ),
+        CheckConstraint(
+            "(main_lock_version IS NOT NULL) = (kind = 'amendment')",
+            name="main_counter_of_its_kind",
+        ),
+        # A differential copied out of date keeps 0, which the main structure never bears.
+        CheckConstraint("main_lock_version >= 0", name="main_counter_not_negative"),
         *bounded("label", LABEL_LENGTH),
         # What a revised row of the planning names: the structure with its revision (EP-06).
         UniqueConstraint("project_id", "id", "revision_id"),
+        # What the evaluation of a risk names: its own estimate, with its revision and its risk.
+        UniqueConstraint("risk_id", "id", "revision_id", "project_id"),
         Index(None, "project_id", "revision_id"),
         Index(
             "uq_cost_structure_main",
@@ -177,6 +206,21 @@ class CostStructure(Audited):
             "revision_id",
             unique=True,
             postgresql_where=text("kind = 'main'"),
+        ),
+        Index(
+            "uq_cost_structure_risk",
+            "project_id",
+            "revision_id",
+            "risk_id",
+            unique=True,
+            postgresql_where=text("kind = 'risk'"),
+        ),
+        Index(
+            "uq_cost_structure_base",
+            "project_id",
+            "differential_id",
+            unique=True,
+            postgresql_where=text("kind = 'base'"),
         ),
         counted(),
         {"postgresql_partition_by": BY_PROJECT},
@@ -191,3 +235,10 @@ class CostStructure(Audited):
     lineage_id: Mapped[UUID]
     planning_start_on: Mapped[date | None] = mapped_column(Date)
     scheduled_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    # The risk whose own estimate the structure is; null for any other kind.
+    risk_id: Mapped[UUID | None]
+    # The differential whose base the structure is; null for any other kind (US-3050).
+    differential_id: Mapped[UUID | None]
+    # The counter the main structure bore when the base of the differential was taken, 0 when it
+    # bore none in this revision (a differential taken up out of date); null for any other kind.
+    main_lock_version: Mapped[int | None] = mapped_column(Integer)

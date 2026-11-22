@@ -12,7 +12,9 @@
 
 ## Dans Waterfall
 
-**Préparer un avenant**, sur l’écran des [révisions](../FBS-4.1.md), crée un différentiel de la structure principale, sous le libellé donné. Il se saisit au [planning](../FBS-4.3.md) et au [devis](../FBS-4.4.md) comme une autre structure, que le bandeau nomme ; plusieurs peuvent coexister, et chacun se fusionne ou s’abandonne à part. Rien ne touche la structure principale avant la contractualisation.
+**Préparer un avenant**, sur l’écran des [révisions](../FBS-4.1.md), crée un différentiel de la structure principale, sous le libellé donné. Il se saisit au [planning](../FBS-4.3.md) et au [devis](../FBS-4.4.md) comme une autre structure, que le bandeau nomme ; plusieurs peuvent coexister, et chacun se fusionne ou s’abandonne à part. Rien ne touche la structure principale avant la contractualisation. **Abandonner l’avenant** le supprime, tant qu’il n’est pas fusionné, et ramène à la structure principale.
+
+Le projet avance pendant que l’avenant se négocie : dès que la structure principale reçoit une écriture, l’avenant est en retard, et l’écran le dit. **Mettre à jour l’avenant** présente d’abord ce que la structure principale a reçu et que l’avenant reprend, ce qu’il garde, et les motifs qui refusent ; confirmée, elle ne change rien de ce que l’avenant désigne. Seul un avenant à jour se contractualise.
 
 **Contractualiser l’avenant**, depuis la grille du différentiel, présente d’abord le compte rendu de la fusion : les tâches, les lignes et les liaisons ajoutées, modifiées et retirées, les tâches démarrées qui seront terminées, et les motifs qui la refusent. Confirmée, la fusion s’applique à la révision en cours — créée au besoin — et la marque, sous le nom de version demandé ; la révision marquée devient la référence. Les lignes désignées prennent les grandeurs de référence du différentiel, d’où leur montant budgété ; une tâche démarrée n’est jamais retirée : son reste à engager est porté à zéro, ce qui la termine.
 

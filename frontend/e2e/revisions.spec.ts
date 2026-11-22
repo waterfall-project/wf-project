@@ -15,7 +15,7 @@
  */
 import { expect, type Locator, type Page } from "@playwright/test";
 
-import { MARKING, WORKING } from "./bounds";
+import { LOADED, MARKING, WORKING } from "./bounds";
 import { columnsOf } from "./columns";
 import { openHydrated } from "./hydration";
 import { inService, test } from "./mode";
@@ -191,8 +191,14 @@ test("the comparison of the current revision of PRJ-001 to its reference, from t
   await expect(estimate).toBeVisible({ timeout: WORKING });
 
   // A row marked, and the value its base held in the cell that differs, read at the keyboard: the
-  // focus on the cell says it, as the pointer does.
-  const marked = estimate.getByRole("row").filter({ hasText: "Modifié" }).first();
+  // focus on the cell says it, as the pointer does. The row is one with such a cell among the
+  // columns of the estimate: a task modified by its progress alone is marked without one
+  // (WF-IHM-0150), as the service reads the first rows of the 102 against the 101.
+  const marked = estimate
+    .getByRole("row")
+    .filter({ hasText: "Modifié" })
+    .filter({ has: page.getByRole("gridcell").filter({ hasText: "Δ" }) })
+    .first();
   await expect(marked).toBeVisible({ timeout: WORKING });
   const at = await columnsOf(estimate, { label: "Libellé" });
   const differing = marked.getByRole("gridcell").filter({ hasText: "Δ" }).first();
@@ -226,7 +232,9 @@ test("the comparison of the current revision of PRJ-001 to its reference, from t
   await functions.getByRole("link", { name: "Planification", exact: true }).click();
   await expect(page).toHaveURL(`${BASE}/planning${compared}`, { timeout: WORKING });
   const planning = page.getByRole("treegrid", { name: "Grille de planning" });
-  await expect(planning).toBeVisible({ timeout: WORKING });
+  // The planning compared is a read slowed by the queue: past 15 s, the screen still « Chargement
+  // de l'écran », where the quiet measure is far under (`LOADED`, #4326, #4678).
+  await expect(planning).toBeVisible({ timeout: LOADED });
   await expect(comparedTo).toContainText(named);
 
   // The branches without difference fold, each run said in its place with its number of rows, and
@@ -256,7 +264,8 @@ test("the comparison of the current revision of PRJ-001 to its reference, from t
   await functions.getByRole("link", { name: "Estimation du reste à engager", exact: true }).click();
   await expect(page).toHaveURL(`${BASE}/remaining${compared}`, { timeout: WORKING });
   const remaining = page.getByRole("treegrid", { name: "Grille de reste à engager" });
-  await expect(remaining).toBeVisible({ timeout: WORKING });
+  // The slowest read of the path, the remaining to commit compared (`LOADED`, #4326).
+  await expect(remaining).toBeVisible({ timeout: LOADED });
   await expect(comparedTo).toContainText(named);
   await expect(page.getByRole("button", { name: "Écarts de montants" })).toBeVisible();
 

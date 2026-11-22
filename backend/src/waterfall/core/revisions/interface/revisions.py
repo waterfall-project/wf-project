@@ -28,10 +28,12 @@ any write of its transaction, it never waits while its transaction holds a lock 
 
 Declared by US-0910/L1, which fills the partitions; US-0960 fills the rest. ``load_revision``
 opens a revision of the witness under the identifier it imposes, by the very rules of the opening
-(#1402), at the instant of the act it is given: the chronology's, for the witness.
+(#1402), at the instant of the act it is given: the chronology's, for the witness; and the copies
+of its structures and of their nodes under those it imposes too, where the examples name them
+(``CopyImposed``, US-2650/L1), the others drawn.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import ColumnElement, and_, func, or_, select
@@ -52,6 +54,7 @@ from waterfall.core.projects.interface import (
 )
 from waterfall.core.resource_settings.interface import share_reference
 from waterfall.core.revisions.commands import NO_CURRENT_REVISION, REVISION_DRAFT, revision_commands
+from waterfall.core.revisions.interface.bases import keep_differential_states
 from waterfall.core.revisions.interface.closing import close_revision
 from waterfall.core.revisions.interface.reference import reference_correctable
 from waterfall.core.revisions.interface.shared import (
@@ -65,7 +68,7 @@ from waterfall.core.revisions.interface.structures import (
     delete_structures,
 )
 from waterfall.core.revisions.registry import Registry
-from waterfall.core.revisions.states import state_of
+from waterfall.core.revisions.states import ProjectStanding, last_marked, opening_of, state_of
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
@@ -77,7 +80,7 @@ from waterfall.platform.errors import (
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection
+    from collections.abc import Callable, Collection, Mapping
     from datetime import datetime
     from decimal import Decimal
     from uuid import UUID
@@ -178,6 +181,46 @@ class RevisionToAbandon:
     lock_version: int
 
 
+def _no_structure() -> dict[UUID, UUID]:
+    """Give a copy of a revision no identifier imposed on its structures."""
+    return {}
+
+
+def _no_node() -> dict[UUID, Mapping[UUID, UUID]]:
+    """Give a copy of a revision no identifier imposed on its nodes."""
+    return {}
+
+
+@dataclass(frozen=True, slots=True)
+class CopyImposed:
+    """The identifiers the loader of the witness imposes on the copies of a revision (US-2650/L1).
+
+    ``main`` the copy of the main structure; ``structures`` the copy of another structure, by its
+    lineage — a base is never named: it is drawn —; ``nodes`` the copy of a node, by the identifier
+    of the structure it is copied into, then by its lineage. What is not named is drawn.
+    """
+
+    main: UUID | None = None
+    structures: Mapping[UUID, UUID] = field(default_factory=_no_structure)
+    nodes: Mapping[UUID, Mapping[UUID, UUID]] = field(default_factory=_no_node)
+
+    def structure(self, kind: str, lineage_id: UUID) -> UUID | None:
+        """Give the identifier imposed on the copy of a structure, by kind and lineage, if any."""
+        if kind == "main":
+            return self.main
+        if kind == "base":
+            return None
+        return self.structures.get(lineage_id)
+
+    def node(self, structure_id: UUID, lineage_id: UUID) -> UUID | None:
+        """Give the identifier imposed on the copy of a node into a structure, by its lineage."""
+        return self.nodes.get(structure_id, {}).get(lineage_id)
+
+
+NOTHING_IMPOSED = CopyImposed()
+"""The copy of a revision the service opens: every identifier drawn."""
+
+
 @dataclass(frozen=True, slots=True)
 class RevisionCopy:
     """A copy of a marked revision into the new current one, in the transaction of its creation.
@@ -187,6 +230,10 @@ class RevisionCopy:
     The copies bear the stamp of the creation of the revision, its author and its instant.
     ``apply_rate_update`` tells whether the creation accepts the update of the rates the proposal
     would present at the rate of the reference (``RevisionCreate.apply_rate_update``, WF-REV-0060).
+    ``within_revision`` tells that the copy is of one structure into another of the same revision
+    (a differential opened, ``source`` and ``target`` then being that revision), the figures of the
+    rows kept as they are and not drawn again from the reference. ``imposed`` the identifiers the
+    loader of the witness imposes on the copies, none for the service.
     """
 
     session: Session
@@ -197,6 +244,8 @@ class RevisionCopy:
     author: UUID | None
     identifiers: dict[UUID, UUID]
     apply_rate_update: bool = False
+    within_revision: bool = False
+    imposed: CopyImposed = NOTHING_IMPOSED
 
 
 # The copies a revision opened from a marked one makes, table after table, in the order of their
@@ -276,8 +325,13 @@ def _views(
     Whether a background task writes in the project is the project's: read once for them all.
     """
     project = project_facts(session, project_id)
-    idle = no_background_task_running(session, project_id)
-    correctable = reference_correctable(session, project_id)
+    # The revision whose merge would open the current one, if the project has none (#790), as the
+    # list of the structures reads it (``revision_state``).
+    standing = ProjectStanding(
+        no_background_task_running(session, project_id),
+        reference_correctable(session, project_id),
+        opening_of(session, project_id, project),
+    )
     kind = contributor_kind(session, project_id, viewer.user_id)
     sources = {row.source_revision_id for row in rows if row.source_revision_id is not None}
     names: dict[UUID, str | None] = {
@@ -312,13 +366,7 @@ def _views(
                     viewer.permissions,
                     kind,
                     project.state,
-                    state_of(
-                        session,
-                        (project_id, row.id),
-                        row.status,
-                        no_task_running=idle,
-                        correctable=correctable,
-                    ),
+                    state_of(session, (project_id, row.id), row.status, standing),
                 )
             ),
             created_at=row.created_at,
@@ -369,7 +417,7 @@ def read_revision_for(session: Session, project_id: UUID, revision_id: UUID | No
     marked, the reference of its project, and the marked revision before it.
     """
     if revision_id is None:
-        revision_id = current_revision(session, project_id) or _last_marked(session, project_id)
+        revision_id = current_revision(session, project_id) or last_marked(session, project_id)
         if revision_id is None:
             raise NotFoundError(NOT_FOUND)
     revision = found_revision(session, revision_id, project_id, lock=False)
@@ -413,7 +461,7 @@ def _judge_opening(
 
 def last_marked_revision(session: Session, project_id: UUID) -> UUID | None:
     """Give the last marked revision of a project, which the next current one copies, if any."""
-    return _last_marked(session, project_id)
+    return last_marked(session, project_id)
 
 
 def revision_project(session: Session, revision_id: UUID) -> UUID:
@@ -479,27 +527,19 @@ def last_marked_revisions(session: Session, project_ids: Collection[UUID]) -> di
     return {row[0]: row[1] for row in rows}
 
 
-def _last_marked(session: Session, project_id: UUID) -> UUID | None:
-    """Give the last marked revision of a project, the source of the next one, if any."""
-    return session.scalar(
-        select(Revision.id)
-        .where(Revision.project_id == project_id, Revision.status == "marked")
-        .order_by(Revision.marked_at.desc(), Revision.id.desc())
-        .limit(1)
-    )
-
-
 @dataclass(frozen=True, slots=True)
 class _Opening:
     """A revision to open: its identifier, its description, and the task that opens it, if one.
 
-    ``apply_rate_update`` whether its creation accepts the update of the rates (WF-REV-0060).
+    ``apply_rate_update`` whether its creation accepts the update of the rates (WF-REV-0060);
+    ``imposed`` the identifiers of its copies the witness imposes (US-2650/L1).
     """
 
     revision_id: UUID
     description: str | None = None
     running: UUID | None = None
     apply_rate_update: bool = False
+    imposed: CopyImposed = NOTHING_IMPOSED
 
 
 def _open(session: Session, project_id: UUID, act: Act, opening: _Opening) -> Revision:
@@ -514,7 +554,7 @@ def _open(session: Session, project_id: UUID, act: Act, opening: _Opening) -> Re
     share_reference(session)
     project = lock_project(session, project_id)
     _judge_opening(session, project_id, project, opening.running)
-    source = _last_marked(session, project_id)
+    source = last_marked(session, project_id)
     revision = Revision(
         id=revision_id,
         project_id=project_id,
@@ -542,7 +582,13 @@ def _open(session: Session, project_id: UUID, act: Act, opening: _Opening) -> Re
     if source is None:
         create_main_structure(session, project_id, revision_id, act)
     else:
-        copy_revision(session, source, revision_id, apply_rate_update=opening.apply_rate_update)
+        copy_revision(
+            session,
+            source,
+            revision_id,
+            apply_rate_update=opening.apply_rate_update,
+            imposed=opening.imposed,
+        )
     set_current_revision(session, project_id, revision_id, act)
     advance(session, project_id, "first_revision_created", act)
     return revision
@@ -570,25 +616,35 @@ def create_revision(
     return _views(session, [revision], project_id, viewer)[0]
 
 
-def open_revision_by_task(session: Session, project_id: UUID, act: Act, running: UUID) -> UUID:
+def open_revision_by_task(
+    session: Session, project_id: UUID, act: Act, running: UUID | None
+) -> UUID:
     """Open the current revision of a project for the task ``running``, which writes in it.
 
     By the rules of ``create_revision``, the task that asks apart: the application of an import on
     a project without a current revision creates it (WF-INTF-0090, EP-06), which no other task
-    may then be writing in.
+    may then be writing in. ``running`` none for the loader of the witness, which runs no task
+    (``load_merge``, US-2560/L2).
     """
     return _open(session, project_id, act, _Opening(new_id(), running=running)).id
 
 
 def copy_revision(
-    session: Session, source: UUID, target: UUID, *, apply_rate_update: bool = False
+    session: Session,
+    source: UUID,
+    target: UUID,
+    *,
+    apply_rate_update: bool = False,
+    imposed: CopyImposed = NOTHING_IMPOSED,
 ) -> None:
     """Copy what a marked revision holds into the new current one, table after table (WF-DAT-0010).
 
     The structures here, but the merged ones, each under an identifier of its own and the lineage
     of the one it copies (#1759); the copies bear the stamp of the creation of ``target``, which is
     written already. Each epic adds its tables by ``register_copy``; ``apply_rate_update`` tells the
-    copy of the rates whether the update is accepted (EP-07).
+    copy of the rates whether the update is accepted (EP-07). Once every table is copied, each
+    differential taken up is given the state it had, up to date or out of date (US-3050).
+    ``imposed`` the identifiers the witness imposes on the copies, none for the service.
     """
     revision = session.get_one(Revision, target)
     copy = RevisionCopy(
@@ -600,9 +656,11 @@ def copy_revision(
         author=revision.created_by,
         identifiers={},
         apply_rate_update=apply_rate_update,
+        imposed=imposed,
     )
     for copier in _COPIES.entries():
         copier(copy)
+    keep_differential_states(copy)
 
 
 def abandon_revision(
@@ -658,6 +716,16 @@ def revision_draft(session: Session, revision_id: UUID) -> None:
         raise refuse(REVISION_DRAFT)
 
 
-def load_revision(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> None:
-    """Open a revision of the witness under the identifier it imposes, by the rules of opening."""
-    _open(session, project_id, act, _Opening(revision_id))
+def load_revision(
+    session: Session,
+    project_id: UUID,
+    revision_id: UUID,
+    act: Act,
+    imposed: CopyImposed = NOTHING_IMPOSED,
+) -> None:
+    """Open a revision of the witness under the identifier it imposes, by the rules of opening.
+
+    ``imposed`` the identifiers of the copies of its structures and of their nodes the witness
+    imposes, where its examples name them (US-2650/L1); the others are drawn.
+    """
+    _open(session, project_id, act, _Opening(revision_id, imposed=imposed))

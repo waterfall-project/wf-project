@@ -505,9 +505,10 @@ def test_an_operation_that_lacks_either_is_found(tmp_path: Path) -> None:
 # validation 422 of another code.
 #
 # The same holds of the parameters read as text by a model of the query or by a route, whose
-# refusal the contract names (#2185): the decimal bounds of the grid of the hourly rates and of the
-# roles of resource (``pattern``), the actions of the journal (``minItems``), the scope of the
-# indicators of an estimate (``getEstimateIndicators``). The correlation of
+# refusal the contract names (#2185): the decimal bounds of the grid of the hourly rates, of the
+# roles of resource and of the register of the risks (``pattern``), the actions of the journal
+# (``minItems``), the scope of the indicators of an estimate (``getEstimateIndicators``). The
+# correlation of
 # the journal is declared by its model (``Field(pattern=CORRELATION)``, ``api/audit.py``), which
 # FastAPI does not describe: a blind spot of this comparison, which reads the application
 # description. The decision on these drifts is still to take (#2303).
@@ -532,6 +533,38 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
     ("getHourlyRateGrid", "query", "rate_max"): (
         r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
     ),
+    # The bounds of the columns of numbers of the register of the risks, read as text by the route,
+    # which names the refusal as the contract does, ``NUMBER_INVALID`` (US-2600/L1, H-01).
+    ("listRisks", "query", "probability_min"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d+)?$'"
+    ),
+    ("listRisks", "query", "probability_max"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d+)?$'"
+    ),
+    ("listRisks", "query", "severity_min"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("listRisks", "query", "severity_max"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("listRisks", "query", "provision_amount_min"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("listRisks", "query", "provision_amount_max"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("listRisks", "query", "occurrence_cost_min"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("listRisks", "query", "occurrence_cost_max"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("listRisks", "query", "occurred_reestimated_amount_min"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("listRisks", "query", "occurred_reestimated_amount_max"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
     ("listResourceRoles", "query", "monthly_hours_min"): (
         r"declared nothing, contract pattern='^-?\\d+(\\.\\d+)?$'"
     ),
@@ -547,6 +580,9 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
     # The lists of ``listNodes`` the route reads, each value and the list judged there (US-1380/L2).
     ("listNodes", "query", "fields"): "declared nothing, contract min_items=1",
     ("listNodes", "query", "origin_risk_ids"): "declared nothing, contract min_items=1",
+    # The marks of ``difference``, each judged by the route, which reads them on a differential
+    # alone (US-2550/L3).
+    ("listNodes", "query", "difference"): "declared nothing, contract min_items=1",
     # The same of ``compareRevisions``, which reads them as ``listNodes`` does, and the marks of
     # ``difference``, each judged by the route (US-1530).
     ("compareRevisions", "query", "fields"): "declared nothing, contract min_items=1",

@@ -93,6 +93,14 @@ export const REVISION_COMMAND_ICONS: Readonly<
   export_task_tree_image: FileDown,
 };
 
+/** The icon of the commands of a structure that a button of the screen carries (US-2640). */
+export const STRUCTURE_COMMAND_ICONS: Readonly<
+  Record<Extract<components["schemas"]["StructureCommand"], "delete" | "rebase">, LucideIcon>
+> = {
+  delete: Ban,
+  rebase: RefreshCw,
+};
+
 /** The icon of a command, drawn before its name and hidden from a screen reader. */
 export function commandIcon(icon: LucideIcon): ReactElement {
   return createElement(icon, { "aria-hidden": true });

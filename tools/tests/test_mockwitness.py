@@ -22,6 +22,7 @@ from wftools.mockcalendar import (
     follow,
     to_hours,
 )
+from wftools.mockcorrelations import correlation
 from wftools.mockids import PREFIX
 
 
@@ -298,6 +299,10 @@ _KEYS = {
     "parent_id": (*_STRUCTURE, "nœuds d'organisation"),
     "lineage_id": _LINEAGES,
     "parent_lineage_id": _LINEAGES,
+    "provision_lineage_id": _LINEAGES,
+    "provision_task_lineage_id": _LINEAGES,
+    "copy_lineage_id": _LINEAGES,
+    "removed_lineage_ids": _LINEAGES,
     "predecessor_lineage_id": _LINEAGES,
     "task_lineage_id": _LINEAGES,
     "project_id": ("projets", "projets du portefeuille"),
@@ -402,8 +407,14 @@ def test_each_identifier_of_the_examples_is_of_the_family_its_key_names() -> Non
     trespasses: set[tuple[str, str]] = set()
     for path in sorted(mockwitness.FIXTURES.rglob("*.json")):
         example = json.loads(path.read_text(encoding="utf-8"))
+        # The correlation of a new example of an error (its value an envelope, with a `status`) is
+        # derived from its name, off every range (#1007): tests/test_mockcorrelations.py holds
+        # it, not a family.
+        derived = correlation(path.relative_to(mockwitness.FIXTURES).with_suffix("").as_posix())
         for key, value in _identifiers(example["value"]):
             assert key in _KEYS, f"{path.name}: {key} names no family"
+            if (key, value) == ("correlation_id", derived) and "status" in example["value"]:
+                continue
             if not any(families[name].holds(value) for name in _KEYS[key]):
                 trespasses.add((key, value.removeprefix(PREFIX)))
     assert trespasses == _TRESPASSES

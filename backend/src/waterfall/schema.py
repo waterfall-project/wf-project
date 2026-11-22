@@ -25,6 +25,7 @@ from waterfall.core.planning import tables as planning_tables
 from waterfall.core.projects import tables as projects_tables
 from waterfall.core.resource_settings import tables as resource_settings_tables
 from waterfall.core.revisions import tables as revisions_tables
+from waterfall.core.risks import tables as risks_tables
 from waterfall.core.users import tables as users_tables
 from waterfall.platform.database import Base
 
@@ -45,6 +46,7 @@ __all__ = [
     "projects_tables",
     "resource_settings_tables",
     "revisions_tables",
+    "risks_tables",
     "users_tables",
 ]
 

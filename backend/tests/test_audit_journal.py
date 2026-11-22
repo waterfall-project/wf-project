@@ -190,26 +190,13 @@ def test_an_object_without_a_label_but_a_backup_or_an_account_is_a_defect_said_f
         record(Session(), role_created(audited=audited))
 
 
-# The back lags behind the contract, without a migration in EP-16 (decision of the author of
-# 2026-10-28 on #1577, option b): the action the contract names that the back does not serve yet —
-# the merge of a differential under its new name (K-04) — and the one it still serves that the
-# contract renamed. The creation of a project and the abandonment of a revision, EP-04 admits
-# (#1577, migration 0021).
-TO_SERVE_BY_EP04 = ("structure_merge",)
-SERVED_UNDER_AN_OLD_NAME = ("amendment_merge",)
-
-
 @pytest.mark.requirement("WF-SEC-0030-A")
 def test_the_actions_and_the_natures_of_objects_are_those_of_the_contract() -> None:
-    contract = [action.value for action in models.AuditAction]
-    assert set(TO_SERVE_BY_EP04) <= set(contract)
-    # A gap that the back has closed fails here, to be struck off the lists above.
-    assert not set(TO_SERVE_BY_EP04) & set(ACTIONS)
-    assert set(SERVED_UNDER_AN_OLD_NAME) <= set(ACTIONS)
-    assert not set(SERVED_UNDER_AN_OLD_NAME) & set(contract)
-    assert [action for action in ACTIONS if action not in SERVED_UNDER_AN_OLD_NAME] == [
-        action for action in contract if action not in TO_SERVE_BY_EP04
-    ]
+    # The back lagged behind the contract (decision of the author of 2026-10-28 on #1577, option
+    # b): the creation of a project and the abandonment of a revision, EP-04 admits (migration
+    # 0021); the abandonment of a differential, US-2550/L4 (0037); the merge of a differential,
+    # under the name the contract gives it (K-04), US-2560/L2 (0039). No gap is left.
+    assert list(ACTIONS) == [action.value for action in models.AuditAction]
     assert list(OBJECT_KINDS) == [kind.value for kind in models.AuditObjectKind]
 
 

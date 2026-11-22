@@ -97,6 +97,8 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "skeleton",
         "days",
         "estimate_facts",
+        # The subprojects the provisions of the risks designate (US-3060/L4, #4208).
+        "risk_designations",
     },
     # ``rates``: the update of the rates a revision frames (US-1500/L1).
     "revisions": {
@@ -107,31 +109,53 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "shared",
         "closing",
         "rates",
+        # The parts of the modules in the merge of an amendment (US-2550/L1).
+        "merging",
+        # The base of a differential (US-3050/L2).
+        "bases",
+        # The parts of the modules in the update of a differential (US-3050/L3).
+        "rebasing",
+        # The merge applied, as a task of the worker and for the witness (US-2560/L2).
+        "merge_applying",
     },
 }
-# The modules of the planning, the history and the exchanges (EP-06), and of the indicators (EP-10),
-# one file per story or subject, laid by their socle (US-1380/L1, US-1660/L1) so that no later story
-# opens their ``__init__``.
+# The modules of the planning, the history and the exchanges (EP-06), of the indicators (EP-10) and
+# of the risks (EP-08), one file per story or subject, laid by their socle (US-1380/L1, US-1660/L1,
+# US-2550/L1) so that no later story opens their ``__init__``.
 PLANNING_INTERFACES: dict[str, set[str]] = {
     "planning": {
+        # The tasks a risk names and the provision line it asks for (US-2570/L1, EP-08).
+        "borne_lines",
         "closing",
         # The copy of the nodes of a revision, moved out of ``nodes`` (US-2240/L2).
         "copying",
+        # The abandonment of a differential: its nodes and facets deleted (US-2550/L4).
+        "differential_deletion",
         "facets",
+        # The tasks of an own estimate grafted into the main structure (US-2620/L1, EP-08).
+        "grafts",
         # What the indicators read of the planning, laid by US-1660/L3 (EP-10, "Modules").
         "indicator_stamps",
         "indicator_tasks",
         "kept_readings",
         "lines",
         "loading",
+        # Its part of the merge of a differential, and its end (US-2560/L1, EP-08).
+        "merging",
         "milestone_dates",
         "msproject",
+        # The deletion of a node, moved out of ``nodes`` (US-2580/L1).
+        "node_deletion",
         "nodes",
         "open_lines",
         "paste",
         "physical_progress",
         "predecessors",
         "progress",
+        # A differential updated from the main structure, and for the witness (US-3050/L4).
+        "rebased",
+        # Its part of the update of a differential, and its end (US-3050/L3, EP-08).
+        "rebasing",
         "reference",
         "skeleton",
         "snapshots",
@@ -141,7 +165,7 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "tracking",
         "work_breakdown",
     },
-    "history": {"closing", "plans", "purge", "recording", "undo"},
+    "history": {"closing", "plans", "purge", "recording", "undo", "undoable"},
     "exchanges": {"damages", "exports", "imports", "loading", "purge", "xml"},
     "indicators": {
         "curves",
@@ -154,6 +178,16 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "reading",
         "stored_documents",
         "storing",
+    },
+    "risks": {
+        "coverage",
+        "deletion",
+        "matrix",
+        "occurrence",
+        "provisions",
+        "register",
+        "reviews",
+        "risks",
     },
 }
 # What the design names of each (EP-04, "Modules"), declared from US-0910/L1 on, which the other
@@ -263,6 +297,24 @@ DESIGNED: dict[str, set[str]] = {
         "store_indicators",
         "physical_progress",
         "stored_document",
+    },
+    # EP-08, "Modules": one function by operation of the contract, which the API and the worker
+    # call before the story that fills each.
+    "risks": {
+        "create_risk",
+        "read_risk",
+        "update_risk",
+        "update_risk_provision",
+        "review_risk",
+        "list_risk_reviews",
+        "delete_risk",
+        "list_risks",
+        "risk_matrix",
+        "risk_coverage_of",
+        "kept_coverage",
+        "occurrence_report",
+        "submit_occurrence",
+        "run_occurrence",
     },
 }
 

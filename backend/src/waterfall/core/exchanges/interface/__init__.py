@@ -90,6 +90,9 @@ from waterfall.core.exchanges.interface.imports import (
     ImportOpening as ImportOpening,
 )
 from waterfall.core.exchanges.interface.imports import (
+    ImportPage as ImportPage,
+)
+from waterfall.core.exchanges.interface.imports import (
     ImportRefused as ImportRefused,
 )
 from waterfall.core.exchanges.interface.imports import (

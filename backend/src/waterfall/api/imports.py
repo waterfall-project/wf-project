@@ -10,13 +10,16 @@ is analysed by the worker, then applied or abandoned. The storage is asked out o
 the head of a file is read before the opening is judged, and a file is deleted once the transaction
 that ends its import is committed (WF-DAT-0120).
 
-Each operation of a project is guarded by ``RequiresProject`` on the reading of the planning, the
-leaf the exchanges are of (FBS-4.3.4): the project, and its imports, exist only for who may
-consult them (404). The permission an import of a kind asks — ``planning.write`` for a planning,
-the format's — and the quality of contributor are judged by the exchanges with the import itself,
-under its lock: an application whose requester lost them since the analysis refuses the import
-for good, ``refused``, its file deleted, which a guard ahead of the route could not write
-(WF-ARC-0100, #1789). An answer is built before its transaction is committed; a refusal that
+Each operation of a project is guarded by ``RequiresProject`` on the visibility of the project
+alone: the project exists only for who may consult it (404). The kind of an import is judged by
+the exchanges (US-2660/L1, #2473): its imports exist only for who consults the function of the kind
+— the planning, the estimate, the remaining to commit, the actual costs —, which a guard ahead of
+the route, the same for every kind, could not tell; a list leaves the others out, a reading or a
+command refuses them as unknown (404). The permission an import of a kind asks — ``planning.write``
+for a planning, the format's — and the quality of contributor are judged by the exchanges with the
+import itself, under its lock: an application whose requester lost them since the analysis refuses
+the import for good, ``refused``, its file deleted, which a guard ahead of the route could not
+write (WF-ARC-0100, #1789). An answer is built before its transaction is committed; a refusal that
 leaves the import refused is answered once it is committed.
 """
 
@@ -54,6 +57,7 @@ from waterfall.core.exchanges.interface import (
     Confirmer,
     ImportMeans,
     ImportOpening,
+    ImportPage,
     ImportRefused,
     ImportView,
     RuleChange,
@@ -81,7 +85,6 @@ if TYPE_CHECKING:
 
 router = APIRouter(tags=["exchanges"])
 
-CONSULT = "planning.read"
 FILE_TOO_LARGE = "FILE_TOO_LARGE"
 MALFORMED_REQUEST = "MALFORMED_REQUEST"
 DEFAULT_LIMIT = 50
@@ -91,7 +94,9 @@ GREATEST_LIMIT = 500
 ENVELOPE = 64 * 1024
 IMPORTS = "/projects/{project_id}/imports"
 IMPORT_PATH = f"{IMPORTS}/{{import_id}}"
-READING = [Depends(RequiresProject(CONSULT))]
+# The project the path names, visible to the caller; the kind of its imports is judged by the
+# exchanges.
+VISIBLE = [Depends(RequiresProject())]
 
 
 @dataclass(frozen=True, slots=True)
@@ -246,15 +251,21 @@ def detailed(session: Session, view: ImportView) -> ImportDetail:
     )
 
 
-@router.get(IMPORTS, operation_id="listImports", dependencies=READING, response_model=None)
+@router.get(IMPORTS, operation_id="listImports", dependencies=VISIBLE, response_model=None)
 def get_imports(
     project_id: UUID,
+    actor: Acting,
     session: Transaction,
     limit: Annotated[int, Query(ge=1, le=GREATEST_LIMIT)] = DEFAULT_LIMIT,
     offset: Offset = 0,
 ) -> dict[str, Any]:
-    """Give a page of the imports of a project, the latest opened first (WF-INTF-0080)."""
-    read = list_imports(session, project_id, limit, offset, utc_now())
+    """Give a page of the imports of a project the caller reads, the latest opened first.
+
+    Those of the kinds the caller consults alone, counted as listed (WF-INTF-0080, #2473).
+    """
+    viewer = Viewer(actor.user_id, actor.permissions)
+    page = ImportPage(limit, offset)
+    read = list_imports(session, project_id, viewer, page, utc_now())
     meta = PaginationMeta(limit=limit, offset=offset, total=read.total)
     return {
         "items": [
@@ -268,7 +279,7 @@ def get_imports(
 @router.post(
     IMPORTS,
     operation_id="openImport",
-    dependencies=READING,
+    dependencies=VISIBLE,
     status_code=202,
     response_model_exclude_unset=True,
 )
@@ -305,18 +316,21 @@ def post_import(
 @router.get(
     IMPORT_PATH,
     operation_id="getImport",
-    dependencies=READING,
+    dependencies=VISIBLE,
     response_model_exclude_unset=True,
 )
 def get_import(
     project_id: UUID, import_id: UUID, actor: Acting, session: Transaction
 ) -> ImportDetail:
-    """Give an import, its report in codes, its last task and the commands of its reader."""
+    """Give an import, its report in codes, its last task and the commands of its reader.
+
+    An import of a kind the caller does not consult is unknown to it (404, #2473).
+    """
     viewer = Viewer(actor.user_id, actor.permissions)
     return detailed(session, read_import(session, project_id, import_id, viewer, utc_now()))
 
 
-@router.delete(IMPORT_PATH, operation_id="abandonImport", dependencies=READING, status_code=204)
+@router.delete(IMPORT_PATH, operation_id="abandonImport", dependencies=VISIBLE, status_code=204)
 def delete_import(
     project_id: UUID, import_id: UUID, actor: Acting, session: Transaction, services: ServicesOf
 ) -> Response:
@@ -328,7 +342,7 @@ def delete_import(
 @router.post(
     f"{IMPORT_PATH}/apply",
     operation_id="applyImport",
-    dependencies=READING,
+    dependencies=VISIBLE,
     status_code=202,
     response_model_exclude_unset=True,
 )
@@ -362,7 +376,7 @@ def post_application(
 @router.put(
     f"{IMPORT_PATH}/duration-rule",
     operation_id="setImportDurationRule",
-    dependencies=READING,
+    dependencies=VISIBLE,
     response_model=None,
 )
 def put_duration_rule(

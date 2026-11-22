@@ -14,8 +14,9 @@
  */
 import { expect, type Page } from "@playwright/test";
 
+import { LOADED } from "../bounds";
 import { CLICKED } from "../usable";
-import { forget, gestureStart, LOADED } from "./steps";
+import { forget, gestureStart } from "./steps";
 import type { Interval } from "./report";
 import { armScreen, type Watched } from "./screen-watch";
 

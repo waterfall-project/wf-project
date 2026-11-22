@@ -16,16 +16,12 @@ witness does not reach, each named with its cause where the test stands:
 
 - the imports of the planning (``a10``, EP-06) and of the estimate (``a11``, EP-07, EP-08), events
   of the chronology without a write, are not loaded: the list holds the six of the actual costs;
-- the provisions and the coverage of the risks are EP-08's: no provision line, no nature provision
-  among the remaining, a coverage at nought, the row numbers the line of provision shifts, the lines
-  the occurrence of a risk merged counted as any line, and what depends on them — the total, the
-  remaining of a subproject, the difference with the review before;
-- the reference is the offer 100 until the merge of the amendment 1 (EP-08): the budgets of the
-  subprojects, their margins and the margin on the reference are measured to it, the project names
-  it, a task's budgeted amount is that of its lineage in the 100;
-- the tasks a risk originates are EP-08's;
 - the authors of the objects the platform writes, their counters, and the commands of a reader,
-  which follow its rights.
+  which follow its rights; the identifiers of the tasks of a marked revision, the witness's own.
+
+Since EP-08 (US-2650/L1), the reference is the 101 the merge of the amendment 1 marks, and the risks
+bear their provision lines and their coverage: what the examples read of them is read without
+reserve.
 """
 
 import json
@@ -42,17 +38,13 @@ from projects_support import PROJECTS
 from sqlalchemy import func, select
 from support import WITNESS, captured_logs
 from test_witness import load, wipe
-from test_witness_lines import PROVISION, line_rows
 from test_witness_lines_reads import (
-    ROWS,
     by_role,
     deviations,
     keyed,
-    rows_in_order,
     tasks_are_their_nodes,
 )
 from test_witness_projects import (
-    REVISION_100,
     REVISION_101,
     REVISION_102,
     UNREACHED,
@@ -84,15 +76,15 @@ if TYPE_CHECKING:
 
 # The project manager of the witness, Camille Martin, who applies the imports and excludes the line.
 MANAGER = UUID("01926f3a-7c00-7000-8000-000000000301")
-# The extraction of April replayed, analysed at the event 18, expired the day after.
+# The extraction of April replayed, analysed at the event 23, expired the day after.
 EXPIRED = UUID("01926f3a-7c00-7000-8000-000000000a12")
-ANALYSED = 18
-# The reception of the customer, excluded at the event 13 for its reason.
+ANALYSED = 23
+# The reception of the customer, excluded at the event 18 for its reason.
 RECEPTION = UUID("01926f3a-7c00-7000-8000-000000000c04")
-EXCLUDED = 13
+EXCLUDED = 18
 REASON = "Réception du client, non budgétée"
-# The imports of the chronology that write nothing yet: the planning abandoned (event 17, EP-06)
-# and the estimate analysed (event 20, EP-07 and EP-08).
+# The imports of the chronology that write nothing yet: the planning abandoned (event 22, EP-06)
+# and the estimate analysed (event 25, EP-07 and EP-08).
 UNLOADED_IMPORTS = {
     "01926f3a-7c00-7000-8000-000000000a10": "ms_project_schedule",
     "01926f3a-7c00-7000-8000-000000000a11": "estimate",
@@ -305,104 +297,61 @@ def test_the_subprojects_with_actual_costs_are_the_example_but_for_the_authors_a
     assert [each["has_actual_costs"] for each in body] == [True, True]
 
 
-# What the remaining indicators of the witness differ in from the example, each for its cause.
+# What the remaining of the day differs in from the example: the lines the occurrence of 752
+# grafted, of tasks completed, which the example counts at their re-estimate (#4278).
 REMAINING_APART = {
-    # The provision of the risk of the core (EP-08).
     "/total",
-    "/by_cost_type[len]",
     "/by_cost_type[]/amount",
-    "/by_cost_type[]/share/value",
     "/by_subproject[]/remaining",
-    # Measured to the offer 100, the reference until the amendment 1 (EP-08).
-    "/by_subproject[]/budget",
     "/by_subproject[]/variance",
-    "/by_subproject[]/is_over_budget",
-    "/by_subproject[]/zone",
     "/delta_to_reference",
-    # The provisions of the revision in progress and of the revision marked before, the offer
-    # when it is alone (EP-08).
     "/delta_to_previous_revision",
-    # The coverage of the risks, at nought without a risk (EP-08).
-    "/coverage/reserve",
-    "/coverage/remaining_provisions",
-    "/coverage/occurred_cost",
-    "/coverage/occurred_reestimated",
-    "/coverage/coverage_variance",
 }
 
 
-@pytest.mark.requirement("WF-QUA-0040-A")
-def test_the_remaining_indicators_are_the_example_but_for_the_provisions_and_the_reference(
-    api: ContractClient, witness: Database, realm: TestRealm, the_day: None
-) -> None:
-    del the_day
-    body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/remaining-indicators")
-    expected = example("remaining_indicators")
-    assert deviations(body, expected) == REMAINING_APART
-    # The actual cost of each subproject is the example's: the costs the slice loaded.
-    assert [each["actual_cost"] for each in body["by_subproject"]] == [
-        each["actual_cost"] for each in expected["by_subproject"]
-    ]
-    # The natures of the example but the provision (EP-08); the total its, but for the provision
-    # and the lines the occurrence of a risk merged (EP-08).
-    provision = next(each for each in expected["by_cost_type"] if each["label"] == "Provision")
-    assert [each["key"] for each in body["by_cost_type"]] == [
-        each["key"] for each in expected["by_cost_type"] if each is not provision
-    ]
-    total = Decimal(body["total"])
-    assert total == Decimal(expected["total"]) - Decimal(provision["amount"]) - merged()
-    for dimension, amount in (("by_cost_type", "amount"), ("by_subproject", "remaining")):
-        assert sum(Decimal(each[amount]) for each in body[dimension]) == total
-    # Measured to the offer 100, each margin the budget less the actual cost and the remaining.
-    with witness.transaction() as session:
-        offer = sum(
-            (facet.reestimated_amount for _, facet in line_rows(session, REVISION_100).values()),
-            Decimal(0),
-        )
-    budgets = [Decimal(each["budget"]) for each in body["by_subproject"]]
-    assert sum(budgets) == offer
-    for each in body["by_subproject"]:
-        margin = Decimal(each["budget"]) - Decimal(each["actual_cost"]) - Decimal(each["remaining"])
-        assert Decimal(each["variance"]) == margin
-        assert (each["is_over_budget"], each["zone"]) == (
-            (True, "alert") if margin < 0 else (False, "nominal")
-        )
-    assert Decimal(body["delta_to_reference"]) == sum(
-        Decimal(each["variance"]) for each in body["by_subproject"]
-    )
-    assert set(body["coverage"].values()) == {"0.00"}
-
-
-def merged() -> Decimal:
-    """Give the remaining the example counts of the lines the occurrence of a risk merged (EP-08).
-
-    Budgeted at nought, at their re-estimated amount though their tasks are completed (WF-RAE-0010):
-    the witness bears them without their risk, lines of completed tasks, out of the remaining.
-    """
+def occurred() -> Decimal:
+    """Give the re-estimate of the lines the occurrence of 752 grafted, which the examples count."""
     items = keyed(example("volume/nodes_thousand")["items"], "node_id")
     found = [
-        each["estimate_line"]["reestimated_amount"]
+        Decimal(each["estimate_line"]["reestimated_amount"])
         for each in items.values()
         if each["kind"] == "estimate_line" and each["origin_risk_id"] is not None
     ]
     assert len(found) == 2
-    return sum((Decimal(each) for each in found), Decimal(0))
+    return sum(found, Decimal(0))
 
 
-# What the Kanban counts of the tasks whose amounts differ from the example's, by column and cause:
-# the base amount of the core, which bears the provision (EP-08); the budgeted amount of a lineage
-# in the offer 100, the reference; the re-estimated amount of a task bearing the provision.
-AMOUNTS_APART = {
-    "not_started": {"base_amount": 0, "budgeted_amount": 1, "reestimated_amount": 0},
-    "started": {"base_amount": 1, "budgeted_amount": 1, "reestimated_amount": 1},
-    "completed": {"base_amount": 0, "budgeted_amount": 0, "reestimated_amount": 0},
-}
+@pytest.mark.requirement("WF-QUA-0040-A")
+def test_the_remaining_indicators_are_the_example_but_for_the_lines_of_the_occurrence(
+    api: ContractClient, witness: Database, realm: TestRealm, the_day: None
+) -> None:
+    # The provisions and the coverage of the risks, the budgets of the subprojects and the margins
+    # measured to the 101, the reference (EP-08), are the example's; the total, out of any
+    # subproject, falls short by the lines of the occurrence (#4278), the margins as much.
+    del the_day
+    body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/remaining-indicators")
+    expected = example("remaining_indicators")
+    assert deviations(body, expected) == REMAINING_APART
+    assert Decimal(expected["total"]) - Decimal(body["total"]) == occurred()
+    gaps = {
+        each["key"]: Decimal(theirs["remaining"]) - Decimal(each["remaining"])
+        for each, theirs in zip(body["by_subproject"], expected["by_subproject"], strict=True)
+    }
+    assert {key: gap for key, gap in gaps.items() if gap} == {"unassigned": occurred()}
+    for dimension, amount in (("by_cost_type", "amount"), ("by_subproject", "remaining")):
+        assert sum(Decimal(each[amount]) for each in body[dimension]) == Decimal(body["total"])
+    for each in body["by_subproject"]:
+        margin = Decimal(each["budget"]) - Decimal(each["actual_cost"]) - Decimal(each["remaining"])
+        assert Decimal(each["variance"]) == margin
+    assert body["coverage"] == expected["coverage"]
+
+
 COLUMNS = ("not_started", "started", "completed")
 COMMANDS = {"available_commands"}
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
-def test_the_kanban_is_the_example_but_for_the_provision_the_reference_and_the_commands(
+def test_the_kanban_is_the_example_but_for_the_commands(
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}/remaining-indicators/startable-tasks")
@@ -413,31 +362,24 @@ def test_the_kanban_is_the_example_but_for_the_provision_the_reference_and_the_c
         assert scheduled is not None
         assert scheduled.scheduled_at is not None
         read_on = scheduled.scheduled_at.date()
-    # The row numbers below the line of provision the witness lacks are one less (EP-08).
-    gone = example("volume/nodes_thousand")["items"]
-    absent = next(each["row_number"] for each in gone if each["node_id"] == PROVISION)
     for column in COLUMNS:
         got, wanted = keyed(body[column], "node_id"), keyed(expected[column], "node_id")
         # The same tasks in each column, in the order of the plan.
         assert list(got) == list(wanted), column
-        found = dict.fromkeys(AMOUNTS_APART[column], 0)
         for key, card in got.items():
             theirs = wanted[key]
             assert not difference(without(card, COMMANDS), without(theirs, COMMANDS), read_on), (
                 column,
                 card["task"]["label"],
             )
-            assert card["row_number"] == theirs["row_number"] - (theirs["row_number"] > absent)
-            assert [each["predecessor_row_number"] for each in sorted_links(card)] == [
-                each["predecessor_row_number"] - (each["predecessor_row_number"] > absent)
-                for each in sorted_links(theirs)
-            ]
-            # The tasks a risk originates are EP-08's; the commands follow the reader's rights.
-            assert card["origin_risk_id"] is None
+            assert card["row_number"] == theirs["row_number"]
+            assert sorted_links(card) == sorted_links(theirs)
+            # The risk a task comes from (EP-08); the commands follow the reader's rights.
+            assert card["origin_risk_id"] == theirs["origin_risk_id"]
             assert card["available_commands"] == []
-            for amount in found:
-                found[amount] += card["task"][amount] != theirs["task"][amount]
-        assert found == AMOUNTS_APART[column], column
+            # The budgeted amount with the provision the reference fixed, that a task bears (#4274).
+            for amount in ("base_amount", "budgeted_amount", "reestimated_amount"):
+                assert card["task"][amount] == theirs["task"][amount], (key, amount)
     assert [len(body[column]) for column in COLUMNS] == [925, 8, 27]
 
 
@@ -457,25 +399,24 @@ def test_the_workload_of_the_marked_remaining_is_the_example_within_a_rounding_o
     url = f"{PROJECTS}/{PRJ_001}/workload?basis=marked_remaining&revision_id={REVISION_101}"
     body = read(api, witness, realm, url)
     expected = example("workload_marked_remaining")
-    # The detail of each role too (WF-DEV-0090), but for the identifiers of the tasks, derived for a
-    # marked revision, and their rows (``rows_in_order``).
-    aside = {"node_id", *ROWS}
+    # The detail of each role too (WF-DEV-0090), its rows the example's, but for the identifiers
+    # of the tasks, the witness's own in a marked revision.
+    aside = {"node_id"}
     ours, theirs = by_role(without(body, aside)), by_role(without(expected, aside))
     assert deviations(ours, theirs, Decimal("0.02")) == set()
-    assert rows_in_order(body, expected, lacking=3)
     tasks_are_their_nodes(api, witness, realm, body, REVISION_101)
     assert body["context"] == {**expected["context"], "computed_at": body["context"]["computed_at"]}
     assert zulu(body["context"]["computed_at"]) == expected["context"]["computed_at"]
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
-def test_the_project_read_is_the_example_but_for_the_reference_the_authors_and_the_counter(
+def test_the_project_read_is_the_example_but_for_the_authors_and_the_counter(
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
     unreached = set(UNREACHED["project"])
     body = read(api, witness, realm, f"{PROJECTS}/{PRJ_001}")
     assert without(body, unreached) == without(example("project"), unreached)
-    assert body["reference_revision_id"] == str(REVISION_100)
+    assert body["reference_revision_id"] == str(REVISION_101)
 
 
 def identifying(database: Database) -> dict[str, list[tuple[object, ...]]]:

@@ -354,8 +354,8 @@ service-purge: ## Purge what expired on the service platform, started: imports, 
 # changes nothing of the next. It never fails on a duration and the chain does not run it. RUNS
 # identical runs of the whole read, the cell entered and the revision opened (5; the profile and the
 # waves of reads make one pass), ONLY=<part> one of read, profile, parallel, write, revision, kept,
-# current, indicators (several by repeating: ONLY="read write"), JSON=<file> the report also written
-# as JSON. A lot that corrects the back measures before and after it in one pass: ONLY and RUNS the
+# current, indicators, merge, occurrence (several by repeating: ONLY="read write"), JSON=<file> the
+# report also written as JSON. A lot that corrects the back measures before and after it in one pass: ONLY and RUNS the
 # same, two commands in one.
 .PHONY: measure-core measure-core-run measure-fresh-witness measure-secrets
 # The secrets of service-up, asked before the workstation is taken: the Compose file refuses to
@@ -364,7 +364,7 @@ $(call slot-export,measure-secrets,$(SLOT_SERVICE))
 measure-secrets:
 	@$(COMPOSE_SERVICE) --profile install --profile witness config --quiet
 
-measure-core: measure-secrets ## Measure the core in process, the workstation for itself alone, on a witness freshly loaded of the service platform (needs the secrets of service-up): whole reads of PRJ-001, profile, threads and processes, a cell entered, a revision opened, a marked revision read as kept, the marking, the comparison of two marked ones and the filtered readings against the document (US-2270), the comparison of the current revision in its parts and its nodes differing (US-2390), the entry of the cache of the indicators of the day (US-2420); RUNS, ONLY="read profile parallel write revision kept current indicators", JSON=<file>
+measure-core: measure-secrets ## Measure the core in process, the workstation for itself alone, on a witness freshly loaded of the service platform (needs the secrets of service-up): whole reads of PRJ-001, profile, threads and processes, a cell entered, a revision opened, a marked revision read as kept, the marking, the comparison of two marked ones and the filtered readings against the document (US-2270), the comparison of the current revision in its parts and its nodes differing (US-2390), the entry of the cache of the indicators of the day (US-2420), the merge of a differential and the occurrence of a risk, read without an objective (US-2650/L2); RUNS, ONLY="read profile parallel write revision kept current indicators merge occurrence", JSON=<file>
 	@$(exclusive) $(MAKE) --no-print-directory measure-core-run
 
 $(call slot-export,measure-core-run,$(SLOT_SERVICE))
@@ -513,7 +513,7 @@ check-back: check-back-static check-back-tests ## The back: lint, types, boundar
 # The chain runs the back apart, as the front (back.yml): check-back-static on one runner,
 # check-back-tests SHARD=i/N on each of the others, and in the full tier the measures of their parts
 # gathered (coverage-back-merge). A part is the i-th of N of the tests, one in N in the order of their
-# collection (four in the chain, SHARD=1/4 to 4/4): the files that load the witness, the longest,
+# collection (six in the chain, SHARD=1/6 to 6/6): the files that load the witness, the longest,
 # are spread over all the parts.
 check-back-static: lint-back typecheck-back imports-back ## The back but its tests: lint, types, boundaries
 

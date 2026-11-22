@@ -350,6 +350,38 @@ def captured_logs(secrets: Iterable[str] = ()) -> Generator[Logs]:
         structlog.reset_defaults()
 
 
+@contextmanager
+def recorded_logs() -> Generator[io.StringIO]:
+    """Keep a copy of every record written inside, whatever capture is in place, then restore.
+
+    Under a capture (``captured_logs``, the fixture ``logs``) the records still reach it, and their
+    copy is rendered by its formatter, its secrets masked alike; without one, as ``captured_logs``
+    renders them. The records of the witness loaded once by a process are so kept for the tests
+    that read what the command said (``witness_logged``).
+    """
+    root = logging.getLogger()
+    rendering = [
+        each.formatter
+        for each in root.handlers
+        if isinstance(each.formatter, structlog.stdlib.ProcessorFormatter)
+    ]
+    if not (structlog.is_configured() and rendering):
+        with captured_logs() as logs:
+            yield logs.stream
+        return
+    stream = io.StringIO()
+    copy = logging.StreamHandler(stream)
+    copy.setFormatter(rendering[0])
+    level = root.level
+    root.addHandler(copy)
+    root.setLevel(logging.DEBUG)
+    try:
+        yield stream
+    finally:
+        root.removeHandler(copy)
+        root.setLevel(level)
+
+
 # What a validation never resolves: the examples, some eight hundred files of the witness.
 UNRESOLVED = {"example", "examples"}
 

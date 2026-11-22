@@ -275,20 +275,25 @@ Problem:
         its row number and its label (`structure_id`, `structure_label`, `node_id`,
         `row_number`, `label`); `risks` for the deletion that would leave without a task a main
         structure that carries one (`STATE_FORBIDS_OPERATION`, `missing_condition` at
-        `at_least_one_task`, `deleteNode`, WF-RIS-0010, WF-RIS-0060): the risks whose provision
-        line would no longer have a task to be placed in, each by its identifier and its label
-        (`risk_id`, `label`), in the order of the list of risks; `work_package_task` and `order_item_tasks` for a merge that
-        would take the task of an order item out of the subtree of the task of its work package
-        (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `mergeCostStructure`, WF-PLA-0170) : the task of the
-        work package and those of the order items that would leave it, nodes of the main
-        structure, each by its node and its label (`node_id`, `label`), like the tasks of
-        `TASK_WITHOUT_WORKING_HOURS` — "the failure names what failed" (WF-IHM-0080; EP-14/L42k)
-        —, and likewise for the import file that would be rejected whole for this reason
-        (`ImportReport.refusals`) and the preliminary report of a merge
-        (`StructureMergeReport.refusals`; EP-14/L42s); `task` for a planning that would extend
-        the project's duration beyond fifteen years (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150):
-        the task involved, by its node and its label (`node_id`, `label`), the node null for a
-        task that the file or the differential creates; for a merge (`mergeCostStructure`,
+        `at_least_one_task`, `deleteNode`, WF-RIS-0010, WF-RIS-0060), or for the schedule of
+        MS Project that would leave it so (`PROVISION_WITHOUT_TASK`, `ReportRefusal`; #4011): the
+        risks whose provision line would no longer have a task to be placed in, each by its
+        identifier and its label (`risk_id`, `label`), in the order of the list of risks; and for
+        the deletion of a provision line itself (`missing_condition` at `line_not_provision`,
+        `deleteNode`; #4007), the risk whose provision it is; `work_package_task` and
+        `order_item_tasks` for a merge that would take the task of an order item out of the
+        subtree of the task of its work package (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
+        `mergeCostStructure`, WF-PLA-0170) : the task of the work package and those of the order
+        items that would leave it, nodes of the main structure, each by its node in the main
+        structure and its label (`node_id`, `label`), the node null for a task that the
+        differential adds, not by its lineage as `TASK_WITHOUT_WORKING_HOURS` does — "the failure
+        names what failed" (WF-IHM-0080; EP-14/L42k) —, and likewise for the import file that
+        would be rejected whole for this reason (`ImportReport.refusals`) and the preliminary
+        report of a merge (`StructureMergeReport.refusals`; EP-14/L42s); `task` for a planning
+        that would extend the project's duration beyond fifteen years
+        (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150): the task involved, by its node and its label
+        (`node_id`, `label`), the node null for a task that the file or the differential
+        creates; for a merge (`mergeCostStructure`,
         `StructureMergeReport.refusals`; #788), the task of the merged structure that finishes
         last, excluding summary tasks, which draw their dates from their subordinates
         (WF-PLA-0040), the first in plan order in case of a tie — and, for an entry that moves a
@@ -680,6 +685,14 @@ ErrorCode:
     # risk, which designates its task (`/node_ids/<n>`, `moveNodes`, `fields[].params.risk`,
     # WF-RIS-0010; #1227).
     - PROVISION_LINE_MOVED_BY_RISK
+    # A schedule of MS Project that would leave without a task a main structure that carries the
+    # provision line of a risk, the line no longer having a task to be placed under: a reason
+    # that refuses the whole file, presented in the report before the application
+    # (`ImportReport.refusals`, `ReportRefusal`), `params.risks` naming each risk whose provision
+    # it would carry, as the deletion of the last task names them (`at_least_one_task`,
+    # `deleteNode`); the reason on which the application fails (WF-RIS-0010, WF-INTF-0040;
+    # #4011).
+    - PROVISION_WITHOUT_TASK
     # A re-estimation that completes the task without the completion date that validation
     # requires (`setLineRemaining`, WF-RAE-0040, WF-PLA-0130).
     - COMPLETION_DATE_REQUIRED
@@ -891,8 +904,11 @@ ProblemParams:
         leave without a working hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010): by their
         project, their node and their label for an entry, a paste or a merge; by their
         lineage and their label in the report of an import, which names its objects this way
-        (`ImportDifference`) and may concern a project without a current revision, of which no node
-        exists yet (WF-INTF-0090; #768, point 2). Likewise, by their lineage and their label,
+        (`ImportDifference`) and may concern a project without a current revision, of which no
+        node exists yet (WF-INTF-0090; #768, point 2); by its lineage and its label also, for a
+        merge or the update of a differential, a task that the structure written does not hold
+        yet, which the differential or the main structure adds (`ReportRefusal`; #4245).
+        Likewise, by their lineage and their label,
         the tasks that carry the ambiguous label an imported line cites
         (`AMBIGUOUS_TASK_LABEL`, annex B). Each task follows one form only: both are closed,
         and each requires what the other does not declare — `project_id` and `node_id`, or
@@ -914,7 +930,11 @@ ProblemParams:
         The risks whose provision line would no longer have a task to be placed in, each by its
         identifier and its label, in the order of the list of risks: the deletion that would
         leave without a task a main structure that carries one (`STATE_FORBIDS_OPERATION`,
-        `at_least_one_task`, `deleteNode`, WF-RIS-0010; H-05, US-0702/L2).
+        `at_least_one_task`, `deleteNode`, WF-RIS-0010; H-05, US-0702/L2), and the schedule of
+        MS Project that would leave it so (`PROVISION_WITHOUT_TASK`, `ReportRefusal.params`;
+        #4011). Or the risk whose provision line a deletion designates, the line being written
+        by its risk alone (`STATE_FORBIDS_OPERATION`, `line_not_provision`, `deleteNode`,
+        WF-RIS-0010; #4007).
       items: { $ref: '#/ProblemRisk' }
     subproject:
       allOf: [{ $ref: '#/ProblemSubproject' }]
@@ -987,7 +1007,9 @@ ProblemImportedTask:
   required: [lineage_id, label]
   description: >-
     A task named by the reason for an imported line (`ImportRejection.params.tasks`), by its
-    lineage, as `ImportDifference` names the objects of an import (#768, point 2). Closed: no
+    lineage, as `ImportDifference` names the objects of an import (#768, point 2); or, by a
+    merge or the update of a differential, a task that the structure written does not hold yet
+    (`ProblemParams.tasks`, #4245). Closed: no
     project nor node beside its lineage, which would make it a task of an entry as well
     (`ProblemTask`, #2635).
   properties:

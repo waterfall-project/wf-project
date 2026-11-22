@@ -11,6 +11,7 @@ import { forgetMessages } from "@/components/notices/message-history";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { formatPlanningDate } from "@/i18n/format";
 import { atCommit } from "@/test/committed";
 import {
   example,
@@ -82,7 +83,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   router.push.mockClear();
-  router.refresh.mockClear();
+  router.refresh.mockReset();
   address.query = "risk=01926f3a-7c00-7000-8000-000000000751";
 });
 
@@ -103,6 +104,8 @@ describe("« Supprimer le risque »", () => {
   it("says the risk written since it was read under its confirmation, with the offer to read the page anew, and deletes nothing [WF-IHM-0110-A]", async () => {
     serve({ [DELETE]: { problem: example("risk_delete_stale") as Problem & { status: 412 } } });
     render(detail(UNCITED));
+    // The reading of the mount is not the offer's: only the offer is counted.
+    router.refresh.mockClear();
     await userEvent.click(screen.getByRole("button", { name: "Supprimer le risque" }));
     const form = screen.getByRole("form", { name: "Supprimer le risque" });
     await userEvent.click(within(form).getByRole("button", { name: "Supprimer le risque" }));
@@ -181,6 +184,62 @@ describe("« Supprimer le risque »", () => {
   });
 });
 
+describe("le risque relu après une écriture dans son devis propre", () => {
+  it("relit le risque au montage du détail, puis à chaque retour de l'écran, et ne relit rien tant qu'il est caché [US-2640]", () => {
+    const client = serve({});
+    // What the client had sent when the page was asked to be read anew: nothing yet.
+    const sentBefore: number[] = [];
+    router.refresh.mockImplementation(() => sentBefore.push(client.calls.length));
+    render(detail(IDENTIFIED));
+    // The gesture is a navigation in the same tab (the own estimate, a cell entered, the way back):
+    // neither `visibilitychange` nor `pageshow` goes out, the detail is mounted again from the router
+    // cache, and the reading is the one of the mount (#1626).
+    expect(router.refresh).toHaveBeenCalledOnce();
+    expect(sentBefore).toEqual([0]);
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(router.refresh).toHaveBeenCalledTimes(2);
+    window.dispatchEvent(new Event("pageshow"));
+    expect(router.refresh).toHaveBeenCalledTimes(3);
+    const hidden = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    try {
+      document.dispatchEvent(new Event("visibilitychange"));
+      expect(router.refresh).toHaveBeenCalledTimes(3);
+    } finally {
+      hidden.mockRestore();
+    }
+    expect(document.visibilityState).toBe("visible");
+  });
+
+  it("supprime avec la version relue après un 412 : la relecture suivie d'une suppression qui aboutit [US-2640]", async () => {
+    // The version the page read anew brings: derived from the risk read, no example of the contract
+    // carries a risk deleted from a later version (the contract is frozen, #4134).
+    const NEWER: Risk = { ...UNCITED, lock_version: UNCITED.lock_version + 1 };
+    const client = serve({
+      [DELETE]: [
+        { problem: example("risk_delete_stale") as Problem & { status: 412 } },
+        { status: 204 },
+      ],
+    });
+    const { rerender } = render(detail(UNCITED));
+    await userEvent.click(screen.getByRole("button", { name: "Supprimer le risque" }));
+    const form = screen.getByRole("form", { name: "Supprimer le risque" });
+    await userEvent.click(within(form).getByRole("button", { name: "Supprimer le risque" }));
+    await userEvent.click(await within(form).findByRole("button", { name: "Recharger" }));
+    // The page is read anew (once at the mount, once by the offer), the risk it brings is the newer.
+    expect(router.refresh).toHaveBeenCalledTimes(2);
+    rerender(detail(NEWER));
+    await userEvent.click(within(form).getByRole("button", { name: "Supprimer le risque" }));
+    await vi.waitFor(() => {
+      expect(router.push).toHaveBeenCalledOnce();
+    });
+    expect(client.calls.map((call) => call.route)).toEqual([DELETE, DELETE]);
+    expect(client.calls.map((call) => call.query.get("lock_version"))).toEqual([
+      String(UNCITED.lock_version),
+      String(NEWER.lock_version),
+    ]);
+  });
+});
+
 describe("« Déclarer survenu »", () => {
   /** Open the confirmation of the declaration, and wait for its report. */
   async function openDeclare() {
@@ -190,7 +249,7 @@ describe("« Déclarer survenu »", () => {
     return form;
   }
 
-  it("presents the report in the marks, says the provision withdrawn, and confirms with the counters read [WF-RIS-0060-A] [WF-IHM-0110-A]", async () => {
+  it("presents the report in the marks, says the provision withdrawn and the own estimate that starts before the day (#4133), and confirms with the counters read [WF-RIS-0060-A] [WF-IHM-0110-A]", async () => {
     const client = serve({
       [OCCURRENCE_REPORT]: { example: "risk_occurrence_report", status: 200 },
       [OCCURRENCE]: { example: "task_occurrence_queued", status: 202 },
@@ -206,8 +265,15 @@ describe("« Déclarer survenu »", () => {
       within(within(table).getByRole("row", { name: new RegExp(label) })).getAllByRole("cell")[0];
     expect(markOf("Diagnostic des défauts de câblage")).toHaveAccessibleName("Ajouté");
     expect(markOf("Câblage des armoires")).toHaveAccessibleName("Modifié");
-    expect(markOf("Provision — risque de reprise du câblage")).toHaveAccessibleName("Retiré");
-    expect(within(form).queryByRole("note")).toBeNull();
+    expect(markOf("Provision — Risque de reprise du câblage")).toHaveAccessibleName("Retiré");
+    // The own estimate of the risk starts before the day of the declaration: the report says so.
+    // The day is the one the example gives, formatted as the screen does.
+    const started = (
+      example("risk_occurrence_report") as { own_estimate_past_planning_start_on: string }
+    ).own_estimate_past_planning_start_on;
+    expect(within(form).getByRole("note")).toHaveTextContent(
+      `Le devis propre du risque commence le ${formatPlanningDate(started, "fr")}, avant le jour de la déclaration`,
+    );
     await expectAccessible(form);
     // Abandoned, nothing is written: the report was a read.
     await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));

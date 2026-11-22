@@ -22,7 +22,8 @@ terminal project (409 ``project_not_terminal``), then the first condition the co
 ``designate_reference`` lacks (409). It writes ``is_reference`` of the previous reference and of
 the new one, the project, and ``reference_designate`` in the journal; the project moves to In
 progress if its code is entered (``set_reference_revision``). The modules registered then do their
-part (``register_designation``: the budgeted amounts of EP-07), in the same transaction.
+part (``register_designation``: the budgeted amounts of EP-07, the reserve for risks of EP-08), in
+the same transaction.
 """
 
 from dataclasses import dataclass, replace
@@ -43,13 +44,14 @@ from waterfall.core.revisions.commands import (
     revision_conditions,
 )
 from waterfall.core.revisions.interface.shared import (
+    MAIN,
     found_revision,
     hold_current_revision,
     inscribe_revision,
     refuse,
 )
 from waterfall.core.revisions.registry import Registry
-from waterfall.core.revisions.tables import Revision
+from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import STALE_LOCK_VERSION, PreconditionFailedError
@@ -59,6 +61,7 @@ if TYPE_CHECKING:
     from datetime import datetime
     from uuid import UUID
 
+    from sqlalchemy import Select
     from sqlalchemy.orm import Session
 
     from waterfall.core.projects.interface import Viewer
@@ -72,6 +75,8 @@ _TASKS_AND_LINES: Registry[tuple[RevisionPart, Callable[[Session, UUID], bool]]]
 )
 # What a module does once a reference is designated, in the order of registration: EP-07's.
 _DESIGNATIONS: Registry[Callable[[ReferenceDesignated], None]] = Registry("revisions.designation")
+# The questions on the main structure of a revision: does it bear a task, by the planning.
+_MAIN_TASK: Registry[Callable[[Session, Select[UUID]], bool]] = Registry("revisions.main_task")
 
 
 def reference_correctable(session: Session, project_id: UUID) -> bool:
@@ -80,7 +85,11 @@ def reference_correctable(session: Session, project_id: UUID) -> bool:
     It is while the project has none, or while no revision was marked since the last designation,
     the moment of which is the last inscription ``reference_designate`` of the journal for the
     project (the revision it names is one of the project's; a project without a code is not named
-    by the journal). The actual costs, which also close it, are EP-09's.
+    by the journal). A revision marked at that very moment closes it too: the merge of a
+    differential marks a revision and makes it the reference in one act (US-2560/L2), and its
+    reference is no longer correctable (WF-REV-0040); a designation by the command is never at the
+    instant of a marking, each taken under its own locks. The actual costs, which also close it,
+    are EP-09's.
     """
     designated_at = session.scalar(
         select(func.max(AuditEntry.occurred_at)).where(
@@ -95,11 +104,32 @@ def reference_correctable(session: Session, project_id: UUID) -> bool:
         .where(
             Revision.project_id == project_id,
             Revision.status == "marked",
-            Revision.marked_at > designated_at,
+            Revision.marked_at >= designated_at,
         )
         .limit(1)
     )
     return later is None
+
+
+def reference_history(session: Session, project_id: UUID) -> list[tuple[UUID, datetime]]:
+    """Give the references the project had, in the order designated, each with its marking.
+
+    The journal says which revision was designated and in what order, by designation or by merge
+    (``reference_designate``); the revision says when it was marked, the instant from which it
+    stands as the reference (WF-IND-0100-A, US-2630/L2). The last is the reference of the project
+    now; none for a project that never designated one.
+    """
+    rows = session.execute(
+        select(Revision.id, Revision.marked_at)
+        .join(AuditEntry, AuditEntry.object_id == Revision.id)
+        .where(
+            Revision.project_id == project_id,
+            Revision.marked_at.is_not(None),
+            AuditEntry.action == "reference_designate",
+        )
+        .order_by(AuditEntry.occurred_at, AuditEntry.id)
+    ).all()
+    return [(revision_id, marked_at) for revision_id, marked_at in rows if marked_at is not None]
 
 
 def _write(revision: Revision, *, reference: bool, act: Act) -> None:
@@ -113,7 +143,10 @@ def _write(revision: Revision, *, reference: bool, act: Act) -> None:
 class ReferenceDesignated:
     """A reference just designated, in the transaction of its designation, under its locks.
 
-    ``at`` is the instant of the designation, ``author`` who designated it.
+    ``at`` is the instant of the designation, ``author`` who designated it; ``previous_id`` the
+    revision that was the reference before, none for a first designation, and ``corrects`` whether
+    the designation corrects that one (``reference_correctable``, WF-REV-0040) rather than follows
+    it with a new reference of the project.
     """
 
     session: Session
@@ -121,6 +154,8 @@ class ReferenceDesignated:
     revision_id: UUID
     at: datetime
     author: UUID | None
+    previous_id: UUID | None = None
+    corrects: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,6 +205,17 @@ def designate_reference(
         raise refuse(lacking[0])
     if target.is_reference:
         return
+    _refer(session, (project_id, revision_id), act, corrects=state.reference_correctable)
+
+
+def _refer(session: Session, revision: tuple[UUID, UUID], act: Act, *, corrects: bool) -> None:
+    """Make a marked revision the reference, its project locked; tell the followers; inscribe it.
+
+    ``revision`` its project and itself; ``corrects`` whether the designation corrects the
+    previous one rather than follows it. The followers are told of the reference replaced
+    (``previous_id``), then ``reference_designate`` is inscribed after them.
+    """
+    project_id, revision_id = revision
     # Marked, both: nothing but their designation writes them, and no marking locks them.
     previous = session.scalars(
         select(Revision)
@@ -185,16 +231,38 @@ def designate_reference(
         _write(previous, reference=False, act=act)
         # The index admits one reference per project: the old one leaves before the new one comes.
         session.flush()
-    revision = found_revision(session, revision_id, project_id, lock=True)
-    _write(revision, reference=True, act=act)
+    designated = found_revision(session, revision_id, project_id, lock=True)
+    _write(designated, reference=True, act=act)
     session.flush()
     set_reference_revision(session, project_id, revision_id, act)
-    designation = ReferenceDesignated(session, project_id, revision_id, act.at, act.author)
+    designation = ReferenceDesignated(
+        session,
+        project_id,
+        revision_id,
+        act.at,
+        act.author,
+        None if previous is None else previous.id,
+        corrects=corrects,
+    )
     # The current revision, opened or marked since it was held, is held under the lock now.
     hold_current_revision(session, project_id)
     for follow in _DESIGNATIONS.entries():
         follow(designation)
-    inscribe_revision(session, revision, "reference_designate", revision.version_name, act)
+    inscribe_revision(session, designated, "reference_designate", designated.version_name, act)
+
+
+def refer_after_merge(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> None:
+    """Make the revision a merge has just marked the reference of its project (WF-REV-0040).
+
+    By the way of the designation, without its command (EP-08, "La fusion et la survenance"): in
+    the transaction of the merge, the project and the revision locked already, at the instant of
+    the merge. The followers of a designation are told the reference replaced (``previous_id``),
+    the merge following it rather than correcting it (``corrects`` false, #4175), and
+    ``reference_designate`` is inscribed in the journal after them, as the command does. The
+    reference is no longer correctable then: a revision was marked at the moment of its
+    designation (``reference_correctable``).
+    """
+    _refer(session, (project_id, revision_id), act, corrects=False)
 
 
 def register_designation(follow: Callable[[ReferenceDesignated], None]) -> Callable[[], None]:
@@ -229,11 +297,28 @@ def revision_has_tasks_and_lines(session: Session, revision_id: UUID) -> bool:
     return all(question(session, revision_id) for _, question in questions)
 
 
-def revision_has_tasks(session: Session, revision_id: UUID) -> bool:
-    """Tell whether a revision bears a task, by the questions of its tasks (``tasks`` part).
+def register_main_task_question(
+    question: Callable[[Session, Select[UUID]], bool],
+) -> Callable[[], None]:
+    """Add a question on the main structure of a revision, given as a selection: has it a task.
 
-    What the generation of the planning skeleton asks of the main structure (WF-PRJ-0030); the
-    planning's question covers every structure of the revision until the differentials of EP-08.
+    The planning registers it. Give its withdrawal.
     """
-    questions = [question for part, question in _TASKS_AND_LINES.entries() if part == "tasks"]
-    return any(question(session, revision_id) for question in questions)
+    return _MAIN_TASK.register(question)
+
+
+def main_structure_has_task(session: Session, project_id: UUID, revision_id: UUID) -> bool:
+    """Tell whether the main structure of a revision bears a task, by the questions registered.
+
+    What the declaration of a risk (WF-RIS-0010) and the generation of the planning skeleton
+    (WF-PRJ-0030, #2541) ask of the revision: a task of the main structure alone, whichever tasks
+    the differentials bear; false while no question is registered. The structure is given to the
+    questions as a selection, so that they read it in one statement.
+    """
+    questions = _MAIN_TASK.entries()
+    main = select(CostStructure.id).where(
+        CostStructure.project_id == project_id,
+        CostStructure.revision_id == revision_id,
+        CostStructure.kind == MAIN,
+    )
+    return bool(questions) and all(question(session, main) for question in questions)

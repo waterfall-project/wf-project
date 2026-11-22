@@ -421,6 +421,16 @@ développement, qui se recréent.
 la ligne du différentiel sans structure à elle, que ni la copie ni la lecture d'un arbre ne
 sauraient lire.
 
+Deux migrations encore, pour les clés d'`import_report` (US-3060, #4139), chaînées sur la dernière
+d'`epic/EP-08` : `0040` supprime les imports dont la structure ou la révision n'existe plus (sa
+descente est sans effet : ils ne reviennent pas), `0041` pose les clés.
+
+- **`import_report`** : les clés `(project_id, structure_id)` vers `cost_structure` et
+  `(project_id, revision_id)` vers `revision`, en cascade : l'abandon d'un différentiel ou d'une
+  révision emporte le rapport d'import qui la nomme, et lui seul. Le fichier suit le balayage de la
+  purge, qui retire l'objet de `uploads/` qu'aucune ligne ne nomme. `cost_import.import_report_id`
+  reste en refus (`RESTRICT`) : un import de coûts réels n'est jamais emporté.
+
 ### Ce qui reconnaît une ligne de provision
 
 Une ligne de provision est une ligne dont la catégorie relève d'une nature de type provision pour
@@ -436,7 +446,7 @@ retient ouverte. Écarté : un booléen sur `estimate_line`, une seconde source 
 | Module | Ce qu'il reçoit | Ce qu'il expose |
 |---|---|---|
 | `core/risks` (nouveau, FBS-4.6) | les tables des risques ; la déclaration, l'identité, la provision, le réexamen, la suppression ; le registre, la matrice, la couverture, la réserve ; le compte rendu et l'application d'une survenance | son interface, une fonction par opération ; il s'inscrit à `register_copy`, à la clôture d'une révision, à `register_designation`, à `register_coverage`, à l'historique annulable et aux registres ci-dessous |
-| `core/revisions` | les structures d'autres natures : ouvrir, lister, abandonner un différentiel ; sa base, créée, reprise et supprimée avec lui, jamais listée, et l'état « à jour » ; la mise à jour — son compte rendu, sa commande, la base reprise — et `register_rebase`, par lequel `core/planning` et `core/estimate` donnent chacun leur part ; la copie qui ne reprend pas une structure consommée ; la fusion — son compte rendu, sa commande, sa tâche de fond, le marquage et la référence qu'elle produit | `merge_report`, `submit_merge`, `run_merge`, `load_merge` pour le témoin ; `register_merge`, par lequel `core/planning` et `core/estimate` donnent chacun leur part des écarts et de l'application ; la question « structure principale » de `main_structure_without_tasks` (#2541) |
+| `core/revisions` | les structures d'autres natures : ouvrir, lister, abandonner un différentiel ; sa base, créée, reprise et supprimée avec lui, jamais listée, et l'état « à jour » ; la mise à jour — son compte rendu, sa commande, la base reprise — et `register_rebase`, par lequel `core/planning` et `core/estimate` donnent chacun leur part ; la copie qui ne reprend pas une structure consommée ; la fusion — son compte rendu, sa commande, sa tâche de fond, le marquage et la référence qu'elle produit | `merge_report`, `submit_merge`, `run_merge`, `load_merge_at` pour le témoin — `load_merge`, qui met l'avenant à jour (`load_rebase`) avant de l'appeler, est dans `core/planning` (`interface/merging.py`) : `core/revisions`, sous `core/planning` dans les couches (`make imports-back`), ne peut appeler `load_rebase` — ; `register_merge`, par lequel `core/planning` et `core/estimate` donnent chacun leur part des écarts et de l'application ; la question « structure principale » de `main_structure_without_tasks` (#2541) |
 | `core/planning` | la copie d'une structure dans une autre (un différentiel naît copie de la principale) ; les écarts d'un différentiel à la principale par la lignée, et leur application ; ce qu'une structure désigne par rapport à sa base, et le report dans le différentiel de ce que la principale a reçu, tâches et liaisons ; la greffe d'un sous-arbre sous une tâche ou après un jalon ; le report d'une ligne de provision dont la tâche disparaît ; le refus de `setNodeTracking` hors de la principale et le verrou de la lignée (#2497, #2499) | `graft`, que la survenance appelle ; sa part de `register_merge` |
 | `core/estimate` | la ligne de provision — créée, déplacée, rechiffrée, retirée par `core/risks` seul — ; les grandeurs de référence que la fusion donne aux lignes désignées ; la lecture d'un différentiel contre sa base ; la part des lignes dans la mise à jour ; les lignes greffées à budgété nul ; les imports sur une structure autre que la principale | la question « provision » ; l'écriture de la provision, réservée à `core/risks` ; sa part de `register_merge` |
 | `core/indicators` | les marches d'avenant, les provisions dans la projection et les décaissements, la couverture dans le document `remaining`, les compteurs des risques dans l'empreinte du cache | inchangé |
@@ -741,7 +751,7 @@ retrait.
 
 ## US-2550 — Les structures différentielles : ouvrir, saisir, importer, abandonner
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REV-0100-A`, `WF-DEV-0050-A`, `WF-INTF-0100-A`
 - **opérations** : `createCostStructure`, `listCostStructures`, `updateCostStructure`,
   `deleteCostStructure` (nouvelle, écrite par la conception), `createRevision` ; sur un
@@ -868,7 +878,7 @@ révision suivante ne reprend pas une structure fusionnée » (E-04), « Les ré
 
 ## US-2560 — La fusion d'un différentiel : compte rendu, confirmation, révision marquée et nouvelle référence
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REV-0050-A`, `WF-REV-0040-A`, `WF-PLA-0170-A`, `WF-ADM-0100-A`,
   `WF-REV-0080-A`
 - **opérations** : `getStructureMergeReport`, `mergeCostStructure`, `getBackgroundTask`,
@@ -1059,7 +1069,7 @@ d'un différentiel et sa mise à jour (US-3050).
 
 ## US-3050 — La base d'un différentiel et sa mise à jour depuis la structure principale
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REV-0100-A`, `WF-REV-0110-A`
 - **opérations** : `getStructureRebaseReport`, `rebaseCostStructure` (nouvelles, écrites par la
   conception), `createCostStructure`, `listCostStructures`, `deleteCostStructure`, `createRevision`,
@@ -1176,7 +1186,7 @@ mise à jour du devis propre d'un risque (EP-30).
 
 ## US-2570 — Déclarer un risque et chiffrer son devis propre
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RIS-0030-A`, `WF-REF-0030-A`, `WF-INTF-0090-A`
 - **opérations** : `createRisk`, `getRisk`, `updateRisk`, `listCostStructures` ; sur le devis
   propre, les lectures et les écritures de l'arbre (`listNodes`, `createNode`, `updateTaskFacet`,
@@ -1252,9 +1262,12 @@ survenait, **afin que** sa gravité soit un chiffrage et non une affirmation.
   principale (`at_least_one_task`) ou sans catégorie active de provision ;
 - propre à l'US : la gravité est le total du devis propre, calculée, jamais saisie ; toute saisie
   dans le devis propre fait avancer `Risk.lock_version` avec le compteur de sa structure (#1453) ;
-- propre à l'US : `updateRisk` n'écrit que l'identité — libellé, description, actions de mitigation
-  —, donnée du projet : il ne crée pas de révision, n'entre pas à l'historique annulable, et
-  l'abandon de la révision ne le défait pas ; `getRisk` lit l'évaluation de la révision en cours ou,
+- propre à l'US : `updateRisk` écrit l'identité — libellé, description, actions de mitigation —,
+  donnée du projet : il ne crée pas de révision, n'entre pas à l'historique annulable, et
+  l'abandon de la révision ne le défait pas ; un nouveau libellé renomme aussi le devis propre et la
+  ligne de provision de la révision en cours, hors historique, et l'ouverture d'une révision les
+  nomme d'après le libellé du risque, non d'après la dernière révision marquée, qui garde les siens
+  (#3980, DECISIONS) ; `getRisk` lit l'évaluation de la révision en cours ou,
   avec `revision_id`, celle qu'une révision marquée a figée (H-02, #1783) ;
 - propre à l'US : un risque déclaré ajoute une structure propre que `listCostStructures` rend
   (#1369), présente dans chaque révision marquée postérieure tant qu'il n'est pas survenu
@@ -1273,7 +1286,7 @@ Les révisions et les structures » (E-09 : le devis propre naît et disparaît 
 
 ## US-2580 — La ligne de provision d'un risque identifié
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RIS-0010-A`, `WF-DEV-0010-A`, `WF-DEV-0030-A`, `WF-PRJ-0040-A`,
   `WF-PRJ-0050-A`, `WF-PLA-0040-A`, `WF-PLA-0050-A`, `WF-INTF-0120-A`
 - **opérations** : `createRisk`, `updateRiskProvision`, `reviewRisk`, `listNodes`, `deleteNode`,
@@ -1478,7 +1491,7 @@ d'aucune tâche » (F-02).
 
 ## US-2590 — Les états d'un risque, ses réexamens et sa suppression ; ce que l'abandon et l'annulation en défont
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RIS-0020-A`, `WF-IHM-0110-A`
 - **opérations** : `reviewRisk`, `listRiskReviews`, `deleteRisk`, `listRisks` (`last_review_on_to`),
   `abandonRevision`, `undoLastChange`, `redoLastUndo`
@@ -1497,8 +1510,10 @@ registre dise ce qu'on pense des risques aujourd'hui et garde ce qu'on en pensai
   reste aucune ; sous la tâche qu'il désignait si elle est encore une tâche de la structure
   principale, sinon sous la première tâche de premier niveau (WF-RIS-0010) ;
 - `WF-RIS-0020-A` — « Toute transition depuis l'état survenu est refusée. » : 409
-  `STATE_FORBIDS_OPERATION`, `risk_not_occurred` manquante, pour `reviewRisk`, `updateRiskProvision`
-  et `deleteRisk` ; l'état survenu ne s'atteint que par la survenance (US-2620) ;
+  `STATE_FORBIDS_OPERATION`, `risk_not_occurred` manquante, pour `reviewRisk` et `deleteRisk`, et
+  `risk_identified` manquante pour `updateRiskProvision`, qui ne nomme que cette condition, pour un
+  risque survenu comme pour un écarté (`RiskCommand`, #4044) ; l'état survenu ne s'atteint que par
+  la survenance (US-2620) ;
 - `WF-RIS-0020-A` — « La suppression d'un risque cité par une révision marquée est refusée. » : 409,
   `risk_not_cited` manquante ; un risque qu'aucune révision marquée ne cite est supprimé avec son
   devis propre et sa ligne de provision ;
@@ -1555,7 +1570,7 @@ revue (US-2640).
 
 ## US-2600 — Le registre des risques et la matrice
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RIS-0040-A`, `WF-REF-0160-A`
 - **opérations** : `listRisks`, `getRisk`, `listRiskReviews`, `getProjectRiskMatrix`,
   `getReferenceSettings`
@@ -1632,7 +1647,7 @@ couple (probabilité, gravité) est exposée par `core/risk_settings` (EP-05).
 
 ## US-2610 — La réserve pour risques et la couverture
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RIS-0050-A`, `WF-RAE-0020-A`, `WF-RAE-0010-A`
 - **opérations** : `getProjectRiskCoverage`, `getRemainingIndicators`, `listNodes` (`totals`),
   `listRisks` (`ProvisionTotals`)
@@ -1755,7 +1770,7 @@ portefeuille (EP-11).
 
 ## US-2620 — La survenance d'un risque
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RIS-0060-A`
 - **opérations** : `getRiskOccurrenceReport`, `declareRiskOccurrence`, `getBackgroundTask`,
   `listNodes` et `compareRevisions` (`is_from_risk`, `origin_risk_ids`), `getRisk`
@@ -1794,8 +1809,8 @@ autre — planifié, réestimé, terminé —, sans budget, et que ce qu'il coû
   issue de ce risque dans la révision suivante, et après son déplacement sous une autre tâche ; une
   ligne ajoutée ensuite sous une tâche issue du risque ne l'est pas. » : `origin_risk_id` est posé
   sur chaque tâche et chaque ligne fusionnée, conservé par la copie d'une révision, les
-  déplacements, les imports rapprochés par la lignée et la fusion d'un avenant ; une création le
-  laisse nul, même sous une tâche issue du risque (#1762) ;
+  déplacements, les imports rapprochés par la lignée et la fusion d'un avenant (ce dernier point est
+  tenu par US-2560) ; une création le laisse nul, même sous une tâche issue du risque (#1762) ;
 - `WF-RIS-0060-A` — « Les grilles de planning et de devis se filtrent sur les tâches et les lignes
   issues d'un risque, ou d'un risque donné (WF-IHM-0130). » : `is_from_risk` et `origin_risk_ids`
   filtrent `listNodes` et `compareRevisions` ; un identifiant qui n'est pas celui d'un risque
@@ -1856,6 +1871,11 @@ d'un risque » (#1453), « Les risques… » (M-05 : la place des tâches fusion
 d'un risque survenu gardent sa trace » (#1761), « La racine du devis propre d'un risque survenu,
 dans le témoin » (H-03). La survenance partage avec la fusion d'un avenant la mécanique qui greffe
 un sous-arbre dans la structure principale : la conception dit ce qui est commun.
+`DECISIONS.md` dit aussi, au même endroit, l'application de la survenance, la structure vide que la
+révision suivante garde au risque survenu (son évaluation et son coût à la survenance y restent),
+l'abandon d'une révision où le risque fut déclaré puis survenu, et `UNKNOWN_RISK`. La conservation
+d'`origin_risk_id` par la fusion d'un avenant revient à US-2560, qui écrit cette fusion : la copie,
+les déplacements et les imports rapprochés par la lignée la tiennent ici, par leurs tests.
 
 **Hors périmètre.** La couverture après la survenance (US-2610) ; la valeur acquise et la projection
 devant elle (US-2630) ; l'écran (US-2640).
@@ -1864,7 +1884,7 @@ devant elle (US-2630) ; l'écran (US-2640).
 
 ## US-2630 — Les indicateurs devant une provision, une survenance et un avenant
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IND-0030-A`, `WF-IND-0100-A`, `WF-DEV-0080-A`
 - **opérations** : `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves`,
   `getRemainingIndicators`, `markRevision`, `mergeCostStructure` (la conservation)
@@ -1946,7 +1966,7 @@ des indicateurs, inchangé.
 
 ## US-2640 — Les écrans des risques et des avenants, branchés sur le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0020-A`
 - **opérations** : celles des US-2550 à US-2630 et d'US-3050, par le client engendré ;
   `deleteCostStructure` et `rebaseCostStructure` (les gestes nouveaux)
@@ -1994,9 +2014,10 @@ risques et un avenant de bout en bout.
 - propre à l'US : le succès de « Déclarer survenu » — son message et la relecture du risque survenu
   — est éprouvé contre le service (#1830) ; la promesse qui retient l'origine d'un filtre sur un
   risque nommé a son gestionnaire quand la lecture des risques rejette (#1972) ;
-- propre à l'US : le devis et le reste à engager ouverts sur un différentiel en retard le disent, par la
-  note que dit déjà le planning ; les gestes de l'avenant restent au planning, et l'aide en ligne du
-  devis y renvoie (#4255, décision de l'utilisateur du 2026-11-20, option 2) ;
+- propre à l'US : le devis ouvert sur un différentiel en retard le dit, par la note que dit déjà le
+  planning ; le reste à engager, qui ne lit que la structure principale, n'en a pas à dire ; les gestes
+  de l'avenant restent au planning, et l'aide en ligne du devis y renvoie (#4255, décision de
+  l'utilisateur du 2026-11-20, option 2 ; #4298) ;
 - propre à l'US : les parcours de bout en bout que `inService` gardait jusqu'à EP-08 pour un risque,
   une provision ou un différentiel sont rejoués contre le service ou réécrits, et le guide ne les
   liste plus comme non rejoués ; les écrans passent l'audit d'accessibilité.
@@ -2011,7 +2032,7 @@ d'EP-25 ; cette US ne les redessine pas.
 
 ## US-2650 — Le témoin : les risques, les provisions et les avenants de PRJ-001, et le parcours du chef de projet
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0010-A`
 - **opérations** : celles des US-2550 à US-2630, lues sur le témoin chargé
 - **issue** : #3821
@@ -2071,7 +2092,7 @@ rejoue la fusion. `docs/api/DECISIONS.md`, « L'univers témoin », « Révision
 
 ## US-2660 — Les constats reçus sont soldés
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par EP-06, EP-07 et
   EP-09
 - **opérations** : `openImport`, `listImports`, `getImport`, `applyImport`
@@ -2108,7 +2129,7 @@ US-2640.
 
 ## US-3060 — Le ménage de fin d'EPIC : les constats mineurs soldés
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — les exigences de ces fonctions sont closes par les US qui les
   réalisent
 - **opérations** : aucune nouvelle ; `mergeCostStructure`, `getStructureMergeReport`,

@@ -15,6 +15,7 @@ import {
   fakeClient,
   held,
   type Problem,
+  reached,
 } from "@/test/fixtures";
 import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 import { estimateReference } from "@/test/reference";
@@ -358,7 +359,8 @@ describe("the indentation of a task", () => {
     });
     await choose(mounting, "Indenter");
     await screen.findByText(/indentée\.$/);
-    expect(moved(client)).toMatchObject([{ lock_version: 2 }]);
+    expect(reached("task_attached")).not.toBe(VERSION);
+    expect(moved(client)).toMatchObject([{ lock_version: reached("task_attached") }]);
   });
 
   it("carries the version a cell of the remaining to commit reached, not the one read with the page [WF-PLA-0080-A]", async () => {
@@ -377,7 +379,8 @@ describe("the indentation of a task", () => {
     });
     await choose(TRANSPORT, "Indenter");
     await screen.findByText(/indentée\.$/);
-    expect(moved(client)).toMatchObject([{ lock_version: 3 }]);
+    expect(reached("remaining_reestimated")).not.toBe(VERSION);
+    expect(moved(client)).toMatchObject([{ lock_version: reached("remaining_reestimated") }]);
   });
 
   it("leaves the focus in a cell entered while the reading anew the move asked is under way [WF-IHM-0100-A]", async () => {

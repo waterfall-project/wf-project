@@ -194,7 +194,7 @@ WAITING_FOR_PARTITIONS = text(
     "AND database = (SELECT oid FROM pg_database WHERE datname = current_database()) "
     "AND (classid::bigint << 32) | objid::bigint = :key"
 )
-ELEVEN = [
+FOURTEEN_REVISED = [
     "cost_structure",
     "estimate_line",
     "node",
@@ -203,18 +203,24 @@ ELEVEN = [
     "revision_indicator",
     "revision_rate",
     "revision_role",
+    "risk_evaluation",
+    "risk_reference_share",
+    "risk_review",
     "structure_reading",
     "task",
     "task_link",
 ]
-THIRTEEN = [
+SIXTEEN_BOUND = [
     "cost_category",
     "cost_structure",
     "estimate_line",
+    "import_report",
     "node",
     "order_item",
     "resource_role",
     "revision",
+    "risk",
+    "risk_evaluation",
     "structure_reading",
     "subproject",
     "task",
@@ -265,17 +271,19 @@ def created_alone(database: Database, project_id: UUID) -> None:
         create_project_partitions(session, project_id)
 
 
-def test_the_revised_tables_the_catalogue_partitions_by_project_are_the_eleven_expected(
+def test_the_revised_tables_the_catalogue_partitions_by_project_are_the_fourteen_expected(
     owner: Engine,
 ) -> None:
     # What the function reads at each call: a table partitioned by another column, or by range,
     # would not be one; a table an epic adds enters by itself, and this list with it — the
-    # indicators of EP-10 among them. The keys of the eleven bind thirteen tables, which it locks
-    # besides; a key an epic adds enters too.
+    # indicators of EP-10 and the risks of EP-08 among them. The keys of the fourteen bind sixteen
+    # tables, the risks and their evaluations among them, which it locks besides; a key an epic adds
+    # enters too, as the imports' to their structure did (US-3060, #4139).
     with owner.connect() as connection:
-        assert connection.scalars(REVISED_TABLES).all() == ELEVEN
-        assert connection.scalars(BOUND_TABLES, {"revised": ELEVEN}).all() == THIRTEEN
-        assert locked_tables(connection) == sorted({*ELEVEN, *THIRTEEN})
+        assert connection.scalars(REVISED_TABLES).all() == FOURTEEN_REVISED
+        bound = connection.scalars(BOUND_TABLES, {"revised": FOURTEEN_REVISED}).all()
+        assert bound == SIXTEEN_BOUND
+        assert locked_tables(connection) == sorted({*FOURTEEN_REVISED, *SIXTEEN_BOUND})
 
 
 def test_the_creation_takes_the_advisory_lock_of_the_revisions_distinct_from_the_others(

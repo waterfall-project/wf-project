@@ -7,7 +7,10 @@ its tasks and before it is marked (``witness.estimate_lines``): the lines the co
 reconciled by lineage with those ``witness_lines.json`` describes — deleted, changed, created —
 through the interface of the estimate, at the identifiers and the instants the witness imposes. The
 slice of the revisions then accepts the update of the rates on the 101 (event 6) and designates the
-offer 100 the reference (event 7), the project passing In progress when its code is entered.
+offer 100 the reference (event 11), the project passing In progress when its code is entered. From
+EP-08, the content of the 101 is entered in its amendment 1, whose merge (event 12) writes it into
+the 101 and makes the 101 the reference; the lines the occurrence of 752 grafts into the 102 come
+with it (event 15).
 
 What the service reads of the loaded witness is compared with the examples in
 ``test_witness_lines_reads``, which names what the witness does not reach.
@@ -41,16 +44,17 @@ from waterfall.platform.audit import Act
 
 if TYPE_CHECKING:
     from sqlalchemy import Engine
-    from support import Logs
 
     from waterfall.platform.database import Database
 
 pytestmark = pytest.mark.requirement("WF-QUA-0040-A")
 
 LINES = "witness_lines"
-# The events: the revisions opened, the rates accepted on the 101, the order received.
-OPENED = {100: 3, 101: 5, 102: 9}
-RATES_UPDATED, ORDER_RECEIVED = 6, 7
+# The events: the revisions opened, the rates accepted on the 101, the order received, the merge of
+# the amendment 1, which marks the 101 (EP-08), and the occurrence of 752 into the 102.
+OPENED = {100: 3, 101: 5, 102: 13}
+RATES_UPDATED, ORDER_RECEIVED, MERGED, OCCURRED = 6, 11, 12, 15
+MANAGER = UUID("01926f3a-7c00-7000-8000-000000000301")
 RATED = {
     UUID("01926f3a-7c00-7000-8000-000000000402"),
     UUID("01926f3a-7c00-7000-8000-000000000405"),
@@ -85,23 +89,42 @@ def file_lines(revision: int) -> list[dict[str, Any]]:
     return [line for line in described()["lines"] if line["revision"] == revision]
 
 
-def line_rows(session: Session, revision: UUID) -> dict[UUID, tuple[Node, EstimateLine]]:
-    """Give the node and the facet of each line of a revision, by lineage."""
+def provision_lineages() -> frozenset[UUID]:
+    """Give the lineages of the provision lines the risks of the witness declare (EP-08)."""
+    return frozenset(
+        UUID(risk["provision_lineage_id"]) for risk in example("witness_risks")["risks"]
+    )
+
+
+def line_rows(
+    session: Session, revision: UUID, *, provisions: bool = False
+) -> dict[UUID, tuple[Node, EstimateLine]]:
+    """Give the node and the facet of each line of the main structure of a revision, by lineage.
+
+    The amendments and the own estimates of the risks hold lineages of their own or the same
+    (EP-08): the main structure alone is the content the file describes. The provision lines, which
+    the risks create and the file does not describe, are left out unless ``provisions`` asks them.
+    """
     found = session.execute(
         select(Node, EstimateLine)
         .join(
             EstimateLine,
             (EstimateLine.project_id == Node.project_id) & (EstimateLine.node_id == Node.id),
         )
-        .where(Node.revision_id == revision)
+        .where(Node.structure_id == structure_of(session, revision))
     ).all()
-    return {node.lineage_id: (node, facet) for node, facet in found}
+    left_out: frozenset[UUID] = frozenset() if provisions else provision_lineages()
+    return {
+        node.lineage_id: (node, facet) for node, facet in found if node.lineage_id not in left_out
+    }
 
 
 def task_lineages(session: Session, revision: UUID) -> dict[UUID, UUID]:
-    """Give the lineage of each task of a revision, by node."""
+    """Give the lineage of each task of the main structure of a revision, by node."""
     found = session.execute(
-        select(Node.id, Node.lineage_id).where(Node.revision_id == revision, Node.kind == "task")
+        select(Node.id, Node.lineage_id).where(
+            Node.structure_id == structure_of(session, revision), Node.kind == "task"
+        )
     ).all()
     return dict(found)
 
@@ -170,14 +193,34 @@ def test_the_revision_in_progress_holds_the_identifiers_of_the_examples_and_the_
 def test_every_line_is_written_by_the_platform_at_the_instant_of_the_event_of_its_revision(
     witness: Database,
 ) -> None:
+    # The copy at the opening; in the 101, the merge of the amendment 1, which adds a line and
+    # writes those it designates; in the 102, the occurrence of 752, by the project manager, for the
+    # lines it grafts (EP-08).
     with witness.transaction() as session:
         for number, revision in REVISIONS.items():
             opened = instant(OPENED[number])
+            written: set[tuple[object, ...]] = set()
             for node, facet in line_rows(session, revision).values():
-                assert (node.created_at, node.created_by) == (opened, None)
-                assert (node.updated_at, node.updated_by) == (opened, None)
-                assert (facet.created_at, facet.created_by) == (opened, None)
-                assert (facet.updated_at, facet.updated_by) == (opened, None)
+                written.add(
+                    (
+                        node.created_at,
+                        node.created_by,
+                        node.updated_at,
+                        node.updated_by,
+                        facet.created_at,
+                        facet.created_by,
+                        facet.updated_at,
+                        facet.updated_by,
+                    )
+                )
+            expected = {(opened, None) * 4}
+            if number == 101:
+                merged = instant(MERGED)
+                expected |= {(opened, None, opened, None, opened, None, merged, None)}
+                expected |= {(merged, None) * 4}
+            if number == 102:
+                expected |= {(instant(OCCURRED), MANAGER) * 4}
+            assert written == expected, number
 
 
 def test_the_lines_are_priced_at_the_rates_their_revision_keeps_for_their_category(
@@ -220,14 +263,17 @@ def test_the_update_of_the_rates_is_accepted_on_the_101_at_the_instant_of_its_ev
         }
         accepted = {each for each, (origin, _) in rates[101].items() if origin == "reference"}
         replayed = session.scalar(
-            select(CostStructure.scheduled_at).where(CostStructure.revision_id == REVISION_101)
+            select(CostStructure.scheduled_at).where(
+                CostStructure.id == structure_of(session, REVISION_101)
+            )
         )
     assert accepted == RATED
     # The rates of 2026 are above those of 2025 the offer is priced at.
     assert all(rates[101][each][1] > rates[100][each][1] for each in RATED)
     assert instant(RATES_UPDATED).isoformat() == "2026-01-12T10:15:00+00:00"
-    # The engine replayed the structure of the 101 at the instant the rates were accepted.
-    assert replayed == instant(RATES_UPDATED)
+    # The engine replayed the main structure of the 101 last at the merge of the amendment 1, which
+    # marks it (EP-08).
+    assert replayed == instant(MERGED)
 
 
 def test_the_labour_lines_of_the_two_categories_cost_more_on_the_101_than_on_the_offer(
@@ -256,12 +302,13 @@ def test_the_labour_lines_of_the_two_categories_cost_more_on_the_101_than_on_the
 
 @pytest.mark.requirement("WF-CYC-0030-A")
 def test_the_offer_is_designated_the_reference_at_the_order_and_the_project_passes_in_progress(
-    logs: Logs, witness_loaded: Database
+    witness: Database,
 ) -> None:
     # A project whose reference is designated before its code is entered passes In progress at the
-    # entry of the code: the designation is made at the instant of event 7 and succeeds, the
-    # revision 100 bearing tasks and lines; the transitions say the passage.
-    with witness_loaded.transaction() as session:
+    # entry of the code: the designation is made at the instant of event 11 and succeeds, the
+    # revision 100 bearing tasks and lines; the transitions say the passage. The merge of the
+    # amendment 1 then makes the 101 the reference (EP-08).
+    with witness.transaction() as session:
         project = session.get(Project, PRJ_001)
         assert project is not None
         order = instant(ORDER_RECEIVED)
@@ -275,45 +322,64 @@ def test_the_offer_is_designated_the_reference_at_the_order_and_the_project_pass
         ]
         offer = session.get(Revision, REVISION_100)
         assert offer is not None
-        assert (project.state, project.reference_revision_id) == ("in_progress", REVISION_100)
+        assert (project.state, project.reference_revision_id) == ("in_progress", REVISION_101)
         assert project.current_revision_id == REVISION_102
         assert project.code == "PRJ-001"
         assert (project.inflation_rate, project.win_probability) == (Decimal("0.03"), Decimal(1))
         assert project.order_received_on == date(2026, 1, 15)
         # The last write into the project is the opening of the revision in progress.
         assert project.updated_at == instant(OPENED[102])
-        assert offer.is_reference
-        assert offer.updated_at == order
+        assert not offer.is_reference
+        assert offer.updated_at == instant(MERGED)
     assert transitions == [
         (None, "created", instant(2)),
         ("created", "pricing", instant(OPENED[100])),
         ("pricing", "in_progress", order),
     ]
-    # The loader notes the designation it made: the same loading, so the same test (a loading
-    # costs a minute and more, and the log is that of the loading this test asked for).
-    noted = logs.named("witness.reference_designated")
-    assert [(each["project"], each["revision"]) for each in noted] == [("PRJ-001", 100)]
-    assert not logs.named("witness.designation_refused")
+    # The loader notes the designation it made, which a test of the projects reads
+    # (``test_the_designation_of_the_offer_succeeds_and_is_noted_in_the_output``).
 
 
-def test_the_budgeted_amounts_are_those_of_the_lineage_in_the_reference_the_offer(
+def figures(line: EstimateLine) -> tuple[object, ...]:
+    """Give the grandeurs of a line, which an amendment designates (WF-REV-0050)."""
+    return (
+        line.cost_category_id,
+        line.resource_role_id,
+        line.quantity,
+        line.hours,
+        line.unit_disbursement,
+    )
+
+
+def test_the_budgeted_amounts_are_those_of_the_lineage_in_the_reference_the_101(
     witness: Database,
 ) -> None:
-    # The offer 100 is the reference until the amendment 1 is merged (EP-08): the budgeted amount
-    # of a line of the revision in progress, and of the 101, is the re-estimated one of its lineage
-    # in the 100, nought without one; the offer reads its own, none being written.
+    # The merge of the amendment 1 makes the 101 the reference (EP-08): the lines it designates by
+    # their grandeurs, or adds, take the budgeted amount those give, at the rates of the 101; the
+    # others keep the re-estimated one of their lineage in the offer, which fixed them (#467). The
+    # budgeted amount of a line of the revision in progress is that of its lineage in the 101,
+    # nought without one, as the lines the occurrence of 752 grafts (WF-RIS-0060); the offer
+    # reads its own, none being written.
     with witness.transaction() as session:
         offer = line_rows(session, REVISION_100)
         reference = line_rows(session, REVISION_101)
         current = line_rows(session, REVISION_102)
     assert all(facet.budgeted_amount is None for _, facet in offer.values())
-    for held in (reference, current):
-        for lineage, (_, facet) in held.items():
-            before = offer.get(lineage)
-            assert facet.budgeted_amount == (
-                Decimal("0.00") if before is None else before[1].reestimated_amount
-            ), lineage
-    assert len(current.keys() - offer.keys()) == 3
+    designated = 0
+    for lineage, (_, facet) in reference.items():
+        before = offer.get(lineage)
+        if before is None or figures(before[1]) != figures(facet):
+            designated += 1
+            assert facet.budgeted_amount == facet.reestimated_amount, lineage
+        else:
+            assert facet.budgeted_amount == before[1].reestimated_amount, lineage
+    assert designated == 2
+    for lineage, (_, facet) in current.items():
+        before = reference.get(lineage)
+        assert facet.budgeted_amount == (
+            Decimal("0.00") if before is None else before[1].budgeted_amount
+        ), lineage
+    assert len(current.keys() - reference.keys()) == 2
 
 
 def identifying(session: Session) -> dict[int, dict[UUID, dict[str, object]]]:
@@ -367,7 +433,9 @@ def test_a_second_loading_finds_the_lines_there_and_writes_nothing(
     before = counts()
     assert load(service_database_url) == 0
     assert counts() == before
-    assert before[0] == 4997 + 4997 + 4999
+    # The lines of the main structures, and since EP-08 those of the amendments, their bases and
+    # the own estimates of the risks.
+    assert before[0] > 4997 + 4997 + 4999
 
 
 # --- The reconciliation of the lines of a revision ------------------------------------------------

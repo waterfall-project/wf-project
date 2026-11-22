@@ -3,8 +3,9 @@
 Ce répertoire reçoit le corpus que WF-QUA-0080 exige : des plannings saisis dans MS Project
 (2013 ou plus), enregistrés au format XML avec les dates que MS Project a calculées — sauf le
 fichier 14, synthétique, dont le moteur a calculé les dates lui-même —, et versionnés avec le
-code. Il est fourni par l'auteur, avant le lot US-1430/L3 d'EP-06 (#2342) : pour chaque fichier, un test donne au moteur de Waterfall les tâches, les liaisons, les calendriers de tâche et
-les constantes du fichier, et vérifie qu'il calcule les mêmes dates de début et de fin ; un autre
+code. Il est fourni par l'auteur, avant le lot US-1430/L3 d'EP-06 (#2342) : pour chaque fichier,
+un test donne au moteur de Waterfall les tâches, les liaisons, les calendriers de tâche et les
+constantes du fichier, et vérifie qu'il calcule les mêmes dates de début et de fin ; un autre
 test lit le manifeste et nomme tout cas du corps de WF-QUA-0080 qu'aucun fichier ne déclare
 (conception d'EP-06, `docs/roadmap/EP-06-planification.md`, « Le format MS Project »).
 
@@ -79,7 +80,7 @@ l'écart de calendrier (US-2000).
 | 07 | `07-critical-path.xml` | `two_branches`, `float_equals_gap`, `summary_critical`, `summary_without_float` | deux branches parallèles de durées différentes vers un jalon commun : la longue critique, la courte avec une marge égale à l'écart ; une récapitulative dont une subordonnée est critique ; une récapitulative dont toutes les subordonnées sont manuelles, qui ne porte pas de marge |
 | 08 | `08-constraints.xml` | `constraint_snet`, `constraint_mfo`, `constraint_fnlt` | une tâche « Début au plus tôt le », une « Doit finir le », une « Fin au plus tard le » : Waterfall les importe manuelles aux dates du fichier et les signale |
 | 09 | `09-ignored-content.xml` | `resources_ignored`, `assignments_ignored`, `resource_calendar_ignored`, `progress_ignored`, `costs_ignored`, `custom_fields_ignored` | deux ressources, dont une avec un calendrier propre, affectées à des tâches avec « ignorer les calendriers des ressources » ; une tâche à 50 % d'avancement ; un coût fixe ; un champ personnalisé texte — le compte rendu nomme tout cela ignoré, et la tâche à 50 % est importée non démarrée |
-| 10 | `10-other-constants.xml` | `constants_7_35_20` | 7 heures par jour, 35 par semaine, 20 jours par mois ; des durées en jours et semaines : en écart de calendrier, importées par défaut avec leur valeur dans leur unité (spécification 1.0.5), la différence signalée |
+| 10 | `10-other-constants.xml` | `constants_7_35_20` | 7 heures par jour, 35 par semaine, 20 jours par mois ; des durées en jours et semaines : en écart de calendrier — son « Standard » compte 6 h par jour sous des constantes de 7 h, le fichier restant tel que MS Project l'a enregistré —, importées par défaut avec leur valeur dans leur unité (spécification 1.0.5), la différence signalée |
 | 11 | `11-horizon-sixteen-years.xml` | `horizon_exceeded` | un planning de seize ans, rejeté au compte rendu (WF-PLA-0150) ; hors du test de datation — le manifeste le marque `"dating": false` |
 | 12 | `12-mixed-large.xml` (facultatif) | — | ≈ 150 tâches, quatre niveaux, un mélange de tout ; pour la recette, aucun test ne l'exige |
 | 13 | `13-resource-calendars-not-ignored.xml` | `resources_ignored`, `assignments_ignored`, `resource_calendar_ignored` | une première version du 04, dont les calendriers passent par des ressources affectées **sans** « ignorer les calendriers des ressources » : MS Project date par les ressources, et l'écart est attendu ; gardé pour les avertissements de l'import, hors du test de datation — `"dating": false` |

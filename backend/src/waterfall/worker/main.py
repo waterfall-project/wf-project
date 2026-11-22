@@ -23,6 +23,7 @@ from waterfall.core.exchanges import interface as exchanges_interface
 from waterfall.core.history import interface as history_interface
 from waterfall.core.indicators import interface as indicators_interface
 from waterfall.core.planning import interface as planning_interface
+from waterfall.core.risks import interface as risks_interface
 from waterfall.platform.correlation import correlation_id_from
 from waterfall.platform.database import Database, create_database_engine, utc_now
 from waterfall.platform.errors import UnavailableError
@@ -44,6 +45,8 @@ from waterfall.worker import exchanges
 from waterfall.worker.backup import BackupTask
 from waterfall.worker.identity_sync import IdentitySync
 from waterfall.worker.marking import mark
+from waterfall.worker.merge import merge
+from waterfall.worker.occurrence import occur
 from waterfall.worker.runner import Worker
 
 if TYPE_CHECKING:
@@ -56,7 +59,8 @@ USAGE = f"usage: {NAME} [--version | enqueue <kind> | purge]\n"
 # their part — the estimate keeps its images and its rates at the marking (US-1500/L2); the actual
 # costs register the format of an extraction, which the worker analyses and applies, and answer
 # whether a subproject bears costs to the import of an estimate it applies (US-1610/L2); the
-# indicators keep theirs at the marking (US-1670/L1).
+# indicators keep theirs at the marking (US-1670/L1); the risks theirs at the copy, the closing and
+# the designation of a revision, from the stories that register them on (EP-08, US-2550/L1).
 EXTENDING = (
     costs_interface,
     estimate_interface,
@@ -64,13 +68,15 @@ EXTENDING = (
     history_interface,
     indicators_interface,
     planning_interface,
+    risks_interface,
 )
 
 
 def handlers(settings: WorkerSettings) -> dict[str, TaskHandler]:
     """Give what the worker runs, by kind of task: a backup, the reading of the accounts, a marking.
 
-    The marking is the first task of the trade (US-0970); the analysis and the application of an
+    The marking is the first task of the trade (US-0970); the merge of a differential (US-2560/L2)
+    and the occurrence of a risk (US-2620/L2) are EP-08's; the analysis and the application of an
     import and an export are the exchanges' (EP-06).
     """
     imports = exchanges.ImportTasks.of(settings)
@@ -78,6 +84,8 @@ def handlers(settings: WorkerSettings) -> dict[str, TaskHandler]:
         "backup": BackupTask.of(settings),
         "identity_sync": IdentitySync.of(settings),
         "revision_mark": mark,
+        "structure_merge": merge,
+        "risk_occurrence": occur,
         "import_analysis": imports.analyse,
         "import_apply": imports.apply,
         "export": exchanges.ExportTask.of(settings),

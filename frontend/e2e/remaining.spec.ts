@@ -24,9 +24,8 @@ import { isServerAction } from "./server-action";
 
 // Every path is tagged `@shared` (EP-09, US-1640): it plays against the fake back, and against the
 // service when the service serves what it reads. The paths below that read the witness's own
-// structure — the volumes of §4.6.2, which only the fake back holds (`NO_VOLUME_IN_SERVICE`), and
-// the risk coverage of the indicators, a provision or a risk, served at zero until EP-08 — stay
-// guarded by `inService`; a short path, not guarded, reads the cards of the indicators and the
+// structure — the volumes of §4.6.2, which only the fake back holds (`NO_VOLUME_IN_SERVICE`, EP-13) —
+// stay guarded by `inService`; a short path, not guarded, reads the cards of the indicators and the
 // link to the workload on a project the run creates; the paths that write play against the
 // service on a project the run creates (`seedPlanning`, `bringInProgress`, #2193), the last of the
 // file. The fake back serves the first example of each read, whatever it asks: the structure of
@@ -36,7 +35,7 @@ import { isServerAction } from "./server-action";
 // reads the structure by marks the generator writes (`test_the_marks_the_journeys_read`): row 3, a
 // task completed; row 22, started.
 const NO_VOLUME_IN_SERVICE =
-  "the structure of volumes of §4.6.2, its risk coverage and its Kanban count exist only in the fake back (EP-08, EP-13)";
+  "the structure of volumes of §4.6.2, its risk coverage and its Kanban count exist only in the fake back (EP-13)";
 const FAKE_BACK_KEEPS_NOTHING =
   "the fake back keeps nothing of what a gesture writes; the path of the run below plays it against the service";
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";

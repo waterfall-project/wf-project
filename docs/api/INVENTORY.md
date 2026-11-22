@@ -6,7 +6,7 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**171 opérations sur 133 chemins, dans 13 familles.**
+**174 opérations sur 134 chemins, dans 13 familles.**
 Le contrat cite **195 des 224 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
@@ -155,7 +155,7 @@ Le contrat cite **195 des 224 exigences** de la spécification.
 
 ## Révisions, structures et arbre commun
 
-`paths/revisions.yaml` — 31 opérations
+`paths/revisions.yaml` — 34 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -171,8 +171,11 @@ Le contrat cite **195 des 224 exigences** de la spécification.
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures` | Cost structures of the revision | WF-DEV-0050, WF-IHM-0090, WF-RAE-0040, WF-REV-0100 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures` | Open a differential | WF-REV-0050, WF-REV-0100, WF-RIS-0030 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}` | Modify the planning start date and the label of a structure | WF-PLA-0010, WF-PLA-0020, WF-REV-0100 |
+| DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}` | Abandon a differential | WF-IHM-0110, WF-REV-0050, WF-REV-0100, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Preliminary report of the merge of a differential | WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0050 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Merge a differential into the main structure | WF-ARC-0090, WF-DEV-0020, WF-IHM-0080, WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0020, WF-REV-0050, WF-REV-0060, WF-SEC-0030 |
+| GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase` | Preliminary report of the update of a differential | WF-REV-0050, WF-REV-0100 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rebase` | Update a differential from the main structure | WF-IHM-0110, WF-REV-0010, WF-REV-0100 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Common tree of the structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-IHM-0060, WF-IHM-0130, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110, WF-PLA-0140, WF-PLA-0170, WF-REV-0100, WF-RIS-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Create a task or an estimate line | WF-CYC-0100, WF-DAT-0020, WF-DEV-0020, WF-DEV-0050, WF-PLA-0010, WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0080, WF-PLA-0150, WF-PLA-0170, WF-RAE-0040, WF-RAE-0050, WF-REV-0050, WF-RIS-0010 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}` | The node that carries a row number | WF-ADM-0110, WF-PLA-0080 |
@@ -249,7 +252,7 @@ Le contrat cite **195 des 224 exigences** de la spécification.
 | PUT | `/chunked-uploads/{chunked_upload_id}/parts/{part_number}` | Upload a chunk | WF-ADM-0160 |
 | POST | `/chunked-uploads/{chunked_upload_id}/completion` | Complete the chunked upload | WF-ADM-0160 |
 | GET | `/projects/{project_id}/imports` | Imports of the project | WF-ARC-0100, WF-INTF-0080 |
-| POST | `/projects/{project_id}/imports` | Open an import and start its analysis | WF-ARC-0090, WF-ARC-0100, WF-CRE-0050, WF-DAT-0120, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0150, WF-PLA-0170, WF-PRJ-0050, WF-REF-0190 |
+| POST | `/projects/{project_id}/imports` | Open an import and start its analysis | WF-ARC-0090, WF-ARC-0100, WF-CRE-0050, WF-DAT-0120, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0150, WF-PLA-0170, WF-PRJ-0050, WF-REF-0190, WF-RIS-0010 |
 | GET | `/projects/{project_id}/imports/{import_id}` | Report of an import | WF-ARC-0110, WF-CRE-0020, WF-IHM-0090, WF-INTF-0040, WF-INTF-0080, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0160, WF-REF-0190 |
 | DELETE | `/projects/{project_id}/imports/{import_id}` | Abandon an import | WF-ARC-0100, WF-DAT-0120, WF-INTF-0080 |
 | POST | `/projects/{project_id}/imports/{import_id}/apply` | Apply an import | WF-ARC-0100, WF-CRE-0030, WF-DAT-0110, WF-INTF-0080, WF-INTF-0100, WF-INTF-0140, WF-REF-0190 |

@@ -22,6 +22,14 @@ the tree of the installation on site marked against the main structure (``nodes_
 ``mockdiff``, C-361), and the report before its merge (``structure_merge_report``, WF-REV-0050),
 whose differences are those the amendment designates — the dates its edits move elsewhere are
 computed, not designated.
+
+On the reference 101, the amendment 2 is out of date: opened before the merge of the amendment 1,
+which wrote the main structure and marked the reference, its base is no longer that structure, and
+a marked revision is not updated (``structures_amendments``, #4034). Its merge asked there on 1
+February, while the project has no current revision, is offered by its command, which does not
+judge the state, but its report and its merge are refused by ``structure_up_to_date``
+(``merge_reference_out_of_date_refused``); the merge that applies is shown on the current revision,
+which took the amendment over out of date and updated it (``structure_merge_report``, #4174).
 """
 
 from dataclasses import replace
@@ -29,6 +37,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
 from wftools import mockcore, mockdiff, mocktext
+from wftools.mockcorrelations import correlation
 from wftools.mockids import AMENDMENT_NODES, identifier, universe
 from wftools.mockstructure import described
 from wftools.mockwitness import (
@@ -215,6 +224,9 @@ the parent of the commissioning, moved under the trials on site, which no column
 RELINKED = (N.COMMISSIONING, N.MOUNTING, N.TESTS_RESUMED)
 """The task whose predecessor the amendment changes, its predecessor before, and after."""
 
+ADDED_LINKED = (N.TESTS_RESUMED, N.MOUNTING)
+"""The task the amendment adds and links, and its predecessor: the link comes with the task."""
+
 
 def structure(kind: str) -> JsonObject:
     """Return a structure of the current revision as `structures` lists it: the main, or this."""
@@ -240,12 +252,20 @@ def _difference(change: str, node: JsonObject, fields: list[str] | None = None) 
     }
 
 
+def is_task(node: JsonObject) -> bool:
+    """Tell whether a node read is a task."""
+    return node["kind"] == "task"
+
+
 def _link(change: str, task: JsonObject, predecessor: JsonObject) -> JsonObject:
-    """Return a link added or removed, named by its successor, whose predecessors present it."""
+    """Return a link added or removed, named by its successor, whose predecessors present it.
+
+    A task the amendment adds has no lineage in the main structure yet, nor has its link.
+    """
     return {
         "change": change,
         "target": "link",
-        "lineage_id": task["lineage_id"],
+        "lineage_id": None if task["difference"] == mockdiff.ADDED else task["lineage_id"],
         "label": cast("JsonObject", task["task"])["label"],
         "predecessor_label": cast("JsonObject", predecessor["task"])["label"],
         "fields": [],
@@ -255,19 +275,23 @@ def _link(change: str, task: JsonObject, predecessor: JsonObject) -> JsonObject:
 def structure_merge_report() -> JsonObject:
     """Return what getStructureMergeReport answers of the amendment 2 (WF-REV-0050).
 
-    The tasks and the lines added, the link of the commissioning moved from the mounting to the
-    rework, the commissioning moved under the trials on site and its duration changed, the hours
-    of its line changed, the line withdrawn; no started task withdrawn, none completed; nothing
-    refusing it. The counters of the two structures read, as `structures` lists them; the merge
-    applies to the current revision, which it does not create (#790).
+    In the order of the service: the tasks added, the links added — that of the commissioning to
+    the rework, and that of the rework to the mounting, the task the amendment adds being linked
+    as it enters —, the lines added, then what is modified and what is withdrawn: the commissioning
+    moved under the trials on site and its duration changed, the hours of its line changed, its
+    link to the mounting withdrawn, the line withdrawn; no started task withdrawn, none completed;
+    nothing refusing it. The counters of the two structures read, as `structures` lists them; the
+    merge applies to the current revision, which it does not create (#790, #4276).
     """
     nodes = marked()
     by_id = {cast("str", node["node_id"]): node for node in nodes}
     task, before, after = (by_id[own_id(number)] for number in RELINKED)
-    differences: list[JsonValue] = [
-        _difference("added", node) for node in nodes if node["difference"] == mockdiff.ADDED
-    ]
+    linked, predecessor = (by_id[own_id(number)] for number in ADDED_LINKED)
+    added = [node for node in nodes if node["difference"] == mockdiff.ADDED]
+    differences: list[JsonValue] = [_difference("added", node) for node in added if is_task(node)]
     differences.append(_link("added", task, after))
+    differences.append(_link("added", linked, predecessor))
+    differences.extend(_difference("added", node) for node in added if not is_task(node))
     differences.extend(
         _difference("updated", by_id[own_id(number)], fields)
         for number, fields in DESIGNATED.items()
@@ -342,6 +366,25 @@ def merge_may_create_revision_refused() -> JsonObject:
     }
 
 
+REFERENCE_OUT_OF_DATE = "merge_reference_out_of_date_refused"
+"""The refusal of the merge of the amendment 2 on the reference, out of date there (#4174)."""
+
+
+def merge_reference_out_of_date_refused() -> JsonObject:
+    """Return the refusal of the report and of the merge of the amendment 2 on the reference.
+
+    On 1 February, the project without a current revision, by a session that may create it: the
+    conditions of the command are met, and the last one, ``structure_up_to_date``, is missing — the
+    amendment 2 is out of date on the reference, which no update reaches (WF-REV-0050, #4034).
+    """
+    return {
+        "code": "STATE_FORBIDS_OPERATION",
+        "status": 409,
+        "params": {"missing_condition": "structure_up_to_date"},
+        "correlation_id": correlation(REFERENCE_OUT_OF_DATE),
+    }
+
+
 def examples(reference: JsonObject) -> dict[str, JsonObject]:
     """Return the examples of the amendment 2, by file name, the reference read by getRevision."""
     reading = nodes_amendment()
@@ -360,6 +403,7 @@ def examples(reference: JsonObject) -> dict[str, JsonObject]:
         else "rien d'autre de la structure n'en est redaté"
     )
     relinked, before, after = (_label(whole, number) for number in RELINKED)
+    linked, predecessor = (_label(whole, number) for number in ADDED_LINKED)
     amendment_id = structure("amendment")["structure_id"]
     report = structure_merge_report()
     differences_read = nodes_amendment_differences()
@@ -371,25 +415,41 @@ def examples(reference: JsonObject) -> dict[str, JsonObject]:
     )
     return {
         "revision_marked_merge_offered.json": mocktext.example(
-            "La révision de référence du projet le 1er février 2026, juste après son marquage par "
-            "la fusion de l'avenant 1, et avant que le réexamen d'un risque n'ouvre le lendemain "
-            "la révision courante : un instant antérieur de la même chronologie. Le projet n'a "
-            "pas de révision en cours, et la référence, dernière révision marquée, porte "
-            "l'avenant 2 « reprise des essais », non fusionné : sa fusion y est offerte, qui "
-            "créera la révision en cours par copie de la référence, y fusionnera la copie de "
-            "l'avenant et la marquera (structure_merge_report_without_current_revision). Ses "
-            "autres commandes de modification restent indisponibles, la révision étant marquée "
-            "(WF-REV-0050, WF-REV-0010, WF-REV-0100, #790).",
+            "La révision de référence du projet le 1er février 2026, juste après le marquage par "
+            "la fusion de l'avenant 1 et avant que le réexamen d'un risque n'ouvre la révision "
+            "courante. Le projet n'a pas de révision en cours, et la référence porte l'avenant 2 "
+            "« reprise des essais », non fusionné : sa commande de fusion y est offerte, la "
+            "commande ne jugeant pas l'état de l'avenant. Or l'avenant 2 est en retard sur la "
+            "référence 101 (structures_amendments) : compte rendu et fusion y sont refusés "
+            "(merge_reference_out_of_date_refused). La fusion applicable se montre sur la "
+            "révision en cours (structure_merge_report). Les autres commandes de modification "
+            "restent indisponibles, la révision étant marquée (WF-REV-0050, WF-REV-0010, "
+            "WF-REV-0100, #790, #4174).",
             revision_marked_merge_offered(reference),
         ),
         "merge_may_create_revision_refused.json": mocktext.example(
-            "La fusion de l'avenant 2 demandée le 1er février 2026 sur la référence, quand le "
-            "projet n'a pas de révision en cours (revision_marked_merge_offered), par une "
-            "session sans la permission d'écrire dans les révisions (`revisions.write`) : la "
-            "fusion créerait la révision en cours, et la commande merge_structure nomme alors "
-            "may_create_revision, après unmerged_amendment_exists. Rien n'est fusionné, et "
-            "aucune révision n'est créée (WF-REV-0050, WF-REV-0010, WF-IHM-0090, #790).",
+            "La fusion de l'avenant 2 demandée le 1er février 2026 sur la référence "
+            "(revision_marked_merge_offered) par une session sans `revisions.write` : elle "
+            "créerait la révision en cours, et la commande merge_structure nomme "
+            "may_create_revision, après unmerged_amendment_exists. Rien n'est fusionné ni créé. "
+            "L'avenant étant en retard sur la référence 101, une session qui peut la "
+            "créer serait refusée par structure_up_to_date "
+            "(merge_reference_out_of_date_refused ; WF-REV-0050, WF-REV-0010, WF-IHM-0090, #790, "
+            "#4174).",
             merge_may_create_revision_refused(),
+        ),
+        f"{REFERENCE_OUT_OF_DATE}.json": mocktext.example(
+            f"Le compte rendu de la fusion de « {LABEL} », ou sa fusion, demandés le "
+            f"1er février 2026 sur la référence, quand le projet n'a pas de révision en cours "
+            f"(revision_marked_merge_offered), par une session qui peut la créer : les "
+            f"conditions de la commande sont réunies, mais l'avenant, ouvert avant la fusion de "
+            f"l'avenant 1 qui a écrit la structure principale et marqué la référence, est en "
+            f"retard sur la référence 101 (structures_amendments, is_up_to_date faux), et une "
+            f"révision marquée ne se met pas à jour. Refusés par la condition qui manque, "
+            f"structure_up_to_date, la dernière ; rien n'est lu ni fusionné, aucune révision "
+            f"n'est créée. L'avenant se fusionne une fois repris par la révision en cours et mis "
+            f"à jour (structure_merge_report ; WF-REV-0050, WF-REV-0100, #4034, #4174).",
+            merge_reference_out_of_date_refused(),
         ),
         "nodes_amendment.json": mocktext.example(
             f"L'installation sur site lue sur le différentiel « {LABEL} » de la révision "
@@ -422,16 +482,19 @@ def examples(reference: JsonObject) -> dict[str, JsonObject]:
         ),
         "structure_merge_report.json": mocktext.example(
             f"Le compte rendu préalable de la fusion de l'avenant 2 du témoin, « {LABEL} », "
-            f"différentiel non fusionné de la révision courante (nodes_amendment) : "
+            f"différentiel non fusionné de la révision courante (nodes_amendment), repris puis "
+            f"mis à jour : sa fusion s'applique ici, refusée sur la référence "
+            f"(merge_reference_out_of_date_refused) ; "
             f"{_said(whole, mockdiff.ADDED)}, qu'il ajoute ; la « {relinked} » déplacée sous "
             f"les « {_label(whole, N.SITE_TESTS)} », liée à la « {after} » au lieu du "
-            f"« {before} », sa durée et la charge de sa ligne modifiées ; "
+            f"« {before} », sa durée et la charge de sa ligne modifiées ; la « {linked} » "
+            f"ajoutée est liée au « {predecessor} » ; "
             f"{_said(whole, mockdiff.REMOVED)}, retirée ; aucune tâche démarrée retirée, aucune "
             f"terminée, aucun motif de "
             f"refus : la confirmation est offerte, qui renverra les compteurs lus — celui de la "
             f"structure principale, {report['main_structure_lock_version']}, et celui du "
             f"différentiel, {report['amendment_lock_version']}, comme `structures` les dit "
-            f"(WF-REV-0050, WF-IHM-0110, #791, #1194).",
+            f"(WF-REV-0050, WF-IHM-0110, #791, #1194, #4174).",
             report,
         ),
     }

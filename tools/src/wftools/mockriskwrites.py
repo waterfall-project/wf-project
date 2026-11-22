@@ -31,7 +31,9 @@ their answers are read, as the register is, from the risks of ``wftools.mockwitn
 - and the occurrence of the rework of the wiring before its confirmation (US-0680, #1383): its own
   estimate, the structure 204, read (``nodes_risk_estimate``, WF-RIS-0030); the report of what its
   occurrence would make of the main structure of the current revision (``risk_occurrence_report``,
-  WF-RIS-0060), and the confirmation that returns what it read (``risk_occurrence_sent``); the
+  WF-RIS-0060), its counterfactual variant whose task bearing the provision is completed, which
+  the report names (``risk_occurrence_report_completed_task``, #4240), and the confirmation that
+  returns what it read (``risk_occurrence_sent``); the
   report and the occurrence refused for a risk not identified (``risk_occurrence_not_identified``),
   and the confirmation refused for a report gone stale (``risk_occurrence_report_stale``,
   WF-IHM-0110).
@@ -46,7 +48,7 @@ They would have carried ``mockhistory`` past the thousand lines (``wftools.sourc
 """
 
 from dataclasses import replace
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
@@ -60,7 +62,15 @@ from wftools.mockhistory import (
 )
 from wftools.mockids import universe
 from wftools.mockstructure import described
-from wftools.mockwitness import AMENDMENT_MERGED, REWORK_ESTIMATE, TODAY, N, fixture, lineage_id
+from wftools.mockwitness import (
+    AMENDMENT_MERGED,
+    REWORK_ESTIMATE,
+    TODAY,
+    N,
+    fixture,
+    lineage_id,
+    rewritten,
+)
 from wftools.mockwitnessrisks import (
     AUTOMATION_ENGINEER,
     DELIVERY_DELAY,
@@ -75,6 +85,7 @@ from wftools.mockwitnessrisks import (
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
+    from wftools.mockwitness import Task
 
 DECLARED_AT = TODAY - timedelta(minutes=20)
 """When the risk was declared: earlier today, so that its modification follows at today's instant,
@@ -172,7 +183,7 @@ def risk_updated_without_current_revision() -> JsonObject:
         "structure_id": own,
         "provision_task": {"node_id": universe(bearer), "label": rows[bearer].label},
         "audit": audit,
-        "lock_version": len(REWORK.reviews) + 3,
+        "lock_version": REWORK.lock_version + 2,
     }
 
 
@@ -368,6 +379,11 @@ SCHEDULE = ("duration", "start", "finish")
 SCHEDULE_SAID = {"duration": "sa durée", "start": "son début", "finish": "sa fin"}
 
 
+OWN_ESTIMATE_COUNTER = 2
+"""The counter the loader of the witness leaves on each node of the own estimate of 751 in the
+current revision, the revision having copied it before the entry of its estimate (US-2650/L1)."""
+
+
 def risk_estimate() -> list[mockcore.Row]:
     """Return the own estimate of the rework of the wiring read today, dated and priced.
 
@@ -387,6 +403,7 @@ def nodes_risk_estimate() -> JsonObject:
     items = [
         {
             **node,
+            "lock_version": OWN_ESTIMATE_COUNTER,
             "editable_fields": [
                 field
                 for field in cast("list[JsonValue]", node["editable_fields"])
@@ -431,6 +448,67 @@ def bearer_changes() -> list[JsonValue]:
     return [name for name in SCHEDULE if changed[name]]
 
 
+def own_estimate_grafted() -> tuple[Task, ...]:
+    """Return the own estimate as the graft places it: a task without predecessor in manual mode.
+
+    At the dates it had in the own estimate, so that the planning start of the structure grafted
+    into does not move it (WF-RIS-0060).
+    """
+    placed = mockdating.schedule(REWORK_ESTIMATE)
+
+    def change(task: Task) -> Task:
+        if task.children or task.links or task.manual is not None:
+            return task
+        dated = placed[task.number]
+        return replace(task, manual=(dated.start.day, dated.finish.day))
+
+    return rewritten(REWORK_ESTIMATE, change)
+
+
+def main_grafted() -> tuple[Task, ...]:
+    """Return the main structure as the occurrence leaves it (WF-RIS-0060).
+
+    The tasks of the own estimate under the task that bore the provision, in last position, now
+    their summary; the line of provision gone.
+    """
+    bearing = bearer().number
+    grafted = own_estimate_grafted()
+
+    def change(task: Task) -> Task:
+        if task.number != bearing:
+            return task
+        lines = tuple(line for line in task.lines if line.number != OCCURRING.provision_line)
+        return replace(task, lines=lines, children=(*task.children, *grafted))
+
+    return rewritten(described(), change)
+
+
+def graft_redates() -> list[JsonValue]:
+    """Return the tasks of the main structure, but the bearer, whose dates the graft moves.
+
+    Each as an ``updated`` difference naming its dates, ``start`` and ``finish`` in the order of
+    `NodeColumn`, in the order of the plan, as the engine gives them replayed once on the structure
+    the occurrence leaves (#4134).
+    """
+    before, after = mockdating.schedule(described()), mockdating.schedule(main_grafted())
+    rows = {row.number: row for row in mockcore.current() if row.kind == mockcore.TASK}
+    named: list[JsonValue] = []
+    for task in mockdating.tasks_in_order(described()):
+        if task.number == bearer().number:
+            continue
+        fields: list[JsonValue] = [
+            name
+            for name, was, now in (
+                ("start", before[task.number].start, after[task.number].start),
+                ("finish", before[task.number].finish, after[task.number].finish),
+            )
+            if was != now
+        ]
+        if fields:
+            named.append(_difference("updated", rows[task.number], fields))
+    return named
+
+
 def _difference(change: str, row: mockcore.Row, fields: list[JsonValue]) -> JsonObject:
     """Return a node added, updated or removed, as the report of a merge names it."""
     return {
@@ -458,6 +536,7 @@ def risk_occurrence_report() -> JsonObject:
     main = {row.number: row for row in mockcore.current()}
     differences: list[JsonValue] = [_difference("added", row, []) for row in risk_estimate()]
     differences.append(_difference("updated", bearer(), bearer_changes()))
+    differences.extend(graft_redates())
     line = main[cast("int", OCCURRING.provision_line)]
     differences.append(_difference("removed", line, []))
     risk = risk_item(OCCURRING, _budget())
@@ -468,7 +547,24 @@ def risk_occurrence_report() -> JsonObject:
         "differences": differences,
         "provision_amount": risk["provision_amount"],
         "refusals": [],
+        "own_estimate_past_planning_start_on": OCCURRING.reviews[0].at.date().isoformat(),
+        "completed_provision_task": None,
     }
+
+
+def risk_occurrence_report_completed_task() -> JsonObject:
+    """Return the report of the rework of the wiring, the task bearing its provision completed.
+
+    A declared counterfactual: the wiring of the cabinets is started in the witness. Completed, the
+    graft would make it the summary of the tasks of the own estimate, not started again, its earned
+    value falling back: the report names it by its node and its label, a warning beside the rest,
+    which it does not change — it refuses nothing, and the graft writes nothing else (#4240).
+    ``differences`` is not recomputed for the counterfactual: the ``updated`` difference of the
+    task keeps the dates of the witness, no column of `NodeColumn` naming its state.
+    """
+    task = bearer()
+    named: JsonObject = {"node_id": task.node["node_id"], "label": task.label}
+    return {**risk_occurrence_report(), "completed_provision_task": named}
 
 
 def risk_occurrence_sent() -> JsonObject:
@@ -625,6 +721,8 @@ def _occurrence_examples() -> dict[str, JsonObject]:
     main = {row.number: row for row in mockcore.current()}
     line = main[cast("int", OCCURRING.provision_line)]
     changed = mocktext.listed([SCHEDULE_SAID[cast("str", name)] for name in bearer_changes()])
+    redated = graft_redates()
+    started = date.fromisoformat(cast("str", report["own_estimate_past_planning_start_on"]))
     severity = cast("JsonObject", estimate["totals"])["reestimated_amount"]
     reviewed = NOT_IDENTIFIED.last.at.date()
     return {
@@ -646,16 +744,42 @@ def _occurrence_examples() -> dict[str, JsonObject]:
             f"le « {task.label} », qui "
             f"portait la ligne de provision et n'est pas un jalon (nodes_risk_estimate) ; le "
             f"« {task.label} » modifié par {changed}, devenu la récapitulative de ces tâches, "
-            f"dont il couvre les dates ; la ligne « "
+            f"dont il couvre les dates ; {mocktext.count(len(redated))} autres tâches de la "
+            f"structure principale, que le moteur de dates redate quand il rejoue la structure "
+            f"que la survenance laisse — celles que la « {task.label} », devenue récapitulative, "
+            f"ou l'un de ses ancêtres, pousse en aval, et leurs récapitulatives —, chacune "
+            f"modifiée par ses dates, début et fin, après elle, dans l'ordre du plan (#4134) ; "
+            f"la ligne « "
             f"{line.label} » retirée, et sa provision de "
             f"{mocktext.amount(Decimal(cast('str', report['provision_amount'])))} retirée du "
-            f"reste à engager ; aucun motif de refus. Rien n'est écrit : la confirmation, qui "
+            f"reste à engager ; aucun motif de refus. Le devis propre commençant le "
+            f"{mocktext.day(started)}, "
+            f"avant le jour de la lecture, le compte rendu le dit "
+            f"(own_estimate_past_planning_start_on) : ses tâches gardent les dates qu'elles y "
+            f"avaient, passées (#4133). Le « {task.label} » n'étant que démarré, il n'est pas "
+            f"signalé (completed_provision_task nul, risk_occurrence_report_completed_task ; "
+            f"#4240). Rien n'est écrit : la confirmation, qui "
             f"renverra les compteurs lus — celui de la structure principale, "
             f"{report['main_structure_lock_version']}, comme `structures` le dit, et celui du "
             f"risque, {report['risk_lock_version']}, comme `risk` le dit, et "
             f"creates_current_revision faux, la révision en cours existant déjà —, est offerte "
             f"(risk_occurrence_sent ; WF-RIS-0060, WF-IHM-0110, #1383).",
             report,
+        ),
+        "risk_occurrence_report_completed_task.json": mocktext.example(
+            f"Variante contrefactuelle de risk_occurrence_report : le « {task.label} », qui "
+            f"porte la ligne de provision de « {OCCURRING.label} » et n'est que démarré dans le "
+            f"témoin, tenu pour terminé. La survenance y greffe le devis propre : la tâche "
+            f"devient la récapitulative de {said}, non démarrées, et son état se déduisant du "
+            f"leur, elle repasse non démarrée ; la valeur acquise qu'elle avait retombe. Le compte "
+            f"rendu la nomme, par son nœud et son libellé (completed_provision_task) : un "
+            f"avertissement, non un motif de refus — refusals reste vide, la survenance "
+            f"s'applique et la greffe n'écrit rien d'autre. Le reste du compte rendu est celui "
+            f"de risk_occurrence_report, que la variante ne change pas : differences n'y est pas "
+            f"recalculé, la différence de la tâche gardant ses dates du témoin (aucune colonne "
+            f"ne nomme son état). Règle provisoire, "
+            f"qu'EP-30 reprend (WF-RIS-0060, WF-PLA-0040, WF-IND-0030, #4240).",
+            risk_occurrence_report_completed_task(),
         ),
         "risk_occurrence_sent.json": mocktext.example(
             f"La confirmation de la survenance de « {OCCURRING.label} », après son compte rendu "

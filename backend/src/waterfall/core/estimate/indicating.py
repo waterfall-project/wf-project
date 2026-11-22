@@ -10,7 +10,8 @@ revision before it the same total of theirs. An amount that depends on a labour 
 has no rate for the year of the revision is not computed (``hourly_rate_missing``), the categories
 and the year named, never a budget wrongly at zero (WF-DEV-0010); a work package no task bears is
 presented without a total (``work_package_without_task``, WF-DEV-0060). The provisions identified
-are nought until EP-08.
+are the amounts of the lines of a nature of provision the scope retains: the provision lines of the
+risks identified, which the total counts (US-2630/L1, #4223).
 """
 
 from dataclasses import dataclass
@@ -44,6 +45,7 @@ if TYPE_CHECKING:
     from waterfall.core.revisions.interface import RevisionRead
 
 HOURLY_RATE_MISSING = "hourly_rate_missing"
+PROVISION = "provision"
 NO_TOTAL = "no_total"
 WORK_PACKAGE_WITHOUT_TASK = "work_package_without_task"
 UNKNOWN_SUBPROJECT = "UNKNOWN_SUBPROJECT"
@@ -239,6 +241,13 @@ def _amount(rows: Sequence[Row], lacking: dict[UUID, MissingRate]) -> Figure:
     return Figure(sum((each.amount for each in rows), ZERO))
 
 
+def _provisions(rows: Sequence[Row], natures: dict[UUID, Nature]) -> Decimal:
+    """Give the sum of the provision lines of the scope: the provisions of the risks identified."""
+    return sum(
+        (each.amount for each in rows if natures[each.cost_category_id].kind == PROVISION), ZERO
+    )
+
+
 def _shares(amounts: Sequence[Figure], total: Figure) -> list[Figure]:
     """Give the shares of the amounts of a distribution of the total, which sum to one."""
     if total.value is None:
@@ -406,7 +415,7 @@ def estimate_indicators_of(
         by_work_package=_by_work_package(
             session, (project_id, read.revision_id), rows, total, lacking
         ),
-        provisions_identified=Decimal("0.00"),
+        provisions_identified=_provisions(rows, natures),
         delta_to_reference=_difference(
             total, _total_of(session, project_id, read.reference_revision_id, scope)
         ),

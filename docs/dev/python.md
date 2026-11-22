@@ -238,7 +238,7 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     le contrat `independence` laisse passer quand il passe par l'interface. La règle :
     `resource_settings` ne dépend d'aucun autre module du noyau, et les auteurs d'un objet
     se nomment dans `api/`, qui lit les deux. Le contrat `layers` de `backend/pyproject.toml`
-    la tient : le haut importe le bas, jamais l'inverse (`indicators` > `access_roles`,
+    la tient : le haut importe le bas, jamais l'inverse (`indicators` > `risks` > `access_roles`,
     `backups`, `indicator_settings`, `risk_settings` > `estimate` > `costs`, `planning` >
     `exchanges`, `history` > `revisions` > `projects` > `cost_settings` > `users` >
     `resource_settings`),

@@ -19,7 +19,7 @@ in the paste's one write (US-1450/L5). The tasks of the witness are written by `
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import exists, inspect, select, update
+from sqlalchemy import inspect, update
 
 from waterfall.core.planning.attachments import (
     ORDER_ITEM_ID,
@@ -35,7 +35,6 @@ from waterfall.core.planning.calendars import default_calendar
 from waterfall.core.planning.carrying import (
     judge_facets_moved,
     judge_lines_moved,
-    refuse_completed,
 )
 from waterfall.core.planning.dating import constants_of
 from waterfall.core.planning.entries import (
@@ -47,7 +46,7 @@ from waterfall.core.planning.entries import (
     judged_creation,
 )
 from waterfall.core.planning.interface.facets import calendar_of, facets
-from waterfall.core.planning.interface.lines import create_line_node
+from waterfall.core.planning.interface.lines import create_line_node, revision_bears
 from waterfall.core.planning.reading import retained_reading, structure_totals
 from waterfall.core.planning.scheduling import Move, WorkInstant
 from waterfall.core.planning.shaping import (
@@ -55,7 +54,6 @@ from waterfall.core.planning.shaping import (
     closed_above,
     closed_again,
     completed_again,
-    deleted,
     emptied,
     judge_place,
     place,
@@ -81,9 +79,7 @@ from waterfall.core.projects.interface import work_breakdown_items
 from waterfall.platform.errors import (
     NOT_FOUND,
     STALE_LOCK_VERSION,
-    STATE_FORBIDS_OPERATION,
     VALIDATION_FAILED,
-    ConflictError,
     FieldError,
     NotFoundError,
     PreconditionFailedError,
@@ -211,10 +207,11 @@ class Dependencies:
 
 
 def revision_has_tasks(session: Session, revision_id: UUID) -> bool:
-    """Tell whether a revision bears a task: the planning's part of a designation (WF-CYC-0030)."""
-    return bool(
-        session.scalar(select(exists().where(Node.revision_id == revision_id, Node.kind == TASK)))
-    )
+    """Tell whether a revision bears a task: the planning's part of a designation (WF-CYC-0030).
+
+    A task of the base of a differential is not one the revision bears (US-3050).
+    """
+    return revision_bears(session, revision_id, TASK)
 
 
 def _columns(row: Node | Task | TaskLink) -> dict[str, object]:
@@ -756,13 +753,26 @@ def resolve_row_number(session: Session, place: Place, row_number: int) -> RowRe
     """Give the node of a number of row of a structure (``resolveRowNumber``).
 
     In the numbering of the whole structure, whatever a grid retains; beyond its last row, not
-    found (404), as an unknown structure is.
+    found (404), as an unknown structure is. A differential is numbered with the nodes it removes
+    in their place, which its tree lacks: ``describe_row`` names the node of such a row.
     """
     facts_of(session, place, lock=False)
     tree = read_tree(session, place.project_id, place.structure_id)
     if not 1 <= row_number <= len(tree.order):
         raise NotFoundError(NOT_FOUND)
     node_id = tree.order[row_number - 1]
+    label = _labels(session, place.project_id, tree, [node_id])[node_id]
+    return RowResolution(node_id, row_number, label, tree.nodes[node_id].kind)
+
+
+def describe_row(session: Session, place: Place, node_id: UUID, row_number: int) -> RowResolution:
+    """Give a node of a structure as the row ``row_number`` designates, in the caller's numbering.
+
+    The tree of ``place`` does not give it for a differential, which counts the nodes it removes.
+    """
+    tree = read_tree(session, place.project_id, place.structure_id)
+    if node_id not in tree.nodes:
+        raise NotFoundError(NOT_FOUND)
     label = _labels(session, place.project_id, tree, [node_id])[node_id]
     return RowResolution(node_id, row_number, label, tree.nodes[node_id].kind)
 
@@ -780,53 +790,6 @@ class NodeMoving:
     after_node_id: UUID | None
     after_given: bool
     lock_version: int
-
-
-def delete_node(
-    session: Session, place: Place, node_id: UUID, lock_version: int, writer: Writer
-) -> NodesWritten:
-    """Delete a node and its subtree, and give the nodes written (``deleteNode``).
-
-    Under the lock of the structure: refused if the structure does not hold the node (404), at
-    another version than the one read (412), for a task started or completed, or a summary one of
-    whose subordinates is (409 ``task_not_started``, WF-PLA-0070), for a line of a completed task
-    of the main structure (409 ``task_not_completed``, WF-RAE-0040; #1767). The subtree goes, its
-    lines, its links and the inscriptions of its lineages with it (WF-DAT-0090); a summary left
-    without subordinate becomes a leaf in its state (WF-PLA-0040) and is given back among the
-    ancestors, with the tasks the links taken away redate — and the task a line leaves, whose
-    calendar may change (WF-PLA-0010) — and the totals without them; a summary it leaves completed
-    again reads the zeroing of its lines (``closed_again``, #2803). No provision line moves before
-    EP-08: ``nodes`` is empty.
-    """
-    with writing(session, place, writer, ("node_delete", (node_id,))) as write:
-        tree = write.tree
-        if node_id not in tree.nodes:
-            raise NotFoundError(NOT_FOUND)
-        node = tree.nodes[node_id]
-        if node.lock_version != lock_version:
-            raise PreconditionFailedError(
-                STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
-            )
-        if node_id in tree.tasks and state_of(tree, node_id).progress != NOT_STARTED:
-            raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": TASK_NOT_STARTED})
-        parent = node.parent_id
-        if node_id not in tree.tasks:
-            refuse_completed(write, (parent,))
-        former = () if parent is None else (parent, *tree.ancestors(parent))
-        subtree = list(tree.subtree(node_id))
-        left_bare = parent is not None and tree.subtasks(parent) == [node_id]
-        again = closed_again(session, place.project_id, tree, (node_id,))
-        bare = (parent,) if left_bare and parent is not None else ()
-        touched = (*subtree, *bare, *again)
-        write.before(touched)
-        if left_bare and parent is not None:
-            emptied(tree, parent)
-            stamp(tree.nodes[parent], writer.act)
-        completed_again(tree, again, writer.act)
-        deleted(session, place.project_id, tree, subtree)
-        redated = write.redate(None)
-        write.after(touched)
-        return redated.written((), former)
 
 
 def _judge_move(tree: Tree, placing: Placing) -> None:

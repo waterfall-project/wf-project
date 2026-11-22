@@ -29,6 +29,7 @@ from waterfall.api.queries import Search
 from waterfall.core.projects.interface import (
     SubprojectChange,
     SubprojectColumn,
+    SubprojectDeletion,
     SubprojectFilters,
     SubprojectSort,
     SubprojectView,
@@ -219,6 +220,11 @@ def remove_subproject(
     actor: Acting,
     session: Transaction,
 ) -> Response:
-    """Delete for good a subproject that nothing cites, at the version read; only managers may."""
-    delete_subproject(session, project_id, subproject_id, lock_version, viewer_of(actor))
+    """Delete for good a subproject that nothing cites, at the version read; only managers may.
+
+    The risks of the current revision that designated it lose the designation, by this act (#4208).
+    """
+    act = Act(actor.user_id, utc_now())
+    deletion = SubprojectDeletion(subproject_id, lock_version)
+    delete_subproject(session, project_id, deletion, act, viewer_of(actor))
     return Response(status_code=204)

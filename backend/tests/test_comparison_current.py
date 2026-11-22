@@ -242,18 +242,32 @@ def test_a_finish_pushed_back_five_days_is_modified_and_brought_back_is_no_longe
 ) -> None:
     # « une tâche dont la fin y est repoussée de cinq jours est présentée modifiée, avec la date de
     # fin de la base ; la date ramenée à celle de la base, la tâche n'est plus présentée
-    # modifiée. » : « Montage des armoires sur site », in the current revision against the 101.
+    # modifiée. » : the first leaf of the current revision, not started and in automatic mode, that
+    # the comparison with the 101 presents unchanged, whose finish five days later is a working day
+    # — the mounting on site is modified by a line since the reference is the 101 the amendment 1
+    # produced (EP-08).
     who = writer(witness, realm)
     path, _ = current_structure(witness)
-    url = comparing(REVISION_101, REVISION_102, f"&subtree_of={SITE}")
+    whole = read(api, witness, realm, comparing(REVISION_101, REVISION_102))["items"]
+    target = next(
+        each["node_id"]
+        for each in whole
+        if each["kind"] == "task"
+        and each["difference"] == "unchanged"
+        and not each["task"]["is_summary"]
+        and each["task"]["scheduling_mode"] == "automatic"
+        and each["task"]["progress"] == "not_started"
+        and (date.fromisoformat(each["task"]["finish"]["date"]) + timedelta(days=5)).weekday() < 5
+    )
+    url = comparing(REVISION_101, REVISION_102, f"&subtree_of={target}")
 
     def mounting() -> dict[str, Any]:
         found = read(api, witness, realm, url)["items"]
-        return next(each for each in found if each["node_id"] == MOUNTING)
+        return next(each for each in found if each["node_id"] == target)
 
     def finishing(**sent: Any) -> None:
-        body = {**sent, "lock_version": node_of(api, who, path, MOUNTING)["lock_version"]}
-        answer = api.patch(f"{path}/nodes/{MOUNTING}/task", headers=who.headers, json=body)
+        body = {**sent, "lock_version": node_of(api, who, path, target)["lock_version"]}
+        answer = api.patch(f"{path}/nodes/{target}/task", headers=who.headers, json=body)
         assert answer.status_code == 200, answer.text
 
     before = mounting()
@@ -335,5 +349,12 @@ def test_the_current_revision_read_from_its_columns_is_the_body_of_its_rows_noth
         assert bytes(read_body(kept).body) == rows
     assert kept_row(witness, place_of(witness, REVISION_102)) is None
     assert kept_row(witness, place_of(witness, REVISION_101)) is not None
+    # The provision lines of 752 and 753, which the occurrence and the dismissal took away from the
+    # 102, are removed (EP-08).
     found = read(api, witness, realm, comparing(REVISION_101, REVISION_102))
-    assert {each["difference"] for each in found["items"]} == {"added", "modified", "unchanged"}
+    assert {each["difference"] for each in found["items"]} == {
+        "added",
+        "modified",
+        "removed",
+        "unchanged",
+    }

@@ -24,7 +24,6 @@ replace the ones its lineage held.
 """
 
 from datetime import date
-from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -39,82 +38,24 @@ from waterfall.core.planning.interface import (
     load_tasks,
     load_tracking,
 )
-from waterfall.core.planning.scheduling import Duration, DurationUnit, LagUnit
+from waterfall.core.planning.scheduling import Duration
 from waterfall.core.revisions.interface import aimed_structure
 from waterfall.platform.logs import get_logger
-from waterfall.witness.filling import Strict, node_identifier, number_of
+from waterfall.witness.filling import Strict, TaskRow, node_identifier
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+
     from sqlalchemy.orm import Session
 
+    from waterfall.platform.audit import Act
     from waterfall.witness.description import Witness
-    from waterfall.witness.revisions import OpenedRevision
+    from waterfall.witness.filling import Filling
 
 TASKS_FILE = "witness_tasks.json"
 _NODE_NAMESPACE = uuid5(NAMESPACE_URL, "https://waterfall.example/witness/node")
 
 logger = get_logger(__name__)
-
-
-class _Duration(Strict):
-    """A duration: a value and its unit."""
-
-    value: Decimal
-    unit: DurationUnit
-
-
-class _Lag(Strict):
-    """A lag: a value and its unit."""
-
-    value: Decimal
-    unit: LagUnit
-
-
-class _Moment(Strict):
-    """A start or a finish: a day and the hours of work elapsed that day."""
-
-    date: date
-    hours: Decimal
-
-
-class _Link(Strict):
-    """A link to a predecessor, by its lineage."""
-
-    predecessor_lineage_id: UUID
-    link_type: str
-    lag: _Lag
-
-
-class _Inscription(Strict):
-    """An inscription of a task of the witness, as the description writes it."""
-
-    kind: str
-    timeline_id: UUID | None
-
-
-class _Task(Strict):
-    """A task of a revision, as the description writes it."""
-
-    revision: int
-    node_id: UUID
-    lineage_id: UUID
-    parent_lineage_id: UUID | None
-    position: int
-    label: str
-    description: str | None
-    is_summary: bool
-    is_milestone: bool
-    scheduling_mode: str
-    duration: _Duration
-    start: _Moment
-    finish: _Moment
-    order_item_id: UUID | None
-    work_package_id: UUID | None
-    predecessors: list[_Link]
-    progress: str
-    started_on: date | None
-    completed_on: date | None
-    inscriptions: list[_Inscription]
 
 
 class _Revision(Strict):
@@ -130,13 +71,13 @@ class _Tasks(Strict):
     """The tasks of the witness by revision, as ``witness_tasks.json`` keeps them."""
 
     revisions: list[_Revision]
-    tasks: list[_Task]
+    tasks: list[TaskRow]
 
 
-def _load(task: _Task, current: int) -> TaskLoad:
-    """Give a task as the planning loads it."""
+def _load(task: TaskRow, node_id: UUID) -> TaskLoad:
+    """Give a task as the planning loads it, under the identifier it has in its structure."""
     return TaskLoad(
-        node_id=node_identifier(_NODE_NAMESPACE, task.revision, task.node_id, current),
+        node_id=node_id,
         lineage_id=task.lineage_id,
         parent_lineage_id=task.parent_lineage_id,
         position=task.position,
@@ -158,36 +99,68 @@ def _load(task: _Task, current: int) -> TaskLoad:
     )
 
 
-def fill(session: Session, witness: Witness, opened: OpenedRevision) -> None:
-    """Write the tasks the witness describes for a revision just opened, by lineage.
+def fill(session: Session, witness: Witness, filling: Filling) -> None:
+    """Write the tasks the witness describes for a structure, by lineage.
 
-    The tasks of the structure the copy gave are reconciled with the described ones, then the
-    inscriptions of each lineage written (the timelines are those of the slice before the
-    revisions). A revision the file does not describe is left as it is.
+    The tasks of the structure the copy gave are reconciled with the described ones, then, in a
+    main structure, the inscriptions of each lineage written (the timelines are those of the slice
+    before the revisions). A revision the file does not describe is left as it is.
     """
-    number = number_of(opened.revision.revision_id.root)
+    number = filling.number
     described = witness.read(TASKS_FILE, _Tasks)
     revision = next((each for each in described.revisions if each.revision == number), None)
     if revision is None:
         return
     current = max(each.revision for each in described.revisions)
-    tasks = [task for task in described.tasks if task.revision == number]
-    project_id = opened.revision.project_id.root
-    revision_id = opened.revision.revision_id.root
-    structure_id = aimed_structure(session, project_id, revision_id, None)
+    tasks = filling.tasks(task for task in described.tasks if task.revision == number)
+    project_id = filling.revision.project_id.root
+    revision_id = filling.revision.revision_id.root
+    changes = filling.changes
+    structure_id = filling.structure_id or aimed_structure(session, project_id, revision_id, None)
     if structure_id is None:
         message = f"revision {number} holds no main structure"
         raise ValueError(message)
-    load = TasksLoad(revision.planning_start_on, tuple(_load(task, current) for task in tasks))
-    disagreeing = load_tasks(
-        session, Place(project_id, revision_id, structure_id), load, opened.act
-    )
+
+    def identified(task: TaskRow) -> UUID:
+        if changes is not None:
+            return changes.node(task.lineage_id)
+        return node_identifier(_NODE_NAMESPACE, task.revision, task.node_id, current)
+
+    place = Place(project_id, revision_id, structure_id)
+    written = (revision.planning_start_on, tasks)
+    disagreeing = write_tasks(session, place, written, identified, filling.act)
     # The calendar of a task comes from the roles of its lines, which are loaded after the tasks
     # (``estimate_lines``): at this step the engine dates on the default calendar the tasks the 4x10
     # calendars of the file reach, with their successors and their summaries. The computed is kept,
     # and the count noted for this step alone: the lines then date them as the file does.
-    logger.info("witness.tasks_dated_before_the_lines", revision=number, tasks=len(disagreeing))
+    kind = "main" if changes is None else "amendment"
+    logger.info(
+        "witness.tasks_dated_before_the_lines", revision=number, structure=kind, tasks=disagreeing
+    )
+    if changes is None:
+        inscribe(session, project_id, tasks, filling.act)
+
+
+def write_tasks(
+    session: Session,
+    place: Place,
+    written: tuple[date, Iterable[TaskRow]],
+    identified: Callable[[TaskRow], UUID],
+    act: Act,
+) -> int:
+    """Reconcile a structure with the tasks described and its planning start; count the misdated.
+
+    Those the engine dated otherwise than described are counted; ``identified`` gives the node of
+    each task in the structure.
+    """
+    start, tasks = written
+    load = TasksLoad(start, tuple(_load(task, identified(task)) for task in tasks))
+    return len(load_tasks(session, place, load, act))
+
+
+def inscribe(session: Session, project_id: UUID, tasks: Iterable[TaskRow], act: Act) -> None:
+    """Write the inscriptions of each task described, by its lineage."""
     for task in tasks:
         entries = tuple(TrackingSent(each.kind, each.timeline_id) for each in task.inscriptions)
         tracking = TrackingLoad(task.lineage_id, entries, task.is_milestone)
-        load_tracking(session, project_id, tracking, opened.act)
+        load_tracking(session, project_id, tracking, act)

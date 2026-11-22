@@ -35,7 +35,11 @@ from waterfall.core.projects.interface import (
     read_work_breakdown,
     work_breakdown_items,
 )
-from waterfall.core.revisions.interface import last_marked_revisions, revision_draft
+from waterfall.core.revisions.interface import (
+    last_marked_revisions,
+    main_structures_of,
+    revision_draft,
+)
 from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 from waterfall.platform.identifiers import new_id
 
@@ -270,20 +274,23 @@ def _insert(write: Write, plan: list[_Planned]) -> None:
         session.execute(insert(TaskLink), links)
 
 
-def opening_with_tasks(session: Session, project_ids: Collection[UUID]) -> frozenset[UUID]:
-    """Tell which of the projects would open a revision that carries a task.
+def opening_main_with_tasks(session: Session, project_ids: Collection[UUID]) -> frozenset[UUID]:
+    """Tell which of the projects would open a revision whose main structure carries a task.
 
-    It is a copy of the last marked revision, without a task if the project has none: what
-    ``ProjectCommand.generate_skeleton`` judges, a project without a current revision having no
-    structure yet (WF-PRJ-0030, WF-REV-0010). One statement for the revisions, one for the tasks.
+    The copy of the last marked revision, judged as ``first_task`` judges a structure — a task at
+    its first level —, what the declaration of a risk asks (WF-RIS-0010). One statement for the
+    revisions, one for the structures, one for the tasks.
     """
     sources = last_marked_revisions(session, project_ids)
-    if not sources:
+    mains = main_structures_of(session, sources.values()) if sources else {}
+    if not mains:
         return frozenset()
     bearing = session.scalars(
-        select(Node.revision_id)
-        .where(Node.revision_id.in_(sources.values()), Node.kind == TASK)
+        select(Node.structure_id)
+        .where(Node.structure_id.in_(mains.values()), Node.kind == TASK, Node.parent_id.is_(None))
         .distinct()
     )
     held = set(bearing)
-    return frozenset(project for project, revision in sources.items() if revision in held)
+    return frozenset(
+        project for project, revision in sources.items() if mains.get(revision) in held
+    )

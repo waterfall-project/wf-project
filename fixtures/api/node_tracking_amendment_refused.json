@@ -1,0 +1,10 @@
+{
+  "summary": "La « Revue de conception » du différentiel « Avenant 2 — reprise des essais » inscrite à une chronologie : une inscription est celle d'une tâche de la structure principale, celle qui s'exécute et se suit, et le nœud d'un différentiel ne nomme pas task.tracking dans ses champs saisissables ; refusée par la condition qui manque, main_structure ; rien n'est écrit (WF-PLA-0060, WF-REV-0100, #2497).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"main_structure"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001960"
+  }
+}

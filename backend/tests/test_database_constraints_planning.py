@@ -257,6 +257,8 @@ REFUSALS: list[Refusal] = [
     (Node, {"lock_version": -1}, "ck_node_lock_version_not_negative"),
     (Node, {"revision_id": uuid4()}, "fk_node_project_id_cost_structure"),
     (Node, {"parent_id": uuid4()}, "fk_node_project_id_node"),
+    # The risk whose occurrence merged the node, known in its project (EP-08).
+    (Node, {"origin_risk_id": uuid4()}, "fk_node_project_id_risk"),
     (Node, {"rank": 1}, "uq_node_structure_id"),
     *stamped(Node),
     (Task, {"node_id": LINE}, "fk_task_project_id_node"),
@@ -319,6 +321,9 @@ REFUSALS: list[Refusal] = [
     (ImportReport, {"upload_id": TAKEN}, "uq_import_report_upload_id"),
     (ImportReport, {"project_id": uuid4()}, "fk_import_report_project_id_project"),
     (ImportReport, {"requested_by": uuid4()}, "fk_import_report_requested_by_user_account"),
+    # The structure aimed at and the revision written in, of its project (US-3060, #4139).
+    (ImportReport, {"structure_id": uuid4()}, "fk_import_report_project_id_cost_structure"),
+    (ImportReport, {"revision_id": uuid4()}, "fk_import_report_project_id_revision"),
     (UndoEntry, {"kind": "rename"}, "ck_undo_entry_kind_known"),
     (UndoEntry, {"rank": TAKEN}, "uq_undo_entry_revision_id"),
     (UndoEntry, {"revision_id": uuid4()}, "fk_undo_entry_project_id_revision"),
@@ -332,8 +337,9 @@ REFUSALS: list[Refusal] = [
     (PastePlan, {"revision_id": uuid4()}, "fk_paste_plan_project_id_revision"),
     (PastePlan, {"user_account_id": uuid4()}, "fk_paste_plan_user_account_id_user_account"),
 ]
-# The constraints a key holds already, never broken without it: what a facet and a task name.
-UNBROKEN = {"uq_node_project_id", "uq_node_id"}
+# The constraints a key holds already, never broken without it: what a facet and a task name, and
+# what the evaluation of a risk names (EP-08).
+UNBROKEN = {"uq_node_project_id", "uq_node_id", "uq_node_revision_id"}
 UPLOAD = uuid4()
 
 
@@ -429,6 +435,9 @@ CASCADES = {
     "fk_estimate_line_project_id_node",
     # The reading kept of a structure with its structure (EP-26, "Tables et migrations").
     "fk_structure_reading_project_id_cost_structure",
+    # An import with the structure it aims at or the revision it writes in (US-3060, #4139).
+    "fk_import_report_project_id_cost_structure",
+    "fk_import_report_project_id_revision",
 }
 
 

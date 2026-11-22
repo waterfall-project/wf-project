@@ -50,9 +50,9 @@ def open_lines(
 ) -> frozenset[UUID]:
     """Give the tasks among these that bear an own line, not a provision, with a remaining.
 
-    ``lines_by_task`` the lines each task of a project bears, those of a risk left out by the
-    planning; read in one statement, a provision line by its category never holding a task
-    (WF-PLA-0040).
+    ``lines_by_task`` the lines each task of a project bears, the provisions this module tells
+    left out by the planning; read in one statement, a provision line by its category never holding
+    a task (WF-PLA-0040), whatever risk a line came from (EP-08).
     """
     return reviewing.open_tasks(session, project_id, lines_by_task)
 

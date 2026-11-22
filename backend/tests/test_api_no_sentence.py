@@ -238,6 +238,17 @@ DATA = {
     "CostStructure.label": "a label",
     # The reason a person gave when she took a project out of its cycle, as she wrote it.
     "StateTransition.reason": "a reason",
+    # The identity of a risk as the person who declared it gave it, and the labels of what bears
+    # its provision, as given to them (US-2570/L1).
+    "Risk.label": "a label",
+    "Risk.description": "a text",
+    "Risk.mitigation_notes": "a text",
+    "Risk.provision_cost_category_label": "a label",
+    "Risk.provision_subproject_label": "a label",
+    # The label of a risk and of its subproject, as the matrix places them.
+    "RiskMatrixPoint.label": "a label",
+    "RiskMatrixPoint.project_label": "a label",
+    "ProvisionTask.label": "a label",
 }
 # The objects the answers hold whose properties the contract does not close: the parameters of a
 # refusal, and of each field it refuses, which name its condition by codes and values, the ones

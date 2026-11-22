@@ -12,7 +12,9 @@
 
 ## In Waterfall
 
-**Prepare an amendment**, on the screen of the [revisions](../FBS-4.1.md), creates a differential of the main structure, under the label given. It is entered in the [planning](../FBS-4.3.md) and in the [estimate](../FBS-4.4.md) as another structure, which the banner names; several may coexist, and each one is merged or abandoned separately. Nothing touches the main structure before the contractualisation.
+**Prepare an amendment**, on the screen of the [revisions](../FBS-4.1.md), creates a differential of the main structure, under the label given. It is entered in the [planning](../FBS-4.3.md) and in the [estimate](../FBS-4.4.md) as another structure, which the banner names; several may coexist, and each one is merged or abandoned separately. Nothing touches the main structure before the contractualisation. **Abandon the amendment** deletes it, as long as it is not merged, and returns to the main structure.
+
+The project moves on while the amendment is negotiated: as soon as the main structure receives a write, the amendment is late, and the screen says so. **Update the amendment** first presents what the main structure has received and the amendment takes over, what it keeps, and the reasons that refuse; confirmed, it changes nothing of what the amendment designates. Only an up-to-date amendment is made contractual.
 
 **Contractualise the amendment**, from the grid of the differential, first presents the report of the merge: the tasks, the lines and the links added, modified and removed, the started tasks that will be completed, and the reasons that refuse it. Confirmed, the merge applies to the current revision — created if need be — and marks it, under the version name asked for; the marked revision becomes the reference. The lines designated take the reference quantities of the differential, hence their budgeted amount; a started task is never removed: its remaining to commit is brought to zero, which completes it.
 

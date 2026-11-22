@@ -5,7 +5,8 @@
 One file per subject, each filled by the story that serves it and re-exported here: the names of a
 file are imported in a statement of their own, below the comment that names the file, so that two
 stories filling two files write two places of this one. Every function the design names (EP-06,
-"Modules") is declared from US-1380/L1 on, and filled by US-1450/L1; the types of a snapshot live
+"Modules") is declared from US-1380/L1 on, and filled by US-1450/L1 — the kinds another module
+undoes, from US-2550/L1 on (EP-08, ``register_undoable``) —; the types of a snapshot live
 beside the interface (``snapshots``), which ``recording`` and ``undo`` share. Another module imports
 them from here, never from the file.
 
@@ -17,6 +18,9 @@ go before the nodes of the planning, whatever the order in which a process impor
 # ``closing`` (US-1380/L1; US-1450/L1): the stacks and the plans of a revision that closes.
 from waterfall.core.history.interface.closing import (
     close_history as close_history,
+)
+from waterfall.core.history.interface.closing import (
+    forget_structure as forget_structure,
 )
 
 # ``plans`` (US-1380/L1; US-1450/L1): the plans of a paste.
@@ -87,6 +91,9 @@ from waterfall.core.history.interface.undo import (
     StructureLocker as StructureLocker,
 )
 from waterfall.core.history.interface.undo import (
+    carry_everywhere as carry_everywhere,
+)
+from waterfall.core.history.interface.undo import (
     depth as depth,
 )
 from waterfall.core.history.interface.undo import (
@@ -94,6 +101,23 @@ from waterfall.core.history.interface.undo import (
 )
 from waterfall.core.history.interface.undo import (
     undo as undo,
+)
+
+# ``undoable`` (US-2550/L1; US-2590/L2): the kinds of entry another module undoes and redoes.
+from waterfall.core.history.interface.undoable import (
+    Undoable as Undoable,
+)
+from waterfall.core.history.interface.undoable import (
+    moved_aside as moved_aside,
+)
+from waterfall.core.history.interface.undoable import (
+    register_undoable as register_undoable,
+)
+from waterfall.core.history.interface.undoable import (
+    taken_aside as taken_aside,
+)
+from waterfall.core.history.interface.undoable import (
+    undoables as undoables,
 )
 
 # ``snapshots``, beside the interface (US-1450/L1): the snapshots the planning hands the history.

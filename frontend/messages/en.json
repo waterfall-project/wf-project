@@ -1444,6 +1444,14 @@
         "help": "Abandons the revision being drawn up, after confirmation."
       }
     },
+    "structure": {
+      "delete": {
+        "help": "Abandons the amendment, a differential not merged of the revision in progress: it is deleted, after confirmation, and the screen returns to the main structure."
+      },
+      "rebase": {
+        "help": "Updates the amendment: carries into the differential what the main structure has received since it was opened, after the report and a confirmation. It can then be merged."
+      }
+    },
     "deleteRisk": {
       "help": "Deletes the risk with its own estimate and its provision line, after confirmation."
     },
@@ -2111,6 +2119,30 @@
     "submit": "Mark",
     "cancel": "Cancel"
   },
+  "abandonAmendment": {
+    "label": "Abandon the amendment",
+    "statement": "The amendment and what it holds are deleted; the main structure is not touched, and the screen returns to it. The abandon is irreversible: it is not entered in the history that “Undo” reverses.",
+    "submit": "Confirm the abandon of the amendment",
+    "done": "The amendment “{label}” is abandoned."
+  },
+  "amendmentLate": {
+    "note": "The amendment “{label}” is late: the main structure has received writes since it was opened. Update it before making it contractual."
+  },
+  "rebaseReport": {
+    "label": "Update the amendment",
+    "statement": "The update carries into the amendment what the main structure has received since it was opened, changing nothing of what the amendment designates, then makes the main structure its new base. Abandoning here changes nothing.",
+    "submit": "Confirm the update",
+    "title": "Report of the update",
+    "reading": "Reading the report…",
+    "counts": "Differences by change",
+    "added": "{count, plural, one {# carried as an addition} other {# carried as additions}}",
+    "updated": "{count, plural, one {# carried as a modification} other {# carried as modifications}}",
+    "removed": "{count, plural, one {# carried as a removal} other {# carried as removals}}",
+    "kept": "{count, plural, one {# kept by the amendment} other {# kept by the amendment}}",
+    "refusals": "{count, plural, one {# reason refuses the update} other {# reasons refuse the update}}",
+    "reread": "Read the report anew",
+    "done": "The amendment “{label}” is up to date."
+  },
   "mergeReport": {
     "label": "Contractualise the amendment",
     "statement": "The merge applies the report below to the main structure and marks the current revision under the version name you give; the revision produced becomes the reference, and the reference budget moves. Abandoning here changes nothing.",
@@ -2248,6 +2280,7 @@
     "title": "Report of the occurrence",
     "reading": "Reading the report…",
     "createsRevision": "The project has no revision in progress: the occurrence first creates it by copying the last marked revision, and merges the own estimate of the risk into it, in the same background task. If it fails, no revision is created.",
+    "pastStart": "The own estimate of the risk starts on {date}, before the day of the declaration: the occurrence accepts it, neither refusing it nor redating its tasks, which keep their dates, now in the past.",
     "provision": "The line of provision of the risk is withdrawn from the remaining to commit: {amount} of provision less.",
     "refusals": "{count, plural, one {# reason refuses the occurrence} other {# reasons refuse the occurrence}}",
     "reread": "Read the report again"
@@ -3165,6 +3198,7 @@
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "A task bears a work package or an order item, never both.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This work package or order item is already borne by another task.",
     "ORDER_ITEM_OUTSIDE_WORK_PACKAGE": "The task of an order item must stay within the subtree of the task of its work package.",
+    "PROVISION_WITHOUT_TASK": "The file would leave no task under the line of provision of a risk: a line of provision stands under a task.",
     "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY": "Only a task of the main structure bears a work package or an order item.",
     "DUPLICATE_WORK_BREAKDOWN_ITEM": "This item already appears earlier in the work breakdown entered: each is written once.",
     "PROJECT_HORIZON_EXCEEDED": "The duration of the project would exceed fifteen years.",
@@ -3500,6 +3534,7 @@
       "revision_abandon": "Revision in progress abandoned",
       "reference_designate": "Reference designated",
       "structure_merge": "Differential merged",
+      "structure_abandon": "Amendment abandoned",
       "risk_occurrence": "Risk occurred",
       "project_exit": "Exit from the lifecycle",
       "cost_line_exclude": "Cost line excluded",
@@ -3636,6 +3671,9 @@
       "subproject_not_cited": "subproject cited by no marked revision",
       "subproject_without_actual_costs": "no actual cost booked against the subproject",
       "subproject_without_estimate_lines": "no estimate line of the current revision bearing the subproject",
+      "main_structure": "operation allowed on the main structure only",
+      "structure_up_to_date": "amendment up to date with the main structure",
+      "structure_out_of_date": "amendment behind the main structure",
       "main_structure_without_tasks": "main structure without any task",
       "import_awaiting_decision": "import awaiting a decision",
       "import_file_accepted": "file accepted by the report",
@@ -3750,7 +3788,9 @@
     "StructureCommand": {
       "edit_planning": "Edit the planning",
       "edit_estimate": "Edit the estimate",
-      "edit_remaining": "Re-estimate the remaining to commit"
+      "edit_remaining": "Re-estimate the remaining to commit",
+      "delete": "Abandon the amendment",
+      "rebase": "Update the amendment"
     },
     "StructureCreate": {
       "kind": {

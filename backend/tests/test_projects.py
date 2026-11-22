@@ -111,6 +111,9 @@ def test_a_project_is_born_created_without_a_code_and_its_creator_manages_it(
         "complete": ["project_in_progress"],
         "lose": ["project_in_pricing"],
         "abandon": [],
+        "edit_risks": [],
+        # The revision a declaration would open copies nothing: no task (WF-RIS-0010).
+        "declare_risk": ["at_least_one_task"],
         # The mapping of an extraction is still empty on a new installation (WF-REF-0190).
         "import_actual_costs": ["project_in_progress", "actual_cost_mapping_complete"],
         "exclude_cost_lines": ["project_in_progress"],

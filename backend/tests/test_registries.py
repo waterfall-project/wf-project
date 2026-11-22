@@ -10,112 +10,22 @@ imported in a process of its own, and its registries compared with those of a pr
 every module of the core and of the witness: none lacks an extension that a module registers — the
 worker those of the estimate included, which it imports from US-1500/L2 on (EP-07, "Le worker"),
 those of the actual costs, which it imports from US-1610/L2 on (EP-09, "Le worker"), and those of
-the indicators, which it imports from US-1670/L1 on (EP-10, "Le worker"). What the socles of
-EP-06, EP-07, EP-09 and EP-10 register is named, so that the comparison is never between two empty
-lists.
+the indicators, which it imports from US-1670/L1 on (EP-10, "Le worker"). What the socles of EP-06,
+EP-07, EP-09 and EP-10 register is named, so that the comparison is never between two empty lists.
 
-Then how each registry acts, details of the realization which reprise no Vérif: the closing of a
-revision, what its marking keeps and what follows the designation of a reference (EP-07), the guard
-and the recalculation of the reference, the categories a line employs (EP-07), the attachments of
-the work breakdown, the facets, the formats and the exporters, the coverage of the risks (EP-09),
-the fillers of the witness.
+How each registry acts is in ``test_registries_revisions`` (the closing, the marking, the
+designation, the merge) and ``test_registries_extensions`` (the rest).
 """
 
 import json
 import subprocess
 import sys
-from contextlib import ExitStack
-from dataclasses import dataclass, replace
-from decimal import Decimal
-from typing import TYPE_CHECKING, Any
-from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import give_a_line
-from planning_support import give_a_task
-from project_rows import insert_project
-from projects_support import PROJECTS, Scene
-from projects_support import scene as make_scene
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
-from waterfall.core.cost_settings.interface import category_is_employed, register_employment
-from waterfall.core.costs.interface import ACTUAL_COSTS_FORMAT
-from waterfall.core.estimate.interface import (
-    NO_COVERAGE,
-    REMAINING_EXPORTER,
-    REMAINING_FORMAT,
-    Coverage,
-    register_coverage,
-    risk_coverage,
-)
-from waterfall.core.exchanges.interface import (
-    exporters,
-    formats,
-    register_exporter,
-    register_format,
-)
-from waterfall.core.history.interface import close_history
-from waterfall.core.planning.interface import (
-    MS_PROJECT_EXPORTER,
-    MS_PROJECT_FORMAT,
-    delete_nodes,
-    facets,
-    register_facet,
-)
-from waterfall.core.projects.interface import (
-    Attachments,
-    detach_item,
-    hold_items,
-    item_cited,
-    register_attachments,
-    share_items,
-)
-from waterfall.core.resource_settings.interface import (
-    DEFAULT_UNITS,
-    CalendarChange,
-    CalendarContent,
-    IdleProject,
-    Units,
-    WeeklyHours,
-    create_calendar,
-    get_duration_units,
-    install_duration_units,
-    register_idle_task_guard,
-    register_recalculation,
-    set_default_calendar,
-    set_duration_units,
-    update_calendar,
-)
 from waterfall.core.revisions.interface import (
     CLOSING_STAGES,
-    ReferenceDesignated,
-    RevisionClosing,
-    RevisionMarking,
-    closers,
-    mark_revision,
-    register_closing,
-    register_designation,
-    register_indicators,
-    register_marking,
 )
-from waterfall.core.revisions.tables import Revision
-from waterfall.platform.audit import Act
-from waterfall.platform.database import utc_now
-from waterfall.platform.errors import UnprocessableError
-from waterfall.platform.logs import logging_context
-from waterfall.witness.revisions import OpenedRevision, register_revision_filler
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-
-    from realm import TestRealm
-    from sqlalchemy import Engine
-    from support import ContractClient
-
-    from waterfall.core.revisions.interface import RevisionCopy
-    from waterfall.platform.database import Database
-    from waterfall.witness.description import Witness
 
 # Each entry point, by the module that holds it.
 ENTRY_POINTS = {
@@ -159,10 +69,11 @@ CLOSING = "revisions.closing"
 # found by their kind, which has one at most — the actual costs, which the planning neither imports
 # nor is imported by, register theirs before or after the planning's, as a process imports them.
 BY_KIND = {"exchanges.formats", "exchanges.exporters"}
-# Every registry of the core and of the witness EP-04, EP-06, EP-07, EP-09 and EP-10 declare.
+# Every registry of the core and of the witness EP-04, EP-06, EP-07, EP-08, EP-09 and EP-10 declare.
 DECLARED = {
     "revisions.copy",
     "revisions.tasks_and_lines",
+    "revisions.main_task",
     "revisions.indicators",
     "revisions.marking",
     "revisions.designation",
@@ -172,7 +83,7 @@ DECLARED = {
     "resource_settings.idle_task_guard",
     "resource_settings.recalculation",
     "projects.attachments",
-    "projects.opening",
+    "projects.opening_main",
     "projects.estimate_facts",
     "projects.cost_facts",
     "planning.facets",
@@ -183,6 +94,18 @@ DECLARED = {
     "exchanges.exporters",
     "witness.revision_fillers",
     "estimate.coverage",
+    # EP-08 (US-2550/L1): the parts of a merge, and its end (US-2560/L1, #3946), the kinds of
+    # entry another module undoes; what follows the counter of an own estimate (US-2570/L1), who
+    # owns the provision lines a deletion or an import moves (US-2580/L1).
+    "revisions.merge",
+    "revisions.merge_end",
+    "history.undoable",
+    "revisions.own_estimate_counted",
+    "planning.provision_owners",
+    # EP-08: the update of a differential, its end (US-3050/L3); what risks designate (US-3060/L4).
+    "revisions.rebase",
+    "revisions.rebase_end",
+    "projects.risk_designations",
 }
 PLANNING = "waterfall.core.planning.interface"
 # What EP-06 registers (US-1380/L1, US-1390/L2), the copy of the nodes after the structures', and
@@ -193,6 +116,7 @@ REGISTERED = {
         f"{PLANNING}.copying.copy_nodes",
         f"{PLANNING}.reference.redate_copy",
     ],
+    "revisions.main_task": [f"{PLANNING}.borne_lines.structures_have_task"],
     "revisions.tasks_and_lines": [f"tasks:{PLANNING}.nodes.revision_has_tasks"],
     "resource_settings.idle_task_guard": [f"{PLANNING}.reference.tasks_left_idle"],
     "resource_settings.recalculation": [f"{PLANNING}.reference.reschedule_current_structures"],
@@ -204,7 +128,7 @@ REGISTERED = {
             f"{PLANNING}.work_breakdown.share_work_breakdown_revision)"
         )
     ],
-    "projects.opening": [f"{PLANNING}.skeleton.opening_with_tasks"],
+    "projects.opening_main": [f"{PLANNING}.skeleton.opening_main_with_tasks"],
     CLOSING: [
         "history:waterfall.core.history.interface.closing.close_history",
         f"content:{PLANNING}.closing.delete_nodes",
@@ -239,6 +163,8 @@ LINE_HOOKS = (
     f"{CORE}.reading.line_columns",
     f"{CORE}.tallying.line_tallies",
     f"{CORE}.tallying.line_provisions",
+    f"{CORE}.grafting.judge_grafted_lines",
+    f"{CORE}.grafting.graft_lines",
     # The inert fields of a line (US-2250), a tuple, its names joined.
     "estimate_line.label:estimate_line.payment_delay_days:estimate_line.subproject_id",
 )
@@ -248,6 +174,7 @@ FACTS = (
     f"{ESTIMATE}.employment.subproject_is_cited",
     f"{ESTIMATE}.employment.subproject_is_estimated",
     f"{ESTIMATE}.employment.subproject_estimate_lines",
+    f"{ESTIMATE}.employment.forget_subproject",
     f"{ESTIMATE}.contributors.roles_employed",
     f"{ESTIMATE}.contributors.marked_revision_has_lines",
     f"{ESTIMATE}.rates.reinflate_project",
@@ -294,6 +221,23 @@ REGISTERED_BY_EP09 = {
     "exchanges.exporters": [f"remaining:{ESTIMATE}.remaining_excel.RemainingExporter"],
     "planning.open_lines": [f"{ESTIMATE}.kanban.open_lines"],
     "planning.zeroed_at": [f"{ESTIMATE}.kanban.zeroed_lines"],
+}
+RISKS = "waterfall.core.risks.following"
+RISKS_CORE = "waterfall.core.risks"
+# What the risks register (US-2570/L1): the copy of their evaluations after the copies of the rows
+# they name, their deletion at an abandonment before the content of the revision, and what follows
+# the counter of an own estimate; and what names the risks of the provision lines a deletion or an
+# import moves, and follows them (US-2580/L1); the shares of the reserve a designation writes, and
+# the coverage of the remaining to commit (US-2610/L1).
+REGISTERED_BY_EP08 = {
+    "estimate.coverage": [f"{RISKS_CORE}.interface.coverage.risk_coverage_of"],
+    "revisions.designation": [f"{RISKS_CORE}.sharing.write_shares"],
+    "revisions.copy": [f"{RISKS}.copy_evaluations"],
+    CLOSING: [f"evaluations:{RISKS}.close_evaluations"],
+    "revisions.own_estimate_counted": [f"{RISKS}.follow_own_estimate"],
+    "planning.provision_owners": [
+        f"ProvisionOwners({RISKS}.name_provision_owners, {RISKS}.follow_provision_lines)"
+    ],
 }
 INDICATORS = "waterfall.core.indicators.interface"
 # What the socle of EP-10 registers (US-1660/L1): what a marking keeps of the indicators, which
@@ -351,11 +295,13 @@ def test_every_registry_holds_what_the_socle_of_ep06_registers(
     everything: dict[str, list[str]],
 ) -> None:
     assert set(everything) == DECLARED
+    later = before(REGISTERED_BY_EP08)
     for name, entries in REGISTERED.items():
+        held = [entry for entry in everything[name] if entry not in later.get(name, set())]
         if name in BY_KIND:
-            assert set(entries) <= set(everything[name]), name
+            assert set(entries) <= set(held), name
         else:
-            assert everything[name][: len(entries)] == entries, name
+            assert held[: len(entries)] == entries, name
 
 
 def test_every_registry_holds_what_the_socle_of_ep07_registers_after_the_planning(
@@ -363,7 +309,7 @@ def test_every_registry_holds_what_the_socle_of_ep07_registers_after_the_plannin
 ) -> None:
     # The extensions of the estimate, each after those of EP-06 in its registry; the marking and the
     # designation filled by US-1500/L2.
-    others = before(REGISTERED, REGISTERED_BY_EP09)
+    others = before(REGISTERED, REGISTERED_BY_EP09, REGISTERED_BY_EP08)
     for name, entries in REGISTERED_BY_EP07.items():
         held = [entry for entry in everything[name] if entry not in others.get(name, set())]
         assert held == entries, name
@@ -374,14 +320,14 @@ def test_every_registry_holds_what_the_socle_of_ep09_registers_after_the_estimat
 ) -> None:
     # The extensions of the remaining to commit and of the actual costs, beside those of EP-06 and
     # EP-07; the remaining of the review before is no copy of its own: the copy of the lines writes
-    # it (US-2240/L2), and the copy of the rates comes last. Nothing answers the coverage of the
-    # risks before EP-08.
-    others = before(REGISTERED, REGISTERED_BY_EP07)
+    # it (US-2240/L2), and the copy of the rates comes last. The risks answer the coverage
+    # (``REGISTERED_BY_EP08``).
+    others = before(REGISTERED, REGISTERED_BY_EP07, REGISTERED_BY_EP08)
     for name, entries in REGISTERED_BY_EP09.items():
         held = [entry for entry in everything[name] if entry not in others.get(name, set())]
         assert held == entries, name
-    assert everything["revisions.copy"][-1] == f"{CORE}.keeping.copy_rates"
-    assert everything["estimate.coverage"] == []
+    copies = everything["revisions.copy"]
+    assert copies[copies.index(f"{RISKS}.copy_evaluations") - 1] == f"{CORE}.keeping.copy_rates"
 
 
 def test_every_registry_holds_what_the_socle_of_ep10_registers_after_the_others(
@@ -390,10 +336,27 @@ def test_every_registry_holds_what_the_socle_of_ep10_registers_after_the_others(
     # The indicators keep their part of a marking, beside the socles before them: nothing else
     # computes indicators at the marking before EP-11. They alone answer the physical progress of
     # the summaries (US-1680).
-    others = before(REGISTERED, REGISTERED_BY_EP07, REGISTERED_BY_EP09)
+    others = before(REGISTERED, REGISTERED_BY_EP07, REGISTERED_BY_EP08, REGISTERED_BY_EP09)
     for name, entries in REGISTERED_BY_EP10.items():
         held = [entry for entry in everything[name] if entry not in others.get(name, set())]
         assert held == entries, name
+
+
+def test_every_registry_holds_what_the_risks_register_after_the_estimate(
+    everything: dict[str, list[str]],
+) -> None:
+    # The evaluations are copied after the structures, the nodes and the lines whose copies they
+    # name, last; deleted at an abandonment before the nodes and the structures, in their stage of
+    # their own; and the risks alone follow the counter of an own estimate (US-2570/L1).
+    others = before(REGISTERED, REGISTERED_BY_EP07, REGISTERED_BY_EP09, REGISTERED_BY_EP10)
+    for name, entries in REGISTERED_BY_EP08.items():
+        held = [entry for entry in everything[name] if entry not in others.get(name, set())]
+        assert held == entries, name
+    assert everything["revisions.copy"][-1] == f"{RISKS}.copy_evaluations"
+    closings = everything[CLOSING]
+    assert closings.index(f"evaluations:{RISKS}.close_evaluations") < closings.index(
+        f"content:{PLANNING}.closing.delete_nodes"
+    )
 
 
 @pytest.mark.parametrize("entry_point", sorted(ENTRY_POINTS))
@@ -418,359 +381,26 @@ def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
     assert held["planning.physical_progress"] == REGISTERED_BY_EP10["planning.physical_progress"]
 
 
-@pytest.fixture
-def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
-    """Give a platform whose reference is complete, its sessions, and a project its manager made."""
-    return make_scene(api, owner, database, realm)
-
-
-def open_revision(api: ContractClient, stage: Scene) -> dict[str, Any]:
-    """Open the current revision of the project of the stage, as its manager does."""
-    path = f"{PROJECTS}/{stage.project['project_id']}/revisions"
-    response = api.post(path, headers=stage.manager.headers, json={})
-    assert response.status_code == 201, response.text
-    return response.json()
-
-
-@dataclass(frozen=True)
-class Closed:
-    """A closing a module received: the revision, why, and its status then."""
-
-    revision_id: UUID
-    kind: str
-    status: str
-
-
-def test_a_closing_registered_runs_before_the_revision_is_marked_or_abandoned(
-    api: ContractClient, stage: Scene
+def test_the_planning_then_the_estimate_take_their_part_of_a_merge_and_the_planning_its_end(
+    everything: dict[str, list[str]],
 ) -> None:
-    closed: list[Closed] = []
-
-    def close(closing: RevisionClosing) -> None:
-        status = closing.session.scalar(
-            select(Revision.status).where(Revision.id == closing.revision_id)
-        )
-        closed.append(Closed(closing.revision_id, closing.kind, str(status)))
-
-    with ExitStack() as registered:
-        registered.callback(register_closing("content", close))
-        marked = open_revision(api, stage)
-        with (
-            logging_context(correlation_id="marking"),
-            Session(stage.owner) as session,
-            session.begin(),
-        ):
-            mark_revision(session, UUID(marked["revision_id"]), "v1.0", None, Act(None, utc_now()))
-        abandoned = open_revision(api, stage)
-        path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{abandoned['revision_id']}"
-        response = api.delete(
-            f"{path}?lock_version={abandoned['lock_version']}", headers=stage.manager.headers
-        )
-        assert response.status_code == 204, response.text
-    assert closed == [
-        Closed(UUID(marked["revision_id"]), "marked", "draft"),
-        Closed(UUID(abandoned["revision_id"]), "abandoned", "draft"),
+    # What the planning and the estimate find of a merge, the planning's first, whose plan the
+    # estimate reads; what the planning judges at its end, once (US-2560/L1, #3946).
+    assert everything["revisions.merge"] == [
+        f"{PLANNING}.merging.merge_tasks",
+        f"{ESTIMATE}.merging.merge_lines",
     ]
+    assert everything["revisions.merge_end"] == [f"{PLANNING}.merging.merge_end"]
 
 
-def test_the_closings_run_stage_by_stage_whatever_the_order_of_their_registration() -> None:
-    # The history and its plans before the content of the revision (EP-06, "Les points
-    # d'extension"): a part of the content registered first still runs after a part of the history
-    # registered later, and the planning's nodes after the history's stacks in any process.
-    def content(closing: RevisionClosing) -> None:
-        del closing
-
-    def history(closing: RevisionClosing) -> None:
-        del closing
-
-    with ExitStack() as registered:
-        registered.callback(register_closing("content", content))
-        registered.callback(register_closing("history", history))
-        ordered = closers()
-    assert ordered.index(history) < ordered.index(content)
-    assert closers().index(close_history) < closers().index(delete_nodes)
-
-
-def test_a_marking_registered_keeps_its_part_before_the_indicators_of_the_revision(
-    api: ContractClient, stage: Scene
+def test_the_planning_then_the_estimate_take_their_part_of_an_update_and_the_planning_its_end(
+    everything: dict[str, list[str]],
 ) -> None:
-    # What EP-07 keeps of a revision being marked — its images, its rates —, in the transaction of
-    # the marking, the revision judged and still current, before its indicators are computed.
-    ran: list[tuple[str, UUID, str]] = []
-
-    def keep(marking: RevisionMarking) -> None:
-        status = marking.session.scalar(
-            select(Revision.status).where(Revision.id == marking.revision_id)
-        )
-        assert (marking.project_id, marking.at) == (UUID(stage.project["project_id"]), at)
-        ran.append(("kept", marking.revision_id, str(status)))
-
-    def compute(_session: Session, revision_id: UUID, act: Act) -> None:
-        # The act of the marking: its instant, which the indicators are computed at (EP-10).
-        assert act.at == at
-        ran.append(("computed", revision_id, "draft"))
-
-    at = utc_now()
-    revision_id = UUID(open_revision(api, stage)["revision_id"])
-    with ExitStack() as registered:
-        registered.callback(register_marking(keep))
-        registered.callback(register_indicators(compute))
-        with (
-            logging_context(correlation_id="marking"),
-            Session(stage.owner) as session,
-            session.begin(),
-        ):
-            mark_revision(session, revision_id, "v1.0", None, Act(None, at))
-    assert ran == [("kept", revision_id, "draft"), ("computed", revision_id, "draft")]
-
-
-def test_a_designation_registered_follows_the_reference_once_it_is_designated(
-    api: ContractClient, stage: Scene
-) -> None:
-    # What EP-07 refreshes once a reference is designated — the budgeted amounts of the current
-    # revision —, in the transaction of the designation, the revision designated already.
-    followed: list[tuple[UUID, UUID, bool]] = []
-
-    def follow(designation: ReferenceDesignated) -> None:
-        designated = designation.session.scalar(
-            select(Revision.is_reference).where(Revision.id == designation.revision_id)
-        )
-        followed.append((designation.project_id, designation.revision_id, bool(designated)))
-
-    project_id = stage.project["project_id"]
-    revision_id = UUID(open_revision(api, stage)["revision_id"])
-    with (
-        logging_context(correlation_id="marking"),
-        Session(stage.owner) as session,
-        session.begin(),
-    ):
-        give_a_line(session.connection(), give_a_task(session.connection(), revision_id))
-        mark_revision(session, revision_id, "v1.0", None, Act(None, utc_now()))
-    path = f"{PROJECTS}/{project_id}"
-    counter = api.get(path, headers=stage.manager.headers).json()["lock_version"]
-    with ExitStack() as registered:
-        registered.callback(register_designation(follow))
-        response = api.put(
-            f"{path}/reference-revision",
-            headers=stage.manager.headers,
-            json={"revision_id": str(revision_id), "confirmed": True, "lock_version": counter},
-        )
-    assert response.status_code == 200, response.text
-    assert followed == [(UUID(project_id), revision_id, True)]
-
-
-def test_an_employment_registered_names_the_categories_a_line_employs(
-    session: Session,
-) -> None:
-    # The categories each answer registered names, gathered; none while nothing is registered.
-    first, second, third = uuid4(), uuid4(), uuid4()
-    asked = [first, second, third]
-    assert category_is_employed(session, asked) == frozenset()
-    with ExitStack() as registered:
-        registered.callback(register_employment(lambda _session, _ids: frozenset({first})))
-        registered.callback(
-            register_employment(lambda _session, ids: frozenset(ids) - {first, third})
-        )
-        assert category_is_employed(session, asked) == frozenset({first, second})
-
-
-EIGHT = Decimal(8)
-WEEK = WeeklyHours(EIGHT, EIGHT, EIGHT, EIGHT, EIGHT, Decimal(0), Decimal(0))
-ATELIER = CalendarContent("Atelier", WEEK)
-RENAMED = CalendarContent("Atelier B", WEEK)
-SIX_DAYS = WeeklyHours(EIGHT, EIGHT, EIGHT, EIGHT, EIGHT, EIGHT, Decimal(0))
-SEVEN_HOURS = Units(Decimal(7), Decimal(35), Decimal(20))
-
-
-def test_a_guard_registered_refuses_a_calendar_that_would_leave_a_task_idle(
-    database: Database,
-) -> None:
-    asked: list[CalendarChange] = []
-
-    def guard(_session: Session, change: CalendarChange) -> tuple[IdleProject, ...]:
-        asked.append(change)
-        return (IdleProject("Ligne de convoyage", "PRJ-001"), IdleProject("Sans code", None))
-
-    act = Act(None, utc_now())
-    with database.transaction() as session:
-        calendar = create_calendar(session, ATELIER, act)
-    with ExitStack() as registered:
-        registered.callback(register_idle_task_guard(guard))
-        with pytest.raises(UnprocessableError) as refused, database.transaction() as session:
-            update_calendar(
-                session,
-                calendar.calendar_id,
-                CalendarContent("Atelier", WEEK),
-                calendar.lock_version,
-                act,
-            )
-    assert (refused.value.code, refused.value.params) == (
-        "TASK_WITHOUT_WORKING_HOURS",
-        {
-            "resource_roles": [],
-            "projects": [
-                {"project_label": "Ligne de convoyage", "project_code": "PRJ-001"},
-                {"project_label": "Sans code", "project_code": None},
-            ],
-        },
-    )
-    [change] = asked
-    assert (change.calendar_id, change.default, change.weekly_hours["saturday"]) == (
-        calendar.calendar_id,
-        False,
-        Decimal(0),
-    )
-
-
-def test_a_recalculation_registered_runs_once_what_dates_the_plannings_is_written(
-    database: Database,
-) -> None:
-    ran: list[str] = []
-    act = Act(None, utc_now())
-    with database.transaction() as session:
-        install_duration_units(session, act)
-        calendar = create_calendar(session, ATELIER, act)
-    with ExitStack() as registered:
-        registered.callback(
-            register_recalculation(lambda _session, _at, _entered: ran.append("redated"))
-        )
-        # The same constants sent again are written, and redate nothing; others redate.
-        for units in (DEFAULT_UNITS, SEVEN_HOURS):
-            with database.transaction() as session:
-                set_duration_units(session, units, get_duration_units(session).lock_version, act)
-        assert ran == ["redated"]
-        # A calendar that is not the default redates nothing, whatever its hours.
-        longer = CalendarContent("Atelier B", SIX_DAYS)
-        with database.transaction() as session:
-            changed = update_calendar(
-                session, calendar.calendar_id, longer, calendar.lock_version, act
-            )
-        assert ran == ["redated"]
-        with database.transaction() as session:
-            designated = set_default_calendar(
-                session, calendar.calendar_id, changed.lock_version, act
-            )
-        assert ran == ["redated"] * 2
-        # The default renamed alone redates nothing; its hours changed redate.
-        counter = designated.lock_version
-        for content in (CalendarContent("Atelier C", SIX_DAYS), RENAMED):
-            with database.transaction() as session:
-                counter = update_calendar(
-                    session, calendar.calendar_id, content, counter, act
-                ).lock_version
-        assert ran == ["redated"] * 3
-
-
-def test_the_attachments_registered_tell_share_hold_and_detach_an_element_of_the_work_breakdown(
-    session: Session,
-) -> None:
-    detached: list[tuple[UUID, UUID]] = []
-    held: list[tuple[UUID, tuple[UUID, ...]]] = []
-    shared: list[UUID] = []
-    project_id, item_id = uuid4(), uuid4()
-    # A project without revision: the planning registered shares none, and refuses an unknown one.
-    session.execute(insert_project(id=project_id))
-    assert not item_cited(session, item_id)
-    with ExitStack() as registered:
-        registered.callback(
-            register_attachments(
-                Attachments(
-                    lambda _session, item: item == item_id,
-                    lambda _session, project, item: detached.append((project, item)),
-                    lambda _session, project, items: held.append((project, tuple(items))),
-                    lambda _session, project: shared.append(project),
-                )
-            )
-        )
-        assert (item_cited(session, item_id), item_cited(session, uuid4())) == (True, False)
-        share_items(session, project_id)
-        hold_items(session, project_id, [item_id])
-        detach_item(session, project_id, item_id)
-    assert shared == [project_id]
-    assert held == [(project_id, (item_id,))]
-    assert detached == [(project_id, item_id)]
-
-
-def test_a_kind_has_one_facet_one_format_and_one_exporter_at_most() -> None:
-    # Every kind of import and of export has its format and its exporter from the socle of EP-09
-    # on, registered at the import of the interfaces of the planning, the estimate and the actual
-    # costs: a second is refused. A facet of another kind is added, then withdrawn.
-    held = (dict(facets()), dict(formats()), dict(exporters()))
-    assert (held[1]["remaining"], held[1]["actual_costs"], held[2]["remaining"]) == (
-        REMAINING_FORMAT,
-        ACTUAL_COSTS_FORMAT,
-        REMAINING_EXPORTER,
-    )
-
-    def copy(copy: RevisionCopy) -> None:
-        del copy
-
-    hooks = replace(facets()["estimate_line"], copy=copy)
-    with ExitStack() as registered:
-        registered.callback(register_facet("remaining", hooks))
-        assert list(facets()) == ["estimate_line", "remaining"]
-        with pytest.raises(ValueError, match="registered already"):
-            register_facet("estimate_line", hooks)
-        with pytest.raises(ValueError, match="registered already"):
-            register_facet("remaining", hooks)
-        for kind in ("ms_project_schedule", "estimate", "remaining", "actual_costs"):
-            with pytest.raises(ValueError, match="has a format already"):
-                register_format(kind, MS_PROJECT_FORMAT)
-        for kind in ("ms_project_schedule", "task_tree_image", "estimate", "remaining"):
-            with pytest.raises(ValueError, match="has an exporter already"):
-                register_exporter(kind, MS_PROJECT_EXPORTER)
-    assert (dict(facets()), dict(formats()), dict(exporters())) == held
-
-
-def test_the_coverage_of_the_risks_is_zero_until_the_risks_answer_it_once(
-    session: Session,
-) -> None:
-    # What EP-08 answers for a revision of a project; zero before, and after its withdrawal; a
-    # second answer refused, the risks being one module's.
-    project_id, revision_id = uuid4(), uuid4()
-    asked: list[tuple[UUID, UUID]] = []
-    answered = Coverage(
-        Decimal("1000.00"),
-        Decimal("400.00"),
-        Decimal("250.00"),
-        Decimal("260.00"),
-        Decimal("350.00"),
-    )
-
-    def cover(_session: Session, project: UUID, revision: UUID) -> Coverage:
-        asked.append((project, revision))
-        return answered
-
-    assert risk_coverage(session, project_id, revision_id) == Coverage(*(Decimal("0.00"),) * 5)
-    with ExitStack() as registered:
-        registered.callback(register_coverage(cover))
-        assert risk_coverage(session, project_id, revision_id) == answered
-        with pytest.raises(ValueError, match="has its answer already"):
-            register_coverage(cover)
-    assert risk_coverage(session, project_id, revision_id) == NO_COVERAGE
-    assert asked == [(project_id, revision_id)]
-
-
-@pytest.fixture
-def fillers() -> Iterator[list[UUID]]:
-    """Register a filler of the revisions of the witness that notes each revision opened."""
-    opened: list[UUID] = []
-
-    def note(_session: Session, _witness: Witness, revision: OpenedRevision) -> None:
-        opened.append(revision.revision.revision_id.root)
-
-    withdraw = register_revision_filler(note)
-    yield opened
-    withdraw()
-
-
-def test_the_witness_fills_each_revision_it_opens_before_the_next_event(
-    fillers: list[UUID], witness_loaded: Database
-) -> None:
-    # The 100, the 101 and the 102 of PRJ-001, in the order the chronology opens them.
-    with witness_loaded.transaction() as session:
-        revisions = session.scalars(
-            select(Revision.id).order_by(Revision.created_at, Revision.id)
-        ).all()
-    assert fillers == list(revisions)
-    assert len(fillers) == 3
+    # What the planning and the estimate find of the update of a differential, the planning's
+    # first, whose plan the estimate reads; what the planning judges at its end, once, with the
+    # calendars the estimate hands it (US-3050/L3).
+    assert everything["revisions.rebase"] == [
+        f"{PLANNING}.rebasing.rebase_tasks",
+        f"{ESTIMATE}.rebasing.rebase_lines",
+    ]
+    assert everything["revisions.rebase_end"] == [f"{PLANNING}.rebasing.rebase_end"]

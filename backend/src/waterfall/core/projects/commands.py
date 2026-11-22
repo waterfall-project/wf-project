@@ -41,6 +41,8 @@ PROJECT_BEFORE_IN_PROGRESS = "project_before_in_progress"
 NO_CURRENT_REVISION = "no_current_revision"
 NO_BACKGROUND_TASK_RUNNING = "no_background_task_running"
 MAIN_STRUCTURE_WITHOUT_TASKS = "main_structure_without_tasks"
+AT_LEAST_ONE_TASK = "at_least_one_task"
+ACTIVE_PROVISION_CATEGORY = "active_provision_category"
 MAY_CREATE_REVISION = "may_create_revision"
 ACTUAL_COST_MAPPING_COMPLETE = "actual_cost_mapping_complete"
 
@@ -66,6 +68,8 @@ RULES: tuple[Rule, ...] = (
     Rule("complete", "project_exit", manager=True),
     Rule("lose", "project_exit", manager=True),
     Rule("abandon", "project_exit", manager=True),
+    Rule("edit_risks", "risks.write"),
+    Rule("declare_risk", "risks.write"),
     Rule("import_actual_costs", "actual_costs.write"),
     Rule("exclude_cost_lines", "cost_line_exclude"),
     Rule("generate_skeleton", "planning.write"),
@@ -75,6 +79,9 @@ RULES: tuple[Rule, ...] = (
 )
 # The imports a project carries, which create the current revision if it has none (WF-INTF-0090).
 IMPORTS = ("import_planning", "import_estimate", "import_remaining")
+# The entries of the risks a project carries, as long as it has no current revision: they
+# create it (WF-RIS-0020).
+RISK_ENTRIES = ("edit_risks", "declare_risk")
 # What writes the actual costs of a project, In progress only (WF-CRE-0010, WF-CRE-0030; D-04).
 IN_PROGRESS_ONLY = ("import_actual_costs", "exclude_cost_lines", "import_remaining")
 
@@ -100,7 +107,15 @@ def state_conditions(
     # would move the project or its work breakdown (EP-04, "Le worker").
     if (
         command
-        in {"update_work_breakdown", "complete", "lose", "abandon", "import_actual_costs", *IMPORTS}
+        in {
+            "update_work_breakdown",
+            "complete",
+            "lose",
+            "abandon",
+            "import_actual_costs",
+            *IMPORTS,
+            *RISK_ENTRIES,
+        }
         and not no_task_running
     ):
         missing.append(NO_BACKGROUND_TASK_RUNNING)
@@ -112,14 +127,18 @@ class Running:
     """What the commands read of the background and of the revision an opening would create.
 
     ``no_task_running`` tells that no task of the background writes in the project;
-    ``opening_has_tasks`` that the revision its opening would create carries a task;
+    ``opening_has_main_task`` that the main structure of the revision its opening would create
+    carries a task, which the generation of the skeleton and the declaration of a risk ask;
     ``mapping_complete`` that the mapping of an extraction of the actual costs declares a label for
-    each column it requires (WF-REF-0190), true by the callers that do not read it.
+    each column it requires (WF-REF-0190), true by the callers that do not read it;
+    ``provision_category_active`` that an active category of the provision kind exists, which
+    the declaration of a risk asks (WF-RIS-0010), true by the callers that do not read it.
     """
 
     no_task_running: bool
     mapping_complete: bool
-    opening_has_tasks: bool = False
+    opening_has_main_task: bool = False
+    provision_category_active: bool = True
 
 
 def skeleton_conditions(running: Running) -> list[str]:
@@ -129,7 +148,7 @@ def skeleton_conditions(running: Running) -> list[str]:
     of the last marked one (WF-PRJ-0030, WF-REV-0010).
     """
     missing = [] if running.no_task_running else [NO_BACKGROUND_TASK_RUNNING]
-    return [*missing, MAIN_STRUCTURE_WITHOUT_TASKS] if running.opening_has_tasks else missing
+    return [*missing, MAIN_STRUCTURE_WITHOUT_TASKS] if running.opening_has_main_task else missing
 
 
 def quality_conditions(kind: str | None, *, manager: bool) -> list[str]:
@@ -151,7 +170,11 @@ def commands_of(
 ) -> list[tuple[str, tuple[str, ...]]]:
     """List the commands a caller holds on a project, each with the conditions it lacks.
 
-    The skeleton is listed only while the project has no current revision, to whoever holds the
+    The entry of the risks and the declaration of a risk are listed only while the project has no
+    current revision, to whoever holds ``risks.write``, ``may_create_revision`` missing to whoever
+    cannot open one; the declaration names the task and the category of provision it lacks before
+    it (WF-RIS-0010, WF-RIS-0020). The skeleton is listed only while the project has no current
+    revision, to whoever holds the
     planning permission, ``may_create_revision`` missing to whoever cannot open one (WF-PRJ-0030).
     An import is listed whatever the revision, to whoever holds the permission of its kind; without
     a current revision, ``may_create_revision`` missing to whoever cannot create the one it would
@@ -173,13 +196,18 @@ def commands_of(
             if current_revision_id is None:
                 listed.append((rule.command, _skeleton_lacks(permissions, kind, running)))
             continue
+        # The entry of the risks is the revision's as soon as one is current.
+        if rule.command in RISK_ENTRIES and current_revision_id is not None:
+            continue
         missing = quality_conditions(kind, manager=rule.manager)
         missing += state_conditions(
             rule.command, state, current_revision_id, no_task_running=running.no_task_running
         )
+        if rule.command == "declare_risk":
+            missing += _declaration_lacks(running)
         # An import creates the current revision when there is none: who cannot is told so.
         if (
-            rule.command in IMPORTS
+            (rule.command in IMPORTS or rule.command in RISK_ENTRIES)
             and current_revision_id is None
             and "revisions.write" not in permissions
         ):
@@ -188,6 +216,16 @@ def commands_of(
             missing.append(ACTUAL_COST_MAPPING_COMPLETE)
         listed.append((rule.command, tuple(missing)))
     return listed
+
+
+def _declaration_lacks(running: Running) -> list[str]:
+    """Name what the declaration of a risk lacks, judged on the revision it would create.
+
+    A copy of the last marked revision, without a task if the project has none; the category of
+    provision is the installation's (WF-RIS-0010). The background task is named before them.
+    """
+    missing = [] if running.opening_has_main_task else [AT_LEAST_ONE_TASK]
+    return missing if running.provision_category_active else [*missing, ACTIVE_PROVISION_CATEGORY]
 
 
 def _skeleton_lacks(

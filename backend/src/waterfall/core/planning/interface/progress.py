@@ -40,9 +40,11 @@ it that their own line completed, and clears the day they were completed at (``_
 completion kept on their facet would be stale, and read by the next one (WF-PLA-0130, #2768); the
 history keeps them in the entry of the gesture, which undone completes them again at that day. The
 line is judged before the revision, in the order of its
-``remaining_entry``: ``task_not_completed`` — ``line_not_provision`` is never missing before EP-08
-—, then the phase of the project (``project_in_progress``), then ``revision_draft``,
-``project_not_terminal`` and ``no_background_task_running``.
+``remaining_entry``: ``task_not_completed``, then ``line_not_provision`` — a line of a category of
+provision, which the tree holds as the estimate tells it (``Tree.provisions``), never judged by the
+risk it came from (EP-08, "Ce qui reconnaît une ligne de provision"; #4378) —, then the phase of
+the project (``project_in_progress``), then ``revision_draft``, ``project_not_terminal`` and
+``no_background_task_running``.
 """
 
 from contextlib import ExitStack
@@ -93,6 +95,7 @@ if TYPE_CHECKING:
 SUMMARY_TASK_DERIVED = "SUMMARY_TASK_DERIVED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 TASK_NOT_COMPLETED = "task_not_completed"
+LINE_NOT_PROVISION = "line_not_provision"
 COMPLETION_DATE_REQUIRED = "COMPLETION_DATE_REQUIRED"
 COMPLETED_ON = "/completed_on"
 # The command of a structure a gesture on the state of a task is an entry of (WF-RAE-0040).
@@ -227,7 +230,7 @@ def progress_commands(
 def _missing_gesture(tree: Tree, node_id: UUID, target: str) -> str | None:
     """Name the first condition a gesture on a leaf lacks, as the card of the Kanban states it."""
     # A provision is written for information (WF-PLA-0050): it holds a task back from nothing.
-    bears = any(tree.nodes[each].origin_risk_id is None for each in tree.lines(node_id))
+    bears = bool(tree.own_lines(node_id))
     # ``ProgressEntry.progress`` is the contract's ``TaskProgress``, validated at the edge.
     found = _lacking(
         tree.tasks[node_id].progress,
@@ -385,18 +388,23 @@ def _bearer_of(tree: Tree, node_id: UUID) -> UUID:
     return node.parent_id
 
 
-def _judge_entry(session: Session, where: tuple[Place, bool], tree: Tree, task_id: UUID) -> None:
+def _judge_entry(session: Session, where: tuple[Place, bool], tree: Tree, node_id: UUID) -> None:
     """Refuse a re-estimate the line, then the phase of its project, forbid; the first named.
 
-    The lines of a completed task of the main structure are not re-estimated
-    (``task_not_completed``, WF-RAE-0040); a provision line never is (``line_not_provision``), none
-    before EP-08. Then the rule of ``edit_remaining``: the project in progress, on the main
-    structure. A terminal project is left to the judgement of its revision
-    (``project_not_terminal``).
+    ``node_id`` the line, refused when the structure holds no such line (404). The lines of a
+    completed task of the main structure are not re-estimated (``task_not_completed``,
+    WF-RAE-0040); a provision line never is (``line_not_provision``, WF-RIS-0010, WF-RAE-0010), on
+    any structure, as its reading says (``remaining_entry``; #4378): the tree holds the lines of a
+    category of provision as the estimate tells them (``Tree.provisions``). Then the rule of
+    ``edit_remaining``: the project in progress, on the main structure. A terminal project is left
+    to the judgement of its revision (``project_not_terminal``).
     """
     place, main = where
+    task_id = _bearer_of(tree, node_id)
     if main and state_of(tree, task_id).progress == COMPLETED:
         raise _refuse(TASK_NOT_COMPLETED)
+    if node_id in tree.provisions:
+        raise _refuse(LINE_NOT_PROVISION)
     state = project_facts(session, place.project_id).state
     if state in TERMINAL:
         return
@@ -480,7 +488,7 @@ def write_remaining(
     except ConflictError:
         main = facts_of(session, place, lock=False).is_main
         tree = read_tree(session, place.project_id, place.structure_id)
-        _judge_entry(session, (place, main), tree, _bearer_of(tree, node_id))
+        _judge_entry(session, (place, main), tree, node_id)
         raise
     with stack:
         tree, act = write.tree, writer.act
@@ -491,7 +499,7 @@ def write_remaining(
                 STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
             )
         main = write.facts.is_main
-        _judge_entry(session, (place, main), tree, task_id)
+        _judge_entry(session, (place, main), tree, node_id)
         before = taken(session, place.project_id, (node_id, task_id))
         bearer = bearing(session, place.project_id, tree, task_id, is_main=main)
         change.apply(FacetWrite(session, place.project_id, place.revision_id, node_id, bearer, act))
