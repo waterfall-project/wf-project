@@ -13,3 +13,14 @@ WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'waterfall_backup') \gexe
 ALTER ROLE waterfall_backup LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS
     PASSWORD :'backup_password';
 GRANT pg_read_all_data TO waterfall_backup;
+
+-- The large objects of the database of Keycloak (#4170): pg_read_all_data reads the tables, the
+-- views and the sequences, not the large objects, and a pg_dump of a database that holds one fails,
+-- the whole backup with it. Keycloak keeps some in a column of its own (cluster_event.event_data).
+-- The right is granted in that database, whose default privileges are its own: on the objects
+-- Keycloak creates from now on, and, at each start, on those it created before. The database exists
+-- by now: the platform creates it before this script (keycloak-database).
+\connect keycloak
+ALTER DEFAULT PRIVILEGES FOR ROLE keycloak GRANT SELECT ON LARGE OBJECTS TO waterfall_backup;
+SELECT format('GRANT SELECT ON LARGE OBJECT %s TO waterfall_backup', oid)
+FROM pg_largeobject_metadata \gexec

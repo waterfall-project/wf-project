@@ -330,6 +330,7 @@ services:
     restart: "no"
     depends_on:
       waterfall-database: *done
+      keycloak-database: *done
 
   # The database of Keycloak on the same server, with its role, created when missing.
   keycloak-database:
