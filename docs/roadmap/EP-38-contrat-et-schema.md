@@ -97,6 +97,16 @@ Reporté d'EP-08 le 2026-11-21 (décision de l'auteur) :
 - #4646 — des lignes de descriptions de `docs/api/components/common.yaml` dépassent 100 colonnes —
   détaché de #4367 ; à recouper avec les descriptions de #4467
 
+Issues ouvertes, reportées d'EP-08 le 2026-11-22 :
+
+- #3746 — contrat : deux compositions ambiguës dans des corps de requête
+  (`ProjectExit.current_revision`, `CurrentRevisionFate`) ; la sonde les garde dans
+  `KNOWN_AMBIGUOUS`
+- #4322 — contrat : l'avatar d'un compte n'a pas de version, et le contributeur ne porte pas
+  `has_avatar` (bloque #4323, EP-37)
+- #4669 — contrat : le refus du redatage d'une base nomme une tâche que le différentiel a supprimée
+  par son libellé, nœud nul (documentation seule)
+
 ## Conception
 
 À écrire au cadrage.
