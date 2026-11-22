@@ -594,3 +594,77 @@ def test_an_occurrence_only_moves_a_line_the_own_estimate_only_moves(project: Co
         parent = session.scalar(select(Node.parent_id).where(Node.id == after.node_id))
     assert parent == task(project, CONTROL).node_id
     assert found.refusals == ()
+
+
+def test_an_occurrence_keeps_the_reason_of_a_line_it_designates_already_re_estimated(
+    project: Costed,
+) -> None:
+    # « Plans » was re-estimated with a reason; the occurrence prices it again and keeps the reason.
+    risk = risk_differential(project)
+    in_main(project, MODIFIED[0], reestimated_at=utc_now(), remaining_reason="Plans à refaire")
+    applied(risk)
+    marked, _ = line(project, MODIFIED[0])
+    assert marked.reestimated_amount == MODIFIED[2]
+    assert marked.remaining_reason == "Plans à refaire"
+
+
+def test_an_occurrence_gives_a_line_that_becomes_labour_the_figures_of_its_source(
+    project: Costed,
+) -> None:
+    # « Plans » of material becomes labour in the own estimate: it takes the hours of its source
+    # and loses its unit disbursement.
+    risk = risk_differential(project)
+    with project.stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.node_id == risk.nodes[MODIFIED[0]])
+            .values(
+                cost_category_id=project.costs.labour,
+                resource_role_id=project.costs.role,
+                quantity=Decimal(2),
+                hours=Decimal(10),
+                unit_disbursement=None,
+            )
+        )
+    found, _ = applied(risk)
+    assert found.refusals == ()
+    labour, _ = line(project, MODIFIED[0])
+    assert labour.cost_category_id == project.costs.labour
+    assert (labour.quantity, labour.hours, labour.unit_disbursement) == (
+        Decimal(2),
+        Decimal(10),
+        None,
+    )
+
+
+def test_an_occurrence_gives_a_line_that_becomes_material_the_figures_of_its_source(
+    project: Costed,
+) -> None:
+    # « Plans » of labour in the main structure becomes material in the own estimate: it takes the
+    # unit disbursement of its source and loses its hours.
+    risk = risk_differential(project)
+    # The line of labour in the main structure and in the base of the own estimate, which keeps
+    # the material of its modification.
+    structures = [project.structure_id, risk.base_id]
+    nodes = select(Node.id).where(Node.structure_id.in_(structures))
+    with project.stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.label == MODIFIED[0], EstimateLine.node_id.in_(nodes))
+            .values(
+                cost_category_id=project.costs.labour,
+                resource_role_id=project.costs.role,
+                quantity=Decimal(2),
+                hours=Decimal(10),
+                unit_disbursement=None,
+            )
+        )
+    found, _ = applied(risk)
+    assert found.refusals == ()
+    stuff, _ = line(project, MODIFIED[0])
+    assert stuff.cost_category_id == project.costs.material
+    assert (stuff.hours, stuff.unit_disbursement, stuff.resource_role_id) == (
+        None,
+        MODIFIED[2],
+        None,
+    )

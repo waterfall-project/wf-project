@@ -188,7 +188,9 @@ def _current(
     reference and its budgeted amount kept — a line that read its budget from its re-estimated
     amount, the project having no reference yet, has it written first, as ``_zeroed`` does. The
     write is counted: ``reestimate`` counts the line it writes, a line it does not price is counted
-    here.
+    here. The reason of a line already re-estimated is kept; the hours and the unit disbursement are
+    the source's, so that a line that changes from labour to disbursement, or back, loses the column
+    it no longer has.
     """
     for name, column in OWN:
         if name in line.fields:
@@ -198,6 +200,10 @@ def _current(
         return
     if row.budgeted_amount is None:
         row.budgeted_amount = row.reestimated_amount
+    # Its hours and its unit disbursement as the source has them, the column it does not have
+    # null, written with its category and its role: ``reestimate`` cannot change the kind of a line,
+    # and a flush between the two would break the constraints that tie them (#4591).
+    row.hours, row.unit_disbursement = source.hours, source.unit_disbursement
     # The figures the line takes, as the source has them: a labour line has its hours, a line that
     # is not its unit disbursement (``FIELD_NOT_ACCEPTED`` otherwise), both their quantity.
     sent = {"quantity"}
@@ -214,7 +220,7 @@ def _current(
     write = FacetWrite(
         merging.session, merging.project_id, merging.revision_id, row.node_id, bearer, merging.act
     )
-    reestimate(write, entry, None)
+    reestimate(write, entry, row.remaining_reason)
 
 
 def _zeroed(row: EstimateLine, merging: StructureMerging, bearer: BearingTask) -> None:
