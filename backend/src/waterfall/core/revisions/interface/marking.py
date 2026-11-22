@@ -402,6 +402,12 @@ def compute_indicators(session: Session, revision_id: UUID, act: Act) -> None:
 def load_marking(
     session: Session, revision_id: UUID, version_name: str, description: str | None, act: Act
 ) -> None:
-    """Mark a revision of the witness, at the instant it imposes, as the worker marks it."""
-    _before(session, found_revision(session, revision_id, lock=True), act)
+    """Mark a revision of the witness, at the instant it imposes, as the worker marks it.
+
+    The revision locked, then its project, as ``run_marking`` locks them: what is done before the
+    marking is told under the same locks.
+    """
+    revision = found_revision(session, revision_id, lock=True)
+    lock_project(session, revision.project_id)
+    _before(session, revision, act)
     mark_revision(session, revision_id, version_name, description, act)

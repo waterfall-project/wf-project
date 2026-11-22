@@ -3,10 +3,11 @@
 """How the registries of the own estimates act (EP-30, US-3070/L1).
 
 Details of the realization which reprise no Vérif: the parts of a recomposition and of a pruning run
-stage by stage whatever the order of their registration; what is done before a marking, by the
-worker's transaction, and before the merge of an amendment, by the worker, sees the revision still
-current and stops it, nothing written, when it refuses; the mode of a merge is the amendment's
-unless one is asked; the state of an own estimate read from its row.
+stage by stage whatever the order of their registration; what is done before a marking — by the
+task ``revision_mark`` the worker runs, and by the loader of the witness —, and before the merge of
+an amendment by the worker, sees the revision the task marks still current — for a merge without a
+current revision, the one it opens — and stops the task, nothing written, when it refuses; the mode
+of a merge is the amendment's unless one is asked; the state of an own estimate read from its row.
 """
 
 from contextlib import ExitStack
@@ -15,8 +16,20 @@ from uuid import UUID, uuid4
 
 import pytest
 from amendments_support import opened_amendment
-from merges_support import client, costed_project, merged, merging_worker
-from sqlalchemy import select
+from merges_support import (
+    AT_ONCE,
+    client,
+    copy_of,
+    costed_project,
+    merged,
+    project_of,
+    revision_of,
+    structure_row,
+    task_of,
+)
+from nodes_support import mark
+from projects_support import PROJECTS
+from sqlalchemy import func, select
 
 from waterfall.core.revisions.interface import (
     AMENDMENT_MERGE,
@@ -42,6 +55,9 @@ from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 from waterfall.platform.logs import logging_context
+from waterfall.worker.marking import mark as mark_task
+from waterfall.worker.merge import merge
+from waterfall.worker.runner import Worker
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -57,7 +73,6 @@ if TYPE_CHECKING:
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
     from waterfall.platform.settings import ServiceSettings
-    from waterfall.worker.runner import Worker
 
 
 @pytest.fixture
@@ -74,8 +89,10 @@ def api(
 
 @pytest.fixture
 def worker(database: Database, queue: TaskQueue) -> Worker:
-    """Give a worker on the queue of the test that runs the merges."""
-    return merging_worker(database, queue)
+    """Give a worker on the queue of the test that runs the markings and the merges."""
+    queue.prepare()
+    tasks = {"structure_merge": merge, "revision_mark": mark_task}
+    return Worker(database, queue, tasks, "worker", AT_ONCE)
 
 
 @pytest.fixture
@@ -167,28 +184,81 @@ def _status(session: Session, revision_id: UUID) -> str | None:
     return session.scalar(select(Revision.status).where(Revision.id == revision_id))
 
 
-def _told(before: BeforeMarking) -> tuple[UUID, UUID | None, str | None]:
-    """Give what a module is told before a marking: the revision, the amendment, its status."""
-    return before.revision_id, before.merged, _status(before.session, before.revision_id)
+# What a module is told before a marking: the project, the revision, the amendment merged, and the
+# status of the revision as the transaction of the task reads it.
+type Told = tuple[UUID, UUID, UUID | None, str | None]
 
 
-def test_what_is_done_before_a_marking_sees_the_revision_current_and_its_refusal_stops_it(
-    project: Costed,
-) -> None:
-    # The modules registered are told before the marking writes, the revision still current; one
-    # that refuses fails the marking, the revision left current. Without it, the marking marks.
-    told: list[tuple[UUID, UUID | None, str | None]] = []
+def _noting(told: list[Told]) -> Callable[[BeforeMarking], None]:
+    """Give a module that notes what it is told before a marking."""
 
     def update(before: BeforeMarking) -> None:
-        told.append(_told(before))
+        status = _status(before.session, before.revision_id)
+        told.append((before.project_id, before.revision_id, before.merged, status))
 
-    def refuse(_: BeforeMarking) -> None:
-        raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": "risk_up_to_date"})
+    return update
 
+
+def _refuse(_: BeforeMarking) -> None:
+    raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": "risk_up_to_date"})
+
+
+def _mark_asked(api: ContractClient, project: Costed) -> Any:
+    """Ask the marking of the current revision, as its manager does; give the answer."""
+    revision = revision_of(api, project, project.revision_id)
+    path = f"{PROJECTS}/{project.project_id}/revisions/{project.revision_id}/mark"
+    sent = {"version_name": "v1.0", "lock_version": revision["lock_version"]}
+    return api.post(path, headers=project.stage.manager.headers, json=sent)
+
+
+def _revisions_counted(project: Costed) -> int | None:
+    with project.stage.database.transaction() as session:
+        return session.scalar(
+            select(func.count())
+            .select_from(Revision)
+            .where(Revision.project_id == project.project_id)
+        )
+
+
+def test_the_task_of_a_marking_tells_what_is_done_before_it_the_revision_still_current(
+    api: ContractClient, project: Costed, worker: Worker
+) -> None:
+    # The worker, running the task ``revision_mark``, tells the modules registered before the
+    # marking writes, the revision still current, no amendment named; then it marks.
+    told: list[Told] = []
+    with ExitStack() as registered:
+        registered.callback(register_before_marking(_noting(told)))
+        answer = _mark_asked(api, project)
+        assert worker.step()
+    assert task_of(api, project, answer)["status"] == "succeeded"
+    assert told == [(project.project_id, project.revision_id, None, "draft")]
+    assert revision_of(api, project, project.revision_id)["status"] == "marked"
+
+
+def test_a_refusal_before_the_task_of_a_marking_fails_it_with_its_code_the_revision_current(
+    api: ContractClient, project: Costed, worker: Worker
+) -> None:
+    # A module that refuses fails the task with its code: the revision stays current.
+    with ExitStack() as registered:
+        registered.callback(register_before_marking(_refuse))
+        answer = _mark_asked(api, project)
+        assert worker.step()
+    task = task_of(api, project, answer)
+    assert (task["status"], task["problem"]["code"]) == ("failed", STATE_FORBIDS_OPERATION)
+    assert revision_of(api, project, project.revision_id)["status"] == "draft"
+
+
+def test_what_is_done_before_a_marking_of_the_witness_sees_the_revision_current_and_stops_it(
+    project: Costed,
+) -> None:
+    # The loader of the witness marks as the worker does: the modules registered are told before
+    # the marking writes, the revision still current; one that refuses fails the marking, the
+    # revision left current. Without it, the marking marks.
+    told: list[Told] = []
     revision_id, database = project.revision_id, project.stage.database
     with ExitStack() as registered:
-        registered.callback(register_before_marking(update))
-        withdraw = register_before_marking(refuse)
+        registered.callback(register_before_marking(_noting(told)))
+        withdraw = register_before_marking(_refuse)
         registered.callback(withdraw)
         with pytest.raises(ConflictError), database.transaction() as session:
             load_marking(session, revision_id, "v1.0", None, Act(None, utc_now()))
@@ -196,7 +266,7 @@ def test_what_is_done_before_a_marking_sees_the_revision_current_and_its_refusal
         with logging_context(correlation_id="marking"), database.transaction() as session:
             assert _status(session, revision_id) == "draft"
             load_marking(session, revision_id, "v1.0", None, Act(None, utc_now()))
-    assert told == [(revision_id, None, "draft")] * 2
+    assert told == [(project.project_id, revision_id, None, "draft")] * 2
     with database.transaction() as session:
         assert _status(session, revision_id) == "marked"
 
@@ -207,16 +277,65 @@ def test_what_is_done_before_a_marking_is_done_before_the_merge_of_an_amendment(
     # The worker tells the modules registered before the merge writes anything, the revision still
     # current, the amendment named; the merge then marks the revision.
     amendment = UUID(opened_amendment(api, project))
-    told: list[tuple[UUID, UUID | None, str | None]] = []
-
-    def update(before: BeforeMarking) -> None:
-        told.append(_told(before))
-
+    told: list[Told] = []
     with ExitStack() as registered:
-        registered.callback(register_before_marking(update))
+        registered.callback(register_before_marking(_noting(told)))
         task = merged(api, project, worker, amendment)
     assert task["status"] == "succeeded", task
-    assert told == [(project.revision_id, amendment, "draft")]
+    assert told == [(project.project_id, project.revision_id, amendment, "draft")]
+
+
+def test_a_refusal_before_the_merge_of_an_amendment_fails_it_and_writes_nothing(
+    api: ContractClient, project: Costed, worker: Worker
+) -> None:
+    # Refused before the merge writes: the task fails with its code, the revision stays current,
+    # the differential unmerged at its counter.
+    amendment = UUID(opened_amendment(api, project))
+    counter = structure_row(project, amendment).lock_version
+    with ExitStack() as registered:
+        registered.callback(register_before_marking(_refuse))
+        task = merged(api, project, worker, amendment)
+    assert (task["status"], task["problem"]["code"]) == ("failed", STATE_FORBIDS_OPERATION)
+    assert revision_of(api, project, project.revision_id)["status"] == "draft"
+    row = structure_row(project, amendment)
+    assert (row.is_merged, row.lock_version) == (False, counter)
+
+
+def test_without_a_current_revision_what_is_done_before_the_merge_sees_the_revision_it_opens(
+    api: ContractClient, project: Costed, worker: Worker
+) -> None:
+    # « Lorsque le projet ne comporte pas de révision en cours, elle en crée une au préalable »
+    # (WF-REV-0100): the own estimates to update are those of the revision the merge creates, told
+    # once it is opened — current, the copy of the differential named —, not the revision marked.
+    amendment = opened_amendment(api, project)
+    mark(project.stage, {"revision_id": str(project.revision_id)})
+    told: list[Told] = []
+    with ExitStack() as registered:
+        registered.callback(register_before_marking(_noting(told)))
+        task = merged(api, project, worker, amendment, name="Avenant 1")
+    assert task["status"] == "succeeded", task
+    created = UUID(project_of(api, project)["reference_revision_id"])
+    assert created != project.revision_id
+    assert told == [(project.project_id, created, copy_of(project, amendment, created), "draft")]
+
+
+def test_without_a_current_revision_a_refusal_before_the_merge_leaves_no_revision_created(
+    api: ContractClient, project: Costed, worker: Worker
+) -> None:
+    # Refused once the revision is opened, before the merge writes: the transaction leaves nothing,
+    # neither the revision opened nor a merge.
+    amendment = opened_amendment(api, project)
+    mark(project.stage, {"revision_id": str(project.revision_id)})
+    counted = _revisions_counted(project)
+    reference = project_of(api, project)["reference_revision_id"]
+    with ExitStack() as registered:
+        registered.callback(register_before_marking(_refuse))
+        task = merged(api, project, worker, amendment)
+    assert (task["status"], task["problem"]["code"]) == ("failed", STATE_FORBIDS_OPERATION)
+    assert _revisions_counted(project) == counted
+    read = project_of(api, project)
+    assert (read["current_revision_id"], read["reference_revision_id"]) == (None, reference)
+    assert structure_row(project, amendment).is_merged is False
 
 
 def test_the_abandonments_written_are_read_back_nodes_then_links(project: Costed) -> None:

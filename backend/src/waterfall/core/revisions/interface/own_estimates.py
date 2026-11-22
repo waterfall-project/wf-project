@@ -32,9 +32,11 @@ Three registries, filled by the modules above, which this one does not import (E
   ancestors and the ends of its links — and what it abandons (``OwnEstimatePruning.abandoned``);
   then ``pruned``, where the rest of the structure and the base are deleted.
 - ``register_before_marking``: what a module does before a marking, or the merge of an amendment,
-  writes anything — the risks update their own estimates, or refuse —; called by the worker in the
-  transaction of the task, under the lock of the revision and of the project, the revision judged
-  current. A refusal fails the task, nothing written.
+  writes anything — the risks update their own estimates, or refuse —; called in the transaction of
+  the task (the worker's, or the loader's of the witness), the project locked and the revision
+  current: the one marked, locked before its project; or, for a merge, the current revision it is
+  asked on, locked before its project, or the one it has just opened when the project had none,
+  which no other transaction sees. A refusal fails the task, nothing written.
 
 ``compose_parts`` and ``prune_parts`` run the parts registered; the recomposition and the pruning
 themselves, which frame them, are the stories' that serve them (US-3070). Declared by US-3070/L1,
@@ -372,9 +374,11 @@ def prune_parts(pruning: OwnEstimatePruning) -> tuple[Abandonment, ...]:
 class BeforeMarking:
     """A marking, or the merge of an amendment, about to write, in the transaction of its task.
 
-    ``revision_id`` the current revision being marked, or the one the merge is asked on;
-    ``merged`` the amendment merged, none for a marking. The revision and the project are locked,
-    the revision judged current.
+    ``revision_id`` the current revision the marking or the merge marks: the one marked, or the
+    one the merge is asked on, both locked before the project; for a merge without a current
+    revision, the one it has just opened, which no other transaction sees. ``merged`` the
+    amendment merged in that revision (the copy of the differential, for a revision opened), none
+    for a marking. The project is locked.
     """
 
     session: Session
