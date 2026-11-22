@@ -16,12 +16,21 @@ that started the process:
 - a name of the module that a function declares ``global`` and assigns;
 - a function decorated with ``cache`` or ``lru_cache``, which keeps its answers;
 - an attribute of a class of the module assigned through ``cls`` or the name of the class in a
-  function, or a mutable container of the body of the class that a function changes through them.
+  function, or a mutable container of the body of the class that a function changes through them;
+- an instance of a class of the same module held by a name of the module (``X = M()``), when a
+  method other than ``__init__`` assigns an attribute of ``self``: it keeps for the life of the
+  process what it was given after the start (``ProcessTimeZone``).
+
+``Counter`` is the one of ``collections``, whether it is imported by name or reached through the
+module: the ``Counter`` of ``prometheus_client`` is a metric.
 
 A name bound again in the function (a parameter, a local) is not the state. What it does not see:
-an attribute of an instance (``self.x``) — a service kept for the life of the process is built by
-the modules above, and its attributes are read from the settings or the database —, a state
-reached by an alias, by ``getattr``, or held by a library; the review reads those.
+an attribute of an instance that no name of the module holds (a service built at the start has its
+attributes read from the settings or the database), an instance of a class of another module,
+``os.environ[...] =``, ``setattr(module, …)``, an alias of import (``import x as m``), a container
+returned by a factory of the package, a state reached by an alias or by ``getattr`` or held by a
+library, and a ``ContextVar`` — which is sound, as it holds a value per context. The review reads
+those.
 
 A state is named ``path:name`` (``path:Class.attribute`` for a class), the path being that of the
 module under ``waterfall``.
@@ -34,7 +43,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
 
-CONTAINERS = {"list", "dict", "set", "deque", "defaultdict", "OrderedDict", "Counter", "bytearray"}
+CONTAINERS = {"list", "dict", "set", "deque", "defaultdict", "OrderedDict", "bytearray"}
 CHANGERS = {
     "append",
     "extend",
@@ -51,6 +60,9 @@ CHANGERS = {
     "reverse",
     "register",
     "appendleft",
+    "popleft",
+    "extendleft",
+    "rotate",
 }
 CACHES = {"cache", "lru_cache"}
 
@@ -67,11 +79,25 @@ def _called(node: ast.expr) -> str | None:
     return function.id if isinstance(function, ast.Name) else getattr(function, "attr", None)
 
 
-def _is_container(value: ast.expr | None) -> bool:
+def _is_container(value: ast.expr | None, *, counter: bool = False) -> bool:
     if isinstance(value, ast.List | ast.Dict | ast.Set | ast.ListComp | ast.DictComp | ast.SetComp):
         return True
     called = _called(value) if value is not None else None
-    return called is not None and (called in CONTAINERS or called.endswith("Registry"))
+    if called is None:
+        return False
+    if called == "Counter":
+        # Only ``collections.Counter``: ``counter`` says the module imports it by name.
+        function = value.func if isinstance(value, ast.Call) else None
+        return counter if isinstance(function, ast.Name) else _through_collections(function)
+    return called in CONTAINERS or called.endswith("Registry")
+
+
+def _through_collections(function: ast.expr | None) -> bool:
+    return (
+        isinstance(function, ast.Attribute)
+        and isinstance(function.value, ast.Name)
+        and function.value.id == "collections"
+    )
 
 
 def _target_names(statement: ast.stmt) -> list[tuple[str, ast.expr | None]]:
@@ -109,23 +135,25 @@ def _imports(tree: ast.Module, path: str) -> dict[str, tuple[str, str]]:
 
 def _module(path: str, source: str) -> Module:
     tree = ast.parse(source)
+    imports = _imports(tree, path)
+    counter = imports.get("Counter") == ("collections", "Counter")
     containers = {
         name
         for statement in tree.body
         for name, value in _target_names(statement)
-        if _is_container(value)
+        if _is_container(value, counter=counter)
     }
     classes = {
         node.name: frozenset(
             name
             for statement in node.body
             for name, value in _target_names(statement)
-            if _is_container(value)
+            if _is_container(value, counter=counter)
         )
         for node in tree.body
         if isinstance(node, ast.ClassDef)
     }
-    return Module(path, tree, frozenset(containers), _imports(tree, path), classes)
+    return Module(path, tree, frozenset(containers), imports, classes)
 
 
 def _functions(tree: ast.AST) -> Iterator[ast.FunctionDef | ast.AsyncFunctionDef]:
@@ -202,7 +230,37 @@ def _found_in(module: Module, by_name: Mapping[str, Module]) -> set[str]:
         for target in _changed(function):
             found |= _state_of(module, by_name, target, bound)
         found |= _class_attributes(module, function)
-    return found
+    return found | _instances(module)
+
+
+def _instances(module: Module) -> set[str]:
+    """Give the names of the module that hold an instance of a class of it that writes itself."""
+    writers = {
+        node.name
+        for node in module.tree.body
+        if isinstance(node, ast.ClassDef) and _writes_itself(node)
+    }
+    return {
+        f"{module.path}:{name}"
+        for statement in module.tree.body
+        for name, value in _target_names(statement)
+        if isinstance(value, ast.Call)
+        and isinstance(value.func, ast.Name)
+        and value.func.id in writers
+    }
+
+
+def _writes_itself(node: ast.ClassDef) -> bool:
+    """Tell whether a method other than ``__init__`` assigns an attribute of ``self``."""
+    for method in _functions(node):
+        if method.name == "__init__":
+            continue
+        for inner in ast.walk(method):
+            if isinstance(inner, ast.Assign | ast.AugAssign | ast.AnnAssign):
+                targets = inner.targets if isinstance(inner, ast.Assign) else [inner.target]
+                if any((_dotted(target) or ("", ""))[0] == "self" for target in targets):
+                    return True
+    return False
 
 
 def _called_decorator(decorator: ast.expr) -> str | None:

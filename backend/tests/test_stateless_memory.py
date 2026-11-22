@@ -19,7 +19,7 @@ from memory_states import states
 
 SOURCE = Path(__file__).resolve().parents[1] / "src" / "waterfall"
 
-pytestmark = pytest.mark.story("US-2850")
+pytestmark = [pytest.mark.requirement("WF-ARC-0080-A"), pytest.mark.story("US-2850")]
 
 REGISTRY = (
     "filled when its module is imported, by the interface of the module above, and the same in "
@@ -59,6 +59,11 @@ DECLARED = {
     "processes: added to when a registry is created at an import, and read by no request",
     "platform/settings.py:_time_zones": "the names of the IANA database, read once from the "
     "system: the same in every process of an image",
+    "platform/installation.py:TIME_ZONE": "the time zone of the installation, read once from the "
+    "database by the first request that needs it and kept: the bootstrap fixes it and nothing "
+    "changes it. Its limit: a restoration replaces the database without restarting the processes "
+    "(#4088), so a process that has read the zone keeps it after the restoration of a backup of an "
+    "installation in another time zone, until it restarts",
     "witness/revisions.py:_FILLERS": REGISTRY,
 }
 FAKE = "fake/module.py"
@@ -115,6 +120,16 @@ def test_a_declaration_that_matches_no_state_fails_the_control() -> None:
             {"A.latest"},
         ),
         ("class A:\n    seen = []\ndef on(x):\n    A.seen.append(x)\n", {"A.seen"}),
+        (
+            (
+                "class M:\n def __init__(self):\n  self._v = None\n"
+                " def get(self):\n  self._v = 1\nX = M()\n"
+            ),
+            {"X"},
+        ),
+        ("from collections import deque\n_Q = deque()\ndef take():\n    _Q.popleft()\n", {"_Q"}),
+        ("import collections\n_N = collections.Counter()\ndef on(k):\n    _N.update(k)\n", {"_N"}),
+        ("from collections import Counter\n_N = Counter()\ndef on(k):\n    _N.update(k)\n", {"_N"}),
     ],
     ids=[
         "list",
@@ -125,6 +140,10 @@ def test_a_declaration_that_matches_no_state_fails_the_control() -> None:
         "lru_cache",
         "cls",
         "class-container",
+        "instance-written-after-init",
+        "popleft",
+        "collections-counter",
+        "counter-by-name",
     ],
 )
 def test_the_control_sees_each_form_of_state_it_counts(source: str, expected: set[str]) -> None:
@@ -137,9 +156,11 @@ def test_the_control_sees_each_form_of_state_it_counts(source: str, expected: se
         "_NAMES = ['a']\ndef read():\n    return list(_NAMES)\n",
         "_NAMES = []\ndef build():\n    _NAMES = []\n    _NAMES.append(1)\n    return _NAMES\n",
         "def build(seen):\n    seen.append(1)\n    return seen\n",
+        "class M:\n def __init__(self):\n  self._v = None\nX = M()\n",
+        "from prometheus_client import Counter\n_N = Counter('a')\ndef on():\n    _N.update(1)\n",
         "LIMIT = 3\ndef read():\n    return LIMIT\n",
     ],
-    ids=["read-only", "shadowed", "parameter", "constant"],
+    ids=["read-only", "shadowed", "parameter", "init-only-instance", "metric-counter", "constant"],
 )
 def test_the_control_ignores_what_a_function_only_reads_or_builds_locally(source: str) -> None:
     assert states({FAKE: source}) == set()

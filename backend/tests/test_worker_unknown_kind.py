@@ -17,6 +17,7 @@ from task_handlers import REQUEST, Runs, deposit, task
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.settings import WorkerSettings
 from waterfall.platform.tasks import BackgroundTask
+from waterfall.restore.runner import Restorer
 from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
@@ -104,6 +105,22 @@ def test_a_task_of_an_unknown_kind_fails_once_its_wait_is_spent_since_its_deposi
         assert said["reason"] == "kind_unhandled"
         assert ended.problem is not None
         assert ended.problem["code"] == "INTERNAL_ERROR"
+
+
+def test_a_restorer_leaves_a_task_of_another_kind_that_reaches_its_stream_and_waits_an_hour(
+    database: Database, queue: TaskQueue
+) -> None:
+    # The stream of the restorations carries nothing but restorations: the branch of the restorer
+    # for a task that waits is reached by a task of another kind put in it by hand. It also shows
+    # that the restorer keeps the default timing of a worker.
+    restorer = Restorer(database, queue, Runs(), "restorer-test")
+    restorer.queue.prepare()
+    assert restorer.timing == Timing()
+    task_id = deposit(database, restorer.queue)
+    assert restorer.step()
+    left = task(database, task_id)
+    assert (left.status, left.attempts, left.problem) == ("queued", 0, None)
+    assert restorer.queue.waiting() == {task_id}
 
 
 def test_the_wait_is_a_setting_of_the_worker_shipped_at_an_hour() -> None:
