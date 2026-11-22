@@ -151,6 +151,7 @@ describe("the Gantt of the planning", () => {
     const conflict = {
       predecessor_node_id: review.node_id,
       successor_node_id: desks.node_id,
+      manual_node_id: desks.node_id,
       link_type: "finish_to_start" as const,
     };
     renderPlanning("fr", {
