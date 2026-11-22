@@ -169,7 +169,9 @@ def _at_structures(
             if prefix + path not in paths:
                 continue
             address = path.replace("{structure_id}", structure)
-            served[prefix + address] = _at_a_literal(paths[prefix + path], STRUCTURE_PARAMETER, example)
+            served[prefix + address] = _at_a_literal(
+                paths[prefix + path], STRUCTURE_PARAMETER, example
+            )
     return served
 
 

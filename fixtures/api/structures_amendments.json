@@ -1,5 +1,5 @@
 {
-  "summary": "Les structures de la révision de référence : la principale, l'avenant 1, dont la fusion l'a produite, l'avenant 2, qui coexiste et n'est pas fusionné, et le devis propre de chacun des trois risques de `risks` — la reprise du câblage, le retard de livraison des armoires et l'indisponibilité de l'automaticien (WF-REV-0100, WF-RIS-0030). La révision étant marquée, aucune ne se saisit (`revision_draft`), et l'avenant 2, seul non fusionné, ne s'abandonne pas (`delete`) ni ne se met à jour (`rebase`) ; ouvert avant la fusion de l'avenant 1, qui a écrit la structure principale, l'avenant 2 est en retard (`is_up_to_date` faux) : sa base n'est plus la principale telle qu'elle est, et il ne se fusionne qu'une fois mis à jour, dans la révision courante qui le reprend en retard (#4034) ; les devis propres des trois risques, identifiés au 1er février, sont entiers et en retard de même : la tâche de fond de la fusion les a mis à jour avant d'écrire la structure principale, qu'elle a écrite ensuite, et une révision qu'un avenant marque les garde entiers (`is_pruned` faux), sans les élaguer ; leur mise à jour (`rebase`) attend la révision courante (WF-RIS-0070, WF-RIS-0030) — l'état est nul pour les autres structures, l'avenant 1, fusionné, compris, et `is_pruned` nul hors des devis propres ; un devis propre a la date de début de la structure principale ; le devis de la principale manque aussi de `project_before_in_progress`, le projet étant En cours, et seule la principale liste le reste à engager (WF-DAT-0020, WF-DEV-0050, WF-RAE-0040).",
+  "summary": "Les structures de la révision de référence : la principale, l'avenant 1, dont la fusion l'a produite, l'avenant 2, qui coexiste et n'est pas fusionné, et le devis propre de chacun des trois risques de `risks` — la reprise du câblage, le retard de livraison des armoires et l'indisponibilité de l'automaticien (WF-REV-0100, WF-RIS-0030). La révision étant marquée, aucune ne se saisit (`revision_draft`), et l'avenant 2, seul non fusionné, ne s'abandonne pas (`delete`) ni ne se met à jour (`rebase`) ; ouvert avant la fusion de l'avenant 1, qui a écrit la structure principale, l'avenant 2 est en retard (`is_up_to_date` faux) : sa base n'est plus la principale telle qu'elle est, et il ne se fusionne qu'une fois mis à jour, dans la révision courante qui le reprend en retard (#4034) ; les devis propres des trois risques, identifiés au 1er février, sont entiers et en retard de même : la tâche de fond de la fusion les a mis à jour avant d'écrire la structure principale, qu'elle a écrite ensuite, et une révision qu'un avenant marque les garde entiers (`is_pruned` faux), sans les élaguer ; leur saisie manque aussi de leur mise à jour (`own_estimate_up_to_date`), et celle-ci (`rebase`) attend la révision courante (WF-RIS-0070, WF-RIS-0030) — l'état est nul pour les autres structures, l'avenant 1, fusionné, compris, et `is_pruned` nul hors des devis propres ; un devis propre a la date de début de la structure principale ; le devis de la principale manque aussi de `project_before_in_progress`, le projet étant En cours, et seule la principale liste le reste à engager (WF-DAT-0020, WF-DEV-0050, WF-RAE-0040).",
   "value": [
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000211",
@@ -119,14 +119,16 @@
           "command": "edit_planning",
           "is_available": false,
           "missing_conditions": [
-            "revision_draft"
+            "revision_draft",
+            "own_estimate_up_to_date"
           ]
         },
         {
           "command": "edit_estimate",
           "is_available": false,
           "missing_conditions": [
-            "revision_draft"
+            "revision_draft",
+            "own_estimate_up_to_date"
           ]
         },
         {
@@ -154,14 +156,16 @@
           "command": "edit_planning",
           "is_available": false,
           "missing_conditions": [
-            "revision_draft"
+            "revision_draft",
+            "own_estimate_up_to_date"
           ]
         },
         {
           "command": "edit_estimate",
           "is_available": false,
           "missing_conditions": [
-            "revision_draft"
+            "revision_draft",
+            "own_estimate_up_to_date"
           ]
         },
         {
@@ -189,14 +193,16 @@
           "command": "edit_planning",
           "is_available": false,
           "missing_conditions": [
-            "revision_draft"
+            "revision_draft",
+            "own_estimate_up_to_date"
           ]
         },
         {
           "command": "edit_estimate",
           "is_available": false,
           "missing_conditions": [
-            "revision_draft"
+            "revision_draft",
+            "own_estimate_up_to_date"
           ]
         },
         {

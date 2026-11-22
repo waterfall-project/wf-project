@@ -1,5 +1,5 @@
 {
-  "summary": "Variante déclarée : la révision courante 102 marquée aujourd'hui, le devis propre de « Risque de reprise du câblage », entier et à jour, élagué par le marquage (nodes_risk_estimate_pruned). Sa recomposition demandée sur cette révision marquée, qui ne se modifie plus : refusée par la condition qui manque, revision_draft ; c'est la révision suivante qui le recompose. Rien n'est écrit (WF-DAT-0020, WF-RIS-0030, #4585).",
+  "summary": "Variante contrefactuelle : la révision courante 102 marquée aujourd'hui, le devis propre de « Risque de reprise du câblage », entier et à jour, élagué par le marquage (nodes_risk_estimate_pruned). Sa recomposition demandée sur cette révision marquée, qui ne se modifie plus : refusée par la condition qui manque, revision_draft ; c'est la révision suivante qui le recompose. Rien n'est écrit (WF-DAT-0020, WF-RIS-0030, #4585).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "code": "STATE_FORBIDS_OPERATION",

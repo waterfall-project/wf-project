@@ -50,6 +50,7 @@ from typing import TYPE_CHECKING, cast
 from wftools import mockamendment, mockcore, mockdiff, mockrebase, mocktext
 from wftools.mockcorrelations import correlation
 from wftools.mockids import OWN_ESTIMATE_NODES, identifier, universe
+from wftools.mocknonworking import CREATED_LABEL, CREATED_MANUAL
 from wftools.mockstructure import described, money
 from wftools.mockwitness import (
     GENERATED,
@@ -167,7 +168,7 @@ def designated(rework: Decimal) -> tuple[Task, ...]:
 
 
 def rows(roots: Iterable[Task]) -> list[mockcore.Row]:
-    """Return a structure read today as an own estimate reads it, its lines of a completed task open."""
+    """Return a structure read today as an own estimate reads it: a completed task's lines open."""
     return mockcore.opened(mockcore.current(roots))
 
 
@@ -295,7 +296,10 @@ def pruned_nodes() -> list[JsonObject]:
             node["difference"], node["changes"] = mockdiff.UNCHANGED, []
         if "predecessors" in node:
             node["predecessors"] = [
-                {**link, "predecessor_row_number": rows_of[cast("str", link["predecessor_node_id"])]}
+                {
+                    **link,
+                    "predecessor_row_number": rows_of[link["predecessor_node_id"]],
+                }
                 for link in cast("list[JsonObject]", node["predecessors"])
                 if link["predecessor_node_id"] in rows_of
             ]
@@ -324,9 +328,11 @@ def pruned_rows() -> list[mockcore.Row]:
 
 
 def _labour_rate() -> Decimal:
-    """Return the hourly rate of the connection of the terminal blocks, as the main structure reads it."""
+    """Return the hourly rate of the connection of the terminal blocks in the main structure."""
     [row] = [row for row in mockcore.current() if row.number == N.LABOUR]
-    amount = Decimal(cast("str", cast("JsonObject", row.node["estimate_line"])["reestimated_amount"]))
+    amount = Decimal(
+        cast("str", cast("JsonObject", row.node["estimate_line"])["reestimated_amount"])
+    )
     return amount / row.hours
 
 
@@ -342,12 +348,12 @@ def updated_severity() -> Decimal:
 
 
 def provision(severity: Decimal) -> Decimal:
-    """Return the provision of a severity: weighted by the probability, to the cent, never below 0."""
+    """Return the provision of a severity: weighted by the probability, to the cent, at least 0."""
     return max(Decimal(0), (severity * PROBABILITY).quantize(Decimal("0.01"), ROUND_HALF_UP))
 
 
 def _counters() -> tuple[int, int]:
-    """Return the counters the report reads: the main structure after its writes, the own estimate."""
+    """Return the counters the report reads: the main structure after its writes, the estimate."""
     main, _ = mockrebase.counters()
     return main, cast("int", listed()["lock_version"])
 
@@ -359,7 +365,7 @@ def report() -> JsonObject:
     severity = updated_severity()
     difference = mockrebase.difference
     differences: list[JsonValue] = [
-        difference("added", "task", mockrebase.CREATED_MANUAL, mockrebase.CREATED_LABEL, []),
+        difference("added", "task", CREATED_MANUAL, CREATED_LABEL, []),
         difference("updated", "task", N.WIRING, RENAMED, ["label"]),
         difference(
             "updated",
@@ -478,13 +484,16 @@ def examples() -> dict[str, JsonObject]:
         f"portée de 12,5 à {hours} h, son montant réestimé seul modifié ; le « "
         f"{labels[ABANDONED]} », terminé, abandonné"
     )
-    cycle_said = mocktext.listed([f"« {each['label']} »" for each in cast("list[JsonObject]", cycle()["cycle"])])
+    cycle_said = mocktext.listed(
+        [f"« {each['label']} »" for each in cast("list[JsonObject]", cycle()["cycle"])]
+    )
     marking = (
-        f"Variante déclarée : la révision courante {MARKED_REVISION} marquée aujourd'hui, le devis "
+        f"Variante contrefactuelle : la révision courante {MARKED_REVISION} marquée aujourd'hui, "
+        f"le devis "
         f"propre de « {LABEL} », entier et à jour, élagué par le marquage"
     )
     taken = (
-        f"Variante déclarée : la révision {NEXT_REVISION}, ouverte après le marquage de "
+        f"Variante contrefactuelle : la révision {NEXT_REVISION}, ouverte après le marquage de "
         f"nodes_risk_estimate_pruned, reprend le devis propre de « {LABEL} » élagué, structure "
         f"{NEXT_STRUCTURE}, ses écarts exacts contre la structure principale de la révision "
         f"{MARKED_REVISION}"
@@ -522,7 +531,8 @@ def examples() -> dict[str, JsonObject]:
             f"La charge du « {labels[N.LABOUR]} », que le devis propre porte à {hours} h et que "
             f"la principale a réestimée à {mocktext.amount(LABOUR_HOURS, 0)} h, est gardée et "
             f"signalée (kept, ses champs) : la confirmation est demandée. La gravité recalculée "
-            f"sur le projet du jour, {mocktext.amount(updated_severity())}, et la provision qu'elle "
+            f"sur le projet du jour, {mocktext.amount(updated_severity())}, et la provision "
+            f"qu'elle "
             f"donne à {mocktext.amount(PROBABILITY * 100, 0)} %, "
             f"{mocktext.amount(provision(updated_severity()))}, sont celles que la mise à jour "
             f"enregistrera. Les compteurs lus, que la confirmation renverra : celui de la "

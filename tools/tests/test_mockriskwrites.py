@@ -334,7 +334,7 @@ def _redated(differences: list[dict[str, Any]], bearer: str) -> list[dict[str, A
 
 def test_the_report_adds_the_own_estimate_modifies_the_bearer_and_removes_the_provision() -> None:
     report = example("risk_occurrence_report")["value"]
-    items = mockriskwrites.nodes_risk_estimate()["items"]
+    items = cast("list[dict[str, Any]]", mockriskwrites.nodes_risk_estimate()["items"])
     added = [each for each in report["differences"] if each["change"] == "added"]
     assert [(each["target"], each["label"]) for each in added] == [
         (item["kind"], _label(item)) for item in items
@@ -402,7 +402,7 @@ def test_the_bearer_is_changed_by_the_dates_it_comes_to_span() -> None:
     updated = _difference(report["differences"], ("updated", "task", _bearer_label()))
     tasks = [
         item["task"]
-        for item in mockriskwrites.nodes_risk_estimate()["items"]
+        for item in cast("list[dict[str, Any]]", mockriskwrites.nodes_risk_estimate()["items"])
         if item["kind"] == "task"
     ]
     rows = {row.number: row for row in mockcore.current()}
