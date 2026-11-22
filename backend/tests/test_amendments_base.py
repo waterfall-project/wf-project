@@ -226,6 +226,7 @@ def test_a_revision_that_bears_a_base_lists_its_commands_and_its_indicators_as_w
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
+@pytest.mark.requirement("WF-REV-0110-A")
 def test_a_differential_is_read_against_its_base_whatever_the_main_structure_received(
     api: ContractClient, project: Costed
 ) -> None:
@@ -297,6 +298,7 @@ def test_a_merged_differential_is_read_in_the_revision_marked_against_the_base_i
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
+@pytest.mark.requirement("WF-REV-0110-A")
 def test_a_differential_is_up_to_date_until_a_write_advances_the_main_structure(
     api: ContractClient, project: Costed
 ) -> None:
@@ -348,6 +350,7 @@ def test_the_command_rebase_follows_the_permission_to_manage_the_revisions(
 
 
 @pytest.mark.requirement("WF-REV-0100-A")
+@pytest.mark.requirement("WF-REV-0110-A")
 def test_a_revision_created_takes_up_each_differential_with_its_base_and_its_state(
     api: ContractClient, project: Costed
 ) -> None:
