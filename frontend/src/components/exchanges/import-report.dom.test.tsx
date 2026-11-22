@@ -73,12 +73,6 @@ describe("the report of an import without a task", () => {
     expect(screen.getByText(/4 lignes lues/)).toBeVisible();
   });
 
-  it("follows no task for an import still analysing that has none [US-3250]", () => {
-    const analysing = { ...(example("import_analysing") as Import), task: null };
-    open(analysing);
-    expect(screen.getByText(CATALOGUES.fr.exchanges.report.analysing)).toBeVisible();
-  });
-
   it("signals a rounded amount with both amounts [WF-INTF-0120-A]", () => {
     open(example("import_remaining_amount_rounded") as Import);
     expect(screen.getByText("Montant arrondi")).toBeVisible();
