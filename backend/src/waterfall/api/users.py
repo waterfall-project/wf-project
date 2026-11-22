@@ -26,6 +26,11 @@ the lock of the rule of the last administrator, as the guarded writes and the re
 accounts of the provider do (WF-ADM-0120, #2227): such a route, holding the row of an account then
 waiting for the row of its author, never waits on a reading that holds that author and waits for
 the account. The routes of the caller's own account (preferences, avatar, sessions) do not take it.
+Every transaction of a route that takes it, by itself or under the guard (``setUserActivation``,
+``setUserAccessRoles``), bounds its waits for a lock first: one a reading of a large directory
+holds too long is refused (503), having written nothing (#924). Two administrators who change each
+the account of the other thus queue on the lock of the rule, and never lock the rows of their two
+accounts in opposite orders (#930).
 """
 
 from collections.abc import Generator, Mapping, Sequence
@@ -40,7 +45,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from waterfall.api.actors import actor_ref
-from waterfall.api.authentication import Caller, Services, ServicesOf, Transaction
+from waterfall.api.authentication import (
+    Caller,
+    Services,
+    ServicesOf,
+    Transaction,
+    bounded_transaction,
+)
 from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import (
     PaginationMeta,
@@ -160,9 +171,10 @@ def account_transaction(services: Services) -> Generator[Session]:
     """Open a transaction of a route of the administration that changes an account, under the lock.
 
     The lock of the rule of the last administrator, taken before any row of an account, as the
-    guarded writes and the reading of the accounts of the provider take it (WF-ADM-0120, #2227).
+    guarded writes and the reading of the accounts of the provider take it (WF-ADM-0120, #2227);
+    waited for within the bound of the waits of the administration (#924).
     """
-    with services.database.transaction() as session:
+    with bounded_transaction(services) as session:
         lock_administrators(session)
         yield session
 
@@ -580,7 +592,7 @@ def put_user_activation(
     and has its sessions closed again, as any other.
     """
     act = Act(account.user_id, utc_now())
-    with services.database.transaction() as session:
+    with bounded_transaction(services) as session:
         with guard_deactivation(session):
             changed = set_account_activation(
                 session,
@@ -658,7 +670,7 @@ def put_user_access_roles(
     """
     act = Act(account.user_id, utc_now())
     role_ids = [role_id.root for role_id in body.access_role_ids]
-    with services.database.transaction() as session:
+    with bounded_transaction(services) as session:
         attribution = set_access_roles(session, user_id, role_ids, body.lock_version.root, act)
         if attribution.withdraws_all:
             note_sessions_closed(session, user_id, utc_now())

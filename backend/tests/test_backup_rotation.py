@@ -15,6 +15,7 @@ import pytest
 from backup_rows import Row, days, listed, recorded
 from installations import Installation, Take, taker
 from sqlalchemy import select, update
+from sqlalchemy.pool import QueuePool
 
 from waterfall.core.backups.interface import (
     ScheduleWriting,
@@ -32,6 +33,7 @@ from waterfall.worker import backup as backup_module
 from waterfall.worker.backup import BackupTask
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
     from uuid import UUID
 
@@ -113,15 +115,31 @@ def archive_of(task_id: UUID) -> str:
 
 
 @pytest.mark.requirement("WF-ADM-0170-A")
+@pytest.mark.story("US-3020")
 def test_a_backup_verified_turns_the_list_and_its_deleted_archive_leaves_the_bucket(
-    installation: Installation, take: Take
+    installation: Installation, take: Take, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # The worker takes a backup, verifies it, then rotates under the retention of the schedule: with
-    # one kept, the second backup deletes the first, its archive with it once the task is committed.
+    # one kept, the second backup deletes the first, its archive with it once the task is committed,
+    # the connection of the transaction given back (#977).
+    pool = installation.database.engine.pool
+    assert isinstance(pool, QueuePool)
+    lent: list[int] = []
+    registering = backup_module.after_commit
+
+    def noting(session: Session, action: Callable[[], None]) -> None:
+        def noted() -> None:
+            lent.append(pool.checkedout())
+            action()
+
+        registering(session, noted)
+
+    monkeypatch.setattr(backup_module, "after_commit", noting)
     set_retention(installation.database, 1)
     first = take()
     assert installation.bucket.size(archive_of(first)) is not None
     second = take()
+    assert lent == [0, 0]
     with installation.database.transaction() as session:
         assert list(session.scalars(select(Backup.task_id))) == [second]
     assert installation.bucket.size(archive_of(first)) is None
