@@ -156,6 +156,11 @@ def probes(*said: str) -> Iterator[str]:
     return iter(said)
 
 
+def looks(oks: int) -> Iterator[str]:
+    """Make a probe that says ok ``oks`` times, then the maintenance, then ok for ever."""
+    return itertools.chain(["ok"] * oks, ["maintenance"], itertools.repeat("ok"))
+
+
 def trial_of(api: FakeApi, said: Iterator[str], clock: FakeClock | None = None) -> RestorationTrial:
     # Each sign-in opens a session of its own; the realm issues token-1, token-2, and so on.
     administrator = Administrator(Realm, Realm().send, ADDRESS, FRONT_CLIENT)
@@ -269,31 +274,74 @@ def test_a_maintenance_missed_behind_a_refused_task_fails_the_trial_within_a_sho
     clock = FakeClock()
     with pytest.raises(TrialError, match=f"did not say the maintenance in {GRACE:.0f} s"):
         trial_of(FakeApi(missed), probes(*["ok"] * 1300), clock).run()
-    assert clock.time < PATIENCE / 10
+    assert clock.time == PAUSE + GRACE  # the pause of the backup, then the grace from the refusal
 
 
 @pytest.mark.requirement("WF-ADM-0160-A")
 def test_the_task_is_read_apart_from_the_looks_at_the_probe_before_the_maintenance() -> None:
-    # [US-2940] #997, point 2: between two looks at the probe, the trial only pauses ``WATCH``;
-    # the task is read once per ``PAUSE``, not at each look.
+    # [US-2940] #997, point 2: the looks at the probe stay ``WATCH`` apart; only the look that
+    # reads the task (a ``compose exec``, 1 s here) costs more, and the task is read once per
+    # ``PAUSE`` of the clock, not at each look: here every other look, the read eating the
+    # pause (every fourth, when it is free).
     running = {**ANSWERS, "GET /tasks/r": [(200, {"status": "running"})] * 10}
     api = FakeApi(running)
     clock = FakeClock()
-    looks: list[float] = []
+    seen: list[float] = []
+
+    def ask(command: list[str], given: str) -> tuple[int, str]:
+        clock.time += 1.0
+        return api.ask(command, given)
 
     def probe() -> str:
-        looks.append(clock.now())
-        return "maintenance" if len(looks) > 8 else "ok"
+        seen.append(clock.now())
+        return "maintenance" if len(seen) > 8 else "ok"
 
     administrator = Administrator(Realm, Realm().send, ADDRESS, FRONT_CLIENT)
-    trial = RestorationTrial(
-        Api(COMPOSE, api.ask), administrator, probe, Clock(clock.now, clock.pause)
-    )
+    trial = RestorationTrial(Api(COMPOSE, ask), administrator, probe, Clock(clock.now, clock.pause))
     with pytest.raises(TrialError, match="did not end in 600 s"):
         trial.restored("token-1", "r")
-    before = looks[:9]
-    assert [after - first for first, after in itertools.pairwise(before)] == [WATCH] * 8
-    assert api.calls() == [("GET", "/tasks/r")] * 2
+    gaps = [after - first for first, after in itertools.pairwise(seen[:9])]
+    assert gaps == [WATCH + 1.0, WATCH] * 4
+    assert api.calls()[:4] == [("GET", "/tasks/r")] * 4
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
+def test_a_refusal_followed_by_a_task_read_again_does_not_fail_the_trial_after_the_grace() -> None:
+    # [US-2940] #997: a 503 (an API restarting), then the task queued again past the grace, then
+    # the maintenance: the refusal is forgotten and the trial succeeds.
+    tasks = [(503, {"code": "UNAVAILABLE"}), *[(200, {"status": "queued"})] * 7]
+    answers = {**ANSWERS, "GET /tasks/r": [*tasks, (200, {"status": "succeeded"})]}
+    clock = FakeClock()
+    trial_of(FakeApi(answers), looks(30), clock).run()
+    assert clock.time > PAUSE + GRACE
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
+def test_a_maintenance_said_at_the_edge_of_the_grace_passes_and_after_it_fails() -> None:
+    # [US-2940] #997: the task unavailable (503) from the first look; the maintenance said at the
+    # look that is ``GRACE`` after it still passes, one look later is too late. A 503 left
+    # without maintenance arms the grace as a 401 does.
+    five = [(503, {"code": "UNAVAILABLE"})] * 5
+    answers = {**ANSWERS, "GET /tasks/r": [*five, (200, {"status": "succeeded"})]}
+    trial_of(FakeApi(answers), looks(int(GRACE / WATCH))).run()
+    refusing = {**ANSWERS, "GET /tasks/r": [(503, {"code": "UNAVAILABLE"})] * 100}
+    clock = FakeClock()
+    with pytest.raises(TrialError, match=f"did not say the maintenance in {GRACE:.0f} s"):
+        trial_of(FakeApi(refusing), looks(int(GRACE / WATCH) + 1), clock).run()
+    assert clock.time == PAUSE + GRACE
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
+def test_a_token_expired_before_the_maintenance_is_taken_again_before_the_grace_arms() -> None:
+    # [US-2940] #997: a first 401 may be a token expired since the backup (300 s of life): the
+    # administrator signs in again and the task is read again with the new token, which the
+    # grace does not count against.
+    tasks = [(401, {"code": "TOKEN_EXPIRED"}), *[(200, {"status": "queued"})] * 3]
+    answers = {**ANSWERS, "GET /tasks/r": [*tasks, (200, {"status": "succeeded"})]}
+    api = FakeApi(answers)
+    trial_of(api, looks(12)).run()
+    reads = [asked["token"] for asked in api.asked if asked["path"] == "/tasks/r"]
+    assert reads == ["token-1", "token-2", "token-2", "token-2", "token-3"]
 
 
 def test_a_role_made_after_the_backup_that_is_refused_or_survives_its_restoration_fails() -> None:
