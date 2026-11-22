@@ -14,6 +14,7 @@ aimed at — is proved by the paths against the service (``frontend/e2e/service/
 """
 
 import html
+import re
 import secrets
 import subprocess
 import threading
@@ -94,6 +95,9 @@ pytestmark = pytest.mark.keycloak
 CONSULTING = "users.read"
 PLANNING = "planning.read"
 SESSIONS = "/api/v1/me/sessions"
+# The page of a link of Keycloak to execute actions, which Waterfall refuses, in its login theme
+# (#970).
+ACTIONS_LINK_REFUSED = "Ce lien n'est pas accepté"
 
 
 @pytest.fixture
@@ -467,6 +471,64 @@ def test_a_link_for_a_forgotten_password_is_refused_once_a_password_is_set_anoth
     said = html.unescape(refused.text)
     assert refused.status_code == 400, said
     assert SPENT in said
+    assert 'name="password-new"' not in said
+
+
+def form_address(page: httpx2.Response) -> str:
+    """Give the address the one form of a page is submitted to, where it shows again."""
+    action = re.search(r'<form[^>]*\baction="([^"]*)"', page.text)
+    assert action is not None, page.text
+    return html.unescape(action.group(1))
+
+
+@pytest.mark.story("US-3020")
+def test_a_form_opened_by_a_forgotten_link_does_not_outlive_a_password_set_another_way(
+    admin: httpx2.Client, local_account: Account
+) -> None:
+    # « Un formulaire ouvert par le lien oublié ne survit pas à la fixation du mot de passe » : the
+    # form, open before the console set the password, says the link served, when it is submitted
+    # as when it shows again, and sets nothing (#970).
+    browser = Browser()
+    ask_forgotten(browser, local_account)
+    url = mailed_link(local_account.email, whole=True)
+    form = browser.get(url)
+    assert 'name="password-new"' in form.text, form.text
+    past_its_second(url)
+    set_by_console = secrets.token_urlsafe(24)
+    set_password(admin, local_account.id, set_by_console)
+    by_form = secrets.token_urlsafe(24)
+    refused = browser.submit(form, {"password-new": by_form, "password-confirm": by_form})
+    said = html.unescape(refused.text)
+    assert refused.status_code == 400, said
+    assert SPENT in said
+    assert 'name="password-new"' not in said
+    shown = browser.get(form_address(form))
+    assert (shown.status_code, SPENT in html.unescape(shown.text)) == (400, True), shown.text
+    with httpx2.Client(base_url=realm_address(), timeout=30) as realm:
+        kept = password_grant(realm, local_account, set_by_console)
+        assert kept.status_code == 200, kept.text
+        assert password_grant(realm, local_account, by_form).status_code == 400
+
+
+@pytest.mark.story("US-3020")
+def test_a_link_of_keycloak_to_execute_actions_is_refused_from_its_first_use(
+    local_account: Account,
+) -> None:
+    # « Un lien execute-actions ne redevient pas valable après un redémarrage » : Waterfall makes
+    # none, so the link the console of Keycloak mails is refused from the start, a restart
+    # included, with the words of the login theme, and opens no form (#970).
+    with administering() as realm:
+        sent = realm.put(
+            f"/users/{local_account.id}/execute-actions-email", json=["UPDATE_PASSWORD"]
+        )
+    assert sent.status_code == 204, sent.text
+    url = mailed_link(local_account.email)
+    assert action_token(url)["typ"] == "execute-actions"
+    refused = Browser().get(url)
+    said = html.unescape(refused.text)
+    assert refused.status_code == 400, said
+    assert ACTIONS_LINK_REFUSED in said
+    assert "login-actions/action-token" not in said
     assert 'name="password-new"' not in said
 
 
