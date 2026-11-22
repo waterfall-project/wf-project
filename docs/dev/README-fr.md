@@ -210,6 +210,11 @@ Qui ouvre la file dit combien il attend Redis : une requête ou le planificateur
 retienne pas la réponse ; le worker `WORKER_TIMEOUT`, plus long que chacune de ses lectures. Une
 erreur que le worker n'attend pas — Redis ou PostgreSQL hors d'atteinte — l'arrête en échec (1),
 dite dans ses journaux par `worker.failed`, secrets masqués.
+Une tâche d'un genre que le worker ne connaît pas — celle qu'une version plus récente a déposée,
+pendant une mise à jour progressive — reste en attente : le worker n'acquitte pas son entrée, ne compte
+aucune tentative et journalise `task.left` ; une entrée au repos depuis `claim_after` est reprise, par un
+worker plus récent qui en a le traitement. Elle n'échoue (`INTERNAL_ERROR`, `kind_unhandled`) qu'une fois
+`WATERFALL_UNKNOWN_KIND_WAIT_SECONDS` secondes écoulées depuis son dépôt, 3600 par défaut (#809).
 
 **Le marquage, premier traitement du métier** (US-0970). Une tâche qui vise un projet le nomme dans
 sa charge, sous `project_id` (`PROJECT` de `waterfall.platform.tasks`) : tant qu'elle est en file

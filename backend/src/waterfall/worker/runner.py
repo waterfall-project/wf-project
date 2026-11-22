@@ -6,7 +6,10 @@ The handler's work and the end of the task are committed together, under an advi
 task; the attempt that starts is committed before, apart. A worker stopped during a task leaves the
 database as it was, but for that attempt: a worker that claims its entry finds the lock free, and
 runs the task again from the start; while the task runs, the entry is left (WF-ARC-0090). A task
-whose attempts are spent, or that no handler runs, fails without running. A handler that fails is
+whose attempts are spent fails without running. A task of a kind no handler runs is left too,
+unacknowledged and without an attempt counted, so that a newer worker, which knows the kind, claims
+it during a rolling update (WF-EXP-0030); it fails only once it has waited ``unknown_kind_wait``
+since it was submitted (#809). A handler that fails is
 undone; one whose failure leaves a trace on its own rows — an import passed ``failed`` or
 ``refused`` (EP-06) — raises ``UndoneError``, and the trace is written with the end of the task.
 
@@ -24,7 +27,8 @@ Each task ended is counted in the metrics of the worker, by kind and outcome, wi
 import socket
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Self
+from datetime import timedelta
+from typing import TYPE_CHECKING, Any, Literal, Self
 
 from pydantic_core import to_jsonable_python
 from redis.exceptions import ResponseError
@@ -47,6 +51,7 @@ from waterfall.platform.tasks import (
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from datetime import datetime
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -58,6 +63,8 @@ INTERNAL_ERROR = "INTERNAL_ERROR"
 MAX_ATTEMPTS = 3
 # The first key of the advisory locks of the runs, the second being drawn from the task.
 RUN_LOCK = 3_700_090
+# What ``Worker.start`` gives for a task that waits for a worker that knows its kind.
+WAITS: Literal["waits"] = "waits"
 
 logger = get_logger(__name__)
 
@@ -145,11 +152,16 @@ def context_of(task: Task) -> dict[str, str]:
 
 @dataclass(frozen=True, slots=True)
 class Timing:
-    """The delays of a worker, in seconds: to claim an idle entry, to read, to deposit again."""
+    """The delays of a worker, in seconds: to claim an idle entry, to read, to deposit again.
+
+    ``unknown_kind_wait`` is how long a task of a kind the worker does not run may wait for a
+    worker that does, since it was submitted: an hour by default.
+    """
 
     claim_after: float = 30.0
     block: float = 5.0
     redeposit_every: float = 60.0
+    unknown_kind_wait: float = 3600.0
 
 
 class Worker:
@@ -228,7 +240,8 @@ class Worker:
     def handle(self, entry: Entry) -> None:
         """Run the task of an entry, and acknowledge it unless the task runs elsewhere.
 
-        In maintenance, the entry is left, unacknowledged.
+        In maintenance, or for a task of a kind it does not run yet, the entry is left,
+        unacknowledged.
         """
         if self.restoring() is not None:
             return
@@ -241,6 +254,8 @@ class Worker:
     def run_task(self, task_id: UUID) -> bool:
         """Run a task, under its lock; ``False`` if another worker holds the lock.
 
+        Or if the kind of the task has no handler here, and may still wait for a worker that has.
+
         Or if a maintenance began meanwhile: the service of the restoration, once it holds it,
         waits for the lock of each pending task before it keeps anything; a worker that takes the
         lock after it does leaves the task.
@@ -249,6 +264,8 @@ class Worker:
             if not lock_run(session, task_id) or self.halted():
                 return False
             task = self.start(task_id)
+            if task == WAITS:
+                return False
             if task is None:
                 return True
             started = time.perf_counter()
@@ -264,8 +281,12 @@ class Worker:
         if self.metrics is not None:
             self.metrics.task_ended(kind, succeeded=succeeded, seconds=seconds)
 
-    def start(self, task_id: UUID) -> Task | None:
-        """Start one more attempt of a task, committed, or end it if it may not run."""
+    def start(self, task_id: UUID) -> Task | Literal["waits"] | None:
+        """Start one more attempt of a task, committed, or end it if it may not run.
+
+        A task of a kind with no handler here starts nothing and counts no attempt while it may
+        wait for a worker that has one: ``WAITS``.
+        """
         with self.database.transaction() as session:
             row = session.get(BackgroundTask, task_id, with_for_update=True)
             if row is None or row.status in FINISHED:
@@ -274,7 +295,12 @@ class Worker:
             task = Task(
                 row.id, row.kind, row.payload, row.requested_by, row.correlation_id, attempt
             )
-            if row.attempts >= MAX_ATTEMPTS or row.kind not in self.handlers:
+            unhandled = row.kind not in self.handlers
+            if unhandled and row.attempts < MAX_ATTEMPTS and self.may_wait(row.submitted_at):
+                with logging_context(**context_of(task)):
+                    logger.info("task.left", reason="kind_unhandled")
+                return WAITS
+            if row.attempts >= MAX_ATTEMPTS or unhandled:
                 reason = "attempts_spent" if row.attempts >= MAX_ATTEMPTS else "kind_unhandled"
                 with logging_context(**context_of(task)):
                     logger.error("task.failed", reason=reason, attempts=row.attempts)
@@ -285,6 +311,10 @@ class Worker:
         # Failed without running, counted once its end is committed.
         self.ended(task.kind, succeeded=False, seconds=None)
         return None
+
+    def may_wait(self, submitted_at: datetime) -> bool:
+        """Tell whether a task submitted at that moment is still within the wait of its kind."""
+        return utc_now() - submitted_at < timedelta(seconds=self.timing.unknown_kind_wait)
 
     def execute(self, session: Session, task: Task) -> bool:
         """Run the handler of a task and end the task; tell whether it succeeded.

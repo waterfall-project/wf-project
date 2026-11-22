@@ -208,6 +208,11 @@ Whoever opens the queue says how long it waits for Redis: a request or the sched
 hold back the response; the worker `WORKER_TIMEOUT`, longer than each of its reads. An error the
 worker does not expect — Redis or PostgreSQL out of reach — stops it in failure (1), said in its
 logs by `worker.failed`, secrets masked.
+A task of a kind the worker does not know — one a newer version deposited, during a rolling update —
+stays waiting: the worker does not acknowledge its entry, counts no attempt and logs `task.left`; an
+entry idle for `claim_after` is claimed by a newer worker that has its handler. It fails
+(`INTERNAL_ERROR`, `kind_unhandled`) only once `WATERFALL_UNKNOWN_KIND_WAIT_SECONDS` seconds have
+passed since its deposit, 3600 by default (#809).
 
 **The marking, the first task of the trade** (US-0970). A task that aims at a project names it in
 its payload, under `project_id` (`PROJECT` of `waterfall.platform.tasks`): while it is queued or

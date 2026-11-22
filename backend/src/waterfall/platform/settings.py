@@ -616,6 +616,9 @@ class WorkerSettings(ServiceSettings):
     default: the longest session of the realm (EP-06, "L'historique annulable et le collage"); and
     a task ended ``background_task_retention_days`` days, the operating parameter of the same name
     (``ServiceSettings``).
+    A task of a kind it does not run waits ``unknown_kind_wait_seconds`` seconds, an hour by
+    default, for a worker that does — during a rolling update —, counted from its submission, then
+    fails (#809).
     ``backup_database_url`` is the database of Waterfall, the journal of audit included, and
     ``keycloak_database_url`` the database of the identity provider, both as the role of the backup
     reaches them: a member of ``pg_read_all_data``, which reads every table and can neither write
@@ -628,6 +631,7 @@ class WorkerSettings(ServiceSettings):
     keycloak_database_url: SecretStr = Field(min_length=1)
     metrics_port: int = Field(default=9100, ge=1, le=65535)
     undo_retention_hours: int = Field(default=12, ge=1)
+    unknown_kind_wait_seconds: int = Field(default=3600, ge=1)
 
 
 # The largest avatar a new installation accepts, as the specification ships it (§4.4.1).

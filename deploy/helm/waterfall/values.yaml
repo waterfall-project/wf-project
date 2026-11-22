@@ -64,6 +64,8 @@ worker:
   # What its purge keeps: the history of a session, in hours; a task ended, in days.
   undoRetentionHours: 12
   backgroundTaskRetentionDays: 30
+  # How long a task of a kind it does not run waits for a newer worker, in seconds, then fails.
+  unknownKindWaitSeconds: 3600
   resources: {}
 
 # The service of the restoration (WF-ADM-0160), one alone, with the application of the realm beside

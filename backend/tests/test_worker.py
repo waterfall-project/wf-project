@@ -11,6 +11,7 @@ again is another consumer of the queue.
 import socket
 import time
 from collections.abc import Callable, Iterator, Mapping
+from dataclasses import replace
 from itertools import count
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -40,7 +41,7 @@ INTERNAL = {"code": "INTERNAL_ERROR", "status": 500, "correlation_id": REQUEST}
 NEWER = {"backup_version": "1.1.0", "installed_version": "1.0.0"}
 UNREACHABLE = "redis://127.0.0.1:9/0"
 
-type MakeWorker = Callable[[Mapping[str, TaskHandler]], Worker]
+type MakeWorker = Callable[..., Worker]
 
 
 @pytest.fixture
@@ -48,9 +49,10 @@ def worker(database: Database, queue: TaskQueue) -> MakeWorker:
     """Give a maker of workers on the queue of the test, each a consumer of its own."""
     numbers = count()
 
-    def make(handlers: Mapping[str, TaskHandler]) -> Worker:
+    def make(handlers: Mapping[str, TaskHandler], unknown_kind_wait: float = 3600.0) -> Worker:
         queue.prepare()
-        return Worker(database, queue, handlers, f"worker-{next(numbers)}", AT_ONCE)
+        timing = replace(AT_ONCE, unknown_kind_wait=unknown_kind_wait)
+        return Worker(database, queue, handlers, f"worker-{next(numbers)}", timing)
 
     return make
 
@@ -230,7 +232,10 @@ type Breaking = tuple[Mapping[str, TaskHandler], int, str]
 
 @pytest.mark.parametrize(
     "breaking",
-    [({}, 0, "kind_unhandled"), ({"identity_sync": broken}, 1, "error")],
+    [
+        ({}, 0, "kind_unhandled"),
+        ({"identity_sync": broken}, 1, "error"),
+    ],
     ids=["unhandled", "broken"],
 )
 def test_a_task_no_handler_runs_or_whose_handler_breaks_fails_under_its_correlation(
@@ -238,7 +243,8 @@ def test_a_task_no_handler_runs_or_whose_handler_breaks_fails_under_its_correlat
 ) -> None:
     handlers, attempts, reason = breaking
     task_id = deposit(database, queue)
-    assert worker(handlers).step()
+    # A task of a kind no handler runs has spent its wait (#809).
+    assert worker(handlers, unknown_kind_wait=0).step()
     ended = task(database, task_id)
     assert (ended.status, ended.attempts, ended.problem) == ("failed", attempts, INTERNAL)
     assert inscriptions(database) == []
