@@ -100,6 +100,11 @@ jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 - #4462 — les chaînes d'interface bâties à la main (FCO-12, FAR-07) — sans effet visible en français
   ni en anglais : candidat à l'abandon
 
+Reporté par EP-13 le 2026-11-22 (décision de l'auteur) :
+
+- #4684 — front : aucune garde des 100 colonnes des commentaires ; une règle d'ESLint limitée aux
+  commentaires et un passage sur tout le front, avec #3479 et #3523
+
 ## Conception
 
 À écrire au cadrage.
