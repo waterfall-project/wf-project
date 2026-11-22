@@ -35,7 +35,7 @@ from waterfall.core.planning.interface.physical_progress import (
 )
 from waterfall.core.planning.scheduling import WorkInstant
 from waterfall.core.planning.tree import TASK, NodeRow, TaskRow, tracking_of
-from waterfall.core.projects.interface import work_breakdown_items
+from waterfall.core.projects.interface import current_day, work_breakdown_items
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Mapping, Sequence
@@ -462,7 +462,7 @@ class Reading[N: NodeColumns = Node, T: TaskColumns = Task]:
         project_id = self.place.project_id
         self.tree = tree
         self.calendars = calendars
-        self.scheduled_on = scheduled_at.date()
+        self.scheduled_on = current_day(scheduled_at)
         self.links = links
         # The links by their successor, and by each end, built once: a node asks for its own.
         self._incoming: dict[UUID, list[LinkColumns]] = {}

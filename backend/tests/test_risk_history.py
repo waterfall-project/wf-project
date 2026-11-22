@@ -22,9 +22,9 @@ from uuid import UUID
 import pytest
 from estimate_support import Costing, costing
 from history_support import delete
-from nodes_support import SESSION, entries, refusal, signed_in
+from nodes_support import SESSION, entries, inscribed, inscribed_lineages, refusal, signed_in
 from project_rows import risk_row
-from projects_support import Scene
+from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from risks_support import (
     MAKING,
@@ -43,7 +43,7 @@ from waterfall.core.access_roles.tables import AccessRolePermission, Permission,
 from waterfall.core.history.interface import RecordedChange, UndoStack, recording
 from waterfall.core.planning import writing
 from waterfall.core.planning.interface import snapshot, undo_last_change
-from waterfall.core.planning.tables import Task
+from waterfall.core.planning.tables import Node, Task
 from waterfall.core.revisions.tables import CostStructure
 from waterfall.core.risks.tables import Risk
 from waterfall.platform.audit import Act
@@ -308,6 +308,32 @@ def test_a_deletion_undone_brings_back_the_risk_and_its_own_estimate_and_redone_
     risk_undone(undone(risks, who, "redo"), "risk_delete", risk)
     assert risks.read(risk).status_code == 404
     assert not structure_held(stage, held["structure_id"])
+
+
+@pytest.mark.requirement("WF-DAT-0010-A")
+def test_a_risk_deleted_takes_the_inscriptions_of_its_own_estimate_and_the_undoing_gives_them_back(
+    risks: Risks, stage: Scene, who: Person
+) -> None:
+    # [US-3340] (#4417) A task of the own estimate inscribed to a timeline: no node holds its
+    # lineage once the risk is deleted, so its inscription goes; the deletion undone writes the
+    # nodes back with their inscriptions, which the snapshot of the structure keeps.
+    risk = declared_by(risks, who)
+    [task_id, _] = costed_by(risks, who, risk, "200.00")
+    held = risks.risk(risk)
+    with stage.database.transaction() as session:
+        lineage = session.scalar(select(Node.lineage_id).where(Node.id == UUID(task_id)))
+    assert lineage is not None
+    timeline = risks.api.post(
+        f"{PROJECTS}/{stage.project['project_id']}/timelines",
+        headers=risks.headers,
+        json={"label": "Comité de pilotage"},
+    ).json()["timeline_id"]
+    inscribed(stage, {"lineage_id": str(lineage)}, timeline)
+    assert inscribed_lineages(stage) == {lineage}
+    assert risks.remove(held, who).status_code == 204
+    assert inscribed_lineages(stage) == set()
+    risk_undone(undone(risks, who), "risk_delete", risk)
+    assert inscribed_lineages(stage) == {lineage}
 
 
 @pytest.mark.requirement("WF-IHM-0110-A")

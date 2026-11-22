@@ -24,7 +24,9 @@ from nodes_support import (
     entries,
     mark,
     opened,
+    put_facts,
     refusal,
+    set_progress,
     signed_in,
 )
 from planning_support import node_row
@@ -36,6 +38,7 @@ from sqlalchemy import insert, select, update
 from waterfall.core.planning import writing
 from waterfall.core.planning.interface import ProgressLoad, load_progress
 from waterfall.core.planning.tables import Node, Task
+from waterfall.core.revisions.tables import CostStructure
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import NotFoundError, UnprocessableError
@@ -404,6 +407,30 @@ def test_a_summary_of_milestones_returns_to_not_started_when_they_all_are_reopen
     assert summary["progress"] == "not_started"
     assert summary["started_on"] is None
     assert summary["completed_on"] is None
+
+
+@pytest.mark.requirement("WF-DAT-0010-A")
+def test_a_started_task_is_overdue_by_the_day_of_the_installation_not_of_universal_time(
+    tree: Tree, stage: Scene
+) -> None:
+    # [US-3340] (#4416) The dates were computed at 23:30 universal time on the 31st of March: on an
+    # installation in Paris, the date of calculation is the 1st of April, so a started task that
+    # finishes on the 31st is late, which the day in universal time would not say.
+    TIME_ZONE.read_from(lambda: "Europe/Paris")
+    late = tree.made("Câblage")
+    set_progress(stage, late["node_id"], "started", date(2027, 3, 1))
+    put_facts(stage, late["node_id"], finish_date=date(2027, 3, 31))
+    at = datetime(2027, 3, 31, 23, 30, tzinfo=UTC)
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(CostStructure)
+            .where(CostStructure.id == UUID(tree.structure_id))
+            .values(scheduled_at=at)
+        )
+    assert tree.node(late["node_id"])["task"]["finish_overdue"] is True
+    assert [item["node_id"] for item in tree.items("?finish_overdue=true")] == [late["node_id"]]
+    TIME_ZONE.read_from(lambda: "UTC")
+    assert tree.node(late["node_id"])["task"]["finish_overdue"] is False
 
 
 @pytest.mark.requirement("WF-RAE-0040-A")

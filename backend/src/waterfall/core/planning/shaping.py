@@ -14,11 +14,12 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete
 
+from waterfall.core.planning.inscriptions import delete_orphan_inscriptions
 from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.interface.open_lines import held_open, zeroed_at
-from waterfall.core.planning.tables import Node, TrackingEntry
+from waterfall.core.planning.tables import Node
 from waterfall.core.planning.tree import LINE, TASK
 from waterfall.core.planning.views import COMPLETED, STARTED, State, state_of, states_without
 from waterfall.core.projects.interface import current_day
@@ -177,20 +178,7 @@ def deleted(session: Session, project_id: UUID, tree: Tree, node_ids: list[UUID]
         .where(Node.project_id == project_id, Node.id.in_(node_ids))
         .execution_options(synchronize_session=False)
     )
-    kept = set(
-        session.scalars(
-            select(Node.lineage_id).where(
-                Node.project_id == project_id, Node.lineage_id.in_(lineages)
-            )
-        )
-    )
-    gone = lineages - kept
-    if gone:
-        session.execute(
-            delete(TrackingEntry)
-            .where(TrackingEntry.project_id == project_id, TrackingEntry.lineage_id.in_(gone))
-            .execution_options(synchronize_session=False)
-        )
+    delete_orphan_inscriptions(session, project_id, lineages)
 
 
 def _not_sibling() -> UnprocessableError:

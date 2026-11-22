@@ -9,6 +9,7 @@ image beyond the ceiling of pixels fails the task without being drawn. Every ans
 against the contract. The drawing itself is tested without a database in ``test_task_tree_image``.
 """
 
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -27,18 +28,17 @@ from waterfall.core.planning import task_tree_image
 from waterfall.core.planning.interface import task_tree
 from waterfall.core.planning.task_tree_image import TreeNode, render_task_tree_image
 from waterfall.core.revisions.interface import mark_revision
+from waterfall.core.revisions.tables import CostStructure
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
-from waterfall.platform.installation import read_settings
+from waterfall.platform.installation import TIME_ZONE, read_settings
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 from waterfall.worker.exchanges import ExportTask
 from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
-    from datetime import date
-
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
@@ -251,6 +251,33 @@ def test_the_image_is_drawn_by_the_worker_and_downloaded_as_png_in_the_account_l
     # The header is the language's: the other one draws another image.
     other = "en" if language == "fr" else "fr"
     assert answer.content != drawn(columns, other, day, 2)
+
+
+@pytest.mark.requirement("WF-DAT-0010-A")
+def test_the_image_is_computed_on_the_day_of_the_installation_not_of_universal_time(
+    api: ContractClient, stage: Scene, tree: Tree, worker: Worker, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # [US-3340] (#4416) At 23:30 universal time on the 31st of March, an installation in Paris is on
+    # the 1st of April: the « Calculé le » of the image is that day.
+    TIME_ZONE.read_from(lambda: "Europe/Paris")
+    four_levels(tree)
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(CostStructure)
+            .where(CostStructure.id == UUID(tree.structure_id))
+            .values(scheduled_at=datetime(2027, 3, 31, 23, 30, tzinfo=UTC))
+        )
+    days: list[date] = []
+    layout_of = task_tree.layout_task_tree
+
+    def note(**inputs: Any) -> TreeLayout:
+        days.append(inputs["computed_on"])
+        return layout_of(**inputs)
+
+    monkeypatch.setattr(task_tree, "layout_task_tree", note)
+    _, done = exported(api, stage, worker, tree, depth=2)
+    assert done["status"] == "succeeded"
+    assert days == [date(2027, 4, 1)]
 
 
 @pytest.mark.requirement("WF-PLA-0120-A")

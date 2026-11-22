@@ -610,7 +610,7 @@ d'une révision, qui montre déjà un refus 422 par son message.
 
 ## US-3340 — L'abandon d'une révision ne laisse aucune inscription orpheline, et le jour d'un planning est celui de l'installation
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DAT-0010-A`
 - **opérations** : `abandonRevision`, `deleteRisk`, `listNodes`, `requestExport`
 - **issue** : #4554
