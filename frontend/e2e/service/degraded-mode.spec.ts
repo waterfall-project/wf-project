@@ -38,9 +38,11 @@ const ACCOUNT = "/account";
 // The cookie of the session of the front (`src/session/tokens.ts`).
 const SESSION_COOKIE = "__Host-wf_session";
 
-// A worker killed on a timeout never runs the `finally` of `whileStopped`: Playwright runs this in a
-// new worker then, so that no component stays stopped for the paths after.
+// A worker killed on a timeout never runs the `finally` of `whileStopped`: Playwright runs this
+// in a new worker then, so that no component stays stopped for the paths after. Each component
+// is waited for up to 60 s (`startAllAgain`): the hook gets the time of all of them.
 test.afterAll(async () => {
+  test.setTimeout(150_000);
   await startAllAgain();
 });
 
@@ -111,11 +113,18 @@ test(
         { timeout: 60_000 },
       )
       .not.toContain("/login/unavailable");
-    const again = await workstation(browser);
-    await signIn(again, person, ACCOUNT);
-    await expect(again.getByRole("main")).toContainText(person.email);
+    // The front answering is not its session store reached again by a sign-in: one attempt (on a
+    // new page each time) that opens is the proof, for 60 s at most.
+    await expect(async () => {
+      const again = await workstation(browser);
+      try {
+        await signIn(again, person, ACCOUNT);
+        await expect(again.getByRole("main")).toContainText(person.email, { timeout: 5_000 });
+      } finally {
+        await again.context().close();
+      }
+    }).toPass({ timeout: 60_000 });
     await page.context().close();
-    await again.context().close();
   },
 );
 
@@ -160,10 +169,17 @@ test(
     });
 
     // The directory back: its account signs in again.
-    const restored = await workstation(browser);
-    await signIn(restored, DIRECTORY, ACCOUNT);
-    await expect(accountButton(restored, DIRECTORY)).toBeVisible();
-    await restored.context().close();
+    // The container healthy is not the realm reaching it again: sign in until it does, on a new
+    // page each time, for 60 s at most.
+    await expect(async () => {
+      const restored = await workstation(browser);
+      try {
+        await signIn(restored, DIRECTORY, ACCOUNT);
+        await expect(accountButton(restored, DIRECTORY)).toBeVisible({ timeout: 5_000 });
+      } finally {
+        await restored.context().close();
+      }
+    }).toPass({ timeout: 60_000 });
     await inProgress.context().close();
   },
 );
