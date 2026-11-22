@@ -23,6 +23,11 @@ data components of the operator, whose root the platform is given apart
 - the installation ends, its hooks included: the migrations, the realm applied, and the bootstrap,
   whose Job wrote the link of the first administrator;
 - the API answers its liveness probe, ``status`` ``ok``;
+- inside the cluster, every server refuses a connection in the clear and serves in TLS, and nothing
+  else answers but the metrics of the API, as ``wftools.production`` holds it of the Compose, by the
+  probe of ``wftools.transport`` run in the container of the API (WF-SEC-0010-A, US-2840); on the
+  components of the chart, whose servers it names by their Services and whose listeners that must
+  not be reached by the addresses of their pods;
 - the first administrator sets their password by the link, signs in through the front and Keycloak
   under ``/auth``, behind the ingress, and the front names them;
 
@@ -90,6 +95,7 @@ from wftools.production import (
     sign_in,
 )
 from wftools.restoration_trial import access_token
+from wftools.transport import Plan, TransportError, check_clear_refused
 
 TOOL = "wftools.charttrial"
 NOINDEX = re.compile(
@@ -223,6 +229,49 @@ def chart_values(
         # resolve: to Traefik, inside the cluster, on 443.
         "front": {"hostAliases": [{"ip": ingress_address, "hostnames": [platform.domain]}]},
     }
+
+
+INSTANCE = f"app.kubernetes.io/instance={chart.RELEASE}"
+PODS = ("api", "keycloak", "storage", "front")
+"""The components whose pods hold a listener that must not be reached, or the metrics of the API."""
+
+
+def chart_plan(pods: Mapping[str, str]) -> Plan:
+    """Return where the probe of the transport reaches each listener of the chart.
+
+    The servers by the names of their Services, which their certificates name; what must not be
+    reached at all by the addresses of the pods, as a pod of the cluster reaches another — the
+    Services do not route these ports, the addresses do. ``pods`` gives the address of a pod of
+    each of ``PODS``. The management of Keycloak, closed under Compose, answers the probes of the
+    kubelet here: it serves in TLS.
+    """
+
+    def service(component: str) -> str:
+        return f"{chart.RELEASE}-{component}"
+
+    return Plan(
+        postgres=(service("postgres"), 5432),
+        redis=(service("redis"), 6379),
+        served={
+            "api": (service("api"), 8443),
+            "keycloak": (service("keycloak"), 8443),
+            "keycloak-management": (service("keycloak"), 9000),
+            "storage": (service("storage"), 3900),
+            "prometheus": (service("prometheus"), 9090),
+            "alertmanager": (service("alertmanager"), 9093),
+            "grafana": (service("grafana"), 3000),
+            "front": (service("front"), 3443),
+        },
+        closed={
+            "keycloak-http": (pods["keycloak"], 8080),
+            "keycloak-cluster": (pods["keycloak"], 7800),
+            "keycloak-cluster-detection": (pods["keycloak"], 57800),
+            "garage": (pods["storage"], 3902),
+            "garage-rpc": (pods["storage"], 3901),
+            "front-http": (pods["front"], 3000),
+        },
+        metrics=(pods["api"], 8000),
+    )
 
 
 def free_port() -> int:
@@ -616,6 +665,46 @@ class Trial:
         )
         return browser
 
+    def hold_transport(self) -> None:
+        """Hold that every server refuses the clear and serves in TLS, inside the cluster.
+
+        The probe runs in the container of the API, which trusts the root of the platform, on the
+        plan of the chart (``chart_plan``).
+        """
+        pods: dict[str, str] = {}
+        for component in PODS:
+            selector = f"{INSTANCE},app.kubernetes.io/component={component}"
+            pods[component] = _output(
+                self.read,
+                [
+                    *self.kubectl,
+                    "get",
+                    "pods",
+                    "--selector",
+                    selector,
+                    "--field-selector",
+                    "status.phase=Running",
+                    "--output",
+                    "jsonpath={.items[0].status.podIP}",
+                ],
+                f"read the address of a pod of {component}",
+            ).strip()
+        plan = chart_plan(pods)
+        said = _output(
+            self.read,
+            [*self.kubectl, "exec", f"deployment/{chart.RELEASE}-api", "--", *plan.command()],
+            "try every server in the clear",
+        )
+        try:
+            check_clear_refused(said, plan)
+        except TransportError as error:
+            raise TrialError(str(error)) from error
+        print(
+            f"  {', '.join(plan.servers())} refuse a connection in the clear, and serve in TLS; "
+            f"{', '.join(plan.closed)} are not reached",
+            flush=True,
+        )
+
     def sender(self) -> Send:
         """Return the sender of the requests: it trusts the authority of the trial alone."""
         return sender(self.platform)(self.folder / "ca.crt")
@@ -831,6 +920,7 @@ def main(environment: Mapping[str, str] | None = None) -> int:
             trial.prepare()
             trial.install(values)
             browser = trial.hold(ADMIN)
+            trial.hold_transport()
             trial.scale(values, browser, ADMIN, SCALED_TO)
             trial.hold_stateless(values, browser)
             trial.hold_restore_test(tag)

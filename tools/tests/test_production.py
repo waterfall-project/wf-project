@@ -875,7 +875,7 @@ def test_the_trial_starts_bootstraps_holds_and_removes_the_platform(
     fake = FakePlatform(realm_routes())
     assert production.main(GIVEN, docker.run, docker.read, platform_sender(fake)) == 0
     assert docker.verbs() == ["up", "run", "exec", "exec", "exec", "cp", "down"]
-    assert docker.ran[4][-3:] == ["python", "-c", transport.PROBE]
+    assert docker.ran[4][-4:] == transport.COMPOSE.command()
     assert docker.ran[0][:5] == ["docker", "compose", "--project-name", "trial-a3", "--file"]
     assert docker.ran[0][-4:] == ["up", "--detach", "--wait", "--quiet-pull"]
     assert docker.ran[-1][-2:] == ["down", "--volumes"]

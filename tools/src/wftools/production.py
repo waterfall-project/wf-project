@@ -55,7 +55,7 @@ from pathlib import Path
 from typing import cast
 from urllib.parse import urlencode, urljoin, urlsplit
 
-from wftools import REPOSITORY
+from wftools import REPOSITORY, transport
 from wftools.restoration_trial import (
     API_REACHED,
     Administrator,
@@ -68,7 +68,7 @@ from wftools.restoration_trial import (
     wanted,
 )
 from wftools.restoretest_trial import GRACE, Run, restore_test, scheduled_backup
-from wftools.transport import PROBE, SERVED, TransportError, check_clear_refused
+from wftools.transport import SERVED, TransportError, check_clear_refused
 
 COMPOSE = REPOSITORY / "deploy" / "compose"
 FILES = (COMPOSE / "compose.prod.yaml", COMPOSE / "compose.prod.local.yaml")
@@ -423,7 +423,7 @@ def liveness_command(compose: list[str]) -> list[str]:
 
 def transport_command(compose: list[str]) -> list[str]:
     """Return the command that tries every server in the clear, inside the container of the API."""
-    return [*compose, "exec", "-T", "api", "python", "-c", PROBE]
+    return [*compose, "exec", "-T", "api", *transport.COMPOSE.command()]
 
 
 def back_up_and_restore(
