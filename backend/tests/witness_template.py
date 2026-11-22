@@ -19,15 +19,24 @@ The loading holds an exclusive lock on ``build.lock`` (``flock``), handed to it 
 that starts it: a test that waits for the template takes a shared one, which it gets once the
 loading has ended, whether it succeeded or died, then reads its records, or what it said before
 it failed.
+
+The loading has a deadline, written when it starts (``started``): a test that waits for it past
+the deadline fails with what the loading said, the loading is ended by the system then
+(``SIGALRM``), and the process that started it kills it if it still runs when that process ends.
+Neither a test nor the end of pytest waits for a loading that froze: the part of the chain fails,
+a test named, rather than being cancelled by the deadline of its job.
 """
 
 import fcntl
 import json
+import math
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 import warnings
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -49,7 +58,7 @@ from waterfall.platform.settings import WitnessSettings
 from waterfall.witness.main import load_witness
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Generator, Sequence
 
     from sqlalchemy import Engine
 
@@ -66,6 +75,17 @@ _RECORDS = "records"
 _LOG = "loading.log"
 # The end of what the loading said, given with the failure of a test that waited for it.
 _TAIL = 4000
+# The seconds a loading may last. It took 134 to 290 seconds on a runner of the chain, loaded by
+# each of the four processes of a part at once (#4657), a runner up to twice as slow as another:
+# 420 seconds leave half of the longest again. Under the eight minutes of a test (``timeout``,
+# pyproject.toml), so that the test that waits fails with what the loading said, rather than by
+# its own timeout.
+LOADING_TIMEOUT = 420
+# The seconds the end of a run waits past the deadline, for the process that started the loading to
+# kill it, before it drops the template whatever still holds it.
+_GRACE = 60
+# The seconds between two tries of the lock of the loading.
+_POLL = 0.2
 
 
 @dataclass(frozen=True)
@@ -115,6 +135,10 @@ class Template:
         return url.render_as_string(hide_password=False)
 
 
+# The template of the run, as each process reads it (``pytest_configure``, conftest.py).
+TEMPLATE = pytest.StashKey[Template]()
+
+
 @contextmanager
 def _locked(path: Path, operation: int) -> Generator[None]:
     descriptor = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
@@ -129,54 +153,117 @@ def _server(address: str) -> Engine:
     return create_database_engine(address).execution_options(isolation_level="AUTOCOMMIT")
 
 
+@dataclass(frozen=True)
+class Loading:
+    """A loading this process started, and the hour (``time.time``) past which it is killed."""
+
+    process: subprocess.Popen[bytes]
+    deadline: float
+
+    def ended(self) -> int:
+        """Wait for the loading until its deadline, kill it if it still runs; give how it ended.
+
+        Killed, it releases the lock of the loading: the tests that wait for it, and the end of the
+        run, go on.
+        """
+        try:
+            return self.process.wait(timeout=max(0.0, self.deadline - time.time()))
+        except subprocess.TimeoutExpired:
+            self.process.kill()
+            return self.process.wait()
+
+
 # The loadings this process started, awaited at its end (``finished``).
-_STARTED_HERE: list[subprocess.Popen[bytes]] = []
+_STARTED_HERE: list[Loading] = []
 # The records of the loading, by the directory of the template, once it has ended.
 _RECORDS_READ: dict[Path, str] = {}
+# The command that loads the template, given its directory: this module.
+LOADER = (sys.executable, __file__)
 
 
-def start(template: Template) -> None:
+def start(
+    template: Template, loader: Sequence[str] = LOADER, timeout: float = LOADING_TIMEOUT
+) -> Loading | None:
     """Start the loading of the template, unless a process of the run has already started it.
 
-    The process that loads holds the exclusive lock of ``build.lock`` from before it starts: taken
-    here, then handed to it, it is released when it ends, however it ends.
+    ``loader`` is the command that loads, given the directory of the template after it; ``timeout``
+    the seconds it may last, its deadline written before it starts. The process that loads holds the
+    exclusive lock of ``build.lock`` from before it starts: taken here, then handed to it, it is
+    released when it ends, however it ends.
     """
     with _locked(template.directory / _START_LOCK, fcntl.LOCK_EX):
         started = template.directory / _STARTED
         if started.exists():
-            return
+            return None
+        deadline = time.time() + timeout
+        started.write_text(json.dumps({"deadline": deadline}), encoding="utf-8")
         descriptor = os.open(template.directory / _BUILD_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
         try:
             fcntl.flock(descriptor, fcntl.LOCK_EX)
             with (template.directory / _LOG).open("wb") as log:
-                loading = subprocess.Popen(
-                    [sys.executable, __file__, str(template.directory)],
+                process = subprocess.Popen(
+                    [*loader, str(template.directory)],
                     pass_fds=(descriptor,),
                     stdin=subprocess.DEVNULL,
                     stdout=log,
                     stderr=subprocess.STDOUT,
                 )
-            _STARTED_HERE.append(loading)
         finally:
             os.close(descriptor)
-        started.touch()
+        loading = Loading(process, deadline)
+        _STARTED_HERE.append(loading)
+        return loading
+
+
+def deadline_of(template: Template) -> float:
+    """Give the hour (``time.time``) past which the loading of the template, started, has ended."""
+    started = cast(
+        "dict[str, float]", json.loads((template.directory / _STARTED).read_text("utf-8"))
+    )
+    return started["deadline"]
+
+
+def _awaited(template: Template, until: float) -> bool:
+    """Wait for the end of the loading, until the hour ``until``; tell whether it has ended."""
+    descriptor = os.open(template.directory / _BUILD_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        while True:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_SH | fcntl.LOCK_NB)
+            except BlockingIOError:
+                if time.time() >= until:
+                    return False
+                time.sleep(_POLL)
+            else:
+                return True
+    finally:
+        os.close(descriptor)
+
+
+def _said(template: Template) -> str:
+    return (template.directory / _LOG).read_text("utf-8", errors="replace")[-_TAIL:]
 
 
 def built(template: Template) -> str:
     """Wait for the template, started if no process has started it yet; give the loading's records.
 
-    A loading that failed fails the test that waits for it, with what it said.
+    A loading that failed, or has not ended by its deadline, fails the test that waits for it, with
+    what it said.
     """
     held = _RECORDS_READ.get(template.directory)
     if held is not None:
         return held
     start(template)
-    with _locked(template.directory / _BUILD_LOCK, fcntl.LOCK_SH):
-        pass
+    if not _awaited(template, deadline_of(template)):
+        pytest.fail(
+            "the template of the witness was not loaded by its deadline; the loading said:\n"
+            + _said(template)
+        )
     records = template.directory / _RECORDS
     if not records.exists():
-        said = (template.directory / _LOG).read_text("utf-8", errors="replace")[-_TAIL:]
-        pytest.fail(f"the template of the witness was not loaded; the loading said:\n{said}")
+        pytest.fail(
+            f"the template of the witness was not loaded; the loading said:\n{_said(template)}"
+        )
     held = records.read_text("utf-8")
     _RECORDS_READ[template.directory] = held
     return held
@@ -204,16 +291,19 @@ def cloned(template: Template, address: str) -> Generator[str]:
 
 
 def finished() -> None:
-    """Wait for the loadings this process started: one ends with the run that needs it."""
+    """Wait for the loadings this process started, until their deadline: one ends with the run."""
     while _STARTED_HERE:
-        _STARTED_HERE.pop().wait()
+        _STARTED_HERE.pop().ended()
 
 
 def dropped(template: Template, address: str | None) -> None:
-    """Drop the template, its copies a test left, its roles and its directory, the loading ended."""
+    """Drop the template, its copies a test left, its roles and its directory, the loading ended.
+
+    A loading still running a while past its deadline — the process that started it gone without
+    killing it — is not waited for further: its connections go with the databases (``FORCE``).
+    """
     if address is not None and (template.directory / _STARTED).exists():
-        with _locked(template.directory / _BUILD_LOCK, fcntl.LOCK_SH):
-            pass
+        _awaited(template, deadline_of(template) + _GRACE)
         server = _server(address)
         with server.connect() as connection:
             found = connection.scalars(
@@ -285,18 +375,29 @@ def load(template: Template, address: str) -> str:
     return said
 
 
-def main() -> None:
-    """Load the template whose directory is given, and write its records there once it is loaded.
+def recorded(template: Template, address: str) -> None:
+    """Load the template, then write the records of its loading in its directory.
 
-    Warnings are errors, as in the tests (``filterwarnings``). The records are written whole or not
-    at all: a test that finds none says the loading failed.
+    The records are written whole or not at all: a test that finds none says the loading failed.
     """
-    warnings.simplefilter("error")
-    template = Template.read(Path(sys.argv[1]))
-    said = load(template, os.environ[TEST_DATABASE_VARIABLE])
+    said = load(template, address)
     written = template.directory / f"{_RECORDS}.part"
     written.write_text(said, encoding="utf-8")
     written.replace(template.directory / _RECORDS)
+
+
+def main() -> None:
+    """Load the template whose directory is given, and write its records there once it is loaded.
+
+    Warnings are errors, as in the tests (``filterwarnings``). Past its deadline the process is
+    ended by the system (``SIGALRM``, whose default action ends it wherever it stands), even when
+    the process that started it is gone.
+    """
+    warnings.simplefilter("error")
+    template = Template.read(Path(sys.argv[1]))
+    signal.signal(signal.SIGALRM, signal.SIG_DFL)
+    signal.alarm(max(1, math.ceil(deadline_of(template) - time.time())))
+    recorded(template, os.environ[TEST_DATABASE_VARIABLE])
 
 
 if __name__ == "__main__":

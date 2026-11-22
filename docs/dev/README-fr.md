@@ -4406,7 +4406,10 @@ Un test qui se fige échoue au bout de huit minutes, nommé, sa trace là où il
 (`pytest-timeout`, `timeout` de `backend/pyproject.toml`, par `SIGALRM`) : son processus passe au
 suivant, au lieu de figer sa part de la chaîne jusqu'à l'annulation du travail (#4653). Le plus
 long test qui ne se fige pas charge le témoin lui-même : 216 secondes au plus sur un runner
-(passage 44957647502), et un runner est jusqu'à deux fois plus lent qu'un autre.
+(passage 44957647502), et un runner est jusqu'à deux fois plus lent qu'un autre. Le chargement du
+modèle a son échéance, sept minutes (`LOADING_TIMEOUT`, pour 134 à 290 secondes mesurées), sous
+celle d'un test : passé ce délai, le test qui l'attend échoue avec ce que le chargement a dit, le
+chargement s'arrête et la fin de pytest ne l'attend plus.
 
 - **Dans la chaîne**, `back.yml` démarre PostgreSQL en service du travail et pose la variable.
 - **Sur un poste**, le Makefile s'en charge : `make test-back` et `make coverage-back` démarrent

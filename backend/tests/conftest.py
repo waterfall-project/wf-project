@@ -39,6 +39,7 @@ from support import (
     service_role,
 )
 from witness_template import (
+    TEMPLATE,
     TEST_DATABASE_VARIABLE,
     WORKER_INPUT,
     Template,
@@ -81,8 +82,6 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
 
-# The template of the witness of the run (``witness_template``), as each process reads it.
-TEMPLATE = pytest.StashKey[Template]()
 # The fixtures whose tests are given a copy of the template.
 ON_THE_WITNESS = ("witness", "witness_logged")
 
@@ -109,7 +108,11 @@ def pytest_configure_node(node: Node) -> None:
 
 
 def pytest_unconfigure(config: pytest.Config) -> None:
-    """Wait for the loading this process started; the run's own process drops the template."""
+    """Wait for the loading this process started, until its deadline; the run's process drops all.
+
+    Neither waits past the deadline of the loading (``witness_template``): pytest-timeout bounds
+    the tests, not this hook.
+    """
     finished()
     if not hasattr(config, "workerinput"):
         dropped(config.stash[TEMPLATE], os.environ.get(TEST_DATABASE_VARIABLE))

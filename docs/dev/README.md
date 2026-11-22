@@ -4367,7 +4367,10 @@ A test that hangs fails after eight minutes, named, its traceback where it stopp
 `timeout` of `backend/pyproject.toml`, by `SIGALRM`): its process goes on with the next, instead of
 freezing its part of the chain until the job is cancelled (#4653). The longest test that does not
 hang loads the witness itself: 216 seconds at most on a runner (run 44957647502), and a runner is up
-to twice as slow as another.
+to twice as slow as another. The loading of the template has its deadline, seven minutes
+(`LOADING_TIMEOUT`, for 134 to 290 seconds measured), under that of a test: past it, the test that
+waits for it fails with what the loading said, the loading stops, and the end of pytest no longer
+waits for it.
 
 - **In the chain**, `back.yml` starts PostgreSQL as a service of the job and sets the variable.
 - **On a workstation**, the Makefile does it: `make test-back` and `make coverage-back` start
