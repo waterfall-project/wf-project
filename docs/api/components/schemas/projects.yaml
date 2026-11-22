@@ -291,8 +291,8 @@ CommandCondition:
     hold for an actual cost extraction, which writes in no structure (WF-CRE-0010). A structure
     analysed in the last marked revision, the project having no current revision, remains
     unchanged when a revision opened since copies it, as long as nothing has been written in that
-    copy; the revision the application creates itself is not compared (WF-INTF-0090). `applyImport` names it in its 409 after `import_file_accepted`, the import refused
-    for good, and the task of the application fails on the same reason when the structure is
+    copy; the revision the application creates itself is not compared (WF-INTF-0090).
+    `applyImport` names it in its 409 after `import_file_accepted`, the import refused for good, and the task of the application fails on the same reason when the structure is
     written between the request and the execution; no command states it in advance, the
     comparison being made at the request and at the execution only (#4420).
     `pending_uploads_below_limit` is missing for the upload of an import file by an account that

@@ -45,8 +45,9 @@ from support import ContractClient
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.api.imports import DEPOSITORS
 from waterfall.core.access_roles.predefined import PROJECT_MANAGER
-from waterfall.core.exchanges.interface import purge, remove_purged, stored_before
+from waterfall.core.exchanges.interface import formats, purge, remove_purged, stored_before
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.database import utc_now
@@ -157,8 +158,20 @@ def test_a_deposit_refused_writes_nothing(
 
 
 @pytest.mark.requirement("WF-ADM-0020-A")
+def test_the_permissions_of_a_deposit_are_those_of_the_formats() -> None:
+    # The guard of the deposit lists the permission of each format of an import by hand: the one
+    # list may not drift from the others.
+    assert set(DEPOSITORS) == {form.permission for form in formats().values()}
+
+
+@pytest.mark.requirement("WF-ADM-0020-A")
+@pytest.mark.parametrize("permission", DEPOSITORS)
 def test_a_deposit_asks_for_one_of_the_permissions_of_an_import(
-    api: ContractClient, stage: Scene, realm: TestRealm, monkeypatch: pytest.MonkeyPatch
+    api: ContractClient,
+    stage: Scene,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+    permission: str,
 ) -> None:
     # Vérif : « Réciproquement, un rôle privé d'une permission empêche l'action correspondante,
     # quel que soit l'acteur auquel l'utilisateur ressemble. » An account that holds none of the
@@ -177,11 +190,14 @@ def test_a_deposit_asks_for_one_of_the_permissions_of_an_import(
     viewer = person(stage.database, realm, "all_projects_read", name="Lou")
     refused = upload(api, viewer, content)
     assert refusal(refused) == (403, "PERMISSION_MISSING", {"missing_permission": "planning.write"})
+    # The permission comes before the purpose: a backup deposited here is refused 403, not 422.
+    backup = upload(api, viewer, content, purpose="external_backup")
+    assert refusal(backup) == (403, "PERMISSION_MISSING", {"missing_permission": "planning.write"})
     with stage.database.transaction() as session:
         assert session.scalars(select(FileUpload)).all() == []
     assert written == []
-    estimator = person(stage.database, realm, "remaining.write", name="Sam")
-    kept = upload(api, estimator, content)
+    holder = person(stage.database, realm, permission, name="Sam")
+    kept = upload(api, holder, content)
     assert kept.status_code == 201, kept.text
     assert written == [f"uploads/{kept.json()['upload_id']}"]
 

@@ -12923,7 +12923,7 @@ engendrés par `wftools.mockimportfindings`, tenus par `tools/tests/test_mockimp
   demande et à l'exécution sous le verrou de la structure : une écriture arrivée entre les deux fait
   échouer la tâche d'application sur le même motif, l'import `refused`. Une structure analysée dans
   la révision marquée, le projet sans révision en cours, reste inchangée quand une révision ouverte
-  depuis la copie sans y écrire ; la révision que la tâche crée elle-même n'est pas comparée. Aucune
+  depuis la copie sans que l'on y ait écrit ; la révision que la tâche crée elle-même n'est pas comparée. Aucune
   commande ne l'annonce (`ImportDetail.available_commands`, `ImportCommand`) : la conception ne
   compare qu'à la demande et à l'exécution, et une lecture qui jugerait le compteur ajouterait une
   troisième comparaison qu'elle ne prévoit pas. Un compte rendu au compteur nul — analysé avant la
@@ -12987,6 +12987,12 @@ engendrés par `wftools.mockimportfindings`, tenus par `tools/tests/test_mockimp
   du fichier, puis dans l'ordre du format. Le refus garde `FILE_FORMAT_UNREADABLE`, le format et la
   version attendus nommés. Écartés : `labels` à un seul élément, qui dit les intitulés d'une
   correspondance et non l'en-tête d'un format ; un identifiant de colonne, que le format n'a pas.
+  Limite : le `oneOf` n'exige que les champs de sa forme, il n'interdit pas ceux de l'autre — une
+  valeur qui porte `column`, `labels` et `header` sans `sheet` le satisfait. Fermer chaque forme
+  (`additionalProperties: false`, ou `not` sur les champs de l'autre) demande de redéclarer les
+  propriétés dans la branche, ce que la règle `no-required-schema-properties-undefined` du lint
+  refuse autrement et que la génération des modèles dédoublerait ; le serveur n'en écrit jamais
+  deux à la fois, et le contrat le dit dans la description.
   Exemple : `import_remaining_column_missing`, l'onglet du poste de commande dont « Débours restant »
   a été renommé.
 - **Le compte rendu d'un reste à engager signale le montant qu'il écrit** (#4428, BCH-11 ; US-3230).

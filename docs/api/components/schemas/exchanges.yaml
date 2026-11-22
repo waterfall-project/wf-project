@@ -754,8 +754,8 @@ ImportSignal:
   required: [lineage_id, label, column, code, params]
   description: >-
     A value of the file kept, corrected or rounded, and signalled (`ImportReport.signals`): the
-    task or the line, the column that carries the value, and the reason, with the parameters it carries in a refusal
-    (`Problem.params`), so that entry and import are expressed in the same sentence
+    task or the line, the column that carries the value, and the reason, with the parameters it
+    carries in a refusal (`Problem.params`), so that entry and import are expressed in the same sentence
     (WF-ARC-0110). Thus `NON_WORKING_DAY`, a start or finish date of a manual task on a day
     without any working hour in its applicable calendar, kept as it is, the start and the finish
     at hour `0`: `params.date` the date of the file, `next_working_day` the next working day
