@@ -30,13 +30,13 @@
  * `restoration`).
  */
 import { createHash, randomBytes } from "node:crypto";
-import { readFile } from "node:fs/promises";
 
 import { type APIRequestContext, expect, type Locator, type Page, test } from "@playwright/test";
 
 import { WORKING } from "../bounds";
 import type { components } from "../../src/api/generated/schema";
 import { compileAnswered } from "../compile";
+import { downloaded } from "../download";
 import { untilHydrated } from "../hydration";
 import { markRevision } from "../in-progress";
 import { heldToTheContract } from "./contract";
@@ -219,7 +219,7 @@ async function untilRestored(page: Page): Promise<void> {
 test(
   "a backup taken, downloaded, deposited and restored: the screen says the restoration waiting, then its end, and the administrator signs in again [WF-ADM-0150-A] [WF-ADM-0160-A]",
   { tag: "@platform-wide" },
-  async ({ page, browser, request, playwright }, testInfo) => {
+  async ({ page, browser, request, playwright }) => {
     // A backup by the worker, its verification, then a restoration that replaces both databases
     // and applies the realm again: minutes, not seconds.
     test.setTimeout(600_000);
@@ -315,9 +315,8 @@ test(
     await newest.getByRole("link", { name: /^Télécharger la sauvegarde du / }).click();
     const download = await downloading;
     expect(download.suggestedFilename()).not.toBe("");
-    const archive = testInfo.outputPath(download.suggestedFilename());
-    await download.saveAs(archive);
-    expectWhole(await readFile(archive));
+    const archive = await downloaded(download);
+    expectWhole(archive);
 
     // The backup of the list restored once its identifier is typed, the confirmation naming its
     // date: first the restoration waiting, no one signed out yet. The deposit follows, restored in
@@ -366,7 +365,11 @@ test(
     const deposit = page.getByRole("region", {
       name: "Restaurer une sauvegarde d’une autre installation",
     });
-    await deposit.getByLabel("Archive de la sauvegarde").setInputFiles(archive);
+    await deposit.getByLabel("Archive de la sauvegarde").setInputFiles({
+      name: download.suggestedFilename(),
+      mimeType: "application/x-tar",
+      buffer: archive,
+    });
     await deposit.getByRole("button", { name: "Déposer" }).click();
     await expect(deposit.getByRole("button", { name: "Restaurer cette sauvegarde" })).toBeVisible({
       timeout: 60_000,
