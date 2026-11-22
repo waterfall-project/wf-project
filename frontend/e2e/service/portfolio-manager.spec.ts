@@ -18,6 +18,8 @@
  *
  * The account is made for the path, holds « Manager » alone, and writes nothing.
  */
+import { readFileSync } from "node:fs";
+
 import { expect, test } from "@playwright/test";
 
 import { WORKING } from "../bounds";
@@ -34,16 +36,26 @@ heldToTheContract();
 const ACCOUNT = "/account";
 /** The date of calculation of the witness, which the service reads the portfolio at. */
 const AS_OF = "as_of=2026-06-03";
-/** The seven views of the portfolio, each by its address and the title of its screen. */
+/** The seven views of the portfolio, each by its address, the title of its screen and the reading the witness expects of it. */
 const VIEWS = [
-  ["/portfolio/projects", "Portefeuille de projets"],
-  ["/portfolio/workload", "Plan de charge agrégé"],
-  ["/portfolio/performance", "Performance du portefeuille"],
-  ["/portfolio/cost-structure", "Structure des coûts du portefeuille"],
-  ["/portfolio/risks", "Risques du portefeuille"],
-  ["/portfolio/cost-curve", "Courbe en S du portefeuille"],
-  ["/portfolio/pilot-health", "Santé du pilotage"],
+  ["/portfolio/projects", "Portefeuille de projets", "portfolio_projects"],
+  ["/portfolio/workload", "Plan de charge agrégé", "portfolio_workload"],
+  ["/portfolio/performance", "Performance du portefeuille", "portfolio_performance"],
+  ["/portfolio/cost-structure", "Structure des coûts du portefeuille", "portfolio_cost_structure"],
+  ["/portfolio/risks", "Risques du portefeuille", "portfolio_risks"],
+  ["/portfolio/cost-curve", "Courbe en S du portefeuille", "portfolio_cost_curve"],
+  ["/portfolio/pilot-health", "Santé du pilotage", "pilot_health"],
 ] as const;
+
+/** What the witness expects of a view: the states of its reading and the count of projects of its perimeter. */
+function expectedReading(name: string): { states: string; count: number } {
+  const file = `${import.meta.dirname}/../../../fixtures/witness/portfolio/readings/${name}.json`;
+  const reading = JSON.parse(readFileSync(file, "utf8")) as {
+    query: { states: string };
+    value: { scope: { project_count: number } };
+  };
+  return { states: reading.query.states, count: reading.value.scope.project_count };
+}
 /** A project of the slice of the portfolio the witness holds, in progress, with its only contributor. */
 const OPENED = {
   id: "01926f3a-7c00-7000-8000-001100000001",
@@ -75,8 +87,9 @@ test("a holder of the role « Manager » alone opens each of the seven views of 
 
     // The seven views, each read by the service at the date of the witness: its title, and the
     // perimeter the server retained under it, which a view the server did not read does not show.
-    for (const [address, title] of VIEWS) {
-      await page.goto(`${address}?${AS_OF}`);
+    for (const [address, title, name] of VIEWS) {
+      const { states, count } = expectedReading(name);
+      await page.goto(`${address}?${AS_OF}&states=${encodeURIComponent(states)}`);
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(title, {
         timeout: WORKING,
       });
@@ -84,6 +97,11 @@ test("a holder of the role « Manager » alone opens each of the seven views of 
       await expect(page.getByRole("main")).toContainText("calculé au 3 juin 2026", {
         timeout: WORKING,
       });
+      // The perimeter holds the projects the witness reads in it: a view that read none says so.
+      await expect(page.getByRole("main")).toContainText(
+        new RegExp(`\\b${String(count)} projets · .*calculé au 3 juin 2026`),
+        { timeout: WORKING },
+      );
     }
 
     // From the list, the project of the slice: its row found by its code, opened from its label.
@@ -100,9 +118,12 @@ test("a holder of the role « Manager » alone opens each of the seven views of 
     await expect(page).toHaveURL((url) => url.pathname.startsWith(`/projects/${OPENED.id}`), {
       timeout: WORKING,
     });
-    // The project leads to the planning of its revision in progress, which names the project in
-    // its reading context.
-    await expect(page.getByText(OPENED.label).first()).toBeVisible({ timeout: WORKING });
+    // The project leads to its planning, whose sidebar names the project open, with its code.
+    await expect(
+      page
+        .getByRole("complementary", { name: "Barre latérale" })
+        .getByRole("button", { name: new RegExp(`${OPENED.label} ${OPENED.code}`) }),
+    ).toBeVisible({ timeout: WORKING });
 
     // The account is no contributor of that project: the service lists the project manager of the
     // witness alone, not it. Were it listed, opening the project would prove nothing (#4513).
