@@ -35,10 +35,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal
-from io import BytesIO
 from typing import TYPE_CHECKING, Any
-
-from openpyxl import load_workbook
 
 from waterfall.core.cost_settings.interface import (
     fold_labels,
@@ -46,7 +43,7 @@ from waterfall.core.cost_settings.interface import (
     read_folded_labels,
 )
 from waterfall.core.costs.tables import DOCUMENT_NUMBER_LENGTH, SUBPROJECT_CODE_LENGTH
-from waterfall.core.exchanges.interface import DAMAGES
+from waterfall.core.exchanges.interface import DAMAGES, bounded_rows, opened_workbook
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
@@ -93,18 +90,17 @@ def unreadable(params: Mapping[str, Any] | None = None) -> UnprocessableError:
 def sheet_rows(content: bytes, max_row: int | None = None) -> list[tuple[Any, ...]]:
     """Read the rows of the first tab of a workbook, in values, up to ``max_row`` if given.
 
-    In ``read_only`` mode the XML of a tab is parsed while iterating: both steps are guarded, and
-    any damage of the file, or a workbook without a tab, is ``FILE_FORMAT_UNREADABLE``.
+    The first tab alone is materialised, the only one an extraction has read (US-3190). In
+    ``read_only`` mode the XML of a tab is parsed while iterating: both steps are guarded, and any
+    damage of the file, an archive beyond the bounds of the opener, a first tab beyond its rows or
+    columns, or a workbook without a tab, is ``FILE_FORMAT_UNREADABLE``.
     """
     try:
-        workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
-        try:
+        with opened_workbook(content) as workbook:
             sheets = workbook.worksheets
             if not sheets:
                 raise unreadable()
-            return list(sheets[0].iter_rows(max_row=max_row, values_only=True))
-        finally:
-            workbook.close()
+            return bounded_rows(sheets[0].iter_rows(max_row=max_row, values_only=True))
     except DAMAGES as error:
         raise unreadable() from error
 

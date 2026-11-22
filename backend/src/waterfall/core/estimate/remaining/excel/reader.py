@@ -12,9 +12,10 @@ A number is read in a numeric cell and a number written as text is rejected; eac
 each rejection is named by its tab and its Excel row number (WF-INTF-0070, WF-INTF-0120,
 WF-INTF-0130).
 The reading of the cells is the estimate's (``waterfall.core.estimate.excel.reader``); the layout
-is the writer's (``layout``), so that the workbook is read where it is written. openpyxl reads, in
-``read_only`` mode and by values; nothing here touches a database or a session: the matching by
-lineage, the analysis and the application are US-1630/L3.
+is the writer's (``layout``), so that the workbook is read where it is written. The workbook is
+opened as the estimate's is, by the opener of the exchanges, and only the tabs the format reads are
+materialised, each within its bounds — « Paramètres » is not (US-3190). Nothing here touches a
+database or a session: the matching by lineage, the analysis and the application are US-1630/L3.
 """
 
 from dataclasses import dataclass
@@ -82,6 +83,8 @@ _READ_HEADERS = frozenset(_ALL_HEADERS)
 # A tab of lines is the one that carries both of these, on whichever row.
 _KEY_HEADERS = frozenset({TASK_HEADER, ROLE_OR_CATEGORY_HEADER})
 _NOT_LINE_SHEETS = frozenset(FIXED_TABS)
+# Of the fixed tabs, the reading reads « Synthèse » and « Tâches »; the others are not materialised.
+_UNREAD_SHEETS = _NOT_LINE_SHEETS - {SUMMARY, TASKS}
 
 
 @dataclass(frozen=True, slots=True)
@@ -245,10 +248,11 @@ def read_remaining_workbook(content: bytes) -> RemainingRead:
     """Read the workbook of a remaining to commit: its header, its review date, its tabs of lines.
 
     Raises ``FILE_FORMAT_UNREADABLE`` (``expected_format`` at ``remaining``, ``expected_version``)
-    for a file that is no workbook, whose XML is damaged, or whose first tab does not say the
-    format « Reste à engager » and a known version.
+    for a file that is no workbook, whose XML is damaged, beyond the bounds of the opener or with a
+    tab read beyond its rows or columns, or whose first tab does not say the format « Reste à
+    engager » and a known version.
     """
-    sheets = load_sheets(content, FORMAT_KIND, FORMAT_VERSION)
+    sheets = load_sheets(content, _UNREAD_SHEETS, FORMAT_KIND, FORMAT_VERSION)
     if not sheets:
         raise unreadable(FORMAT_KIND, FORMAT_VERSION)
     _check_header(sheets[0][1])

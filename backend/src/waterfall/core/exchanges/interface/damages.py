@@ -7,6 +7,8 @@ refusal of their format; a list of their own would drift from the other's (#2723
 the parent of ``ElementTree.ParseError`` and of lxml's ``XMLSyntaxError``; ``zlib.error`` and
 ``EOFError`` are a cut deflate stream, ``RuntimeError`` and ``NotImplementedError`` a member that
 zipfile cannot decode (encrypted, unknown compression): none of them is an ``OSError``.
+``WorkbookOutOfBoundsError`` is a workbook the opener refuses before openpyxl reads it, or a tab
+past the bounds (``workbooks``, US-3190): refused as a damaged one.
 """
 
 import zipfile
@@ -14,7 +16,10 @@ import zlib
 
 from openpyxl.utils.exceptions import InvalidFileException
 
+from waterfall.core.exchanges.interface.workbooks import WorkbookOutOfBoundsError
+
 DAMAGES: tuple[type[Exception], ...] = (
+    WorkbookOutOfBoundsError,
     zipfile.BadZipFile,
     zlib.error,
     EOFError,

@@ -388,8 +388,10 @@ def damaged(part: str) -> bytes:
 
 
 @pytest.mark.requirement("WF-INTF-0070-A")
-@pytest.mark.parametrize("part", ["xl/worksheets/sheet1.xml", "xl/workbook.xml"])
+@pytest.mark.parametrize("part", ["xl/worksheets/sheet3.xml", "xl/workbook.xml"])
 def test_a_workbook_whose_xml_is_damaged_is_refused_as_unreadable(part: str) -> None:
+    # The third tab, « 1.1 Centrale et logiciel », is a tab of lines, read whole; the first,
+    # « Présentation », is read in its two rows of header alone (US-3190).
     error = refusal(damaged(part))
 
     assert error.code == "FILE_FORMAT_UNREADABLE"
