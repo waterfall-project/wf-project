@@ -24,6 +24,7 @@ from waterfall.platform.settings import (
     SettingsError,
     load_api_settings,
     load_installation_settings,
+    load_worker_settings,
 )
 
 if TYPE_CHECKING:
@@ -84,6 +85,21 @@ def test_each_operating_parameter_is_read_from_its_variable(
         30, 7, 600, Decimal("0.9"), Decimal("0.1"), 120
     )
     assert load_installation_settings().avatar_max_bytes == 2 * 1024**2
+
+
+@pytest.mark.story("US-2850")
+def test_the_wait_of_a_task_of_an_unknown_kind_is_read_from_its_variable(
+    environment: pytest.MonkeyPatch,
+) -> None:
+    # Proper to US-2850: an hour when not given, the deployment's value when it is, and a value
+    # below one second stops the worker naming the variable.
+    name = "WATERFALL_UNKNOWN_KIND_WAIT_SECONDS"
+    assert load_worker_settings().unknown_kind_wait_seconds == 3600
+    environment.setenv(name, "7200")
+    assert load_worker_settings().unknown_kind_wait_seconds == 7200
+    environment.setenv(name, "0")
+    with pytest.raises(SettingsError, match=name):
+        load_worker_settings()
 
 
 @pytest.mark.story("US-2890")
