@@ -105,6 +105,11 @@ Issues ouvertes, reportées d'EP-08 le 2026-11-22 :
 - #4323 — front : l'avatar d'un compte n'est affiché nulle part hors de l'écran de l'avatar (bloqué
   par #4322, EP-38)
 
+Reporté par EP-13 le 2026-11-22 (décision de l'auteur) :
+
+- #4684 — front : aucune garde des 100 colonnes des commentaires ; une règle d'ESLint limitée aux
+  commentaires et un passage sur tout le front, avec #3479 et #3523
+
 ## Conception
 
 À écrire au cadrage.
