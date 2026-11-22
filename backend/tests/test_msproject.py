@@ -732,27 +732,44 @@ def test_a_lineage_is_found_by_the_field_when_its_alias_was_renamed() -> None:
     assert [task.lineage for task in tasks] == [DESIGN, None]
 
 
-@pytest.mark.requirement("WF-INTF-0040-A")
-@pytest.mark.parametrize(
-    ("alias", "declared"),
-    [("Waterfall.lineage", True), ("Mine", True), (None, False)],
-    ids=["alias", "renamed", "absent"],
-)
-def test_a_file_declares_the_lineages_by_the_alias_or_by_the_field(
-    alias: str | None, declared: bool
-) -> None:
-    # « Pas de repli par UID dans un fichier qui déclare le champ des lignées » : the field is
-    # told by its alias and by its identifier, as the lineages are read.
+def _declaring_file(alias: str | None, value: str | None) -> bytes:
     definition = (
         ""
         if alias is None
         else "<ExtendedAttributes><ExtendedAttribute><FieldID>188743731</FieldID>"
         f"<Alias>{alias}</Alias></ExtendedAttribute></ExtendedAttributes>"
     )
-    content = (
+    attribute = (
+        ""
+        if value is None
+        else f"<ExtendedAttribute><FieldID>188743731</FieldID><Value>{value}</Value>"
+        "</ExtendedAttribute>"
+    )
+    return (
         f'<Project xmlns="http://schemas.microsoft.com/project">{definition}'
-        "<Tasks><Task><UID>1</UID><OutlineLevel>1</OutlineLevel></Task></Tasks></Project>"
+        f"<Tasks><Task><UID>1</UID><OutlineLevel>1</OutlineLevel>{attribute}</Task></Tasks></Project>"
     ).encode()
+
+
+@pytest.mark.requirement("WF-INTF-0040-A")
+@pytest.mark.parametrize(
+    ("alias", "value", "declared"),
+    [
+        ("Waterfall.lineage", None, True),
+        ("Mine", str(DESIGN), True),
+        ("Lot", "Phase 1", False),
+        ("Lot", None, False),
+        (None, str(DESIGN), False),
+        (None, None, False),
+    ],
+    ids=["alias", "renamed", "text1-of-another-tool", "text1-empty", "no-definition", "absent"],
+)
+def test_a_file_declares_the_lineages_by_the_alias_or_by_a_field_holding_identifiers(
+    alias: str | None, value: str | None, declared: bool
+) -> None:
+    # « Pas de repli par UID dans un fichier qui déclare le champ des lignées » : Text1, which
+    # users alias for their own ends, declares it only if a task holds an identifier in it.
+    content = _declaring_file(alias, value)
 
     assert read_project(content).project.lineage_declared is declared
 

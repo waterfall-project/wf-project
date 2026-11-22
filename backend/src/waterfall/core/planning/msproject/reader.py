@@ -229,14 +229,39 @@ def _lineage_field(root: Tag) -> str | None:
 def _lineage_declared(root: Tag) -> bool:
     """Tell whether the file defines the field of the lineages, by its alias or by its identifier.
 
-    The identifier is read as ``_lineage`` reads it, so that an alias the user renamed in MS Project
-    does not make an export of Waterfall look like a file of another tool.
+    The alias is the export's own. The identifier alone is ``Text1``, which users alias for their
+    own ends: it declares the lineages only if a task carries an identifier in it, as ``_lineage``
+    reads it, so that a file of another tool aliasing ``Text1`` is not taken for an export.
     """
+    definitions = _every(root, "ExtendedAttributes", "ExtendedAttribute")
+    if any(_value(definition, "Alias") == LINEAGE_ALIAS for definition in definitions):
+        return True
+    if not any(_value(definition, "FieldID") == LINEAGE_FIELD_ID for definition in definitions):
+        return False
     return any(
-        _value(definition, "Alias") == LINEAGE_ALIAS
-        or _value(definition, "FieldID") == LINEAGE_FIELD_ID
-        for definition in _every(root, "ExtendedAttributes", "ExtendedAttribute")
+        _field_lineage(element, LINEAGE_FIELD_ID) is not None
+        for element in _users(root, "Tasks", "Task")
     )
+
+
+def _field_lineage(element: Tag, lineage_field: str | None) -> UUID | None:
+    """Return the identifier a task carries in the custom field of the lineages, if it does."""
+    for attribute in element.every("ExtendedAttribute"):
+        field_id = _value(attribute, "FieldID")
+        if field_id is not None and field_id in {lineage_field, LINEAGE_FIELD_ID}:
+            if (lineage := _uuid(_value(attribute, "Value"))) is not None:
+                return lineage
+    return None
+
+
+def _uuid(value: str | None) -> UUID | None:
+    """Return the identifier a text spells, or nothing."""
+    if value is None:
+        return None
+    try:
+        return UUID(value)
+    except ValueError:
+        return None
 
 
 def _lineage(element: Tag, lineage_field: str | None) -> UUID | None:
@@ -248,19 +273,7 @@ def _lineage(element: Tag, lineage_field: str | None) -> UUID | None:
     A value that is not an identifier, typed by hand in MS Project, is no lineage: the task is
     matched as one the file creates.
     """
-    values = [
-        _value(attribute, "Value")
-        for attribute in element.every("ExtendedAttribute")
-        if (field_id := _value(attribute, "FieldID")) is not None
-        and field_id in {lineage_field, LINEAGE_FIELD_ID}
-    ]
-    for value in [*values, _value(element, "GUID")]:
-        if value is not None:
-            try:
-                return UUID(value)
-            except ValueError:
-                continue
-    return None
+    return _field_lineage(element, lineage_field) or _uuid(_value(element, "GUID"))
 
 
 def _link(element: Tag) -> PredecessorLink:

@@ -178,3 +178,35 @@ def test_an_external_id_twice_in_the_structure_is_matched_by_the_first_task_only
         for each in analysed(api, stage, worker, reworked)["report"]["differences"]
     ]
     assert sorted(named) == [("removed", "B"), ("updated", "A revue")]
+
+
+@pytest.mark.requirement("WF-INTF-0040-A")
+def test_a_file_of_another_tool_aliasing_text1_is_matched_by_uid(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # [US-3170] Text1 is the field of the lineages, and users alias it for their own ends
+    # (« Lot »): with no identifier in it, the file is not an export of Waterfall, and its rows
+    # are matched by UID, not duplicated.
+    opened(api, stage)
+    imported(api, stage, worker, planning(task(1, "A"), task(2, "B")))
+
+    def field(value: str) -> str:
+        return (
+            f"<ExtendedAttribute><FieldID>188743731</FieldID><Value>{value}</Value>"
+            "</ExtendedAttribute>"
+        )
+
+    declared = (
+        "<ExtendedAttributes><ExtendedAttribute><FieldID>188743731</FieldID>"
+        "<Alias>Lot</Alias></ExtendedAttribute></ExtendedAttributes>"
+    )
+    reworked = planning(
+        task(1, "A revue", besides=field("Lot 1")),
+        task(2, "B", besides=field("Lot 2")),
+        besides=declared,
+    )
+    named = [
+        (each["change"], each["label"])
+        for each in analysed(api, stage, worker, reworked)["report"]["differences"]
+    ]
+    assert named == [("updated", "A revue")]
