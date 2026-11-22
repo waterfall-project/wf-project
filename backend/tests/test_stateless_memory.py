@@ -62,7 +62,7 @@ DECLARED = {
     "platform/installation.py:TIME_ZONE": "the time zone of the installation, read once from the "
     "database by the first request that needs it and kept: the bootstrap fixes it and nothing "
     "changes it. Its limit: a restoration replaces the database without restarting the processes "
-    "(#4088), so a process that has read the zone keeps it after the restoration of a backup of an "
+    "(#4695), so a process that has read the zone keeps it after the restoration of a backup of an "
     "installation in another time zone, until it restarts",
     "witness/revisions.py:_FILLERS": REGISTRY,
 }
