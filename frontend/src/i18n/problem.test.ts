@@ -297,6 +297,38 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("names the header a remaining to commit lacks, with its sheet, and the one an actual cost extraction lacks without [WF-INTF-0070-A]", () => {
+    const missing = fromExample("import_remaining_column_missing", {
+      code: "FILE_FORMAT_UNREADABLE",
+      params: {
+        expected_format: "remaining",
+        expected_version: "1",
+        missing_columns: [{ header: "Débours restant", sheet: "SP-CMD" }],
+      },
+    });
+    expect(say(missing, "en")).toContain(
+      "Required column missing from the file: \u201CDébours restant\u201D (sheet \u201CSP-CMD\u201D).",
+    );
+    expect(say(missing, "fr")).toContain(
+      "Colonne exigée absente du fichier\u00A0: \u00AB\u00A0Débours restant\u00A0\u00BB (onglet \u00AB\u00A0SP-CMD\u00A0\u00BB).",
+    );
+    const noSheet: ProblemText = {
+      code: "FILE_FORMAT_UNREADABLE",
+      params: { missing_columns: [{ header: "Quantité" }] },
+    };
+    expect(say(noSheet, "en")).toContain("missing from the file: \u201CQuantité\u201D.");
+  });
+
+  it("says the amount of the file and the amount written of a line rounded [WF-INTF-0120-A]", () => {
+    const rounded: ProblemText = {
+      code: "AMOUNT_ROUNDED",
+      params: { typed_amount: "1234.56", written_amount: "1230.00" },
+    };
+    expect(say(rounded, "en")).toContain("Amount in the file: 1,234.56; amount written: 1,230.00.");
+    expect(say(rounded, "fr")).toMatch(/montant écrit\s: 1\s230,00\./);
+    expect(say({ code: "AMOUNT_ROUNDED" }, "en")).not.toContain("Amount in the file");
+  });
+
   it("labels every column of the contract in both catalogues, so that none is dropped from a refusal unheard [WF-REF-0190-A]", () => {
     const columns = Object.keys(SOURCE_COLUMNS).sort();
     for (const locale of ["en", "fr"] as const) {

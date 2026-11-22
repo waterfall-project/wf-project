@@ -3215,6 +3215,7 @@
     "DUPLICATE_COLUMN_LABEL": "This column label is already in the mapping, regardless of case, accents or surrounding spaces: each one names a single column.",
     "DUPLICATE_COST_LINE": "This line shares its document and item, blank item included, with other lines of the file: all of them are rejected, none is preferred. Correct or remove the duplicates in the file.",
     "DUPLICATE_LINEAGE": "This line carries a line identifier (“ID ligne”) that other lines of the file carry too: all of them are rejected, none is preferred, and the line of the revision is left as it is. Remove or correct the copies in the file.",
+    "AMOUNT_ROUNDED": "The amount of this line is rounded: the import writes the unit disbursement to the cent, and the amount written differs from the one in the file.",
     "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
     "INTERNAL_ERROR": "Unexpected service error.",
     "ACCOUNT_DEACTIVATED": "This account is deactivated; contact an administrator.",
@@ -3259,6 +3260,7 @@
     "missing_columns": "{count, plural, one {Required column missing from the file} other {Required columns missing from the file}}: {columns}.",
     "missingColumn": "{column} ({count, plural, one {declared label} other {declared labels}}: {labels})",
     "declaredLabel": "“{label}”",
+    "missingHeader": "“{header}” (sheet “{sheet}”)",
     "work_package_task": "Task of the work package: {task}.",
     "order_item_tasks": "{count, plural, one {Task of the order item at issue} other {Tasks of the order items at issue}}: {tasks}.",
     "subproject": "Subproject that has received actual costs, which the line does not leave: “{label}”.",
@@ -3284,6 +3286,7 @@
     "missingRateYear": "a category in {year}",
     "risks": "{count, plural, one {Risk at issue} other {Risks at issue}}: {risks}.",
     "riskName": "“{label}”",
+    "amount_rounded": "Amount in the file: {typed}; amount written: {written}.",
     "conflicting_object": "Object changed since: “{label}”."
   },
   "permissions": {
@@ -3685,6 +3688,8 @@
       "import_file_accepted": "file accepted by the report",
       "import_not_applied": "import not applied",
       "import_calendar_gap": "calendar gap in the report",
+      "import_structure_unchanged": "structure unchanged since the analysis",
+      "pending_uploads_below_limit": "fewer than twenty pending imports for the account",
       "is_local_account": "account created in Waterfall",
       "is_active_account": "active account",
       "is_deactivated_account": "deactivated account",
@@ -4129,7 +4134,8 @@
     "ImportSignal": {
       "code": {
         "NON_WORKING_DAY": "Non-working day",
-        "SUMMARY_TASK_DERIVED": "Summary task derived from its tasks"
+        "SUMMARY_TASK_DERIVED": "Summary task derived from its tasks",
+        "AMOUNT_ROUNDED": "Amount rounded"
       }
     },
     "ActualCostSourceColumn": {

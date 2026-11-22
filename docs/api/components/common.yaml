@@ -225,7 +225,10 @@ Problem:
         the hours the task's calendar grants that day, never `0` — a day without a working hour
         is refused by its date, `NON_WORKING_DAY` (#1244, #1271) —, the day of a weekly
         backup, at most `7`, or the write counter of an object, at most `2147483647`, in the
-        body as `/lock_version` or as a parameter as `/query/lock_version`, #2232), `component` (a `PlatformComponent`, WF-EXP-0040),
+        body as `/lock_version` or as a parameter as `/query/lock_version`, #2232; and, in
+        `params`, the twenty uploads for an import an account keeps pending, `20`, when
+        `missing_condition` names `pending_uploads_below_limit`, `uploadFile`, WF-DAT-0120;
+        #4423), `component` (a `PlatformComponent`, WF-EXP-0040),
         `expected_format` (an `ExchangeKind`) and `expected_version` (a string) for an import
         file whose format or version is not recognised (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070)
         — absent for an uploaded backup whose archive cannot be read (`uploadFile`,
@@ -234,7 +237,10 @@ Problem:
         extraction that lacks a required column (`FILE_FORMAT_UNREADABLE`, `openImport`,
         WF-REF-0190): each required column that the file does not carry under any of its labels,
         in the order of the mapping, by its identifier (`column`, an `ActualCostSourceColumn`)
-        and the labels the mapping declares for it (`labels`); `columns` when
+        and the labels the mapping declares for it (`labels`) — and for an estimate or a remaining
+        to commit one of whose sheets of lines lacks a column it reads, each such column by its
+        header as the format writes it and its sheet (`header`, `sheet`), sheet by sheet in the
+        order of the file, then in the order of the format (WF-INTF-0070; #4421) —; `columns` when
         `missing_condition` names `actual_cost_mapping_complete` (`STATE_FORBIDS_OPERATION`,
         `openImport`, WF-REF-0190): the required columns of the mapping that have no label, each
         by its identifier (`ActualCostSourceColumn`), in the order of the mapping;
@@ -421,7 +427,10 @@ Problem:
         `label`, the label of a task that several tasks carry, with `tasks` those that carry it
         (`AMBIGUOUS_TASK_LABEL`, `ImportRejection.params`, annex B); `start` and `finish`, the
         dates that an MS Project planning gives to a summary task in manual mode, imported in
-        automatic mode (`SUMMARY_TASK_DERIVED`, `ImportSignal.params`, WF-INTF-0040).
+        automatic mode (`SUMMARY_TASK_DERIVED`, `ImportSignal.params`, WF-INTF-0040);
+        `typed_amount` and `written_amount`, the amount a line of an imported remaining to commit
+        carries in the file and the amount its application writes, as strings (`Money`), when they
+        differ (`AMOUNT_ROUNDED`, `ImportSignal.params`, WF-INTF-0120; #4428).
     fields:
       type: array
       description: >-
@@ -452,8 +461,9 @@ StateEnumeration:
 ErrorCode:
   type: string
   description: >-
-    Catalogue of error codes: every refusal the API can raise, and every
-    reason for rejecting a pasted or imported line, has its code there, which the front renders
+    Catalogue of error codes: every refusal the API can raise, every
+    reason for rejecting a pasted or imported line, and every signal of an import report
+    (`ImportSignal`), has its code there, which the front renders
     as a sentence through its own catalogue of texts (WF-ARC-0110). A new code is
     a modification of the contract; the front meets none that it cannot
     render. The parameters a code carries are named by `Problem.params`.
@@ -811,6 +821,12 @@ ErrorCode:
     # revision that the lineage names is left as it is; `params.lines` names the tab and the row of
     # the others.
     - DUPLICATE_LINEAGE
+    # A signal, never a refusal: a line other than labour of an imported remaining to commit
+    # whose amount the application writes — its unit disbursement rounded to the cent, its
+    # quantity and the inflation coefficient of its task kept — is not the amount the file
+    # carries (`ImportSignal`, column `unit_disbursement`, WF-INTF-0120; #4428):
+    # `params.typed_amount` the amount of the file, `params.written_amount` the amount written.
+    - AMOUNT_ROUNDED
     # 5xx — component unavailable, `params.component` (WF-EXP-0040, 503 `ServiceUnavailable`), or
     # unexpected error, traced by its `correlation_id` (WF-OBS-0020, 500 `InternalError`, which
     # every operation declares; J-07, US-0702/L1).
@@ -954,7 +970,9 @@ ProblemParams:
       description: >-
         The required columns that an actual cost extraction does not carry under any of their
         labels, in the order of the mapping (`FILE_FORMAT_UNREADABLE`, `openImport`,
-        WF-REF-0190).
+        WF-REF-0190); or the columns read that a sheet of lines of an estimate or of a remaining
+        to commit lacks, each with its sheet, sheet by sheet in the order of the file, then in
+        the order of the format (WF-INTF-0070; #4421).
       items: { $ref: '#/ProblemMissingColumn' }
   dependentRequired:
     state: [state_enum]
@@ -1047,15 +1065,35 @@ ProblemSubproject:
 
 ProblemMissingColumn:
   type: object
-  required: [column, labels]
+  oneOf:
+    - required: [column, labels]
+    - required: [header, sheet]
   description: >-
-    A required column that an actual cost extraction does not carry, with the labels that the
-    mapping declares for it (`ProblemParams.missing_columns`).
+    A column a file lacks (`ProblemParams.missing_columns`): a required column that an actual
+    cost extraction does not carry, by its identifier and the labels that the mapping declares
+    for it (`column`, `labels`), without a sheet, an extraction being read as one table; or a column read
+    that a sheet of lines of an estimate or of a remaining to commit lacks, by its header as the
+    format writes it (annex B) and its sheet (`header`, `sheet`) — the one or the other, never
+    both (WF-INTF-0070, WF-REF-0190; #4421).
   properties:
-    column: { $ref: schemas/reference.yaml#/ActualCostSourceColumn }
+    column:
+      allOf: [{ $ref: schemas/reference.yaml#/ActualCostSourceColumn }]
+      description: The required column of an actual cost extraction, by its identifier.
     labels:
       type: array
+      description: The labels that the mapping declares for that column.
       items: { type: string }
+    header:
+      type: string
+      description: >-
+        The header of the column of an estimate or of a remaining to commit, as the format
+        writes it — « ID ligne », « Quantité », « Heures », « Débours unitaire », « Jours
+        restants », « Débours restant »: a header renamed in the file is a missing column.
+    sheet:
+      type: string
+      description: >-
+        The sheet of the estimate or of the remaining to commit that lacks the column, as the
+        file names it; absent for an actual cost extraction.
 
 SortOrder:
   type: string

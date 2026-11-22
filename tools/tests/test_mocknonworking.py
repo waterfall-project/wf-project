@@ -182,10 +182,12 @@ def test_a_milestone_on_a_day_without_hours_is_signalled_once_per_column() -> No
 
 
 def test_the_contract_holds_the_code_of_a_signal_to_the_signals_there_are() -> None:
-    # The day without hours of work, and the summary manual in the file (I-04, US-0701/L7).
+    # The day without hours of work, and the summary manual in the file (I-04, US-0701/L7); and
+    # the amount a remaining to commit writes, rounded by its unit disbursement (US-3230, #4428).
     text = (REPOSITORY / "docs/api/components/schemas/exchanges.yaml").read_text(encoding="utf-8")
     code = yaml.safe_load(text)["ImportSignal"]["properties"]["code"]
-    assert {"enum": [mocknonworking.CODE, "SUMMARY_TASK_DERIVED"]} in code["allOf"]
+    signals = [mocknonworking.CODE, "SUMMARY_TASK_DERIVED", "AMOUNT_ROUNDED"]
+    assert {"enum": signals} in code["allOf"]
     assert {"$ref": "../common.yaml#/ErrorCode"} in code["allOf"]
 
 

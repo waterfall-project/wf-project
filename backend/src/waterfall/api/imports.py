@@ -46,7 +46,7 @@ from waterfall.api.contract.models import (
     ImportRequest,
     PaginationMeta,
 )
-from waterfall.api.evaluation import Acting, RequiresProject
+from waterfall.api.evaluation import Acting, Requires, RequiresProject
 from waterfall.api.queries import Offset
 from waterfall.api.tasks import task_ref
 from waterfall.core.access_roles.interface import Actor, require_project
@@ -97,6 +97,10 @@ IMPORT_PATH = f"{IMPORTS}/{{import_id}}"
 # The project the path names, visible to the caller; the kind of its imports is judged by the
 # exchanges.
 VISIBLE = [Depends(RequiresProject())]
+# The permissions of the four kinds of an import, any of which opens the deposit of a file: a
+# deposit writes to the storage, which keeps the backups too, and an account that may import nothing
+# has nothing to deposit (WF-ADM-0020; #4423). The refusal names the first.
+DEPOSITORS = ("planning.write", "estimate.write", "remaining.write", "actual_costs.write")
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,15 +154,22 @@ async def sent_file(request: Request) -> Sent:
         raise BadRequestError(MALFORMED_REQUEST) from None
 
 
-@router.post("/file-uploads", operation_id="uploadFile", status_code=201)
+@router.post(
+    "/file-uploads",
+    operation_id="uploadFile",
+    status_code=201,
+    dependencies=[Depends(Requires(one_of=DEPOSITORS))],
+)
 def post_file_upload(
     account: Caller, sent: Annotated[Sent, Depends(sent_file)], services: ServicesOf
 ) -> FileUpload:
     """Deposit a file for an import, in one piece, for twenty-four hours (WF-DAT-0120).
 
-    Refused before anything is written: a backup, deposited by parts (422 ``/purpose``), a file
-    beyond 10 MiB (413), an empty one or one without a name (422 ``/file``). The file is written to
-    the storage, then its deposit recorded: a deposit is recorded once its file is there.
+    Asked by an account that holds one of the permissions of an import at least (403 otherwise,
+    the first named). Refused before anything is written: a backup, deposited by parts (422
+    ``/purpose``), a file beyond 10 MiB (413), an empty one or one without a name (422 ``/file``).
+    The file is written to the storage, then its deposit recorded: a deposit is recorded once its
+    file is there.
     """
     judge_deposit(sent.purpose, sent.filename, len(sent.content))
     filename = sent.filename or ""
