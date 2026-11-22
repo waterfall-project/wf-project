@@ -100,6 +100,15 @@ jusque-là ; une issue par ligne, ouverte le 2026-11-21 :
 Constats de la même revue joints à une issue ci-dessus : BPR-03 (la création d'une révision au
 changement d'année), à #3983 ; BPR-07 (le code d'un projet En cours), à #3989.
 
+Reportées d'EP-11 le 2026-11-21 au soir (décision de l'utilisateur, « Reprise du 2026-11-21
+soir » du fichier d'EP-11), à rattacher à un lot :
+
+- #4372 — back : core/portfolio/aggregation/periods.py récrit le calendrier des mois des
+  indicateurs ; porté par US-2780/L4 #4494 d'EP-11, retiré
+- #4373 — back : trois calculs écrits deux fois dans le noyau, et des arrondis de montant hors de
+  round_to_cent ; porté par US-2780/L4 #4494 d'EP-11, retiré, avec sa décision du 2026-11-21 (un
+  test d'abord dit si l'arrondi change une valeur réelle)
+
 ## Conception
 
 À écrire au cadrage.
